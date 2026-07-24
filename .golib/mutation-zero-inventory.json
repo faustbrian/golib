@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "module_directory": "pkg/authorization",
+      "package_directory": "authhttp",
+      "source_digest": "6730ca209cf145cf806c79c8eda4ddd6c46627c41ff80b5012d7ec59b6003e19",
+      "gremlins_version": "v0.6.0",
+      "reason": "The compatibility package contains aliases and direct delegations only; the complete enabled Gremlins operator set discovers no viable transformations."
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "package_directory": "specification",
+      "source_digest": "0f4adad7c6a3c7868ba6d8c952bc840ba576d2249a4de2c8bded08ef2173d5ae",
+      "gremlins_version": "v0.6.0",
+      "reason": "The package embeds a pinned standards artifact and returns it directly; the complete enabled Gremlins operator set discovers no viable transformations."
+    },
+    {
+      "module_directory": "pkg/international",
+      "package_directory": "internationalwire",
+      "source_digest": "ed65f3a611d6b376c351039fd29a72b060cc27e2896c304fe051e58309d81a1b",
+      "gremlins_version": "v0.6.0",
+      "reason": "The package dispatches through switch cases and direct codec calls, which the complete enabled Gremlins operator set cannot transform; exhaustive format tests remain mandatory."
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "package_directory": "openinghourswire",
+      "source_digest": "8461b96b9a4769fd7bef3c70c0432e5f2b27853704eb360dbc04e133b5e8ab87",
+      "gremlins_version": "v0.6.0",
+      "reason": "The stateless codec directly delegates canonical encoding and strict parsing; the complete enabled Gremlins operator set discovers no viable transformations."
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "package_directory": "ui",
+      "source_digest": "0d05922ea78b21749e36422f283ca1e792a177ba18dfdb5d489717b155e05631",
+      "gremlins_version": "v0.6.0",
+      "reason": "The embedded static handler consists of direct security-header and file-server calls; the complete enabled Gremlins operator set discovers no viable transformations, so response and header tests remain mandatory."
+    },
+    {
+      "module_directory": "pkg/rule-engine",
+      "package_directory": "jsonast",
+      "source_digest": "81f8d34ecb56cb337262067bc077fa5b948a483f99608e305ffe3264c59a2373",
+      "gremlins_version": "v0.6.0",
+      "reason": "The bounded JSON facade consists only of direct parse and marshal delegations; the complete enabled Gremlins operator set discovers no viable transformations."
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "package_directory": "lease",
+      "source_digest": "afc590a36376f1d4f37e3ab07f3f831554f0dbd424bce76be63a973554648bd9",
+      "gremlins_version": "v0.6.0",
+      "reason": "The package is contracts and data declarations plus a direct negated time comparison; the complete enabled Gremlins operator set discovers no viable transformations, so expiry boundary tests remain mandatory."
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "package_directory": "instrumentation/gohttpclient",
+      "source_digest": "0c37056fd145f64c9bc0df74f19462a3c23f4ab189d260408439ffb0b4c74aa4",
+      "gremlins_version": "v0.6.0",
+      "reason": "The integration bridge exposes aliases and directly delegates transport construction; the complete enabled Gremlins operator set discovers no viable transformations."
+    },
+    {
+      "module_directory": "pkg/validation",
+      "package_directory": "validationconfig",
+      "source_digest": "d82aac23d940f56f04d6c07c3a7e9c8bb1cc7662187d9dd85d25b06b58d362a8",
+      "gremlins_version": "v0.6.0",
+      "reason": "The package only constructs a generic value and delegates validation; the complete enabled Gremlins operator set discovers no viable transformations."
+    }
+  ]
+}

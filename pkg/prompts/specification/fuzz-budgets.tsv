@@ -1,0 +1,16 @@
+package	target	iterations
+.	FuzzSanitizeNeutralizesTerminalControls	1000
+.	FuzzPlainRenderingIsDeterministic	1000
+.	FuzzHyperlinkNeverInjectsTerminalControls	1000
+.	FuzzSearchOrderingIsDeterministic	1000
+.	FuzzInteractiveSecretNeverRendersInput	1000
+.	FuzzInteractiveSecretBytesNeverRendersInput	1000
+.	FuzzInteractiveNormalizedEventSequence	1000
+.	FuzzDecoderBoundsArbitraryBytes	1000
+.	FuzzInteractiveSelectionPaginationMatchesModel	1000
+.	FuzzFormNavigationAndVisibilityMatchesModel	1000
+.	FuzzDynamicOptionGenerationsMatchModel	1000
+.	FuzzProgressLifecycleMatchesModel	1000
+.	FuzzLineEditorMatchesReferenceModel	1000
+.	FuzzSelectionFilterAndStateMatchesReferenceModel	1000
+.	FuzzSecretEntryFailureNeverDiscloses	1000

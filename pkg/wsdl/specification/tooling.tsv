@@ -1,0 +1,4 @@
+id	version	license	sha256	bytes	url
+apache-woden-core	1.0M10	Apache-2.0	71ab01b4a4557e18c9c354546283bff1099121d62e64088961b368b290e17309	374014	https://repo1.maven.org/maven2/org/apache/woden/woden-core/1.0M10/woden-core-1.0M10.jar
+apache-xmlschema-core	2.2.1	Apache-2.0	a2c7a43319c213eea338ac0d84cc1aa1dc37cd458886d618703e8bd91bb51993	171989	https://repo1.maven.org/maven2/org/apache/ws/xmlschema/xmlschema-core/2.2.1/xmlschema-core-2.2.1.jar
+apache-commons-logging	1.1.1	Apache-2.0	ce6f913cad1f0db3aad70186d65c5bc7ffcc9a99e3fe8e0b137312819f7c362f	60686	https://repo1.maven.org/maven2/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar

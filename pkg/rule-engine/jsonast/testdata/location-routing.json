@@ -1,0 +1,38 @@
+{
+  "version": "1",
+  "id": "location-routing",
+  "namespace": "location",
+  "strategy": "collect_all",
+  "rules": [
+    {
+      "id": "finland-express",
+      "namespace": "shipment",
+      "priority": 100,
+      "tags": ["express", "routing"],
+      "when": {
+        "kind": "all",
+        "children": [
+          {
+            "kind": "compare",
+            "operator": "equal",
+            "left": {"kind": "variable", "path": ["shipment", "country"]},
+            "right": {"kind": "literal", "value": {"type": "string", "string": "FI"}}
+          },
+          {
+            "kind": "compare",
+            "operator": "greater_or_equal",
+            "left": {"kind": "variable", "path": ["shipment", "weight_grams"]},
+            "right": {"kind": "literal", "value": {"type": "int", "int": 1000}}
+          }
+        ]
+      },
+      "derive": [
+        {
+          "path": ["derived", "service"],
+          "owner": "environment",
+          "value": {"type": "string", "string": "express"}
+        }
+      ]
+    }
+  ]
+}

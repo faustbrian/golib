@@ -1,0 +1,7 @@
+version: 1
+rules:
+  lifecycle/no-init:
+    status: blocking
+    promotion:
+      version: 0.1.0
+      evidence: coverage fixture

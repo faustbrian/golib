@@ -1,0 +1,14 @@
+json-schema pre-v1 benchmark baseline
+captured: 2026-07-19
+go: go1.26.5
+goos: darwin
+goarch: arm64
+cpu: Apple M4 Max
+command: go test -run '^$' -bench . -benchmem -benchtime=100ms ./...
+
+BenchmarkCompile-16                                  4742       25283 ns/op      17040 B/op       276 allocs/op
+BenchmarkValidate-16                                61932        1940 ns/op      19.59 MB/s        2504 B/op        63 allocs/op
+BenchmarkValidateReference-16                     129926       905.4 ns/op                         1648 B/op        28 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_10-16    21223        5632 ns/op       3.73 MB/s        6104 B/op       171 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_100-16     300      397970 ns/op       0.73 MB/s      347083 B/op     11596 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_500-16      12     9756319 ns/op       0.19 MB/s     8291558 B/op    277959 allocs/op

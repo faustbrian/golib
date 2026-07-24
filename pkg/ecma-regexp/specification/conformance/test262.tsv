@@ -1,0 +1,8 @@
+scope	total	executed	skipped	pending	evidence
+language/literals/regexp negative parse	186	167	19	0	test262_syntax_test.go
+language/literals/regexp positive syntax	52	52	0	0	test262_syntax_test.go
+language/literals/regexp matcher semantics	52	12	40	0	test262_semantics_test.go; skipped files make no matcher call
+built-ins/RegExp negative pattern parse	192	192	0	0	test262_semantics_test.go
+built-ins/RegExp generated class/property data	443	443	0	0	test262_generated_test.go
+built-ins/RegExp selected matcher features	554	494	60	0	test262_semantics_test.go; skipped files make no matcher call
+built-ins/RegExp JavaScript object API	679	0	679	0	out of scope: constructor/prototype/species/escape object behavior

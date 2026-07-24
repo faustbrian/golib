@@ -1,0 +1,37 @@
+{
+  "format": "authorization.policy/v1",
+  "revision": 1,
+  "algorithm": "deny-overrides",
+  "policies": [
+    {
+      "id": "tenant-rbac",
+      "revision": 1,
+      "model": "rbac",
+      "document": {
+        "version": 1,
+        "roles": [
+          {"id": "reader", "tenant": "tenant-1"}
+        ],
+        "permissions": [
+          {
+            "id": "documents-read",
+            "role_id": "reader",
+            "tenant": "tenant-1",
+            "action": "document.read",
+            "resource_type": "document",
+            "effect": "allow"
+          }
+        ],
+        "assignments": [
+          {
+            "id": "alice-reader",
+            "subject_kind": "user",
+            "subject_id": "alice",
+            "role_id": "reader",
+            "tenant": "tenant-1"
+          }
+        ]
+      }
+    }
+  ]
+}

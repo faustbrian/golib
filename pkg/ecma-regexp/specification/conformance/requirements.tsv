@@ -1,0 +1,14 @@
+id	source	clause	requirement	evidence	status
+REGEXP-GRAMMAR	ecma262-2025	22.2.1	Parse the edition's complete pattern grammar.	syntax_test.go; annexb_test.go; unicode_sets_test.go; named_identifier_test.go; test262_syntax_test.go; test262_semantics_test.go	implemented
+REGEXP-FLAGS	ecma262-2025	22.2.3	Recognize only d g i m s u v y and reject duplicate or conflicting flags.	edition_test.go	implemented
+REGEXP-MATCHER	ecma262-2025	22.2.2	Execute RegExp matching semantics without an embedded JavaScript runtime.	matcher_test.go; grammar_match_test.go; lookaround_test.go; differential_test.go; test262_semantics_test.go; test262_generated_test.go	implemented
+REGEXP-INDICES	ecma262-2025	22.2.7	Preserve ECMAScript UTF-16 indices and document byte and rune mappings.	matcher_test.go; utf16_test.go; docs/api.md	implemented
+REGEXP-REPLACE	ecma262-2025	22.2.7.2	Implement replacement substitution semantics and bounded output.	operations_test.go; docs/replacement.md	implemented
+JSONSCHEMA-REGEX	json-schema-2020-12	6.3.3	Provide ECMA-262-compatible pattern matching and portability guidance.	jsonschema.go; jsonschema_test.go; docs/json-schema.md	implemented
+SAFETY-LIMITS	project	GOAL.md	Enforce finite parse and execution resource limits with typed errors.	syntax_test.go; matcher_test.go; operations_test.go; jsonschema_test.go; docs/security.md	implemented
+SAFETY-HOSTILE	project	hardening-goal	Bound catastrophic patterns, zero-width loops, huge captures, replacements, nested assertions, Unicode sets, and malformed UTF-8.	hardening_test.go	implemented
+SAFETY-CONCURRENCY	project	hardening-goal	Race immutable programs and caller-owned synchronized caches.	hardening_test.go; make race	implemented
+SAFETY-LEAKS	project	hardening-goal	Detect goroutine and material retained-buffer leaks across repeated budget failures.	hardening_test.go; make leak; scripts/check-safety.sh	implemented
+INTEROP-DIFFERENTIAL	project	hardening-goal	Differential-test matching and captures against at least two independent JavaScript engine families.	differential_test.go; specification/conformance/differential.tsv	implemented
+QUALITY-FUZZ-MUTATION	project	hardening-goal	Fuzz every public execution stage and mutation-test grammar and matcher decisions.	fuzz_test.go; scripts/check-fuzz.sh; scripts/check-mutation.sh	implemented
+TEST262-ACCOUNTING	project	hardening-goal	Reconcile every pinned RegExp case, skip, feature tag, proposal-stage feature, erratum, and supported-edition difference.	test262_syntax_test.go; test262_semantics_test.go; specification/conformance/test262.tsv; specification/conformance/features.tsv; specification/conformance/errata.tsv	implemented

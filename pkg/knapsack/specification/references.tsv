@@ -1,0 +1,4 @@
+name	revision	license	source	review_status	semantic_scope
+dvdoug/BoxPacker	4fa822e71109095212a499572822c07bdb7228eb	MIT	https://github.com/dvdoug/BoxPacker/tree/4.2.0	reviewed-2026-07-21	e-commerce capability inventory
+jcoruiz/gopackx	5e316b83fd9ddf38eb665106234219a86c67f6a1	MIT	https://github.com/jcoruiz/gopackx/tree/v0.2.1	reviewed-2026-07-21	variable boxes and physical constraints
+gedex/bp3d	0ba3dcda7ab334c19b0979b1cf1fa05e09f33bc7	MIT	https://github.com/gedex/bp3d/tree/0ba3dcda7ab334c19b0979b1cf1fa05e09f33bc7	reviewed-2026-07-21	legacy Go heuristic common subset

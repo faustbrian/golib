@@ -1,0 +1,10 @@
+description: Immutable localized values keyed by canonical BCP 47 language tags
+topics:
+  - go
+  - golang
+  - localization
+  - bcp47
+  - internationalization
+  - immutable
+  - jsonb
+  - postgresql

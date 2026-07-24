@@ -1,0 +1,843 @@
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware
+package middleware // import "github.com/faustbrian/golib/pkg/http-middleware"
+
+Package middleware composes explicit net/http middleware without a registry.
+
+Middleware are listed in request execution order. Responses unwind through that
+list in reverse order.
+
+CONSTANTS
+
+const MaxChainDepth = 256
+    MaxChainDepth bounds composition work and nested handler depth.
+
+
+VARIABLES
+
+var (
+	// ErrNilHandler identifies a nil terminal handler.
+	ErrNilHandler = errors.New("middleware: nil handler")
+	// ErrNilMiddleware identifies a nil middleware function.
+	ErrNilMiddleware = errors.New("middleware: nil middleware")
+	// ErrNilPredicate identifies a nil conditional predicate.
+	ErrNilPredicate = errors.New("middleware: nil predicate")
+	// ErrInvalidName identifies an empty or unsafe descriptor name.
+	ErrInvalidName = errors.New("middleware: invalid name")
+	// ErrDuplicateName identifies repeated non-empty descriptor names.
+	ErrDuplicateName = errors.New("middleware: duplicate name")
+	// ErrChainTooDeep identifies a chain above the fixed construction bound.
+	ErrChainTooDeep = errors.New("middleware: chain too deep")
+	// ErrInvalidOrder identifies a violated named ordering requirement.
+	ErrInvalidOrder = errors.New("middleware: invalid order")
+)
+
+TYPES
+
+type Chain struct {
+	// Has unexported fields.
+}
+    Chain is an immutable ordered sequence of middleware descriptors.
+
+func Described(descriptors ...Descriptor) (Chain, error)
+    Described constructs a chain and rejects duplicate non-empty names.
+
+func New(middleware ...Middleware) (Chain, error)
+    New constructs a chain from unnamed middleware.
+
+func (c Chain) Append(descriptor Descriptor) Chain
+    Append returns a new chain with descriptor last.
+
+func (c Chain) Concat(suffix Chain) (Chain, error)
+    Concat returns a validated chain containing c followed by suffix.
+
+func (c Chain) Descriptors() []Descriptor
+    Descriptors returns an independent snapshot in request execution order.
+
+func (c Chain) Handler(terminal http.Handler) (http.Handler, error)
+    Handler resolves the chain around terminal without changing the chain.
+
+func (c Chain) Prepend(descriptor Descriptor) Chain
+    Prepend returns a new chain with descriptor first. Invalid input is retained
+    for validation by Concat or Handler construction through Described.
+
+type ConstructionError struct {
+	Op    string
+	Index int
+	Name  string
+	Err   error
+}
+    ConstructionError reports invalid explicit chain configuration.
+
+func (e *ConstructionError) Error() string
+
+func (e *ConstructionError) Unwrap() error
+    Unwrap supports errors.Is and errors.As.
+
+type Descriptor struct {
+	// Has unexported fields.
+}
+    Descriptor is an immutable, named middleware value used for inspection.
+
+func Describe(configuration DescriptorConfig) (Descriptor, error)
+    Describe constructs middleware with explicit duplicate and order policy.
+
+func Named(name string, middleware Middleware) (Descriptor, error)
+    Named constructs an inspectable middleware descriptor.
+
+func (d Descriptor) Info() DescriptorInfo
+    Info returns copied descriptor metadata.
+
+func (d Descriptor) Name() string
+    Name returns the stable introspection name.
+
+type DescriptorConfig struct {
+	Name           string
+	Middleware     Middleware
+	AllowDuplicate bool
+	Before         []string
+	After          []string
+}
+    DescriptorConfig declares immutable inspection and ordering metadata.
+
+type DescriptorInfo struct {
+	Name           string
+	AllowDuplicate bool
+	Before         []string
+	After          []string
+}
+    DescriptorInfo is an independent introspection snapshot.
+
+type Middleware func(http.Handler) http.Handler
+    Middleware is the standard net/http handler decorator contract.
+
+func When(predicate Predicate, middleware Middleware) (Middleware, error)
+    When constructs middleware that evaluates predicate once per request. The
+    wrapped middleware is resolved once during chain resolution. A nil wrapped
+    result remains visible to Chain.Handler validation.
+
+type Predicate func(*http.Request) bool
+    Predicate decides whether conditional middleware applies to a request.
+    A panic propagates to the caller; cancellation is observable through
+    r.Context.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/adapter
+package adapter // import "github.com/faustbrian/golib/pkg/http-middleware/adapter"
+
+Package adapter names middleware owned by sibling packages without
+reimplementing their policy or state machines.
+
+VARIABLES
+
+var ErrDuplicateOwnership = errors.New("adapter: duplicate ownership")
+    ErrDuplicateOwnership identifies a concern owned by two installed stacks.
+
+
+FUNCTIONS
+
+func Named(concern Concern, item func(http.Handler) http.Handler) (middleware.Descriptor, error)
+    Named adapts an owning package's standard middleware into an inspectable
+    descriptor. It never changes the middleware's behavior.
+
+func ValidateGoService(chain middleware.Chain, serviceOwns []Concern) error
+    ValidateGoService rejects an explicit chain that duplicates a concern the
+    selected service configuration owns.
+
+
+TYPES
+
+type Concern string
+    Concern is a bounded ownership and introspection name.
+
+const (
+	// RequestID identifies request identifier ownership.
+	RequestID Concern = "request-id"
+	// Recovery identifies panic recovery ownership.
+	Recovery Concern = "recovery"
+	// BodyLimit identifies request body limit ownership.
+	BodyLimit Concern = "body-limit"
+	// Authentication identifies authentication middleware ownership.
+	Authentication Concern = "authentication"
+	// Authorization identifies authorization middleware ownership.
+	Authorization Concern = "authorization"
+	// RateLimit identifies rate-limit middleware ownership.
+	RateLimit Concern = "rate-limit"
+	// Idempotency identifies idempotency middleware ownership.
+	Idempotency Concern = "idempotency"
+	// Telemetry identifies telemetry middleware ownership.
+	Telemetry Concern = "telemetry"
+)
+func GoServiceDefaults() []Concern
+    GoServiceDefaults lists the transport concerns currently owned by the
+    service default server stack. Callers must validate before combining it with
+    an explicit chain.
+
+type OwnershipError struct{ Concern Concern }
+    OwnershipError identifies an overlapping service and chain concern.
+
+func (e *OwnershipError) Error() string
+
+func (e *OwnershipError) Unwrap() error
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/admission
+package admission // import "github.com/faustbrian/golib/pkg/http-middleware/admission"
+
+Package admission bounds local in-flight requests without implementing a
+distributed rate algorithm.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("admission: invalid policy")
+    ErrInvalidPolicy identifies invalid admission policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs semaphore admission. Channel wait order is not a contractual
+    fairness guarantee; queues are strictly bounded and allocate no waiter
+    goroutine.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid admission policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct {
+	MaxInFlight, MaxWaiters int
+	Wait                    time.Duration
+	RetryAfterSeconds       int
+	Shutdown                <-chan struct{}
+}
+    Policy configures bounded local request admission. Wait is capped at one
+    minute.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/bodylimit
+package bodylimit // import "github.com/faustbrian/golib/pkg/http-middleware/bodylimit"
+
+Package bodylimit applies a byte limit before application decoding.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("bodylimit: invalid policy")
+    ErrInvalidPolicy identifies invalid request body limit configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs body limiting middleware. Streaming overflow is reported to
+    the application as *http.MaxBytesError. The server retains close ownership.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid request body limit policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct{ MaxBytes int64 }
+    Policy limits encoded transport bytes. It does not decompress or parse a
+    body.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/compress
+package compress // import "github.com/faustbrian/golib/pkg/http-middleware/compress"
+
+Package compress performs bounded gzip content-coding negotiation. Sensitive
+dynamic responses should opt out by setting Cache-Control: no-transform.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("compress: invalid policy")
+    ErrInvalidPolicy identifies invalid compression policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs gzip middleware. Responses are buffered up to MaxBuffer so
+    eligibility can be decided before commitment. Larger eligible responses
+    continue as gzip streams; other responses spill as identity.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid compression policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct {
+	MinimumBytes, MaxBuffer int
+	Level, MaxHeaderBytes   int
+	ExcludedTypes           []string
+}
+    Policy configures bounded gzip response compression. ExcludedTypes accepts
+    at most 64 exact media types of at most 256 bytes each.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/content
+package content // import "github.com/faustbrian/golib/pkg/http-middleware/content"
+
+Package content enforces HTTP media-type negotiation without decoding or
+encoding representations.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("content: invalid policy")
+    ErrInvalidPolicy identifies invalid content negotiation configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs 415 request and 406 response acceptance guards.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid content negotiation policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct {
+	RequestTypes, ResponseTypes []string
+	MaxValues, MaxHeaderBytes   int
+}
+    Policy configures request and response media-type requirements.
+    Each configured list is bounded by MaxValues and both lists share the
+    MaxHeaderBytes construction budget.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/cors
+package cors // import "github.com/faustbrian/golib/pkg/http-middleware/cors"
+
+Package cors implements the server-facing portion of the Fetch CORS protocol.
+CORS is neither authentication nor CSRF protection.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("cors: invalid policy")
+    ErrInvalidPolicy identifies invalid CORS policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New validates wildcard and credential combinations and constructs
+    middleware.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid CORS policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct {
+	AllowedOrigins      []string
+	AllowOrigin         func(context.Context, string) (bool, error)
+	AllowedMethods      []string
+	AllowedHeaders      []string
+	ExposedHeaders      []string
+	AllowCredentials    bool
+	AllowPrivateNetwork bool
+	MaxAgeSeconds       int
+	PassPreflight       bool
+	MaxHeaderValues     int
+	MaxHeaderBytes      int
+}
+    Policy is normalized and copied during construction.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/deadline
+package deadline // import "github.com/faustbrian/golib/pkg/http-middleware/deadline"
+
+Package deadline gives request contexts a bounded handler deadline. It does not
+replace server read, write, idle, upstream, shutdown, or process limits.
+
+VARIABLES
+
+var (
+	// ErrHandlerTimeout is returned to late writes after the response timeout.
+	ErrHandlerTimeout = errors.New("deadline: handler timeout")
+	// ErrResponseTooLarge identifies output above the configured buffer bound.
+	ErrResponseTooLarge = errors.New("deadline: response too large")
+)
+var ErrInvalidPolicy = errors.New("deadline: invalid policy")
+    ErrInvalidPolicy identifies invalid deadline policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs deadline middleware. A shorter parent deadline is preserved.
+
+func NewTimeout(policy TimeoutPolicy) (func(http.Handler) http.Handler, error)
+    NewTimeout constructs bounded buffered timeout middleware. The wrapped
+    writer intentionally exposes no streaming, hijacking, push, or full-duplex
+    capability because those operations are incompatible with response replay.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid deadline policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Policy struct{ Timeout time.Duration }
+    Policy configures a handler context timeout of at most 24 hours. Code that
+    ignores its context is not interrupted.
+
+type TimeoutPolicy struct {
+	Timeout          time.Duration
+	MaxResponseBytes int
+	MaxConcurrent    int
+	Status           int
+}
+    TimeoutPolicy configures a bounded non-streaming handler timeout of at
+    most 24 hours. MaxConcurrent defaults to 1024 and is capped at 65,536.
+    A handler that ignores cancellation may continue executing and retain one
+    concurrency slot, but cannot write through the closed buffer or create
+    unbounded middleware-owned goroutine growth.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/internal/httpx
+package httpx // import "github.com/faustbrian/golib/pkg/http-middleware/internal/httpx"
+
+Package httpx contains bounded response mechanics shared by middleware.
+
+FUNCTIONS
+
+func AddVary(header http.Header, names ...string)
+    AddVary merges case-insensitive field names without replacing existing
+    cache-key dimensions.
+
+func CheckWriteHeaderCode(status int)
+    CheckWriteHeaderCode panics for status codes rejected by net/http.
+
+func ParseQuality(value string) (float64, bool)
+    ParseQuality parses the RFC 9110 qvalue grammar with at most three decimals.
+
+func SafeError(w http.ResponseWriter, status int, body string)
+    SafeError emits a deterministic text response without internal details.
+
+func SplitDelimited(value string, delimiter byte, maxBytes, maxItems int) ([]string, bool)
+    SplitDelimited splits a bounded HTTP field while respecting quoted strings.
+
+func ValidFieldValue(value string, maximum int) bool
+    ValidFieldValue enforces a conservative response field-value boundary.
+
+func WithPolicy(writer http.ResponseWriter, apply func(http.Header)) http.ResponseWriter
+    WithPolicy preserves the exact optional-interface set and applies a header
+    policy immediately before response commitment.
+
+
+TYPES
+
+type Recorder struct {
+	Status    int
+	Bytes     int64
+	Committed bool
+}
+    Recorder tracks final status and payload bytes.
+
+func Track(writer http.ResponseWriter) (http.ResponseWriter, *Recorder)
+    Track returns a writer with exactly the optional interfaces of writer.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/middlewaretest
+package middlewaretest // import "github.com/faustbrian/golib/pkg/http-middleware/middlewaretest"
+
+Package middlewaretest provides deterministic fixtures for middleware users.
+
+TYPES
+
+type Capabilities struct{ Flusher, Hijacker, Pusher, ReaderFrom bool }
+    Capabilities describes standard optional ResponseWriter interfaces.
+
+func CapabilitiesOf(writer http.ResponseWriter) Capabilities
+    CapabilitiesOf inspects only standard optional interfaces.
+
+type Trace struct {
+	// Has unexported fields.
+}
+    Trace records bounded chain order under concurrent-safe access.
+
+func NewTrace() *Trace
+    NewTrace creates a trace bounded to 1024 events.
+
+func (t *Trace) Events() []string
+    Events returns an independent event snapshot.
+
+func (t *Trace) Middleware(name string) func(http.Handler) http.Handler
+    Middleware records request entry and response unwind.
+
+func (t *Trace) Record(event string)
+    Record appends an event until the trace's fixed bound is reached.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/observe
+package observe // import "github.com/faustbrian/golib/pkg/http-middleware/observe"
+
+Package observe emits one bounded transport completion event per request.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("observe: invalid policy")
+    ErrInvalidPolicy identifies invalid observation policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs observation middleware.
+
+func RecordRoute(request *http.Request, route string) bool
+    RecordRoute stores a bounded route classification for the outer observation
+    layer. Route-local middleware may call it after a router has matched.
+    It returns false when request is nil or observation middleware is absent.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid observation policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Event struct {
+	Method      string
+	Route       string
+	Status      int
+	Bytes       int64
+	Duration    time.Duration
+	Proto       string
+	Outcome     Outcome
+	ClientClass string
+}
+    Event excludes raw paths, queries, headers, payloads, identities, and
+    errors. Method and Proto use fixed known values plus OTHER.
+
+type Outcome string
+    Outcome is a bounded completion classification.
+
+const (
+	// Success classifies responses below 400.
+	Success Outcome = "success"
+	// ClientError classifies responses from 400 through 499.
+	ClientError Outcome = "client_error"
+	// ServerError classifies responses at or above 500.
+	ServerError Outcome = "server_error"
+	// Canceled classifies requests whose context was canceled.
+	Canceled Outcome = "canceled"
+	// Panicked classifies handlers that propagated a panic.
+	Panicked Outcome = "panicked"
+)
+type Policy struct {
+	Observer        func(context.Context, Event)
+	Route           func(*http.Request) string
+	ClientClass     func(*http.Request) string
+	Now             func() time.Time
+	RepanicObserver bool
+}
+    Policy injects observation without owning a logger or telemetry SDK.
+    Route and ClientClass run once at completion; their panics are contained.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/proxy
+package proxy // import "github.com/faustbrian/golib/pkg/http-middleware/proxy"
+
+Package proxy derives effective request information only across explicitly
+trusted proxy address boundaries. It never mutates the request target.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("proxy: invalid policy")
+    ErrInvalidPolicy identifies invalid trusted proxy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs trusted-proxy middleware. Malformed forwarding fields fail
+    closed to direct connection information.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid trusted proxy policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Info struct {
+	ClientIP   netip.Addr
+	Host       string
+	Scheme     string
+	Prefix     string
+	Provenance Provenance
+}
+    Info contains independently derived effective values.
+
+func FromContext(ctx context.Context) Info
+    FromContext returns derived data, or its zero value when middleware was
+    absent.
+
+type Mode uint8
+    Mode selects one forwarding syntax.
+
+const (
+	// Forwarded selects the RFC 7239 Forwarded field.
+	Forwarded Mode = iota
+	// XForwarded selects explicitly configured X-Forwarded fields.
+	XForwarded
+)
+type Policy struct {
+	Trusted        []netip.Prefix
+	Mode           Mode
+	MaxHops        int
+	MaxHeaderBytes int
+}
+    Policy is copied during construction. Trusted accepts at most 256 valid
+    prefixes; prefixes are stored in canonical masked form.
+
+type Provenance string
+    Provenance describes whether forwarding data influenced the result.
+
+const (
+	// Direct means only direct connection information was used.
+	Direct Provenance = "direct"
+	// TrustedForwarded means trusted forwarding metadata was used.
+	TrustedForwarded Provenance = "trusted_forwarded"
+)
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/recovery
+package recovery // import "github.com/faustbrian/golib/pkg/http-middleware/recovery"
+
+Package recovery contains application panics below an explicit boundary.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("recovery: invalid policy")
+    ErrInvalidPolicy identifies invalid recovery policy configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs recovery middleware. http.ErrAbortHandler is re-panicked so
+    normal connection abort behavior remains owned by net/http.
+
+
+TYPES
+
+type Class string
+    Class is deliberately bounded and never includes the panic value.
+
+const (
+	// ApplicationPanic classifies non-runtime application panics.
+	ApplicationPanic Class = "application_panic"
+	// RuntimePanic classifies values implementing runtime.Error.
+	RuntimePanic Class = "runtime_panic"
+)
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid recovery policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type Event struct {
+	Class     Class
+	Committed bool
+	Stack     []byte
+}
+    Event reports safe panic classification and response ownership state.
+
+type Policy struct {
+	Observer      func(Event)
+	CaptureStack  bool
+	MaxStackBytes int
+}
+    Policy configures recovery observation. Observer panics are contained.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/requestid
+package requestid // import "github.com/faustbrian/golib/pkg/http-middleware/requestid"
+
+Package requestid propagates bounded request and correlation identifiers.
+Identifiers are metadata and are never authorization evidence.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("requestid: invalid policy")
+    ErrInvalidPolicy identifies invalid identifier policy configuration.
+
+
+FUNCTIONS
+
+func FromContext(ctx context.Context, kind Kind) (string, bool)
+    FromContext returns an identifier stored by this package.
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs identifier middleware. Defaults are X-Request-ID, 128 bytes,
+    untrusted inbound values, replacement on invalid input, and 128 random bits.
+    Empty, non-ASCII, surrounding-space, control-character, and oversized values
+    are invalid.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports invalid construction input. ConfigError reports an
+    invalid identifier policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type InvalidPolicy uint8
+    InvalidPolicy controls trusted invalid inbound identifiers.
+
+const (
+	// ReplaceInvalid replaces invalid trusted inbound identifiers.
+	ReplaceInvalid InvalidPolicy = iota
+	// RejectInvalid rejects invalid trusted inbound identifiers.
+	RejectInvalid
+)
+type Kind string
+    Kind distinguishes identifier purposes.
+
+const (
+	// Request identifies a request identifier.
+	Request Kind = "request"
+	// Correlation identifies a cross-request correlation identifier.
+	Correlation Kind = "correlation"
+	// Operation identifies an application operation identifier.
+	Operation Kind = "operation"
+)
+type Policy struct {
+	Kind           Kind
+	Header         string
+	ResponseHeader string
+	TrustInbound   bool
+	Invalid        InvalidPolicy
+	MaxLength      int
+	Generator      func() (string, error)
+}
+    Policy is copied by New and is safe to reuse after construction.
+
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/responsepolicy
+package responsepolicy // import "github.com/faustbrian/golib/pkg/http-middleware/responsepolicy"
+
+Package responsepolicy contains declarative cache and transport admission
+helpers. It does not implement caching or own health handlers.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("responsepolicy: invalid policy")
+    ErrInvalidPolicy identifies invalid response policy configuration.
+
+
+FUNCTIONS
+
+func Admission(policy AdmissionPolicy) (func(http.Handler) http.Handler, error)
+    Admission short-circuits through a caller-owned concurrency-safe state
+    source.
+
+func NoStore() func(http.Handler) http.Handler
+    NoStore applies RFC 9111 no-store response policy before downstream
+    handling.
+
+
+TYPES
+
+type AdmissionPolicy struct {
+	State      func(context.Context) State
+	Status     int
+	RetryAfter string
+}
+    AdmissionPolicy configures transport-only readiness admission.
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid response policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type State uint8
+    State is a bounded transport admission state.
+
+const (
+	// Ready permits requests to reach the application handler.
+	Ready State = iota
+	// NotReady rejects requests while the service is not ready.
+	NotReady
+	// Maintenance rejects requests during maintenance.
+	Maintenance
+)
+PACKAGE github.com/faustbrian/golib/pkg/http-middleware/secureheader
+package secureheader // import "github.com/faustbrian/golib/pkg/http-middleware/secureheader"
+
+Package secureheader applies explicit response security header policy.
+
+VARIABLES
+
+var ErrInvalidPolicy = errors.New("secureheader: invalid policy")
+    ErrInvalidPolicy identifies invalid security header configuration.
+
+
+FUNCTIONS
+
+func New(policy Policy) (func(http.Handler) http.Handler, error)
+    New constructs header middleware.
+
+
+TYPES
+
+type ConfigError struct{ Field string }
+    ConfigError reports an invalid security header policy field.
+
+func (e *ConfigError) Error() string
+
+func (e *ConfigError) Unwrap() error
+
+type ExistingPolicy uint8
+    ExistingPolicy controls configured versus downstream header precedence.
+
+const (
+	// Replace reapplies configured values when the response commits.
+	Replace ExistingPolicy = iota
+	// Preserve retains an existing downstream value.
+	Preserve
+)
+type Policy struct {
+	XContentTypeOptions   string
+	ReferrerPolicy        string
+	FrameOptions          string
+	PermissionsPolicy     string
+	ContentSecurityPolicy string
+	HSTS                  string
+	AcknowledgeHSTS       bool
+	Existing              ExistingPolicy
+}
+    Policy is copied during construction. HSTS requires AcknowledgeHSTS because
+    an incorrect deployment can create a long-lived outage.
+
+func APIDefaults() Policy
+    APIDefaults returns conservative headers that do not assume HTML rendering.

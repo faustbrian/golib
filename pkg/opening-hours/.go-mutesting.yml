@@ -1,0 +1,6 @@
+skip_without_test: false
+skip_with_build_tags: false
+json_output: true
+html_output: false
+silent_mode: false
+exclude_dirs: []

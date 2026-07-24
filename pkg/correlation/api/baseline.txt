@@ -1,0 +1,547 @@
+PACKAGE github.com/faustbrian/golib/pkg/correlation
+package correlation // import "github.com/faustbrian/golib/pkg/correlation"
+
+Package correlation provides transport-neutral correlation, request, and
+causation identifiers. Identifiers are diagnostic metadata only; they are never
+authentication, authorization, tenancy, replay, or idempotency proof.
+
+CONSTANTS
+
+const (
+	// DefaultCorrelationField is the transport-neutral correlation key.
+	DefaultCorrelationField = "correlation_id"
+	// DefaultRequestField is the transport-neutral request key.
+	DefaultRequestField = "request_id"
+	// DefaultCausationField is the transport-neutral causation key.
+	DefaultCausationField = "causation_id"
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidCarrier reports malformed, unbounded, or unsupported metadata.
+	ErrInvalidCarrier = errors.New("correlation: invalid carrier")
+	// ErrConflictingCarrier reports more than one distinct value for a field.
+	ErrConflictingCarrier = errors.New("correlation: conflicting carrier values")
+	// ErrCarrierOverwrite reports injection into an already populated field.
+	ErrCarrierOverwrite = errors.New("correlation: carrier overwrite")
+)
+var (
+	// ErrInvalidFactory reports invalid factory configuration.
+	ErrInvalidFactory = errors.New("correlation: invalid factory")
+	// ErrGeneration reports a generator failure or invalid generated value.
+	ErrGeneration = errors.New("correlation: generation failed")
+)
+var ErrInvalidDerivation = errors.New("correlation: invalid deterministic derivation")
+    ErrInvalidDerivation reports unsafe deterministic derivation input or
+    configuration.
+
+var ErrInvalidDisclosure = errors.New("correlation: invalid disclosure policy")
+    ErrInvalidDisclosure reports unsafe disclosure configuration.
+
+var ErrInvalidExternalID = errors.New("correlation: invalid external identifier")
+    ErrInvalidExternalID reports invalid external identifier metadata.
+
+var ErrInvalidID = errors.New("correlation: invalid identifier")
+    ErrInvalidID reports an identifier that violates its validation policy.
+
+var ErrInvalidPropagator = errors.New("correlation: invalid propagator")
+    ErrInvalidPropagator reports missing explicit propagation dependencies.
+
+
+FUNCTIONS
+
+func Disclose(label, value string, policy DisclosurePolicy) (string, error)
+    Disclose renders an identifier according to an explicit observability
+    policy. label domain-separates correlation, request, and causation hashes.
+
+func WithValues(ctx context.Context, values Values) context.Context
+    WithValues returns a derived context carrying a copy of values.
+
+
+TYPES
+
+type Carrier interface {
+	Values(key string) []string
+	Set(key, value string)
+}
+    Carrier is an explicit transport metadata boundary. Values must return a
+    copy or immutable view. Set replaces one field with exactly one value.
+
+type CausationID string
+    CausationID identifies the immediate parent request, message, or event.
+
+func MustCausationID(value string, policy Policy) CausationID
+    MustCausationID is ParseCausationID for static configuration and tests.
+
+func ParseCausationID(value string, policy Policy) (CausationID, error)
+    ParseCausationID validates and returns a causation identifier.
+
+func (id CausationID) String() string
+
+type Codec struct {
+	// Has unexported fields.
+}
+    Codec injects and extracts typed values without assigning trust.
+
+func NewCodec(options CodecOptions) (*Codec, error)
+    NewCodec validates and copies carrier configuration.
+
+func (codec *Codec) Extract(carrier Carrier) (Values, error)
+    Extract parses values but deliberately does not decide whether to trust
+    them. Pass the result to Factory.Accept with an explicit InboundPolicy.
+
+func (codec *Codec) Inject(carrier Carrier, values Values) error
+    Inject installs non-empty values and refuses to overwrite any populated
+    field, even when the existing value is malformed.
+
+type CodecOptions struct {
+	Policy           Policy
+	CorrelationField string
+	RequestField     string
+	CausationField   string
+}
+    CodecOptions configure immutable carrier field names and validation.
+
+type CorrelationID string
+    CorrelationID groups work in one logical interaction or workflow.
+
+func MustCorrelationID(value string, policy Policy) CorrelationID
+    MustCorrelationID is ParseCorrelationID for static configuration and tests.
+
+func ParseCorrelationID(value string, policy Policy) (CorrelationID, error)
+    ParseCorrelationID validates and returns a correlation identifier.
+
+func (id CorrelationID) String() string
+
+type Deterministic struct {
+	// Has unexported fields.
+}
+    Deterministic derives linkable IDs for an explicitly stable workflow. It is
+    never selected by Factory defaults and should be keyed for private inputs.
+
+func NewDeterministic(options DeterministicOptions) (*Deterministic, error)
+    NewDeterministic validates and copies deterministic strategy configuration.
+
+func (strategy *Deterministic) Derive(input []byte) (CorrelationID, error)
+    Derive hashes input with length-delimited, versioned domain separation.
+
+type DeterministicOptions struct {
+	Domain  string
+	Version uint32
+	Key     []byte
+	Length  int
+}
+    DeterministicOptions configure an explicitly opted-in stable strategy.
+
+type DisclosureMode uint8
+    DisclosureMode controls identifier disclosure to logs and telemetry.
+
+const (
+	// RedactDisclosure is the safe default and emits only a marker.
+	RedactDisclosure DisclosureMode = iota
+	// HashDisclosure emits a keyed, domain-separated stable token.
+	HashDisclosure
+	// ExposeDisclosure emits validated raw identifier text.
+	ExposeDisclosure
+)
+type DisclosurePolicy struct {
+	Mode DisclosureMode
+	Key  []byte
+}
+    DisclosurePolicy must explicitly opt into linkable or raw output.
+
+type ExternalID struct {
+	// Has unexported fields.
+}
+    ExternalID is an optional typed external identifier with explicit source and
+    trust metadata. It is not implicitly promoted to any correlation ID.
+
+func NewExternalID(options ExternalIDOptions) (ExternalID, error)
+    NewExternalID validates and copies external metadata.
+
+func (external ExternalID) Kind() string
+    Kind returns the external identifier's declared semantic kind.
+
+func (external ExternalID) Source() string
+    Source returns the declared transport or system source.
+
+func (external ExternalID) Trusted() bool
+    Trusted reports the caller's explicit trust decision.
+
+func (external ExternalID) Value() string
+    Value returns the validated external identifier text.
+
+type ExternalIDOptions struct {
+	Kind    string
+	Value   string
+	Source  string
+	Trusted bool
+	Policy  Policy
+}
+    ExternalIDOptions require the caller to state type, source, and trust.
+
+type Factory struct {
+	// Has unexported fields.
+}
+    Factory creates fresh hop identifiers without global mutable state.
+
+func NewFactory(options FactoryOptions) (*Factory, error)
+    NewFactory constructs a factory. The default generator uses crypto/rand.
+
+func (factory *Factory) Accept(inbound Values, policy InboundPolicy) (Values, error)
+    Accept starts a receiving hop. No inbound value is used unless its exact
+    semantic trust is enabled.
+
+func (factory *Factory) Next(parent Values) (Values, error)
+    Next preserves correlation, creates a request ID, and makes the prior
+    request the immediate cause.
+
+func (factory *Factory) Start() (Values, error)
+    Start creates a new correlation and request identifier.
+
+type FactoryOptions struct {
+	Policy    Policy
+	Generator Generator
+}
+    FactoryOptions configure an immutable Factory.
+
+type Generator interface {
+	New() (string, error)
+}
+    Generator supplies canonical random identifier text. It is structurally
+    compatible with identifier.Generator[string] from identifier.
+
+type GeneratorFunc func() (string, error)
+    GeneratorFunc adapts a function to Generator.
+
+func (function GeneratorFunc) New() (string, error)
+    New calls the wrapped function.
+
+type InboundPolicy struct {
+	TrustCorrelation        bool
+	TrustRequestAsCausation bool
+}
+    InboundPolicy explicitly identifies which inbound semantics cross a trust
+    boundary. Request IDs are never preserved because each hop gets a new one.
+
+type Policy struct {
+	MaxLength int
+}
+    Policy bounds and validates an identifier. The zero value accepts the
+    canonical ASCII alphabet [A-Za-z0-9_-] up to 128 bytes.
+
+type Propagator struct {
+	// Has unexported fields.
+}
+    Propagator explicitly composes hop generation with a transport codec.
+
+func NewPropagator(factory *Factory, codec *Codec) (*Propagator, error)
+    NewPropagator rejects ambient or incomplete propagation configuration.
+
+func (propagator *Propagator) Receive(carrier Carrier, policy InboundPolicy) (Values, error)
+    Receive extracts untrusted metadata and applies an explicit trust policy
+    while creating a fresh delivery-attempt request ID.
+
+func (propagator *Propagator) Send(carrier Carrier, parent Values) (Values, error)
+    Send creates the next hop before injecting its values.
+
+type RequestID string
+    RequestID identifies one transport request or delivery attempt.
+
+func MustRequestID(value string, policy Policy) RequestID
+    MustRequestID is ParseRequestID for static configuration and tests.
+
+func ParseRequestID(value string, policy Policy) (RequestID, error)
+    ParseRequestID validates and returns a request identifier.
+
+func (id RequestID) String() string
+
+type Values struct {
+	CorrelationID CorrelationID
+	RequestID     RequestID
+	CausationID   CausationID
+}
+    Values carries the three deliberately distinct identifier semantics.
+
+func FromContext(ctx context.Context) (Values, bool)
+    FromContext returns values installed by WithValues.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/http
+package httpcorrelation // import "github.com/faustbrian/golib/pkg/correlation/http"
+
+Package httpcorrelation explicitly propagates correlation metadata over HTTP.
+Middleware installation and proxy trust remain application owned.
+
+CONSTANTS
+
+const (
+	// CorrelationHeader carries the logical workflow identifier.
+	CorrelationHeader = "X-Correlation-ID"
+	// RequestHeader carries the current HTTP hop identifier.
+	RequestHeader = "X-Request-ID"
+	// CausationHeader carries the immediate parent identifier.
+	CausationHeader = "X-Causation-ID"
+)
+
+VARIABLES
+
+var ErrInvalidOptions = errors.New("http correlation: invalid options")
+    ErrInvalidOptions reports invalid HTTP adapter configuration.
+
+
+TYPES
+
+type InvalidPolicy uint8
+    InvalidPolicy controls malformed or ambiguous inbound metadata.
+
+const (
+	// ReplaceInvalid discards every inbound value and creates a fresh root.
+	ReplaceInvalid InvalidPolicy = iota
+	// RejectInvalid returns HTTP 400 before application code runs.
+	RejectInvalid
+)
+type Middleware struct {
+	// Has unexported fields.
+}
+    Middleware owns explicit HTTP extraction, trust, context, and injection.
+
+func New(factory *correlation.Factory, options Options) (*Middleware, error)
+    New constructs an HTTP adapter without installing global middleware.
+
+func (middleware *Middleware) Inject(request *http.Request, parent correlation.Values) (correlation.Values, error)
+    Inject creates and injects the next outbound HTTP hop.
+
+func (middleware *Middleware) Wrap(next http.Handler) http.Handler
+    Wrap creates one fresh request ID per HTTP request. Valid inbound metadata
+    is preserved only when Trust explicitly accepts the immediate peer.
+
+type Options struct {
+	Policy  correlation.Policy
+	Invalid InvalidPolicy
+	Trust   func(*http.Request) bool
+}
+    Options configure immutable HTTP propagation policy.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/http/requestidbridge
+package requestidbridge // import "github.com/faustbrian/golib/pkg/correlation/http/requestidbridge"
+
+Package requestidbridge integrates explicitly with request ID middleware such as
+http-middleware/requestid without importing hidden context keys.
+
+VARIABLES
+
+var (
+	// ErrInvalidLookup reports a missing lookup or malformed returned value.
+	ErrInvalidLookup = errors.New("request ID bridge: invalid lookup")
+	// ErrUntrusted reports a source that was not explicitly trusted.
+	ErrUntrusted = errors.New("request ID bridge: source is not trusted")
+	// ErrMissing reports an absent middleware request ID.
+	ErrMissing = errors.New("request ID bridge: request ID is missing")
+	// ErrOverwrite reports an attempt to replace an existing request ID.
+	ErrOverwrite = errors.New("request ID bridge: request ID overwrite")
+)
+
+FUNCTIONS
+
+func Adopt(ctx context.Context, values correlation.Values, lookup Lookup, options Options) (context.Context, correlation.Values, error)
+    Adopt validates a middleware request ID, refuses overwrite, and returns a
+    derived context containing the complete correlation Values.
+
+
+TYPES
+
+type Lookup func(context.Context) (string, bool)
+    Lookup matches a bound call to requestid.FromContext. The application keeps
+    ownership of which middleware package and Kind it selects.
+
+type Options struct {
+	Policy  correlation.Policy
+	Trusted bool
+}
+    Options require explicit trust for the middleware-owned context value.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/jsonrpc
+package jsonrpc // import "github.com/faustbrian/golib/pkg/correlation/jsonrpc"
+
+Package jsonrpc propagates correlation through an explicit JSON-RPC metadata
+object. It never edits JSON-RPC protocol envelopes implicitly.
+
+CONSTANTS
+
+const (
+	// CorrelationField carries the logical workflow identifier.
+	CorrelationField = correlation.DefaultCorrelationField
+	// RequestField carries the current JSON-RPC hop identifier.
+	RequestField = correlation.DefaultRequestField
+	// CausationField carries the immediate parent identifier.
+	CausationField = correlation.DefaultCausationField
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidOptions reports incomplete adapter configuration.
+	ErrInvalidOptions = errors.New("jsonrpc correlation: invalid options")
+	// ErrMalformedMetadata reports non-string or oversized JSON metadata.
+	ErrMalformedMetadata = errors.New("jsonrpc correlation: malformed metadata")
+)
+
+TYPES
+
+type Adapter struct {
+	// Has unexported fields.
+}
+    Adapter explicitly sends and receives JSON-RPC metadata.
+
+func New(factory *correlation.Factory, options Options) (*Adapter, error)
+    New constructs a JSON-RPC metadata adapter.
+
+func (adapter *Adapter) Receive(metadata Metadata, trusted bool) (correlation.Values, error)
+    Receive validates metadata and creates a fresh receiving request ID.
+
+func (adapter *Adapter) Send(metadata Metadata, parent correlation.Values) (correlation.Values, error)
+    Send creates and injects a child JSON-RPC metadata hop.
+
+type Metadata map[string][]json.RawMessage
+    Metadata preserves repeated JSON members supplied by a strict envelope
+    decoder so conflicting duplicates cannot be silently collapsed.
+
+type Options struct {
+	Codec correlation.CodecOptions
+}
+    Options configure JSON-RPC metadata validation and names.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/log
+package log // import "github.com/faustbrian/golib/pkg/correlation/log"
+
+Package log provides bounded slog attributes compatible with log's standard
+log/slog composition API.
+
+FUNCTIONS
+
+func Attrs(values correlation.Values, policy correlation.DisclosurePolicy) ([]slog.Attr, error)
+    Attrs returns only non-empty identifier attributes under an explicit
+    disclosure policy.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/queue
+package queue // import "github.com/faustbrian/golib/pkg/correlation/queue"
+
+Package queue propagates correlation metadata through backend-neutral queue
+metadata maps. Each Receive call creates a distinct delivery-attempt ID.
+
+VARIABLES
+
+var ErrInvalidOptions = errors.New("queue correlation: invalid options")
+    ErrInvalidOptions reports invalid queue propagation configuration.
+
+
+TYPES
+
+type Adapter struct {
+	// Has unexported fields.
+}
+    Adapter explicitly sends and receives queue metadata.
+
+func New(factory *correlation.Factory, options Options) (*Adapter, error)
+    New constructs a queue adapter.
+
+func (adapter *Adapter) Receive(metadata map[string]string, trusted bool) (correlation.Values, error)
+    Receive creates a fresh delivery-attempt ID. trusted must be explicitly true
+    only after the queue backend's metadata boundary has been authenticated.
+
+func (adapter *Adapter) Send(metadata map[string]string, parent correlation.Values) (correlation.Values, error)
+    Send creates a message hop and injects it into an application-owned map.
+
+type Options struct {
+	Codec correlation.CodecOptions
+}
+    Options configure queue metadata validation and field names.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/schedule
+package schedule // import "github.com/faustbrian/golib/pkg/correlation/schedule"
+
+Package schedule provides explicit correlation lifecycle helpers for
+scheduled work. Independent invocations start independent workflows unless
+application-owned metadata is deliberately propagated.
+
+VARIABLES
+
+var ErrInvalidOptions = errors.New("schedule correlation: invalid options")
+    ErrInvalidOptions reports missing scheduled-work dependencies.
+
+
+TYPES
+
+type Adapter struct {
+	// Has unexported fields.
+}
+    Adapter starts independent runs and explicitly propagates scheduled jobs.
+
+func New(factory *correlation.Factory, options Options) (*Adapter, error)
+    New constructs a scheduled-work adapter.
+
+func (adapter *Adapter) Enqueue(metadata map[string]string, parent correlation.Values) (correlation.Values, error)
+    Enqueue creates a child scheduled-work message.
+
+func (adapter *Adapter) Run(metadata map[string]string, trusted bool) (correlation.Values, error)
+    Run receives explicitly trusted scheduler metadata as a fresh attempt.
+
+func (adapter *Adapter) Start() (correlation.Values, error)
+    Start begins an independent scheduler invocation with no implicit derived or
+    stable workflow identity.
+
+type Options struct {
+	Queue queuecorrelation.Options
+}
+    Options configure optional scheduled metadata propagation.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/telemetry
+package telemetry // import "github.com/faustbrian/golib/pkg/correlation/telemetry"
+
+Package telemetry links correlation metadata to OpenTelemetry without treating
+correlation IDs as trace or span IDs.
+
+VARIABLES
+
+var ErrInvalidSpanContext = errors.New("correlation telemetry: invalid span context")
+    ErrInvalidSpanContext reports a missing telemetry-owned trace identity.
+
+
+FUNCTIONS
+
+func Attributes(values correlation.Values, policy correlation.DisclosurePolicy) ([]attribute.KeyValue, error)
+    Attributes returns bounded span/link attributes under an explicit disclosure
+    policy.
+
+func Link(spanContext trace.SpanContext, values correlation.Values, policy correlation.DisclosurePolicy) (trace.Link, error)
+    Link attaches correlation attributes to a telemetry-owned SpanContext. The
+    supplied trace and span IDs are neither derived from nor replaced by IDs.
+
+func MetricAttributes(values correlation.Values) []attribute.KeyValue
+    MetricAttributes exposes fixed-cardinality presence signals only. Raw,
+    hashed, and deterministic business-derived identifiers are never included.
+
+PACKAGE github.com/faustbrian/golib/pkg/correlation/webhook
+package webhook // import "github.com/faustbrian/golib/pkg/correlation/webhook"
+
+Package webhook provides an explicit webhook-named HTTP correlation adapter.
+
+TYPES
+
+type Adapter struct {
+	// Has unexported fields.
+}
+    Adapter keeps webhook propagation explicit at send and receive call sites.
+
+func New(factory *correlation.Factory, options Options) (*Adapter, error)
+    New constructs an explicit webhook correlation adapter.
+
+func (adapter *Adapter) Send(request *http.Request, parent correlation.Values) (correlation.Values, error)
+    Send creates and injects a fresh outbound webhook request hop.
+
+func (adapter *Adapter) Wrap(next http.Handler) http.Handler
+    Wrap receives a webhook through the configured explicit trust boundary.
+
+type Options = httpcorrelation.Options
+    Options configure webhook boundary trust and invalid input handling.

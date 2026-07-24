@@ -1,0 +1,3009 @@
+# queue Complete Documentation
+
+## Source: README.md
+
+# queue
+
+`queue` is a consolidated worker queue with owned implementations for
+in-memory, Redis Pub/Sub, Redis Streams, Valkey Streams, NATS, NSQ, and RabbitMQ. It preserves
+the recognizable `golang-queue` programming model while owning correctness,
+operations, and releases in one module.
+
+## Status
+
+The package is pre-v1 and undergoing hardening. Production code is held to
+meaningful 100% coverage; durable delivery claims require backend-specific
+integration evidence.
+
+## Requirements
+
+- Go 1.26.5 or later
+- a supported broker for non-memory backends
+
+## Installation
+
+```sh
+go get github.com/faustbrian/golib/pkg/queue
+```
+
+Backend packages ship in the same module and are imported explicitly.
+
+## Quickstart
+
+```go
+worker, err := redisdb.NewWorkerE(
+    redisdb.WithAddr("127.0.0.1:6379"),
+    redisdb.WithChannel("jobs"),
+    redisdb.WithRunFunc(func(ctx context.Context, task core.TaskMessage) error {
+        return handle(ctx, task.Payload())
+    }),
+)
+if err != nil {
+    return err
+}
+
+q, err := queue.NewQueue(queue.WithWorker(worker), queue.WithWorkerCount(8))
+if err != nil {
+    return err
+}
+q.Start()
+defer q.Release()
+```
+
+Redis Pub/Sub is low-latency and non-durable. Use Redis Streams or Valkey
+Streams when work must remain pending until settlement. They are independent
+native backends; adopting Valkey does not require removing Redis. Read
+[delivery semantics](docs/delivery-semantics.md) before selecting a backend.
+
+External control planes should depend on the backend-neutral contracts in
+[`management`](docs/management.md). Incompatible workers remain visible, but
+management capabilities are enabled only when both peers report support.
+The [`managementhttp`](docs/management.md#authenticated-http-transport)
+package makes those contracts remotely callable without exposing backend
+clients.
+
+## Package Guarantees
+
+- explicit retry, acknowledgement, redelivery, cancellation, and shutdown
+  behavior
+- safe failure classification and codes that preserve `errors.Is` while
+  redacting arbitrary handler, panic, and settlement text
+- durable Redis Streams, Valkey Streams, NSQ, and RabbitMQ paths with explicit settlement
+- observable lifecycle events, metrics, and backend identity
+- stable management-protocol version and capability negotiation for external
+  control planes
+- bounded worker and queue status contracts that distinguish unsupported
+  backend measurements from measured zero values, with paginated readers
+- bounded authenticated HTTP transport for remote status, records, and control
+  commands
+- backend-neutral command enforcement contracts with explicit confirmation,
+  bounded bulk retry, acknowledgement, timeout, partial, and unknown outcomes
+- revisioned desired-state reconciliation with monotonic per-target application,
+  retry-safe failures, and caller-owned scheduling
+- queue-owned pause, resume, drain, and terminate enforcement that stops
+  admission at safe boundaries and reports in-flight work honestly
+- bounded failed-job and dead-letter inspection with payloads hidden by
+  default and privileged content capped at one mebibyte
+- one module and release unit for all maintained backends
+- backend-specific guarantees documented without abstraction leakage
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+[adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review the
+[backend matrix](docs/backend-support.md), [failure model](docs/failure-model.md),
+and [integration evidence](docs/integration-evidence.md) before production use.
+Valkey adopters should use the [Valkey 9 Streams guide](docs/backends/valkey-streams.md)
+and [runnable example](examples/valkey).
+
+AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+Run `make check` before submitting a change. Backend changes must also pass
+`make integration` with the services documented in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Every backend change must document its
+delivery and settlement impact.
+
+## Security
+
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+Review [docs/security.md](docs/security.md) before processing untrusted jobs.
+
+## License
+
+`queue` is available under the [MIT License](LICENSE). Fork provenance and
+third-party attribution are recorded in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# queue Documentation
+
+Use this index to evaluate backend guarantees before deploying workers.
+
+## Start Here
+
+- [Quickstart](quickstart.md)
+- [Adoption guide](adoption.md)
+- [API reference](api.md)
+- [Examples](examples.md)
+- [Valkey 9 Streams](backends/valkey-streams.md)
+
+## Design And Operations
+
+- [Architecture](architecture.md)
+- [Go safety and concurrency](go-safety-and-concurrency.md)
+- [Backend support](backend-support.md)
+- [Delivery semantics](delivery-semantics.md)
+- [Failure model](failure-model.md)
+- [Lifecycle](lifecycle.md)
+- [Management protocol](management.md)
+- [Dead-letter data-plane architecture](dead-letter-architecture.md)
+- [Dead-letter operations and recovery](dead-letter-operations.md)
+- [Laravel Horizon failed-job migration](horizon-migration.md)
+- [Compatibility](compatibility.md)
+- [Performance](performance.md)
+- [Security](security.md)
+- [Hardening](hardening.md)
+
+## Maintain And Troubleshoot
+
+- [Cookbook](cookbook.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+- [Migration](migration.md)
+- [Releasing](releasing.md)
+
+## Repository Maintenance
+
+- [Shared repository standards](repository-standards.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+## Install
+
+```sh
+go get github.com/faustbrian/golib/pkg/queue
+```
+
+## Choose A Backend
+
+Redis Streams and Valkey Streams are independent durable adoption paths backed
+by their native Go clients. Select one only after reading its acknowledgement,
+reclaim, dead-letter, and topology guarantees in [backend support](backend-support.md).
+Redis Pub/Sub, NATS, NSQ, and RabbitMQ remain explicit alternatives.
+
+## Build A Worker
+
+Create the backend with explicit connection options, register a task handler,
+start it with a cancellable context, and treat shutdown errors as operational
+failures. The runnable [Redis example](../examples/redis) shows the complete
+lifecycle. The [Valkey example](../examples/valkey) shows bounded retries,
+reclaim, dead-letter policy, statistics, and signal-driven shutdown.
+
+## Production Checklist
+
+- define idempotency for every task;
+- set bounded retries and backoff;
+- record attempt, latency, failure, and dead-letter metrics;
+- test worker termination during processing;
+- confirm backend persistence and eviction policy;
+- run the backend-specific integration suite before rollout.
+
+Continue with the [adoption guide](adoption.md) and
+[delivery semantics](delivery-semantics.md).
+
+## Source: docs/adoption.md
+
+# Adoption guide
+
+1. Choose semantics before choosing a client. Use Redis Streams or Valkey
+   Streams for durable grouped work and Pub/Sub only for disposable notifications.
+2. Make the handler idempotent. At-least-once transports can repeat completed
+   side effects after a crash/ack race.
+3. Construct with `NewWorkerE` and fail service startup on error.
+4. Set explicit worker count, task timeout, and retry limits.
+5. Export `Metric` counters and `Observer` failure/retry/shutdown events.
+6. Exercise broker loss and shutdown with production-like timeouts.
+7. Roll out with a small consumer group and compare throughput, age, retries,
+   and duplicates before full migration.
+
+For Redis, begin with [the Redis guide](backends/redis.md). For Valkey 9, use
+[the Valkey Streams guide](backends/valkey-streams.md). A dual-backend rollout
+must use application idempotency and independent stream/group names; do not
+assume pending ownership migrates between servers. For common patterns, see
+[the cookbook](cookbook.md).
+
+## Source: docs/api.md
+
+# Public API reference
+
+Go package documentation remains authoritative for exact signatures. This page
+maps the stable concepts new adopters need.
+
+## Root package
+
+- `NewQueue(options...) (*Queue, error)` creates a coordinator around a worker.
+- `NewPool(size, options...) *Queue` creates an in-memory queue.
+- `NewRing(options...) *Ring` creates an in-memory worker.
+- `Queue.Start`, `Shutdown`, `Release`, and `Wait` control lifecycle.
+- `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
+  functions.
+- `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,
+  `WithMetric`, `WithObserver`, and `WithAfterFn` configure coordination.
+- `Metric` exposes busy, submitted, success, failure, and completed counters.
+- `Observer` receives `Event` values for lifecycle transitions.
+- Failure events include only package-owned `Classification` and `FailureCode`
+  dimensions suitable for bounded aggregation; `Err` remains for protected
+  diagnostic handling and must not be used as a metric label.
+- `core.WorkerMetadata` lets workers add backend and queue identity to every
+  lifecycle event.
+
+## Job package
+
+- `job.Message` is the wire envelope.
+- `job.AllowOption` configures retries, backoff, jitter, timeout, and optional
+  operational metadata.
+- `job.Metadata` carries optional original job identity, payload schema and
+  content type, enqueue time, retry-policy identity, handler and job type,
+  tags, trace, tenant, and producer version. Unknown fields remain empty.
+- Metadata identities and tag keys/values are limited to 256 bytes, and each
+  message is limited to 32 tags. Constructors clone metadata so later caller
+  mutation cannot change the queued envelope.
+- `Metadata.Validate` lets adapters reject untrusted metadata before storing or
+  exposing it.
+- `job.Int64`, `Float64`, `Time`, and `Bool` build pointer options.
+- `job.DecodeE(data, maxBytes)` returns classifiable decode, size, and metadata
+  errors. `Decode` remains a legacy panic wrapper.
+- `job.DefaultMaxMessageBytes` is one mebibyte and `job.MaxRetryCount` is 100.
+- `Message.Validate` checks execution metadata before enqueue or delivery.
+- `Message.SetAcknowledgement` is intended for backend implementers.
+
+## Backend constructors
+
+Every backend provides `NewWorkerE(options...) (*Worker, error)` for production
+startup and a compatibility `NewWorker(options...) *Worker` wrapper. New code
+should use the error-returning form.
+
+Backend-specific options are documented in [backend setup guides](backends/redis.md)
+and in Go doc comments beside each option.
+
+All network backends provide `WithRequestTimeout`. Redis Pub/Sub and Redis
+Streams provide `WithConnectTimeout`; NATS and NSQ provide the same startup
+bound, while RabbitMQ uses `WithReconnectConfig`. NSQ also provides
+`WithTouchInterval`, `WithDeadLetter`, and `DecodeDeadLetter` for converting a
+terminal envelope into a hidden-by-default `management.JobRecord`. RabbitMQ
+provides `WithPublishTimeout`, `DeadLetterConfig`, and `WithDeadLetter` for
+confirmed publish and terminal policy.
+
+Redis Streams exposes `Worker.Stats(context.Context)`. Its result reports
+consumer-group `Depth`, `Pending`, `Lag`, whether lag is known, and
+`OldestJobAge`. `Depth` is `-1` when Redis reports indeterminate lag.
+`WithRecordRetention` deliberately enables exact maximum-count retention for
+failure and dead-letter streams; it is independent of source `WithMaxLength`.
+
+Valkey Streams provides a package-owned API in `valkeystream`: `NewWorkerE`,
+`NewWorker`, `Worker`, `Option`, `ConfigurationError`, and `Stats`. Connection
+options cover address, ACL authentication, database, cloned TLS configuration,
+client identity, dial/command/request/block/shutdown timeouts, and the bounded
+blocking pool. Queue options cover stream, group, consumer, approximate source
+length, exact record retention, read batch, reclaim policy, dead-letter policy,
+logger, and handler.
+No `valkey-go` request, response, option, error, or connection type appears in
+these signatures.
+
+`valkeystream.Worker.Stats(context.Context)` reports `Depth`, `Pending`, `Lag`,
+`LagKnown`, `OldestPendingAge`, and monotonic local `Enqueued`, `Delivered`,
+`Reclaimed`, `Retries`, `Acknowledged`, `DeadLettered`, and
+`SettlementFailures` counters. See the [complete Valkey guide](backends/valkey-streams.md).
+
+## Management package
+
+- `management.NewFailure` preserves its cause for `errors.Is` and `errors.As`,
+  but its `Error` string contains only the stable classification and safe code.
+- `management.ResolveFailure` selects both classification and code across
+  wrapped or joined errors. Safety precedence is infrastructure, canceled,
+  malformed, permanent, then retryable; equal-rank codes use lexical order.
+- `management.ProtocolVersion` and `management.ProtocolRange` define the
+  rolling-upgrade compatibility window.
+- `management.Capability` constants identify optional visibility and control
+  operations without exposing a backend client.
+- `CapabilityRetentionCount`, `CapabilityRetentionTime`, and
+  `CapabilityRetentionBytes` report independently negotiable retention modes.
+  Manual purge continues to use `CapabilityPurge`; absence means unsupported.
+- `management.Negotiate` classifies older, newer, missing, and compatible
+  workers and enables only capabilities both peers report.
+- `management.Compatibility` preserves worker-only and control-plane-only
+  capabilities for truthful diagnostic presentation.
+- `management.WorkerStatus` reports bounded identity, version, lifecycle,
+  queue, concurrency, drain, backend, protocol, and capability fields.
+- `management.QueueStatus` exposes point-in-time queue metrics through
+  `management.Measurement`, whose `Supported` field distinguishes an honest
+  zero from an unavailable backend measurement. Supported gauges and rates
+  are validated as finite, non-negative observations.
+- `management.Command` validates protocol, actor, reason, idempotency,
+  deadline, action/target compatibility, purge confirmation, and replay
+  safeguards before an adapter may enforce it.
+- `management.CommandResult` exposes acknowledged, rejected, failed,
+  unsupported, timed-out, partial, and unknown outcomes through stable
+  redacted failure codes.
+- `management.Controller` is the backend-neutral interface implemented by
+  `queue` adapters; control planes must not bypass it with native clients.
+- `management.DesiredStateReconciler` applies authoritative queue, worker, and
+  worker-group lifecycle revisions monotonically without owning a scheduler.
+- `management.NewWorkerLifecycle` creates bounded queue admission and
+  in-flight accounting for pause, resume, drain, and terminate enforcement.
+- `queue.WithWorkerLifecycle` binds that lifecycle to a `Queue`. The worker
+  must implement `management.StatusProvider`; the resulting queue implements
+  `management.Controller`, `management.DesiredStateApplier`, and
+  `management.StatusProvider`.
+- `management.RecordReader` lists and inspects failures and dead letters using
+  validated bounded pages, cursors, searches, sorts, and payload visibility.
+- `management.Payload` defaults to hidden; redacted and privileged revealed
+  forms reject unexpected or oversized data.
+- `managementhttp.NewHandler` and `managementhttp.NewClient` provide a bounded,
+  bearer-authenticated remote `management.StatusReader`,
+  `management.RecordReader`, and `management.Controller` with an explicit
+  snake-case wire contract.
+
+See the [management protocol guide](management.md) for upgrade and failure
+semantics.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+The module has a small coordinator at its root and explicit backend packages.
+It deliberately avoids a universal transport API that would erase correctness
+differences.
+
+## Components
+
+- `Queue` owns concurrency, retries, cancellation, handler execution, metrics,
+  observation, and final delivery settlement.
+- `core.Worker` is the compatibility contract used by the coordinator.
+- `job.Message` carries payload, timeout, retry policy, and optional settlement
+  callbacks.
+- `Ring` is the in-memory worker.
+- Backend packages own connection, publish, receive, and transport-specific
+  settlement behavior.
+- `internal/streamqueue` owns only shared Streams command semantics, delivery
+  envelopes, validation, group state, and transport-neutral transitions.
+  `redisstream` converts those semantics through `go-redis/v9`; `valkeystream`
+  converts them through `valkey-go`. Neither native client crosses the public
+  queue API.
+- `core.WorkerMetadata` enriches every lifecycle event with backend and logical
+  queue identity without importing backend packages into the coordinator.
+- Retry and settlement failure events carry stable classification and safe-code
+  fields so exporters do not need to parse or label arbitrary error text.
+
+The processing path is:
+
+```text
+producer -> Worker.Queue -> backend -> Worker.Request -> Queue.handle
+         -> retry/backoff -> Ack on success | Nack on final failure
+```
+
+## Lifecycle
+
+`Start` launches the scheduling loop. The loop requests work only when a worker
+slot is available. Each handler runs with a timeout context. `Shutdown` prevents
+new work, asks the backend worker to stop, and signals the scheduler. `Release`
+also waits for owned goroutines.
+
+The complete ownership and transition contract is in
+[lifecycle and state ownership](lifecycle.md).
+
+## Compatibility boundary
+
+The root and backend option names remain close to upstream. Intentional v1
+divergences are limited to error-returning constructors, correct post-handler
+settlement, bounded backend waits, malformed-delivery rejection, usable metric
+injection, and optional structured observation. See [migration.md](migration.md).
+
+## Dependency boundary
+
+All backends live in this module and share one version. Transport clients remain
+external protocol implementations, but consumers no longer select separately
+released `golang-queue` adapter modules.
+
+Valkey topology is deliberately standalone-only. A generic client interface
+combining Redis and Valkey command sets is prohibited because it would obscure
+native errors, topology, command support, and lifecycle ownership.
+
+## Source: docs/examples.md
+
+# Examples
+
+## In-Memory Development
+
+The [in-memory example](../examples/inmemory) demonstrates worker lifecycle
+without an external broker. It is useful for API evaluation, not durability
+testing.
+
+## Redis
+
+The [Redis example](../examples/redis) demonstrates the primary backend.
+Production deployments must configure Redis persistence, memory policy,
+authentication, network security, and monitoring independently of this
+package.
+
+## Valkey Streams
+
+The [Valkey example](../examples/valkey) is runnable against standalone Valkey
+9 and demonstrates enqueue, handler retry, reclaim, terminal dead-lettering,
+monotonic stats, and graceful signal shutdown. TLS, ACL, Kubernetes, failure
+recovery, and dual-backend rollout examples are in the
+[Valkey Streams guide](backends/valkey-streams.md).
+
+## Failure Scenarios
+
+Before adoption, exercise:
+
+- handler failure followed by bounded retry;
+- worker termination before acknowledgement;
+- cancellation during backoff;
+- poison-message exhaustion and dead-letter handling;
+- broker disconnect and reconnect;
+- duplicate delivery against an idempotent handler.
+
+Backend guarantees differ. Use [backend support](backend-support.md) and
+[integration evidence](integration-evidence.md) when defining acceptance
+criteria.
+
+## Source: docs/cookbook.md
+
+# Scenario cookbook
+
+## Fixed-delay retries
+
+Set `RetryCount` and `RetryDelay` on `job.AllowOption`. The total timeout covers
+handler execution and retry waits.
+
+## Exponential backoff
+
+Leave `RetryDelay` at zero and set `RetryMin`, `RetryMax`, `RetryFactor`, and
+optionally `Jitter`. Jitter is recommended for shared downstream outages.
+
+## Graceful service shutdown
+
+Stop accepting new application requests, call `Queue.Release`, and bound the
+outer service shutdown deadline above the longest job timeout. A handler must
+honor its context for prompt cancellation.
+
+## Poison messages
+
+Set finite package and backend retry counts and observe `handler_failed` plus
+`rejected`. v1 does not hide backend dead-letter differences: configure the
+RabbitMQ `DeadLetterConfig`, NSQ `WithDeadLetter`, or Redis Streams record
+operations explicitly.
+
+Valkey Streams provides a bounded built-in terminal policy through
+`WithDeadLetter(stream, attempts)`. Failed work remains pending until reclaim;
+the terminal attempt appends to the dead-letter stream before acknowledging
+the source. Deduplicate dead letters by `original_id` because an ambiguous
+source acknowledgement can repeat the append.
+
+## Valkey crash recovery
+
+Use a unique consumer name per process and configure `WithReclaim` above the
+longest valid handler runtime. A replacement process in the same group claims
+idle pending work with `XAUTOCLAIM`. Never use a short reclaim threshold as a
+substitute for handler cancellation; it can create concurrent duplicates.
+
+## Duplicate protection
+
+Include an application job identifier in the payload and enforce idempotency at
+the side-effect boundary. Broker acknowledgement is not a transaction with your
+database or external API.
+
+## Source: docs/faq.md
+
+# FAQ
+
+## Is this exactly-once?
+
+No. Durable backends target at-least-once processing. Applications must handle
+duplicates.
+
+## Redis Pub/Sub or Redis Streams?
+
+Pub/Sub for transient notifications; Streams for work that must survive
+disconnects and be acknowledged after processing.
+
+## Redis Streams or Valkey Streams?
+
+Both are first-class native backends. Keep Redis when its deployment and
+operator model fit; choose Valkey 9 when you want that server and native
+`valkey-go` client. Valkey adds package-managed reclaim and dead-letter policy;
+Redis's existing API and operator-managed PEL policy remain unchanged. No
+migration is mandatory.
+
+## Does Valkey cluster work?
+
+No support claim is made. The current Valkey backend forces one standalone
+client and one explicit endpoint. Cluster and managed failover require exact
+topology integration evidence before they can become public options.
+
+## Why are backend packages explicit?
+
+Ack, ordering, redelivery, and delayed-delivery guarantees differ. A generic
+facade would make correctness harder to see.
+
+## Why does `NewWorker` panic?
+
+It preserves the upstream return signature without allowing nil initialized
+workers. New applications should use `NewWorkerE` and handle the error.
+
+## Does the module ship Prometheus metrics?
+
+Not in v1. Implement `Metric` and/or translate `Observer` events in the
+application so the queue core remains vendor-neutral.
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+## Startup returns a connection error
+
+Check the backend address format, credentials, TLS mode, and broker listener.
+Use `NewWorkerE`; do not recover a compatibility-constructor panic and continue.
+
+## Jobs repeat
+
+This is expected for at-least-once transports when processing succeeds but ack
+delivery fails or the process exits. Verify idempotency and inspect `ack_failed`.
+
+## Redis Streams messages remain pending
+
+Final handler failures are intentionally not acknowledged. Inspect the consumer
+group pending entries and operate an explicit claim/dead-letter policy.
+`Worker.Stats(ctx)` reports pending count, lag, depth, and oldest-job age.
+
+## Valkey Streams messages remain pending
+
+Final failures intentionally wait for `XAUTOCLAIM`. Check `Pending`,
+`OldestPendingAge`, reclaim counters, consumer identity, and whether
+`WithReclaim` exceeds valid handler runtime. At the terminal configured attempt,
+the worker appends to the dead-letter stream before acknowledging the source.
+Repeated `original_id` values in the dead-letter stream indicate an ambiguous
+source acknowledgement and must be deduplicated.
+
+## Valkey authentication or TLS startup fails
+
+Verify the standalone `host:port`, ACL username/password, CA roots, certificate
+SAN, and selected database with `valkey-cli`. Public errors intentionally redact
+the endpoint and native text. Inspect an unwrapped cause only in a protected
+diagnostic path and never log credentials.
+
+## Shutdown takes too long
+
+Confirm handlers honor context cancellation and that task timeouts fit the
+service shutdown window. Inspect shutdown events and busy-worker metrics.
+Tune backend request/connect timeouts so broker outages fit that window.
+
+## Enqueue returns a size or metadata error
+
+Encoded broker messages are limited to one mebibyte, retry count to 100, and
+execution metadata must contain a positive timeout and valid backoff bounds.
+Split large payloads into external object storage and enqueue a reference.
+
+## RabbitMQ enqueue times out
+
+`Queue` waits for a publisher confirmation. Check broker alarms, disk/network
+latency, and `WithPublishTimeout`; do not treat a timeout as proof that the
+broker did not receive the message. Use an idempotency key when retrying.
+
+## RabbitMQ does not recover after a broker restart
+
+`WithReconnectConfig` bounds initial connection attempts; it does not rebuild a
+live worker's AMQP connection and channel. Treat a connection-loss error as
+terminal, shut down that queue, and construct a replacement worker under a
+supervisor. The integration suite proves this replacement flow.
+
+## No NATS redelivery
+
+The consolidated backend uses Core NATS, not JetStream. Core NATS does not
+provide durable acknowledgement or replay.
+
+## Source: docs/migration.md
+
+# Migration from golang-queue
+
+## Import mapping
+
+| Upstream | Consolidated import |
+| --- | --- |
+| `github.com/golang-queue/queue` | `github.com/faustbrian/golib/pkg/queue` |
+| `github.com/golang-queue/redisdb` | `github.com/faustbrian/golib/pkg/queue/redisdb` |
+| `github.com/golang-queue/redisdb-stream` | `github.com/faustbrian/golib/pkg/queue/redisstream` |
+| No upstream package | `github.com/faustbrian/golib/pkg/queue/valkeystream` |
+| `github.com/golang-queue/nats` | `github.com/faustbrian/golib/pkg/queue/nats` |
+| `github.com/golang-queue/nsq` | `github.com/faustbrian/golib/pkg/queue/nsq` |
+| `github.com/golang-queue/rabbitmq` | `github.com/faustbrian/golib/pkg/queue/rabbitmq` |
+
+The `redisstream` package retains the upstream Go package name `redisdb`, so an
+explicit import alias is recommended.
+
+## Intentional divergences
+
+1. Prefer `NewWorkerE`; it returns connection/configuration errors. Compatibility
+   `NewWorker` now panics immediately instead of logging and using nil state.
+2. Redis Streams, NSQ, and RabbitMQ settle after handler completion. This fixes
+   upstream early acknowledgements and can expose redeliveries previously lost.
+3. `WithMetric` is honored and each queue owns independent defaults.
+4. `WithObserver` exposes structured lifecycle events.
+5. Lifecycle events now carry backend and logical queue identity.
+6. Backend startup/request waits are configurable, and malformed wire payloads
+   return errors instead of producing zero-valued jobs.
+7. Core NATS no longer calls `Msg.Ack`; Core NATS has no durable settlement and
+   the inherited call rejected valid messages without reply subjects.
+8. Integration tests are build-tagged and separated from hermetic unit runs.
+9. Encoded broker deliveries above one mebibyte and retry counts above 100 are
+   rejected before execution.
+10. The in-memory ring defaults to 10,000 queued jobs. Pass
+    `WithQueueSize(0)` only when intentionally preserving unlimited growth.
+11. RabbitMQ publishes are persistent and synchronously confirmed within
+    `WithPublishTimeout` (five seconds by default).
+12. RabbitMQ declares package-owned dead-letter topology by default. Existing
+    queues must use matching dead-letter arguments or be safely drained and
+    redeclared before upgraded workers start.
+13. NSQ now publishes bounded terminal envelopes before `FIN`; configure the
+    terminal topic and update operations that previously expected malformed
+    work to disappear.
+14. Valkey Streams is a new additive native backend. It does not replace or
+    alias the retained Redis Streams package.
+
+Migrate one backend at a time, compare retry and shutdown behavior in staging,
+and verify handler idempotency before enabling explicit redelivery paths.
+
+For Redis-to-Valkey adoption, deploy a separate Valkey stream and group. If a
+temporary dual-publish is necessary, carry the same application idempotency key
+in both messages, compare independent metrics, stop Redis producers, and drain
+Redis lag plus pending work before stopping its consumers. Stream entries can
+be copied, but consumer-group pending ownership cannot be migrated safely as a
+client-side operation.
+
+## Source: docs/compatibility.md
+
+# Compatibility policy
+
+The project uses semantic versioning.
+
+- Before v1, minor releases may change APIs, but release notes identify every
+  delivery, ack, retry, or shutdown semantic change.
+- At v1, exported APIs and documented semantics are stable within the major
+  version.
+- Backend client and server version constraints are recorded in setup guides.
+- Security fixes may require dependency minimum bumps in patch releases.
+- Silent changes to acknowledgement or retry behavior are prohibited.
+- Redis Streams remains source-compatible and backed by `go-redis/v9`.
+  Valkey Streams is additive, backed by `valkey-go`, and does not alias or
+  replace Redis.
+- Security bounds are contracts: encoded messages default to 1 MiB, retry count
+  is at most 100, and the in-memory queue defaults to 10,000 pending jobs.
+
+Deprecated APIs remain for at least one minor release before removal. The
+compatibility `NewWorker` constructors are retained through v1; production code
+should use `NewWorkerE`.
+
+`WithQueueSize(0)` retains the upstream unlimited ring behavior as an explicit
+escape. It is not recommended for untrusted or bursty producers.
+
+The tested Valkey server line is 9.x, currently 9.1.0. Only standalone
+operation is supported. Valkey cluster or managed failover support requires a
+separate SemVer-reviewed API and native integration evidence. Public Valkey
+signatures are compile-frozen without native client types.
+
+## Source: docs/performance.md
+
+# Performance and capacity
+
+Benchmarks are diagnostic measurements, not correctness gates. `make benchmark`
+uses a bounded iteration count (`BENCH_TIME=100x`) so broker-backed harnesses do
+not amplify load unpredictably.
+
+The suite measures root enqueue/consume/shutdown paths, job encoding, Redis
+Pub/Sub enqueue and consume, Redis Streams queue/stat operations, and Valkey
+Streams enqueue, consume, reclaim, ack, retry-settlement, and shutdown. Results
+depend on CPU, Docker networking, broker persistence, and host load and must not
+be compared across machines without recording that environment.
+
+Production capacity must account for:
+
+- the default 10,000-job in-memory admission cap;
+- one-mebibyte encoded broker messages;
+- worker count and NSQ `MaxInFlight` alignment;
+- Redis Streams pending-entry growth and claim policy;
+- Valkey read/reclaim batch bounds, blocking pool, pending age, and DLQ growth;
+- RabbitMQ synchronous publisher-confirm latency;
+- handler deadline and retry delay within the shutdown budget; and
+- broker depth, lag, oldest age, redelivery, and settlement errors.
+
+The library exposes meaningful in-process counters plus Redis and Valkey
+Streams group statistics. Valkey counters are process-local monotonic values;
+derive rates by sampling them and combine them with server metrics. Redis
+Pub/Sub and Core NATS cannot report durable depth because the
+protocols do not retain a work queue. RabbitMQ depth belongs to the management
+API and NSQ exposes consumer statistics through its client.
+
+Before a deployment scale change, run `make benchmark`, a representative
+broker load test, `go test -race ./...`, and a bounded shutdown test with the
+real handler and persistence policy.
+
+## Source: docs/hardening.md
+
+# Hardening report
+
+This report records the audit findings, their evidence, impact, and current
+disposition. Severity reflects production worker impact, not patch size.
+
+| ID | Severity | Area | Evidence and reproduction | Impact | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| H-01 | High | Ring | Concurrent queue/request race tests under `-race` | Corrupt capacity decisions | Fixed by serializing ring state |
+| H-02 | High | Lifecycle | release-before-start deadlocked; repeated start launched schedulers | Deadlock or duplicate processing | Fixed with idempotent startup and drain transition |
+| H-03 | High | Core callbacks | Panicking observer/metric/logger/after callback regressions | Process exit or corrupted worker count | Fixed with panic boundaries and authoritative accounting |
+| H-04 | High | Settlement | Ack/nack callback panic regressions | Process exit after side effects | Fixed; panic becomes settlement failure |
+| H-05 | High | Redis Streams | Message queued before first request was skipped by group at `$` | Silent durable-work loss | Fixed; group starts at `0` |
+| H-06 | High | Redis Streams | Shutdown re-added a PEL delivery while retaining the original | Duplicate durable entry | Fixed; original remains pending |
+| H-07 | High | Broker input | All delivery decoders accepted unbounded JSON and arbitrary retry state | Memory/CPU denial of service | Fixed at 1 MiB, 100 retries, validated finite timing |
+| H-08 | High | RabbitMQ | Durable entities used transient messages and no publisher confirms | Publish could be lost while reported successful | Fixed with persistent messages and bounded confirms |
+| M-01 | Medium | RabbitMQ | Malformed manual-ack delivery remained unsettled | Infinite poison requeue | Fixed with confirmed terminal publish before source ack |
+| M-02 | Medium | NSQ | Malformed delivery remained unfinished | Infinite poison redelivery | Fixed by FIN plus decode error |
+| M-03 | Medium | Redis logging | Debug dump included connection URI/options | Credential disclosure | Fixed with a redacted summary regression |
+| M-04 | Medium | RabbitMQ | Publish used `context.Background()` | Enqueue could block indefinitely | Fixed with validated five-second default timeout |
+| M-05 | Medium | In-memory | Default ring capacity was unlimited | Admission-driven memory exhaustion | Fixed with 10,000 default; explicit zero remains an unsafe escape |
+| M-06 | Medium | Configuration | Non-positive retry interval reached `time.NewTicker` | Scheduler goroutine panic | Fixed by constructor validation |
+| M-07 | Medium | Integration | Floating images and Redis cluster advertised container-only nodes | Non-reproducible or skipped evidence | Fixed with digests and portable all-slot cluster setup |
+| M-08 | Medium | Redis Pub/Sub | Immediate publish after constructor failed under `-race` | Healthy-start message loss | Fixed by awaiting the Redis `SUBSCRIBE` acknowledgement |
+| M-09 | Medium | Integration | 143 legacy test sleeps included synchronization delays | Slow and potentially flaky evidence | Fixed; five remaining sleeps deliberately create timeout or benchmark load |
+| M-10 | Medium | Failure injection | Broker restart and interruption behavior lacked real evidence | Reconnect/loss claims were not fully proved | Fixed with same-endpoint stop/start tests; packet-level half-open behavior is not a package guarantee |
+| M-11 | Medium | Credentials | Malformed Redis, NATS, and AMQP URLs were repeated by client errors | Constructor logging could expose passwords | Fixed with safe error text that preserves programmatic cause identity |
+| H-09 | High | Valkey settlement | Handler completion could be confused with stream delivery | Premature acknowledgement and lost crash recovery | Fixed with deferred ack, pending reclaim, and native Valkey 9 evidence |
+| H-10 | High | Valkey lifecycle | Blocking reads, reclaim scans, and shutdown needed explicit ownership | Goroutine or connection leaks during outage | Fixed with cancellation, bounded waits, forced close, race, and leak gates |
+| M-12 | Medium | Valkey errors | Native dial/command errors could repeat endpoints or metadata | Sensitive deployment detail disclosure | Fixed with safe public text and retained programmatic causes |
+| M-13 | Medium | Valkey DLQ | Append and source ack are not one atomic command | Duplicate terminal entries after ambiguous ack | Accepted at-least-once boundary; original ID is recorded for deduplication |
+| L-01 | Low | API | Legacy constructors panic | Startup crash if error is not handled | Retained for compatibility; `NewWorkerE` is required in production |
+| L-02 | Low | Redis Streams | Failed jobs remain in PEL without automatic claim/DLQ | Pending growth without operations | Accepted policy boundary; monitor and operate explicitly |
+| L-03 | Low | Handlers | Go cannot forcibly stop code that ignores its context | User goroutine/resource retention | Accepted language boundary and documented requirement |
+
+## Verification scope
+
+Each behavioral correction began with a failing regression. Production
+statement coverage remains 100%, delivery, option, native-response, and
+message-state fuzz targets cover every network wrapper, and race/static/vulnerability/workflow gates are part of
+the final command set in this report.
+
+## Release verdict
+
+The 2026-07-15 audit verdict is **go** for a pre-v1 hardening release. Every
+high- and medium-severity finding is fixed, the final local and tagged backend
+gates pass without skips, production statement coverage is 100%, and the
+remaining low-severity risks are explicit operational or compatibility
+boundaries rather than hidden delivery guarantees.
+
+The acknowledgement, retry, payload, startup, callback, and default-capacity
+changes are SemVer-significant; the recommended release is a pre-v1 minor. If
+released after v1, they require a major version because delivery and admission
+semantics changed.
+
+## Latest gate results
+
+| Command | Result |
+| --- | --- |
+| `make check` | Pass, including safety, race, fuzz, coverage, benchmarks, docs, and vulnerability scan |
+| `make integration` | Pass for every tagged backend without skips |
+| `go test ./... -count=1 -timeout=60s` | Pass |
+| `go test -race ./... -count=1 -timeout=120s` | Pass |
+| `scripts/check-coverage.sh` | Pass, 100% production statements |
+| `scripts/check-docs.sh` | Pass |
+| `go vet ./...` | Pass |
+| `staticcheck@v0.6.1 ./...` | Pass |
+| `govulncheck@v1.6.0 ./...` | Pass, no called vulnerabilities |
+| `actionlint@v1.7.7` | Pass |
+| `FUZZ_TIME=2s scripts/check-fuzz.sh` | Pass for all targets |
+| `BENCH_TIME=10x make benchmark` | Pass |
+| `go test -tags=integration -count=1 -timeout=15m ./valkeystream` | Pass without skips against pinned Valkey 9.1.0 |
+| `go test -race -tags=integration -count=1 -timeout=15m ./valkeystream` | Pass |
+
+## Source: docs/security.md
+
+# Security and abuse resistance
+
+Every enqueue caller and broker delivery is untrusted. The library validates
+message envelopes before handler execution, but deployment authentication,
+authorization, network isolation, and broker retention limits remain operator
+responsibilities.
+
+## Library-enforced bounds
+
+- Encoded network deliveries are limited to one mebibyte before JSON decoding.
+- Retry metadata is finite, non-negative, and limited to 100 attempts.
+- Operational job metadata is allowlisted, limited to 256 bytes per identity
+  or tag key/value and 32 tags per message, and remains inside the one-mebibyte
+  encoded-envelope limit.
+- The in-memory ring defaults to 10,000 queued jobs. `WithQueueSize(0)` is an
+  explicit unbounded compatibility mode and is unsafe for untrusted admission.
+- Handler concurrency is bounded by the configured worker count.
+- Connection, request, publish, touch, and shutdown waits are bounded where the
+  corresponding client exposes control.
+- There is no decompression layer. Base64 payload decoding remains inside the
+  encoded-envelope limit.
+
+Redis Pub/Sub, Core NATS, NSQ, and RabbitMQ do not expose durable depth or
+retention controls through this package. Redis Streams pending entries are
+bounded only by broker and operational policy. Valkey bounds individual reads,
+reclaim scans, payloads, buffers, pools, waits, attempts, and approximate stream
+length, but server memory and retention remain operator responsibilities.
+Configure broker-side quotas, retention, dead-lettering, and connection limits.
+
+## Credentials and transport security
+
+Do not put credentials in logs, observer metadata, queue names, subjects, or
+payloads. Redis debug output is redacted. Redis, NATS, and RabbitMQ constructor
+errors expose sanitized text when a client parser or dialer rejects a
+credential-bearing URI; the original cause remains available to
+`errors.Is`/`errors.As`, so application code must not separately log an
+unwrapped client error.
+
+Redis TLS is opt-in in both Redis packages. `WithSkipTLSVerify` is deliberately
+named and MUST NOT be used in production. NATS uses the transport selected by
+the configured client URL, and RabbitMQ uses `amqps` when supplied; this wrapper
+does not expose every client TLS option. NSQ authentication and TLS are not
+configured by this package. Use authenticated, certificate-verified endpoints
+or a trusted private transport boundary, and verify those controls in the
+deployment environment.
+
+Valkey accepts an explicit cloned `tls.Config`, enforces TLS 1.2 or later, and
+does not provide a skip-verification option. ACL credentials are separate from
+the endpoint. Native Valkey errors retain their cause but expose fixed safe
+text, and worker logs omit endpoints, credentials, payloads, and metadata.
+
+Treat broker destination names as authorization boundaries. Give producers
+publish-only access and consumers consume/settle access where the broker can
+express that split. Rotate credentials outside this library and avoid embedding
+long-lived secrets directly in source configuration.
+
+## Hostile input and failure behavior
+
+Malformed, oversized, or invalid-state envelopes are rejected before handler
+execution. Redis Streams and Valkey Streams append malformed work to their
+dead-letter streams before acknowledging the source and strip an
+oversized poison body before terminal transfer; NSQ omits it from the terminal
+envelope before `FIN`; RabbitMQ
+confirms it to the terminal exchange before source acknowledgement when manual
+acknowledgement is enabled. Redis Pub/Sub and Core NATS have no durable poison
+message to settle.
+
+Handlers must cooperate with context cancellation and bound their own network
+and storage calls. Callback, metric, logger, and settlement panics are isolated,
+but repeated hostile failures can still consume log, broker, and retry capacity.
+Rate-limit admission and alert on decode, retry, pending, redelivery, and
+settlement-error signals.
+Observer exporters may aggregate only the stable event kind, classification,
+and safe failure code. Never turn `Event.Err`, payloads, record IDs, tenant data,
+or arbitrary backend/queue names into metric labels.
+
+Run `govulncheck`, Staticcheck, the race suite, decoder fuzzing, and all pinned
+backend integrations before release. See the [threat and failure model](failure-model.md)
+for residual failure modes and [delivery semantics](delivery-semantics.md) for
+the exact loss and redelivery boundaries.
+
+## Source: docs/releasing.md
+
+# Versioning and release guide
+
+Releases follow semantic versioning and are created from annotated `vX.Y.Z`
+tags on a clean `main` commit synchronized with `origin/main`.
+
+## Release commands
+
+After moving the relevant changelog entries to a dated release section and
+adding its release link, choose the intended compatibility level:
+
+```sh
+make release-patch
+make release-minor
+make release-major
+```
+
+Each target calculates the next stable version, runs the complete local
+release checks, and creates a local annotated tag. It never pushes the tag.
+Review the result before running the printed `git push origin vX.Y.Z` command.
+
+## Release checklist
+
+1. Ensure CI, independent Redis Streams and Valkey 9 integration, coverage,
+   mutation, lint, security, docs, and example gates pass.
+2. Add user-visible changes and semantic notes to `CHANGELOG.md`.
+3. Verify `go mod tidy` produces no diff.
+4. Run the appropriate `make release-*` target.
+5. The release workflow verifies the tag and publishes release notes/checksums.
+6. Verify the public module through the Go proxy before announcing adoption.
+
+Any ack, retry, redelivery, ordering, or shutdown behavior change must be called
+out explicitly and treated as breaking when existing correctness can change.
+The release workflow blocks publication if either native Streams integration
+job fails.
+
+If verification fails, fix forward with a normal commit. Never bypass a check,
+move a published tag, or force-push release history.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Before Opening A Change
+
+Use an issue for changes affecting worker lifecycle, retries, settlement, backends, observability, and compatibility. Explain the user problem,
+compatibility impact, and why the behavior belongs in this generic package.
+
+## Development Setup
+
+Requirements:
+
+- Go 1.26.5 or later
+- Git
+- `golangci-lint` v2
+- network access on the first mutation run so the pinned Gremlins binary can
+  be installed into the temporary tool directory
+
+```sh
+go mod download
+make check
+```
+
+## Change Requirements
+
+- Add regression coverage before fixing a defect.
+- Maintain meaningful 100% production-code coverage.
+- Update public examples and documentation with behavior changes.
+- Update `.ai/GOAL.md` or `.ai/GOAL_HARDEN.md` when scope or acceptance criteria
+  change.
+- Add an `Unreleased` entry to `CHANGELOG.md`.
+- Explain every dependency addition, upgrade, or removal.
+- Update `NOTICE` when project or inherited ownership notices change and
+  `THIRD_PARTY_NOTICES.md` when detailed fork provenance or attribution changes.
+
+## Package-Specific Review
+
+Document delivery, durability, acknowledgement, redelivery, and shutdown impact for every affected backend. Backend changes MUST pass `make integration` with the documented services. Redis Streams and Valkey Streams changes MUST also pass their independent native-client integration jobs; Valkey support is standalone-only until another topology has pinned evidence.
+
+## Local Verification
+
+Run the complete local gate:
+
+```sh
+make check
+```
+
+Backend changes also require:
+
+```sh
+make integration
+```
+
+## Commits And Pull Requests
+
+Use focused conventional commits with a body explaining why the change is
+needed. Pull requests must describe compatibility impact, tests, verification
+commands and results, documentation updates, and changelog updates.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md).
+
+## Source: SECURITY.md
+
+# Security Policy
+
+## Supported Versions
+
+Before `v1.0.0`, security fixes are applied to the latest revision of
+`main`. After the first stable release, supported release lines and
+end-of-support dates will be documented here.
+
+## Reporting A Vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, expected and observed behavior, affected versions, impact,
+and any suggested mitigation. Do not include secrets or production data.
+
+## Response Process
+
+Maintainers will acknowledge the report, reproduce and assess it privately,
+coordinate a fix and advisory, and credit the reporter when requested. Public
+disclosure should wait until a fix or agreed mitigation is available.
+
+## Package Security Boundary
+
+Job payloads, broker frames, retry metadata, and backend state are untrusted operational inputs. Settlement correctness, bounded retries, and deterministic shutdown are part of the maintained security boundary.
+
+## Application Responsibilities
+
+Applications remain responsible for transport limits, authentication,
+authorization, rate limiting, deadlines, secret handling, deployment policy,
+and business-level validation. Package safeguards do not replace those
+controls.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for adoption guidance and maintained
+evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+## v1 readiness completed
+
+- Backend integration fixtures are hermetic in-process tests or repeatable
+  tagged containers.
+- Meaningful 100% production-code coverage is enforced in CI.
+- Redis enqueue, consume, ack, retry, and shutdown benchmarks run in CI.
+- Lifecycle events carry backend/queue identity; Redis Streams exposes group
+  depth and oldest-job age, while other backend-specific sources are documented.
+- Examples and documentation links are validated in CI.
+- Dependency updates, vulnerability scanning, and tagged releases are automated.
+
+## After v1
+
+- Optional middleware/interceptor chain.
+- Deduplication and delayed-delivery helpers.
+- Maintained metrics exporters outside the core contract.
+
+Dead-letter settlement and Redis pending recovery are v1 requirements tracked
+by `.ai/GOAL_DEAD_LETTER.md`, not post-v1 helpers.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes are documented here. The project follows semantic
+versioning and Keep a Changelog structure.
+
+## [Unreleased]
+
+### Changed
+
+- Retry Valkey integration container creation when Docker starts the container
+  without publishing its requested port, and retain the endpoint error for
+  diagnosis instead of polling without reporting its cause.
+- Regenerated the complete documentation bundle from the current package
+  documentation and release notes.
+- Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing
+  benchmark calibration to repeat its intentionally expensive untimed setup.
+- NSQ statistics now synchronize with consumer initialization and shutdown so
+  callers cannot observe a partially published consumer or trigger a data race.
+- Reject malformed embedded job metadata explicitly in NSQ dead-letter wire
+  boundary coverage.
+- RabbitMQ restart integration now waits for a successful AMQP constructor
+  after container restart instead of assuming container start implies protocol
+  readiness under a concurrent full-backend test run.
+- Valkey Streams retry and replay now carry bounded original/prior
+  dead-letter identifiers and replay generation through native stream entries
+  and repeated terminal records. Partial or overflowing lineage is rejected.
+- Redis Streams dead-letter retry now carries bounded redrive lineage into the
+  durable retry entry, matching replay behavior so another terminal failure
+  retains its original and prior dead-letter identifiers.
+- Redis Streams and Valkey Streams v1 management records now populate the
+  last-delivery time from the package-owned settlement observation and include
+  the configured management worker version when it is known.
+- Exhausted NSQ and RabbitMQ deliveries now retain the terminal
+  `attempts_exhausted` failure code even when the handler supplied a generic
+  retryable code. RabbitMQ malformed attempt headers also retain their
+  dedicated safe failure code.
+- Valkey integration coverage now verifies that recovered handler panics are
+  treated as permanent failures and dead-lettered instead of remaining
+  pending for another consumer.
+- Redis Streams and Valkey Streams record-read transport failures now expose
+  secret-safe text and the stable `management.ErrManagementUnavailable`
+  sentinel while preserving caller cancellation and the native cause for
+  programmatic inspection.
+- Valkey Streams record listings now use bounded native-ID cursors across the
+  complete retained stream in either occurrence-time direction. Unsupported
+  sort fields fail explicitly instead of sorting a truncated local snapshot.
+- Valkey Streams source `WithMaxLength` no longer silently trims failure and
+  dead-letter records; record eviction is disabled until explicitly enabled.
+- Redis Streams source `WithMaxLength` no longer silently trims failure and
+  dead-letter records. Record eviction is disabled unless explicitly enabled
+  with exact maximum-count retention.
+- NSQ now requeues retryable, canceled, and infrastructure failures under a
+  bounded broker-attempt policy, then publishes a terminal envelope before
+  finishing exhausted, permanent, or malformed source messages.
+- RabbitMQ now declares a durable dead-letter exchange and queue by default.
+  Retryable failures use confirmed republish with a bounded delivery-attempt
+  header; exhausted, permanent, and malformed work is confirmed to the
+  terminal destination before the source delivery is acknowledged.
+- Redis Streams now defaults to bounded pending recovery and dead-letter
+  policy instead of leaving failed and malformed entries indefinitely pending.
+- Valkey record readers and the authenticated HTTP transport now preserve
+  stable unsupported, not-found, malformed-cursor, unavailable, stale,
+  conflict, partial, and unknown management outcomes through `errors.Is`.
+- Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
+  benchmark standard with an executable `make safety` gate.
+- Moved AI planning and hardening briefs into `.ai/` and clarified the
+  separate purposes of ownership notices and detailed fork provenance.
+- Valkey Streams now dead-letters explicitly permanent or malformed handler
+  failures immediately, while canceled and infrastructure failures stay
+  recoverable instead of becoming terminal through the attempt limit.
+
+### Added
+
+- Dedicated dead-letter incident/recovery and Laravel Horizon failed-job
+  migration guides covering capability negotiation, privacy, retention,
+  redrive, ambiguous outcomes, backup, rollback, and intentional differences.
+- Stable public codes for unsupported payload versions, lease loss,
+  dead-letter destination outages, and administrative quarantine. Durable
+  backends now classify terminal-destination append failures and lost stream
+  settlement ownership without exposing backend error text.
+- Low-cardinality observer fields for the package-owned classification and safe
+  failure code on retry, handler failure, acknowledgement failure, rejection,
+  and rejection-failure events.
+- A pinned, reproducible mutation gate covering failure classification, Redis
+  record cursors, lineage/control decisions, root settlement/runtime semantics,
+  Redis/Valkey status decisions, and the Valkey native transport at 100% mutant
+  coverage and efficacy in pull-request and release CI.
+- Rolling-compatible retention capability identifiers for exact count, time,
+  and byte policies. Redis and Valkey Streams advertise exact count retention
+  only when deliberately configured; absent time/byte capabilities remain an
+  explicit unsupported result.
+- Bounded optional `job.Metadata` for original job identity, payload schema and
+  content type, enqueue time, retry policy, handler and job type, tags, trace,
+  tenant, and producer version propagation into operational records.
+- Redis Streams, Valkey Streams, and NSQ dead-letter records now populate
+  supplied v1 job metadata while preserving broker source identity separately.
+- Valkey Streams `WithRecordRetention` for deliberate exact maximum-count
+  retention independent of source-stream trimming.
+- Redis Streams `WithRecordRetention` for deliberate exact maximum-count
+  retention independent of source-stream throughput trimming.
+- NSQ `WithDeadLetter` terminal-topic configuration and `DecodeDeadLetter`
+  conversion to hidden-by-default backend-neutral management records.
+- RabbitMQ `DeadLetterConfig` and `WithDeadLetter` overrides for package-owned
+  terminal topology, maximum delivery attempts, classification headers, and
+  stable failure codes.
+- Allowlisted Redis Streams replay with durable reject-or-replace duplicate
+  tracking, bounded registry capacity, replay lineage propagation, and
+  explicit partial outcomes at non-atomic Redis boundaries.
+- Native Redis Streams retry, bounded bulk retry, delete, and confirmed
+  record-purge commands with durable append-before-delete ordering, bounded
+  in-memory idempotency, serialized mutations, and explicit partial outcomes.
+- A bounded Redis Streams `management.RecordReader` with native-ID cursors,
+  occurrence-time ordering, bounded search, strict v1 decoding, and explicit
+  hidden/redacted/revealed payload inspection.
+- Package-managed Redis Streams failure records, malformed-delivery handling,
+  bounded `XAUTOCLAIM` recovery, classified terminal settlement, and
+  append-before-ack dead-letter records.
+- Error-aware delivery settlement callbacks, allowing durable adapters to
+  receive classified handler outcomes without breaking legacy acknowledgers.
+- Stable failure classifications and management outcome errors that preserve
+  wrapped causes and resolve joined failures with safety-first precedence.
+- Deterministic `management.ResolveFailure` classification/code selection for
+  wrapped and joined failures, independent of join ordering.
+- A versioned backend-neutral dead-letter envelope carrying bounded source,
+  timing, classification, diagnostics, lineage, and retention metadata through
+  the authenticated management transport.
+- Versioned Valkey failure and dead-letter records that durably retain terminal
+  classification, safe failure code, source identity, stream, consumer group,
+  attempts, and broker-derived times while continuing to read legacy records.
+
+- A reconciled dead-letter architecture with explicit state transitions,
+  current backend paths, capability gaps, crash boundaries, and data-plane
+  ownership.
+- A focused dead-letter completion goal covering terminal settlement,
+  backend capability parity, redrive safety, retention, and control-plane
+  interoperability.
+- A stable `management` package for rolling-version negotiation and
+  fail-safe worker/control-plane capability intersection.
+- Bounded management worker and queue status contracts with explicit support
+  flags for backend-dependent queue measurements.
+- Bounded status-reader pages for backend-neutral worker and queue
+  observations with validated opaque cursors and adapter output.
+- Bounded bearer-authenticated `managementhttp` worker and queue status
+  transport with explicit snake-case JSON, strict decoding, request/output
+  validation, cancellation, response limits, and secret-safe failures.
+- Bounded bearer-authenticated `managementhttp` command transport implementing
+  `management.Controller`, with strict request/result validation, correlated
+  acknowledgements, cancellation, and secret-safe failures.
+- Bounded bearer-authenticated `managementhttp` failure and dead-letter
+  transport implementing `management.RecordReader`, with strict list and
+  inspection validation and least-privilege payload disclosure.
+- Validated management command and acknowledgement contracts with explicit
+  action/target compatibility, deadlines, destructive-action confirmation,
+  replay policy, redacted failure codes, and partial or unknown outcomes.
+- Confirmed management bulk retry with a backend-owned selection capped at
+  1,000 failure or dead-letter records.
+- Revisioned desired-state reader, applier, and bounded reconciler contracts
+  that reject rollback and same-revision conflicts, preserve retryability, and
+  do not start hidden polling goroutines.
+- Queue-owned worker lifecycle enforcement for pause, resume, drain, and
+  terminate commands, including admission barriers, in-flight accounting,
+  native backend status decoration, and durable desired-state application.
+- Bounded failure and dead-letter listing, inspection, cursor, search, sort,
+  adapter-output, and hidden-by-default payload disclosure contracts.
+- Native Valkey failed-attempt retention and `management.RecordReader`
+  inspection for failure and dead-letter streams, with bounded pagination,
+  hidden-by-default payloads, and advertised backend capabilities.
+- Native Valkey retry, bounded bulk retry, delete, and record-purge commands,
+  including atomic active-failure redrive and explicit partial or unknown
+  outcomes at backend ambiguity boundaries.
+- Native Valkey replay to explicitly allowlisted streams, with source
+  preservation and atomic reject-or-replace duplicate policy backed by a
+  bounded durable registry.
+- A native `valkey-go` standalone Streams worker with bounded,
+  credential-safe configuration, package-owned stream semantics, deferred
+  acknowledgement, stale-delivery reclaim, terminal dead-lettering, honest
+  consumer-group statistics, and monotonic lifecycle counters.
+- A shared stream-worker conformance suite that freezes package-owned Redis
+  Streams and Valkey Streams lifecycle guarantees without coupling clients.
+- External compile-time and source-level Streams API contracts that prevent
+  native client types from entering stable queue signatures.
+- An explicit API-compatibility gate in local, pull-request, and release
+  automation for both native Streams backends.
+- Complete Valkey 9 adoption, configuration, TLS, ACL, deployment, upgrade,
+  observability, troubleshooting, recovery, migration, and example guidance.
+- Valkey delivery, option, native-response, and settlement-state fuzz targets
+  in the mandatory safety gate.
+- Allocation-reporting Valkey enqueue, consume, reclaim, acknowledge, retry,
+  and shutdown benchmarks.
+- Valkey package-wide goroutine leak verification across success, failure,
+  cancellation, reclaim, and forced-shutdown tests.
+- A pinned Valkey 9.1 Testcontainers matrix covering native lifecycle, ACL,
+  TLS, restart, network partition, reclaim races, poison handling, retries,
+  dead-letter failures, and handler panics; its independent gate blocks
+  releases alongside the retained Redis Streams integration gate.
+- A standardized OSS repository skeleton covering policy, documentation,
+  legal notices, Go tooling, pinned CI, security, and release automation.
+- Evidence-driven audit and hardening goal covering lifecycle safety,
+  backend-specific delivery semantics, failure injection, and operations.
+- Consolidated core, Redis, Redis Streams, NATS, NSQ, and RabbitMQ packages.
+- Error-returning backend constructors.
+- Structured lifecycle observation.
+- Explicit post-handler settlement for durable backends.
+- Bounded backend connection, request, and NSQ touch configuration.
+- Backend and logical queue identity on lifecycle events.
+- Redis Streams group depth, lag, pending, and oldest-job-age statistics.
+- Hermetic Redis and NATS scenarios plus Redis enqueue, consume, ack, retry,
+  and shutdown benchmarks.
+- Consistent repository automation for Go 1.25, CI, dependency review,
+  guarded semantic releases, and generated portable AI documentation.
+- Bounded non-panicking delivery decoding and fuzz targets for every backend.
+- Lifecycle, failure-model, performance, integration-evidence, and hardening
+  reports.
+- Hermetic Sentinel, lossy-delivery, and same-endpoint broker restart evidence.
+
+### Fixed
+
+- Made in-memory ring shutdown completion durable so draining the final task
+  cannot lose its wake-up when it races with the shutdown waiter.
+- Handler panics, plain failures, acknowledgement failures, and rejection
+  failures now cross logs, observations, and durable settlement as bounded
+  safe classified errors while retaining programmatic causes.
+- Fuzz gates now use one worker by default to avoid coordinator deadline
+  shutdowns under shared-runner contention. `FUZZ_WORKERS` can raise the bound.
+- Redis connection-error tests no longer depend on host scheduler timing.
+- Backend integration matrices now run automatically for direct `main` and
+  `develop` pushes in addition to pull requests and release verification.
+- Timeout coverage now coordinates on context cancellation instead of racing
+  scheduler timing against a fixed sleep.
+- Valkey restart integration now waits for actual native-client readiness
+  instead of assuming a fixed container startup delay.
+- Valkey backend errors now retain programmatic causes while redacting native
+  endpoint, credential, payload, and metadata text from public error strings.
+- Redis connection setup now honors its timeout on all platforms without
+  hidden dial retries.
+- Redis Sentinel startup now rejects unreachable endpoint sets before creating
+  go-redis failover pools that can outlive a canceled Windows dial.
+- Redis Sentinel startup now validates the Sentinel protocol within the shared
+  connection deadline before constructing failover pools.
+- Queue-only benchmarks now size their ring for duration-based runs.
+- Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
+- Custom metric collectors are now honored.
+- Backend startup errors no longer continue with nil clients.
+- Redis Streams, NSQ, and RabbitMQ no longer acknowledge before handling.
+- Core NATS no longer rejects valid messages by calling its reply-based `Ack`.
+- Malformed backend deliveries return decoding errors instead of zero-valued jobs.
+- Repeated startup and release-before-start no longer duplicate schedulers or
+  deadlock the in-memory ring.
+- Callback and settlement panics are isolated without corrupting worker counts.
+- Redis debug output no longer exposes credentials or connection strings.
+- Redis Pub/Sub constructors now await subscription acknowledgement before an
+  immediate publish can proceed.
+- Redis Streams consumes pre-start work and does not duplicate PEL entries on
+  shutdown.
+- RabbitMQ publishes persistent jobs, waits for publisher confirms, rejects
+  malformed deliveries without requeue, and bounds publish waits.
+- NSQ finishes malformed poison messages instead of redelivering forever.
+- Network messages, retry metadata, scheduler intervals, and default in-memory
+  admission now have explicit safety bounds.
+- NSQ startup and Redis Streams reader shutdown are serialized with teardown;
+  Core NATS drains callbacks without duplicate completion-channel closes.
+- RabbitMQ establishes its queue binding before confirmed publication.
+- Credential-bearing Redis, NATS, and RabbitMQ client errors are redacted while
+  retaining their causes for programmatic inspection.
+- Queue request wake-ups now converge on one shutdown check so full-coverage CI
+  results do not depend on scheduler selection between simultaneously ready
+  channels.
+
+[Unreleased]: https://github.com/faustbrian/golib/pkg/queue/compare/v0.0.0...HEAD
+
+## Source: docs/backend-support.md
+
+# Backend support
+
+| Capability | Ring | Redis Pub/Sub | Redis Streams | Valkey Streams | Core NATS | NSQ | RabbitMQ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Persistent broker storage | No | No | Yes | Yes | No | Yes | Yes |
+| Explicit ack after handler | N/A | No | Yes | Yes | No | Yes | Yes |
+| Consumer groups | Process only | No | Yes | Yes | Queue group | Channel | Queue |
+| Strict global ordering | No | No | Per stream, affected by groups | Per stream, affected by groups | No | No | Per queue, affected by consumers |
+| Native delayed delivery | No | No | No | No | No | Requeue delay | TTL/DLX, not wrapped |
+| Pending reclaim | N/A | No | Bounded `XAUTOCLAIM` | Bounded `XAUTOCLAIM` | No | Server-managed | Broker requeue |
+| Terminal dead letter | N/A | No | Append-before-ack stream | Append-before-ack stream | No | Package-owned terminal publish before FIN | Confirmed package-owned terminal publish before source ack |
+| Failure/dead-letter management | No | No | List, inspect, retry, bulk retry, replay to allowlisted streams, delete, record purge | List, inspect, retry, bulk retry, replay to allowlisted streams, delete, record purge | No | No | No |
+| Depth available | In process | No | Redis commands | Valkey group stats | Server monitoring | Stats | Management API |
+| Maximum encoded delivery | 1 MiB through queue API | 1 MiB | 1 MiB | 1 MiB | 1 MiB | 1 MiB | 1 MiB |
+| Confirmed publish | In process | Redis command result | Redis command result | Valkey command result | Client write only | nsqd response | Publisher confirm |
+| Same-worker reconnect | N/A | Yes, without replay | Client reconnect; backlog retained | Subsequent commands reconnect | Yes, without replay | Yes | No; replace worker |
+| Proven topology | Process | Standalone, Sentinel, cluster | Standalone, cluster | Standalone Valkey 9 only | Core server | nsqd | Standalone broker |
+
+“Supported” means the implementation is owned in this module. It does not mean
+identical guarantees. Redis Streams and Valkey Streams remain separate durable
+paths with native clients. Redis Pub/Sub is supported for transient delivery
+only. No Valkey cluster or managed-failover guarantee is implied.
+
+## Source: docs/backends/nats.md
+
+# NATS setup
+
+The `nats` package uses Core NATS queue subscriptions. Configure one or more
+addresses, a subject, and a queue group. Core NATS is at-most-once and has no
+durable ack/redelivery; this backend is not JetStream.
+
+`WithConnectTimeout` bounds startup and `WithRequestTimeout` bounds an idle
+request. Core NATS deliveries are deliberately not passed to `Msg.Ack`, because
+that method requires a reply subject and is not a Core NATS settlement API.
+
+Use it for low-latency work where loss during disconnect is acceptable. Select
+a durable backend when processing must survive consumer or broker interruption.
+The client reconnects after a same-endpoint broker restart, but messages sent
+without a subscriber are irrecoverably lost. Shutdown uses the configured
+connect timeout as the NATS drain bound and waits for the closed callback.
+Credential-bearing client URL failures return sanitized constructor text.
+
+Integration uses NATS Server 2.10.29; hermetic fault tests also use 2.11.15 with
+`nats.go` 1.52.0. The package limit of one mebibyte matches the common Core NATS
+default, but deployment server limits remain authoritative.
+
+## Source: docs/backends/nsq.md
+
+# NSQ setup
+
+Configure the nsqd address, topic, channel, maximum in-flight messages, and log
+level. Each received message disables NSQ automatic response; the queue sends
+`FIN` after successful handling.
+
+`WithDeadLetter(topic, attempts)` configures the package-owned terminal topic
+and a maximum of 2 through 101 broker delivery attempts. The default terminal
+topic is `<source>-dead` with five attempts. Retryable failures send `REQ`
+until the bound is reached. Canceled and infrastructure failures remain
+recoverable without becoming terminal. Permanent and malformed failures are
+terminal immediately.
+
+A terminal delivery is encoded as a bounded version-1 envelope containing the
+source topic, channel, NSQ message identity and timestamp, attempts,
+classification, stable failure code, payload size, and payload. Oversized
+poison bodies are omitted while their size remains recorded. The synchronous
+nsqd publish response is received before the source receives `FIN`. Publish or
+encoding failure sends `REQ`, so the source remains recoverable.
+Validated producer-supplied `job.Metadata` is copied into the terminal envelope
+and converted to v1 management fields without replacing the NSQ source ID.
+Malformed and legacy payloads leave optional metadata explicitly unknown.
+
+Publish and `FIN` are not atomic. Process death after terminal publication but
+before `FIN` can produce a duplicate terminal record. Reconcile duplicates by
+the stable source ID; exactly-once transfer is not claimed.
+`DecodeDeadLetter` converts a terminal envelope into `management.JobRecord`
+without exposing an NSQ client type. Payloads are hidden unless the caller
+explicitly requests `management.PayloadRevealed`. NSQ cannot list or mutate a
+topic without consuming it, so management list, inspect, retry, replay, delete,
+and purge remain explicitly unsupported.
+
+`WithConnectTimeout` bounds broker connection attempts, `WithRequestTimeout`
+bounds idle requests, and `WithTouchInterval` controls in-flight heartbeats.
+NSQ does not promise global ordering. Monitor consumer stats and redelivery
+attempts, and size `MaxInFlight` with the queue worker count. Integration uses
+nsqd 1.3.0 with `go-nsq` 1.1.0 and proves terminal transfer plus consumer
+reconnection after a same-endpoint broker restart.
+
+## Source: docs/backends/rabbitmq.md
+
+# RabbitMQ setup
+
+Configure the AMQP URI, durable exchange name and type, routing key, queue,
+consumer tag, and `autoAck`. Keep `autoAck=false` for at-least-once processing
+and package-owned terminal settlement.
+
+Published jobs use persistent delivery mode and synchronous publisher
+confirms. `WithPublishTimeout` bounds publish plus confirmation wait and
+defaults to five seconds. A negative confirmation or closed confirmation
+channel fails enqueue.
+
+RabbitMQ declares a durable dead-letter exchange and queue by default, derived
+from the configured exchange, queue, and routing key. `WithDeadLetter` accepts
+an explicit `DeadLetterConfig` with distinct terminal names and a maximum of 2
+through 101 broker delivery attempts. Existing queues declared without the
+matching `x-dead-letter-exchange` and `x-dead-letter-routing-key` arguments
+must be migrated or configured consistently before adoption; RabbitMQ rejects
+inequivalent queue redeclaration.
+
+Retryable handler failures are republished persistently to the original
+exchange with an incremented bounded attempt header. The publisher confirm is
+received before the source is acknowledged. Exhausted, permanent, and
+malformed deliveries are instead confirmed to the terminal exchange with
+envelope version, classification, stable failure code, attempts, and bounded
+source topology headers. Cancellation and infrastructure failures requeue the
+source without incrementing the terminal attempt policy. Package job retries
+still happen inside each broker delivery before this broker-level decision.
+
+Confirmed publish and source acknowledgement are not atomic. A destination
+failure requeues the source. Process death or acknowledgement failure after a
+positive confirm may create a duplicate, so consumers must use job identity
+and terminal headers for reconciliation. Exactly-once transfer is not
+claimed. RabbitMQ record listing and mutation remain explicitly unsupported;
+operate the terminal queue with broker tooling. `autoAck=true` disables these
+post-handler guarantees.
+
+`WithReconnectConfig` controls initial startup attempts. Runtime reconnection
+is not hidden by v1; a closed connection or channel is terminal, so shut down
+that queue and construct a replacement worker. The broker-restart integration
+test proves both the old-worker failure and replacement-worker recovery. TTL
+and priorities remain explicit RabbitMQ concerns. Credential-bearing AMQP URL
+failures return sanitized constructor text.
+
+`WithRequestTimeout` bounds an idle delivery request. Integration uses
+RabbitMQ 3.13.7 with `amqp091-go` 1.11.0.
+
+## Source: docs/backends/redis-streams.md
+
+# Redis Streams setup
+
+Import `github.com/faustbrian/golib/pkg/queue/redisstream` (the Go package identifier is
+currently `redisdb` for upstream compatibility). Configure a stream, group, and
+unique consumer name.
+
+Use `WithConnectTimeout`, `WithRequestTimeout`, and `WithBlockTime` to bound
+startup, queue polling, and Redis blocking reads. `Worker.Stats(ctx)` reports
+consumer-group pending work, lag, total outstanding depth, and oldest-job age;
+depth is `-1` when Redis cannot determine lag.
+
+Messages are read with `XREADGROUP` and acknowledged only after handler success.
+Failed attempts append version-1 records to the configured failure stream.
+`XAUTOCLAIM` reassigns sufficiently idle pending entries in bounded batches.
+Retryable failures dead-letter at the exact configured PEL delivery limit;
+permanent and malformed failures dead-letter immediately. Canceled and
+infrastructure failures remain pending even at the limit. Ordering is stream
+ordered but concurrent consumers and retries change processing completion order.
+
+The defaults are a 30-second minimum reclaim idle time, one-second reclaim
+interval, batch size 16, five delivery attempts, five-second settlement command
+timeout, and `<source>-failures` / `<source>-dead` record streams. Override them
+with `WithReclaim`, `WithFailureStream`, `WithDeadLetter`, and
+`WithCommandTimeout`. Stream names must be distinct, attempts must be at least
+two, and reclaim/timeout bounds must be positive. Invalid policy fails before
+Redis is dialed.
+
+Failure and dead-letter retention is independent of source-stream
+`WithMaxLength`. It is disabled by default so throughput configuration cannot
+silently evict operational records. `WithRecordRetention(maxRecords)`
+deliberately enables exact Redis `MAXLEN` trimming for both record streams.
+Exact trimming is used because approximate trimming may exceed a configured
+small maximum. Manual confirmed purge is also supported. Time-based expiry and
+maximum-byte retention are unsupported, and count-based eviction cannot assign
+an honest per-record retention deadline.
+Workers advertise `retention_count` only when this option is enabled and always
+advertise `purge` when management is configured. They do not advertise
+`retention_time` or `retention_bytes`.
+
+Groups begin at stream ID `0`, so work queued before the first consumer starts
+is visible. Malformed entries append a bounded record before source
+acknowledgement. Oversized poison entries omit their body from the dead-letter
+copy. Failure and dead-letter records retain the source ID, stream, consumer
+group, server delivery count, classification, safe code, and envelope version.
+Validated `job.Metadata` fields are reconstructed from the bounded job envelope
+without decoding the arbitrary job payload. Producer original identity remains
+separate from the Redis source stream ID, and unknown metadata is not invented.
+Integration evidence uses Redis 6.2.22 and `go-redis/v9` 9.19.0.
+Queued backlog and pending entries are retained across a same-endpoint Redis
+restart and reclaimed after the configured idle threshold.
+Credential-bearing Redis URL failures return sanitized constructor text.
+
+Record append and source acknowledgement are not atomic, including in Redis
+Cluster where cross-slot scripts cannot be assumed. Append failure leaves the
+source pending. Process death or an acknowledgement error after append can
+leave both the record and source pending; the original stream ID is the
+duplicate-detection identity. Exactly-once dead-lettering is not claimed.
+
+The worker implements `management.RecordReader` and advertises `failures` and
+`dead_letters` when management status is enabled. Listing uses bounded native
+Redis-ID cursors, supports ascending or descending occurrence-time order, and
+scans at most four times the requested page size for search. Redis cannot
+honestly sort bounded pages by attempts or queue, so those sorts return
+`management.ErrInvalidFilter`. Payloads are hidden in lists and require an
+explicit privileged inspect request to reveal.
+Record-reader connection failures return secret-safe text and satisfy
+`errors.Is(err, management.ErrManagementUnavailable)`; caller cancellation is
+preserved separately.
+
+The worker also implements native record mutations through
+`management.Controller`. Retry appends a new source-stream entry before
+deleting its failure or dead-letter record. Active failures are retried only
+while their original entry remains in the configured consumer group's PEL;
+otherwise the command is rejected as stale. Bulk retry is confirmed and
+bounded by the command selection limit. Delete and confirmed purge affect only
+failure or dead-letter record streams; queue purge is unsupported. Commands
+are serialized and retained in a bounded in-memory idempotency registry. A
+failure after enqueue reports a partial result rather than claiming success.
+Because the command registry is process-local, operators must reconcile
+partial outcomes by record and source identity after restart.
+
+`WithReplayDestinations` enables replay only for an explicit bounded stream
+allowlist. Replay retains its source record, writes the destination before
+updating a durable duplicate registry, and propagates bounded original/prior
+dead-letter identity plus replay generation into later terminal records.
+Reject-duplicate leaves the registered destination entry intact;
+replace-duplicate appends the replacement before removing the prior entry.
+Redis Cluster cannot assume cross-slot scripts, so destination, registry, and
+replacement deletion are deliberately non-atomic. Process death can leave a
+duplicate destination entry, but cannot delete the source or prior replay
+before the replacement is durable. Returned partial outcomes require operator
+reconciliation. Exactly-once replay is not claimed.
+
+For external lifecycle control, construct a `management.WorkerLifecycle` and
+pass it to the root queue with `queue.WithWorkerLifecycle`. Supply that root
+queue, not the Redis client, as the `managementhttp` status provider and
+controller. Redis Streams owns the native measurements; the root queue owns
+pause, resume, drain, and terminate admission semantics.
+
+## Source: docs/backends/redis.md
+
+# Redis Pub/Sub setup
+
+Use package `redisdb`. Configure `WithAddr`, `WithUsername`, `WithPassword`,
+`WithDB`, `WithChannel`, and optional TLS. Cluster and Sentinel modes are
+explicit options. `WithConnectTimeout` bounds startup validation and
+`WithRequestTimeout` bounds an idle request.
+
+Pub/Sub is non-durable: messages published while a consumer is disconnected are
+lost, there is no ack, and depth/job age are unavailable. Use it only when those
+semantics are acceptable. For durable work use [Redis Streams](redis-streams.md).
+Constructor success does guarantee that Redis acknowledged the subscription;
+this only closes the healthy-start race and does not make reconnects durable.
+
+Integration evidence uses Redis 6.2.22 with `go-redis/v9` 9.19.0. Standalone and
+single-node all-slot Cluster run in pinned containers. Sentinel runs
+hermetically with equal container/host ports so discovered master addresses are
+routable. Restart evidence proves the client resubscribes, but outage messages
+remain lost by protocol design.
+
+TLS is opt-in. `WithSkipTLSVerify` is intentionally conspicuous and MUST NOT be
+used in production. Debug mode and constructor error text redact credentials
+and connection strings.
+
+## Source: docs/backends/valkey-streams.md
+
+# Valkey Streams setup
+
+`valkeystream` is a first-class standalone Valkey 9 backend implemented with
+`github.com/valkey-io/valkey-go`. It does not alias Redis Streams, import
+`go-redis`, or expose native client types through its public API. Redis Streams
+remains supported independently.
+
+The tested server baseline is Valkey 9.1.0. Standalone topology is the only
+topology claimed. Cluster, sentinel-style discovery, and managed-service
+failover are unsupported until each exact configuration has integration
+evidence.
+
+## Quickstart
+
+```go
+worker, err := valkeystream.NewWorkerE(
+    valkeystream.WithAddress("127.0.0.1:6379"),
+    valkeystream.WithAuthentication("default", os.Getenv("VALKEY_PASSWORD")),
+    valkeystream.WithStreamName("orders"),
+    valkeystream.WithGroup("order-workers"),
+    valkeystream.WithConsumer(hostname),
+    valkeystream.WithReclaim(30*time.Second, 5*time.Second, 16),
+    valkeystream.WithFailureStream("orders-failures"),
+    valkeystream.WithDeadLetter("orders-dead", 5),
+    valkeystream.WithReplayDestinations("orders-replay"),
+    valkeystream.WithRunFunc(handleOrder),
+)
+if err != nil {
+    return err
+}
+
+q, err := queue.NewQueue(queue.WithWorker(worker), queue.WithWorkerCount(8))
+if err != nil {
+    return err
+}
+q.Start()
+defer q.Release()
+```
+
+Use `NewWorkerE` in services so configuration, authentication, TLS, and initial
+group-creation failures can fail startup. `NewWorker` is a compatibility wrapper
+that panics on the same errors.
+
+## Configuration
+
+| Option | Default | Contract |
+| --- | --- | --- |
+| `WithAddress` | Required | One `host:port`; URLs and embedded credentials are rejected |
+| `WithAuthentication` | Empty | ACL username and password |
+| `WithDB` | `0` | Non-negative standalone database |
+| `WithTLSConfig` | Off | Cloned config; minimum TLS version raised to TLS 1.2 |
+| `WithClientName` | `queue` | Non-empty connection identity |
+| `WithDialTimeout` | 5 seconds | Bounds initial and reconnect dials |
+| `WithCommandTimeout` | 5 seconds | Bounds non-blocking commands and settlement |
+| `WithRequestTimeout` | 6 seconds | Bounds `Request` |
+| `WithBlockTime` | 1 second | Positive `XREADGROUP` block, no longer than request timeout |
+| `WithShutdownTimeout` | 10 seconds | Bounds owned-loop and connection shutdown |
+| `WithBlockingPool` | min 1, max 8, cleanup 1 minute | Maximum is 128 |
+| `WithStreamName` | `golang-queue` | Source stream |
+| `WithGroup` | `golang-queue` | Consumer group created from ID `0` |
+| `WithConsumer` | `queue-PID` | Stable, non-empty worker identity |
+| `WithMaxLength` | 10,000 | Positive approximate source-stream trim target |
+| `WithRecordRetention` | Disabled | Positive exact maximum for failure and dead-letter streams |
+| `WithReadBatchSize` | 16 | 1 through 256 |
+| `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
+| `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
+| `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
+| `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
+| `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
+| `WithRunFunc` | No-op | Handler used by the root queue coordinator |
+
+The client uses one standalone endpoint, bounded blocking connections, 32 KiB
+per-connection buffers, no client cache, no transparent command retry, and
+cancellation-aware contexts. The package owns client creation and closure.
+
+Failure and dead-letter retention is independent of source `WithMaxLength` and
+disabled by default. `WithRecordRetention(maxRecords)` deliberately enables an
+exact maximum count for both management record streams. Manual confirmed purge
+is also supported. Time-based expiry and maximum-byte retention are
+unsupported, and count-based eviction cannot provide an honest per-record
+retention deadline.
+Workers advertise `retention_count` only when this option is enabled and always
+advertise `purge` when management is configured. They do not advertise
+`retention_time` or `retention_bytes`.
+
+## Authentication and TLS
+
+Keep credentials outside addresses and source code:
+
+```go
+tlsConfig := &tls.Config{
+    MinVersion: tls.VersionTLS12,
+    RootCAs:    roots,
+    ServerName: "valkey.internal.example",
+}
+worker, err := valkeystream.NewWorkerE(
+    valkeystream.WithAddress("valkey.internal.example:6379"),
+    valkeystream.WithAuthentication("queue-worker", password),
+    valkeystream.WithTLSConfig(tlsConfig),
+)
+```
+
+The config is cloned, so later caller mutation does not change live transport
+policy. Certificate verification remains enabled. Authentication, TLS, and
+dial failures return fixed safe text while preserving the native cause for
+`errors.Is` and `errors.As`; do not separately log the unwrapped cause.
+
+Grant producers append access and workers the minimum stream/group commands:
+`XADD`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`, `XAUTOCLAIM`,
+`XINFO GROUPS`, `XRANGE`, and append/read access to the configured failure and
+dead-letter streams.
+
+## Delivery, retry, and dead-letter behavior
+
+The backend provides at-least-once delivery:
+
+1. `XADD` appends a bounded encoded message with a server-generated stream ID.
+2. `XREADGROUP` transfers it to the consumer group's pending-entry list.
+3. Handler retries run inside the same delivery attempt.
+4. Success sends `XACK` only after the handler returns successfully.
+5. Each handler failure appends a bounded failed-attempt record and leaves the
+   source entry pending.
+6. `XAUTOCLAIM` moves sufficiently idle work to a live consumer and increments
+   its server delivery count.
+7. At the configured terminal delivery attempt, a retryable failure appends the
+   payload, original ID, and attempt count to the dead-letter stream, then
+   acknowledges the source. Permanent and malformed failures take this path
+   immediately. Canceled and infrastructure failures remain pending for safe
+   recovery rather than becoming terminal through the attempt count.
+
+Dead-letter append occurs before source acknowledgement. If append succeeds but
+the acknowledgement result is lost, a later reclaim can append a duplicate
+dead letter. Consumers of both the source and dead-letter streams must use an
+idempotency key. Exactly-once processing is not claimed.
+
+Malformed encoded envelopes are moved directly to the dead-letter stream.
+Oversized encoded payloads are rejected at enqueue; an oversized broker entry
+is dead-lettered without copying its body into another stream.
+
+Failure and dead-letter readers reconstruct validated `job.Metadata` from the
+bounded outer job envelope without deserializing the arbitrary job payload.
+Producer original identity remains separate from the Valkey source stream ID,
+and unavailable optional fields remain unknown.
+Retry and replay of a dead letter write bounded original/prior dead-letter IDs
+and an incrementing 32-bit generation into the durable destination entry. A
+later terminal settlement copies that lineage into the new v1 record. Missing,
+partial, or exhausted lineage fails safely instead of recursively growing
+metadata or fabricating ancestry.
+Record-reader connection failures return secret-safe text and satisfy
+`errors.Is(err, management.ErrManagementUnavailable)`; caller cancellation is
+preserved separately.
+
+## Reclaim and crash recovery
+
+Choose `reclaimMinIdle` above the longest valid handler runtime plus operational
+jitter. A value that is too short can reclaim work from a healthy slow handler,
+causing concurrent duplicates. A value that is too long delays crash recovery.
+
+Consumer names should identify one process instance and remain stable for that
+process lifetime. After a crash or forced termination, start a replacement with
+a different consumer name in the same group. It will reclaim pending work after
+the idle threshold. Concurrent reclaimers rely on Valkey's atomic ownership
+transfer; only one owns a qualifying entry at a time.
+
+An acknowledgement timeout is ambiguous: the command may have reached Valkey
+even when the client did not receive its result. After reconnect, inspect group
+pending state. Either the entry is settled or it remains eligible for reclaim.
+Never repeat non-idempotent application side effects based only on an ack error.
+
+## Observability
+
+`Worker.Stats(ctx)` returns:
+
+- server-reported `Depth`, `Pending`, `Lag`, and `LagKnown`;
+- `OldestPendingAge` derived from the oldest pending stream ID;
+- monotonic local `Enqueued`, `Delivered`, `Reclaimed`, `Retries`,
+  `Acknowledged`, `DeadLettered`, and `SettlementFailures` counters.
+
+`Depth` is `Pending + Lag` and is `-1` when Valkey reports unknown lag. Derive
+rates by sampling monotonic counters. Local counters reset with the process and
+must not be treated as broker-global totals. Alert on oldest pending age,
+pending growth, reclaim rate, dead-letter growth, and settlement failures.
+
+## Graceful shutdown
+
+Call `Queue.Release` on termination. It stops new scheduling, cancels blocking
+reads and reclaim scans, waits for handlers through the coordinator, and closes
+owned connections within `WithShutdownTimeout`. Work already delivered but not
+acknowledged remains pending and can be reclaimed. A forced timeout closes the
+client and returns `context.DeadlineExceeded`; it does not acknowledge in-flight
+work.
+
+The runnable [Valkey example](../../examples/valkey) includes signal handling,
+bounded retries, reclaim, dead-lettering, metrics, and graceful shutdown.
+
+For external lifecycle control, construct a `management.WorkerLifecycle` and
+pass it to the root queue with `queue.WithWorkerLifecycle`. Supply that root
+queue, not the Valkey client, as the `managementhttp` status provider and
+controller. Valkey Streams owns the native measurements; the root queue owns
+pause, resume, drain, and terminate admission semantics.
+
+The worker also implements `management.RecordReader`. Supply the same worker
+as the `Records` service in `managementhttp.HandlerConfig` to expose bounded
+failure and dead-letter list/inspect endpoints. Listings never contain payload
+bytes. Inspection returns bytes only for an explicitly authorized
+`PayloadRevealed` request; redacted inspection retains metadata only. The
+worker advertises `failures` and `dead_letters` capabilities when management
+status is enabled. Listings use opaque native-ID cursors and support stable
+ascending or descending occurrence-time order across the complete retained
+record stream. Other sort fields return `management.ErrInvalidFilter` rather
+than presenting an order derived from a truncated snapshot.
+
+New failure and dead-letter entries use envelope version 1. The native record
+stores the classification, bounded failure code, source stream and consumer
+group, original stream ID, attempt count, and payload. The record stream ID is
+the failure or dead-letter occurrence time; the original stream ID supplies the
+enqueue time when it is parseable. `RecordReader` exposes those values as the
+backend-neutral v1 envelope and leaves unavailable timing, trace, tenant,
+version, and retention metadata unknown. Entries written by older workers
+without an envelope version remain readable as legacy version 0.
+
+The worker implements native record mutations through `management.Controller`.
+The managed root queue delegates retry, bulk retry, delete, and record-purge
+commands to it while retaining lifecycle control. Retrying an active failure
+uses one Valkey script to verify the original pending entry, append the new
+delivery, acknowledge the original, and delete the failure record atomically.
+Dead-letter retry atomically appends before deleting its record. Bulk retry is
+bounded by the command selection limit and reports partial or unknown outcomes
+instead of claiming success after an ambiguous backend result. Queue purge and
+record replay are separately bounded. Replay is disabled unless
+`WithReplayDestinations` explicitly allowlists one or more destination streams.
+When enabled, the worker advertises `replay`, preserves the source record, and
+atomically appends the destination record with a durable, bounded duplicate
+registry. `reject_duplicate` rejects a repeated source/destination pair;
+`replace_duplicate` atomically removes the prior replay before appending its
+replacement. Queue purge remains unsupported.
+
+## Kubernetes deployment
+
+Give each pod a unique consumer derived from its name and allow enough
+termination grace for handler and worker shutdown bounds:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: order-worker}
+  template:
+    metadata:
+      labels: {app: order-worker}
+    spec:
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: worker
+          image: example/order-worker:1.0.0
+          env:
+            - name: VALKEY_ADDRESS
+              value: valkey.default.svc:6379
+            - name: VALKEY_CONSUMER
+              valueFrom:
+                fieldRef: {fieldPath: metadata.name}
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: valkey-worker, key: password}
+          readinessProbe:
+            exec: {command: ["/app/order-worker", "healthcheck"]}
+            periodSeconds: 5
+```
+
+Do not use a pre-stop sleep as correctness logic. Stop readiness first, handle
+`SIGTERM`, and let `Queue.Release` perform bounded cleanup. Configure a Pod
+Disruption Budget when availability requires a minimum number of consumers.
+
+## Upgrade and dual-backend adoption
+
+Redis Streams and Valkey Streams use separate packages and native clients. No
+migration is mandatory. For a staged move:
+
+1. deploy the Valkey worker against a new stream and group;
+2. dual-publish only if the business operation is idempotent across backends;
+3. compare depth, age, throughput, retry, duplicate, and dead-letter metrics;
+4. stop Redis producers, drain Redis lag and pending work, then stop Redis
+   consumers;
+5. keep rollback configuration until the Valkey retention window has passed.
+
+Do not point Redis and Valkey consumer groups at copied data and assume pending
+ownership migrates; PEL state is server-local. See [migration](../migration.md)
+and [compatibility](../compatibility.md).
+
+A deliberately temporary dual-publish boundary can be explicit:
+
+```go
+func publishBoth(message core.QueuedMessage, redisQueue, valkeyQueue *queue.Queue) error {
+    if err := redisQueue.Queue(message); err != nil {
+        return fmt.Errorf("publish Redis copy: %w", err)
+    }
+    if err := valkeyQueue.Queue(message); err != nil {
+        return fmt.Errorf("publish Valkey copy: %w", err)
+    }
+    return nil
+}
+```
+
+This is not atomic. Put one stable application idempotency key in `message`,
+record per-backend publish state, and reconcile partial success before retrying.
+
+For a Valkey 9 minor or patch upgrade, pin the target server image in a branch,
+run the native integration and race suites, confirm command/ACL/TLS behavior in
+staging, and follow the server operator's persistence and rolling-upgrade
+procedure. Do not silently change the claimed topology or float the CI image
+tag. Record the tested server and `valkey-go` versions in release notes and
+[integration evidence](../integration-evidence.md).
+
+## Troubleshooting
+
+| Symptom | Check | Action |
+| --- | --- | --- |
+| Startup returns `connect to server` | Endpoint, ACL, CA, SAN, selected DB | Test with `valkey-cli`; inspect the preserved cause without logging it |
+| `Request` times out | Stream/group names, producer activity, lag | Confirm `XINFO GROUPS`; a timeout is not shutdown |
+| Pending age grows | Handler latency, crashed consumers, reclaim idle | Fix the handler or replace consumers; do not lower idle below valid runtime |
+| Reclaims spike | Worker churn, partitions, too-short idle | Stabilize connectivity and increase the idle threshold |
+| Settlement failures rise | Network ambiguity, ACL changes, server load | Inspect pending state; rely on idempotency before replay |
+| Dead-letter stream repeats IDs | Append succeeded but source ack was ambiguous | Deduplicate using `original_id` |
+| Shutdown reaches deadline | Handler ignores cancellation or server is unavailable | Bound handler I/O and increase grace only with measured evidence |
+
+The integration suite runs with:
+
+```sh
+go test -tags=integration -timeout=15m ./valkeystream
+```
+
+It pins the official Valkey 9.1.0 image and exercises ACL, verified TLS,
+restart, network pause, reclaim races, poison messages, retries, handler panic,
+dead-letter failure, and graceful cleanup.
+
+## Source: docs/dead-letter-architecture.md
+
+# Dead-letter data-plane architecture
+
+This document is the reconciliation baseline for first-version dead-letter
+support. It describes behavior verified in the implementation, identifies
+unsupported operations explicitly, and separates the package data plane from
+`queue-control-plane` authorization, audit, and presentation concerns.
+
+## Ownership boundary
+
+`queue` owns failure classification, delivery settlement, durable
+dead-letter persistence, record reading, and redrive execution. A worker must
+remain correct when no control plane is running. The control plane may
+authenticate, authorize, audit, select, and request an operation through the
+versioned `management` contracts; it never opens a broker client or performs a
+delivery acknowledgement itself.
+
+## Reconciled state model
+
+| State | Meaning | Durable identity requirement |
+| --- | --- | --- |
+| available | Accepted by the source and eligible for delivery | Backend message identity when the backend exposes one |
+| in flight | Reserved, leased, pending, or delivered to a handler | Source identity and settlement owner |
+| acknowledged | Handler succeeded and source settlement succeeded | Source identity may no longer be readable |
+| retryable failure | Handler failed and package policy permits another attempt | Original identity plus bounded attempt state |
+| delayed retry | Retry is waiting in package backoff or broker requeue delay | Original identity; no new logical job |
+| terminal pending | Classification or exhaustion requires dead-letter settlement | Source remains recoverable until destination acceptance |
+| dead-lettered | Destination durably accepted the record | Stable dead-letter ID and original source ID |
+| settlement failed | Append or source acknowledgement failed or is unknown | Source and destination identities retained where measurable |
+| selected | A bounded management retry or replay selected the record | Stable source record ID and command idempotency key |
+| redriven | Destination accepted a retry or replay | Replay generation and lineage retained |
+| deleted | One selected dead-letter record was removed | Deletion result is explicit, partial, or unknown |
+| purged | A confirmed bounded collection operation removed records | Backend deletion guarantee is reported |
+| expired | Deliberately configured retention removed the record | Retention policy and deadline are known before expiry |
+
+No counter or log entry alone proves a state transition. Durable states require
+broker evidence, and ambiguous network outcomes remain unknown rather than
+being reported as success.
+
+## Current execution-path inventory
+
+This table freezes behavior that existed before the dead-letter completion
+work. Additive implementation must preserve these public delivery contracts
+unless a documented correctness fix changes them.
+
+| Backend | Failure and poison path | Current terminal settlement | Current management |
+| --- | --- | --- | --- |
+| Ring | Handler retries execute in process; process loss removes all work | No durable source or destination | Unsupported |
+| Redis Pub/Sub | Handler retries execute after transient delivery; decode failure is returned | No acknowledgement, replay, or durable terminal state | Unsupported |
+| Redis Streams | Success calls `XACK`; failures append records; bounded `XAUTOCLAIM` recovers idle PEL entries; permanent, malformed, or exhausted work appends before `XACK` | Package-managed append-before-ack with at-least-once duplicate risk | List, inspect, retry, bounded bulk retry, allowlisted replay, delete, and record purge |
+| Valkey Streams | Failed attempts are appended to a failure stream; idle PEL work is reclaimed; exhaustion appends before `XACK` | Package-managed append-before-ack with at-least-once duplicate risk | List, inspect, retry, bounded bulk retry, allowlisted replay, delete, and record purge |
+| Core NATS | Handler retries execute after a lossy Core NATS delivery; shutdown republishes best effort | No durable acknowledgement or terminal state | Unsupported |
+| NSQ | Success sends `FIN`; recoverable failure sends `REQ`; exhausted, permanent, and malformed work publishes a terminal envelope before `FIN` | Package-managed publish-before-FIN with duplicate risk | Public envelope decoder; topic listing and mutations unsupported |
+| RabbitMQ | Success sends `basic.ack`; retryable failure confirms a bounded-attempt republish; exhausted, permanent, and malformed work confirms a terminal publish before source ack | Package-managed confirmed publish-before-ack with duplicate risk at the confirm/ack boundary | Broker terminal queue; package record management unsupported |
+
+The root queue currently treats `RetryCount` as the number of retries after the
+initial handler invocation. The initial delivery is attempt one. Retries happen
+inside one broker delivery and the backend is not acknowledged between handler
+attempts.
+
+## Current classification inventory
+
+The `management` contract now exposes retryable, permanent, malformed,
+canceled, and infrastructure classifications. Classified errors retain their
+causes through `errors.Is` and `errors.As` while their string representation
+contains only the stable classification and code. Joined errors resolve both
+classification and code with infrastructure, canceled, malformed, permanent,
+then retryable precedence. Equal-rank codes resolve lexically so join order
+cannot alter persistence. Plain errors remain retryable. Context cancellation
+and deadline expiration are canceled.
+
+The root queue passes the final handler error through the additive
+`core.FailureAcknowledger` extension and otherwise preserves the legacy `Nack`
+contract. Root handler failures become bounded classified failures before they
+reach logs, observers, or settlement. Recovered panics use permanent
+`handler_panic`; acknowledgement and failure-settlement failures use
+infrastructure codes. Redis Streams, Valkey Streams, NSQ, and RabbitMQ consume
+the same winning classification/code resolution. Stable unsupported-version,
+lease-loss, dead-letter-destination, and administrative-quarantine codes are
+exported by `management`. Durable package backends produce the destination
+code when terminal persistence fails, and stream settlement produces lease
+loss when the delivery is no longer owned. Custom payload-version checks and
+administrative quarantine integrations use the same canonical constants.
+
+## Capability reconciliation
+
+| Capability | Ring | Redis Pub/Sub | Redis Streams | Valkey Streams | Core NATS | NSQ | RabbitMQ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Durable delivery | No | No | Yes | Yes | No | Yes | Yes when broker durability is configured |
+| Reliable attempt count | Process only | Process only | PEL deliveries are measurable | PEL deliveries are recorded | Process only | Native delivery attempts are persisted | Package attempt header is persisted |
+| Package dead-letter persistence | No | No | Implemented | Implemented | No | Implemented | Implemented when manual ack is enabled |
+| Atomic source transfer | N/A | N/A | Not implemented | No; append then ack | N/A | No; publish then FIN | No; confirmed terminal publish then source ack |
+| List and inspect | Unsupported | Unsupported | Implemented | Implemented | Unsupported | Unsupported | Unsupported |
+| Retry and bulk retry | Unsupported | Unsupported | Implemented | Implemented | Unsupported | Unsupported | Unsupported |
+| Replay | Unsupported | Unsupported | Implemented only to allowlisted streams | Implemented only to allowlisted streams | Unsupported | Unsupported | Unsupported |
+| Delete and purge | Unsupported | Unsupported | Implemented for record streams | Implemented for record streams | Unsupported | Unsupported | Unsupported |
+| Package retention | Unsupported | Unsupported | Disabled by default; advertises exact count only when configured; manual purge advertised | Disabled by default; advertises exact count only when configured; manual purge advertised | Unsupported | Broker policy only; no package capability | Broker policy only; no package capability |
+
+An absent capability is an explicit unsupported result during negotiation. It
+must never be replaced by process-memory emulation that claims durability.
+Redis Pub/Sub and Core NATS will remain unsupported for durable dead-letter
+operations.
+
+## Management contract reconciliation
+
+The versioned `management` and authenticated `managementhttp` packages provide
+real bounded protocol, record-reader, and command transports. They do not make
+a backend capable by themselves.
+
+- Redis Streams and Valkey Streams implement `management.RecordReader` and
+  record `management.Controller` operations, including replay only when an
+  explicit destination allowlist is configured.
+- Ring, Redis Pub/Sub, Core NATS, NSQ, and RabbitMQ advertise no failure or
+  dead-letter management capability.
+- `queue-control-plane` consumes these contracts without acquiring Redis or
+  Valkey clients and intersects retention and mutation capabilities across
+  rolling worker versions before enabling operator actions.
+
+`management.JobRecord` now supports legacy version 0 and a bounded version-1
+dead-letter envelope with source identity, classification, timing, lineage,
+tenant, trace, producer/worker version, retention, diagnostics, and
+hidden-by-default payload fields. The HTTP transport round-trips version 1 but
+keeps legacy JSON free of v1 fields. Redis Streams, Valkey Streams, and NSQ
+populate validated producer-supplied metadata while keeping broker source
+identity separate. Redis Streams and Valkey Streams propagate bounded
+retry/replay lineage, the last delivery observation, and a configured
+management worker version. Other optional fields remain unknown when a backend
+cannot measure them.
+
+`job.Metadata` is the producer-supplied source for optional v1 fields. It is
+JSON-encoded inside the existing bounded job envelope and cloned at message
+construction. Every string and tag key/value is limited to 256 bytes, no more
+than 32 tags are accepted, and a supplied enqueue time must be non-zero.
+Original identity, schema, content type, retry policy, handler/job type, trace,
+tenant, and producer version are optional: an empty value means unknown and
+must remain empty when a backend cannot observe it. Payload bytes and arbitrary
+failure text are deliberately not metadata fields. Backend settlement paths
+must copy only this validated allowlist into operational records.
+
+## Verified crash boundaries
+
+Valkey terminal settlement currently has these non-atomic boundaries:
+
+1. Before destination append, the source remains pending and recoverable.
+2. After destination append but before source acknowledgement, process death
+   can leave both a dead-letter record and a pending source.
+3. If the acknowledgement succeeded but its response was lost, source state is
+   unknown and the dead-letter record may be observed again through recovery.
+
+Redis Streams terminal settlement has the same append-before-ack ordering.
+Its retry path appends before source acknowledgement and record deletion. Its
+replay path retains the source, appends before updating the durable duplicate
+registry, and appends a replacement before deleting the prior replay. A crash
+can therefore leave a duplicate record or destination entry, but not silently
+remove the recoverable source before durable acceptance. Partial and unknown
+responses require reconciliation by original stream ID and replay lineage.
+
+RabbitMQ also confirms retry or terminal publication before acknowledging the
+source. Destination failure requeues the source; process death or a failed ack
+after confirm can duplicate the republished or terminal message. Its bounded
+attempt and source headers are the reconciliation identity available today.
+
+The original stream ID is the deduplication identity for stream paths. No
+backend claims exactly-once transfer. NSQ likewise waits for terminal
+publication before `FIN`; publication failure sends `REQ`, while process death
+after publication can duplicate by source ID.
+
+## Deliberately unsupported surfaces
+
+Unsupported behavior is part of the stable contract, not a placeholder for an
+in-memory emulation:
+
+- Ring, Redis Pub/Sub, and Core NATS have no durable dead-letter capability.
+- NSQ and RabbitMQ expose terminal destinations but no package record reader or
+  mutation controller; their retention and capacity policies remain broker
+  owned.
+- Redis Streams and Valkey Streams support deliberate exact record-count
+  retention and manual record purge. They do not advertise package time or
+  byte retention, so a per-record retention deadline remains unknown.
+- First-delivery time, privileged diagnostics, and a redacted prose summary
+  remain unknown when the backend or producer does not supply safe evidence.
+  The stable failure code is not expanded into arbitrary exception text.
+- Backend-specific depth, oldest age, throughput, and rate measurements remain
+  unsupported unless the status contract marks that exact measurement as
+  supported. An absent measurement is never fabricated as zero.
+
+Real-broker evidence, fault-boundary tests, race, fuzz, mutation, coverage,
+benchmark, compatibility, documentation, and vulnerability gates are listed in
+[integration evidence](integration-evidence.md). The authenticated control
+plane consumes only negotiated `management` capabilities and never broadens
+the backend guarantees in this matrix.
+
+## Source: docs/dead-letter-operations.md
+
+# Dead-letter operations and recovery
+
+This runbook applies to package-managed durable dead letters. It does not turn
+Ring, Redis Pub/Sub, or Core NATS into durable transports. Operators must first
+confirm the backend and advertised capabilities rather than inferring support
+from an HTTP route or control-plane screen.
+
+## Triage sequence
+
+1. Stop or rate-limit redrive when failure volume is rising. A redrive into the
+   same broken handler can amplify the incident.
+2. Record worker protocol versions, negotiated capabilities, source pending
+   depth, dead-letter depth, oldest age, settlement failures, and broker health.
+3. Separate handler failures from `dead_letter_destination_unavailable`,
+   `lease_lost`, acknowledgement failures, and unknown command outcomes.
+4. Keep payload visibility hidden during routine triage. Reveal one record only
+   through an authorized path when metadata and safe codes are insufficient.
+5. Repair destination capacity, permissions, type/topology, or connectivity
+   before resuming terminal settlement or redrive.
+
+## Destination outage or capacity pressure
+
+Redis Streams and Valkey Streams leave the source pending when terminal append
+fails. NSQ sends `REQ` when terminal publication fails. RabbitMQ negatively
+acknowledges and requeues after a failed terminal publish or confirmation.
+Do not delete or acknowledge the source to reduce the visible backlog. Restore
+the destination, verify one canary terminal transfer, then increase worker or
+redrive concurrency gradually.
+
+Count retention is disabled unless `WithRecordRetention` is configured on the
+stream backends. Time and byte retention are unsupported package capabilities;
+configure and audit broker policy separately. NSQ and RabbitMQ retention is
+entirely broker-owned. A full broker must backpressure or fail settlement; it
+must never be treated as successful dead-lettering.
+
+## Ambiguous append and settlement outcomes
+
+For Redis Streams and Valkey Streams, append succeeds before source `XACK`.
+For NSQ, terminal publish succeeds before `FIN`. For RabbitMQ, a publisher
+confirmation arrives before source `basic.ack`. Process death or response loss
+between those steps can produce a dead letter plus a recoverable source.
+
+Reconcile duplicates by the source record ID and bounded redrive lineage. Do
+not compare arbitrary payloads or claim exactly-once processing. A lease-loss
+code means the current worker cannot prove source ownership; inspect broker
+state before retrying an administrative mutation.
+
+## Poison storms
+
+Pause automated redrive, preserve representative hidden records, and group by
+stable classification and failure code. Malformed and unsupported-version
+records are not corrected by retry. Permanent handler failures require a code
+or data change. Retryable exhaustion may be redriven only after its dependency
+recovers. Administrative quarantine uses the canonical
+`administrative_quarantine` code and remains an authorized control-plane
+decision, not an unbounded worker-side list.
+
+## Retry, replay, delete, and purge
+
+- Retry returns work to its logical queue. Replay requires an allowlisted
+  destination and an explicit reject-or-replace duplicate policy.
+- Keep batch selection at or below the contract limit and bound caller
+  concurrency. Treat partial and unknown outcomes as reconciliation work.
+- A successful enqueue precedes source-record deletion. If deletion is unknown,
+  expect a duplicate instead of reporting false success.
+- Delete affects one record. Record purge is destructive and confirmed. Queue
+  purge is unsupported by the stream controllers.
+- Redis and Valkey redrives carry original/prior dead-letter IDs and a bounded
+  generation so repeated failure does not recursively grow metadata.
+
+## Backup, restore, and rollback
+
+Backup and restore are broker responsibilities. Preserve the source stream or
+queue, consumer-group state where the broker supports it, record streams or
+terminal queues/topics, and replay duplicate registries as one operational
+unit. Restoring only payload records can invalidate pending ownership and
+idempotency evidence.
+
+During rollback, keep newer record streams intact. Older workers may not
+understand new management fields but must not purge them. Negotiate the
+intersection of worker capabilities, drain incompatible workers, and retain
+the rollback configuration until the broker retention window has passed.
+
+## Incident closure
+
+Confirm source pending depth is stable or falling, destination appends succeed,
+oldest age recovers, redrive is bounded, and no partial or unknown commands
+remain unreconciled. Record any deliberately revealed payload access in the
+control-plane audit system; `queue` supplies bounded context but does not own
+administrative authorization or auditing.
+
+## Source: docs/delivery-semantics.md
+
+# Delivery semantics
+
+No backend in this module promises exactly-once processing. Handlers must be
+idempotent whenever a transport can redeliver.
+
+| Backend | Delivery | Ack point | Failure behavior | Important limitation |
+| --- | --- | --- | --- | --- |
+| Ring | In-memory at-most-once after process loss | None | Job is gone on process loss | Not durable |
+| Redis Pub/Sub | At-most-once | None | Disconnected subscribers miss work | No persistence or replay |
+| Redis Streams | At-least-once | After handler success | Failed attempts are recorded, pending work is reclaimed, and terminal work is appended to a DLQ | Record append and source ack are non-atomic; duplicate records are possible |
+| Valkey Streams | At-least-once | After handler success | Final failure remains pending, idle work is reclaimed, terminal work is appended to DLQ | Ack and DLQ source settlement can be ambiguous; handlers and DLQ consumers must be idempotent |
+| Core NATS | At-most-once | None | Disconnect can lose work | This is not JetStream |
+| NSQ | At-least-once | FIN after success | REQ for recoverable failures; exhausted, permanent, and malformed work is published to the terminal topic before FIN | Publish/FIN crash windows may duplicate; ordering is not guaranteed |
+| RabbitMQ | At-least-once when `autoAck=false` | Ack after success | Confirmed retry republish; exhausted, permanent, and malformed work is confirmed to the package-owned terminal exchange before source ack | `autoAck=true` disables post-handler settlement; confirm/ack crash windows may duplicate; connection loss requires a replacement worker |
+
+Retries occur inside a delivery attempt. The backend ack is not sent between
+handler retries. A process crash can redeliver work even after application side
+effects completed but before the ack reached the broker.
+
+Backends may implement the additive `core.FailureAcknowledger` contract to
+receive the classified final handler error. `job.Message` exposes
+`SetFailureAcknowledgement` for this path and falls back to the legacy `Nack`
+callback when no error-aware callback is attached.
+
+RabbitMQ enqueue uses persistent delivery mode and waits for a positive
+publisher confirmation. This confirms broker acceptance, not completion of the
+handler. All network deliveries are rejected above one mebibyte of encoded JSON.
+
+Restart evidence distinguishes transport behavior. Core NATS and Redis Pub/Sub
+remain lossy despite reconnecting because disconnected subscribers have no
+replay. NSQ reconnects and resumes its durable topic/channel. Redis Streams
+retains queued backlog. The current RabbitMQ worker does not rebuild a closed
+AMQP connection or channel; supervision must replace it.
+
+Valkey Streams uses package-managed bounded `XAUTOCLAIM` recovery. A worker
+crash, process termination, or failed settlement leaves an entry pending unless
+Valkey already applied an acknowledgement whose response was lost. The
+terminal DLQ operation appends before acknowledging the source; an ack failure
+after append can duplicate the DLQ entry. These are normal at-least-once
+boundaries, not exactly-once transactions.
+
+Valkey dead-letters permanent and malformed handler failures immediately.
+Retryable failures reach the dead-letter stream only at the configured backend
+delivery-attempt limit. Canceled and infrastructure failures remain pending
+even at that limit so shutdown, lease, broker, and settlement uncertainty do
+not discard recoverable work.
+
+## Source: docs/failure-model.md
+
+# Threat and failure model
+
+The trust boundary begins at every enqueue caller and broker delivery. Broker
+availability, network continuity, handler correctness, and observer code are
+not assumed.
+
+| Threat or failure | Library behavior | Deployment responsibility |
+| --- | --- | --- |
+| Malformed or oversized JSON | Rejects before execution; encoded limit is 1 MiB | Alert on repeated poison deliveries |
+| Hostile retry metadata | Rejects negative, non-finite, or over-100 retry state | Choose job deadlines below service shutdown budget |
+| Slow or blocked handler | Cancels its context at deadline/shutdown | Handler must cooperate and bound downstream calls |
+| Observer/logger/metric panic | Recovers and preserves worker accounting | Repair the integration; callback observations may be lost |
+| Ack/nack failure or panic | Returns a failed settlement event | Reconcile duplicates or pending work |
+| Redis Pub/Sub/Core NATS disconnect | Work can be silently lost by protocol design | Use only for transient work |
+| Redis Streams process loss | Unacked entry remains in the PEL | Monitor, claim, and dead-letter pending entries |
+| Valkey Streams process loss | Unacked entry remains pending and is reclaimed after bounded idle time | Set idle above valid handler runtime and make handlers idempotent |
+| Valkey ack timeout | Ack may be applied or remain pending | Inspect group state; never infer replay safety from timeout alone |
+| Valkey dead-letter ack failure | Append may succeed while source remains pending | Deduplicate dead letters by original stream ID |
+| NSQ process loss | Unfinished work is eligible for redelivery | Make handlers idempotent |
+| RabbitMQ process loss | Before confirm the source remains recoverable; after terminal confirm but before source ack a duplicate may remain | Reconcile by job identity and bounded terminal headers; use durable queues |
+| Broker unavailable at startup | Error-returning constructor fails and cleans partial state | Supervise restart with bounded backoff |
+| Runtime connection loss | NATS, NSQ, Redis, and Valkey reconnect on later commands; RabbitMQ worker is terminal | Accept lossy gaps or replace the worker as documented |
+| Credential-bearing broker URI | Debug output and constructor error text are redacted | Do not log raw options or separately unwrapped client errors |
+| TLS disabled or verification skipped | Redis TLS is opt-in; skip-verify is explicit; Valkey accepts only caller-supplied verified TLS configuration | Require verified TLS and broker authentication in policy |
+| Process termination | In-memory and lossy transports lose work | Use a durable backend and idempotent side effects |
+
+There is no compression layer, so decompression bombs do not apply. JSON base64
+decoding of `Body` remains within the encoded-message limit. No backend or core
+API promises exactly-once execution.
+
+## Failure classification
+
+`management.NewFailure` attaches one stable classification and a bounded safe
+code while preserving the original cause through `errors.Is` and `errors.As`.
+The classifications are retryable, permanent, malformed, canceled, and
+infrastructure. Unknown or invalid classified errors resolve to retryable so a
+bad marker cannot discard work.
+
+`management.ResolveFailure` examines wrapped and joined errors and returns the
+winning classification and safe code. `management.ClassifyFailure` is the
+classification-only convenience. Precedence is
+infrastructure, canceled, malformed, permanent, then retryable. Infrastructure
+wins because an acknowledgement, lease, broker, or dead-letter destination
+failure makes durable outcome uncertain. Cancellation wins over handler
+terminality because shutdown and deadline interruption do not become dead
+letters without explicit backend policy. Plain handler errors are retryable.
+Context cancellation and deadline expiration are canceled, never permanent.
+
+Panic, retry exhaustion, unsupported payload version, lease loss,
+acknowledgement failure, dead-letter destination failure, and administrative
+quarantine use stable failure codes in addition to the classification. The
+code is operator-safe metadata, not an arbitrary error string or stack trace.
+Classified error strings never include their wrapped cause, while `errors.Is`
+and `errors.As` still permit programmatic diagnosis. Recovered handler panics
+are permanent `handler_panic` failures. Acknowledgement and failure-settlement
+errors are infrastructure failures; raw callback panic values are discarded.
+The public `management.FailureCodeUnsupportedPayloadVersion`,
+`management.FailureCodeLeaseLost`,
+`management.FailureCodeDeadLetterDestinationUnavailable`, and
+`management.FailureCodeAdministrativeQuarantine` constants are the canonical
+codes for package backends, custom adapters, and administrative integrations.
+Redis Streams, Valkey Streams, NSQ, and RabbitMQ produce the destination code
+when terminal persistence fails; stream settlement with no remaining owned
+delivery produces the lease-loss code.
+
+Protocol claims are grounded in the official documentation for
+[Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/),
+[Redis Streams](https://redis.io/docs/latest/develop/data-types/streams/),
+[Valkey Streams](https://valkey.io/topics/streams-intro/),
+[Core NATS](https://docs.nats.io/nats-concepts/what-is-nats),
+[NSQ](https://nsq.io/overview/design.html), and
+[RabbitMQ acknowledgements and confirms](https://www.rabbitmq.com/docs/confirms).
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go Safety And Concurrency
+
+Baseline: `GO-SAFETY-1`
+
+This document defines the shared safety engineering standard for the
+`faustbrian/go-*` package family. RFC 2119 keywords are requirements.
+
+## Guarantee Boundary
+
+Go provides memory safety for ordinary Go code, but it does not provide Rust's
+compile-time ownership and data-race proof. The race detector observes executed
+paths only. These rules reduce the practical gap through constrained design,
+static analysis, adversarial tests, and executable quality gates; they MUST NOT
+be described as an equivalent type-system guarantee.
+
+## Memory And Ownership
+
+- Production code MUST NOT import `unsafe`, use cgo, or use `go:linkname`.
+  An exception requires an explicit security review, package-local rationale,
+  isolated API boundary, platform matrix, and dedicated tests before the source
+  gate may be changed.
+- Every mutable value shared across goroutines MUST have a documented owner and
+  synchronization strategy.
+- APIs MUST NOT expose mutable internal maps, slices, buffers, registries, or
+  pointers unless ownership transfer or aliasing is an intentional, documented
+  contract.
+- Caller-owned mutable input MUST NOT be retained or mutated unless the public
+  API explicitly documents that behavior.
+- Copies, immutable snapshots, atomics, channels, or mutexes SHOULD be chosen
+  according to the invariant being protected, not as interchangeable style.
+- Pooling and zero-copy techniques MUST NOT weaken ownership clarity, retain
+  secrets unexpectedly, or allow values to outlive their backing storage.
+
+## Goroutine And Resource Lifecycle
+
+- Every goroutine MUST have an identifiable owner, bounded lifetime, and
+  deterministic stop condition.
+- Library code MUST NOT start hidden background work without a documented
+  shutdown or cancellation mechanism.
+- Request-scoped work MUST propagate the caller's `context.Context`; it MUST
+  NOT replace that context with `context.Background()`.
+- Concurrency, queues, retries, buffers, payloads, recursion, and fan-out MUST
+  be bounded at every untrusted or operational boundary.
+- The goroutine that owns a channel's send lifecycle SHOULD close it. Receivers
+  MUST NOT close channels they do not own.
+- Locks MUST NOT be held while calling user callbacks, performing network I/O,
+  or waiting on unrelated goroutines.
+- Multiple-lock code MUST document and test a stable lock order.
+- Cancellation, timeout, startup failure, partial initialization, panic, and
+  repeated shutdown MUST each release timers, goroutines, connections, files,
+  transactions, and other owned resources exactly once.
+
+## Required Verification Layers
+
+### Static And Source Analysis
+
+- `make safety` MUST reject forbidden low-level features and run vet, lint,
+  race, and fuzz gates.
+- `go vet`, Staticcheck, security linting, error checks, context checks, and
+  HTTP-body ownership checks MUST remain enabled through the repository lint
+  configuration.
+- New linter suppressions MUST be narrow, justified next to the suppression,
+  and covered by tests where behavior is affected.
+
+### Behavioral Tests
+
+- Tests MUST prove observable contracts, invariants, errors, and ownership
+  behavior rather than merely execute lines.
+- Meaningful 100% production statement coverage remains required, but coverage
+  MUST NOT be treated as evidence of race freedom, resource bounds, or protocol
+  conformance by itself.
+- Cancellation, timeout, panic, partial failure, retry, and shutdown paths MUST
+  be tested when the package owns those behaviors.
+- Tests for mutable inputs and outputs MUST check aliasing and post-call
+  mutation where ownership could be ambiguous.
+
+### Concurrency And Race Tests
+
+- The full package suite MUST pass under `go test -race ./...`.
+- Every concurrency bug fix MUST include a regression that exercises the
+  relevant interleaving under the race detector.
+- Concurrency tests MUST use barriers, channels, hooks, wait groups, or other
+  deterministic coordination. Sleeps MUST NOT be used as synchronization;
+  they MAY be used only when elapsed time is the behavior under test.
+- Critical state machines SHOULD be stress-tested with repeated execution and
+  varied scheduling. A passing stress run is supporting evidence, not a
+  substitute for a deterministic regression.
+- Tests MUST cover concurrent use of every API documented as concurrency-safe.
+
+### Fuzz And Adversarial Tests
+
+- Every parser, decoder, protocol boundary, query parser, queue envelope, and
+  other attacker-controlled byte or text boundary MUST have a fuzz target.
+- Fuzz corpora MUST include valid examples, malformed inputs, boundary values,
+  previously discovered regressions, and inputs near configured resource
+  limits.
+- Fuzz properties MUST include no panic, no hang, bounded resource behavior,
+  deterministic classification, and no invalid caller-state mutation.
+- Round-trip properties MUST be used only where the format and API promise a
+  lossless round trip.
+- Every fuzz-discovered defect MUST be retained as a deterministic regression
+  and, where useful, as a permanent fuzz seed.
+
+### Leak And Resource-Bound Tests
+
+- Components that create goroutines, timers, files, sockets, subscriptions, or
+  transactions MUST prove cleanup after success, failure, cancellation, panic,
+  and repeated close.
+- Leak tests SHOULD use observable lifecycle hooks or owned-resource counters.
+  Global goroutine counts alone SHOULD NOT be used as exact assertions because
+  unrelated runtime goroutines make them unstable.
+- Hostile-reader and declared-size tests MUST prove that byte, item, depth,
+  retry, and expansion limits stop work at the documented boundary.
+- Queue backends MUST test acknowledgement, retry, redelivery, poison-message,
+  reconnect, and shutdown behavior against real backends where semantics
+  cannot be proved hermetically.
+
+### Benchmarks And Regression Discipline
+
+- Hot paths MUST have representative benchmarks reporting allocations with
+  `-benchmem`.
+- Security-sensitive parsers and state machines SHOULD include adversarial
+  benchmarks near supported limits.
+- Performance changes MUST compare multiple before-and-after samples with
+  `benchstat` or an equivalent statistical method and retain the commands,
+  environment, and result.
+- Shared CI MUST NOT fail on small wall-clock benchmark variance. Stable
+  allocation counts, explicit resource ceilings, and statistically supported
+  material regressions MAY be gated.
+- Optimization MUST follow profiling evidence and MUST NOT remove validation,
+  bounds, cancellation, or ownership clarity without equivalent protection.
+
+## Review And Change Control
+
+- Public concurrency guarantees, aliasing behavior, limits, and lifecycle
+  semantics are SemVer-governed contracts.
+- Changes touching shared state, goroutines, callbacks, retries, settlement,
+  parsing, or resource limits MUST include an explicit safety review in the
+  pull request.
+- Updates to this baseline MUST bump its identifier and be propagated across
+  `jsonapi`, `jsonrpc`, `queue`, `wire`, `tabular`,
+  and the monorepo Go standard.
+
+## Source: docs/horizon-migration.md
+
+# Laravel Horizon failed-job migration
+
+`queue` provides Horizon-like failed-job operations without reproducing
+Laravel internals or promising cross-runtime wire compatibility. Migrate the
+operator workflow and semantics, not Horizon's database schema or serialized
+PHP jobs.
+
+## Concept mapping
+
+| Horizon concept | `queue` contract | Intentional difference |
+| --- | --- | --- |
+| Failed job | `management.JobRecord` failure or dead letter | A failed attempt and a terminal record are distinct kinds |
+| Retry one | `CommandRetry` for a named record | Enqueue succeeds before source deletion; partial outcomes are explicit |
+| Retry all or batch | `CommandBulkRetry` with bounded selection | No unbounded all-record scan |
+| Retry to another queue | `CommandReplay` with allowlisted destination | Requires an explicit idempotency policy |
+| Forget | `CommandDelete` | Backend result can be not found or unknown |
+| Flush failed jobs | Confirmed record `CommandPurge` | Queue purge is separate and unsupported by stream controllers |
+| Trim recent/failed | `WithRecordRetention` or broker policy | Package count retention is opt-in; time/byte support is not implied |
+| Tags | Bounded `job.Metadata.Tags` | At most 32 bounded key/value pairs; never metric labels by default |
+| Metrics | Status measurements and observer events | Unsupported gauges remain unsupported, not fabricated zeroes |
+
+## Migration procedure
+
+1. Choose a durable backend. Ring, Redis Pub/Sub, and Core NATS cannot replace
+   Horizon's persistent failed-job store.
+2. Assign a stable original job ID and idempotency key in `job.Metadata`; keep
+   payload schema, handler type, tenant, trace, and producer version bounded.
+3. Configure Redis Streams or Valkey Streams failure and dead-letter streams,
+   terminal attempt policy, reclaim policy, management identity, and deliberate
+   count retention. For NSQ or RabbitMQ, configure broker-owned terminal
+   retention and accept that package list/mutation operations are unsupported.
+4. Deploy readers with hidden payload visibility and negotiate protocol and
+   capabilities across all worker versions before enabling mutations.
+5. Recreate Horizon roles in `queue-control-plane`. Authorization, audit,
+   destination policy, and privileged payload disclosure do not belong in the
+   worker library.
+6. Run canaries for retry, replay reject/replace, forget, purge, poison input,
+   destination outage, and an ambiguous append/ack boundary.
+7. Freeze Horizon retries, drain its active queues, retain its failed-job store
+   for the required audit window, then enable bounded `queue` redrive.
+
+## Payload conversion
+
+Do not copy Horizon's serialized PHP payload into a Go handler and deserialize
+it during listing. Produce a new bounded Go job envelope or enqueue a reference
+to data in an authorized external store. Listing remains metadata-only and
+payload-hidden. Revealed inspection is a privileged exception, not the normal
+retry path.
+
+## Operational differences to teach
+
+Horizon's single failed-job row can hide the distinction between a retryable
+attempt and completed terminal settlement. `queue` exposes both records and
+the backend crash window. Duplicate terminal records and duplicate processing
+are possible under at-least-once delivery. Operators must reconcile lineage and
+idempotency rather than interpret a successful UI request as exactly-once
+execution.
+
+There is no universal `horizon:purge`, automatic time pruning, or portable
+queue-depth metric. Every operation is capability-negotiated, every bulk
+selection is bounded, and unsupported behavior fails explicitly.
+
+## Source: docs/integration-evidence.md
+
+# Integration evidence
+
+Integration tests use the `integration` build tag and Testcontainers 0.42.0.
+Images are pinned by version and digest so a tag cannot silently change the
+evidence environment.
+
+| Backend | Server evidence | Go client |
+| --- | --- | --- |
+| Redis Pub/Sub and Streams | Redis 6.2.22, `sha256:3b477d...0bce` | `go-redis/v9` 9.19.0 |
+| Redis Cluster | Single-node, all-slot Redis 6.2.22 cluster with host-reachable discovery | `go-redis/v9` 9.19.0 |
+| Valkey Streams | Valkey 9.1.0, `sha256:8e8d64...e09411`, standalone | `valkey-go` 1.0.76 |
+| NATS | NATS Server 2.10.29, `sha256:5498ba...6e2f`; hermetic server 2.11.15 | `nats.go` 1.52.0 |
+| NSQ | nsqd 1.3.0, `sha256:1a369c...c78a` | `go-nsq` 1.1.0 |
+| RabbitMQ | RabbitMQ 3.13.7 management, `sha256:e582c0...1f69` | `amqp091-go` 1.11.0 |
+
+The local audit ran with Go 1.26.5 on Darwin arm64 while the supported minimum
+remains Go 1.25.12. Container tests cover enqueue, consume, handler failure,
+timeout, shutdown, backend-specific settlement, and same-endpoint broker
+interruption/restart. Core NATS and NSQ reconnect live. Redis Pub/Sub rejects
+an outage publish and resubscribes after restart. Redis Streams retains backlog
+across restart. RabbitMQ channels are terminal after connection loss, so the
+test proves that a replacement worker is required and restores delivery. Unit
+fault injection covers partial initialization, closed channels, malformed
+delivery, settlement error, and publish confirmation failure.
+
+Valkey runs in its own release-blocking job and proves server version, enqueue,
+group consume, post-handler ack, exact group stats, verified TLS, rejected TLS,
+ACL success/failure, restart persistence, pending crash recovery, paused-network
+settlement ambiguity, reconnect, concurrent reclaim ownership, bounded handler
+retry, handler panic, malformed/oversized delivery, dead-letter failure, and
+graceful connection cleanup. The same suite passes with `-race` locally.
+
+Redis Sentinel runs hermetically in the pinned Redis image. The master and
+Sentinel use equal container and reserved host loopback ports, so the address
+returned by Sentinel is routable from the test process. No integration scenario
+is skipped by default.
+
+Container stop/start closes live connections and proves same-endpoint outage
+and restart behavior. It does not model every packet-drop, half-open TCP,
+firewall, DNS, proxy, or load-balancer partition. The package makes no broader
+partition-recovery guarantee: bounded operations return client/backend errors,
+lossy transports may drop work, and RabbitMQ requires worker replacement.
+Deployments must inject their actual network intermediary failure modes before
+relying on a recovery objective.
+
+The Valkey pause scenario specifically demonstrates that a timed-out `XACK`
+may be applied after the server resumes. The safe outcome is either settled
+work or a still-pending entry eligible for reclaim; the package does not claim
+the client can distinguish those outcomes from the timeout alone.
+
+```sh
+go test -tags=integration -count=1 -timeout=15m ./...
+```
+
+## Source: docs/lifecycle.md
+
+# Lifecycle and state ownership
+
+`Queue` owns scheduling and handler execution; each backend worker owns its
+transport connection, delivery channel, and settlement callbacks. A queue moves
+through `constructed -> started -> shutting down -> stopped` and never returns
+to an earlier state.
+
+## State transitions
+
+| State | Accepted operations | Transition |
+| --- | --- | --- |
+| Constructed | enqueue, `Start`, `Shutdown`, `Release` | `Start` is guarded by `sync.Once` |
+| Started | enqueue, resize workers, handle deliveries | `Shutdown` atomically closes admission |
+| Shutting down | drain an in-memory ring; cancel backend reads and handler contexts | owned goroutines finish |
+| Stopped | metrics and repeated `Release` | enqueue returns `ErrQueueShutdown` |
+
+`Release` starts an unstarted in-memory ring before shutdown so queued work can
+drain. Repeated `Start`, `Shutdown`, and `Release` do not create another
+scheduler or close a channel twice. The internal atomic active-worker count is
+authoritative; custom metric implementations cannot change concurrency.
+
+## Delivery path
+
+1. `Queue` or `QueueTask` builds and validates a `job.Message`.
+2. `Worker.Queue` publishes it. RabbitMQ waits for a publisher confirmation.
+3. The scheduler requests a delivery only while a worker slot is available.
+4. One handler attempt receives a context bounded by the message timeout.
+5. Retries remain inside that delivery and are limited to 100.
+6. After final success the coordinator acknowledges durable deliveries. After
+   final failure it rejects or leaves pending according to the backend matrix.
+7. Metrics, observation, logging, and post-handler callbacks run through panic
+   boundaries and cannot corrupt internal worker accounting.
+
+## Cancellation and shutdown ownership
+
+Contexts are owned by the coordinator and cancelled at timeout or shutdown.
+Go cannot forcibly stop application code. A handler that ignores cancellation
+can continue after `handle` returns and can retain its own resources. Production
+handlers MUST select on `ctx.Done()` and bound their own external calls.
+
+Backend request, connection, and publish waits have explicit timeouts where the
+client exposes them. `Release` waits for goroutines owned by the queue; it does
+not promise to terminate arbitrary user-created goroutines.
+
+Valkey owns one cancellation-aware read loop, one bounded reclaim loop, a
+bounded delivery channel, and its native client. Shutdown cancels both loops,
+waits within `WithShutdownTimeout`, then closes all native connections. It never
+acknowledges buffered or in-flight work merely because shutdown began.
+
+## Backpressure and memory
+
+The in-memory ring defaults to 10,000 queued jobs. `WithQueueSize(0)` explicitly
+opts back into unbounded compatibility behavior and is unsafe for
+attacker-controlled admission. Network deliveries are limited to one mebibyte
+of encoded JSON, concurrency is bounded by the worker count, and retry metadata
+is validated before execution.
+
+## Source: docs/management.md
+
+# Management protocol
+
+The `management` package is the stable boundary between `queue` workers and
+an external control plane. It defines protocol and capability values only. It
+does not connect to Redis, Valkey, Kubernetes, or any other backend, and it does
+not supervise processes.
+
+## Rolling-version negotiation
+
+A control plane publishes the inclusive protocol range it supports. Each
+worker reports its protocol version and capabilities. `management.Negotiate`
+classifies the worker as compatible, older, newer, or unknown and returns a
+deterministically sorted capability view.
+
+```go
+compatibility := management.Negotiate(
+    management.ProtocolRange{
+        Minimum: management.ProtocolVersion{Major: 1},
+        Maximum: management.ProtocolVersion{Major: 1, Minor: 2},
+    },
+    worker.Protocol,
+    worker.Capabilities,
+    controlPlaneCapabilities,
+)
+```
+
+Only the intersection of worker and control-plane capabilities is enabled, and
+only when the protocol version is compatible. Older, newer, missing, and
+invalid versions remain diagnosable but receive no enabled control capability.
+Unknown capability strings are preserved in the diagnostic sets so a rolling
+upgrade does not silently misrepresent either peer.
+
+## Worker status
+
+`WorkerStatus` carries worker identity, software version, start and heartbeat
+times, queues, goroutine concurrency, current jobs, worker and drain state,
+backend identity, protocol version, and capabilities. `Validate` rejects
+missing fields and bounds identities, queues, capabilities, and concurrency
+before a control plane accepts the report.
+
+The contract contains no process handle and grants no authority to spawn,
+restart, or supervise a worker.
+
+`StatusReader` exposes workers and queues through opaque-cursor pages capped at
+200 observations. Requests and adapter output validate their bounds and every
+nested status before a control plane accepts them.
+
+## Desired-state reconciliation
+
+`DesiredRecord` carries an authored queue, worker, or worker-group lifecycle
+state, a positive monotonic revision, change time, and originating command ID.
+The supported states are active, paused, draining, and terminating.
+
+`DesiredStateReconciler` reads a fixed bounded target set and applies each
+revision at most once. It rejects revision rollback, rejects two different
+records claiming the same revision, validates source output, and advances its
+local revision only after successful application. A missing record means no
+authored change; it is never inferred as active. A failed read or application
+leaves normal queue delivery and the last applied revision unchanged.
+
+The reconciler starts no goroutines and owns no retry timer. The worker
+application must call `Reconcile` from its supervised, cancellation-aware
+loop and decide how reconciliation failures are observed and retried. This
+keeps control-plane availability outside the normal delivery lifecycle.
+
+## Queue-owned lifecycle enforcement
+
+`management.NewWorkerLifecycle` creates the synchronized admission boundary
+used by `Queue`. Configure it with one worker identity, worker group, logical
+queue, protocol metadata, a bounded idempotency-result capacity, and a clock.
+Pass it through `queue.WithWorkerLifecycle` when constructing the queue.
+
+The configured backend worker must implement `management.StatusProvider`.
+`Queue` then implements `management.Controller`,
+`management.DesiredStateApplier`, and `management.StatusProvider`, so the same
+queue instance can be supplied to `managementhttp.HandlerConfig` for status
+and commands and to `DesiredStateReconciler` for durable convergence.
+
+Pause closes admission and waits for an outstanding backend request to return;
+already admitted jobs continue. Drain closes admission and waits for admitted
+jobs to finish settlement. Terminate uses the same drain boundary and then
+shuts down the queue. Resume reopens admission. Context cancellation or a
+command deadline stops the wait but does not invent completion. Command
+idempotency results are bounded and never silently evicted; exhausted capacity
+fails closed.
+
+The lifecycle owns no goroutine and does not poll desired state. Applications
+must run reconciliation in an application-supervised loop. Direct commands do
+not author durable revisions: after a restart or control-plane recovery, the
+desired-state source remains authoritative.
+
+Backend status remains backend-owned. The queue decorates native worker status
+with its synchronized lifecycle and current-job view and forwards native queue
+measurements unchanged. Backends without honest status support cannot enable
+the lifecycle option.
+
+## Queue status
+
+`QueueStatus` identifies the backend and logical queue at an observation time.
+Its metrics cover depth, lag, pending work, oldest age, throughput, runtime,
+successes, failures, retries, reclaims, dead letters, and settlement errors.
+
+Every metric is a `Measurement` with a `Supported` flag. Backends must set it
+only when they can measure the value honestly. A supported zero is therefore
+different from an unsupported metric; consumers must not infer support from a
+numeric value. Supported gauges, durations, and throughput must be
+non-negative, and throughput must be finite. Validation ignores placeholder
+values for unsupported measurements.
+
+Worker heartbeats must not precede their reported start time. This prevents a
+consumer from presenting an impossible lifecycle when clocks or adapter data
+are malformed.
+
+## Authenticated HTTP transport
+
+The `managementhttp` package exposes configured status, record, and controller services
+through these worker-side endpoints:
+
+```text
+GET /v1/status/workers?limit=N&cursor=OPAQUE
+GET /v1/status/queues?limit=N&cursor=OPAQUE
+GET /v1/records/failures?limit=N&sort=FIELD&direction=DIR
+GET /v1/records/dead-letters?limit=N&sort=FIELD&direction=DIR
+GET /v1/records/failures/{id}?visibility=hidden
+GET /v1/records/dead-letters/{id}?visibility=hidden
+POST /v1/commands
+```
+
+`NewHandler` requires a non-empty shared bearer token and at least one status,
+record, or controller service. It registers only the configured service routes and
+validates every request and adapter result before writing JSON. `NewClient`
+implements `management.StatusReader`, `management.RecordReader`, and
+`management.Controller`, validates
+before network I/O, bounds response bytes, rejects unknown or trailing JSON,
+and revalidates decoded pages and command results. Command request bodies are
+strict JSON capped at 16 KiB, and acknowledgements must match both the command
+ID and idempotency key. Transport and adapter errors cross the boundary only as
+stable secret-safe errors.
+
+Record lists require explicit bounded sorting and return hidden payloads only.
+Inspection requires `hidden`, `redacted`, or `revealed` visibility. A backend
+may return a more restrictive representation, never a more revealing one.
+Revealed payloads remain capped at one mebibyte by the management contract.
+
+The wire format uses explicit snake-case fields. Queue duration measurement
+values are integer nanoseconds. Cursors remain opaque and must be forwarded
+unchanged. Deploy TLS or mutually authenticated TLS around the handler; the
+bearer token is admission defense, not transport encryption.
+
+Configure `HandlerConfig.Controller` only with a data-plane implementation
+that owns the backend semantics. The HTTP transport does not implement pause,
+drain, retry, purge, replay, or any other queue operation itself.
+
+## Control commands
+
+`Command` is the stable envelope that a management-capable `queue` adapter
+enforces. Every command carries a bounded command ID, idempotency key, actor,
+reason, protocol version, action, target, request time, and deadline.
+
+The allowed target matrix is intentionally narrow:
+
+| Action | Targets |
+| --- | --- |
+| pause, resume | queue, worker group |
+| drain, terminate | worker, worker group |
+| retry, delete | failure, dead letter |
+| bulk retry | failure collection, dead-letter collection |
+| purge | queue, failure collection, dead-letter collection |
+| replay | failure, dead letter |
+
+Purge requires explicit confirmation. Replay requires confirmation, an
+explicit destination, and either reject-duplicate or replace-duplicate
+idempotency policy. Replay never claims exactly-once execution.
+
+Bulk retry requires explicit confirmation and a selection limit of at most
+1,000 records. The backend adapter owns deterministic selection and must not
+exceed the requested bound.
+
+`Controller` is implemented by a data-plane adapter that can enforce these
+semantics honestly. A control plane calls that interface and must not open a
+native Redis, Valkey, or other backend client to emulate the operation.
+
+When a root `Queue` has `WithWorkerLifecycle`, it keeps pause, resume, drain,
+and terminate enforcement and delegates record mutations to a worker that also
+implements `Controller`. Valkey Streams supports retry, bounded bulk retry,
+delete, and failure/dead-letter collection purge. Queue purge and replay remain
+explicitly unsupported until their native safety and destination idempotency
+semantics are proven.
+
+## Command results
+
+`CommandResult` reports acknowledged, rejected, failed, unsupported,
+timed-out, partial, or unknown outcomes. Non-success outcomes use bounded,
+stable failure codes. They must not contain raw adapter errors, payloads,
+credentials, tokens, or backend endpoints.
+
+An unknown outcome means enforcement may have happened but a reliable result
+was unavailable. Callers must inspect durable command state and must not assume
+that retrying is safe.
+
+## Failures and dead letters
+
+`RecordReader` exposes backend-neutral failure and dead-letter listing plus
+single-record inspection. Page requests require a limit of at most 200,
+bounded opaque cursors and searches, and an explicit supported sort and
+direction. Returned pages validate their own size, cursor, and every nested
+record so an adapter cannot bypass the boundary with oversized output.
+
+`JobRecord` version 0 is the legacy compatibility envelope: bounded record,
+backend, and queue identifiers, occurrence time, attempt count, failure code,
+and payload visibility. A version-0 record must not contain version-1 fields.
+
+Version 1 is selected with `management.CurrentEnvelopeVersion`. It adds the
+original job and source record identifiers; topic, stream, routing key, and
+consumer group; enqueue, first delivery, last delivery, dead-letter, and
+retention times; retry policy; terminal classification; redacted failure
+summary and separately controlled diagnostics; handler and job type; tags,
+trace, and tenant identity; producer and worker versions; payload schema; and
+bounded replay lineage. Dead-letter records require a dead-letter time.
+Failure records may omit it because they have not reached a terminal state.
+
+Backend metadata that cannot be measured is empty or `nil`; adapters must not
+fabricate it. Known identifiers are at most 256 bytes, summaries at most 1,024
+bytes, tags at most 32 bounded key/value pairs, and privileged payload or
+diagnostic bytes at most one mebibyte. Times must follow enqueue, delivery,
+dead-letter, and retention order. A replay generation requires original and
+prior dead-letter identifiers. Unknown envelope versions fail validation.
+
+Payload and diagnostic visibility default to hidden. A redacted representation
+carries only metadata. Revealed bytes require an explicit privileged inspection
+request and are capped at one mebibyte. Lists require both fields to remain
+hidden. Adapters must reject bytes in hidden or redacted results, and the
+control plane remains responsible for authenticating and authorizing privileged
+access before requesting revealed content.
+
+Stable management errors distinguish record-not-found, unsupported capability,
+temporary unavailability, malformed cursor, invalid filter, stale record,
+mutation conflict, partial mutation, and unknown mutation outcome. Adapters
+wrap these sentinels so callers retain `errors.Is` behavior; arbitrary broker
+errors do not cross the management boundary.
+Redis Streams and Valkey Streams classify broker read failures as
+`ErrManagementUnavailable` with secret-safe text while retaining the native
+cause for `errors.Is`/`errors.As`. Caller cancellation and deadline expiration
+remain cancellation errors rather than being mislabeled as backend outages.
+
+`managementhttp` maps these errors to bounded problem codes and appropriate
+400, 404, 409, 501, or 503 responses. Its client joins the matching management
+sentinel with the legacy `managementhttp.ErrRemoteFailure`, preserving existing
+transport checks while allowing callers to make a specific safe decision.
+Unknown status bodies and unknown problem codes remain generic remote failures.
+
+Retry, delete, replay, and confirmed purge continue through `Controller`; the
+reader cannot mutate queue state.
+
+## Failure isolation
+
+Negotiation is pure and process-local. It cannot pause, resume, drain, retry,
+acknowledge, reject, reclaim, purge, or replay a job. Workers continue normal
+delivery when a control plane is unavailable. Data-plane enforcement and
+backend-specific semantics remain owned by `queue` adapters.
+
+Future management contracts will extend this package without moving backend
+clients or queue serialization into the control plane.
+
+## Source: docs/repository-standards.md
+
+# Repository Standards
+
+This repository follows the shared maintenance baseline used by the
+`faustbrian/go-*` OSS packages.
+
+## Mandatory Root Files
+
+Every repository contains `.gitattributes`, `.gitignore`,
+`.golangci.yml`, `AGENTS.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`, `Makefile`, `NOTICE`,
+`README.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`,
+`llms.txt`, and `llms-full.txt`.
+
+AI planning and execution briefs live in `.ai/GOAL.md` and
+`.ai/GOAL_HARDEN.md`, keeping internal agent material separate from the
+package's public documentation surface.
+
+`NOTICE` identifies project and inherited ownership. `THIRD_PARTY_NOTICES.md`
+separately records detailed fork provenance and third-party attribution. Both
+remain present even when no additional third-party source requires
+attribution. A package may retain a different approved OSS license when
+provenance requires it.
+
+## Mandatory Documentation
+
+The shared taxonomy is lowercase kebab-case and includes a documentation
+index, quickstart, adoption guide, API reference, architecture, examples,
+cookbook, FAQ, troubleshooting, migration, compatibility, performance,
+hardening, security, Go safety and concurrency, and releasing guide.
+Package-specific documents extend this taxonomy without renaming shared
+concepts.
+
+## Mandatory Automation
+
+Every repository provides pinned-SHA workflows for CI, benchmarks, scheduled
+fuzzing, security, and tagged releases. CI tests Go 1.25.x as the supported
+minimum line and current stable Go. Dependency review runs on pull requests;
+reachable dependency scanning uses `govulncheck`.
+
+The common Make interface is `format`, `format-check`, `test`,
+`test-race`, `coverage`, `vet`, `lint`, `fuzz`, `benchmark`,
+`safety`, `docs`, `vuln`, `check`, and semantic release targets.
+`queue` additionally exposes `api-compat` because its native Streams
+backends have separately frozen public surfaces.
+
+The package family shares the `GO-SAFETY-1` baseline. It forbids `unsafe`,
+cgo, and `go:linkname` in production code and standardizes ownership,
+goroutine lifecycle, race, fuzz, resource-bound, leak, and benchmark evidence.
+
+## Approved Package-Specific Differences
+
+- `jsonapi` carries JSON:API feature, conformance, extension/profile,
+  recommendation, and threat-model documentation.
+- `jsonrpc` carries protocol conformance and middleware documentation.
+- `queue` carries backend, delivery, lifecycle, failure, and integration
+  documentation plus a live-backend integration workflow. Its fork provenance
+  requires detailed third-party notices.
+- `wire` carries format, dependency, and audit-evidence documentation.
+- `tabular` carries format and ingest-limit documentation. It uses
+  Apache-2.0 and retains XLS provenance notices.
+
+Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
+security guidance are expected to differ. Shared policy wording and automation
+structure must not drift without updating this contract across all affected
+repositories.

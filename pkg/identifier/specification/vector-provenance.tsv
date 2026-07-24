@@ -1,0 +1,7 @@
+family	kind	language	source	revision	vector
+uuid	official-and-cross-language	Python	https://www.rfc-editor.org/rfc/rfc9562.html	RFC9562;CPython-v3.14.0-ac991beb29b1783316c4016c99468c008568d08a	017f22e2-79b0-7cc3-98c4-dc0c0c07398f
+ulid	cross-language	JavaScript	https://github.com/ulid/javascript/blob/11c2067821ee19e4dc787ca4e0125a025485edc6/test/node/ulid.spec.ts	11c2067821ee19e4dc787ca4e0125a025485edc6	01ARYZ6S41YYYYYYYYYYYYYYYY
+typeid	official-spec-valid	multi-language	https://github.com/jetify-com/typeid/blob/be8ff0daf5dc1f6d40c62a03cfc89945263a69af/spec/valid.json	be8ff0daf5dc1f6d40c62a03cfc89945263a69af	sha256:af5a9cf2447d757b9354f33861d5d83f4e3244487eac191e37021013ce0c17e3
+typeid	official-spec-invalid	multi-language	https://github.com/jetify-com/typeid/blob/be8ff0daf5dc1f6d40c62a03cfc89945263a69af/spec/invalid.json	be8ff0daf5dc1f6d40c62a03cfc89945263a69af	sha256:b1bf19bd2c922970bbe0381499807d3a0da652abb3da813b9ab75bac7c25217c
+ksuid	cross-language	Rust	https://github.com/svix/rust-ksuid/blob/ed78a713f4ef056b3d9053200d64e7069ea41276/tests/test_kuids.txt	ed78a713f4ef056b3d9053200d64e7069ea41276	000000pryYUMiBILyxOCoroLz6w
+nanoid	cross-language	JavaScript	https://github.com/ai/nanoid/blob/c6246e036ca5e7a1d362c1a80726bab63b767754/index.js	c6246e036ca5e7a1d362c1a80726bab63b767754	_____________________

@@ -1,0 +1,217 @@
+{
+  "openrpc": "1.4.1",
+  "$schema": "https://meta.open-rpc.org/",
+  "info": {
+    "title": "Complete API",
+    "description": "**Complete** API description",
+    "termsOfService": "https://example.com/terms",
+    "contact": {
+      "name": "API team",
+      "url": "https://example.com/contact",
+      "email": "api@example.com",
+      "x-contact": true
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "x-license": true
+    },
+    "version": "1.0.0",
+    "x-info": true
+  },
+  "externalDocs": {
+    "description": "External documentation",
+    "url": "https://example.com/docs",
+    "x-docs": true
+  },
+  "servers": [
+    {
+      "name": "Production",
+      "summary": "Primary server",
+      "description": "Production endpoint",
+      "url": "https://{region}.example.com/rpc",
+      "variables": {
+        "region": {
+          "default": "eu",
+          "description": "Deployment region",
+          "enum": ["eu", "us"],
+          "vendorVariable": true
+        }
+      },
+      "x-server": true
+    }
+  ],
+  "methods": [
+    {
+      "name": "things.read",
+      "summary": "Read a thing",
+      "description": "Reads one thing",
+      "servers": [
+        {
+          "url": "../rpc",
+          "name": "Relative",
+          "summary": "Relative server",
+          "description": "Resolved by the consumer",
+          "variables": {},
+          "x-server": true
+        }
+      ],
+      "tags": [
+        {
+          "name": "things",
+          "description": "Thing operations",
+          "externalDocs": {
+            "description": "Tag documentation",
+            "url": "https://example.com/tags/things",
+            "x-docs": true
+          },
+          "x-tag": true
+        }
+      ],
+      "params": [
+        {
+          "name": "id",
+          "summary": "Thing identifier",
+          "description": "Identifier to read",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "string"
+          },
+          "required": true,
+          "deprecated": false,
+          "x-descriptor": true
+        }
+      ],
+      "paramStructure": "by-name",
+      "result": {
+        "name": "thing",
+        "summary": "Read result",
+        "description": "The requested thing",
+        "schema": true,
+        "required": false,
+        "deprecated": false,
+        "x-descriptor": true
+      },
+      "errors": [
+        {
+          "code": -31999,
+		  "message": "Thing unavailable",
+		  "data": {"retry": true}
+        }
+      ],
+      "links": [
+        {
+          "name": {"relation": "next"},
+          "summary": "Next thing",
+          "description": "Reads the next thing",
+          "method": "things.read",
+          "params": {"id": "$result.next"},
+          "server": {
+            "url": "https://example.com/rpc",
+            "name": "Linked",
+            "summary": "Linked server",
+            "description": "Link destination",
+            "variables": {},
+            "x-server": true
+          },
+          "x-link": true
+        }
+      ],
+      "examples": [
+        {
+          "name": "read example",
+          "description": "Complete request and response",
+          "params": [
+            {
+              "name": "id",
+              "summary": "Example identifier",
+              "description": "Example input",
+              "value": "thing-1",
+              "vendorExample": true
+            }
+          ],
+          "result": {
+            "name": "thing",
+            "summary": "Example result",
+            "description": "Example output",
+            "value": {"id": "thing-1"},
+            "vendorExample": true
+          },
+          "vendorPairing": true
+        }
+      ],
+      "deprecated": false,
+      "externalDocs": {
+        "description": "Method documentation",
+        "url": "https://example.com/methods/read",
+        "x-docs": true
+      },
+      "x-method": true
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Identifier": {"type": "string"}
+    },
+    "links": {
+      "Next": {
+        "name": "next",
+        "summary": "Next link",
+        "description": "Next item",
+        "method": "things.read",
+        "params": {"id": "$result.next"},
+        "server": {"url": "https://example.com/rpc"},
+        "x-link": true
+      }
+    },
+    "errors": {
+      "Unavailable": {
+        "code": -31999,
+		"message": "Thing unavailable",
+		"data": null
+      }
+    },
+    "examples": {
+      "Identifier": {
+        "name": "identifier",
+        "summary": "Identifier example",
+        "description": "A valid identifier",
+        "value": "thing-1",
+        "vendorExample": true
+      }
+    },
+    "examplePairings": {
+      "Read": {
+        "name": "read",
+        "description": "Read pairing",
+        "params": [{"$ref": "#/components/examples/Identifier"}],
+        "result": {"$ref": "#/components/examples/Identifier"},
+        "vendorPairing": true
+      }
+    },
+    "contentDescriptors": {
+      "Identifier": {
+        "name": "id",
+        "summary": "Identifier",
+        "description": "Thing identifier",
+        "schema": {"type": "string"},
+        "required": true,
+        "deprecated": false,
+        "x-descriptor": true
+      }
+    },
+    "tags": {
+      "Things": {
+        "name": "things",
+        "description": "Thing operations",
+        "externalDocs": {
+          "description": "Tag docs",
+          "url": "https://example.com/tags/things"
+        },
+        "x-tag": true
+      }
+    },
+    "vendorComponentKind": {"enabled": true}
+  },
+  "x-root": true
+}

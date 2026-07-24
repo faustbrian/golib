@@ -1,0 +1,84 @@
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - asasalint
+    - bidichk
+    - bodyclose
+    - durationcheck
+    - errorlint
+    - forcetypeassert
+    - godoclint
+    - gosec
+    - makezero
+    - misspell
+    - musttag
+    - nilerr
+    - noctx
+    - nolintlint
+    - reassign
+    - wastedassign
+    - whitespace
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+  exclusions:
+    generated: strict
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Tests intentionally assert exact sentinel identity and exercise paths.
+      - path: _test\.go
+        linters:
+          - errorlint
+          - forcetypeassert
+          - gosec
+      # These repository tools receive an explicit root or report path. Their
+      # file operations are the requested behavior and stay within fixed names.
+      - path: internal/.+/cmd/.+\.go
+        text: "G(301|304|703):"
+        linters:
+          - gosec
+      # encoding/json guarantees these token types at the guarded positions.
+      - path: parse/json\.go
+        text: type assertion must be checked
+        linters:
+          - forcetypeassert
+      # The preceding switch proves index is at least two.
+      - path: validate/references\.go
+        text: "G602:"
+        linters:
+          - gosec
+      # These branches deliberately classify invalid optional annotations as
+      # loss or absence instead of exposing the parser implementation error.
+      - path: convert/swagger20_downgrade\.go
+        text: error is not nil
+        linters:
+          - nilerr
+      - path: jsonschema/compiler\.go
+        text: error is not nil
+        linters:
+          - nilerr
+      # Public errors wrap the stable package sentinel while keeping parser
+      # implementation errors out of the errors.Is contract.
+      - text: non-wrapping format verb
+        linters:
+          - errorlint
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

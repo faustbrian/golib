@@ -1,0 +1,3625 @@
+{
+  "schema_version": "v1",
+  "generated": {
+    "package_commit": "3935ba3bf1319adc3c2cb7a28385cf640083e61c",
+    "source_sha256": "986248dd7afb6419f1d97f7b39f789a274209afeb32a7c49873d5ec2d84c47d4",
+    "go_version": "go1.26.5",
+    "environment": "darwin/arm64",
+    "date": "2026-07-24",
+    "commands": [
+      "make check",
+      "make release-check"
+    ],
+    "dependencies": {
+      "github.com/faustbrian/golib/pkg/math": "v0.1.0",
+      "github.com/faustbrian/golib/pkg/measurement": "v0.1.0"
+    },
+    "fixtures": {
+      "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json": "f35c6f3f5ffbd58b761dccfe27f9c0a2e31eab28cb9a47cb1887b91813469eba",
+      "docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv": "8c4afb3f5574e74fe953ebd146ee35e3d1c209f89e734474e9a752f362b39507",
+      "docs/benchmarks/raw/2026-07-24-darwin-arm64.txt": "e3b06c613f1b4f272648117c0de6530d9296c9f85058474b599c858793d555fd",
+      "docs/mutation/raw/adapter.json": "7a81464a367db04aebf01b23691e61d40f46694ea1a5eb0e8bb064ad148959b4",
+      "docs/mutation/raw/gomoney.json": "e4c972d7db9a5a53dfdddedcb81bdbc1e262abf02ebe79d434f64672784147c6",
+      "docs/mutation/raw/root.json": "83c654d9ed2bcb7d5fff9f6aff9aa40bf9a9def9df78a0304795db672a1f5f75",
+      "encoding/testdata/v1/plan.json": "b6a5dee66bd91999776b174877cafb19740b8e794e2644c711c25007634b39cf",
+      "encoding/testdata/v1/request.json": "7d3cff1f7deb64e0a2a41fa4d3c7b6652f61a2380297ae31e7765def8f96a1b2",
+      "integration/boxpacker/composer.lock": "9d88036ca16b6d770f7480ca725e06100305c5968686f6b6fef35e6e7283029b",
+      "solver/testdata/corpus/dwave-sample-data-1.json": "64db24bd045cf41cf74f583822a289d2f71e8a677055a7d815f2ad5d97077bbd",
+      "specification/benchmark-rss-thresholds.tsv": "2088df22bf41423f856a55d88d61f8a01bf82c5541b9de73f273e2e3756c291c",
+      "specification/benchmark-thresholds.tsv": "6c55cc0ebf4a2bc170c9099f26203d6d1dd43b5a8886fd51a3536e3db04b2584",
+      "specification/corpora.tsv": "7ef6a6833a78ccf19430940d8ee7e559928fda2863819b00aa13f28a409f6fa3",
+      "specification/dependency-licenses.tsv": "0c85edad2be8e0e402c513bf99fcbba9199efa491808c81ecfae5c7d89cc5c43",
+      "specification/fuzz-budgets.tsv": "337813cc96ec4e518693a3881b7d0f48bf060af9dd25fef33bea4505ec8f117f",
+      "specification/mutation-classifications.tsv": "4baf3f69ee8d059dbccbcb38c0e00209aa93a26edb520b659da755a079b36a63",
+      "specification/references.tsv": "10a9183ffedd076781d1380c4e34f473573b3815318dc8dcf5cdf462859b6d42",
+      "testdata/fuzz/FuzzItemContainerValidation/2f162b4f416df340": "2f162b4f416df3407601b0d4c7c0299446c436f10a9bdfa774a496fd92dc0188"
+    }
+  },
+  "api": [
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "StatusBestKnown",
+      "signature": "Status",
+      "doc": "StatusBestKnown is a verified partial heuristic plan without infeasibility\nproof."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "StatusBudgetExhausted",
+      "signature": "Status",
+      "doc": "StatusBudgetExhausted is the best safe verified result when bounded search\nstops early."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "StatusFeasible",
+      "signature": "Status",
+      "doc": "StatusFeasible is a complete independently verified non-optimal plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "StatusInfeasible",
+      "signature": "Status",
+      "doc": "StatusInfeasible is exhaustive proof that no complete plan exists."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "StatusOptimal",
+      "signature": "Status",
+      "doc": "StatusOptimal is a complete plan proven optimal by the exact solver."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationBranchLimit",
+      "signature": "TerminationReason",
+      "doc": "TerminationBranchLimit means MaxBranches was reached."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationCancelled",
+      "signature": "TerminationReason",
+      "doc": "TerminationCancelled means context cancellation stopped work."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationCandidateLimit",
+      "signature": "TerminationReason",
+      "doc": "TerminationCandidateLimit means MaxCandidatePlacements was reached."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationCompleted",
+      "signature": "TerminationReason",
+      "doc": "TerminationCompleted means the selected solver strategy finished."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationDeadline",
+      "signature": "TerminationReason",
+      "doc": "TerminationDeadline means the context deadline expired."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationMemoryLimit",
+      "signature": "TerminationReason",
+      "doc": "TerminationMemoryLimit means the conservative memory budget was exceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationNoPlacement",
+      "signature": "TerminationReason",
+      "doc": "TerminationNoPlacement means a heuristic could not place every item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "const",
+      "name": "TerminationNodeLimit",
+      "signature": "TerminationReason",
+      "doc": "TerminationNodeLimit means MaxSearchNodes was reached."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MaxXPPM",
+      "signature": "uint32",
+      "doc": "MaxXPPM is the inclusive horizontal X-axis upper bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MaxYPPM",
+      "signature": "uint32",
+      "doc": "MaxYPPM is the inclusive horizontal Y-axis upper bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MaxZPPM",
+      "signature": "uint32",
+      "doc": "MaxZPPM is the inclusive vertical Z-axis upper bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MinXPPM",
+      "signature": "uint32",
+      "doc": "MinXPPM is the inclusive horizontal X-axis lower bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MinYPPM",
+      "signature": "uint32",
+      "doc": "MinYPPM is the inclusive horizontal Y-axis lower bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "CenterOfGravityBounds.MinZPPM",
+      "signature": "uint32",
+      "doc": "MinZPPM is the inclusive vertical Z-axis lower bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerInstance.ID",
+      "signature": "string",
+      "doc": "ID is the unique deterministic instance identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerInstance.TypeID",
+      "signature": "string",
+      "doc": "TypeID refers to a NormalizedContainer.ID in the request."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.AllowedClasses",
+      "signature": "[]string",
+      "doc": "AllowedClasses is a copied canonical allowlist for item class attributes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.CenterOfGravity",
+      "signature": "*CenterOfGravityBounds",
+      "doc": "CenterOfGravity optionally constrains the combined content mass center."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.ExternalDimensions",
+      "signature": "*PhysicalDimensions",
+      "doc": "ExternalDimensions optionally describe non-feasibility shipping size."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.ID",
+      "signature": "string",
+      "doc": "ID is the required unique type identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.InternalDimensions",
+      "signature": "PhysicalDimensions",
+      "doc": "InternalDimensions are the exact usable physical lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.MaxContentWeight",
+      "signature": "measurement.Quantity",
+      "doc": "MaxContentWeight is the exact positive content mass limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.MaxGrossWeight",
+      "signature": "*measurement.Quantity",
+      "doc": "MaxGrossWeight optionally limits tare plus content mass."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.MaxItemCount",
+      "signature": "uint32",
+      "doc": "MaxItemCount limits placements per instance; zero means unrestricted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.Priority",
+      "signature": "int64",
+      "doc": "Priority is the deterministic type ordering after objective equivalence."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.Reserved",
+      "signature": "[]ReservedRegion",
+      "doc": "Reserved is a copied set of unusable cuboids inside internal dimensions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.Stock",
+      "signature": "Stock",
+      "doc": "Stock explicitly selects finite or unlimited availability."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ContainerTypeSpec.TareWeight",
+      "signature": "*measurement.Quantity",
+      "doc": "TareWeight is the optional non-negative empty-container mass."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Diagnostic.Code",
+      "signature": "string",
+      "doc": "Code is the stable diagnostic category."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Diagnostic.ContainerID",
+      "signature": "string",
+      "doc": "ContainerID optionally scopes the diagnostic to an instance or type."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Diagnostic.ItemID",
+      "signature": "string",
+      "doc": "ItemID optionally scopes the diagnostic to an item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Diagnostic.Message",
+      "signature": "string",
+      "doc": "Message is the bounded human-readable explanation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "FieldError.Category",
+      "signature": "error",
+      "doc": "Category is the stable sentinel returned by Unwrap."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "FieldError.Field",
+      "signature": "string",
+      "doc": "Field is the machine-readable input field name when known."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "FieldError.ID",
+      "signature": "string",
+      "doc": "ID is the affected item or container ID when known."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "FieldError.Reason",
+      "signature": "string",
+      "doc": "Reason is the human-readable validation detail."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Attributes",
+      "signature": "map[string]string",
+      "doc": "Attributes is copied caller metadata used by eligibility constraints."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Dimensions",
+      "signature": "PhysicalDimensions",
+      "doc": "Dimensions are exact positive physical lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.FragileTop",
+      "signature": "bool",
+      "doc": "FragileTop forbids any item from using this item as a supporter."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Group",
+      "signature": "string",
+      "doc": "Group requires all same-group items to share one container."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.ID",
+      "signature": "string",
+      "doc": "ID is the required unique logical item identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.IncompatibleGroups",
+      "signature": "[]string",
+      "doc": "IncompatibleGroups may not share a container with this item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.MaxStackCount",
+      "signature": "uint32",
+      "doc": "MaxStackCount bounds the number of supported levels above this item; zero\nmeans no stack-depth constraint."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.MaxSupportedWeight",
+      "signature": "*measurement.Quantity",
+      "doc": "MaxSupportedWeight is the optional non-negative total transitive load."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.MinimumSupportPPM",
+      "signature": "uint32",
+      "doc": "MinimumSupportPPM is the required supported footprint in millionths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Orientations",
+      "signature": "[]geometry.Orientation",
+      "doc": "Orientations is the nonempty allowed physical-axis permutation set."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Priority",
+      "signature": "int64",
+      "doc": "Priority is an exact caller value used by PackedPriority objectives."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.SKU",
+      "signature": "string",
+      "doc": "SKU is optional caller metadata and does not establish identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ItemSpec.Weight",
+      "signature": "measurement.Quantity",
+      "doc": "Weight is the exact positive item mass."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxBranches",
+      "signature": "uint64",
+      "doc": "MaxBranches bounds exact-search edges and container configurations."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxCandidatePlacements",
+      "signature": "uint64",
+      "doc": "MaxCandidatePlacements bounds heuristic and exact placement attempts."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxContainerTypes",
+      "signature": "uint32",
+      "doc": "MaxContainerTypes bounds distinct container definitions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxDiagnostics",
+      "signature": "uint32",
+      "doc": "MaxDiagnostics bounds verifier and solver diagnostic collections."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxIDBytes",
+      "signature": "uint32",
+      "doc": "MaxIDBytes bounds each item, type, and instance identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxImprovementRounds",
+      "signature": "uint32",
+      "doc": "MaxImprovementRounds bounds complete heuristic repacking passes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxItems",
+      "signature": "uint32",
+      "doc": "MaxItems bounds normalized item instances."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxMemoryBytes",
+      "signature": "uint64",
+      "doc": "MaxMemoryBytes bounds conservative request and solver working estimates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxOrientations",
+      "signature": "uint32",
+      "doc": "MaxOrientations bounds allowed orientations per item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Limits.MaxSearchNodes",
+      "signature": "uint64",
+      "doc": "MaxSearchNodes bounds exact-search states."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.AllowedClasses",
+      "signature": "[]string",
+      "doc": "AllowedClasses is a copied item-class allowlist."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.CenterOfGravity",
+      "signature": "*CenterOfGravityBounds",
+      "doc": "CenterOfGravity optionally bounds combined content mass by axis PPM."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.Dimensions",
+      "signature": "geometry.Dimensions",
+      "doc": "Dimensions are positive usable length-lattice counts."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.HasGrossWeight",
+      "signature": "bool",
+      "doc": "HasGrossWeight distinguishes an absent limit from a numeric value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.ID",
+      "signature": "string",
+      "doc": "ID is the unique container type identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.MaxContentWeight",
+      "signature": "int64",
+      "doc": "MaxContentWeight is the positive content mass-lattice limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.MaxGrossWeight",
+      "signature": "int64",
+      "doc": "MaxGrossWeight is tare plus content capacity when HasGrossWeight is true."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.MaxItemCount",
+      "signature": "uint32",
+      "doc": "MaxItemCount limits placements per instance; zero is unrestricted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.Priority",
+      "signature": "int64",
+      "doc": "Priority is the deterministic type-ordering value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.Reserved",
+      "signature": "[]geometry.Cuboid",
+      "doc": "Reserved is a copied set of unusable cuboids inside Dimensions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.Stock",
+      "signature": "Stock",
+      "doc": "Stock explicitly selects finite or unlimited type availability."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedContainer.TareWeight",
+      "signature": "int64",
+      "doc": "TareWeight is the non-negative empty-container mass-lattice value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Attributes",
+      "signature": "map[string]string",
+      "doc": "Attributes is copied metadata used by eligibility constraints."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Dimensions",
+      "signature": "geometry.Dimensions",
+      "doc": "Dimensions are positive length-lattice counts."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.FragileTop",
+      "signature": "bool",
+      "doc": "FragileTop forbids supported placements above this item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Group",
+      "signature": "string",
+      "doc": "Group requires co-location with all items carrying the same value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.ID",
+      "signature": "string",
+      "doc": "ID is the unique logical item identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.IncompatibleGroups",
+      "signature": "[]string",
+      "doc": "IncompatibleGroups may not share a container with this item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.MaxStackCount",
+      "signature": "uint32",
+      "doc": "MaxStackCount bounds supported levels above; zero is unrestricted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.MaxSupportedWeight",
+      "signature": "*int64",
+      "doc": "MaxSupportedWeight is an optional non-negative mass-lattice load limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.MinimumSupportPPM",
+      "signature": "uint32",
+      "doc": "MinimumSupportPPM is required footprint support in millionths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Orientations",
+      "signature": "[]geometry.Orientation",
+      "doc": "Orientations is the canonical nonempty allowed permutation set."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Priority",
+      "signature": "int64",
+      "doc": "Priority is the exact PackedPriority objective contribution."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.SKU",
+      "signature": "string",
+      "doc": "SKU is optional non-identity metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedItem.Weight",
+      "signature": "int64",
+      "doc": "Weight is a positive mass-lattice count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedSpec.Containers",
+      "signature": "[]NormalizedContainer",
+      "doc": "Containers are already expressed in the selected integer lattice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedSpec.Items",
+      "signature": "[]NormalizedItem",
+      "doc": "Items are already expressed in the selected integer lattice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedSpec.Limits",
+      "signature": "Limits",
+      "doc": "Limits bounds construction, solving, verification, and diagnostics."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "NormalizedSpec.Resolution",
+      "signature": "Resolution",
+      "doc": "Resolution preserves the exact physical meaning of lattice units."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PhysicalDimensions.X",
+      "signature": "measurement.Quantity",
+      "doc": "X is the exact physical width."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PhysicalDimensions.Y",
+      "signature": "measurement.Quantity",
+      "doc": "Y is the exact physical depth."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PhysicalDimensions.Z",
+      "signature": "measurement.Quantity",
+      "doc": "Z is the exact physical height."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.ContainerID",
+      "signature": "string",
+      "doc": "ContainerID refers to one ContainerInstance.ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.Diagnostics",
+      "signature": "[]Diagnostic",
+      "doc": "Diagnostics is bounded non-authoritative placement metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.Dimensions",
+      "signature": "geometry.Dimensions",
+      "doc": "Dimensions are the recomputable oriented lattice lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.ItemID",
+      "signature": "string",
+      "doc": "ItemID refers to exactly one NormalizedItem.ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.Orientation",
+      "signature": "geometry.Orientation",
+      "doc": "Orientation is the selected allowed physical-axis permutation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.Origin",
+      "signature": "geometry.Point",
+      "doc": "Origin is the non-negative lower lattice corner."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.SupporterIDs",
+      "signature": "[]string",
+      "doc": "SupporterIDs is the canonical set of items with positive contact beneath."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Placement.Weight",
+      "signature": "int64",
+      "doc": "Weight is the recomputable item mass-lattice count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxBytes",
+      "signature": "uint64",
+      "doc": "MaxBytes bounds the conservative owned plan-size estimate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxContainers",
+      "signature": "uint32",
+      "doc": "MaxContainers bounds selected instance records."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxDiagnostics",
+      "signature": "uint32",
+      "doc": "MaxDiagnostics bounds plan and placement diagnostics combined."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxIDBytes",
+      "signature": "uint32",
+      "doc": "MaxIDBytes bounds every item, type, instance, and supporter ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxMetadataBytes",
+      "signature": "uint32",
+      "doc": "MaxMetadataBytes bounds each diagnostic and objective string."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxObjectiveComponents",
+      "signature": "uint32",
+      "doc": "MaxObjectiveComponents bounds lexicographic score records."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxPlacements",
+      "signature": "uint32",
+      "doc": "MaxPlacements bounds placement records."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanLimits.MaxUnpackedItems",
+      "signature": "uint32",
+      "doc": "MaxUnpackedItems bounds partial-result identity records."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Containers",
+      "signature": "[]ContainerInstance",
+      "doc": "Containers is the selected canonical container instance list."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Diagnostics",
+      "signature": "[]Diagnostic",
+      "doc": "Diagnostics contains bounded non-authoritative plan metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Objective",
+      "signature": "[]ScoreComponent",
+      "doc": "Objective contains exact components in precedence order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Placements",
+      "signature": "[]Placement",
+      "doc": "Placements contains at most one entry for each packed item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Statistics",
+      "signature": "Statistics",
+      "doc": "Statistics contains independently recomputable aggregates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Status",
+      "signature": "Status",
+      "doc": "Status states the level of feasibility or proof claimed."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Termination",
+      "signature": "TerminationReason",
+      "doc": "Termination states why solver work stopped."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.UnpackedItemIDs",
+      "signature": "[]string",
+      "doc": "UnpackedItemIDs identifies omitted items for permitted partial plans."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "PlanSpec.Work",
+      "signature": "Work",
+      "doc": "Work contains deterministic bounded search counters."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ReservedRegion.Dimensions",
+      "signature": "PhysicalDimensions",
+      "doc": "Dimensions are exact positive physical lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ReservedRegion.Origin",
+      "signature": "geometry.Point",
+      "doc": "Origin is the non-negative lower lattice corner."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Resolution.Length",
+      "signature": "measurement.Quantity",
+      "doc": "Length is the exact coordinate and dimension lattice step."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Resolution.Mass",
+      "signature": "measurement.Quantity",
+      "doc": "Mass is the exact weight and load lattice step."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ScoreComponent.Direction",
+      "signature": "string",
+      "doc": "Direction is either \"min\" or \"max\"."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ScoreComponent.Name",
+      "signature": "string",
+      "doc": "Name is the stable objective metric identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ScoreComponent.Unit",
+      "signature": "string",
+      "doc": "Unit identifies the exact count, lattice, priority, or currency domain."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "ScoreComponent.Value",
+      "signature": "string",
+      "doc": "Value is the canonical exact decimal representation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.ContainerCount",
+      "signature": "uint32",
+      "doc": "ContainerCount is the selected instance count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.ContainerVolume",
+      "signature": "int64",
+      "doc": "ContainerVolume is total selected usable lattice volume."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.ItemVolume",
+      "signature": "int64",
+      "doc": "ItemVolume is total packed volume in cubed length-lattice units."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.ItemWeight",
+      "signature": "int64",
+      "doc": "ItemWeight is total packed mass in request lattice units."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.PackedItems",
+      "signature": "uint32",
+      "doc": "PackedItems is the placement count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.RemainingVolume",
+      "signature": "int64",
+      "doc": "RemainingVolume is container volume minus item volume."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Statistics.RemainingWeight",
+      "signature": "int64",
+      "doc": "RemainingWeight is unused content capacity in mass-lattice units."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.Branches",
+      "signature": "uint64",
+      "doc": "Branches is the number of exact-search edges or configurations considered."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.CandidatePlacements",
+      "signature": "uint64",
+      "doc": "CandidatePlacements is the number of orientation-position attempts."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.ImprovementRounds",
+      "signature": "uint32",
+      "doc": "ImprovementRounds is the number of complete heuristic repacking passes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.Nodes",
+      "signature": "uint64",
+      "doc": "Nodes is the number of exact-search states entered."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.Seed",
+      "signature": "uint64",
+      "doc": "Seed is the caller-provided reproducibility value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.Solver",
+      "signature": "string",
+      "doc": "Solver is the stable solver implementation identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "field",
+      "name": "Work.Strategy",
+      "signature": "string",
+      "doc": "Strategy is the stable search-strategy identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "DefaultLimits",
+      "signature": "func() Limits",
+      "doc": "DefaultLimits returns conservative nonzero bounds for untrusted server work."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "DefaultPlanLimits",
+      "signature": "func() PlanLimits",
+      "doc": "DefaultPlanLimits returns conservative limits for server-side untrusted\nplan construction."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "ExpandQuantity",
+      "signature": "func(spec ItemSpec, quantity uint32) ([]Item, error)",
+      "doc": "ExpandQuantity creates stable instance IDs without retaining caller aliases."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "ExpandQuantityWithLimit",
+      "signature": "func(spec ItemSpec, quantity, maximum uint32) ([]Item, error)",
+      "doc": "ExpandQuantityWithLimit expands at most maximum instances and rejects the\nrequest before allocating when the caller's quantity budget would be\nexceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "FiniteStock",
+      "signature": "func(count uint32) Stock",
+      "doc": "FiniteStock constructs availability of count containers; constructors reject\na zero finite count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewContainerType",
+      "signature": "func(spec ContainerTypeSpec) (ContainerType, error)",
+      "doc": "NewContainerType validates dimensions, mass limits, stock, and reserved\nregions, then defensively copies caller-owned state."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewItem",
+      "signature": "func(spec ItemSpec) (Item, error)",
+      "doc": "NewItem validates the domain model and defensively copies all collections."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewNormalizedRequest",
+      "signature": "func(spec NormalizedSpec) (NormalizedRequest, error)",
+      "doc": "NewNormalizedRequest validates a pre-scaled request, rejects duplicate IDs\nand overflow, canonicalizes ordering, and defensively copies all aliases."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewPlan",
+      "signature": "func(spec PlanSpec) (Plan, error)",
+      "doc": "NewPlan validates and defensively copies spec using DefaultPlanLimits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewPlanWithLimits",
+      "signature": "func(spec PlanSpec, limits PlanLimits) (Plan, error)",
+      "doc": "NewPlanWithLimits validates resource bounds before taking defensive copies\nof the supplied plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "NewRequest",
+      "signature": "func(items []Item, containers []ContainerType, resolution Resolution, limits Limits) (Request, error)",
+      "doc": "NewRequest validates exact physical values, requires exact lattice\nconversion, rejects ambiguous IDs, and owns defensive copies."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "function",
+      "name": "UnlimitedStock",
+      "signature": "func() Stock",
+      "doc": "UnlimitedStock constructs explicitly unbounded container availability."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.AllowedClasses",
+      "signature": "func() []string",
+      "doc": "AllowedClasses returns a defensive copy in canonical order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.CenterOfGravity",
+      "signature": "func() *CenterOfGravityBounds",
+      "doc": "CenterOfGravity returns a copy of the optional content-mass bounds."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.ID",
+      "signature": "func() string",
+      "doc": "ID returns the unique container type identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.InternalDimensions",
+      "signature": "func() PhysicalDimensions",
+      "doc": "InternalDimensions returns exact usable physical dimensions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.MaxContentWeight",
+      "signature": "func() measurement.Quantity",
+      "doc": "MaxContentWeight returns the exact content mass limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.MaxGrossWeight",
+      "signature": "func() *measurement.Quantity",
+      "doc": "MaxGrossWeight returns a copy of the optional tare-plus-content mass limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.MaxItemCount",
+      "signature": "func() uint32",
+      "doc": "MaxItemCount returns the per-instance count limit, or zero when unrestricted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.Priority",
+      "signature": "func() int64",
+      "doc": "Priority returns the deterministic type priority."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.Reserved",
+      "signature": "func() []ReservedRegion",
+      "doc": "Reserved returns a defensive copy of unusable regions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.Stock",
+      "signature": "func() Stock",
+      "doc": "Stock returns finite or unlimited availability."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "ContainerType.TareWeight",
+      "signature": "func() *measurement.Quantity",
+      "doc": "TareWeight returns a copy of the optional exact empty-container mass."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "FieldError.Error",
+      "signature": "func() string",
+      "doc": "Error formats the stable category with optional ID, field, and reason."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "FieldError.Unwrap",
+      "signature": "func() error",
+      "doc": "Unwrap returns Category for errors.Is and errors.As chains."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Attributes",
+      "signature": "func() map[string]string",
+      "doc": "Attributes returns a defensive copy of caller metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Dimensions",
+      "signature": "func() PhysicalDimensions",
+      "doc": "Dimensions returns exact physical dimensions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.FragileTop",
+      "signature": "func() bool",
+      "doc": "FragileTop reports whether the item may bear any other item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Group",
+      "signature": "func() string",
+      "doc": "Group returns the required co-location group."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.ID",
+      "signature": "func() string",
+      "doc": "ID returns the unique item identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.IncompatibleGroups",
+      "signature": "func() []string",
+      "doc": "IncompatibleGroups returns a defensive copy in canonical order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.MaxStackCount",
+      "signature": "func() uint32",
+      "doc": "MaxStackCount returns the allowed levels above, or zero when unrestricted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.MaxSupportedWeight",
+      "signature": "func() *measurement.Quantity",
+      "doc": "MaxSupportedWeight returns a copy of the optional exact load limit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.MinimumSupportPPM",
+      "signature": "func() uint32",
+      "doc": "MinimumSupportPPM returns the required footprint support in millionths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Orientations",
+      "signature": "func() []geometry.Orientation",
+      "doc": "Orientations returns a defensive copy of allowed permutations."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Priority",
+      "signature": "func() int64",
+      "doc": "Priority returns the exact subset-selection priority."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.SKU",
+      "signature": "func() string",
+      "doc": "SKU returns optional non-identity metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Item.Weight",
+      "signature": "func() measurement.Quantity",
+      "doc": "Weight returns the exact physical mass."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Limits.Valid",
+      "signature": "func() bool",
+      "doc": "validateForSolver is exposed within the module through a stable boolean\nhelper so subpackages can reject malformed copied limits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.ContainerTypeCount",
+      "signature": "func() int",
+      "doc": "ContainerTypeCount returns the bounded distinct container type count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.Containers",
+      "signature": "func() []NormalizedContainer",
+      "doc": "Containers returns defensive copies in canonical type-ID order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.ItemCount",
+      "signature": "func() int",
+      "doc": "ItemCount returns the bounded normalized item instance count."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.Items",
+      "signature": "func() []NormalizedItem",
+      "doc": "Items returns deep defensive copies in canonical ID order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.Limits",
+      "signature": "func() Limits",
+      "doc": "Limits returns the request's copied resource policy."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.MemoryBytes",
+      "signature": "func() uint64",
+      "doc": "MemoryBytes returns the conservative normalized-input memory estimate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.Resolution",
+      "signature": "func() Resolution",
+      "doc": "Resolution returns the exact physical lattice steps."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "NormalizedRequest.WithLimits",
+      "signature": "func(limits Limits) NormalizedRequest",
+      "doc": "WithLimits returns a copy using caller-selected bounded work limits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.CanonicalString",
+      "signature": "func() string",
+      "doc": "CanonicalString returns deterministic compact JSON for comparison and\ntie-breaking; persistence should use the versioned encoding package."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Containers",
+      "signature": "func() []ContainerInstance",
+      "doc": "Containers returns a defensive copy in canonical order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Diagnostics",
+      "signature": "func() []Diagnostic",
+      "doc": "Diagnostics returns a defensive copy of non-authoritative metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Objective",
+      "signature": "func() []ScoreComponent",
+      "doc": "Objective returns a defensive copy in lexicographic precedence order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Placements",
+      "signature": "func() []Placement",
+      "doc": "Placements returns deep defensive copies in canonical order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Spec",
+      "signature": "func() PlanSpec",
+      "doc": "Spec returns a deep defensive copy suitable for serialization or mutation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Statistics",
+      "signature": "func() Statistics",
+      "doc": "Statistics returns independently recomputable aggregates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Status",
+      "signature": "func() Status",
+      "doc": "Status returns the claimed feasibility or proof level."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Termination",
+      "signature": "func() TerminationReason",
+      "doc": "Termination returns the exact reason solver work stopped."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.UnpackedItemIDs",
+      "signature": "func() []string",
+      "doc": "UnpackedItemIDs returns a defensive copy in canonical order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Plan.Work",
+      "signature": "func() Work",
+      "doc": "Work returns deterministic search counters."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Request.Normalized",
+      "signature": "func() NormalizedRequest",
+      "doc": "Normalized returns a deep defensive copy of canonical lattice input."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Stock.Count",
+      "signature": "func() uint32",
+      "doc": "Count returns finite availability, or zero for unlimited stock."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "method",
+      "name": "Stock.Unlimited",
+      "signature": "func() bool",
+      "doc": "Unlimited reports whether Count is inapplicable."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "CenterOfGravityBounds",
+      "signature": "struct {\n\t// MinXPPM is the inclusive horizontal X-axis lower bound.\n\tMinXPPM\tuint32\t`json:\"min_x_ppm\"`\n\t// MaxXPPM is the inclusive horizontal X-axis upper bound.\n\tMaxXPPM\tuint32\t`json:\"max_x_ppm\"`\n\t// MinYPPM is the inclusive horizontal Y-axis lower bound.\n\tMinYPPM\tuint32\t`json:\"min_y_ppm\"`\n\t// MaxYPPM is the inclusive horizontal Y-axis upper bound.\n\tMaxYPPM\tuint32\t`json:\"max_y_ppm\"`\n\t// MinZPPM is the inclusive vertical Z-axis lower bound.\n\tMinZPPM\tuint32\t`json:\"min_z_ppm\"`\n\t// MaxZPPM is the inclusive vertical Z-axis upper bound.\n\tMaxZPPM\tuint32\t`json:\"max_z_ppm\"`\n}",
+      "doc": "CenterOfGravityBounds constrains the combined content center of gravity on\neach container axis. Values are inclusive millionths of the internal axis\nlength. Item mass is modeled at the geometric center of a uniform cuboid."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ContainerInstance",
+      "signature": "struct {\n\t// ID is the unique deterministic instance identity.\n\tID\tstring\t`json:\"id\"`\n\t// TypeID refers to a NormalizedContainer.ID in the request.\n\tTypeID\tstring\t`json:\"type_id\"`\n}",
+      "doc": "ContainerInstance identifies one selected copy of a container type."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ContainerType",
+      "signature": "struct{ spec ContainerTypeSpec }",
+      "doc": "ContainerType is immutable from the caller's perspective."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ContainerTypeSpec",
+      "signature": "struct {\n\t// ID is the required unique type identity.\n\tID\tstring\n\t// InternalDimensions are the exact usable physical lengths.\n\tInternalDimensions\tPhysicalDimensions\n\t// ExternalDimensions optionally describe non-feasibility shipping size.\n\tExternalDimensions\t*PhysicalDimensions\n\t// MaxContentWeight is the exact positive content mass limit.\n\tMaxContentWeight\tmeasurement.Quantity\n\t// TareWeight is the optional non-negative empty-container mass.\n\tTareWeight\t*measurement.Quantity\n\t// MaxGrossWeight optionally limits tare plus content mass.\n\tMaxGrossWeight\t*measurement.Quantity\n\t// Stock explicitly selects finite or unlimited availability.\n\tStock\tStock\n\t// Priority is the deterministic type ordering after objective equivalence.\n\tPriority\tint64\n\t// MaxItemCount limits placements per instance; zero means unrestricted.\n\tMaxItemCount\tuint32\n\t// AllowedClasses is a copied canonical allowlist for item class attributes.\n\tAllowedClasses\t[]string\n\t// Reserved is a copied set of unusable cuboids inside internal dimensions.\n\tReserved\t[]ReservedRegion\n\t// CenterOfGravity optionally constrains the combined content mass center.\n\tCenterOfGravity\t*CenterOfGravityBounds\n}",
+      "doc": "ContainerTypeSpec defines one validated reusable container type. New values\nown defensive copies of all pointer and slice fields."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Diagnostic",
+      "signature": "struct {\n\t// Code is the stable diagnostic category.\n\tCode\tstring\t`json:\"code\"`\n\t// ItemID optionally scopes the diagnostic to an item.\n\tItemID\tstring\t`json:\"item_id,omitempty\"`\n\t// ContainerID optionally scopes the diagnostic to an instance or type.\n\tContainerID\tstring\t`json:\"container_id,omitempty\"`\n\t// Message is the bounded human-readable explanation.\n\tMessage\tstring\t`json:\"message\"`\n}",
+      "doc": "Diagnostic is bounded human-readable solver metadata and never replaces\nindependent verification."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "FieldError",
+      "signature": "struct {\n\t// Category is the stable sentinel returned by Unwrap.\n\tCategory\terror\n\t// Field is the machine-readable input field name when known.\n\tField\tstring\n\t// ID is the affected item or container ID when known.\n\tID\tstring\n\t// Reason is the human-readable validation detail.\n\tReason\tstring\n}",
+      "doc": "FieldError supplies stable machine-readable context while supporting\nerrors.Is/errors.As through its wrapped category."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Item",
+      "signature": "struct{ spec ItemSpec }",
+      "doc": "Item is immutable from the caller's perspective."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ItemSpec",
+      "signature": "struct {\n\t// ID is the required unique logical item identity.\n\tID\tstring\n\t// SKU is optional caller metadata and does not establish identity.\n\tSKU\tstring\n\t// Dimensions are exact positive physical lengths.\n\tDimensions\tPhysicalDimensions\n\t// Weight is the exact positive item mass.\n\tWeight\tmeasurement.Quantity\n\t// Orientations is the nonempty allowed physical-axis permutation set.\n\tOrientations\t[]geometry.Orientation\n\t// Attributes is copied caller metadata used by eligibility constraints.\n\tAttributes\tmap[string]string\n\t// FragileTop forbids any item from using this item as a supporter.\n\tFragileTop\tbool\n\t// MaxSupportedWeight is the optional non-negative total transitive load.\n\tMaxSupportedWeight\t*measurement.Quantity\n\t// MinimumSupportPPM is the required supported footprint in millionths.\n\tMinimumSupportPPM\tuint32\n\t// Group requires all same-group items to share one container.\n\tGroup\tstring\n\t// IncompatibleGroups may not share a container with this item.\n\tIncompatibleGroups\t[]string\n\t// MaxStackCount bounds the number of supported levels above this item; zero\n\t// means no stack-depth constraint.\n\tMaxStackCount\tuint32\n\t// Priority is an exact caller value used by PackedPriority objectives.\n\tPriority\tint64\n}",
+      "doc": "ItemSpec is copied and validated by NewItem."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Limits",
+      "signature": "struct {\n\t// MaxItems bounds normalized item instances.\n\tMaxItems\tuint32\n\t// MaxContainerTypes bounds distinct container definitions.\n\tMaxContainerTypes\tuint32\n\t// MaxOrientations bounds allowed orientations per item.\n\tMaxOrientations\tuint32\n\t// MaxCandidatePlacements bounds heuristic and exact placement attempts.\n\tMaxCandidatePlacements\tuint64\n\t// MaxSearchNodes bounds exact-search states.\n\tMaxSearchNodes\tuint64\n\t// MaxBranches bounds exact-search edges and container configurations.\n\tMaxBranches\tuint64\n\t// MaxImprovementRounds bounds complete heuristic repacking passes.\n\tMaxImprovementRounds\tuint32\n\t// MaxMemoryBytes bounds conservative request and solver working estimates.\n\tMaxMemoryBytes\tuint64\n\t// MaxIDBytes bounds each item, type, and instance identifier.\n\tMaxIDBytes\tuint32\n\t// MaxDiagnostics bounds verifier and solver diagnostic collections.\n\tMaxDiagnostics\tuint32\n}",
+      "doc": "Limits bounds normalization and solver work before allocations occur."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "NormalizedContainer",
+      "signature": "struct {\n\t// ID is the unique container type identity.\n\tID\tstring\n\t// Dimensions are positive usable length-lattice counts.\n\tDimensions\tgeometry.Dimensions\n\t// MaxContentWeight is the positive content mass-lattice limit.\n\tMaxContentWeight\tint64\n\t// TareWeight is the non-negative empty-container mass-lattice value.\n\tTareWeight\tint64\n\t// MaxGrossWeight is tare plus content capacity when HasGrossWeight is true.\n\tMaxGrossWeight\tint64\n\t// HasGrossWeight distinguishes an absent limit from a numeric value.\n\tHasGrossWeight\tbool\n\t// Stock explicitly selects finite or unlimited type availability.\n\tStock\tStock\n\t// Priority is the deterministic type-ordering value.\n\tPriority\tint64\n\t// MaxItemCount limits placements per instance; zero is unrestricted.\n\tMaxItemCount\tuint32\n\t// AllowedClasses is a copied item-class allowlist.\n\tAllowedClasses\t[]string\n\t// Reserved is a copied set of unusable cuboids inside Dimensions.\n\tReserved\t[]geometry.Cuboid\n\t// CenterOfGravity optionally bounds combined content mass by axis PPM.\n\tCenterOfGravity\t*CenterOfGravityBounds\n}",
+      "doc": "NormalizedContainer is a validated integer-lattice container type.\nNewNormalizedRequest owns defensive copies of collection fields."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "NormalizedItem",
+      "signature": "struct {\n\t// ID is the unique logical item identity.\n\tID\tstring\n\t// SKU is optional non-identity metadata.\n\tSKU\tstring\n\t// Dimensions are positive length-lattice counts.\n\tDimensions\tgeometry.Dimensions\n\t// Weight is a positive mass-lattice count.\n\tWeight\tint64\n\t// Orientations is the canonical nonempty allowed permutation set.\n\tOrientations\t[]geometry.Orientation\n\t// Attributes is copied metadata used by eligibility constraints.\n\tAttributes\tmap[string]string\n\t// FragileTop forbids supported placements above this item.\n\tFragileTop\tbool\n\t// MaxSupportedWeight is an optional non-negative mass-lattice load limit.\n\tMaxSupportedWeight\t*int64\n\t// MinimumSupportPPM is required footprint support in millionths.\n\tMinimumSupportPPM\tuint32\n\t// Group requires co-location with all items carrying the same value.\n\tGroup\tstring\n\t// IncompatibleGroups may not share a container with this item.\n\tIncompatibleGroups\t[]string\n\t// MaxStackCount bounds supported levels above; zero is unrestricted.\n\tMaxStackCount\tuint32\n\t// Priority is the exact PackedPriority objective contribution.\n\tPriority\tint64\n}",
+      "doc": "NormalizedItem is a validated integer-lattice item. NewNormalizedRequest\nowns defensive copies of every slice, map, and pointer field."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "NormalizedRequest",
+      "signature": "struct {\n\titems\t\t[]NormalizedItem\n\tcontainers\t[]NormalizedContainer\n\tresolution\tResolution\n\tlimits\t\tLimits\n\tmemoryBytes\tuint64\n}",
+      "doc": "NormalizedRequest is immutable validated solver input with canonical item\nand container ordering."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "NormalizedSpec",
+      "signature": "struct {\n\t// Items are already expressed in the selected integer lattice.\n\tItems\t[]NormalizedItem\n\t// Containers are already expressed in the selected integer lattice.\n\tContainers\t[]NormalizedContainer\n\t// Resolution preserves the exact physical meaning of lattice units.\n\tResolution\tResolution\n\t// Limits bounds construction, solving, verification, and diagnostics.\n\tLimits\tLimits\n}",
+      "doc": "NormalizedSpec is the validated wire boundary for an already lattice-scaled\nrequest. It exists for strict decoding and corpus fixtures."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "PhysicalDimensions",
+      "signature": "struct {\n\t// X is the exact physical width.\n\tX\tmeasurement.Quantity\n\t// Y is the exact physical depth.\n\tY\tmeasurement.Quantity\n\t// Z is the exact physical height.\n\tZ\tmeasurement.Quantity\n}",
+      "doc": "PhysicalDimensions are exact public-boundary lengths on named axes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Placement",
+      "signature": "struct {\n\t// ItemID refers to exactly one NormalizedItem.ID.\n\tItemID\tstring\t`json:\"item_id\"`\n\t// ContainerID refers to one ContainerInstance.ID.\n\tContainerID\tstring\t`json:\"container_id\"`\n\t// Origin is the non-negative lower lattice corner.\n\tOrigin\tgeometry.Point\t`json:\"origin\"`\n\t// Orientation is the selected allowed physical-axis permutation.\n\tOrientation\tgeometry.Orientation\t`json:\"orientation\"`\n\t// Dimensions are the recomputable oriented lattice lengths.\n\tDimensions\tgeometry.Dimensions\t`json:\"dimensions\"`\n\t// Weight is the recomputable item mass-lattice count.\n\tWeight\tint64\t`json:\"weight\"`\n\t// SupporterIDs is the canonical set of items with positive contact beneath.\n\tSupporterIDs\t[]string\t`json:\"supporter_ids,omitempty\"`\n\t// Diagnostics is bounded non-authoritative placement metadata.\n\tDiagnostics\t[]Diagnostic\t`json:\"diagnostics,omitempty\"`\n}",
+      "doc": "Placement records one item's immutable lattice position and derived support\nevidence."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Plan",
+      "signature": "struct{ spec PlanSpec }",
+      "doc": "Plan owns defensive copies and only exposes copies of collection state."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "PlanLimits",
+      "signature": "struct {\n\t// MaxContainers bounds selected instance records.\n\tMaxContainers\tuint32\n\t// MaxPlacements bounds placement records.\n\tMaxPlacements\tuint32\n\t// MaxUnpackedItems bounds partial-result identity records.\n\tMaxUnpackedItems\tuint32\n\t// MaxObjectiveComponents bounds lexicographic score records.\n\tMaxObjectiveComponents\tuint32\n\t// MaxDiagnostics bounds plan and placement diagnostics combined.\n\tMaxDiagnostics\tuint32\n\t// MaxIDBytes bounds every item, type, instance, and supporter ID.\n\tMaxIDBytes\tuint32\n\t// MaxMetadataBytes bounds each diagnostic and objective string.\n\tMaxMetadataBytes\tuint32\n\t// MaxBytes bounds the conservative owned plan-size estimate.\n\tMaxBytes\tuint64\n}",
+      "doc": "PlanLimits bounds direct plan construction before collection cloning or\ncanonical serialization can amplify untrusted data."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "PlanSpec",
+      "signature": "struct {\n\t// Containers is the selected canonical container instance list.\n\tContainers\t[]ContainerInstance\t`json:\"containers\"`\n\t// Placements contains at most one entry for each packed item.\n\tPlacements\t[]Placement\t`json:\"placements\"`\n\t// UnpackedItemIDs identifies omitted items for permitted partial plans.\n\tUnpackedItemIDs\t[]string\t`json:\"unpacked_item_ids\"`\n\t// Objective contains exact components in precedence order.\n\tObjective\t[]ScoreComponent\t`json:\"objective\"`\n\t// Status states the level of feasibility or proof claimed.\n\tStatus\tStatus\t`json:\"status\"`\n\t// Termination states why solver work stopped.\n\tTermination\tTerminationReason\t`json:\"termination\"`\n\t// Statistics contains independently recomputable aggregates.\n\tStatistics\tStatistics\t`json:\"statistics\"`\n\t// Work contains deterministic bounded search counters.\n\tWork\tWork\t`json:\"work\"`\n\t// Diagnostics contains bounded non-authoritative plan metadata.\n\tDiagnostics\t[]Diagnostic\t`json:\"diagnostics\"`\n}",
+      "doc": "PlanSpec is the owned serialization boundary validated by NewPlanWithLimits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Request",
+      "signature": "struct{ normalized NormalizedRequest }",
+      "doc": "Request is immutable exact physical input normalized at construction."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ReservedRegion",
+      "signature": "struct {\n\t// Origin is the non-negative lower lattice corner.\n\tOrigin\tgeometry.Point\n\t// Dimensions are exact positive physical lengths.\n\tDimensions\tPhysicalDimensions\n}",
+      "doc": "ReservedRegion is expressed in the request lattice after normalization."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Resolution",
+      "signature": "struct {\n\t// Length is the exact coordinate and dimension lattice step.\n\tLength\tmeasurement.Quantity\n\t// Mass is the exact weight and load lattice step.\n\tMass\tmeasurement.Quantity\n}",
+      "doc": "Resolution defines exact positive length and mass lattice steps. Every input\nquantity must be exactly divisible unless a future explicit rounding API is\nselected."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "ScoreComponent",
+      "signature": "struct {\n\t// Name is the stable objective metric identifier.\n\tName\tstring\t`json:\"name\"`\n\t// Direction is either \"min\" or \"max\".\n\tDirection\tstring\t`json:\"direction\"`\n\t// Unit identifies the exact count, lattice, priority, or currency domain.\n\tUnit\tstring\t`json:\"unit\"`\n\t// Value is the canonical exact decimal representation.\n\tValue\tstring\t`json:\"value\"`\n}",
+      "doc": "ScoreComponent is one exact serializable objective value in precedence order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Statistics",
+      "signature": "struct {\n\t// PackedItems is the placement count.\n\tPackedItems\tuint32\t`json:\"packed_items\"`\n\t// ContainerCount is the selected instance count.\n\tContainerCount\tuint32\t`json:\"container_count\"`\n\t// ItemWeight is total packed mass in request lattice units.\n\tItemWeight\tint64\t`json:\"item_weight\"`\n\t// ItemVolume is total packed volume in cubed length-lattice units.\n\tItemVolume\tint64\t`json:\"item_volume\"`\n\t// ContainerVolume is total selected usable lattice volume.\n\tContainerVolume\tint64\t`json:\"container_volume\"`\n\t// RemainingWeight is unused content capacity in mass-lattice units.\n\tRemainingWeight\tint64\t`json:\"remaining_weight\"`\n\t// RemainingVolume is container volume minus item volume.\n\tRemainingVolume\tint64\t`json:\"remaining_volume\"`\n}",
+      "doc": "Statistics contains verifier-recomputable exact plan aggregates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Status",
+      "signature": "string",
+      "doc": "Status distinguishes feasible evidence, exhaustive proof, heuristic partial\nresults, and interrupted search."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Stock",
+      "signature": "struct {\n\tunlimited\tbool\n\tcount\t\tuint32\n}",
+      "doc": "Stock explicitly distinguishes finite stock from unlimited availability."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "TerminationReason",
+      "signature": "string",
+      "doc": "TerminationReason identifies why solver work stopped independently of status."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "type",
+      "name": "Work",
+      "signature": "struct {\n\t// Solver is the stable solver implementation identifier.\n\tSolver\tstring\t`json:\"solver\"`\n\t// Strategy is the stable search-strategy identifier.\n\tStrategy\tstring\t`json:\"strategy\"`\n\t// Seed is the caller-provided reproducibility value.\n\tSeed\tuint64\t`json:\"seed\"`\n\t// Nodes is the number of exact-search states entered.\n\tNodes\tuint64\t`json:\"nodes\"`\n\t// Branches is the number of exact-search edges or configurations considered.\n\tBranches\tuint64\t`json:\"branches\"`\n\t// CandidatePlacements is the number of orientation-position attempts.\n\tCandidatePlacements\tuint64\t`json:\"candidate_placements\"`\n\t// ImprovementRounds is the number of complete heuristic repacking passes.\n\tImprovementRounds\tuint32\t`json:\"improvement_rounds\"`\n}",
+      "doc": "Work records deterministic bounded search counters, not wall-clock timing."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrBudgetExhausted",
+      "signature": "",
+      "doc": "ErrBudgetExhausted identifies a work limit reached before proof completion."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrConflictingConstraint",
+      "signature": "",
+      "doc": "ErrConflictingConstraint identifies mutually inconsistent domain rules."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrDuplicateID",
+      "signature": "",
+      "doc": "ErrDuplicateID identifies ambiguous item or container identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrImpossibleItem",
+      "signature": "",
+      "doc": "ErrImpossibleItem identifies an item that fits no eligible container."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInexactResolution",
+      "signature": "",
+      "doc": "ErrInexactResolution identifies a quantity not exactly representable on\nthe selected lattice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInsufficientStock",
+      "signature": "",
+      "doc": "ErrInsufficientStock identifies finite stock unable to satisfy the request."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInternalInvariant",
+      "signature": "",
+      "doc": "ErrInternalInvariant identifies solver output rejected by independent\nverification and is always a release-blocking defect."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInvalidContainer",
+      "signature": "",
+      "doc": "ErrInvalidContainer identifies container-domain validation failure."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInvalidItem",
+      "signature": "",
+      "doc": "ErrInvalidItem identifies item-domain validation failure."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInvalidOptions",
+      "signature": "",
+      "doc": "ErrInvalidOptions identifies zero, conflicting, or unsupported options."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrInvalidRequest",
+      "signature": "",
+      "doc": "ErrInvalidRequest identifies an invalid or contradictory request."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrMemoryBudgetExhausted",
+      "signature": "",
+      "doc": "ErrMemoryBudgetExhausted identifies rejected estimated working memory and\nsupports errors.Is with ErrBudgetExhausted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrNoFeasiblePlacement",
+      "signature": "",
+      "doc": "ErrNoFeasiblePlacement identifies search without a feasible candidate; it\ndoes not prove mathematical infeasibility."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrOverflow",
+      "signature": "",
+      "doc": "ErrOverflow identifies checked arithmetic outside the int64 lattice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrOverweightItem",
+      "signature": "",
+      "doc": "ErrOverweightItem identifies an item exceeding every eligible weight cap."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "var",
+      "name": "ErrProvenInfeasible",
+      "signature": "",
+      "doc": "ErrProvenInfeasible identifies exhaustive bounded proof of infeasibility."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "const",
+      "name": "MaxCallbacks",
+      "signature": "",
+      "doc": "MaxCallbacks bounds synchronous predicates attached to one operation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "field",
+      "name": "Decision.Accepted",
+      "signature": "bool",
+      "doc": "Accepted reports whether packing may retain the candidate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "field",
+      "name": "Decision.Code",
+      "signature": "string",
+      "doc": "Code is the stable application rejection identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "field",
+      "name": "Decision.Message",
+      "signature": "string",
+      "doc": "Message is the bounded human-readable rejection explanation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "Accept",
+      "signature": "func() Decision",
+      "doc": "Accept constructs a valid acceptance decision."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "Evaluate",
+      "signature": "func(ctx context.Context, callback Placement, view PlacementView) (decision Decision, err error)",
+      "doc": "Evaluate invokes a callback with panic conversion and decision validation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "NewPlacementView",
+      "signature": "func(item knapsack.NormalizedItem, container knapsack.NormalizedContainer, candidate knapsack.Placement, placements []knapsack.Placement) (PlacementView, error)",
+      "doc": "NewPlacementView allows at most 10,000 prior placements and a conservative\n16 MiB owned-copy estimate before defensively copying callback-visible state."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "Reject",
+      "signature": "func(code, message string) Decision",
+      "doc": "Reject constructs a rejection decision validated when the callback returns."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "ValidateCallbacks",
+      "signature": "func(values []Placement) error",
+      "doc": "ValidateCallbacks rejects excessive, nil, and typed-nil callback lists\nbefore callers clone or execute them."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "function",
+      "name": "ValidateDecision",
+      "signature": "func(decision Decision) (Decision, error)",
+      "doc": "ValidateDecision rejects contradictory, empty, or oversized decisions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "method",
+      "name": "PlacementView.Candidate",
+      "signature": "func() knapsack.Placement",
+      "doc": "Candidate returns a defensive copy of the proposed placement."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "method",
+      "name": "PlacementView.Container",
+      "signature": "func() knapsack.NormalizedContainer",
+      "doc": "Container returns a defensive copy of the target container type."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "method",
+      "name": "PlacementView.Item",
+      "signature": "func() knapsack.NormalizedItem",
+      "doc": "Item returns a defensive copy of the candidate item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "method",
+      "name": "PlacementView.Placements",
+      "signature": "func() []knapsack.Placement",
+      "doc": "Placements returns defensive copies of placements already in the container."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "type",
+      "name": "Decision",
+      "signature": "struct {\n\t// Accepted reports whether packing may retain the candidate.\n\tAccepted\tbool\n\t// Code is the stable application rejection identifier.\n\tCode\tstring\n\t// Message is the bounded human-readable rejection explanation.\n\tMessage\tstring\n}",
+      "doc": "Decision is a bounded acceptance or rejection returned by a placement\ncallback."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "type",
+      "name": "Placement",
+      "signature": "interface {\n\t// Check decides whether the immutable candidate view is acceptable.\n\tCheck(context.Context, PlacementView) Decision\n}",
+      "doc": "Placement is the narrow synchronous custom feasibility extension point.\nImplementations must be deterministic, bounded, and honor context."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "type",
+      "name": "PlacementView",
+      "signature": "struct {\n\titem\t\tknapsack.NormalizedItem\n\tcontainer\tknapsack.NormalizedContainer\n\tcandidate\tknapsack.Placement\n\tplacements\t[]knapsack.Placement\n}",
+      "doc": "PlacementView owns copies of every collection supplied to a callback."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "var",
+      "name": "ErrCallbackPanic",
+      "signature": "",
+      "doc": "ErrCallbackPanic wraps a panic raised by application callback code."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "var",
+      "name": "ErrInvalidConstraint",
+      "signature": "",
+      "doc": "ErrInvalidConstraint identifies nil or typed-nil callback values."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "var",
+      "name": "ErrInvalidDecision",
+      "signature": "",
+      "doc": "ErrInvalidDecision identifies malformed callback output."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "var",
+      "name": "ErrViewLimit",
+      "signature": "",
+      "doc": "ErrViewLimit identifies callback input that exceeds safe copy bounds."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "const",
+      "name": "Version",
+      "signature": "",
+      "doc": "Version is the canonical request and plan schema emitted by this package."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "field",
+      "name": "Limits.MaxBytes",
+      "signature": "int64",
+      "doc": "MaxBytes is the maximum UTF-8 JSON byte length."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "field",
+      "name": "Limits.MaxCollection",
+      "signature": "int",
+      "doc": "MaxCollection is the maximum members in any one object or array."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "field",
+      "name": "Limits.MaxDepth",
+      "signature": "int",
+      "doc": "MaxDepth is the maximum nested object or array depth."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "function",
+      "name": "DefaultLimits",
+      "signature": "func() Limits",
+      "doc": "DefaultLimits returns conservative bounds for untrusted JSON input."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "function",
+      "name": "MarshalPlan",
+      "signature": "func(plan knapsack.Plan) ([]byte, error)",
+      "doc": "MarshalPlan returns deterministic versioned JSON for an immutable plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "function",
+      "name": "MarshalRequest",
+      "signature": "func(request knapsack.NormalizedRequest) ([]byte, error)",
+      "doc": "MarshalRequest returns deterministic versioned JSON preserving exact lattice\nquantities and normalized request limits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "function",
+      "name": "UnmarshalPlan",
+      "signature": "func(input []byte, limits Limits) (knapsack.Plan, error)",
+      "doc": "UnmarshalPlan strictly decodes and validates a versioned immutable plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "function",
+      "name": "UnmarshalRequest",
+      "signature": "func(input []byte, limits Limits) (knapsack.NormalizedRequest, error)",
+      "doc": "UnmarshalRequest strictly decodes and validates a versioned normalized\nrequest. It rejects unknown fields, duplicate keys, trailing data, invalid\nUTF-8, unsupported versions, and resource-limit violations."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "type",
+      "name": "Limits",
+      "signature": "struct {\n\t// MaxBytes is the maximum UTF-8 JSON byte length.\n\tMaxBytes\tint64\n\t// MaxDepth is the maximum nested object or array depth.\n\tMaxDepth\tint\n\t// MaxCollection is the maximum members in any one object or array.\n\tMaxCollection\tint\n}",
+      "doc": "Limits bounds JSON size, nesting depth, and collection cardinality before\ndecoded values reach the domain constructors."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "var",
+      "name": "ErrDuplicateKey",
+      "signature": "",
+      "doc": "ErrDuplicateKey identifies an object containing the same key twice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "var",
+      "name": "ErrEncodingLimit",
+      "signature": "",
+      "doc": "ErrEncodingLimit identifies input rejected by a decoding resource bound."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "var",
+      "name": "ErrInvalidEncoding",
+      "signature": "",
+      "doc": "ErrInvalidEncoding identifies malformed or non-canonical JSON input."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "var",
+      "name": "ErrUnsupportedVersion",
+      "signature": "",
+      "doc": "ErrUnsupportedVersion identifies an unknown request or plan schema."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationXYZ",
+      "signature": "Orientation",
+      "doc": "OrientationXYZ preserves the original X, Y, and Z axes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationXZY",
+      "signature": "Orientation",
+      "doc": "OrientationXZY swaps the original Y and Z axes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationYXZ",
+      "signature": "Orientation",
+      "doc": "OrientationYXZ swaps the original X and Y axes."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationYZX",
+      "signature": "Orientation",
+      "doc": "OrientationYZX maps the original axes to Y, Z, and X."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationZXY",
+      "signature": "Orientation",
+      "doc": "OrientationZXY maps the original axes to Z, X, and Y."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "const",
+      "name": "OrientationZYX",
+      "signature": "Orientation",
+      "doc": "OrientationZYX reverses the original axis order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Dimensions.X",
+      "signature": "int64",
+      "doc": "X, Y, and Z are positive lattice lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Dimensions.Y",
+      "signature": "int64",
+      "doc": "X, Y, and Z are positive lattice lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Dimensions.Z",
+      "signature": "int64",
+      "doc": "X, Y, and Z are positive lattice lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Point.X",
+      "signature": "int64",
+      "doc": "X, Y, and Z are non-negative lattice coordinates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Point.Y",
+      "signature": "int64",
+      "doc": "X, Y, and Z are non-negative lattice coordinates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "field",
+      "name": "Point.Z",
+      "signature": "int64",
+      "doc": "X, Y, and Z are non-negative lattice coordinates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "function",
+      "name": "NewCuboid",
+      "signature": "func(origin Point, dimensions Dimensions) (Cuboid, error)",
+      "doc": "NewCuboid validates coordinates, dimensions, and endpoint arithmetic."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "function",
+      "name": "Orientations",
+      "signature": "func(d Dimensions) ([]Orientation, error)",
+      "doc": "Orientations returns canonical unique orthogonal rotations."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Adjacent",
+      "signature": "func(other Cuboid) bool",
+      "doc": "Adjacent reports contact along a face with positive contact area."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Contains",
+      "signature": "func(other Cuboid) bool",
+      "doc": "Contains reports complete half-open containment."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Dimensions",
+      "signature": "func() Dimensions",
+      "doc": "Dimensions returns the cuboid's lattice lengths."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Intersects",
+      "signature": "func(other Cuboid) bool",
+      "doc": "Intersects reports positive-volume intersection. Touching is permitted."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Max",
+      "signature": "func() Point",
+      "doc": "Max returns the exclusive upper corner."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Origin",
+      "signature": "func() Point",
+      "doc": "Origin returns the inclusive lower corner."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.SupportArea",
+      "signature": "func(other Cuboid) (int64, bool)",
+      "doc": "SupportArea returns the XY contact area when c directly supports other."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Cuboid.Volume",
+      "signature": "func() (int64, error)",
+      "doc": "Volume returns the checked lattice volume."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Dimensions.Valid",
+      "signature": "func() bool",
+      "doc": "Valid reports whether all dimensions are positive."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Dimensions.Volume",
+      "signature": "func() (int64, error)",
+      "doc": "Volume returns the checked cuboid volume."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "method",
+      "name": "Orientation.Apply",
+      "signature": "func(d Dimensions) (Dimensions, error)",
+      "doc": "Apply returns dimensions after the physical-axis permutation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "type",
+      "name": "Cuboid",
+      "signature": "struct {\n\torigin\tPoint\n\tdims\tDimensions\n\tmax\tPoint\n}",
+      "doc": "Cuboid is a validated half-open occupied region."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "type",
+      "name": "Dimensions",
+      "signature": "struct {\n\t// X, Y, and Z are positive lattice lengths.\n\tX, Y, Z int64\n}",
+      "doc": "Dimensions names the physical axes of a cuboid."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "type",
+      "name": "Orientation",
+      "signature": "string",
+      "doc": "Orientation identifies how the original physical axes map to X, Y, and Z."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "type",
+      "name": "Point",
+      "signature": "struct {\n\t// X, Y, and Z are non-negative lattice coordinates.\n\tX, Y, Z int64\n}",
+      "doc": "Point is an integer-lattice origin."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "var",
+      "name": "ErrInvalidCoordinate",
+      "signature": "",
+      "doc": "ErrInvalidCoordinate identifies a negative lattice coordinate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "var",
+      "name": "ErrInvalidDimensions",
+      "signature": "",
+      "doc": "ErrInvalidDimensions identifies non-positive cuboid dimensions."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "var",
+      "name": "ErrInvalidOrientation",
+      "signature": "",
+      "doc": "ErrInvalidOrientation identifies an unknown axis permutation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "var",
+      "name": "ErrOverflow",
+      "signature": "",
+      "doc": "ErrOverflow identifies a geometric result outside the int64 lattice."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/knapsacktest",
+      "kind": "function",
+      "name": "RequireCanonicalEqual",
+      "signature": "func(t testing.TB, left, right knapsack.Plan)",
+      "doc": "RequireCanonicalEqual fails the test unless both plans have identical\ndeterministic canonical encodings."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/knapsacktest",
+      "kind": "function",
+      "name": "RequireVerified",
+      "signature": "func(t testing.TB, request knapsack.NormalizedRequest, plan knapsack.Plan, options verify.Options)",
+      "doc": "RequireVerified fails the test when independent verification rejects plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "ContainerCount",
+      "signature": "Metric",
+      "doc": "ContainerCount minimizes or maximizes the number of container instances."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "Max",
+      "signature": "Direction",
+      "doc": "Max prefers the higher exact value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "MaximumUsedHeight",
+      "signature": "Metric",
+      "doc": "MaximumUsedHeight measures the highest exclusive placement coordinate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "Min",
+      "signature": "Direction",
+      "doc": "Min prefers the lower exact value."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "PackedPriority",
+      "signature": "Metric",
+      "doc": "PackedPriority sums exact caller-provided item priorities."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "TotalPackagingCost",
+      "signature": "Metric",
+      "doc": "TotalPackagingCost is reserved for exact monetary objective adapters."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "UnusedVolume",
+      "signature": "Metric",
+      "doc": "UnusedVolume measures unused lattice volume across selected containers."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "UnusedWeight",
+      "signature": "Metric",
+      "doc": "UnusedWeight measures remaining content-weight capacity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "const",
+      "name": "WeightImbalance",
+      "signature": "Metric",
+      "doc": "WeightImbalance measures the heaviest-minus-lightest content weight."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "field",
+      "name": "Criterion.Direction",
+      "signature": "Direction",
+      "doc": "Direction selects minimization or maximization."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "field",
+      "name": "Criterion.Metric",
+      "signature": "Metric",
+      "doc": "Metric is the exact plan property to evaluate."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "field",
+      "name": "Score.TieBreak",
+      "signature": "string",
+      "doc": "TieBreak is compared lexically only after every criterion is equal."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "field",
+      "name": "Score.Values",
+      "signature": "[]int64",
+      "doc": "Values correspond positionally to Objective.Criteria."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "function",
+      "name": "Maximize",
+      "signature": "func(metric Metric) Criterion",
+      "doc": "Maximize constructs a maximizing criterion."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "function",
+      "name": "Minimize",
+      "signature": "func(metric Metric) Criterion",
+      "doc": "Minimize constructs a minimizing criterion."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "function",
+      "name": "New",
+      "signature": "func(criteria ...Criterion) (Objective, error)",
+      "doc": "New validates and defensively copies a nonempty criterion list."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "function",
+      "name": "SafeCompare",
+      "signature": "func(ctx context.Context, objective PlanObjective, request knapsack.NormalizedRequest, left, right knapsack.Plan) (comparison int, err error)",
+      "doc": "SafeCompare invokes a plan objective with validation, panic conversion, and\na canonical final tie-break."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "function",
+      "name": "SafeComponents",
+      "signature": "func(ctx context.Context, objective PlanObjective, request knapsack.NormalizedRequest, plan knapsack.Plan) (components []knapsack.ScoreComponent, err error)",
+      "doc": "SafeComponents invokes a plan objective and bounds its serialized result."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.Compare",
+      "signature": "func(left, right Score) (int, error)",
+      "doc": "Compare returns negative when left is preferred, positive when right is\npreferred, and zero only for canonically identical scores."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.ComparePlans",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, left, right knapsack.Plan) (int, error)",
+      "doc": "ComparePlans scores two plans and returns the exact lexicographic ordering."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.Components",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, plan knapsack.Plan) ([]knapsack.ScoreComponent, error)",
+      "doc": "Components returns bounded serializable score evidence for a plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.Criteria",
+      "signature": "func() []Criterion",
+      "doc": "Criteria returns a defensive copy in precedence order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.ScorePlan",
+      "signature": "func(request knapsack.NormalizedRequest, plan knapsack.Plan) (Score, []knapsack.ScoreComponent, error)",
+      "doc": "ScorePlan computes exact values and serializable components without binary\nfloating-point conversion."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "method",
+      "name": "Objective.Valid",
+      "signature": "func() bool",
+      "doc": "Valid reports whether the objective has at least one validated criterion."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "Criterion",
+      "signature": "struct {\n\t// Metric is the exact plan property to evaluate.\n\tMetric\tMetric\n\t// Direction selects minimization or maximization.\n\tDirection\tDirection\n}",
+      "doc": "Criterion pairs a metric with its lexicographic comparison direction."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "Direction",
+      "signature": "int8",
+      "doc": "Direction controls whether lower or higher metric values are preferred."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "Metric",
+      "signature": "string",
+      "doc": "Metric identifies an exact plan property used in lexicographic comparison."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "Objective",
+      "signature": "struct{ criteria []Criterion }",
+      "doc": "Objective is an immutable ordered lexicographic objective."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "PlanObjective",
+      "signature": "interface {\n\tValid() bool\n\tComparePlans(context.Context, knapsack.NormalizedRequest, knapsack.Plan, knapsack.Plan) (int, error)\n\tComponents(context.Context, knapsack.NormalizedRequest, knapsack.Plan) ([]knapsack.ScoreComponent, error)\n}",
+      "doc": "PlanObjective is the immutable extension boundary for complete-plan\ncomparison. Implementations receive value objects whose collection accessors\nreturn copies. They must honor context cancellation and remain deterministic."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "type",
+      "name": "Score",
+      "signature": "struct {\n\t// Values correspond positionally to Objective.Criteria.\n\tValues\t[]int64\n\t// TieBreak is compared lexically only after every criterion is equal.\n\tTieBreak\tstring\n}",
+      "doc": "Score contains exact criterion values followed by a canonical tie-break."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "var",
+      "name": "ErrCallbackPanic",
+      "signature": "",
+      "doc": "ErrCallbackPanic wraps a panic raised by a custom plan objective."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "var",
+      "name": "ErrInvalidObjective",
+      "signature": "",
+      "doc": "ErrInvalidObjective identifies an empty, contradictory, or malformed\nbuilt-in or custom objective."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
+      "name": "Limits.MaxIDBytes",
+      "signature": "uint32",
+      "doc": "MaxIDBytes bounds each container type identifier."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "field",
+      "name": "Limits.MaxTypes",
+      "signature": "uint32",
+      "doc": "MaxTypes bounds configured container type costs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
+      "name": "DefaultLimits",
+      "signature": "func() Limits",
+      "doc": "DefaultLimits returns conservative limits for untrusted cost maps."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
+      "name": "New",
+      "signature": "func(values map[string]money.Money) (Costs, error)",
+      "doc": "New validates and copies a cost map using DefaultLimits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "function",
+      "name": "NewWithLimits",
+      "signature": "func(values map[string]money.Money, limits Limits) (Costs, error)",
+      "doc": "NewWithLimits validates, sorts, and defensively copies a bounded nonempty\nsingle-currency cost map."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "method",
+      "name": "Costs.Compare",
+      "signature": "func(left, right knapsack.Plan) (int, error)",
+      "doc": "Compare prefers lower exact cost, then canonical plan bytes for ties."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "method",
+      "name": "Costs.ComparePlans",
+      "signature": "func(ctx context.Context, _ knapsack.NormalizedRequest, left, right knapsack.Plan) (int, error)",
+      "doc": "ComparePlans implements objective.PlanObjective with context cancellation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "method",
+      "name": "Costs.Components",
+      "signature": "func(ctx context.Context, _ knapsack.NormalizedRequest, plan knapsack.Plan) ([]knapsack.ScoreComponent, error)",
+      "doc": "Components returns the exact total packaging cost and ISO currency unit."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "method",
+      "name": "Costs.Total",
+      "signature": "func(plan knapsack.Plan) (money.Money, error)",
+      "doc": "Total sums configured exact costs for every selected container instance."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "method",
+      "name": "Costs.Valid",
+      "signature": "func() bool",
+      "doc": "Valid reports whether the objective contains aligned type IDs and costs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "type",
+      "name": "Costs",
+      "signature": "struct {\n\ttypeIDs\t[]string\n\tvalues\t[]money.Money\n}",
+      "doc": "Costs is an immutable exact packaging-cost objective keyed by container\ntype ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "type",
+      "name": "Limits",
+      "signature": "struct {\n\t// MaxTypes bounds configured container type costs.\n\tMaxTypes\tuint32\n\t// MaxIDBytes bounds each container type identifier.\n\tMaxIDBytes\tuint32\n}",
+      "doc": "Limits bounds the cost-map collections copied by NewWithLimits."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "var",
+      "name": "ErrInvalidCosts",
+      "signature": "",
+      "doc": "ErrInvalidCosts identifies empty, invalid, or mixed-currency cost maps."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "var",
+      "name": "ErrMissingCost",
+      "signature": "",
+      "doc": "ErrMissingCost identifies a selected container type without a configured\npackaging cost."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "field",
+      "name": "Options.AllowUnpacked",
+      "signature": "bool",
+      "doc": "AllowUnpacked permits verified best-known plans that omit items."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "field",
+      "name": "Options.Constraints",
+      "signature": "[]constraint.Placement",
+      "doc": "Constraints are synchronous bounded custom placement predicates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "field",
+      "name": "Options.Objective",
+      "signature": "objective.Objective",
+      "doc": "Objective is the built-in exact lexicographic objective. It conflicts\nwith PlanObjective when both are set."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "field",
+      "name": "Options.PlanObjective",
+      "signature": "objective.PlanObjective",
+      "doc": "PlanObjective is a custom complete-plan comparison extension."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "field",
+      "name": "Options.Seed",
+      "signature": "uint64",
+      "doc": "Seed is recorded for reproducibility; built-in solvers use no ambient\nrandomness."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "method",
+      "name": "Exact.PackAll",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, options Options) (knapsack.Plan, error)",
+      "doc": "PackAll exhaustively considers bounded container multisets in increasing\ncontainer-count order, then exhaustively searches every multiset at the\nfirst feasible count. Its built-in proof objective is container count with a\ncanonical plan tie-break."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "method",
+      "name": "Exact.PackFixed",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, instances []knapsack.ContainerInstance, options Options) (knapsack.Plan, error)",
+      "doc": "PackFixed exhaustively enumerates compact placements in exactly the supplied\nfinite instances. It reports optimal only after completing bounded search."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "method",
+      "name": "Heuristic.PackAll",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, options Options) (knapsack.Plan, error)",
+      "doc": "PackAll uses deterministic extreme points and never reports heuristic\noptimality or proven infeasibility."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "method",
+      "name": "Heuristic.PackFixed",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, instances []knapsack.ContainerInstance, options Options) (knapsack.Plan, error)",
+      "doc": "PackFixed packs into exactly the supplied finite instances and never creates\nanother container. Unpacked items are reported without a false infeasibility\nproof."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "type",
+      "name": "Exact",
+      "signature": "struct{}",
+      "doc": "Exact exhaustively enumerates compact orthogonal placements for bounded\nsmall fixed-container instances. It is intended as an oracle, not a\nlarge-order solver."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "type",
+      "name": "Heuristic",
+      "signature": "struct{}",
+      "doc": "Heuristic is the deterministic bounded extreme-point solver."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "type",
+      "name": "Options",
+      "signature": "struct {\n\t// Seed is recorded for reproducibility; built-in solvers use no ambient\n\t// randomness.\n\tSeed\tuint64\n\t// AllowUnpacked permits verified best-known plans that omit items.\n\tAllowUnpacked\tbool\n\t// Constraints are synchronous bounded custom placement predicates.\n\tConstraints\t[]constraint.Placement\n\t// Objective is the built-in exact lexicographic objective. It conflicts\n\t// with PlanObjective when both are set.\n\tObjective\tobjective.Objective\n\t// PlanObjective is a custom complete-plan comparison extension.\n\tPlanObjective\tobjective.PlanObjective\n}",
+      "doc": "Options selects deterministic solver extensions and partial-result policy.\nCollection fields are read through immutable callback views."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeAccounting",
+      "signature": "Code",
+      "doc": "CodeAccounting reports serialized statistics differing from recomputation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeAlteredItem",
+      "signature": "Code",
+      "doc": "CodeAlteredItem reports plan dimensions or weight changed from input."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeCenterOfGravity",
+      "signature": "Code",
+      "doc": "CodeCenterOfGravity reports content mass outside configured axis bounds."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeConstraint",
+      "signature": "Code",
+      "doc": "CodeConstraint reports failure while replaying a custom constraint."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeDuplicateItem",
+      "signature": "Code",
+      "doc": "CodeDuplicateItem reports repeated or packed-and-unpacked item identity."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeEligibility",
+      "signature": "Code",
+      "doc": "CodeEligibility reports a class disallowed by a container."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeForbiddenOrientation",
+      "signature": "Code",
+      "doc": "CodeForbiddenOrientation reports an orientation absent from the item."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeFragile",
+      "signature": "Code",
+      "doc": "CodeFragile reports a placement bearing on a fragile top."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeGrouping",
+      "signature": "Code",
+      "doc": "CodeGrouping reports required co-location violated."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeIncompatible",
+      "signature": "Code",
+      "doc": "CodeIncompatible reports incompatible item groups sharing a container."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeLoadBearing",
+      "signature": "Code",
+      "doc": "CodeLoadBearing reports transitive supported load exceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeMissingItem",
+      "signature": "Code",
+      "doc": "CodeMissingItem reports a required item omitted from the plan."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeObjective",
+      "signature": "Code",
+      "doc": "CodeObjective reports objective components differing from recomputation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeOutsideContainer",
+      "signature": "Code",
+      "doc": "CodeOutsideContainer reports a placement outside usable bounds."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeOverflow",
+      "signature": "Code",
+      "doc": "CodeOverflow reports checked geometric or aggregate arithmetic overflow."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeOverlap",
+      "signature": "Code",
+      "doc": "CodeOverlap reports positive-volume intersection between items."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeOverweight",
+      "signature": "Code",
+      "doc": "CodeOverweight reports content or gross-weight capacity exceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeProofStatus",
+      "signature": "Code",
+      "doc": "CodeProofStatus reports inconsistent status, termination, content, or proof."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeReservedOverlap",
+      "signature": "Code",
+      "doc": "CodeReservedOverlap reports intersection with reserved container space."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeStackLimit",
+      "signature": "Code",
+      "doc": "CodeStackLimit reports maximum stack depth exceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeStock",
+      "signature": "Code",
+      "doc": "CodeStock reports finite stock or maximum item count exceeded."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeSupportRelationship",
+      "signature": "Code",
+      "doc": "CodeSupportRelationship reports stale or altered supporter metadata."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeUnknownContainer",
+      "signature": "Code",
+      "doc": "CodeUnknownContainer reports an unknown type or instance ID."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeUnknownItem",
+      "signature": "Code",
+      "doc": "CodeUnknownItem reports an item ID absent from the request."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "const",
+      "name": "CodeUnsupported",
+      "signature": "Code",
+      "doc": "CodeUnsupported reports insufficient geometric support area."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "field",
+      "name": "Violation.Code",
+      "signature": "Code",
+      "doc": "Code is the stable machine-readable category."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "field",
+      "name": "Violation.ContainerID",
+      "signature": "string",
+      "doc": "ContainerID identifies the affected instance or type when applicable."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "field",
+      "name": "Violation.ItemID",
+      "signature": "string",
+      "doc": "ItemID identifies the affected item, or is empty for plan-wide findings."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "field",
+      "name": "Violation.Message",
+      "signature": "string",
+      "doc": "Message is a bounded human-readable explanation."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "function",
+      "name": "AllowUnpacked",
+      "signature": "func() Options",
+      "doc": "AllowUnpacked accepts items listed exactly once in UnpackedItemIDs."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "function",
+      "name": "Plan",
+      "signature": "func(request knapsack.NormalizedRequest, plan knapsack.Plan, options Options) Result",
+      "doc": "Plan recomputes feasibility and statistics without using solver predicates."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "function",
+      "name": "PlanContext",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, plan knapsack.Plan, options Options) (Result, error)",
+      "doc": "PlanContext performs the same independent verification as Plan while\nallowing callers to stop adversarial or no-longer-needed verification work."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "function",
+      "name": "PlanJSON",
+      "signature": "func(ctx context.Context, request knapsack.NormalizedRequest, input []byte, limits packingjson.Limits, options Options) (Result, error)",
+      "doc": "PlanJSON strictly decodes a fresh plan value before independently verifying\nit. The supplied byte slice is never retained."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "function",
+      "name": "RequireAll",
+      "signature": "func() Options",
+      "doc": "RequireAll requires every request item to appear exactly once as a placement."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Options.WithConstraints",
+      "signature": "func(values ...constraint.Placement) Options",
+      "doc": "WithConstraints requires the verifier to replay application placement\nconstraints against immutable request and plan views."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Options.WithObjective",
+      "signature": "func(value objective.PlanObjective) Options",
+      "doc": "WithObjective requires the verifier to recompute the configured objective\nfrom immutable request and plan values."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Result.Err",
+      "signature": "func() error",
+      "doc": "Err returns a cancellation or custom-extension error encountered during\nverification; callers must inspect it independently from Valid."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Result.Has",
+      "signature": "func(code Code) bool",
+      "doc": "Has reports whether at least one finding has code."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Result.Truncated",
+      "signature": "func() bool",
+      "doc": "Truncated reports whether MaxDiagnostics suppressed additional findings."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Result.Valid",
+      "signature": "func() bool",
+      "doc": "Valid reports whether no violation was found."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "method",
+      "name": "Result.Violations",
+      "signature": "func() []Violation",
+      "doc": "Violations returns a defensive copy in deterministic discovery order."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "type",
+      "name": "Code",
+      "signature": "string",
+      "doc": "Code is a stable machine-readable verifier violation category."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "type",
+      "name": "Options",
+      "signature": "struct {\n\trequireAll\tbool\n\tobjective\tobjective.PlanObjective\n\tconstraints\t[]constraint.Placement\n\tconstraintErr\terror\n}",
+      "doc": "Options selects item-conservation and custom-extension verification policy."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "type",
+      "name": "Result",
+      "signature": "struct {\n\tviolations\t[]Violation\n\tmaximum\t\tuint32\n\ttruncated\tbool\n\terr\t\terror\n}",
+      "doc": "Result contains independent verification findings and callback errors."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "type",
+      "name": "Violation",
+      "signature": "struct {\n\t// Code is the stable machine-readable category.\n\tCode\tCode\n\t// ItemID identifies the affected item, or is empty for plan-wide findings.\n\tItemID\tstring\n\t// ContainerID identifies the affected instance or type when applicable.\n\tContainerID\tstring\n\t// Message is a bounded human-readable explanation.\n\tMessage\tstring\n}",
+      "doc": "Violation is a bounded verifier finding scoped to an item or container when\napplicable."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/visualize",
+      "kind": "function",
+      "name": "SVG",
+      "signature": "func(request knapsack.NormalizedRequest, plan knapsack.Plan, options verify.Options) (string, error)",
+      "doc": "SVG renders a deterministic top-down scene with escaped untrusted labels."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/visualize",
+      "kind": "var",
+      "name": "ErrRenderLimit",
+      "signature": "",
+      "doc": "ErrRenderLimit identifies coordinates or output geometry beyond the\nbounded SVG profile."
+    },
+    {
+      "package": "github.com/faustbrian/golib/pkg/knapsack/visualize",
+      "kind": "var",
+      "name": "ErrUnverifiedPlan",
+      "signature": "",
+      "doc": "ErrUnverifiedPlan identifies rendering input rejected by the verifier."
+    }
+  ],
+  "feasibility_invariants": [
+    {
+      "id": "known-item-and-container-identity",
+      "tests": [
+        "TestVerifyRejectsContainerIdentityStockAndUnpackedAmbiguity"
+      ]
+    },
+    {
+      "id": "item-conservation-and-unique-placement",
+      "tests": [
+        "TestVerifyRejectsMissingDuplicateBoundaryAndWeight"
+      ]
+    },
+    {
+      "id": "container-containment",
+      "tests": [
+        "TestVerifyRejectsMissingDuplicateBoundaryAndWeight"
+      ]
+    },
+    {
+      "id": "positive-volume-non-overlap",
+      "tests": [
+        "TestVerifyRejectsOverlapAndAccountingDrift"
+      ]
+    },
+    {
+      "id": "reserved-region-separation",
+      "tests": [
+        "TestVerifyRejectsOrientationReservedEligibilityAndItemCount"
+      ]
+    },
+    {
+      "id": "allowed-orientation-and-unaltered-item",
+      "tests": [
+        "TestVerifyRejectsOrientationReservedEligibilityAndItemCount",
+        "TestVerifyRejectsMissingDuplicateBoundaryAndWeight"
+      ]
+    },
+    {
+      "id": "content-and-gross-weight-capacity",
+      "tests": [
+        "TestVerifyRejectsWeightFragilityAndIncompatibilityFromInput"
+      ]
+    },
+    {
+      "id": "content-center-of-gravity-bounds",
+      "tests": [
+        "TestVerifyChecksExactCenterOfGravityBoundaries",
+        "TestVerifyCenterOfGravityUsesOverflowSafeMoments",
+        "TestSolversHonorContainerCenterOfGravityBounds",
+        "TestExactCenterOfGravityAgreesWithIndependentGridOracle"
+      ]
+    },
+    {
+      "id": "finite-stock-and-container-item-count",
+      "tests": [
+        "TestVerifyRejectsContainerIdentityStockAndUnpackedAmbiguity",
+        "TestVerifyRejectsOrientationReservedEligibilityAndItemCount"
+      ]
+    },
+    {
+      "id": "support-ratio-and-union",
+      "tests": [
+        "TestVerifyChecksSupportRelationshipsAndExactRatioBoundary",
+        "TestVerifyUsesSupportAreaUnionWithoutDoubleCounting"
+      ]
+    },
+    {
+      "id": "supporter-relationship-integrity",
+      "tests": [
+        "TestVerifyChecksSupportRelationshipsAndExactRatioBoundary"
+      ]
+    },
+    {
+      "id": "fragile-top",
+      "tests": [
+        "TestVerifyRejectsWeightFragilityAndIncompatibilityFromInput"
+      ]
+    },
+    {
+      "id": "transitive-load-bearing-and-stack-count",
+      "tests": [
+        "TestVerifyPropagatesLoadAndEnforcesStackLimit"
+      ]
+    },
+    {
+      "id": "linked-group-colocation",
+      "tests": [
+        "TestVerifyRejectsEligibilityGroupingAndUnknownUnpackedItem"
+      ]
+    },
+    {
+      "id": "incompatible-group-separation",
+      "tests": [
+        "TestVerifyRejectsWeightFragilityAndIncompatibilityFromInput"
+      ]
+    },
+    {
+      "id": "container-class-eligibility",
+      "tests": [
+        "TestVerifyRejectsEligibilityGroupingAndUnknownUnpackedItem"
+      ]
+    },
+    {
+      "id": "exact-statistics-and-overflow",
+      "tests": [
+        "TestVerifyRejectsOverlapAndAccountingDrift",
+        "TestVerifyDetectsAccountingOverflow",
+        "TestVerifyDetectsPackedVolumeAccumulationOverflow",
+        "TestVerifyDetectsPackedWeightAccumulationOverflow"
+      ]
+    },
+    {
+      "id": "objective-recomputation",
+      "tests": [
+        "TestVerifyRecomputesConfiguredObjective"
+      ]
+    },
+    {
+      "id": "proof-status-consistency",
+      "tests": [
+        "TestVerifyRejectsIncoherentProofStatus",
+        "TestVerifyAcceptsCoherentProofStatusesAndRejectsZeroPlan"
+      ]
+    },
+    {
+      "id": "custom-constraint-replay",
+      "tests": [
+        "TestVerifyReplaysCustomPlacementConstraints",
+        "TestPlacementViewDefensivelyCopiesCenterOfGravity",
+        "TestPlacementViewRejectsUnboundedInput",
+        "TestSolversAndVerifierRejectOversizedConstraintViews",
+        "TestCallbackListsRejectExcessAndTypedNilValues",
+        "TestSolversAndVerifierRejectUnboundedConstraintLists"
+      ]
+    },
+    {
+      "id": "public-context-validation",
+      "tests": [
+        "TestPublicSolverEntriesRejectNilContext",
+        "TestObjectiveEntriesRejectNilContext",
+        "TestCostObjectiveEntriesRejectNilContext"
+      ]
+    },
+    {
+      "id": "fresh-strict-plan-decoding",
+      "tests": [
+        "TestVerifyPlanJSONPerformsFreshStrictDecode"
+      ]
+    },
+    {
+      "id": "bounded-diagnostics-and-cancellation",
+      "tests": [
+        "TestVerifyBoundsViolationDiagnostics",
+        "TestVerifyContextChecksCancellationThroughoutWork"
+      ]
+    }
+  ],
+  "solver_matrix": [
+    {
+      "proof": [
+        "feasible",
+        "best_known",
+        "budget_exhausted"
+      ],
+      "solver": "heuristic",
+      "strategies": [
+        "pack_all",
+        "pack_fixed"
+      ]
+    },
+    {
+      "proof": [
+        "optimal",
+        "infeasible",
+        "budget_exhausted"
+      ],
+      "solver": "exact",
+      "strategies": [
+        "pack_all",
+        "pack_fixed"
+      ]
+    }
+  ],
+  "boxpacker_features": [
+    {
+      "feature": "rotation",
+      "semantic_scope": "orthogonal axis permutations",
+      "status": "implemented"
+    },
+    {
+      "feature": "limited box supply",
+      "semantic_scope": "finite stock",
+      "status": "implemented"
+    },
+    {
+      "feature": "weight capacity",
+      "semantic_scope": "exact content and optional gross limits",
+      "status": "implemented"
+    },
+    {
+      "feature": "positional information",
+      "semantic_scope": "lattice origin, oriented dimensions, and supporters",
+      "status": "implemented"
+    },
+    {
+      "feature": "linked items",
+      "semantic_scope": "required group co-location with rollback",
+      "status": "implemented"
+    },
+    {
+      "feature": "custom constraints",
+      "semantic_scope": "trusted synchronous immutable callback views",
+      "status": "implemented_with_trusted_callback_limit"
+    },
+    {
+      "feature": "weight distribution",
+      "semantic_scope": "exact rational transitive support loads and content center-of-gravity bounds",
+      "status": "intentionally_different"
+    },
+    {
+      "feature": "item and box sortation",
+      "semantic_scope": "canonical IDs and explicit priorities",
+      "status": "intentionally_different"
+    },
+    {
+      "feature": "executable common-subset adapter",
+      "semantic_scope": "integer cuboids, unrestricted rotation, weight, pack-all",
+      "status": "integration/boxpacker/compare.php"
+    },
+    {
+      "feature": "fresh-process runtime comparison",
+      "semantic_scope": "identical verified common subset with startup, serialization, RSS, and deadline treatment",
+      "status": "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json"
+    },
+    {
+      "feature": "single-pass online packing",
+      "semantic_scope": "offline only",
+      "status": "out_of_scope"
+    },
+    {
+      "feature": "curved or irregular geometry",
+      "semantic_scope": "no implicit bounding-cuboid approximation",
+      "status": "out_of_scope"
+    }
+  ],
+  "fuzz_targets": [
+    {
+      "id": "unit-and-lattice-normalization",
+      "tests": [
+        "FuzzLatticeNormalization"
+      ]
+    },
+    {
+      "id": "orientation-enumeration",
+      "tests": [
+        "FuzzOrientationEnumeration"
+      ]
+    },
+    {
+      "id": "cuboid-geometry",
+      "tests": [
+        "FuzzGeometry",
+        "FuzzCuboidRelations"
+      ]
+    },
+    {
+      "id": "item-and-container-validation",
+      "tests": [
+        "FuzzItemContainerValidation"
+      ]
+    },
+    {
+      "id": "strict-request-and-plan-decoding",
+      "tests": [
+        "FuzzRequestDecode",
+        "FuzzPlanDecode"
+      ]
+    },
+    {
+      "id": "fixed-container-packing",
+      "tests": [
+        "FuzzFixedContainerPacking"
+      ]
+    },
+    {
+      "id": "variable-container-selection",
+      "tests": [
+        "FuzzHeuristic",
+        "FuzzVariableContainerSelection"
+      ]
+    },
+    {
+      "id": "tiny-exact-agreement",
+      "tests": [
+        "FuzzExactTinyAgreement"
+      ]
+    },
+    {
+      "id": "independent-plan-verification",
+      "tests": [
+        "FuzzSuppliedPlan"
+      ]
+    },
+    {
+      "id": "physical-constraints",
+      "tests": [
+        "FuzzPhysicalConstraints"
+      ]
+    },
+    {
+      "id": "objective-comparison",
+      "tests": [
+        "FuzzObjectiveComparison"
+      ]
+    },
+    {
+      "id": "cancellation-and-budgets",
+      "tests": [
+        "FuzzCancellationAndBudgets"
+      ]
+    }
+  ],
+  "fuzz_execution": {
+    "command": "make fuzz",
+    "budgets": "specification/fuzz-budgets.tsv",
+    "budget_mode": "exact_iterations",
+    "local_multiplier": 1,
+    "ci_multiplier": 5,
+    "release_multiplier": 15
+  },
+  "mutation": {
+    "adapter": {
+      "killed": 9,
+      "lived": 0,
+      "mutator_coverage_percent": 90,
+      "raw": "docs/mutation/raw/adapter.json",
+      "records": 10,
+      "test_efficacy_percent": 100,
+      "timed_out": 0,
+      "tool_uncovered_classified": 1
+    },
+    "classifications": "specification/mutation-classifications.tsv",
+    "command": "make mutation",
+    "gomoney": {
+      "killed": 25,
+      "lived": 0,
+      "mutator_coverage_percent": 100,
+      "raw": "docs/mutation/raw/gomoney.json",
+      "records": 25,
+      "test_efficacy_percent": 100,
+      "timed_out": 0,
+      "tool_uncovered_classified": 0
+    },
+    "required_efficacy_percent": 100,
+    "required_execution_or_classification_percent": 100,
+    "root": {
+      "killed": 1004,
+      "lived": 0,
+      "mutator_coverage_percent": 98.81889763779527,
+      "raw": "docs/mutation/raw/root.json",
+      "records": 1016,
+      "test_efficacy_percent": 100,
+      "timed_out": 0,
+      "tool_uncovered_classified": 12
+    },
+    "survivor_policy": "kill or classify with concrete proof",
+    "tool": "github.com/go-gremlins/gremlins v0.6.0"
+  },
+  "benchmarks": {
+    "boxpacker_runtime_command": "scripts/benchmark-boxpacker.sh",
+    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json",
+    "command": "make benchmark",
+    "comparison_command": "make benchmark-compare",
+    "environment": "docs/benchmarks/2026-07-24-darwin-arm64.md",
+    "raw_output": "docs/benchmarks/raw/2026-07-24-darwin-arm64.txt",
+    "rss_command": "make benchmark-rss",
+    "rss_raw_output": "docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv",
+    "rss_thresholds": "specification/benchmark-rss-thresholds.tsv",
+    "semantic_normalization": "identical lattice, weights, rotations, stock, constraints, and objectives",
+    "thresholds": "specification/benchmark-thresholds.tsv"
+  },
+  "concurrency": {
+    "race_command": "make race",
+    "leak_command": "make leak",
+    "internal_goroutine_policy": "forbidden",
+    "cancellation_rounds_per_solver": 32,
+    "leak_gate_repetitions": 5,
+    "tests": [
+      "TestProductionContainsNoGoroutineLaunches",
+      "TestSolversStopAfterRepeatedCancellation"
+    ]
+  },
+  "resource_limits": [
+    {
+      "default": 10000,
+      "field": "Limits.MaxItems",
+      "limit": "items"
+    },
+    {
+      "default": 1000,
+      "field": "Limits.MaxContainerTypes",
+      "limit": "container types"
+    },
+    {
+      "default": 6,
+      "field": "Limits.MaxOrientations",
+      "limit": "orientations per item"
+    },
+    {
+      "default": 5000000,
+      "field": "Limits.MaxCandidatePlacements",
+      "limit": "candidate placements"
+    },
+    {
+      "default": 1000000,
+      "field": "Limits.MaxSearchNodes",
+      "limit": "search nodes"
+    },
+    {
+      "default": 5000000,
+      "field": "Limits.MaxBranches",
+      "limit": "search branches and configurations"
+    },
+    {
+      "default": 1,
+      "field": "Limits.MaxImprovementRounds",
+      "limit": "complete heuristic repacking passes"
+    },
+    {
+      "default": 268435456,
+      "field": "Limits.MaxMemoryBytes",
+      "limit": "memory bytes"
+    },
+    {
+      "default": 1024,
+      "field": "Limits.MaxIDBytes",
+      "limit": "bytes per identifier"
+    },
+    {
+      "default": 1000,
+      "field": "Limits.MaxDiagnostics",
+      "limit": "diagnostics"
+    },
+    {
+      "default": 16777216,
+      "field": "encoding.Limits.MaxBytes",
+      "limit": "JSON bytes"
+    },
+    {
+      "default": 64,
+      "field": "encoding.Limits.MaxDepth",
+      "limit": "JSON nesting depth"
+    },
+    {
+      "default": 100000,
+      "field": "encoding.Limits.MaxCollection",
+      "limit": "members per JSON object or array"
+    },
+    {
+      "default": 10000,
+      "field": "PlanLimits.MaxContainers",
+      "limit": "plan containers"
+    },
+    {
+      "default": 10000,
+      "field": "PlanLimits.MaxPlacements",
+      "limit": "plan placements"
+    },
+    {
+      "default": 10000,
+      "field": "PlanLimits.MaxUnpackedItems",
+      "limit": "unpacked item IDs"
+    },
+    {
+      "default": 32,
+      "field": "PlanLimits.MaxObjectiveComponents",
+      "limit": "objective components"
+    },
+    {
+      "default": 1000,
+      "field": "PlanLimits.MaxDiagnostics",
+      "limit": "plan and placement diagnostics"
+    },
+    {
+      "default": 1024,
+      "field": "PlanLimits.MaxIDBytes",
+      "limit": "plan identifier bytes"
+    },
+    {
+      "default": 65536,
+      "field": "PlanLimits.MaxMetadataBytes",
+      "limit": "bytes per metadata value"
+    },
+    {
+      "default": 16777216,
+      "field": "PlanLimits.MaxBytes",
+      "limit": "estimated plan bytes"
+    },
+    {
+      "default": 10000,
+      "field": "constraint.NewPlacementView.MaxPlacements",
+      "limit": "prior callback-view placements"
+    },
+    {
+      "default": 16777216,
+      "field": "constraint.NewPlacementView.MaxBytes",
+      "limit": "estimated callback-view bytes"
+    },
+    {
+      "default": 32,
+      "field": "constraint.MaxCallbacks",
+      "limit": "custom placement callbacks per operation"
+    },
+    {
+      "default": 1000,
+      "field": "gomoney.Limits.MaxTypes",
+      "limit": "monetary container type costs"
+    },
+    {
+      "default": 1024,
+      "field": "gomoney.Limits.MaxIDBytes",
+      "limit": "bytes per monetary container type ID"
+    }
+  ],
+  "serialization": {
+    "current_version": "v1",
+    "supported_versions": [
+      "v1"
+    ],
+    "compatibility_window": "current_and_immediately_previous_after_first_transition",
+    "predecessor_status": "none_before_initial_v1_release",
+    "fixtures": [
+      "encoding/testdata/v1/plan.json",
+      "encoding/testdata/v1/request.json"
+    ],
+    "tests": [
+      "TestV1GoldenRequestAndPlanCompatibility",
+      "TestRequestRoundTripPreservesCenterOfGravityBounds"
+    ]
+  },
+  "workflow_supply_chain": {
+    "lint_command": "make repository-check",
+    "actionlint_tool": "github.com/rhysd/actionlint v1.7.12",
+    "dependency_test": "TestWorkflowsPinExternalActionsByCommit",
+    "publication_test": "TestReleaseEventRunsStrictRootContract",
+    "nilaway_job": "module contract",
+    "nilaway_test": "TestNilAwayRunsAsAdvisoryModuleGate",
+    "workflows": [
+      ".github/workflows/ci.yml"
+    ],
+    "actions": {
+      "actions/checkout": "d23441a48e516b6c34aea4fa41551a30e30af803 # v6",
+      "actions/setup-go": "924ae3a1cded613372ab5595356fb5720e22ba16 # v6",
+      "actions/setup-node": "249970729cb0ef3589644e2896645e5dc5ba9c38 # v6",
+      "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6",
+      "github/codeql-action/analyze": "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4",
+      "github/codeql-action/init": "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4"
+    }
+  },
+  "supply_chain": {
+    "dependency_license_command": "make dependency-review",
+    "dependency_license_manifest": "specification/dependency-licenses.tsv",
+    "dependency_license_status": "approved_mit",
+    "dependency_publish_command": "make dependency-publish-review",
+    "dependency_release_status": "workspace_only",
+    "license_record": "NOTICE",
+    "nilaway_command": "make nilaway",
+    "nilaway_mode": "warning-only until findings are classified",
+    "nilaway_tool": "go.uber.org/nilaway v0.0.0-20260720194628-9fd1b8d7bac8",
+    "reference_manifest": "specification/references.tsv",
+    "reproducible_artifact_command": "make reproducible",
+    "root_dependencies": [
+      "github.com/faustbrian/golib/pkg/math",
+      "github.com/faustbrian/golib/pkg/measurement"
+    ],
+    "sbom_command": "make sbom",
+    "sbom_tool": "github.com/anchore/syft v1.48.0",
+    "secret_scan_command": "make secret-scan",
+    "secret_scan_tool": "github.com/zricethezav/gitleaks/v8 v8.30.1",
+    "vulnerability_command": "make vulnerability"
+  },
+  "limitations": [
+    {
+      "capability": "subset selection",
+      "reason": "not advertised before pack-all stabilizes",
+      "status": "deferred"
+    },
+    {
+      "capability": "parallel solving",
+      "reason": "only deterministic sequential solvers are implemented",
+      "status": "not_advertised"
+    },
+    {
+      "capability": "custom callback preemption",
+      "reason": "Go cannot preempt arbitrary in-process code; callbacks are supported only as trusted synchronous application extensions and must honor context cooperatively",
+      "status": "unsupported_for_untrusted_callbacks"
+    },
+    {
+      "capability": "standalone module build",
+      "reason": "math and measurement use local v0.0.0 replacements and are not resolvable from an isolated source archive",
+      "status": "workspace_only_until_sibling_modules_are_published"
+    },
+    {
+      "capability": "cross-runtime allocation counts",
+      "reason": "PHP and Go do not expose comparable allocation counts across process boundaries",
+      "status": "not_comparable_reported_with_peak_rss"
+    },
+    {
+      "capability": "N-1 persisted-plan compatibility",
+      "reason": "the initial v1 schema has no previously released library or schema; v1 fixtures establish the predecessor contract for the first transition",
+      "status": "not_applicable_before_initial_v1_release"
+    },
+    {
+      "capability": "general physics",
+      "reason": "discrete support and load model only",
+      "status": "out_of_scope"
+    },
+    {
+      "capability": "online packing",
+      "reason": "initial release is offline",
+      "status": "out_of_scope"
+    }
+  ]
+}

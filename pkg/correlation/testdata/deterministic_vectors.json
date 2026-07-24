@@ -1,0 +1,26 @@
+[
+  {
+    "domain": "shipment",
+    "version": 1,
+    "key": "vector-key",
+    "input": "business-123",
+    "length": 32,
+    "output": "d1_u7VbUKdb5Te-HA4ApEdWiNk5X0tfp"
+  },
+  {
+    "domain": "shipment",
+    "version": 2,
+    "key": "vector-key",
+    "input": "business-123",
+    "length": 32,
+    "output": "d2_6YmdSOUW_u0tSfKwOcy8-Doo09sPe"
+  },
+  {
+    "domain": "invoice",
+    "version": 1,
+    "key": "",
+    "input": "business-123",
+    "length": 24,
+    "output": "d1_9T-p9aj6AtE4dv70JhSMg"
+  }
+]

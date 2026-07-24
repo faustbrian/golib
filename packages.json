@@ -1,0 +1,5886 @@
+{
+  "schema_version": 1,
+  "repository": "github.com/faustbrian/golib",
+  "packages": [
+    {
+      "module_directory": "pkg/analysis/testdata/coverage",
+      "directory": "sample",
+      "name": "sample",
+      "import_path": "example.com/analysis-coverage/sample",
+      "kind": "fixture",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": ".",
+      "directory": "cmd/golib",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/cmd/golib",
+      "kind": "command",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analysis",
+      "name": "analysis",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analysis",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analysistestkit",
+      "name": "analysistestkit",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analysistestkit",
+      "kind": "test support",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/backenderror",
+      "name": "backenderror",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/backenderror",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/blockingcontext",
+      "name": "blockingcontext",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/blockingcontext",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/cleanupownership",
+      "name": "cleanupownership",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/cleanupownership",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/constructorgoroutine",
+      "name": "constructorgoroutine",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/constructorgoroutine",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/forbiddenapi",
+      "name": "forbiddenapi",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/forbiddenapi",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/globalgoroutine",
+      "name": "globalgoroutine",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/globalgoroutine",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/goroutinefanout",
+      "name": "goroutinefanout",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/goroutinefanout",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/httpclienttimeout",
+      "name": "httpclienttimeout",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/httpclienttimeout",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/importboundary",
+      "name": "importboundary",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/importboundary",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/interfacenaming",
+      "name": "interfacenaming",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/interfacenaming",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/interfaceplacement",
+      "name": "interfaceplacement",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/interfaceplacement",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/lockacrosscall",
+      "name": "lockacrosscall",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/lockacrosscall",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/metriccardinality",
+      "name": "metriccardinality",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/metriccardinality",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/mutableglobal",
+      "name": "mutableglobal",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/mutableglobal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/nobackground",
+      "name": "nobackground",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/nobackground",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/nodefaulthttp",
+      "name": "nodefaulthttp",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/nodefaulthttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/noinit",
+      "name": "noinit",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/noinit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/noprocesscontrol",
+      "name": "noprocesscontrol",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/noprocesscontrol",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/nostoredcontext",
+      "name": "nostoredcontext",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/nostoredcontext",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/nounsafe",
+      "name": "nounsafe",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/nounsafe",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/sensitivesink",
+      "name": "sensitivesink",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/sensitivesink",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "analyzers/transactionrollback",
+      "name": "transactionrollback",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/analyzers/transactionrollback",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "cmd/golib-analysis",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/cmd/golib-analysis",
+      "kind": "command",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "internal/driver",
+      "name": "driver",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/internal/driver",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "internal/version",
+      "name": "version",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/internal/version",
+      "kind": "internal",
+      "production": true,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/analysis",
+      "directory": "policy",
+      "name": "policy",
+      "import_path": "github.com/faustbrian/golib/pkg/analysis/policy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": ".",
+      "name": "apiquery",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiqueryhttp",
+      "name": "apiqueryhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiqueryhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiqueryjsonapi",
+      "name": "apiqueryjsonapi",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiqueryjsonapi",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiquerypgx",
+      "name": "apiquerypgx",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiquerypgx",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiqueryrpc",
+      "name": "apiqueryrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiqueryrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiquerytest",
+      "name": "apiquerytest",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiquerytest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "apiqueryvalidation",
+      "name": "apiqueryvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/apiqueryvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "cursor",
+      "name": "cursor",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/cursor",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/api-query",
+      "directory": "internal/strictjson",
+      "name": "strictjson",
+      "import_path": "github.com/faustbrian/golib/pkg/api-query/internal/strictjson",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": ".",
+      "name": "authentication",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "apikey",
+      "name": "apikey",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/apikey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "authhttp",
+      "name": "authhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/authhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "authlog",
+      "name": "authlog",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/authlog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication/authotel",
+      "directory": ".",
+      "name": "authotel",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/authotel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "authtest",
+      "name": "authtest",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/authtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "basic",
+      "name": "basic",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/basic",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication",
+      "directory": "bearer",
+      "name": "bearer",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/bearer",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication/jwt",
+      "directory": ".",
+      "name": "jwt",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/jwt",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authentication/oidc",
+      "directory": ".",
+      "name": "oidc",
+      "import_path": "github.com/faustbrian/golib/pkg/authentication/oidc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": ".",
+      "name": "authorization",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "abac",
+      "name": "abac",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/abac",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "acl",
+      "name": "acl",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/acl",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authcache",
+      "name": "authcache",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authcache",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authhttp",
+      "name": "authhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authlog",
+      "name": "authlog",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authlog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authn",
+      "name": "authn",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authn",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authorizationtest",
+      "name": "authorizationtest",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authorizationtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authotel",
+      "name": "authotel",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authotel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "authrpc",
+      "name": "authrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/authrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "examples/tenant_documents",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/examples/tenant_documents",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "httpauth",
+      "name": "httpauth",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/httpauth",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "policy",
+      "name": "policy",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/policy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "rbac",
+      "name": "rbac",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/rbac",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "scripts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/scripts",
+      "kind": "tooling",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/authorization",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/authorization/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "aztec",
+      "name": "aztec",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/aztec",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "barcode",
+      "name": "barcode",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/barcode",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "codabar",
+      "name": "codabar",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/codabar",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "code128",
+      "name": "code128",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/code128",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "code39",
+      "name": "code39",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/code39",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "code93",
+      "name": "code93",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/code93",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "datamatrix",
+      "name": "datamatrix",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/datamatrix",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "ean",
+      "name": "ean",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/ean",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "gs1",
+      "name": "gs1",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/gs1",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "imagedecode",
+      "name": "imagedecode",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/imagedecode",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "internal/aztecencoder",
+      "name": "encoder",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/internal/aztecencoder",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "internal/linear",
+      "name": "linear",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/internal/linear",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "internal/pdf417encoder",
+      "name": "pdf417encoder",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/internal/pdf417encoder",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "itf",
+      "name": "itf",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/itf",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "pdf417",
+      "name": "pdf417",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/pdf417",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "qr",
+      "name": "qr",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/qr",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "render",
+      "name": "render",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/render",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "specification",
+      "name": "specification",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/specification",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/barcode",
+      "directory": "upc",
+      "name": "upc",
+      "import_path": "github.com/faustbrian/golib/pkg/barcode/upc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": ".",
+      "name": "cache",
+      "import_path": "github.com/faustbrian/golib/pkg/cache",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "backend/memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/backend/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "backend/redis",
+      "name": "redis",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/backend/redis",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "backend/valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/backend/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "cachetest",
+      "name": "cachetest",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/cachetest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "internal/integrationtest",
+      "name": "integrationtest",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/internal/integrationtest",
+      "kind": "test support",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "internal/wire",
+      "name": "wire",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/internal/wire",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "observability/otel",
+      "name": "otel",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/observability/otel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cache",
+      "directory": "observability/slog",
+      "name": "slog",
+      "import_path": "github.com/faustbrian/golib/pkg/cache/observability/slog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": ".",
+      "name": "calendar",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "business",
+      "name": "business",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/business",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendarclock",
+      "name": "calendarclock",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendarclock",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendarconfig",
+      "name": "calendarconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendarconfig",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendartemporal",
+      "name": "calendartemporal",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendartemporal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendartest",
+      "name": "calendartest",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendartest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendarvalidation",
+      "name": "calendarvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendarvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "calendarwire",
+      "name": "calendarwire",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/calendarwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "scripts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/scripts",
+      "kind": "tooling",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/calendar",
+      "directory": "timezone",
+      "name": "timezone",
+      "import_path": "github.com/faustbrian/golib/pkg/calendar/timezone",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/circuit-breaker",
+      "directory": ".",
+      "name": "breaker",
+      "import_path": "github.com/faustbrian/golib/pkg/circuit-breaker",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/circuit-breaker",
+      "directory": "breakertest",
+      "name": "breakertest",
+      "import_path": "github.com/faustbrian/golib/pkg/circuit-breaker/breakertest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/circuit-breaker",
+      "directory": "window",
+      "name": "window",
+      "import_path": "github.com/faustbrian/golib/pkg/circuit-breaker/window",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": ".",
+      "name": "cli",
+      "import_path": "github.com/faustbrian/golib/pkg/cli",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": "clitest",
+      "name": "clitest",
+      "import_path": "github.com/faustbrian/golib/pkg/cli/clitest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": "cmd/generate-reference",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/cli/cmd/generate-reference",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": "cmd/process-fixture",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/cli/cmd/process-fixture",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": "internal/engine",
+      "name": "engine",
+      "import_path": "github.com/faustbrian/golib/pkg/cli/internal/engine",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/cli",
+      "directory": "internal/referenceapp",
+      "name": "referenceapp",
+      "import_path": "github.com/faustbrian/golib/pkg/cli/internal/referenceapp",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/clock",
+      "directory": ".",
+      "name": "clock",
+      "import_path": "github.com/faustbrian/golib/pkg/clock",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/clock",
+      "directory": "clocktest",
+      "name": "clocktest",
+      "import_path": "github.com/faustbrian/golib/pkg/clock/clocktest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/clock",
+      "directory": "manual",
+      "name": "manual",
+      "import_path": "github.com/faustbrian/golib/pkg/clock/manual",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": ".",
+      "name": "config",
+      "import_path": "github.com/faustbrian/golib/pkg/config",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "configtest",
+      "name": "configtest",
+      "import_path": "github.com/faustbrian/golib/pkg/config/configtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "decode",
+      "name": "decode",
+      "import_path": "github.com/faustbrian/golib/pkg/config/decode",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "defaults",
+      "name": "defaults",
+      "import_path": "github.com/faustbrian/golib/pkg/config/defaults",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "discover",
+      "name": "discover",
+      "import_path": "github.com/faustbrian/golib/pkg/config/discover",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "dotenv",
+      "name": "dotenv",
+      "import_path": "github.com/faustbrian/golib/pkg/config/dotenv",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "environment",
+      "name": "environment",
+      "import_path": "github.com/faustbrian/golib/pkg/config/environment",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "examples/discovery",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/config/examples/discovery",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "examples/quickstart",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/config/examples/quickstart",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "examples/testing",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/config/examples/testing",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "filesystem",
+      "name": "filesystem",
+      "import_path": "github.com/faustbrian/golib/pkg/config/filesystem",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "internal/safeerror",
+      "name": "safeerror",
+      "import_path": "github.com/faustbrian/golib/pkg/config/internal/safeerror",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "internal/sourceio",
+      "name": "sourceio",
+      "import_path": "github.com/faustbrian/golib/pkg/config/internal/sourceio",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "json",
+      "name": "json",
+      "import_path": "github.com/faustbrian/golib/pkg/config/json",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "merge",
+      "name": "merge",
+      "import_path": "github.com/faustbrian/golib/pkg/config/merge",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "programmatic",
+      "name": "programmatic",
+      "import_path": "github.com/faustbrian/golib/pkg/config/programmatic",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "toml",
+      "name": "toml",
+      "import_path": "github.com/faustbrian/golib/pkg/config/toml",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "validation",
+      "name": "validation",
+      "import_path": "github.com/faustbrian/golib/pkg/config/validation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/config",
+      "directory": "yaml",
+      "name": "yaml",
+      "import_path": "github.com/faustbrian/golib/pkg/config/yaml",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": ".",
+      "name": "correlation",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "http",
+      "name": "httpcorrelation",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/http",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "http/requestidbridge",
+      "name": "requestidbridge",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/http/requestidbridge",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "jsonrpc",
+      "name": "jsonrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/jsonrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "log",
+      "name": "log",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/log",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "queue",
+      "name": "queue",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/queue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "schedule",
+      "name": "schedule",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/schedule",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "telemetry",
+      "name": "telemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/telemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/correlation",
+      "directory": "webhook",
+      "name": "webhook",
+      "import_path": "github.com/faustbrian/golib/pkg/correlation/webhook",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/ecma-regexp",
+      "directory": ".",
+      "name": "ecmascript",
+      "import_path": "github.com/faustbrian/golib/pkg/ecma-regexp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/ecma-regexp",
+      "directory": "internal/cmd/test262bridge",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/ecma-regexp/internal/cmd/test262bridge",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/ecma-regexp",
+      "directory": "internal/cmd/unicodegen",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/ecma-regexp/internal/cmd/unicodegen",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/feature-flags",
+      "directory": ".",
+      "name": "featureflags",
+      "import_path": "github.com/faustbrian/golib/pkg/feature-flags",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/feature-flags",
+      "directory": "featureflagstest",
+      "name": "featureflagstest",
+      "import_path": "github.com/faustbrian/golib/pkg/feature-flags/featureflagstest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/feature-flags",
+      "directory": "openfeature",
+      "name": "openfeature",
+      "import_path": "github.com/faustbrian/golib/pkg/feature-flags/openfeature",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/feature-flags",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/feature-flags/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/feature-flags",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/feature-flags/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": ".",
+      "name": "filesystem",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "decorator",
+      "name": "decorator",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/decorator",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "fstest",
+      "name": "fstest",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/fstest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "ftp",
+      "name": "ftp",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/ftp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "internal/redact",
+      "name": "redact",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/internal/redact",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "internal/streamwriter",
+      "name": "streamwriter",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/internal/streamwriter",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "local",
+      "name": "local",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/local",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "r2",
+      "name": "r2",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/r2",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "s3",
+      "name": "s3",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/s3",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/filesystem",
+      "directory": "sftp",
+      "name": "sftp",
+      "import_path": "github.com/faustbrian/golib/pkg/filesystem/sftp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": ".",
+      "name": "geo",
+      "import_path": "github.com/faustbrian/golib/pkg/geo",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "adapter/gogeom",
+      "name": "gogeom",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/adapter/gogeom",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/adapter",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/adapter",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/codecs",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/codecs",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/feature",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/feature",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/geohash",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/geohash",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/measurements",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/measurements",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/pgx",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/pgx",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/polygon",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/polygon",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/postgis",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/postgis",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "examples/quickstart",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/examples/quickstart",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "geodesy",
+      "name": "geodesy",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/geodesy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "geohash",
+      "name": "geohash",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/geohash",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "geojson",
+      "name": "geojson",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/geojson",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "geotest",
+      "name": "geotest",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/geotest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "postgis",
+      "name": "postgis",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/postgis",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "wkb",
+      "name": "wkb",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/wkb",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/geo",
+      "directory": "wkt",
+      "name": "wkt",
+      "import_path": "github.com/faustbrian/golib/pkg/geo/wkt",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-client",
+      "directory": ".",
+      "name": "httpclient",
+      "import_path": "github.com/faustbrian/golib/pkg/http-client",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": ".",
+      "name": "middleware",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "adapter",
+      "name": "adapter",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/adapter",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "admission",
+      "name": "admission",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/admission",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "bodylimit",
+      "name": "bodylimit",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/bodylimit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "compress",
+      "name": "compress",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/compress",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "content",
+      "name": "content",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/content",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "cors",
+      "name": "cors",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/cors",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "deadline",
+      "name": "deadline",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/deadline",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "internal/httpx",
+      "name": "httpx",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/internal/httpx",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "middlewaretest",
+      "name": "middlewaretest",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/middlewaretest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "observe",
+      "name": "observe",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/observe",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "proxy",
+      "name": "proxy",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/proxy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "recovery",
+      "name": "recovery",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/recovery",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "requestid",
+      "name": "requestid",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/requestid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "responsepolicy",
+      "name": "responsepolicy",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/responsepolicy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/http-middleware",
+      "directory": "secureheader",
+      "name": "secureheader",
+      "import_path": "github.com/faustbrian/golib/pkg/http-middleware/secureheader",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": ".",
+      "name": "idempotency",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "canonical",
+      "name": "canonical",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/canonical",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencycommand",
+      "name": "idempotencycommand",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencycommand",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencyhttp",
+      "name": "idempotencyhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencyhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencylog",
+      "name": "idempotencylog",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencylog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencyoutbox",
+      "name": "idempotencyoutbox",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencyoutbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencyqueue",
+      "name": "idempotencyqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencyqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencyrpc",
+      "name": "idempotencyrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencyrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencytelemetry",
+      "name": "idempotencytelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencytelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencytest",
+      "name": "idempotencytest",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencytest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "idempotencywebhook",
+      "name": "idempotencywebhook",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/idempotencywebhook",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/idempotency",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/idempotency/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": ".",
+      "name": "identifier",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "idtest",
+      "name": "idtest",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/idtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "ksuid",
+      "name": "ksuid",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/ksuid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "nanoid",
+      "name": "nanoid",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/nanoid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "typeid",
+      "name": "typeid",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/typeid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "ulid",
+      "name": "ulid",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/ulid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/identifier",
+      "directory": "uuid",
+      "name": "uuid",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/uuid",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": ".",
+      "name": "international",
+      "import_path": "github.com/faustbrian/golib/pkg/international",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "cmd/international-dataset-review",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/international/cmd/international-dataset-review",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "cmd/international-generate",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/international/cmd/international-generate",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "country",
+      "name": "country",
+      "import_path": "github.com/faustbrian/golib/pkg/international/country",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "currency",
+      "name": "currency",
+      "import_path": "github.com/faustbrian/golib/pkg/international/currency",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internal/codec",
+      "name": "codec",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internal/codec",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internal/datasetreview",
+      "name": "datasetreview",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internal/datasetreview",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internal/generate",
+      "name": "generate",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internal/generate",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internationalpgx",
+      "name": "internationalpgx",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internationalpgx",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internationaltest",
+      "name": "internationaltest",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internationaltest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internationalvalidation",
+      "name": "internationalvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internationalvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "internationalwire",
+      "name": "internationalwire",
+      "import_path": "github.com/faustbrian/golib/pkg/international/internationalwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "language",
+      "name": "language",
+      "import_path": "github.com/faustbrian/golib/pkg/international/language",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "locale",
+      "name": "locale",
+      "import_path": "github.com/faustbrian/golib/pkg/international/locale",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "phone",
+      "name": "phone",
+      "import_path": "github.com/faustbrian/golib/pkg/international/phone",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "postal",
+      "name": "postal",
+      "import_path": "github.com/faustbrian/golib/pkg/international/postal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/international",
+      "directory": "subdivision",
+      "name": "subdivision",
+      "import_path": "github.com/faustbrian/golib/pkg/international/subdivision",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/json-schema",
+      "directory": ".",
+      "name": "jsonschema",
+      "import_path": "github.com/faustbrian/golib/pkg/json-schema",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/json-schema",
+      "directory": "cmd/bowtie-json-schema",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/json-schema/cmd/bowtie-json-schema",
+      "kind": "command",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/json-schema",
+      "directory": "internal/cmd/conformance-manifest",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/json-schema/internal/cmd/conformance-manifest",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/jsonapi",
+      "directory": ".",
+      "name": "jsonapi",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonapi",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": ".",
+      "name": "jsonrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": "cmd/semvercheck",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc/cmd/semvercheck",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": "examples/client",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc/examples/client",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": "examples/e2e",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc/examples/e2e",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": "examples/server",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc/examples/server",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/jsonrpc",
+      "directory": "internal/semver",
+      "name": "semver",
+      "import_path": "github.com/faustbrian/golib/pkg/jsonrpc/internal/semver",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": ".",
+      "name": "keyphrase",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "bip39",
+      "name": "bip39",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/bip39",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "keyphrasetest",
+      "name": "keyphrasetest",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/keyphrasetest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "passphrase",
+      "name": "passphrase",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/passphrase",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "password",
+      "name": "password",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/password",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "wordlist",
+      "name": "wordlist",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/wordlist",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/keyphrase",
+      "directory": "wordlist/eff",
+      "name": "eff",
+      "import_path": "github.com/faustbrian/golib/pkg/keyphrase/wordlist/eff",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": ".",
+      "name": "knapsack",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "constraint",
+      "name": "constraint",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/constraint",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "encoding",
+      "name": "encoding",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/encoding",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "geometry",
+      "name": "geometry",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/geometry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack/integration/references",
+      "directory": "cmd/knapsack-compare",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/integration/references/cmd/knapsack-compare",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "knapsacktest",
+      "name": "knapsacktest",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/knapsacktest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "objective",
+      "name": "objective",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/objective",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack/objective/gomoney",
+      "directory": ".",
+      "name": "gomoney",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "solver",
+      "name": "solver",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/solver",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "verify",
+      "name": "verify",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/verify",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/knapsack",
+      "directory": "visualize",
+      "name": "visualize",
+      "import_path": "github.com/faustbrian/golib/pkg/knapsack/visualize",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": ".",
+      "name": "lease",
+      "import_path": "github.com/faustbrian/golib/pkg/lease",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "examples/postgres",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/examples/postgres",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "examples/protectedwrite",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/examples/protectedwrite",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "examples/valkey",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/examples/valkey",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "internal/failure",
+      "name": "failure",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/internal/failure",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "internal/guard",
+      "name": "guard",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/internal/guard",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "leasequeue",
+      "name": "leasequeue",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/leasequeue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "leasescheduler",
+      "name": "leasescheduler",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/leasescheduler",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "leaseservice",
+      "name": "leaseservice",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/leaseservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "leasetest",
+      "name": "leasetest",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/leasetest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/lease",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/lease/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": ".",
+      "name": "localized",
+      "import_path": "github.com/faustbrian/golib/pkg/localized",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "encoding",
+      "name": "encoding",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/encoding",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "http",
+      "name": "http",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/http",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedconfig",
+      "name": "localizedconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedconfig",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedhttpclient",
+      "name": "localizedhttpclient",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedhttpclient",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedquery",
+      "name": "localizedquery",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedquery",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedtest",
+      "name": "localizedtest",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedvalidation",
+      "name": "localizedvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "localizedwire",
+      "name": "localizedwire",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/localizedwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "match",
+      "name": "match",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/match",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/localized",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/localized/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": ".",
+      "name": "log",
+      "import_path": "github.com/faustbrian/golib/pkg/log",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/async",
+      "name": "async",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/async",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/capture",
+      "name": "capture",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/capture",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/redact",
+      "name": "redact",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/redact",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/rotate",
+      "name": "rotate",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/rotate",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/sample",
+      "name": "sample",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/sample",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "handler/stack",
+      "name": "stack",
+      "import_path": "github.com/faustbrian/golib/pkg/log/handler/stack",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/log",
+      "directory": "otel",
+      "name": "otel",
+      "import_path": "github.com/faustbrian/golib/pkg/log/otel",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": ".",
+      "name": "gomath",
+      "import_path": "github.com/faustbrian/golib/pkg/math",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "bigfloat",
+      "name": "bigfloat",
+      "import_path": "github.com/faustbrian/golib/pkg/math/bigfloat",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "decimal",
+      "name": "decimal",
+      "import_path": "github.com/faustbrian/golib/pkg/math/decimal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "encoding",
+      "name": "encoding",
+      "import_path": "github.com/faustbrian/golib/pkg/math/encoding",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "integer",
+      "name": "integer",
+      "import_path": "github.com/faustbrian/golib/pkg/math/integer",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "mathtest",
+      "name": "mathtest",
+      "import_path": "github.com/faustbrian/golib/pkg/math/mathtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/math",
+      "directory": "rational",
+      "name": "rational",
+      "import_path": "github.com/faustbrian/golib/pkg/math/rational",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/measurement",
+      "directory": ".",
+      "name": "measurement",
+      "import_path": "github.com/faustbrian/golib/pkg/measurement",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/measurement",
+      "directory": "measurementwire",
+      "name": "measurementwire",
+      "import_path": "github.com/faustbrian/golib/pkg/measurement/measurementwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/migrations",
+      "directory": ".",
+      "name": "migrations",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/migrations",
+      "directory": "conformance",
+      "name": "conformance",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations/conformance",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/migrations",
+      "directory": "examples/job",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations/examples/job",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/migrations",
+      "directory": "internal/goose",
+      "name": "goose",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations/internal/goose",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/migrations",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/money",
+      "directory": ".",
+      "name": "money",
+      "import_path": "github.com/faustbrian/golib/pkg/money",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/money",
+      "directory": "encoding",
+      "name": "encoding",
+      "import_path": "github.com/faustbrian/golib/pkg/money/encoding",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/money",
+      "directory": "format",
+      "name": "format",
+      "import_path": "github.com/faustbrian/golib/pkg/money/format",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/money",
+      "directory": "moneytest",
+      "name": "moneytest",
+      "import_path": "github.com/faustbrian/golib/pkg/money/moneytest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": ".",
+      "name": "openapi",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "compose",
+      "name": "compose",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/compose",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "convert",
+      "name": "convert",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/convert",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "diff",
+      "name": "diff",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/diff",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "discriminator",
+      "name": "discriminator",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/discriminator",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "expression",
+      "name": "expression",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/expression",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "implicit",
+      "name": "implicit",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/implicit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/modelaccess",
+      "name": "modelaccess",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/modelaccess",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/modelgen",
+      "name": "modelgen",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/modelgen",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/modelgen/cmd/modelgen",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/modelgen/cmd/modelgen",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/quality/cmd/dependencyaudit",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/quality/cmd/dependencyaudit",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/quality/cmd/mutationgate",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/quality/cmd/mutationgate",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/specification",
+      "name": "specification",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/specification",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/specification/cmd/provenance",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/specification/cmd/provenance",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "internal/specification/cmd/specmatrix",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/internal/specification/cmd/specmatrix",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi/interoperability",
+      "directory": ".",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/interoperability",
+      "kind": "harness",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "jsonschema",
+      "name": "jsonschema",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/jsonschema",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "jsonvalue",
+      "name": "jsonvalue",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/jsonvalue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "media",
+      "name": "media",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/media",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "model",
+      "name": "model",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/model",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "oas30",
+      "name": "oas30",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/oas30",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "oas31",
+      "name": "oas31",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/oas31",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "oas32",
+      "name": "oas32",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/oas32",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "parameter",
+      "name": "parameter",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/parameter",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "parse",
+      "name": "parse",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/parse",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "reference",
+      "name": "reference",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/reference",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "response",
+      "name": "response",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/response",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "security",
+      "name": "security",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/security",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "serialize",
+      "name": "serialize",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/serialize",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "server",
+      "name": "server",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/server",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "specification",
+      "name": "specification",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/specification",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "specversion",
+      "name": "specversion",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/specversion",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "swagger20",
+      "name": "swagger20",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/swagger20",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "validate",
+      "name": "validate",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/validate",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openapi",
+      "directory": "xmlvalue",
+      "name": "xmlvalue",
+      "import_path": "github.com/faustbrian/golib/pkg/openapi/xmlvalue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": ".",
+      "name": "openinghours",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "compile",
+      "name": "compile",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/compile",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "encoding",
+      "name": "encoding",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/encoding",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghourscalendar",
+      "name": "openinghourscalendar",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghourscalendar",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghoursconfig",
+      "name": "openinghoursconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghoursconfig",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghourstemporal",
+      "name": "openinghourstemporal",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghourstemporal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghourstest",
+      "name": "openinghourstest",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghourstest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghoursvalidation",
+      "name": "openinghoursvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghoursvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "openinghourswire",
+      "name": "openinghourswire",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/openinghourswire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/opening-hours",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/opening-hours/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": ".",
+      "name": "openrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "builder",
+      "name": "builder",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/builder",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "compose",
+      "name": "compose",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/compose",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "diff",
+      "name": "diff",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/diff",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "discovery",
+      "name": "discovery",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/discovery",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "expression",
+      "name": "expression",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/expression",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "internal/specification",
+      "name": "specification",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/internal/specification",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "internal/specification/cmd/specmatrix",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/internal/specification/cmd/specmatrix",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "jsonrpc",
+      "name": "jsonrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/jsonrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "jsonschema",
+      "name": "jsonschema",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/jsonschema",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "jsonvalue",
+      "name": "jsonvalue",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/jsonvalue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "observe",
+      "name": "observe",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/observe",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "parse",
+      "name": "parse",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/parse",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "reference",
+      "name": "reference",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/reference",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "reference/httpstore",
+      "name": "httpstore",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/reference/httpstore",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/openrpc",
+      "directory": "validate",
+      "name": "validate",
+      "import_path": "github.com/faustbrian/golib/pkg/openrpc/validate",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/outbox",
+      "directory": ".",
+      "name": "outbox",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/outbox/adapters/goqueue",
+      "directory": ".",
+      "name": "goqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/outbox/adapters/gotelemetry",
+      "directory": ".",
+      "name": "gotelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/outbox",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/outbox",
+      "directory": "relay",
+      "name": "relay",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/relay",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": ".",
+      "name": "password",
+      "import_path": "github.com/faustbrian/golib/pkg/password",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "argon2id",
+      "name": "argon2id",
+      "import_path": "github.com/faustbrian/golib/pkg/password/argon2id",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "bcrypt",
+      "name": "bcrypt",
+      "import_path": "github.com/faustbrian/golib/pkg/password/bcrypt",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "passwordauth",
+      "name": "passwordauth",
+      "import_path": "github.com/faustbrian/golib/pkg/password/passwordauth",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "passwordservice",
+      "name": "passwordservice",
+      "import_path": "github.com/faustbrian/golib/pkg/password/passwordservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "passwordtest",
+      "name": "passwordtest",
+      "import_path": "github.com/faustbrian/golib/pkg/password/passwordtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/password",
+      "directory": "scripts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/password/scripts",
+      "kind": "tooling",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": ".",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/postgres/examples/migrations",
+      "directory": ".",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
+      "kind": "command",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": "examples/service",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/examples/service",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": "examples/sqlc",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/examples/sqlc",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": "examples/worker",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/examples/worker",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": "otelpostgres",
+      "name": "otelpostgres",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/otelpostgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/postgres",
+      "directory": "postgrestest",
+      "name": "postgrestest",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/postgrestest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts",
+      "directory": ".",
+      "name": "prompts",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "cmd/bubbles",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison/cmd/bubbles",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "cmd/go-prompts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison/cmd/go-prompts",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "cmd/huh",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison/cmd/huh",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "cmd/promptui",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison/cmd/promptui",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts/benchmarks/comparison",
+      "directory": "cmd/survey",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison/cmd/survey",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts",
+      "directory": "scripts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/scripts",
+      "kind": "tooling",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/prompts",
+      "directory": "terminal",
+      "name": "terminal",
+      "import_path": "github.com/faustbrian/golib/pkg/prompts/terminal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": ".",
+      "name": "queue",
+      "import_path": "github.com/faustbrian/golib/pkg/queue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": ".",
+      "name": "controlplane",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "alerts",
+      "name": "alerts",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/alerts",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "apihttp",
+      "name": "apihttp",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/apihttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "authz",
+      "name": "authz",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/authz",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "cli",
+      "name": "cli",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/cli",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "client",
+      "name": "client",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/client",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "cmd/queue-control",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/cmd/queue-control",
+      "kind": "command",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "cmd/queue-control-plane",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/cmd/queue-control-plane",
+      "kind": "command",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "control",
+      "name": "control",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/control",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "dataplane",
+      "name": "dataplane",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/dataplane",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "fleet",
+      "name": "fleet",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/fleet",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "history",
+      "name": "history",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/history",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "kubernetes",
+      "name": "kubernetes",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/kubernetes",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "server",
+      "name": "server",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/server",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue-control-plane",
+      "directory": "ui",
+      "name": "ui",
+      "import_path": "github.com/faustbrian/golib/pkg/queue-control-plane/ui",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "cmd/semvercheck",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/cmd/semvercheck",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "core",
+      "name": "core",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/core",
+      "kind": "public",
+      "production": true,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "examples/inmemory",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/examples/inmemory",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "examples/redis",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/examples/redis",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "examples/valkey",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/examples/valkey",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "internal/safeerr",
+      "name": "safeerr",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/internal/safeerr",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "internal/semver",
+      "name": "semver",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/internal/semver",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "internal/streamqueue",
+      "name": "streamqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/internal/streamqueue",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "internal/testutil/apiguard",
+      "name": "apiguard",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/internal/testutil/apiguard",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "internal/testutil/streamconformance",
+      "name": "streamconformance",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/internal/testutil/streamconformance",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "job",
+      "name": "job",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/job",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "management",
+      "name": "management",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/management",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "managementhttp",
+      "name": "managementhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/managementhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "mocks",
+      "name": "mocks",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/mocks",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "nats",
+      "name": "nats",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/nats",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "nsq",
+      "name": "nsq",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/nsq",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "rabbitmq",
+      "name": "rabbitmq",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/rabbitmq",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "redisdb",
+      "name": "redisdb",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/redisdb",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "redisstream",
+      "name": "redisdb",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/redisstream",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/queue",
+      "directory": "valkeystream",
+      "name": "valkeystream",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/valkeystream",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": ".",
+      "name": "ratelimit",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimithttp",
+      "name": "ratelimithttp",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimithttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimitlog",
+      "name": "ratelimitlog",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimitlog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimitprincipal",
+      "name": "ratelimitprincipal",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimitprincipal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimitqueue",
+      "name": "ratelimitqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimitqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimitrpc",
+      "name": "ratelimitrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimitrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimittelemetry",
+      "name": "ratelimittelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimittelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "ratelimittest",
+      "name": "ratelimittest",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/ratelimittest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/rate-limit",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/rate-limit/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": ".",
+      "name": "retry",
+      "import_path": "github.com/faustbrian/golib/pkg/retry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": "retryadapter",
+      "name": "retryadapter",
+      "import_path": "github.com/faustbrian/golib/pkg/retry/retryadapter",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": "retryhttp",
+      "name": "retryhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/retry/retryhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": "retrylog",
+      "name": "retrylog",
+      "import_path": "github.com/faustbrian/golib/pkg/retry/retrylog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": "retrypgx",
+      "name": "retrypgx",
+      "import_path": "github.com/faustbrian/golib/pkg/retry/retrypgx",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/retry",
+      "directory": "retrytelemetry",
+      "name": "retrytelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/retry/retrytelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/router",
+      "directory": ".",
+      "name": "router",
+      "import_path": "github.com/faustbrian/golib/pkg/router",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/router",
+      "directory": "routertest",
+      "name": "routertest",
+      "import_path": "github.com/faustbrian/golib/pkg/router/routertest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/rule-engine",
+      "directory": ".",
+      "name": "ruleengine",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rule-engine/adapters/gomath",
+      "directory": ".",
+      "name": "ruleenginemath",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rule-engine/adapters/gomeasurement",
+      "directory": ".",
+      "name": "ruleenginemeasurement",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rule-engine/adapters/gotemporal",
+      "directory": ".",
+      "name": "ruleenginetemporal",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/rule-engine",
+      "directory": "jsonast",
+      "name": "jsonast",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/jsonast",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": ".",
+      "name": "scheduler",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "cron",
+      "name": "cron",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/cron",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "examples/basic",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/examples/basic",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "examples/queue",
+      "name": "queueexample",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/examples/queue",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "history",
+      "name": "history",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/history",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "idempotency",
+      "name": "idempotency",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/idempotency",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "lease",
+      "name": "lease",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/lease",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "lease/conformance",
+      "name": "conformance",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/lease/conformance",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "queue",
+      "name": "queue",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/queue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "schedulercli",
+      "name": "schedulercli",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulercli",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "schedulerhttp",
+      "name": "schedulerhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulerhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "schedulertest",
+      "name": "schedulertest",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulertest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "telemetry",
+      "name": "telemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/telemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/scheduler",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": ".",
+      "name": "sequencer",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "goidempotency",
+      "name": "goidempotency",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/goidempotency",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "golease",
+      "name": "golease",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/golease",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "goqueue",
+      "name": "goqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/goqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "goretry",
+      "name": "goretry",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/goretry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "migrations",
+      "name": "migrations",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/migrations",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "scheduler",
+      "name": "scheduler",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/scheduler",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "sequencehttp",
+      "name": "sequencehttp",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/sequencehttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/sequencer",
+      "directory": "sequencertest",
+      "name": "sequencertest",
+      "import_path": "github.com/faustbrian/golib/pkg/sequencer/sequencertest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": ".",
+      "name": "goservice",
+      "import_path": "github.com/faustbrian/golib/pkg/service",
+      "kind": "public",
+      "production": true,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/http-api",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/http-api",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/ingester",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/ingester",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/mixed-role",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/mixed-role",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/rpc",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/rpc",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/scheduled-command",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/scheduled-command",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/worker",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/worker",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "healthhttp",
+      "name": "healthhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/service/healthhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "integration",
+      "name": "integration",
+      "import_path": "github.com/faustbrian/golib/pkg/service/integration",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "scripts",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/scripts",
+      "kind": "tooling",
+      "production": false,
+      "executable": false,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "serverhttp",
+      "name": "serverhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/service/serverhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "service",
+      "name": "service",
+      "import_path": "github.com/faustbrian/golib/pkg/service/service",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "servicetest",
+      "name": "servicetest",
+      "import_path": "github.com/faustbrian/golib/pkg/service/servicetest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": ".",
+      "name": "settings",
+      "import_path": "github.com/faustbrian/golib/pkg/settings",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "audit",
+      "name": "audit",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/audit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "migration",
+      "name": "migration",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/migration",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "settingstest",
+      "name": "settingstest",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/settingstest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/settings",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/settings/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": ".",
+      "name": "statemachine",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "diagram",
+      "name": "diagram",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/diagram",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "outbox",
+      "name": "outbox",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/outbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "runner",
+      "name": "runner",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/runner",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/state-machine",
+      "directory": "statemachinetest",
+      "name": "statemachinetest",
+      "import_path": "github.com/faustbrian/golib/pkg/state-machine/statemachinetest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/tabular",
+      "directory": ".",
+      "name": "tabular",
+      "import_path": "github.com/faustbrian/golib/pkg/tabular",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/tabular",
+      "directory": "internal/xls",
+      "name": "xls",
+      "import_path": "github.com/faustbrian/golib/pkg/tabular/internal/xls",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": ".",
+      "name": "telemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "examples/service",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/examples/service",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "examples/worker",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/examples/worker",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "instrumentation/gocache",
+      "name": "gocache",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/instrumentation/gocache",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "instrumentation/gohttpclient",
+      "name": "gohttpclient",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/instrumentation/gohttpclient",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "instrumentation/gopostgres",
+      "name": "gopostgres",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/instrumentation/gopostgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "instrumentation/goqueue",
+      "name": "goqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/instrumentation/goqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "instrumentation/nethttp",
+      "name": "nethttp",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/instrumentation/nethttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "metric",
+      "name": "metric",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/metric",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "otlp",
+      "name": "otlp",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/otlp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "propagation",
+      "name": "propagation",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/propagation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "testtelemetry",
+      "name": "testtelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/testtelemetry",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/telemetry",
+      "directory": "trace",
+      "name": "trace",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/trace",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": ".",
+      "name": "temporal",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "dateperiod",
+      "name": "dateperiod",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/dateperiod",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "instant",
+      "name": "instant",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/instant",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "notation",
+      "name": "notation",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/notation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "temporalconfig",
+      "name": "temporalconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/temporalconfig",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "temporaltest",
+      "name": "temporaltest",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/temporaltest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "temporalvalidation",
+      "name": "temporalvalidation",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/temporalvalidation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "temporalwire",
+      "name": "temporalwire",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/temporalwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/temporal",
+      "directory": "timeofday",
+      "name": "timeofday",
+      "import_path": "github.com/faustbrian/golib/pkg/temporal/timeofday",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": ".",
+      "name": "validation",
+      "import_path": "github.com/faustbrian/golib/pkg/validation",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "rules",
+      "name": "rules",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/rules",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "structplan",
+      "name": "structplan",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/structplan",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationconfig",
+      "name": "validationconfig",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationconfig",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationhttp",
+      "name": "validationhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationhttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationjsonapi",
+      "name": "validationjsonapi",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationjsonapi",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationobserve",
+      "name": "validationobserve",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationobserve",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationrpc",
+      "name": "validationrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationservice",
+      "name": "validationservice",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationtest",
+      "name": "validationtest",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/validation",
+      "directory": "validationtext",
+      "name": "validationtext",
+      "import_path": "github.com/faustbrian/golib/pkg/validation/validationtext",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": ".",
+      "name": "webhook",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "adapters/goidempotency",
+      "name": "goidempotency",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/adapters/goidempotency",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "adapters/golog",
+      "name": "golog",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/adapters/golog",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "adapters/gooutbox",
+      "name": "gooutbox",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/adapters/gooutbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "adapters/goqueue",
+      "name": "goqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/adapters/goqueue",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "adapters/gotelemetry",
+      "name": "gotelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/adapters/gotelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/webhook",
+      "directory": "webhooktest",
+      "name": "webhooktest",
+      "import_path": "github.com/faustbrian/golib/pkg/webhook/webhooktest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": ".",
+      "name": "wire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "bsonwire",
+      "name": "bsonwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/bsonwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "cborwire",
+      "name": "cborwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/cborwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "cmd/semvercheck",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/cmd/semvercheck",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "internal/outputlimit",
+      "name": "outputlimit",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/internal/outputlimit",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "internal/semver",
+      "name": "semver",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/internal/semver",
+      "kind": "tooling",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "internal/valuecheck",
+      "name": "valuecheck",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/internal/valuecheck",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "jsonwire",
+      "name": "jsonwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/jsonwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "msgpackwire",
+      "name": "msgpackwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/msgpackwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "soap",
+      "name": "soap",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/soap",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "tomlwire",
+      "name": "tomlwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/tomlwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "xmlwire",
+      "name": "xmlwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/xmlwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wire",
+      "directory": "yamlwire",
+      "name": "yamlwire",
+      "import_path": "github.com/faustbrian/golib/pkg/wire/yamlwire",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": ".",
+      "name": "wsdl",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "builder",
+      "name": "builder",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/builder",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "codegen",
+      "name": "codegen",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/codegen",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "compile",
+      "name": "compile",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/compile",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "compose",
+      "name": "compose",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/compose",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "diff",
+      "name": "diff",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/diff",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/wsdl",
+      "directory": "resolve",
+      "name": "resolve",
+      "import_path": "github.com/faustbrian/golib/pkg/wsdl/resolve",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": ".",
+      "name": "xsd",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "builder",
+      "name": "builder",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/builder",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "compile",
+      "name": "compile",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/compile",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "datatype",
+      "name": "datatype",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/datatype",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "resolve",
+      "name": "resolve",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/resolve",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "validate",
+      "name": "validate",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/validate",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true
+    },
+    {
+      "module_directory": "pkg/xsd",
+      "directory": "xsdtest",
+      "name": "xsdtest",
+      "import_path": "github.com/faustbrian/golib/pkg/xsd/xsdtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false
+    }
+  ]
+}

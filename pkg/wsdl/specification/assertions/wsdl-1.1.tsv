@@ -1,0 +1,24 @@
+assertion	section	keywords	requirement	text_sha256	source
+WSDL11-NORM-001	_document-n	MUST NOT	WSDL11-CORE-001	7760a0b0da454389d7fa18698b06e1e6aaa918cb44b6deab035c365320953d3d	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_document-n
+WSDL11-NORM-002	_document-n	SHOULD	WSDL11-CORE-001	f3ddd648fe613b158dcc358614b198bec9a46c29f0a6c60f0651f45396695c7f	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_document-n
+WSDL11-NORM-003	_document-n	MUST	WSDL11-CORE-001	a3f854599df28f89784b4cff020e93ebdf2a94d64e43daf10c2645fcabb8d292	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_document-n
+WSDL11-NORM-004	_language	MUST	WSDL11-EXT-001	fd0a0dbb757853fec013d0af0a0663f371b625797c39ed9071b359d03a5a756b	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_language
+WSDL11-NORM-005	_language	MAY	WSDL11-EXT-001	65239644fb1e8feae9869f486932fddbbc235f406ddf63fdf5b1fed4460944d0	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_language
+WSDL11-NORM-006	_types	SHOULD	WSDL11-XSD-001	d596d3fda5ebfb08a3c2b338df58177d23dbc41ca39ba2217779b14ef75bd204	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_types
+WSDL11-NORM-007	_message	MAY	WSDL11-CORE-001	fb3d0393f5cdf0d460e8868f1b117c561e9dfa108974df3211627f049cf3330a	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_message
+WSDL11-NORM-008	_parameter	MAY	WSDL11-CORE-001	bf390208b903dd36c7333130f08d890fe20d9d5f176823fe448aacbba154f703	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_parameter
+WSDL11-NORM-009	_parameter	MUST	WSDL11-CORE-001	fb11b60a2cb558861c8725cde2e6e55a22671e60bdf3e3b18710a92964aaa36a	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_parameter
+WSDL11-NORM-010	_bindings	MUST	WSDL11-CORE-001	9df6c9b048a0226998d705afefc9d84a7738ebf6782567d8fb3dada70e7348de	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_bindings
+WSDL11-NORM-011	_bindings	MUST NOT	WSDL11-CORE-001	e0d375a0d8c2fd2bec453a55545f87ed0f1c40a361301bef02ec2892c437c828	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_bindings
+WSDL11-NORM-012	_ports	MUST NOT	WSDL11-CORE-001	60dc94be45f27aa2ae59e9417ef8eb8f9c96482968335d051a22aa77fcd4b16d	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_ports
+WSDL11-NORM-013	_ports	MUST NOT	WSDL11-CORE-001	81538f5bacb6e9381d5b81fb16b29b2e661b5fbb8f0abde8558e43c7d435423e	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_ports
+WSDL11-NORM-014	_soap:binding	MUST	WSDL11-SOAP-001	69f633d78d3866158accb4942c6c625b597d52102f0017003898bccd5b90ceb4	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:binding
+WSDL11-NORM-015	_soap:operation	MUST NOT,MAY	WSDL11-SOAP-001	0fecf93d4209df247e64e8257bce324ed55e691e9b58cb598f0746b8728ff64c	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:operation
+WSDL11-NORM-016	_soap:body	MUST	WSDL11-SOAP-001	3681522ef6190c8815e2cc6280244bcd1d759d2aae8a0fa4a04a7fdf9adabecf	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:body
+WSDL11-NORM-017	_soap:body	MAY	WSDL11-SOAP-001	8219990fb17e87bced270d5cf0bdafcb8af3037f74738e5124fdec38fc8b54c5	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:body
+WSDL11-NORM-018	_soap:fault	MUST	WSDL11-SOAP-001	4cec30103591102403fce8b9972c7fa71b4e6b14452e1200a8db6cb63fc7c6b3	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:fault
+WSDL11-NORM-019	_soap:header	MAY,MUST NOT	WSDL11-SOAP-001	3fa823aa6d155704fa8c18288bc2b1995be3f79a91a2b9991514c12749d55756	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:header
+WSDL11-NORM-020	_soap:address	MUST	WSDL11-SOAP-001	6eb6fb7a7341be8b03eecc20e97332325d5630759276a55315b29c1eebb856cc	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_soap:address
+WSDL11-NORM-021	_http:operation	MUST	WSDL11-HTTP-001	286dfdfe95f42e6e02db7e39190f91e709701e19b18516c22122b209c1df3497	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_http:operation
+WSDL11-NORM-022	_http:urlReplacement	MUST NOT	WSDL11-HTTP-001	cf589fb4470655112fa9ed4bf4c22ccc2c99ade3da1007fe0ecaa5030dd32248	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_http:urlReplacement
+WSDL11-NORM-023	_mime:mimeXml	MAY	WSDL11-MIME-001	37a655f32f8b602e4cac18d6123663092f7b915a605f799d554557646371cd97	https://www.w3.org/TR/2001/NOTE-wsdl-20010315.html#_mime:mimeXml

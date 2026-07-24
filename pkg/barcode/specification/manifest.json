@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {
+      "path": "gs1/gs1-syntax-dictionary.txt",
+      "source": "https://github.com/gs1/gs1-syntax-dictionary/blob/2026-01-27/gs1-syntax-dictionary.txt",
+      "release": "2026-01-27",
+      "sha256": "6461ece7c03420fb27a3f18163ef9a08694aa4bb2491dea25f63bcdf22451a99",
+      "license": "Apache-2.0",
+      "use": "GS1 application identifier syntax and provenance"
+    },
+    {
+      "path": "module:github.com/speedata/barcode",
+      "source": "https://github.com/speedata/barcode/tree/v1.1.1",
+      "release": "v1.1.1",
+      "sha256": "ce9d468b894ad8c8082b65a63711e1982781a0c099a2e697d983d236b13f7bd4",
+      "license": "MIT",
+      "use": "independent phase-one writer interoperability fixtures"
+    },
+    {
+      "path": "module:github.com/ericlevine/zxinggo",
+      "source": "https://github.com/ericlevine/zxinggo/tree/v0.1.0",
+      "release": "v0.1.0",
+      "sha256": "5ba9237e5dd340611181e671fdc6718a9968bc4f8d85cbe92256f9a2cd6415cd",
+      "license": "Apache-2.0",
+      "use": "independent reader interoperability fixtures"
+    },
+    {
+      "path": "module:github.com/ruudk/golang-pdf417",
+      "source": "https://github.com/ruudk/golang-pdf417/tree/a7e3863a1245",
+      "release": "v0.0.0-20201230142125-a7e3863a1245",
+      "sha256": "f0006c0f60789da76c1b3fef73bb63f5581744fbe3ab5973ec718b40c6822f69",
+      "license": "MIT",
+      "use": "independent PDF417 writer interoperability fixture"
+    }
+  ]
+}

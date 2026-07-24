@@ -1,0 +1,5 @@
+version: 1
+
+entrypoints:
+  - github.com/faustbrian/golib/pkg/json-schema/cmd/bowtie-json-schema
+  - github.com/faustbrian/golib/pkg/json-schema/internal/cmd/conformance-manifest

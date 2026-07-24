@@ -1,0 +1,1212 @@
+# postgres Complete Documentation
+
+## Source: README.md
+
+# postgres
+
+`postgres` is focused production infrastructure for PostgreSQL applications
+built directly on [`pgx/v5`](https://github.com/jackc/pgx). It standardizes
+finite pool configuration, bounded lifecycle operations, transaction cleanup,
+SQLSTATE classification, health, safe telemetry, and real PostgreSQL testing
+without hiding native pgx types.
+
+It is not a driver, ORM, query builder, migration engine, repository layer, or
+multi-database abstraction.
+
+## Requirements
+
+- Go 1.25 or 1.26
+- pgx 5.10.x
+- PostgreSQL 14, 15, 16, 17, or 18
+- Docker-compatible container runtime only for `postgrestest` and integration
+  tests
+
+## Quick start
+
+```go
+ctx := context.Background()
+pool, err := postgres.New(ctx, postgres.Config{
+    DSN:             os.Getenv("DATABASE_URL"),
+    MaxConns:        20,
+    AcquireTimeout:  2 * time.Second,
+    PingTimeout:     time.Second,
+    ShutdownTimeout: 10 * time.Second,
+})
+if err != nil {
+    return err
+}
+defer pool.Close(context.Background())
+
+err = postgres.RunTransaction(ctx, pool.Raw(), postgres.TransactionOptions{
+    TxOptions: pgx.TxOptions{IsoLevel: pgx.Serializable},
+}, func(ctx context.Context, tx pgx.Tx) error {
+    _, err := tx.Exec(ctx, "INSERT INTO jobs (name) VALUES ($1)", "reindex")
+    return err
+})
+```
+
+`New` performs a bounded startup ping by default. `Pool.Raw()` returns the exact
+`*pgxpool.Pool`, so generated `sqlc` code and all native pgx operations remain
+available.
+
+## Safe defaults
+
+| Setting | Default |
+| --- | ---: |
+| connect timeout | 5 seconds |
+| acquire timeout | 5 seconds |
+| ping timeout | 2 seconds |
+| shutdown timeout | 10 seconds |
+| maximum connections | 10 |
+| maximum connection lifetime | 1 hour |
+| lifetime jitter | 5 minutes |
+| maximum idle time | 30 minutes |
+| health-check period | 1 minute |
+| startup policy | fail-fast ping |
+
+Zero values select these defaults. Every limit is overrideable. TLS remains an
+explicit deployment decision: use a DSN with `sslmode=verify-full` or provide a
+verified `tls.Config` with `TLSRequire`; never assume encryption authenticates
+the server when `InsecureSkipVerify` is enabled.
+
+## Packages
+
+- root: configuration, pool lifecycle, transactions, health, classification,
+  bounded observations, and safe `slog` integration
+- `otelpostgres`: optional standard OpenTelemetry metrics adapter
+- `postgrestest`: optional Testcontainers lifecycle and always-rollback
+  transaction helpers for real PostgreSQL
+
+Query tracing is provided by
+[`telemetry/instrumentation/gopostgres`](https://github.com/faustbrian/golib/pkg/telemetry/tree/main/instrumentation/gopostgres)
+through the native `pgx.ConnConfig.Tracer` hook. It records allow-listed query
+names and never SQL or arguments.
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+and [API reference](docs/api.md). Operators should read the
+[pool and lifecycle guide](docs/pool-and-lifecycle.md), [TLS guide](docs/tls.md),
+[Kubernetes guide](docs/kubernetes.md), and [operational FAQ](docs/faq.md).
+
+## Development
+
+```sh
+make safety
+make integration
+make check
+```
+
+`make coverage` proves exact 100% production statement coverage with a real
+PostgreSQL container. CI runs the integration suite on every supported
+PostgreSQL major version.
+
+## License
+
+MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# Documentation
+
+- [Quickstart](quickstart.md)
+- [API reference](api.md)
+- [Architecture and ownership](architecture.md)
+- [Pool construction and lifecycle](pool-and-lifecycle.md)
+- [TLS](tls.md)
+- [Transactions and savepoints](transactions.md)
+- [SQLSTATE and error classification](errors.md)
+- [sqlc integration](sqlc.md)
+- [Observability and redaction](observability.md)
+- [migrations integration](migrations.md)
+- [Testing with Testcontainers](testing.md)
+- [Kubernetes deployment](kubernetes.md)
+- [Operational FAQ](faq.md)
+- [Compatibility matrix](compatibility.md)
+- [Migration from direct pgx and database/sql](migration.md)
+- [Security and threat model](security.md)
+- [Hardening evidence](hardening.md)
+- [Performance](performance.md)
+- [Release process](releasing.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+Install the module and create one application-owned pool:
+
+```sh
+go get github.com/faustbrian/golib/pkg/postgres
+```
+
+```go
+pool, err := postgres.New(ctx, postgres.Config{
+    DSN:             os.Getenv("DATABASE_URL"),
+    MaxConns:        20,
+    MinIdleConns:    2,
+    AcquireTimeout:  2 * time.Second,
+    PingTimeout:     time.Second,
+    ShutdownTimeout: 10 * time.Second,
+    SessionInit: func(ctx context.Context, conn *pgx.Conn) error {
+        _, err := conn.Exec(ctx, "SET statement_timeout = '5s'")
+        return err
+    },
+})
+if err != nil {
+    return err
+}
+defer pool.Close(context.Background())
+```
+
+`New` parses and validates the DSN without returning it in validation errors,
+constructs the native pool, then performs a bounded startup ping. Use
+`StartupLazy` only when startup must succeed while PostgreSQL is unavailable.
+
+Use native pgx methods through `pool.Raw()`:
+
+```go
+var count int
+err := pool.Raw().QueryRow(ctx, "SELECT count(*) FROM jobs").Scan(&count)
+```
+
+Use the transaction runner when cleanup and error composition matter:
+
+```go
+err := postgres.RunTransaction(ctx, pool.Raw(), postgres.TransactionOptions{},
+    func(ctx context.Context, tx pgx.Tx) error {
+        _, err := tx.Exec(ctx, "UPDATE jobs SET claimed_at = now() WHERE id = $1", id)
+        return err
+    },
+)
+```
+
+Read [TLS](tls.md), [pool lifecycle](pool-and-lifecycle.md), and
+[transactions](transactions.md) before production deployment.
+
+## Source: docs/api.md
+
+# API reference
+
+The authoritative signature reference is `go doc`; this page describes the
+stability and behavior of each public surface.
+
+## Configuration
+
+- `Config` owns DSN, finite timeouts, pool sizes, connection lifetimes, startup
+  policy, typed TLS override, per-connection initialization, a native
+  `*pgxpool.Config` hook, and an optional bounded observer.
+- `Config.Configure` is a trusted native extension boundary. Returned errors
+  are preserved safely; panics propagate and must not represent expected hook
+  rejection.
+- `ParseConfig` returns the native `*pgxpool.Config`. It catches malformed-input
+  parser panics and never includes the DSN in its own error string.
+- `ConfigError` identifies a field. `Unwrap` exposes only safe hook causes; DSN
+  parser causes are deliberately withheld because upstream text may change.
+- `PoolConfig` is an alias, not a wrapper, for `pgxpool.Config`.
+
+## Pool and health
+
+- `New` returns `*Pool`; startup ping is the default.
+- `Raw` returns the exact native `*pgxpool.Pool`.
+- `Acquire`, `Ping`, and `Close` honor the earlier caller or configured
+  deadline. `Close` starts native shutdown once and may return while shutdown
+  continues until borrowed connections are returned.
+- `Readiness` contacts PostgreSQL. `Liveness` only reports whether shutdown has
+  begun. `Stats` copies native pgxpool counters and gauges.
+
+## Transactions
+
+- `Beginner` matches pgx values with `BeginTx`.
+- `TransactionOptions` embeds `pgx.TxOptions` and adds cleanup timeout and
+  observation.
+- `RunTransaction` invokes the closure once, never retries it, commits success,
+  rolls back error, panic, or goroutine termination with an uncanceled bounded
+  cleanup context, joins callback and rollback failures, and re-panics the
+  original panic value.
+- `RunSavepoint` uses pgx pseudo-nested transactions, which issue explicit
+  savepoint SQL. `RunSavepointWithOptions` adds cleanup and observation options.
+
+## Errors
+
+- `Classify` returns `ErrorInfo` while preserving the exact input in `Cause`
+  and the native `*pgconn.PgError` in `Postgres`.
+- `SQLState`, `IsKind`, constraint predicates, context timeout/cancellation,
+  ambiguous server query/lock predicates, connectivity, pool exhaustion, and
+  `IsRetryable` are inspection helpers. `IsRetryable` is advice only, requires
+  safe-before-send evidence for connectivity, and never executes work.
+- `Detail` and `Hint` may contain values and are unsafe to log by default.
+
+## Observability
+
+- `Observer`, `ObserverFunc`, and `Observation` carry fixed operation, outcome,
+  duration, SQLSTATE, classification, and optional pool gauges only.
+- `NewSlogObserver` emits those bounded fields through standard `slog`.
+- `otelpostgres.New` builds standard OpenTelemetry duration, count, and pool
+  connection instruments.
+
+## Testing
+
+- `postgrestest.Start` owns a real PostgreSQL container, waits for readiness,
+  runs an optional setup hook once, and exposes the DSN and native container.
+  Setup error, panic, and goroutine-termination paths perform bounded cleanup,
+  preserving the original error or panic even if cleanup itself panics.
+  `HostPort` supports stable-endpoint
+  stop/restart tests.
+- `Database.Close` bounds termination, permits retry after a failed attempt,
+  and becomes idempotent after successful termination.
+- `RunIsolated` executes a test callback once in a real pgx transaction that
+  always rolls back with bounded cleanup. Callback and rollback errors remain
+  inspectable, panic values are preserved, and `testing.T.FailNow` cannot skip
+  rollback. A cleanup panic cannot replace a returned callback error or a
+  terminal callback path; after a successful callback it propagates rather
+  than falsely reporting successful isolation.
+
+## Source: docs/architecture.md
+
+# Architecture and ownership
+
+The module sits above pgx and below application repositories or generated
+queries:
+
+```text
+application / sqlc generated queries
+              |
+postgres lifecycle, transactions, errors, health, observations
+              |
+pgx / pgxpool / pgconn
+              |
+PostgreSQL
+```
+
+The application owns SQL, statement naming, retries, external side effects,
+migrations, schema, authorization, and business transactions. pgx owns the
+wire protocol, codecs, connection implementation, query execution, and native
+pool. `postgres` owns finite policy defaults and repeatable cleanup around
+those primitives.
+
+| Concern | Owner |
+| --- | --- |
+| wire protocol, codecs, query execution, pool scheduling | pgx / pgxpool |
+| finite defaults, bounded lifecycle waits, transaction cleanup, classification | `postgres` |
+| SQL, query names, statement deadlines, retries, hooks, TLS identity | application |
+| schema, migrations, roles, authorization, backups, external side effects | application and operations |
+| metric export availability and retention | application observability stack |
+
+There is no global pool. Construct dependencies at process startup and inject
+`pool.Raw()`, a narrow application interface, or generated `sqlc.Queries`.
+Configuration hooks intentionally expose native pgx so this package never has
+to mirror every upstream extension point.
+
+## Source: docs/pool-and-lifecycle.md
+
+# Pool construction and lifecycle
+
+## Connection strings
+
+`ParseConfig` accepts the same PostgreSQL URL and keyword/value connection
+strings as pgx. Regression coverage includes percent-encoded credentials,
+quoted keyword values, IPv6, Unix sockets, and multi-host fallback lists. The
+package never returns the input DSN in its own validation errors. Treat the
+native parsed configuration and `Database.DSN()` test helper output as secrets.
+
+## Sizing
+
+Start from the PostgreSQL connection budget, subtract administration,
+migration, replication, and failover headroom, then divide the remainder among
+maximum concurrently deployed application replicas. `MaxConns=10` is a finite
+library default, not a universal recommendation. `MinIdleConns` reduces cold
+acquisition latency but creates connections proactively.
+
+## Timeouts
+
+`ConnectTimeout` bounds each network connection. `AcquireTimeout` bounds queue
+wait plus any connection establishment performed for acquisition. Request
+deadlines earlier than these values win. `PingTimeout` applies to startup and
+readiness. Query deadlines remain caller-owned and must be applied to every
+request or job context.
+
+## Startup
+
+`StartupPing` is the default and proves DNS, transport, TLS, authentication,
+server acceptance, session initialization, and one pool acquisition before the
+application announces startup. `StartupLazy` defers all of that and should be
+reserved for systems whose orchestrator or worker loop owns retry behavior.
+Unavailable endpoints, wrong-protocol listeners, rejected authentication, and
+strict-TLS mismatches have bounded secret-safe startup regressions.
+
+DNS lookup and caching remain native Go/pgx behavior and occur when pgx opens a
+connection; this package keeps no resolver cache. Stop/restart recovery is
+proven on a stable endpoint. Deployments that change DNS answers must test their
+resolver TTL, network, and failover policy explicitly.
+
+## Session initialization
+
+`SessionInit` runs once for every newly established connection, after a native
+`AfterConnect` hook. A native hook error skips session initialization. Any
+session initialization error rejects the connection and is preserved through
+`errors.Is` and `errors.As`. Keep the hook idempotent, bounded by its context,
+and free of process-external side effects.
+
+## Native hook lifecycle
+
+`Config.Configure` exposes the native `pgxpool.Config` after typed defaults are
+applied. Hook ownership and failure behavior remain explicit:
+
+| Hook | Failure behavior |
+| --- | --- |
+| `Configure` | returned errors become secret-safe `ConfigError` values with the original cause |
+| `BeforeConnect` / `AfterConnect` | errors reject connection creation and remain inspectable from fail-fast startup |
+| `PrepareConn` | an error fails the acquire; false with nil destroys the connection and lets pgx retry |
+| `AfterRelease` | false destroys the released connection instead of returning it to the pool |
+| `BeforeClose` / `ShouldPing` / tracers | native pgx behavior is preserved |
+
+Hook panics are trusted-code failures and are deliberately not converted into
+database errors. Depending on the pgx execution path, a panic can terminate the
+calling or a pool-owned goroutine and therefore the process. Hooks must return
+errors for expected rejection. Prefer `PrepareConn`; pgx deprecates
+`BeforeAcquire`. Subprocess integration tests exercise panic propagation through
+all four connection-lifecycle hooks without allowing an expected process crash
+to terminate the surrounding suite.
+
+## Saturation
+
+When the configured acquisition deadline expires, the error matches
+`ErrAcquireTimeout` and `context.DeadlineExceeded`. It also matches
+`ErrPoolExhausted`, and classifies as `ErrorPoolExhaustion`, only when the
+contemporaneous pool snapshot shows every slot acquired or constructing. An
+earlier caller deadline or cancellation retains its context classification.
+Inspect `Stats.AcquiredConns`, `IdleConns`, `EmptyAcquireCount`, and
+`EmptyAcquireWaitTime`. Do not increase pool size before ruling out leaked
+connections, long transactions, slow queries, and excessive concurrency.
+Canceled waiters are removed and do not prevent later acquisition. The package
+inherits pgxpool scheduling and does not promise waiter ordering or fairness.
+
+## Shutdown
+
+`Close` starts native shutdown exactly once. pgxpool must wait for borrowed
+connections, but the wrapper stops waiting at the caller or configured
+deadline and returns `ErrShutdownTimeout`. Native shutdown continues in one
+background goroutine. Stop accepting work, cancel workers, wait for handlers,
+then close the pool. Returning borrowed connections is mandatory.
+
+## Source: docs/tls.md
+
+# TLS
+
+PostgreSQL TLS has two separate goals: encrypting traffic and authenticating
+the server. Production deployments normally need both.
+
+`TLSFromDSN` preserves pgx DSN behavior. Prefer `sslmode=verify-full` with an
+explicit root certificate and a hostname matching the certificate. Be cautious
+with pgx or libpq modes that permit plaintext fallback.
+
+`TLSRequire` applies a copied `*tls.Config` to the primary and every fallback
+host, eliminating plaintext fallback. Certificate pools, protocol slices, and
+certificate bytes are copied. Callback functions, private keys, session caches,
+random sources, clocks, and writers remain application-owned collaborators and
+must be safe for concurrent use. The name means TLS transport is required; the
+supplied configuration still controls authentication. Keep
+`InsecureSkipVerify=false`, populate `RootCAs`, use TLS 1.2 or newer, and set a
+valid `ServerName` when hostname inference is not appropriate.
+
+`TLSDisable` removes TLS from the primary and every fallback and is intended
+for local Testcontainers or a separately secured Unix/socket or sidecar path.
+Document the compensating control before using it outside tests.
+
+Integration evidence starts a strict `TLSRequire` client against the standard
+non-TLS Testcontainers server and proves startup fails rather than using the
+DSN's plaintext fallback. A separate wrong-password startup test proves native
+authentication SQLSTATE remains inspectable without the password appearing in
+the public error string.
+
+Certificate files are loaded by the application so secret delivery, rotation,
+permissions, and reload policy remain explicit. Never log a DSN, private key,
+client certificate secret, or full `tls.Config`.
+
+## Source: docs/transactions.md
+
+# Transactions and savepoints
+
+`RunTransaction` accepts any native pgx `BeginTx` implementation and embeds
+`pgx.TxOptions`, including isolation, access mode, and deferrability.
+
+| Dimension | Native pgx values | PostgreSQL behavior |
+| --- | --- | --- |
+| isolation | `ReadUncommitted`, `ReadCommitted`, `RepeatableRead`, `Serializable` | PostgreSQL accepts all four; read-uncommitted behavior is read committed |
+| access | `ReadWrite`, `ReadOnly` | read-only rejects writes to non-temporary tables |
+| deferrability | `NotDeferrable`, `Deferrable` | deferrable affects only serializable read-only transactions |
+
+The integration suite crosses all four isolation levels with both access modes
+and both deferrability modes on every supported PostgreSQL major. Native
+`BeginQuery` and `CommitQuery` remain advanced pgx escape hatches owned by the
+caller; this package does not rewrite them.
+
+| Path | Finalization |
+| --- | --- |
+| callback returns nil | commit once |
+| callback returns error | rollback once; join rollback failure |
+| callback panics | rollback once; re-panic original value |
+| callback terminates its goroutine | rollback once; observe `aborted` |
+| callback context canceled and returns error | rollback with a bounded context derived using `context.WithoutCancel` |
+| begin fails | callback is not invoked |
+| commit returns an error | preserve commit error; pgx defines the transaction as closed or failed |
+| commit panics | attempt bounded rollback once; re-panic original value |
+
+On callback panic or goroutine termination, rollback is still attempted once.
+A panic from cleanup cannot replace a callback error or panic, or convert
+`runtime.Goexit` into a different panic. Returned callback errors continue to
+join ordinary rollback errors so both remain inspectable. A panic raised by
+trusted native code during commit or savepoint release also triggers bounded
+rollback before the original panic propagates.
+
+The closure runs exactly once. The package never retries it because HTTP calls,
+messages, file writes, or other external effects cannot be rolled back with
+PostgreSQL. Use `IsSerializationFailure`, `IsDeadlock`, and `IsRetryable` to
+drive an application-owned retry around a closure proven to contain only safe
+effects.
+
+`RunSavepoint` calls `pgx.Tx.Begin`, which creates a pseudo-nested transaction
+using `SAVEPOINT`, `RELEASE SAVEPOINT`, and `ROLLBACK TO SAVEPOINT`.
+`RunSavepointWithOptions` adds bounded observation without changing those
+semantics. A savepoint can recover part of a transaction, but it does not
+create independent commit durability and cannot undo external effects.
+Real PostgreSQL evidence nests two levels, rolls back the inner level, releases
+the outer level, and verifies only the outer write persists with its parent
+transaction.
+
+Keep transactions short. Never wait for user input or remote services while
+holding locks. Always pass the operation context to every pgx call.
+
+## Source: docs/errors.md
+
+# SQLSTATE and error classification
+
+| Classification | SQLSTATE or Go error | Retry advice |
+| --- | --- | --- |
+| unique violation | `23505` | fix input or idempotency decision |
+| foreign-key violation | `23503` | fix ordering or input |
+| check violation | `23514` | fix input |
+| exclusion violation | `23P01` | resolve conflicting range/resource |
+| serialization failure | `40001` | may retry a side-effect-safe transaction |
+| deadlock | `40P01` | may retry; also fix lock ordering |
+| timeout | `context.DeadlineExceeded` | policy dependent |
+| cancellation | `context.Canceled` | normally do not retry blindly |
+| query canceled | `57014` | inspect operation context; may be cancellation or `statement_timeout` |
+| lock unavailable | `55P03` | inspect operation policy; may be `NOWAIT` or `lock_timeout` |
+| connectivity | SQLSTATE class `08`; `57P01`, `57P02`, `57P03`, `53300`; network errors | retry only with explicit safe-before-send evidence |
+| pool exhaustion | `ErrPoolExhausted` | shed load or fix saturation cause |
+
+`Classify` uses `errors.As` and therefore works through wrapping and joined
+errors. It returns the original error graph and native `*pgconn.PgError` rather
+than replacing either. Constraint, schema, table, column, severity, detail, and
+hint remain available.
+
+`IsRetryable` is true for serialization failures and deadlocks, or when pgx's
+`pgconn.SafeToRetry` guarantees a failure occurred before sending data. A
+generic connectivity error is not retryable because commit success may be
+unknown. Retrying a transaction still requires application proof that its
+closure has no escaped side effects.
+
+Only SQLSTATE and explicitly bounded classification fields are safe telemetry
+defaults. PostgreSQL `Message`, `Detail`, and `Hint` can contain data values.
+Constraint and table names may also reveal internal schema design; apply the
+application's disclosure policy before returning or logging them.
+
+## Source: docs/sqlc.md
+
+# sqlc integration
+
+Generated pgx/v5 code usually exposes a `DBTX` interface and
+`Queries.WithTx(pgx.Tx)`. `Pool.Raw()` satisfies generated query methods, and
+the transaction callback receives the exact native `pgx.Tx` expected by
+`WithTx`.
+
+```go
+queries := db.New(pool.Raw())
+
+err := postgres.RunTransaction(ctx, pool.Raw(), postgres.TransactionOptions{},
+    func(ctx context.Context, tx pgx.Tx) error {
+        qtx := queries.WithTx(tx)
+        account, err := qtx.LockAccount(ctx, accountID)
+        if err != nil {
+            return err
+        }
+        return qtx.UpdateBalance(ctx, db.UpdateBalanceParams{
+            ID: account.ID,
+            Balance: account.Balance + delta,
+        })
+    },
+)
+```
+
+Do not add an adapter around every generated method. Keep the generated query
+API and pgx types visible. For telemetry query names, use trusted static names
+from generated methods or caller code and configure the allow-list in
+`telemetry/instrumentation/gopostgres`; never derive metric labels from SQL,
+arguments, tenant IDs, or unbounded request input.
+
+```go
+queryCtx := gopostgres.ContextWithOperation(ctx, "accounts.lock")
+account, err := queries.LockAccount(queryCtx, accountID)
+```
+
+Only names present in the tracer's finite `Operations` allow-list are emitted;
+unknown names collapse to its fixed default.
+
+## Source: docs/observability.md
+
+# Observability and redaction
+
+`Observation` contains only fixed operation, outcome, duration, classification,
+SQLSTATE, and pool gauges. It has no field for SQL, arguments, DSNs, raw errors,
+details, hints, arbitrary labels, or query names. Observer panics are recovered
+so telemetry cannot change database behavior.
+
+Transaction outcomes are `success`, `error`, `panic`, or `aborted`. The
+`aborted` value identifies a callback that terminated its goroutine with
+`runtime.Goexit`, including test helpers such as `testing.T.FailNow`.
+
+`HasPoolStats` marks observations that carry an actual pool snapshot. Adapters
+omit connection gauges for transaction and savepoint observations rather than
+overwriting the last pool sample with zero values.
+
+`NewSlogObserver` emits bounded fields at debug level for success and error
+level for failures. It works with standard `slog` and therefore with `log`.
+Logging remains synchronous with the configured handler; use the bounded
+handler facilities in `log` if exporter latency must be isolated.
+
+`otelpostgres.New` accepts a standard OpenTelemetry `metric.MeterProvider` and
+records:
+
+- `db.client.operation.duration`
+- `db.client.operation.count`
+- `db.client.connection.count` with fixed states `acquired`, `idle`, `total`,
+  and `max`
+
+For query spans, configure
+`telemetry/instrumentation/gopostgres.Tracer` through `Config.Configure`:
+
+```go
+tracer, _ := gopostgres.New(gopostgres.Config{
+    TracerProvider: runtime.TracerProvider(),
+    MeterProvider: runtime.MeterProvider(),
+    Operations: []string{"users.by_id", "jobs.claim"},
+})
+
+config.Configure = func(native *pgxpool.Config) error {
+    native.ConnConfig.Tracer = tracer
+    return nil
+}
+
+queryCtx := gopostgres.ContextWithOperation(ctx, "users.by_id")
+user, err := queries.UserByID(queryCtx, userID)
+```
+
+The adapter uses an allow-list and collapses unknown names. It records no SQL,
+arguments, or raw database error text. Keep operation sets finite and static.
+The independently version-aligned `gopostgres` package test is part of the
+compatibility audit; it remains optional and is not pulled into this module's
+dependency graph.
+
+## Source: docs/migrations.md
+
+# migrations integration
+
+`postgres` does not run migrations during service startup. Schema changes
+have different locking, permissions, rollout, and failure semantics from
+ordinary application traffic and should be executed as an explicit deployment
+step or Kubernetes Job.
+
+Use the executable [`migrations` example](../examples/migrations/) with its
+`database/sql` PostgreSQL adapter and the same secret source as the service.
+It constructs the owned `postgres` pool, exposes it through pgx's standard
+library bridge, and applies embedded migrations from a dedicated process.
+Give the migration identity only the DDL permissions it needs. Application
+roles should normally have narrower DML permissions.
+
+Recommended deployment order:
+
+1. run backward-compatible expand migrations;
+2. deploy code that can use old and new schema forms;
+3. backfill with bounded batches and observable progress;
+4. switch reads/writes;
+5. run contract migrations only after old code cannot return.
+
+The [Kubernetes migration Job](../examples/kubernetes/migration-job.yaml) runs
+that dedicated command with a secret reference, deadline, and no automatic retry.
+Tune retry policy to the migration tool's advisory-lock and idempotency
+contracts.
+
+## Source: docs/testing.md
+
+# Testing with Testcontainers
+
+Use `postgrestest` when behavior depends on SQLSTATE, isolation, locking,
+constraints, cancellation, session state, pool saturation, or connection loss.
+A fake is not equivalent evidence.
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+defer cancel()
+
+database, err := postgrestest.Start(ctx, postgrestest.Config{
+    Image: "postgres:18-alpine",
+    Setup: func(ctx context.Context, dsn string) error {
+        pool, err := pgxpool.New(ctx, dsn)
+        if err != nil {
+            return err
+        }
+        defer pool.Close()
+        _, err = pool.Exec(ctx, schemaSQL)
+        return err
+    },
+})
+if err != nil {
+    t.Fatal(err)
+}
+t.Cleanup(func() { _ = database.Close(context.Background()) })
+```
+
+The repository integration suite selects its image with `POSTGRES_VERSION` and
+CI runs 14 through 18. Keep tests deterministic: use isolated tables or
+databases, explicit timeouts, channel synchronization for contention, and
+server-side primitives rather than arbitrary sleeps where possible.
+
+The same matrix verifies every pgx isolation/access/deferrability combination,
+native connection-hook failures, false-with-nil rejection, replacement, and
+panic propagation, canceled-waiter cleanup, strict TLS refusal, authentication
+redaction, commit-panic cleanup, and stop/restart recovery.
+
+`CleanupTimeout` bounds container termination even after the setup context is
+canceled. Setup errors, panics, and `testing.T.FailNow` clean up the owned
+container; the original setup error or panic is preserved even if termination
+also panics. A failed `Close` may be retried; successful cleanup is idempotent. Set
+`HostPort` only when a stop/start test requires a stable loopback endpoint, and
+ensure the selected port is isolated from concurrent jobs.
+
+## Transaction isolation helper
+
+`postgrestest.RunIsolated` begins a real pgx transaction, invokes the callback
+once, and always rolls back with a fresh five-second cleanup context. Callback
+and rollback failures are joined, while a panic is rolled back before the
+original value is re-panicked. A callback that calls `testing.T.FailNow` also
+rolls back before its goroutine terminates. A cleanup panic cannot replace a
+returned callback error or either terminal callback path. With no earlier
+callback cause, the cleanup panic propagates rather than returning success:
+
+```go
+err := postgrestest.RunIsolated(ctx, pool.Raw(), func(ctx context.Context, tx pgx.Tx) error {
+    queries := sqlcgen.New(tx)
+    return queries.CreateWidget(ctx, sqlcgen.CreateWidgetParams{
+        ID:   1,
+        Name: "isolated",
+    })
+})
+```
+
+Use it only when the code under test remains on the supplied transaction. It
+cannot isolate code that commits, opens another connection, uses
+non-transactional DDL, or produces process-external side effects.
+
+Transaction-isolated tests are appropriate only when code does not commit,
+open additional connections, use non-transactional DDL, or depend on session
+state outside the test transaction. Otherwise create isolated schema/database
+fixtures and clean them explicitly.
+
+## Source: docs/kubernetes.md
+
+# Kubernetes deployment
+
+## Service lifecycle
+
+Use `StartupPing` so startup fails before the Pod becomes ready. A readiness
+probe should call `Pool.Readiness` with a strict sub-second or low-second
+deadline appropriate to the cluster. Liveness should call `Pool.Liveness` and
+must not restart a healthy process merely because PostgreSQL is temporarily
+unavailable.
+
+Set `terminationGracePeriodSeconds` longer than the application's handler and
+worker drain plus `ShutdownTimeout`. On `SIGTERM`, stop listeners and consumers,
+cancel work, wait for owned goroutines, then close the pool. A timed-out close
+indicates borrowed connections still exist; log bounded pool stats and allow
+the grace period to finish.
+
+## Connections
+
+Calculate `MaxConns * maximum replicas` against the PostgreSQL connection
+budget, including rollout surge. Horizontal scaling multiplies connections.
+Keep administrative, migration, monitoring, and failover headroom. A pooler
+such as PgBouncer changes session-state and prepared-statement assumptions;
+test the deployed mode explicitly.
+
+## Probes and disruption
+
+Readiness failure should remove a Pod from traffic without killing it.
+Configure PodDisruptionBudgets and rollout surge so PostgreSQL is not flooded
+by simultaneous cold pools. Lifetime jitter prevents synchronized connection
+recycling.
+
+Run migrations as the dedicated Job in
+[`examples/kubernetes/migration-job.yaml`](../examples/kubernetes/migration-job.yaml),
+not in every application replica.
+
+## Source: docs/faq.md
+
+# Operational FAQ
+
+## The pool is saturated
+
+Check acquired versus maximum connections, empty-acquire count and wait time,
+query latency, transaction age, and leaked `Acquire` calls. Shed load or bound
+worker concurrency before increasing connections. Increasing every replica can
+move saturation into PostgreSQL.
+
+## Connections appear leaked
+
+Every successful `Pool.Acquire` requires `Release`, normally with an immediate
+defer. Every native transaction requires commit or rollback; prefer
+`RunTransaction`. During shutdown, `ErrShutdownTimeout` means native close is
+still waiting for borrowed connections.
+
+## Failover causes bursts of errors
+
+Expect connectivity or shutdown SQLSTATEs while DNS, routing, primaries, and
+connections change. Use bounded exponential backoff at the operation boundary,
+honor cancellation, and retry only idempotent or otherwise safe work. Do not
+hide failover inside arbitrary transaction closures.
+
+## Deadlocks occur
+
+PostgreSQL aborts one participant with `40P01`. Retry only a safe complete
+transaction and make lock ordering consistent. Keep transactions short and
+inspect the server deadlock log.
+
+## Serialization failures occur
+
+`40001` is expected under serializable conflicts. Retry the entire transaction
+from a fresh snapshot only when all enclosed effects are safe to repeat.
+
+## Queries are slow
+
+Name operations with a finite allow-list, inspect server execution plans and
+wait events, and apply caller/statement deadlines. Never enable raw SQL or
+argument telemetry as a shortcut; it creates data leakage and cardinality risk.
+
+## Readiness fails but liveness succeeds
+
+That is intentional: the process is alive but cannot currently prove database
+readiness. Removing it from traffic is usually safer than restart loops.
+
+## A pool hook or tracer panicked
+
+Hooks and tracers are trusted application code. pgx may invoke them on the
+caller or a pool-owned goroutine, so a panic can terminate the process. Return
+an error for expected connection rejection, keep hooks bounded, and test custom
+hook composition against a real pool. Transaction helpers attempt bounded
+rollback if trusted tracing code panics during commit or savepoint release, but
+the original panic still propagates.
+
+## TLS-required startup fails
+
+Confirm the server actually accepts TLS, the copied root pool trusts its
+certificate, and `ServerName` matches its identity. `TLSRequire` intentionally
+does not fall back to plaintext. Authentication and TLS failures are separate;
+do not weaken certificate verification to diagnose a password or role problem.
+
+## Source: docs/compatibility.md
+
+# Compatibility matrix
+
+| Component | Supported | Verification |
+| --- | --- | --- |
+| Go | 1.25, 1.26 | unit matrix on Linux, macOS, Windows; race on Linux |
+| pgx | 5.10.x | pinned module build, tests, API review |
+| PostgreSQL | 14, 15, 16, 17, 18 | Testcontainers matrix covering failure semantics and every transaction-mode combination |
+| OpenTelemetry Go | 1.44.x | `otelpostgres` unit tests |
+| Testcontainers Go | 0.43.x | integration and lifecycle tests |
+| telemetry `gopostgres` | aligned pgx 5.10.x / OTel 1.44.x | independent query-tracer package test |
+
+The PostgreSQL range follows the upstream pgx policy at the time of the first
+release. Changing the minimum or maximum supported major requires a changelog
+entry, compatibility documentation, matrix update, real integration run, and
+review of SQLSTATE/session behavior.
+
+Changing pgx minor versions requires reviewing release notes and public
+interfaces, then running `make check` and every PostgreSQL major job. The
+module exposes native pgx types, so upstream additions are available directly;
+upstream removals or behavioral changes may still require a major release here.
+The current pgx hook audit covers `BeforeConnect`, `AfterConnect`,
+`PrepareConn`, and `AfterRelease`; other hooks retain native pgx ownership.
+
+Only PostgreSQL is supported. CockroachDB, YugabyteDB, proxies, and poolers may
+implement overlapping protocols but require their own explicit evidence and
+are not implied by this matrix.
+
+## Source: docs/migration.md
+
+# Migration from direct pgx and database/sql
+
+## From direct pgxpool wiring
+
+1. Keep existing SQL and generated queries unchanged.
+2. Translate pool sizes, lifetimes, and hooks into `Config`; compare every old
+   default because this module deliberately uses finite explicit values.
+3. Replace pool construction with `New` and pass `pool.Raw()` to existing code.
+4. Replace manual begin/defer rollback patterns with `RunTransaction` where its
+   exactly-once callback contract fits.
+5. Replace string matching with `Classify` and SQLSTATE predicates.
+6. Add readiness, bounded shutdown, and observation adapters.
+7. Run real database contention, cancellation, and failure tests before rollout.
+
+## From database/sql
+
+Generated and handwritten code must move to pgx/v5 types, including `pgx.Rows`,
+`pgx.Row`, `pgconn.CommandTag`, codecs, batches, and copy APIs. Audit null,
+timestamp, numeric, array, JSON, and custom type semantics. `database/sql`
+connection lifetime and transaction behavior are similar concepts but not
+identical contracts.
+
+Roll out behind normal service canaries. Compare connection counts, acquisition
+wait, error categories, transaction latency, and query results. Do not run two
+large pools per replica longer than needed during migration.
+
+## Source: docs/security.md
+
+# Security and threat model
+
+## Assets
+
+- PostgreSQL credentials, client keys, certificates, DSNs, and network routes
+- SQL arguments and rows, including tenant and personal data
+- database availability, connection budget, locks, and transaction integrity
+- schema names and server diagnostics
+
+## Threats and controls
+
+| Threat | Control | Application responsibility |
+| --- | --- | --- |
+| DSN disclosure | validation/startup strings omit DSNs; fuzz regression | do not log input config or unwrapped errors blindly |
+| TLS downgrade or impersonation | typed all-host TLS override; TLS guide | verified roots, names, secret rotation, network policy |
+| pool exhaustion | finite maximum and acquisition timeout; stats | concurrency limits, capacity budget, leak prevention |
+| cancellation loss | caller contexts propagated; uncanceled rollback only | set request/job and statement deadlines |
+| partial transaction cleanup | one commit or rollback path; joined errors | avoid external side effects or own retry/idempotency |
+| telemetry data leak | bounded event schema; no SQL/arguments/raw errors | safe exporters, allow-listed query names |
+| cardinality attack | fixed operation/outcome/kind/state values | never add tenant/input labels in adapters |
+| malformed DSN crash | panic containment plus fuzz corpus | treat config as untrusted deployment input |
+| unsafe runtime feature | GO-SAFETY-1 scan forbids unsafe/cgo/linkname | review dependencies and vulnerability reports |
+
+`ErrorInfo.Detail` and `Hint` intentionally preserve native diagnostic data for
+authorized application policy, but are not safe log fields. `Config.Configure`
+is a trusted extension boundary and can weaken TLS, remove timeouts, install
+unsafe tracers, or add hooks; review it as production code.
+
+Typed TLS overrides copy certificate pools, protocol slices, and certificate
+bytes. Callback functions, private keys, session caches, randomness, clocks,
+and writers remain application-owned and must be safe for concurrent use.
+
+Native hook and tracer panics are not converted into ordinary database errors.
+Treat hooks as trusted process code, keep them bounded, and return errors for
+expected connection rejection. This package installs no query tracer itself,
+so duplicate tracer installation is controlled entirely by the application's
+single `Config.Configure` composition point.
+
+No package can make an arbitrary transaction closure safe to retry. Network
+calls and emitted messages may escape PostgreSQL rollback. The module exposes
+classification only and leaves execution policy to the application.
+
+## Source: docs/hardening.md
+
+# Hardening evidence
+
+This report maps production risks to executable evidence. Hosted workflow
+status for a release must be checked on the exact tagged commit; local results
+alone are not a release verdict.
+
+| ID | Risk | Evidence | Disposition |
+| --- | --- | --- | --- |
+| GP-001 | DSN parser panic | fuzz corpus `e756db0e3795a10e`, `FuzzParseConfig` | contained with secret-safe error |
+| GP-002 | DSN/password disclosure | config and startup tests, safe error types | resolved |
+| GP-003 | plaintext TLS fallback | typed TLS primary/fallback tests | resolved when adopter selects strict policy |
+| GP-004 | unbounded connection wait | unit and saturation integration tests | resolved |
+| GP-005 | shutdown waits forever | canceled close and borrowed-connection tests | resolved for caller wait; native cleanup continues |
+| GP-006 | transaction not finalized | success/error/panic/cancel/Goexit/commit-panic/nested-savepoint and network-loss integration tests | resolved |
+| GP-007 | rollback failure hidden | joined errors plus cleanup-error and cleanup-panic returned/terminal-path tests | resolved |
+| GP-008 | unsafe automatic retry | transaction callback runs once; connectivity requires `pgconn.SafeToRetry` evidence | resolved |
+| GP-009 | SQLSTATE flattened | wrapped/joined metadata, live constraints, and ambiguous timeout-state tests | resolved |
+| GP-010 | telemetry leaks SQL/data | bounded slog/OTel tests plus independently verified allow-listed query tracer | resolved |
+| GP-011 | lock/failure behavior assumed | live lock/statement/idle timeouts, deadlock, serialization, cancellation, transaction loss, stop/restart | resolved |
+| GP-012 | connection/goroutine leak | stats stress test and goleak test | resolved |
+| GP-013 | version claim untested | PostgreSQL 14-18 and Go/OS workflow matrices | resolved for v1.0.0; reverify per release |
+| GP-014 | coverage gaming | `coverpkg=./...` plus real PostgreSQL exact 100% gate | resolved locally |
+| GP-015 | unsafe/cgo/linkname | GO-SAFETY-1 script and CI | resolved locally |
+| GP-016 | test container leak | bounded startup/setup error, panic, and Goexit cleanup; cleanup-panic cause preservation; retryable termination tests | resolved |
+| GP-017 | missing adoption proof | executable sqlc, migration, service, and worker examples | resolved |
+| GP-018 | transaction modes assumed | 4 isolation x 2 access x 2 deferrability integration matrix | resolved |
+| GP-019 | native hook lifecycle unclear | live hook failure, false-with-nil rejection, replacement, and subprocess panic-contract tests | resolved |
+| GP-020 | DSN or startup edge unproven | URL/keyword/IPv6/socket/multi-host plus auth-redaction and strict-TLS tests | resolved |
+| GP-021 | wrong server or stale endpoint hangs startup | bounded wrong-protocol and stable-endpoint restart tests | resolved |
+| GP-022 | helper overhead unmeasured | allocation benchmarks plus dated local baseline and CI artifact | resolved |
+
+Local evidence includes unit, integration, race, exact coverage, fuzz, benchmark,
+vet, golangci-lint, actionlint, documentation, and vulnerability gates. For
+`v1.0.0`, CI run `29465670430`, PostgreSQL integration run `29465670419`,
+Security run `29465670424`, and Release run `29465832005` passed on commit
+`709e7101c3955b230c2dcf8f7299dd1893ea6f79`; the release workflow covered every
+supported PostgreSQL major. Each later release still requires fresh hosted
+evidence on its exact tagged commit.
+
+Trusted boundaries that remain intentionally application-owned include SQL and
+argument policy, hook behavior, TLS roots and identities, role permissions,
+query/statement deadlines, migration ordering, exporter availability, retry
+idempotency, and external side effects.
+
+## Current local hardening audit
+
+On 2026-07-16, the final source state passed the following independent local
+proof on Darwin/arm64 with Docker Desktop:
+
+- `GOTOOLCHAIN=go1.25.11 go test ./... -count=1`
+- `GOTOOLCHAIN=go1.26.5 go test ./... -count=1`
+- `POSTGRES_VERSION=<14|15|16|17|18> go test -tags=integration -count=1 ./...`
+- `POSTGRES_VERSION=18 go test -race -tags=integration -count=1 ./...`
+- `make check POSTGRES_VERSION=18`, including format, safety, vet, lint, unit
+  race, every fuzz target, exact 100% production coverage, allocation and live
+  PostgreSQL benchmarks, generated documentation, examples, and vulnerability
+  scanning
+- `actionlint`
+- root and migration-example `go mod tidy -diff`
+- the independent `telemetry/instrumentation/gopostgres` package test
+
+The code-level hardening verdict is ready for production adoption within the
+documented ownership boundaries. This is not a deployment-specific verdict:
+adopters still need verified certificates and identities, least-privilege
+roles, workload-specific pool and timeout budgets, migration rehearsal,
+capacity and failure injection in their topology, and exporter and retry policy
+validation. The CI workflows encode the same multi-version, race, coverage,
+safety, documentation, and vulnerability gates; `actionlint` validates their
+structure, while hosted execution remains external evidence for the exact
+source revision under consideration.
+
+## Source: docs/performance.md
+
+# Performance
+
+Benchmarks report allocations for configuration parsing, classification, pool
+construction, acquisition wrapper overhead, transaction runner overhead,
+observer dispatch, the OpenTelemetry adapter, real pooled acquire, and real
+transaction round trips:
+
+```sh
+make benchmark BENCH_TIME=100ms
+```
+
+Results are environment-specific evidence, not service-level objectives. The
+wrapper overhead benchmark uses a deterministic backend to isolate package
+cost; integration benchmarks include PostgreSQL and container/network cost.
+
+Reference allocation snapshot from 2026-07-16 on Go 1.26.5, darwin/arm64,
+Apple M4 Max:
+
+| Benchmark | Bytes/op | Allocs/op |
+| --- | ---: | ---: |
+| parse config | 7,268 | 55 |
+| classify error | 8 | 1 |
+| pool acquire wrapper | 272 | 4 |
+| pool construction | 8,765 | 80 |
+| observer dispatch | 0 | 0 |
+| transaction runner | 0 | 0 |
+| OpenTelemetry observer | 1,240 | 21 |
+| real PostgreSQL pool acquire | 480 | 7 |
+| real PostgreSQL transaction | 1,048 | 8 |
+
+Use the benchmark artifact produced by CI for comparisons on its stable runner;
+rerun the complete command before treating a local difference as a regression.
+
+Optimize only after measuring the deployed workload. Connection establishment,
+TLS, server execution, locks, rows, codecs, and exporter work normally dominate
+these helpers. Keep telemetry labels bounded, avoid unnecessary parsing on hot
+paths, reuse the pool, and do not trade cancellation or cleanup safety for a
+microbenchmark improvement.
+
+## Source: docs/releasing.md
+
+# Release process
+
+1. Confirm the intended SemVer and update `CHANGELOG.md` with a dated version.
+2. Review public API, pgx release notes, supported Go/PostgreSQL matrix,
+   security findings, and migration guidance.
+3. Run `make check`, `go mod tidy -diff`, `git diff --check`, and actionlint.
+4. Push the release commit and verify every CI, integration, Security, fuzz,
+   benchmark, and compatibility job on that exact SHA with no required skip.
+5. Create a signed or protected `vMAJOR.MINOR.PATCH` tag on a commit reachable
+   from `main`.
+6. Let the release workflow re-run gates, build a deterministic source archive,
+   publish checksums, and create release notes from the changelog.
+
+Never move or force-update a published tag. A pgx or PostgreSQL support change
+requires explicit compatibility evidence before release.
+
+## Source: docs/repository-standards.md
+
+# Repository standards
+
+- `make safety`, `make integration`, and `make check` match maintained CI gates.
+- Production Go source satisfies GO-SAFETY-1: no `unsafe`, cgo, or
+  `go:linkname`.
+- Exact coverage instruments every module package and includes real PostgreSQL.
+- Behavioral changes use red-green-refactor; database semantic claims use
+  integration tests.
+- Fuzz regressions remain checked into `testdata/fuzz`.
+- Documentation, generated `llms.txt` bundles, changelog, compatibility, and
+  security evidence change with public behavior.
+- Commits are Conventional Commits with an explanatory body.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+Contributions should preserve the package boundary: PostgreSQL and pgx focused,
+transparent, finite, cancellation-aware, and free of ORM, repository, query
+builder, or automatic migration behavior.
+
+Behavioral changes require a failing regression first. PostgreSQL semantic
+claims require integration evidence rather than mocks alone. Run:
+
+```sh
+make safety
+make integration POSTGRES_VERSION=18
+make check
+```
+
+Commit messages use Conventional Commits with a body explaining why. Public
+API changes require compatibility, documentation, changelog, and supported
+pgx/PostgreSQL matrix review.
+
+## Source: SECURITY.md
+
+# Security policy
+
+## Supported versions
+
+| Release line | Status | End of support |
+| --- | --- | --- |
+| 1.0.x | Supported | Not scheduled |
+| < 1.0.0 | Unsupported | 2026-07-16 |
+
+Security fixes are applied to the latest patch release in each supported line.
+An advisory will identify affected versions and any change to this support
+window. The `main` branch is development state, not a supported release.
+
+## Reporting a vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, affected version, impact, and mitigation. Do not include
+production DSNs, credentials, query arguments, customer data, or certificates.
+
+## Security boundary
+
+DSNs, certificates, hooks, SQL, arguments, PostgreSQL errors, and telemetry
+exporters cross trust boundaries. The package prevents its own validation and
+startup errors from echoing DSNs, never emits SQL or arguments through its
+observation API, and treats server `Detail` and `Hint` fields as sensitive.
+
+Applications remain responsible for secret storage, certificate issuance,
+network policy, PostgreSQL roles, row-level security, statement policy,
+migrations, backups, authentication, authorization, and workload deadlines.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for the threat model and evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+## Delivered in v1.0.0
+
+- PostgreSQL 14-18 hosted integration evidence
+- exact meaningful production coverage and green release gates
+- API, security, operational, adoption, and compatibility review
+- stable API publication after hosted CI confirmed the tagged commit
+
+## After v1
+
+Future work may add narrowly scoped pgx hooks or observability instruments.
+The project will not become an ORM, query builder, migration engine, repository
+generator, transparent retry executor, or generic database abstraction.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes are documented here. The project follows Semantic
+Versioning and keeps an Unreleased section until a release is tagged.
+
+## [Unreleased]
+
+### Added
+
+- `postgrestest.RunIsolated` for bounded always-rollback integration tests
+  that preserve callback errors and panic values
+- pinned fail-closed API compatibility checks against a committed stable v1
+  module baseline
+
+### Changed
+
+- hardening documentation now records the exact hosted `v1.0.0` release proof
+- security support and roadmap documentation now reflect the stable release
+- hardening evidence now covers the full transaction-mode matrix, representative
+  DSN forms, native pool hooks, authentication redaction, and strict TLS refusal
+- nested savepoint evidence now proves inner rollback and outer persistence
+- startup evidence now covers wrong-protocol endpoints and explicit native DNS
+  ownership alongside stable-endpoint recovery
+- performance documentation now records a dated allocation baseline for every
+  required helper and real-PostgreSQL benchmark
+- API compatibility checks now use the repository-pinned current `apidiff`
+  revision
+
+### Fixed
+
+- transaction, savepoint, and isolated-test callbacks that terminate their
+  goroutine now roll back exactly once; observed operations report `aborted`
+- rollback panics can no longer replace a callback panic or convert
+  `runtime.Goexit` into a different terminal failure
+- commit and savepoint-release panics now attempt bounded rollback before the
+  original panic propagates, preventing stranded pooled transactions
+- rollback panics can no longer replace returned transaction or isolation
+  callback errors
+- panicking Testcontainers setup hooks now clean up the owned container before
+  preserving the original panic, including when termination also panics
+- Testcontainers cleanup panics can no longer replace a returned setup error
+- Testcontainers termination panics can no longer replace connection-string
+  startup failures
+- Testcontainers setup hooks that call `testing.T.FailNow` now clean up the
+  owned container before terminating the test goroutine
+- typed TLS overrides copy certificate pools and mutable protocol and
+  certificate data before pool construction
+- successful isolated callbacks no longer hide a rollback panic as success
+- `golang.org/x/text` now uses the latest fixed release, removing
+  `GO-2026-5970` from reachable pgx pool construction paths
+
+## [1.0.0] - 2026-07-16
+
+### Added
+
+- finite typed pgxpool configuration with secret-safe validation and panic
+  containment for malformed DSNs
+- fail-fast or lazy startup, bounded acquire, health, statistics, liveness, and
+  shutdown operations with direct native pool access
+- context-aware transaction and savepoint runners with panic-safe rollback and
+  preserved callback, commit, and rollback errors
+- SQLSTATE, constraint, cancellation, timeout, connectivity, saturation, and
+  retry-advisory classification without flattening original errors
+- bounded lifecycle observations, safe `slog`, and optional OpenTelemetry
+  metrics that omit SQL, arguments, DSNs, and raw database errors
+- Testcontainers support plus PostgreSQL 14-18 integration evidence for
+  contention, deadlock, serialization, cancellation, server timeouts,
+  constraints, transaction loss, stop/restart, saturation, shutdown, and cleanup
+- executable sqlc, migrations, service, and worker adoption examples
+- exact production coverage, race, leak, fuzz, benchmark, safety, lint,
+  vulnerability, documentation, compatibility, and release automation
+
+[Unreleased]: https://github.com/faustbrian/golib/pkg/postgres/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/faustbrian/golib/pkg/postgres/releases/tag/v1.0.0

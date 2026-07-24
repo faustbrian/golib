@@ -1,0 +1,78 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - bidichk
+    - copyloopvar
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gocritic
+    - godot
+    - gosec
+    - govet
+    - ineffassign
+    - intrange
+    - makezero
+    - misspell
+    - modernize
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
+    - prealloc
+    - reassign
+    - revive
+    - sloglint
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    exhaustive:
+      default-signifies-exhaustive: true
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    generated: strict
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      - path: '_test\.go'
+        linters:
+          - gosec
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,11 @@
+unleash:
+  workers: 2
+  test-cpu: 2
+  timeout-coefficient: 10
+  threshold:
+    efficacy: 99.9
+    mutant-coverage: 98.5
+  exclude-files:
+    - ^clitest/
+    - ^cmd/
+    - ^internal/referenceapp/

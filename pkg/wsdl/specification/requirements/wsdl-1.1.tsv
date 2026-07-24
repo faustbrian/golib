@@ -1,0 +1,11 @@
+id	requirement	normative_source	status	evidence
+WSDL11-CORE-001	Core definitions messages portTypes operations bindings services and imports	WSDL 1.1 sections 2.1-2.7	implemented	parse11_test.go;serialize_test.go
+WSDL11-CORE-002	One-way request-response solicit-response and notification ordering	WSDL 1.1 sections 2.4.1-2.4.4	implemented	parse11_test.go;validate_test.go
+WSDL11-CORE-003	QName resolution NCName checking and duplicate symbol rejection	WSDL 1.1 sections 2.1.1 and 2.5	implemented	parse_test.go;parse11_test.go
+WSDL11-XSD-001	Embedded XML Schema parsing and compiled reference checking	WSDL 1.1 section 2.2	implemented	parse11_test.go;compile/compile_test.go
+WSDL11-SOAP-001	SOAP 1.1 and SOAP 1.2 bindings bodies headers faults and addresses	WSDL 1.1 section 3; WSDL SOAP 1.2 binding	implemented	soap_test.go;validate_test.go
+WSDL11-HTTP-001	HTTP binding verbs operations serialization and addresses	WSDL 1.1 section 4	implemented	parse11_test.go;validate_test.go
+WSDL11-MIME-001	MIME content XML and multipart binding models	WSDL 1.1 section 5	implemented	parse11_test.go;validate_test.go
+WSDL11-EXT-001	Foreign attributes elements documentation and required extensions	WSDL 1.1 sections 2.1.3 and 2.1.4	implemented	extensions_test.go;validate_test.go
+WSDL11-RESOLVE-001	Explicit bounded import resolution with no implicit I/O	WSDL 1.1 section 2.1.1	implemented	resolve/resolve_test.go;compile/compile_test.go
+WSDL11-INTEROP-001	Carrier SoapUI .NET and Java fixture corpus	Project acceptance criteria	implemented	interop_test.go;testdata/interoperability;specification/interoperability.tsv;docs/interoperability.md

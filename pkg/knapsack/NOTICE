@@ -1,0 +1,16 @@
+knapsack
+Copyright 2026 Brian Faust
+
+This product includes software developed by the knapsack contributors.
+
+The converted benchmark record in
+solver/testdata/corpus/dwave-sample-data-1.json derives from D-Wave Systems
+Inc.'s 3d-bin-packing sample_data_1 fixture at the pinned revision recorded in
+specification/corpora.tsv. The source is licensed under Apache-2.0; a copy is
+provided in third_party/licenses/dwave-3d-bin-packing-Apache-2.0.txt. The JSON
+fixture changes the source table into the package corpus schema.
+
+integration/boxpacker/compare.php interoperates with dvdoug/BoxPacker 4.2.0
+(commit 4fa822e71109095212a499572822c07bdb7228eb), distributed under the MIT
+License. Composer also installs psr/log 3.0.2 under the MIT License. Neither
+dependency is copied into the knapsack module or linked into core Go code.

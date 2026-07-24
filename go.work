@@ -1,0 +1,248 @@
+go 1.26.5
+
+use (
+	.
+	./pkg/analysis
+	./pkg/api-query
+	./pkg/authentication
+	./pkg/authentication/authotel
+	./pkg/authentication/jwt
+	./pkg/authentication/oidc
+	./pkg/authorization
+	./pkg/authorization/integration/contracts
+	./pkg/barcode
+	./pkg/cache
+	./pkg/calendar
+	./pkg/circuit-breaker
+	./pkg/circuit-breaker/integration/consumers
+	./pkg/cli
+	./pkg/cli/benchmarks
+	./pkg/clock
+	./pkg/config
+	./pkg/correlation
+	./pkg/correlation/integration/siblings
+	./pkg/ecma-regexp
+	./pkg/feature-flags
+	./pkg/filesystem
+	./pkg/geo
+	./pkg/http-client
+	./pkg/http-middleware
+	./pkg/http-middleware/integration/siblings
+	./pkg/idempotency
+	./pkg/idempotency/compatibility/ecosystem
+	./pkg/identifier
+	./pkg/international
+	./pkg/json-schema
+	./pkg/json-schema/benchmarks/comparison
+	./pkg/jsonapi
+	./pkg/jsonrpc
+	./pkg/keyphrase
+	./pkg/knapsack
+	./pkg/knapsack/integration/references
+	./pkg/knapsack/objective/gomoney
+	./pkg/lease
+	./pkg/localized
+	./pkg/log
+	./pkg/math
+	./pkg/measurement
+	./pkg/migrations
+	./pkg/money
+	./pkg/openapi
+	./pkg/openapi/interoperability
+	./pkg/opening-hours
+	./pkg/openrpc
+	./pkg/outbox
+	./pkg/outbox/adapters/goqueue
+	./pkg/outbox/adapters/gotelemetry
+	./pkg/password
+	./pkg/postgres
+	./pkg/postgres/examples/migrations
+	./pkg/prompts
+	./pkg/prompts/benchmarks/comparison
+	./pkg/queue
+	./pkg/queue-control-plane
+	./pkg/rate-limit
+	./pkg/retry
+	./pkg/router
+	./pkg/rule-engine
+	./pkg/rule-engine/adapters/gomath
+	./pkg/rule-engine/adapters/gomeasurement
+	./pkg/rule-engine/adapters/gotemporal
+	./pkg/rule-engine/benchmarks/competitors
+	./pkg/scheduler
+	./pkg/sequencer
+	./pkg/service
+	./pkg/service/compatibility
+	./pkg/settings
+	./pkg/state-machine
+	./pkg/tabular
+	./pkg/telemetry
+	./pkg/temporal
+	./pkg/validation
+	./pkg/webhook
+	./pkg/wire
+	./pkg/wsdl
+	./pkg/xsd
+)
+
+replace github.com/faustbrian/golib/pkg/analysis v0.1.0 => ./pkg/analysis
+
+replace github.com/faustbrian/golib/pkg/api-query v0.1.0 => ./pkg/api-query
+
+replace github.com/faustbrian/golib/pkg/authentication/authotel v0.1.0 => ./pkg/authentication/authotel
+
+replace github.com/faustbrian/golib/pkg/authentication v0.1.0 => ./pkg/authentication
+
+replace github.com/faustbrian/golib/pkg/authentication/jwt v0.1.0 => ./pkg/authentication/jwt
+
+replace github.com/faustbrian/golib/pkg/authentication/oidc v0.1.0 => ./pkg/authentication/oidc
+
+replace github.com/faustbrian/golib/pkg/authorization v0.1.0 => ./pkg/authorization
+
+replace github.com/faustbrian/golib/pkg/authorization/integration/contracts v0.1.0 => ./pkg/authorization/integration/contracts
+
+replace github.com/faustbrian/golib/pkg/barcode v0.1.0 => ./pkg/barcode
+
+replace github.com/faustbrian/golib/pkg/cache v0.1.0 => ./pkg/cache
+
+replace github.com/faustbrian/golib/pkg/calendar v0.1.0 => ./pkg/calendar
+
+replace github.com/faustbrian/golib/pkg/circuit-breaker v0.1.0 => ./pkg/circuit-breaker
+
+replace github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers v0.1.0 => ./pkg/circuit-breaker/integration/consumers
+
+replace github.com/faustbrian/golib/pkg/cli/benchmarks v0.1.0 => ./pkg/cli/benchmarks
+
+replace github.com/faustbrian/golib/pkg/cli v0.1.0 => ./pkg/cli
+
+replace github.com/faustbrian/golib/pkg/clock v0.1.0 => ./pkg/clock
+
+replace github.com/faustbrian/golib/pkg/config v0.1.0 => ./pkg/config
+
+replace github.com/faustbrian/golib/pkg/correlation v0.1.0 => ./pkg/correlation
+
+replace github.com/faustbrian/golib/pkg/correlation/integration/siblings v0.1.0 => ./pkg/correlation/integration/siblings
+
+replace github.com/faustbrian/golib/pkg/ecma-regexp v0.1.0 => ./pkg/ecma-regexp
+
+replace github.com/faustbrian/golib/pkg/feature-flags v0.1.0 => ./pkg/feature-flags
+
+replace github.com/faustbrian/golib/pkg/filesystem v0.1.0 => ./pkg/filesystem
+
+replace github.com/faustbrian/golib/pkg/geo v0.1.0 => ./pkg/geo
+
+replace github.com/faustbrian/golib/pkg/http-client v0.1.0 => ./pkg/http-client
+
+replace github.com/faustbrian/golib/pkg/http-middleware v0.1.0 => ./pkg/http-middleware
+
+replace github.com/faustbrian/golib/pkg/http-middleware/integration/siblings v0.1.0 => ./pkg/http-middleware/integration/siblings
+
+replace github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem v0.1.0 => ./pkg/idempotency/compatibility/ecosystem
+
+replace github.com/faustbrian/golib/pkg/idempotency v0.1.0 => ./pkg/idempotency
+
+replace github.com/faustbrian/golib/pkg/identifier v0.1.0 => ./pkg/identifier
+
+replace github.com/faustbrian/golib/pkg/international v0.1.0 => ./pkg/international
+
+replace github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison v0.1.0 => ./pkg/json-schema/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/json-schema v0.1.0 => ./pkg/json-schema
+
+replace github.com/faustbrian/golib/pkg/jsonapi v0.1.0 => ./pkg/jsonapi
+
+replace github.com/faustbrian/golib/pkg/jsonrpc v0.1.0 => ./pkg/jsonrpc
+
+replace github.com/faustbrian/golib/pkg/keyphrase v0.1.0 => ./pkg/keyphrase
+
+replace github.com/faustbrian/golib/pkg/knapsack v0.1.0 => ./pkg/knapsack
+
+replace github.com/faustbrian/golib/pkg/knapsack/integration/references v0.1.0 => ./pkg/knapsack/integration/references
+
+replace github.com/faustbrian/golib/pkg/knapsack/objective/gomoney v0.1.0 => ./pkg/knapsack/objective/gomoney
+
+replace github.com/faustbrian/golib/pkg/lease v0.1.0 => ./pkg/lease
+
+replace github.com/faustbrian/golib/pkg/localized v0.1.0 => ./pkg/localized
+
+replace github.com/faustbrian/golib/pkg/log v0.1.0 => ./pkg/log
+
+replace github.com/faustbrian/golib/pkg/math v0.1.0 => ./pkg/math
+
+replace github.com/faustbrian/golib/pkg/measurement v0.1.0 => ./pkg/measurement
+
+replace github.com/faustbrian/golib/pkg/migrations v0.1.0 => ./pkg/migrations
+
+replace github.com/faustbrian/golib/pkg/money v0.1.0 => ./pkg/money
+
+replace github.com/faustbrian/golib/pkg/openapi v0.1.0 => ./pkg/openapi
+
+replace github.com/faustbrian/golib/pkg/openapi/interoperability v0.1.0 => ./pkg/openapi/interoperability
+
+replace github.com/faustbrian/golib/pkg/opening-hours v0.1.0 => ./pkg/opening-hours
+
+replace github.com/faustbrian/golib/pkg/openrpc v0.1.0 => ./pkg/openrpc
+
+replace github.com/faustbrian/golib/pkg/outbox/adapters/goqueue v0.1.0 => ./pkg/outbox/adapters/goqueue
+
+replace github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry v0.1.0 => ./pkg/outbox/adapters/gotelemetry
+
+replace github.com/faustbrian/golib/pkg/outbox v0.1.0 => ./pkg/outbox
+
+replace github.com/faustbrian/golib/pkg/password v0.1.0 => ./pkg/password
+
+replace github.com/faustbrian/golib/pkg/postgres/examples/migrations v0.1.0 => ./pkg/postgres/examples/migrations
+
+replace github.com/faustbrian/golib/pkg/postgres v0.1.0 => ./pkg/postgres
+
+replace github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison v0.1.0 => ./pkg/prompts/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/prompts v0.1.0 => ./pkg/prompts
+
+replace github.com/faustbrian/golib/pkg/queue-control-plane v0.1.0 => ./pkg/queue-control-plane
+
+replace github.com/faustbrian/golib/pkg/queue v0.1.0 => ./pkg/queue
+
+replace github.com/faustbrian/golib/pkg/rate-limit v0.1.0 => ./pkg/rate-limit
+
+replace github.com/faustbrian/golib/pkg/retry v0.1.0 => ./pkg/retry
+
+replace github.com/faustbrian/golib/pkg/router v0.1.0 => ./pkg/router
+
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath v0.1.0 => ./pkg/rule-engine/adapters/gomath
+
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement v0.1.0 => ./pkg/rule-engine/adapters/gomeasurement
+
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal v0.1.0 => ./pkg/rule-engine/adapters/gotemporal
+
+replace github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors v0.1.0 => ./pkg/rule-engine/benchmarks/competitors
+
+replace github.com/faustbrian/golib/pkg/rule-engine v0.1.0 => ./pkg/rule-engine
+
+replace github.com/faustbrian/golib/pkg/scheduler v0.1.0 => ./pkg/scheduler
+
+replace github.com/faustbrian/golib/pkg/sequencer v0.1.0 => ./pkg/sequencer
+
+replace github.com/faustbrian/golib/pkg/service/compatibility v0.1.0 => ./pkg/service/compatibility
+
+replace github.com/faustbrian/golib/pkg/service v0.1.0 => ./pkg/service
+
+replace github.com/faustbrian/golib/pkg/settings v0.1.0 => ./pkg/settings
+
+replace github.com/faustbrian/golib/pkg/state-machine v0.1.0 => ./pkg/state-machine
+
+replace github.com/faustbrian/golib/pkg/tabular v0.1.0 => ./pkg/tabular
+
+replace github.com/faustbrian/golib/pkg/telemetry v0.1.0 => ./pkg/telemetry
+
+replace github.com/faustbrian/golib/pkg/temporal v0.1.0 => ./pkg/temporal
+
+replace github.com/faustbrian/golib/pkg/validation v0.1.0 => ./pkg/validation
+
+replace github.com/faustbrian/golib/pkg/webhook v0.1.0 => ./pkg/webhook
+
+replace github.com/faustbrian/golib/pkg/wire v0.1.0 => ./pkg/wire
+
+replace github.com/faustbrian/golib/pkg/wsdl v0.1.0 => ./pkg/wsdl
+
+replace github.com/faustbrian/golib/pkg/xsd v0.1.0 => ./pkg/xsd

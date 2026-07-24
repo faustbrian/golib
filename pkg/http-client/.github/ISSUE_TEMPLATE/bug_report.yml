@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible defect without sensitive data
+body:
+  - type: markdown
+    attributes:
+      value: Never include credentials, live payloads, or unredacted URLs.
+  - type: input
+    id: version
+    attributes:
+      label: Module and Go versions
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed and expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal redacted reproduction
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Typed errors and verification already performed

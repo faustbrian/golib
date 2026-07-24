@@ -1,0 +1,16 @@
+package	target	iterations
+.	FuzzItemContainerValidation	250000
+.	FuzzLatticeNormalization	250000
+./encoding	FuzzPlanDecode	75000
+./encoding	FuzzRequestDecode	40000
+./geometry	FuzzGeometry	250000
+./geometry	FuzzOrientationEnumeration	250000
+./geometry	FuzzCuboidRelations	250000
+./objective	FuzzObjectiveComparison	150000
+./solver	FuzzHeuristic	100000
+./solver	FuzzFixedContainerPacking	100000
+./solver	FuzzVariableContainerSelection	100000
+./solver	FuzzExactTinyAgreement	5000
+./solver	FuzzCancellationAndBudgets	50000
+./verify	FuzzSuppliedPlan	75000
+./verify	FuzzPhysicalConstraints	75000

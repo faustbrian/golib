@@ -1,0 +1,1112 @@
+# openrpc Complete Documentation
+
+## Source: README.md
+
+# openrpc
+
+[![CI](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/ci.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/ci.yml)
+[![Mutation](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/mutation.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/mutation.yml)
+[![Fuzz](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/fuzz.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/fuzz.yml)
+[![Security](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml)
+[![Benchmarks](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml)
+
+`openrpc` is a design-first Go implementation of OpenRPC 1.4.x. It models
+the complete 1.4.1 document shape, preserves arbitrary Draft 7 schemas and
+extension values, parses untrusted JSON under finite policies, emits canonical
+JSON, and provides explicit validation, reference resolution, runtime
+expressions, discovery, composition, compatibility diffing, and JSON-RPC
+handler integration.
+
+The core performs no implicit network or filesystem access. External reference
+resolution requires a caller-supplied store and an allowlist policy. Future or
+older OpenRPC feature lines are rejected until their semantics are separately
+inventoried and tested.
+
+## Five-minute design-first quickstart
+
+```go
+version, _ := openrpc.ParseVersion("1.4.1")
+info, _ := openrpc.NewInfo(openrpc.InfoInput{
+    Title: "Calculator",
+    Version: "1.0.0",
+})
+add, _ := openrpc.NewMethod(openrpc.MethodInput{
+    Name: "add",
+    Params: []openrpc.ContentDescriptorOrReference{},
+})
+
+documentBuilder, _ := builder.NewDocument(version, info)
+documentBuilder, _ = documentBuilder.WithMethod(add)
+document, _ := documentBuilder.Build()
+encoded, _ := openrpc.MarshalCanonical(document)
+```
+
+## Parsing and validation quickstart
+
+```go
+options := parse.DefaultOptions()
+options.UnknownFields = parse.RejectUnknownFields
+parsed, err := parse.Decode(untrustedJSON, options)
+if err != nil {
+    return err
+}
+
+semantic := validate.Document(ctx, parsed.Document(), validate.DefaultOptions())
+if !semantic.Valid() {
+    return fmt.Errorf("invalid OpenRPC document: %v", semantic.Diagnostics())
+}
+
+raw, _ := jsonvalue.Parse(untrustedJSON, jsonvalue.DefaultPolicy())
+structural := validate.MetaSchema(ctx, raw, 1000)
+if !structural.Valid() {
+    return fmt.Errorf("meta-schema failure: %v", structural.Issues())
+}
+```
+
+`parse.Preserving` retains the exact accepted source for lossless re-emission;
+canonical serialization sorts object keys and omits insignificant whitespace.
+
+## Discovery quickstart
+
+```go
+service, _ := discovery.NewService(discovery.Static(document), visibilityPolicy)
+snapshot, err := service.Discover(ctx)
+if err != nil {
+    return err
+}
+
+fmt.Println(snapshot.ETag())
+fmt.Println(string(snapshot.Bytes()))
+```
+
+Wrap a service with `discovery.NewCache` for explicit concurrent miss
+deduplication. Call `Invalidate` when the provider revision changes. No cache,
+goroutine, or registry is process-global.
+
+## Optional observability
+
+The `observe` leaf package wraps parse, validate, resolve, bundle, diff, and
+discovery operations without changing core APIs or installing an exporter.
+Observers receive only finite phase and outcome labels, diagnostic or reference
+counts, and duration. Events never contain documents, schemas, method names,
+references, URLs, or error strings. Observer panics are contained.
+
+```go
+result, err := observe.Parse(ctx, input, parse.DefaultOptions(),
+    observe.ObserverFunc(func(ctx context.Context, event observe.Event) {
+        metrics.Record(event.Phase, event.Outcome, event.Duration)
+    }),
+)
+```
+
+## jsonrpc integration quickstart
+
+```go
+registry := gojsonrpc.NewRegistry()
+err := openrpcjsonrpc.RegisterDiscovery[gojsonrpc.Handler](registry, service)
+if err != nil {
+    return err
+}
+
+handler, _ := registry.Lookup("rpc.discover")
+result, err := handler(ctx, requestParams)
+```
+
+The sibling `jsonrpc.Registry` exposes an explicit trusted system-method
+path while continuing to reserve `rpc.*` from application registration. The
+adapter does not fork JSON-RPC batch, notification, request, response, error,
+or transport behavior.
+
+## Explicit references
+
+```go
+store, _ := reference.NewMemoryStore(map[string][]byte{
+    "https://schemas.example/value.json": schemaBytes,
+})
+policy := reference.DefaultResolvePolicy()
+policy.AllowExternal = true
+policy.AllowedSchemes = []string{"https"}
+policy.AllowedHosts = []string{"schemas.example"}
+resolver, _ := reference.NewResolver(store, policy)
+
+target, err := resolver.Resolve(ctx, rootJSON, documentURI, rawReference)
+```
+
+`reference.NewFSStore` scopes an explicit `fs.FS`. The optional
+`reference/httpstore` package adds DNS/IP checks, HTTPS-by-default behavior,
+redirect and timeout limits, compression rejection, and streamed byte limits.
+
+## Compatibility and support
+
+- Supported OpenRPC feature line: `1.4.x`.
+- Authoritative pinned release: OpenRPC 1.4.1.
+- JSON Schema dialect: Draft 7, including boolean schemas.
+- Minimum Go version: see `.go-version` and `go.mod`.
+- Older official examples are retained as explicit rejection/interoperability
+  fixtures because they declare older feature lines.
+
+See [security](docs/security.md), [architecture](docs/architecture.md),
+[compatibility](docs/compatibility.md), and the generated conformance evidence
+under `specification/conformance/`.
+
+AI-assisted documentation consumers can use [llms.txt](llms.txt) or the
+complete generated [llms-full.txt](llms-full.txt) bundle.
+
+## Local verification
+
+```sh
+make check
+make check-all
+```
+
+The implementation is still working toward the goal's meaningful 100%
+production statement coverage. `make coverage` reports the current value; it
+does not disguise uncovered code as generated or unreachable. `make check-all`
+is intentionally blocking until coverage and mutation requirements are met.
+
+## Source: docs/README.md
+
+# Documentation
+
+- [Quickstart](quickstart.md): design-first, code-first, validation, discovery,
+  and JSON-RPC integration.
+- [Adoption](adoption.md): static, dynamic, hybrid, references, and CI diffing.
+- [API guide](api.md): package ownership and exported contract map.
+- [Cookbook](cookbook.md): complete-object and operational recipes.
+- [Examples](examples.md): maintained and pinned fixtures.
+- [Architecture](architecture.md) and
+  [concurrency](go-safety-and-concurrency.md).
+- [Security](security.md), [hardening](hardening.md), and
+  [performance](performance.md).
+- [Resolver threat model](resolver-threat-model.md) and
+  [resource budgets](resource-budgets.md).
+- [Compatibility](compatibility.md), [migration](migration.md), and
+  [troubleshooting](troubleshooting.md).
+- [Specification and interoperability report](specification-report.md).
+- [Dependencies](dependencies.md), [evidence](evidence.md), and
+  [releasing](releasing.md).
+- [FAQ](faq.md) and [repository standards](repository-standards.md).
+
+## Source: docs/quickstart.md
+
+# Five-minute quickstarts
+
+## Design-first
+
+Construct required values explicitly and use the immutable builder:
+
+```go
+version, _ := openrpc.ParseVersion("1.4.1")
+info, _ := openrpc.NewInfo(openrpc.InfoInput{
+    Title: "Calculator", Version: "1.0.0",
+})
+method, _ := openrpc.NewMethod(openrpc.MethodInput{
+    Name: "add", Params: []openrpc.ContentDescriptorOrReference{},
+})
+documentBuilder, _ := builder.NewDocument(version, info)
+documentBuilder, _ = documentBuilder.WithMethod(method)
+document, _ := documentBuilder.Build()
+```
+
+## Code-first and hybrid
+
+The module deliberately does not infer a complete OpenRPC contract from a Go
+handler. Build the same typed `Method` used by the runtime registration and
+place it in a `builder.MethodRegistry`. Reflection or generation may be added
+by a caller-owned adapter only when unsupported Go types fail explicitly.
+
+For hybrid adoption, parse the design-first baseline, compose generated methods
+with `compose.Merge`, and reject collisions through an explicit conflict
+policy. Validate the resulting document exactly like a static document.
+
+## Validation
+
+```go
+parsed, err := parse.Decode(input, parse.DefaultOptions())
+if err != nil {
+    return err
+}
+report := validate.Document(ctx, parsed.Document(), validate.DefaultOptions())
+if !report.Valid() {
+    return fmt.Errorf("OpenRPC diagnostics: %v", report.Diagnostics())
+}
+```
+
+Use `validate.MetaSchema` for raw structural validation. Use
+`validate.ResolvedDocument` with an explicitly configured resolver when
+semantic rules must follow Reference Objects or external schemas.
+
+## Discovery
+
+```go
+service, _ := discovery.NewService(discovery.Static(document), visibility)
+snapshot, err := service.Discover(ctx)
+if err != nil {
+    return err
+}
+fmt.Println(snapshot.ETag(), string(snapshot.Bytes()))
+```
+
+`discovery.NewCache` adds explicit miss deduplication. The caller invalidates
+the cache when its provider revision changes.
+
+## jsonrpc
+
+```go
+registry := gojsonrpc.NewRegistry()
+err := openrpcjsonrpc.RegisterDiscovery[gojsonrpc.Handler](registry, service)
+```
+
+The adapter registers `rpc.discover` through the sibling registry's trusted
+system-method contract without making the core OpenRPC packages depend on the
+JSON-RPC server package.
+
+## Source: docs/adoption.md
+
+# Adoption guide
+
+## Static documents
+
+Start with `parse.Decode` in strict unknown-field mode. Preserve the returned
+source only when exact re-emission matters; use `MarshalCanonical` for hashes,
+reviews, and generated artifacts. Run both meta-schema and semantic validation.
+
+## Existing JSON-RPC services
+
+Inventory runtime method names, parameter structure, notification-only methods,
+custom errors, and authorization visibility. Construct those concepts
+explicitly. Do not infer protocol behavior from a structurally valid document.
+
+Expose discovery through the transport-neutral `discovery.Service`. Keep batch,
+notification, error envelope, request ID, and transport behavior in the
+existing JSON-RPC implementation.
+
+## Dynamic visibility
+
+Supply a `discovery.Filter` that returns a new owned document for the current
+authorization context. An empty methods array is valid. Never cache a filtered
+snapshot across security contexts unless the cache key is caller-owned and
+proven complete.
+
+Use `discovery.NewServiceWithOptions` for generated or tenant-dependent
+documents and set `MaxOutputBytes` to the largest discovery response the
+transport contract permits. The default constructor applies a finite 64 MiB
+ceiling and bounded semantic diagnostics.
+
+## Schema reuse and references
+
+Keep core parsing offline. Configure a `reference.Resolver` only at the call
+site that needs external resources. Prefer `MemoryStore` or a scoped `fs.FS`.
+For HTTP, allow exact schemes and hosts and retain the default private-address,
+redirect, compression, timeout, and byte protections.
+
+## CI compatibility diffing
+
+Parse a released baseline and candidate, resolve both with the same explicit
+resource policy, and call `diff.CompareResolved`. Treat `Breaking` as blocking
+and review `Conditional` changes rather than silently accepting them.
+`Report.Compatible` returns false until those findings are resolved.
+
+## Extensions
+
+Create specification extensions with `NewExtensions`; exact names must start
+with lowercase `x-`. Preserve unknown standard fields only during an explicit
+forward-compatibility workflow and do not reinterpret them as known fields.
+
+## Source: docs/api.md
+
+# API guide
+
+The Go package documentation is authoritative for signatures. This guide maps
+responsibility and failure boundaries.
+
+| Package | Owned contract |
+| --- | --- |
+| root | Immutable OpenRPC values, constructors, versions, canonical output |
+| `builder` | Persistent document builder and concurrent method registry |
+| `compose` | Merge, overlay, filter, and component rename operations |
+| `diff` | Bounded semantic compatibility reports, including resolved mode |
+| `discovery` | Provider, visibility filter, bounded snapshots, revision, and cache |
+| `expression` | Bounded JSON Template Language and server-variable evaluation |
+| `jsonrpc` | Discovery handler and typed system-registration seam |
+| `jsonschema` | Lossless Draft 7 values and explicit-resource validation |
+| `jsonvalue` | Strict immutable arbitrary JSON with duplicate detection |
+| `observe` | Optional payload-free operation events |
+| `parse` | Strict or preserving bounded OpenRPC JSON decoding |
+| `reference` | URI references, JSON Pointer, stores, resolver, bundle, transform |
+| `reference/httpstore` | Opt-in hardened HTTP document loading |
+| `validate` | Structural, semantic, resolved, and schema diagnostics |
+
+Constructors reject absent required values with stable error categories.
+Optional scalar getters return `(value, present)`. Collection getters return
+owned snapshots and usually also report explicit presence. Union getters return
+the selected case and a boolean. Zero values are not silently serialized as
+valid OpenRPC objects.
+
+`Document.MethodCount` supports allocation-free policy checks before callers
+request the owned method snapshot. Semantic validation applies its own method
+limit so generated documents receive the same bounded treatment as parsed
+documents.
+
+Reports and errors never embed full documents or fetched bodies. Callers should
+branch with `errors.Is`, inspect bounded diagnostic codes and pointers, and log
+their own correlation identifiers rather than raw input.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+The root package owns immutable OpenRPC values and deterministic serialization.
+It depends only on package-owned arbitrary JSON and JSON Schema value types.
+
+- `jsonvalue` validates and preserves arbitrary exact JSON.
+- `jsonschema` isolates the pinned Draft 7 validator behind owned contracts.
+- `parse` constructs the complete model in strict or preserving mode.
+- `validate` emits bounded stable structural and semantic diagnostics.
+- `reference` provides URI, JSON Pointer, stores, and explicit resolution.
+- `expression` evaluates JSON Template Language without code execution.
+- `builder` and `compose` provide owned construction, filtering, and merging.
+- `discovery` provides transport-neutral snapshots, revisions, and caching.
+- `jsonrpc` adapts discovery to the JSON-RPC handler call shape.
+- `diff` classifies deterministic compatibility changes.
+- `observe` is an optional payload-free wrapper for operation telemetry.
+
+Dependencies point inward toward immutable data contracts. Transport adapters
+are optional leaves. No server, router, HTTP framework, reflection registry, or
+code generator is required to construct a compliant design-first document.
+
+Concurrent operations use immutable values or explicitly owned synchronized
+objects. Discovery cache invalidation, resolver per-call caches, and registries
+have visible lifetimes; the module starts no hidden goroutines.
+
+## Source: docs/examples.md
+
+# Examples and fixtures
+
+The maintained 1.4.1 complete fixture is
+[`parse/testdata/complete-openrpc.json`](../parse/testdata/complete-openrpc.json).
+It passes strict parsing, the aligned pinned meta-schema, semantic validation,
+canonical round trip, required-field removal, and explicit-null checks.
+
+Pinned upstream examples live under `specification/examples/` with repository
+commit and hashes in `specification/manifest.json`. They currently declare
+older OpenRPC feature lines. Tests retain them as explicit interoperability
+rejections; the project does not silently relabel them as 1.4.1 documents.
+
+Package-level `Example` functions should be added only when they compile under
+`go test` and demonstrate a public adoption path without ignored errors in
+production-style flow.
+
+## Source: docs/cookbook.md
+
+# Cookbook
+
+## Every OpenRPC object
+
+[`complete-openrpc.json`](../parse/testdata/complete-openrpc.json) contains every
+field inventoried from the pinned 1.4.1 meta-schema: root, Info, Contact,
+License, External Documentation, Server, Server Variable, Method, Tag, Content
+Descriptor, Error, Link, Example, Example Pairing, Reference, and all Components
+maps. Its tests remove and null each field independently.
+
+## Empty security-filtered discovery
+
+Return a copied document whose `Methods` slice is allocated and empty. Validate
+it normally and let discovery produce the canonical snapshot. Do not return a
+nil required methods slice from a constructor.
+
+## Offline external schemas
+
+Load exact schema bytes into `reference.NewMemoryStore`, enable external
+resolution, and allow exact URI schemes and hosts. Pass the resolver to
+`validate.ResolvedDocument`. No package-global loader is installed.
+
+## Portable bundles
+
+Call `reference.Bundle` to retain exact root and resource bytes keyed by
+absolute document URI. Persist those entries separately. `ResourceBundle.Store`
+recreates an offline store without rewriting `$id` or inventing extensions.
+
+## Runtime link parameters
+
+Keep constants as arbitrary JSON and expressions as strings. Call
+`expression.EvaluateLinkParams` with a typed immutable context. Missing values,
+non-scalar interpolation, output size, and node limits are explicit errors.
+
+## Compatibility gate
+
+Use `diff.CompareResolved` for documents whose source references differ but
+whose target semantics may be equal. Preserve report pointers in review output;
+do not reduce conditional findings to compatible automatically.
+
+## Source: docs/faq.md
+
+# FAQ
+
+## Does parsing fetch references?
+
+No. Core parsing and validation perform no network or filesystem access.
+
+## Why are schemas stored as JSON instead of Go structs?
+
+Draft 7 allows boolean schemas, arbitrary annotations, large exact numbers,
+recursive references, and keywords that reflection models commonly narrow.
+
+## Are documents safe for concurrent reads?
+
+Constructors own inputs and getters return owned snapshots. Mutable caches and
+registries have explicit synchronized lifetimes.
+
+## Does a valid document prove the server implementation is correct?
+
+No. It proves document conformance, not runtime handler behavior.
+
+## Why are future OpenRPC minor versions rejected?
+
+Their semantics are not guessed. A new feature line must first be inventoried,
+pinned, implemented, and tested.
+
+## Why can server URLs be relative or templated?
+
+The normative Server Object text permits both. The pinned schema's conflicting
+absolute-URI format assertion is narrowly removed during meta-schema compile;
+semantic expression checks remain active.
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+## `openrpc: unsupported specification version`
+
+Use a canonical `1.4.x` version. Prerelease, build metadata, older, and future
+feature lines are intentionally rejected.
+
+## `reference resolution failed`
+
+Check that external access is enabled only where intended, the absolute base is
+correct, the store contains the exact document URI, and scheme/host policies
+allow it. The safe error omits the URI; inspect caller-owned configuration.
+
+## Meta-schema passes but semantic validation fails
+
+Structural JSON Schema cannot express every uniqueness, ordering, link target,
+runtime-expression, and reference rule. Review stable semantic diagnostic codes
+and JSON Pointers.
+
+## Canonical output differs from source
+
+Canonical output sorts keys and removes insignificant whitespace. Use
+`Result.PreservingJSON` for exact accepted source bytes.
+
+## `make coverage` fails
+
+The gate requires meaningful 100.0% production statement coverage. Use
+`make coverage-report` to inspect the current value and add behavior-focused
+tests; do not exclude ordinary production files.
+
+## `rpc.discover` cannot be registered
+
+Use `jsonrpc.RegisterDiscovery` with `jsonrpc.Registry.RegisterSystem`.
+Ordinary `Registry.Register` intentionally continues to reject every `rpc.*`
+method so application code cannot impersonate protocol extensions.
+
+## Source: docs/migration.md
+
+# Migration and compatibility
+
+## From raw maps or generated structs
+
+Parse existing JSON in preserving mode, inspect unknown fields, then move to
+strict mode. Replace narrowed schema structs with `jsonschema.Schema` values.
+Use constructors to distinguish absent optional fields from explicit defaults.
+
+## From implicit reference loading
+
+Remove global URL and filesystem loaders. Create a resolver per policy scope,
+select an explicit store, and pass a context and absolute base at each resolve
+operation. Expect previously hidden I/O to become visible errors.
+
+## Between OpenRPC patch versions
+
+All canonical `1.4.x` patch values share the 1.4 feature set. Preserve the
+declared patch spelling. Other minor and major lines require a new supported
+implementation and do not fall back to 1.4 behavior.
+
+## Public API evolution
+
+Before v1, incompatible Go API changes remain possible but must preserve
+document semantics and be recorded in `CHANGELOG.md`. After v1, release checks
+must compare exported APIs and document migrations before an incompatible major
+release.
+
+## Source: docs/compatibility.md
+
+# Compatibility policy
+
+The module supports the OpenRPC `1.4.x` feature line. Patch numbers select the
+same semantics. Other minor and major lines fail explicitly; they are not
+interpreted using guessed 1.4 behavior.
+
+Canonical output is deterministic for the same semantic model. Preserving mode
+retains accepted source bytes and future unknown fields according to parse
+policy. Exported immutable getters return owned slices, maps, fields, or bytes.
+
+Semantic diff treats method removal, required parameter addition, parameter
+removal, and positional reordering as breaking. Optional additions are
+additive. Schema changes and unresolved references remain conditional until
+resolved semantic comparison can prove a stronger classification.
+`Report.Compatible` fails closed for conditional findings, truncated reports,
+and execution errors; callers cannot silently treat incomplete evidence as a
+safe generation or deployment decision.
+
+The JSON Schema validator dependency is pinned in `go.mod`, forced to Draft 7,
+fed only explicit resources, and given no URL loader. The OpenRPC companion
+meta-schema is pinned with source and normalized checksums in the specification
+manifest.
+
+The pinned meta-schema marks Server Object `url` as a generic absolute URI even
+though the normative field text permits relative URLs and variable templates.
+Meta-schema compilation removes only that contradictory format assertion;
+semantic validation still checks server expressions and variable bindings.
+
+## Tooling scope
+
+The module consumes bytes or typed values; it does not choose document file
+names or read `./openrpc.json` implicitly. It preserves rich-text fields but
+does not render them, so GitHub Flavored Markdown feature selection and output
+sanitization remain owned by the caller's renderer.
+
+OpenRPC method error lists describe custom application errors. JSON-RPC's
+predefined protocol errors are assumed for every service and are not repeated
+automatically. Request execution and protocol error production remain owned by
+the JSON-RPC server.
+
+The pinned official example repository currently declares older OpenRPC
+feature lines. Those examples are retained and tested as explicit
+interoperability rejections; they are not relabeled as 1.4.1 fixtures.
+
+## Source: docs/performance.md
+
+# Performance
+
+Run allocation benchmarks with:
+
+```sh
+make benchmark BENCH_TIME=100ms
+```
+
+The suite measures complete-document parse, semantic validation, canonical
+serialization, reference resolve, bundle collection, semantic diff, discovery,
+large-schema compilation, and hostile bounded rejection. Use multiple runs and
+`benchstat` before claiming a regression or improvement.
+
+The checked [benchmark baseline](../benchmarks/baseline.txt) records one
+reproducible evidence run. It is a comparison input, not a portable latency
+claim; release comparisons must use identical hardware, Go, and benchmark
+settings.
+
+Resource policies are part of performance correctness. Lower limits for known
+small documents. Reuse immutable parsed documents and compiled validators where
+their policy and resource set are identical. Discovery caching is opt-in and
+must be invalidated explicitly.
+
+Schema compilation accounts for the root and every explicit resource before
+registration. Lower `MaxResources` and `MaxSchemaBytes` when applications use a
+small fixed schema graph.
+
+Do not optimize by dropping duplicate-key detection, exact numeric lexemes,
+ownership copies, diagnostics bounds, reference authorization, cancellation,
+or schema semantics. Record baseline hardware, Go version, command, and
+allocations when proposing a performance budget.
+
+## Source: docs/hardening.md
+
+# Hardening
+
+- Set parser and JSON limits below defaults when the deployment contract is
+  smaller.
+- Keep unknown-field rejection enabled for untrusted current-version input.
+- Run meta-schema and semantic validation; use resolved validation only with an
+  explicit store and allowlist.
+- Prefer in-memory or embedded stores. For HTTP, keep HTTPS-only exact hosts,
+  private-address rejection, redirect limits, compression rejection, timeout,
+  and streamed byte limits.
+- Treat conditional compatibility findings as review-required.
+- Scope discovery filtering and caching to the caller's authorization model.
+- Export telemetry only from `observe` events, never from raw payloads or
+  errors containing caller state.
+- Run race, fuzz, mutation, vulnerability, conformance, and coverage gates on
+  every release candidate.
+
+The package uses no `unsafe`, cgo, `go:linkname`, hidden goroutines, or mutable
+process-global registries.
+
+## Source: docs/security.md
+
+# Security model
+
+All JSON inputs are untrusted. `jsonvalue` rejects invalid UTF-8, duplicate
+object names, trailing data, excessive bytes, depth, and tokens before a value
+enters the model. Parse, pointer, expression, validation, diff, resolver, and
+composition policies add operation-specific finite limits. Errors and
+diagnostics identify safe codes and pointers without including complete
+documents, fetched bodies, credentials, or provider errors.
+
+Core parsing and validation never access the network or filesystem. Reference
+resolution is disabled externally by default. Enabling it requires all of:
+
+1. an explicit `reference.Store`;
+2. `AllowExternal`;
+3. an allowed scheme; and
+4. an allowed host.
+
+Resolver work is bounded by depth, aggregate references, loaded documents,
+fetched bytes, JSON bytes, JSON tokens, pointer length, and pointer tokens.
+The aggregate reference limit applies before allocating direct input results
+and across aliases, bundle roots, and transitive resource-graph fan-out.
+
+Draft 7 compilation accepts only caller-supplied resources and limits both
+resource count and aggregate schema bytes before compiler registration. The
+defaults allow 1,024 resources and 64 MiB across the root and resources.
+
+The memory store owns its input. The `fs.FS` store rejects scope escape,
+encoded paths, fragments, queries, credentials, and traversal. The optional
+HTTP store requires exact hosts, uses HTTPS unless HTTP is explicitly enabled,
+resolves and checks every address before dialing, blocks private and special
+address classes by default, disables transparent decompression, rejects content
+encodings, bounds redirects, headers, dial and request time, and streams through
+the caller's remaining byte allowance.
+
+Callers remain responsible for choosing trustworthy allowlisted hosts and
+stores. Allowing private addresses or HTTP intentionally weakens the SSRF and
+transport boundary and should be limited to controlled development networks.
+
+Runtime expressions implement JSON value lookup only. They define no loops,
+operators, callbacks, reflection, or code execution. Whole expressions preserve
+JSON types; objects and arrays cannot be interpolated into surrounding text.
+
+Discovery validates provider and filter output under explicit diagnostic and
+canonical-byte limits. Oversized generated documents fail before a snapshot is
+published or returned through the JSON-RPC adapter.
+
+Semantic validation checks generated document method counts before copying or
+traversing the method collection. Parser limits therefore are not the only
+defense for code-first documents.
+
+The production module does not use `unsafe`, cgo, `go:linkname`, background
+network fetches, global mutable registries, or telemetry exporters.
+
+## Reporting vulnerabilities
+
+Do not open a public issue for a suspected vulnerability. Send a private report
+to the repository owner with the affected version, a minimal reproducer, impact,
+and any proposed mitigation. Avoid including credentials or production data.
+
+## Source: docs/releasing.md
+
+# Releasing
+
+1. Confirm the worktree is clean and the release commit is reviewed.
+2. Run `make check-all` with the pinned minimum Go version.
+3. Review `CHANGELOG.md`, supported versions, conformance matrices, dependency
+   licenses, vulnerability output, API compatibility, and benchmark evidence.
+4. Confirm every workflow uses immutable action commits and least-privilege
+   permissions.
+5. Create a signed semantic-version tag only through the release workflow.
+6. Build source artifacts from the tag, generate checksums and provenance, and
+   publish release notes from the reviewed changelog.
+7. Verify the module proxy resolves the tag and a clean consumer can build it.
+
+Do not release while coverage, mutation, conformance, vulnerability, docs, API,
+or integration gates are waived. A failed optional NilAway advisory must remain
+visible even when it is not blocking.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Development setup
+
+Install the Go version in `.go-version`, clone the repository, and run:
+
+```sh
+make test
+make race
+make conformance
+make fuzz FUZZ_TIME=1s
+make benchmark BENCH_TIME=1x
+```
+
+`make check-all` is the release gate. It intentionally fails until every
+required quality target, including meaningful 100% coverage and mutation
+testing, is satisfied.
+
+## Changes
+
+- Preserve exact OpenRPC and Draft 7 semantics; do not narrow arbitrary JSON.
+- Add a failing behavioral test before changing production behavior.
+- Keep parsing, validation, and resolution resource-bounded.
+- Do not add implicit network, filesystem, telemetry, or global registry use.
+- Update conformance evidence when a normative behavior changes.
+- Run `go mod tidy -diff`; dependency changes require provenance and license
+  review.
+
+Use focused conventional commits with a body explaining why. Pull requests
+should state behavior, security impact, compatibility impact, and exact
+verification commands.
+
+## Source: SECURITY.md
+
+# Security policy
+
+## Supported versions
+
+Security fixes are developed for the latest released version. Until a stable
+release exists, only the current `main` branch is supported.
+
+## Reporting a vulnerability
+
+Do not open a public issue for a suspected vulnerability. Use GitHub's private
+security advisory flow for the repository and include:
+
+- affected version or commit;
+- the smallest reproducible input;
+- expected and observed impact;
+- whether external resolution was enabled and its policy;
+- any proposed mitigation.
+
+Do not include production credentials, private documents, fetched schemas, or
+customer data. Maintainers will acknowledge a complete report, assess scope,
+coordinate a fix, and publish credit according to the reporter's preference.
+
+## Security boundary
+
+Parsing and core validation perform no I/O. External fetching is disabled by
+default and requires an explicit resolver store and allowlist. See
+[the resolver threat model](docs/security.md) for operational controls.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+## Before v1.0.0
+
+- Complete additional current-version ecosystem fixtures as independent
+  implementations publish OpenRPC 1.4 documents.
+- Maintain the established API compatibility, vulnerability, workflow,
+  documentation, coverage, mutation, and integration gates.
+
+## Optional after the core is proven
+
+- Deterministic code generation that fails on unsupported schema semantics.
+- A CLI for validate, format, bundle, diff, and inspect operations.
+- Leaf adapters for owned query, validation, wire, HTTP-client, and localized
+  packages where contracts can remain cycle-free.
+
+Optional tooling will not delay fixes to core specification correctness or
+weaken design-first support.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes will be documented here. The format follows Keep a
+Changelog principles, and releases use semantic versioning.
+
+## Unreleased
+
+### Changed
+
+- Regenerated the complete documentation bundle from the current public
+  guides and API documentation.
+- The integration target now invokes the checked-in JSON-RPC interoperability
+  script, so local and CI integration checks execute the documented contract.
+
+### Added
+
+- Attributable repository execution for the normative conformance matrix.
+- Complete lossless OpenRPC 1.4.1 document model and strict parser.
+- Draft 7 schema validation with explicit external resources.
+- Bounded reference resolution, dereferencing, and lossless resource bundles.
+- Runtime expression and server-variable evaluation.
+- Discovery, composition, builders, resolved semantic diff, and JSON-RPC
+  discovery registration contracts.
+- Configurable discovery validation and canonical output budgets for static,
+  generated, and filtered documents.
+- Allocation-free document method counts and bounded semantic validation for
+  generated documents that bypass parser collection limits.
+- Normative and object-field conformance matrices with executable evidence.
+- Payload-free optional observability, fuzz targets, and allocation benchmarks.
+- Blocking goroutine leak gates for registries, discovery caching, observer
+  hooks, resolution, HTTP loading, and cancellation paths.
+- End-to-end `rpc.discover` registration with the sibling `jsonrpc`
+  registry, verified through an isolated cross-module integration gate.
+- Fail-closed semantic compatibility decisions for conditional and truncated
+  diff reports.
+- Supported-version, meta-schema, ecosystem interoperability, resource-budget,
+  resolver-threat, and reproducible benchmark evidence reports.
+- Deterministic semantic validation on every document accepted by the parser
+  fuzz target.
+
+### Security
+
+- External access is disabled by default and HTTP resolution enforces explicit
+  scheme, host, IP, redirect, compression, timeout, and byte policies.
+- Resolver inputs, alias chains, bundle roots, and transitive resource graphs
+  share an explicit aggregate reference-count budget.
+- Draft 7 compilation bounds both the number of explicit schema resources and
+  their aggregate encoded bytes.
+
+### Notes
+
+- Pinned upstream examples still declare older OpenRPC feature lines and are
+  tested explicitly against that provenance rather than relabeled as 1.4.1.
+
+## Source: docs/dependencies.md
+
+# Dependencies
+
+The runtime dependency surface is deliberately small:
+
+- `regexp2` supplies bounded ECMAScript-compatible Draft 7 regular expressions.
+- `jsonschema/v6` supplies Draft 7 compilation and validation behind
+  package-owned `jsonschema` contracts with no URL loader.
+- `x/text` is currently indirect through the validation dependency.
+
+Versions are pinned in `go.mod` and checksummed in `go.sum`. Dependency updates
+must run the full Draft 7, OpenRPC meta-schema, conformance, fuzz, race,
+benchmark, license, and vulnerability gates. Replacement must not change exact
+numbers, regex semantics, reference loading, diagnostic safety, or boolean
+schema behavior.
+
+Pinned OpenRPC inputs are not Go dependencies. Their repository commits,
+normalized hashes, and license copies are in `specification/manifest.json` and
+verified offline by tests.
+
+## Source: docs/evidence.md
+
+# Verification evidence
+
+`specification/conformance/normative.tsv` inventories all 49 normative
+statements from the pinned prose and schema descriptions. The reviewed
+`evidence.tsv` maps each statement to implementation and executable tests.
+
+`object-fields.tsv` inventories all 75 declared object fields, including shape,
+requiredness, nullability, defaults, extension behavior, and unknown-field
+policy. Its reviewed overlay maps each object to model, meta-schema, complete
+round-trip, removal, and explicit-null tests.
+
+The [resolver threat model](resolver-threat-model.md) maps adversarial cases to
+controls and executable evidence. The [resource budget table](resource-budgets.md)
+records every default limit and the operation that enforces it.
+The [specification report](specification-report.md) records the supported
+version boundary, pinned meta-schema alignment, corpus verdicts, and
+independent validation layers.
+
+Run:
+
+```sh
+make conformance
+make coverage-report
+make race
+make leak
+make fuzz FUZZ_TIME=2s
+make benchmark BENCH_TIME=100ms
+```
+
+`ROADMAP.md` lists optional post-foundation expansion, not unresolved release
+blockers. Passing line coverage alone is not conformance evidence; assertions
+must detect the normative defect they claim to cover.
+
+The fuzz gate exercises strict JSON, complete OpenRPC parsing, preserving and
+canonical round trips, meta-schema and semantic validation, Draft 7
+compilation, expressions, references and pointers, composition, semantic diff,
+and discovery snapshots. Every target uses finite input policies and asserts
+panic freedom or deterministic output.
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go safety and concurrency
+
+Parsed and constructed values own their input bytes, slices, maps, and fields.
+Public collection and byte getters return copies. Concurrent read-only use is
+therefore supported after construction.
+
+`builder.MethodRegistry` and `discovery.Cache` synchronize their mutable state.
+Resolver caches are per call, so authorization and fetched resources do not
+leak across requests. Cancellation of one cache waiter does not cancel shared
+discovery work owned by other waiters.
+
+No constructor starts a goroutine. No package installs a global resolver,
+schema loader, registry, cache, or telemetry exporter. Callers own lifecycle,
+shutdown, transport, and exporter behavior.
+
+Run `make race` after concurrency changes. `make leak` runs package-wide
+goroutine leak detection around the registry, discovery cache, observer hooks,
+resolver, HTTP store, and all cancellation tests. Both gates are blocking.
+Ownership claims also require mutation tests that modify caller inputs and
+returned snapshots, not only race-detector silence.
+
+## Source: docs/repository-standards.md
+
+# Repository standards
+
+- Minimum Go is the exact stable version pinned in `.go-version` and `go.mod`.
+- Dependencies and tools use reviewed versions; workflow actions use immutable
+  commit SHAs.
+- Formatting, tidy, vet, lint, Staticcheck, tests, race, fuzz, coverage,
+  mutation, conformance, docs, vulnerabilities, workflows, and benchmarks are
+  reproducible through `make` targets.
+- Production code may not use `unsafe`, cgo, or `go:linkname`.
+- Core packages perform no implicit I/O and install no global mutable state.
+- Conventional commits include a rationale body; release notes come from the
+  changelog.
+- Security reports remain private until coordinated disclosure.
+- Licenses and provenance are reviewed whenever code, specification inputs, or
+  dependencies change.
+
+Repository settings should enable vulnerability alerts, dependency review,
+secret scanning, signed releases, protected branches, required reviews, and
+the blocking workflow jobs documented here.
+
+## Source: docs/resolver-threat-model.md
+
+# Resolver threat model
+
+The core parser, validator, reference parser, and pointer evaluator perform no
+filesystem or network access. External resolution exists only behind a
+caller-supplied `reference.Store`, `AllowExternal`, and exact scheme and host
+allowlists.
+
+| Threat | Control | Executable evidence |
+| --- | --- | --- |
+| SSRF and unsafe schemes | External access defaults off; schemes and hosts require exact allowlisting | `TestResolverDisablesExternalAccessByDefault`, `TestResolverEnforcesExternalSchemeHostBytesAndCancellation` |
+| Local file disclosure | No ambient file loader; `FSStore` is scoped to an explicit `fs.FS` and rejects traversal, queries, fragments, credentials, and encoded paths | `TestFSStoreMapsOnlyURIsBelowExplicitBase` |
+| Credential-bearing URLs | HTTP authorization rejects `url.User`; safe errors omit the URL | `TestStoreDeniesHostsSchemesCredentialsAndPrivateAddresses` |
+| Redirect escape | Every redirect is reauthorized and redirect count is bounded | `TestStoreRejectsLimitsCompressionStatusAndRedirects` |
+| DNS rebinding and private addresses | Every resolved address is checked; dialing uses only the checked IP while TLS retains the request host | `TestStoreDeniesHostsSchemesCredentialsAndPrivateAddresses` |
+| Decompression bombs | Automatic compression is disabled, non-identity encodings are rejected, and bodies use a streamed remaining-byte limit | `TestStoreRejectsLimitsCompressionStatusAndRedirects`, `TestStoreHandlesStreamingLimitsReadFailuresAndRequestCancellation` |
+| Cycles and aliases | Per-chain target identities detect cycles; per-call documents are immutable and deduplicated | `TestResolverRejectsCyclesAndBounds`, `TestResolverFollowsAliasesAndLoadsEachDocumentOnce` |
+| Depth and fan-out exhaustion | Depth, document, fetched-byte, pointer, JSON, and aggregate-reference limits are mandatory | `TestResolverBoundsAggregateReferenceFanout`, `TestResourcesBoundsTransitiveReferenceFanout`, `TestBundleBoundsRootReferenceFanoutBeforeLoading` |
+| Cancellation races | Context checks surround queue, load, resolve, cache wait, and transform paths; race and leak gates are blocking | `make race`, `make leak` |
+| Sensitive diagnostics | Store failures collapse to stable categories; observer events exclude payloads, references, URLs, and error text | `TestResolverCoversInputErrorsCancellationAndLoadFailures`, `TestOperationsContainObserversAndClassifyFailures` |
+
+`AllowHTTP` and `AllowPrivateAddresses` are explicit trust-boundary overrides.
+They are intended only for controlled environments. The caller remains
+responsible for the ownership and behavior of custom stores and allowlisted
+hosts.
+
+## Source: docs/resource-budgets.md
+
+# Resource budgets
+
+All defaults are finite. A zero or negative configured limit is rejected.
+Callers should lower limits when their deployment contract is smaller.
+
+| Surface | Default budget | Enforcement |
+| --- | --- | --- |
+| Generic JSON | 16 MiB, depth 256, 2,000,000 tokens | `jsonvalue.Policy` rejects before ownership or model parsing |
+| OpenRPC parse | 10,000 methods, parameters, servers, variables, tags, errors, links, and examples; 100,000 components | `parse.Options` rejects the affected collection |
+| Draft 7 compile | 1,024 explicit resources, 64 MiB aggregate schema bytes, 1,000 issues, 100 ms regexp timeout | `jsonschema.ValidationOptions` checks resources before compiler registration |
+| Semantic validation | 10,000 methods and 1,000 diagnostics | `validate.Options` checks method count before copying and stops bounded reporting |
+| URI reference | 16 KiB encoded length | `reference.Policy` rejects before URI parsing |
+| JSON Pointer | 16 KiB, 256 tokens, 19 index digits | `reference.PointerPolicy` rejects before token or index work |
+| Resolution | depth 64, 32 documents, 16 MiB fetched, 100,000 aggregate references | One per-call `reference.ResolvePolicy` budget covers inputs, aliases, bundles, and transitive resources |
+| Dereference | depth 256, 100,000 references, 64 MiB output, 4,000,000 output tokens | `reference.TransformPolicy` checks traversal and reparses bounded output |
+| Runtime expression | 16 KiB source, 256 expressions, 256 segments, 19 index digits, 4,096 selected nodes, 1 MiB output | `expression.Policy` applies during parse and evaluation |
+| Discovery | 64 MiB canonical output and 1,000 validation diagnostics | `discovery.Options` rejects before publishing a snapshot |
+| Filter | 10,000 methods | `compose.FilterOptions` checks before predicate traversal |
+| Merge | 32 documents, 10,000 methods, 100,000 components | `compose.MergeOptions` counts across every input |
+| Overlay | 1,000 actions and 64 MiB output | `compose.OverlayOptions` checks after every ordered action |
+| Rename | 100,000 renames and 64 MiB output | `compose.RenameOptions` checks before and after rewriting |
+| Semantic diff | 10,000 methods, 100,000 components, 10,000 findings | `diff.Options` bounds comparison and report output |
+| HTTP store | 3 redirects, 15 s request, 5 s dial and header waits, 1 MiB headers | `httpstore.Policy`; response bytes come from the resolver's remaining allowance |
+
+Generation and CLI budgets are not applicable because those optional surfaces
+are not present. Adding either surface requires explicit input, semantic,
+output, and diagnostic limits before it can enter the release gate.
+
+Errors are stable categories. Limit errors and diagnostics do not include
+documents, schemas, fetched bodies, URLs, credentials, method names, or raw
+extension values.
+
+## Source: docs/specification-report.md
+
+# Specification and interoperability report
+
+This report records the release audit performed on 2026-07-20. The source of
+truth is OpenRPC 1.4.1 at commit
+`3a13c7a8bad248e6edd2d48339cd1c06b57f8f22`; `specification/manifest.json`
+pins every copied input and its SHA-256 digest.
+
+## Supported versions
+
+| Input | Verdict | Reason |
+| --- | --- | --- |
+| Canonical `1.4.0` and any canonical non-negative `1.4` patch | accepted | Patch releases share the inventoried 1.4 feature set |
+| Earlier `1.x`, future minor or major lines | rejected | Their semantics have not been inventoried |
+| Prerelease, build metadata, leading-zero, or malformed values | rejected | The supported field is a canonical release version |
+
+`SupportedVersions` reports only `1.4.x`. Strict and preserving parsing share
+this version boundary, so preserving mode cannot reinterpret a future feature
+line as 1.4.
+
+## Requirement and object audit
+
+The generated normative matrix contains 49 statements: 41 have direct
+implementation and executable evidence, and eight are explicitly
+not-applicable because this module has no implicit file naming, renderer, or
+JSON-RPC request runtime. The object-field matrix contains all 75 fields from
+the pinned meta-schema. Every row records shape, requiredness, nullability,
+default, extension and unknown-field behavior, implementation, and executable
+evidence. The conformance gate rejects missing, duplicate, stale, or
+undisposed rows.
+
+## Meta-schema alignment
+
+The exact upstream schema and its `meta.json-schema.tools` companion are
+embedded and verified by the manifest before use. Validation is offline. The
+companion's dialect URI is normalized to Draft 7, which is the dialect required
+by OpenRPC 1.4. One upstream contradiction is corrected during compilation:
+the generic absolute-URI format on Server Object `url` is removed because the
+normative text permits relative URLs and server-variable templates. Dedicated
+semantic validation still checks the expression and its variable bindings.
+
+The structural meta-schema runs through the pinned
+`santhosh-tekuri/jsonschema` implementation. The separately implemented typed
+parser and semantic validator provide the differential layer; acceptance is
+not inferred from either layer alone.
+
+## Corpus verdicts
+
+The official examples repository is pinned independently at commit
+`dce69463ba9a3ca2232506b734606fa97f25dd45`. Its eight service descriptions
+span empty, link, metrics, named-parameter, expanded, example-rich, petstore,
+and arithmetic APIs. Every source document declares an older or otherwise
+unsupported feature line. Both the independent meta-schema validator and the
+typed parser reject each document specifically at `openrpc`; the fixtures are
+not silently relabeled as 1.4.1.
+
+The complete current-version fixture exercises every OpenRPC object and schema
+placement. It passes strict parsing, the pinned meta-schema, semantic
+validation, canonical determinism, preserving round trips, removal tests, and
+explicit-null tests. Boolean and object Draft 7 schemas additionally have
+focused composition, recursion, format, annotation, and hostile-input tests.
+
+The public ecosystem reviewed on 2026-07-20 still predominantly publishes
+older OpenRPC feature lines, including the current official example corpus.
+Those inputs are useful rejection evidence but cannot prove 1.4 acceptance.
+New external 1.4 documents must be pinned with source, license, digest, and
+expected verdict before joining the blocking corpus.
+
+## Commands
+
+```sh
+make conformance
+go test ./parse ./validate -count=1
+make integration
+```
+
+Together these gates verify generated matrices, official-corpus verdicts,
+current-version structural and semantic validation, and `rpc.discover`
+interoperability with `jsonrpc`.

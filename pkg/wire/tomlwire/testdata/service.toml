@@ -1,0 +1,8 @@
+service = "billing"
+retries = 3
+enabled = true
+deployed_at = 2026-07-14T09:30:00Z
+
+[labels]
+region = "eu-north"
+owner = "platform"

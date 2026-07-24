@@ -1,0 +1,137 @@
+# openapi benchmark evidence
+# revision: 08dbc126c2b170ed988fae6309ca9d89ab26a98b
+# captured: 2026-07-22T04:36:20Z
+# command: go test . -run ^$ -bench . -benchmem -benchtime=250ms -count=3 -cpu=1
+go version go1.26.5 darwin/arm64
+Darwin 27.0.0 arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/openapi
+cpu: Apple M4 Max
+BenchmarkParseJSON                   	     566	    685980 ns/op	  24.58 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSON                   	     573	    930027 ns/op	  18.13 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSON                   	     656	    715722 ns/op	  23.56 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_1    	   22525	     21224 ns/op	  16.30 MB/s	   12024 B/op	     282 allocs/op
+BenchmarkParseJSONScaling/paths_1    	   26706	     17178 ns/op	  20.14 MB/s	   12024 B/op	     282 allocs/op
+BenchmarkParseJSONScaling/paths_1    	   10000	     26117 ns/op	  13.25 MB/s	   12024 B/op	     282 allocs/op
+BenchmarkParseJSONScaling/paths_100  	     601	    623077 ns/op	  27.06 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_100  	     460	    919963 ns/op	  18.33 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_100  	     662	    592183 ns/op	  28.47 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_1000 	      62	  10418286 ns/op	  16.22 MB/s	 4812256 B/op	  107229 allocs/op
+BenchmarkParseJSONScaling/paths_1000 	      52	   5146053 ns/op	  32.83 MB/s	 4812256 B/op	  107229 allocs/op
+BenchmarkParseJSONScaling/paths_1000 	      61	   7934030 ns/op	  21.30 MB/s	 4812256 B/op	  107229 allocs/op
+BenchmarkParseInvalidJSON            	     616	    922875 ns/op	  18.27 MB/s	  488808 B/op	   10912 allocs/op
+BenchmarkParseInvalidJSON            	     656	    746659 ns/op	  22.58 MB/s	  488798 B/op	   10912 allocs/op
+BenchmarkParseInvalidJSON            	     602	    950443 ns/op	  17.74 MB/s	  488812 B/op	   10912 allocs/op
+BenchmarkParseRejectedDepth          	   35937	     10506 ns/op	  49.02 MB/s	    6664 B/op	      25 allocs/op
+BenchmarkParseRejectedDepth          	   30727	     14410 ns/op	  35.74 MB/s	    6664 B/op	      25 allocs/op
+BenchmarkParseRejectedDepth          	   35181	     10303 ns/op	  49.99 MB/s	    6664 B/op	      25 allocs/op
+BenchmarkValidateDocument            	       2	 157622833 ns/op	93689768 B/op	  247597 allocs/op
+BenchmarkValidateDocument            	       6	  72331715 ns/op	93689869 B/op	  247597 allocs/op
+BenchmarkValidateDocument            	       6	  49257111 ns/op	93691902 B/op	  247609 allocs/op
+BenchmarkValidateDocumentCold        	       4	 105229104 ns/op	95481798 B/op	  271277 allocs/op
+BenchmarkValidateDocumentCold        	       6	  53529570 ns/op	95482845 B/op	  271281 allocs/op
+BenchmarkValidateDocumentCold        	       4	  62610438 ns/op	95484136 B/op	  271288 allocs/op
+BenchmarkValidateSchemaHeavyDocument 	      26	  21206752 ns/op	20405424 B/op	   80374 allocs/op
+BenchmarkValidateSchemaHeavyDocument 	      37	  17878721 ns/op	20405430 B/op	   80374 allocs/op
+BenchmarkValidateSchemaHeavyDocument 	      37	  10162534 ns/op	20405443 B/op	   80375 allocs/op
+BenchmarkSerializeJSON               	    1460	    285157 ns/op	  172400 B/op	    6086 allocs/op
+BenchmarkSerializeJSON               	    1455	    358182 ns/op	  172400 B/op	    6086 allocs/op
+BenchmarkSerializeJSON               	    1600	    355811 ns/op	  172400 B/op	    6086 allocs/op
+BenchmarkResolveInternalReference    	  455053	      1288 ns/op	     632 B/op	      11 allocs/op
+BenchmarkResolveInternalReference    	  479223	       605.2 ns/op	     632 B/op	      11 allocs/op
+BenchmarkResolveInternalReference    	  434097	       782.0 ns/op	     632 B/op	      11 allocs/op
+BenchmarkResolveFileResource         	   10000	     48479 ns/op	   1.13 MB/s	    7776 B/op	     108 allocs/op
+BenchmarkResolveFileResource         	   10480	     47289 ns/op	   1.16 MB/s	    7776 B/op	     108 allocs/op
+BenchmarkResolveFileResource         	    8056	     44565 ns/op	   1.23 MB/s	    7776 B/op	     108 allocs/op
+BenchmarkResolveHTTPResource         	    5127	     65479 ns/op	   0.84 MB/s	   10573 B/op	     142 allocs/op
+BenchmarkResolveHTTPResource         	    8386	     83702 ns/op	   0.66 MB/s	   10571 B/op	     142 allocs/op
+BenchmarkResolveHTTPResource         	    7306	     54472 ns/op	   1.01 MB/s	   10572 B/op	     142 allocs/op
+BenchmarkBundleComponents            	      75	   8979219 ns/op	18384914 B/op	   49991 allocs/op
+BenchmarkBundleComponents            	      76	   5241494 ns/op	18384913 B/op	   49991 allocs/op
+BenchmarkBundleComponents            	      43	   9577319 ns/op	18384918 B/op	   49991 allocs/op
+BenchmarkDereferenceObjects          	     165	   2267907 ns/op	 8368735 B/op	   10829 allocs/op
+BenchmarkDereferenceObjects          	     135	   3788885 ns/op	 8368737 B/op	   10829 allocs/op
+BenchmarkDereferenceObjects          	     157	   2138649 ns/op	 8368737 B/op	   10829 allocs/op
+BenchmarkDereferenceCycle            	    9504	     69248 ns/op	  212602 B/op	     282 allocs/op
+BenchmarkDereferenceCycle            	   10000	     72235 ns/op	  212602 B/op	     282 allocs/op
+BenchmarkDereferenceCycle            	    8317	     40752 ns/op	  212602 B/op	     282 allocs/op
+BenchmarkOperationDiff               	     139	   3491888 ns/op	 4951459 B/op	   13565 allocs/op
+BenchmarkOperationDiff               	     134	   2431951 ns/op	 4951458 B/op	   13565 allocs/op
+BenchmarkOperationDiff               	     100	   2895756 ns/op	 4951459 B/op	   13565 allocs/op
+BenchmarkFilterOperations            	    1185	    470864 ns/op	 1446408 B/op	    1910 allocs/op
+BenchmarkFilterOperations            	    1365	    392827 ns/op	 1446408 B/op	    1910 allocs/op
+BenchmarkFilterOperations            	     100	   2578094 ns/op	 1446408 B/op	    1910 allocs/op
+BenchmarkMergeDocuments              	    2011	    127609 ns/op	  808512 B/op	     914 allocs/op
+BenchmarkMergeDocuments              	    1682	    229408 ns/op	  808512 B/op	     914 allocs/op
+BenchmarkMergeDocuments              	    2181	    258768 ns/op	  808512 B/op	     914 allocs/op
+BenchmarkConvertOpenAPI31To32        	  237258	      2280 ns/op	    3360 B/op	       9 allocs/op
+BenchmarkConvertOpenAPI31To32        	  188923	      2502 ns/op	    3360 B/op	       9 allocs/op
+BenchmarkConvertOpenAPI31To32        	  226210	      1670 ns/op	    3360 B/op	       9 allocs/op
+BenchmarkConvertOpenAPI30To31        	     129	   3479559 ns/op	 9193304 B/op	   11841 allocs/op
+BenchmarkConvertOpenAPI30To31        	     188	   2408875 ns/op	 9193304 B/op	   11841 allocs/op
+BenchmarkConvertOpenAPI30To31        	     100	   4238556 ns/op	 9193304 B/op	   11841 allocs/op
+BenchmarkConvertSwagger20ToOpenAPI30 	     352	   1342139 ns/op	 2775864 B/op	    6240 allocs/op
+BenchmarkConvertSwagger20ToOpenAPI30 	     382	   1390114 ns/op	 2775864 B/op	    6240 allocs/op
+BenchmarkConvertSwagger20ToOpenAPI30 	     471	   1024269 ns/op	 2775864 B/op	    6240 allocs/op
+BenchmarkConvertOpenAPI31To30        	     174	   3014851 ns/op	 9281440 B/op	   12352 allocs/op
+BenchmarkConvertOpenAPI31To30        	     202	   2525252 ns/op	 9281440 B/op	   12352 allocs/op
+BenchmarkConvertOpenAPI31To30        	     100	   5153858 ns/op	 9281440 B/op	   12352 allocs/op
+BenchmarkConvertOpenAPI32To31        	     267	   1981043 ns/op	 6327696 B/op	    7925 allocs/op
+BenchmarkConvertOpenAPI32To31        	     100	   3996230 ns/op	 6327696 B/op	    7925 allocs/op
+BenchmarkConvertOpenAPI32To31        	     258	   1304982 ns/op	 6327696 B/op	    7925 allocs/op
+BenchmarkConvertOpenAPI32ToSwagger20 	      62	  10080681 ns/op	21418720 B/op	   28357 allocs/op
+BenchmarkConvertOpenAPI32ToSwagger20 	      70	   4171493 ns/op	21418720 B/op	   28357 allocs/op
+BenchmarkConvertOpenAPI32ToSwagger20 	      78	   7420626 ns/op	21418720 B/op	   28357 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/openapi	40.948s
+# peak process memory probe
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/openapi
+cpu: Apple M4 Max
+BenchmarkParseJSON                   	       1	    584500 ns/op	  28.85 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_1    	       1	     28708 ns/op	  12.05 MB/s	   12024 B/op	     282 allocs/op
+BenchmarkParseJSONScaling/paths_100  	       1	    412250 ns/op	  40.90 MB/s	  488840 B/op	   10907 allocs/op
+BenchmarkParseJSONScaling/paths_1000 	       1	   4377250 ns/op	  38.60 MB/s	 4812256 B/op	  107229 allocs/op
+BenchmarkParseInvalidJSON            	       1	    452875 ns/op	  37.23 MB/s	  592376 B/op	   10938 allocs/op
+BenchmarkParseRejectedDepth          	       1	     70250 ns/op	   7.33 MB/s	    8144 B/op	      33 allocs/op
+BenchmarkValidateDocument            	       1	  76531459 ns/op	93697712 B/op	  247626 allocs/op
+BenchmarkValidateDocumentCold        	       1	  58010166 ns/op	95481096 B/op	  271272 allocs/op
+BenchmarkValidateSchemaHeavyDocument 	       1	  25152042 ns/op	20405576 B/op	   80377 allocs/op
+BenchmarkSerializeJSON               	       1	    194250 ns/op	  172544 B/op	    6088 allocs/op
+BenchmarkResolveInternalReference    	       1	      4958 ns/op	     640 B/op	      11 allocs/op
+BenchmarkResolveFileResource         	       1	     75208 ns/op	   0.73 MB/s	    7776 B/op	     108 allocs/op
+BenchmarkResolveHTTPResource         	       1	   1636042 ns/op	   0.03 MB/s	   47832 B/op	     304 allocs/op
+BenchmarkBundleComponents            	       1	   4405542 ns/op	18384904 B/op	   49991 allocs/op
+BenchmarkDereferenceObjects          	       1	   1063750 ns/op	 8368744 B/op	   10829 allocs/op
+BenchmarkDereferenceCycle            	       1	     39208 ns/op	  212736 B/op	     285 allocs/op
+BenchmarkOperationDiff               	       1	   1752500 ns/op	 4951480 B/op	   13566 allocs/op
+BenchmarkFilterOperations            	       1	    136250 ns/op	 1446408 B/op	    1910 allocs/op
+BenchmarkMergeDocuments              	       1	    106041 ns/op	  808512 B/op	     914 allocs/op
+BenchmarkConvertOpenAPI31To32        	       1	     20625 ns/op	    3360 B/op	       9 allocs/op
+BenchmarkConvertOpenAPI30To31        	       1	   1692125 ns/op	 9193304 B/op	   11841 allocs/op
+BenchmarkConvertSwagger20ToOpenAPI30 	       1	    733000 ns/op	 2775864 B/op	    6240 allocs/op
+BenchmarkConvertOpenAPI31To30        	       1	   2116583 ns/op	 9281440 B/op	   12352 allocs/op
+BenchmarkConvertOpenAPI32To31        	       1	   1201959 ns/op	 6327696 B/op	    7925 allocs/op
+BenchmarkConvertOpenAPI32ToSwagger20 	       1	   3890750 ns/op	21418720 B/op	   28357 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/openapi	0.439s
+        0.98 real         0.41 user         0.23 sys
+           218480640  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               24950  page reclaims
+                 653  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   2  messages sent
+                   2  messages received
+                  35  signals received
+                  33  voluntary context switches
+                5951  involuntary context switches
+          2724869278  instructions retired
+           978287558  cycles elapsed
+            23118448  peak memory footprint

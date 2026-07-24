@@ -1,0 +1,22 @@
+id	format	source	edition	requirement	redistribution
+QR-MODES	qr-code	ISO/IEC 18004	2024 edition 4	numeric alphanumeric byte Kanji and ECI modes	metadata only
+QR-CONTROLS	qr-code	ISO/IEC 18004	2024 edition 4	FNC1 structured append masks versions and L M Q H correction	metadata only
+C128-DATA	code-128	ISO/IEC 15417	2007 edition 2 plus Amd 1:2026	code sets A B C switching checksum and stop pattern	metadata only
+C128-GS1	gs1-128	GS1 General Specifications	release 26.0	FNC1 element strings AI validation and association rules	metadata only
+C39	code-39	ISO/IEC 16388	2023 edition 2	basic and full ASCII encoding with optional modulo 43	metadata only
+C93	code-93	ANSI/AIM BC5	1995	full ASCII encoding and mandatory C and K checks	metadata only
+EAN8	ean-8	ISO/IEC 15420	2009 edition 2	parity guards modulo 10 and two or five digit supplements	metadata only
+EAN13	ean-13	ISO/IEC 15420	2009 edition 2	leading parity guards modulo 10 and supplements	metadata only
+UPCA	upc-a	ISO/IEC 15420	2009 edition 2	guards modulo 10 and supplements	metadata only
+UPCE	upc-e	ISO/IEC 15420	2009 edition 2	zero suppression parity expansion checksum and supplements	metadata only
+ITF	interleaved-2-of-5	ISO/IEC 16390	2007 edition 2	paired digit interleaving start stop and quiet zones	metadata only
+ITF14	itf-14	GS1 General Specifications	release 26.0	GTIN check digit bearer controls and dimensions	metadata only
+CODABAR	codabar	AIM Uniform Symbology Specification	1995	validated guards character patterns and quiet zones	metadata only
+DM-DATA	data-matrix	ISO/IEC 16022	2024 edition 4	ECC 200 sizes shapes placement and Reed Solomon correction	metadata only
+DM-CONTROLS	data-matrix	ISO/IEC 16022	2024 edition 4	GS1 ECI Macro 05 06 structured append and Base 256	metadata only
+PDF-DATA	pdf417	ISO/IEC 15438	2015 edition 3	text byte numeric compaction rows columns and correction 0 through 8	metadata only
+PDF-CONTROLS	pdf417	ISO/IEC 15438	2015 edition 3	compact layout ECI and complete Macro PDF417 control block	metadata only
+AZTEC-DATA	aztec	ISO/IEC 24778	2008 edition 1	compact and full layers bit stuffing mode message and correction	metadata only
+AZTEC-CONTROLS	aztec	ISO/IEC 24778	2008 edition 1	GS1 FNC1 and ECI controls	metadata only
+RENDER	all	ISO/IEC symbology specifications	pinned editions	logical modules quiet zones integer scaling PNG and SVG	metadata only
+DECODE	all	ISO/IEC symbology specifications	pinned editions	checksum correction orientation metadata and bounded image decoding	metadata only

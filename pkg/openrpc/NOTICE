@@ -1,0 +1,7 @@
+openrpc
+Copyright 2026 Brian Faust
+
+This file is informational and does not modify the MIT License. OpenRPC
+specification and example inputs are redistributed under Apache-2.0 in their
+respective specification directories. Other dependency notices are recorded
+in THIRD_PARTY_NOTICES.md.

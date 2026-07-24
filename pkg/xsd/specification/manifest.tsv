@@ -1,0 +1,8 @@
+id	version	role	status	sha256	bytes	url
+xsd-primer	2004-10-28	non-normative-primer	pinned	19971eb8bce0a31173a6cc0513346bc91e51d35ef1b6edf0caee6b0b40703538	288730	https://www.w3.org/TR/2004/REC-xmlschema-0-20041028/
+xsd-structures	2004-10-28	normative	pinned	92bfd116316332b1153941436430afbdb2040e036d5fb2d21d4c8fba36a7765a	903817	https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/
+xsd-datatypes	2004-10-28	normative	pinned	980de872aa2c50013d5202176eb85eef3f183a7df635fdcb6b4aa34c1c12eb72	644011	https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/
+xsd-second-edition-errata	2026-07-19	normative-corrections	snapshot	d07bc24a7e631afd518f8442071f563fdf853fcba33ab996323eaa6081222ceb	31742	https://www.w3.org/2004/03/xmlschema-errata.html
+xsd-schema-for-schemas	2004-01-23	normative-schema	snapshot	e767a159c179bd6e4dc2bac2a63a62f50cbd027ec19d6b5cc9eb1c2f33e0cb2e	87677	https://www.w3.org/2001/XMLSchema.xsd
+xsd-built-in-datatypes	2004-01-23	non-normative-schema	snapshot	052c88327a4c73d66fc39efdb1ae4cabd4f4e2e1210207e0448e23cd8d23aa4a	4576	https://www.w3.org/2001/XMLSchema-datatypes.xsd
+xsts	2007-06-20	official-conformance-suite	pinned	902176b25e4111cf96b08663107521a4992e8ea67aad6b815592a6a5b4b9ea06	4367182	https://www.w3.org/XML/2004/xml-schema-test-suite/xmlschema2006-11-06/xsts-2007-06-20.tar.gz

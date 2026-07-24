@@ -1,0 +1,38 @@
+id	requirement	normative_source	status	evidence
+DOC-001	Parse xs:schema and schema document policies	Structures 3.15	implemented	document_test.go
+DOC-002	Parse annotations and documentation	Structures 3.13	implemented	document_test.go serialize_test.go
+DOC-003	Parse include import and redefine	Structures 4.2	implemented	composition_test.go document_test.go compile/compile_test.go
+DOC-004	Preserve namespace bindings and base URIs	Structures 4.2	implemented	composition_test.go parse_internal_test.go
+COMP-001	Compile schema components into an immutable set	Structures 2.2 and 3	implemented	compile/compile_test.go compile/clone_internal_test.go
+COMP-002	Enforce component identity and duplicate rules	Structures 3 and 5.1	implemented	compile/compile_test.go compile/validate_components_internal_test.go
+COMP-003	Implement chameleon include semantics	Structures 4.2.1	implemented	compile/compile_test.go compile/boundary_internal_test.go
+TYPE-001	Implement built-in simple types	Datatypes 3	implemented	datatype/decimal_test.go datatype/integer_test.go datatype/lexical_test.go datatype/order_test.go
+TYPE-002	Implement restriction facets	Datatypes 4.3	implemented	datatype/pattern_test.go simple_types_test.go compile/component_validation_internal_test.go validate/validate_test.go
+TYPE-003	Implement list and union types	Datatypes 2.5.1	implemented	simple_types_test.go compile/value_constraint_internal_test.go validate/validate_test.go
+TYPE-004	Implement complex type restriction and extension	Structures 3.4	implemented	components_test.go compile/restriction_internal_test.go compile/complex_type_internal_test.go
+DECL-001	Implement element declarations	Structures 3.3	implemented	components_test.go compile/model_group_internal_test.go validate/validate_test.go
+DECL-002	Implement attribute declarations and uses	Structures 3.2 and 3.5	implemented	components_test.go compile/value_constraint_internal_test.go particles_test.go
+DECL-003	Implement model and attribute groups	Structures 3.6 through 3.8	implemented	compile/expand_groups_internal_test.go compile/restriction_internal_test.go validate/validate_test.go
+PART-001	Implement particles and occurrence constraints	Structures 3.9	implemented	particles_test.go compile/model_group_internal_test.go validate/model_matching_internal_test.go
+PART-002	Implement wildcards	Structures 3.10	implemented	compile/restriction_internal_test.go validate/validate_test.go
+PART-003	Enforce unique particle attribution	Structures 3.8.6	implemented	compile/compile_test.go compile/model_group_internal_test.go
+IDENT-001	Implement unique key and keyref	Structures 3.11	implemented	identity_test.go compile/component_validation_internal_test.go validate/identity_internal_test.go
+IDENT-002	Implement the identity-constraint XPath subset	Structures 3.11.6	implemented	identity_xpath_test.go compile/accessor_internal_test.go validate/validate_test.go
+VAL-001	Validate XML instances as a stream	Structures 5	implemented	validate/validate.go validate/validate_test.go
+VAL-002	Validate tree instances with stream parity	Structures 5	implemented	validate/validate.go validate/validate_test.go
+VAL-003	Emit structured diagnostics with source locations	Structures 5	implemented	errors.go document_test.go validate/value_internal_test.go validate/validate_test.go
+RES-001	Resolve resources only through an injected resolver	Structures 4.3	implemented	resolve/resolve_test.go compile/compile_test.go
+SEC-001	Reject DTD and external entity processing	Project security policy	implemented	document_test.go
+SEC-002	Disable remote and file loading by default	Project security policy	implemented	parse.go resolve/resolve_test.go
+SEC-003	Bound parser compiler validator and serializer work	Project security policy	implemented	parse_internal_test.go serialize_test.go compile/boundary_internal_test.go validate/boundary_internal_test.go
+SEC-004	Pass the focused hostile-input and resource-amplification gate	Project security policy	implemented	scripts/check-hostile.sh docs/security.md
+SER-001	Serialize schemas deterministically	Project acceptance criteria	implemented	serialize_test.go serialize_internal_test.go
+SER-002	Reject cyclic models and bound serialization depth work and output	Project security policy	implemented	serialize_limits.go serialize_test.go
+BLD-001	Provide valid-by-construction builders	Project acceptance criteria	implemented	builder/builder_test.go builder/clone_internal_test.go
+CONF-001	Run the pinned XSTS suite with no blocking failures	XSTS 2007-06-20	implemented	xsdtest/xsts_test.go scripts/check-xsts.sh docs/xsts-baseline.md
+QUAL-001	Maintain meaningful 100 percent production coverage	Project acceptance criteria	implemented	scripts/check-coverage.sh
+QUAL-002	Pass fuzz race mutation cancellation and leak gates	Project acceptance criteria	implemented	fuzz_test.go datatype/fuzz_test.go leak_test.go scripts/check-mutation.sh docs/mutation-baseline.md
+DOCS-001	Publish the required user and maintainer documentation	Project acceptance criteria	implemented	README.md docs/README.md docs/security.md docs/cookbook.md
+WSDL-001	Expose compiled sets suitable for wsdl	Project acceptance criteria	implemented	compile/compile.go compile/wsdl_contract_test.go docs/wsdl-integration.md
+QUAL-003	Pass correctness-gated comparative benchmarks	Project acceptance criteria	implemented	benchmark_test.go scripts/check-benchmarks.sh xsdtest/reference/ReferenceBenchmark.java
+QUAL-004	Differential-test validation modes and an independent implementation	Project acceptance criteria	implemented	differential_test.go scripts/check-differential.sh xsdtest/reference/ReferenceDifferential.java

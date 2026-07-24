@@ -1,0 +1,2 @@
+# name	module	policy	max_cold_ms	max_warm_ms	max_peak_kib
+coverage-advisory	testdata/coverage	advisory.yml	5000	5000	262144

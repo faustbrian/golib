@@ -1,0 +1,1528 @@
+## github.com/faustbrian/golib/pkg/analysis/analysis
+
+package analysis // import "github.com/faustbrian/golib/pkg/analysis/analysis"
+
+Package analysis defines shared contracts used by every analyzer and report.
+
+FUNCTIONS
+
+func ApplyPolicyExceptions(
+	root string,
+	diagnostics []Diagnostic,
+	exceptions []PolicyException,
+	now time.Time,
+) ([]Diagnostic, []PolicyException, error)
+    ApplyPolicyExceptions filters exact reviewed exceptions and rejects stale or
+    expired configuration.
+
+func ApplySuppressions(
+	diagnostics []Diagnostic,
+	suppressions []Suppression,
+) ([]Diagnostic, []Suppression, error)
+    ApplySuppressions filters exact matches and rejects unused directives.
+
+func WriteJSON(writer io.Writer, report Report) error
+    WriteJSON emits a deterministic report without source contents.
+
+func WriteSARIF(writer io.Writer, report Report) error
+    WriteSARIF emits a deterministic SARIF 2.1.0 document without snippets.
+
+
+TYPES
+
+type BackendClientPolicy struct {
+	Package         string   `yaml:"package" json:"package"`
+	AllowedPackages []string `yaml:"allowed_packages" json:"allowed_packages"`
+}
+    BackendClientPolicy restricts a backend package tree to approved adapters.
+
+type BackendErrorFlowPolicy struct {
+	Package string `yaml:"package" json:"package"`
+	Symbol  string `yaml:"symbol" json:"symbol"`
+	Result  int    `yaml:"result" json:"result"`
+}
+    BackendErrorFlowPolicy identifies one backend callable result.
+
+type BackendErrorPassthroughPolicy struct {
+	Package      string `yaml:"package" json:"package"`
+	Symbol       string `yaml:"symbol" json:"symbol"`
+	Result       int    `yaml:"result" json:"result"`
+	Arguments    []int  `yaml:"arguments,omitempty" json:"arguments,omitempty"`
+	VariadicFrom *int   `yaml:"variadic_from,omitempty" json:"variadic_from,omitempty"`
+}
+    BackendErrorPassthroughPolicy identifies a wrapper that preserves errors.
+
+type Category string
+    Category groups rules by the engineering policy they enforce.
+
+const (
+	CategoryArchitecture  Category = "architecture"
+	CategoryContext       Category = "context"
+	CategoryHTTP          Category = "http"
+	CategoryLifecycle     Category = "lifecycle"
+	CategorySecurity      Category = "security"
+	CategoryAPI           Category = "api"
+	CategorySafety        Category = "safety"
+	CategoryObservability Category = "observability"
+)
+type Config struct {
+	Version                   int                             `yaml:"version" json:"version"`
+	Root                      string                          `yaml:"-" json:"root"`
+	Packages                  []PackagePolicy                 `yaml:"packages,omitempty" json:"packages,omitempty"`
+	Entrypoints               []string                        `yaml:"entrypoints,omitempty" json:"entrypoints,omitempty"`
+	InitPackages              []string                        `yaml:"init_packages,omitempty" json:"init_packages,omitempty"`
+	ContextOwners             []string                        `yaml:"context_owners,omitempty" json:"context_owners,omitempty"`
+	HTTPTimeoutExceptions     []string                        `yaml:"http_timeout_exceptions,omitempty" json:"http_timeout_exceptions,omitempty"`
+	Constructors              []ConstructorPolicy             `yaml:"constructors,omitempty" json:"constructors,omitempty"`
+	ResourceConstructors      []ResourceConstructorPolicy     `yaml:"resource_constructors,omitempty" json:"resource_constructors,omitempty"`
+	Transactions              []TransactionPolicy             `yaml:"transactions,omitempty" json:"transactions,omitempty"`
+	LockSensitiveCalls        []LockSensitiveCallPolicy       `yaml:"lock_sensitive_calls,omitempty" json:"lock_sensitive_calls,omitempty"`
+	SensitiveTypes            []SensitiveTypePolicy           `yaml:"sensitive_types,omitempty" json:"sensitive_types,omitempty"`
+	SensitiveSinks            []SensitiveSinkPolicy           `yaml:"sensitive_sinks,omitempty" json:"sensitive_sinks,omitempty"`
+	ForbiddenAPIs             []ForbiddenAPIPolicy            `yaml:"forbidden_apis,omitempty" json:"forbidden_apis,omitempty"`
+	BackendClients            []BackendClientPolicy           `yaml:"backend_clients,omitempty" json:"backend_clients,omitempty"`
+	MutableGlobals            []MutableGlobalPolicy           `yaml:"mutable_globals,omitempty" json:"mutable_globals,omitempty"`
+	InterfaceProviderPackages []string                        `yaml:"interface_provider_packages,omitempty" json:"interface_provider_packages,omitempty"`
+	InterfaceNames            []InterfaceNamePolicy           `yaml:"interface_names,omitempty" json:"interface_names,omitempty"`
+	MetricLabelTypes          []MetricLabelTypePolicy         `yaml:"metric_label_types,omitempty" json:"metric_label_types,omitempty"`
+	MetricLabelSinks          []MetricLabelSinkPolicy         `yaml:"metric_label_sinks,omitempty" json:"metric_label_sinks,omitempty"`
+	MetricLabelNameTypes      []MetricLabelNameTypePolicy     `yaml:"metric_label_name_types,omitempty" json:"metric_label_name_types,omitempty"`
+	MetricLabelNameSinks      []MetricLabelSinkPolicy         `yaml:"metric_label_name_sinks,omitempty" json:"metric_label_name_sinks,omitempty"`
+	BackendErrorBoundaries    []string                        `yaml:"backend_error_boundaries,omitempty" json:"backend_error_boundaries,omitempty"`
+	BackendErrorSources       []BackendErrorFlowPolicy        `yaml:"backend_error_sources,omitempty" json:"backend_error_sources,omitempty"`
+	BackendErrorPassthroughs  []BackendErrorPassthroughPolicy `yaml:"backend_error_passthroughs,omitempty" json:"backend_error_passthroughs,omitempty"`
+	GoroutineFanout           []GoroutineFanoutPolicy         `yaml:"goroutine_fanout,omitempty" json:"goroutine_fanout,omitempty"`
+	AdapterRoots              []string                        `yaml:"adapter_roots,omitempty" json:"adapter_roots,omitempty"`
+	Layers                    []DirectionPolicy               `yaml:"layers,omitempty" json:"layers,omitempty"`
+	Contexts                  []DirectionPolicy               `yaml:"contexts,omitempty" json:"contexts,omitempty"`
+	Generated                 GeneratedPolicy                 `yaml:"generated,omitempty" json:"generated,omitempty"`
+	Rules                     map[string]RulePolicy           `yaml:"rules,omitempty" json:"rules,omitempty"`
+	Exceptions                []PolicyException               `yaml:"exceptions,omitempty" json:"exceptions,omitempty"`
+}
+    Config is the versioned organization policy consumed by analyzers.
+
+func LoadConfig(path string, knownRules []string) (*Config, error)
+    LoadConfig reads exactly one strict YAML policy document.
+
+func (config Config) Validate(knownRules []string) error
+    Validate checks a decoded configuration against the governed rule IDs.
+
+type ConfigurationProperty struct {
+	Type        ConfigurationType `json:"type"`
+	Description string            `json:"description,omitempty"`
+	Required    bool              `json:"required,omitempty"`
+}
+    ConfigurationProperty documents one accepted rule configuration key.
+
+type ConfigurationSchema struct {
+	Properties map[string]ConfigurationProperty `json:"properties,omitempty"`
+}
+    ConfigurationSchema documents the complete rule-specific configuration.
+
+type ConfigurationType string
+    ConfigurationType is a primitive accepted by a rule's configuration.
+
+const (
+	ConfigurationString  ConfigurationType = "string"
+	ConfigurationBoolean ConfigurationType = "boolean"
+	ConfigurationInteger ConfigurationType = "integer"
+	ConfigurationArray   ConfigurationType = "array"
+	ConfigurationObject  ConfigurationType = "object"
+)
+type ConstructorPolicy struct {
+	Package string   `yaml:"package" json:"package"`
+	Symbols []string `yaml:"symbols" json:"symbols"`
+}
+    ConstructorPolicy identifies exact constructors with explicit lifecycle
+    rules.
+
+type Diagnostic struct {
+	Rule        string `json:"rule"`
+	Package     string `json:"package,omitempty"`
+	Filename    string `json:"filename"`
+	Line        int    `json:"line"`
+	Column      int    `json:"column,omitempty"`
+	Message     string `json:"message"`
+	Rationale   string `json:"rationale,omitempty"`
+	Remediation string `json:"remediation,omitempty"`
+}
+    Diagnostic is the stable reporting form of one policy violation.
+
+type DirectionPolicy struct {
+	Name      string   `yaml:"name" json:"name"`
+	MayImport []string `yaml:"may_import,omitempty" json:"may_import,omitempty"`
+}
+    DirectionPolicy names one architecture partition and permitted dependencies.
+
+type ForbiddenAPIPolicy struct {
+	Package         string   `yaml:"package" json:"package"`
+	Symbol          string   `yaml:"symbol" json:"symbol"`
+	Replacement     string   `yaml:"replacement" json:"replacement"`
+	AllowedPackages []string `yaml:"allowed_packages,omitempty" json:"allowed_packages,omitempty"`
+}
+    ForbiddenAPIPolicy configures one exact organization API migration.
+
+type GeneratedPolicy struct {
+	Exclude bool     `yaml:"exclude,omitempty" json:"exclude,omitempty"`
+	Paths   []string `yaml:"paths,omitempty" json:"paths,omitempty"`
+}
+    GeneratedPolicy controls exact trusted generated Go file exclusions.
+
+type GoroutineFanoutPolicy struct {
+	Package   string `yaml:"package" json:"package"`
+	MaxStatic int    `yaml:"max_static" json:"max_static"`
+}
+    GoroutineFanoutPolicy configures a package tree's static fan-out ceiling.
+
+type InterfaceNamePolicy struct {
+	Package        string   `yaml:"package" json:"package"`
+	RequiredPrefix string   `yaml:"required_prefix,omitempty" json:"required_prefix,omitempty"`
+	RequiredSuffix string   `yaml:"required_suffix,omitempty" json:"required_suffix,omitempty"`
+	AllowedNames   []string `yaml:"allowed_names,omitempty" json:"allowed_names,omitempty"`
+}
+    InterfaceNamePolicy governs exported value-interface names in one package
+    tree.
+
+type LockSensitiveCallPolicy struct {
+	Package         string   `yaml:"package" json:"package"`
+	Symbol          string   `yaml:"symbol" json:"symbol"`
+	AllowedPackages []string `yaml:"allowed_packages,omitempty" json:"allowed_packages,omitempty"`
+}
+    LockSensitiveCallPolicy identifies a callback or I/O call forbidden under
+    locks.
+
+type MetricLabelNameTypePolicy = MetricLabelTypePolicy
+    MetricLabelNameTypePolicy identifies one named attacker-controlled
+    label-name type.
+
+type MetricLabelSinkPolicy struct {
+	Package      string `yaml:"package" json:"package"`
+	Symbol       string `yaml:"symbol" json:"symbol"`
+	Arguments    []int  `yaml:"arguments,omitempty" json:"arguments,omitempty"`
+	VariadicFrom *int   `yaml:"variadic_from,omitempty" json:"variadic_from,omitempty"`
+}
+    MetricLabelSinkPolicy identifies label positions on one metric callable.
+
+type MetricLabelTypePolicy struct {
+	Package string `yaml:"package" json:"package"`
+	Name    string `yaml:"name" json:"name"`
+}
+    MetricLabelTypePolicy identifies one named high-cardinality label type.
+
+type MutableGlobalPolicy struct {
+	Package string `yaml:"package" json:"package"`
+}
+    MutableGlobalPolicy governs composite globals in one package tree.
+
+type PackagePolicy struct {
+	Pattern           string   `yaml:"pattern" json:"pattern"`
+	Layer             string   `yaml:"layer,omitempty" json:"layer,omitempty"`
+	Context           string   `yaml:"context,omitempty" json:"context,omitempty"`
+	AllowImports      []string `yaml:"allow_imports,omitempty" json:"allow_imports,omitempty"`
+	DenyImports       []string `yaml:"deny_imports,omitempty" json:"deny_imports,omitempty"`
+	BlockingFunctions []string `yaml:"blocking_functions,omitempty" json:"blocking_functions,omitempty"`
+}
+    PackagePolicy assigns architecture constraints to matching import paths.
+
+type PolicyException struct {
+	Rule    string `yaml:"rule" json:"rule"`
+	Package string `yaml:"package" json:"package"`
+	Path    string `yaml:"path,omitempty" json:"path,omitempty"`
+	Reason  string `yaml:"reason" json:"reason"`
+	Expires string `yaml:"expires,omitempty" json:"expires,omitempty"`
+	Issue   string `yaml:"issue,omitempty" json:"issue,omitempty"`
+	Used    bool   `yaml:"-" json:"used"`
+}
+    PolicyException is a narrow, reviewed exception to one rule.
+
+type PromotionPolicy struct {
+	Version  string `yaml:"version" json:"version"`
+	Evidence string `yaml:"evidence" json:"evidence"`
+}
+    PromotionPolicy proves that one blocking override is explicit and versioned.
+
+type Report struct {
+	ToolVersion  string            `json:"tool_version"`
+	Root         string            `json:"-"`
+	Rules        []Rule            `json:"rules"`
+	Diagnostics  []Diagnostic      `json:"diagnostics"`
+	Exceptions   []PolicyException `json:"exceptions"`
+	Suppressions []Suppression     `json:"suppressions"`
+}
+    Report is the stable machine-readable result of one analysis run.
+
+type ResourceConstructorPolicy struct {
+	Package         string   `yaml:"package" json:"package"`
+	Symbol          string   `yaml:"symbol" json:"symbol"`
+	CleanupResult   int      `yaml:"cleanup_result" json:"cleanup_result"`
+	AllowedPackages []string `yaml:"allowed_packages,omitempty" json:"allowed_packages,omitempty"`
+}
+    ResourceConstructorPolicy identifies an explicit cleanup ownership contract.
+
+type Rule struct {
+	ID                string              `json:"id"`
+	Category          Category            `json:"category"`
+	Severity          Severity            `json:"severity"`
+	DefaultStatus     Status              `json:"default_status"`
+	Rationale         string              `json:"rationale"`
+	Remediation       string              `json:"remediation"`
+	IntroducedVersion string              `json:"introduced_version"`
+	Configuration     ConfigurationSchema `json:"configuration"`
+}
+    Rule contains stable, machine-readable metadata for one policy rule.
+
+func (rule Rule) Validate() error
+    Validate rejects incomplete or unstable rule metadata.
+
+type RulePolicy struct {
+	Status    Status           `yaml:"status,omitempty" json:"status,omitempty"`
+	Severity  Severity         `yaml:"severity,omitempty" json:"severity,omitempty"`
+	Options   map[string]any   `yaml:"options,omitempty" json:"options,omitempty"`
+	Promotion *PromotionPolicy `yaml:"promotion,omitempty" json:"promotion,omitempty"`
+}
+    RulePolicy overrides metadata defaults for one known rule.
+
+type SensitiveSinkPolicy struct {
+	Package         string   `yaml:"package" json:"package"`
+	Symbol          string   `yaml:"symbol" json:"symbol"`
+	Arguments       []int    `yaml:"arguments,omitempty" json:"arguments,omitempty"`
+	VariadicFrom    *int     `yaml:"variadic_from,omitempty" json:"variadic_from,omitempty"`
+	AllowedPackages []string `yaml:"allowed_packages,omitempty" json:"allowed_packages,omitempty"`
+}
+    SensitiveSinkPolicy identifies typed-sensitive positions on one callable.
+
+type SensitiveTypePolicy struct {
+	Package string `yaml:"package" json:"package"`
+	Name    string `yaml:"name" json:"name"`
+}
+    SensitiveTypePolicy identifies one named secret-bearing type.
+
+type Severity string
+    Severity determines how prominently a diagnostic is reported.
+
+const (
+	SeverityInfo    Severity = "info"
+	SeverityWarning Severity = "warning"
+	SeverityError   Severity = "error"
+)
+type Status string
+    Status controls whether a rule informs developers or blocks a build.
+
+const (
+	StatusDisabled Status = "disabled"
+	StatusAdvisory Status = "advisory"
+	StatusBlocking Status = "blocking"
+)
+type Suppression struct {
+	Rule          string    `json:"rule"`
+	Filename      string    `json:"filename"`
+	DirectiveLine int       `json:"directive_line"`
+	TargetLine    int       `json:"target_line"`
+	Reason        string    `json:"reason"`
+	Expires       time.Time `json:"expires,omitempty"`
+	Issue         string    `json:"issue,omitempty"`
+	Used          bool      `json:"used"`
+}
+    Suppression is one attributable exception attached to the following line.
+
+func ParseSuppressions(
+	fset *token.FileSet,
+	file *ast.File,
+	knownRules []string,
+	now time.Time,
+) ([]Suppression, error)
+    ParseSuppressions validates all analysis directives in a Go file.
+
+type TransactionPolicy struct {
+	Package        string `yaml:"package" json:"package"`
+	Symbol         string `yaml:"symbol" json:"symbol"`
+	Result         int    `yaml:"result" json:"result"`
+	RollbackMethod string `yaml:"rollback_method" json:"rollback_method"`
+}
+    TransactionPolicy identifies one transaction constructor and its rollback
+    ownership contract.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analysistestkit
+
+package analysistestkit // import "github.com/faustbrian/golib/pkg/analysis/analysistestkit"
+
+Package analysistestkit provides shared analyzer robustness fixtures.
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/backenderror
+
+package backenderror // import "github.com/faustbrian/golib/pkg/analysis/analyzers/backenderror"
+
+Package backenderror prevents configured backend errors from crossing exported
+API boundaries without an explicit classification step.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until boundaries and sources are configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryAPI,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Backend errors crossing public boundaries leak implementation contracts and unstable classification.",
+	Remediation:       "Map the backend failure to a stable package-owned error before returning it.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"backend_error_boundaries": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact packages or trailing /... trees that own exported API boundaries.",
+		},
+		"backend_error_sources": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact backend callables and zero-based error result positions.",
+		},
+		"backend_error_passthroughs": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact wrapper results and argument positions that preserve backend errors.",
+		},
+	}},
+}
+    Rule is the stable metadata for backend error boundary policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates backend error policy and constructs an analyzer.
+
+
+TYPES
+
+type Flow struct {
+	Package string
+	Symbol  string
+	Result  int
+}
+    Flow identifies one result from an exact backend callable.
+
+type Options struct {
+	Boundaries   []string
+	Sources      []Flow
+	Passthroughs []Passthrough
+}
+    Options configures exported boundary packages and backend error provenance.
+
+type Passthrough struct {
+	Package      string
+	Symbol       string
+	Result       int
+	Arguments    []int
+	VariadicFrom *int
+}
+    Passthrough identifies a callable result that preserves errors from exact
+    argument positions.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/blockingcontext
+
+package blockingcontext // import "github.com/faustbrian/golib/pkg/analysis/analyzers/blockingcontext"
+
+Package blockingcontext requires context on configured blocking APIs.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryContext,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Blocking APIs without context cannot propagate cancellation or deadlines.",
+	Remediation:       "Accept context.Context and propagate it through blocking operations.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"policies": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact packages and exported blocking API symbols.",
+		},
+	}},
+}
+    Rule is the stable metadata for blocking API context policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates public symbol policy and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures blocking public API contracts.
+
+type Policy struct {
+	Package   string
+	Functions []string
+}
+    Policy names exported blocking functions in one exact package.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/cleanupownership
+
+package cleanupownership // import "github.com/faustbrian/golib/pkg/analysis/analyzers/cleanupownership"
+
+Package cleanupownership detects discarded cleanup results from configured
+constructors.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Discarding an explicit cleanup result loses resource lifetime ownership.",
+	Remediation:       "Bind the cleanup result and call it, defer it, or transfer it to the resource owner.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"resource_constructors": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact callables and zero-based cleanup result positions.",
+		},
+	}},
+}
+    Rule is the stable metadata for configured cleanup ownership.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates cleanup ownership policy and constructs an analyzer.
+
+
+TYPES
+
+type Constructor struct {
+	Package         string
+	Symbol          string
+	CleanupResult   int
+	AllowedPackages []string
+}
+    Constructor identifies one exact callable and its cleanup result position.
+
+type Options struct {
+	Constructors []Constructor
+}
+    Options configures cleanup ownership contracts.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/constructorgoroutine
+
+package constructorgoroutine // import "github.com/faustbrian/golib/pkg/analysis/analyzers/constructorgoroutine"
+
+Package constructorgoroutine forbids hidden goroutine startup in constructors.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Constructors that start goroutines hide lifetime, shutdown, and error ownership from callers.",
+	Remediation:       "Start work explicitly after construction and expose cancellation, waiting, and error contracts.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"policies": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact packages and constructor function or method symbols.",
+		},
+	}},
+}
+    Rule is the stable metadata for constructor goroutine ownership.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates constructor policy and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures constructor lifecycle policy.
+
+type Policy struct {
+	Package string
+	Symbols []string
+}
+    Policy names exact constructor functions and methods in one package.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/forbiddenapi
+
+package forbiddenapi // import "github.com/faustbrian/golib/pkg/analysis/analyzers/forbiddenapi"
+
+Package forbiddenapi enforces organization-specific API migrations.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryAPI,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Repository-specific forbidden APIs preserve deprecated dependencies and boundary bypasses.",
+	Remediation:       "Use the configured replacement or move the call into a reviewed adapter.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"policies": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact package symbols, replacements, and reviewed package exceptions.",
+		},
+	}},
+}
+    Rule is the stable metadata for forbidden API migrations.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates migration policy and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures organization-specific API migrations.
+
+type Policy struct {
+	Package         string
+	Symbol          string
+	Replacement     string
+	AllowedPackages []string
+}
+    Policy identifies one exact callable and its approved replacement.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/globalgoroutine
+
+package globalgoroutine // import "github.com/faustbrian/golib/pkg/analysis/analyzers/globalgoroutine"
+
+Package globalgoroutine detects goroutines started by package initialization.
+
+VARIABLES
+
+var Analyzer = &analysis.Analyzer{
+	Name: "globalgoroutine",
+	Doc:  Rule.Rationale,
+	Run:  run,
+}
+    Analyzer reports goroutines in immediately executed global initializers.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Goroutines started during package initialization have no caller-visible lifetime, shutdown, or error owner.",
+	Remediation:       "Move startup behind explicit construction or Start and expose cancellation, waiting, and error contracts.",
+	IntroducedVersion: "0.1.0",
+}
+    Rule is the stable metadata for package-global goroutine ownership.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/goroutinefanout
+
+package goroutinefanout // import "github.com/faustbrian/golib/pkg/analysis/analyzers/goroutinefanout"
+
+Package goroutinefanout detects goroutine launches repeated by loops without a
+statically proven organization-approved bound.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until package policies are configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityWarning,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Loop-driven goroutine launches can make concurrency scale with untrusted or unbounded work.",
+	Remediation:       "Use a fixed worker pool, a proven bounded semaphore, or synchronous per-iteration completion.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"goroutine_fanout": {
+			Type:        shared.ConfigurationArray,
+			Description: "Package trees and maximum statically expanded goroutine launches.",
+		},
+	}},
+}
+    Rule is the stable metadata for goroutine fan-out policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates fan-out policy and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures package fan-out limits.
+
+type Policy struct {
+	Package   string
+	MaxStatic int
+}
+    Policy opts one package or trailing /... tree into fan-out enforcement.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/httpclienttimeout
+
+package httpclienttimeout // import "github.com/faustbrian/golib/pkg/analysis/analyzers/httpclienttimeout"
+
+Package httpclienttimeout requires explicit timeout ownership for HTTP clients.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer applies timeout policy with no package exceptions.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryHTTP,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "HTTP clients without explicit positive timeouts can retain blocked operations and resources indefinitely.",
+	Remediation:       "Set Client.Timeout to a positive reviewed duration, or isolate an intentional streaming client in an approved package.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"http_timeout_exceptions": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact packages allowed to construct clients without a positive timeout.",
+		},
+	}},
+}
+    Rule is the stable metadata for explicit HTTP client timeout policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates timeout exceptions and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	AllowedPackages []string
+}
+    Options configures reviewed packages that intentionally use unbounded
+    clients.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/importboundary
+
+package importboundary // import "github.com/faustbrian/golib/pkg/analysis/analyzers/importboundary"
+
+Package importboundary enforces configured package dependency direction.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryArchitecture,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Boundary bypasses couple inner packages to forbidden implementation details.",
+	Remediation:       "Move the dependency behind an approved port or adapter.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"policies": {
+			Type:        shared.ConfigurationArray,
+			Description: "Package trees with explicit denied and allowed imports.",
+		},
+		"restricted_dependencies": {
+			Type:        shared.ConfigurationArray,
+			Description: "Backend package trees and the adapter trees allowed to import them.",
+		},
+		"packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Non-overlapping package trees assigned to layers and contexts.",
+		},
+		"layers": {
+			Type:        shared.ConfigurationArray,
+			Description: "Named layers and the other layers each may import.",
+		},
+		"contexts": {
+			Type:        shared.ConfigurationArray,
+			Description: "Named bounded contexts and the other contexts each may import.",
+		},
+	}},
+}
+    Rule is the stable metadata for dependency direction policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates path semantics and constructs a configured analyzer.
+
+
+TYPES
+
+type Direction struct {
+	Name      string
+	MayImport []string
+}
+    Direction names one layer or context and the other names it may import.
+    Imports within the same name are always allowed.
+
+type Options struct {
+	Policies               []Policy
+	RestrictedDependencies []RestrictedDependency
+	Packages               []PackageClass
+	Layers                 []Direction
+	Contexts               []Direction
+}
+    Options configures all repository dependency boundaries.
+
+type PackageClass struct {
+	Package string
+	Layer   string
+	Context string
+}
+    PackageClass assigns an exact package tree to a layer and bounded context.
+
+type Policy struct {
+	Package      string
+	DenyImports  []string
+	AllowImports []string
+}
+    Policy defines imports denied for one package tree.
+
+type RestrictedDependency struct {
+	Package         string
+	AllowedPackages []string
+}
+    RestrictedDependency defines a package tree that only approved package trees
+    may import. It models backend clients and other adapter-owned APIs.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/interfacenaming
+
+package interfacenaming // import "github.com/faustbrian/golib/pkg/analysis/analyzers/interfacenaming"
+
+Package interfacenaming enforces configured names for exported value interfaces.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until interface naming policy is configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryAPI,
+	Severity:          shared.SeverityWarning,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Organization interface names communicate stable architectural roles at API boundaries.",
+	Remediation:       "Rename the interface to match its configured role or add an exact reviewed compatibility name.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"interface_names": {
+			Type:        shared.ConfigurationArray,
+			Description: "Package trees with required interface prefixes, suffixes, and exact compatibility names.",
+		},
+	}},
+}
+    Rule is the stable metadata for configured interface naming policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures interface naming policies.
+
+type Policy struct {
+	Package        string
+	RequiredPrefix string
+	RequiredSuffix string
+	AllowedNames   []string
+}
+    Policy configures one non-overlapping package tree's interface names.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/interfaceplacement
+
+package interfaceplacement // import "github.com/faustbrian/golib/pkg/analysis/analyzers/interfaceplacement"
+
+Package interfaceplacement enforces consumer-owned public interfaces in
+configured provider package trees.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until provider package trees are configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryAPI,
+	Severity:          shared.SeverityWarning,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Provider-owned interfaces couple consumers to abstractions they do not require.",
+	Remediation:       "Declare the smallest interface in the consuming package and accept it at the use site.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"interface_provider_packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Provider package trees forbidden from declaring exported value interfaces.",
+		},
+	}},
+}
+    Rule is the stable metadata for consumer-owned interface policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates provider package patterns and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Packages []string
+}
+    Options configures provider package trees that must not own public value
+    interfaces.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/lockacrosscall
+
+package lockacrosscall // import "github.com/faustbrian/golib/pkg/analysis/analyzers/lockacrosscall"
+
+Package lockacrosscall detects configured calls made while locks are held.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Callbacks and blocking I/O under an internal lock can deadlock, amplify contention, and transfer lock-order control.",
+	Remediation:       "Copy required state, release the lock, then invoke the configured callback or I/O operation.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"lock_sensitive_calls": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact callback or I/O callables forbidden while a lock is definitely held.",
+		},
+	}},
+}
+    Rule is the stable metadata for calls made under internal locks.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates lock-sensitive call policy and constructs an analyzer.
+
+
+TYPES
+
+type Call struct {
+	Package         string
+	Symbol          string
+	AllowedPackages []string
+}
+    Call identifies one exact callback or I/O callable.
+
+type Options struct {
+	Calls []Call
+}
+    Options configures calls that must not run while a lock is held.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/metriccardinality
+
+package metriccardinality // import "github.com/faustbrian/golib/pkg/analysis/analyzers/metriccardinality"
+
+Package metriccardinality detects configured high-cardinality typed values
+passed to configured metric label positions.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until both types and sinks are configured.
+
+var LabelNameAnalyzer, _ = NewLabelName(LabelNameOptions{})
+    LabelNameAnalyzer is inactive until both attacker-controlled types and
+    label-name sinks are configured.
+
+var LabelNameRule = shared.Rule{
+	ID:                labelNameRuleID,
+	Category:          shared.CategoryObservability,
+	Severity:          shared.SeverityWarning,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Attacker-controlled metric label names create unbounded metric schemas and time series.",
+	Remediation:       "Map the input to a fixed allowlist of label names or use it only as a bounded label value.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"metric_label_name_types": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact named types carrying attacker-controlled label names.",
+		},
+		"metric_label_name_sinks": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact metric callables and zero-based label-name positions.",
+		},
+	}},
+}
+    LabelNameRule is the stable metadata for attacker-controlled metric label
+    names.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryObservability,
+	Severity:          shared.SeverityWarning,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "High-cardinality metric labels create unbounded time series and observability cost.",
+	Remediation:       "Replace the value with a bounded category or remove it from metric labels.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"metric_label_types": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact named types carrying high-cardinality label values.",
+		},
+		"metric_label_sinks": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact metric callables and zero-based label argument positions.",
+		},
+	}},
+}
+    Rule is the stable metadata for typed metric-cardinality policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates typed metric policy and constructs an analyzer.
+
+func NewLabelName(options LabelNameOptions) (*analysis.Analyzer, error)
+    NewLabelName validates typed label-name policy and constructs an analyzer.
+
+
+TYPES
+
+type AttackerControlledType = HighCardinalityType
+    AttackerControlledType identifies a named type proven to carry untrusted
+    input that must not control metric label names.
+
+type HighCardinalityType struct {
+	Package string
+	Name    string
+}
+    HighCardinalityType identifies a named type that must not become a metric
+    label without an explicit reviewed transformation.
+
+type LabelNameOptions struct {
+	AttackerControlledTypes []AttackerControlledType
+	Sinks                   []Sink
+}
+    LabelNameOptions configures attacker-controlled types and metric label-name
+    sink positions.
+
+type Options struct {
+	HighCardinalityTypes []HighCardinalityType
+	Sinks                []Sink
+}
+    Options configures high-cardinality types and metric label sinks.
+
+type Sink struct {
+	Package      string
+	Symbol       string
+	Arguments    []int
+	VariadicFrom *int
+}
+    Sink identifies metric label argument positions on an exact callable.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/mutableglobal
+
+package mutableglobal // import "github.com/faustbrian/golib/pkg/analysis/analyzers/mutableglobal"
+
+Package mutableglobal reports package variables that hold shared mutable state
+rather than immutable scalar values.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until package trees are explicitly configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategorySafety,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Composite package variables hide shared ownership and mutable process state.",
+	Remediation:       "Construct the state explicitly and inject its owner into dependent components.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"mutable_globals": {
+			Type:        shared.ConfigurationArray,
+			Description: "Package trees governed by shared mutable state policy.",
+		},
+	}},
+}
+    Rule is the stable metadata for shared package-state policy.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates policies and constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	Policies []Policy
+}
+    Options configures package trees governed by shared-state policy.
+
+type Policy struct {
+	Package string
+}
+    Policy selects one package tree for shared-state enforcement.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/nobackground
+
+package nobackground // import "github.com/faustbrian/golib/pkg/analysis/analyzers/nobackground"
+
+Package nobackground restricts root context creation to composition roots.
+
+VARIABLES
+
+var Analyzer = New(Options{})
+    Analyzer reports root and detached contexts outside approved roots.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryContext,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Replacing an available lifecycle with a root context loses cancellation and deadlines.",
+	Remediation:       "Propagate the caller context or create roots only in approved composition packages.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"allowed_packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact package paths allowed to create root contexts.",
+		},
+	}},
+}
+    Rule is the stable metadata for root context policy.
+
+
+FUNCTIONS
+
+func New(options Options) *analysis.Analyzer
+    New constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	AllowedPackages []string
+}
+    Options configures packages that own root context creation.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/nodefaulthttp
+
+package nodefaulthttp // import "github.com/faustbrian/golib/pkg/analysis/analyzers/nodefaulthttp"
+
+Package nodefaulthttp forbids process-global HTTP clients and transports.
+
+VARIABLES
+
+var Analyzer = &analysis.Analyzer{
+	Name: "nodefaulthttp",
+	Doc:  Rule.Rationale,
+	Run: func(pass *analysis.Pass) (any, error) {
+		for _, file := range pass.Files {
+			ownedClones := ownedTransportClones(pass, file)
+			ast.Inspect(file, func(node ast.Node) bool {
+				identifier, ok := node.(*ast.Ident)
+				if ok {
+					reportReference(pass, identifier, ownedClones)
+				}
+				return true
+			})
+		}
+		return nil, nil
+	},
+}
+    Analyzer reports references to net/http's process-global defaults.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryHTTP,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Process-global HTTP defaults hide connection, timeout, and shutdown ownership.",
+	Remediation:       "Construct and inject an explicit http.Client and cloned transport with reviewed timeouts.",
+	IntroducedVersion: "0.1.0",
+	Configuration:     shared.ConfigurationSchema{},
+}
+    Rule is the stable metadata for HTTP lifecycle ownership policy.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/noinit
+
+package noinit // import "github.com/faustbrian/golib/pkg/analysis/analyzers/noinit"
+
+Package noinit requires explicit construction instead of package init.
+
+VARIABLES
+
+var Analyzer = New(Options{})
+    Analyzer reports package init declarations outside configured exceptions.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Package init hides ordering, failure, and lifecycle ownership.",
+	Remediation:       "Expose an explicit constructor called by the composition root.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"allowed_packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact package paths with reviewed init requirements.",
+		},
+	}},
+}
+    Rule is the stable metadata for explicit construction policy.
+
+
+FUNCTIONS
+
+func New(options Options) *analysis.Analyzer
+    New constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	AllowedPackages []string
+}
+    Options configures packages with a reviewed need for init.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/noprocesscontrol
+
+package noprocesscontrol // import "github.com/faustbrian/golib/pkg/analysis/analyzers/noprocesscontrol"
+
+Package noprocesscontrol restricts process termination to entrypoints.
+
+VARIABLES
+
+var Analyzer = New(Options{})
+    Analyzer reports process-control calls outside approved entrypoints.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Library process termination bypasses caller-owned error handling and cleanup.",
+	Remediation:       "Return a classified error and let an approved entrypoint terminate the process.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"allowed_packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact package import paths allowed to control the process.",
+		},
+	}},
+}
+    Rule is the stable metadata for process-control policy.
+
+
+FUNCTIONS
+
+func New(options Options) *analysis.Analyzer
+    New constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	AllowedPackages []string
+}
+    Options configures approved composition-root packages.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/nostoredcontext
+
+package nostoredcontext // import "github.com/faustbrian/golib/pkg/analysis/analyzers/nostoredcontext"
+
+Package nostoredcontext forbids context lifecycle storage in structs.
+
+VARIABLES
+
+var Analyzer = New(Options{})
+    Analyzer reports struct fields that semantically implement context.Context.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryContext,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Struct storage obscures who owns context cancellation and lifetime.",
+	Remediation:       "Pass context through each operation instead of retaining it.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"allowed_packages": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact packages with reviewed context ownership.",
+		},
+	}},
+}
+    Rule is the stable metadata for context ownership policy.
+
+
+FUNCTIONS
+
+func New(options Options) *analysis.Analyzer
+    New constructs an independently configured analyzer.
+
+
+TYPES
+
+type Options struct {
+	AllowedPackages []string
+}
+    Options configures reviewed lifecycle owner packages.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/nounsafe
+
+package nounsafe // import "github.com/faustbrian/golib/pkg/analysis/analyzers/nounsafe"
+
+Package nounsafe forbids unsafe, cgo, and go:linkname in production policy.
+
+VARIABLES
+
+var Analyzer = &analysis.Analyzer{
+	Name: "nounsafe",
+	Doc:  Rule.Rationale,
+	Run:  run,
+}
+    Analyzer reports unsafe boundary bypasses at their exact syntax location.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategorySecurity,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Unsafe, cgo, and linkname bypass Go safety boundaries.",
+	Remediation:       "Use a safe Go API or isolate the operation in an approved package.",
+	IntroducedVersion: "0.1.0",
+}
+    Rule is the stable metadata for the unsafe boundary policy.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/sensitivesink
+
+package sensitivesink // import "github.com/faustbrian/golib/pkg/analysis/analyzers/sensitivesink"
+
+Package sensitivesink detects typed sensitive values passed to configured sinks.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is the unconfigured analyzer used by inventory tooling.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategorySecurity,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "Sensitive typed values can leak through logs, telemetry, errors, formatting, and URLs.",
+	Remediation:       "Pass an explicitly redacted representation or remove the value from the configured sink.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"sensitive_types": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact named types carrying secret-bearing values.",
+		},
+		"sinks": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact callables and sensitive argument positions.",
+		},
+	}},
+}
+    Rule is the stable metadata for typed sensitive-value handling.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates typed data policy and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	SensitiveTypes []SensitiveType
+	Sinks          []Sink
+}
+    Options configures sensitive types and output sinks.
+
+type SensitiveType struct {
+	Package string
+	Name    string
+}
+    SensitiveType identifies one named type carrying secret-bearing data.
+
+type Sink struct {
+	Package         string
+	Symbol          string
+	Arguments       []int
+	VariadicFrom    *int
+	AllowedPackages []string
+}
+    Sink identifies sensitive argument positions on one exact callable.
+
+
+## github.com/faustbrian/golib/pkg/analysis/analyzers/transactionrollback
+
+package transactionrollback // import "github.com/faustbrian/golib/pkg/analysis/analyzers/transactionrollback"
+
+Package transactionrollback enforces immediate rollback ownership for configured
+transaction constructors.
+
+VARIABLES
+
+var Analyzer, _ = New(Options{})
+    Analyzer is inactive until transaction contracts are configured.
+
+var Rule = shared.Rule{
+	ID:                ruleID,
+	Category:          shared.CategoryLifecycle,
+	Severity:          shared.SeverityError,
+	DefaultStatus:     shared.StatusAdvisory,
+	Rationale:         "A transaction without immediate rollback ownership can remain open on early returns and failed commits.",
+	Remediation:       "After the constructor error guard, immediately defer Rollback on the transaction before performing work.",
+	IntroducedVersion: "0.1.0",
+	Configuration: shared.ConfigurationSchema{Properties: map[string]shared.ConfigurationProperty{
+		"transactions": {
+			Type:        shared.ConfigurationArray,
+			Description: "Exact constructors, transaction result positions, and rollback methods.",
+		},
+	}},
+}
+    Rule is the stable metadata for transaction rollback ownership.
+
+
+FUNCTIONS
+
+func New(options Options) (*analysis.Analyzer, error)
+    New validates transaction contracts and constructs an analyzer.
+
+
+TYPES
+
+type Options struct {
+	Transactions []Transaction
+}
+    Options configures transaction rollback ownership contracts.
+
+type Transaction struct {
+	Package        string
+	Symbol         string
+	Result         int
+	RollbackMethod string
+}
+    Transaction identifies one transaction constructor and its rollback
+    contract.
+
+
+## github.com/faustbrian/golib/pkg/analysis/policy
+
+package policy // import "github.com/faustbrian/golib/pkg/analysis/policy"
+
+Package policy owns rule governance and deterministic inventories.
+
+TYPES
+
+type Entry struct {
+	Rule              shared.Rule `json:"rule"`
+	Owner             string      `json:"owner"`
+	PromotionEvidence string      `json:"promotion_evidence,omitempty"`
+	Overlaps          []Overlap   `json:"overlaps,omitempty"`
+}
+    Entry associates a rule with ownership and promotion evidence.
+
+type Overlap struct {
+	Tool               string `json:"tool"`
+	CanonicalAuthority string `json:"canonical_authority"`
+	CompatibleConfig   string `json:"compatible_configuration,omitempty"`
+}
+    Overlap documents another tool covering adjacent or identical semantics.
+
+type Registry struct {
+	// Has unexported fields.
+}
+    Registry is an immutable, validated rule inventory.
+
+func Builtin() (*Registry, error)
+    Builtin returns the governed inventory shipped by this module.
+
+func NewRegistry(entries []Entry) (*Registry, error)
+    NewRegistry rejects incomplete ownership and silent blocking promotion.
+
+func (registry *Registry) Entries() []Entry
+    Entries returns governed rules in stable order without exposing storage.
+
+func (registry *Registry) IDs() []string
+    IDs returns rule IDs in stable lexical order.

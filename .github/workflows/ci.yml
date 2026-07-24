@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: golib-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  prepare:
+    name: Select modules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.selection.outputs.matrix }}
+      count: ${{ steps.selection.outputs.count }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Validate repository contract
+        run: make repository-check
+
+      - name: Select changed modules and reverse dependants
+        id: selection
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            matrix="$(go run ./cmd/golib select --changed "${BASE_SHA}" --format matrix)"
+          else
+            matrix="$(go run ./cmd/golib select --all --format matrix)"
+          fi
+          count="$(jq 'length' <<<"${matrix}")"
+          [[ "${count}" -gt 0 ]] || {
+            echo 'module selection is empty' >&2
+            exit 1
+          }
+          echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
+          echo "count=${count}" >>"${GITHUB_OUTPUT}"
+
+  quality:
+    name: Module / ${{ matrix.directory }}
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Set up Node for browser and Test262 gates
+        if: matrix.directory == 'pkg/ecma-regexp' || matrix.directory == 'pkg/queue-control-plane'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.4.1'
+          cache: false
+
+      - name: Run strict module contract
+        run: ./scripts/run-modules.sh check --modules '${{ matrix.directory }}'
+
+      - name: Upload attributable evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: evidence-${{ matrix.artifact }}
+          path: .artifacts/${{ matrix.directory }}
+          if-no-files-found: error
+          retention-days: 30
+
+  codeql:
+    name: CodeQL
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+        with:
+          languages: go
+          queries: security-extended,security-and-quality
+
+      - name: Build every Go module
+        run: |
+          set -euo pipefail
+          go run ./cmd/golib select --all | while IFS= read -r module; do
+            [[ -n "${module}" ]] || continue
+            if [[ "$(jq -r --arg directory "${module}" '.modules[] | select(.directory == $directory) | (.packages | length)' modules.json)" -gt 0 ]]; then
+              (cd "${module}" && go build ./...)
+            fi
+          done
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+
+  required:
+    name: Required
+    if: always()
+    needs: [prepare, quality, codeql]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every expected result
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+          MODULE_COUNT: ${{ needs.prepare.outputs.count }}
+        run: |
+          set -euo pipefail
+          [[ "${PREPARE_RESULT}" == success ]]
+          [[ "${QUALITY_RESULT}" == success ]]
+          [[ "${CODEQL_RESULT}" == success ]]
+          [[ "${MODULE_COUNT}" =~ ^[1-9][0-9]*$ ]]
+          printf 'all %s selected modules and repository gates passed\n' "${MODULE_COUNT}"

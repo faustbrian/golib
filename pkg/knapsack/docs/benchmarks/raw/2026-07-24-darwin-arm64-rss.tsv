@@ -1,0 +1,73 @@
+package_commit	3935ba3bf1319adc3c2cb7a28385cf640083e61c
+input_sha256	9e167d4fcfd3723dd4261b078da2e4c4bffb6857a3f8762940f45ffd6d1c01f6
+go_version	go1.26.5
+environment	darwin/arm64
+processor	Apple M4 Max
+date	2026-07-24
+command	BENCH_RSS_RAW_OUTPUT=docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv ./scripts/benchmark-rss.sh 100ms
+time_format	darwin
+duration	100ms
+samples	5
+seed	0
+solver_parallelism	1
+gate_status	pass
+semantic_normalization	verified integer lattice and exact constraints defined by each benchmark fixture
+benchmark_source_sha256	f2883846ba6e27a14952e34cee3451394fc56ce2764f93f6e61cf3b442de46e6
+generator_sha256	a23fcd64d84acc017a51154f1bba0f2d68dbc6706d898b02b377d4885474a97d
+threshold_sha256	2088df22bf41423f856a55d88d61f8a01bf82c5541b9de73f273e2e3756c291c
+benchmark	sample	peak_rss_bytes	budget_bytes
+BenchmarkHeuristicOrdinaryOrder	1	16859136	67108864
+BenchmarkHeuristicOrdinaryOrder	2	16646144	67108864
+BenchmarkHeuristicOrdinaryOrder	3	16728064	67108864
+BenchmarkHeuristicOrdinaryOrder	4	16744448	67108864
+BenchmarkHeuristicOrdinaryOrder	5	16908288	67108864
+BenchmarkExactTinyFixed	1	16220160	67108864
+BenchmarkExactTinyFixed	2	15958016	67108864
+BenchmarkExactTinyFixed	3	15613952	67108864
+BenchmarkExactTinyFixed	4	15433728	67108864
+BenchmarkExactTinyFixed	5	15908864	67108864
+BenchmarkVerifyOrdinaryOrder	1	15876096	67108864
+BenchmarkVerifyOrdinaryOrder	2	16351232	67108864
+BenchmarkVerifyOrdinaryOrder	3	16449536	67108864
+BenchmarkVerifyOrdinaryOrder	4	16121856	67108864
+BenchmarkVerifyOrdinaryOrder	5	16220160	67108864
+BenchmarkHeuristicOrientationHeavy	1	16793600	67108864
+BenchmarkHeuristicOrientationHeavy	2	16760832	67108864
+BenchmarkHeuristicOrientationHeavy	3	16891904	67108864
+BenchmarkHeuristicOrientationHeavy	4	16433152	67108864
+BenchmarkHeuristicOrientationHeavy	5	16334848	67108864
+BenchmarkHeuristicWeightLimited	1	17104896	67108864
+BenchmarkHeuristicWeightLimited	2	16842752	67108864
+BenchmarkHeuristicWeightLimited	3	16924672	67108864
+BenchmarkHeuristicWeightLimited	4	17137664	67108864
+BenchmarkHeuristicWeightLimited	5	16531456	67108864
+BenchmarkHeuristicStabilityHeavy	1	17367040	67108864
+BenchmarkHeuristicStabilityHeavy	2	16924672	67108864
+BenchmarkHeuristicStabilityHeavy	3	16531456	67108864
+BenchmarkHeuristicStabilityHeavy	4	17055744	67108864
+BenchmarkHeuristicStabilityHeavy	5	16629760	67108864
+BenchmarkHeuristicFiniteStock	1	16924672	67108864
+BenchmarkHeuristicFiniteStock	2	17235968	67108864
+BenchmarkHeuristicFiniteStock	3	17022976	67108864
+BenchmarkHeuristicFiniteStock	4	16334848	67108864
+BenchmarkHeuristicFiniteStock	5	16842752	67108864
+BenchmarkHeuristicImpossible	1	15564800	67108864
+BenchmarkHeuristicImpossible	2	15564800	67108864
+BenchmarkHeuristicImpossible	3	15892480	67108864
+BenchmarkHeuristicImpossible	4	15745024	67108864
+BenchmarkHeuristicImpossible	5	15761408	67108864
+BenchmarkHeuristicFragmentedReservedSpace	1	16662528	134217728
+BenchmarkHeuristicFragmentedReservedSpace	2	17301504	134217728
+BenchmarkHeuristicFragmentedReservedSpace	3	16908288	134217728
+BenchmarkHeuristicFragmentedReservedSpace	4	17072128	134217728
+BenchmarkHeuristicFragmentedReservedSpace	5	17186816	134217728
+BenchmarkHeuristicLargeBounded	1	16809984	134217728
+BenchmarkHeuristicLargeBounded	2	16629760	134217728
+BenchmarkHeuristicLargeBounded	3	16941056	134217728
+BenchmarkHeuristicLargeBounded	4	16809984	134217728
+BenchmarkHeuristicLargeBounded	5	17235968	134217728
+BenchmarkCancellationLatency	1	8175616	33554432
+BenchmarkCancellationLatency	2	8306688	33554432
+BenchmarkCancellationLatency	3	8290304	33554432
+BenchmarkCancellationLatency	4	8552448	33554432
+BenchmarkCancellationLatency	5	8208384	33554432

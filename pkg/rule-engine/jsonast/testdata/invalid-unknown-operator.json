@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "id": "invalid",
+  "strategy": "first_match",
+  "rules": [
+    {
+      "id": "bad",
+      "priority": 0,
+      "tags": [],
+      "when": {
+        "kind": "compare",
+        "operator": "execute",
+        "left": {"kind": "literal", "value": {"type": "int", "int": 1}},
+        "right": {"kind": "literal", "value": {"type": "int", "int": 1}}
+      },
+      "derive": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+#compdef 'tool'
+__go_cli_7c9bbe5ec9b3_complete() {
+    local -a arguments output candidates descriptions
+    local line candidate description
+    arguments=("${words[@]:0:$CURRENT}")
+    arguments[1]=()
+    output=("${(@f)$(command "$words[1]" __complete \
+        "${arguments[@]}" 2>/dev/null)}")
+    for line in "${output[@]}"; do
+        if [[ "$line" == :<-> ]]; then
+            continue
+        fi
+        candidate="${line%%$'\t'*}"
+        description="${line#*$'\t'}"
+        if [[ "$description" == "$line" ]]; then
+            description=""
+        fi
+        candidates+=("$candidate")
+        descriptions+=("$description")
+    done
+    compadd -Q -d descriptions -- "${candidates[@]}"
+}
+compdef __go_cli_7c9bbe5ec9b3_complete -- 'tool'

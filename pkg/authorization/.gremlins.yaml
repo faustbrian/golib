@@ -1,0 +1,9 @@
+unleash:
+  output-statuses: lct
+  workers: 2
+  timeout-coefficient: 10
+  exclude-files:
+    - ^examples/
+  threshold:
+    efficacy: 85
+    mutant-coverage: 95

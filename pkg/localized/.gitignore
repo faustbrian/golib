@@ -1,0 +1,5 @@
+coverage.out
+dist/
+mutation-results.json
+go.work
+go.work.sum

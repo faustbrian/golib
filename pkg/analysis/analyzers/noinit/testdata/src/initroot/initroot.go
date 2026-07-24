@@ -1,0 +1,3 @@
+package initroot
+
+func init() {}

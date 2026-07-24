@@ -1,0 +1,71 @@
+## github.com/faustbrian/golib/pkg/math
+var ErrInvalidArgument = errors.New("math: invalid argument") ...
+type Condition uint16
+    const ConditionRounded Condition = 1 << iota ...
+type Limits struct{ ... }
+    func DefaultLimits() Limits
+type RoundingMode uint8
+    const RoundHalfEven RoundingMode = iota ...
+## github.com/faustbrian/golib/pkg/math/bigfloat
+type Context struct{ ... }
+type Float struct{ ... }
+type Result struct{ ... }
+    func FromBig(value *big.Float, operation Context) (Result, error)
+    func FromRat(value *big.Rat, operation Context) (Result, error)
+    func NewInt64(value int64, operation Context) (Result, error)
+    func Parse(text string, base int, operation Context) (Result, error)
+## github.com/faustbrian/golib/pkg/math/decimal
+const HalfEven = gomath.RoundHalfEven ...
+var ErrInvalid = gomath.ErrInvalidSyntax ...
+type Context struct{ ... }
+type Decimal struct{ ... }
+    func FromBig(coefficient *big.Int, exponent int32, limits gomath.Limits) (Decimal, error)
+    func MustParse(input string) Decimal
+    func New(value int64) Decimal
+    func Parse(input string) (Decimal, error)
+    func ParseWithOptions(input string, options ParseOptions) (Decimal, error)
+type ParseOptions struct{ ... }
+type Result struct{ ... }
+    func QuantizedQuo(ctx context.Context, numerator Decimal, denominator Decimal, scale int32, ...) (Result, error)
+type RoundingMode = gomath.RoundingMode
+## github.com/faustbrian/golib/pkg/math/encoding
+func MarshalDecimal(value decimal.Decimal) ([]byte, error)
+func MarshalFloat(value bigfloat.Float) ([]byte, error)
+func MarshalInteger(value integer.Integer) ([]byte, error)
+func MarshalRational(value rational.Rational) ([]byte, error)
+func UnmarshalDecimal(data []byte, limits gomath.Limits) (decimal.Decimal, error)
+func UnmarshalFloat(data []byte, limits gomath.Limits) (bigfloat.Float, error)
+func UnmarshalInteger(data []byte, limits gomath.Limits) (integer.Integer, error)
+func UnmarshalRational(data []byte, limits gomath.Limits) (rational.Rational, error)
+## github.com/faustbrian/golib/pkg/math/integer
+type Integer struct{ ... }
+    func Clamp(value, minimum, maximum Integer) (Integer, error)
+    func FromBig(value *big.Int, limits gomath.Limits) (Integer, error)
+    func GCD(ctx context.Context, left, right Integer, limits gomath.Limits) (Integer, error)
+    func LCM(ctx context.Context, left, right Integer, limits gomath.Limits) (Integer, error)
+    func Max(left, right Integer) Integer
+    func Min(left, right Integer) Integer
+    func New(value int64) Integer
+    func NewUnsigned(value uint64) Integer
+    func Parse(text string, options ParseOptions) (Integer, error)
+    func Random(ctx context.Context, source io.Reader, minimum, maximum Integer, ...) (Integer, error)
+    func Zero() Integer
+type ParseOptions struct{ ... }
+## github.com/faustbrian/golib/pkg/math/mathtest
+func Associative[V EqualValue[V]](t T, values []V, operation Operation[V])
+func Commutative[V EqualValue[V]](t T, values []V, operation Operation[V])
+func Identity[V EqualValue[V]](t T, values []V, identity V, operation Operation[V])
+func RoundTrip[V EqualValue[V]](t T, values []V, encode func(V) ([]byte, error), ...)
+type EqualValue[V any] interface{ ... }
+type Operation[V any] func(V, V) (V, error)
+type T interface{ ... }
+## github.com/faustbrian/golib/pkg/math/rational
+type Rational struct{ ... }
+    func Clamp(value, minimum, maximum Rational) (Rational, error)
+    func FromBig(value *big.Rat, limits gomath.Limits) (Rational, error)
+    func Max(left, right Rational) Rational
+    func Min(left, right Rational) Rational
+    func New(numerator, denominator int64) (Rational, error)
+    func NewChecked(numerator, denominator *big.Int, limits gomath.Limits) (Rational, error)
+    func Parse(text string, limits gomath.Limits) (Rational, error)
+    func Zero() Rational

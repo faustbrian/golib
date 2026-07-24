@@ -1,0 +1,5 @@
+identifier
+Copyright 2026 Brian Faust
+
+This product includes interoperability and benchmark dependencies under their
+respective licenses. See go.mod and each upstream module for license terms.

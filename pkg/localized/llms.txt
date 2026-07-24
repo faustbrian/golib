@@ -1,0 +1,14 @@
+# localized
+
+Immutable UTF-8 text keyed by canonical BCP 47 language tags.
+
+Start with:
+- README.md
+- docs/semantics.md
+- docs/api.md
+- docs/security.md
+- docs/migration.md
+
+Exact lookup, standards matching, and configured fallback are separate. Missing
+and present-empty are distinct. There is no global locale or translation
+catalog behavior.

@@ -1,0 +1,7 @@
+tabular
+Copyright 2026 tabular contributors
+
+The internal XLS reader is informed by github.com/millken/xls, originally
+licensed under the Apache License, Version 2.0. The implementation has been
+substantially reduced and modified for bounded, read-only BIFF8 ingestion.
+See internal/xls/NOTICE.md for provenance details.

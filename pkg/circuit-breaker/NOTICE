@@ -1,0 +1,6 @@
+circuit-breaker
+Copyright (c) 2026 Brian Faust
+
+This distribution includes software developed by project contributors and is
+provided under the MIT License. The core module has no bundled third-party
+runtime code.

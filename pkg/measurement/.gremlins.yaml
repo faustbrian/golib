@@ -1,0 +1,18 @@
+unleash:
+  output-statuses: lct
+  workers: 2
+  timeout-coefficient: 10
+  threshold:
+    efficacy: 90
+    mutant-coverage: 99
+mutants:
+  arithmetic-base:
+    enabled: true
+  conditionals-boundary:
+    enabled: true
+  conditionals-negation:
+    enabled: true
+  increment-decrement:
+    enabled: true
+  invert-negatives:
+    enabled: true

@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-07-19",
+  "acceptedErrata": [
+    {
+      "version": "3.2.0",
+      "url": "https://github.com/OAI/OpenAPI-Specification/pull/4994",
+      "mergeCommit": "0f65e951d63d34c207cd79081cff4743c0d763fb",
+      "decision": "docs/specification-decisions.md#openapi-32-default-schema-object-dialect"
+    }
+  ],
+  "jsonSchemaArtifacts": {
+    "retrievedAt": "2026-07-19",
+    "license": "BSD-3-Clause OR AFL-3.0",
+    "licenseSource": "https://github.com/json-schema-org/json-schema-spec/blob/0c46441fe869d670a01eb489cf075e7bd7ca0235/LICENSE",
+    "files": [
+      {"source":"http://json-schema.org/draft-04/schema","path":"schemas/json-schema/draft-04.json","sha256":"e1489d0b4755f02793302591d3fcb8f07b6893a82a94f24895f8e4edf11b82e2"}
+    ]
+  },
+  "ianaArtifacts": {
+    "retrievedAt": "2026-07-22",
+    "license": "CC0-1.0",
+    "licenseSource": "https://www.iana.org/help/licensing-terms",
+    "files": [
+      {"source":"https://www.iana.org/assignments/http-status-codes/http-status-codes-1.csv","path":"registries/iana/http-status-codes-1.csv","sha256":"4a9550d4b4ae49cf41cf9050cf9b56b0d6082ad1edfc0e2b09b07f251a36d7a4"},
+      {"source":"https://www.iana.org/assignments/http-authschemes/authschemes.csv","path":"registries/iana/authschemes.csv","sha256":"9624ab05b6d91d0658f16e082699b8d68a09d16d06c9c030409bebe92cc58347"},
+      {"source":"https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry-1.csv","path":"registries/iana/iana-ipv4-special-registry-1.csv","sha256":"e3e39e76d00b1677335db8e9a805c7b9480ea2f4dc9e33f0b93cd3a905128d73"},
+      {"source":"https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry-1.csv","path":"registries/iana/iana-ipv6-special-registry-1.csv","sha256":"775feea0621dec8735a44fbf30f762e721e8f0a1b3ab7eb341961a88cfce2139"}
+    ]
+  },
+  "independentDescriptions": {
+    "swaggerPetstore": {
+      "repository": "https://github.com/swagger-api/swagger-petstore",
+      "revision": "8f0dd286987880b4af7bce552aca3813166f3049",
+      "license": "Apache-2.0",
+      "licenseSource": "https://github.com/swagger-api/swagger-petstore/blob/8f0dd286987880b4af7bce552aca3813166f3049/LICENSE",
+      "files": [
+        {"source":"LICENSE","path":"independent/swagger-petstore/LICENSE","sha256":"b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"},
+        {"source":"src/main/resources/openapi.yaml","path":"independent/swagger-petstore/openapi.yaml","sha256":"0d810997f6409d5cff6f0cf2c1466814ba52250a784cd841cacb93514c7a8502"}
+      ]
+    },
+    "githubRESTAPI": {
+      "repository": "https://github.com/github/rest-api-description",
+      "revision": "417c4fb368fc6a7162ce5f3eeeddce1a9a217747",
+      "license": "MIT",
+      "licenseSource": "https://github.com/github/rest-api-description/blob/417c4fb368fc6a7162ce5f3eeeddce1a9a217747/LICENSE.md",
+      "files": [
+        {"source":"LICENSE.md","path":"independent/github-rest-api/LICENSE.md","sha256":"3243761cbac07e6d169a5a2f4e7c25cc544da85248e735df74c3672e055cc87b"},
+        {"source":"descriptions-next/api.github.com/api.github.com.2022-11-28.json","path":"independent/github-rest-api/api.github.com.2022-11-28.json","sha256":"9d85f3a842c0215768f30f83ac7d1595430236fc51ce9c84e344b991a9f6b3da"}
+      ]
+    }
+  },
+  "openapiSpecification": {
+    "repository": "https://github.com/OAI/OpenAPI-Specification",
+    "license": "Apache-2.0",
+    "licenseSource": "https://github.com/OAI/OpenAPI-Specification/blob/99710bcb26cbe4be646565eebeb04348f02374b5/LICENSE",
+    "revisions": {
+      "2.0": "8e166da300c64bb7144938fec518b8e3f4cae715",
+      "3.0": "b8953109f2eb4d9eebcc7f702f70456b2e074567",
+      "3.1": "82603363df271c104c8f527f0fe641ea67da93fd",
+      "3.2": "99710bcb26cbe4be646565eebeb04348f02374b5"
+    },
+    "files": [
+      {"version":"all","source":"LICENSE","path":"licenses/OpenAPI-Specification-LICENSE","sha256":"4948367c65e1ce06690e2cadc6e86fce1a6a6db55ef874ce4b78c0f472ce5f13"},
+      {"version":"2.0","source":"versions/2.0.md","path":"oas/2.0/2.0.md","sha256":"57bf00dfabdb79634e2886e022f3c6195296682b237ed4a56c7fc631c85b3c91"},
+      {"version":"3.0.0","source":"versions/3.0.0.md","path":"oas/3.0/3.0.0.md","sha256":"b55a1df4501cd095cfc86878e86dfffd215d4ad36fc6764b84cf8ec6b3976620"},
+      {"version":"3.0.1","source":"versions/3.0.1.md","path":"oas/3.0/3.0.1.md","sha256":"9e120058b65e79288f7920271f18d745943e10866f00f0fbfa54190660da343f"},
+      {"version":"3.0.2","source":"versions/3.0.2.md","path":"oas/3.0/3.0.2.md","sha256":"504a61acec0c22beaab2942d15a055afadb4589e56cf9512e8e8b0bf8fcf9b77"},
+      {"version":"3.0.3","source":"versions/3.0.3.md","path":"oas/3.0/3.0.3.md","sha256":"8ccccaab5172a41ac1270fd0f0b40940e783134e0685ef3d41c63b62571feb29"},
+      {"version":"3.0.4","source":"versions/3.0.4.md","path":"oas/3.0/3.0.4.md","sha256":"77af0760571a228e61ca2126d6f4de9efcf053d5dcfb7f0ad2f84d7ecf622ff6"},
+      {"version":"3.1.0","source":"versions/3.1.0.md","path":"oas/3.1/3.1.0.md","sha256":"ee99bcc50c7610f4876ce77b2f746036d4095e0909968bb6839259f955bac022"},
+      {"version":"3.1.1","source":"versions/3.1.1.md","path":"oas/3.1/3.1.1.md","sha256":"a612d2b72d422925616b2cabfa7acc0419ffaaf4b0eb42bfb11dc9b804f92749"},
+      {"version":"3.1.2","source":"versions/3.1.2.md","path":"oas/3.1/3.1.2.md","sha256":"7e30126d65acad53523f420e522d34edb3717af225aae727e73a522abc227da7"},
+      {"version":"3.2.0","source":"versions/3.2.0.md","path":"oas/3.2/3.2.0.md","sha256":"936c11e5f37fd0cf7cbb3c3a8bf5ef4b2ee5c03fbec0eb900ae546fc0a696503"}
+    ]
+  },
+  "publishedArtifacts": {
+    "repository": "https://github.com/OAI/spec.openapis.org",
+    "revision": "121b0101ea4728d96149143ca784920d3a36ab54",
+    "license": "Apache-2.0",
+    "licenseSource": "https://github.com/OAI/spec.openapis.org/blob/121b0101ea4728d96149143ca784920d3a36ab54/LICENSE",
+    "files": [
+      {"source":"oas/2.0/schema/2017-08-27","path":"schemas/2.0/2017-08-27.json","sha256":"b36871c8016292c5e66dd3b203e69aeff98bfef97e0b3c67c1909036095586a5"},
+      {"source":"oas/3.0/schema/2024-10-18","path":"schemas/3.0/2024-10-18.json","sha256":"2385f5bbb8c37878daae73baeabe7f34b2f022a4a8c049329ee61f71796f039c"},
+      {"source":"oas/3.1/schema/2025-11-23","path":"schemas/3.1/schema-2025-11-23.json","sha256":"1b8ccc6e34234b17536f2dd0eb3597142a32bd108438cd42471a5fca4c1a07ef"},
+      {"source":"oas/3.1/schema-base/2025-11-23","path":"schemas/3.1/schema-base-2025-11-23.json","sha256":"ab0bde84a429f43f280624f645a19d05c90b626e63862d7278074a465a20ff54"},
+      {"source":"oas/3.1/dialect/2024-11-10","path":"schemas/3.1/dialect-2024-11-10.json","sha256":"647f32dfff64949d5020a28ecd1af4ffeffb1e9c695f861a52255a8004e07460"},
+      {"source":"oas/3.1/meta/2024-11-10","path":"schemas/3.1/meta-2024-11-10.json","sha256":"80706a9a404affedbf84ac4dc1328c9ce0d2a00804cdfc4d95c0ddd0053121dd"},
+      {"source":"oas/3.2/schema/2025-11-23","path":"schemas/3.2/schema-2025-11-23.json","sha256":"7d48f01f37eeae4799041b371ad5f533f9f533fd2b0caa1011a8ba27c5b48b70"},
+      {"source":"oas/3.2/schema-base/2025-11-23","path":"schemas/3.2/schema-base-2025-11-23.json","sha256":"423daa88e2285fa343856c08502fe63fd8aa3674cd5b4ef88746ba6f82647af3"},
+      {"source":"oas/3.2/dialect/2025-09-17","path":"schemas/3.2/dialect-2025-09-17.json","sha256":"4e2c989f3d1e6489d41bc1ca4ade11743278c612b82fba9144c6116c79f1c273"},
+      {"source":"oas/3.2/meta/2025-09-17","path":"schemas/3.2/meta-2025-09-17.json","sha256":"a1959c0aa1f9a7ce58f2b75699be5bc5187c8a25901fe04a227f1d9419ba4e9c"},
+      {"source":"registry/alternative-schema.md","path":"registries/alternative-schema.md","sha256":"acc1af468e58da669ec2cff5816c89ebfcd515b27c68710080169ec7d1f38320"},
+      {"source":"registry/draft-feature.md","path":"registries/draft-feature.md","sha256":"01169ba2f4b5a0238787d004710ce3518936bf9917c0b833dcdc58b2af10a7fd"},
+      {"source":"registry/extension.md","path":"registries/extension.md","sha256":"7743424e240b5a9a32f6ecafaa9ab1811039730ed26177007310db16e4d75026"},
+      {"source":"registry/format.md","path":"registries/format.md","sha256":"0cfa5e6504998d22219d8f413fbf80d0e8f3b66ec89d39ee0a2001661ba32b1a"},
+      {"source":"registry/index.md","path":"registries/index.md","sha256":"a7eafe7594fab6708599a4e5d4706d8e94c915c965e34f9e938b105a06013166"},
+      {"source":"registry/media-type.md","path":"registries/media-type.md","sha256":"21f5b064fe69291bbeb7ebb5fc6bce610667d5854530ef4f58be0f0ab073a7f3"},
+      {"source":"registry/namespace.md","path":"registries/namespace.md","sha256":"79f73713bad80d4f5eb07df8fad23cf85b302626291da5ea397a6929c18e1366"},
+      {"source":"registry/tag-kind.md","path":"registries/tag-kind.md","sha256":"02993a39f113d8ad049e95963a4937de8aa7d5282a5b44dc248567d78af798da"}
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+var ErrInvalidRoute = errors.New("invalid route") ...
+type BaseURL struct{ ... }
+    func NewBaseURL(scheme, authority string) (BaseURL, error)
+type Builder struct{ ... }
+    func New(options ...Option) *Builder
+type Error struct{ ... }
+type GroupOptions struct{ ... }
+type Limits struct{ ... }
+    func DefaultLimits() Limits
+type Middleware = func(http.Handler) http.Handler
+type MountOptions struct{ ... }
+type NamedMiddleware struct{ ... }
+type Option func(*Builder)
+    func WithAutomaticOPTIONS(enabled bool) Option
+    func WithLimits(limits Limits) Option
+    func WithMethodNotAllowed(handler http.Handler) Option
+    func WithMiddleware(middleware ...NamedMiddleware) Option
+    func WithNotFound(handler http.Handler) Option
+    func WithRedirectPolicy(policy RedirectPolicy) Option
+type RedirectPolicy uint8
+    const FollowRedirects RedirectPolicy = iota ...
+type Route struct{ ... }
+type RouteInfo struct{ ... }
+    func MatchedRoute(request *http.Request) (RouteInfo, bool)
+type Router struct{ ... }
+type URLParameter struct{ ... }
+    func Param(name, value string) URLParameter
+    func Remainder(name string, segments ...string) URLParameter

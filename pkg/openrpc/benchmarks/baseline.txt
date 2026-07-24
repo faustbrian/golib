@@ -1,0 +1,15 @@
+openrpc benchmark evidence
+date: 2026-07-20
+go: go1.26.5 darwin/arm64
+host: Darwin 27.0.0 arm64, Apple M4 Max
+command: go test ./... -run '^$' -bench . -benchmem -benchtime=10x
+
+BenchmarkParseCompleteDocument-16          10   251608 ns/op   22.18 MB/s    235120 B/op     3828 allocs/op
+BenchmarkValidateCompleteDocument-16       10    71846 ns/op                 106568 B/op     1502 allocs/op
+BenchmarkSerializeCompleteDocument-16      10    31550 ns/op                  33487 B/op      621 allocs/op
+BenchmarkResolveReference-16               10     5583 ns/op                   5448 B/op       90 allocs/op
+BenchmarkBundleResources-16                10     4742 ns/op                   6952 B/op       85 allocs/op
+BenchmarkDiffCompleteDocument-16           10   309846 ns/op                 254023 B/op     4232 allocs/op
+BenchmarkDiscoveryCompleteDocument-16      10   105596 ns/op                 144287 B/op     2126 allocs/op
+BenchmarkLargeSchemaCompile-16             10  2156846 ns/op                2636608 B/op    32767 allocs/op
+BenchmarkHostileBoundedParse-16            10      783 ns/op  328.10 MB/s      1384 B/op        9 allocs/op

@@ -1,0 +1,886 @@
+PACKAGE github.com/faustbrian/golib/pkg/scheduler
+package scheduler // import "github.com/faustbrian/golib/pkg/scheduler"
+
+Package scheduler defines code-based schedules and distributed execution.
+
+CONSTANTS
+
+const (
+	// MaxJitter is the largest allowed deterministic schedule offset.
+	MaxJitter = 24 * time.Hour
+	// MaxIdentityBytes bounds schedule identity component strings.
+	MaxIdentityBytes = 255
+	// MaxExpressionBytes bounds a cron expression before parser invocation.
+	MaxExpressionBytes = 1_024
+	// MaxParameterBytes bounds the JSON-encoded task parameter payload.
+	MaxParameterBytes = 64 << 10
+	// MaxMetadataEntries bounds diagnostic metadata cardinality.
+	MaxMetadataEntries = 128
+	// MaxMetadataBytes bounds combined metadata key and value bytes.
+	MaxMetadataBytes = 64 << 10
+	// MaxEnvironments bounds environment filters per schedule.
+	MaxEnvironments = 64
+	// MaxConditions bounds trusted application conditions per schedule.
+	MaxConditions = 32
+	// MaxCatchUp bounds retained delayed occurrences per decision.
+	MaxCatchUp = 1_000
+	// MaxSchedules bounds registry size before compilation.
+	MaxSchedules = 10_000
+)
+const DefaultCallbackTimeout = time.Second
+    DefaultCallbackTimeout bounds conditions, hooks, and observers.
+
+const DefaultLeaseOperationTimeout = 5 * time.Second
+    DefaultLeaseOperationTimeout bounds each distributed lease backend call.
+
+const DefaultMaxConcurrentCallbacks = 128
+    DefaultMaxConcurrentCallbacks bounds active and timed-out callbacks.
+
+const DefaultMaxConcurrentExecutions = 128
+    DefaultMaxConcurrentExecutions bounds managed in-process executions.
+
+const MaxObservers = 128
+    MaxObservers bounds lifecycle observer registration per runner.
+
+const MaxOccurrenceScan = 10_000
+    MaxOccurrenceScan bounds candidates inspected by one Due call.
+
+
+VARIABLES
+
+var (
+	// ErrInvalidExpression reports a schedule with invalid cron syntax.
+	ErrInvalidExpression = errors.New("scheduler: invalid cron expression")
+	// ErrInvalidTimezone reports a schedule with an unavailable IANA zone.
+	ErrInvalidTimezone = errors.New("scheduler: invalid timezone")
+	// ErrDuplicateSchedule reports repeated schedule names at compilation.
+	ErrDuplicateSchedule = errors.New("scheduler: duplicate schedule")
+	// ErrScheduleNotFound reports an unknown registry schedule name.
+	ErrScheduleNotFound = errors.New("scheduler: schedule not found")
+	// ErrOccurrenceLimit reports a due scan beyond its global candidate cap.
+	ErrOccurrenceLimit = errors.New("scheduler: occurrence scan limit exceeded")
+)
+var (
+	// ErrInvalidRunner reports missing or incompatible runner dependencies.
+	ErrInvalidRunner = errors.New("scheduler: invalid runner dependencies")
+	// ErrTaskPanic reports a recovered condition or executor panic.
+	ErrTaskPanic = errors.New("scheduler: task panicked")
+	// ErrDraining reports a new tick attempted after drain began.
+	ErrDraining = errors.New("scheduler: runner is draining")
+	// ErrUnsupportedHeartbeat reports a store unsafe for overlap leases.
+	ErrUnsupportedHeartbeat = errors.New("scheduler: lease heartbeat is unsupported")
+	// ErrUnsupportedOverlap reports unavailable safe replacement semantics.
+	ErrUnsupportedOverlap = errors.New("scheduler: overlap replacement is unsupported")
+	// ErrExecutionCapacity reports that the bounded executor pool is full.
+	ErrExecutionCapacity = errors.New("scheduler: execution capacity exhausted")
+	// ErrCallbackTimeout reports a condition or lifecycle callback deadline.
+	ErrCallbackTimeout = errors.New("scheduler: callback timed out")
+	// ErrCallbackCapacity reports that the bounded callback pool is full.
+	ErrCallbackCapacity = errors.New("scheduler: callback capacity exhausted")
+)
+var (
+	// ErrScheduleNameRequired reports a blank schedule name.
+	ErrScheduleNameRequired = errors.New("scheduler: schedule name is required")
+	// ErrTaskNameRequired reports a blank task identity.
+	ErrTaskNameRequired = errors.New("scheduler: task name is required")
+	// ErrInvalidMissedRuns reports an invalid missed-run policy or bound.
+	ErrInvalidMissedRuns = errors.New("scheduler: invalid missed-run policy")
+	// ErrInvalidDateBounds reports an end instant before its start instant.
+	ErrInvalidDateBounds = errors.New("scheduler: invalid date bounds")
+	// ErrInvalidDuration reports a non-positive duration option.
+	ErrInvalidDuration = errors.New("scheduler: duration must be positive")
+	// ErrInvalidVersion reports a blank schedule version.
+	ErrInvalidVersion = errors.New("scheduler: version is required")
+	// ErrResourceLimit reports a definition beyond an exported safety budget.
+	ErrResourceLimit = errors.New("scheduler: resource limit exceeded")
+)
+
+TYPES
+
+type Clock interface {
+	Now() time.Time
+	After(time.Duration) <-chan time.Time
+}
+    Clock provides current time and exact-boundary timers to a Runner.
+
+type Condition func(Context) (bool, error)
+    Condition allows trusted application code to permit an occurrence.
+
+type Context struct {
+	Schedule       Schedule
+	Now            time.Time
+	Due            time.Time
+	Attempt        int
+	Owner          string
+	Fencing        uint64
+	IdempotencyKey string
+	Metadata       map[string]string
+}
+    Context carries immutable schedule and ownership data to an Executor.
+
+type Event struct {
+	Type       EventType
+	Result     Result
+	Occurrence Occurrence
+	Context    context.Context
+	Owner      string
+	Fencing    uint64
+	At         time.Time
+	Err        error
+}
+    Event carries a bounded, structured scheduler lifecycle record.
+
+type EventType uint8
+    EventType identifies a scheduler lifecycle boundary.
+
+const (
+	// EventBefore is emitted immediately before execution.
+	EventBefore EventType = iota
+	// EventSuccess is emitted after successful execution.
+	EventSuccess
+	// EventFailure is emitted after a failed decision or execution.
+	EventFailure
+	// EventSkipped is emitted for a policy-based skip.
+	EventSkipped
+	// EventOverlap is emitted when an active overlap lease prevents execution.
+	EventOverlap
+	// EventCompleted terminates every emitted lifecycle.
+	EventCompleted
+)
+func (eventType EventType) String() string
+
+type Executor interface {
+	Execute(context.Context, Context) error
+}
+    Executor performs or dispatches one scheduled occurrence.
+
+type Hook func(Event)
+    Hook consumes a schedule lifecycle event.
+
+type Hooks struct {
+	Before    Hook
+	Success   Hook
+	Failure   Hook
+	Skipped   Hook
+	Overlap   Hook
+	Completed Hook
+}
+    Hooks configures optional callbacks for each lifecycle boundary.
+
+type Interval struct {
+	// Has unexported fields.
+}
+    Interval contains the explicit cron expression used by a schedule.
+
+func Cron(expression string) Interval
+    Cron constructs an interval from a five-field expression or descriptor.
+
+func Daily() Interval
+    Daily returns the explicit daily cron interval.
+
+func EveryMinute() Interval
+    EveryMinute returns the explicit every-minute cron interval.
+
+func Hourly() Interval
+    Hourly returns the explicit hourly cron interval.
+
+func Monthly() Interval
+    Monthly returns the explicit first-day-at-midnight cron interval.
+
+func Weekly() Interval
+    Weekly returns the explicit Sunday-at-midnight cron interval.
+
+func (i Interval) Expression() string
+    Expression returns the exact cron expression represented by the interval.
+
+type MaintenancePolicy uint8
+    MaintenancePolicy controls execution while application maintenance is
+    active.
+
+const (
+	// MaintenanceSkip suppresses execution during maintenance.
+	MaintenanceSkip MaintenancePolicy = iota
+	// MaintenanceRun allows execution during maintenance.
+	MaintenanceRun
+)
+type MissedRunPolicy uint8
+    MissedRunPolicy controls decisions after one or more delayed boundaries.
+
+const (
+	// MissedRunSkip executes only a boundary observed exactly on time.
+	MissedRunSkip MissedRunPolicy = iota
+	// MissedRunOnce executes only the newest missed boundary.
+	MissedRunOnce
+	// MissedRunCatchUp executes a bounded tail of missed boundaries.
+	MissedRunCatchUp
+)
+type Observer interface {
+	Observe(Event)
+}
+    Observer consumes scheduler lifecycle events.
+
+type ObserverFunc func(Event)
+    ObserverFunc adapts a function to Observer.
+
+func (observe ObserverFunc) Observe(event Event)
+    Observe invokes the adapted observer function.
+
+type Occurrence struct {
+	ScheduleID     string    `json:"schedule_id"`
+	ScheduleName   string    `json:"schedule_name"`
+	Task           string    `json:"task"`
+	ScheduledAt    time.Time `json:"scheduled_at"`
+	Attempt        int       `json:"attempt"`
+	IdempotencyKey string    `json:"idempotency_key"`
+}
+    Occurrence is one deterministic physical schedule boundary.
+
+type Option func(*Schedule) error
+    Option configures a schedule before final validation and identity hashing.
+
+func WithCondition(condition Condition) Option
+    WithCondition appends a non-nil trusted application condition.
+
+func WithDateBounds(start, end time.Time) Option
+    WithDateBounds limits occurrences to inclusive start and end instants.
+
+func WithEnabled(enabled bool) Option
+    WithEnabled controls whether the compiled schedule produces occurrences.
+
+func WithEnvironments(environments ...string) Option
+    WithEnvironments restricts execution to named application environments.
+
+func WithHooks(hooks Hooks) Option
+    WithHooks sets lifecycle callbacks managed by the runner's callback bounds.
+
+func WithJitter(jitter time.Duration) Option
+    WithJitter sets the maximum deterministic per-schedule offset.
+
+func WithMaintenancePolicy(policy MaintenancePolicy) Option
+    WithMaintenancePolicy controls execution during application maintenance.
+
+func WithMetadata(metadata map[string]string) Option
+    WithMetadata copies bounded diagnostic metadata into the schedule.
+
+func WithMissedRuns(policy MissedRunPolicy, maxCatchUp int) Option
+    WithMissedRuns sets delayed-boundary behavior and its catch-up cap.
+
+func WithOneServer(ttl time.Duration) Option
+    WithOneServer enables a distributed occurrence lease with the given TTL.
+
+func WithOverlap(policy OverlapPolicy) Option
+    WithOverlap records overlap policy without enabling a task lease.
+
+func WithParameters(parameters map[string]any) Option
+    WithParameters copies JSON-compatible task parameters into the schedule.
+
+func WithRunTimeout(timeout time.Duration) Option
+    WithRunTimeout sets the execution deadline observed by the runner.
+
+func WithTimezone(timezone string) Option
+    WithTimezone sets the schedule's explicit IANA time-zone name.
+
+func WithVersion(version string) Option
+    WithVersion sets the semantic version included in schedule identity.
+
+func WithoutOverlap(policy OverlapPolicy, ttl time.Duration) Option
+    WithoutOverlap enables a renewable task lease and overlap policy.
+
+type OverlapPolicy uint8
+    OverlapPolicy controls a decision when the task lease is already held.
+
+const (
+	// OverlapAllow permits concurrent execution and does not acquire a task lease.
+	OverlapAllow OverlapPolicy = iota
+	// OverlapSkip skips an occurrence while its task lease is held.
+	OverlapSkip
+	// OverlapReplace delegates safe cancellation and transfer to a replacement store.
+	OverlapReplace
+)
+type Registry struct {
+	// Has unexported fields.
+}
+    Registry is an immutable compiled set of named schedules.
+
+func Compile(schedules ...Schedule) (*Registry, error)
+    Compile validates and freezes a complete named schedule set.
+
+func (registry *Registry) Due(name string, after, through time.Time) ([]Occurrence, error)
+    Due applies the schedule's bounded missed-run policy to an instant range.
+
+func (registry *Registry) Next(name string, after time.Time) (time.Time, error)
+    Next returns the first occurrence strictly after an instant.
+
+func (registry *Registry) Schedules() []Schedule
+    Schedules returns immutable copies sorted by schedule name.
+
+type Result uint8
+    Result classifies the outcome of a schedule decision.
+
+const (
+	// ResultSucceeded reports successful execution or dispatch.
+	ResultSucceeded Result = iota
+	// ResultFailed reports a failed decision or execution.
+	ResultFailed
+	// ResultSkipped reports an intentional non-execution decision.
+	ResultSkipped
+)
+func (result Result) String() string
+
+type Runner struct {
+	// Has unexported fields.
+}
+    Runner calculates due occurrences and coordinates their fenced execution.
+
+func NewRunner(registry *Registry, leases lease.Store, executor Executor, options ...RunnerOption) (*Runner, error)
+    NewRunner validates dependencies and distributed safety capabilities.
+
+func (runner *Runner) Drain(ctx context.Context) error
+    Drain rejects new ticks and waits for active decisions until ctx ends.
+
+func (runner *Runner) Run(ctx context.Context) error
+    Run waits for exact schedule boundaries and processes due occurrences.
+
+func (runner *Runner) Tick(ctx context.Context, after, through time.Time) error
+    Tick processes every bounded decision in an explicit instant range.
+
+type RunnerOption func(*Runner) error
+    RunnerOption configures a Runner during construction.
+
+func WithCallbackTimeout(timeout time.Duration) RunnerOption
+    WithCallbackTimeout bounds individual conditions, hooks, and observers.
+
+func WithClock(clock Clock) RunnerOption
+    WithClock replaces wall time with an injectable scheduler clock.
+
+func WithEnvironment(environment string) RunnerOption
+    WithEnvironment selects schedules allowed in an application environment.
+
+func WithLeaseOperationTimeout(timeout time.Duration) RunnerOption
+    WithLeaseOperationTimeout bounds individual lease backend operations.
+
+func WithMaintenanceMode(enabled bool) RunnerOption
+    WithMaintenanceMode controls maintenance-policy schedule filtering.
+
+func WithMaxConcurrentCallbacks(limit int) RunnerOption
+    WithMaxConcurrentCallbacks bounds active and timed-out callback goroutines.
+
+func WithMaxConcurrentExecutions(limit int) RunnerOption
+    WithMaxConcurrentExecutions bounds active and timed-out managed executions.
+
+func WithObserver(observer Observer) RunnerOption
+    WithObserver appends a lifecycle observer when non-nil.
+
+func WithOwner(owner string) RunnerOption
+    WithOwner sets the unique identity used for lease ownership.
+
+type Schedule struct {
+	Name               string
+	Version            string
+	Task               string
+	Expression         string
+	Timezone           string
+	Identity           string
+	CoordinationID     string
+	ParameterIdentity  string
+	Parameters         map[string]any
+	Enabled            bool
+	Environments       []string
+	MaintenancePolicy  MaintenancePolicy
+	Conditions         []Condition
+	StartAt            time.Time
+	EndAt              time.Time
+	Jitter             time.Duration
+	Metadata           map[string]string
+	MissedRunPolicy    MissedRunPolicy
+	MaxCatchUp         int
+	OverlapPolicy      OverlapPolicy
+	OnOneServer        bool
+	WithoutOverlapping bool
+	LeaseTTL           time.Duration
+	RunTimeout         time.Duration
+	Hooks              Hooks
+}
+    Schedule is an immutable code-defined task timing and policy definition.
+
+func NewSchedule(name, task string, interval Interval, options ...Option) (Schedule, error)
+    NewSchedule constructs, validates, bounds, and identifies a schedule.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/cron
+package cron // import "github.com/faustbrian/golib/pkg/scheduler/cron"
+
+Package cron compiles documented five-field cron expressions in an explicit IANA
+time zone without exposing the underlying parser implementation.
+
+VARIABLES
+
+var (
+	// ErrInvalidExpression reports a cron expression rejected by the parser.
+	ErrInvalidExpression = errors.New("scheduler cron: invalid expression")
+	// ErrInvalidTimezone reports an unavailable IANA time-zone name.
+	ErrInvalidTimezone = errors.New("scheduler cron: invalid timezone")
+)
+
+TYPES
+
+type Schedule interface {
+	Next(time.Time) time.Time
+}
+    Schedule calculates the first occurrence strictly after a timestamp.
+
+func Compile(expression, timezone string) (Schedule, error)
+    Compile validates an expression and time zone and returns an immutable
+    schedule. Expressions use the standard five-field format or descriptors
+    supported by robfig/cron/v3. Calendar searches cover a complete 400-year
+    Gregorian cycle before reporting no future occurrence.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/history
+package history // import "github.com/faustbrian/golib/pkg/scheduler/history"
+
+Package history provides bounded in-memory scheduler event history.
+
+CONSTANTS
+
+const MaxCapacity = 1_000_000
+    MaxCapacity is the largest supported in-memory event history.
+
+
+VARIABLES
+
+var ErrInvalidCapacity = errors.New("scheduler history: capacity must be between 1 and 1000000")
+    ErrInvalidCapacity reports a history capacity outside the supported range.
+
+
+TYPES
+
+type Buffer struct {
+	// Has unexported fields.
+}
+    Buffer is a concurrency-safe, bounded, oldest-first event history.
+
+func NewBuffer(capacity int) (*Buffer, error)
+    NewBuffer constructs an event history with a fixed capacity.
+
+func (buffer *Buffer) Entries() []scheduler.Event
+    Entries returns a snapshot ordered from oldest to newest.
+
+func (buffer *Buffer) Observe(event scheduler.Event)
+    Observe appends an event and evicts the oldest event when full.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/idempotency
+package idempotency // import "github.com/faustbrian/golib/pkg/scheduler/idempotency"
+
+Package idempotency integrates occurrence ownership with idempotency.
+
+VARIABLES
+
+var (
+	// ErrInvalidConfiguration reports missing or unsafe wrapper dependencies.
+	ErrInvalidConfiguration = errors.New("scheduler idempotency: invalid configuration")
+	// ErrOccurrenceConflict reports an occurrence owned by incompatible work.
+	ErrOccurrenceConflict = errors.New("scheduler idempotency: occurrence conflict")
+)
+
+TYPES
+
+type Executor struct {
+	// Has unexported fields.
+}
+    Executor deduplicates schedule occurrences before invoking another executor.
+
+func New(store goidempotency.Store, inner scheduler.Executor, options Options) (*Executor, error)
+    New constructs an occurrence-deduplicating executor.
+
+func (executor *Executor) Execute(ctx context.Context, scheduled scheduler.Context) error
+    Execute acquires occurrence ownership and completes it after successful
+    work.
+
+type Options struct {
+	Tenant string
+	Lease  time.Duration
+}
+    Options configures the tenant namespace and ownership lease.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/lease
+package lease // import "github.com/faustbrian/golib/pkg/scheduler/lease"
+
+Package lease defines distributed ownership and fencing contracts.
+
+VARIABLES
+
+var (
+	// ErrHeld reports a lease currently owned by another execution.
+	ErrHeld = errors.New("scheduler lease: already held")
+	// ErrNotFound reports an unknown or inactive lease.
+	ErrNotFound = errors.New("scheduler lease: not found")
+	// ErrStaleOwner reports an owner or fencing token that is no longer current.
+	ErrStaleOwner = errors.New("scheduler lease: stale owner or fencing token")
+	// ErrInvalid reports malformed lease input.
+	ErrInvalid = errors.New("scheduler lease: invalid argument")
+)
+
+TYPES
+
+type Capabilities struct {
+	Persistent       bool `json:"persistent"`
+	Fencing          bool `json:"fencing"`
+	Heartbeat        bool `json:"heartbeat"`
+	CompareAndDelete bool `json:"compare_and_delete"`
+	ManualRecovery   bool `json:"manual_recovery"`
+}
+    Capabilities describes the safety properties implemented by a store.
+
+type Lease struct {
+	Key          string    `json:"key"`
+	Owner        string    `json:"owner"`
+	FencingToken uint64    `json:"fencing_token"`
+	AcquiredAt   time.Time `json:"acquired_at"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+    Lease records current ownership and its monotonic fencing token.
+
+func (lease Lease) Expired(now time.Time) bool
+    Expired reports whether the lease has reached its expiry instant.
+
+type ReplacementStore interface {
+	Store
+	Replace(
+		ctx context.Context,
+		current Lease,
+		owner string,
+		ttl time.Duration,
+		now time.Time,
+	) (Lease, error)
+}
+    ReplacementStore coordinates cancellation of an existing execution and an
+    atomic fencing-token transfer. Replace MUST NOT return a lease until the
+    previous owner can no longer perform protected side effects.
+
+type Store interface {
+	Acquire(ctx context.Context, key, owner string, ttl time.Duration, now time.Time) (Lease, error)
+	Heartbeat(ctx context.Context, owned Lease, ttl time.Duration, now time.Time) (Lease, error)
+	Release(ctx context.Context, owned Lease) error
+	Inspect(ctx context.Context, key string) (Lease, error)
+	Recover(ctx context.Context, key string, fencingToken uint64) error
+	Capabilities() Capabilities
+}
+    Store provides fenced lease acquisition, renewal, release, and recovery.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/memory
+package memory // import "github.com/faustbrian/golib/pkg/scheduler/memory"
+
+Package memory provides a deterministic process-local lease store.
+
+TYPES
+
+type Store struct {
+	// Has unexported fields.
+}
+    Store keeps fenced leases in memory for tests and single-process tools.
+
+func New() *Store
+    New constructs an empty memory lease store.
+
+func (store *Store) Acquire(
+	ctx context.Context,
+	key string,
+	owner string,
+	ttl time.Duration,
+	now time.Time,
+) (lease.Lease, error)
+    Acquire creates or takes over an expired lease.
+
+func (*Store) Capabilities() lease.Capabilities
+    Capabilities reports the memory store's safety properties.
+
+func (store *Store) Heartbeat(
+	ctx context.Context,
+	owned lease.Lease,
+	ttl time.Duration,
+	now time.Time,
+) (lease.Lease, error)
+    Heartbeat extends a lease held by its current owner.
+
+func (store *Store) Inspect(ctx context.Context, key string) (lease.Lease, error)
+    Inspect returns the current lease for a key.
+
+func (store *Store) Recover(ctx context.Context, key string, fencingToken uint64) error
+    Recover removes a lease only when its observed fencing token still matches.
+
+func (store *Store) Release(ctx context.Context, owned lease.Lease) error
+    Release removes a lease only when ownership still matches.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/postgres
+package postgres // import "github.com/faustbrian/golib/pkg/scheduler/postgres"
+
+Package postgres provides persistent server-time fenced leases.
+
+TYPES
+
+type Migration struct {
+	Version uint
+	Name    string
+	Up      string
+	Down    string
+}
+    Migration contains the versioned lease-table schema transition.
+
+func SchemaMigration() Migration
+    SchemaMigration returns the PostgreSQL lease-table migration.
+
+type Store struct {
+	// Has unexported fields.
+}
+    Store persists fenced leases in PostgreSQL server time.
+
+func New(pool *pgxpool.Pool) (*Store, error)
+    New constructs a PostgreSQL lease store from a connection pool.
+
+func (store *Store) Acquire(
+	ctx context.Context,
+	key string,
+	owner string,
+	ttl time.Duration,
+	_ time.Time,
+) (lease.Lease, error)
+    Acquire creates or takes over an inactive or expired lease.
+
+func (*Store) Capabilities() lease.Capabilities
+    Capabilities reports the PostgreSQL store's safety properties.
+
+func (store *Store) Heartbeat(
+	ctx context.Context,
+	owned lease.Lease,
+	ttl time.Duration,
+	_ time.Time,
+) (lease.Lease, error)
+    Heartbeat extends a lease when owner and fencing token remain current.
+
+func (store *Store) Inspect(ctx context.Context, key string) (lease.Lease, error)
+    Inspect returns the active lease for a key.
+
+func (store *Store) Recover(ctx context.Context, key string, fencingToken uint64) error
+    Recover marks a lease inactive only when its observed token still matches.
+
+func (store *Store) Release(ctx context.Context, owned lease.Lease) error
+    Release marks a currently owned lease inactive.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/queue
+package queue // import "github.com/faustbrian/golib/pkg/scheduler/queue"
+
+Package queue dispatches schedule occurrences through queue.
+
+VARIABLES
+
+var ErrInvalidQueue = errors.New("scheduler queue: queue is required")
+    ErrInvalidQueue reports a missing queue backend.
+
+
+TYPES
+
+type Dispatcher struct {
+	// Has unexported fields.
+}
+    Dispatcher encodes schedule occurrences and submits them to queue.
+
+func New(queue Enqueuer) (*Dispatcher, error)
+    New constructs a queue-backed scheduler executor.
+
+func (dispatcher *Dispatcher) Execute(ctx context.Context, scheduled scheduler.Context) error
+    Execute encodes and submits one occurrence with trace propagation.
+
+type Enqueuer interface {
+	Queue(queuecore.QueuedMessage, ...queuejob.AllowOption) error
+}
+    Enqueuer is the minimal durable queue submission contract.
+
+type Envelope struct {
+	ScheduleID     string            `json:"schedule_id"`
+	CoordinationID string            `json:"coordination_id"`
+	ScheduleName   string            `json:"schedule_name"`
+	Task           string            `json:"task"`
+	Occurrence     time.Time         `json:"occurrence"`
+	Attempt        int               `json:"attempt"`
+	IdempotencyKey string            `json:"idempotency_key"`
+	Owner          string            `json:"owner"`
+	FencingToken   uint64            `json:"fencing_token"`
+	Parameters     map[string]any    `json:"parameters,omitempty"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+	TraceContext   map[string]string `json:"trace_context,omitempty"`
+}
+    Envelope is the version-independent occurrence payload sent to workers.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/schedulercli
+package schedulercli // import "github.com/faustbrian/golib/pkg/scheduler/schedulercli"
+
+Package schedulercli provides bounded scheduler inspection and recovery
+commands.
+
+FUNCTIONS
+
+func Run(
+	ctx context.Context,
+	args []string,
+	stdout io.Writer,
+	stderr io.Writer,
+	registry *scheduler.Registry,
+	leases lease.Store,
+) int
+    Run executes one bounded scheduler control command and returns an exit code.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/schedulerhttp
+package schedulerhttp // import "github.com/faustbrian/golib/pkg/scheduler/schedulerhttp"
+
+Package schedulerhttp provides bounded scheduler inspection and recovery
+endpoints.
+
+VARIABLES
+
+var ErrInvalidDependencies = errors.New("scheduler http: registry and lease store are required")
+    ErrInvalidDependencies reports a missing registry or lease store.
+
+
+TYPES
+
+type Handler struct {
+	// Has unexported fields.
+}
+    Handler exposes bounded scheduler inspection and fenced recovery endpoints.
+
+func New(registry *scheduler.Registry, leases lease.Store) (*Handler, error)
+    New constructs a scheduler HTTP handler with no arbitrary execution surface.
+
+func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Request)
+
+type Schedule struct {
+	Name               string                    `json:"name"`
+	Task               string                    `json:"task"`
+	Expression         string                    `json:"expression"`
+	Timezone           string                    `json:"timezone"`
+	Enabled            bool                      `json:"enabled"`
+	Environments       []string                  `json:"environments,omitempty"`
+	MissedRunPolicy    scheduler.MissedRunPolicy `json:"missed_run_policy"`
+	MaxCatchUp         int                       `json:"max_catch_up"`
+	OverlapPolicy      scheduler.OverlapPolicy   `json:"overlap_policy"`
+	OnOneServer        bool                      `json:"on_one_server"`
+	WithoutOverlapping bool                      `json:"without_overlapping"`
+	Metadata           map[string]string         `json:"metadata,omitempty"`
+}
+    Schedule is the bounded public inspection view of a schedule.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/schedulertest
+package schedulertest // import "github.com/faustbrian/golib/pkg/scheduler/schedulertest"
+
+Package schedulertest provides deterministic runner test utilities.
+
+TYPES
+
+type FakeClock struct {
+	// Has unexported fields.
+}
+    FakeClock is a concurrency-safe manually advanced scheduler clock.
+
+func NewFakeClock(now time.Time) *FakeClock
+    NewFakeClock constructs a clock at a fixed instant.
+
+func (clock *FakeClock) Advance(duration time.Duration)
+    Advance moves time forward and completes every due timer.
+
+func (clock *FakeClock) After(duration time.Duration) <-chan time.Time
+    After registers a timer completed by a future Advance call.
+
+func (clock *FakeClock) Now() time.Time
+    Now returns the clock's current instant.
+
+func (clock *FakeClock) WaitForTimers(ctx context.Context, count int) bool
+    WaitForTimers waits until at least count timers are registered.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/telemetry
+package telemetry // import "github.com/faustbrian/golib/pkg/scheduler/telemetry"
+
+Package telemetry records scheduler lifecycle logs, metrics, and traces.
+
+VARIABLES
+
+var ErrInvalidConfiguration = errors.New("scheduler telemetry: logger and providers are required")
+    ErrInvalidConfiguration reports missing telemetry dependencies.
+
+
+TYPES
+
+type Config struct {
+	Logger         *slog.Logger
+	TracerProvider trace.TracerProvider
+	MeterProvider  metric.MeterProvider
+}
+    Config supplies structured logging and OpenTelemetry providers.
+
+type Observer struct {
+	// Has unexported fields.
+}
+    Observer records lifecycle logs, metrics, and execution spans.
+
+func New(config Config) (*Observer, error)
+    New constructs a lifecycle telemetry observer.
+
+func NewRuntime(runtime *gotelemetry.Runtime, logger *slog.Logger) (*Observer, error)
+    NewRuntime constructs an observer from an initialized telemetry runtime.
+
+func (observer *Observer) Observe(event scheduler.Event)
+    Observe records one scheduler lifecycle event.
+
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/valkey
+package valkey // import "github.com/faustbrian/golib/pkg/scheduler/valkey"
+
+Package valkey provides atomic fenced leases backed by Valkey 9 or newer.
+
+CONSTANTS
+
+const MaxPrefixBytes = 64
+    MaxPrefixBytes bounds the configured Valkey key prefix.
+
+
+TYPES
+
+type Store struct {
+	// Has unexported fields.
+}
+    Store persists atomic TTL leases and monotonic fencing counters in Valkey.
+
+func New(client valkeygo.Client, prefix string) (*Store, error)
+    New constructs a Valkey lease store without performing server checks.
+
+func Open(ctx context.Context, client valkeygo.Client, prefix string) (*Store, error)
+    Open constructs a store and verifies the server version and eviction policy.
+
+func (store *Store) Acquire(
+	ctx context.Context,
+	key string,
+	owner string,
+	ttl time.Duration,
+	_ time.Time,
+) (lease.Lease, error)
+    Acquire creates or takes over an expired lease atomically.
+
+func (*Store) Capabilities() lease.Capabilities
+    Capabilities reports the Valkey store's safety properties.
+
+func (store *Store) Check(ctx context.Context) error
+    Check verifies backend compatibility and safety configuration.
+
+func (store *Store) Heartbeat(
+	ctx context.Context,
+	owned lease.Lease,
+	ttl time.Duration,
+	_ time.Time,
+) (lease.Lease, error)
+    Heartbeat extends a lease held by the current fenced owner.
+
+func (store *Store) Inspect(ctx context.Context, key string) (lease.Lease, error)
+    Inspect returns the active lease for a key.
+
+func (store *Store) Recover(ctx context.Context, key string, fencingToken uint64) error
+    Recover deletes a lease only when its observed token still matches.
+
+func (store *Store) Release(ctx context.Context, owned lease.Lease) error
+    Release deletes a lease only when owner and token still match.

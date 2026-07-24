@@ -1,0 +1,1047 @@
+# tabular Complete Documentation
+
+## Source: README.md
+
+# tabular
+
+`tabular` provides explicit, bounded ingestion for CSV and other
+delimiters, fixed-width text, legacy XLS, XLSX, and ZIP-backed sources without
+format auto-detection or implicit data conversion.
+
+## Status
+
+The package is pre-v1. Supported behavior is fixture-backed, fuzzed,
+benchmarked, and held to meaningful 100% production coverage.
+
+## Requirements
+
+- Go 1.26.5 or later
+
+## Installation
+
+```sh
+go get github.com/faustbrian/golib/pkg/tabular
+```
+
+## Quickstart
+
+```go
+reader, err := tabular.NewDelimitedReader(source, tabular.DelimitedConfig{
+    Delimiter: ';',
+    Header: &tabular.HeaderConfig{
+        TrimSpace:        true,
+        Case:             tabular.HeaderCaseLower,
+        RejectEmpty:      true,
+        RejectDuplicates: true,
+    },
+})
+if err != nil {
+    return err
+}
+
+header, err := reader.Header()
+if err != nil {
+    return err
+}
+row, err := reader.Read()
+```
+
+The [quickstart](docs/quickstart.md) covers streaming loops, fixed-width input,
+spreadsheets, ZIP sources, encodings, and normalization.
+
+## Package Guarantees
+
+- explicit format and encoding selection
+- streaming delimited, fixed-width, ZIP-entry, and XLSX row processing
+- bounded XLS materialization for OLE2/BIFF8 random access
+- archive entry-count, size, path, and duplicate checks
+- opt-in normalization that does not mutate caller-owned rows
+- stable error kinds with one-based row and field coordinates
+
+See [formats](docs/formats.md) and
+[behavior and limits](docs/behavior-and-limits.md) for exact boundaries.
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+[adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review
+[performance](docs/performance.md), [security](docs/security.md), and
+[hardening](docs/hardening.md) before accepting hostile files.
+
+AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+Run `make check` before submitting a change. This enforces formatting, static
+analysis, race tests, meaningful 100% coverage, parser fuzz smoke, benchmarks,
+documentation, and vulnerability scanning.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Format and normalization changes require
+explicit compatibility and data-integrity analysis.
+
+## Security
+
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+Review [docs/security.md](docs/security.md) before ingesting untrusted files.
+
+## License
+
+`tabular` is available under the [Apache License 2.0](LICENSE). XLS
+provenance and third-party attribution are recorded in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# tabular Documentation
+
+Use this index to select a tabular format and define safe ingest limits.
+
+## Start Here
+
+- [Quickstart](quickstart.md)
+- [Adoption guide](adoption.md)
+- [API reference](api.md)
+- [Examples](examples.md)
+
+## Design And Operations
+
+- [Architecture](architecture.md)
+- [Go safety and concurrency](go-safety-and-concurrency.md)
+- [Formats](formats.md)
+- [Behavior and limits](behavior-and-limits.md)
+- [Compatibility](compatibility.md)
+- [Performance](performance.md)
+- [Security](security.md)
+- [Hardening](hardening.md)
+
+## Maintain And Troubleshoot
+
+- [Cookbook](cookbook.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+- [Migration](migration.md)
+- [Releasing](releasing.md)
+
+## Repository Maintenance
+
+- [Shared repository standards](repository-standards.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+## Choose a reader
+
+Use `NewCSVReader` for comma-separated data, `NewDelimitedReader` for an
+explicit non-comma delimiter, `NewFixedWidthReader` for byte-positioned
+records, and `OpenSpreadsheet` for an explicitly selected XLS or XLSX file.
+Use `OpenZIP` when an import arrives inside an archive.
+
+Every streaming reader returns `io.EOF` after its last row. Treat any other
+error as a failed import unless the application has an explicit recovery
+policy.
+
+## Configure limits
+
+Defaults are protective, not unlimited. Set limits from the surrounding
+system's upload policy when those limits are smaller. XLS uses
+`MaxWorkbookBytes`; XLSX uses the limits in `SpreadsheetConfig.ZIP`.
+
+## Handle typed errors
+
+```go
+if errors.Is(err, tabular.ErrorMalformedRow) {
+    var detail *tabular.Error
+    if errors.As(err, &detail) {
+        log.Printf("bad row %d field %d", detail.Row, detail.Field)
+    }
+}
+```
+
+## Close spreadsheets and ZIP entries
+
+Call `Close` on spreadsheet readers and ZIP entry readers. Closing a
+spreadsheet does not close the caller-owned `io.ReaderAt`.
+
+## Source: docs/adoption.md
+
+# Adoption guide
+
+1. Identify the source format and encoding from its contract. Do not infer
+   either from filenames alone.
+2. Set file, archive, and record limits from the narrowest upstream policy.
+3. Decide whether the first row is a header and make duplicate/empty handling
+   explicit.
+4. Decide row-width policy before processing data.
+5. Keep normalization minimal and record every data-changing option.
+6. Match `ErrorKind` values for operational decisions; log the full `Error`
+   for coordinates and causes.
+7. Drain or close readers on every path and retain the caller-owned source
+   until spreadsheet processing is complete.
+
+For ZIP-backed imports, call `OpenZIP`, select an exact entry from `Entries`,
+and pass the opened entry to a streaming text reader. XLS/XLSX require
+`io.ReaderAt`; copy only the selected ZIP member into a bounded random-access
+store if spreadsheet files are archived.
+
+Roll out against captured, sanitized production fixtures. Compare row counts,
+headers, empty values, numeric strings, error classes, and rejected records
+with the existing importer before replacing it.
+
+## Source: docs/api.md
+
+# Public API reference
+
+The authoritative signature documentation is available through
+`go doc github.com/faustbrian/golib/pkg/tabular`. This page groups the surface by
+task and records compatibility-sensitive semantics.
+
+## Rows and normalization
+
+- `Row []string`: ordered source fields.
+- `NormalizationConfig`: optional whitespace trimming and empty replacement.
+- `NormalizeRow`: returns a copy.
+- `HeaderConfig`, `HeaderCase`, and `NormalizeHeader`: BOM removal, trimming,
+  case conversion, replacements, and empty/duplicate validation.
+
+## Delimited text
+
+- `DelimitedConfig`: delimiter, comments, quote policy, row shape, header, and
+  normalization.
+- `NewCSVReader`: always selects comma, regardless of `Delimiter`.
+- `NewDelimitedReader`: requires a valid explicit delimiter.
+- `DelimitedReader.Header` and `Read`: cached header and streaming rows.
+
+## Fixed-width text
+
+- `FixedWidthField`: named half-open byte interval `[Start, End)`.
+- `FixedWidthConfig`: layout, source encoding, short/trailing record policy,
+  maximum record size, and normalization.
+- `NewFixedWidthReader`, `Fields`, and `Read`: validated streaming parser.
+- `ExtractBytes`: non-copying checked byte slice.
+
+## Encodings
+
+- `EncodingUTF8`, `EncodingISO88591`, and `EncodingWindows1252` are supported.
+- `DecodeBytes` validates/converts a complete value.
+- `DecodeReader` returns a validating/converting streaming reader.
+
+## Archives
+
+- `ZIPConfig`: maximum entries, per-entry bytes, and total expanded bytes.
+- `OpenZIP`: validates and indexes a random-access ZIP source.
+- `ZIPArchive.Entries`, `Open`, and `Extract`: copied metadata, exact entry
+  streaming, and writer-based extraction.
+
+## Spreadsheets
+
+- `FormatXLS` and `FormatXLSX` must be selected explicitly.
+- `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook limit, and
+  XLSX ZIP limits.
+- `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common ingest lifecycle.
+
+## Errors
+
+`Error` includes `Kind`, operation, format, one-based row/field coordinates,
+and a wrapped cause. Match stable categories with `errors.Is(err,
+ErrorMalformedRow)` and inspect details with `errors.As`.
+
+Stable kinds are `ErrorInvalidConfig`, `ErrorInvalidHeader`,
+`ErrorDuplicateHeader`, `ErrorMalformedRow`, `ErrorInvalidEncoding`,
+`ErrorInvalidLayout`, `ErrorArchive`, `ErrorEntryNotFound`,
+`ErrorLimitExceeded`, and `ErrorSpreadsheet`.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+The public package owns configuration, stable errors, normalization, and the
+common row contract. Each parser translates its format into ordered `Row`
+values without schema inference.
+
+Delimited input delegates RFC-style quoting and record boundaries to Go's
+`encoding/csv`, then adds explicit header and normalization semantics.
+Fixed-width input scans bounded newline records and slices byte ranges before
+decoding. ZIP input validates the central directory before exposing exact
+entry readers.
+
+XLSX is a two-stage boundary: the package first validates ZIP limits and
+worksheet XML well-formedness, then uses Excelize's row iterator with raw cell
+values. XLS is intentionally separate under `internal/xls`; it reads OLE2
+compound streams and a limited BIFF8 record set into bounded memory.
+
+This split keeps a single public spreadsheet API while preserving honest
+format-specific resource behavior. Internal XLS types are not compatibility
+surface. Excelize is isolated behind narrow iterator interfaces so its errors
+remain testable and callers do not depend on its types.
+
+## Source: docs/examples.md
+
+# End-to-end examples
+
+## ZIP-backed semicolon import
+
+```go
+archive, err := tabular.OpenZIP(file, size, tabular.ZIPConfig{
+    MaxEntries: 20, MaxEntryBytes: 64 << 20, MaxTotalBytes: 64 << 20,
+})
+if err != nil { return err }
+
+entry, err := archive.Open("orders.csv")
+if err != nil { return err }
+defer entry.Close()
+
+reader, err := tabular.NewDelimitedReader(entry, tabular.DelimitedConfig{
+    Delimiter: ';', AllowVariableFields: false, FieldsPerRecord: 4,
+})
+```
+
+## Spreadsheet import
+
+```go
+reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
+    Format: tabular.FormatXLSX,
+    Sheet: "Orders",
+    Header: &tabular.HeaderConfig{RejectEmpty: true, RejectDuplicates: true},
+    ZIP: tabular.ZIPConfig{MaxEntryBytes: 32 << 20, MaxTotalBytes: 64 << 20},
+})
+if err != nil { return err }
+defer reader.Close()
+```
+
+Complete compilable delimited and fixed-width examples live in
+`example_test.go` and are executed by `go test`.
+
+## Source: docs/cookbook.md
+
+# Scenario cookbook
+
+## Finnish decimal CSV
+
+Select `';'` as the delimiter. Values such as `12,50` remain strings; numeric
+locale conversion belongs in application validation.
+
+## Windows export
+
+Wrap the source with `DecodeReader(source, EncodingWindows1252)` before
+constructing a delimited reader. Fixed-width readers accept the encoding in
+their own configuration.
+
+## Strict headers
+
+Use trimming, a consistent case, exact replacements, `RejectEmpty`, and
+`RejectDuplicates`. Keep the original header separately if audit output needs
+to show the source spelling.
+
+## Preserve spreadsheet errors
+
+Set `PreserveCellErrors` only when strings such as `#DIV/0!` are legitimate
+application data. The default rejects them with row and field coordinates.
+
+## Inspect archive contents safely
+
+Use `Entries`; it returns a copy in original central-directory order. Open an
+exact name. Never concatenate entry names into destination filesystem paths.
+
+## Source: docs/faq.md
+
+# FAQ
+
+## Why no auto-detection?
+
+Encoding and format guesses can silently reinterpret data. Source contracts
+should select them explicitly.
+
+## Why is XLS materialized?
+
+OLE2 and BIFF8 contain cross-referenced sector chains and workbook structures.
+The reader bounds materialization with `MaxWorkbookBytes` instead of claiming
+streaming it cannot provide.
+
+## Why use Excelize only for XLSX?
+
+Excelize provides maintained OOXML behavior. XLS uses a small internal parser
+to avoid adding an unmaintained module and its transitive supply-chain surface.
+
+## Does the package export files?
+
+Not in the first release. Export helpers remain a separately evaluated roadmap
+item; importing and exporting have different correctness contracts.
+
+## Are numbers typed?
+
+No. Rows contain source-oriented strings. Schema conversion belongs to the
+application so locale and precision choices remain explicit.
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+## `invalid configuration`
+
+Check nil sources, negative limits, unsupported spreadsheet formats, invalid
+delimiters, and negative field counts.
+
+## `malformed row`
+
+Inspect `Error.Row` and `Error.Field`. For delimited input, verify quoting and
+field-count policy. For fixed-width input, verify byte offsets and short or
+trailing record policy.
+
+## `invalid encoding`
+
+Confirm the source contract. UTF-8 is validated strictly. Do not retry with a
+legacy encoding merely to make arbitrary bytes decode.
+
+## `archive error` or `limit exceeded`
+
+Inspect entry names and declared expanded sizes. Raising a limit should be a
+deliberate policy decision, not an automatic retry.
+
+## Spreadsheet opens but rows differ
+
+Confirm the exact sheet, header consumption, raw-value expectation, field
+count, and cell-error policy. XLS formulas are not evaluated and formatting is
+not a value contract.
+
+## Source: docs/migration.md
+
+# Migration notes
+
+Before v1, public API adjustments may occur but are recorded in the changelog.
+Pin a tagged version rather than `main`.
+
+When migrating from `encoding/csv`, note that `NewDelimitedReader` requires an
+explicit delimiter, header processing is opt-in, normalization returns copies,
+and parser errors are wrapped in stable tabular kinds.
+
+When migrating from direct Excelize use, this package intentionally exposes
+only ordered strings, cell-error policy, sheet selection, limits, and common
+row semantics. Code requiring styles, formulas, merged cells, or editing
+should continue to use a spreadsheet-specific API.
+
+When replacing another XLS library, validate real BIFF8 fixtures. The internal
+reader supports a documented subset and rejects unsupported or corrupt
+structures rather than attempting recovery.
+
+## Source: docs/compatibility.md
+
+# Versioning and releases
+
+The project follows Semantic Versioning. Before v1, minor releases may change
+the public API; patch releases preserve documented parsing behavior. After v1,
+row shape, normalization order, error categories, default limits, and
+configuration meaning are compatibility-sensitive.
+
+Every release requires a changelog entry, green CI, 100% production-statement
+coverage, fuzz-target smoke verification, benchmarks, vulnerability scanning,
+and documentation examples. Tags use `vMAJOR.MINOR.PATCH` and the release
+workflow publishes release notes from the corresponding changelog section.
+
+Breaking changes must describe the old and new row/error behavior and provide
+migration guidance. Security releases may omit exploit details until users
+have had reasonable time to update.
+
+## Source: docs/performance.md
+
+# Performance and memory verification
+
+Benchmarks generate representative inputs before timing so the repository does
+not carry large derived fixtures. `go test ./... -run '^$' -bench . -benchmem`
+exercises:
+
+- 20,000 CSV rows with three fields;
+- 20,000 fixed-width rows with three byte-positioned fields;
+- ZIP extraction of a 20,000-row CSV member;
+- an 8 MiB bounded XLS source; and
+- a 10,000-row XLSX workbook written with a streaming OOXML writer.
+
+Every benchmark reports allocations and bytes processed. Results are runtime,
+architecture, Go-version, and dependency-version specific; the project does
+not publish universal throughput or heap guarantees from a single machine.
+
+Large-file verification is kept behind the `largebench` build tag because the
+fixtures are generated on disk and are intentionally expensive. Run each case
+once with process-level peak-memory reporting on macOS:
+
+```console
+/usr/bin/time -l go test -tags=largebench -run '^$' \
+  -bench '^BenchmarkDelimitedReader50MiB$' -benchmem -benchtime=1x
+/usr/bin/time -l go test -tags=largebench -run '^$' \
+  -bench '^BenchmarkXLSXReader50MiB$' -benchmem -benchtime=1x
+```
+
+Both cases require at least 50 MiB of compressed/on-disk input and exactly
+100,000 data rows. They fail during setup if either constraint is missed. The
+CSV fixture is approximately 62 MiB; the XLSX fixture is approximately 84 MiB
+after ZIP compression because its cell data is intentionally difficult to
+compress. CI runs both cases weekly and on manual dispatch, recording
+`/usr/bin/time` output in the workflow summary.
+
+On an Apple M4 Max with Go 1.26.5, the CSV reader initially measured 34.9 ms,
+89.6 MB allocated, and 162 MB maximum RSS. Avoiding redundant normalization
+copies and buffering source reads at 64 KiB reduced a one-iteration run of the
+identical case to 24.6 ms, 80.1 MB allocated, and 162 MB maximum RSS. The XLSX
+reader initially measured 14.59 s, 6.07 GB allocated, and 2.10 GB maximum RSS.
+Skipping cell-type metadata lookups for ordinary values reduced the identical
+XLSX case to 5.99 s, 3.46 GB allocated, and 630 MB maximum RSS. These figures
+are a regression reference, not a cross-platform performance guarantee.
+
+Delimited and fixed-width constructors do not read input, and regression tests
+feed one-byte chunks to prove the first row can be returned without consuming
+the complete source. ZIP entry extraction is streamed through `io.Copy`.
+
+XLS necessarily materializes its source and rejects files above
+`MaxWorkbookBytes`. XLSX returns rows incrementally, but validation and
+Excelize may allocate substantially more heap than the compressed workbook
+size. Profiling the optimized large case attributes most remaining allocation
+to worksheet XML validation and Excelize row decoding. ZIP limits bound
+declared expanded payload sizes; callers must also set process/job memory
+limits appropriate to their environment.
+
+## Source: docs/hardening.md
+
+# Hardening
+
+## Maintained Threat Model
+
+The package treats delimited text, fixed-width input, OLE2/BIFF8 XLS, OOXML
+XLSX, ZIP metadata, encodings, and row content as hostile. Hardening work must
+cover malformed structures, declared-size deception, decompression growth,
+encoding damage, duplicate headers, oversized records, and cancellation.
+
+## Evidence Bar
+
+Release evidence includes meaningful 100% production coverage, malformed
+fixtures for every format, fuzz targets at parser boundaries, benchmark inputs
+that represent real files, race tests, vulnerability scanning, and explicit
+memory/streaming claims.
+
+## Blocking Findings
+
+A release is blocked by silent truncation, implicit lossy conversion,
+unbounded attacker-controlled allocation, archive traversal, incorrect
+declared streaming behavior, unstable errors, or unsupported format behavior
+presented as supported.
+
+See [GOAL_HARDEN.md](../.ai/GOAL_HARDEN.md), [behavior and limits](behavior-and-limits.md),
+and [performance](performance.md).
+
+## Source: docs/security.md
+
+# Security
+
+## Trust Boundary
+
+Treat files, archive metadata, workbook relationships, encodings, delimiters,
+headers, formulas, and row values as untrusted. Configure limits before
+reading and retain upstream transport/file-size limits.
+
+## Format Risks
+
+ZIP and XLSX inputs can amplify compressed data. XLS requires bounded
+materialization. Delimited and fixed-width records can contain oversized or
+invalid encodings. Formula values must not be treated as executable content.
+
+## Application Responsibilities
+
+The package does not provide upload authentication, malware scanning,
+authorization, durable storage, or business-level schema validation. Reject
+unexpected formats explicitly and avoid writing archive paths to disk.
+
+See [behavior and limits](behavior-and-limits.md) and
+[hardening](hardening.md). Report vulnerabilities through
+[SECURITY.md](../SECURITY.md).
+
+## Source: docs/releasing.md
+
+# Releasing
+
+## Preconditions
+
+Release from a clean, synchronized `main` branch. Add one dated release
+section to `CHANGELOG.md`, document compatibility or migration impact, and
+review `NOTICE` plus `THIRD_PARTY_NOTICES.md` whenever XLS provenance or
+dependencies change.
+
+## Verification
+
+```sh
+make check
+```
+
+The release is blocked unless format checks, race tests, meaningful 100%
+coverage, parser fuzz smoke, benchmarks, documentation links, lint, and
+vulnerability scanning pass.
+
+## Tagging
+
+Use `make release-patch`, `make release-minor`, or
+`make release-major`. The GitHub release workflow validates the tag,
+repeats release gates, and publishes a deterministic source archive with a
+checksum and changelog-derived notes.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Before Opening A Change
+
+Use an issue for changes affecting tabular formats, archives, encodings, normalization, streaming, and data integrity. Explain the user problem,
+compatibility impact, and why the behavior belongs in this generic package.
+
+## Development Setup
+
+Requirements:
+
+- Go 1.26.5 or later
+- Git
+- `golangci-lint` v2
+
+```sh
+go mod download
+make check
+```
+
+## Change Requirements
+
+- Add regression coverage before fixing a defect.
+- Maintain meaningful 100% production-code coverage.
+- Update public examples and documentation with behavior changes.
+- Update `.ai/GOAL.md` or `.ai/GOAL_HARDEN.md` when scope or acceptance criteria
+  change.
+- Add an `Unreleased` entry to `CHANGELOG.md`.
+- Explain every dependency addition, upgrade, or removal.
+- Update `NOTICE` when project or inherited ownership notices change and
+  `THIRD_PARTY_NOTICES.md` when detailed source provenance or attribution changes.
+
+## Package-Specific Review
+
+Document format, normalization, streaming, and memory impact. Parser changes MUST include realistic and malformed fixtures, limit tests, and evidence against silent truncation or conversion.
+
+## Local Verification
+
+Run the complete local gate:
+
+```sh
+make check
+```
+
+## Commits And Pull Requests
+
+Use focused conventional commits with a body explaining why the change is
+needed. Pull requests must describe compatibility impact, tests, verification
+commands and results, documentation updates, and changelog updates.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md).
+
+## Source: SECURITY.md
+
+# Security Policy
+
+## Supported Versions
+
+Before `v1.0.0`, security fixes are applied to the latest revision of
+`main`. After the first stable release, supported release lines and
+end-of-support dates will be documented here.
+
+## Reporting A Vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, expected and observed behavior, affected versions, impact,
+and any suggested mitigation. Do not include secrets or production data.
+
+## Response Process
+
+Maintainers will acknowledge the report, reproduce and assess it privately,
+coordinate a fix and advisory, and credit the reporter when requested. Public
+disclosure should wait until a fix or agreed mitigation is available.
+
+## Package Security Boundary
+
+Files, archives, workbooks, encodings, records, headers, formulas, and row values are untrusted ingest inputs. Archive, allocation, record, and encoding limits are part of the maintained security boundary.
+
+## Application Responsibilities
+
+Applications remain responsible for transport limits, authentication,
+authorization, rate limiting, deadlines, secret handling, deployment policy,
+and business-level validation. Package safeguards do not replace those
+controls.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for adoption guidance and maintained
+evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+## First stable release
+
+- complete and verify the CSV, XLS, XLSX, fixed-width, and ZIP-backed ingest
+  surface;
+- complete CI, security, documentation, and tagged-release automation;
+- publish benchmark baselines and compatibility promises;
+- resolve API feedback found during real service adoption;
+- tag `v1.0.0` only when no known supported-format gap remains.
+
+## After core stabilization
+
+Potential work is evaluated independently and is not promised for `v1`:
+
+- TSV-first convenience helpers;
+- export helpers;
+- schema mapping helpers;
+- archive-format expansion beyond ZIP;
+- carefully justified additional tabular formats.
+
+The core will not become a workflow engine, ETL platform, queue layer, or
+application-specific transformation framework.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Compatibility
+
+- Added a pinned module export baseline so incompatible public API changes
+  fail the canonical repository gate.
+
+### Changed
+
+- Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
+  benchmark standard with an executable `make safety` gate.
+- Moved AI planning and hardening briefs into `.ai/` and clarified the
+  separate purposes of ownership notices and detailed source provenance.
+
+### Added
+
+- A standardized OSS repository skeleton covering policy, documentation,
+  legal notices, Go tooling, pinned CI, security, and release automation.
+- Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and
+  100,000 rows, including a scheduled workflow with peak-memory reporting.
+- Explicit chunked-streaming regressions, malformed fixtures for every major
+  format, and documentation of benchmark inputs and XLSX heap amplification.
+- Production readers for CSV/delimited, fixed-width, XLS, XLSX, and ZIP-backed
+  ingestion with explicit limits, normalization, and structured errors.
+- Realistic fixtures, hostile-input regressions, format fuzz targets,
+  representative benchmarks, and 100% production-statement coverage.
+- Adoption, API, architecture, format, behavior, troubleshooting, migration,
+  versioning, and scenario documentation.
+- Initial package goals for `tabular`, covering CSV, XLS, XLSX,
+  fixed-width, and ZIP-backed ingest as the first supported scope.
+- Hardening goals covering hostile-input handling, encoding discipline,
+  fixture quality, performance validation, and meaningful 100% coverage.
+- Package maintenance rules enforcing changelog hygiene, SemVer treatment of
+  public APIs, and meaningful 100% coverage for production code.
+
+### Fixed
+
+- Avoid redundant row copies when CSV normalization is disabled and use a
+  bounded 64 KiB source buffer to improve large-file throughput.
+- Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
+- Avoid per-cell XLSX type lookups for ordinary values, substantially reducing
+  runtime, allocations, and peak memory for large workbooks.
+- Classify corrupt ZIP entry read failures through `ErrorArchive` while
+  preserving the standard library's declared-size boundary.
+
+[Unreleased]: https://github.com/faustbrian/golib/pkg/tabular/commits/main
+
+## Source: docs/behavior-and-limits.md
+
+# Behavior and limits
+
+Zero-valued limits select safe defaults:
+
+| Limit | Default |
+| --- | ---: |
+| Fixed-width record | 1 MiB |
+| XLS workbook | 64 MiB |
+| ZIP entries | 1,000 |
+| ZIP single entry | 1 GiB |
+| ZIP expanded total | 4 GiB |
+
+Applications should normally choose smaller values consistent with their
+upload and job policies. ZIP limits use central-directory declarations and
+entry reads still verify CRC data. Unsafe absolute, parent, backslash, empty,
+and duplicate entry names are rejected. This package never writes ZIP entries
+to the filesystem.
+
+These payload limits are not heap guarantees. In particular, XLSX validation
+and Excelize may allocate substantially more than the compressed workbook
+size. Applications processing untrusted files should combine package limits
+with job-level memory and execution limits. See
+[performance and memory verification](performance.md).
+
+Row normalization is ordered: trim whitespace, then replace empty values.
+Header normalization removes a UTF-8 BOM from field one, trims, changes case,
+applies exact replacements, then validates empty and duplicate names.
+
+Fixed-width offsets refer to bytes in the original encoding. They must not
+split a multi-byte UTF-8 character. ISO-8859-1 and Windows-1252 map every byte;
+invalid UTF-8 is rejected instead of replaced.
+
+With a header configured, the first record is consumed once and never returned
+by `Read`. Without a header configuration, `Header` returns nil and consumes
+nothing. Fixed field counts reject long rows and pad short spreadsheet rows;
+variable mode preserves source width.
+
+## Source: docs/formats.md
+
+# Supported-format matrix
+
+| Capability | CSV/delimited | Fixed-width | XLS | XLSX | ZIP |
+| --- | --- | --- | --- | --- | --- |
+| Streaming records | Yes | Yes | No | Yes | N/A |
+| Explicit headers | Yes | Field names | Yes | Yes | N/A |
+| Variable rows | Configurable | Short records only | Configurable | Configurable | N/A |
+| Cell error handling | N/A | N/A | Reject/preserve | Reject/preserve | N/A |
+| Sheet selection | N/A | N/A | Exact name | Exact name | N/A |
+| Encoding conversion | Caller | Built in | BIFF8 | OOXML UTF-8 | Opaque bytes |
+| Resource limit | Surrounding reader | Record bytes | Workbook bytes | ZIP limits | ZIP limits |
+
+## XLS support
+
+The internal reader supports OLE2 compound files containing BIFF8 workbook
+streams, shared strings (including continuations), rows, labels, numbers, RK
+numbers, multiple RK values, booleans, and error cells. It does not evaluate
+formulas, preserve formatting, execute macros, edit workbooks, or promise
+coverage for pre-BIFF8 files.
+
+## XLSX support
+
+XLSX returns raw cell values through Excelize. Worksheet XML must be
+well-formed and the OOXML ZIP must satisfy configured limits. Formula
+evaluation, formatting, charts, macros, and workbook editing are outside the
+package contract.
+
+## Delimited support
+
+Quoting, escaped quotes, embedded delimiters, and quoted newlines follow Go's
+`encoding/csv`. Delimiters are single runes. Auto-detection and multi-character
+delimiters are intentionally unsupported.
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go Safety And Concurrency
+
+Baseline: `GO-SAFETY-1`
+
+This document defines the shared safety engineering standard for the
+`faustbrian/go-*` package family. RFC 2119 keywords are requirements.
+
+## Guarantee Boundary
+
+Go provides memory safety for ordinary Go code, but it does not provide Rust's
+compile-time ownership and data-race proof. The race detector observes executed
+paths only. These rules reduce the practical gap through constrained design,
+static analysis, adversarial tests, and executable quality gates; they MUST NOT
+be described as an equivalent type-system guarantee.
+
+## Memory And Ownership
+
+- Production code MUST NOT import `unsafe`, use cgo, or use `go:linkname`.
+  An exception requires an explicit security review, package-local rationale,
+  isolated API boundary, platform matrix, and dedicated tests before the source
+  gate may be changed.
+- Every mutable value shared across goroutines MUST have a documented owner and
+  synchronization strategy.
+- APIs MUST NOT expose mutable internal maps, slices, buffers, registries, or
+  pointers unless ownership transfer or aliasing is an intentional, documented
+  contract.
+- Caller-owned mutable input MUST NOT be retained or mutated unless the public
+  API explicitly documents that behavior.
+- Copies, immutable snapshots, atomics, channels, or mutexes SHOULD be chosen
+  according to the invariant being protected, not as interchangeable style.
+- Pooling and zero-copy techniques MUST NOT weaken ownership clarity, retain
+  secrets unexpectedly, or allow values to outlive their backing storage.
+
+## Goroutine And Resource Lifecycle
+
+- Every goroutine MUST have an identifiable owner, bounded lifetime, and
+  deterministic stop condition.
+- Library code MUST NOT start hidden background work without a documented
+  shutdown or cancellation mechanism.
+- Request-scoped work MUST propagate the caller's `context.Context`; it MUST
+  NOT replace that context with `context.Background()`.
+- Concurrency, queues, retries, buffers, payloads, recursion, and fan-out MUST
+  be bounded at every untrusted or operational boundary.
+- The goroutine that owns a channel's send lifecycle SHOULD close it. Receivers
+  MUST NOT close channels they do not own.
+- Locks MUST NOT be held while calling user callbacks, performing network I/O,
+  or waiting on unrelated goroutines.
+- Multiple-lock code MUST document and test a stable lock order.
+- Cancellation, timeout, startup failure, partial initialization, panic, and
+  repeated shutdown MUST each release timers, goroutines, connections, files,
+  transactions, and other owned resources exactly once.
+
+## Required Verification Layers
+
+### Static And Source Analysis
+
+- `make safety` MUST reject forbidden low-level features and run vet, lint,
+  race, and fuzz gates.
+- `go vet`, Staticcheck, security linting, error checks, context checks, and
+  HTTP-body ownership checks MUST remain enabled through the repository lint
+  configuration.
+- New linter suppressions MUST be narrow, justified next to the suppression,
+  and covered by tests where behavior is affected.
+
+### Behavioral Tests
+
+- Tests MUST prove observable contracts, invariants, errors, and ownership
+  behavior rather than merely execute lines.
+- Meaningful 100% production statement coverage remains required, but coverage
+  MUST NOT be treated as evidence of race freedom, resource bounds, or protocol
+  conformance by itself.
+- Cancellation, timeout, panic, partial failure, retry, and shutdown paths MUST
+  be tested when the package owns those behaviors.
+- Tests for mutable inputs and outputs MUST check aliasing and post-call
+  mutation where ownership could be ambiguous.
+
+### Concurrency And Race Tests
+
+- The full package suite MUST pass under `go test -race ./...`.
+- Every concurrency bug fix MUST include a regression that exercises the
+  relevant interleaving under the race detector.
+- Concurrency tests MUST use barriers, channels, hooks, wait groups, or other
+  deterministic coordination. Sleeps MUST NOT be used as synchronization;
+  they MAY be used only when elapsed time is the behavior under test.
+- Critical state machines SHOULD be stress-tested with repeated execution and
+  varied scheduling. A passing stress run is supporting evidence, not a
+  substitute for a deterministic regression.
+- Tests MUST cover concurrent use of every API documented as concurrency-safe.
+
+### Fuzz And Adversarial Tests
+
+- Every parser, decoder, protocol boundary, query parser, queue envelope, and
+  other attacker-controlled byte or text boundary MUST have a fuzz target.
+- Fuzz corpora MUST include valid examples, malformed inputs, boundary values,
+  previously discovered regressions, and inputs near configured resource
+  limits.
+- Fuzz properties MUST include no panic, no hang, bounded resource behavior,
+  deterministic classification, and no invalid caller-state mutation.
+- Round-trip properties MUST be used only where the format and API promise a
+  lossless round trip.
+- Every fuzz-discovered defect MUST be retained as a deterministic regression
+  and, where useful, as a permanent fuzz seed.
+
+### Leak And Resource-Bound Tests
+
+- Components that create goroutines, timers, files, sockets, subscriptions, or
+  transactions MUST prove cleanup after success, failure, cancellation, panic,
+  and repeated close.
+- Leak tests SHOULD use observable lifecycle hooks or owned-resource counters.
+  Global goroutine counts alone SHOULD NOT be used as exact assertions because
+  unrelated runtime goroutines make them unstable.
+- Hostile-reader and declared-size tests MUST prove that byte, item, depth,
+  retry, and expansion limits stop work at the documented boundary.
+- Queue backends MUST test acknowledgement, retry, redelivery, poison-message,
+  reconnect, and shutdown behavior against real backends where semantics
+  cannot be proved hermetically.
+
+### Benchmarks And Regression Discipline
+
+- Hot paths MUST have representative benchmarks reporting allocations with
+  `-benchmem`.
+- Security-sensitive parsers and state machines SHOULD include adversarial
+  benchmarks near supported limits.
+- Performance changes MUST compare multiple before-and-after samples with
+  `benchstat` or an equivalent statistical method and retain the commands,
+  environment, and result.
+- Shared CI MUST NOT fail on small wall-clock benchmark variance. Stable
+  allocation counts, explicit resource ceilings, and statistically supported
+  material regressions MAY be gated.
+- Optimization MUST follow profiling evidence and MUST NOT remove validation,
+  bounds, cancellation, or ownership clarity without equivalent protection.
+
+## Review And Change Control
+
+- Public concurrency guarantees, aliasing behavior, limits, and lifecycle
+  semantics are SemVer-governed contracts.
+- Changes touching shared state, goroutines, callbacks, retries, settlement,
+  parsing, or resource limits MUST include an explicit safety review in the
+  pull request.
+- Updates to this baseline MUST bump its identifier and be propagated across
+  `jsonapi`, `jsonrpc`, `queue`, `wire`, `tabular`,
+  and the monorepo Go standard.
+
+## Source: docs/repository-standards.md
+
+# Repository Standards
+
+This repository follows the shared maintenance baseline used by the
+`faustbrian/go-*` OSS packages.
+
+## Mandatory Root Files
+
+Every repository contains `.gitattributes`, `.gitignore`,
+`.golangci.yml`, `AGENTS.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`, `Makefile`, `NOTICE`,
+`README.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`,
+`llms.txt`, and `llms-full.txt`.
+
+AI planning and execution briefs live in `.ai/GOAL.md` and
+`.ai/GOAL_HARDEN.md`, keeping internal agent material separate from the
+package's public documentation surface.
+
+`NOTICE` identifies project and inherited ownership. `THIRD_PARTY_NOTICES.md`
+separately records detailed source provenance and third-party attribution.
+Both remain present even when no additional third-party source requires
+attribution. A package may retain a different approved OSS license when
+provenance requires it.
+
+## Mandatory Documentation
+
+The shared taxonomy is lowercase kebab-case and includes a documentation
+index, quickstart, adoption guide, API reference, architecture, examples,
+cookbook, FAQ, troubleshooting, migration, compatibility, performance,
+hardening, security, Go safety and concurrency, and releasing guide.
+Package-specific documents extend this taxonomy without renaming shared
+concepts.
+
+## Mandatory Automation
+
+Every repository provides pinned-SHA workflows for CI, benchmarks, scheduled
+fuzzing, security, and tagged releases. CI tests Go 1.25.x as the supported
+minimum line and current stable Go. Dependency review runs on pull requests;
+reachable dependency scanning uses `govulncheck`.
+
+The common Make interface is `format`, `format-check`, `test`,
+`test-race`, `coverage`, `vet`, `lint`, `fuzz`, `benchmark`,
+`safety`, `docs`, `vuln`, `check`, and semantic release targets.
+
+The package family shares the `GO-SAFETY-1` baseline. It forbids `unsafe`,
+cgo, and `go:linkname` in production code and standardizes ownership,
+goroutine lifecycle, race, fuzz, resource-bound, leak, and benchmark evidence.
+
+## Approved Package-Specific Differences
+
+- `jsonapi` carries JSON:API feature, conformance, extension/profile,
+  recommendation, and threat-model documentation.
+- `jsonrpc` carries protocol conformance and middleware documentation.
+- `queue` carries backend, delivery, lifecycle, failure, and integration
+  documentation plus a live-backend integration workflow. Its fork provenance
+  requires detailed third-party notices.
+- `wire` carries format, dependency, and audit-evidence documentation.
+- `tabular` carries format and ingest-limit documentation. It uses
+  Apache-2.0 and retains XLS provenance notices.
+
+Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
+security guidance are expected to differ. Shared policy wording and automation
+structure must not drift without updating this contract across all affected
+repositories.

@@ -1,0 +1,14 @@
+{
+  "name": "faustbrian/knapsack-boxpacker-evidence",
+  "description": "Pinned BoxPacker differential adapter for knapsack",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "dvdoug/boxpacker": "4.2.0"
+  },
+  "config": {
+    "allow-plugins": false,
+    "sort-packages": true
+  }
+}

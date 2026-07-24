@@ -1,0 +1,3 @@
+fixture	namespace	interface	operation	pattern	styles
+IRI-1G.wsdl	http://example.org/	myInterface	myOperation	http://www.w3.org/ns/wsdl/in-out	http://www.w3.org/ns/wsdl/style/iri
+Multipart-1G.wsdl	http://example.org/	myInterface	myOperation	http://www.w3.org/ns/wsdl/in-out	http://www.w3.org/ns/wsdl/style/multipart

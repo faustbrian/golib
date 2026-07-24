@@ -1,0 +1,97 @@
+{
+  "openrpc": {
+    "version": "1.4.1",
+    "compatibilityLine": "1.4.x",
+    "repository": "https://github.com/open-rpc/spec",
+    "commit": "3a13c7a8bad248e6edd2d48339cd1c06b57f8f22",
+    "released": "2026-02-25",
+    "files": [
+      {
+        "path": "schema.json",
+        "source": "spec/1.4/schema.json",
+        "sha256": "a8a733cd87ef6ba2e1a38e6500090581b0f52b91051a0bad8386004366b11c56"
+      },
+      {
+        "path": "spec-template.md",
+        "source": "spec/1.4/spec-template.md",
+        "sha256": "70efadbae60557578d689f225f1edcb9d0f56b9b4d49c3a3e79a42ba934f46df"
+      },
+      {
+        "path": "LICENSE.md",
+        "source": "LICENSE.md",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "source": "CHANGELOG.md",
+        "sha256": "4549c0e79358005ae98c30dc41243352f40ccbf6c6de77e9f79f20263ec41d07"
+      }
+    ]
+  },
+  "examples": {
+    "repository": "https://github.com/open-rpc/examples",
+    "commit": "dce69463ba9a3ca2232506b734606fa97f25dd45",
+    "files": [
+      {
+        "path": "LICENSE.md",
+        "source": "LICENSE.md",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "api-with-examples-openrpc.json",
+        "source": "service-descriptions/api-with-examples-openrpc.json",
+        "sha256": "2101b99c90d6a397ecf1fce838fd713cd3292ec966cc721ef63906f001ceed79"
+      },
+      {
+        "path": "empty-openrpc.json",
+        "source": "service-descriptions/empty-openrpc.json",
+        "sha256": "ba867abd84205b642d7ba345506c1e907c0055ceee91a575a1075d0e123df526"
+      },
+      {
+        "path": "link-example-openrpc.json",
+        "source": "service-descriptions/link-example-openrpc.json",
+        "sha256": "52c4aba9f7334f973c807ecaaf198dfa94dc17b814b83aaa6f9313f4fcaaa031"
+      },
+      {
+        "path": "metrics-openrpc.json",
+        "source": "service-descriptions/metrics-openrpc.json",
+        "sha256": "3e77e7f6004f2ce53cc1be8bbdc2dd67e64075e045e3458c9adec836f7ba53cb"
+      },
+      {
+        "path": "params-by-name-petstore-openrpc.json",
+        "source": "service-descriptions/params-by-name-petstore-openrpc.json",
+        "sha256": "e3de2289c700804fe8652bcfcc355bc1a876c08835a1e81c0b16bdd7e06644ff"
+      },
+      {
+        "path": "petstore-expanded-openrpc.json",
+        "source": "service-descriptions/petstore-expanded-openrpc.json",
+        "sha256": "50fb8e458e9687b8129e40c5d101cfb09990e4e7a94111da63ce9584476a8189"
+      },
+      {
+        "path": "petstore-openrpc.json",
+        "source": "service-descriptions/petstore-openrpc.json",
+        "sha256": "22380016624581d43ea174a2682686e328b47e9e9d2dcf397535f20778fc4a9d"
+      },
+      {
+        "path": "simple-math-openrpc.json",
+        "source": "service-descriptions/simple-math-openrpc.json",
+        "sha256": "416326e5ecd667223c501950b3cb0fe240bfea5f163959eda3511b361234778b"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "dialect": "http://json-schema.org/draft-07/schema#",
+    "openrpcMetaDialect": {
+      "url": "https://meta.json-schema.tools/",
+      "retrieved": "2026-07-18",
+      "path": "openrpc-1.4.1/json-schema-tools.json",
+      "sha256": "a8369ab8a9dd89ac38bf20ebd78e58310c81cabbf6ec180d208f1955c068cae4",
+      "sourceSha256": "993eb54713cf2d5f26d9872671ffda551c50cba4882cca2914e9cbee84936155"
+    }
+  },
+  "go": {
+    "minimum": "1.26.5",
+    "verified": "2026-07-18",
+    "source": "https://go.dev/dl/"
+  }
+}

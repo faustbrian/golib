@@ -1,0 +1,15 @@
+{
+  "timezone": "Europe/Helsinki",
+  "opening_hours": {
+    "monday": [
+      {"from": "09:00", "to": "12:00"},
+      {"from": "13:00", "to": "17:00"}
+    ],
+    "tuesday": [],
+    "wednesday": null,
+    "thursday": [],
+    "friday": [],
+    "saturday": [],
+    "sunday": []
+  }
+}

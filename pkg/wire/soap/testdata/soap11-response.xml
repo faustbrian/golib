@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:r="urn:rates" xmlns:t="urn:trace"><soap:Header><t:request-id>abc</t:request-id></soap:Header><soap:Body><r:GetRateResponse><r:Amount>12.50</r:Amount></r:GetRateResponse></soap:Body></soap:Envelope>

@@ -1,0 +1,363 @@
+PACKAGE github.com/faustbrian/golib/pkg/json-schema
+package jsonschema // import "github.com/faustbrian/golib/pkg/json-schema"
+
+Package jsonschema compiles and evaluates JSON Schemas without implicit network
+access.
+
+Dialect selection, schema retrieval, extension registries, format policy,
+output shape, and resource limits are explicit compiler configuration.
+A compiled schema is immutable and safe for concurrent use.
+
+The implementation is under active development. Compliance claims are made only
+by the generated conformance evidence committed with the module.
+
+VARIABLES
+
+var (
+	// ErrInvalidJSON classifies malformed or ambiguous JSON input.
+	ErrInvalidJSON = errors.New("invalid JSON")
+	// ErrInvalidSchema classifies schemas that are invalid for their dialect.
+	ErrInvalidSchema = errors.New("invalid schema")
+	// ErrLimitExceeded classifies work rejected by an explicit resource limit.
+	ErrLimitExceeded = errors.New("resource limit exceeded")
+	// ErrResourceUnavailable classifies a schema resource that could not be loaded.
+	ErrResourceUnavailable = errors.New("schema resource unavailable")
+	// ErrResourceNotFound classifies an identifier absent from a loader.
+	ErrResourceNotFound = errors.New("schema resource not found")
+	// ErrUnsupportedDialect classifies an unknown stable dialect.
+	ErrUnsupportedDialect = errors.New("unsupported dialect")
+	// ErrUnsupportedVocabulary classifies an unknown required vocabulary.
+	ErrUnsupportedVocabulary = errors.New("unsupported vocabulary")
+	// ErrCallbackPanic classifies a recovered application callback panic.
+	ErrCallbackPanic = errors.New("callback panic")
+)
+
+TYPES
+
+type Compiler struct {
+	// Has unexported fields.
+}
+    Compiler owns immutable dialect and resource policy used during compilation.
+
+func NewCompiler(options ...Option) (*Compiler, error)
+    NewCompiler constructs an isolated compiler. Draft 2020-12 is the explicit
+    default when no dialect option is supplied.
+
+func (compiler *Compiler) Compile(ctx context.Context, raw []byte) (*Schema, error)
+    Compile parses and compiles one schema document using the configured loader.
+
+type CompositeLoader struct {
+	// Has unexported fields.
+}
+    CompositeLoader tries loaders in order and falls through only when a loader
+    classifies the resource as not found.
+
+func NewCompositeLoader(loaders ...ResourceLoader) (*CompositeLoader, error)
+    NewCompositeLoader constructs an immutable ordered loader chain.
+
+func (loader *CompositeLoader) Load(ctx context.Context, identifier string) ([]byte, error)
+    Load implements ResourceLoader.
+
+type Dialect string
+    Dialect identifies a released JSON Schema Core and Validation dialect.
+
+const (
+	// Draft3 identifies JSON Schema Draft 3.
+	Draft3 Dialect = "http://json-schema.org/draft-03/schema#"
+	// Draft4 identifies JSON Schema Draft 4.
+	Draft4 Dialect = "http://json-schema.org/draft-04/schema#"
+	// Draft6 identifies JSON Schema Draft 6.
+	Draft6 Dialect = "http://json-schema.org/draft-06/schema#"
+	// Draft7 identifies JSON Schema Draft 7.
+	Draft7 Dialect = "http://json-schema.org/draft-07/schema#"
+	// Draft201909 identifies JSON Schema Draft 2019-09.
+	Draft201909 Dialect = "https://json-schema.org/draft/2019-09/schema"
+	// Draft202012 identifies JSON Schema Draft 2020-12.
+	Draft202012 Dialect = "https://json-schema.org/draft/2020-12/schema"
+)
+type FSLoader struct {
+	// Has unexported fields.
+}
+    FSLoader confines hierarchical resource identifiers to a caller-provided
+    filesystem rooted at one absolute base URI.
+
+func NewFSLoader(baseIdentifier string, filesystem fs.FS) (*FSLoader, error)
+    NewFSLoader constructs a confined filesystem loader.
+
+func (loader *FSLoader) Load(ctx context.Context, identifier string) ([]byte, error)
+    Load implements ResourceLoader without permitting authority or path escape.
+
+type FormatChecker interface {
+	Valid(context.Context, string) (bool, error)
+}
+    FormatChecker validates the string representation of a named format.
+
+type FormatFunc func(context.Context, string) (bool, error)
+    FormatFunc adapts a function to FormatChecker.
+
+func (format FormatFunc) Valid(ctx context.Context, value string) (bool, error)
+    Valid implements FormatChecker.
+
+type JSONError struct {
+	Offset int64
+	Kind   error
+	Cause  error
+}
+    JSONError describes a JSON ingestion failure without retaining input bytes.
+
+func (err *JSONError) Error() string
+    Error implements error.
+
+func (err *JSONError) Unwrap() []error
+    Unwrap exposes both the classification and underlying cause.
+
+type KeywordCompiler interface {
+	Compile(context.Context, Dialect, Value) (KeywordEvaluator, error)
+}
+    KeywordCompiler compiles one keyword value into an immutable evaluator.
+
+type KeywordCompilerFunc func(context.Context, Dialect, Value) (KeywordEvaluator, error)
+    KeywordCompilerFunc adapts a function to KeywordCompiler.
+
+func (compiler KeywordCompilerFunc) Compile(
+	ctx context.Context,
+	dialect Dialect,
+	value Value,
+) (KeywordEvaluator, error)
+    Compile implements KeywordCompiler.
+
+type KeywordEvaluator interface {
+	Evaluate(context.Context, Value) (KeywordResult, error)
+}
+    KeywordEvaluator evaluates a compiled custom keyword.
+
+type KeywordEvaluatorFunc func(context.Context, Value) (KeywordResult, error)
+    KeywordEvaluatorFunc adapts a function to KeywordEvaluator.
+
+func (evaluator KeywordEvaluatorFunc) Evaluate(
+	ctx context.Context,
+	value Value,
+) (KeywordResult, error)
+    Evaluate implements KeywordEvaluator.
+
+type KeywordResult struct {
+	Valid      bool
+	Annotation json.RawMessage
+}
+    KeywordResult reports custom assertion validity and an optional
+    exact JSON annotation. A nil Annotation means no annotation; use
+    `json.RawMessage("null")` to annotate with JSON null.
+
+type LimitError struct {
+	Resource string
+	Limit    int
+}
+    LimitError reports which deterministic work budget was exhausted.
+
+func (err *LimitError) Error() string
+    Error implements error.
+
+func (err *LimitError) Unwrap() error
+    Unwrap classifies the error as ErrLimitExceeded.
+
+type Limits struct {
+	MaxInputBytes             int
+	MaxNestingDepth           int
+	MaxTotalValues            int
+	MaxObjectMembers          int
+	MaxArrayItems             int
+	MaxNumberBytes            int
+	MaxSchemaResources        int
+	MaxTotalSchemaBytes       int
+	MaxEvaluationOps          int
+	MaxUniqueComparisons      int
+	MaxFormatChecks           int
+	MaxSchemaNodes            int
+	MaxReferenceDepth         int
+	MaxDynamicScopeDepth      int
+	MaxCombinatorBranches     int
+	MaxRegexCount             int
+	MaxRegexBytes             int
+	MaxRegexBacktracking      int
+	MaxRegexMatchMilliseconds int
+	MaxOutputUnits            int
+	MaxCustomKeywordCompiles  int
+	MaxCustomKeywordCalls     int
+	MaxAnnotationBytes        int
+}
+    Limits bounds JSON ingestion work. Additional compile and evaluation limits
+    will be added as their corresponding evaluator components are introduced.
+
+func DefaultLimits() Limits
+    DefaultLimits returns conservative standalone defaults.
+
+type MapLoader struct {
+	// Has unexported fields.
+}
+    MapLoader is an immutable in-memory schema resource loader.
+
+func NewMapLoader(resources map[string][]byte) (*MapLoader, error)
+    NewMapLoader copies a set of resources into an immutable loader.
+
+func (loader *MapLoader) Load(ctx context.Context, identifier string) ([]byte, error)
+    Load implements ResourceLoader and returns caller-owned bytes.
+
+type Option func(*compilerConfig) error
+    Option configures a Compiler without mutating shared global state.
+
+func WithContentAssertion() Option
+    WithContentAssertion enables validation of recognized content encodings and
+    media types. Content keywords are annotations unless this option is used.
+
+func WithDialect(dialect Dialect) Option
+    WithDialect selects the dialect used to compile schemas.
+
+func WithFormat(name string, checker FormatChecker) Option
+    WithFormat registers or replaces one compiler-owned format checker.
+
+func WithFormatAssertion() Option
+    WithFormatAssertion enables format validation for recognized formats.
+
+func WithLimits(limits Limits) Option
+    WithLimits replaces the compiler's resource limits.
+
+func WithResourceLoader(loader ResourceLoader) Option
+    WithResourceLoader authorizes explicit schema retrieval during compilation.
+
+func WithVocabulary(
+	identifier string,
+	keywords map[string]KeywordCompiler,
+) Option
+    WithVocabulary registers one instance-owned custom vocabulary.
+
+type OutputFormat string
+    OutputFormat selects one of the standard JSON Schema output forms.
+
+const (
+	// OutputFlag emits only the overall validity flag.
+	OutputFlag OutputFormat = "flag"
+	// OutputBasic emits a flat list of errors or annotations.
+	OutputBasic OutputFormat = "basic"
+	// OutputDetailed emits location-aware nested validation results.
+	OutputDetailed OutputFormat = "detailed"
+	// OutputVerbose emits the complete location-aware validation result tree.
+	OutputVerbose OutputFormat = "verbose"
+)
+type OutputUnit struct {
+	Valid                   bool         `json:"valid"`
+	KeywordLocation         string       `json:"keywordLocation"`
+	AbsoluteKeywordLocation string       `json:"absoluteKeywordLocation,omitempty"`
+	InstanceLocation        string       `json:"instanceLocation"`
+	Error                   string       `json:"error,omitempty"`
+	Errors                  []OutputUnit `json:"errors,omitempty"`
+	Annotations             []OutputUnit `json:"annotations,omitempty"`
+	Annotation              any          `json:"annotation,omitempty"`
+	// Has unexported fields.
+}
+    OutputUnit is one unit in a standard JSON Schema validation output.
+
+func (unit OutputUnit) MarshalJSON() ([]byte, error)
+    MarshalJSON emits the compact standard representation selected for the root
+    output unit.
+
+type ResourceLoader interface {
+	Load(context.Context, string) ([]byte, error)
+}
+    ResourceLoader retrieves an explicitly authorized schema resource.
+
+type ResourceLoaderFunc func(context.Context, string) ([]byte, error)
+    ResourceLoaderFunc adapts a function to ResourceLoader.
+
+func (loader ResourceLoaderFunc) Load(ctx context.Context, identifier string) ([]byte, error)
+    Load implements ResourceLoader.
+
+type Result struct {
+	Valid bool `json:"valid"`
+}
+    Result is the minimum flag output from an evaluation.
+
+type Schema struct {
+	// Has unexported fields.
+}
+    Schema is an immutable evaluation plan safe for concurrent validation.
+
+func (schema *Schema) CollectAnnotations(
+	ctx context.Context,
+	raw []byte,
+) ([]OutputUnit, error)
+    CollectAnnotations validates raw JSON and returns the retained annotation
+    results as a flat, deterministic list. Failed schema branches do not
+    contribute annotations.
+
+func (schema *Schema) Validate(ctx context.Context, raw []byte) (Result, error)
+    Validate parses and evaluates a raw JSON instance.
+
+func (schema *Schema) ValidateOutput(
+	ctx context.Context,
+	raw []byte,
+	format OutputFormat,
+) (OutputUnit, error)
+    ValidateOutput validates raw JSON and returns the selected standard output.
+
+func (schema *Schema) ValidateValue(ctx context.Context, value any) (Result, error)
+    ValidateValue validates a caller-provided value after bounded JSON encoding.
+    Integer types and json.Number retain exact decimal semantics.
+
+func (schema *Schema) ValidateValueOutput(
+	ctx context.Context,
+	value any,
+	format OutputFormat,
+) (OutputUnit, error)
+    ValidateValueOutput validates a caller-provided value and returns the
+    selected standard output form.
+
+type Value struct {
+	// Has unexported fields.
+}
+    Value is a read-only view of an exact schema or instance JSON value.
+
+func (value Value) Bool() (bool, bool)
+    Bool returns a boolean value and whether the kind matched.
+
+func (value Value) Index(index int) (Value, bool)
+    Index returns one array item.
+
+func (value Value) Kind() ValueKind
+    Kind returns the JSON value kind.
+
+func (value Value) Len() int
+    Len returns the array item or object member count, or zero otherwise.
+
+func (value Value) Lookup(name string) (Value, bool)
+    Lookup returns one object member.
+
+func (value Value) Names() []string
+    Names returns a sorted copy of object member names.
+
+func (value Value) Number() (string, bool)
+    Number returns the exact JSON number text and whether the kind matched.
+
+func (value Value) String() (string, bool)
+    String returns a string value and whether the kind matched.
+
+type ValueKind uint8
+    ValueKind identifies an immutable exact JSON value kind.
+
+const (
+	// NullKind identifies null or an absent Value.
+	NullKind ValueKind = iota
+	// BooleanKind identifies a JSON boolean.
+	BooleanKind
+	// NumberKind identifies an exact JSON number.
+	NumberKind
+	// StringKind identifies a JSON string.
+	StringKind
+	// ArrayKind identifies a JSON array.
+	ArrayKind
+	// ObjectKind identifies a JSON object.
+	ObjectKind
+)
+PACKAGE github.com/faustbrian/golib/pkg/json-schema/cmd/bowtie-json-schema
+Command bowtie-json-schema implements the Bowtie harness protocol.
+PACKAGE github.com/faustbrian/golib/pkg/json-schema/internal/cmd/conformance-manifest
+Command conformance-manifest generates pinned official-suite evidence.

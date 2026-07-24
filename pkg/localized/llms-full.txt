@@ -1,0 +1,11 @@
+# localized complete model context
+
+`localized` is a focused immutable domain-value library. Read README.md and
+every file indexed by docs/README.md. Normative behavior is in
+docs/semantics.md; exported APIs are inventoried in docs/api.md; security and
+resource bounds are in docs/security.md; migration semantics are in
+docs/migration.md.
+
+Never infer fallback from exact lookup, confuse empty with missing, mutate
+caller data, log localized content, create a global locale, or expand the
+package into a catalog, formatter, language detector, or translation client.

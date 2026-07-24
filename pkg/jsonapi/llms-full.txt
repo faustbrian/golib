@@ -1,0 +1,2560 @@
+# jsonapi Complete Documentation
+
+## Source: README.md
+
+# jsonapi
+
+`jsonapi` is a strict, framework-agnostic implementation of JSON:API 1.1,
+the official Atomic Operations extension, the official Cursor Pagination
+profile, and the published JSON:API recommendations.
+
+## Status
+
+The package is pre-v1. Its supported protocol surface is conformance-tested and
+production code is held to meaningful 100% statement coverage. Read the
+[compatibility policy](docs/compatibility.md) before adopting an unreleased
+revision.
+
+## Requirements
+
+- Go 1.26.5 or later
+
+## Installation
+
+```sh
+go get github.com/faustbrian/golib/pkg/jsonapi
+```
+
+## Quickstart
+
+```go
+document := jsonapi.Document{Data: jsonapi.ResourceData(
+    jsonapi.ResourceObject{
+        Type: "articles",
+        ID:   "1",
+        Attributes: jsonapi.Attributes{
+            "title": "JSON:API in Go",
+        },
+    },
+)}
+
+payload, err := jsonapi.Marshal(document)
+if err != nil {
+    return err
+}
+```
+
+Decode untrusted input with `Unmarshal` or a configured `Codec`. Use
+request-specific validation contexts, bounded decoding, content negotiation,
+and query parsing as described in the [quickstart](docs/quickstart.md).
+
+## Package Guarantees
+
+- JSON:API 1.1 document modeling, strict decoding, validation, and stable
+  serialization
+- compound documents, relationships, errors, local identifiers, and contextual
+  request/response validation
+- sparse fieldsets, includes, sorting, pagination, filtering, and registered
+  query families
+- media-type negotiation with extensions, profiles, quality values, and
+  wildcard candidates
+- full official Atomic Operations and Cursor Pagination support
+- registered extension members, profile validators, UTF-8 enforcement, and
+  configurable resource limits
+
+The package does not choose an HTTP router, persistence layer, filtering
+language, cursor encoding, authentication policy, or domain-error mapping.
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+[adoption guide](docs/adoption.md), and [API reference](docs/api.md). The
+[conformance matrix](docs/conformance.md), [extensions and profiles](docs/extensions-and-profiles.md),
+[recommendations](docs/recommendations.md), and [hardening evidence](docs/hardening.md)
+define the supported protocol surface.
+
+AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+Run `make check` before submitting a change. This enforces formatting, static
+analysis, race tests, meaningful 100% coverage, fuzz smoke, benchmarks,
+documentation, and vulnerability scanning.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Normative requirements,
+recommendations, extensions, profiles, and application conventions are
+reviewed as separate categories.
+
+## Security
+
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+Review the [security guide](docs/security.md) and [threat model](docs/threat-model.md)
+before processing untrusted input.
+
+## License
+
+`jsonapi` is available under the [MIT License](LICENSE). Attribution and
+third-party policy are recorded in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# jsonapi Documentation
+
+Use this index to evaluate specification coverage before production adoption.
+
+## Start Here
+
+- [Quickstart](quickstart.md)
+- [Adoption guide](adoption.md)
+- [API reference](api.md)
+- [Examples](examples.md)
+
+## Design And Operations
+
+- [Architecture](architecture.md)
+- [Go safety and concurrency](go-safety-and-concurrency.md)
+- [Supported features](features.md)
+- [Conformance evidence](conformance.md)
+- [Extensions and profiles](extensions-and-profiles.md)
+- [JSON:API recommendations](recommendations.md)
+- [Compatibility](compatibility.md)
+- [Performance](performance.md)
+- [Security](security.md)
+- [Hardening](hardening.md)
+- [Threat model](threat-model.md)
+
+## Maintain And Troubleshoot
+
+- [Cookbook](cookbook.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+- [Migration](migration.md)
+- [Releasing](releasing.md)
+
+## Repository Maintenance
+
+- [Shared repository standards](repository-standards.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+## Construct and encode a document
+
+```go
+article := jsonapi.ResourceObject{
+	Type: "articles",
+	ID:   "1",
+	Attributes: jsonapi.Attributes{
+		"title": "A strict JSON:API response",
+	},
+	Relationships: jsonapi.Relationships{
+		"author": {
+			Data: jsonapi.ToOne(jsonapi.Identifier{Type: "people", ID: "9"}),
+		},
+	},
+}
+
+document := jsonapi.Document{
+	Data: jsonapi.ResourceData(article),
+	Included: []jsonapi.ResourceObject{{
+		Type:       "people",
+		ID:         "9",
+		Attributes: jsonapi.Attributes{"name": "Ada"},
+	}},
+}
+
+payload, err := jsonapi.Marshal(document)
+```
+
+`Marshal` validates before encoding. Invalid linkage, conflicting top-level
+members, duplicate resource identities, malformed links, and other document
+violations return `*jsonapi.ValidationError`.
+
+## Decode an untrusted document
+
+```go
+document, err := jsonapi.Unmarshal(payload)
+switch typed := err.(type) {
+case nil:
+	// Use document.
+case *jsonapi.DecodeError:
+	log.Printf("invalid JSON at %s: %s", typed.Path, typed.Message)
+case *jsonapi.ValidationError:
+	for _, violation := range typed.Violations {
+		log.Printf("%s: %s", violation.Path, violation.Message)
+	}
+default:
+	log.Printf("unexpected error: %v", err)
+}
+```
+
+Decoding is strict for JSON:API-defined objects. Duplicate JSON members and
+unknown members are rejected. Members beginning with `@` are ignored as the
+specification requires. Registered extension members are handled through a
+configured codec.
+
+## Validate request-specific shapes
+
+Use a validation context for endpoint-specific resource requirements:
+
+```go
+document, err := jsonapi.UnmarshalWith(payload, jsonapi.ValidationOptions{
+	Context: jsonapi.CreateRequest,
+})
+```
+
+Available contexts are:
+
+- `GenericDocument` for context-independent document validation;
+- `Response` for server response identity rules;
+- `CreateRequest` for resource creation payloads;
+- `UpdateRequest` for resource update payloads;
+- `ToOneRelationshipRequest` and `ToManyRelationshipRequest` for relationship
+  mutation payloads.
+
+## Parse request parameters
+
+```go
+query, err := jsonapi.ParseQuery(r.URL.Query())
+if err != nil {
+	var queryError *jsonapi.QueryError
+	if errors.As(err, &queryError) {
+		http.Error(w, queryError.Message, queryError.Status)
+		return
+	}
+}
+
+// query.Include, query.Fields, and query.Sort are parsed.
+// query.Page and query.Filter remain explicit application-facing families.
+```
+
+Register application or extension families when the endpoint supports them:
+
+```go
+parser, err := jsonapi.NewQueryParser(
+	[]string{"searchTerm"},
+	[]string{"version"},
+)
+query, err := parser.Parse(r.URL.Query())
+```
+
+## Negotiate JSON:API media types
+
+```go
+negotiator, err := jsonapi.NewNegotiator(
+	[]string{jsonapi.AtomicExtensionURI},
+	[]string{jsonapi.CursorPaginationProfileURI},
+)
+
+requestMedia, err := negotiator.CheckContentType(r.Header.Get("Content-Type"))
+selected, err := negotiator.NegotiateAccept(r.Header.Get("Accept"))
+
+w.Header().Set("Content-Type", selected.ContentType)
+if selected.VaryAccept {
+	w.Header().Add("Vary", "Accept")
+}
+```
+
+`NegotiationError.Status` is `415` for request content-type failures and `406`
+when no acceptable response representation exists.
+
+## Next steps
+
+- [Adoption guide](adoption.md) for endpoint design and error mapping
+- [Examples](examples.md) for complete flows
+- [Extensions and profiles](extensions-and-profiles.md)
+- [API reference](api.md)
+
+## Source: docs/adoption.md
+
+# Adoption guide
+
+This guide describes the boundary between `jsonapi` and a production
+service. The package owns protocol representation and validation. Your service
+owns routing, authorization, persistence, domain mapping, and response policy.
+
+## 1. Define resource mapping explicitly
+
+Keep mapping near the transport layer:
+
+```go
+func articleResource(article Article) jsonapi.ResourceObject {
+	return jsonapi.ResourceObject{
+		Type: "articles",
+		ID:   strconv.FormatInt(article.ID, 10),
+		Attributes: jsonapi.Attributes{
+			"title":     article.Title,
+			"createdAt": article.CreatedAt.Format(time.RFC3339),
+		},
+	}
+}
+```
+
+Do not expose persistence structs directly. Explicit mapping makes resource
+types, identity formatting, field names, omission, and compatibility reviewable.
+
+## 2. Create shared protocol configuration
+
+Construct immutable parsers once during application startup:
+
+```go
+type Protocol struct {
+	Codec      *jsonapi.Codec
+	Query      *jsonapi.QueryParser
+	Negotiator *jsonapi.Negotiator
+}
+
+func NewProtocol() (*Protocol, error) {
+	codec, err := jsonapi.NewCodec(jsonapi.CodecOptions{})
+	if err != nil {
+		return nil, err
+	}
+	query, err := jsonapi.NewQueryParser([]string{"searchTerm"}, nil)
+	if err != nil {
+		return nil, err
+	}
+	negotiator, err := jsonapi.NewNegotiator(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &Protocol{Codec: codec, Query: query, Negotiator: negotiator}, nil
+}
+```
+
+The configured values are safe for concurrent request use because decoding
+does not mutate their registries. Validator callbacks supplied by an
+application must themselves be bounded, deterministic, and concurrency-safe.
+The package contains their panics and redacts public error strings, but trusted
+diagnostics can still inspect retained callback causes and panic values.
+
+## 3. Integrate a `net/http` endpoint
+
+```go
+func (api *API) listArticles(w http.ResponseWriter, r *http.Request) {
+	selected, err := api.protocol.Negotiator.NegotiateAccept(
+		r.Header.Get("Accept"),
+	)
+	if err != nil {
+		writeProtocolError(w, err)
+		return
+	}
+
+	query, err := api.protocol.Query.Parse(r.URL.Query())
+	if err != nil {
+		writeProtocolError(w, err)
+		return
+	}
+
+	articles, err := api.store.ListArticles(r.Context(), query)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	resources := make([]jsonapi.ResourceObject, len(articles))
+	for index, article := range articles {
+		resources[index] = articleResource(article)
+	}
+	document := jsonapi.Document{Data: jsonapi.ResourceCollection(resources...)}
+	payload, err := api.protocol.Codec.Marshal(document)
+	if err != nil {
+		// A server-constructed invalid document is an internal defect.
+		writeInternalError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", selected.ContentType)
+	if selected.VaryAccept {
+		w.Header().Add("Vary", "Accept")
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(payload)
+}
+```
+
+For request bodies, validate content type before reading and choose the correct
+context:
+
+```go
+if _, err := negotiator.CheckContentType(r.Header.Get("Content-Type")); err != nil {
+	writeProtocolError(w, err)
+	return
+}
+payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxDocumentBytes))
+if err != nil {
+	// Handle size/read failure.
+}
+document, err := jsonapi.UnmarshalWith(payload, jsonapi.ValidationOptions{
+	Context: jsonapi.CreateRequest,
+})
+```
+
+Always bound body size in the HTTP layer. The package validates complete byte
+slices and does not impose an application-specific maximum.
+
+## 4. Map typed errors
+
+Suggested boundary mapping:
+
+| Error | HTTP status |
+| --- | --- |
+| `NegotiationError` | `Status` (`406` or `415`) |
+| `QueryError` | `Status` (`400`) |
+| `CursorPaginationError` | `Status` (`400`) |
+| `DecodeError` | `400` |
+| request `ValidationError` | `400` or a more specific application-selected 4xx |
+| server marshal/validation failure | `500` and internal logging |
+| `AtomicExecutionError` | map the application cause, preserving operation pointer |
+
+Convert failures to `ErrorObject` values without leaking internal causes. A
+`Violation.Path` or `DecodeError.Path` can populate `source.pointer`; a
+`QueryError.Parameter` can populate `source.parameter`.
+
+## 5. Apply query intent safely
+
+Parsing proves syntax, not authorization or database support. Maintain
+endpoint allowlists:
+
+```go
+allowedSort := map[string]string{
+	"createdAt": "created_at",
+	"title":     "title",
+}
+for _, field := range query.Sort {
+	column, ok := allowedSort[field.Name]
+	if !ok {
+		return unsupportedSort(field.Name)
+	}
+	statement.OrderBy(column, field.Descending)
+}
+```
+
+Apply the same discipline to fields, includes, filters, and custom families.
+Never interpolate parsed names directly into SQL.
+
+## 6. Build compound documents
+
+When honoring `include`, populate both relationship linkage and `Included`.
+The validator rejects duplicate identities and resources that are not linked
+from primary data. If sparse fieldsets remove a relationship, account for the
+specification's full-linkage exception in your response-building policy.
+
+## 7. Integrate Cursor Pagination
+
+Create one policy per endpoint, validate the parsed query, then apply a unique
+database order:
+
+```go
+pagination, err := jsonapi.NewCursorPagination(jsonapi.CursorPaginationConfig{
+	DefaultSize: 25,
+	MaxSize:     100,
+	AllowRange:  false,
+	ValidateCursor: decodeAndVerifyCursor,
+	ValidateSort:   validateStableArticleSort,
+})
+request, err := pagination.ParseQuery(query)
+```
+
+Fetch enough information to set `prev` and `next`, using `NullLink()` when the
+profile requires an explicit null. Validate the final page with `CursorPage`.
+Cursor values should be opaque, authenticated if tampering matters, and tied
+to the effective unique sort.
+
+## 8. Integrate Atomic Operations
+
+Only expose an Atomic endpoint when the storage adapter can provide the
+transaction contract. `ExecuteAtomic` calls `ApplyAtomic` in document order,
+rolls back after an operation or commit failure, and returns positional
+results after a successful commit.
+
+The HTTP layer must still enforce `POST`, negotiate `AtomicExtensionURI`, map
+operation failures to appropriate statuses, and decide between a 200 results
+document and a valid 204 response.
+
+## 9. Roll out safely
+
+1. record canonical response fixtures from the existing endpoint;
+2. map domain data explicitly and compare semantic JSON;
+3. run both validators against representative request/response samples;
+4. shadow or canary traffic where possible;
+5. monitor typed error codes and pointers;
+6. treat output ordering and omission changes as compatibility changes;
+7. pin a tagged release before production deployment.
+
+## Source: docs/api.md
+
+# Public API reference
+
+This guide groups the complete exported surface by purpose. Symbol comments in
+the source are the canonical field-level reference and are rendered by
+`go doc github.com/faustbrian/golib/pkg/jsonapi`.
+
+## Core documents
+
+| API | Purpose |
+| --- | --- |
+| `Document` | Top-level core document with `jsonapi`, links, data, included, errors, meta, and registered members |
+| `JSONAPI` | Version plus applied extension/profile URIs and meta |
+| `ResourceObject` | Resource identity, attributes, relationships, links, meta, and registered members |
+| `Identifier` | Resource linkage identity using `type` plus `id` or `lid` |
+| `Relationship`, `Relationships` | Relationship links, data, meta, and registered members |
+| `Attributes`, `Meta`, `Members` | Application values and registered semantic values |
+| `ErrorObject`, `ErrorSource` | JSON:API error representation, valid HTTP status, and pointer/parameter/header source |
+
+Primary-data constructors:
+
+- `NullData()` creates an explicit top-level `data: null`;
+- `ResourceData(resource)` creates to-one primary data;
+- `ResourceCollection(resources...)` creates collection primary data;
+- `NullRelationship()` creates explicit null linkage;
+- `ToOne(identifier)` and `ToMany(identifiers...)` create relationship linkage.
+
+Non-empty exported string fields are present automatically. For a valid empty
+string that must remain present on the wire, use the corresponding `With...`
+method. This applies to resource and identifier `id`/`lid`, JSON:API `version`,
+error strings and sources, link object strings, and Atomic targets. The
+presence-aware methods avoid treating a Go empty string as an omitted member.
+
+## Core codec and validation
+
+| API | Purpose |
+| --- | --- |
+| `Marshal`, `Unmarshal` | Strict generic document boundary |
+| `MarshalWith`, `UnmarshalWith` | Boundary with `ValidationOptions` |
+| `Document.Validate`, `Document.ValidateWith` | Validate a constructed document without encoding |
+| `ValidationContext` | Generic, response, create, update, or relationship mutation context |
+| `DecodeError` | One parsing/shape failure with JSON pointer and code |
+| `ValidationError` | Ordered collection of `Violation` values |
+| `Violation` | Path, stable machine code, and human-readable message |
+| `CallbackError` | Redacted extension/profile/cursor/sort callback failure with an inspectable phase, cause, or panic value |
+| `DecodeLimits`, `DefaultDecodeLimits` | Bounded byte, depth, member, item, and total-value policy |
+| `UnmarshalWithLimits` | Core decoding with explicit limits and validation context |
+
+All marshal entry points validate before emitting bytes. All unmarshal entry
+points reject duplicate JSON members and validate before returning a document.
+`ValidationOptions.ExpectedType` and `ExpectedID` enforce endpoint identity.
+Set `ExpectedIDPresent` when the expected ID is the valid empty string;
+non-empty expected IDs enable matching without the flag.
+Unknown validation contexts are rejected instead of falling back to generic
+document validation.
+
+Valid @-Members in an object's `AdditionalMembers` are accepted without
+extension registration and emitted after core members. Decoding ignores
+@-Members as required by JSON:API. They never satisfy required structural
+content, and malformed @-Member names are rejected during strict marshal.
+
+## Links
+
+`Links` maps relation names to the opaque `Link` sum type. Construct links with:
+
+- `URI(href)` for a JSON string;
+- `NullLink()` for JSON `null`;
+- `ObjectLink(href, meta)` for the common object form;
+- `LinkFromObject(LinkObject{...})` for the full JSON:API 1.1 link object;
+- `ExtensionLinkValue(value)` for a registered namespaced member directly in
+  a `links` object;
+- `LanguageTag(tag)` or `LanguageTags(tags...)` for `hreflang`.
+
+Link strings and object `href` values are URI-references, so an empty relative
+reference is valid. Values are validated as RFC 3986 wire text: percent-encode
+spaces, Unicode, brackets used as path data, and other characters outside the
+component grammar. `WithRel`, `WithTitle`, and `WithType` preserve explicitly
+empty optional link-object members when their individual grammar allows it.
+Constructed recursive `describedby` chains use the package nesting limit and
+reject pointer cycles before encoding.
+
+`LinkObject` supports `href`, `rel`, `describedby`, `title`, `type`, `hreflang`,
+`meta`, and registered extension members.
+
+`Link.ExtensionValue` distinguishes an extension-defined links-object value
+from string, object, and null link values. Such values marshal only through a
+`Codec` that registers the member at `LinksObjectMemberScope`.
+
+## Query parsing
+
+Query parsers accept already-decoded `url.Values`. `net/url.ParseQuery` or the
+HTTP server owns percent-decoding and rejects malformed escapes before this
+package is called. `QueryLimits` bounds decoded names and values; the HTTP
+layer must separately bound the encoded request target.
+
+| API | Purpose |
+| --- | --- |
+| `ParseQuery(url.Values)` | Parse core query parameters with page/filter hooks |
+| `NewQueryParser(custom, namespaces)` | Register implementation and extension families |
+| `QueryParser.Parse` | Parse with the configured family registry |
+| `Query` | Parsed include paths, fieldsets, sort, page, filter, custom, and extension families |
+| `SortField` | One ordered field with descending flag |
+| `ParameterFamily` | Original decoded names and values for application processing |
+| `QueryError` | HTTP 400 query error with parameter and stable code |
+| `QueryLimits`, `DefaultQueryLimits` | Bounds decoded names, values, selectors, lists, and aggregate size |
+| `NewQueryParserWithLimits`, `ParseQueryWithLimits` | Query parsing with explicit resource limits |
+
+## Content negotiation
+
+| API | Purpose |
+| --- | --- |
+| `MediaTypeJSONAPI` | `application/vnd.api+json` constant |
+| `MediaType` | Canonical extension and profile parameter representation |
+| `MediaType.String` | Stable formatted content type |
+| `NewNegotiator` | Register supported extension/profile URIs |
+| `Negotiator.CheckContentType` | Validate request content type; returns 415 failures |
+| `Negotiator.NegotiateAccept` | Select by HTTP quality and media-range precedence; returns 406 failures |
+| `NegotiatedMedia` | Selected media type, content type, and `Vary: Accept` requirement |
+| `NegotiationError` | Status, code, and message for protocol mapping |
+| `NegotiationLimits`, `DefaultNegotiationLimits` | Bounds header, candidate, URI-list, and configuration work |
+| `NewNegotiatorWithLimits` | Negotiator construction with explicit limits |
+
+## Registered extensions and profiles
+
+| API | Purpose |
+| --- | --- |
+| `CodecOptions` | Validation plus extension/profile definitions |
+| `NewCodec` | Validate registrations and construct a strict configured codec |
+| `Codec.Marshal`, `Codec.Unmarshal` | Encode/decode registered semantic members |
+| `ExtensionDefinition` | Absolute URI, namespace, and member definitions |
+| `MemberDefinition` | Object scope, namespaced name, and optional value validator |
+| `MemberScope` | Top-level, resource, relationship, identifier, JSON:API, error, error source, links object, or link object |
+| `ProfileDefinition` | Absolute URI and optional document semantic validator |
+
+Constructors copy registration slices and definitions, so later mutation of
+the supplied slices does not alter a codec, negotiator, or query parser.
+Constructed instances are safe for concurrent use when application callbacks
+and documents are not concurrently mutated.
+
+Extension, profile, cursor, and sort callbacks are invoked through a panic
+boundary. Their returned errors and panic values are retained for explicit
+`errors.Is`/`errors.As` diagnostics but omitted from public error strings.
+Profile validators are observational: a successful callback that mutates its
+document view is rejected before marshal or unmarshal can succeed.
+
+## Atomic Operations
+
+| API | Purpose |
+| --- | --- |
+| `AtomicExtensionURI` | Official extension URI |
+| `AtomicDocument` | Operations, results, errors, links, meta, and JSON:API object |
+| `AtomicOperation`, `AtomicOperationCode` | Add, update, or remove operation |
+| `AtomicReference` | Resource or relationship target by `id`/`lid` |
+| `AtomicResult` | Positional operation result |
+| `MarshalAtomic`, `UnmarshalAtomic` | Strict generic Atomic codec |
+| `MarshalAtomicWith`, `UnmarshalAtomicWith` | Codec with `AtomicValidationOptions` |
+| `UnmarshalAtomicWithLimits` | Atomic decoding with explicit resource limits |
+| `AtomicDocument.Validate`, `ValidateWith` | Validate constructed Atomic documents |
+| `AtomicValidationContext` | Generic, operations request, or results response |
+| `ExecuteAtomic` | Ordered transaction execution with rollback/commit guarantees |
+| `AtomicTransactionBeginner` | Begins an application transaction |
+| `AtomicTransaction` | Applies operations and commits or rolls back |
+| `AtomicExecutionError` | Operation and rollback failure context |
+| `AtomicPanicError` | Redacted transaction callback panic with inspectable value |
+
+`AtomicOperation.WithHref` and the `AtomicReference.WithID`, `WithLID`, and
+`WithRelationship` methods preserve target-member presence independently of
+the string value. Atomic validation rejects unknown contexts and negative
+expected-result counts as configuration errors.
+
+Set `AtomicValidationOptions.ExpectedOperations` when validating a response
+against its request. This enforces positional result count and operation-aware
+data rules: removal and recognized relationship results contain no `data`,
+while resource result data is a single identified resource object. A create
+without a client-generated ID must return that created resource as `data`; a
+create with a client-generated ID may omit unchanged representation data.
+`ExecuteAtomic` applies this validation before commit. Applications remain
+responsible for enforcing the same no-data rule when an href-targeted, to-one
+update is only identifiable as a relationship after URI routing.
+
+Because an Atomic `href` may identify either a resource or a relationship,
+validation uses unambiguous data shapes: arrays on add/remove and null or
+arrays on update are relationship operations; a single update object remains
+valid for either a resource or to-one relationship target. The application
+still verifies that the URI resolves to the matching endpoint kind.
+
+## Cursor Pagination
+
+| API | Purpose |
+| --- | --- |
+| `CursorPaginationProfileURI` | Official profile URI |
+| `NewCursorPagination` | Validate endpoint pagination policy |
+| `CursorPagination.Parse`, `ParseQuery` | Validate page family and optional sort policy |
+| `CursorPaginationConfig` | Default/max size, range support, cursor/sort validators |
+| `CursorPageRequest` | Parsed size, before/after values, presence, range flag, and metadata member alias |
+| `CursorPaginationError` | Profile error with `ErrorObject` conversion |
+| `ValidateCursorPaginationLinks` | Require and validate `prev` and `next` links |
+| `CursorPage` | Data/links/meta instance validation |
+| `CursorPageMeta`, `CursorEstimatedTotal` | Exact/estimated total metadata representation |
+| `CursorPageMeta.Meta`, `ParseCursorPageMeta` | Encode/decode pagination metadata using the default `page` element |
+| `CursorPageMeta.MetaAs`, `ParseCursorPageMetaAs` | Encode/decode pagination metadata using a profile element alias |
+| `CursorItemMeta`, `ParseCursorItemMeta` | Encode/decode optional per-item cursor metadata using `page` |
+| `CursorItemMetaAs`, `ParseCursorItemMetaAs` | Encode/decode item metadata using the same alias |
+
+The exported error type-link URI constants are
+`CursorUnsupportedSortTypeURI`, `CursorMaxSizeExceededTypeURI`, and
+`CursorRangeNotSupportedTypeURI`.
+
+Set `CursorPaginationConfig.PageMember` when the profile's `page` element must
+be aliased. The alias is carried by `CursorPageRequest`, used by `CursorPage`
+validation, and emitted in max-size error metadata. `CursorPage.HasPrevious`
+and `HasNext` provide the boundary evidence needed to enforce required null or
+non-null `prev` and `next` links; `HasMore` separately means matching results
+were omitted because the used page size was reached.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+## Layers
+
+The package separates protocol responsibilities into five explicit layers.
+
+| Layer | Responsibility | Main API |
+| --- | --- | --- |
+| Model | Represent JSON:API values without domain reflection | `Document`, `ResourceObject`, `Relationship`, `Link` |
+| Codec | Strict deterministic JSON boundaries | `Marshal`, `Unmarshal`, `Codec` |
+| Validation | Enforce structural and contextual invariants | `Validate`, `ValidationOptions`, typed errors |
+| Request protocol | Parse query families and negotiate media types | `QueryParser`, `Negotiator` |
+| Official semantics | Atomic execution and Cursor Pagination policy | `ExecuteAtomic`, `CursorPagination`, profile metadata |
+
+The core performs no network, database, router, ORM, or background work.
+
+## Explicit model instead of domain reflection
+
+Callers map domain values to `ResourceObject` themselves. This keeps resource
+type, identity, linkage, omission, and null semantics visible in code. Pointer
+wrappers such as `PrimaryData` and `RelationshipData` preserve the difference
+between an absent member, JSON `null`, one resource, and a collection.
+
+Custom `MarshalJSON` methods preserve explicitly empty arrays and objects while
+still producing stable object-member ordering. Arbitrary attribute and meta
+values are supported without using reflection to infer JSON:API structure.
+
+## Decode pipeline
+
+Core decoding proceeds in this order:
+
+1. verify valid JSON and reject duplicate object members;
+2. decode JSON:API-defined objects while rejecting unknown members;
+3. ignore `@`-members where forward-compatible processing requires it;
+4. preserve JSON numbers with `json.Number`;
+5. validate document shape, identities, linkage, links, and context;
+6. return typed `DecodeError` or `ValidationError` values.
+
+A configured `Codec` first extracts registered extension members from their
+declared scopes, sanitizes the core document, runs the same core decoder, then
+reattaches semantic extension values. Profile validators run after core
+validation.
+
+## Validation contexts
+
+The same resource shape has different requirements in create, update,
+relationship, and generic documents. `ValidationOptions` makes that context an
+explicit input rather than silently guessing from an HTTP method or URL.
+
+Atomic validation follows the same pattern with `AtomicValidationOptions` and
+request, response, and generic contexts.
+
+## Extension boundary
+
+JSON:API extensions may add namespaced members; profiles may add
+implementation semantics but cannot alter base semantics. `NewCodec` encodes
+that distinction:
+
+- `ExtensionDefinition` registers an absolute URI, namespace, member scopes,
+  and optional value validators;
+- `ProfileDefinition` registers an absolute URI and optional whole-document
+  semantic validator;
+- unknown extension members remain invalid core members;
+- application behavior outside these seams remains the caller's concern.
+
+## Atomic execution boundary
+
+`ExecuteAtomic` owns ordering, result correspondence, rollback, and commit
+behavior. The application provides `AtomicTransactionBeginner` and
+`AtomicTransaction`, which map each operation to its persistence semantics.
+This is intentionally narrower than an ORM adapter and makes transactional
+ownership explicit.
+
+## Cursor Pagination boundary
+
+The profile helpers validate query values, link presence, metadata shapes,
+error contracts, and endpoint policy. The application still owns cursor
+encoding, stable database ordering, data retrieval, and deciding whether a
+next or previous page exists.
+
+## Error model
+
+- `DecodeError` identifies JSON pointer, failure code, message, and optional
+  underlying parser error.
+- `ValidationError` aggregates deterministic `Violation` values.
+- `QueryError`, `NegotiationError`, and `CursorPaginationError` include the
+  protocol HTTP status expected at their boundary.
+- `AtomicExecutionError` preserves operation index, source pointer, cause, and
+  rollback failure when both fail.
+
+The package does not write HTTP responses because applications differ in
+logging, localization, error detail, and status policy.
+
+## Source: docs/examples.md
+
+# End-to-end examples
+
+The runnable examples live in [`examples_test.go`](../examples_test.go) and are
+executed by `go test ./... -run '^Example'`. They cover:
+
+- constructing and marshaling a resource document;
+- parsing include, fieldset, and sort query parameters;
+- negotiating the Cursor Pagination profile;
+- parsing an endpoint Cursor Pagination request;
+- marshaling an Atomic Operations request.
+
+## Resource with relationship and included data
+
+```go
+document := jsonapi.Document{
+	Data: jsonapi.ResourceData(jsonapi.ResourceObject{
+		Type: "articles",
+		ID:   "1",
+		Attributes: jsonapi.Attributes{
+			"title": "Compound documents",
+		},
+		Relationships: jsonapi.Relationships{
+			"author": {
+				Links: jsonapi.Links{
+					"self":    jsonapi.URI("/articles/1/relationships/author"),
+					"related": jsonapi.URI("/articles/1/author"),
+				},
+				Data: jsonapi.ToOne(jsonapi.Identifier{Type: "people", ID: "9"}),
+			},
+		},
+	}),
+	Included: []jsonapi.ResourceObject{{
+		Type:       "people",
+		ID:         "9",
+		Attributes: jsonapi.Attributes{"name": "Ada"},
+	}},
+}
+payload, err := jsonapi.Marshal(document)
+```
+
+## JSON:API error document
+
+```go
+document := jsonapi.Document{Errors: []jsonapi.ErrorObject{{
+	Status: "422",
+	Code:   "invalid-title",
+	Title:  "Invalid attribute",
+	Detail: "title must not be empty",
+	Source: &jsonapi.ErrorSource{Pointer: "/data/attributes/title"},
+}}}
+payload, err := jsonapi.Marshal(document)
+```
+
+## Full link object
+
+```go
+describedBy := jsonapi.URI("https://example.com/schemas/article")
+link := jsonapi.LinkFromObject(jsonapi.LinkObject{
+	Href:        "/articles/1",
+	Rel:         "self",
+	DescribedBy: &describedBy,
+	Title:       "Article 1",
+	Type:        jsonapi.MediaTypeJSONAPI,
+	Hreflang:    jsonapi.LanguageTags("en", "fi"),
+	Meta:        jsonapi.Meta{"cache": "hit"},
+})
+```
+
+## Cursor page
+
+```go
+total := int64(200)
+pageMeta, err := (jsonapi.CursorPageMeta{Total: &total}).Meta()
+page := jsonapi.CursorPage{
+	Request: request,
+	Links: jsonapi.Links{
+		"prev": jsonapi.NullLink(),
+		"next": jsonapi.URI("/articles?page[after]=next-cursor"),
+	},
+	Meta:  pageMeta,
+	Items: []jsonapi.Meta{jsonapi.CursorItemMeta("item-cursor")},
+	HasMore: true,
+}
+err = page.Validate()
+```
+
+## Atomic transaction adapter
+
+```go
+type transaction struct {
+	tx *sql.Tx
+}
+
+func (tx *transaction) ApplyAtomic(
+	ctx context.Context,
+	operation jsonapi.AtomicOperation,
+) (jsonapi.AtomicResult, error) {
+	// Dispatch add/update/remove and return the positional result.
+	return applyOperation(ctx, tx.tx, operation)
+}
+
+func (tx *transaction) CommitAtomic(ctx context.Context) error {
+	return tx.tx.Commit()
+}
+
+func (tx *transaction) RollbackAtomic(ctx context.Context) error {
+	return tx.tx.Rollback()
+}
+```
+
+The `AtomicTransactionBeginner` implementation starts the transaction and
+returns this adapter. Avoid nesting independent transactions inside
+`ApplyAtomic`; atomicity belongs to the single adapter instance.
+
+## Source: docs/cookbook.md
+
+# Use-case cookbook
+
+## Preserve explicit empty and null values
+
+```go
+jsonapi.Document{Data: jsonapi.NullData()}             // "data": null
+jsonapi.Document{Data: jsonapi.ResourceCollection()}   // "data": []
+jsonapi.ResourceObject{Attributes: jsonapi.Attributes{}} // "attributes": {}
+jsonapi.Relationship{Data: jsonapi.NullRelationship()} // "data": null
+jsonapi.Relationship{Data: jsonapi.ToMany()}           // "data": []
+```
+
+Use `nil` to omit optional containers and constructors to express present
+values. The distinction survives round trips.
+
+## Validate without encoding
+
+```go
+if err := document.ValidateWith(jsonapi.ValidationOptions{
+	Context: jsonapi.Response,
+}); err != nil {
+	// Inspect *jsonapi.ValidationError.
+}
+```
+
+## Select request context
+
+```go
+options := jsonapi.ValidationOptions{Context: jsonapi.UpdateRequest}
+document, err := jsonapi.UnmarshalWith(payload, options)
+```
+
+Use `ToOneRelationshipRequest` or `ToManyRelationshipRequest` at relationship
+mutation endpoints.
+
+## Map validation failures to error objects
+
+```go
+var validationError *jsonapi.ValidationError
+if errors.As(err, &validationError) {
+	errors := make([]jsonapi.ErrorObject, len(validationError.Violations))
+	for index, violation := range validationError.Violations {
+		errors[index] = jsonapi.ErrorObject{
+			Status: "400",
+			Code:   violation.Code,
+			Title:  "Invalid document",
+			Detail: violation.Message,
+			Source: &jsonapi.ErrorSource{Pointer: violation.Path},
+		}
+	}
+}
+```
+
+## Preserve arbitrary page and filter parameters
+
+`ParseQuery` validates family names but deliberately preserves semantics:
+
+```go
+query, err := jsonapi.ParseQuery(values)
+statuses := query.Filter["filter[status]"]
+size := query.Page["page[size]"]
+```
+
+Copy values into endpoint-specific types and validate allowlists before query
+construction.
+
+## Register a mixed-case application family
+
+JSON:API reserves lowercase family names. Implementation-specific names must
+contain a non-lowercase character:
+
+```go
+parser, err := jsonapi.NewQueryParser([]string{"searchTerm"}, nil)
+```
+
+Use extension namespaces for colon-prefixed extension families.
+
+## Emit a self link with applied semantics
+
+```go
+mediaType := jsonapi.MediaType{
+	Extensions: []string{jsonapi.AtomicExtensionURI},
+}
+document.Links = jsonapi.Links{
+	"self": jsonapi.LinkFromObject(jsonapi.LinkObject{
+		Href: "/operations",
+		Type: mediaType.String(),
+	}),
+}
+```
+
+## Handle unknown profiles and extensions
+
+- Unknown `ext` values in request content types fail with 415.
+- `Accept` candidates with unsupported extensions are ignored.
+- Unknown profiles do not alter core semantics; request profiles are retained,
+  while response negotiation includes only supported profiles.
+
+## Add per-item cursor metadata
+
+```go
+resource.Meta = jsonapi.CursorItemMeta(encodedCursor)
+```
+
+To preserve unrelated metadata, merge the returned `page` entry into your meta
+map instead of replacing the entire map.
+
+## Use local identities in Atomic Operations
+
+An add operation can create a resource using `lid`; later operations may refer
+to that identity. Keep operations in dependency order. The Atomic validator
+rejects a local reference before its defining add operation.
+
+## Detect typed causes
+
+All protocol errors support normal `errors.As`; `DecodeError` unwraps its
+parser cause and `AtomicExecutionError` unwraps both primary and rollback
+causes for `errors.Is`/`errors.As`.
+
+## Source: docs/faq.md
+
+# FAQ
+
+## Is this an HTTP framework?
+
+No. It models, validates, parses, and serializes JSON:API protocol values. Use
+it with `net/http` or any router.
+
+## Does it map my structs with tags?
+
+No. Mapping is explicit by design. This avoids hidden resource identity,
+relationship, omission, and compatibility behavior.
+
+## Does it implement filtering?
+
+It parses and preserves the `filter` parameter family. Each application owns
+its filter vocabulary, authorization, and storage mapping because JSON:API
+does not define a universal filtering strategy.
+
+## Why are page and filter values not strongly typed?
+
+Core JSON:API reserves those families but leaves semantics to implementations.
+The official Cursor profile provides a typed parser for its page semantics.
+
+## Why does decoding reject an extra member?
+
+JSON:API-defined objects cannot contain arbitrary members. Register a genuine
+namespaced extension member with `Codec`, move application data into
+attributes/meta, or correct the payload. Members beginning with `@` are the
+forward-compatible exception and are ignored.
+
+## How do I distinguish omitted, null, one, and many data?
+
+Use `nil`, `NullData`, `ResourceData`, and `ResourceCollection` for primary
+data; use `nil`, `NullRelationship`, `ToOne`, and `ToMany` for linkage.
+
+## Are numbers converted to float64?
+
+No. Arbitrary decoded values use `json.Number`, preserving large integer and
+decimal wire values across canonical round trips.
+
+## Is output deterministic?
+
+Yes for the same semantic document. Output ordering and presence behavior are
+tested as compatibility surface. JSON object member order is not semantically
+significant, but stable bytes are useful for caches and fixtures.
+
+## Does Cursor Pagination query my database?
+
+No. It validates profile policy and response structure. Your adapter owns
+cursor encoding, unique ordering, keyset predicates, and page existence.
+
+## Does Atomic Operations guarantee my storage is atomic?
+
+Only when the supplied `AtomicTransaction` genuinely owns one atomic storage
+transaction. The package guarantees call ordering, rollback attempts, commit
+handling, and positional results around that adapter.
+
+## Can I use custom profiles?
+
+Yes. Register a `ProfileDefinition` with an absolute URI and optional
+document-level semantic validator.
+
+## Is the API stable?
+
+The repository is pre-v1 until `v1.0.0` is tagged. See the
+[compatibility policy](compatibility.md).
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+## `unknown-member` while decoding
+
+The JSON pointer identifies a member not permitted in that JSON:API-defined
+object. Check spelling and scope. For extension semantics, register the exact
+namespaced member and decode through `Codec`; otherwise use attributes or meta.
+
+## `duplicate-member` on apparently valid JSON
+
+JSON parsers often silently keep the last duplicate key. This package rejects
+duplicates before normal decoding. Inspect the raw payload at the reported
+pointer rather than a previously decoded map.
+
+## Validation says an included resource is not linked
+
+Every included resource must be reachable through relationship linkage from
+primary data, subject to the sparse-fieldset exception. Add the missing
+identifier linkage or remove the unrelated included resource.
+
+## A create or update document has the wrong identity requirements
+
+Use `UnmarshalWith`/`MarshalWith` with `CreateRequest` or `UpdateRequest`.
+Generic validation cannot infer endpoint intent from bytes alone.
+
+## Content type returns 415
+
+Confirm:
+
+- the media type is exactly `application/vnd.api+json`;
+- only `ext` and `profile` parameters are present;
+- each parameter is a quoted, space-separated list of absolute URIs;
+- every requested extension is registered with the negotiator.
+
+## Accept negotiation returns 406
+
+Every JSON:API candidate was invalid, quality zero, or requested an unsupported
+extension. Add a plain JSON:API or wildcard candidate, or configure the
+required extension.
+
+## Query parser returns `unknown-parameter`
+
+Register implementation-specific family names with `NewQueryParser` or an
+extension namespace in its second argument. Lowercase unregistered names are
+reserved and remain rejected.
+
+## Cursor range requests fail
+
+Both `page[after]` and `page[before]` form a range request. Enable
+`AllowRange`, configure a finite `MaxSize`, and implement range semantics; or
+return the profile's range-not-supported error.
+
+## Cursor page validation requires null links
+
+The profile requires both `prev` and `next` members. Use `NullLink()` when a
+direction has no page; omitting the member is different from explicit null.
+Set `HasPrevious` and `HasNext` to the result of the required boundary checks.
+For an `after` request the previous link may be speculative, and for a
+`before` request the next link may be speculative, as the profile permits.
+
+## Atomic execution rolled back but returns two causes
+
+`AtomicExecutionError` preserves the operation/commit failure and a rollback
+failure. Inspect `Cause`, `RollbackCause`, and `Phase`; `errors.Is` and
+`errors.As` can match either cause.
+
+## Coverage prints 100.0 but CI fails
+
+The display rounds. CI checks the raw profile for zero-count production
+statements as well as the reported total. Run:
+
+```sh
+go test ./... -coverprofile=coverage.out
+awk -F'[: ,]+' '$NF == 0 { print }' coverage.out
+```
+
+Any output identifies a statement that still lacks execution.
+
+## A fuzz command matches multiple targets
+
+Anchor the name:
+
+```sh
+go test ./... -run '^$' -fuzz '^FuzzUnmarshal$' -fuzztime=30s
+```
+
+## A callback failure hides the original message
+
+This is intentional. Extension/profile validators and cursor/sort hooks return
+a redacted `CallbackError` so application values and panic text do not enter a
+client-facing error accidentally. Use `errors.Is`, `errors.As`,
+`CallbackPhase`, and `CallbackPanicValue` in trusted diagnostics only.
+
+## Source: docs/migration.md
+
+# Migration notes
+
+## From direct `encoding/json`
+
+1. replace ad hoc response maps with `Document` and `ResourceObject`;
+2. choose explicit primary/relationship data constructors;
+3. map domain values to attributes and relationships;
+4. replace `json.Marshal`/`json.Unmarshal` at protocol boundaries with the
+   package codec;
+5. map typed errors to your HTTP error policy;
+6. add canonical fixtures before switching production responses.
+
+Expect stricter behavior: duplicate members, unknown members, invalid links,
+identity conflicts, and compound-document linkage errors will no longer pass
+silently.
+
+The package boundary also rejects malformed UTF-8 and applies the documented
+`DefaultDecodeLimits`. Keep the defaults for ordinary endpoints, lower them for
+small request contracts, or call `UnmarshalWithLimits` when a justified larger
+document is required. Continue limiting the HTTP body before reading it; a
+decoder limit cannot recover memory already allocated by the transport layer.
+
+`ParseQuery` and `NewNegotiator` likewise apply `DefaultQueryLimits` and
+`DefaultNegotiationLimits`. Use their `WithLimits` variants for endpoint-level
+policies. Accept quality values are parsed using the HTTP grammar, so forms
+that generic floating-point parsers accept—such as exponents or more than
+three decimal places—are rejected.
+
+Links are also validated in their JSON:API object scope. Top-level links use
+`self`, `related`, `describedby`, or pagination names; resource links use
+`self`; relationship links use `self`, `related`, or pagination names; and
+error links use `about` or `type`. Register namespaced extension members with
+`LinksObjectMemberScope` instead of using arbitrary core-looking names.
+
+URI-reference values must already use RFC 3986 wire encoding. For example,
+emit `page%5Bafter%5D` rather than raw brackets and `%20` rather than a raw
+space. Use `net/url` construction helpers before passing a URL to `URI`,
+`ObjectLink`, Atomic `href`, extension registration, or negotiation setup.
+Constructed `describedby` link graphs must also be acyclic and remain within
+`DefaultMaxNestingDepth`; validation now rejects graphs that previously risked
+recursive stack exhaustion.
+
+Atomic transaction callback panics are returned as `AtomicExecutionError`
+wrapping `AtomicPanicError`; they are no longer re-panicked by the package.
+Inspect causes with `errors.Is`/`errors.As`, and do not depend on internal cause
+text being included in the public error string.
+
+Extension/profile validators and cursor/sort hooks likewise return a redacted
+`CallbackError` instead of exposing callback text or allowing a panic to cross
+the package boundary. Use `errors.Is`/`errors.As`, `CallbackPhase`, and
+`CallbackPanicValue` for explicit diagnostics. Applications should not expose
+those inspectable causes or panic values in client responses.
+Profile validators must be observational. A validator that mutates its
+document argument and returns nil now produces a redacted `CallbackError`
+instead of allowing the changed document through the codec.
+
+## From reflection/tag-based JSON:API libraries
+
+Create a small adapter per resource type rather than porting tags mechanically.
+Audit:
+
+- resource type and ID formatting;
+- absent versus null versus empty collections;
+- relationship linkage and links;
+- included-resource deduplication;
+- attribute naming and number representation;
+- error pointer construction;
+- query and media negotiation previously handled by middleware.
+
+Explicit adapters are more code than tags but make protocol compatibility
+visible and testable.
+
+## Wire-format comparison
+
+Do not compare only decoded domain values. Capture and compare:
+
+- member presence;
+- null versus omitted values;
+- relationship linkage;
+- included identities;
+- link string versus object forms;
+- exact numbers;
+- extension/profile media type parameters;
+- deterministic bytes where clients or caches depend on them.
+
+## Incremental adoption
+
+Use the package first at one endpoint boundary. Keep the old mapping behind a
+feature flag or shadow comparison, build golden fixtures from accepted cases,
+and monitor rejection codes. Expand only after mismatches are classified as an
+old bug, a new bug, or an intentional compatibility change.
+
+## Future release migrations
+
+Breaking changes before v1 and all migrations after v1 are recorded in
+`CHANGELOG.md`. A stable release will not remove or redefine exported APIs or
+wire behavior without a new major version.
+
+## Source: docs/compatibility.md
+
+# Compatibility policy
+
+## Versioning
+
+The project follows Semantic Versioning.
+
+- Before `v1.0.0`, minor releases may refine public APIs, but changes must be
+  documented with migration guidance.
+- At and after `v1.0.0`, incompatible exported API or wire-format changes
+  require a new major version.
+- Patch releases fix defects without intentionally changing valid behavior.
+
+## Governed surface
+
+Compatibility includes:
+
+- exported Go names, method signatures, interfaces, and constants;
+- JSON member presence, null/empty behavior, and canonical encoding;
+- accepted and rejected document shapes;
+- typed error fields, stable codes, and JSON pointer paths;
+- query parsing and negotiation selection rules;
+- official extension/profile URI constants and semantics;
+- transaction callback ordering and rollback behavior;
+- typed panic conversion and redacted execution error text;
+- callback phases, cause unwrapping, and redacted extension/profile/cursor/sort
+  error text;
+- profile-validator purity and mutation rejection;
+- constructor input-copying and concurrent-use guarantees;
+- constructed recursive-link depth and cycle rejection;
+- default resource limits and stable limit error classification;
+- HTTP quality-value parsing and negotiation selection rules;
+- supported Go version policy.
+
+JSON object order is not semantically significant, but deterministic output is
+still treated as a tested compatibility property.
+
+## Deprecation
+
+When practical, an obsolete exported API is deprecated in documentation and
+kept through at least the next minor release before removal in a major release.
+Immediate removal is reserved for severe security or correctness defects and
+must include explicit release notes.
+
+## Go support
+
+The initial package requires Go 1.24 or later. Raising the minimum Go version
+is announced in release notes and normally occurs in a minor release before
+v1, or according to a documented support window after v1.
+
+## Specification evolution
+
+JSON:API 1.1 follows an additive compatibility model. New specification
+members are reviewed before support is claimed. Until implemented, strict core
+decoding may reject a newly defined member except where `@`-member or registered
+extension/profile mechanisms apply. Such updates are tracked as protocol
+compatibility work, not silently inferred.
+
+## Source: docs/performance.md
+
+# Performance and resilience
+
+Correctness is the primary performance constraint: the package does not trade
+strict validation or deterministic output for speculative speed.
+
+## Representative benchmarks
+
+`benchmark_test.go` covers:
+
+- marshal/unmarshal of one resource;
+- marshal/unmarshal of 100-resource collections;
+- marshal/unmarshal of a 100-resource compound document;
+- unmarshal of a 1,000-resource adversarial compound graph;
+- marshal/unmarshal of 100 Atomic operations;
+- query parsing;
+- `Accept` negotiation;
+- Cursor Pagination metadata construction and parsing.
+
+Run:
+
+```sh
+go test ./... -run '^$' -bench . -benchmem
+```
+
+Baseline observed on 2026-07-14 with Go 1.26.5, macOS arm64, Apple M4 Max
+(`-benchtime=100ms`):
+
+| Benchmark | Time | Bytes/op | Allocs/op |
+| --- | ---: | ---: | ---: |
+| Marshal single resource | 2.97 us | 1,458 | 23 |
+| Unmarshal single resource | 21.8 us | 10,777 | 153 |
+| Marshal 100 resources | 326 us | 181,973 | 1,635 |
+| Unmarshal 100 resources | 1.23 ms | 974,472 | 12,944 |
+| Marshal compound document | 843 us | 519,171 | 5,456 |
+| Unmarshal compound document | 3.05 ms | 2,190,484 | 34,890 |
+| Unmarshal adversarial compound graph | 43.3 ms | 29,565,701 | 494,376 |
+| Marshal 100 Atomic operations | 73.5 us | 29,333 | 505 |
+| Unmarshal 100 Atomic operations | 349 us | 199,460 | 5,440 |
+| Parse representative query | 2.00 us | 1,952 | 30 |
+| Negotiate representative Accept | 3.36 us | 2,192 | 44 |
+| Build and parse pagination metadata | 676 ns | 1,104 | 15 |
+
+These numbers are a local reference, not a universal SLA. CI runs benchmarks
+as a smoke strategy; release comparisons should use `benchstat` over repeated
+runs on comparable hardware before declaring a regression.
+
+## Fuzz targets
+
+| Target | Boundary | Invariant |
+| --- | --- | --- |
+| `FuzzUnmarshal` | core JSON codec | accepted input marshals and decodes canonically |
+| `FuzzUnmarshalAtomic` | Atomic codec | accepted input marshals and decodes canonically |
+| `FuzzParseQuery` | query parser | accepted parsing is deterministic |
+| `FuzzCursorPaginationQuery` | Cursor profile | accepted size remains within configured bounds |
+| `FuzzNegotiation` | media types | canonical/selected content types remain acceptable |
+| `FuzzConstructedDocumentValidation` | constructed core documents | repeated validation has a stable outcome |
+| `FuzzMemberRegistry` | extension registrations and values | accepted registrations round trip through their codec |
+| `FuzzCursorMetadata` | page and item metadata | accepted metadata round trips exactly |
+| `FuzzMarshalUnmarshalRoundTrip` | constructed documents | valid UTF-8 models retain canonical bytes across a codec round trip |
+
+Run one target with an anchored name:
+
+```sh
+go test ./... -run '^$' -fuzz '^FuzzNegotiation$' -fuzztime=30s
+```
+
+CI uses short deterministic fuzz smoke runs. Longer fuzzing belongs in a
+scheduled workflow because fuzzing every target on each pull request has
+unbounded cost.
+
+## Operational limits
+
+Core, Atomic, and configured document codecs apply `DefaultDecodeLimits`:
+
+| Limit | Default |
+| --- | ---: |
+| encoded document bytes | 16 MiB |
+| nested arrays/objects | 64 |
+| members in one object | 10,000 |
+| items in one array | 100,000 |
+| total JSON values | 1,000,000 |
+
+`DecodeLimits` can lower or raise individual limits; zero selects the default.
+HTTP applications must still limit bodies before reading them into memory and
+must independently bound query/header sizes, collection page sizes, and
+included-resource expansion. Cursor and Atomic adapters should honor context
+cancellation in application callbacks.
+
+`DefaultQueryLimits` bounds 100 distinct parameters, 200 values, 1,024 bytes
+per decoded name, 8,192 bytes per value, 64 KiB in aggregate, 32 selectors,
+and 1,000 comma-list entries. `DefaultNegotiationLimits` bounds headers at
+32 KiB, Accept candidates and parameter URI lists at 100, individual URIs at
+2,048 bytes, and configured URIs at 1,000.
+
+## Source: docs/hardening.md
+
+# Hardening report
+
+This report records the pre-v1 security, interoperability, resource-safety,
+and specification audit completed on 2026-07-14. It is an evidence ledger,
+not a substitute for the executable [conformance matrix](conformance.md).
+
+## Verdict
+
+No known high- or medium-severity protocol finding remains open. Core,
+Atomic Operations, Cursor Pagination, query parsing, media negotiation, and
+configured extension paths are bounded and have adversarial regression
+coverage within the package boundary.
+
+The repository has no known local publication blocker. The MIT license is
+present, and the release workflow validates it before publishing. Go 1.24 and
+non-macOS compatibility remain CI-owned checks; this audit ran locally with
+Go 1.26.5 on macOS arm64.
+
+## Finding ledger
+
+Each row records severity, specification classification with a stable section
+link where applicable, finding and impact, a directly runnable reproduction or
+executable evidence file, and disposition.
+
+| Severity | Classification and section | Finding and impact | Reproduction and evidence | Disposition |
+| --- | --- | --- | --- | --- |
+| High | Package security | Unbounded documents, query values, and negotiation headers could exhaust memory or CPU. | `resource_limits_test.go`, `query_limits_test.go`, `negotiation_limits_test.go` | Fixed with configurable bounded defaults before semantic processing. |
+| High | Package security | Transaction callback panics could escape an Atomic boundary or skip cleanup. | `atomic_execute_test.go`, `error_contract_test.go` | Fixed with typed panic conversion and exactly one rollback attempt after begin. |
+| Medium | [JSON:API core](https://jsonapi.org/format/#document-resource-object-identification) | Empty `id` and `lid` strings were confused with absent members, changing valid wire data. | `presence_test.go`, `identity_validation_test.go` | Fixed with explicit presence state and constructors. |
+| Medium | [JSON:API compound documents](https://jsonapi.org/format/#document-compound-documents) | Included resources carrying both `id` and `lid` were indexed only by `id`, causing valid linkage through the local identity to be rejected. | `validation_test.go` | Fixed by indexing both identity aliases while traversing included resources once. |
+| Medium | [JSON:API resource identity](https://jsonapi.org/format/#document-resource-object-identification) | Canonical uniqueness used only one identity key, allowing duplicate full resource objects when one representation used `id` plus `lid` and another used the same `lid`. | `identity_validation_test.go` | Fixed by detecting canonical duplicates across both identity aliases. |
+| Medium | [JSON:API update requests](https://jsonapi.org/format/#crud-updating) | Endpoint identity checks could not represent a valid empty expected resource ID. | `context_validation_test.go` | Fixed with explicit `ExpectedIDPresent` state while preserving non-empty shorthand behavior. |
+| Medium | [Atomic Operations](https://jsonapi.org/ext/atomic/#operation-objects) | Atomic relationship-data validation dropped empty `id` and `lid` presence while converting resource identifiers. | `atomic_test.go`, `atomic_codec_test.go` | Fixed by preserving identity presence through the validation adapter. |
+| Medium | [Atomic local identities](https://jsonapi.org/ext/atomic/#operation-objects) | Prior-operation resolution was enforced only for `ref.lid`; lid-only update targets and relationship linkage could reference resources not yet created in the linear operation sequence. | `atomic_test.go` | Fixed by resolving all lid-only target and linkage identities against current/prior resource adds. |
+| Medium | [Atomic resource updates](https://jsonapi.org/ext/atomic/#updating-resources) | Resource update `ref` and `data` identities were validated independently, allowing directly contradictory target types, IDs, or LIDs. | `atomic_test.go` | Fixed by comparing identity members available in both target forms; mixed ID/LID and href resolution remain application-owned. |
+| Medium | [Atomic relationship operations](https://jsonapi.org/ext/atomic/#updating-to-many-relationships) | `href` targets were always treated as resources for add/update and accepted arbitrary data for remove, preventing valid relationship operations and allowing invalid shapes. | `atomic_test.go` | Fixed by inferring unambiguous relationship semantics from data shape and requiring a target. |
+| Medium | [Atomic operation results](https://jsonapi.org/ext/atomic/#result-objects) | Response validation checked only result count and accepted data after removals or relationship mutations, as well as non-resource data shapes for resource results. | `atomic_test.go`, `atomic_execute_test.go` | Fixed with request-aware positional result validation before transaction commit. |
+| Medium | [Atomic result objects](https://jsonapi.org/ext/atomic/#result-objects) | A server-generated create could return an empty result, leaving the client without the required created representation and allowing an invalid transaction to commit. | `go test ./... -run 'TestAtomicResultRequiresDataForServerGeneratedCreate|TestExecuteAtomicRollsBackMissingServerGeneratedCreateData'` | Fixed by requiring resource data for server-generated creates while preserving the client-generated-ID omission rule. |
+| Medium | [JSON:API core](https://jsonapi.org/format/#document-resource-object-fields) | `lid` was incorrectly reserved as a resource field name. | `validation_edge_test.go` | Fixed; only `type` and `id` are reserved in the field namespace. |
+| Medium | [JSON:API member names](https://jsonapi.org/format/#document-member-names) | U+007F DELETE was accepted as globally allowed Unicode even though the allowed non-ASCII range starts at U+0080. | `validation_edge_test.go`, `query_test.go` | Fixed by using a strict boundary above ASCII. |
+| Medium | [JSON:API extension members](https://jsonapi.org/format/#extension-members) | Extension suffix validation treated an internal `@` as the start of an @-Member, accepting names such as `ext:@value`. | `member_codec_defense_test.go` | Fixed by applying implementation-member grammar without the top-level @ exception. |
+| Medium | [JSON:API @-Members](https://jsonapi.org/format/#document-at-members) | Constructed @-Members were rejected by configured marshal yet incorrectly satisfied top-level and relationship content requirements. | `member_codec_defense_test.go`, `validation_edge_test.go` | Fixed by making valid @-Members registration-exempt but structurally invisible. |
+| Medium | [JSON:API @-Members](https://jsonapi.org/format/#document-at-members) | The @-Member grammar leaked into semantic values, accepting `@`-prefixed resource types, identifiers, relationship targets, query paths, and profile aliases while interpreting constructed @ relationships and links. | `validation_edge_test.go`, `atomic_test.go`, `query_test.go`, `cursor_meta_test.go` | Fixed by separating semantic member-name validation and ignoring @ members in map-backed object containers. |
+| Medium | [JSON:API core](https://jsonapi.org/format/#document-resource-object-relationships) | An empty or unrelated `links` object could incorrectly qualify a relationship. | `validation_edge_test.go` | Fixed; core relationships require `self`, `related`, data, meta, or an applied extension member. |
+| Medium | [JSON:API pagination](https://jsonapi.org/format/#fetching-pagination) | Pagination links were accepted beside single-resource, null, meta-only, Atomic, and known to-one relationship data even though pagination links correspond to collections. | `validation_edge_test.go`, `atomic_test.go` | Fixed with data-cardinality-aware link validation; omitted relationship linkage remains application-resolved. |
+| Medium | [JSON:API core](https://jsonapi.org/format/#document-links) | URI-reference validation rejected valid empty relative references and did not preserve link-member presence. | `link_test.go`, `presence_test.go` | Fixed with URI-reference parsing and presence-aware link objects. |
+| Medium | [JSON:API links](https://jsonapi.org/format/#document-links) and [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986) | Go URL parsing accepted raw spaces, Unicode, and reserved path characters that require wire escaping. | `link_test.go`, `member_codec_defense_test.go`, `negotiation_test.go` | Fixed with component-aware RFC 3986 validation shared by links, Atomic hrefs, document URIs, and registries. |
+| Medium | [JSON:API links](https://jsonapi.org/format/#document-links) | A core link name valid in one links-object scope was accepted in unrelated top-level, resource, relationship, or error links. | `validation_edge_test.go` | Fixed with scope-specific core member allowlists plus registered extension handling. |
+| Medium | Package availability | Constructed recursive `describedby` links had no depth or pointer-cycle guard, allowing stack exhaustion before encoding. | `go test ./... -run TestConstructedDescribedBy` | Fixed with the package nesting limit and ancestor-cycle detection in link validation. |
+| Medium | [JSON:API errors](https://jsonapi.org/format/#error-objects) and [HTTP status codes](https://www.rfc-editor.org/rfc/rfc9110.html#section-15) | Error `status` accepted non-HTTP strings and invalid values outside `100..599`. | `validation_edge_test.go` | Fixed with strict three-digit HTTP status validation. |
+| Medium | [JSON:API extensions](https://jsonapi.org/format/#extensions) | Registered extensions could not define a namespaced value directly inside a `links` object. | `member_codec_test.go` | Fixed with a distinct `LinksObjectMemberScope`; unregistered core use remains rejected. |
+| Medium | [JSON:API extension members](https://jsonapi.org/format/#extension-members) | An error object whose only semantic content was a registered extension member was rejected as empty, preventing valid extension-defined error semantics. | `go test ./... -run TestRegisteredExtensionMemberCanQualifyErrorObject` | Fixed by counting registered semantic members while keeping ignored @-Members structurally invisible. |
+| Medium | [JSON:API object](https://jsonapi.org/format/#document-jsonapi-object) | Configured codecs accepted present `ext` and `profile` arrays that omitted configured applied URIs, making the advertised application set inaccurate. | `profile_codec_test.go`, `atomic_test.go` | Fixed by requiring configured URIs when either optional array is present; unsupported extensions fail and unknown profiles remain ignored. |
+| Medium | [HTTP semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.1) | A wildcard could override a more specific JSON:API media range with quality zero. | `negotiation_test.go`, `fuzz_test.go` | Fixed by resolving quality per representation after media-range precedence. |
+| Medium | [JSON:API profile negotiation](https://jsonapi.org/format/#content-negotiation-server-responsibilities) | Unrecognized profiles were removed from the representation but still increased range specificity, allowing an ignored `profile` range with quality zero to veto an acceptable base range. | `negotiation_test.go` | Fixed by calculating specificity after unsupported profiles are ignored. |
+| Medium | [JSON:API media type](https://jsonapi.org/format/#media-type-parameters) | Extension/profile URI lists accepted tabs and Unicode whitespace even though only U+0020 is the defined separator. | `negotiation_test.go` | Fixed with exact ASCII-space tokenization and empty-token rejection. |
+| Medium | [Cursor Pagination](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/) | Boundary links and metadata aliases did not fully express profile nullability and alias rules. | `cursor_page_test.go`, `cursor_meta_test.go` | Fixed with explicit link-state evidence and configurable `page` aliases. |
+| Medium | Package security | Invalid UTF-8 was silently replaced during Go JSON decoding. | `codec_defense_test.go`, `resource_limits_test.go` | Fixed by rejecting invalid UTF-8 in the shared decode preflight. |
+| Medium | Package confidentiality | Cursor/sort callback errors and Atomic panics could expose application-owned values through public error strings. | `error_contract_test.go`, `atomic_execute_test.go` | Fixed with redacted messages while retaining causes for `errors.Is` and `errors.As`. |
+| Medium | Package confidentiality and availability | Extension/profile/cursor/sort errors exposed application text, and callback panics could cross the package boundary. | `go test ./... -run 'TestConfiguredCodec|TestCursorPaginationConvertsCallbackPanics'` | Fixed with redacted `CallbackError` values, preserved causes, and panic containment. |
+| Medium | Package integrity | A profile validator could mutate the shallow document after core and extension validation, then return success and cause invalid or weakened output. | `go test ./... -run TestProfileValidatorCannotMutateValidatedDocument` | Fixed by fingerprinting the validated representation around each successful profile callback and rejecting mutation. |
+| Medium | [Web Linking relation types](https://www.rfc-editor.org/rfc/rfc8288.html#section-3.3) | Registered relation validation accepted underscores even though the RFC token grammar excludes them, producing non-interoperable link metadata. | `go test ./... -run TestRegisteredLinkRelationRejectsUnderscore` | Fixed by aligning the registered-token grammar; absolute URI relation types remain supported. |
+| Medium | [JSON:API member names](https://jsonapi.org/format/#document-member-names) | A constructed extension member containing invalid UTF-8 could register, be replacement-normalized during encoding, and then fail its own codec on decode. | `go test ./... -run 'FuzzMemberRegistry/810c9e553c1e191b'` | Fixed by rejecting invalid UTF-8 in constructed member names; minimized fuzz corpus retained. |
+| Low | [HTTP semantics](https://www.rfc-editor.org/rfc/rfc9110.html#field.accept) | Floating-point parsing accepted values outside the HTTP `qvalue` grammar. | `negotiation_test.go` | Fixed with a grammar-specific parser. |
+| Low | [Cursor Pagination](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#collection-sizes) | Integral JSON numbers written with a decimal point or exponent were rejected in collection-size metadata. | `cursor_meta_test.go` | Fixed with exact rational parsing and signed 64-bit bounds. |
+| Low | Package correctness | Unknown core/Atomic validation contexts and negative expected-result counts silently weakened contextual checks. | `context_validation_test.go`, `atomic_test.go` | Fixed by rejecting invalid option states with stable validation violations. |
+| Low | Package correctness | Registered member validators could run more than once during configured decoding. | `member_codec_defense_test.go` | Fixed; decode validators run once before core semantic validation. |
+
+## Verification snapshot
+
+The following local checks passed on 2026-07-14:
+
+```text
+go test ./...
+go test -race ./...
+go vet ./...
+staticcheck 2025.1.1 ./...
+golangci-lint 2.12.0 run
+govulncheck 1.1.4 ./...
+go test ./... -coverprofile=coverage.out
+./scripts/check-coverage.sh coverage.out
+go test ./... -run '^$' -bench . -benchtime=100ms
+./scripts/check-docs.sh
+go test ./... -run '^$' -fuzz <each configured target> -fuzztime=2s
+```
+
+Exact coverage contained no zero-count production statement. The nine fuzz
+targets cover core and Atomic decode, constructed validation, member
+registries, query and Cursor parsing, negotiation, Cursor metadata, and
+constructed marshal/unmarshal round trips. `govulncheck` reported no known
+reachable vulnerability.
+
+## Residual and integration risks
+
+- Callers must bound the HTTP body before allocating the `[]byte` passed to a
+  codec. Package limits protect decoding, not transport buffering.
+- Atomicity is only as strong as the supplied `AtomicTransaction`; a callback
+  that commits before returning an error cannot be undone by this package.
+- Extension/profile/cursor/sort callbacks are application code. The package
+  contains panics and redacts public strings, but callbacks must still be
+  bounded, concurrency-safe, and deterministic; retained causes remain
+  sensitive diagnostics.
+- URLs are validated as URI-reference data. Fetch policy, SSRF prevention,
+  authorization, persistence, filtering, and cursor encoding belong to the
+  application.
+- Scheduled CI fuzzing provides continuing evidence; a short smoke run cannot
+  prove the absence of all parser defects.
+
+## Release recommendation
+
+Prepare the dated `v1.0.0` changelog section, rerun all release gates on the
+final commit, and let the configured Go 1.24/stable operating-system matrix
+pass before creating the first tag. Because the public API is unreleased and
+the audit included additive API and corrective wire-behavior changes, the
+appropriate first stable version remains `v1.0.0` rather than a pre-existing
+compatibility-line patch.
+
+## Source: docs/security.md
+
+# Security
+
+## Trust Boundary
+
+Treat every JSON:API document, query string, media-type parameter, extension
+member, profile callback, and pagination cursor as untrusted input. Apply
+bounded decoding before allocating application-owned structures.
+
+## Safe Adoption
+
+- Set limits appropriate to the endpoint before decoding.
+- Validate documents in the correct request or response context.
+- Register only trusted extension and profile callbacks.
+- Do not expose callback error text directly to clients.
+- Enforce HTTP request-body and header limits outside this package as well.
+
+The package does not provide authentication, authorization, rate limiting,
+transport timeouts, or persistence controls. Those remain application
+responsibilities.
+
+## Reporting
+
+Follow the repository [security policy](../SECURITY.md) for private
+vulnerability reporting. See the [threat model](threat-model.md) and
+[hardening evidence](hardening.md) for the maintained security assumptions.
+
+## Source: docs/releasing.md
+
+# Versioning and release guide
+
+Releases are tag-driven and reproducible from a clean `main` commit.
+
+## Prepare a release
+
+1. choose the SemVer version and confirm compatibility impact;
+2. move relevant `CHANGELOG.md` entries from `Unreleased` to a dated version;
+3. update migration notes for every breaking change;
+4. confirm documentation and executable examples reflect the release;
+5. run the complete local verification suite;
+6. merge the release preparation through normal review;
+7. create an annotated `vMAJOR.MINOR.PATCH` tag on the verified commit;
+8. push the tag; the release workflow verifies and publishes artifacts.
+
+## Required verification
+
+```sh
+test -z "$(gofmt -l .)"
+go mod tidy -diff
+go vet ./...
+go test ./...
+go test ./... -race
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+go test ./... -run '^Example'
+go test ./... -run '^$' -bench . -benchtime=100ms
+govulncheck ./...
+```
+
+Run all fuzz targets for at least one minute each before a stable release.
+
+## Tag rules
+
+- tags must use canonical `vMAJOR.MINOR.PATCH` numbers, without leading zeros,
+  and may include a SemVer prerelease;
+- build metadata is not used in release tags;
+- the module version and exactly one valid, dated changelog heading must agree;
+- the changelog date records release preparation and need not equal the later
+  tag-push date;
+- tags are never force-updated or reused;
+- the workflow builds from the tag commit, not a mutable branch;
+- release notes are generated from the matching changelog section and commit
+  history, then reviewed before publication when practical.
+
+## Release artifacts
+
+Go modules are consumed from the Git tag and source archive. The GitHub release
+workflow creates checksummed source archives and a release entry; it does not
+publish binaries because this repository is a library.
+
+## Rollback
+
+Published module versions are immutable. Fix a bad release with a new patch
+version. Retracting a module version requires a documented reason in `go.mod`
+and release notes; do not delete or rewrite the original tag.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Before Opening A Change
+
+Use an issue for changes affecting JSON:API documents, negotiation, queries, extensions, profiles, recommendations, and conformance. Explain the user problem,
+compatibility impact, and why the behavior belongs in this generic package.
+
+## Development Setup
+
+Requirements:
+
+- Go 1.26.5 or later
+- Git
+- `golangci-lint` v2
+
+```sh
+go mod download
+make check
+```
+
+## Change Requirements
+
+- Add regression coverage before fixing a defect.
+- Maintain meaningful 100% production-code coverage.
+- Update public examples and documentation with behavior changes.
+- Update `.ai/GOAL.md` or `.ai/GOAL_HARDEN.md` when scope or acceptance criteria
+  change.
+- Add an `Unreleased` entry to `CHANGELOG.md`.
+- Explain every dependency addition, upgrade, or removal.
+- Update `NOTICE` when project ownership changes and
+  `THIRD_PARTY_NOTICES.md` when third-party attribution changes.
+
+## Package-Specific Review
+
+Separate normative JSON:API requirements, recommendations, official extensions, profiles, and application conventions. Every protocol claim MUST cite authoritative specification text and have conformance fixtures.
+
+## Local Verification
+
+Run the complete local gate:
+
+```sh
+make check
+```
+
+## Commits And Pull Requests
+
+Use focused conventional commits with a body explaining why the change is
+needed. Pull requests must describe compatibility impact, tests, verification
+commands and results, documentation updates, and changelog updates.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md).
+
+## Source: SECURITY.md
+
+# Security Policy
+
+## Supported Versions
+
+Before `v1.0.0`, security fixes are applied to the latest revision of
+`main`. After the first stable release, supported release lines and
+end-of-support dates will be documented here.
+
+## Reporting A Vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, expected and observed behavior, affected versions, impact,
+and any suggested mitigation. Do not include secrets or production data.
+
+## Response Process
+
+Maintainers will acknowledge the report, reproduce and assess it privately,
+coordinate a fix and advisory, and credit the reporter when requested. Public
+disclosure should wait until a fix or agreed mitigation is available.
+
+## Package Security Boundary
+
+Documents, query strings, media types, extension/profile callbacks, and pagination cursors are untrusted protocol inputs. Resource limits and callback isolation are part of the maintained security boundary.
+
+## Application Responsibilities
+
+Applications remain responsible for transport limits, authentication,
+authorization, rate limiting, deadlines, secret handling, deployment policy,
+and business-level validation. Package safeguards do not replace those
+controls.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for adoption guidance and maintained
+evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+## First stable release
+
+- complete and publish open-source licensing;
+- keep the JSON:API 1.1, Atomic Operations, and Cursor Pagination matrices
+  fully verified;
+- complete CI, security, documentation, and tagged-release automation;
+- publish benchmark baselines and compatibility promises;
+- resolve any API feedback found during real service adoption;
+- tag `v1.0.0` only when no known compliance gap remains.
+
+## After core stabilization
+
+Potential work is evaluated independently and is not promised for `v1`:
+
+- OpenAPI or JSON Schema helpers;
+- optional client helpers;
+- router middleware packages outside the transport-neutral core;
+- opt-in code generation for explicit resource mappings;
+- additional registered extensions and profiles.
+
+The core will not add ORM integration, framework controllers, authentication
+policy, or a project-specific filter language.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Compatibility
+
+- Added a pinned module export baseline so incompatible public API changes
+  fail the canonical repository gate.
+
+### Changed
+
+- Regenerated the complete machine-readable documentation bundle from the
+  current user, adoption, compatibility, and release documentation.
+- Expose JSON:API specification verification as an explicit conformance gate.
+- Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
+  benchmark standard with an executable `make safety` gate.
+- Moved AI planning and hardening briefs into `.ai/` and clarified the
+  separate purposes of project and third-party notice files.
+
+### Added
+
+- A standardized OSS repository skeleton covering policy, documentation,
+  legal notices, Go tooling, pinned CI, security, and release automation.
+- Evidence-driven audit and hardening goal covering JSON:API 1.1, Atomic
+  Operations, Cursor Pagination, negotiation, queries, and resource safety.
+- Strict JSON:API 1.1 document models, codecs, validation, links, errors,
+  compound-document support, and deterministic serialization.
+- Query parsing primitives for inclusion, sparse fieldsets, sorting,
+  pagination, filtering, implementation families, and extension namespaces.
+- Content negotiation for the JSON:API media type, extensions, profiles,
+  quality values, and wildcard candidates.
+- Complete Atomic Operations document validation and transaction-oriented
+  execution interfaces.
+- Cursor Pagination query, link, metadata, item-cursor, total, estimated-total,
+  and profile error helpers.
+- Extension-member registries across JSON:API-defined object scopes and
+  document-level profile validation hooks.
+- Golden fixtures, malformed-input regressions, round-trip tests, fuzz targets,
+  and representative benchmarks.
+- Project documentation, conformance matrices, adoption guidance, and
+  contribution and security policies.
+- GitHub Actions quality, compatibility, fuzzing, security, benchmark,
+  documentation, and tagged-release automation.
+- MIT licensing for public use, modification, and distribution.
+- Bounded decoding with configurable byte, nesting, object-member, array-item,
+  and total-value limits shared by core, Atomic, and configured codecs.
+- Bounded query and media negotiation APIs with production defaults for
+  decoded parameters, header candidates, and extension/profile URI lists.
+- Distinct registered scopes for extension members inside `links` objects and
+  individual link objects, including opaque links-object value helpers.
+- A finding ledger, verification-backed hardening report, and package threat
+  model for the pre-v1 audit.
+- Constructed-validation, member-registry, cursor-metadata, and canonical
+  round-trip fuzz targets plus adversarial compound and pagination benchmarks.
+- `CallbackError` for redacted, inspectable extension/profile/cursor/sort
+  callback failures and panic values.
+
+### Fixed
+
+- Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
+- Preserve large JSON numbers in attributes without `float64` precision loss.
+- Invoke registered member validators only once during configured decoding.
+- Preserve explicitly empty string members, including empty resource IDs and
+  empty URI-references, without confusing presence with a Go zero value.
+- Allow update-request endpoint identity checks to target a valid empty ID
+  through explicit expected-ID presence state.
+- Preserve empty `id` and `lid` presence when Atomic relationship data is
+  validated as resource identifier objects.
+- Support href-targeted Atomic relationship add, update, and remove data
+  shapes while rejecting relationship-shaped operations without a target.
+- Validate Atomic results against their request operations before commit,
+  including data-free removal/relationship results and singular resource data.
+- Require lid-only Atomic resource targets and relationship linkage to resolve
+  to the current or a prior resource add operation.
+- Reject directly comparable type, ID, or LID mismatches between an Atomic
+  resource update's `ref` target and `data` representation.
+- Resolve compound-document linkage through either `id` or `lid` when an
+  included resource carries both identities.
+- Detect duplicate canonical resource objects across `id` and `lid` aliases.
+- Reject pagination links beside non-collection top-level data and known
+  to-one relationship linkage.
+- Require optional `jsonapi.ext` and `jsonapi.profile` arrays to include all
+  configured applied URIs while continuing to ignore unknown profiles.
+- Ignore unrecognized profiles when calculating `Accept` media-range
+  specificity so they cannot override an otherwise acceptable base range.
+- Separate forward-compatible @-Member names from semantic member names and
+  ignore constructed @ members in relationships and links.
+- Require error-object `status` strings to contain a valid HTTP status code in
+  the inclusive range from 100 through 599.
+- Reject core link members used in the wrong links-object scope while retaining
+  registered extension members and the core pagination names where permitted.
+- Validate URI-references and absolute registration URIs using RFC 3986 wire
+  characters, requiring spaces, Unicode, and reserved path data to be escaped.
+- Reject underscores in registered link relation types as prohibited by the
+  Web Linking grammar.
+- Reserve only `type` and `id` in resource field namespaces, allowing `lid` as
+  an attribute or relationship name as required by JSON:API 1.1.
+- Reject U+007F DELETE in member names while retaining the specification's
+  globally allowed U+0080-and-above Unicode range.
+- Reject invalid UTF-8 in constructed member names before encoding can replace
+  it and change the registered or validated name.
+- Bound constructed `describedby` link chains and reject pointer cycles before
+  recursive validation can exhaust the stack.
+- Reject profile validators that mutate their document view so callbacks
+  cannot invalidate already-checked core or extension semantics.
+- Reject extension member names that place `@` after the namespace separator;
+  the @-Member exception applies only at the start of the complete name.
+- Accept valid constructed @-Members without extension registration while
+  preventing them from satisfying required document or relationship content.
+- Require relationship-only links to include `self` or `related` rather than
+  accepting an empty or unrelated links object as relationship content.
+- Enforce Cursor Pagination boundary-link nullability and support aliases for
+  the profile's `page` metadata element across pages, items, and errors.
+- Accept mathematically integral JSON number forms in Cursor Pagination totals
+  without binary floating-point conversion or precision loss.
+- Reject malformed UTF-8 instead of accepting Go's replacement-character
+  decoding at JSON:API boundaries.
+- Enforce the HTTP `qvalue` grammar instead of accepting floating-point forms
+  such as `NaN`, exponents, signs, or excess fractional precision.
+- Enforce literal U+0020 separators in media-type extension and profile URI
+  lists instead of normalizing tabs or Unicode whitespace.
+- Preserve cursor/sort validator causes through `errors.Is` without copying
+  their potentially sensitive text into public pagination errors.
+- Contain extension/profile/cursor/sort callback panics and redact returned
+  callback error text while preserving trusted `errors.Is`/`errors.As` access.
+- Allow a registered extension member to provide the required content of an
+  error object while keeping ignored @-Members structurally invisible.
+- Require Atomic create results to return server-generated resource data before
+  commit while retaining the extension's client-generated-ID omission rule.
+- Convert panics from Atomic transaction callbacks into typed, redacted
+  `AtomicPanicError` failures and attempt rollback exactly once.
+- Reject canceled or nil contexts before beginning an Atomic transaction.
+- Apply HTTP media-range specificity before quality when selecting a JSON:API
+  representation, so a wildcard cannot override a more specific rejection.
+- Reject unknown core or Atomic validation contexts and negative Atomic
+  expected-result counts instead of silently weakening contextual checks.
+- Enforce canonical SemVer release tags, including leading-zero and prerelease
+  identifier rules, before publishing artifacts.
+- Decouple validated changelog release dates from the wall-clock day on which
+  a prepared tag is published.
+
+[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonapi/commits/main
+
+## Source: docs/conformance.md
+
+# Conformance evidence
+
+Each row links a primary section and executable evidence. The rows group
+closely related normative statements; they do not infer server routing,
+persistence, authorization, or business semantics from package tests.
+
+## JSON:API 1.1 core
+
+| Classification | Requirement and primary section | Implementation | Executable evidence |
+| --- | --- | --- | --- |
+| Core | [Top-level document shape and member exclusivity](https://jsonapi.org/format/#document-top-level) | strict root codec and validator | `codec_test.go`, `validation_test.go`, `presence_test.go` |
+| Core | [Resource objects and identity](https://jsonapi.org/format/#document-resource-objects) | presence-aware resources and contextual identity rules | `document_test.go`, `identity_validation_test.go`, `context_validation_test.go` |
+| Core | [Resource fields and namespace constraints](https://jsonapi.org/format/#document-resource-object-fields) | field/member validator | `validation_edge_test.go`, `ownership_test.go` |
+| Core | [Resource identifier objects](https://jsonapi.org/format/#document-resource-identifier-objects) | identifier codec and validator | `identity_validation_test.go`, `validation_edge_test.go` |
+| Core | [Attributes](https://jsonapi.org/format/#document-resource-object-attributes) | exact JSON value codec | `codec_test.go`, `presence_test.go` |
+| Core | [Relationships and linkage shapes](https://jsonapi.org/format/#document-resource-object-relationships) | presence-aware relationship sum types | `document_test.go`, `validation_test.go`, `validation_edge_test.go` |
+| Core | [Links and link objects](https://jsonapi.org/format/#document-links) | scoped link codec, URI-reference and relation validation | `link_test.go`, `presence_test.go`, `validation_edge_test.go` |
+| Core | [Error objects and sources](https://jsonapi.org/format/#error-objects) | error/source codec and HTTP status validation | `document_test.go`, `validation_edge_test.go`, `error_contract_test.go` |
+| Core | [JSON:API object](https://jsonapi.org/format/#document-jsonapi-object) | version/ext/profile presence and URI validation | `identity_validation_test.go`, `profile_codec_test.go` |
+| Core | [Member-name grammar](https://jsonapi.org/format/#document-member-names) | Unicode-aware semantic and implementation grammar | `validation_edge_test.go`, `query_test.go`, registry fuzz corpus |
+| Core | [Forward-compatible @-Members](https://jsonapi.org/format/#document-at-members) | recursive ignore-on-decode and structural invisibility | `codec_defense_test.go`, `member_codec_defense_test.go`, `validation_edge_test.go` |
+| Core | [Compound full linkage and uniqueness](https://jsonapi.org/format/#document-compound-documents) | alias-aware identity index and graph traversal | `validation_test.go`, `identity_validation_test.go` |
+| Core | [Include paths and response member presence](https://jsonapi.org/format/#fetching-includes) | parsed paths plus `IncludePresent`; response expansion remains application-owned | `query_test.go`, `docs/adoption.md` |
+| Core | [Sparse fieldsets](https://jsonapi.org/format/#fetching-sparse-fieldsets) | fieldset parser | `query_test.go` |
+| Core | [Sorting](https://jsonapi.org/format/#fetching-sorting) | ordered sort parser; support policy hook | `query_test.go`, `cursor_test.go` |
+| Core | [Pagination](https://jsonapi.org/format/#fetching-pagination) | parameter preservation and collection-only link validation | `query_test.go`, `validation_edge_test.go` |
+| Core | [Filtering](https://jsonapi.org/format/#fetching-filtering) | family preservation; filter semantics remain application-owned | `query_test.go`, `docs/adoption.md` |
+| Core | [Creating resources](https://jsonapi.org/format/#crud-creating) | create validation context | `context_validation_test.go` |
+| Core | [Updating resources](https://jsonapi.org/format/#crud-updating) | update and endpoint-identity context | `context_validation_test.go` |
+| Core | [Updating relationships](https://jsonapi.org/format/#crud-updating-relationships) | to-one/to-many mutation contexts | `context_validation_test.go` |
+| Core | [Media type parameters](https://jsonapi.org/format/#media-type-parameters) | exact `ext`/`profile` parsing and canonical formatting | `negotiation_test.go` |
+| Core | [Server content-negotiation responsibilities](https://jsonapi.org/format/#content-negotiation-server-responsibilities) | 415/406 selection with HTTP precedence | `negotiation_test.go`, `negotiation_limits_test.go` |
+| Referenced standard | [RFC 8288 relation-type grammar](https://www.rfc-editor.org/rfc/rfc8288.html#section-3.3) | registered token or absolute URI validation | `link_test.go` |
+| Referenced standard | [HTTP media-range precedence](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.1) | representation-specific quality selection | `negotiation_test.go` |
+
+## Registered extensions and profiles
+
+| Classification | Requirement and primary section | Implementation | Executable evidence |
+| --- | --- | --- | --- |
+| Core extension mechanism | [Extension rules](https://jsonapi.org/format/#extensions) | absolute unique URIs and namespaces | `member_codec_defense_test.go`, `profile_codec_test.go` |
+| Core extension mechanism | [Extension members](https://jsonapi.org/format/#extension-members) | immutable scope-specific registry, including links and link objects | `member_codec_test.go`, `ownership_test.go`, `fuzz_test.go` |
+| Core extension mechanism | [Extension media-type negotiation](https://jsonapi.org/format/#content-negotiation-server-responsibilities) | unsupported extensions rejected or ignored by request/response role | `negotiation_test.go` |
+| Core profile mechanism | [Profile rules](https://jsonapi.org/format/#profiles) | declaration validation and guarded document semantics | `profile_codec_test.go`, `callback_test.go` |
+| Core profile mechanism | [Profile media-type negotiation](https://jsonapi.org/format/#content-negotiation-server-responsibilities) | unknown profiles retained for content type and ignored for Accept selection as required | `negotiation_test.go` |
+| Package policy | Registry immutability, callback invocation count, panic containment, profile purity, and redacted causes | copied definitions, representation fingerprinting, and `CallbackError` | `ownership_test.go`, `member_codec_defense_test.go`, `profile_codec_test.go`, `callback_test.go` |
+
+## Atomic Operations extension
+
+| Classification | Requirement and primary section | Implementation | Executable evidence |
+| --- | --- | --- | --- |
+| Extension | [Document structure](https://jsonapi.org/ext/atomic/#document-structure) | strict operations/results/errors exclusivity | `atomic_codec_test.go`, `atomic_test.go` |
+| Extension | [Operation objects](https://jsonapi.org/ext/atomic/#operation-objects) | op, target, data, meta, and member validation | `atomic_test.go` |
+| Extension | [Adding resources](https://jsonapi.org/ext/atomic/#adding-resources) | resource-add shape and local identity validation | `atomic_test.go` |
+| Extension | [Updating resources](https://jsonapi.org/ext/atomic/#updating-resources) | target/data identity consistency | `atomic_test.go` |
+| Extension | [Removing resources](https://jsonapi.org/ext/atomic/#removing-resources) | target-required/data-forbidden validation | `atomic_test.go` |
+| Extension | [Adding to relationships](https://jsonapi.org/ext/atomic/#adding-to-relationships) | ref/href to-many shape validation | `atomic_test.go` |
+| Extension | [Updating relationships](https://jsonapi.org/ext/atomic/#updating-relationships) | to-one/to-many replacement shapes | `atomic_test.go` |
+| Extension | [Removing from relationships](https://jsonapi.org/ext/atomic/#removing-from-relationships) | relationship target and identifier data | `atomic_test.go` |
+| Extension | [Local identities](https://jsonapi.org/ext/atomic/#operation-objects) | current/prior add resolution for targets and linkage | `atomic_test.go` |
+| Extension | [Result objects](https://jsonapi.org/ext/atomic/#result-objects) | positional, operation-aware result validation including server-generated creates | `atomic_test.go`, `atomic_execute_test.go` |
+| Package policy | Transaction orchestration | ordered callbacks, pre-commit result validation, cancellation, panic containment, exactly-one rollback attempt | `atomic_execute_test.go`, `error_contract_test.go` |
+
+## Cursor Pagination profile
+
+| Classification | Requirement and primary section | Implementation | Executable evidence |
+| --- | --- | --- | --- |
+| Profile | [Query parameters](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#query-parameters) | `page[size]`, `page[after]`, `page[before]` parser | `cursor_test.go` |
+| Profile | [Page size](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#page-size) | positive/default/maximum policy | `cursor_test.go` |
+| Profile | [Cursors](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#cursors) | opaque values and guarded application validation | `cursor_test.go`, `callback_test.go` |
+| Profile | [Sorting requirement](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#sorting-requirement) | guarded stable/supported-sort hook | `cursor_test.go`, `callback_test.go` |
+| Profile | [Links](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#links) | required prev/next presence, boundary nulls, range state | `cursor_page_test.go`, `cursor_test.go` |
+| Profile | [Page metadata](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#page-meta-object-members) and [item cursors](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#item-cursors) | alias-aware metadata helpers | `cursor_meta_test.go`, `cursor_page_test.go`, `fuzz_test.go` |
+| Profile | [Collection sizes](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#collection-sizes) | exact total/estimate integer handling | `cursor_meta_test.go` |
+| Profile | [Errors](https://jsonapi.org/profiles/ethanresnick/cursor-pagination/#errors) | profile type links, metadata, and redacted causes | `cursor_test.go`, `error_contract_test.go` |
+
+## Package and application policy
+
+| Classification | Policy | Evidence or owner |
+| --- | --- | --- |
+| Package policy | Reject duplicate members, invalid UTF-8 bytes, trailing JSON, recursive-link cycles, and configured resource-limit excess | `duplicate_member_test.go`, `codec_defense_test.go`, `resource_limits_test.go`, `link_test.go` |
+| Package policy | Preserve exact numbers, explicit empty members, deterministic output, and caller-owned data | `codec_test.go`, `presence_test.go`, `ownership_test.go` |
+| Package policy | Copy registries at construction and support concurrent codec use | `ownership_test.go` |
+| Package policy | Bound decoded queries and negotiation work | `query_limits_test.go`, `negotiation_limits_test.go` |
+| Application policy | Bound encoded request targets and request bodies before constructing `url.Values` or `[]byte` | HTTP integration; see `docs/adoption.md` |
+| Application policy | Implement persistence, authorization, filter semantics, cursor encoding, URL generation, and transaction correctness | application integration; see `docs/adoption.md` |
+
+## Recommendations
+
+The official [JSON:API recommendations](https://jsonapi.org/recommendations/)
+are non-normative. Naming, URL, filtering-strategy, and date/time advice is
+tracked separately in [recommendations.md](recommendations.md) and is never a
+condition for codec conformance.
+
+## Resilience evidence
+
+- Exact production statement coverage is checked from the raw profile rather
+  than a rounded display.
+- Nine fuzz targets cover core and Atomic decode, constructed validation,
+  member registries, queries, negotiation, Cursor query/metadata, and
+  marshal/unmarshal round trips.
+- Benchmarks cover representative and adversarial compound documents, Atomic
+  batches, queries, negotiation, and pagination metadata.
+- Short local fuzz runs are regression evidence, not proof that no parser bug
+  exists; scheduled CI continues each target independently.
+
+## Source: docs/extensions-and-profiles.md
+
+# Extensions and profiles
+
+JSON:API extensions and profiles have different authority. Extensions may add
+namespaced specification semantics; profiles may define implementation
+semantics without changing base JSON:API rules. The package keeps these seams
+separate.
+
+## Official support matrix
+
+| URI | Kind | Status | API |
+| --- | --- | --- | --- |
+| `https://jsonapi.org/ext/atomic` | Extension | Complete | Atomic document, codec, validation, execution |
+| `http://jsonapi.org/profiles/ethanresnick/cursor-pagination/` | Profile | Complete | Cursor query, links, metadata, and errors |
+
+The Cursor profile URI intentionally uses `http`, matching the normative
+profile document. Error type links use the HTTPS URIs defined by that profile.
+
+## Register an extension
+
+```go
+codec, err := jsonapi.NewCodec(jsonapi.CodecOptions{
+	Extensions: []jsonapi.ExtensionDefinition{{
+		URI:       "https://example.com/extensions/version",
+		Namespace: "version",
+		Members: []jsonapi.MemberDefinition{{
+			Scope: jsonapi.ResourceMemberScope,
+			Name:  "version:id",
+			Validate: func(value any) error {
+				if _, ok := value.(string); !ok {
+					return errors.New("version:id must be a string")
+				}
+				return nil
+			},
+		}},
+	}},
+})
+```
+
+Then decode or encode through `codec.Unmarshal` and `codec.Marshal`. Semantic
+values appear in the relevant object's `AdditionalMembers` map.
+
+Supported scopes:
+
+- `TopLevelMemberScope`
+- `ResourceMemberScope`
+- `RelationshipMemberScope`
+- `IdentifierMemberScope`
+- `JSONAPIMemberScope`
+- `ErrorMemberScope`
+- `ErrorSourceMemberScope`
+- `LinksObjectMemberScope`
+- `LinkObjectMemberScope`
+
+`LinksObjectMemberScope` and `LinkObjectMemberScope` are distinct. The first
+registers a namespaced entry directly inside a `links` object, whose value may
+have any extension-defined JSON shape. The second registers a member inside
+an individual link object. Use `ExtensionLinkValue` and `Link.ExtensionValue`
+to construct and inspect the former; individual link-object members remain in
+`LinkObject.AdditionalMembers`.
+
+An extension definition must have an absolute unique URI, a valid unique
+namespace, and names beginning with `namespace:`. The same member cannot be
+registered twice in one scope.
+
+## Register profile semantics
+
+```go
+codec, err := jsonapi.NewCodec(jsonapi.CodecOptions{
+	Profiles: []jsonapi.ProfileDefinition{{
+		URI: "https://example.com/profiles/timestamps",
+		ValidateDocument: func(document jsonapi.Document) error {
+			// Validate implementation semantics without weakening core rules.
+			return validateTimestamps(document)
+		},
+	}},
+})
+```
+
+Profile validators run after core validation. They return their own error so
+applications can preserve a domain-specific error contract when desired.
+
+## Media type registration
+
+Codec registration controls document semantics. Negotiator registration
+controls HTTP media type selection. Configure both from the same supported
+URI set:
+
+```go
+negotiator, err := jsonapi.NewNegotiator(
+	[]string{"https://example.com/extensions/version"},
+	[]string{"https://example.com/profiles/timestamps"},
+)
+```
+
+Unsupported request extensions produce a 415. Unknown request profiles remain
+available because profiles cannot alter base semantics. During `Accept`
+selection, candidates with unsupported extensions are ignored and unsupported
+profiles are omitted from an otherwise acceptable representation.
+
+## Extension design checklist
+
+Before publishing an extension:
+
+1. define a stable absolute URI and namespace;
+2. specify each member's object scope and JSON value shape;
+3. specify processing semantics and error behavior;
+4. add registered-member round-trip and malformed-value tests;
+5. add the URI to media negotiation configuration;
+6. document whether query parameter families are introduced;
+7. update conformance and compatibility matrices;
+8. avoid encoding application behavior as an alleged core rule.
+
+For an implementation-only convention that does not alter JSON:API document
+semantics, prefer a query-family hook or application adapter instead of an
+extension.
+
+## Source: docs/features.md
+
+# Supported features
+
+Status meanings:
+
+- **Implemented**: modeled, validated, encoded/decoded, and covered where the
+  concern belongs to this package.
+- **Integration responsibility**: required server behavior exposed through an
+  explicit primitive; the application must connect it to HTTP or persistence.
+- **Planned after v1**: intentionally outside the first stable core.
+- **Out of scope**: intentionally not a protocol-core responsibility.
+
+## JSON:API 1.1 core
+
+| Capability | Status | Package surface |
+| --- | --- | --- |
+| Top-level document and member exclusivity | Implemented | `Document`, validation |
+| Resource objects and identifiers | Implemented | `ResourceObject`, `Identifier` |
+| Attributes, relationships, links, meta | Implemented | Typed models and strict codecs |
+| Error documents and sources | Implemented | `ErrorObject`, `ErrorSource` |
+| Compound documents and full linkage | Implemented | included-resource validation |
+| Local identifiers | Implemented | `LID`, identity validation |
+| Null, to-one, and to-many data presence | Implemented | explicit constructors and round trips |
+| Duplicate and unknown member rejection | Implemented | strict decoder |
+| `@`-member forward compatibility | Implemented | recursive stripping in defined containers |
+| JSON:API 1.1 link objects | Implemented | `LinkObject`, nested `describedby`, `hreflang` |
+| Extension/profile declarations | Implemented | `JSONAPI.Ext`, `JSONAPI.Profile`, URI validation |
+| Extension-defined members | Implemented | registered `Codec` scopes, including links and link objects |
+| Profile implementation semantics | Implemented | `ProfileDefinition.ValidateDocument` |
+| Callback panic containment and redaction | Implemented | `CallbackError` and guarded validators/hooks |
+| Sparse fieldset parsing | Implemented | `Query.Fields` |
+| Include path parsing | Implemented | `Query.Include` |
+| Sort parsing | Implemented | `Query.Sort` |
+| Page/filter parameter hooks | Implemented | `ParameterFamily` |
+| Implementation query families | Implemented | `NewQueryParser` |
+| Extension query namespaces | Implemented | `NewQueryParser` |
+| Request content type rules | Implemented | `Negotiator.CheckContentType` |
+| `Accept` selection and quality values | Implemented | `Negotiator.NegotiateAccept` |
+| HTTP method/status and endpoint routing | Integration responsibility | caller maps typed results to `net/http` |
+| Fetching, mutation, and relationship persistence | Integration responsibility | caller owns handlers and storage |
+| Filtering semantics | Integration responsibility | raw family deliberately preserved |
+
+## Official Atomic Operations extension
+
+| Capability | Status |
+| --- | --- |
+| Official URI and namespaced document members | Implemented |
+| Operations/results/errors document exclusivity | Implemented |
+| Add, update, and remove operation shapes | Implemented |
+| `ref`/`href` targeting and local identities | Implemented |
+| Resource and relationship operation data | Implemented |
+| Positional result validation | Implemented |
+| Ordered execution | Implemented |
+| All-or-nothing transaction orchestration | Implemented |
+| Commit and rollback error preservation | Implemented |
+| HTTP `POST`, 200/204, and application status policy | Integration responsibility |
+| Mapping operations to storage behavior | Integration responsibility |
+
+## Official Cursor Pagination profile
+
+| Capability | Status |
+| --- | --- |
+| Official profile URI | Implemented |
+| `page[size]`, `page[after]`, `page[before]` | Implemented |
+| Positive/default/maximum size rules | Implemented |
+| Range pagination policy | Implemented |
+| Cursor validation hook | Implemented |
+| Stable/unsupported sort hook | Implemented |
+| Required `prev` and `next` links | Implemented |
+| Per-item cursor metadata | Implemented |
+| Exact total and estimated total metadata | Implemented |
+| Required profile error objects and type links | Implemented |
+| Cursor encoding and database keyset query | Integration responsibility |
+| Deciding page existence and building URLs | Integration responsibility |
+
+## Optional future packages
+
+| Capability | Status |
+| --- | --- |
+| OpenAPI/schema generation | Planned after v1 |
+| Client helpers | Planned after v1 |
+| Router middleware | Planned after v1, outside core package |
+| Resource code generation | Planned after v1 |
+| ORM integration | Out of scope |
+| Authentication and authorization | Out of scope |
+| Project-specific filtering language | Out of scope |
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go Safety And Concurrency
+
+Baseline: `GO-SAFETY-1`
+
+This document defines the shared safety engineering standard for the
+`faustbrian/go-*` package family. RFC 2119 keywords are requirements.
+
+## Guarantee Boundary
+
+Go provides memory safety for ordinary Go code, but it does not provide Rust's
+compile-time ownership and data-race proof. The race detector observes executed
+paths only. These rules reduce the practical gap through constrained design,
+static analysis, adversarial tests, and executable quality gates; they MUST NOT
+be described as an equivalent type-system guarantee.
+
+## Memory And Ownership
+
+- Production code MUST NOT import `unsafe`, use cgo, or use `go:linkname`.
+  An exception requires an explicit security review, package-local rationale,
+  isolated API boundary, platform matrix, and dedicated tests before the source
+  gate may be changed.
+- Every mutable value shared across goroutines MUST have a documented owner and
+  synchronization strategy.
+- APIs MUST NOT expose mutable internal maps, slices, buffers, registries, or
+  pointers unless ownership transfer or aliasing is an intentional, documented
+  contract.
+- Caller-owned mutable input MUST NOT be retained or mutated unless the public
+  API explicitly documents that behavior.
+- Copies, immutable snapshots, atomics, channels, or mutexes SHOULD be chosen
+  according to the invariant being protected, not as interchangeable style.
+- Pooling and zero-copy techniques MUST NOT weaken ownership clarity, retain
+  secrets unexpectedly, or allow values to outlive their backing storage.
+
+## Goroutine And Resource Lifecycle
+
+- Every goroutine MUST have an identifiable owner, bounded lifetime, and
+  deterministic stop condition.
+- Library code MUST NOT start hidden background work without a documented
+  shutdown or cancellation mechanism.
+- Request-scoped work MUST propagate the caller's `context.Context`; it MUST
+  NOT replace that context with `context.Background()`.
+- Concurrency, queues, retries, buffers, payloads, recursion, and fan-out MUST
+  be bounded at every untrusted or operational boundary.
+- The goroutine that owns a channel's send lifecycle SHOULD close it. Receivers
+  MUST NOT close channels they do not own.
+- Locks MUST NOT be held while calling user callbacks, performing network I/O,
+  or waiting on unrelated goroutines.
+- Multiple-lock code MUST document and test a stable lock order.
+- Cancellation, timeout, startup failure, partial initialization, panic, and
+  repeated shutdown MUST each release timers, goroutines, connections, files,
+  transactions, and other owned resources exactly once.
+
+## Required Verification Layers
+
+### Static And Source Analysis
+
+- `make safety` MUST reject forbidden low-level features and run vet, lint,
+  race, and fuzz gates.
+- `go vet`, Staticcheck, security linting, error checks, context checks, and
+  HTTP-body ownership checks MUST remain enabled through the repository lint
+  configuration.
+- New linter suppressions MUST be narrow, justified next to the suppression,
+  and covered by tests where behavior is affected.
+
+### Behavioral Tests
+
+- Tests MUST prove observable contracts, invariants, errors, and ownership
+  behavior rather than merely execute lines.
+- Meaningful 100% production statement coverage remains required, but coverage
+  MUST NOT be treated as evidence of race freedom, resource bounds, or protocol
+  conformance by itself.
+- Cancellation, timeout, panic, partial failure, retry, and shutdown paths MUST
+  be tested when the package owns those behaviors.
+- Tests for mutable inputs and outputs MUST check aliasing and post-call
+  mutation where ownership could be ambiguous.
+
+### Concurrency And Race Tests
+
+- The full package suite MUST pass under `go test -race ./...`.
+- Every concurrency bug fix MUST include a regression that exercises the
+  relevant interleaving under the race detector.
+- Concurrency tests MUST use barriers, channels, hooks, wait groups, or other
+  deterministic coordination. Sleeps MUST NOT be used as synchronization;
+  they MAY be used only when elapsed time is the behavior under test.
+- Critical state machines SHOULD be stress-tested with repeated execution and
+  varied scheduling. A passing stress run is supporting evidence, not a
+  substitute for a deterministic regression.
+- Tests MUST cover concurrent use of every API documented as concurrency-safe.
+
+### Fuzz And Adversarial Tests
+
+- Every parser, decoder, protocol boundary, query parser, queue envelope, and
+  other attacker-controlled byte or text boundary MUST have a fuzz target.
+- Fuzz corpora MUST include valid examples, malformed inputs, boundary values,
+  previously discovered regressions, and inputs near configured resource
+  limits.
+- Fuzz properties MUST include no panic, no hang, bounded resource behavior,
+  deterministic classification, and no invalid caller-state mutation.
+- Round-trip properties MUST be used only where the format and API promise a
+  lossless round trip.
+- Every fuzz-discovered defect MUST be retained as a deterministic regression
+  and, where useful, as a permanent fuzz seed.
+
+### Leak And Resource-Bound Tests
+
+- Components that create goroutines, timers, files, sockets, subscriptions, or
+  transactions MUST prove cleanup after success, failure, cancellation, panic,
+  and repeated close.
+- Leak tests SHOULD use observable lifecycle hooks or owned-resource counters.
+  Global goroutine counts alone SHOULD NOT be used as exact assertions because
+  unrelated runtime goroutines make them unstable.
+- Hostile-reader and declared-size tests MUST prove that byte, item, depth,
+  retry, and expansion limits stop work at the documented boundary.
+- Queue backends MUST test acknowledgement, retry, redelivery, poison-message,
+  reconnect, and shutdown behavior against real backends where semantics
+  cannot be proved hermetically.
+
+### Benchmarks And Regression Discipline
+
+- Hot paths MUST have representative benchmarks reporting allocations with
+  `-benchmem`.
+- Security-sensitive parsers and state machines SHOULD include adversarial
+  benchmarks near supported limits.
+- Performance changes MUST compare multiple before-and-after samples with
+  `benchstat` or an equivalent statistical method and retain the commands,
+  environment, and result.
+- Shared CI MUST NOT fail on small wall-clock benchmark variance. Stable
+  allocation counts, explicit resource ceilings, and statistically supported
+  material regressions MAY be gated.
+- Optimization MUST follow profiling evidence and MUST NOT remove validation,
+  bounds, cancellation, or ownership clarity without equivalent protection.
+
+## Review And Change Control
+
+- Public concurrency guarantees, aliasing behavior, limits, and lifecycle
+  semantics are SemVer-governed contracts.
+- Changes touching shared state, goroutines, callbacks, retries, settlement,
+  parsing, or resource limits MUST include an explicit safety review in the
+  pull request.
+- Updates to this baseline MUST bump its identifier and be propagated across
+  `jsonapi`, `jsonrpc`, `queue`, `wire`, `tabular`,
+  and the monorepo Go standard.
+
+## Source: docs/recommendations.md
+
+# JSON:API recommendations
+
+The [official recommendations](https://jsonapi.org/recommendations/) are
+useful consistency guidance but are not normative JSON:API requirements. This
+matrix deliberately keeps them separate from conformance claims.
+
+| Recommendation and primary section | Package position | Responsibility |
+| --- | --- | --- |
+| [Naming](https://jsonapi.org/recommendations/#naming) | Valid core names accepted; recommended style not enforced | application schema |
+| [Collection and resource URL design](https://jsonapi.org/recommendations/#url-design) | Adopt in examples; not enforced | application router |
+| [Relationship and related-resource URLs](https://jsonapi.org/recommendations/#relationship-urls-and-related-resource-urls) | Supported by model; not auto-generated | application router |
+| [Recommended response links](https://jsonapi.org/recommendations/#including-top-level-resource-level-and-relationship-links) | Supported by model | application response builder |
+| [Filtering](https://jsonapi.org/recommendations/#filtering) | `filter[...]` preserved as an explicit hook | application defines operators |
+| [Date and time fields](https://jsonapi.org/recommendations/#formatting-date-and-time-fields) | No domain value format imposed | application schema |
+| [Asynchronous processing](https://jsonapi.org/recommendations/#asynchronous-processing) | No queue assumptions | application HTTP workflow |
+| [Clients lacking PATCH](https://jsonapi.org/recommendations/#supporting-clients-lacking-patch) | Not implemented in core | optional middleware |
+| [Authoring profiles](https://jsonapi.org/recommendations/#authoring-profiles) | Registration and document validation hooks | profile author and application |
+
+## Adopted conventions in project examples
+
+Examples use plural collection URLs, stable resource type names, relationship
+links, bracketed filter families, comma-separated include/field/sort values,
+and explicit pagination links. These choices improve consistency but the core
+does not reject alternative valid URL designs or application semantics.
+
+## Intentionally not enforced
+
+- URL path naming and pluralization
+- router method selection
+- filter operator vocabulary
+- default include or sparse-fieldset policy
+- asynchronous job resources
+- method-override headers
+- domain error titles and localization
+
+Enforcing these in a transport-neutral document package would blur
+recommendations into normative rules and couple unrelated applications.
+
+## Source: docs/repository-standards.md
+
+# Repository Standards
+
+This repository follows the shared maintenance baseline used by the
+`faustbrian/go-*` OSS packages.
+
+## Mandatory Root Files
+
+Every repository contains `.gitattributes`, `.gitignore`,
+`.golangci.yml`, `AGENTS.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`, `Makefile`, `NOTICE`,
+`README.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`,
+`llms.txt`, and `llms-full.txt`.
+
+AI planning and execution briefs live in `.ai/GOAL.md` and
+`.ai/GOAL_HARDEN.md`, keeping internal agent material separate from the
+package's public documentation surface.
+
+`NOTICE` identifies the project and its ownership. `THIRD_PARTY_NOTICES.md`
+separately records attribution and provenance for copied, forked, generated,
+or vendored third-party source. Both remain present even when no third-party
+source requires attribution. A package may retain a different approved OSS
+license when provenance requires it.
+
+## Mandatory Documentation
+
+The shared taxonomy is lowercase kebab-case and includes a documentation
+index, quickstart, adoption guide, API reference, architecture, examples,
+cookbook, FAQ, troubleshooting, migration, compatibility, performance,
+hardening, security, Go safety and concurrency, and releasing guide.
+Package-specific documents extend this taxonomy without renaming shared
+concepts.
+
+## Mandatory Automation
+
+Every repository provides pinned-SHA workflows for CI, benchmarks, scheduled
+fuzzing, security, and tagged releases. CI tests Go 1.25.x as the supported
+minimum line and current stable Go. Dependency review runs on pull requests;
+reachable dependency scanning uses `govulncheck`.
+
+The common Make interface is `format`, `format-check`, `test`,
+`test-race`, `coverage`, `vet`, `lint`, `fuzz`, `benchmark`,
+`safety`, `docs`, `vuln`, `check`, and semantic release targets.
+
+The package family shares the `GO-SAFETY-1` baseline. It forbids `unsafe`,
+cgo, and `go:linkname` in production code and standardizes ownership,
+goroutine lifecycle, race, fuzz, resource-bound, leak, and benchmark evidence.
+
+## Approved Package-Specific Differences
+
+- `jsonapi` carries JSON:API feature, conformance, extension/profile,
+  recommendation, and threat-model documentation.
+- `jsonrpc` carries protocol conformance and middleware documentation.
+- `queue` carries backend, delivery, lifecycle, failure, and integration
+  documentation plus a live-backend integration workflow. Its fork provenance
+  requires detailed third-party notices.
+- `wire` carries format, dependency, and audit-evidence documentation.
+- `tabular` carries format and ingest-limit documentation. It uses
+  Apache-2.0 and retains XLS provenance notices.
+
+Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
+security guidance are expected to differ. Shared policy wording and automation
+structure must not drift without updating this contract across all affected
+repositories.
+
+## Source: docs/threat-model.md
+
+# Threat model
+
+## Scope and trust boundaries
+
+The package accepts attacker-controlled JSON bytes, decoded URL query values,
+and media type header strings. It also calls application-controlled extension
+validators, profile validators, cursor/sort callbacks, and Atomic transaction
+implementations.
+
+The package does not read request bodies, perform network requests, authorize
+users, query databases, log values, or write HTTP responses. Those are caller
+trust boundaries and are not implied by protocol conformance.
+
+## Protected properties
+
+- Availability: bounded parsing and validation work without panics or runaway
+  allocation.
+- Integrity: strict document shapes, deterministic output, full linkage, and
+  ordered all-or-fail Atomic execution.
+- Confidentiality: public errors do not echo payloads, cursors, URLs,
+  extension values, callback text, or panic values by default.
+- Interoperability: accepted and emitted data follows JSON:API, its claimed
+  official extension/profile, and applicable HTTP selection semantics.
+
+## Threats and controls
+
+| Threat | Entry point | Primary controls | Caller responsibility |
+| --- | --- | --- | --- |
+| Oversized or deeply nested JSON | Core, configured, and Atomic unmarshal | byte, depth, member, item, and total-value limits; duplicate and UTF-8 preflight | limit transport body size before allocation |
+| Huge decoded query families | `QueryParser.Parse` | name, value, total-byte, selector, list, parameter, and value counts | limit encoded request-target size |
+| Header and candidate explosion | `Negotiator` | header, candidate, URI count/length, and configured URI limits | configure server header limits |
+| Ambiguous or duplicate input | JSON codecs | duplicate-member rejection, strict unknown-member rules, presence-aware models | map typed failures without leaking request bodies |
+| Numeric precision loss | attributes, meta, extension values | `json.Number` preservation | convert numbers with domain-specific range checks |
+| Extension/profile confusion | configured `Codec`, `Negotiator` | unique absolute URIs, unique namespaces, scope-specific registration, core validation before profile semantics | keep codec and negotiator URI sets aligned |
+| Malicious validator or callback | extension, profile, cursor, sort seams | bounded invocation count; panic containment; redacted wrapper errors; profile mutation detection | make callbacks bounded, pure, deterministic, and thread-safe; never expose retained causes to clients |
+| Partial Atomic success | `ExecuteAtomic` | ordered apply, response validation before commit, rollback on every post-begin failure | implement a real transaction and never commit from `ApplyAtomic` |
+| Transaction panic or cancellation | `ExecuteAtomic` | panic conversion, context checks, non-canceled exactly-once rollback attempt | honor context and make rollback idempotent |
+| Error-data disclosure | public errors | stable generic messages with inspectable causes | do not serialize `Cause`, panic `Value`, or raw validation errors directly |
+| SSRF through links or operation hrefs | URI-reference values | syntax validation only | treat URLs as data; apply allowlists before dereferencing |
+| Constructed recursive links | `Document.Validate`, marshal entry points | `describedby` depth bound and pointer-cycle detection | avoid cycles in all caller-owned application values |
+| Mutable data races and aliasing | maps, slices, callbacks | registries copied at construction; validation and marshal do not mutate documents; concurrent codec regression | do not mutate documents or callback state concurrently; copy application-owned maps when sharing |
+
+## Abuse cases
+
+Adversarial tests and fuzz seeds cover invalid UTF-8, duplicate members,
+trailing JSON values, deep composites, collection explosions, malformed media
+types and qvalues, media-range precedence, query-family explosions, cursor
+boundaries, callback failures, panics, cancellation, rollback failures,
+registry mutation, cursor metadata, and constructed round trips.
+
+Failures are expected to be typed and deterministic. Resource-limit failures
+are package policy rather than JSON:API validation failures. Applications may
+lower or deliberately raise limits, but should document that choice as an API
+boundary decision.
+
+## Residual risk review
+
+Review this model when a new decoder, query family, extension/profile scope,
+callback, transaction phase, network helper, reflection-based mapper, or code
+generator is introduced. Any new untrusted loop or recursion requires an
+explicit bound and an adversarial regression before release.

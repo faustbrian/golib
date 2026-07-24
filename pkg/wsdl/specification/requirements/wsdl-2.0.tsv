@@ -1,0 +1,13 @@
+id	requirement	normative_source	status	evidence
+WSDL20-CORE-001	Description interfaces faults operations bindings services imports and includes	WSDL 2.0 Core sections 2.1-2.17	implemented	parse20_test.go;serialize_test.go
+WSDL20-MEP-001	Predefined and additional message exchange pattern directions labels and faults	WSDL 2.0 Adjuncts section 2; Additional MEPs section 2	implemented	validate20_test.go
+WSDL20-STYLE-001	Operation safety and RPC IRI multipart style XML Schema constraints	WSDL 2.0 Adjuncts sections 3.1 and 4.1-4.3	implemented	http20_test.go;rpc20_test.go;validate20_test.go;compile/compile_test.go
+WSDL20-STYLE-002	Interface style defaults inherited by compiled operations	WSDL 2.0 Core section 2.2.1 and Adjuncts section 4	implemented	interop_test.go;scripts/check-woden.sh
+WSDL20-CONTENT-001	Message content models including absent defaults and special tokens	WSDL 2.0 Core section 2.5	implemented	parse20_test.go
+WSDL20-SOAP-001	SOAP binding adjunct properties modules headers faults and endpoints	WSDL 2.0 Adjuncts section 5	implemented	soap20_test.go;validate20_test.go
+WSDL20-HTTP-001	HTTP binding adjunct methods serialization headers faults and authentication	WSDL 2.0 Adjuncts section 6	implemented	http20_test.go;validate20_test.go
+WSDL20-XSD-001	Embedded and imported schema compilation and reference checks	WSDL 2.0 Core section 3.1	implemented	parse20_test.go;compile/compile_test.go
+WSDL20-EXT-001	Foreign extension preservation and required extension enforcement	WSDL 2.0 Core section 6.8	implemented	extensions_test.go;validate20_test.go
+WSDL20-RESOLVE-001	Explicit bounded import and include resolution with namespace checks	WSDL 2.0 Core sections 4.1 and 4.2	implemented	compile/compile_test.go;resolve/resolve_test.go
+WSDL20-COMPONENT-001	Immutable compiled component graph and semantic comparison	WSDL 2.0 Core component model	implemented	compile/compile_test.go;diff/diff_test.go
+WSDL20-INTEROP-001	W3C examples and available Java tooling fixture corpus	Project acceptance criteria	implemented	interop_test.go;scripts/check-woden.sh;specification/tooling.tsv;testdata/w3c/wsdl20;docs/interoperability.md

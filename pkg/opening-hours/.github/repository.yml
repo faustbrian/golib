@@ -1,0 +1,8 @@
+description: Immutable, timezone-safe recurring opening hours and dated exceptions for Go
+topics:
+  - go
+  - opening-hours
+  - availability
+  - schedules
+  - timezone
+  - jsonb

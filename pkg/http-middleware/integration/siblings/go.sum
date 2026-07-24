@@ -1,0 +1,14 @@
+github.com/faustbrian/golib/pkg/http-middleware v0.1.0 h1:mTWILHUMhxf2rnSnAlr9/xN6aOE87L5YyvSWCrm6PPU=
+github.com/faustbrian/golib/pkg/http-middleware v0.1.0/go.mod h1:27HGRr/UO0s61jClCLiG94WwuHfBOGANS7weGWvRrYY=
+github.com/faustbrian/golib/pkg/router v0.1.0 h1:FRXgLMKZAVParifpj3mGsF8bCoY48Pk0F5bv2GhBp8U=
+github.com/faustbrian/golib/pkg/router v0.1.0/go.mod h1:8GMr8KoMNIgZ7IJ440vqA9W2X7L+/mGPKyaFd2aPXlg=
+github.com/faustbrian/golib/pkg/service v0.1.0 h1:GPAGhouOfGTx45Zf0zsIxsfg5strd1BixwMbS/wFwkc=
+github.com/faustbrian/golib/pkg/service v0.1.0/go.mod h1:Qx/PpvMYABWUfbzIBbJ/XgilF+PpGZC75Bs4+g+f6yg=
+github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
+github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
+go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
+go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
+golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
+golang.org/x/net v0.57.0/go.mod h1:KpXc8iv+r3XplLAG/f7Jsf9RPszJzdR0f58q9vGOuEU=
+golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
+golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=

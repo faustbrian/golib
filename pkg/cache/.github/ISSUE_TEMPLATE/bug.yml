@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible semantic or backend defect
+title: "bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Explain the expected and actual cache result or error.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Remove credentials, logical keys, values, and customer data.
+      render: go
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cache version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Go, backend, and server versions
+    validations:
+      required: true

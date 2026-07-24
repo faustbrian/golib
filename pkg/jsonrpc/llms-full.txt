@@ -1,0 +1,1938 @@
+# jsonrpc Complete Documentation
+
+## Source: README.md
+
+# jsonrpc
+
+`jsonrpc` is a transport-neutral, full JSON-RPC 2.0 server and client
+package. Protocol behavior is explicit, errors are auditable, middleware is
+composable, HTTP is optional, and malformed input is conformance- and
+fuzz-tested.
+
+## Status
+
+The stable v1 API and wire behavior are SemVer-governed. Production package
+code is held to meaningful 100% statement coverage.
+
+## Requirements
+
+- Go 1.26.5 or later
+- no runtime dependencies outside the standard library
+
+## Installation
+
+```sh
+go get github.com/faustbrian/golib/pkg/jsonrpc
+```
+
+## Quickstart
+
+```go
+registry := jsonrpc.NewRegistry()
+err := registry.Register("math.add", func(
+    ctx context.Context,
+    params json.RawMessage,
+) (any, error) {
+    values, rpcErr := jsonrpc.DecodeParams[[]int](params)
+    if rpcErr != nil || len(values) != 2 {
+        return nil, jsonrpc.InvalidParams()
+    }
+
+    return values[0] + values[1], nil
+})
+if err != nil {
+    return err
+}
+
+handler := jsonrpc.NewHTTPHandler(jsonrpc.NewDispatcher(registry))
+```
+
+Trusted protocol adapters can register reserved `rpc.*` methods explicitly
+with `Registry.RegisterSystem`; ordinary application registration continues to
+reject that namespace.
+
+Use `NewClient` with `NewHTTPTransport` for client calls. The
+[quickstart](docs/quickstart.md) contains complete server, client,
+notification, and batch examples.
+
+## Package Guarantees
+
+- requests, notifications, and explicit null IDs remain distinct
+- string, number, and null IDs round-trip without coercion
+- standard errors use the required codes and response shapes
+- batch and notification-only behavior follows JSON-RPC 2.0
+- clients validate response shape, ID correlation, duplicates, and missing
+  batch members
+- dispatcher and client parsing are independently resource-bounded
+- protocol dispatch remains transport-neutral
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+[adoption guide](docs/adoption.md), and [API reference](docs/api.md). Use the
+[conformance matrix](docs/conformance.md), [middleware guide](docs/middleware.md),
+and [hardening report](docs/hardening.md) for production review.
+
+AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
+Runnable programs live under [examples](examples).
+
+## Development
+
+Run `make check` before submitting a change. This enforces formatting, static
+analysis, race tests, meaningful 100% coverage, fuzz smoke, benchmarks,
+documentation, and vulnerability scanning.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Protocol and public API changes require
+explicit compatibility analysis.
+
+## Security
+
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+Review [docs/security.md](docs/security.md) before exposing a dispatcher to
+untrusted clients.
+
+## License
+
+`jsonrpc` is available under the [MIT License](LICENSE). Attribution and
+third-party policy are recorded in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# jsonrpc Documentation
+
+Use this index to choose the shortest path from evaluation to production.
+
+## Start Here
+
+- [Quickstart](quickstart.md)
+- [Adoption guide](adoption.md)
+- [API reference](api.md)
+- [Examples](examples.md)
+
+## Design And Operations
+
+- [Architecture](architecture.md)
+- [Go safety and concurrency](go-safety-and-concurrency.md)
+- [Protocol conformance](conformance.md)
+- [Middleware](middleware.md)
+- [Compatibility](compatibility.md)
+- [Performance](performance.md)
+- [Security](security.md)
+- [Hardening](hardening.md)
+
+## Maintain And Troubleshoot
+
+- [Cookbook](cookbook.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+- [Migration](migration.md)
+- [Releasing](releasing.md)
+
+## Repository Maintenance
+
+- [Shared repository standards](repository-standards.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+## Server
+
+Register transport-independent handlers, build a dispatcher, then choose an
+adapter. A handler receives the request context and raw params so it can choose
+positional, named, custom, or typed decoding.
+
+```go
+registry := jsonrpc.NewRegistry()
+if err := registry.Register("greet", func(
+    ctx context.Context,
+    raw json.RawMessage,
+) (any, error) {
+    params, rpcErr := jsonrpc.DecodeParams[struct {
+        Name string `json:"name"`
+    }](raw)
+    if rpcErr != nil || params.Name == "" {
+        return nil, jsonrpc.InvalidParams()
+    }
+    return map[string]string{"message": "Hello " + params.Name}, nil
+}); err != nil {
+    log.Fatal(err)
+}
+
+dispatcher := jsonrpc.NewDispatcher(registry)
+http.Handle("/rpc", jsonrpc.NewHTTPHandler(dispatcher))
+log.Fatal(http.ListenAndServe(":8080", nil))
+```
+
+Wrap `NewHTTPHandler` in ordinary `net/http` middleware for HTTP authentication,
+CORS, or rate limiting. Use dispatcher middleware for RPC-aware logging,
+tracing, authorization, or metrics.
+
+## Client
+
+```go
+transport, err := jsonrpc.NewHTTPTransport(
+    "http://localhost:8080/rpc",
+    jsonrpc.WithHTTPHeader("Authorization", "Bearer "+token),
+)
+if err != nil {
+    log.Fatal(err)
+}
+client := jsonrpc.NewClient(transport)
+
+type greeting struct {
+    Message string `json:"message"`
+}
+result, err := jsonrpc.Call[greeting](ctx, client, "greet", map[string]string{
+    "name": "Ada",
+})
+```
+
+Use `client.Call` instead when the result type is chosen dynamically or the
+result can be discarded.
+
+## Notification
+
+Notifications deliberately have no ID and receive no response:
+
+```go
+err := client.Notify(ctx, "events.record", map[string]any{
+    "name": "shipment.created",
+})
+```
+
+Successful transport only proves that the bytes were sent and the HTTP server
+accepted them. A notification cannot report handler success or failure. Use a
+request when the caller requires an application acknowledgement.
+
+## Batch
+
+```go
+var first, second int
+calls := []*jsonrpc.BatchCall{
+    {Method: "math.add", Params: []int{1, 2}, Result: &first},
+    {Method: "events.record", Params: []string{"viewed"}, Notification: true},
+    {Method: "math.add", Params: []int{3, 4}, Result: &second},
+}
+if err := client.Batch(ctx, calls...); err != nil {
+    log.Fatal(err) // transport or invalid batch response
+}
+for _, call := range calls {
+    if call.Error != nil {
+        log.Printf("RPC error: %v", call.Error)
+    }
+}
+```
+
+Batch responses may arrive in any order. The client correlates them by ID.
+Per-call RPC failures populate `BatchCall.Error`; structural, transport, or
+decode failures are returned from `Batch`.
+
+## Custom transport
+
+Implement one method to use a message bus, test double, WebSocket, or another
+request/response mechanism:
+
+```go
+type Transport interface {
+    RoundTrip(context.Context, []byte) ([]byte, error)
+}
+```
+
+For notifications, return `nil, nil`. The transport must preserve the complete
+JSON-RPC payload, including batch arrays.
+
+## Source: docs/adoption.md
+
+# Production adoption guide
+
+Adopt the package at a protocol boundary, not by rewriting business logic at
+the same time. The sequence below keeps wire compatibility observable and
+rollback straightforward.
+
+## 1. Inventory
+
+For every existing method, record:
+
+- exact method name;
+- positional or named params and whether params may be omitted;
+- result shape;
+- error codes, messages, and public data;
+- notification behavior;
+- ID types accepted in real traffic;
+- batch use and any ordering assumptions;
+- transport status, headers, authentication, and body limits.
+
+Capture fixtures from documented contracts, not confidential production
+payloads. Flag any current behavior that diverges from JSON-RPC 2.0 rather than
+silently preserving it as the new default.
+
+## 2. Build a compatibility harness
+
+Run the same fixtures against the current implementation and a dispatcher
+configured with the new handlers. Compare decoded JSON values, error codes, ID
+types, response omission for notifications, and mixed-batch membership. Avoid
+byte comparison when object key order is irrelevant.
+
+## 3. Map application errors
+
+Create one table from internal errors to public RPC errors. Expected domain
+failures may return `*jsonrpc.Error`; unexpected failures should remain ordinary
+errors and pass through a safe `WithErrorMapper`. Verify logs retain causes and
+wire responses do not.
+
+## 4. Attach operational controls
+
+Add bounded-cardinality metrics, tracing, structured logging, authentication,
+authorization, request limits, and deadlines. Verify notification failures are
+observable even though no response exists. Confirm raw params and credentials
+are excluded from default logs.
+
+## 5. Shadow
+
+Where the existing transport permits it, mirror sanitized requests to the new
+dispatcher without using its result. Compare response classes and timing. Do
+not execute mutating methods twice; use recorded fixtures or read-only methods
+for those paths.
+
+## 6. Rollout
+
+Route a small, identifiable fraction of requests through the new boundary.
+Watch method-level error codes, invalid request rates, latency, panic recovery,
+body-limit rejection, and missing batch responses. Increase gradually after a
+representative traffic window.
+
+## 7. Rollback
+
+Keep the prior handler path deployable until the rollout window closes. A
+rollback must switch the boundary without changing request IDs or retrying
+notifications. Document whether callers might retry ordinary requests after a
+transport failure and ensure methods are appropriately idempotent.
+
+## Readiness checklist
+
+- Every method has valid, invalid, and error fixtures.
+- Notifications are proven to emit no response.
+- Empty, mixed, invalid-member, and notification-only batches are covered.
+- Client and server body limits fit expected payloads.
+- Context cancellation reaches downstream I/O.
+- Public error data contains no internal or personal information.
+- Dashboards and alerts use bounded labels.
+- Rollout and Rollback owners know the switch mechanism.
+
+## Source: docs/api.md
+
+# Public API reference
+
+This is the semantic reference for the exported surface. Exact Go signatures
+are also available through `go doc github.com/faustbrian/golib/pkg/jsonrpc`.
+
+## Protocol
+
+- `Version` is the required `"2.0"` protocol marker.
+- `Request` contains `JSONRPC`, `Method`, raw `Params`, and an `ID`. Its custom
+  JSON implementation preserves ID presence. `Validate` checks the envelope;
+  `IsNotification` is true only when the ID member is absent. Duplicate
+  envelope members and case variants of reserved members are rejected.
+- `Response` contains raw `Result`, structured `Error`, and `ID`. `Validate`
+  requires version 2.0, an ID, and exactly one of result or error. Duplicate
+  response and error-object members and case variants of their reserved names
+  are rejected.
+- `ID` represents a string, JSON number, explicit null, or an internal missing
+  state. Construct values with `StringID`, `NumberID`, and `NullID`; inspect with
+  `Kind` and compare without coercion using `Equal`. Wire decoders reject
+  invalid UTF-8 rather than replacing malformed bytes. Mathematically
+  equivalent numeric spellings compare equal without expanding exponents;
+  normalization work and storage stay proportional to input length.
+  `StringID` applies Go's JSON replacement behavior to invalid UTF-8 in a Go
+  string so the local correlation value exactly matches transmitted JSON.
+- `IDKind` values are `IDMissing`, `IDString`, `IDNumber`, and `IDNull`.
+- `NewRequest` and `NewNotification` validate method names and require params to
+  encode as an object or array when present.
+- `DecodeParams[T]` strictly decodes params and maps malformed, duplicate, or
+  unknown fields to `InvalidParams`.
+
+### Errors
+
+`Error` is both a JSON-RPC error object and a Go error. `Code`, `Message`, and
+optional raw `Data` cross the wire. `WithCause` retains a local cause without
+serializing it; `WithData` JSON-encodes safe public details.
+
+`NewError` constructs application-defined errors. Application codes should be
+outside the protocol-reserved `-32768` through `-32000` range; this package uses
+`-32000` for bounded-dispatch rejection. `ParseError`,
+`InvalidRequest`, `MethodNotFound`, `InvalidParams`, and `InternalError` build
+the standard errors. `RequestLimitExceeded` builds the implementation-defined
+server error used for whole-dispatch resource rejection. Their codes are also
+exported as `CodeRequestLimitExceeded`, `CodeParseError`, `CodeInvalidRequest`,
+`CodeMethodNotFound`, `CodeInvalidParams`, and `CodeInternalError`.
+
+## Server
+
+- `Handler` is `func(context.Context, json.RawMessage) (any, error)`.
+- `Registry` has a usable, concurrency-safe zero value; `NewRegistry` is the
+  explicit constructor. `Register` adds one unique application method,
+  `RegisterSystem` adds an explicitly reserved `rpc.*` protocol method, and
+  `Lookup` supports inspection. Do not copy a registry after first use. An
+  empty string is a valid application method name because the protocol
+  requires only a string; the `rpc.` prefix is reserved from applications.
+- `Dispatcher` is created with `NewDispatcher`. `Dispatch` processes a single
+  request or batch and returns bytes plus a boolean indicating whether a reply
+  exists. Direct payloads default to four MiB and batches to 1,024 members;
+  `WithMaxDispatchBytes` and `WithMaxBatchItems` can raise or lower the bounds.
+- `Middleware` wraps a `Handler`. `WithMiddleware` installs middleware in the
+  listed order, with the first item outermost.
+- `ErrorMapper` converts ordinary application errors to safe RPC errors.
+  `WithErrorMapper` replaces the default internal-error mapping.
+- `Hooks` observes the complete dispatcher lifecycle. `WithHooks` installs
+  callbacks that see parse errors, invalid requests, method lookup failures,
+  notifications, handler results, mapped errors, and recovered panics.
+- `RequestFromContext` retrieves the validated request during middleware or
+  handler execution.
+- Registration errors are detectable with `ErrInvalidMethodName`,
+  `ErrMethodAlreadyRegistered`, and `ErrNilHandler`.
+
+## Client
+
+- `Transport` exchanges one complete JSON-RPC payload. `TransportFunc` adapts a
+  function to that interface. Custom transports remain responsible for
+  bounding acquisition before returning the reply bytes.
+- `Client` is created with `NewClient`. `Call` decodes into a supplied pointer,
+  `Notify` sends a notification, and `Batch` sends one or more `BatchCall`
+  values. Reply parsing defaults to four MiB and can be changed with
+  `WithMaxClientResponseBytes`.
+- `Call[T]` is the typed result helper.
+- `BatchCall` holds `Method`, `Params`, `Result`, and `Notification`. After a
+  valid response, its `Error` holds any per-call RPC failure.
+- `IDGenerator` supplies request IDs. `AtomicIDGenerator` creates monotonic
+  numeric IDs; `WithIDGenerator` installs a custom strategy.
+- Client validation sentinels are `ErrTransport`, `ErrInvalidResponse`,
+  `ErrMismatchedID`, `ErrUnexpectedResponse`, `ErrMissingResponse`,
+  `ErrDuplicateResponse`, `ErrDuplicateRequestID`,
+  `ErrClientResponseTooLarge`, and `ErrEmptyBatch`.
+
+## HTTP
+
+- `NewHTTPHandler` adapts a dispatcher to `http.Handler`.
+  `WithMaxRequestBytes` changes its four-megabyte default request limit.
+- `IsJSONContentType` recognizes `application/json`,
+  `application/json-rpc`, and `application/*+json`, including parameters.
+- `NewHTTPTransport` validates an HTTP(S) endpoint and returns a client
+  transport. `WithHTTPClient`, `WithHTTPHeader`, and `WithMaxResponseBytes`
+  configure it. Direct `RoundTrip` calls return request-construction errors,
+  including a nil context, before network I/O. The default client does not
+  follow redirects, preventing configured headers from crossing origins;
+  `WithHTTPClient` explicitly opts into that client's redirect policy.
+- `HTTPStatusError` exposes `StatusCode` and the bounded response `Body`.
+  `errors.Is` recognizes `ErrHTTPStatus`.
+- Other transport sentinels are `ErrHTTPContentType` and
+  `ErrResponseTooLarge`.
+
+## Compatibility notes
+
+Wire behavior, standard error codes, ID semantics, middleware ordering, and
+exported error identities are compatibility-sensitive. Starting with `v1.0.0`,
+changes follow the stable-release guarantees in the compatibility policy.
+All package constructors ignore nil functional options.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+The package separates the protocol from every delivery mechanism. The normal
+server flow is:
+
+```text
+Transport -> Protocol parsing -> Dispatch -> Middleware -> Execution
+          <- Response shaping  <-          <-            <-
+```
+
+## Transport
+
+`Dispatcher.Dispatch` accepts a context and JSON bytes. It does not know about
+HTTP status codes, headers, connections, or routers. `HTTPHandler` is a small
+adapter that enforces POST, JSON media types, request-size limits, and `204 No
+Content` for requests that contain only notifications.
+
+On the client, `Transport` has one `RoundTrip` method. `HTTPTransport` supplies
+the standard HTTP implementation; callers can replace it without changing
+request construction or response validation.
+
+## Protocol
+
+`Request`, `Response`, `ID`, and `Error` own wire semantics. Custom JSON
+decoding preserves whether an ID was omitted and ensures that ID strings,
+numbers, and explicit `null` are not conflated. Envelope validation happens
+before dispatch or result decoding.
+
+Malformed JSON becomes a parse error. Valid JSON with an invalid JSON-RPC
+shape becomes an invalid-request error. Invalid batch members are handled
+independently, while an empty batch produces a single invalid-request object.
+Protocol envelopes with duplicate object names are rejected rather than using
+the last value. This is a defensive interoperability policy based on
+[RFC 8259 section 4](https://www.rfc-editor.org/rfc/rfc8259#section-4), not an
+additional JSON-RPC 2.0 normative rule. Nested application-owned params,
+results, and error data retain `encoding/json` behavior.
+
+Reserved protocol member names are matched case-sensitively as required by the
+[JSON-RPC conventions](https://www.jsonrpc.org/specification#conventions).
+Case-insensitive matching by Go struct decoders is not allowed to reinterpret
+names such as `Method` as `method`; unrelated extension members remain allowed.
+
+All protocol input must be valid UTF-8 as required by
+[RFC 8259 section 8.1](https://www.rfc-editor.org/rfc/rfc8259#section-8.1).
+The dispatcher classifies invalid UTF-8 as a parse error, and standalone
+request, response, error, and ID decoders return an error without replacement.
+
+## Dispatch
+
+`Registry` is concurrency-safe and rejects duplicates and the
+specification-reserved `rpc.` prefix. A dispatcher looks up a method only after
+the request envelope validates. It echoes an ID only for a valid request;
+invalid requests use `null`.
+
+Batches execute sequentially in input order. This keeps handler ordering
+deterministic and avoids silently imposing concurrency requirements on
+application code. The protocol permits batch responses in any order, so this
+is an implementation choice rather than a wire guarantee.
+
+The transport-neutral dispatcher enforces four-MiB payload and 1,024-member
+batch defaults. It validates the byte limit before parsing and pre-counts batch
+members before invoking any handler. A violation returns one
+`RequestLimitExceeded` response with a null ID because individual members were
+not dispatched. This is an implementation-defined server policy, not a
+JSON-RPC standard error. Raising an HTTP request limit may also require raising
+the dispatcher limit explicitly.
+
+## Execution
+
+Handlers receive `context.Context` and `json.RawMessage`. `DecodeParams[T]` is
+an optional strict decoder; handlers may perform their own decoding. Handler
+panics and ordinary Go errors are contained as internal errors. An `*Error`
+returned by a handler is sent as the protocol error. `WithErrorMapper` provides
+one auditable place to map application errors without exposing internal text.
+
+Middleware wraps handlers in registration-independent chains. The current
+`Request` is placed in context before middleware and execution, so logging,
+tracing, metrics, correlation, and authorization can inspect the method and ID.
+Dispatcher `Hooks` surround the wider protocol lifecycle, including failures
+that occur before a handler or middleware exists. Hook panics are contained so
+observability cannot corrupt a protocol response.
+
+## Client validation
+
+The client owns ID generation and validates version, result/error exclusivity,
+ID equality, batch completeness, duplicate responses, unexpected responses,
+duplicate generated batch request IDs, and typed result decoding. Batch
+response order is irrelevant. Transport errors wrap `ErrTransport`; valid
+JSON-RPC error objects remain `*Error` values.
+
+Client reply parsing has an independent four-MiB default, including for custom
+transports. This bounds protocol allocations after `RoundTrip` returns. A
+custom transport must also bound network or stream acquisition before building
+the returned byte slice; the client cannot retroactively prevent that
+transport-owned allocation.
+
+## Performance model
+
+Envelopes retain raw params and results until an application type is actually
+needed. Handlers are stored as compiled functions rather than reflected method
+descriptors. Batch storage is proportional to the number of members. Benchmarks
+track single, mixed, maximum, and rejected-batch allocations in CI artifacts.
+Numeric ID exponents are normalized with decimal-string addition and
+subtraction, avoiding arbitrary-precision integer parsing whose allocation
+count grew with attacker-controlled exponent digits.
+
+## Source: docs/examples.md
+
+# Examples
+
+## HTTP Server
+
+Create a dispatcher, register methods with explicit request and result types,
+then expose it through the HTTP transport. Keep authentication, authorization,
+request-size limits, and application dependency wiring outside protocol
+handlers.
+
+See the runnable server and client programs under [examples](../examples) and
+the [quickstart](quickstart.md) for the smallest complete setup.
+
+## Notifications
+
+Notifications intentionally produce no JSON-RPC response. Handlers must still
+record failures through application observability because the caller cannot
+receive a protocol error.
+
+## Batch Requests
+
+Apply a total batch-size limit before dispatch. Decide whether independent
+calls may execute concurrently and make that policy explicit. Preserve input
+order when collecting response-bearing results.
+
+## Client Correlation
+
+Use the client API to allocate IDs and correlate out-of-order responses.
+Applications must set transport deadlines and decide whether a transport retry
+is safe for the invoked method.
+
+## Source: docs/cookbook.md
+
+# Scenario cookbook
+
+## Named parameters
+
+```go
+type createParams struct {
+    Reference string `json:"reference"`
+}
+
+params, rpcErr := jsonrpc.DecodeParams[createParams](raw)
+if rpcErr != nil || params.Reference == "" {
+    return nil, jsonrpc.InvalidParams()
+}
+```
+
+`DecodeParams` rejects unknown fields. Use `json.Unmarshal` directly when an API
+has a deliberate forward-compatible or partially dynamic params object.
+
+## Optional parameters
+
+The protocol permits params to be omitted, but `DecodeParams` treats missing
+params as invalid. A handler with optional params should detect an empty raw
+message first and install its defaults explicitly.
+
+## Custom application errors
+
+```go
+return nil, jsonrpc.NewError(-30001, "Resource not ready").WithData(map[string]any{
+    "retryable": true,
+})
+```
+
+Use application codes outside JSON-RPC's reserved `-32768` through `-32000`
+range. Error messages and data are public wire content; keep private causes in
+`WithCause` instead.
+
+Do not reuse and mutate one shared `*Error` with per-request data. Construct a
+new value for request-specific data to avoid races and accidental disclosure.
+
+## Mapping internal errors
+
+Return ordinary Go errors from application layers. Configure one
+`WithErrorMapper` to translate known categories and map every unknown error to
+`InternalError`. `WithCause` keeps the original error available to local
+logging and `errors.Is` without putting it on the wire.
+
+## Notification audit
+
+A notification has no response, including when the method is missing or the
+handler fails. If audit confirmation matters, record it inside the handler or
+use a normal request. Never make an HTTP `204` mean that application execution
+succeeded; it only means no JSON-RPC response exists.
+
+## Batch with partial errors
+
+After `Client.Batch` returns `nil`, inspect every non-notification
+`BatchCall.Error`. A returned error means the entire response was unusable or
+the transport failed. A populated per-call error is a valid correlated RPC
+failure. Results may arrive in any order.
+
+## Custom transport
+
+```go
+type queueTransport struct { /* ... */ }
+
+func (transport *queueTransport) RoundTrip(
+    ctx context.Context,
+    payload []byte,
+) ([]byte, error) {
+    // Preserve payload as one complete JSON-RPC message.
+    // Return nil for notification-only messages.
+}
+```
+
+Do not split or reorder members inside a batch at the transport layer. If the
+underlying transport streams frames, reassemble one complete JSON value before
+giving it to the client or dispatcher.
+
+## Custom request IDs
+
+Implement `IDGenerator` when IDs must carry a trace-friendly string or another
+process-safe scheme. Generators used concurrently must be safe for concurrent
+calls. Do not use fractional numeric IDs: the JSON-RPC specification discourages
+them because binary representations can make correlation unreliable.
+
+## HTTP authentication
+
+Use `WithHTTPHeader` for a fixed header. For rotating credentials, install a
+custom `http.RoundTripper` on a client supplied through `WithHTTPClient`; it can
+derive a fresh credential per request without rebuilding the JSON-RPC client.
+
+## Cancellation and deadlines
+
+The HTTP transport attaches the supplied context to the request. The HTTP
+handler passes `request.Context()` into dispatch. Handlers and middleware must
+honor cancellation in their own I/O; the package cannot interrupt code that
+ignores context.
+
+## Source: docs/faq.md
+
+# FAQ
+
+## Is this tied to HTTP?
+
+No. `Dispatcher` and `Client` depend only on bytes, context, and the `Transport`
+interface. The package includes HTTP adapters because they are common and easy
+to compose with `net/http`.
+
+## Why did my notification return no error response?
+
+A valid notification has no ID and the server must not respond, even when the
+method does not exist or execution fails. Use logs and metrics for server-side
+visibility, or send a normal request when the caller needs acknowledgement.
+
+## Are batch handlers concurrent?
+
+No. The dispatcher executes members sequentially in input order. JSON-RPC does
+not require a processing order, and callers must correlate batch responses by
+ID rather than position. A future optional concurrent helper must preserve all
+protocol semantics and be explicit about application concurrency.
+
+## Can I use string IDs?
+
+Yes. Use `StringID` or a custom `IDGenerator`. Number, string, and null IDs are
+not interchangeable. Fractional numeric IDs are discouraged by the JSON-RPC
+specification and should be avoided.
+
+## Why are scalar params rejected?
+
+JSON-RPC 2.0 says params, when present, must be a structured value: an array for
+positional arguments or an object for named arguments. Strings, numbers,
+booleans, and null are therefore invalid params shapes.
+
+## Does the package validate my domain fields?
+
+No. It validates envelopes and offers typed JSON decoding. Required fields,
+ranges, formats, and business invariants belong in handlers or an application
+validator. Return `InvalidParams` for invalid method arguments.
+
+## Can I expose internal errors in Data?
+
+You can, but should not. `Data` is serialized. Prefer `WithCause` for logs and
+traces, then send a stable public message and deliberately safe data.
+
+## Does the client retry?
+
+No. Automatic retries can duplicate non-idempotent methods and are outside the
+core protocol. Add retries around the transport only with application-specific
+idempotency and backoff decisions.
+
+## Is WebSocket supported?
+
+The core works with any custom transport, but the first version does not ship a
+WebSocket helper. A future adapter can be added without changing envelope or
+dispatch semantics.
+
+## Why does the HTTP server return 200 for RPC errors?
+
+The HTTP exchange succeeded and carries a JSON-RPC response whose `error`
+member describes the RPC failure. Transport problems such as unsupported media
+type or excessive body size use HTTP error statuses before dispatch.
+
+## Is explicit null ID a notification?
+
+No. An ID member with `null` is still present and receives a response with a
+null ID. Omitting the ID member creates a notification. The specification
+discourages null request IDs because null is also used when an invalid request
+ID cannot be established.
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+Start by separating HTTP transport failures from JSON-RPC error objects. HTTP
+statuses other than 200 or 204 indicate the adapter or upstream rejected the
+exchange. A 200 response may contain either `result` or `error`.
+
+## Parse error (-32700)
+
+The payload is not valid JSON. Check truncation, framing, character encoding,
+and whether a stream combined multiple JSON values. Log payload size and a
+safe correlation ID; avoid logging confidential raw bodies.
+JSON text must be valid UTF-8. Malformed bytes are rejected rather than
+silently replaced with the Unicode replacement character.
+
+## Invalid Request (-32600)
+
+The JSON value is valid but not a valid request object. Common causes are a
+missing or non-`"2.0"` `jsonrpc`, a non-string method, scalar/null
+params, an invalid ID type, an empty batch, or a scalar batch member. Invalid
+requests respond with a null ID because the supplied ID cannot be trusted.
+Duplicate envelope members are also rejected because different JSON parsers
+may select different values. Remove the duplicate rather than relying on
+last-member-wins behavior.
+Reserved member names are case-sensitive: use `jsonrpc`, `method`, `params`,
+and `id` exactly. Case variants such as `Method` are not aliases.
+
+## Method not found (-32601)
+
+Confirm exact, case-sensitive registration and request names. The `rpc.` prefix
+is reserved and cannot be registered. Registration rejects duplicates, so
+check and handle the error returned by `Registry.Register` during startup.
+
+## Invalid params (-32602)
+
+Confirm whether the method expects positional arrays or named objects. When
+using `DecodeParams`, unknown object fields are rejected. Missing params are
+also rejected by that helper, as are duplicate top-level named parameters;
+handlers with optional params must handle an empty raw message before decoding.
+
+## Internal error (-32603)
+
+The handler panicked, returned an ordinary unmapped error, produced an
+unencodable result, or the configured mapper returned nil. Inspect server logs
+and tracing using the local error cause. Do not replace the public message with
+raw internal error text.
+
+## Client says mismatched ID
+
+The response ID is not exactly the request ID. String `"1"` and number `1` are
+different. Check proxies, custom transports, shared buffers, and servers that
+generate new IDs instead of echoing the request member.
+
+## Missing or duplicate batch response
+
+Every non-notification batch member must have exactly one response. The order
+may differ. A missing member often means a server treated a null ID as a
+notification; a duplicate often means the transport retried or combined
+frames incorrectly.
+
+`ErrDuplicateRequestID` occurs before transport I/O when a custom ID generator
+returns the same canonical ID for multiple non-notification calls in one
+batch. Fix the generator; duplicate IDs cannot be correlated safely.
+
+## Unexpected response to a notification
+
+The server or custom transport returned bytes for a notification-only message.
+For HTTP, the supplied adapter returns 204 with no body. Custom transports must
+return `nil, nil` when no JSON-RPC response exists.
+
+## Unsupported media type (415)
+
+Set `Content-Type: application/json`. The HTTP adapter also accepts
+`application/json-rpc` and `application/*+json`, including media-type
+parameters. An absent content type is rejected.
+
+## Request or response too large
+
+The HTTP server and client default to four MiB. Change them with
+`WithMaxRequestBytes` and `WithMaxResponseBytes` only after validating memory,
+latency, and upstream proxy limits. For very large datasets, prefer a domain
+pagination or streaming design rather than oversized RPC envelopes.
+
+The transport-neutral client separately limits reply parsing to four MiB and
+returns `ErrClientResponseTooLarge`. Change this with
+`WithMaxClientResponseBytes`. Custom transports must still bound reads before
+allocating and returning the response bytes.
+
+Direct `Dispatcher` use has its own four-MiB payload limit and a default limit
+of 1,024 batch members. Configure these with `WithMaxDispatchBytes` and
+`WithMaxBatchItems`. A violation returns the implementation-defined `-32000`
+`Request limit exceeded` response with a null ID before any member executes.
+If `WithMaxRequestBytes` raises the HTTP limit, raise the dispatcher byte limit
+separately when the larger payload is intentional.
+
+## Context cancellation is ignored
+
+The package propagates context, but handler code and downstream clients must
+observe it. Ensure database, HTTP, and queue calls use the supplied handler
+context instead of `context.Background()`.
+
+Do not pass a nil context. `HTTPTransport.RoundTrip` rejects it before network
+I/O; use `context.Background()` or `context.TODO()` when no narrower lifetime is
+available.
+
+## HTTP redirect is returned as a status error
+
+The built-in transport does not follow redirects because configured headers
+may contain credentials that must not cross origins. Use the final JSON-RPC
+endpoint directly. If redirects are an intentional part of a trusted topology,
+pass an `http.Client` with an explicit `CheckRedirect` policy through
+`WithHTTPClient`.
+
+## Source: docs/migration.md
+
+# Migration
+
+## From Ad Hoc JSON-RPC Handlers
+
+1. Inventory method names, parameter shapes, notification behavior, and error
+   codes.
+2. Move protocol decoding and validation into this package before changing
+   business behavior.
+3. Register one method at a time and compare success and error responses with
+   captured fixtures.
+4. Add batch, notification, malformed-input, and cancellation regressions.
+5. Switch clients only after ID correlation and transport timeout behavior
+   match production expectations.
+
+## Between Package Versions
+
+Read [CHANGELOG.md](../CHANGELOG.md) and [compatibility.md](compatibility.md)
+before upgrading. Pre-v1 releases may contain documented breaking changes.
+Never infer wire compatibility from compilation alone; replay representative
+requests and errors.
+
+## Source: docs/compatibility.md
+
+# Compatibility policy
+
+The project follows [Semantic Versioning](https://semver.org/) for tagged
+releases. Protocol behavior is compatibility-sensitive even where a Go type or
+function signature does not change.
+
+## Stable releases
+
+As of `v1.0.0`:
+
+- patch releases fix defects without intentionally changing valid public
+  behavior;
+- minor releases add backward-compatible APIs and optional behavior;
+- major releases may remove or change exported APIs or documented semantics.
+
+Supported Go versions follow the Go release policy: the latest two stable Go
+release families are tested when practical. Raising the minimum Go version is
+documented in the changelog and normally occurs in a minor release.
+
+## Wire compatibility
+
+The following are treated as public compatibility commitments:
+
+- JSON-RPC version, request, response, notification, and batch semantics;
+- standard error codes and messages;
+- exact ID type preservation and echoing;
+- whether a response is omitted;
+- response result/error exclusivity;
+- client validation of mismatched, missing, duplicate, or malformed responses;
+- rejection of duplicate request, response, and error-envelope members;
+- case-sensitive matching of reserved protocol member names;
+- rejection of invalid UTF-8 without replacement;
+- HTTP methods, accepted media types, status behavior, and default limits;
+- dispatcher byte and batch-member limits and their whole-request error shape;
+- transport-neutral client response limits and oversized-response errors;
+- middleware order and request-context availability;
+- exported sentinel identities recognized through `errors.Is`.
+
+A change that causes a previously valid exchange to become invalid, changes an
+error classification, or changes an observable wire value is breaking unless
+it corrects a documented specification violation. Compliance fixes are called
+out prominently and receive migration guidance even when released before a new
+major version.
+
+## Deprecation
+
+An exported API is normally deprecated in at least one minor release before
+removal in a major release. Deprecation comments name the replacement and
+migration path. Security or correctness issues may require faster removal;
+those exceptions are documented with their risk.
+
+## Out of contract
+
+Map key order, allocation counts, exact internal error causes, benchmark timing,
+and sequential batch execution are implementation details unless explicitly
+promoted to guarantees. Batch response order must never be relied upon because
+the JSON-RPC specification allows any order.
+
+## Source: docs/performance.md
+
+# Performance
+
+## What To Measure
+
+Benchmark protocol decode, validation, dispatch, response encode, batch
+handling, and client correlation separately. Use realistic method payloads and
+report Go version, hardware, request shape, batch size, allocations, and
+benchmark duration.
+
+## Required Checks
+
+Run:
+
+```sh
+make benchmark
+make test-race
+```
+
+Performance changes must preserve protocol semantics and error behavior.
+Allocation reductions are not accepted when they weaken validation, duplicate
+ID detection, cancellation, or response correlation.
+
+## Capacity Planning
+
+The package does not define server concurrency or admission control. Measure
+the complete transport and handler stack under the expected method mix,
+payload distribution, and deadline policy.
+
+## Source: docs/hardening.md
+
+# Hardening report
+
+This report records the evidence-driven security, correctness,
+interoperability, and operational audit of `jsonrpc`. It is a living audit
+artifact: an `Open` disposition is a release blocker at the stated severity,
+not an implied acceptance of the risk.
+
+## Method and severity
+
+Protocol conclusions use the official
+[JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification). JSON
+interoperability conclusions use [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259).
+Runtime conclusions use the documented contracts of Go's standard library and
+the source shipped with the tested Go toolchain.
+
+- **High**: remotely triggerable loss of availability, integrity, or protocol
+  correlation under a normal deployment boundary.
+- **Medium**: malformed or adversarial peers can cause ambiguous behavior,
+  incorrect protocol results, or a bounded but material operational failure.
+- **Low**: defensive API, diagnostics, or misuse resistance gap with limited
+  direct impact.
+- **Informational**: verified behavior, documentation debt, or a test-gate gap
+  without a demonstrated defect.
+
+## Baseline
+
+The unchanged baseline was run on 2026-07-14 with Go 1.26.5 on Darwin/arm64.
+All commands completed without skips:
+
+| Command | Result |
+| --- | --- |
+| `test -z "$(gofmt -l .)"` | Passed |
+| `go test ./...` | Passed |
+| `scripts/check-coverage.sh` | Passed; 100.0% statements |
+| `go vet ./...` | Passed |
+| `go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...` | Passed |
+| `go test -race ./...` | Passed |
+| `scripts/check-docs.sh` | Passed |
+| `go test -run='^$' -bench=. -benchmem ./...` | Passed |
+| `go test -run='^$' -fuzz='^FuzzDispatcher$' -fuzztime=30s .` | Passed |
+| `go test -run='^$' -fuzz='^FuzzRequestUnmarshal$' -fuzztime=30s .` | Passed |
+| `go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...` | Passed; no vulnerabilities found |
+| `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7` | Passed |
+
+The module has no runtime dependency outside the Go standard library. The
+baseline proved the existing gate was healthy; it did not prove the hostile
+input, correlation, and resource-bound claims below.
+
+## Threat model
+
+| Actor or failure | Entry point | Protected asset | Required control | Current disposition |
+| --- | --- | --- | --- | --- |
+| Malicious client | Dispatcher or HTTP request bytes | Availability and correct server dispatch | Strict envelopes, size and batch limits, panic containment | Parser and input limits verified |
+| Malicious server | Client transport reply | Client integrity, memory, and correlation | Strict response shape, IDs, membership, and reply limits | Validation and parsing limits verified; custom acquisition is adopter-owned |
+| Buggy handler | Handler result, error, panic, or blocking work | Response confidentiality and server availability | Safe error mapping, panic recovery, context propagation, explicit trust boundary | Mapping, recovery, and propagation verified; handler allocation and blocking remain adopter-owned |
+| Oversized batch | Dispatcher batch array | CPU, memory, downstream capacity | Payload and member limits with deterministic rejection | Fixed and verified |
+| Slow HTTP peer | HTTP body read or response wait | Connections and goroutines | Context, adopter timeouts, bounded bodies, cleanup | Body bounds verified; timeout policy is adopter-owned |
+| Concurrent adopter | Registry, dispatcher, client, custom options | Race freedom and deterministic ownership | Immutable configuration and synchronized mutation | Registry and default ID generator have race-detector-backed concurrent tests; custom dependencies retain documented contracts |
+| Ambiguous JSON peer | Duplicate names, case variants, malformed UTF-8 | Cross-parser agreement | Reject ambiguous protocol text before interpretation | Fixed and verified |
+
+Authentication, authorization, TLS policy, rate limiting, and application data
+validation remain adopter responsibilities. The library must still make its
+own parsing, correlation, allocation, and goroutine behavior safe when those
+outer controls are absent.
+
+## Public surface inventory
+
+The audited surface includes:
+
+- protocol types `ID`, `Request`, `Response`, and `Error`, their custom JSON
+  methods, constructors, validators, standard errors, and raw data ownership;
+- `Registry`, `Dispatcher`, `Handler`, `Middleware`, `ErrorMapper`, `Hooks`,
+  `DecodeParams`, and request context propagation;
+- `Client`, `BatchCall`, `Transport`, `IDGenerator`, typed calls, notifications,
+  batch correlation, and all exported client sentinels;
+- `HTTPHandler`, `HTTPTransport`, body limits, media types, headers, methods,
+  status errors, URL validation, caller clients, and body cleanup;
+- sequential batch execution, registry locking, atomic ID generation, panic
+  recovery, hook recovery, and every package goroutine boundary; and
+- repository workflows, release tooling, fuzz targets, benchmarks,
+  documentation generation, and the standard-library-only dependency graph.
+
+Exact signatures and compatibility commitments are maintained in the
+[public API reference](api.md) and [compatibility policy](compatibility.md).
+
+## Findings
+
+| ID | Severity | Finding and impact | Affected surface | Disposition and evidence |
+| --- | --- | --- | --- | --- |
+| GJ-001 | Medium | Duplicate protocol members used Go's last-value-wins behavior, allowing peers to disagree on an envelope's meaning. | Request, response, and error decoding | **Fixed.** Unique-name scanning precedes decoding; `TestProtocolDecodersRejectDuplicateMembers` covers every reserved member. This is defensive policy under [RFC 8259 section 4](https://www.rfc-editor.org/rfc/rfc8259#section-4). |
+| GJ-002 | Medium | A custom client ID generator could produce duplicate IDs in one batch, overwriting pending correlation before transport I/O. | `Client.Batch` | **Fixed.** `ErrDuplicateRequestID` is returned before transport; covered by `TestClientBatchRejectsDuplicateRequestIDsBeforeTransport`. |
+| GJ-003 | Medium | Go's case-insensitive struct matching accepted case variants of reserved names despite JSON-RPC's case-sensitive convention. | Request, response, and error decoding | **Fixed.** Reserved variants are rejected while unrelated extensions remain allowed; covered by `TestProtocolDecodersRejectCaseVariantsOfReservedMembers`. |
+| GJ-004 | Medium | Invalid UTF-8 was silently replaced, changing methods, IDs, params, results, or error data before validation. | All protocol decoders and `Dispatcher.Dispatch` | **Fixed.** Invalid UTF-8 is rejected and server input becomes a parse error; covered by `TestProtocolRejectsInvalidUTF8` and fuzz seeds. |
+| GJ-005 | High | The transport-neutral dispatcher had no payload or batch-member limit. Input size therefore controlled validation work, allocations, handler count, and downstream calls. | `Dispatcher.Dispatch` and batch dispatch | **Fixed.** Four-MiB and 1,024-member defaults are enforced before parsing or handler execution; exact-boundary and zero-side-effect behavior is covered by `TestDispatcherRejectsResourceLimitViolationsBeforeDispatch`. |
+| GJ-006 | Medium | Numeric ID canonicalization parsed attacker-controlled exponent digits with `math/big.Int`, causing allocation count and memory to scale poorly. | `ID.UnmarshalJSON`, `ID.Equal`, client correlation | **Fixed.** Linear decimal-string arithmetic preserves mathematical equality; `TestIDCanonicalizationAllocationsDoNotScaleWithExponentDigits` caps a 64-KiB exponent at 50 allocations and long carry/borrow equivalence is covered by `TestDecimalExponentArithmetic`. |
+| GJ-007 | Medium | Named parameter decoding inherited duplicate-name behavior inside the params object. | `DecodeParams` | **Fixed.** Unique-name validation now runs before exact-name and typed decoding; covered by `TestDecodeParams`. |
+| GJ-008 | Medium | Generic transports could return arbitrarily large client replies and the client parsed them without its own configured limit. | `Client.Call`, `Client.Batch`, `Client.Notify` | **Fixed.** A four-MiB client default rejects replies before JSON parsing and is configurable through `WithMaxClientResponseBytes`; covered by `TestClientRejectsOversizedGenericTransportResponse`. Custom transports remain responsible for bounding their own acquisition. |
+| GJ-009 | Low | The zero value of `Registry` panicked on registration because its method map was nil. | `Registry.Register` | **Fixed.** The map is initialized under the registry write lock and zero-value registration and lookup are covered by `TestRegistryZeroValueIsUsable`. |
+| GJ-010 | Low | Nil functional options and a nil context passed directly to HTTP transport could panic at API boundaries. | Constructors and `HTTPTransport.RoundTrip` | **Fixed.** Constructors consistently ignore nil options and HTTP request construction errors return before network I/O; covered by `TestConstructorsIgnoreNilOptions` and `TestHTTPTransportRejectsNilContextWithoutNetworkIO`. |
+| GJ-011 | Informational | Fuzzing covered dispatcher and request decoding only; response, error, ID, client correlation, and round-trip properties lacked dedicated fuzz targets. | Test and CI gates | **Fixed.** Dedicated targets now exercise every listed boundary locally, in pull requests, on the weekly schedule, and during releases. Seeds include the checked-in official corpus, invalid UTF-8, duplicate members, deep JSON, large batches, and hostile exponent IDs. |
+| GJ-012 | Informational | Existing benchmarks covered representative dispatch and one hostile exponent but omitted maximum payload and malicious-server reply boundaries. | Benchmark gate | **Fixed.** Accepted and rejected maximum payloads, accepted and rejected maximum batches, oversized client replies, and hostile numeric IDs now have reproducible benchmarks. Slow network timing remains transport- and deployment-owned rather than assigned a nonportable library budget. |
+| GJ-013 | Medium | The default HTTP client followed redirects, allowing arbitrary configured headers such as API keys to be forwarded to another origin. | `HTTPTransport` default client | **Fixed.** The default client returns redirects as bounded `HTTPStatusError` values without a second request; covered by `TestHTTPTransportDoesNotFollowRedirectsByDefault`. A caller may explicitly supply a client with its own redirect policy. |
+| GJ-014 | Low | Direct calls to `ID.UnmarshalJSON` accepted a valid ID followed by another JSON value because the streaming decoder did not require EOF. | `ID.UnmarshalJSON` | **Fixed.** A second decode must reach EOF before state is committed; covered by `TestProtocolDefensivePaths` and `FuzzIDRoundTrip`. |
+| GJ-015 | Low | `StringID` encoded invalid UTF-8 with Go's replacement behavior but retained the original invalid bytes for equality, so an echoed response could never correlate. | `StringID`, client response matching | **Fixed.** The canonical value is decoded from the exact generated JSON; covered by `TestStringIDCorrelationMatchesItsJSONEncoding`. Malformed UTF-8 received directly from a peer remains rejected. |
+
+## Verified defensive properties
+
+- Handler and middleware panics are contained as internal errors and their
+  causes are not serialized.
+- Hook panics cannot alter protocol output; hook-observed response data is
+  copied before invocation.
+- Registry lookup and registration use an `RWMutex`; the default client ID
+  generator uses `atomic.Int64`.
+- Server batches execute sequentially, so input cannot create goroutine fan-out.
+- Direct dispatch rejects more than four MiB or 1,024 batch members before any
+  handler call. The limits remain enabled when nonpositive options are supplied.
+- HTTP request and response bodies default to four MiB; request overflow is
+  `413`, response overflow is `ErrResponseTooLarge`, and bodies are closed.
+- Go 1.26.5's `encoding/json` scanner enforces a nesting ceiling of 10,000.
+  A library-level shallower limit has not yet been justified by evidence.
+- Internal handler errors, panic values, and stack traces are retained only as
+  local causes; the wire message remains `Internal error`.
+- Cancellation reaches client transports, middleware, and handlers. HTTP body
+  lifetimes are closed on success and read failure, and one-byte reads exercise
+  the same bounded path as ordinary request bodies.
+
+Handlers, middleware, hooks, custom transports, custom ID generators, and
+caller-supplied HTTP clients are trusted extension points. The package cannot
+bound allocations performed inside adopter code or interrupt code that ignores
+context; deployment HTTP timeouts and application output policy remain required.
+
+On the baseline Apple M4 Max, the new hostile-boundary benchmarks measured:
+
+| Benchmark | Time | Bytes/op | Allocs/op |
+| --- | ---: | ---: | ---: |
+| Maximum 1,024-member batch | 2.28 ms | 2,661,007 | 47,133 |
+| Rejected 1,025-member batch | 0.26 ms | 3,543 | 26 |
+| Maximum four-MiB payload | 1.33 ms | 6,346 | 83 |
+| Rejected four-MiB-plus-one payload | 1.52 us | 1,025 | 17 |
+| Rejected four-MiB-plus-one client reply | 0.97 us | 873 | 18 |
+
+These measurements justify pre-dispatch rejection and establish a local
+comparison point; they are not portable latency budgets.
+
+`BenchmarkDispatchMaximumPayload`, `BenchmarkDispatchRejectedPayload`, and
+`BenchmarkClientRejectedResponse` provide the equivalent byte-limit comparison
+points. Network deadlines are deliberately not benchmarked: custom transports,
+HTTP client timeouts, server timeouts, and request contexts own those policies.
+
+The corrected 64-KiB exponent benchmark improved from approximately 5.14 ms,
+11.0 MB, and 1,009 allocations to 0.39 ms, 0.48 MB, and 17 allocations on the
+same machine. The regression asserts allocation count rather than timing.
+
+## Release readiness
+
+**Final verdict: release-ready for the first `v1.0.0` tag.** Every finding is
+fixed or assigned to an explicit trusted extension boundary, every normative
+conformance row has direct passing evidence, and the final gate completed
+without skips on 2026-07-14 using Go 1.26.5 on Darwin/arm64.
+
+| Final command | Result |
+| --- | --- |
+| `test -z "$(gofmt -l .)"` | Passed |
+| `go test ./...` | Passed |
+| `scripts/check-coverage.sh` | Passed; 100.0% production statements |
+| `go vet ./...` | Passed |
+| `go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...` | Passed |
+| `go test -race ./...` | Passed |
+| `scripts/check-docs.sh` | Passed |
+| `go test -run='^$' -bench=. -benchmem ./...` | Passed |
+| All seven `go test -run='^$' -fuzz='^TARGET$' -fuzztime=30s .` commands | Passed |
+| `go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...` | Passed; no vulnerabilities found |
+| `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7` | Passed |
+
+The semantic-version recommendation is `v1.0.0`: the remote has no published
+tags, the stable API and compatibility contract are now documented, and the
+full hardening set is included in the dated `1.0.0` changelog section. Trusted
+handlers and custom transports still require application output policy,
+timeouts, cancellation cooperation, authentication, authorization, TLS, and
+rate limiting as documented above; these are deployment boundaries, not open
+library findings.
+
+## Source: docs/security.md
+
+# Security
+
+## Trust Boundary
+
+Treat request bodies, IDs, method names, parameters, batch members, and remote
+responses as untrusted. Bound HTTP bodies and batch sizes before work is
+scheduled.
+
+## Application Responsibilities
+
+- authenticate and authorize methods before business execution;
+- apply request, batch, concurrency, and rate limits;
+- set transport and handler deadlines;
+- avoid returning internal error details in JSON-RPC error data;
+- define safe retry behavior for each client method.
+
+Notifications require observability because they cannot return protocol
+errors. Transport security and credential handling are outside this package.
+
+## Reporting
+
+Follow [SECURITY.md](../SECURITY.md) for private vulnerability reporting and
+[hardening.md](hardening.md) for the current audit evidence.
+
+## Source: docs/releasing.md
+
+# Versioning and release guide
+
+Releases are immutable semantic-version tags created from a clean, reviewed
+`main` commit. The GitHub tag workflow reruns tests, race detection, coverage,
+and vet before creating release notes.
+
+## Choose a semantic version
+
+- Patch: backward-compatible fixes and documentation corrections.
+- Minor: backward-compatible features and new optional APIs.
+- Major: post-v1 breaking exported API or documented behavior changes.
+
+Use a prerelease such as `v1.0.0-rc.1` when external adopters need to validate a
+candidate. Never move or replace a published tag.
+
+## Release commands
+
+After adding a dated changelog section and release link, run the target for the
+intended compatibility level:
+
+```sh
+make release-patch
+make release-minor
+make release-major
+```
+
+Each target calculates the next stable version from the latest stable tag,
+requires a clean `main` branch synchronized with `origin/main`, runs the
+complete release checks, and creates a local annotated tag. It never pushes the
+tag. Review the tag before running the printed `git push origin vX.Y.Z`
+command.
+
+## Release checklist
+
+1. Confirm `CHANGELOG.md` moves relevant Unreleased entries under the version
+   and date.
+2. Confirm `go.mod`, examples, and documentation use the canonical public
+   module path.
+3. Confirm the compatibility impact and migration notes for every observable
+   protocol or API change.
+4. Run:
+
+   ```sh
+   test -z "$(gofmt -l .)"
+   go vet ./...
+   staticcheck ./...
+   go test -race ./...
+   scripts/check-coverage.sh
+   go test -run='^$' -bench=. -benchmem ./...
+   go test -fuzz=FuzzDispatcher -fuzztime=30s .
+   go test -fuzz=FuzzRequestUnmarshal -fuzztime=30s .
+   govulncheck ./...
+   ```
+
+5. Verify all required GitHub Actions checks are green on the release commit.
+6. Create an annotated tag: `git tag -a vX.Y.Z -m "vX.Y.Z"`.
+7. Push only that tag: `git push origin vX.Y.Z`.
+8. Confirm the release workflow created the GitHub release and generated notes.
+9. In a clean temporary module, run the following command and compile a minimal
+   client:
+
+   ```sh
+   go get github.com/faustbrian/golib/pkg/jsonrpc@vX.Y.Z
+   ```
+
+## Failure handling
+
+If verification fails, fix forward with a normal commit and restart the
+checklist. Do not bypass hooks, force-update the tag, or edit a published tag.
+If a broken version was published, document it and release the next patch.
+
+## Reproducibility
+
+This repository publishes a Go library, so no binary artifact is required. The
+tag identifies the source consumed by the Go module proxy. Workflows pin tool
+versions where they install tools and use the module's declared Go version.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Before Opening A Change
+
+Use an issue for changes affecting JSON-RPC protocol behavior, dispatch, transports, middleware, clients, and conformance. Explain the user problem,
+compatibility impact, and why the behavior belongs in this generic package.
+
+## Development Setup
+
+Requirements:
+
+- Go 1.26.5 or later
+- Git
+- `golangci-lint` v2
+
+```sh
+go mod download
+make check
+```
+
+## Change Requirements
+
+- Add regression coverage before fixing a defect.
+- Maintain meaningful 100% production-code coverage.
+- Update public examples and documentation with behavior changes.
+- Update `.ai/GOAL.md` or `.ai/GOAL_HARDEN.md` when scope or acceptance criteria
+  change.
+- Add an `Unreleased` entry to `CHANGELOG.md`.
+- Explain every dependency addition, upgrade, or removal.
+- Update `NOTICE` when project ownership changes and
+  `THIRD_PARTY_NOTICES.md` when third-party attribution changes.
+
+## Package-Specific Review
+
+Preserve JSON-RPC 2.0 request, notification, ID, batch, response, and error semantics. Every protocol change MUST include conformance and malformed-input evidence.
+
+## Local Verification
+
+Run the complete local gate:
+
+```sh
+make check
+```
+
+## Commits And Pull Requests
+
+Use focused conventional commits with a body explaining why the change is
+needed. Pull requests must describe compatibility impact, tests, verification
+commands and results, documentation updates, and changelog updates.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md).
+
+## Source: SECURITY.md
+
+# Security Policy
+
+## Supported Versions
+
+Before `v1.0.0`, security fixes are applied to the latest revision of
+`main`. After the first stable release, supported release lines and
+end-of-support dates will be documented here.
+
+## Reporting A Vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, expected and observed behavior, affected versions, impact,
+and any suggested mitigation. Do not include secrets or production data.
+
+## Response Process
+
+Maintainers will acknowledge the report, reproduce and assess it privately,
+coordinate a fix and advisory, and credit the reporter when requested. Public
+disclosure should wait until a fix or agreed mitigation is available.
+
+## Package Security Boundary
+
+Requests, responses, parameters, IDs, batches, transports, and handler error data are untrusted protocol inputs. Body and batch limits are part of the maintained security boundary.
+
+## Application Responsibilities
+
+Applications remain responsible for transport limits, authentication,
+authorization, rate limiting, deadlines, secret handling, deployment policy,
+and business-level validation. Package safeguards do not replace those
+controls.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for adoption guidance and maintained
+evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+The roadmap is ordered by protocol confidence, not feature count. New adapters
+must reuse the same envelopes, validation, dispatch, and error semantics.
+
+## v1 foundation
+
+`v1.0.0` establishes the transport-neutral client and server API, strict
+JSON-RPC 2.0 conformance, full production-package coverage, and the published
+compatibility and security policies. The release checklist includes verifying
+the tagged module through the public Go module proxy.
+
+## Post-v1 roadmap
+
+- WebSocket transport helpers with explicit connection and correlation rules.
+- Stream-friendly batch helpers that retain complete-message semantics.
+- OpenRPC schema generation from opt-in method metadata.
+- Optional idempotency-aware retry building blocks without business defaults.
+- Router adapters that remain thin wrappers over `HTTPHandler`.
+- More transport and interoperability fixtures from external implementations.
+
+## Explicitly not planned
+
+- Service discovery, load balancing, or service-mesh behavior.
+- Application-specific authentication schemes.
+- Queue orchestration or background job frameworks.
+- Automatic retries that assume method idempotency.
+- SOAP, XML-RPC, GraphQL, or JSON:API support in this module.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
+[Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Compatibility
+
+- Added a pinned module export baseline so incompatible public API changes
+  fail the canonical repository gate.
+
+### Changed
+
+- Expose JSON-RPC specification verification as an explicit conformance gate.
+- Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
+  benchmark standard with an executable `make safety` gate.
+- Moved AI planning and hardening briefs into `.ai/` and clarified the
+  separate purposes of project and third-party notice files.
+
+### Added
+
+- `Registry.RegisterSystem` for trusted protocol integrations such as
+  OpenRPC's reserved `rpc.discover` method.
+- A standardized OSS repository skeleton covering policy, documentation,
+  legal notices, Go tooling, pinned CI, security, and release automation.
+
+## [1.0.0] - 2026-07-14
+
+### Added
+
+- Evidence-driven audit and hardening goal covering JSON-RPC conformance,
+  hostile inputs, transports, concurrency, compatibility, and release readiness.
+- Living hardening report, threat model, and normative JSON-RPC conformance
+  matrix with explicit evidence and open-risk tracking.
+- Dispatcher payload and batch-member options with safe defaults of four MiB
+  and 1,024 members, plus an inspectable request-limit protocol error.
+- A transport-neutral four-MiB client reply parsing limit with an additive
+  option and inspectable oversized-response sentinel.
+- Transport-neutral JSON-RPC 2.0 request, notification, response, and batch
+  processing.
+- Canonical public module path at `github.com/faustbrian/golib/pkg/jsonrpc`.
+- Concurrency-safe server registry, middleware, request context, safe error
+  mapping, and panic containment.
+- Plain `net/http` handler with media-type and body-size enforcement.
+- Typed client calls, notifications, mixed batches, strict response validation,
+  custom ID generation, and custom transport support.
+- Bounded HTTP client transport with headers and caller-provided HTTP clients.
+- Official-spec conformance fixtures, meaningful full coverage, race tests,
+  fuzz targets, and single/batch benchmarks.
+- CI, static analysis, security scanning, dependency updates, benchmark/fuzz
+  automation, and semantic-version tag releases.
+- Guarded patch, minor, and major Makefile release commands that create local
+  annotated tags without pushing them.
+- Quickstart, architecture, API, cookbook, adoption, middleware,
+  troubleshooting, FAQ, compatibility, release, and community documentation.
+- Shared repository instructions for Claude Code through the canonical
+  `AGENTS.md` rules.
+- Generated `llms.txt` index and `llms-full.txt` bundle sourced from the
+  canonical Markdown documentation.
+- Canonical JSON-RPC 2.0 section links on protocol types, dispatch behavior,
+  error objects, and conformance fixtures.
+
+### Fixed
+
+- Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
+- Reject duplicate members in request, response, and error envelopes instead
+  of inheriting `encoding/json`'s last-member-wins behavior. This defensive
+  interoperability policy prevents ambiguous peers from interpreting the same
+  protocol object differently.
+- Reject duplicate generated IDs within a client batch before transport I/O so
+  every non-notification response remains unambiguously correlatable.
+- Reject case variants of reserved request, response, and error-object members
+  instead of inheriting `encoding/json`'s case-insensitive struct matching.
+- Reject invalid UTF-8 throughout protocol envelopes and classify invalid
+  server input as a parse error instead of silently replacing malformed bytes.
+- Reject duplicate top-level names in `DecodeParams` named-parameter objects
+  before Go's JSON decoder can collapse them.
+- Reject oversized transport-neutral payloads and batches before parsing or
+  handler execution can amplify their CPU, allocation, or downstream cost.
+- Normalize arbitrarily long numeric-ID exponents with linear decimal-string
+  arithmetic instead of allocation-heavy arbitrary-precision integers.
+- Reject oversized replies from every client transport before JSON parsing,
+  not only when the built-in HTTP transport enforces its body limit.
+- Make the exported `Registry` zero value safe for concurrent registration and
+  lookup instead of panicking on its first registration.
+- Ignore nil functional options consistently and return HTTP request
+  construction errors, including nil-context misuse, without network I/O.
+- Expand continuous fuzzing across response and error decoding, ID round
+  trips, and single and batch client correlation.
+- Store the complete official JSON-RPC example corpus as stable conformance
+  fixtures consumed by automated tests.
+- Add hostile-boundary benchmarks for maximum dispatcher payloads and
+  oversized generic client replies.
+- Document every exported Go declaration and clarify safe custom error-code
+  selection outside the JSON-RPC reserved range.
+- Stop the default HTTP transport from following redirects and potentially
+  forwarding caller-configured credentials to another origin.
+- Reject trailing JSON values passed directly to `ID.UnmarshalJSON`.
+- Keep `StringID` correlation equal to its actual JSON encoding when a Go
+  string contains invalid UTF-8.
+- Seed fuzzing with the checked-in specification corpus, deep JSON, and large
+  batches in addition to malformed and boundary values.
+- Add race, cancellation, chunked-reader, and response-body cleanup regression
+  coverage for runtime ownership contracts.
+- Preserve the nil-context transport regression test under both direct
+  Staticcheck and golangci-lint without weakening either analyzer.
+
+[Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
+[Semantic Versioning]: https://semver.org/
+[Unreleased]: https://github.com/faustbrian/golib/pkg/jsonrpc/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/faustbrian/golib/pkg/jsonrpc/releases/tag/v1.0.0
+
+## Source: docs/conformance.md
+
+# JSON-RPC 2.0 conformance matrix
+
+This matrix maps every normative JSON-RPC 2.0 rule to implementation, test, and
+documentation evidence. The official
+[JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification) is
+authoritative. Defensive JSON policies are labeled separately and do not claim
+to be additional JSON-RPC requirements.
+
+Status meanings:
+
+- **Verified**: direct automated evidence covers the rule and relevant failure
+  shape.
+- **Partial**: implementation exists, but adversarial, fixture, or client/server
+  evidence is incomplete.
+- **Open**: required implementation or direct evidence is missing.
+- **Policy**: intentional defensive behavior outside a JSON-RPC MUST or SHOULD.
+
+## Request and notification
+
+| Normative rule | Source | Implementation | Test or fixture | Documentation | Status |
+| --- | --- | --- | --- | --- | --- |
+| A call is a Request Object. | [Request Object](https://www.jsonrpc.org/specification#request_object) | `Request.UnmarshalJSON`, `Dispatcher.Dispatch` | `TestDispatcherProtocolErrors` | [Architecture](architecture.md#protocol) | Verified |
+| `jsonrpc` MUST be the String `"2.0"`. | [Request Object](https://www.jsonrpc.org/specification#request_object) | `Request.Validate` | `TestRequestValidation` | [API](api.md#protocol) | Verified |
+| `method` MUST be a String. | [Request Object](https://www.jsonrpc.org/specification#request_object) | `Request.UnmarshalJSON`, `Request.Validate` | `TestRequestValidation`, `TestSpecificationExamples` | [Troubleshooting](troubleshooting.md#invalid-request--32600) | Verified |
+| Names beginning with `rpc.` are reserved and MUST NOT be used for application methods. | [Request Object](https://www.jsonrpc.org/specification#request_object) | `Registry.Register`, `validateClientMethod` | `TestRegistryRegistration`, `TestClientOptionsAndDefensivePaths` | [API](api.md#server) | Verified |
+| `params`, if present, MUST be an Object or Array. | [Parameter Structures](https://www.jsonrpc.org/specification#parameter_structures) | `Request.Validate`, `encodeParams` | `TestRequestValidation`, `TestRequestBuilders` | [API](api.md#protocol) | Verified |
+| Positional params use an Array in expected order. | [Parameter Structures](https://www.jsonrpc.org/specification#parameter_structures) | Handler contract, `DecodeParams` | `testdata/conformance/jsonrpc-2.0-specification.json`, `TestSpecificationExamples` | [Cookbook](cookbook.md) | Verified |
+| Named params use an Object and names MUST match exactly, including case. | [Parameter Structures](https://www.jsonrpc.org/specification#parameter_structures) | `DecodeParams`, `namedParameterNamesMatch` | `TestDecodeParams`, `TestDecodeParamsEmbeddedAndTaggedFields` | [Troubleshooting](troubleshooting.md#invalid-params--32602) | Verified |
+| `id`, if present, MUST be a String, Number, or Null. | [Request Object](https://www.jsonrpc.org/specification#request_object) | ID constructors and decoders | `TestIDRoundTripAndEquality`, `TestIDRejectsInvalidJSONTypes`, `TestStringIDCorrelationMatchesItsJSONEncoding` | [API](api.md#protocol) | Verified |
+| Numeric IDs SHOULD NOT contain fractional parts. | [Request Object note 2](https://www.jsonrpc.org/specification#request_object) | Fractional IDs preserved as allowed interoperability input | `TestIDRoundTripAndEquality` | [FAQ](faq.md) | Verified: accepted and preserved, not generated |
+| Null IDs SHOULD normally be avoided. | [Request Object note 1](https://www.jsonrpc.org/specification#request_object) | `NullID`; explicit null remains a request | `TestRequestDistinguishesNotificationFromNullID` | [FAQ](faq.md) | Verified |
+| A server MUST echo the same included ID. | [Request Object](https://www.jsonrpc.org/specification#request_object) | `Dispatcher.execute`, raw `ID` preservation | `TestDispatcherSingleRequests`, `TestIDRoundTripAndEquality`, `TestDecimalExponentArithmetic` | [Compatibility](compatibility.md#wire-compatibility) | Verified |
+| A Notification is a Request without `id`. | [Notification](https://www.jsonrpc.org/specification#notification) | `Request.IsNotification` | `TestRequestDistinguishesNotificationFromNullID` | [API](api.md#protocol) | Verified |
+| A server MUST NOT reply to a Notification, including in a batch. | [Notification](https://www.jsonrpc.org/specification#notification) | `dispatchItem`, `dispatchBatch` | `TestDispatcherBatch`, `TestDispatcherBatchEdgeCases`, panic/error notification coverage | [Architecture](architecture.md#dispatch) | Verified |
+
+## Response and error object
+
+| Normative rule | Source | Implementation | Test or fixture | Documentation | Status |
+| --- | --- | --- | --- | --- | --- |
+| `jsonrpc` MUST be the String `"2.0"`. | [Response Object](https://www.jsonrpc.org/specification#response_object) | `Response.Validate` | `TestResponseValidation`, client validation tests | [API](api.md#protocol) | Verified |
+| `result` MUST exist on success and MUST NOT coexist with `error`. | [Response Object](https://www.jsonrpc.org/specification#response_object) | `Response.Validate`, `Response.MarshalJSON` | `TestResponseValidation` | [Architecture](architecture.md#client-validation) | Verified |
+| `error` MUST exist on failure and MUST NOT coexist with `result`. | [Response Object](https://www.jsonrpc.org/specification#response_object) | `Response.Validate`, `errorResponse` | `TestResponseValidation`, `TestDispatcherProtocolErrors` | [API](api.md#errors) | Verified |
+| Response `id` is REQUIRED and MUST match the Request ID; unknown IDs use Null. | [Response Object](https://www.jsonrpc.org/specification#response_object) | `Response.Validate`, dispatcher error shaping, client matching | `TestClientCallErrors`, `TestClientMatchesEquivalentNumericID`, protocol error tests | [Troubleshooting](troubleshooting.md#client-says-mismatched-id) | Verified |
+| Error `code` MUST be an Integer. | [Error Object](https://www.jsonrpc.org/specification#error_object) | `Error.UnmarshalJSON` | `TestResponseValidation`, `TestProtocolDefensivePaths` | [API](api.md#errors) | Verified |
+| Error `message` MUST be a String. | [Error Object](https://www.jsonrpc.org/specification#error_object) | `Error.UnmarshalJSON` | `TestResponseValidation`, `TestProtocolDefensivePaths` | [API](api.md#errors) | Verified |
+| Error `data` MAY contain a Primitive or Structured value. | [Error Object](https://www.jsonrpc.org/specification#error_object) | `Error.Data`, `Error.WithData` | `TestRPCErrorModel`, `FuzzErrorUnmarshal` | [API](api.md#errors) | Verified |
+| Parse error is `-32700`; invalid request `-32600`; method not found `-32601`; invalid params `-32602`; internal error `-32603`. | [Error Object table](https://www.jsonrpc.org/specification#error_object) | Standard constructors and dispatcher mapping | `TestStandardErrors`, `TestDispatcherProtocolErrors` | [Troubleshooting](troubleshooting.md) | Verified |
+| `-32000` through `-32099` are reserved for implementation-defined server errors. | [Error Object table](https://www.jsonrpc.org/specification#error_object) | `CodeRequestLimitExceeded` uses `-32000`; `NewError` preserves caller-selected codes | `TestRPCErrorModel` | [API](api.md#errors), [Cookbook](cookbook.md#custom-application-errors) | Verified; applications are guided outside the full reserved range |
+
+## Batch
+
+| Normative rule | Source | Implementation | Test or fixture | Documentation | Status |
+| --- | --- | --- | --- | --- | --- |
+| A batch is an Array of Request Objects. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchBatch` | `testdata/conformance/jsonrpc-2.0-specification.json`, `TestSpecificationExamples` | [Architecture](architecture.md#dispatch) | Verified |
+| The server SHOULD return an Array after processing all members. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchBatch` | `TestDispatcherBatch` | [Architecture](architecture.md#dispatch) | Verified |
+| One response SHOULD exist per non-notification request. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchBatch`; client membership checks | `TestDispatcherBatch`, `TestClientBatchValidation` | [Troubleshooting](troubleshooting.md#missing-or-duplicate-batch-response) | Verified |
+| Batch members MAY execute concurrently and in any order. | [Batch](https://www.jsonrpc.org/specification#batch) | Sequential execution is an allowed policy | `TestDispatcherBatch` | [Compatibility](compatibility.md#out-of-contract) | Verified |
+| Response objects MAY appear in any order; clients SHOULD correlate by ID. | [Batch](https://www.jsonrpc.org/specification#batch) | `Client.Batch` pending map | `TestClientBatch`, duplicate/missing/mismatched tests | [Architecture](architecture.md#client-validation) | Verified |
+| Invalid JSON for the entire batch returns one parse-error Response Object. | [Batch](https://www.jsonrpc.org/specification#batch) | `Dispatcher.Dispatch` pre-validation | `TestDispatcherProtocolErrors`, official example | [Troubleshooting](troubleshooting.md#parse-error--32700) | Verified |
+| An empty Array returns one invalid-request Response Object. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchBatch` | `TestDispatcherBatchEdgeCases` | [Architecture](architecture.md#protocol) | Verified |
+| Invalid nonempty members each return an invalid-request response in the response Array. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchItem` | `TestDispatcherBatchEdgeCases`, mixed official fixture | [Architecture](architecture.md#protocol) | Verified |
+| A notification-only batch MUST NOT return an empty Array and should return nothing. | [Batch](https://www.jsonrpc.org/specification#batch) | `dispatchBatch` | `TestDispatcherBatchEdgeCases`, `TestHTTPHandlerRequestAndNotification` | [Architecture](architecture.md#transport) | Verified |
+| Processing must be bounded against hostile batch size. | Defensive runtime policy | Dispatcher byte and member limits | `TestDispatcherRejectsResourceLimitViolationsBeforeDispatch` | [Hardening report](hardening.md#findings) | Policy verified |
+
+## Defensive JSON and client policy
+
+| Policy | Authority or rationale | Implementation | Evidence | Status |
+| --- | --- | --- | --- | --- |
+| Reject duplicate protocol member names. | [RFC 8259 section 4](https://www.rfc-editor.org/rfc/rfc8259#section-4) warns that duplicate handling is unpredictable. | `rejectDuplicateMembers` | `TestProtocolDecodersRejectDuplicateMembers` | Policy verified |
+| Match reserved names case-sensitively. | [JSON-RPC conventions](https://www.jsonrpc.org/specification#conventions) | `rejectDuplicateMembers` reserved-name check | `TestProtocolDecodersRejectCaseVariantsOfReservedMembers` | Verified |
+| Reject invalid UTF-8 without replacement. | [RFC 8259 section 8.1](https://www.rfc-editor.org/rfc/rfc8259#section-8.1) | Protocol decoders and dispatcher pre-validation | `TestProtocolRejectsInvalidUTF8`, fuzz seeds | Verified |
+| Reject malformed, unsolicited, duplicate, or missing client responses. | Correlation integrity required by request/response and batch rules | `Response.Validate`, `Client.Call`, `Client.Batch` | `TestClientCallErrors`, `TestClientBatchValidation` | Verified |
+| Reject trailing JSON after a directly decoded ID. | A JSON unmarshaler consumes exactly one complete value. | `ID.UnmarshalJSON` EOF check | `TestProtocolDefensivePaths`, `FuzzIDRoundTrip` | Policy verified |
+| Reject duplicate generated IDs within one client batch. | Duplicate IDs cannot identify one corresponding request. | `Client.Batch` | `TestClientBatchRejectsDuplicateRequestIDsBeforeTransport` | Policy verified |
+| Bound client parsing for every transport. | Malicious replies must not control unbounded protocol allocation. | `Client.roundTrip`, `WithMaxClientResponseBytes` | `TestClientRejectsOversizedGenericTransportResponse` | Policy verified |
+
+## Remaining evidence work
+
+- Re-run every baseline command after all fixes and record the final platform,
+  tool versions, benchmark results, and any environmental limitation.
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go Safety And Concurrency
+
+Baseline: `GO-SAFETY-1`
+
+This document defines the shared safety engineering standard for the
+`faustbrian/go-*` package family. RFC 2119 keywords are requirements.
+
+## Guarantee Boundary
+
+Go provides memory safety for ordinary Go code, but it does not provide Rust's
+compile-time ownership and data-race proof. The race detector observes executed
+paths only. These rules reduce the practical gap through constrained design,
+static analysis, adversarial tests, and executable quality gates; they MUST NOT
+be described as an equivalent type-system guarantee.
+
+## Memory And Ownership
+
+- Production code MUST NOT import `unsafe`, use cgo, or use `go:linkname`.
+  An exception requires an explicit security review, package-local rationale,
+  isolated API boundary, platform matrix, and dedicated tests before the source
+  gate may be changed.
+- Every mutable value shared across goroutines MUST have a documented owner and
+  synchronization strategy.
+- APIs MUST NOT expose mutable internal maps, slices, buffers, registries, or
+  pointers unless ownership transfer or aliasing is an intentional, documented
+  contract.
+- Caller-owned mutable input MUST NOT be retained or mutated unless the public
+  API explicitly documents that behavior.
+- Copies, immutable snapshots, atomics, channels, or mutexes SHOULD be chosen
+  according to the invariant being protected, not as interchangeable style.
+- Pooling and zero-copy techniques MUST NOT weaken ownership clarity, retain
+  secrets unexpectedly, or allow values to outlive their backing storage.
+
+## Goroutine And Resource Lifecycle
+
+- Every goroutine MUST have an identifiable owner, bounded lifetime, and
+  deterministic stop condition.
+- Library code MUST NOT start hidden background work without a documented
+  shutdown or cancellation mechanism.
+- Request-scoped work MUST propagate the caller's `context.Context`; it MUST
+  NOT replace that context with `context.Background()`.
+- Concurrency, queues, retries, buffers, payloads, recursion, and fan-out MUST
+  be bounded at every untrusted or operational boundary.
+- The goroutine that owns a channel's send lifecycle SHOULD close it. Receivers
+  MUST NOT close channels they do not own.
+- Locks MUST NOT be held while calling user callbacks, performing network I/O,
+  or waiting on unrelated goroutines.
+- Multiple-lock code MUST document and test a stable lock order.
+- Cancellation, timeout, startup failure, partial initialization, panic, and
+  repeated shutdown MUST each release timers, goroutines, connections, files,
+  transactions, and other owned resources exactly once.
+
+## Required Verification Layers
+
+### Static And Source Analysis
+
+- `make safety` MUST reject forbidden low-level features and run vet, lint,
+  race, and fuzz gates.
+- `go vet`, Staticcheck, security linting, error checks, context checks, and
+  HTTP-body ownership checks MUST remain enabled through the repository lint
+  configuration.
+- New linter suppressions MUST be narrow, justified next to the suppression,
+  and covered by tests where behavior is affected.
+
+### Behavioral Tests
+
+- Tests MUST prove observable contracts, invariants, errors, and ownership
+  behavior rather than merely execute lines.
+- Meaningful 100% production statement coverage remains required, but coverage
+  MUST NOT be treated as evidence of race freedom, resource bounds, or protocol
+  conformance by itself.
+- Cancellation, timeout, panic, partial failure, retry, and shutdown paths MUST
+  be tested when the package owns those behaviors.
+- Tests for mutable inputs and outputs MUST check aliasing and post-call
+  mutation where ownership could be ambiguous.
+
+### Concurrency And Race Tests
+
+- The full package suite MUST pass under `go test -race ./...`.
+- Every concurrency bug fix MUST include a regression that exercises the
+  relevant interleaving under the race detector.
+- Concurrency tests MUST use barriers, channels, hooks, wait groups, or other
+  deterministic coordination. Sleeps MUST NOT be used as synchronization;
+  they MAY be used only when elapsed time is the behavior under test.
+- Critical state machines SHOULD be stress-tested with repeated execution and
+  varied scheduling. A passing stress run is supporting evidence, not a
+  substitute for a deterministic regression.
+- Tests MUST cover concurrent use of every API documented as concurrency-safe.
+
+### Fuzz And Adversarial Tests
+
+- Every parser, decoder, protocol boundary, query parser, queue envelope, and
+  other attacker-controlled byte or text boundary MUST have a fuzz target.
+- Fuzz corpora MUST include valid examples, malformed inputs, boundary values,
+  previously discovered regressions, and inputs near configured resource
+  limits.
+- Fuzz properties MUST include no panic, no hang, bounded resource behavior,
+  deterministic classification, and no invalid caller-state mutation.
+- Round-trip properties MUST be used only where the format and API promise a
+  lossless round trip.
+- Every fuzz-discovered defect MUST be retained as a deterministic regression
+  and, where useful, as a permanent fuzz seed.
+
+### Leak And Resource-Bound Tests
+
+- Components that create goroutines, timers, files, sockets, subscriptions, or
+  transactions MUST prove cleanup after success, failure, cancellation, panic,
+  and repeated close.
+- Leak tests SHOULD use observable lifecycle hooks or owned-resource counters.
+  Global goroutine counts alone SHOULD NOT be used as exact assertions because
+  unrelated runtime goroutines make them unstable.
+- Hostile-reader and declared-size tests MUST prove that byte, item, depth,
+  retry, and expansion limits stop work at the documented boundary.
+- Queue backends MUST test acknowledgement, retry, redelivery, poison-message,
+  reconnect, and shutdown behavior against real backends where semantics
+  cannot be proved hermetically.
+
+### Benchmarks And Regression Discipline
+
+- Hot paths MUST have representative benchmarks reporting allocations with
+  `-benchmem`.
+- Security-sensitive parsers and state machines SHOULD include adversarial
+  benchmarks near supported limits.
+- Performance changes MUST compare multiple before-and-after samples with
+  `benchstat` or an equivalent statistical method and retain the commands,
+  environment, and result.
+- Shared CI MUST NOT fail on small wall-clock benchmark variance. Stable
+  allocation counts, explicit resource ceilings, and statistically supported
+  material regressions MAY be gated.
+- Optimization MUST follow profiling evidence and MUST NOT remove validation,
+  bounds, cancellation, or ownership clarity without equivalent protection.
+
+## Review And Change Control
+
+- Public concurrency guarantees, aliasing behavior, limits, and lifecycle
+  semantics are SemVer-governed contracts.
+- Changes touching shared state, goroutines, callbacks, retries, settlement,
+  parsing, or resource limits MUST include an explicit safety review in the
+  pull request.
+- Updates to this baseline MUST bump its identifier and be propagated across
+  `jsonapi`, `jsonrpc`, `queue`, `wire`, `tabular`,
+  and the monorepo Go standard.
+
+## Source: docs/middleware.md
+
+# Middleware, authentication, and observability
+
+Dispatcher middleware wraps method execution without changing the transport.
+It is appropriate for RPC-aware authentication, authorization, logging,
+tracing, metrics, deadlines, and correlation. Ordinary `net/http` middleware
+remains the right place for TLS identity, HTTP headers, CORS, or IP controls.
+
+Use `Hooks` when telemetry must include parse errors, invalid requests,
+method-not-found responses, notifications, and panic recovery in addition to
+handler execution:
+
+```go
+hooks := jsonrpc.Hooks{
+    OnRequest: func(ctx context.Context, request *jsonrpc.Request) context.Context {
+        // request is nil when no valid request envelope could be recovered.
+        return startProtocolSpan(ctx, request)
+    },
+    OnResponse: func(ctx context.Context, request *jsonrpc.Request, response *jsonrpc.Response) {
+        // Notifications provide an internal outcome that is never sent.
+        finishProtocolSpan(ctx, request, response)
+    },
+}
+dispatcher := jsonrpc.NewDispatcher(registry, jsonrpc.WithHooks(hooks))
+```
+
+Hooks are protected from panics. A context returned by `OnRequest` flows into
+middleware and the handler. Recovered handler panics attach a local cause and
+stack to the internal error, visible to `OnResponse` but never serialized.
+
+## Ordering
+
+Middleware is listed outermost first:
+
+```go
+dispatcher := jsonrpc.NewDispatcher(
+    registry,
+    jsonrpc.WithMiddleware(recoverMetadata, authenticate, observe),
+)
+```
+
+The call order is `recoverMetadata -> authenticate -> observe -> handler`, then
+the reverse order on return. The dispatcher itself contains panics after all
+middleware and converts them to internal errors.
+
+## Request metadata and correlation
+
+The validated request is available through context before the chain runs:
+
+```go
+func correlate(next jsonrpc.Handler) jsonrpc.Handler {
+    return func(ctx context.Context, params json.RawMessage) (any, error) {
+        request, ok := jsonrpc.RequestFromContext(ctx)
+        if !ok {
+            return nil, jsonrpc.InternalError()
+        }
+        correlationID := fmt.Sprintf("%s:%d", request.Method, request.ID.Kind())
+        ctx = context.WithValue(ctx, correlationKey{}, correlationID)
+        return next(ctx, params)
+    }
+}
+```
+
+Use your own formatter for IDs; the example is intentionally schematic. Do not
+put secrets or full params into correlation IDs.
+
+## Authentication and authorization
+
+HTTP bearer tokens can be verified before the RPC handler. If authorization
+depends on the RPC method, place the authenticated principal in context in HTTP
+middleware and enforce policy in dispatcher middleware:
+
+```go
+var unauthorized = jsonrpc.NewError(-32001, "Unauthorized")
+
+func authorize(next jsonrpc.Handler) jsonrpc.Handler {
+    return func(ctx context.Context, params json.RawMessage) (any, error) {
+        request, _ := jsonrpc.RequestFromContext(ctx)
+        principal, ok := principalFromContext(ctx)
+        if !ok || !principal.CanCall(request.Method) {
+            return nil, unauthorized
+        }
+        return next(ctx, params)
+    }
+}
+```
+
+Choose application error codes from the reserved server-error range `-32099`
+through `-32000`, or a documented application range. Never include token or
+policy internals in error data.
+
+## Observability
+
+A vendor-neutral middleware can emit logs, spans, and metrics around the same
+execution boundary:
+
+```go
+func observe(next jsonrpc.Handler) jsonrpc.Handler {
+    return func(ctx context.Context, params json.RawMessage) (result any, err error) {
+        request, _ := jsonrpc.RequestFromContext(ctx)
+        started := time.Now()
+        ctx, span := tracer.Start(ctx, "rpc."+request.Method)
+        defer func() {
+            span.End()
+            metrics.Observe(request.Method, err, time.Since(started))
+        }()
+        return next(ctx, params)
+    }
+}
+```
+
+Keep metric labels bounded: method and normalized outcome are safe; request ID,
+user ID, raw error text, and params are usually not. Log causes on the server
+from errors returned by application code, but send only mapped public errors.
+
+## Error mapping
+
+`WithErrorMapper` is the final boundary for ordinary Go errors:
+
+```go
+jsonrpc.WithErrorMapper(func(err error) *jsonrpc.Error {
+    switch {
+    case errors.Is(err, context.DeadlineExceeded):
+        return jsonrpc.NewError(-32002, "Deadline exceeded").WithCause(err)
+    default:
+        return jsonrpc.InternalError().WithCause(err)
+    }
+})
+```
+
+Handlers can return `*jsonrpc.Error` directly for expected public failures.
+Causes never serialize; `Data` does, so populate it only with deliberate public
+information.
+
+## Source: docs/repository-standards.md
+
+# Repository Standards
+
+This repository follows the shared maintenance baseline used by the
+`faustbrian/go-*` OSS packages.
+
+## Mandatory Root Files
+
+Every repository contains `.gitattributes`, `.gitignore`,
+`.golangci.yml`, `AGENTS.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`, `Makefile`, `NOTICE`,
+`README.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`,
+`llms.txt`, and `llms-full.txt`.
+
+AI planning and execution briefs live in `.ai/GOAL.md` and
+`.ai/GOAL_HARDEN.md`, keeping internal agent material separate from the
+package's public documentation surface.
+
+`NOTICE` identifies the project and its ownership. `THIRD_PARTY_NOTICES.md`
+separately records attribution and provenance for copied, forked, generated,
+or vendored third-party source. Both remain present even when no third-party
+source requires attribution. A package may retain a different approved OSS
+license when provenance requires it.
+
+## Mandatory Documentation
+
+The shared taxonomy is lowercase kebab-case and includes a documentation
+index, quickstart, adoption guide, API reference, architecture, examples,
+cookbook, FAQ, troubleshooting, migration, compatibility, performance,
+hardening, security, Go safety and concurrency, and releasing guide.
+Package-specific documents extend this taxonomy without renaming shared
+concepts.
+
+## Mandatory Automation
+
+Every repository provides pinned-SHA workflows for CI, benchmarks, scheduled
+fuzzing, security, and tagged releases. CI tests Go 1.25.x as the supported
+minimum line and current stable Go. Dependency review runs on pull requests;
+reachable dependency scanning uses `govulncheck`.
+
+The common Make interface is `format`, `format-check`, `test`,
+`test-race`, `coverage`, `vet`, `lint`, `fuzz`, `benchmark`,
+`safety`, `docs`, `vuln`, `check`, and semantic release targets.
+
+The package family shares the `GO-SAFETY-1` baseline. It forbids `unsafe`,
+cgo, and `go:linkname` in production code and standardizes ownership,
+goroutine lifecycle, race, fuzz, resource-bound, leak, and benchmark evidence.
+
+## Approved Package-Specific Differences
+
+- `jsonapi` carries JSON:API feature, conformance, extension/profile,
+  recommendation, and threat-model documentation.
+- `jsonrpc` carries protocol conformance and middleware documentation.
+- `queue` carries backend, delivery, lifecycle, failure, and integration
+  documentation plus a live-backend integration workflow. Its fork provenance
+  requires detailed third-party notices.
+- `wire` carries format, dependency, and audit-evidence documentation.
+- `tabular` carries format and ingest-limit documentation. It uses
+  Apache-2.0 and retains XLS provenance notices.
+
+Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
+security guidance are expected to differ. Shared policy wording and automation
+structure must not drift without updating this contract across all affected
+repositories.

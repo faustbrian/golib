@@ -1,0 +1,412 @@
+package clock // import "github.com/faustbrian/golib/pkg/clock"
+
+Package clock provides narrow time capabilities backed by the standard library
+and deterministic implementations for tests.
+
+Wall-clock timestamps and monotonic elapsed time are deliberately distinct.
+A time.Time returned by System.Now retains the process-local monotonic reading
+supplied by time.Now. Serialization removes that reading, so persisted values
+must never be used as a substitute for monotonic elapsed measurement.
+
+CONSTANTS
+
+const (
+	// MaxObservationTags bounds labels attached to one observation.
+	MaxObservationTags = 16
+	// MaxObservationTagBytes bounds each tag key and value.
+	MaxObservationTagBytes = 64
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidDuration reports a duration that is not valid for an operation.
+	ErrInvalidDuration = errors.New("clock: invalid duration")
+	// ErrInvalidCallback reports a nil callback function.
+	ErrInvalidCallback = errors.New("clock: invalid callback")
+	// ErrOverflow reports a time operation outside time.Duration's range.
+	ErrOverflow = errors.New("clock: duration overflow")
+)
+var (
+	// ErrInvalidClock reports a nil clock passed to Observe.
+	ErrInvalidClock = errors.New("clock: invalid clock")
+	// ErrInvalidObserver reports a nil observer passed to Observe.
+	ErrInvalidObserver = errors.New("clock: invalid observer")
+	// ErrObservationTags reports tags outside the documented bounds.
+	ErrObservationTags = errors.New("clock: invalid observation tags")
+)
+
+TYPES
+
+type Callback interface {
+	Stop() bool
+	Reset(time.Duration) (bool, error)
+}
+    Callback is an owned timer callback.
+
+    Stop reports whether it prevented the callback from starting. It does not
+    wait for an already-started callback to finish.
+
+type CallbackClock interface {
+	AfterFunc(time.Duration, func()) (Callback, error)
+}
+    CallbackClock creates owned timer callbacks.
+
+type Clock interface {
+	Now() time.Time
+}
+    Clock obtains the current wall-clock time.
+
+type ElapsedClock interface {
+	Since(time.Time) time.Duration
+	Measure() func() time.Duration
+}
+    ElapsedClock measures process-local elapsed time. Since accepts a time.Time
+    with standard-library monotonic semantics. Measure returns a closure tied to
+    the implementation's monotonic source and is the safe choice across explicit
+    manual wall-clock jumps.
+
+type FullClock interface {
+	Clock
+	ElapsedClock
+	Sleeper
+	TimerFactory
+	TickerFactory
+	CallbackClock
+}
+    FullClock is a convenience composition for consumers that genuinely need
+    every capability. Consumers should normally accept a narrower interface.
+
+func Observe(base FullClock, observer Observer, options ...ObserveOption) (FullClock, error)
+    Observe decorates a FullClock with bounded synchronous lifecycle hooks.
+    It starts no goroutine and owns no exporter or global registry.
+
+type Kind string
+    Kind identifies an observed time resource.
+
+const (
+	// KindSleep identifies a context-aware sleep.
+	KindSleep Kind = "sleep"
+	// KindTimer identifies a one-shot channel timer.
+	KindTimer Kind = "timer"
+	// KindTicker identifies a periodic channel ticker.
+	KindTicker Kind = "ticker"
+	// KindCallback identifies an AfterFunc callback.
+	KindCallback Kind = "callback"
+)
+type Observation struct {
+	Kind      Kind
+	Outcome   Outcome
+	Requested time.Duration
+	Elapsed   time.Duration
+	Tags      map[string]string
+}
+    Observation contains bounded lifecycle metadata. It never contains callback
+    functions, panic payloads, timestamps, contexts, or other sensitive values.
+
+type ObserveOption func(*observeConfig) error
+    ObserveOption configures an observed clock.
+
+func WithTags(tags map[string]string) ObserveOption
+    WithTags attaches a bounded defensive copy of tags to every observation.
+
+type Observer interface {
+	Observe(Observation)
+}
+    Observer consumes lifecycle metadata. Implementations must return promptly;
+    panics are isolated from clock behavior.
+
+type ObserverFunc func(Observation)
+    ObserverFunc adapts a function to Observer.
+
+func (function ObserverFunc) Observe(observation Observation)
+    Observe calls function with observation.
+
+type Outcome string
+    Outcome identifies an observed lifecycle transition.
+
+const (
+	// OutcomeCreated reports successful resource creation.
+	OutcomeCreated Outcome = "created"
+	// OutcomeCompleted reports successful synchronous completion.
+	OutcomeCompleted Outcome = "completed"
+	// OutcomeCanceled reports context cancellation.
+	OutcomeCanceled Outcome = "canceled"
+	// OutcomeStopped reports a successful active-to-stopped transition.
+	OutcomeStopped Outcome = "stopped"
+	// OutcomeInactive reports an operation on an inactive resource.
+	OutcomeInactive Outcome = "inactive"
+	// OutcomeReset reports successful rescheduling.
+	OutcomeReset Outcome = "reset"
+	// OutcomeFired reports callback execution.
+	OutcomeFired Outcome = "fired"
+	// OutcomePanicked reports a callback panic without its payload.
+	OutcomePanicked Outcome = "panicked"
+	// OutcomeRejected reports validation or resource rejection.
+	OutcomeRejected Outcome = "rejected"
+)
+type Sleeper interface {
+	Sleep(context.Context, time.Duration) error
+}
+    Sleeper waits for a duration or until its context is canceled.
+
+type System struct{}
+    System delegates time operations to the Go standard library.
+
+    Its zero value is ready for concurrent use and owns no background resources.
+
+func (System) AfterFunc(d time.Duration, fn func()) (Callback, error)
+    AfterFunc returns an owned wrapper around time.AfterFunc.
+
+func (System) Measure() func() time.Duration
+    Measure captures the current standard-library monotonic reading and returns
+    a closure that reports elapsed time from it.
+
+func (System) NewTicker(d time.Duration) (Ticker, error)
+    NewTicker returns an owned wrapper around time.NewTicker.
+
+func (System) NewTimer(d time.Duration) (Timer, error)
+    NewTimer returns an owned wrapper around time.NewTimer.
+
+func (System) Now() time.Time
+    Now returns time.Now without changing its location or monotonic reading.
+
+func (System) Since(start time.Time) time.Duration
+    Since returns time.Since(start). When start contains a monotonic reading,
+    the standard library uses it instead of rollback-prone wall time.
+
+func (System) Sleep(ctx context.Context, d time.Duration) error
+    Sleep waits for d or context cancellation. Non-positive durations complete
+    immediately unless the context is already canceled. Its timer is always
+    stopped on cancellation so the resource can be released promptly.
+
+type Ticker interface {
+	C() <-chan time.Time
+	Stop()
+	Reset(time.Duration) error
+}
+    Ticker is an owned periodic time event.
+
+    The owner must call Stop. Ticks may be dropped for a slow receiver, matching
+    time.Ticker. Reset returns ErrInvalidDuration for a non-positive duration
+    instead of exposing the standard library's panic across an interface seam.
+
+type TickerFactory interface {
+	NewTicker(time.Duration) (Ticker, error)
+}
+    TickerFactory creates owned periodic tickers.
+
+type Timer interface {
+	C() <-chan time.Time
+	Stop() bool
+	Reset(time.Duration) (bool, error)
+}
+    Timer is an owned, one-shot time event.
+
+    Stop and Reset have the same return-value semantics as time.Timer. The owner
+    must stop a timer it no longer needs. As of Go 1.26, timer channels are
+    synchronous and an unbuffered receive after Stop reports true cannot observe
+    a stale value from the prior configuration.
+
+type TimerFactory interface {
+	NewTimer(time.Duration) (Timer, error)
+}
+    TimerFactory creates owned one-shot timers.
+
+package manual // import "github.com/faustbrian/golib/pkg/clock/manual"
+
+Package manual provides deterministic fixed and manually advanced clocks.
+
+VARIABLES
+
+var (
+	// ErrActiveLimit reports exhaustion of the configured active-object budget.
+	ErrActiveLimit = errors.New("manual clock: active object limit exceeded")
+	// ErrWorkLimit reports exhaustion of one advancement's work budget.
+	ErrWorkLimit = errors.New("manual clock: advancement work limit exceeded")
+	// ErrClosed reports an operation attempted after shutdown.
+	ErrClosed = errors.New("manual clock: closed")
+	// ErrBackwardAdvance reports an AdvanceTo target before the current wall time.
+	ErrBackwardAdvance = errors.New("manual clock: backward advance")
+	// ErrInvalidLimits reports a zero or negative resource budget.
+	ErrInvalidLimits = errors.New("manual clock: invalid limits")
+)
+
+TYPES
+
+type Callback struct {
+	// Has unexported fields.
+}
+    Callback is a manually advanced timer callback.
+
+func (callback *Callback) Reset(duration time.Duration) (bool, error)
+    Reset reschedules the callback and reports whether it was active beforehand.
+
+func (callback *Callback) Stop() bool
+    Stop prevents an active callback from starting.
+
+type Clock struct {
+	// Has unexported fields.
+}
+    Clock is a concurrency-safe deterministic clock. Time changes only through
+    Advance, AdvanceTo, or Jump. It starts no hidden goroutine.
+
+func New(start time.Time, options ...Option) (*Clock, error)
+    New constructs a clock at an explicit wall timestamp, including time.Time{}.
+    It preserves the location and strips any process-local monotonic reading so
+    Jump can model wall movement independently from elapsed progress.
+
+func (clock *Clock) Advance(duration time.Duration) (*Waiter, error)
+    Advance moves monotonic time forward and synchronously processes every
+    event due through the target. Callbacks run outside internal locks in
+    deterministic timestamp and registration order.
+
+func (clock *Clock) AdvanceTo(target time.Time) (*Waiter, error)
+    AdvanceTo moves forward until target wall time. Backward wall movement must
+    use Jump so it cannot accidentally reverse monotonic progress.
+
+func (clock *Clock) AfterFunc(duration time.Duration, function func()) (clockpkg.Callback, error)
+    AfterFunc schedules an owned callback. A panic is recovered and counted in
+    the advancement Result; panic payloads are never retained.
+
+func (clock *Clock) Jump(delta time.Duration) error
+    Jump changes wall time without changing monotonic progress or event
+    deadlines.
+
+func (clock *Clock) Mark() time.Duration
+    Mark captures the current monotonic progress as a time.Duration token.
+
+func (clock *Clock) Measure() func() time.Duration
+    Measure captures current monotonic progress and returns a concurrency-safe
+    closure whose result is unaffected by Jump.
+
+func (clock *Clock) NewTicker(duration time.Duration) (clockpkg.Ticker, error)
+    NewTicker creates an owned ticker. Its one-element channel drops ticks while
+    the receiver is backpressured, matching the standard library policy.
+
+func (clock *Clock) NewTimer(duration time.Duration) (clockpkg.Timer, error)
+    NewTimer creates an owned one-shot timer.
+
+func (clock *Clock) Now() time.Time
+    Now returns the current wall time. The starting location is preserved.
+
+func (clock *Clock) Shutdown() error
+    Shutdown idempotently releases every active object owned by the clock.
+
+func (clock *Clock) Since(start time.Time) time.Duration
+    Since returns wall-clock subtraction against Now. Use Mark and SinceMark for
+    elapsed measurement that must remain correct across Jump.
+
+func (clock *Clock) SinceMark(mark time.Duration) time.Duration
+    SinceMark returns monotonic progress since mark, independent of wall jumps.
+
+func (clock *Clock) Sleep(ctx context.Context, duration time.Duration) error
+    Sleep blocks until manual advancement reaches the deadline or ctx is done.
+
+func (clock *Clock) Snapshot() Snapshot
+    Snapshot returns bounded diagnostic counters without callback payloads.
+
+type Fixed struct {
+	// Has unexported fields.
+}
+    Fixed is an immutable wall clock.
+
+func NewFixed(now time.Time) Fixed
+    NewFixed returns an immutable clock fixed at now.
+
+func (Fixed) Measure() func() time.Duration
+    Measure returns an elapsed measurement that remains zero for a fixed clock.
+
+func (fixed Fixed) Now() time.Time
+    Now returns the fixed timestamp without changing its location.
+
+func (fixed Fixed) Since(start time.Time) time.Duration
+    Since returns the duration from start to the fixed timestamp. If both values
+    contain compatible monotonic readings, time.Time.Sub uses them.
+
+type Limits struct {
+	MaxActive         int
+	MaxWorkPerAdvance int
+}
+    Limits bounds scheduled objects, outstanding advancement waiters, and work
+    processed by a Clock. MaxActive applies independently to scheduled objects
+    and advancement waiters.
+
+type Option func(*config) error
+    Option configures a Clock during construction.
+
+func WithLimits(limits Limits) Option
+    WithLimits replaces the default active-object and advancement budgets.
+
+type Result struct {
+	StartedAt time.Duration
+	EndedAt   time.Duration
+	Triggered int
+	Callbacks int
+	Panics    int
+}
+    Result summarizes bounded work performed by one advancement.
+
+type Snapshot struct {
+	Now     time.Time
+	Elapsed time.Duration
+	Active  int
+	Closed  bool
+}
+    Snapshot is a bounded view of manual-clock state.
+
+type Ticker struct {
+	// Has unexported fields.
+}
+    Ticker is a manually advanced periodic timer.
+
+func (ticker *Ticker) C() <-chan time.Time
+    C returns the ticker's receive-only event channel.
+
+func (ticker *Ticker) Reset(duration time.Duration) error
+    Reset changes the period and schedules the next tick from the current time.
+
+func (ticker *Ticker) Stop()
+    Stop prevents future ticks. It is idempotent.
+
+type Timer struct {
+	// Has unexported fields.
+}
+    Timer is a manually advanced one-shot timer.
+
+func (timer *Timer) C() <-chan time.Time
+    C returns the timer's receive-only event channel.
+
+func (timer *Timer) Reset(duration time.Duration) (bool, error)
+    Reset reschedules the timer and reports whether it was active beforehand.
+
+func (timer *Timer) Stop() bool
+    Stop prevents an active timer from firing.
+
+type Waiter struct {
+	// Has unexported fields.
+}
+    Waiter synchronizes completion of work triggered by an advancement.
+
+func (waiter *Waiter) Wait(ctx context.Context) (Result, error)
+    Wait returns the completed result or context cancellation.
+
+package clocktest // import "github.com/faustbrian/golib/pkg/clock/clocktest"
+
+Package clocktest contains deterministic testing helpers for clock.
+
+FUNCTIONS
+
+func Advance(t testing.TB, clock *manual.Clock, duration time.Duration) manual.Result
+    Advance advances a manual clock, waits for all synchronously triggered work,
+    and fails the current test if either phase reports an error.
+
+func SystemBubble(t *testing.T, test func(*testing.T, clock.System))
+    SystemBubble runs test in a testing/synctest bubble with a System clock.
+    Prefer this helper when the complete unit under test can live inside
+    one bubble. Use dependency-injected manual clocks for explicit business
+    timestamps, wall jumps, and cross-package clock contracts.
+
+func Wait(ctx context.Context) error
+    Wait checks ctx and then waits for every other goroutine in the current
+    synctest bubble to become durably blocked. It must be called from a bubble.

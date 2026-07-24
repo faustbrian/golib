@@ -1,0 +1,6 @@
+openapi: 3.1.2
+info: &info
+  title: Interoperability
+  version: "1"
+x-copy: *info
+paths: {}

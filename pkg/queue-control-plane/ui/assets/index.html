@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Queue control plane</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">queue</p>
+        <h1>Queue control plane</h1>
+      </div>
+      <output id="connection-status" class="status" aria-live="polite"
+        >Disconnected</output
+      >
+    </header>
+
+    <main>
+      <section class="panel session-panel" aria-labelledby="session-title">
+        <div>
+          <p class="eyebrow">Operator session</p>
+          <h2 id="session-title">Connect without persisting credentials</h2>
+          <p class="muted">
+            The API key remains only in this page's memory and is cleared on
+            reload.
+          </p>
+        </div>
+        <form id="session-form" class="form-grid">
+          <label
+            >Tenant
+            <input
+              id="tenant"
+              name="tenant"
+              required
+              maxlength="256"
+              autocomplete="organization"
+          /></label>
+          <label
+            >Key ID
+            <input
+              id="key-id"
+              name="key_id"
+              required
+              maxlength="256"
+              autocomplete="username"
+          /></label>
+          <label
+            >API key
+            <input
+              id="api-key"
+              name="api_key"
+              type="password"
+              required
+              autocomplete="current-password"
+          /></label>
+          <button type="submit">Connect</button>
+        </form>
+      </section>
+
+      <section id="workspace" class="workspace" hidden>
+        <nav aria-label="Administrative views" class="view-tabs">
+          <button type="button" data-view="workers">Workers</button>
+          <button type="button" data-view="queues">Queues</button>
+          <button type="button" data-view="failures">Failures</button>
+          <button type="button" data-view="dead_letters">Dead letters</button>
+          <button type="button" data-view="audit">Audit</button>
+          <button type="button" data-view="commands">Commands</button>
+        </nav>
+
+        <div class="dashboard-grid">
+          <section class="panel data-panel" aria-labelledby="view-title">
+            <div class="section-heading">
+              <div>
+                <p id="view-kicker" class="eyebrow">Live status</p>
+                <h2 id="view-title">Workers</h2>
+              </div>
+              <button id="refresh" type="button" class="secondary">
+                Refresh
+              </button>
+            </div>
+            <div id="notice" class="notice" aria-live="polite"></div>
+            <div id="results" class="results" aria-live="polite"></div>
+            <button id="load-more" type="button" class="secondary" hidden>
+              Load next page
+            </button>
+          </section>
+
+          <section class="panel command-panel" aria-labelledby="command-title">
+            <p class="eyebrow">Audited mutation</p>
+            <h2 id="command-title">Request an operation</h2>
+            <p class="muted">
+              Every request needs a unique key, actor-bound credentials, and an
+              operator reason.
+            </p>
+            <form id="command-form" class="stacked-form">
+              <label
+                >Action
+                <select id="action" required>
+                  <option>pause</option>
+                  <option>resume</option>
+                  <option>drain</option>
+                  <option>terminate</option>
+                  <option>retry</option>
+                  <option>bulk_retry</option>
+                  <option>delete</option>
+                  <option>purge</option>
+                  <option>replay</option>
+                  <option>scale</option>
+                </select>
+              </label>
+              <label
+                >Target kind
+                <select id="target-kind" required>
+                  <option>queue</option>
+                  <option>worker</option>
+                  <option>worker_group</option>
+                  <option>failure</option>
+                  <option>dead_letter</option>
+                  <option>workload</option>
+                </select>
+              </label>
+              <label
+                >Target name <input id="target-name" required maxlength="256"
+              /></label>
+              <label
+                >Reason
+                <textarea
+                  id="reason"
+                  required
+                  maxlength="1024"
+                  rows="3"
+                ></textarea>
+              </label>
+              <label
+                >Idempotency key
+                <input id="idempotency-key" required maxlength="256"
+              /></label>
+              <details>
+                <summary>Action-specific options</summary>
+                <label
+                  >Selection limit
+                  <input
+                    id="selection-limit"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value="100"
+                /></label>
+                <label
+                  >Replay destination
+                  <input id="replay-destination" maxlength="256"
+                /></label>
+                <label
+                  >Replay policy
+                  <select id="replay-policy">
+                    <option>reject_duplicate</option>
+                    <option>replace_duplicate</option>
+                  </select>
+                </label>
+                <label
+                  >Scale replicas
+                  <input
+                    id="scale-replicas"
+                    type="number"
+                    min="0"
+                    max="10000"
+                    value="1"
+                /></label>
+              </details>
+              <label class="confirmation"
+                ><input id="confirmed" type="checkbox" /> I confirm this
+                operation when required.</label
+              >
+              <button type="submit" class="danger">
+                Submit audited command
+              </button>
+            </form>
+            <pre id="command-result" tabindex="0" aria-live="polite"></pre>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
