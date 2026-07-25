@@ -1,0 +1,2851 @@
+# wire Complete Documentation
+
+## Source: README.md
+
+# wire
+
+`wire` provides explicit, auditable JSON, XML, SOAP, YAML, TOML,
+MessagePack, CBOR, and BSON interoperability boundaries with bounded read and
+write APIs.
+
+## Status
+
+The package is pre-v1. Supported format behavior is fixture-backed, fuzzed,
+benchmarked, and held to meaningful 100% production coverage.
+
+## Requirements
+
+- Go 1.26.5 or later
+
+## Installation
+
+```sh
+go get github.com/faustbrian/golib/pkg/wire
+```
+
+Import format packages explicitly, such as
+`github.com/faustbrian/golib/pkg/wire/jsonwire` or
+`github.com/faustbrian/golib/pkg/wire/soap`.
+
+## Quickstart
+
+```go
+var response struct {
+    Status string `json:"status"`
+}
+
+err := jsonwire.DecodeReader(
+    strings.NewReader(`{"status":"ok"}`),
+    &response,
+    jsonwire.DecodeOptions{DisallowUnknownFields: true},
+)
+if err != nil {
+    return err
+}
+```
+
+Each format exposes explicit options and limits. See the
+[quickstart](docs/quickstart.md) for XML namespace validation, SOAP envelopes,
+and binary-format examples.
+
+## Package Guarantees
+
+- bounded decode and encode paths for every supported format
+- explicit format packages instead of a lossy universal codec
+- deterministic output where the format and selected mode permit it
+- stable error classification and strict defaults
+- documented charset, depth, collection, extension, and data-shape limits
+- no HTTP policy, WSDL, schema engine, persistence, or application mapping
+
+The [format matrix](docs/formats.md) is authoritative for supported and
+intentionally unsupported behavior.
+
+## Documentation
+
+Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
+[adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review
+[dependencies](docs/dependencies.md), [evidence](docs/evidence.md), and
+[hardening](docs/hardening.md) before processing hostile input.
+
+AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
+
+## Development
+
+Run `make check` before submitting a change. This enforces formatting, static
+analysis, race tests, meaningful 100% coverage, format fuzz smoke, benchmarks,
+documentation, and vulnerability scanning.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and follow the
+[code of conduct](CODE_OF_CONDUCT.md). Format-specific behavior and
+interoperability tradeoffs must be documented explicitly.
+
+## Security
+
+Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+Review [docs/security.md](docs/security.md) before decoding untrusted payloads.
+
+## License
+
+`wire` is available under the [MIT License](LICENSE). Attribution and
+third-party policy are recorded in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Source: docs/README.md
+
+# wire Documentation
+
+Use this index to select an explicit wire format and understand its limits.
+
+## Start Here
+
+- [Quickstart](quickstart.md)
+- [Adoption guide](adoption.md)
+- [API reference](api.md)
+- [Examples](examples.md)
+
+## Design And Operations
+
+- [Architecture](architecture.md)
+- [Go safety and concurrency](go-safety-and-concurrency.md)
+- [Formats](formats.md)
+- [Dependencies](dependencies.md)
+- [Evidence](evidence.md)
+- [Compatibility](compatibility.md)
+- [Performance](performance.md)
+- [Security](security.md)
+- [Hardening](hardening.md)
+
+## Maintain And Troubleshoot
+
+- [Cookbook](cookbook.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+- [Migration](migration.md)
+- [Releasing](releasing.md)
+
+## Repository Maintenance
+
+- [Shared repository standards](repository-standards.md)
+
+## Source: docs/quickstart.md
+
+# Quickstart
+
+## Install
+
+The project is currently unreleased. Until the first tag exists, pin a commit:
+
+```sh
+go get github.com/faustbrian/golib/pkg/wire@<commit>
+```
+
+The module supports Go 1.25.8 and newer.
+
+## Decode JSON
+
+```go
+var response struct {
+	Status string `json:"status"`
+}
+
+err := jsonwire.DecodeReader(responseBody, &response, jsonwire.DecodeOptions{
+	MaxBytes:              2 << 20,
+	DisallowUnknownFields: true,
+})
+```
+
+`MaxBytes: 0` selects the safe 1 MiB default. Decoding accepts exactly one JSON
+value. Syntax errors classify as `wire.ErrParse`; unknown fields, type
+mismatches, and invalid decoded values classify as `wire.ErrValidation`.
+Invalid targets use `wire.ErrTarget`; size failures use `wire.ErrSizeLimit`.
+
+## Encode JSON
+
+```go
+payload, err := jsonwire.Encode(response, jsonwire.EncodeOptions{})
+
+err = jsonwire.EncodeWriter(destination, response, jsonwire.EncodeOptions{
+	MaxBytes: 256 << 10,
+	Indent: "  ",
+})
+```
+
+`Encode` returns a complete JSON document as bytes. `EncodeWriter` writes the
+same deterministic document without adding a trailing newline. Every format's
+encode options use `MaxBytes: 0` for the safe 1 MiB output default; exceeding
+the bound returns `wire.ErrSizeLimit` before a writer receives any bytes.
+
+## Normalize JSON
+
+```go
+canonical, err := jsonwire.Normalize(vendorPayload, jsonwire.NormalizeOptions{})
+```
+
+Normalization strips leading/trailing whitespace and a leading UTF-8 BOM,
+validates one JSON value, orders object keys through `encoding/json`, compacts
+the document, and preserves number lexemes such as `1.20`. It does not reject
+duplicate object keys.
+
+## Decode namespace-aware XML
+
+```go
+var shipment struct {
+	XMLName xml.Name `xml:"urn:vendor Shipment"`
+	ID      int      `xml:"urn:vendor ID"`
+}
+
+err := xmlwire.Decode(payload, &shipment, xmlwire.DecodeOptions{
+	MaxDepth:    64,
+	ExpectedRoot: xml.Name{Space: "urn:vendor", Local: "Shipment"},
+})
+```
+
+Strict XML is the default. Set `AllowNonStrict` only for a known peer whose
+malformation is intentionally accepted. Prefixes are not identities;
+`ExpectedRoot` compares the resolved namespace URL and local name.
+
+## Encode XML
+
+```go
+payload, err := xmlwire.Encode(shipment, xmlwire.EncodeOptions{
+	IncludeHeader: true,
+})
+
+err = xmlwire.EncodeWriter(destination, shipment, xmlwire.EncodeOptions{})
+```
+
+Both APIs serialize typed values through `encoding/xml`. The writer receives a
+complete document, including the XML declaration when requested.
+
+## Encode SOAP
+
+```go
+payload, err := soap.Encode(
+	soap.Version12,
+	header,
+	request,
+	soap.EncodeOptions{MaxBytes: 256 << 10},
+)
+
+err = soap.EncodeWriter(
+	destination,
+	soap.Version12,
+	header,
+	request,
+	soap.EncodeOptions{MaxBytes: 256 << 10},
+)
+```
+
+Pass `nil` for an omitted Header or an empty Body. For already encoded XML
+fragments, use `Marshal` or `MarshalWriter`. `MarshalFault` and
+`MarshalFaultWriter` provide the corresponding SOAP fault output paths. Use
+the corresponding `WithOptions` APIs with `soap.MarshalOptions` to configure
+raw-envelope and fault output limits.
+
+## Parse SOAP
+
+```go
+envelope, err := soap.ParseReader(responseBody, soap.ParseOptions{})
+if errors.Is(err, wire.ErrSOAPFault) {
+	var faultError *soap.FaultError
+	if errors.As(err, &faultError) {
+		return fmt.Errorf("carrier %s: %s", faultError.Fault.Code, faultError.Fault.Reason)
+	}
+}
+if err != nil {
+	return err
+}
+
+var response RateResponse
+if err := envelope.DecodeBody(&response); err != nil {
+	return err
+}
+```
+
+`Parse` and `ParseReader` return a non-nil envelope together with a
+`*soap.FaultError` for a valid SOAP fault. Do not discard the envelope before
+checking the error classification.
+
+## Classify errors
+
+```go
+switch {
+case errors.Is(err, wire.ErrSOAPFault):
+	// The peer returned a valid fault response.
+case errors.Is(err, wire.ErrEnvelope):
+	// SOAP transport-envelope structure was invalid.
+case errors.Is(err, wire.ErrParse):
+	// Input was not valid syntax for the selected format.
+case errors.Is(err, wire.ErrValidation):
+	// Input syntax was valid but did not meet the requested shape or policy.
+case errors.Is(err, wire.ErrUnsupportedFormat):
+	// Explicit detection did not recognize JSON or XML.
+case errors.Is(err, wire.ErrWrite):
+	// Serialization succeeded but the destination rejected the output.
+}
+```
+
+## Read and write YAML
+
+```go
+var config struct {
+	Service string `yaml:"service"`
+}
+err := yamlwire.DecodeReader(source, &config, yamlwire.DecodeOptions{
+	DisallowUnknownFields: true,
+	MaxAliases:            32,
+	MaxDepth:              64,
+})
+err = yamlwire.EncodeWriter(destination, config, yamlwire.EncodeOptions{})
+```
+
+One document and unique keys are the defaults. Set
+`AllowMultipleDocuments` only with a pointer to a slice. Aliases and merge keys
+can be rejected independently.
+
+## Read and write TOML
+
+```go
+var config struct {
+	DeployedAt time.Time `toml:"deployed_at"`
+}
+err := tomlwire.DecodeReader(source, &config, tomlwire.DecodeOptions{
+	DisallowUnknownFields: true,
+})
+err = tomlwire.EncodeWriter(destination, config, tomlwire.EncodeOptions{})
+```
+
+Duplicate keys, malformed trailing text, datetime mismatches, and numeric
+overflow are rejected.
+
+## Read and write MessagePack
+
+```go
+var message struct {
+	ID uint64 `msgpack:"id"`
+}
+err := msgpackwire.DecodeReader(source, &message, msgpackwire.DecodeOptions{})
+err = msgpackwire.EncodeWriter(destination, message, msgpackwire.EncodeOptions{
+	CompactIntegers: true,
+})
+```
+
+The decoder accepts one object. Untyped maps require string keys; typed map
+targets may declare another comparable key type.
+
+## Read and write CBOR
+
+```go
+var message struct {
+	ID uint64 `cbor:"id"`
+}
+err := cborwire.DecodeReader(source, &message, cborwire.DecodeOptions{
+	MaxNestedLevels: 64,
+})
+err = cborwire.EncodeWriter(destination, message, cborwire.EncodeOptions{
+	Profile: cborwire.CoreDeterministic,
+})
+```
+
+Canonical encoding is the default. Tags and indefinite-length values are
+rejected unless explicitly enabled.
+
+## Read and write BSON
+
+```go
+document := bsonwire.D{{Key: "status", Value: "ok"}}
+err := bsonwire.EncodeWriter(destination, document, bsonwire.EncodeOptions{})
+
+var decoded bsonwire.M
+err = bsonwire.DecodeReader(source, &decoded, bsonwire.DecodeOptions{})
+```
+
+BSON APIs require a complete document. Use `D`, structs, or `Raw` for stable
+field order; `M` map order is intentionally unspecified.
+
+Use `errors.As(err, &wireError)` to inspect `Kind`, `Format`, `Op`, and the
+underlying cause.
+
+## Source: docs/adoption.md
+
+# Adoption guide
+
+## 1. Identify the boundary
+
+Adopt `wire` where bytes enter or leave a service: an HTTP handler, carrier
+client, webhook consumer, file import, or RPC adapter. Keep domain mapping
+outside the package.
+
+```text
+transport bytes → wire parse/validate → boundary DTO → domain mapping
+```
+
+Do not pass `soap.Envelope`, raw maps, or vendor XML structs deep into business
+logic unless raw wire data is itself a domain requirement.
+
+## 2. Choose explicit format APIs
+
+Use `jsonwire`, `xmlwire`, `soap`, `yamlwire`, `tomlwire`, `msgpackwire`,
+`cborwire`, or `bsonwire` when the integration contract names a format. Use
+`wire.DetectFormat` only for genuinely polymorphic JSON/XML inputs such as a
+diagnostic import tool. Detection does not validate a payload, reports SOAP as
+XML, and deliberately does not guess YAML, TOML, or binary formats.
+
+## 3. Set payload limits from evidence
+
+The 1 MiB default is a safe starting point, not a universal recommendation.
+Measure representative production payloads and set the smallest limit that
+allows documented headroom.
+
+```go
+const carrierResponseLimit = 2 << 20
+
+err := jsonwire.DecodeReader(body, &response, jsonwire.DecodeOptions{
+	MaxBytes: carrierResponseLimit,
+})
+```
+
+Treat a size change as operational policy. Record it beside the integration,
+not in a global magic constant shared by unrelated peers.
+
+## 4. Decide strictness per peer
+
+- Enable JSON unknown-field rejection when the upstream contract is closed and
+  an added field should trigger review. Leave it disabled for additive APIs.
+- Keep XML strict unless a fixture proves a specific vendor defect that Go can
+  recover safely.
+- Validate XML roots when routing or target selection depends on the namespace.
+- Set XML and SOAP `MaxDepth` below the 1,000-element default when the peer's
+  schema has a tighter known nesting bound.
+- Never infer SOAP 1.1 versus 1.2 from HTTP headers alone; parse the envelope
+  namespace.
+- Keep duplicate keys and multiple YAML documents disabled unless the peer
+  contract explicitly needs them. Set tighter alias and depth limits from
+  evidence, and reject aliases or merge keys when the contract forbids them.
+- Keep TOML unknown-field rejection aligned with whether the configuration
+  contract is closed; duplicate keys remain invalid.
+- Keep MessagePack duplicate keys rejected unless a measured legacy contract
+  requires last-key-wins behavior. Decide whether non-string keys, numeric
+  widths, or extensions are part of the protocol before enabling compatibility
+  options.
+- Choose and document the required CBOR deterministic profile, tag policy, and
+  collection limits.
+- Reject BSON duplicate keys by default and use ordered `D`, structs, or raw
+  documents when stable field order matters.
+
+## 5. Map errors at the boundary
+
+Log or report the shared classification, operation, and safe peer context.
+Avoid logging entire payloads by default because they can contain credentials
+or personal data.
+
+```go
+var wireError *wire.Error
+if errors.As(err, &wireError) {
+	logger.Error("carrier payload rejected",
+		"format", wireError.Format,
+		"operation", wireError.Op,
+		"kind", wireError.Kind,
+	)
+}
+```
+
+Handle `wire.ErrSOAPFault` as a valid remote response, not corrupt XML. Decide
+which fault codes are retryable in application code; the package does not know
+the peer's retry semantics.
+
+## 6. Preserve fixtures
+
+For each adopted integration, keep redacted fixtures for:
+
+- the smallest valid response;
+- a representative large response;
+- every accepted vendor quirk;
+- malformed syntax;
+- a valid shape with invalid content;
+- duplicate-key and trailing-data variants where the format permits them;
+- binary fixtures with their expected decoded structure and encoding profile;
+- SOAP faults for both retryable and terminal cases, where applicable.
+
+Test the boundary DTO and error classification. A regression fixture should
+explain which real interoperability behavior it protects.
+
+## 7. Roll out safely
+
+1. Parse shadow copies in tests or a non-production replay harness.
+2. Compare domain DTOs and emitted bytes with the existing implementation.
+3. Investigate every divergence; do not normalize it away without documenting
+   the behavior.
+4. Deploy behind the application's normal release controls.
+5. Monitor classification counts and payload-limit failures without recording
+   sensitive bodies.
+
+## 8. Upgrade deliberately
+
+Pin tagged versions after v1. Read `CHANGELOG.md` and
+[`dependencies.md`](dependencies.md) before every upgrade. Defaults,
+normalization, SOAP fault mapping, accepted syntax, numeric conversion, emitted
+bytes, and error classification are compatibility-sensitive even if function
+signatures do not change. Dependency upgrades receive the same
+wire-compatibility review as first-party changes.
+
+## Source: docs/api.md
+
+# Public API reference
+
+This document describes every exported v1-candidate symbol. Go signatures and
+package comments remain authoritative; use `go doc` for locally installed
+source.
+
+## Package `wire`
+
+### Formats
+
+- `type Format string` identifies a supported format.
+- `FormatJSON`, `FormatXML`, `FormatSOAP`, `FormatYAML`, `FormatTOML`,
+  `FormatMessagePack`, `FormatCBOR`, and `FormatBSON` are explicit identifiers.
+- `DetectFormat([]byte) (Format, error)` detects JSON objects/arrays or XML by
+  the first significant byte. It removes whitespace and one UTF-8 BOM. SOAP is
+  reported as XML.
+
+### Errors
+
+- `type ErrorKind string` classifies failures.
+- `ErrorKindParse`, `ErrorKindValidation`, `ErrorKindUnsupported`,
+  `ErrorKindEnvelope`, `ErrorKindFault`, `ErrorKindWrite`,
+  `ErrorKindSizeLimit`, `ErrorKindTarget`, and `ErrorKindEncode` are stable
+  classifications.
+- `ErrParse`, `ErrValidation`, `ErrUnsupportedFormat`, `ErrEnvelope`, and
+  `ErrSOAPFault`, `ErrWrite`, `ErrSizeLimit`, `ErrTarget`, and `ErrEncode` are
+  sentinels for `errors.Is`.
+- `type Error struct { Kind ErrorKind; Format Format; Op string; Err error }`
+  carries structured context.
+- `(*Error).Error() string` renders a stable contextual message.
+- `(*Error).Is(error) bool` matches the sentinel for `Kind` or an underlying
+  cause.
+- `(*Error).Unwrap() error` returns the underlying cause.
+
+## Package `jsonwire`
+
+- `DefaultMaxBytes` is 1 MiB.
+- `ErrPayloadTooLarge` identifies a configured byte-limit violation.
+- `DecodeOptions` contains `MaxBytes` and `DisallowUnknownFields`.
+- `EncodeOptions` contains `MaxBytes`, `Indent`, and `DisableHTMLEscaping`.
+- `NormalizeOptions` contains `MaxBytes`.
+- `Decode([]byte, any, DecodeOptions) error` decodes exactly one value into a
+  non-nil pointer.
+- `DecodeReader(io.Reader, any, DecodeOptions) error` adds bounded stream
+  reading.
+- `Encode(any, EncodeOptions) ([]byte, error)` emits deterministic JSON.
+- `EncodeWriter(io.Writer, any, EncodeOptions) error` writes the same complete
+  deterministic JSON document.
+- `Normalize([]byte, NormalizeOptions) ([]byte, error)` validates and emits
+  compact key-ordered JSON while preserving number lexemes.
+
+## Package `xmlwire`
+
+- `DefaultMaxBytes` is 1 MiB.
+- `DefaultMaxDepth` is 1,000 nested elements and `ErrNestingTooDeep`
+  identifies depth-limit violations.
+- `ErrPayloadTooLarge` identifies a configured byte-limit violation.
+- `DecodeOptions` contains `MaxBytes`, `MaxDepth`, `AllowNonStrict`,
+  `ExpectedRoot`, and an injectable `CharsetReader`.
+- `EncodeOptions` contains `MaxBytes`, `Indent`, and `IncludeHeader`.
+- `Decode([]byte, any, DecodeOptions) error` validates and decodes one complete
+  XML document.
+- `DecodeReader(io.Reader, any, DecodeOptions) error` adds bounded stream
+  reading.
+- `Root([]byte, DecodeOptions) (xml.Name, error)` validates a complete document
+  and returns the resolved root namespace and local name.
+- `Encode(any, EncodeOptions) ([]byte, error)` serializes through
+  `encoding/xml`.
+- `EncodeWriter(io.Writer, any, EncodeOptions) error` writes the same complete
+  XML document.
+- `CharsetReader(string, io.Reader) (io.Reader, error)` converts UTF-8,
+  US-ASCII, ISO-8859-1, or Windows-1252 to UTF-8.
+
+## Package `soap`
+
+### Versions and options
+
+- `type Version string`, `Version11`, and `Version12` identify the supported
+  envelope namespaces.
+- `DefaultMaxBytes` is 1 MiB.
+- `ErrPayloadTooLarge` identifies a configured input or output byte-limit
+  violation.
+- `ParseOptions` contains `MaxBytes`, `MaxDepth`, and an injectable
+  `CharsetReader`. SOAP uses XML's 1,000-element default depth.
+- `EncodeOptions` contains `MaxBytes` and `Indent` for typed Header and Body
+  values.
+- `MarshalOptions` contains `MaxBytes` for raw envelopes and faults.
+
+### Envelopes
+
+- `Parse([]byte, ParseOptions) (*Envelope, error)` validates an envelope.
+- `ParseReader(io.Reader, ParseOptions) (*Envelope, error)` reads a bounded
+  stream before validation.
+- `Marshal(Version, header, body []byte) ([]byte, error)` wraps validated raw
+  fragments in a deterministic envelope.
+- `MarshalWithOptions(Version, header, body []byte, MarshalOptions)` adds a
+  configurable output bound.
+- `MarshalWriter(io.Writer, Version, header, body []byte) error` writes the same
+  raw-fragment envelope.
+- `MarshalWriterWithOptions(io.Writer, Version, header, body []byte,
+  MarshalOptions) error` writes a bounded raw-fragment envelope.
+- `Encode(Version, header, body any, EncodeOptions) ([]byte, error)` serializes
+  typed Header and Body values into a complete envelope.
+- `EncodeWriter(io.Writer, Version, header, body any, EncodeOptions) error`
+  writes the same typed envelope.
+- `Envelope.Version` is the parsed SOAP version.
+- `Envelope.Fault` is non-nil for a valid fault body.
+- `Envelope.RawXML()`, `HeaderXML()`, and `BodyXML()` return defensive copies.
+- `Envelope.DecodeBody(any) error` decodes exactly one body child with inherited
+  namespace bindings.
+
+### Faults
+
+- `FaultReason` contains a SOAP 1.2 `Language` and `Text` pair.
+- `Fault` contains `Version`, `Code`, `Subcodes`, `Reason`, `Reasons`, `Actor`,
+  `Node`, `Role`, `Detail`, and `Raw`.
+- `FaultError` carries a `Fault`, formats its code/reason, and unwraps to the
+  shared SOAP fault classification.
+- `(*FaultError).Error() string` renders the fault code and optional reason.
+- `(*FaultError).Unwrap() error` exposes a `wire.Error` classified as
+  `wire.ErrSOAPFault`.
+- `MarshalFault(Fault) ([]byte, error)` validates and emits a complete SOAP
+  fault envelope.
+- `MarshalFaultWithOptions(Fault, MarshalOptions) ([]byte, error)` adds a
+  configurable output bound.
+- `MarshalFaultWriter(io.Writer, Fault) error` writes the same complete fault
+  envelope.
+- `MarshalFaultWriterWithOptions(io.Writer, Fault, MarshalOptions) error`
+  writes a bounded fault envelope.
+
+## Package `yamlwire`
+
+- `DefaultMaxBytes` is 1 MiB and `ErrPayloadTooLarge` identifies byte-limit
+  failures.
+- `DecodeOptions` contains `MaxBytes`, `MaxDepth`, `MaxAliases`,
+  `DisallowUnknownFields`, `AllowDuplicateKeys`, `AllowMultipleDocuments`,
+  `DisallowAliases`, and `DisallowMergeKeys`.
+- `AllowMultipleDocuments` requires a pointer to a slice; the default requires
+  exactly one document.
+- `EncodeOptions` contains `MaxBytes`, `Indent`, and
+  `DefaultSequenceIndent`.
+- `Decode`, `DecodeReader`, `Encode`, and `EncodeWriter` provide bounded
+  bidirectional YAML processing.
+
+## Package `tomlwire`
+
+- `DefaultMaxBytes` is 1 MiB and `ErrPayloadTooLarge` identifies byte-limit
+  failures.
+- `DecodeOptions` contains `MaxBytes` and `DisallowUnknownFields`.
+- `EncodeOptions` controls `MaxBytes`; `Indent` accepts spaces or tabs for
+  nested TOML keys.
+- `Decode`, `DecodeReader`, `Encode`, and `EncodeWriter` process one complete
+  TOML document with native datetime and checked numeric conversion.
+
+## Package `msgpackwire`
+
+- `DefaultMaxBytes` is 1 MiB and `ErrPayloadTooLarge` identifies byte-limit
+  failures.
+- `DefaultMaxNestedLevels` is 32, `DefaultMaxArrayElements` is 131,072, and
+  `DefaultMaxMapPairs` is 65,536.
+- `DecodeOptions` contains `MaxBytes`, `MaxNestedLevels`, `MaxArrayElements`,
+  `MaxMapPairs`, `AllowDuplicateKeys`, `DisallowUnknownFields`, and
+  `NormalizeNumericWidths`. Zero limits select the exported safe defaults.
+- `EncodeOptions` contains `MaxBytes`, `CompactIntegers`, `CompactFloats`, and
+  `StructAsArray`. Map keys are always sorted for deterministic output.
+- `Decode`, `DecodeReader`, `Encode`, and `EncodeWriter` process exactly one
+  MessagePack object.
+- Untyped maps require string keys. Typed maps can declare other comparable
+  key types. The standard timestamp extension is supported; unknown extension
+  IDs are rejected.
+
+## Package `cborwire`
+
+- `DefaultMaxBytes` is 1 MiB and `ErrPayloadTooLarge` identifies byte-limit
+  failures.
+- `DeterministicProfile` selects `Canonical`, `CoreDeterministic`, or
+  `CTAP2Deterministic` output.
+- `DecodeOptions` contains `MaxBytes`, `MaxNestedLevels`, `MaxArrayElements`,
+  `MaxMapPairs`, `DisallowUnknownFields`, `AllowTags`, and
+  `AllowIndefiniteLength`.
+- `EncodeOptions` contains `MaxBytes`, `Profile`, `AllowTags`, and `TimeTag`.
+- `Decode`, `DecodeReader`, `Encode`, and `EncodeWriter` process exactly one
+  CBOR data item. Duplicate keys are always rejected.
+
+## Package `bsonwire`
+
+- `DefaultMaxBytes` is 1 MiB and `ErrPayloadTooLarge` identifies byte-limit
+  failures.
+- `A`, `D`, `E`, `M`, `Raw`, `RawArray`, `RawValue`, `ObjectID`, `DateTime`,
+  `Decimal128`, `Binary`, `Regex`, `Timestamp`, `JavaScript`, `CodeWithScope`,
+  `MinKey`, `MaxKey`, `Undefined`, `DBPointer`, and `Symbol` alias official
+  MongoDB BSON types.
+- `DecodeOptions` contains `MaxBytes`, `AllowDuplicateKeys`,
+  `ObjectIDAsHexString`, and `AllowTruncatingDoubles`.
+- `EncodeOptions` contains `MaxBytes`, `AllowDuplicateKeys`,
+  `MinimizeIntegerWidth`, and `UseJSONStructTags`.
+- `Decode`, `DecodeReader`, `Encode`, and `EncodeWriter` process complete BSON
+  documents only. Duplicate keys are rejected recursively by default.
+
+## Compatibility note
+
+These symbols are release candidates until v1.0.0. After v1, exported names,
+signatures, default limits, error classifications, wire output, and documented
+normalization behavior are SemVer-governed.
+
+## Source: docs/architecture.md
+
+# Architecture
+
+## Package boundaries
+
+`wire` uses format-specific packages rather than a universal codec:
+
+```text
+github.com/faustbrian/golib/pkg/wire        shared Format and Error vocabulary
+├── jsonwire                         JSON boundary policy
+├── xmlwire                          XML boundary policy and charsets
+├── soap                             SOAP envelope and fault semantics
+├── yamlwire                         YAML document, alias, and merge policy
+├── tomlwire                         TOML document and native-type policy
+├── msgpackwire                      MessagePack object and numeric policy
+├── cborwire                         CBOR deterministic and resource modes
+└── bsonwire                         BSON document and duplicate-key policy
+```
+
+The root package does not dispatch encoding or decoding. `DetectFormat` is an
+opt-in convenience for distinguishing JSON-looking and XML-looking bytes; it
+intentionally reports SOAP as XML because trustworthy SOAP identification
+requires namespace-aware envelope parsing.
+Text and binary formats are not routed through a generic codec or guessed from
+ambiguous bytes.
+
+## Data flow
+
+```text
+bounded bytes/reader
+        │
+        ▼
+format parser ──syntax failure──▶ wire.ErrParse
+        │
+        ▼
+shape/policy validation ────────▶ wire.ErrValidation
+        │
+        ├──resource bound───────▶ wire.ErrSizeLimit
+        ├──invalid target───────▶ wire.ErrTarget
+        ├──SOAP envelope────────▶ wire.ErrEnvelope
+        ├──SOAP fault───────────▶ wire.ErrSOAPFault
+        ▼
+typed value plus retained raw data where promised
+```
+
+JSON and XML decode into caller-owned targets. SOAP first validates and retains
+an envelope, then decodes the body so namespace declarations inherited from the
+envelope remain available.
+
+Outbound flow is equally explicit:
+
+```text
+typed value → format encoder → []byte
+                           └─→ io.Writer ──destination failure──▶ wire.ErrWrite
+```
+
+Every format exposes a byte-returning and writer API. SOAP adds typed
+`Encode`/`EncodeWriter` for Header and Body values while retaining
+`Marshal`/`MarshalWriter` for callers that already own XML fragments.
+
+## Determinism
+
+- JSON encoding uses `encoding/json`, which orders map keys deterministically.
+- JSON normalization retains `json.Number` lexemes and emits compact JSON.
+- XML encoding follows deterministic struct field traversal in `encoding/xml`.
+- SOAP emission uses a fixed `soap` prefix and preserves validated header/body
+  fragments byte-for-byte.
+- YAML v4 and TOML order map keys; their textual formatting remains
+  format-specific.
+- MessagePack always enables sorted map keys.
+- CBOR names canonical, Core Deterministic, and CTAP2 profiles explicitly.
+- BSON structs and ordered `D` values are stable; `M` map output is not claimed
+  as deterministic.
+
+Determinism applies to the same Go version and configuration. The project does
+not promise XML canonicalization, semantic equivalence normalization, stable
+source prefixes after `encoding/xml` marshaling, or preservation of JSON
+insignificant whitespace outside `Normalize`.
+
+## Raw access and normalization
+
+SOAP exposes copies from `RawXML`, `HeaderXML`, and `BodyXML`. Returning copies
+prevents consumers from mutating the validated envelope. `Marshal` validates
+raw fragments but does not rewrite them.
+
+JSON normalization is explicit because it changes presentation. XML has no
+generic normalizer: namespace prefix rewriting, attribute ordering, and mixed
+content make a vague normalizer unsafe. Consumers should decode into a known
+model and encode deliberately when XML reshaping is required.
+
+## Extension policy
+
+New formats must justify a dedicated semantic package and cannot broaden the
+root package into a speculative codec abstraction. YAML, TOML, MessagePack,
+WSDL tooling, and transport clients remain roadmap candidates, not latent API
+requirements.
+
+## Dependency policy
+
+The runtime implementation uses only the Go standard library. The built-in XML
+charset converter is intentionally small and auditable. Applications needing a
+larger charset registry inject `CharsetReader` rather than forcing every
+consumer to inherit another dependency.
+
+## Source: docs/examples.md
+
+# End-to-end examples
+
+These examples keep transport and domain policy outside `wire`. Replace the
+placeholder URLs and DTOs with the peer's documented contract.
+
+## JSON HTTP response
+
+```go
+type RateResponse struct {
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
+}
+
+func fetchRate(ctx context.Context, client *http.Client, endpoint string) (RateResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return RateResponse{}, err
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return RateResponse{}, err
+	}
+	defer response.Body.Close()
+
+	var rate RateResponse
+	if err := jsonwire.DecodeReader(response.Body, &rate, jsonwire.DecodeOptions{
+		MaxBytes: 256 << 10,
+	}); err != nil {
+		return RateResponse{}, fmt.Errorf("decode rate response: %w", err)
+	}
+	return rate, nil
+}
+```
+
+HTTP status validation remains the caller's responsibility and should normally
+happen before body decoding. A service may intentionally decode a structured
+error body for non-2xx statuses.
+
+## XML webhook with namespace routing
+
+```go
+func handleShipment(body io.Reader) error {
+	payload, err := io.ReadAll(io.LimitReader(body, (512<<10)+1))
+	if err != nil {
+		return err
+	}
+	if len(payload) > 512<<10 {
+		return errors.New("shipment webhook is too large")
+	}
+
+	root, err := xmlwire.Root(payload, xmlwire.DecodeOptions{})
+	if err != nil {
+		return err
+	}
+	if root != (xml.Name{Space: "urn:carrier:shipment:v2", Local: "Shipment"}) {
+		return fmt.Errorf("unexpected shipment document {%s}%s", root.Space, root.Local)
+	}
+
+	var shipment ShipmentV2
+	return xmlwire.Decode(payload, &shipment, xmlwire.DecodeOptions{
+		MaxBytes:     512 << 10,
+		ExpectedRoot: root,
+	})
+}
+```
+
+When a caller needs both `Root` and `Decode`, it owns the bounded byte slice so
+the stream is read once. `Root` validates the complete document, not only the
+opening tag.
+
+## SOAP request and response
+
+```go
+func callRateService(ctx context.Context, client *http.Client, endpoint string, request RateRequest) (RateResponse, error) {
+	envelopeXML, err := soap.Encode(
+		soap.Version12,
+		nil,
+		request,
+		soap.EncodeOptions{},
+	)
+	if err != nil {
+		return RateResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(envelopeXML))
+	if err != nil {
+		return RateResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/soap+xml; charset=utf-8")
+
+	response, err := client.Do(req)
+	if err != nil {
+		return RateResponse{}, err
+	}
+	defer response.Body.Close()
+
+	envelope, parseErr := soap.ParseReader(response.Body, soap.ParseOptions{MaxBytes: 2 << 20})
+	if errors.Is(parseErr, wire.ErrSOAPFault) {
+		var faultError *soap.FaultError
+		if errors.As(parseErr, &faultError) {
+			return RateResponse{}, mapCarrierFault(faultError.Fault)
+		}
+	}
+	if parseErr != nil {
+		return RateResponse{}, parseErr
+	}
+
+	var rate RateResponse
+	if err := envelope.DecodeBody(&rate); err != nil {
+		return RateResponse{}, err
+	}
+	return rate, nil
+}
+```
+
+The application chooses HTTP headers, authenticates, maps statuses, and decides
+whether a fault is retryable. `wire` owns only XML/SOAP structure.
+
+## Safe diagnostic logging
+
+```go
+func logWireError(logger *slog.Logger, peer string, err error) {
+	var wireError *wire.Error
+	if !errors.As(err, &wireError) {
+		logger.Error("integration failed", "peer", peer, "error", err)
+		return
+	}
+	logger.Error("wire payload rejected",
+		"peer", peer,
+		"format", wireError.Format,
+		"kind", wireError.Kind,
+		"operation", wireError.Op,
+		"cause", wireError.Err,
+	)
+}
+```
+
+Do not log `RawXML`, `BodyXML`, or vendor payloads unless the application has a
+redaction and retention policy.
+
+## YAML configuration round trip
+
+```go
+var config ServiceConfig
+if err := yamlwire.DecodeReader(input, &config, yamlwire.DecodeOptions{
+	DisallowUnknownFields: true,
+	MaxAliases:            32,
+	MaxDepth:              64,
+}); err != nil {
+	return err
+}
+return yamlwire.EncodeWriter(output, config, yamlwire.EncodeOptions{})
+```
+
+Use `AllowMultipleDocuments` only with `*[]ServiceConfig`. Duplicate keys are
+rejected unless the integration explicitly chooses last-key-wins behavior.
+
+## TOML configuration round trip
+
+```go
+var config ServiceConfig
+if err := tomlwire.DecodeReader(input, &config, tomlwire.DecodeOptions{
+	DisallowUnknownFields: true,
+}); err != nil {
+	return err
+}
+return tomlwire.EncodeWriter(output, config, tomlwire.EncodeOptions{})
+```
+
+TOML datetime fields should use `time.Time` or underlying TOML local-time
+types. Numeric overflow is rejected rather than narrowed.
+
+## MessagePack request round trip
+
+```go
+var request Request
+if err := msgpackwire.DecodeReader(input, &request, msgpackwire.DecodeOptions{}); err != nil {
+	return err
+}
+return msgpackwire.EncodeWriter(output, request, msgpackwire.EncodeOptions{
+	CompactIntegers: true,
+})
+```
+
+The input must contain one object. Unknown extensions and non-string keys in
+untyped maps are rejected; use a typed map target when integer keys are part of
+the protocol.
+
+## Deterministic CBOR exchange
+
+```go
+var request Request
+if err := cborwire.DecodeReader(input, &request, cborwire.DecodeOptions{
+	MaxNestedLevels: 64,
+	MaxArrayElements: 4096,
+	MaxMapPairs:      4096,
+}); err != nil {
+	return err
+}
+return cborwire.EncodeWriter(output, request, cborwire.EncodeOptions{
+	Profile: cborwire.CoreDeterministic,
+})
+```
+
+Tags and indefinite-length items stay disabled unless the peer's CBOR profile
+requires them.
+
+## Ordered BSON document exchange
+
+```go
+request := bsonwire.D{
+	{Key: "shipment_id", Value: shipmentID},
+	{Key: "created_at", Value: createdAt},
+}
+if err := bsonwire.EncodeWriter(output, request, bsonwire.EncodeOptions{}); err != nil {
+	return err
+}
+
+var response bsonwire.Raw
+return bsonwire.DecodeReader(input, &response, bsonwire.DecodeOptions{})
+```
+
+Use `D`, structs, or `Raw` when byte order matters. `M` is a Go map and does
+not have stable output order.
+
+## Source: docs/cookbook.md
+
+# Scenario cookbook
+
+## Reject additive JSON fields
+
+Use this only when an upstream contract is intentionally closed:
+
+```go
+err := jsonwire.Decode(payload, &target, jsonwire.DecodeOptions{
+	DisallowUnknownFields: true,
+})
+```
+
+An unknown field is `wire.ErrValidation`, not a syntax error.
+
+## Preserve JSON decimal spelling during normalization
+
+```go
+normalized, err := jsonwire.Normalize([]byte(`{"amount":1.20}`), jsonwire.NormalizeOptions{})
+// normalized is {"amount":1.20}
+```
+
+Normalization retains `json.Number` lexemes. Decoding into `float64` elsewhere
+can still change representation or precision.
+
+## Disable JSON HTML escaping
+
+```go
+payload, err := jsonwire.Encode(value, jsonwire.EncodeOptions{
+	DisableHTMLEscaping: true,
+})
+```
+
+Use this only when literal `<`, `>`, and `&` are required by a peer. It is not a
+general HTML-safety recommendation.
+
+## Accept a known non-strict XML document
+
+```go
+err := xmlwire.Decode(payload, &target, xmlwire.DecodeOptions{
+	AllowNonStrict: true,
+})
+```
+
+Keep the malformed vendor payload as a regression fixture. Document the exact
+repair that `encoding/xml` performs and review it when upgrading Go.
+
+## Validate an XML namespace independent of prefix
+
+```go
+options := xmlwire.DecodeOptions{
+	ExpectedRoot: xml.Name{Space: "urn:vendor:v2", Local: "Shipment"},
+}
+```
+
+`v:Shipment` and `shipment:Shipment` are equivalent when both prefixes resolve
+to `urn:vendor:v2`.
+
+## Add a vendor charset
+
+```go
+options := xmlwire.DecodeOptions{
+	CharsetReader: func(label string, input io.Reader) (io.Reader, error) {
+		if strings.EqualFold(label, "vendor-ebcdic") {
+			return newVendorDecoder(input), nil
+		}
+		return xmlwire.CharsetReader(label, input)
+	},
+}
+```
+
+Delegate built-in labels back to `xmlwire.CharsetReader`. Never silently treat
+an unknown label as UTF-8.
+
+## Inspect a SOAP fault without losing the envelope
+
+```go
+envelope, err := soap.Parse(payload, soap.ParseOptions{})
+if errors.Is(err, wire.ErrSOAPFault) {
+	fault := envelope.Fault
+	// Use fault.Code, fault.Reason, fault.Detail, and envelope.RawXML().
+}
+```
+
+The envelope is intentionally returned with the fault error.
+
+## Emit localized SOAP 1.2 fault reasons
+
+```go
+payload, err := soap.MarshalFault(soap.Fault{
+	Version: soap.Version12,
+	Code:    "soap:Sender",
+	Reasons: []soap.FaultReason{
+		{Language: "en", Text: "Invalid shipment"},
+		{Language: "fi", Text: "Virheellinen lähetys"},
+	},
+})
+```
+
+The first reason becomes the convenience `Fault.Reason` when parsed.
+
+## Preserve a vendor body fragment exactly
+
+```go
+payload, err := soap.Marshal(soap.Version11, headerFragment, bodyFragment)
+```
+
+Fragments are checked for XML well-formedness and inserted byte-for-byte. Their
+application schema and namespace meaning are not validated.
+
+## Encode typed SOAP values directly
+
+```go
+err := soap.EncodeWriter(
+	destination,
+	soap.Version12,
+	header,
+	body,
+	soap.EncodeOptions{},
+)
+```
+
+Use the typed API when Header and Body are Go values. Use `MarshalWriter` only
+when the application intentionally owns already encoded XML fragments.
+
+## Distinguish a size failure from malformed syntax
+
+```go
+if errors.Is(err, jsonwire.ErrPayloadTooLarge) {
+	// The JSON byte limit was exceeded.
+}
+if errors.Is(err, wire.ErrSizeLimit) {
+	// A byte or format-specific resource limit was exceeded.
+}
+```
+
+XML exposes the corresponding `xmlwire.ErrPayloadTooLarge`; SOAP exposes
+`soap.ErrPayloadTooLarge`. All are inspectable causes beneath
+`wire.ErrSizeLimit`.
+
+## Reject YAML expansion features
+
+```go
+err := yamlwire.Decode(payload, &config, yamlwire.DecodeOptions{
+	DisallowAliases:   true,
+	DisallowMergeKeys: true,
+	MaxDepth:          64,
+})
+```
+
+Use this for a protocol that defines YAML as a plain tree and does not permit
+anchors, aliases, or merge keys.
+
+## Decode every YAML document explicitly
+
+```go
+var documents []Config
+err := yamlwire.Decode(payload, &documents, yamlwire.DecodeOptions{
+	AllowMultipleDocuments: true,
+})
+```
+
+The slice requirement prevents later documents from being silently ignored.
+
+## Enforce a closed TOML schema
+
+```go
+err := tomlwire.Decode(payload, &config, tomlwire.DecodeOptions{
+	DisallowUnknownFields: true,
+})
+```
+
+Duplicate keys are always syntax errors. Unknown fields are optional policy.
+
+## Preserve MessagePack integer widths
+
+```go
+var value any
+err := msgpackwire.Decode(payload, &value, msgpackwire.DecodeOptions{})
+```
+
+Small encoded types remain `int8`, `uint16`, and so on. Set
+`NormalizeNumericWidths` to widen small integer types for a known loose peer.
+
+Duplicate MessagePack keys are rejected recursively. If a legacy peer is
+already defined as last-key-wins, isolate that exception with
+`DecodeOptions{AllowDuplicateKeys: true}` and retain a duplicate-key fixture.
+
+## Select a CBOR deterministic profile
+
+```go
+payload, err := cborwire.Encode(value, cborwire.EncodeOptions{
+	Profile: cborwire.CTAP2Deterministic,
+})
+```
+
+Do not label CTAP2 or Core Deterministic bytes as RFC 7049 canonical bytes;
+the ordering and tag rules differ.
+
+## Accept BSON duplicate keys for a legacy peer
+
+```go
+var document bsonwire.D
+err := bsonwire.Decode(payload, &document, bsonwire.DecodeOptions{
+	AllowDuplicateKeys: true,
+})
+```
+
+Use ordered `D`; decoding duplicates into `M` loses information.
+
+## Source: docs/faq.md
+
+# Frequently asked questions
+
+## Why not call `encoding/json` or `encoding/xml` directly?
+
+Do so when their defaults already satisfy the boundary. `wire` adds value
+when a service needs consistent bounds, single-document enforcement, structured
+errors, explicit normalization, namespace validation, charset policy, or SOAP
+semantics. It is not a replacement wrapper for every standard-library call.
+
+## Why separate packages instead of one `Codec` interface?
+
+The formats have different failure modes and guarantees. A universal interface
+would hide namespace, fault, alias, datetime, map-key, tag, canonicalization,
+extension, and document semantics. Explicit imports make those choices visible.
+
+## Does format detection identify SOAP?
+
+No. `wire.DetectFormat` returns `wire.FormatXML` for XML-looking bytes. Use
+`soap.Parse` to validate an Envelope namespace and determine SOAP 1.1 or 1.2.
+
+## Is JSON normalization canonical JSON?
+
+No. It provides deterministic key ordering through `encoding/json`, compact
+whitespace, BOM removal, and number-lexeme preservation. It does not implement
+RFC 8785 or another signing canonicalization standard.
+
+## Are duplicate JSON keys rejected?
+
+No. They follow `encoding/json` behavior. Validate duplicates separately if a
+security or protocol contract requires rejection.
+
+## Does XML parsing resolve external entities?
+
+No network or filesystem entity resolver is installed. The package does not
+provide DTD or XSD processing.
+
+## Why is non-strict XML opt-in?
+
+Recovery changes interpretation and can hide upstream breakage. The option
+exists for known, fixture-backed vendor defects and is never inferred.
+
+## Why only four built-in charsets?
+
+They cover common vendor boundaries while keeping the dependency and audit
+surface small. Inject a charset reader for a known additional encoding.
+
+## Does SOAP parsing depend on HTTP headers?
+
+No. The envelope namespace determines the version. HTTP status, Content-Type,
+SOAPAction, authentication, retries, and timeouts belong to the caller.
+
+## Why does parsing a SOAP fault return an envelope and an error?
+
+A fault is valid SOAP but represents a failed remote operation. Returning both
+preserves raw diagnostics and typed fault data while making error handling hard
+to skip accidentally.
+
+## Is `Fault.Detail` trusted or schema-validated?
+
+No. It is raw inner XML from the fault detail element. Decode it into a
+peer-specific DTO only after identifying the expected fault code and schema.
+
+## Can SOAP encode headers and bodies from structs?
+
+Yes. Use `soap.Encode` for bytes or `soap.EncodeWriter` for an `io.Writer`; both
+accept typed Header and Body values. Use `Marshal` or `MarshalWriter` when the
+application already owns XML fragments and needs them preserved byte-for-byte.
+
+## Is the package safe for concurrent use?
+
+Functions allocate per call and do not use mutable package state. An `Envelope`
+is safe for concurrent reads if the caller does not mutate exported fields such
+as `Fault`. Raw accessors return copies.
+
+## What is stable before v1?
+
+Nothing is covered by a v1 compatibility promise until v1.0.0 is tagged. The
+current docs describe the candidate contract so changes can be reviewed
+explicitly.
+
+## Why are YAML, TOML, and binary formats not auto-detected?
+
+Ordinary text can be valid under multiple grammars, and arbitrary bytes can
+look like valid MessagePack, CBOR, or a BSON prefix by accident. Call the
+package named by the protocol contract. `DetectFormat` remains limited to its
+documented JSON/XML heuristic.
+
+## Are YAML aliases and merge keys safe?
+
+They are bounded by YAML v4's alias and depth protections. Callers can set
+tighter limits or reject aliases and merge keys entirely. Duplicate keys and
+multiple documents are rejected by default.
+
+## Is all CBOR output canonical?
+
+No. The default is the named canonical profile. Core Deterministic and CTAP2
+are separate explicit profiles with different rules. Tags also require
+explicit opt-in.
+
+## Why can BSON map output change order?
+
+`bsonwire.M` is a Go map. Use a struct, ordered `bsonwire.D`, or validated
+`bsonwire.Raw` when stable field order or exact bytes matter.
+
+## Source: docs/troubleshooting.md
+
+# Troubleshooting
+
+## Start with classification
+
+```go
+var wireError *wire.Error
+if errors.As(err, &wireError) {
+	fmt.Printf("format=%s kind=%s operation=%s cause=%v\n",
+		wireError.Format, wireError.Kind, wireError.Op, wireError.Err)
+}
+```
+
+Use the cause for engineering diagnostics, but do not expose vendor payloads or
+internal parse details directly to untrusted clients.
+
+`wire.ErrSizeLimit` means the configured byte limit was exceeded.
+`wire.ErrTarget` identifies a nil or otherwise invalid decode destination.
+`wire.ErrEncode` identifies a value that the selected format cannot represent.
+These are distinct from syntax (`wire.ErrParse`), decoded-shape validation
+(`wire.ErrValidation`), and destination I/O (`wire.ErrWrite`).
+
+## `payload exceeds size limit`
+
+The zero-value option uses 1 MiB. Confirm the peer's documented maximum and
+measure redacted fixtures before raising the limit. A sudden size increase can
+also indicate an error page, batch expansion, or upstream regression.
+
+## JSON reports `multiple JSON values`
+
+The payload contains another non-whitespace value after the first. Common causes
+are newline-delimited JSON, concatenated responses, or a proxy error appended
+to a valid document. NDJSON is not supported by `Decode`.
+
+## JSON unknown fields fail
+
+`DisallowUnknownFields` was enabled. Decide whether the upstream contract is
+closed. If fields are additive, disable the option; do not repeatedly add dummy
+fields solely to silence validation.
+
+## JSON numbers look different after application decoding
+
+`Normalize` preserves source number lexemes, but decoding into `float64` does
+not. Use `json.Number`, a decimal type owned by the application, or a string
+field when the peer's contract requires exact decimal representation.
+
+## XML says the root namespace is wrong
+
+Inspect `xmlwire.Root`. Compare `xml.Name.Space` to the namespace URL, not the
+source prefix. An empty `Space` usually means the peer omitted `xmlns` or placed
+the element outside the expected default namespace.
+
+## XML reports an unsupported charset
+
+Check the declaration and raw bytes. Correct a falsely declared upstream
+encoding at the source where possible. Otherwise inject a narrowly scoped
+`CharsetReader`; never guess based on byte appearance.
+
+## XML or SOAP reaches a size limit below the byte limit
+
+`MaxDepth` is also a resource limit. Zero selects 1,000 nested XML elements;
+set a tighter positive value for a known schema. Excess depth is
+`wire.ErrSizeLimit` and XML additionally wraps `xmlwire.ErrNestingTooDeep`.
+
+## Non-strict XML still fails
+
+`AllowNonStrict` is the recovery behavior from `encoding/xml`, not a general
+repair engine. Capture a redacted fixture and determine whether the document
+can be repaired unambiguously. Reject it if multiple interpretations exist.
+
+## YAML rejects a document accepted elsewhere
+
+The safe defaults reject duplicate mapping keys and multiple documents while
+accepting anchors, aliases, and merge keys under the YAML library's resource
+protections. `AllowDuplicateKeys` uses last-value semantics. Use
+`DisallowAliases` or `DisallowMergeKeys` when the protocol forbids those
+features, and set tighter `MaxAliases` and `MaxDepth` limits when required.
+`AllowMultipleDocuments` requires a slice target so document boundaries remain
+explicit.
+
+## TOML rejects a date or number
+
+TOML date/time values are syntax-sensitive and numeric overflow is rejected
+rather than narrowed. Decode into a compatible `time.Time`, integer, or float
+field. Duplicate keys and trailing TOML documents are always rejected because
+they have no unambiguous object interpretation.
+
+## MessagePack rejects a map, extension, or number
+
+Untyped maps require string keys. Use a typed map target when the contract
+defines another comparable key type. Unknown extension identifiers are
+rejected unless the application explicitly registers them with the underlying
+MessagePack library. Integer narrowing and lossy float conversion are rejected.
+Duplicate keys are rejected recursively unless `AllowDuplicateKeys` explicitly
+selects dependency-compatible last-key-wins behavior.
+A second top-level object is reported as trailing data. `wire.ErrSizeLimit`
+can also mean the object exceeded `MaxNestedLevels`, `MaxArrayElements`, or
+`MaxMapPairs`; zero values select the exported safe defaults.
+
+## CBOR rejects tags or indefinite-length data
+
+Tags and indefinite-length items are disabled by default. Enable them only for
+a protocol that requires them. Resource-limit errors usually mean the peer
+exceeded `MaxNestedLevels`, `MaxArrayElements`, or `MaxMapPairs`; raise those
+limits from measured protocol evidence. Select Core Deterministic or CTAP2
+encoding explicitly when a peer requires that profile.
+
+## BSON reports an invalid document or duplicate key
+
+`bsonwire` accepts exactly one BSON document, so a scalar, array, truncated
+length prefix, or trailing bytes is invalid. Duplicate keys are rejected
+recursively by default. `bsonwire.M` is intentionally unordered; use a struct,
+`bsonwire.D`, or `bsonwire.Raw` when emitted field order is part of the
+contract. `AllowTruncatingDoubles` explicitly permits lossy truncation toward
+zero; leave it disabled unless the peer contract requires that conversion.
+
+## SOAP is classified as an envelope failure
+
+Check all of the following:
+
+- root local name is `Envelope`;
+- namespace is exactly the SOAP 1.1 or SOAP 1.2 namespace;
+- at most one Header appears and it precedes Body;
+- exactly one Body appears;
+- envelope children use the envelope namespace;
+- a Fault is the only direct Body child and has a code and reason.
+
+Malformed XML is `wire.ErrParse`; well-formed XML that violates these rules is
+`wire.ErrEnvelope`.
+
+## `DecodeBody` says the body has zero or multiple children
+
+The helper intentionally targets request/response SOAP shapes with one body
+entry. Use `BodyXML` and a peer-specific XML model if the peer legitimately
+uses multiple body entries, and document that divergence.
+
+## A valid SOAP fault appears as an error
+
+This is expected. Check `errors.Is(err, wire.ErrSOAPFault)` before treating the
+response as broken XML. Use `errors.As` to obtain `*soap.FaultError`, or read
+`envelope.Fault` from the simultaneously returned envelope.
+
+## SOAP fragment marshaling fails
+
+Header and body arguments must be XML fragments containing elements or
+whitespace, not plain text or an unclosed element. Prefixes used inside a
+fragment must be declared in that fragment unless they use the package's
+`soap` envelope prefix.
+
+## Encoding succeeds but writing fails
+
+Check `errors.Is(err, wire.ErrWrite)`. The value was serialized successfully,
+but the destination returned an error or a short write. Inspect the wrapped
+cause for stream, filesystem, connection, or cancellation details. Invalid
+values remain `wire.ErrValidation` and are detected before writing.
+
+## Coverage falls below 100%
+
+Run:
+
+```sh
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+```
+
+Add behavior-focused tests for the missing branch. Do not add assertions that
+only execute a line without proving its contract.
+
+## Source: docs/migration.md
+
+# Migration notes
+
+## Before v1
+
+The module is unreleased and APIs can change until v1.0.0. Pin a commit, keep
+the integration behind boundary adapters, and review `CHANGELOG.md` whenever
+updating.
+
+## From direct `encoding/json`
+
+Before:
+
+```go
+err := json.NewDecoder(body).Decode(&response)
+```
+
+After:
+
+```go
+err := jsonwire.DecodeReader(body, &response, jsonwire.DecodeOptions{
+	MaxBytes: 1 << 20,
+})
+```
+
+Behavior differences:
+
+- the stream is bounded;
+- exactly one JSON value is required;
+- invalid UTF-8 is rejected instead of being replaced with U+FFFD;
+- invalid targets use `wire.ErrTarget`, byte limits use `wire.ErrSizeLimit`,
+  and type mismatches retain structured validation errors;
+- unknown fields remain accepted unless explicitly rejected;
+- the default decoder still follows `encoding/json` duplicate-key behavior.
+
+If existing code consumes a sequence of JSON values, do not migrate it to
+`DecodeReader`; the helper intentionally rejects that protocol.
+
+## From direct `encoding/xml`
+
+Before:
+
+```go
+err := xml.NewDecoder(body).Decode(&shipment)
+```
+
+After:
+
+```go
+err := xmlwire.DecodeReader(body, &shipment, xmlwire.DecodeOptions{
+	ExpectedRoot: xml.Name{Space: "urn:vendor", Local: "Shipment"},
+})
+```
+
+Behavior differences:
+
+- the stream is bounded;
+- strict parsing is explicit and the default;
+- the complete document must have one root;
+- common legacy charsets are converted through an auditable allowlist;
+- root validation uses resolved namespaces.
+
+If an old decoder set `Strict = false`, capture malformed fixtures and enable
+`AllowNonStrict` only after verifying the recovered values match current
+production behavior.
+
+## From hand-written SOAP structs
+
+Common legacy code decodes an Envelope struct and checks a body field manually.
+Migrate in two stages:
+
+1. Parse with `soap.Parse` or `soap.ParseReader` and preserve current body DTOs.
+2. Replace manual fault checks with `wire.ErrSOAPFault` and `*soap.FaultError`.
+
+```go
+envelope, err := soap.ParseReader(body, soap.ParseOptions{})
+if errors.Is(err, wire.ErrSOAPFault) {
+	return mapFault(envelope.Fault)
+}
+if err != nil {
+	return err
+}
+return envelope.DecodeBody(&response)
+```
+
+Audit these differences:
+
+- SOAP version comes from the Envelope namespace;
+- Header must occur at most once before Body;
+- Body is required exactly once;
+- a Fault must be the only Body child and contain code and reason;
+- `DecodeBody` expects one direct body child;
+- SOAP faults are returned as errors together with their envelope.
+
+## From direct YAML libraries
+
+Replace unbounded decoding with `yamlwire.DecodeReader` and select compatibility
+options deliberately. Duplicate keys and multiple documents are rejected by
+default. Aliases and merge keys are accepted under bounded library protections
+and can be rejected explicitly. Encoding is deterministic and supports an
+explicit indentation width.
+
+## From direct TOML libraries
+
+Use `tomlwire.DecodeReader` for bounded, single-document decoding and
+`tomlwire.EncodeWriter` for output. Unknown fields are optional strictness;
+duplicate keys, trailing documents, numeric overflow, and incompatible datetime
+targets are rejected. Verify emitted table layout if existing golden files
+depend on a library-specific presentation.
+
+## From direct MessagePack libraries
+
+Use `msgpackwire.DecodeReader` and `msgpackwire.EncodeWriter`. The wrapper
+requires exactly one object, rejects unknown extensions and lossy numeric
+conversion, rejects duplicate keys, and defaults untyped maps to string keys.
+Use `AllowDuplicateKeys` only for a measured legacy peer, where decoding uses
+last-key-wins behavior. Preserve numeric widths when the protocol requires
+them, or opt into normalization explicitly. Compare golden bytes because
+compact-number and map-order settings affect output.
+The safe defaults reject nesting beyond 32 levels, arrays beyond 131,072
+elements, and maps beyond 65,536 pairs; set the corresponding `DecodeOptions`
+fields only from measured peer requirements.
+
+## From direct CBOR libraries
+
+Choose `cborwire.Canonical`, `cborwire.CoreDeterministic`, or
+`cborwire.CTAP2Deterministic` explicitly. Tags and indefinite-length items are
+rejected by default, resource limits are bounded, and exactly one item is
+required. Record the selected profile and time-tag behavior as part of the peer
+contract before replacing existing emitted bytes.
+
+## From direct BSON libraries
+
+`bsonwire.Decode` accepts exactly one document and rejects duplicate keys
+recursively. Object IDs, dates, ordered documents, raw documents, and arrays
+remain available through the package aliases. Use `bsonwire.D`, a struct, or
+raw bytes for stable ordering; `bsonwire.M` intentionally makes no order
+guarantee. Integer-width minimization and lossy double-to-integer truncation
+are opt-in compatibility choices.
+
+## Error mapping
+
+Do not match message strings. Replace legacy string checks with `errors.Is` and
+`errors.As`. Preserve the underlying cause only for diagnostic logging and do
+not return it to untrusted clients without review. Discard a decode target
+after any error because reflection codecs may have assigned fields before a
+later failure.
+
+## Rollback
+
+Keep the old boundary adapter available during the comparison window. A safe
+rollback switches the adapter, not domain code. Record representative inputs
+and output DTO comparisons before deleting the old implementation.
+
+## Breaking releases after v1
+
+Major upgrades will document:
+
+- removed or renamed symbols;
+- changed defaults or limits;
+- error-classification changes;
+- emitted-wire changes;
+- normalization changes;
+- a before/after migration example.
+
+Never infer migration requirements only from compiler errors; wire behavior can
+change without a signature change.
+
+## Source: docs/compatibility.md
+
+# Versioning and release guide
+
+## Compatibility contract
+
+The project uses Semantic Versioning. Beginning with v1.0.0, compatibility
+includes more than Go signatures:
+
+- exported packages, types, constants, variables, functions, methods, and
+  struct fields;
+- default payload limits and strictness;
+- `errors.Is` and `errors.As` classifications;
+- deterministic emitted bytes where documented;
+- JSON normalization behavior;
+- SOAP envelope and fault interpretation;
+- YAML alias, merge, duplicate-key, and document-stream handling;
+- TOML metadata, datetime, and numeric conversion behavior;
+- MessagePack map-key, duplicate-key, extension, width, compact-encoding,
+  nesting, and collection-limit behavior;
+- CBOR deterministic profiles, tag policy, and resource limits;
+- BSON document validation, duplicate-key handling, and numeric conversion;
+- supported charset labels;
+- documented accepted and rejected shapes.
+
+Fixing behavior that contradicts a specification can still be breaking for
+users. Release notes must call out the impact and migration path.
+
+## Version policy
+
+- Patch releases contain compatible bug fixes, security fixes, documentation,
+  and new regression fixtures.
+- Minor releases add backward-compatible APIs or capabilities.
+- Major releases can change or remove compatibility-governed behavior and must
+  include migration notes.
+- Pre-v1 versions can change APIs, but every change remains documented.
+
+## Deprecation policy
+
+Prefer a documented deprecation in at least one minor release before removing
+an exported API. A deprecation comment must name the replacement and migration
+constraint. Security issues can require faster removal and must explain the
+exception in release notes.
+
+## Release prerequisites
+
+The release commit must have:
+
+- a clean worktree;
+- the intended Go support matrix passing;
+- 100% production statement coverage with behavior-focused tests;
+- formatting, `go vet`, and lint gates passing;
+- fuzz smoke targets passing;
+- benchmark compilation and smoke execution passing;
+- documentation links and examples validated;
+- dependency and vulnerability scans passing;
+- `CHANGELOG.md` moved from Unreleased to the release version;
+- migration notes for every breaking change.
+
+## Release procedure
+
+1. Choose a SemVer version from the compatibility impact.
+2. Replace the Unreleased changelog section with the version and UTC date, then
+   add a fresh Unreleased section.
+3. Run the guarded target for the intended compatibility level:
+
+   ```sh
+   make release-patch
+   make release-minor
+   make release-major
+   ```
+
+   Each target calculates the next stable version, requires a clean `main`
+   branch synchronized with `origin/main`, runs the complete release gate, and
+   creates a local annotated tag. It never pushes the tag.
+4. Merge the release commit through normal review.
+5. Review the local tag, then push only that tag:
+
+   ```sh
+   git push origin v1.0.0
+   ```
+
+6. The tagged-release workflow re-runs quality and security gates, builds a
+   source archive with checksums, and creates a GitHub Release from the matching
+   changelog section.
+7. Verify the release page, checksum artifact, module availability, and Go
+   documentation rendering.
+
+Never move or recreate a published tag. Publish a new patch version if a
+release artifact or note needs correction.
+
+## Release reproducibility
+
+The release contains source only; consumers compile it with Go modules. The
+workflow records the tag, commit, Go version, source archive, and SHA-256
+checksum. Runtime dependencies are pinned through `go.mod` and recorded with
+their selection rationale and residual risks in
+[`dependencies.md`](dependencies.md). Dependency upgrades require full wire
+compatibility, fuzz, benchmark, vulnerability, and license review.
+
+## Emergency security releases
+
+Use GitHub's private vulnerability reporting flow. Prepare the fix and advisory
+privately, run the complete gate, then publish the advisory, patch release, and
+changelog entry together. Do not disclose exploit details in a public issue
+before users can upgrade.
+
+## Source: docs/performance.md
+
+# Performance and allocation policy
+
+Benchmarks are smoke evidence and comparison tools, not pass/fail latency
+contracts. Run them with:
+
+```sh
+go test -run '^$' -bench . -benchmem ./...
+```
+
+Each format benchmarks representative decode and encode paths. Shared
+adversarial benchmarks track rejection and allocations for deep JSON/XML/SOAP,
+YAML aliases, byte limits, forged binary lengths, and cyclic encoder values.
+Correctness tests separately require malformed BSON lengths, impossible and
+oversized MessagePack collections, CBOR collection/depth limits, and YAML
+alias/depth limits to be rejected before application-sized allocation is
+trusted. Forged MessagePack, CBOR, and BSON length regressions also enforce a
+broad cross-toolchain ceiling of 200 allocations per rejection.
+
+All decoder readers first apply a 1 MiB default byte limit. This bounds bytes
+retained from an untrusted stream, but decoded Go values can be larger than
+their wire representation. CBOR and MessagePack therefore also cap nesting and
+collection counts; YAML applies parser alias/depth protection. Applications
+should choose tighter limits from measured protocol envelopes.
+
+The shared `FuzzRoundTrip` target continuously compares writer and reader
+semantics for all eight formats. It is a correctness oracle, not a throughput
+benchmark, and discovered the YAML implicit block-indentation differential.
+
+Encode benchmarks include allocation counts because every public `Encode`
+returns a complete byte slice and every `EncodeWriter` serializes before
+destination I/O. Every encoder retains at most `MaxBytes` of output; zero uses
+the 1 MiB default. Limit failures return `wire.ErrSizeLimit` and writer APIs do
+not publish the partial in-memory result. Decoded or source Go values may still
+occupy more memory than their wire representation, so applications should also
+bound attacker-influenced source collections.
+
+Before recursive encoding, a path-local reflection walk rejects cycles and
+more than 1,000 traversed levels. Shared acyclic subvalues are accepted because
+only the current traversal path is tracked. This adds linear preflight work in
+the size of an ordinary value and prevents stack exhaustion in codecs that do
+not implement cycle detection.
+
+Record Go version, OS/architecture, CPU, command, fixtures, and option profile
+when comparing samples. Do not turn single-run nanosecond or allocation samples
+into correctness gates; investigate statistically meaningful regressions with
+multiple runs and `benchstat` outside the release gate.
+
+## Source: docs/hardening.md
+
+# Security and interoperability hardening audit
+
+Audit date: 2026-07-14. Audited tree: the pre-v1 `main` branch. This report
+distinguishes format requirements, dependency behavior, and package policy.
+
+## Threat model
+
+The trust boundary includes attacker-controlled payload bytes, readers that
+fail or return data in adversarial chunks, destinations that short-write or
+fail, and application values whose shape is unsupported by a codec. Relevant
+failures are parser differentials, ambiguous duplicate keys, numeric loss,
+length and nesting amplification, malformed length prefixes, XML fragment
+injection, partial target mutation, destination errors, stack exhaustion, and
+claims of determinism that are not true for every Go value, and output
+amplification from large values.
+
+Transport authentication, authorization, timeouts, cancellation, schemas,
+secret redaction, and safe logging remain application responsibilities. Encode
+inputs are already-resident application values. Encoders retain at most the
+configured output byte quota and writer APIs publish only a complete encoded
+value; destination failures remain `wire.ErrWrite`.
+
+## Findings
+
+| ID | Severity | Format/API | Reproduction and evidence | Impact | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| GW-001 | High | MessagePack `Decode*` | Nested fixarrays had no wrapper depth budget; valid compact arrays/maps could declare counts far larger than safe allocation ratios. Dependency `Decoder.Skip` recursively visits collections. | Stack and heap exhaustion below the byte limit. | Fixed. Structural preflight now defaults to 32 levels, 131,072 array elements, and 65,536 map pairs. Tests prove defaults, custom limits, invalid options, malformed headers, and size classification. |
+| GW-002 | Medium | JSON `Decode*` | RFC 8259 says object names SHOULD be unique but defines behavior with duplicates as unpredictable. `encoding/json` processes members in order, so later values replace or merge. | Different peers can interpret signed or policy-bearing objects differently. | Intentionally retained for standard-library compatibility before v1. Documented as unsafe for protocols requiring unique names; such protocols must validate before decode or use a schema-aware boundary. No uniqueness guarantee is claimed. |
+| GW-003 | Medium | YAML compatibility options | Aliases, merge keys, tags, and YAML 1.1 compatibility can produce a model different from JSON-looking input. | Confused interpretation and expansion when permissive options are copied blindly. | Rejected as a package defect: defaults use YAML v4 resource protection and unique, single documents; callers can forbid aliases and merge keys or set tighter limits. Behavior is tested and documented. |
+| GW-004 | Medium | BSON `M` encoding | Go map iteration is not ordered; BSON itself is an ordered document format. | Byte-level signatures or golden payloads can vary. | Rejected as an implementation claim. Determinism is only promised for structs, `D`, and `Raw`; docs and tests explicitly exclude `M`. |
+| GW-005 | Low | All decode targets | Reflection codecs can mutate a valid target before returning a later syntax or conversion error. | Reusing a target after failure can expose a mixture of old and partial data. | Documented and tested caller contract: discard targets after any error. A cross-format conversion regression proves that both unchanged and partially assigned outcomes occur; the exact result is format-, dependency-, and decode-order-specific. Atomic decode is not claimed because it would change custom unmarshaler identity and merge semantics. Successful two-pass reuse is tested for every format. |
+| GW-006 | Low | All encode APIs | Encoders previously buffered output without a configurable byte quota. | Very large caller-owned values could allocate unbounded output buffers. | Fixed. Every typed encoder and every SOAP raw/fault serializer defaults to a 1 MiB output bound, exposes `MaxBytes`, returns `wire.ErrSizeLimit`, and withholds partial results from destination writers. |
+| GW-007 | Medium | MessagePack `Decode*` | The dependency silently accepted repeated map keys and retained the last value. Nested maps behaved the same way. | Parser differentials and overwritten policy-bearing values. | Fixed. Duplicate keys are rejected recursively by default; `AllowDuplicateKeys` is an explicit last-key-wins compatibility mode. |
+| GW-008 | Medium | BSON public API | The package claimed official BSON type interoperability but omitted aliases for Decimal128, binary subtypes, regex, and other standard BSON values. | Callers needed a second import and the documented API inventory was incomplete. | Fixed. Standard driver value types are re-exported and Decimal128/binary-subtype/regex round trips are tested. |
+| GW-009 | Medium | JSON `Decode*`, `Normalize` | Go `encoding/json` accepts invalid UTF-8 in strings and substitutes U+FFFD, while RFC 8259 requires exchanged JSON text to use UTF-8. | Invalid bytes could compare differently across implementations or after normalization. | Fixed. Both paths reject invalid UTF-8 as `wire.ErrParse` before target assignment; the regression is a fuzz seed. |
+| GW-010 | High | Typed `Encode*` across formats | A self-referential MessagePack map caused a runtime stack overflow; other reflection codecs had the same recursive-value exposure. The regression runs the original crash shape in a subprocess. | Process termination from a caller value, including values assembled from attacker-influenced application state. | Fixed. Every typed encoder performs shared path-local cycle and 1,000-level depth preflight before codec invocation. All eight format paths have classified-error tests at 100% coverage. |
+| GW-011 | Medium | XML and SOAP `Decode*`/`Parse*` | The 1 MiB byte cap still allowed hundreds of thousands of tiny nested XML elements, while no wrapper token-depth policy existed. | Excessive parser stack or heap growth from deeply nested untrusted XML. | Fixed. XML and SOAP now default to 1,000 nested elements, expose `MaxDepth`, reject negative options, and classify excess depth as `wire.ErrSizeLimit`. |
+| GW-012 | Medium | YAML `Encode*` | YAML v4 emitted a multiline string beginning with a tab as an implicit-indentation block scalar, then rejected that output during its own parse. The cross-format round-trip fuzzer found `"\t\n0"`. | The writer could produce bytes that neither `wire` nor other strict YAML parsers accepted. | Fixed. Emitted block scalars carry an explicit 2-9 space indentation indicator, remain inside the output quota, and round-trip regressions preserve both the tab case and ordinary scalars ending in `>` or `|`. |
+| GW-013 | Low | JSON, XML, and SOAP read/target errors | The original packages predated the shared size and target error kinds and retained validation classification while newer formats used the dedicated kinds. | Cross-format boundary code needed format-specific branching for equivalent failures. | Fixed before v1. All eight formats now use `wire.ErrSizeLimit` and `wire.ErrTarget`; a hostile endless reader proves each stream stops at exactly `MaxBytes + 1`. |
+
+No finding caused payload bytes or sensitive field values to be embedded in a
+stable top-level error. Wrapped dependency causes can contain field names or
+small offending lexemes and are diagnostic-only.
+
+## Conformance and safety matrix
+
+| Format | Normative baseline | Package-safe default | Resource evidence | Intentional limit |
+| --- | --- | --- | --- | --- |
+| JSON | RFC 8259; Go `encoding/json` | valid UTF-8, exactly one value; 1 MiB; optional strict fields | invalid-UTF-8, bounded reader, trailing/malformed/target/fuzz tests | duplicate names follow Go; normalization is not RFC 8785 canonicalization |
+| XML | XML 1.0; Go `encoding/xml` | Strict, one resolved root; no entity expansion; 1 MiB and 1,000 elements deep | root/cardinality/depth/directive/entity/NUL/charset/trailing/fuzz tests | no DTD/XSD, external entity fetch, C14N, or arbitrary charset registry |
+| SOAP | SOAP 1.1 note and SOAP 1.2 Part 1 | exact Envelope namespace/order/cardinality; escaped typed writes; 1 MiB and 1,000 elements deep | both versions, faults, depth, injection strings, raw fragments, namespace body decode, fuzz tests | no WSDL, WS-* policy, transport, or attachments |
+| YAML | YAML 1.2.2 plus YAML v4 documented compatibility | one document, unique keys, dependency alias/depth bounds; 1 MiB | explicit tag/implicit-type/non-JSON-key/alias/depth/merge/multi-doc and built-in limit tests | non-JSON keys/tags exist; aliases/merges are opt-out |
+| TOML | TOML 1.0 grammar; BurntSushi v1.6 additionally supports TOML 1.1 | one complete document, duplicate rejection; 1 MiB | datetime/special-float/array-table/numeric/dotted-conflict/trailing/fuzz tests | emitted presentation follows dependency, not a canonical TOML standard |
+| MessagePack | MessagePack specification | one object; unique keys; sorted output maps; 1 MiB; structural limits | malformed length, duplicate, nesting, collection, key, width, timestamp, fuzz tests | duplicate compatibility is opt-in; unknown extensions and untyped non-string map keys rejected |
+| CBOR | RFC 8949 | duplicate/tag/indefinite rejection; canonical profile; 1 MiB | explicit simple/bignum/preferred-float/integer/nesting/array/map tests and fuzzing | tags and indefinite items require opt-in; profiles are not interchangeable |
+| BSON | BSON 1.1; MongoDB Go driver | one exact document; recursive unique keys; 1 MiB | length/terminator/duplicate/raw/Decimal128/binary/regex/numeric/fuzz tests | no top-level scalar; `M` is not deterministic |
+
+Every format has byte and reader decode APIs, bounded byte and writer encode
+APIs, a decoder fuzzer, a shared all-format round-trip fuzzer, representative
+fixtures, and decode/encode benchmarks.
+SOAP also has bounded raw and typed envelope/fault writer paths. `DetectFormat` recognizes
+only leading JSON object/array and XML markers; it deliberately reports SOAP as
+XML and never guesses YAML, TOML, or binary formats.
+
+Decoder seed corpora include specification-valid fixtures plus empty and
+whitespace input, duplicates, invalid UTF/NUL, malformed numbers and lengths,
+deep nesting, concatenated documents, YAML aliases/tags, MessagePack
+extensions, CBOR tags/indefinite values, and both SOAP fault versions where
+the category applies.
+
+Differential regressions explicitly prove that `encoding/json` replaces the
+invalid UTF-8 rejected by `jsonwire`, MessagePack and CBOR dependency defaults
+retain the last duplicate key, the BSON driver preserves duplicates in `D`,
+and YAML rc.6 rejects its own implicit-indentation tab-leading block output.
+These are pinned dependency observations; wrapper policy is the guarantee.
+
+Cross-format writer tests cover explicit destination errors, partial writes,
+and zero-progress `(0, nil)` writers. Every byte and writer API is compared
+against the same complete encoded payload in its format package; SOAP covers
+typed envelopes, raw fragments, and faults separately.
+
+Cross-format reader tests use an endless source to prove every reader consumes
+exactly one byte beyond the configured limit for overflow detection and no
+more. Invalid-target tests cover nil interfaces, typed nil pointers, and
+non-pointer values for every decoder.
+
+## Specifications and primary documentation
+
+- JSON: <https://www.rfc-editor.org/rfc/rfc8259.html>
+- XML and Go XML: <https://www.w3.org/TR/xml/> and
+  <https://pkg.go.dev/encoding/xml>
+- SOAP 1.1 and 1.2: <https://www.w3.org/TR/2000/NOTE-SOAP-20000508/> and
+  <https://www.w3.org/TR/soap12-part1/>
+- YAML 1.2.2: <https://yaml.org/spec/1.2.2/>
+- TOML 1.0.0: <https://toml.io/en/v1.0.0>
+- MessagePack: <https://github.com/msgpack/msgpack/blob/master/spec.md>
+- CBOR: <https://www.rfc-editor.org/rfc/rfc8949.html>
+- BSON 1.1: <https://bsonspec.org/spec.html>
+- Go I/O contracts: <https://pkg.go.dev/io>
+
+## Release verdict
+
+The audited pre-v1 tree is release-ready. It requires Go 1.25.8 or newer and has
+bounded reader and writer APIs for all eight formats, including typed, raw, and
+fault SOAP output. There are no open high findings or unmitigated medium
+package defects. Retained compatibility choices and caller responsibilities are
+explicit in the findings and format matrix; no stronger guarantee is claimed.
+Because the new MessagePack defaults change acceptance and error
+classification, use a minor pre-v1 release; if this policy were introduced
+after v1, use a major release unless a security exception policy explicitly
+permits the correction.
+
+Exact final gate output and benchmark samples are recorded in the handoff for
+the release commit. The direct codec modules are at their latest versions
+reported by `go list -m -u`; newer transitive versions remain controlled by
+their direct owners, and `govulncheck` reports no reachable vulnerability.
+Residual dependency risks remain the YAML v4 release candidate and the
+MessagePack v5 codec; wrapper limits and fuzzing reduce but cannot eliminate
+upstream parser risk.
+
+## Source: docs/security.md
+
+# Security
+
+## Trust Boundary
+
+Treat all JSON, XML, SOAP, YAML, TOML, MessagePack, CBOR, and BSON input as
+untrusted. Choose explicit decode limits and reject unsupported data shapes
+before application processing.
+
+## Format Risks
+
+XML and SOAP require entity and nesting discipline. YAML aliases and recursive
+structures require limits. Binary formats require byte, depth, collection, and
+allocation bounds. Never assume equivalent semantics across formats.
+
+## Application Responsibilities
+
+Apply transport body limits, deadlines, authentication, authorization, and
+rate limits before decoding. Do not expose raw parser errors when they may
+contain sensitive input.
+
+See [dependencies](dependencies.md), [formats](formats.md), and
+[hardening](hardening.md) for the maintained boundary evidence. Report
+vulnerabilities through [SECURITY.md](../SECURITY.md).
+
+## Source: docs/releasing.md
+
+# Releasing
+
+## Preconditions
+
+A release must originate from a clean, synchronized `main` branch. Update
+`CHANGELOG.md` with one dated version section, confirm compatibility and
+migration notes, and verify dependency/provenance changes.
+
+## Verification
+
+```sh
+make check
+```
+
+Format-specific fuzz targets, 100% meaningful production coverage, API
+inventory checks, documentation links, and vulnerability scanning are release
+gates.
+
+## Tagging
+
+Use `make release-patch`, `make release-minor`, or
+`make release-major`. Review the local annotated tag before pushing it.
+The release workflow validates the tag, rebuilds all gates, creates a
+deterministic source archive and checksum, and publishes changelog-derived
+notes.
+
+## Source: CONTRIBUTING.md
+
+# Contributing
+
+## Before Opening A Change
+
+Use an issue for changes affecting wire formats, interoperability, limits, deterministic encoding, and format-specific semantics. Explain the user problem,
+compatibility impact, and why the behavior belongs in this generic package.
+
+## Development Setup
+
+Requirements:
+
+- Go 1.26.5 or later
+- Git
+- `golangci-lint` v2
+
+```sh
+go mod download
+make check
+```
+
+## Change Requirements
+
+- Add regression coverage before fixing a defect.
+- Maintain meaningful 100% production-code coverage.
+- Update public examples and documentation with behavior changes.
+- Update `.ai/GOAL.md` or `.ai/GOAL_HARDEN.md` when scope or acceptance criteria
+  change.
+- Add an `Unreleased` entry to `CHANGELOG.md`.
+- Explain every dependency addition, upgrade, or removal.
+- Update `NOTICE` when project ownership changes and
+  `THIRD_PARTY_NOTICES.md` when third-party attribution changes.
+
+## Package-Specific Review
+
+Document the exact format semantics and interoperability tradeoffs. Parser changes MUST include malformed fixtures, limit tests, and differential evidence where an authoritative implementation exists.
+
+## Local Verification
+
+Run the complete local gate:
+
+```sh
+make check
+```
+
+## Commits And Pull Requests
+
+Use focused conventional commits with a body explaining why the change is
+needed. Pull requests must describe compatibility impact, tests, verification
+commands and results, documentation updates, and changelog updates.
+
+## Reporting Security Issues
+
+Do not open a public issue for a suspected vulnerability. Follow
+[SECURITY.md](SECURITY.md).
+
+## Source: SECURITY.md
+
+# Security Policy
+
+## Supported Versions
+
+Before `v1.0.0`, security fixes are applied to the latest revision of
+`main`. After the first stable release, supported release lines and
+end-of-support dates will be documented here.
+
+## Reporting A Vulnerability
+
+Use GitHub private vulnerability reporting for this repository. Include a
+minimal reproducer, expected and observed behavior, affected versions, impact,
+and any suggested mitigation. Do not include secrets or production data.
+
+## Response Process
+
+Maintainers will acknowledge the report, reproduce and assess it privately,
+coordinate a fix and advisory, and credit the reporter when requested. Public
+disclosure should wait until a fix or agreed mitigation is available.
+
+## Package Security Boundary
+
+All supported text and binary formats are untrusted parser inputs. Byte, depth, collection, alias, extension, and output limits are part of the maintained security boundary.
+
+## Application Responsibilities
+
+Applications remain responsible for transport limits, authentication,
+authorization, rate limiting, deadlines, secret handling, deployment policy,
+and business-level validation. Package safeguards do not replace those
+controls.
+
+See [docs/security.md](docs/security.md) and
+[docs/hardening.md](docs/hardening.md) for adoption guidance and maintained
+evidence.
+
+## Source: ROADMAP.md
+
+# Roadmap
+
+The roadmap protects scope as much as it describes future work. Items are not
+promises or compatibility commitments until released.
+
+## v1.0: production wire-format foundation
+
+- stabilize the current explicit package layout;
+- validate APIs against multiple real, redacted vendor fixture families;
+- maintain meaningful 100% production-code coverage;
+- exercise fuzz targets over longer scheduled runs;
+- publish benchmark baselines without promising fixed performance numbers;
+- complete external review of error and normalization contracts;
+- release only after the documented support matrices match verified behavior.
+
+The v1 surface includes explicit JSON, XML, SOAP, YAML, TOML, MessagePack,
+CBOR, and BSON packages. Each format keeps its own semantics, fixtures, fuzz
+targets, benchmarks, and compatibility contract.
+
+## After core stabilization
+
+Potential work, ordered by demonstrated user need:
+
+- additional XML charsets through optional adapters;
+- WSDL integration guidance or a separate adapter package;
+- helpers for common transport patterns that do not turn the core into an HTTP
+  client framework;
+- schema-generation guidance where output can remain explicit and auditable.
+
+## Further formats
+
+Any additional format proposal must show repeated production demand,
+format-specific semantics that belong here, a dedicated API that preserves
+existing package boundaries, and verification and documentation equal to the
+current formats.
+
+## Explicit non-goals
+
+- generic all-codec interfaces;
+- HTTP clients, retries, authentication, or service discovery;
+- generic RPC frameworks;
+- queues, persistence, or business mapping;
+- hidden schema inference or normalization;
+- WSDL client generation inside the core runtime package.
+
+## Source: CHANGELOG.md
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Compatibility
+
+- Added a pinned module export baseline so incompatible public API changes
+  fail the canonical repository gate.
+
+### Changed
+
+- Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
+  benchmark standard with an executable `make safety` gate.
+- Moved AI planning and hardening briefs into `.ai/` and clarified the
+  separate purposes of project and third-party notice files.
+
+### Added
+
+- A standardized OSS repository skeleton covering policy, documentation,
+  legal notices, Go tooling, pinned CI, security, and release automation.
+- CI resolves the latest supported Go 1.25 patch while `go.mod` declares the
+  portable Go 1.25 minimum.
+- Evidence-driven audit and hardening goal covering every supported format,
+  parser resource safety, codec dependencies, and read/write boundaries.
+- A shared `wire.Error` model with parse, validation, unsupported-format,
+  envelope, and SOAP-fault classifications.
+- Size-limit, invalid-target, and encoding classifications shared by every
+  format package.
+- Explicit JSON, XML, SOAP, YAML, TOML, MessagePack, CBOR, and BSON format
+  identifiers.
+- Opt-in JSON/XML format detection based on the first significant byte.
+- Bounded JSON byte-slice and reader decoding with optional unknown-field
+  rejection and single-value enforcement.
+- Deterministic JSON encoding with configurable indentation and HTML escaping.
+- Explicit JSON normalization that strips a UTF-8 BOM, compacts whitespace,
+  orders object keys, and preserves number lexemes.
+- JSON fixtures, malformed-input regression tests, fuzz seeds, and parse and
+  encode benchmarks.
+- Bounded strict XML decoding, opt-in non-strict recovery, exact
+  namespace-aware root validation, and resolved-root inspection.
+- Deterministic XML encoding with optional declaration and indentation.
+- Built-in, explicit charset conversion for UTF-8, US-ASCII, ISO-8859-1, and
+  Windows-1252, including rejection of invalid or undefined bytes.
+- Namespace, malformed-document, charset, and trailing-root XML fixtures and
+  regressions, plus fuzz seeds and parse and encode benchmarks.
+- Bounded SOAP 1.1 and 1.2 envelope parsing with exact raw envelope, header,
+  and body access and namespace-preserving body decoding.
+- Typed SOAP 1.1 and 1.2 fault extraction, localized SOAP 1.2 reasons,
+  subcodes, details, and `errors.Is` classification.
+- Deterministic envelope and fault serialization from validated raw fragments.
+- SOAP envelope, fault, malformed-input, structural-regression, fuzz, and
+  benchmark coverage.
+- Compile-checked examples and adoption documentation covering quickstart,
+  architecture, the complete public API, supported formats, behavioral
+  guarantees, limitations, and rollout guidance.
+- End-to-end JSON, XML, and SOAP examples, a scenario cookbook, FAQ, and
+  error-focused troubleshooting guide.
+- Migration, versioning, release, contribution, security, conduct, and roadmap
+  documentation for open-source operation.
+- Reproducible local formatting, vet, lint, race-test, 100% coverage, fuzz,
+  benchmark, documentation-link, and vulnerability quality gates.
+- GitHub Actions for the Go 1.25 and 1.26 build/race-test matrix,
+  formatting, static analysis, lint, exact coverage, documentation, fuzz smoke,
+  benchmark smoke, and vulnerability scanning.
+- Scheduled extended fuzzing and benchmark baselines, Dependabot configuration,
+  and an interoperability-focused pull request template.
+- Tagged release automation that validates SemVer tags and changelog entries,
+  reruns quality and security gates, creates a deterministic source archive and
+  checksum, and publishes a GitHub Release with extracted notes.
+- Explicit method-level documentation for every exported error API.
+- JSON and XML writer APIs, typed SOAP header/body encoding, and SOAP envelope
+  and fault writer APIs for symmetric input and output handling.
+- Bounded YAML read/write APIs with duplicate-key and multi-document policy,
+  alias and merge controls, expansion limits, deterministic output, fixtures,
+  fuzzing, and benchmarks.
+- Complete TOML document read/write APIs with strict-field metadata, native
+  datetime handling, checked numeric conversion, deterministic output,
+  fixtures, fuzzing, and benchmarks.
+- MessagePack read/write APIs with exact one-object enforcement, map-key and
+  extension policy, checked numeric widths, timestamp support, deterministic
+  map encoding, fixtures, fuzzing, and benchmarks.
+- Canonical, Core Deterministic, and CTAP2 CBOR read/write profiles with tag,
+  indefinite-length, duplicate-key, and resource-limit policy, plus fixtures,
+  fuzzing, and benchmarks.
+- BSON document read/write APIs with recursive duplicate-key rejection, exact
+  length validation, ordered and raw document support, ObjectID and datetime
+  aliases, checked numeric conversion, fixtures, fuzzing, and benchmarks.
+- Pinned, reviewed YAML, TOML, MessagePack, CBOR, and BSON codec dependencies
+  with documented maintenance, security, and residual-risk rationale.
+- Compile-checked round-trip examples and full API, format, migration,
+  adoption, security, troubleshooting, and dependency documentation for all
+  eight supported formats.
+- A distinct `wire.ErrWrite` classification for destination failures.
+- Consistent repository automation for generated portable AI documentation,
+  dependency review, and guarded semantic release commands.
+- Configurable output byte limits for every JSON, XML, SOAP, YAML, TOML,
+  MessagePack, CBOR, and BSON byte and writer encoding path. Zero selects the
+  safe 1 MiB default.
+- Size-bounded SOAP raw-envelope and fault APIs through `MarshalOptions`,
+  `MarshalWithOptions`, `MarshalWriterWithOptions`,
+  `MarshalFaultWithOptions`, and `MarshalFaultWriterWithOptions`.
+
+### Changed
+
+- The minimum supported Go version is Go 1.25.0; later Go 1.25 patch
+  releases and newer language versions are supported.
+- Fuzz, benchmark, release, and documentation automation now covers YAML,
+  TOML, MessagePack, CBOR, and BSON alongside JSON, XML, and SOAP.
+- Corrected codec troubleshooting and migration guidance to use the exported
+  option and profile names, describe YAML's actual safe defaults, distinguish
+  legacy size classifications, and document BSON double truncation as
+  explicitly lossy.
+- MessagePack decoding now enforces configurable safe defaults of 32 nesting
+  levels, 131,072 array elements, and 65,536 map pairs. Structural limit
+  failures are classified as `wire.ErrSizeLimit`.
+- MessagePack decoding now rejects duplicate map keys recursively by default,
+  with explicit last-key-wins compatibility through `AllowDuplicateKeys`.
+- BSON now re-exports the official array, raw value, Decimal128, binary, regex,
+  timestamp, JavaScript, scoped code, sentinel, pointer, and symbol types.
+- Published the evidence-driven hardening report, threat model, per-format
+  conformance matrix, allocation policy, dependency residual risks, and
+  pre-v1 semantic-version recommendation.
+- Writer APIs now complete encoding within the configured output quota before
+  writing, so an encode limit failure cannot emit a partial destination
+  payload.
+
+### Fixed
+
+- Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
+- MessagePack now performs allocation-safe structural preflight for impossible
+  collection lengths and composite map keys. Numeric preflight rejects
+  narrowing overflow in typed maps, array-encoded structs, and automatically
+  inlined embedded fields before the decoder can apply a lossy Go conversion.
+- MessagePack structural validation now stops recursive traversal and compact
+  collection allocation amplification at explicit caller-configurable limits.
+- All typed encoders now reject cyclic values and nesting beyond 1,000
+  traversed levels before recursive codecs can exhaust the process stack.
+- MessagePack numeric preflight now also prevents duplicate keys from being
+  silently overwritten before assignment.
+- BSON documentation and tests now prove Decimal128, binary subtype, and regex
+  interoperability instead of claiming it from an incomplete alias set.
+- JSON decoding and normalization now reject invalid UTF-8 as a parse failure
+  instead of silently accepting replacement characters.
+- XML tests now prove directive handling, non-expansion of declared entities,
+  and embedded-NUL rejection.
+- SOAP tests now prove fault text and language attributes cannot inject XML
+  while validated raw Detail fragments remain explicit.
+- Cross-format writer regressions now prove zero-progress destinations are
+  rejected as `wire.ErrWrite`, including all three SOAP writer families.
+- CBOR tests now lock simple-value, tagged-bignum, and preferred integer and
+  shortest-float behavior to the selected deterministic profile.
+- TOML tests now lock dotted-key conflicts, special floats, and arrays of
+  tables to the documented dependency behavior.
+- YAML tests now lock custom tags, core-schema implicit values, and typed
+  non-JSON map keys to the documented compatibility boundary.
+- YAML now classifies the dependency's built-in excessive-alias and maximum
+  nesting protections as `wire.ErrSizeLimit`, matching caller-configured
+  resource limits.
+- YAML merge-key rejection now follows the parsed merge tag without rejecting
+  an ordinary quoted `<<` scalar value.
+- Every encoder now rejects output beyond its configured byte limit as
+  `wire.ErrSizeLimit` instead of allowing unbounded output buffering.
+- SOAP raw header, body, and fault Detail fragments that cannot fit the output
+  quota are rejected before XML validation allocates a wrapper copy.
+- Package-local boundary regressions now prove exact, undersized, negative,
+  and dependency-construction behavior while retaining 100% production
+  statement coverage.
+- XML and SOAP parsing now enforce a configurable 1,000-element default token
+  depth and classify excess nesting as `wire.ErrSizeLimit`.
+- A cross-format round-trip fuzzer now proves writer/reader semantic parity for
+  bounded strings, signed integers, and booleans across all eight formats.
+- YAML block scalars now use an explicit indentation indicator, preventing the
+  YAML v4 emitter from producing tab-leading multiline output that its own
+  parser rejects.
+- JSON, XML, and SOAP input byte limits now use `wire.ErrSizeLimit`, and their
+  invalid decode targets now use `wire.ErrTarget`, matching every other format.
+- Hostile-reader regressions prove every streaming decoder reads no more than
+  `MaxBytes + 1` bytes before rejecting an oversized source.
+- Cross-format target tests prove successful reuse and record partial mutation
+  on conversion failure; adversarial benchmarks cover hostile decode shapes
+  and cyclic encodes with allocation counts.
+- Decoder fuzz corpora now seed empty/whitespace input, deep nesting,
+  duplicates, invalid encodings and numbers, multiple documents, aliases,
+  tags/extensions, and malformed binary length fields as applicable.
+- Dependency-differential tests lock the wrapper's stricter invalid-UTF-8 and
+  duplicate-key policies and the YAML block-indentation repair against pinned
+  codec behavior.
+- A compiler-derived public API inventory test and audit evidence ledger map
+  every exported option, boundary requirement, format hazard, fuzzer, and
+  benchmark to traceable tests.
+- An all-format input-shape matrix locks empty, whitespace-only, truncated, and
+  concatenated behavior, including binary whitespace-as-data semantics.
+- The public API inventory parses production files explicitly without the
+  deprecated Go 1.25 `parser.ParseDir` helper.
+- Cross-format malformed-input regressions ensure classified decoder errors do
+  not echo sensitive values from the payload, and failed-target coverage avoids
+  promising a dependency-specific partial-assignment order.
+- The final hardening verdict records Go 1.25 compatibility, symmetric bounded
+  APIs, current direct codec dependencies, and the remaining upstream risks.
+
+[Unreleased]: https://github.com/faustbrian/golib/pkg/wire/compare/v0.0.0...HEAD
+
+## Source: docs/dependencies.md
+
+# Codec dependencies
+
+The standard library remains the implementation for JSON and XML. SOAP is
+built on `encoding/xml`. The five additional formats use focused codecs rather
+than incomplete local parsers.
+
+| Format | Pinned module | Why it is used | Maintenance and security posture |
+| --- | --- | --- | --- |
+| YAML | `go.yaml.in/yaml/v4 v4.0.0-rc.6` | Official YAML organization implementation with duplicate-key handling, multi-document loading, and alias/depth limit plugins | v4 is the actively maintained line; v1-v3 are frozen except for security fixes. The release-candidate pin is a residual API risk tracked through Dependabot and the quality gate. `wire` adds explicit block-scalar indentation because rc.6 can emit tab-leading multiline scalars that its scanner rejects when indentation is implicit. |
+| TOML | `github.com/BurntSushi/toml v1.6.0` | Mature TOML parser/encoder with metadata for unknown fields and native datetime/numeric conversion | Stable tagged module with a small dependency surface. It documents TOML 1.1 compatibility; wire's contract remains the tested subset described in the format matrix. Duplicate keys and malformed trailing text are rejected by its parser. |
+| MessagePack | `github.com/vmihailenco/msgpack/v5 v5.4.1` | Mature v5 codec with timestamps, extension support, sorted maps, and stream APIs | Widely deployed stable major version, but older than the other binary codecs and without native structural limit options. `wire` adds bounded structural preflight and recursive numeric-fit validation because collection traversal and narrow integer methods otherwise rely directly on encoded structure and Go casts. The shamaton alternative was rejected because its v3 decoder has a published unfixed panic vulnerability. |
+| CBOR | `github.com/fxamacker/cbor/v2 v2.9.2` | Fuzzed RFC 8949 implementation with immutable encode/decode modes and explicit duplicate, tag, deterministic, and resource options | Active tagged releases, extensive fuzzing, and published security assessment history. `github.com/x448/float16` is its sole runtime helper. |
+| BSON | `go.mongodb.org/mongo-driver/v2 v2.8.0` | Official MongoDB BSON implementation and canonical ObjectID, datetime, raw document, and registry types | Actively maintained official stable driver. Only the BSON package is imported; network/client behavior is not part of `wire`. |
+
+All versions are pinned in `go.mod` and checksummed in `go.sum`. Dependabot,
+`govulncheck`, scheduled fuzzing, and the release gate monitor changes. A local
+parser would materially increase grammar, allocation, recursion, extension,
+and interoperability risk while duplicating mature conformance work.
+
+Dependency behavior is not accepted blindly. Each package selects explicit
+safe modes, wraps errors in `wire.Error`, bounds input before parsing, rejects
+trailing objects, and documents residual limitations. Upgrading a codec can
+change accepted input or emitted bytes and therefore requires regression,
+fixture, fuzz, benchmark, documentation, and SemVer review.
+
+The 2026-07-14 audit ran `go list -m -u -json all`: every direct dependency was
+at its latest reported version. Older indirect versions shown in the module
+graph are selected by dependencies and are not imported by production package
+code; `govulncheck ./...` reported no reachable vulnerabilities. This is a
+point-in-time result, not a permanent safety claim.
+
+## Source: docs/evidence.md
+
+# Audit evidence and traceability
+
+This ledger maps the 2026-07-14 hardening mission to implementation and test
+evidence. Test names are stable evidence pointers; source and `go doc` remain
+authoritative for signatures.
+
+## Inventory
+
+| Format | Read APIs | Write APIs | Primary limits and modes | Codec | Fuzz and benchmark evidence |
+| --- | --- | --- | --- | --- | --- |
+| JSON | `Decode`, `DecodeReader`, `Normalize` | `Encode`, `EncodeWriter` | 1 MiB input/output, strict fields, indentation, HTML escaping | Go `encoding/json` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| XML | `Decode`, `DecodeReader`, `Root` | `Encode`, `EncodeWriter` | 1 MiB, 1,000 elements, strict parsing, expected root, charset reader | Go `encoding/xml` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| SOAP 1.1/1.2 | `Parse`, `ParseReader`, `Envelope.DecodeBody` | typed `Encode*`; raw `Marshal*`; `MarshalFault*` | 1 MiB, 1,000 XML elements, version, charset, typed/raw sections | Go `encoding/xml` plus `xmlwire` | `FuzzParse`, `FuzzRoundTrip`, `BenchmarkParse`, `BenchmarkMarshal` |
+| YAML | `Decode`, `DecodeReader` | `Encode`, `EncodeWriter` | 1 MiB, depth/alias plugins, unique/single document, alias/merge/field modes | `go.yaml.in/yaml/v4 v4.0.0-rc.6` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| TOML | `Decode`, `DecodeReader` | `Encode`, `EncodeWriter` | 1 MiB, strict fields, indentation | `github.com/BurntSushi/toml v1.6.0` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| MessagePack | `Decode`, `DecodeReader` | `Encode`, `EncodeWriter` | 1 MiB, 32 levels, 131,072 array items, 65,536 map pairs, unique keys | `github.com/vmihailenco/msgpack/v5 v5.4.1` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| CBOR | `Decode`, `DecodeReader` | `Encode`, `EncodeWriter` | 1 MiB; dependency nesting/collection limits; tag, indefinite, Canonical/Core/CTAP2 modes | `github.com/fxamacker/cbor/v2 v2.9.2` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+| BSON | `Decode`, `DecodeReader` | `Encode`, `EncodeWriter` | 1 MiB, exact document length, recursive unique keys, explicit lossy conversions | `go.mongodb.org/mongo-driver/v2 v2.8.0` | `FuzzDecode`, `FuzzRoundTrip`, `BenchmarkDecode`, `BenchmarkEncode` |
+
+`TestPublicAPIReferenceInventoriesEveryExport` parses production Go syntax and
+requires every exported symbol and option field to appear in `docs/api.md`.
+`TestRepositoryRequiresPatchedGo125OrNewer` locks the module and documentation
+to Go 1.25.8 or newer so CI does not select a vulnerable initial toolchain.
+
+## Cross-format boundary evidence
+
+| Requirement | Implementation contract | Test evidence |
+| --- | --- | --- |
+| Nil, typed-nil, and non-pointer targets | Every decoder returns `wire.ErrTarget` before reading | `TestEveryDecoderClassifiesInvalidTargets` and package invalid-target tests |
+| Reused and failed targets | Successful reuse is supported; discard a target after any error because assignment may be partial | `TestEveryDecoderSupportsSuccessfulTargetReuse`, `TestEveryDecoderTreatsFailedTargetAsIndeterminate` |
+| Zero/default, negative, exact, overflow-safe input limits | Zero is 1 MiB; negative is validation; readers use an overflow-detection byte and guard `MaxInt64` | `TestEveryReaderStopsAtOneByteBeyondLimit` and each package's reader-limit test |
+| Zero/default, negative, exact, and `MaxInt64` output limits | Every typed/raw writer is bounded and returns no partial payload | `TestEveryEncoderUsesBoundedDefaultOutput`, `TestEveryEncoderHonorsExactNegativeAndMaximumOutputLimits`, package `TestEncodeEnforcesOutputLimit`, SOAP cutoff tests |
+| Empty, whitespace, truncated, trailing, concatenated, multiple documents | Each format follows the explicit single-document/item policy; YAML multiple documents require opt-in and a slice | `TestEveryDecoderDefinesEmptyWhitespaceTruncatedAndConcatenatedInput`, package malformed/trailing tests, decoder fuzz corpora |
+| Invalid UTF, BOM, NUL, duplicates, invalid numbers, depth, huge collections | Format-specific safe policy is enforced before or by configured decoding | package tests listed in the per-format matrix; hostile seeds run in every fuzzer |
+| Cyclic and excessively deep values | Shared path-local preflight rejects cycles and more than 1,000 traversed levels | `TestAllEncodePathsRejectCyclicValues`, `TestValidateRejectsCyclesAndDepth`, subprocess `TestMessagePackCyclicEncodeReturnsError` |
+| Bounded stream reads | No reader consumes beyond `MaxBytes + 1` | `TestEveryReaderStopsAtOneByteBeyondLimit` |
+| Short, partial, zero-progress, and failing writes | Complete in-memory bounded encode precedes destination I/O; failures are `wire.ErrWrite` | `TestAllWriterPathsRejectZeroProgress`, each package writer-failure test, `TestEncodeWriterDoesNotExceedOutputLimit` |
+| Byte/writer parity | Writer output equals the byte API's complete output | each package writer test; SOAP covers typed, raw, and fault families |
+| Determinism/canonical claims | Only documented profiles and ordered shapes claim stable bytes | JSON/XML/YAML/TOML/MessagePack deterministic tests, CBOR profile tests, BSON ordered-document test |
+| Dependency differentials | Wrapper policy, not permissive dependency defaults, is the public contract | `TestJSONRejectsInvalidUTF8AcceptedByStandardLibrary`, duplicate dependency tests, `TestYAMLRepairsDependencyBlockIndentDifferential` |
+| Allocation and rejection cost | Forged binary lengths have a broad 200-allocation ceiling; representative and hostile paths report allocations | `TestForgedBinaryLengthsHaveBoundedAllocationCounts`, `BenchmarkRejectAdversarialDecode`, `BenchmarkRejectCyclicEncode`, package benchmarks |
+| Panic, hang, and race resistance | Regressions, fuzzing, race tests, structural limits, and cycle/depth preflight cover known recursion/allocation paths | `make test`, `make fuzz`, 100% coverage, and the full `make check` gate |
+| Detection uncertainty | Only leading JSON object/array and XML are identified; SOAP reports XML and ambiguous/binary formats remain explicit | `TestDetectFormat`, `TestDetectFormatRejectsUnknownAndEmptyPayloads` |
+| Error privacy | Classified decode errors may expose diagnostic field names or small lexemes, but never echo the tested sensitive value | `TestDecodeErrorsDoNotEchoSensitiveValues` |
+
+## Per-format hazard evidence
+
+| Format | Specification-sensitive hazards | Focused evidence |
+| --- | --- | --- |
+| JSON | duplicates, precision, fields, one value, BOM/UTF-8, HTML escaping, ordering, depth | `TestDecodeRejectsInvalidUTF8InsteadOfReplacingIt`, `TestDecodeRejectsMalformedAndTrailingValues`, `TestDecodeReaderRejectsUnknownFieldsWhenRequested`, `TestNormalizeMakesVendorJSONCanonical`, `TestEncodeIsDeterministicAndConfigurable` |
+| XML | strict recovery, namespaces, roots, directives/entities, charset, invalid bytes, depth, multiple roots | `TestDecodeNamespaceAwareFixture`, `TestDecodeCanExplicitlyRecoverNonStrictXML`, `TestDecodeDoesNotExpandDeclaredEntities`, charset tests, `TestDecodeEnforcesTokenDepthLimit`, root tests |
+| SOAP | versions, namespaces/order/cardinality, raw fragments, body count, faults/reasons/subcodes, injection | both version/fault tests, `TestParseRejectsInvalidEnvelopeStructure`, `TestDecodeBodyRetainsInheritedNamespaces`, `TestMarshalFaultEscapesTextAndAttributeValues`, all SOAP output-cutoff tests |
+| YAML | duplicates, documents, aliases/anchors/merges, tags/types, non-JSON keys, expansion/depth, self-readable output | duplicate/document/alias/tag/depth tests, `TestDecodeClassifiesBuiltInResourceProtectionAsSizeLimit`, tab block-scalar and plain-suffix regressions |
+| TOML | duplicate/dotted keys, tables/arrays, datetime, integer/float bounds, special floats, fields, ordering | `TestDecodeRejectsMalformedDuplicateAndTrailingData`, `TestDecodePreservesSpecialFloatsAndArraysOfTables`, `TestDecodeRejectsUnknownFieldsAndNumericLossWhenRequested`, deterministic/native-type encode test |
+| MessagePack | widths, keys, duplicates, extensions/timestamps, nil, concatenation, depth/collections, sorting | malformed/extension, default structural-limit, duplicate, map-key, timestamp/width, nested numeric, struct-rule, and deterministic tests |
+| CBOR | profiles, tags, duplicates, indefinite items, preferred widths, simple/big values, nesting/collections | malformed/duplicate, tag/indefinite, simple/bignum, resource, deterministic-profile, and preferred-serialization tests |
+| BSON | document/scalar, lengths/terminators, recursive duplicates, ObjectID/time/decimal/numerics, binary/regex/raw | malformed/scalar, nested duplicate, interop option, Decimal128/binary/regex, raw-document, integer/tag, and ordered determinism tests |
+
+## Gate evidence
+
+The release verdict is based on fresh execution of formatting, vet,
+Staticcheck-compatible lint, race tests, exact production coverage, all nine
+fuzz targets, representative and adversarial benchmarks, documentation checks,
+dependency review, and `govulncheck`. Exact final commands and results belong
+in the final audit handoff and must not be copied from an older run.
+
+## Source: docs/formats.md
+
+# Supported formats and behavior matrix
+
+## Format support
+
+| Format | Read/write | Determinism | Strict defaults | Notable explicit options |
+| --- | --- | --- | --- | --- |
+| JSON | Bytes and reader/writer | Sorted map keys | One value | Unknown fields, indentation, HTML escaping |
+| XML | Bytes and reader/writer | Struct traversal, not canonical XML | One root, strict syntax, bounded depth | Expected root, charset, depth, non-strict recovery |
+| SOAP 1.1/1.2 | Bytes and reader/writer | Fixed envelope emission | Namespace, cardinality, bounded XML depth | Version, charset, depth, typed or raw sections |
+| YAML | Bytes and reader/writer | Sorted mappings through YAML v4 | One document, unique keys, bounded aliases/depth | Multi-document slice, aliases, merges, fields, indentation |
+| TOML | Bytes and reader/writer | Sorted map keys | Complete document, duplicate rejection | Unknown fields, indentation |
+| MessagePack | Bytes and reader/writer | Sorted map keys | One object, unique keys, bounded nesting/collections, string keys for untyped maps | Duplicate compatibility, resource limits, numeric normalization, compact values, array structs |
+| CBOR | Bytes and reader/writer | Canonical by default; Core and CTAP2 profiles | One item, duplicate/tag/indefinite rejection | Tags, time tags, indefinite values, collection limits |
+| BSON | Bytes and reader/writer | Struct and `D` order; not `M` maps | Complete document, recursive unique keys | ObjectID strings, double truncation, integer width, JSON tags |
+
+Every decoder has a fuzz target and every format has decode and encode
+benchmarks. Binary formats are never auto-detected.
+
+## Empty and concatenated input
+
+JSON, XML, SOAP, YAML, MessagePack, CBOR, and BSON reject empty input. TOML
+treats empty or whitespace-only bytes as an empty document. JSON, XML, SOAP,
+YAML, TOML, MessagePack, CBOR, and BSON all reject the tested concatenated or
+duplicate-document shape by default; YAML has an explicit multi-document slice
+mode. In binary formats, ASCII whitespace has no lexical role: byte `0x20` is
+a valid integer item in both MessagePack and CBOR, while it is not a BSON
+document.
+
+## Error behavior
+
+| Situation | Classification |
+| --- | --- |
+| Broken JSON/XML syntax or failed body read | `wire.ErrParse` |
+| Unknown strict JSON field or target type mismatch | `wire.ErrValidation` |
+| Invalid option or decoded value/shape | `wire.ErrValidation` |
+| Unknown explicit detected format | `wire.ErrUnsupportedFormat` |
+| Wrong SOAP namespace, ordering, cardinality, or fault shape | `wire.ErrEnvelope` |
+| Valid SOAP fault response | `wire.ErrSOAPFault` and `*soap.FaultError` |
+| Output destination rejects encoded bytes | `wire.ErrWrite` |
+| Configured byte, nesting, alias, or collection limit is exceeded | `wire.ErrSizeLimit` |
+| Nil, typed-nil, or non-pointer decode target | `wire.ErrTarget` |
+| A supported value fails during serialization | `wire.ErrEncode` for YAML, TOML, MessagePack, CBOR, and BSON |
+
+## Charset support
+
+| Label family | XML | SOAP | Notes |
+| --- | --- | --- | --- |
+| UTF-8 / UTF8 | Built in | Built in | Invalid UTF-8 is rejected |
+| US-ASCII / ASCII | Built in | Built in | Bytes above `0x7f` are rejected |
+| ISO-8859-1 / Latin-1 | Built in | Built in | Every byte maps directly to Unicode |
+| Windows-1252 / CP1252 | Built in | Built in | Undefined bytes are rejected |
+| Other declared charset | Inject reader | Inject reader | No guessing or fallback |
+
+## Intentional limitations
+
+### JSON
+
+- Input and normalization reject invalid UTF-8 instead of accepting Go's
+  replacement-character recovery behavior.
+- Duplicate object names follow `encoding/json` behavior; later values can
+  replace or merge into earlier values depending on the target.
+- No JSON Schema, JSON-RPC, JSON:API, JSON Patch, streaming token facade, or
+  canonical JSON standard is implemented.
+- `Normalize` is presentation normalization, not cryptographic
+  canonicalization.
+
+### XML
+
+- Parsing defaults to at most 1,000 nested elements. `MaxDepth` can tighten
+  the budget; zero selects the default.
+- No DTD validation, XSD validation, XPath, XSLT, canonical XML, digital
+  signatures, entity fetching, or arbitrary charset registry.
+- Directives may be present, but declared entities are not expanded and unknown
+  entity references and embedded NUL bytes are parse failures.
+- `AllowNonStrict` inherits `encoding/xml` recovery behavior and can change the
+  interpreted tree. It is never enabled implicitly.
+- Encoding may choose namespace declarations different from a source document.
+
+### SOAP
+
+- Envelope parsing applies the same configurable 1,000-element XML token-depth
+  default before structural extraction.
+- No WSDL generation, service proxy, SOAPAction policy, MTOM, attachments,
+  WS-Addressing, WS-Security, XML signatures, retries, or HTTP client behavior.
+- A fault must be the only direct Body child and must contain a code and reason.
+- `DecodeBody` requires exactly one direct Body child.
+- Raw fragment marshaling checks XML well-formedness but does not apply an
+  application schema.
+- Typed fault codes, reasons, language attributes, actors, nodes, and roles are
+  XML-escaped; raw Detail remains a validated XML fragment by design.
+
+### YAML
+
+- Anchors are accepted. Aliases and merge keys are accepted under safe
+  dependency limits unless explicitly rejected.
+- Duplicate keys and multiple documents are rejected by default. Explicit
+  duplicate mode uses last-key-wins behavior; multi-document mode requires a
+  pointer to a slice and returns every document.
+- YAML v4 supports most YAML 1.2 while retaining documented YAML 1.1
+  compatibility rules. It is not JSON and can represent non-JSON keys/tags.
+- Custom tags remain visible when decoding to `yaml.Node`; core-schema booleans
+  and integers resolve to native values, and typed maps can use non-string keys.
+
+### TOML
+
+- Duplicate/dotted-key conflicts and malformed trailing text are rejected.
+- TOML offset/local datetime values and numeric forms follow BurntSushi TOML.
+  Destination overflow and incompatible types are validation failures.
+- Special floats and arrays of tables follow TOML syntax and retain their
+  native Go representations.
+- TOML has one document; there is no concatenated-object mode.
+
+### MessagePack
+
+- Duplicate map keys are rejected recursively by default. Explicit opt-in uses
+  the dependency's last-key-wins behavior and should be limited to a measured
+  legacy peer contract.
+- Untyped maps require string keys; a typed target can explicitly use another
+  comparable key type.
+- Encoded integer widths are preserved in `any` by default. Loose mode widens
+  small integers. Recursive narrowing overflow and float precision loss are
+  rejected before assignment.
+- An allocation-safe structural preflight rejects truncation, trailing objects,
+  nesting beyond 32 levels, arrays beyond 131,072 elements, maps beyond 65,536
+  pairs, and forged collection lengths before generic or target decoding
+  allocates from them. Each structural default can be configured explicitly.
+- The standard timestamp extension is supported. Unknown extension IDs are
+  rejected unless the application has deliberately registered them with the
+  underlying codec; such global registration is application-owned behavior.
+
+### CBOR
+
+- Duplicate map keys are rejected. Indefinite-length items and all tags are
+  rejected unless explicitly enabled.
+- Canonical, Core Deterministic, and CTAP2 are distinct named profiles.
+  Canonical output is not claimed for other profiles.
+- Canonical mode uses preferred integer and shortest exact float encodings.
+  Simple values are preserved; bignums are accepted only when tags are enabled.
+- Default and configurable nesting, array, and map limits protect allocations.
+  Bignum tags require tag opt-in; destination numeric overflow is rejected.
+
+### BSON
+
+- Only full BSON documents are accepted. Length prefixes must match the entire
+  payload, so scalar bytes, arrays, and concatenated/trailing data are rejected.
+- Duplicate keys are rejected recursively by default. Explicit opt-in retains
+  them in ordered `D` targets.
+- ObjectID, datetime, Decimal128, binary subtype, regex, timestamp,
+  int32/int64, and raw document behavior comes from re-exported official
+  MongoDB types. Double-to-integer truncation is opt-in.
+- `M` is a Go map and has no deterministic byte-order guarantee; use structs,
+  `D`, or `Raw` when byte stability is required.
+
+### All formats
+
+- Default limits are 1 MiB and are part of the compatibility contract.
+- Transport status, headers, timeouts, cancellation, retries, and logging are
+  owned by the calling application.
+- Decode targets can be partially mutated before a codec reports a later
+  error; discard the target on every error. Encode inputs are caller-owned and
+  have no output byte quota, so bound source collections when output size can
+  be influenced externally.
+- Typed encoders reject cyclic values and application-value nesting beyond
+  1,000 traversed levels before dependency recursion. A custom marshaler's own
+  implementation remains application code and must terminate.
+- Automatic YAML/TOML/binary detection, queues, persistence, and business
+  mapping are out of scope.
+
+## Source: docs/go-safety-and-concurrency.md
+
+# Go Safety And Concurrency
+
+Baseline: `GO-SAFETY-1`
+
+This document defines the shared safety engineering standard for the
+`faustbrian/go-*` package family. RFC 2119 keywords are requirements.
+
+## Guarantee Boundary
+
+Go provides memory safety for ordinary Go code, but it does not provide Rust's
+compile-time ownership and data-race proof. The race detector observes executed
+paths only. These rules reduce the practical gap through constrained design,
+static analysis, adversarial tests, and executable quality gates; they MUST NOT
+be described as an equivalent type-system guarantee.
+
+## Memory And Ownership
+
+- Production code MUST NOT import `unsafe`, use cgo, or use `go:linkname`.
+  An exception requires an explicit security review, package-local rationale,
+  isolated API boundary, platform matrix, and dedicated tests before the source
+  gate may be changed.
+- Every mutable value shared across goroutines MUST have a documented owner and
+  synchronization strategy.
+- APIs MUST NOT expose mutable internal maps, slices, buffers, registries, or
+  pointers unless ownership transfer or aliasing is an intentional, documented
+  contract.
+- Caller-owned mutable input MUST NOT be retained or mutated unless the public
+  API explicitly documents that behavior.
+- Copies, immutable snapshots, atomics, channels, or mutexes SHOULD be chosen
+  according to the invariant being protected, not as interchangeable style.
+- Pooling and zero-copy techniques MUST NOT weaken ownership clarity, retain
+  secrets unexpectedly, or allow values to outlive their backing storage.
+
+## Goroutine And Resource Lifecycle
+
+- Every goroutine MUST have an identifiable owner, bounded lifetime, and
+  deterministic stop condition.
+- Library code MUST NOT start hidden background work without a documented
+  shutdown or cancellation mechanism.
+- Request-scoped work MUST propagate the caller's `context.Context`; it MUST
+  NOT replace that context with `context.Background()`.
+- Concurrency, queues, retries, buffers, payloads, recursion, and fan-out MUST
+  be bounded at every untrusted or operational boundary.
+- The goroutine that owns a channel's send lifecycle SHOULD close it. Receivers
+  MUST NOT close channels they do not own.
+- Locks MUST NOT be held while calling user callbacks, performing network I/O,
+  or waiting on unrelated goroutines.
+- Multiple-lock code MUST document and test a stable lock order.
+- Cancellation, timeout, startup failure, partial initialization, panic, and
+  repeated shutdown MUST each release timers, goroutines, connections, files,
+  transactions, and other owned resources exactly once.
+
+## Required Verification Layers
+
+### Static And Source Analysis
+
+- `make safety` MUST reject forbidden low-level features and run vet, lint,
+  race, and fuzz gates.
+- `go vet`, Staticcheck, security linting, error checks, context checks, and
+  HTTP-body ownership checks MUST remain enabled through the repository lint
+  configuration.
+- New linter suppressions MUST be narrow, justified next to the suppression,
+  and covered by tests where behavior is affected.
+
+### Behavioral Tests
+
+- Tests MUST prove observable contracts, invariants, errors, and ownership
+  behavior rather than merely execute lines.
+- Meaningful 100% production statement coverage remains required, but coverage
+  MUST NOT be treated as evidence of race freedom, resource bounds, or protocol
+  conformance by itself.
+- Cancellation, timeout, panic, partial failure, retry, and shutdown paths MUST
+  be tested when the package owns those behaviors.
+- Tests for mutable inputs and outputs MUST check aliasing and post-call
+  mutation where ownership could be ambiguous.
+
+### Concurrency And Race Tests
+
+- The full package suite MUST pass under `go test -race ./...`.
+- Every concurrency bug fix MUST include a regression that exercises the
+  relevant interleaving under the race detector.
+- Concurrency tests MUST use barriers, channels, hooks, wait groups, or other
+  deterministic coordination. Sleeps MUST NOT be used as synchronization;
+  they MAY be used only when elapsed time is the behavior under test.
+- Critical state machines SHOULD be stress-tested with repeated execution and
+  varied scheduling. A passing stress run is supporting evidence, not a
+  substitute for a deterministic regression.
+- Tests MUST cover concurrent use of every API documented as concurrency-safe.
+
+### Fuzz And Adversarial Tests
+
+- Every parser, decoder, protocol boundary, query parser, queue envelope, and
+  other attacker-controlled byte or text boundary MUST have a fuzz target.
+- Fuzz corpora MUST include valid examples, malformed inputs, boundary values,
+  previously discovered regressions, and inputs near configured resource
+  limits.
+- Fuzz properties MUST include no panic, no hang, bounded resource behavior,
+  deterministic classification, and no invalid caller-state mutation.
+- Round-trip properties MUST be used only where the format and API promise a
+  lossless round trip.
+- Every fuzz-discovered defect MUST be retained as a deterministic regression
+  and, where useful, as a permanent fuzz seed.
+
+### Leak And Resource-Bound Tests
+
+- Components that create goroutines, timers, files, sockets, subscriptions, or
+  transactions MUST prove cleanup after success, failure, cancellation, panic,
+  and repeated close.
+- Leak tests SHOULD use observable lifecycle hooks or owned-resource counters.
+  Global goroutine counts alone SHOULD NOT be used as exact assertions because
+  unrelated runtime goroutines make them unstable.
+- Hostile-reader and declared-size tests MUST prove that byte, item, depth,
+  retry, and expansion limits stop work at the documented boundary.
+- Queue backends MUST test acknowledgement, retry, redelivery, poison-message,
+  reconnect, and shutdown behavior against real backends where semantics
+  cannot be proved hermetically.
+
+### Benchmarks And Regression Discipline
+
+- Hot paths MUST have representative benchmarks reporting allocations with
+  `-benchmem`.
+- Security-sensitive parsers and state machines SHOULD include adversarial
+  benchmarks near supported limits.
+- Performance changes MUST compare multiple before-and-after samples with
+  `benchstat` or an equivalent statistical method and retain the commands,
+  environment, and result.
+- Shared CI MUST NOT fail on small wall-clock benchmark variance. Stable
+  allocation counts, explicit resource ceilings, and statistically supported
+  material regressions MAY be gated.
+- Optimization MUST follow profiling evidence and MUST NOT remove validation,
+  bounds, cancellation, or ownership clarity without equivalent protection.
+
+## Review And Change Control
+
+- Public concurrency guarantees, aliasing behavior, limits, and lifecycle
+  semantics are SemVer-governed contracts.
+- Changes touching shared state, goroutines, callbacks, retries, settlement,
+  parsing, or resource limits MUST include an explicit safety review in the
+  pull request.
+- Updates to this baseline MUST bump its identifier and be propagated across
+  `jsonapi`, `jsonrpc`, `queue`, `wire`, `tabular`,
+  and the monorepo Go standard.
+
+## Source: docs/repository-standards.md
+
+# Repository Standards
+
+This repository follows the shared maintenance baseline used by the
+`faustbrian/go-*` OSS packages.
+
+## Mandatory Root Files
+
+Every repository contains `.gitattributes`, `.gitignore`,
+`.golangci.yml`, `AGENTS.md`, `CHANGELOG.md`, `CLAUDE.md`,
+`CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`, `Makefile`, `NOTICE`,
+`README.md`, `ROADMAP.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`,
+`llms.txt`, and `llms-full.txt`.
+
+AI planning and execution briefs live in `.ai/GOAL.md` and
+`.ai/GOAL_HARDEN.md`, keeping internal agent material separate from the
+package's public documentation surface.
+
+`NOTICE` identifies the project and its ownership. `THIRD_PARTY_NOTICES.md`
+separately records attribution and provenance for copied, forked, generated,
+or vendored third-party source. Both remain present even when no third-party
+source requires attribution. A package may retain a different approved OSS
+license when provenance requires it.
+
+## Mandatory Documentation
+
+The shared taxonomy is lowercase kebab-case and includes a documentation
+index, quickstart, adoption guide, API reference, architecture, examples,
+cookbook, FAQ, troubleshooting, migration, compatibility, performance,
+hardening, security, Go safety and concurrency, and releasing guide.
+Package-specific documents extend this taxonomy without renaming shared
+concepts.
+
+## Mandatory Automation
+
+Every repository provides pinned-SHA workflows for CI, benchmarks, scheduled
+fuzzing, security, and tagged releases. CI tests Go 1.25.x as the supported
+minimum line and current stable Go. Dependency review runs on pull requests;
+reachable dependency scanning uses `govulncheck`.
+
+The common Make interface is `format`, `format-check`, `test`,
+`test-race`, `coverage`, `vet`, `lint`, `fuzz`, `benchmark`,
+`safety`, `docs`, `vuln`, `check`, and semantic release targets.
+
+The package family shares the `GO-SAFETY-1` baseline. It forbids `unsafe`,
+cgo, and `go:linkname` in production code and standardizes ownership,
+goroutine lifecycle, race, fuzz, resource-bound, leak, and benchmark evidence.
+
+## Approved Package-Specific Differences
+
+- `jsonapi` carries JSON:API feature, conformance, extension/profile,
+  recommendation, and threat-model documentation.
+- `jsonrpc` carries protocol conformance and middleware documentation.
+- `queue` carries backend, delivery, lifecycle, failure, and integration
+  documentation plus a live-backend integration workflow. Its fork provenance
+  requires detailed third-party notices.
+- `wire` carries format, dependency, and audit-evidence documentation.
+- `tabular` carries format and ingest-limit documentation. It uses
+  Apache-2.0 and retains XLS provenance notices.
+
+Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
+security guidance are expected to differ. Shared policy wording and automation
+structure must not drift without updating this contract across all affected
+repositories.

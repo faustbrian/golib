@@ -1,0 +1,175 @@
+# Projection and replay foundations
+
+Projections and replay are optional consumers of persisted event history. The
+core event store remains usable without CQRS, a read model, or a global event
+index.
+
+## Optional global reads
+
+`GlobalReader` is a capability separate from `EventStore`. A store implements
+it only when it can provide one stable total order across streams. Callers can
+discover support with an ordinary interface assertion:
+
+```go
+reader, ok := store.(eventsourcing.GlobalReader)
+if !ok {
+	return eventsourcing.ErrUnsupportedCapability
+}
+```
+
+`ReadGlobalOptions` requires a one-based inclusive `FromPosition`, an optional
+inclusive `ToPosition`, and a non-zero `Limit` no greater than
+`MaxReadMessages`. A start beyond the current end returns an empty iterator;
+it is not an error and does not imply that the store will remain empty.
+
+Every returned message has a store-assigned `GlobalPosition`. The iterator is
+caller-closed, cancellation-aware, and follows the same ownership rules as a
+stream iterator. It is a snapshot of the selected range: appends after the
+read begins are observed only by a later read.
+
+The in-memory store implements `GlobalReader` using the exact positions
+assigned during atomic append. Its process-local ordering and concurrency
+behavior match the durable contract, but it provides no cross-process
+durability.
+
+## Projection runner and checkpoints
+
+`projection.Runner` loads durable progress, requests the next bounded global
+range, creates only `DeliveryReplay` values, invokes one application handler,
+and advances the checkpoint after each successful call. It starts no
+goroutines and processes one batch per explicit `RunBatch` call.
+
+`CheckpointStore.Save` is an optimistic compare-and-swap operation. A zero
+expected position creates the first checkpoint; stale writers return
+`projection.ErrCheckpointConflict`. `CheckpointStore.Status` atomically
+returns the run state and optional checkpoint used to start one batch. A
+missing direct `memory.ProjectionStore.Load` is explicit through
+`projection.ErrCheckpointNotFound`; a successful load never returns zero.
+
+`BatchResult` distinguishes successful handler calls from successfully saved
+checkpoints. `Scanned` includes every message examined, `Filtered` includes
+messages deliberately omitted from handling, and `Checkpointed` includes both
+handled and filtered messages whose progress was durably saved. If handling
+succeeds and checkpoint saving fails, `Handled` is greater than
+`Checkpointed`. The same delivery can then be observed again, so projection
+handlers must be idempotent.
+
+## Poisoned deliveries
+
+A handler failure stops replay without advancing the checkpoint by default.
+This fail-closed behavior means the same message is retried by a later batch
+after the application repairs the handler, data, or dependency.
+
+Applications may configure a `projection.PoisonPolicy` to inspect the immutable
+replay delivery and preserved handler cause. `StopOnPoison` keeps the safe
+default. `SkipPoison` explicitly checkpoints the failed message and continues:
+
+```go
+config.PoisonPolicy = func(
+	ctx context.Context,
+	poisoned projection.PoisonedDelivery,
+) (projection.PoisonDecision, error) {
+	if errors.Is(poisoned.Cause(), errRetiredProjectionInput) {
+		return projection.SkipPoison, nil
+	}
+
+	return projection.StopOnPoison, nil
+}
+```
+
+Skipping can permanently omit a read-model transition. A policy must therefore
+be deterministic, narrowly reviewed, and free of irreversible side effects.
+It runs after the handler but before checkpoint persistence; even a skip
+decision can be retried when checkpoint saving fails. `BatchResult.Skipped`
+counts only failed messages whose skip was durably checkpointed.
+`PoisonSkipCheckpointError` preserves both the redacted handler failure and
+checkpoint failure when that final save is rejected.
+
+Cancellation prevents policy invocation. Policy failures, unknown decisions,
+and contained panics stop replay without checkpointing. Diagnostics redact
+application errors and panic values while preserving error causes for
+`errors.Is` and `errors.As`. Dead-letter publication is an application or
+adapter operation and is not hidden inside the generic runner.
+
+## Replay filters
+
+`projection.ReplayFilter` supports bounded exact allowlists for streams,
+aggregate types, and event names, plus inclusive global-position and
+recording-time ranges. All configured dimensions are conjunctive; values
+within one allowlist are alternatives. An empty constructed filter matches
+every assigned persisted message, while its zero value is invalid.
+
+The constructor rejects invalid or duplicate identities, reversed ranges, and
+more than `MaxReplayFilterValues` combined allowlist values. It copies every
+allowlist and normalizes time bounds to the envelope's UTC microsecond
+precision. Matching is deterministic and performs no I/O.
+
+A runner checkpoints filtered messages without invoking the handler. This is
+required for forward progress: a rejected message cannot trap every later
+batch behind the same checkpoint. `BatchSize` bounds scanned messages rather
+than handler calls, so highly selective filters do not create unbounded work.
+
+Changing a filter does not revisit messages below the durable checkpoint. A
+filter change that must backfill earlier history requires an explicitly
+coordinated read-model reset and checkpoint reset. Applications should treat
+the projection name and filter configuration as one operational identity.
+
+## Operational control
+
+`projection.Controller` binds a canonical projection name to a
+`ControlStore`. `Status` reports one atomic running-or-paused state and
+optional checkpoint. `Pause` and `Resume` are idempotent. A runner observes
+the same status before opening a global iterator and returns
+`ErrProjectionPaused` without reading or handling when paused.
+
+Pause prevents new batches and checkpoint advancement; it does not interrupt
+a handler that already started. Operators must stop scheduling new calls and
+drain application-owned in-flight calls before changing the read model.
+Checkpoint stores reject an in-flight save after pause, so such a handler can
+be retried after the operation is coordinated.
+
+`ResetCheckpoint` requires the projection to be paused and uses an expected
+position to reject a concurrent or stale reset. It resets only checkpoint
+acceleration state. It never clears, migrates, or rebuilds an application read
+model. When those changes cannot share a transaction, the application must
+use an idempotent documented sequence:
+
+1. pause and drain the runner;
+2. reset or replace the application read model;
+3. reset the expected checkpoint;
+4. resume bounded replay.
+
+The projection must remain paused after any partial failure. Operators inspect
+status and repair either side before resuming; the generic API does not infer
+or roll back application state.
+
+A durable adapter that can update the read model and checkpoint in one
+transaction should expose that stronger operation separately.
+
+`memory.ProjectionStore` implements checkpoint and control contracts with one
+mutex. It is suitable for tests and local development, provides no
+cross-process durability, and must not be presented as an operational
+checkpoint store.
+
+The generic runner cannot make an application projection update and checkpoint
+save atomic. A durable adapter may later provide that transaction boundary.
+Without such an adapter, applications must use idempotent updates or implement
+a consumer-owned transactional composition.
+
+Handler errors are redacted while preserving their cause for `errors.Is` and
+`errors.As`. Handler panics are contained as `projection.ErrHandlerPanic`
+without retaining the panic value. Missing, duplicated, or reordered global
+positions fail as corrupt history before the handler runs.
+
+## Replay safety
+
+Global iteration alone performs no delivery and causes no side effects.
+Callers must construct replay deliveries explicitly with `DeliveryReplay`.
+Replay must not invoke process managers, external publication, queue
+publication, or outbox insertion unless a separately named operation selects
+those effects.
+
+Durable checkpoint implementations, atomic projection updates, replay
+lifecycle hooks, and read-model reset and rebuild composition remain planned.
+The compatibility matrix therefore marks projections and replay as partial
+rather than complete.

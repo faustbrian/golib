@@ -1,0 +1,24 @@
+# analyzer	semantic near-miss fixture
+backenderror	analyzers/backenderror/testdata/src/boundary/semantic_near_misses.go
+blockingcontext	analyzers/blockingcontext/testdata/src/blockingapi/semantic_near_misses.go
+cleanupownership	analyzers/cleanupownership/testdata/src/consumer/semantic_near_misses.go
+constructorgoroutine	analyzers/constructorgoroutine/testdata/src/constructors/semantic_near_misses.go
+forbiddenapi	analyzers/forbiddenapi/testdata/src/consumer/semantic_near_misses.go
+globalgoroutine	analyzers/globalgoroutine/testdata/src/globalgoroutine/semantic_near_misses.go
+goroutinefanout	analyzers/goroutinefanout/testdata/src/fanout/semantic_near_misses.go
+httpclienttimeout	analyzers/httpclienttimeout/testdata/src/httptimeout/semantic_near_misses.go
+importboundary	analyzers/importboundary/testdata/src/arch/application/semantic_near_misses.go
+interfacenaming	analyzers/interfacenaming/testdata/src/interfaces/provider/semantic_near_misses.go
+interfaceplacement	analyzers/interfaceplacement/testdata/src/interfaces/provider/semantic_near_misses.go
+lockacrosscall	analyzers/lockacrosscall/testdata/src/consumer/semantic_near_misses.go
+metriccardinality	analyzers/metriccardinality/testdata/src/metricconsumer/semantic_near_misses.go
+metriclabelname	analyzers/metriccardinality/testdata/src/metricnameconsumer/semantic_near_misses.go
+mutableglobal	analyzers/mutableglobal/testdata/src/mutableglobals/semantic_near_misses.go
+nobackground	analyzers/nobackground/testdata/src/contextuse/semantic_near_misses.go
+nodefaulthttp	analyzers/nodefaulthttp/testdata/src/httpdefaults/semantic_near_misses.go
+noinit	analyzers/noinit/testdata/src/inituse/semantic_near_misses.go
+noprocesscontrol	analyzers/noprocesscontrol/testdata/src/processuse/semantic_near_misses.go
+nostoredcontext	analyzers/nostoredcontext/testdata/src/contextstore/semantic_near_misses.go
+nounsafe	analyzers/nounsafe/testdata/src/unsafeuse/semantic_near_misses.go
+sensitivesink	analyzers/sensitivesink/testdata/src/consumer/semantic_near_misses.go
+transactionrollback	analyzers/transactionrollback/testdata/src/txconsumer/semantic_near_misses.go

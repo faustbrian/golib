@@ -1,0 +1,5 @@
+id	topic	decision	rationale	status
+DEC-001	edition	Support exactly ECMA-262 16th edition (ECMAScript 2025) initially.	A closed edition prevents accidental acceptance of future syntax.	accepted
+DEC-002	indices	Expose UTF-16 code-unit indices as normative and byte/rune mappings as additional metadata.	ECMAScript observes UTF-16 while Go strings are bytes.	accepted
+DEC-003	invalid-utf8	Treat Go input as a sequence of decoded runes with each invalid byte represented by U+FFFD, while preserving byte offsets.	This follows Go range decoding and is covered by an explicit byte, rune, and UTF-16 index vector.	accepted
+DEC-004	unicode	Use generated Unicode 16.0.0 property, case-folding, identifier, and properties-of-strings tables.	The generator digest-checks the pinned UCD and emoji sources before emitting immutable tables.	accepted

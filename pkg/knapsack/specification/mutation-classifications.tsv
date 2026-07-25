@@ -1,0 +1,14 @@
+file	operator	line	column	classification	proof
+integration/references/cmd/knapsack-compare/main.go	CONDITIONALS_NEGATION	61	23	tool_unsupported	Gremlins cannot attribute subprocess execution to main; TestGoComparisonAdapterCommonSubset executes the command's successful exit path and TestRunRejectsInvalidComparisonDelay proves run errors directly.
+objective/objective.go	INVERT_NEGATIVES	65	18	tool_unsupported	Gremlins cannot attribute statement coverage to a constant initializer; objective comparison and direction tests execute both Min and Max.
+objective/objective.go	ARITHMETIC_BASE	65	18	tool_unsupported	Gremlins cannot attribute statement coverage to a constant initializer; objective comparison and direction tests execute both Min and Max.
+solver/exact.go	CONDITIONALS_BOUNDARY	198	22	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes the branch boundary.
+solver/exact.go	CONDITIONALS_NEGATION	198	22	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes the branch boundary.
+solver/exact.go	CONDITIONALS_BOUNDARY	198	60	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes cumulative branch exhaustion.
+solver/exact.go	CONDITIONALS_NEGATION	198	60	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes cumulative branch exhaustion.
+solver/exact.go	INVERT_NEGATIVES	198	81	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes the subtraction boundary.
+solver/exact.go	ARITHMETIC_BASE	198	81	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes the subtraction boundary.
+solver/exact.go	CONDITIONALS_BOUNDARY	200	18	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes node exhaustion.
+solver/exact.go	CONDITIONALS_NEGATION	200	18	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes node exhaustion.
+solver/exact.go	CONDITIONALS_BOUNDARY	202	32	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes candidate exhaustion.
+solver/exact.go	CONDITIONALS_NEGATION	202	32	tool_unsupported	Gremlins maps this switch expression outside its covered statement span; TestVariableSearchBudgetClassification executes candidate exhaustion.

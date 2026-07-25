@@ -1,0 +1,3458 @@
+{
+    "schema": "php-temporal-compat/v1",
+    "source": {
+        "repository": "github.com/faustbrian/golib/pkg/temporal",
+        "commit": "469603239dbe700739c29b4c532a90382b6cbedf",
+        "namespace": "Cline\\Temporal"
+    },
+    "public_api": [
+        "Cline\\Temporal\\Period\\Bounds",
+        "Cline\\Temporal\\Period\\Bounds::ExcludeAll",
+        "Cline\\Temporal\\Period\\Bounds::ExcludeStartIncludeEnd",
+        "Cline\\Temporal\\Period\\Bounds::IncludeAll",
+        "Cline\\Temporal\\Period\\Bounds::IncludeStartExcludeEnd",
+        "Cline\\Temporal\\Period\\Bounds::buildBourbaki()",
+        "Cline\\Temporal\\Period\\Bounds::buildIso80000()",
+        "Cline\\Temporal\\Period\\Bounds::equalsEnd()",
+        "Cline\\Temporal\\Period\\Bounds::equalsStart()",
+        "Cline\\Temporal\\Period\\Bounds::excludeEnd()",
+        "Cline\\Temporal\\Period\\Bounds::excludeStart()",
+        "Cline\\Temporal\\Period\\Bounds::includeEnd()",
+        "Cline\\Temporal\\Period\\Bounds::includeStart()",
+        "Cline\\Temporal\\Period\\Bounds::isEndIncluded()",
+        "Cline\\Temporal\\Period\\Bounds::isStartIncluded()",
+        "Cline\\Temporal\\Period\\Bounds::parseBourbaki()",
+        "Cline\\Temporal\\Period\\Bounds::parseIso80000()",
+        "Cline\\Temporal\\Period\\Bounds::replaceEnd()",
+        "Cline\\Temporal\\Period\\Bounds::replaceStart()",
+        "Cline\\Temporal\\Period\\DatePoint",
+        "Cline\\Temporal\\Period\\DatePoint::$date",
+        "Cline\\Temporal\\Period\\DatePoint::__set_state()",
+        "Cline\\Temporal\\Period\\DatePoint::abuts()",
+        "Cline\\Temporal\\Period\\DatePoint::bordersOnEnd()",
+        "Cline\\Temporal\\Period\\DatePoint::bordersOnStart()",
+        "Cline\\Temporal\\Period\\DatePoint::day()",
+        "Cline\\Temporal\\Period\\DatePoint::fromDate()",
+        "Cline\\Temporal\\Period\\DatePoint::fromDateString()",
+        "Cline\\Temporal\\Period\\DatePoint::fromFormat()",
+        "Cline\\Temporal\\Period\\DatePoint::fromTimestamp()",
+        "Cline\\Temporal\\Period\\DatePoint::hour()",
+        "Cline\\Temporal\\Period\\DatePoint::isAfter()",
+        "Cline\\Temporal\\Period\\DatePoint::isBefore()",
+        "Cline\\Temporal\\Period\\DatePoint::isDuring()",
+        "Cline\\Temporal\\Period\\DatePoint::isEnding()",
+        "Cline\\Temporal\\Period\\DatePoint::isStarting()",
+        "Cline\\Temporal\\Period\\DatePoint::isoWeek()",
+        "Cline\\Temporal\\Period\\DatePoint::isoYear()",
+        "Cline\\Temporal\\Period\\DatePoint::minute()",
+        "Cline\\Temporal\\Period\\DatePoint::month()",
+        "Cline\\Temporal\\Period\\DatePoint::quarter()",
+        "Cline\\Temporal\\Period\\DatePoint::second()",
+        "Cline\\Temporal\\Period\\DatePoint::semester()",
+        "Cline\\Temporal\\Period\\DatePoint::year()",
+        "Cline\\Temporal\\Period\\Duration",
+        "Cline\\Temporal\\Period\\Duration::$dateInterval",
+        "Cline\\Temporal\\Period\\Duration::__set_state()",
+        "Cline\\Temporal\\Period\\Duration::adjustedTo()",
+        "Cline\\Temporal\\Period\\Duration::fromChronoString()",
+        "Cline\\Temporal\\Period\\Duration::fromDateInterval()",
+        "Cline\\Temporal\\Period\\Duration::fromDateString()",
+        "Cline\\Temporal\\Period\\Duration::fromIsoString()",
+        "Cline\\Temporal\\Period\\Duration::fromSeconds()",
+        "Cline\\Temporal\\Period\\Duration::fromTimeString()",
+        "Cline\\Temporal\\Period\\InaccessibleInterval",
+        "Cline\\Temporal\\Period\\InaccessibleInterval::dueToInvalidIndex()",
+        "Cline\\Temporal\\Period\\IntervalError",
+        "Cline\\Temporal\\Period\\InvalidInterval",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToEndPointMismatch()",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidDateFormat()",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidDatePeriod()",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidRelativeDateFormat()",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToUnknownNotation()",
+        "Cline\\Temporal\\Period\\InvalidInterval::dueToUnsupportedVersion()",
+        "Cline\\Temporal\\Period\\MissingFeature",
+        "Cline\\Temporal\\Period\\Period",
+        "Cline\\Temporal\\Period\\Period::$bounds",
+        "Cline\\Temporal\\Period\\Period::$endDate",
+        "Cline\\Temporal\\Period\\Period::$startDate",
+        "Cline\\Temporal\\Period\\Period::__set_state()",
+        "Cline\\Temporal\\Period\\Period::abuts()",
+        "Cline\\Temporal\\Period\\Period::after()",
+        "Cline\\Temporal\\Period\\Period::around()",
+        "Cline\\Temporal\\Period\\Period::before()",
+        "Cline\\Temporal\\Period\\Period::bordersOnEnd()",
+        "Cline\\Temporal\\Period\\Period::bordersOnStart()",
+        "Cline\\Temporal\\Period\\Period::boundedBy()",
+        "Cline\\Temporal\\Period\\Period::contains()",
+        "Cline\\Temporal\\Period\\Period::dateInterval()",
+        "Cline\\Temporal\\Period\\Period::dateIntervalDiff()",
+        "Cline\\Temporal\\Period\\Period::diff()",
+        "Cline\\Temporal\\Period\\Period::durationCompare()",
+        "Cline\\Temporal\\Period\\Period::durationEquals()",
+        "Cline\\Temporal\\Period\\Period::durationGreaterThan()",
+        "Cline\\Temporal\\Period\\Period::durationGreaterThanOrEquals()",
+        "Cline\\Temporal\\Period\\Period::durationLessThan()",
+        "Cline\\Temporal\\Period\\Period::durationLessThanOrEquals()",
+        "Cline\\Temporal\\Period\\Period::endingOn()",
+        "Cline\\Temporal\\Period\\Period::equals()",
+        "Cline\\Temporal\\Period\\Period::expand()",
+        "Cline\\Temporal\\Period\\Period::fromBourbaki()",
+        "Cline\\Temporal\\Period\\Period::fromDate()",
+        "Cline\\Temporal\\Period\\Period::fromDay()",
+        "Cline\\Temporal\\Period\\Period::fromIso80000()",
+        "Cline\\Temporal\\Period\\Period::fromIso8601()",
+        "Cline\\Temporal\\Period\\Period::fromIsoWeek()",
+        "Cline\\Temporal\\Period\\Period::fromIsoYear()",
+        "Cline\\Temporal\\Period\\Period::fromMonth()",
+        "Cline\\Temporal\\Period\\Period::fromQuarter()",
+        "Cline\\Temporal\\Period\\Period::fromRange()",
+        "Cline\\Temporal\\Period\\Period::fromSemester()",
+        "Cline\\Temporal\\Period\\Period::fromTimestamp()",
+        "Cline\\Temporal\\Period\\Period::fromYear()",
+        "Cline\\Temporal\\Period\\Period::gap()",
+        "Cline\\Temporal\\Period\\Period::intersect()",
+        "Cline\\Temporal\\Period\\Period::isAfter()",
+        "Cline\\Temporal\\Period\\Period::isBefore()",
+        "Cline\\Temporal\\Period\\Period::isDuring()",
+        "Cline\\Temporal\\Period\\Period::isEndedBy()",
+        "Cline\\Temporal\\Period\\Period::isStartedBy()",
+        "Cline\\Temporal\\Period\\Period::jsonSerialize()",
+        "Cline\\Temporal\\Period\\Period::meets()",
+        "Cline\\Temporal\\Period\\Period::meetsOnEnd()",
+        "Cline\\Temporal\\Period\\Period::meetsOnStart()",
+        "Cline\\Temporal\\Period\\Period::merge()",
+        "Cline\\Temporal\\Period\\Period::move()",
+        "Cline\\Temporal\\Period\\Period::moveEndDate()",
+        "Cline\\Temporal\\Period\\Period::moveStartDate()",
+        "Cline\\Temporal\\Period\\Period::overlaps()",
+        "Cline\\Temporal\\Period\\Period::rangeBackwards()",
+        "Cline\\Temporal\\Period\\Period::rangeForward()",
+        "Cline\\Temporal\\Period\\Period::snapToDay()",
+        "Cline\\Temporal\\Period\\Period::snapToHour()",
+        "Cline\\Temporal\\Period\\Period::snapToIsoWeek()",
+        "Cline\\Temporal\\Period\\Period::snapToIsoYear()",
+        "Cline\\Temporal\\Period\\Period::snapToMinute()",
+        "Cline\\Temporal\\Period\\Period::snapToMonth()",
+        "Cline\\Temporal\\Period\\Period::snapToQuarter()",
+        "Cline\\Temporal\\Period\\Period::snapToSecond()",
+        "Cline\\Temporal\\Period\\Period::snapToSemester()",
+        "Cline\\Temporal\\Period\\Period::snapToYear()",
+        "Cline\\Temporal\\Period\\Period::splitBackwards()",
+        "Cline\\Temporal\\Period\\Period::splitForward()",
+        "Cline\\Temporal\\Period\\Period::startingOn()",
+        "Cline\\Temporal\\Period\\Period::subtract()",
+        "Cline\\Temporal\\Period\\Period::timeDuration()",
+        "Cline\\Temporal\\Period\\Period::timeDurationDiff()",
+        "Cline\\Temporal\\Period\\Period::toBourbaki()",
+        "Cline\\Temporal\\Period\\Period::toIso80000()",
+        "Cline\\Temporal\\Period\\Period::toIso8601()",
+        "Cline\\Temporal\\Period\\Period::union()",
+        "Cline\\Temporal\\Period\\Period::withDurationAfterStart()",
+        "Cline\\Temporal\\Period\\Period::withDurationBeforeEnd()",
+        "Cline\\Temporal\\Period\\PeriodTestCase",
+        "Cline\\Temporal\\Period\\Sequence",
+        "Cline\\Temporal\\Period\\Sequence::__construct()",
+        "Cline\\Temporal\\Period\\Sequence::clear()",
+        "Cline\\Temporal\\Period\\Sequence::contains()",
+        "Cline\\Temporal\\Period\\Sequence::count()",
+        "Cline\\Temporal\\Period\\Sequence::every()",
+        "Cline\\Temporal\\Period\\Sequence::filter()",
+        "Cline\\Temporal\\Period\\Sequence::gaps()",
+        "Cline\\Temporal\\Period\\Sequence::get()",
+        "Cline\\Temporal\\Period\\Sequence::getIterator()",
+        "Cline\\Temporal\\Period\\Sequence::indexOf()",
+        "Cline\\Temporal\\Period\\Sequence::insert()",
+        "Cline\\Temporal\\Period\\Sequence::intersections()",
+        "Cline\\Temporal\\Period\\Sequence::isEmpty()",
+        "Cline\\Temporal\\Period\\Sequence::jsonSerialize()",
+        "Cline\\Temporal\\Period\\Sequence::length()",
+        "Cline\\Temporal\\Period\\Sequence::map()",
+        "Cline\\Temporal\\Period\\Sequence::offsetExists()",
+        "Cline\\Temporal\\Period\\Sequence::offsetGet()",
+        "Cline\\Temporal\\Period\\Sequence::offsetSet()",
+        "Cline\\Temporal\\Period\\Sequence::offsetUnset()",
+        "Cline\\Temporal\\Period\\Sequence::push()",
+        "Cline\\Temporal\\Period\\Sequence::reduce()",
+        "Cline\\Temporal\\Period\\Sequence::remove()",
+        "Cline\\Temporal\\Period\\Sequence::set()",
+        "Cline\\Temporal\\Period\\Sequence::some()",
+        "Cline\\Temporal\\Period\\Sequence::sort()",
+        "Cline\\Temporal\\Period\\Sequence::sorted()",
+        "Cline\\Temporal\\Period\\Sequence::subtract()",
+        "Cline\\Temporal\\Period\\Sequence::toList()",
+        "Cline\\Temporal\\Period\\Sequence::totalTimeDuration()",
+        "Cline\\Temporal\\Period\\Sequence::unions()",
+        "Cline\\Temporal\\Period\\Sequence::unshift()",
+        "Cline\\Temporal\\Period\\UnprocessableInterval",
+        "Cline\\Temporal\\Period\\UnprocessableInterval::dueToMissingGaps()",
+        "Cline\\Temporal\\Period\\UnprocessableInterval::dueToMissingOverlaps()",
+        "Cline\\Temporal\\Time\\Bound",
+        "Cline\\Temporal\\Time\\Bound::End",
+        "Cline\\Temporal\\Time\\Bound::Start",
+        "Cline\\Temporal\\Time\\Duration",
+        "Cline\\Temporal\\Time\\Duration::$daysCount",
+        "Cline\\Temporal\\Time\\Duration::$hours",
+        "Cline\\Temporal\\Time\\Duration::$microseconds",
+        "Cline\\Temporal\\Time\\Duration::$minutes",
+        "Cline\\Temporal\\Time\\Duration::$seconds",
+        "Cline\\Temporal\\Time\\Duration::$sign",
+        "Cline\\Temporal\\Time\\Duration::$weeksCount",
+        "Cline\\Temporal\\Time\\Duration::__serialize()",
+        "Cline\\Temporal\\Time\\Duration::__unserialize()",
+        "Cline\\Temporal\\Time\\Duration::abs()",
+        "Cline\\Temporal\\Time\\Duration::clamp()",
+        "Cline\\Temporal\\Time\\Duration::compareTo()",
+        "Cline\\Temporal\\Time\\Duration::decrease()",
+        "Cline\\Temporal\\Time\\Duration::dividedBy()",
+        "Cline\\Temporal\\Time\\Duration::equals()",
+        "Cline\\Temporal\\Time\\Duration::format()",
+        "Cline\\Temporal\\Time\\Duration::fromDateInterval()",
+        "Cline\\Temporal\\Time\\Duration::fromFormat()",
+        "Cline\\Temporal\\Time\\Duration::increase()",
+        "Cline\\Temporal\\Time\\Duration::isLongerThan()",
+        "Cline\\Temporal\\Time\\Duration::isLongerThanOrEqual()",
+        "Cline\\Temporal\\Time\\Duration::isShorterThan()",
+        "Cline\\Temporal\\Time\\Duration::isShorterThanOrEqual()",
+        "Cline\\Temporal\\Time\\Duration::isZero()",
+        "Cline\\Temporal\\Time\\Duration::jsonSerialize()",
+        "Cline\\Temporal\\Time\\Duration::max()",
+        "Cline\\Temporal\\Time\\Duration::maxOf()",
+        "Cline\\Temporal\\Time\\Duration::min()",
+        "Cline\\Temporal\\Time\\Duration::minOf()",
+        "Cline\\Temporal\\Time\\Duration::multipliedBy()",
+        "Cline\\Temporal\\Time\\Duration::negated()",
+        "Cline\\Temporal\\Time\\Duration::of()",
+        "Cline\\Temporal\\Time\\Duration::roundTo()",
+        "Cline\\Temporal\\Time\\Duration::sum()",
+        "Cline\\Temporal\\Time\\Duration::toDateInterval()",
+        "Cline\\Temporal\\Time\\Duration::total()",
+        "Cline\\Temporal\\Time\\Duration::zero()",
+        "Cline\\Temporal\\Time\\DurationFormat",
+        "Cline\\Temporal\\Time\\DurationFormat::Compact",
+        "Cline\\Temporal\\Time\\DurationFormat::Iso8601",
+        "Cline\\Temporal\\Time\\DurationFormat::Timer",
+        "Cline\\Temporal\\Time\\DurationFormat::decode()",
+        "Cline\\Temporal\\Time\\DurationFormat::encode()",
+        "Cline\\Temporal\\Time\\Interval",
+        "Cline\\Temporal\\Time\\Interval::$duration",
+        "Cline\\Temporal\\Time\\Interval::$end",
+        "Cline\\Temporal\\Time\\Interval::$linearEnd",
+        "Cline\\Temporal\\Time\\Interval::$linearStart",
+        "Cline\\Temporal\\Time\\Interval::$start",
+        "Cline\\Temporal\\Time\\Interval::$type",
+        "Cline\\Temporal\\Time\\Interval::__serialize()",
+        "Cline\\Temporal\\Time\\Interval::__unserialize()",
+        "Cline\\Temporal\\Time\\Interval::abuts()",
+        "Cline\\Temporal\\Time\\Interval::around()",
+        "Cline\\Temporal\\Time\\Interval::between()",
+        "Cline\\Temporal\\Time\\Interval::circular()",
+        "Cline\\Temporal\\Time\\Interval::collapsed()",
+        "Cline\\Temporal\\Time\\Interval::compareDurationTo()",
+        "Cline\\Temporal\\Time\\Interval::complement()",
+        "Cline\\Temporal\\Time\\Interval::contains()",
+        "Cline\\Temporal\\Time\\Interval::difference()",
+        "Cline\\Temporal\\Time\\Interval::endingOn()",
+        "Cline\\Temporal\\Time\\Interval::equals()",
+        "Cline\\Temporal\\Time\\Interval::expand()",
+        "Cline\\Temporal\\Time\\Interval::format()",
+        "Cline\\Temporal\\Time\\Interval::fromFormat()",
+        "Cline\\Temporal\\Time\\Interval::fromLinearSpan()",
+        "Cline\\Temporal\\Time\\Interval::fullDay()",
+        "Cline\\Temporal\\Time\\Interval::gap()",
+        "Cline\\Temporal\\Time\\Interval::includes()",
+        "Cline\\Temporal\\Time\\Interval::intersect()",
+        "Cline\\Temporal\\Time\\Interval::jsonSerialize()",
+        "Cline\\Temporal\\Time\\Interval::lasting()",
+        "Cline\\Temporal\\Time\\Interval::longerThan()",
+        "Cline\\Temporal\\Time\\Interval::longerThanOrEqual()",
+        "Cline\\Temporal\\Time\\Interval::overlaps()",
+        "Cline\\Temporal\\Time\\Interval::roundTo()",
+        "Cline\\Temporal\\Time\\Interval::sameDurationAs()",
+        "Cline\\Temporal\\Time\\Interval::shift()",
+        "Cline\\Temporal\\Time\\Interval::shiftBound()",
+        "Cline\\Temporal\\Time\\Interval::shorterThan()",
+        "Cline\\Temporal\\Time\\Interval::shorterThanOrEqual()",
+        "Cline\\Temporal\\Time\\Interval::since()",
+        "Cline\\Temporal\\Time\\Interval::splitAt()",
+        "Cline\\Temporal\\Time\\Interval::splitBy()",
+        "Cline\\Temporal\\Time\\Interval::startingOn()",
+        "Cline\\Temporal\\Time\\Interval::steps()",
+        "Cline\\Temporal\\Time\\Interval::toNative()",
+        "Cline\\Temporal\\Time\\Interval::union()",
+        "Cline\\Temporal\\Time\\Interval::until()",
+        "Cline\\Temporal\\Time\\IntervalFormat",
+        "Cline\\Temporal\\Time\\IntervalFormat::Bourbaki",
+        "Cline\\Temporal\\Time\\IntervalFormat::Iso80000",
+        "Cline\\Temporal\\Time\\IntervalFormat::Iso8601",
+        "Cline\\Temporal\\Time\\IntervalFormat::Iso8601DurationEnd",
+        "Cline\\Temporal\\Time\\IntervalFormat::Iso8601StartDuration",
+        "Cline\\Temporal\\Time\\IntervalFormat::Iso8601StartEnd",
+        "Cline\\Temporal\\Time\\IntervalFormat::decode()",
+        "Cline\\Temporal\\Time\\IntervalFormat::encode()",
+        "Cline\\Temporal\\Time\\IntervalSet",
+        "Cline\\Temporal\\Time\\IntervalSet::__construct()",
+        "Cline\\Temporal\\Time\\IntervalSet::__serialize()",
+        "Cline\\Temporal\\Time\\IntervalSet::__unserialize()",
+        "Cline\\Temporal\\Time\\IntervalSet::all()",
+        "Cline\\Temporal\\Time\\IntervalSet::allFormatted()",
+        "Cline\\Temporal\\Time\\IntervalSet::allNative()",
+        "Cline\\Temporal\\Time\\IntervalSet::any()",
+        "Cline\\Temporal\\Time\\IntervalSet::complement()",
+        "Cline\\Temporal\\Time\\IntervalSet::count()",
+        "Cline\\Temporal\\Time\\IntervalSet::difference()",
+        "Cline\\Temporal\\Time\\IntervalSet::duration()",
+        "Cline\\Temporal\\Time\\IntervalSet::each()",
+        "Cline\\Temporal\\Time\\IntervalSet::every()",
+        "Cline\\Temporal\\Time\\IntervalSet::filter()",
+        "Cline\\Temporal\\Time\\IntervalSet::first()",
+        "Cline\\Temporal\\Time\\IntervalSet::firstMatching()",
+        "Cline\\Temporal\\Time\\IntervalSet::gaps()",
+        "Cline\\Temporal\\Time\\IntervalSet::get()",
+        "Cline\\Temporal\\Time\\IntervalSet::getIterator()",
+        "Cline\\Temporal\\Time\\IntervalSet::has()",
+        "Cline\\Temporal\\Time\\IntervalSet::indexOf()",
+        "Cline\\Temporal\\Time\\IntervalSet::intersect()",
+        "Cline\\Temporal\\Time\\IntervalSet::isEmpty()",
+        "Cline\\Temporal\\Time\\IntervalSet::jsonSerialize()",
+        "Cline\\Temporal\\Time\\IntervalSet::last()",
+        "Cline\\Temporal\\Time\\IntervalSet::lastIndexOf()",
+        "Cline\\Temporal\\Time\\IntervalSet::lastMatching()",
+        "Cline\\Temporal\\Time\\IntervalSet::map()",
+        "Cline\\Temporal\\Time\\IntervalSet::nth()",
+        "Cline\\Temporal\\Time\\IntervalSet::push()",
+        "Cline\\Temporal\\Time\\IntervalSet::reduce()",
+        "Cline\\Temporal\\Time\\IntervalSet::remove()",
+        "Cline\\Temporal\\Time\\IntervalSet::replace()",
+        "Cline\\Temporal\\Time\\IntervalSet::sorted()",
+        "Cline\\Temporal\\Time\\IntervalSet::sortedUsing()",
+        "Cline\\Temporal\\Time\\IntervalSet::transform()",
+        "Cline\\Temporal\\Time\\IntervalSet::union()",
+        "Cline\\Temporal\\Time\\IntervalSet::unshift()",
+        "Cline\\Temporal\\Time\\IntervalType",
+        "Cline\\Temporal\\Time\\IntervalType::Circular",
+        "Cline\\Temporal\\Time\\IntervalType::Collapsed",
+        "Cline\\Temporal\\Time\\IntervalType::Linear",
+        "Cline\\Temporal\\Time\\IntervalType::Overflow",
+        "Cline\\Temporal\\Time\\InvalidDuration",
+        "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedIso8601()",
+        "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedMicrosecond()",
+        "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedMinute()",
+        "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedSecond()",
+        "Cline\\Temporal\\Time\\InvalidDuration::dueToOverflow()",
+        "Cline\\Temporal\\Time\\InvalidInterval",
+        "Cline\\Temporal\\Time\\InvalidInterval::dueToMalformedFormat()",
+        "Cline\\Temporal\\Time\\InvalidIntervalSetOffset",
+        "Cline\\Temporal\\Time\\InvalidIntervalSetOffset::forOffset()",
+        "Cline\\Temporal\\Time\\InvalidTime",
+        "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedHour()",
+        "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedMicrosecond()",
+        "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedMinute()",
+        "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedSecond()",
+        "Cline\\Temporal\\Time\\InvalidTimezone",
+        "Cline\\Temporal\\Time\\InvalidTimezone::unsupportedIdentifier()",
+        "Cline\\Temporal\\Time\\RoundingMode",
+        "Cline\\Temporal\\Time\\RoundingMode::Ceil",
+        "Cline\\Temporal\\Time\\RoundingMode::Floor",
+        "Cline\\Temporal\\Time\\RoundingMode::Nearest",
+        "Cline\\Temporal\\Time\\Time",
+        "Cline\\Temporal\\Time\\Time::$hour",
+        "Cline\\Temporal\\Time\\Time::$microsecond",
+        "Cline\\Temporal\\Time\\Time::$minute",
+        "Cline\\Temporal\\Time\\Time::$second",
+        "Cline\\Temporal\\Time\\Time::__serialize()",
+        "Cline\\Temporal\\Time\\Time::__unserialize()",
+        "Cline\\Temporal\\Time\\Time::applyTo()",
+        "Cline\\Temporal\\Time\\Time::at()",
+        "Cline\\Temporal\\Time\\Time::clamp()",
+        "Cline\\Temporal\\Time\\Time::compareTo()",
+        "Cline\\Temporal\\Time\\Time::diff()",
+        "Cline\\Temporal\\Time\\Time::distance()",
+        "Cline\\Temporal\\Time\\Time::endOfDay()",
+        "Cline\\Temporal\\Time\\Time::equals()",
+        "Cline\\Temporal\\Time\\Time::format()",
+        "Cline\\Temporal\\Time\\Time::fromDate()",
+        "Cline\\Temporal\\Time\\Time::fromFormat()",
+        "Cline\\Temporal\\Time\\Time::fromOffset()",
+        "Cline\\Temporal\\Time\\Time::isAfter()",
+        "Cline\\Temporal\\Time\\Time::isAfterOrEqual()",
+        "Cline\\Temporal\\Time\\Time::isBefore()",
+        "Cline\\Temporal\\Time\\Time::isBeforeOrEqual()",
+        "Cline\\Temporal\\Time\\Time::jsonSerialize()",
+        "Cline\\Temporal\\Time\\Time::maxOf()",
+        "Cline\\Temporal\\Time\\Time::midnight()",
+        "Cline\\Temporal\\Time\\Time::minOf()",
+        "Cline\\Temporal\\Time\\Time::noon()",
+        "Cline\\Temporal\\Time\\Time::now()",
+        "Cline\\Temporal\\Time\\Time::roundTo()",
+        "Cline\\Temporal\\Time\\Time::shift()",
+        "Cline\\Temporal\\Time\\Time::toLocaleString()",
+        "Cline\\Temporal\\Time\\Time::toOffset()",
+        "Cline\\Temporal\\Time\\Time::with()",
+        "Cline\\Temporal\\Time\\TimeException",
+        "Cline\\Temporal\\Time\\TimeFormat",
+        "Cline\\Temporal\\Time\\TimeFormat::Compact",
+        "Cline\\Temporal\\Time\\TimeFormat::Iso8601",
+        "Cline\\Temporal\\Time\\TimeFormat::decode()",
+        "Cline\\Temporal\\Time\\TimeFormat::encode()",
+        "Cline\\Temporal\\Time\\TimeFormatLength",
+        "Cline\\Temporal\\Time\\TimeFormatLength::Full",
+        "Cline\\Temporal\\Time\\TimeFormatLength::Long",
+        "Cline\\Temporal\\Time\\TimeFormatLength::Medium",
+        "Cline\\Temporal\\Time\\TimeFormatLength::Short",
+        "Cline\\Temporal\\Time\\UnableToFormatLocaleTime",
+        "Cline\\Temporal\\Time\\UnableToFormatLocaleTime::forLocale()",
+        "Cline\\Temporal\\Time\\Unit",
+        "Cline\\Temporal\\Time\\Unit::Day",
+        "Cline\\Temporal\\Time\\Unit::Hour",
+        "Cline\\Temporal\\Time\\Unit::Microsecond",
+        "Cline\\Temporal\\Time\\Unit::Millisecond",
+        "Cline\\Temporal\\Time\\Unit::Minute",
+        "Cline\\Temporal\\Time\\Unit::Second",
+        "Cline\\Temporal\\Time\\Unit::Week",
+        "Cline\\Temporal\\Time\\Unit::divide()",
+        "Cline\\Temporal\\Time\\Unit::inMicroseconds()",
+        "Cline\\Temporal\\Time\\Unit::remainder()",
+        "Cline\\Temporal\\Time\\Unit::round()",
+        "Cline\\Temporal\\Time\\Unit::toMicroseconds()",
+        "Cline\\Temporal\\Time\\Unit::whole()",
+        "Cline\\Temporal\\Time\\Unit::wrap()",
+        "Cline\\Temporal\\Time\\UnsupportedLocaleFormatting",
+        "Cline\\Temporal\\Time\\UnsupportedLocaleFormatting::dueToMissingIntlSupport()"
+    ],
+    "behavior_coverage": [
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::ExcludeAll",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::ExcludeStartIncludeEnd",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::IncludeAll",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::IncludeStartExcludeEnd",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::buildBourbaki()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::buildIso80000()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::equalsEnd()",
+            "status": "diverges",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::equalsStart()",
+            "status": "diverges",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::excludeEnd()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::excludeStart()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::includeEnd()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::includeStart()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::isEndIncluded()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::isStartIncluded()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::parseBourbaki()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::parseIso80000()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::replaceEnd()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Bounds::replaceStart()",
+            "status": "supported",
+            "contract": "bound notation and inclusion",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture; TestBracketSemanticsAreExact",
+            "migration": "docs/migration.md#bounds"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::$date",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::__set_state()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::abuts()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::bordersOnEnd()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::bordersOnStart()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::day()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::fromDate()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::fromDateString()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::fromFormat()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::fromTimestamp()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::hour()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isAfter()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isBefore()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isDuring()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isEnding()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isStarting()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isoWeek()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::isoYear()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::minute()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::month()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::quarter()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::second()",
+            "status": "diverges",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::semester()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\DatePoint::year()",
+            "status": "supported",
+            "contract": "instant and civil-date construction and relations",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestDateFactoriesUseCalendarUnits",
+            "migration": "docs/migration.md#date-and-time-values"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::$dateInterval",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::__set_state()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::adjustedTo()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromChronoString()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromDateInterval()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromDateString()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromIsoString()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromSeconds()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Duration::fromTimeString()",
+            "status": "diverges",
+            "contract": "fixed versus calendar duration conversion",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationParsing; TestSnapSupportsEveryCivilUnit",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InaccessibleInterval",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InaccessibleInterval::dueToInvalidIndex()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\IntervalError",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToEndPointMismatch()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidDateFormat()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidDatePeriod()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToInvalidRelativeDateFormat()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToUnknownNotation()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\InvalidInterval::dueToUnsupportedVersion()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\MissingFeature",
+            "status": "diverges",
+            "contract": "PHP feature marker without a core Go value",
+            "go_evidence": "go-divergence: unsupported features are documented capability gaps",
+            "migration": "docs/compatibility.md#compatibility-policy"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::$bounds",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::$endDate",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::$startDate",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::__set_state()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::abuts()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::after()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::around()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::before()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::bordersOnEnd()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::bordersOnStart()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::boundedBy()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::contains()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::dateInterval()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::dateIntervalDiff()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::diff()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationCompare()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationEquals()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationGreaterThan()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationGreaterThanOrEquals()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationLessThan()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::durationLessThanOrEquals()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::endingOn()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::equals()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::expand()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromBourbaki()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromDate()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromDay()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromIso80000()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromIso8601()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromIsoWeek()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromIsoYear()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromMonth()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromQuarter()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromRange()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromSemester()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromTimestamp()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::fromYear()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::gap()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::intersect()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::isAfter()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::isBefore()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::isDuring()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::isEndedBy()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::isStartedBy()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::jsonSerialize()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::meets()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::meetsOnEnd()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::meetsOnStart()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::merge()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::move()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::moveEndDate()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::moveStartDate()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::overlaps()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::rangeBackwards()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::rangeForward()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToDay()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToHour()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToIsoWeek()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToIsoYear()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToMinute()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToMonth()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToQuarter()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToSecond()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToSemester()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::snapToYear()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::splitBackwards()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::splitForward()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::startingOn()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::subtract()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::timeDuration()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::timeDurationDiff()",
+            "status": "diverges",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::toBourbaki()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::toIso80000()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::toIso8601()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::union()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::withDurationAfterStart()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Period::withDurationBeforeEnd()",
+            "status": "supported",
+            "contract": "period construction, relations, algebra, and iteration",
+            "go_evidence": "go-test: TestAllenRelationsAcrossAllBounds; TestInstantSetAlgebraProperties; FuzzInstantSplitting",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\PeriodTestCase",
+            "status": "diverges",
+            "contract": "PHP test-framework helper",
+            "go_evidence": "go-divergence: temporaltest provides Go-native assertions",
+            "migration": "docs/compatibility.md#period-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::__construct()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::clear()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::contains()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::count()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::every()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::filter()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::gaps()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::get()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::getIterator()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::indexOf()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::insert()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::intersections()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::isEmpty()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::jsonSerialize()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::length()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::map()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::offsetExists()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::offsetGet()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::offsetSet()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::offsetUnset()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::push()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::reduce()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::remove()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::set()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::some()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::sort()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::sorted()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::subtract()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::toList()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::totalTimeDuration()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::unions()",
+            "status": "supported",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-test: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\Sequence::unshift()",
+            "status": "diverges",
+            "contract": "normalized immutable period collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestSetIterationSearchTransformAndReduction; TestInstantSetAlgebraProperties",
+            "migration": "docs/migration.md#periods-and-sets"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\UnprocessableInterval",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\UnprocessableInterval::dueToMissingGaps()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Period\\UnprocessableInterval::dueToMissingOverlaps()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Bound",
+            "status": "supported",
+            "contract": "endpoint side selection",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Bound::End",
+            "status": "supported",
+            "contract": "endpoint side selection",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Bound::Start",
+            "status": "supported",
+            "contract": "endpoint side selection",
+            "go_evidence": "go-test: TestPinnedPHPCompatibilityFixture",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$daysCount",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$hours",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$microseconds",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$minutes",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$seconds",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$sign",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::$weeksCount",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::__serialize()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::__unserialize()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::abs()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::clamp()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::compareTo()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::decrease()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::dividedBy()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::equals()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::format()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::fromDateInterval()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::fromFormat()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::increase()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::isLongerThan()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::isLongerThanOrEqual()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::isShorterThan()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::isShorterThanOrEqual()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::isZero()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::jsonSerialize()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::max()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::maxOf()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::min()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::minOf()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::multipliedBy()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::negated()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::of()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::roundTo()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::sum()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::toDateInterval()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::total()",
+            "status": "diverges",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Duration::zero()",
+            "status": "supported",
+            "contract": "checked fixed-duration arithmetic",
+            "go_evidence": "go-test: TestDurationCheckedSumNegateAndAbsolute; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/migration.md#fixed-versus-calendar-duration"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat::Compact",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat::Iso8601",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat::Timer",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat::decode()",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\DurationFormat::encode()",
+            "status": "diverges",
+            "contract": "fixed-duration encoding",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestFixedISODurationFormatRoundTrips",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$duration",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$end",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$linearEnd",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$linearStart",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$start",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::$type",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::__serialize()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::__unserialize()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::abuts()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::around()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::between()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::circular()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::collapsed()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::compareDurationTo()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::complement()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::contains()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::difference()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::endingOn()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::equals()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::expand()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::format()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::fromFormat()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::fromLinearSpan()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::fullDay()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::gap()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::includes()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::intersect()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::jsonSerialize()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::lasting()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::longerThan()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::longerThanOrEqual()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::overlaps()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::roundTo()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::sameDurationAs()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::shift()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::shiftBound()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::shorterThan()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::shorterThanOrEqual()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::since()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::splitAt()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::splitBy()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::startingOn()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::steps()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::toNative()",
+            "status": "diverges",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::union()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Interval::until()",
+            "status": "supported",
+            "contract": "circular daily interval algebra and iteration",
+            "go_evidence": "go-test: TestCircularDailyAlgebraAcrossEveryHourAndBounds; FuzzDailyIntervalIteration",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Bourbaki",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Iso80000",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Iso8601",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Iso8601DurationEnd",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Iso8601StartDuration",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::Iso8601StartEnd",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::decode()",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalFormat::encode()",
+            "status": "supported",
+            "contract": "daily interval encoding",
+            "go_evidence": "go-test: TestDailyBoundedNotationRoundTripsEveryKindAndBounds",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::__construct()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::__serialize()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::__unserialize()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::all()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::allFormatted()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::allNative()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::any()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::complement()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::count()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::difference()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::duration()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::each()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::every()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::filter()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::first()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::firstMatching()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::gaps()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::get()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::getIterator()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::has()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::indexOf()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::intersect()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::isEmpty()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::jsonSerialize()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::last()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::lastIndexOf()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::lastMatching()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::map()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::nth()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::push()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::reduce()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::remove()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::replace()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::sorted()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::sortedUsing()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::transform()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::union()",
+            "status": "supported",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-test: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalSet::unshift()",
+            "status": "diverges",
+            "contract": "normalized circular interval collections",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestCircularSetAlgebraProperties; TestDailySetCopiesOutputsAndEnforcesExpansionLimits",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalType",
+            "status": "supported",
+            "contract": "explicit ordinary, circular, collapsed, and full-day kinds",
+            "go_evidence": "go-test: TestIntervalKindsAreExplicit",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalType::Circular",
+            "status": "supported",
+            "contract": "explicit ordinary, circular, collapsed, and full-day kinds",
+            "go_evidence": "go-test: TestIntervalKindsAreExplicit",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalType::Collapsed",
+            "status": "supported",
+            "contract": "explicit ordinary, circular, collapsed, and full-day kinds",
+            "go_evidence": "go-test: TestIntervalKindsAreExplicit",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalType::Linear",
+            "status": "supported",
+            "contract": "explicit ordinary, circular, collapsed, and full-day kinds",
+            "go_evidence": "go-test: TestIntervalKindsAreExplicit",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\IntervalType::Overflow",
+            "status": "supported",
+            "contract": "explicit ordinary, circular, collapsed, and full-day kinds",
+            "go_evidence": "go-test: TestIntervalKindsAreExplicit",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedIso8601()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedMicrosecond()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedMinute()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration::dueToMalformedSecond()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidDuration::dueToOverflow()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidInterval",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidInterval::dueToMalformedFormat()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidIntervalSetOffset",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidIntervalSetOffset::forOffset()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTime",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedHour()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedMicrosecond()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedMinute()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTime::dueToMalformedSecond()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTimezone",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\InvalidTimezone::unsupportedIdentifier()",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\RoundingMode",
+            "status": "supported",
+            "contract": "explicit temporal rounding direction",
+            "go_evidence": "go-test: TestTimeRoundUsesExplicitDirectionAndDailyBoundary",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\RoundingMode::Ceil",
+            "status": "supported",
+            "contract": "explicit temporal rounding direction",
+            "go_evidence": "go-test: TestTimeRoundUsesExplicitDirectionAndDailyBoundary",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\RoundingMode::Floor",
+            "status": "supported",
+            "contract": "explicit temporal rounding direction",
+            "go_evidence": "go-test: TestTimeRoundUsesExplicitDirectionAndDailyBoundary",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\RoundingMode::Nearest",
+            "status": "supported",
+            "contract": "explicit temporal rounding direction",
+            "go_evidence": "go-test: TestTimeRoundUsesExplicitDirectionAndDailyBoundary",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::$hour",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::$microsecond",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::$minute",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::$second",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::__serialize()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::__unserialize()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::applyTo()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::at()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::clamp()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::compareTo()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::diff()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::distance()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::endOfDay()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::equals()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::format()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::fromDate()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::fromFormat()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::fromOffset()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::isAfter()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::isAfterOrEqual()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::isBefore()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::isBeforeOrEqual()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::jsonSerialize()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::maxOf()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::midnight()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::minOf()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::noon()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::now()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::roundTo()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::shift()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::toLocaleString()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::toOffset()",
+            "status": "supported",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-test: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Time::with()",
+            "status": "diverges",
+            "contract": "validated local time values and circular arithmetic",
+            "go_evidence": "go-divergence: explicit Go replacement or omission; replacement evidence: TestTimeConstructionAndNamedValues; TestShiftRequiresExplicitWrappingPolicy",
+            "migration": "docs/migration.md#daily-time"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeException",
+            "status": "supported",
+            "contract": "typed failure classification",
+            "go_evidence": "go-test: typed errors asserted with errors.Is and errors.As throughout package tests",
+            "migration": "docs/migration.md#error-handling"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormat",
+            "status": "supported",
+            "contract": "strict local-time encoding",
+            "go_evidence": "go-test: TestStrictTimeParsingAndRoundTrip",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormat::Compact",
+            "status": "supported",
+            "contract": "strict local-time encoding",
+            "go_evidence": "go-test: TestStrictTimeParsingAndRoundTrip",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormat::Iso8601",
+            "status": "supported",
+            "contract": "strict local-time encoding",
+            "go_evidence": "go-test: TestStrictTimeParsingAndRoundTrip",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormat::decode()",
+            "status": "supported",
+            "contract": "strict local-time encoding",
+            "go_evidence": "go-test: TestStrictTimeParsingAndRoundTrip",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormat::encode()",
+            "status": "supported",
+            "contract": "strict local-time encoding",
+            "go_evidence": "go-test: TestStrictTimeParsingAndRoundTrip",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormatLength",
+            "status": "diverges",
+            "contract": "locale-specific presentation length",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormatLength::Full",
+            "status": "diverges",
+            "contract": "locale-specific presentation length",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormatLength::Long",
+            "status": "diverges",
+            "contract": "locale-specific presentation length",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormatLength::Medium",
+            "status": "diverges",
+            "contract": "locale-specific presentation length",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\TimeFormatLength::Short",
+            "status": "diverges",
+            "contract": "locale-specific presentation length",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\UnableToFormatLocaleTime",
+            "status": "diverges",
+            "contract": "locale presentation failure",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\UnableToFormatLocaleTime::forLocale()",
+            "status": "diverges",
+            "contract": "locale presentation failure",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Day",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Hour",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Microsecond",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Millisecond",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Minute",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Second",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::Week",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::divide()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::inMicroseconds()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::remainder()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::round()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::toMicroseconds()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::whole()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\Unit::wrap()",
+            "status": "supported",
+            "contract": "fixed-duration units and arithmetic",
+            "go_evidence": "go-test: TestDurationConstructionAndComparison; TestDurationMultiplyDivideAndRemainder",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\UnsupportedLocaleFormatting",
+            "status": "diverges",
+            "contract": "locale presentation failure",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        },
+        {
+            "symbol": "Cline\\Temporal\\Time\\UnsupportedLocaleFormatting::dueToMissingIntlSupport()",
+            "status": "diverges",
+            "contract": "locale presentation failure",
+            "go_evidence": "go-divergence: locale presentation is outside temporal core",
+            "migration": "docs/compatibility.md#time-namespace"
+        }
+    ],
+    "bounds": [
+        {
+            "php_case": "IncludeStartExcludeEnd",
+            "includes_start": true,
+            "includes_end": false,
+            "iso_80000": "[08:00, 17:00)",
+            "bourbaki": "[08:00, 17:00[",
+            "include_start": "IncludeStartExcludeEnd",
+            "include_end": "IncludeAll",
+            "exclude_start": "ExcludeAll",
+            "exclude_end": "IncludeStartExcludeEnd"
+        },
+        {
+            "php_case": "IncludeAll",
+            "includes_start": true,
+            "includes_end": true,
+            "iso_80000": "[08:00, 17:00]",
+            "bourbaki": "[08:00, 17:00]",
+            "include_start": "IncludeAll",
+            "include_end": "IncludeAll",
+            "exclude_start": "ExcludeStartIncludeEnd",
+            "exclude_end": "IncludeStartExcludeEnd"
+        },
+        {
+            "php_case": "ExcludeStartIncludeEnd",
+            "includes_start": false,
+            "includes_end": true,
+            "iso_80000": "(08:00, 17:00]",
+            "bourbaki": "]08:00, 17:00]",
+            "include_start": "IncludeAll",
+            "include_end": "ExcludeStartIncludeEnd",
+            "exclude_start": "ExcludeStartIncludeEnd",
+            "exclude_end": "ExcludeAll"
+        },
+        {
+            "php_case": "ExcludeAll",
+            "includes_start": false,
+            "includes_end": false,
+            "iso_80000": "(08:00, 17:00)",
+            "bourbaki": "]08:00, 17:00[",
+            "include_start": "IncludeStartExcludeEnd",
+            "include_end": "ExcludeStartIncludeEnd",
+            "exclude_start": "ExcludeAll",
+            "exclude_end": "ExcludeAll"
+        }
+    ],
+    "times": [
+        {
+            "name": "midnight",
+            "iso": "00:00:00",
+            "microseconds": 0
+        },
+        {
+            "name": "noon",
+            "iso": "12:00:00",
+            "microseconds": 43200000000
+        },
+        {
+            "name": "fractional",
+            "iso": "12:34:56.123456",
+            "microseconds": 45296123456
+        },
+        {
+            "name": "php_end_of_day",
+            "iso": "23:59:59.999999",
+            "microseconds": 86399999999
+        }
+    ],
+    "intervals": [
+        {
+            "name": "ordinary",
+            "iso_80000": "[08:00:00,17:00:00)",
+            "bourbaki": "[08:00:00,17:00:00[",
+            "start_end": "08:00:00/17:00:00",
+            "duration": "PT9H",
+            "type": "Linear"
+        },
+        {
+            "name": "circular",
+            "iso_80000": "[22:00:00,02:00:00)",
+            "bourbaki": "[22:00:00,02:00:00[",
+            "start_end": "22:00:00/02:00:00",
+            "duration": "PT4H",
+            "type": "Overflow"
+        },
+        {
+            "name": "collapsed",
+            "iso_80000": "[08:00:00,08:00:00)",
+            "bourbaki": "[08:00:00,08:00:00[",
+            "start_end": "08:00:00/08:00:00",
+            "duration": "PT0S",
+            "type": "Collapsed"
+        },
+        {
+            "name": "full_day",
+            "iso_80000": "[00:00:00,00:00:00)",
+            "bourbaki": "[00:00:00,00:00:00[",
+            "start_end": "00:00:00/00:00:00",
+            "duration": "P1D",
+            "type": "Circular"
+        }
+    ],
+    "duration_operations": {
+        "base": "PT1H30M0.5S",
+        "negated": "-PT1H30M0.5S",
+        "absolute": "PT1H30M0.5S",
+        "sum": "PT2H0.5S",
+        "multiplied": "PT3H1S",
+        "divided": "PT45M0.25S",
+        "rounded_hour": "PT2H",
+        "compare_longer": true
+    },
+    "time_operations": {
+        "shift_wrap": "01:30:00",
+        "round_hour": "00:00:00",
+        "difference": "-PT20H",
+        "distance": "PT4H",
+        "clamp": "08:00:00"
+    },
+    "interval_operations": {
+        "intersection": "[11:00:00,12:00:00)",
+        "gap": "[12:00:00,14:00:00)",
+        "union": [
+            "[10:00:00,13:00:00)"
+        ],
+        "difference": [
+            "[10:00:00,11:00:00)"
+        ],
+        "complement": "[12:00:00,10:00:00)",
+        "split": [
+            "[10:00:00,10:30:00)",
+            "[10:30:00,11:00:00)",
+            "[11:00:00,11:30:00)",
+            "[11:30:00,12:00:00)"
+        ],
+        "steps": [
+            "10:00:00",
+            "10:30:00",
+            "11:00:00",
+            "11:30:00"
+        ]
+    },
+    "predicates": {
+        "includes_inside": true,
+        "includes_excluded_end": false,
+        "overlaps": true,
+        "does_not_overlap_abutting": false,
+        "abuts": true,
+        "does_not_abut_gap": false
+    }
+}

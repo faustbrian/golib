@@ -1,0 +1,6 @@
+{
+  "openapi": "3.1.2",
+  "info": {"title": "Interoperability", "version": "1"},
+  "paths": {},
+  "components": {"schemas": {"Anything": true}}
+}

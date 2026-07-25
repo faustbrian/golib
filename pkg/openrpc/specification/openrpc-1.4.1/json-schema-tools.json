@@ -1,0 +1,283 @@
+{
+  "$id": "https://meta.json-schema.tools/",
+  "$schema": "https://meta.json-schema.tools/",
+  "default": {},
+  "definitions": {
+    "JSONSchemaBoolean": {
+      "description": "Always valid if true. Never valid if false. Is constant.",
+      "title": "JSONSchemaBoolean",
+      "type": "boolean"
+    },
+    "JSONSchemaObject": {
+      "properties": {
+        "$comment": {
+          "title": "$comment",
+          "type": "string"
+        },
+        "$id": {
+          "format": "uri-reference",
+          "title": "$id",
+          "type": "string"
+        },
+        "$ref": {
+          "format": "uri-reference",
+          "title": "$ref",
+          "type": "string"
+        },
+        "$schema": {
+          "format": "uri",
+          "title": "$schema",
+          "type": "string"
+        },
+        "additionalItems": {
+          "$ref": "#"
+        },
+        "additionalProperties": {
+          "$ref": "#"
+        },
+        "allOf": {
+          "$ref": "#/definitions/schemaArray"
+        },
+        "anyOf": {
+          "$ref": "#/definitions/schemaArray"
+        },
+        "const": true,
+        "contains": {
+          "$ref": "#"
+        },
+        "contentEncoding": {
+          "title": "contentEncoding",
+          "type": "string"
+        },
+        "contentMediaType": {
+          "title": "contentMediaType",
+          "type": "string"
+        },
+        "default": true,
+        "definitions": {
+          "additionalProperties": {
+            "$ref": "#"
+          },
+          "default": {},
+          "title": "definitions",
+          "type": "object"
+        },
+        "dependencies": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#"
+              },
+              {
+                "$ref": "#/definitions/stringArray"
+              }
+            ],
+            "title": "dependenciesSet"
+          },
+          "title": "dependencies",
+          "type": "object"
+        },
+        "description": {
+          "title": "description",
+          "type": "string"
+        },
+        "else": {
+          "$ref": "#"
+        },
+        "enum": {
+          "items": true,
+          "minItems": 1,
+          "title": "enum",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "examples": {
+          "items": true,
+          "title": "examples",
+          "type": "array"
+        },
+        "exclusiveMaximum": {
+          "title": "exclusiveMaximum",
+          "type": "number"
+        },
+        "exclusiveMinimum": {
+          "title": "exclusiveMinimum",
+          "type": "number"
+        },
+        "format": {
+          "title": "format",
+          "type": "string"
+        },
+        "if": {
+          "$ref": "#"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#"
+            },
+            {
+              "$ref": "#/definitions/schemaArray"
+            }
+          ],
+          "default": true,
+          "title": "items"
+        },
+        "maxItems": {
+          "$ref": "#/definitions/nonNegativeInteger"
+        },
+        "maxLength": {
+          "$ref": "#/definitions/nonNegativeInteger"
+        },
+        "maxProperties": {
+          "$ref": "#/definitions/nonNegativeInteger"
+        },
+        "maximum": {
+          "title": "maximum",
+          "type": "number"
+        },
+        "minItems": {
+          "$ref": "#/definitions/nonNegativeIntegerDefault0"
+        },
+        "minLength": {
+          "$ref": "#/definitions/nonNegativeIntegerDefault0"
+        },
+        "minProperties": {
+          "$ref": "#/definitions/nonNegativeIntegerDefault0"
+        },
+        "minimum": {
+          "title": "minimum",
+          "type": "number"
+        },
+        "multipleOf": {
+          "exclusiveMinimum": 0,
+          "title": "multipleOf",
+          "type": "number"
+        },
+        "not": {
+          "$ref": "#"
+        },
+        "oneOf": {
+          "$ref": "#/definitions/schemaArray"
+        },
+        "pattern": {
+          "format": "regex",
+          "title": "pattern",
+          "type": "string"
+        },
+        "patternProperties": {
+          "additionalProperties": {
+            "$ref": "#"
+          },
+          "default": {},
+          "propertyNames": {
+            "format": "regex",
+            "title": "propertyNames"
+          },
+          "title": "patternProperties",
+          "type": "object"
+        },
+        "properties": {
+          "additionalProperties": {
+            "$ref": "#"
+          },
+          "default": {},
+          "title": "properties",
+          "type": "object"
+        },
+        "propertyNames": {
+          "$ref": "#"
+        },
+        "readOnly": {
+          "default": false,
+          "title": "readOnly",
+          "type": "boolean"
+        },
+        "required": {
+          "$ref": "#/definitions/stringArray"
+        },
+        "then": {
+          "$ref": "#"
+        },
+        "title": {
+          "title": "title",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/simpleTypes"
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/simpleTypes"
+              },
+              "minItems": 1,
+              "title": "arrayOfSimpleTypes",
+              "type": "array",
+              "uniqueItems": true
+            }
+          ],
+          "title": "type"
+        },
+        "uniqueItems": {
+          "default": false,
+          "title": "uniqueItems",
+          "type": "boolean"
+        }
+      },
+      "title": "JSONSchemaObject",
+      "type": "object"
+    },
+    "nonNegativeInteger": {
+      "minimum": 0,
+      "title": "nonNegativeInteger",
+      "type": "integer"
+    },
+    "nonNegativeIntegerDefault0": {
+      "default": 0,
+      "minimum": 0,
+      "title": "nonNegativeIntegerDefaultZero",
+      "type": "integer"
+    },
+    "schemaArray": {
+      "items": {
+        "$ref": "#"
+      },
+      "minItems": 1,
+      "title": "schemaArray",
+      "type": "array"
+    },
+    "simpleTypes": {
+      "enum": [
+        "array",
+        "boolean",
+        "integer",
+        "null",
+        "number",
+        "object",
+        "string"
+      ],
+      "title": "simpleTypes",
+      "type": "string"
+    },
+    "stringArray": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "stringArray",
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/definitions/JSONSchemaObject"
+    },
+    {
+      "$ref": "#/definitions/JSONSchemaBoolean"
+    }
+  ],
+  "title": "JSONSchema"
+}
