@@ -1,0 +1,929 @@
+PACKAGE github.com/faustbrian/golib/pkg/calendar
+package calendar // import "github.com/faustbrian/golib/pkg/calendar"
+
+Package calendar provides immutable civil-calendar values and arithmetic.
+A Date represents a Gregorian calendar day, never an instant or timezone.
+
+CONSTANTS
+
+const (
+	// MinYear is the earliest supported civil year.
+	MinYear = 1
+	// MaxYear is the latest supported civil year.
+	MaxYear = 9999
+	// MaxParseBytes bounds all canonical date input.
+	MaxParseBytes = 10
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidDate identifies impossible, unsupported, and zero dates.
+	ErrInvalidDate = errors.New("calendar: invalid date")
+	// ErrInvalidFormat identifies non-canonical date input.
+	ErrInvalidFormat = errors.New("calendar: invalid format")
+	// ErrArithmetic identifies rejected or overflowing calendar arithmetic.
+	ErrArithmetic = errors.New("calendar: arithmetic failed")
+)
+
+TYPES
+
+type ArithmeticPolicy uint8
+    ArithmeticPolicy defines how month and year arithmetic handles a day that
+    does not exist in the destination month.
+
+const (
+	// Clamp selects the last valid day in the destination month.
+	Clamp ArithmeticPolicy = iota + 1
+	// Reject returns ErrArithmetic when the original day does not exist.
+	Reject
+	// Overflow carries excess days forward from the destination month.
+	Overflow
+)
+type ComponentDifference struct {
+	Years  int
+	Months int
+	Days   int
+}
+    ComponentDifference is a signed calendar decomposition. Years are applied
+    first, then months under the caller's policy, then exact calendar days. All
+    non-zero components have the sign of the destination relative to the source.
+
+type Date struct {
+	// Has unexported fields.
+}
+    Date is an immutable proleptic Gregorian civil date. Its zero value is
+    invalid; use NewDate, MustDate, or ParseDate to construct a valid value.
+
+func DateFromTime(instant time.Time, loc *time.Location) (Date, error)
+    DateFromTime extracts the civil date observed in loc. A nil location is
+    rejected because conversion must always be explicit.
+
+func MustDate(year int, month time.Month, day int) Date
+    MustDate is NewDate but panics when the components are invalid. It is
+    intended for constants, fixtures, and package initialization.
+
+func NewDate(year int, month time.Month, day int) (Date, error)
+    NewDate validates and constructs a Date.
+
+func ParseDate(input string) (Date, error)
+    ParseDate parses exactly YYYY-MM-DD using ASCII digits.
+
+func (d Date) AddDays(days int) (Date, error)
+    AddDays adds calendar days, never elapsed durations.
+
+func (d Date) AddMonths(months int, policy ArithmeticPolicy) (Date, error)
+    AddMonths adds calendar months using policy.
+
+func (d Date) AddQuarters(quarters int, policy ArithmeticPolicy) (Date, error)
+    AddQuarters adds three months per quarter using policy.
+
+func (d Date) AddSemesters(semesters int, policy ArithmeticPolicy) (Date, error)
+    AddSemesters adds six months per semester using policy.
+
+func (d Date) AddWeeks(weeks int) (Date, error)
+    AddWeeks adds calendar weeks.
+
+func (d Date) AddYears(years int, policy ArithmeticPolicy) (Date, error)
+    AddYears adds calendar years using policy.
+
+func (d Date) Compare(other Date) (int, error)
+    Compare returns -1, 0, or 1 according to chronological civil ordering.
+    It returns ErrInvalidDate if either operand is invalid.
+
+func (d Date) ComponentsUntil(other Date, policy ArithmeticPolicy) (ComponentDifference, error)
+    ComponentsUntil decomposes the movement from d to other into years, months,
+    and days using the caller's explicit month/year arithmetic policy.
+
+func (d Date) Day() int
+    Day returns the day of month, or zero for an invalid Date.
+
+func (d Date) DayOfYear() int
+    DayOfYear returns 1 through 366, or zero for an invalid Date.
+
+func (d Date) DaysInMonth() int
+    DaysInMonth returns the length of d's month, or zero for an invalid Date.
+
+func (d Date) DaysUntil(other Date) int
+    DaysUntil returns other-d in calendar days. Invalid operands return zero.
+
+func (d Date) EndOfISOWeek() Date
+    EndOfISOWeek returns Sunday of d's ISO week.
+
+func (d Date) EndOfISOYear() Date
+    EndOfISOYear returns Sunday of the last week in d's ISO week-year.
+
+func (d Date) EndOfMonth() Date
+    EndOfMonth returns the last date in d's month.
+
+func (d Date) EndOfQuarter() Date
+    EndOfQuarter returns the last date in d's Gregorian quarter.
+
+func (d Date) EndOfSemester() Date
+    EndOfSemester returns the last date in d's Gregorian half-year.
+
+func (d Date) EndOfYear() Date
+    EndOfYear returns December 31 of d's year.
+
+func (d Date) Equal(other Date) bool
+    Equal reports whether two dates are equal. Invalid dates compare unequal.
+
+func (d Date) ISOWeek() (year, week int)
+    ISOWeek returns the ISO 8601 week-year and week, or zeros if d is invalid.
+
+func (d Date) IsLeapYear() bool
+    IsLeapYear reports whether d's Gregorian year contains February 29.
+
+func (d Date) IsValid() bool
+    IsValid reports whether d is a supported Date.
+
+func (d Date) MarshalJSON() ([]byte, error)
+    MarshalJSON encodes a Date as its canonical JSON string.
+
+func (d Date) MarshalText() ([]byte, error)
+    MarshalText implements encoding.TextMarshaler.
+
+func (d Date) Month() time.Month
+    Month returns the Gregorian month, or zero for an invalid Date.
+
+func (d Date) StartOfISOWeek() Date
+    StartOfISOWeek returns Monday of d's ISO week.
+
+func (d Date) StartOfISOYear() Date
+    StartOfISOYear returns Monday of week 1 in d's ISO week-year.
+
+func (d Date) StartOfMonth() Date
+    StartOfMonth returns the first date in d's month.
+
+func (d Date) StartOfQuarter() Date
+    StartOfQuarter returns the first date in d's Gregorian quarter.
+
+func (d Date) StartOfSemester() Date
+    StartOfSemester returns the first date in d's Gregorian half-year.
+
+func (d Date) StartOfYear() Date
+    StartOfYear returns January 1 of d's year.
+
+func (d Date) String() string
+    String returns canonical YYYY-MM-DD, or an empty string for an invalid Date.
+
+func (d Date) SubDays(days int) (Date, error)
+    SubDays subtracts calendar days.
+
+func (d Date) SubMonths(months int, policy ArithmeticPolicy) (Date, error)
+    SubMonths subtracts calendar months using policy.
+
+func (d Date) SubQuarters(quarters int, policy ArithmeticPolicy) (Date, error)
+    SubQuarters subtracts calendar quarters using policy.
+
+func (d Date) SubSemesters(semesters int, policy ArithmeticPolicy) (Date, error)
+    SubSemesters subtracts calendar semesters using policy.
+
+func (d Date) SubWeeks(weeks int) (Date, error)
+    SubWeeks subtracts calendar weeks.
+
+func (d Date) SubYears(years int, policy ArithmeticPolicy) (Date, error)
+    SubYears subtracts calendar years using policy.
+
+func (d *Date) UnmarshalJSON(data []byte) error
+    UnmarshalJSON decodes a canonical JSON date string.
+
+func (d *Date) UnmarshalText(text []byte) error
+    UnmarshalText implements encoding.TextUnmarshaler.
+
+func (d Date) Weekday() time.Weekday
+    Weekday returns d's weekday. It returns time.Sunday for an invalid Date;
+    callers that may hold a zero value should check IsValid first.
+
+func (d Date) Year() int
+    Year returns the Gregorian year, or zero for an invalid Date.
+
+type ISOWeek struct {
+	// Has unexported fields.
+}
+    ISOWeek is an immutable ISO 8601 week-year and week.
+
+func NewISOWeek(year, week int) (ISOWeek, error)
+    NewISOWeek validates and constructs an ISO week.
+
+func ParseISOWeek(input string) (ISOWeek, error)
+    ParseISOWeek parses exactly YYYY-Www.
+
+func (w ISOWeek) AddWeeks(weeks int) (ISOWeek, error)
+    AddWeeks navigates by whole ISO weeks.
+
+func (w ISOWeek) Compare(other ISOWeek) (int, error)
+    Compare returns -1, 0, or 1 according to first-date ordering.
+
+func (w ISOWeek) Contains(d Date) bool
+    Contains reports whether d belongs to w.
+
+func (w ISOWeek) FirstDate() Date
+    FirstDate returns Monday of w.
+
+func (w ISOWeek) IsValid() bool
+    IsValid reports whether w exists.
+
+func (w ISOWeek) LastDate() Date
+    LastDate returns Sunday of w.
+
+func (w ISOWeek) String() string
+    String returns YYYY-Www, or an empty string when invalid.
+
+func (w ISOWeek) Week() int
+    Week returns the ISO week number.
+
+func (w ISOWeek) Year() int
+    Year returns the ISO week-year.
+
+type Quarter struct {
+	// Has unexported fields.
+}
+    Quarter is an immutable quarter in a Gregorian year.
+
+func NewQuarter(year, quarter int) (Quarter, error)
+    NewQuarter validates and constructs a Quarter numbered 1 through 4.
+
+func ParseQuarter(input string) (Quarter, error)
+    ParseQuarter parses exactly YYYY-QN.
+
+func (q Quarter) Add(quarters int) (Quarter, error)
+    Add navigates by whole quarters.
+
+func (q Quarter) Compare(other Quarter) (int, error)
+    Compare returns -1, 0, or 1 according to chronological ordering.
+
+func (q Quarter) Contains(d Date) bool
+    Contains reports whether d belongs to q.
+
+func (q Quarter) FirstDate() Date
+    FirstDate returns the first date in q.
+
+func (q Quarter) IsValid() bool
+    IsValid reports whether q is supported.
+
+func (q Quarter) LastDate() Date
+    LastDate returns the last date in q.
+
+func (q Quarter) Length() int
+    Length returns the number of days in q.
+
+func (q Quarter) Number() int
+    Number returns 1 through 4, or zero when invalid.
+
+func (q Quarter) String() string
+    String returns YYYY-QN, or an empty string when invalid.
+
+func (q Quarter) Year() int
+    Year returns the containing year.
+
+type Semester struct {
+	// Has unexported fields.
+}
+    Semester is an immutable half-year.
+
+func NewSemester(year, semester int) (Semester, error)
+    NewSemester validates and constructs a Semester numbered 1 or 2.
+
+func ParseSemester(input string) (Semester, error)
+    ParseSemester parses exactly YYYY-HN.
+
+func (s Semester) Add(semesters int) (Semester, error)
+    Add navigates by whole semesters.
+
+func (s Semester) Compare(other Semester) (int, error)
+    Compare returns -1, 0, or 1 according to chronological ordering.
+
+func (s Semester) Contains(d Date) bool
+    Contains reports whether d belongs to s.
+
+func (s Semester) FirstDate() Date
+    FirstDate returns the first date in s.
+
+func (s Semester) IsValid() bool
+    IsValid reports whether s is supported.
+
+func (s Semester) LastDate() Date
+    LastDate returns the last date in s.
+
+func (s Semester) Length() int
+    Length returns the number of days in s.
+
+func (s Semester) Number() int
+    Number returns 1 or 2, or zero when invalid.
+
+func (s Semester) String() string
+    String returns YYYY-HN, or an empty string when invalid.
+
+func (s Semester) Year() int
+    Year returns the containing year.
+
+type WeekPolicy struct {
+	// Has unexported fields.
+}
+    WeekPolicy is an immutable explicit first-weekday convention. Its zero value
+    is invalid even though time.Sunday is numerically zero.
+
+func NewWeekPolicy(start time.Weekday) (WeekPolicy, error)
+    NewWeekPolicy validates and constructs a week policy.
+
+func (p WeekPolicy) EndOfWeek(d Date) Date
+    EndOfWeek returns the final date of d's policy-defined week.
+
+func (p WeekPolicy) IsValid() bool
+    IsValid reports whether p was constructed by NewWeekPolicy.
+
+func (p WeekPolicy) StartOfWeek(d Date) Date
+    StartOfWeek returns the first date of d's policy-defined week.
+
+func (p WeekPolicy) WeekStart() time.Weekday
+    WeekStart returns the configured first weekday.
+
+type Year struct {
+	// Has unexported fields.
+}
+    Year is an immutable supported Gregorian year. Its zero value is invalid.
+
+func NewYear(year int) (Year, error)
+    NewYear validates and constructs a Year.
+
+func ParseYear(input string) (Year, error)
+    ParseYear parses exactly YYYY.
+
+func (y Year) Add(years int) (Year, error)
+    Add returns a year offset from y.
+
+func (y Year) Compare(other Year) (int, error)
+    Compare returns -1, 0, or 1 according to chronological ordering.
+
+func (y Year) Contains(d Date) bool
+    Contains reports whether d belongs to y.
+
+func (y Year) FirstDate() Date
+    FirstDate returns January 1, or an invalid Date when y is invalid.
+
+func (y Year) IsLeap() bool
+    IsLeap reports whether y has 366 days.
+
+func (y Year) IsValid() bool
+    IsValid reports whether y is supported.
+
+func (y Year) LastDate() Date
+    LastDate returns December 31, or an invalid Date when y is invalid.
+
+func (y Year) Length() int
+    Length returns 365 or 366, or zero for an invalid Year.
+
+func (y Year) String() string
+    String returns YYYY, or an empty string for an invalid Year.
+
+func (y Year) Value() int
+    Value returns the numeric year, or zero for an invalid Year.
+
+type YearMonth struct {
+	// Has unexported fields.
+}
+    YearMonth is an immutable Gregorian month. Its zero value is invalid.
+
+func MustYearMonth(year int, month time.Month) YearMonth
+    MustYearMonth is NewYearMonth but panics for invalid components.
+
+func NewYearMonth(year int, month time.Month) (YearMonth, error)
+    NewYearMonth validates and constructs a YearMonth.
+
+func ParseYearMonth(input string) (YearMonth, error)
+    ParseYearMonth parses exactly YYYY-MM.
+
+func (ym YearMonth) AddMonths(months int) (YearMonth, error)
+    AddMonths navigates by whole calendar months.
+
+func (ym YearMonth) Compare(other YearMonth) (int, error)
+    Compare returns -1, 0, or 1 according to chronological ordering.
+
+func (ym YearMonth) Contains(d Date) bool
+    Contains reports whether d belongs to ym.
+
+func (ym YearMonth) FirstDate() Date
+    FirstDate returns the first date in ym.
+
+func (ym YearMonth) IsValid() bool
+    IsValid reports whether ym is supported.
+
+func (ym YearMonth) LastDate() Date
+    LastDate returns the last date in ym.
+
+func (ym YearMonth) Length() int
+    Length returns the number of days in ym, or zero when invalid.
+
+func (ym YearMonth) Month() time.Month
+    Month returns the Gregorian month, or zero when invalid.
+
+func (ym YearMonth) String() string
+    String returns YYYY-MM, or an empty string when invalid.
+
+func (ym YearMonth) Year() int
+    Year returns the Gregorian year, or zero when invalid.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/business
+package business // import "github.com/faustbrian/golib/pkg/calendar/business"
+
+Package business provides immutable, versioned, and bounded business calendars
+supplied by applications.
+
+CONSTANTS
+
+const (
+	// MaxHolidays bounds holidays accepted by one calendar.
+	MaxHolidays = 10_000
+	// MaxHolidayNameBytes bounds a holiday name.
+	MaxHolidayNameBytes = 256
+	// MaxMetadataEntries bounds metadata attached to one holiday.
+	MaxMetadataEntries = 32
+	// MaxProvenanceFieldBytes bounds each provenance identity field.
+	MaxProvenanceFieldBytes = 1024
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidCalendar identifies missing identity or malformed configuration.
+	ErrInvalidCalendar = errors.New("calendar/business: invalid calendar")
+	// ErrInvalidHoliday identifies malformed holiday data.
+	ErrInvalidHoliday = errors.New("calendar/business: invalid holiday")
+	// ErrResourceLimit identifies bounded input that exceeds its limit.
+	ErrResourceLimit = errors.New("calendar/business: resource limit exceeded")
+	// ErrSearchLimit identifies a business-day operation that exhausted its
+	// explicit iteration budget.
+	ErrSearchLimit = errors.New("calendar/business: search limit exceeded")
+)
+
+TYPES
+
+type Calendar struct {
+	// Has unexported fields.
+}
+    Calendar is an immutable weekend and holiday policy with revision identity.
+    It is safe for concurrent reads after construction.
+
+func NewCalendar(config Config) (Calendar, error)
+    NewCalendar validates and deeply copies config.
+
+func (c Calendar) AddBusinessDays(d calendar.Date, count, searchLimit int) (calendar.Date, error)
+    AddBusinessDays moves by count admitted dates, excluding the starting date.
+
+func (c Calendar) CountBusinessDays(start, end calendar.Date, searchLimit int) (int, error)
+    CountBusinessDays counts admitted dates in the half-open range [start,end).
+    Reversed ranges return the negated count. searchLimit bounds examined dates.
+
+func (c Calendar) Holidays(d calendar.Date) []Holiday
+    Holidays returns immutable copies of all holidays on d, preserving overlaps.
+
+func (c Calendar) IsBusinessDay(d calendar.Date) bool
+    IsBusinessDay reports whether d is valid and is neither weekend nor holiday.
+
+func (c Calendar) IsHoliday(d calendar.Date) bool
+    IsHoliday reports whether one or more holidays occur on d.
+
+func (c Calendar) IsValid() bool
+    IsValid reports whether c was constructed by NewCalendar.
+
+func (c Calendar) IsWeekend(d calendar.Date) bool
+    IsWeekend reports whether d's weekday is configured as a weekend.
+
+func (c Calendar) NextBusinessDay(d calendar.Date, searchLimit int) (calendar.Date, error)
+    NextBusinessDay returns the first business date strictly after d.
+
+func (c Calendar) PreviousBusinessDay(d calendar.Date, searchLimit int) (calendar.Date, error)
+    PreviousBusinessDay returns the first business date strictly before d.
+
+func (c Calendar) Provenance() Provenance
+    Provenance returns the dataset provenance value.
+
+func (c Calendar) Revision() string
+    Revision returns the application-supplied version identity.
+
+type Config struct {
+	Revision   string
+	Weekends   []time.Weekday
+	Holidays   []Holiday
+	Provenance Provenance
+}
+    Config constructs an immutable Calendar.
+
+type Holiday struct {
+	// Has unexported fields.
+}
+    Holiday is immutable named holiday data. Metadata access returns a copy.
+
+func MustHoliday(date calendar.Date, name string, metadata map[string]string) Holiday
+    MustHoliday is NewHoliday but panics for invalid data.
+
+func NewHoliday(date calendar.Date, name string, metadata map[string]string) (Holiday, error)
+    NewHoliday validates and copies holiday data.
+
+func Observe(source []Holiday, policy Observance) ([]Holiday, error)
+    Observe returns source holidays plus separately marked observed entries.
+
+func (h Holiday) Date() calendar.Date
+    Date returns the holiday's effective date.
+
+func (h Holiday) IsObserved() bool
+    IsObserved reports whether this entry was generated by an observance policy.
+
+func (h Holiday) Metadata() map[string]string
+    Metadata returns a caller-owned copy of partial application metadata.
+
+func (h Holiday) Name() string
+    Name returns the bounded display name.
+
+func (h Holiday) SourceDate() (calendar.Date, bool)
+    SourceDate returns the original holiday date for an observed entry.
+
+type Observance uint8
+    Observance selects an explicit source-to-observed-date policy.
+
+const (
+	// NoObservance leaves source holidays unchanged.
+	NoObservance Observance = iota + 1
+	// NextWeekday moves Saturday and Sunday holidays to the following Monday.
+	NextWeekday
+	// NearestWeekday moves Saturday to Friday and Sunday to Monday.
+	NearestWeekday
+)
+type Provenance struct {
+	Provider         string
+	Source           string
+	License          string
+	EffectiveVersion string
+	Checksum         string
+}
+    Provenance records optional origin and licensing data for supplied datasets.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendarclock
+package calendarclock // import "github.com/faustbrian/golib/pkg/calendar/calendarclock"
+
+Package calendarclock adapts a narrow wall-clock source to civil dates.
+
+VARIABLES
+
+var ErrClockRequired = errors.New("calendar/clock: clock required")
+    ErrClockRequired identifies a missing wall-clock capability.
+
+
+FUNCTIONS
+
+func Today(clock Clock, location *time.Location) (calendar.Date, error)
+    Today obtains the civil date observed in an explicit location.
+
+
+TYPES
+
+type Clock interface {
+	Now() time.Time
+}
+    Clock is the exact wall-clock capability provided by clock.Clock.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendarconfig
+package calendarconfig // import "github.com/faustbrian/golib/pkg/calendar/calendarconfig"
+
+Package calendarconfig provides strict config-compatible civil values.
+
+TYPES
+
+type Date struct {
+	// Has unexported fields.
+}
+    Date is a config ValueUnmarshaler for a required canonical civil date.
+
+func NewDate(date calendar.Date) Date
+    NewDate wraps a calendar Date.
+
+func (d Date) CalendarDate() calendar.Date
+    CalendarDate returns the decoded civil date.
+
+func (d Date) MarshalText() ([]byte, error)
+    MarshalText returns the canonical configuration value.
+
+func (d *Date) UnmarshalConfigValue(value any) error
+    UnmarshalConfigValue accepts only a canonical date string.
+
+func (d *Date) UnmarshalText(text []byte) error
+    UnmarshalText decodes a canonical configuration value.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendartemporal
+package calendartemporal // import "github.com/faustbrian/golib/pkg/calendar/calendartemporal"
+
+Package calendartemporal converts civil boundaries into values suitable for
+temporal without adding interval algebra to calendar core.
+
+VARIABLES
+
+var (
+	// ErrReversed identifies civil endpoints in descending order.
+	ErrReversed = errors.New("calendar/temporal: reversed date range")
+	// ErrRangeLimit identifies a date sequence exceeding its explicit bound.
+	ErrRangeLimit = errors.New("calendar/temporal: sequence limit exceeded")
+)
+
+FUNCTIONS
+
+func Sequence(first, last calendar.Date, limit int) ([]calendar.Date, error)
+    Sequence returns every date in the inclusive range with explicit work bound.
+
+
+TYPES
+
+type InstantRange struct {
+	// Has unexported fields.
+}
+    InstantRange is a canonical start-inclusive, end-exclusive adapter value.
+
+func InclusiveDates(first, last calendar.Date, location *time.Location, policy calendartz.Resolution) (InstantRange, error)
+    InclusiveDates converts inclusive civil endpoints to an exclusive instant
+    range. Its boundaries can be passed directly to temporal/instant.Range.
+
+func (r InstantRange) End() time.Time
+    End returns the exclusive instant boundary.
+
+func (r InstantRange) Includes(value time.Time) bool
+    Includes reports membership using [start,end) semantics.
+
+func (r InstantRange) Start() time.Time
+    Start returns the inclusive instant boundary.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendartest
+package calendartest // import "github.com/faustbrian/golib/pkg/calendar/calendartest"
+
+Package calendartest provides deterministic fixtures and assertions for
+applications that consume calendar.
+
+FUNCTIONS
+
+func AssertDate(tb testing.TB, got calendar.Date, want string)
+    AssertDate reports a test failure when got is not canonical or differs.
+
+func MustLocation(tb testing.TB, name string) *time.Location
+    MustLocation loads a bounded IANA location or fails the current test.
+
+func VerifyTransition(tb testing.TB, vector TransitionVector)
+    VerifyTransition applies and asserts one transition vector.
+
+
+TYPES
+
+type FixedClock struct{ Instant time.Time }
+    FixedClock implements the narrow clock capability used by calendarclock.
+
+func (c FixedClock) Now() time.Time
+    Now returns the configured instant.
+
+type TransitionVector struct {
+	Name       string
+	Zone       string
+	Local      calendartz.LocalDateTime
+	Policy     calendartz.Resolution
+	WantOffset int
+	WantError  error
+}
+    TransitionVector describes one deterministic local-time conversion case.
+
+func TransitionVectors() []TransitionVector
+    TransitionVectors returns a fresh corpus covering representative IANA gaps,
+    folds, aliases, unusual offsets, and date-line movement.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendarvalidation
+package calendarvalidation // import "github.com/faustbrian/golib/pkg/calendar/calendarvalidation"
+
+Package calendarvalidation provides dependency-neutral rules that can be wrapped
+by validation ValidatorFunc without coupling calendar core to it.
+
+VARIABLES
+
+var (
+	// ErrInvalidDate identifies an invalid Date value.
+	ErrInvalidDate = errors.New("calendar/validation: invalid date")
+	// ErrDateOutOfRange identifies a Date outside inclusive configured bounds.
+	ErrDateOutOfRange = errors.New("calendar/validation: date out of range")
+)
+
+TYPES
+
+type Rule func(calendar.Date) error
+    Rule is a deterministic, side-effect-free date validation function.
+
+func DateRange(minimum, maximum calendar.Date) (Rule, error)
+    DateRange returns an inclusive bounded date rule.
+
+func ValidDate() Rule
+    ValidDate returns a rule that rejects the Date zero value.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/calendarwire
+package calendarwire // import "github.com/faustbrian/golib/pkg/calendar/calendarwire"
+
+Package calendarwire provides bounded canonical wire helpers for Date.
+
+CONSTANTS
+
+const (
+	// Version identifies the stable canonical date wire contract.
+	Version = 1
+	// MaxBytes bounds an encoded canonical date including JSON syntax.
+	MaxBytes = 64
+)
+
+VARIABLES
+
+var ErrSizeLimit = errors.New("calendar/wire: size limit exceeded")
+    ErrSizeLimit identifies input exceeding MaxBytes.
+
+
+FUNCTIONS
+
+func DecodeDate(payload []byte) (calendar.Date, error)
+    DecodeDate decodes exactly one bounded canonical JSON date string.
+
+func EncodeDate(date calendar.Date) ([]byte, error)
+    EncodeDate encodes a Date as the version-1 canonical JSON string.
+
+PACKAGE github.com/faustbrian/golib/pkg/calendar/postgres
+package postgres // import "github.com/faustbrian/golib/pkg/calendar/postgres"
+
+Package postgres provides database/sql and pgx adapters for PostgreSQL date.
+Ordinary Date rejects NULL and infinity; InfinityDate models those sentinels
+explicitly when an application needs them.
+
+VARIABLES
+
+var (
+	// ErrNull identifies SQL NULL where an ordinary civil date is required.
+	ErrNull = errors.New("calendar/postgres: null date")
+	// ErrInfinity identifies PostgreSQL infinity where an ordinary date is required.
+	ErrInfinity = errors.New("calendar/postgres: infinity requires InfinityDate")
+)
+
+TYPES
+
+type Date struct {
+	// Has unexported fields.
+}
+    Date adapts a non-null, finite calendar.Date to database/sql and pgx.
+
+func NewDate(date calendar.Date) Date
+    NewDate constructs a PostgreSQL adapter. Invalid dates remain invalid and
+    return calendar.ErrInvalidDate when encoded.
+
+func (d Date) CalendarDate() calendar.Date
+    CalendarDate returns the wrapped civil date.
+
+func (d Date) DateValue() (pgtype.Date, error)
+    DateValue implements pgtype.DateValuer.
+
+func (d *Date) Scan(source any) error
+    Scan implements database/sql.Scanner.
+
+func (d *Date) ScanDate(value pgtype.Date) error
+    ScanDate implements pgtype.DateScanner.
+
+func (d Date) Value() (driver.Value, error)
+    Value implements database/sql/driver.Valuer using canonical date text.
+
+type InfinityDate struct {
+	// Has unexported fields.
+}
+    InfinityDate is the explicit sum type for finite and infinite PostgreSQL
+    dates. Its zero value is invalid because it has no finite Date.
+
+func NewFiniteDate(date calendar.Date) InfinityDate
+    NewFiniteDate constructs an infinity-aware finite value.
+
+func NewInfinityDate(kind InfinityKind) InfinityDate
+    NewInfinityDate constructs an infinite value. Finite is rejected at encode
+    time because callers must use NewFiniteDate with a concrete date.
+
+func (d InfinityDate) Date() calendar.Date
+    Date returns the finite date, or an invalid Date for infinities.
+
+func (d InfinityDate) DateValue() (pgtype.Date, error)
+    DateValue implements pgtype.DateValuer.
+
+func (d InfinityDate) Kind() InfinityKind
+    Kind returns the value classification.
+
+func (d *InfinityDate) Scan(source any) error
+    Scan implements database/sql.Scanner.
+
+func (d *InfinityDate) ScanDate(value pgtype.Date) error
+    ScanDate implements pgtype.DateScanner.
+
+func (d InfinityDate) Value() (driver.Value, error)
+    Value implements database/sql/driver.Valuer.
+
+type InfinityKind int8
+    InfinityKind classifies a finite or infinite PostgreSQL date.
+
+const (
+	// NegativeInfinity represents PostgreSQL -infinity.
+	NegativeInfinity InfinityKind = -1
+	// Finite represents an ordinary civil date.
+	Finite InfinityKind = 0
+	// PositiveInfinity represents PostgreSQL infinity.
+	PositiveInfinity InfinityKind = 1
+)
+PACKAGE github.com/faustbrian/golib/pkg/calendar/timezone
+package timezone // import "github.com/faustbrian/golib/pkg/calendar/timezone"
+
+Package timezone converts between civil local values and instants using explicit
+IANA locations and deterministic gap/fold policies.
+
+CONSTANTS
+
+const MaxZoneNameBytes = 255
+    MaxZoneNameBytes bounds IANA timezone identifiers before database lookup.
+
+
+VARIABLES
+
+var (
+	// ErrInvalidLocalTime identifies invalid date or time-of-day components.
+	ErrInvalidLocalTime = errors.New("calendar/timezone: invalid local time")
+	// ErrInvalidLocation identifies a nil location.
+	ErrInvalidLocation = errors.New("calendar/timezone: explicit location required")
+	// ErrNonexistent identifies a local value in a timezone gap.
+	ErrNonexistent = errors.New("calendar/timezone: nonexistent local time")
+	// ErrAmbiguous identifies a local value in a timezone fold.
+	ErrAmbiguous = errors.New("calendar/timezone: ambiguous local time")
+	// ErrOffsetMismatch identifies an explicit offset with no matching occurrence.
+	ErrOffsetMismatch = errors.New("calendar/timezone: offset does not match")
+	// ErrInvalidZone identifies an invalid, missing, or oversized IANA name.
+	ErrInvalidZone = errors.New("calendar/timezone: invalid IANA zone")
+)
+
+FUNCTIONS
+
+func DayRange(date calendar.Date, loc *time.Location, policy Resolution) (start, end time.Time, err error)
+    DayRange returns the half-open instant range [start, next-day-start) for a
+    civil date. It never fabricates an end-of-day local value.
+
+func LoadLocation(name string) (*time.Location, error)
+    LoadLocation validates a bounded IANA name before delegating transition
+    calculation to the standard library's authoritative timezone loader.
+
+func Resolve(local LocalDateTime, loc *time.Location, policy Resolution) (time.Time, error)
+    Resolve maps local to an instant in loc according to policy. It enumerates
+    verified occurrences instead of accepting time.Date's implicit gap/fold
+    choice. Work is bounded to 145 location lookups and candidate checks.
+
+
+TYPES
+
+type Choice uint8
+    Choice selects behavior for ordinary, ambiguous, and nonexistent local time.
+
+const (
+	// Reject rejects gaps and folds.
+	Reject Choice = iota + 1
+	// Earlier selects the chronologically earlier occurrence of a fold.
+	Earlier
+	// Later selects the chronologically later occurrence of a fold.
+	Later
+)
+type LocalDateTime struct {
+	// Has unexported fields.
+}
+    LocalDateTime is an immutable civil date plus local time-of-day. It contains
+    neither a timezone nor an offset.
+
+func FromInstant(instant time.Time, loc *time.Location) (LocalDateTime, error)
+    FromInstant converts instant to civil local components in loc.
+
+func MustLocalDateTime(date calendar.Date, hour, minute, second, nanosecond int) LocalDateTime
+    MustLocalDateTime is NewLocalDateTime but panics for invalid components.
+
+func NewLocalDateTime(date calendar.Date, hour, minute, second, nanosecond int) (LocalDateTime, error)
+    NewLocalDateTime validates and constructs a LocalDateTime.
+
+func (l LocalDateTime) Date() calendar.Date
+    Date returns the civil date.
+
+func (l LocalDateTime) Hour() int
+    Hour returns the hour from 0 through 23.
+
+func (l LocalDateTime) IsValid() bool
+    IsValid reports whether l contains valid components.
+
+func (l LocalDateTime) Minute() int
+    Minute returns the minute from 0 through 59.
+
+func (l LocalDateTime) Nanosecond() int
+    Nanosecond returns the nanosecond from 0 through 999,999,999.
+
+func (l LocalDateTime) Second() int
+    Second returns the second from 0 through 59.
+
+type Resolution interface {
+	// Has unexported methods.
+}
+    Resolution is a sealed local-time resolution policy.
+
+func MatchOffset(offsetSeconds int) Resolution
+    MatchOffset selects the fold occurrence with offsetSeconds east of UTC.

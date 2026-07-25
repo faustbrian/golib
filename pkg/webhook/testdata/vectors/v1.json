@@ -1,0 +1,48 @@
+{
+  "version": "v1",
+  "generator": "python-stdlib",
+  "vectors": [
+    {
+      "key_id": "interop-key",
+      "key_material_base64url": "Y3Jvc3MtbGFuZ3VhZ2UtdGVzdC1rZXk",
+      "timestamp": 1700000000,
+      "nonce": "python-fixture-nonce",
+      "method": "post",
+      "path": "/hooks/%2Forders",
+      "raw_query": "b=two&a=2&a=1&empty=",
+      "host": "RECEIVER.example:443",
+      "content_type": "application/json",
+      "idempotency_key": "event-interop-1",
+      "body_base64url": "eyJoZWxsbyI6IndvcmxkIn0K",
+      "metadata": {
+        "tenant": "acme",
+        "unicode": "snowman ☃"
+      },
+      "name": "hmac-sha256-python",
+      "algorithm": "sha256",
+      "canonical_base64url": "d2ViaG9vay12MQphbGdvcml0aG06c2hhMjU2CnRpbWVzdGFtcDoxNzAwMDAwMDAwCm5vbmNlOmNIbDBhRzl1TFdacGVIUjFjbVV0Ym05dVkyVQprZXktaWQ6YVc1MFpYSnZjQzFyWlhrCm1ldGhvZDpwb3N0CnBhdGg6TDJodmIydHpMeVV5Um05eVpHVnljdwpxdWVyeTpZVDB5Sm1FOU1TWmlQWFIzYnlabGJYQjBlVDAKaG9zdDpjbVZqWldsMlpYSXVaWGhoYlhCc1pUbzBORE0KY29udGVudC10eXBlOllYQndiR2xqWVhScGIyNHZhbk52YmcKaWRlbXBvdGVuY3kta2V5OlpYWmxiblF0YVc1MFpYSnZjQzB4CmJvZHktc2hhMjU2OmFrZkRHM3Q4TzVvZHZKWUdhZlJuVE9DSXlQeWRtazktbjh3X2FvSDN1R3cKbWV0YWRhdGE6WkVkV2RWbFhOVEE5V1ZkT2RGcFJDbVJYTlhCWk1qbHJXbEU5WXpJMWRtUXlNV2hpYVVScGJVbE4K",
+      "signature_base64url": "ZAeD5jcXIRzlJKRbP8Q7vPBYcbqLZcjZ2lROxmkd0Vk"
+    },
+    {
+      "key_id": "interop-key",
+      "key_material_base64url": "Y3Jvc3MtbGFuZ3VhZ2UtdGVzdC1rZXk",
+      "timestamp": 1700000000,
+      "nonce": "python-fixture-nonce",
+      "method": "post",
+      "path": "/hooks/%2Forders",
+      "raw_query": "b=two&a=2&a=1&empty=",
+      "host": "RECEIVER.example:443",
+      "content_type": "application/json",
+      "idempotency_key": "event-interop-1",
+      "body_base64url": "eyJoZWxsbyI6IndvcmxkIn0K",
+      "metadata": {
+        "tenant": "acme",
+        "unicode": "snowman ☃"
+      },
+      "name": "hmac-sha512-python",
+      "algorithm": "sha512",
+      "canonical_base64url": "d2ViaG9vay12MQphbGdvcml0aG06c2hhNTEyCnRpbWVzdGFtcDoxNzAwMDAwMDAwCm5vbmNlOmNIbDBhRzl1TFdacGVIUjFjbVV0Ym05dVkyVQprZXktaWQ6YVc1MFpYSnZjQzFyWlhrCm1ldGhvZDpwb3N0CnBhdGg6TDJodmIydHpMeVV5Um05eVpHVnljdwpxdWVyeTpZVDB5Sm1FOU1TWmlQWFIzYnlabGJYQjBlVDAKaG9zdDpjbVZqWldsMlpYSXVaWGhoYlhCc1pUbzBORE0KY29udGVudC10eXBlOllYQndiR2xqWVhScGIyNHZhbk52YmcKaWRlbXBvdGVuY3kta2V5OlpYWmxiblF0YVc1MFpYSnZjQzB4CmJvZHktc2hhMjU2OmFrZkRHM3Q4TzVvZHZKWUdhZlJuVE9DSXlQeWRtazktbjh3X2FvSDN1R3cKbWV0YWRhdGE6WkVkV2RWbFhOVEE5V1ZkT2RGcFJDbVJYTlhCWk1qbHJXbEU5WXpJMWRtUXlNV2hpYVVScGJVbE4K",
+      "signature_base64url": "pbiR_GQttXvsRBddCpJExy2DI0XcMeEMKe2Q3iVlTS-agT_d8oG68KM-HIaNGY4Uo2DQkD-yedLNEf4NizjaVA"
+    }
+  ]
+}

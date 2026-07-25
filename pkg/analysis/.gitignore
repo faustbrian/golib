@@ -1,0 +1,4 @@
+/.build/
+/dist/
+!/testdata/coverage/
+!/testdata/coverage/**

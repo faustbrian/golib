@@ -1,0 +1,66 @@
+func CanonicalHash(set RuleSet) (string, error)
+func IsCode(err error, code Code) bool
+func MarshalCanonical(set RuleSet) ([]byte, error)
+func ParseJSON(data []byte, limits Limits) (RuleSet, []Diagnostic, error)
+type Code string
+    const CodeInvalidLimit Code = "invalid_limit" ...
+type Compiler struct{ ... }
+    func NewCompiler(limits Limits) Compiler
+    func NewCompilerWithOperators(limits Limits, operators ...Operator) (Compiler, error)
+type ConflictStrategy uint8
+    const FirstMatch ConflictStrategy = iota ...
+type Context struct{ ... }
+    func NewContext(facts ...Fact) (Context, error)
+    func NewContextWithLimits(limits Limits, facts ...Fact) (Context, error)
+type Decision uint8
+    const Unmatched Decision = iota ...
+type Diagnostic struct{ ... }
+type Error struct{ ... }
+type Explanation struct{ ... }
+type Fact struct{ ... }
+type FactResolver interface{ ... }
+type Kind uint8
+    const KindMissing Kind = iota ...
+type Limits struct{ ... }
+    func DefaultLimits() Limits
+type MemoryPlanCache struct{ ... }
+    func NewMemoryPlanCache(capacity int) (*MemoryPlanCache, error)
+type Operand interface{ ... }
+    func Literal(value Value) Operand
+    func Variable(path Path) Operand
+type Operator interface{ ... }
+type OperatorName string
+    const OpEqual OperatorName = "equal" ...
+type Owner uint8
+    const OwnerUnspecified Owner = iota ...
+type Path struct{ ... }
+    func MustPath(segments ...string) Path
+    func NewPath(limits Limits, segments ...string) (Path, error)
+type Plan struct{ ... }
+type PlanCache interface{ ... }
+type Predicate interface{ ... }
+    func All(children ...Predicate) Predicate
+    func Any(children ...Predicate) Predicate
+    func Compare(operator OperatorName, left, right Operand) Predicate
+    func Exists(path Path) Predicate
+    func False() Predicate
+    func Not(child Predicate) Predicate
+    func True() Predicate
+type PredicateFunc func(context.Context, Context) (bool, error)
+type Result struct{ ... }
+type Rule struct{ ... }
+type RuleID string
+type RuleSet struct{ ... }
+type Severity uint8
+    const SeverityWarning Severity = iota ...
+type Signature struct{ ... }
+type Value struct{ ... }
+    func Bool(value bool) Value
+    func Duration(value time.Duration) Value
+    func Float(value float64) Value
+    func Int(value int64) Value
+    func List(values ...Value) Value
+    func Missing() Value
+    func Null() Value
+    func String(value string) Value
+    func Time(value time.Time) Value

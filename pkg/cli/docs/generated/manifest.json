@@ -1,0 +1,79 @@
+{
+  "schema": "go-cli/manifest/v1",
+  "name": "tool",
+  "version": "0.0.0-reference",
+  "root": {
+    "name": "tool",
+    "path": "tool",
+    "summary": "Canonical cli reference application",
+    "options": [
+      {
+        "name": "verbose",
+        "short": "v",
+        "type": "bool",
+        "description": "enable diagnostic output",
+        "persistent": true,
+        "source": "tool"
+      }
+    ]
+  },
+  "commands": [
+    {
+      "name": "deploy",
+      "path": "tool deploy",
+      "aliases": [
+        "ship"
+      ],
+      "summary": "Deploy an application",
+      "description": "Deploy an application to an explicit target.",
+      "examples": [
+        "tool deploy production --format json"
+      ],
+      "documentation": "https://example.com/tool/deploy",
+      "arguments": [
+        {
+          "name": "target",
+          "type": "string",
+          "cardinality": 1,
+          "description": "deployment target"
+        },
+        {
+          "name": "extra",
+          "type": "string-slice",
+          "cardinality": 3,
+          "description": "additional immutable argv"
+        }
+      ],
+      "options": [
+        {
+          "name": "format",
+          "type": "enum",
+          "description": "select output format",
+          "defaulted": true,
+          "source": "tool deploy",
+          "allowed_values": [
+            "human",
+            "json"
+          ]
+        },
+        {
+          "name": "timeout",
+          "type": "duration",
+          "description": "bound operation duration",
+          "defaulted": true,
+          "source": "tool deploy"
+        }
+      ],
+      "inherited_options": [
+        {
+          "name": "verbose",
+          "short": "v",
+          "type": "bool",
+          "description": "enable diagnostic output",
+          "persistent": true,
+          "source": "tool"
+        }
+      ]
+    }
+  ]
+}

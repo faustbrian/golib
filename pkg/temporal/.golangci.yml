@@ -1,0 +1,60 @@
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - bidichk
+    - copyloopvar
+    - errcheck
+    - errorlint
+    - exhaustive
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nilerr
+    - nilnil
+    - prealloc
+    - revive
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - usetesting
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    govet:
+      enable:
+        - nilness
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: package-comments
+          disabled: false
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocritic
+          - gosec
+          - unparam
+      - path: instant/operations\.go
+        text: QF1009
+        linters:
+          - staticcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

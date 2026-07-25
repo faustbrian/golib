@@ -1,0 +1,15 @@
+json-schema pre-v1 comparative benchmark baseline
+date: 2026-07-19
+commit: a069d57155fe6eab9c0144e30bbebccc7b6477ae
+toolchain: go1.26.5
+goos/goarch: darwin/arm64
+cpu: Apple M4 Max
+command: make benchmark-comparison BENCH_TIME=1s
+competitors: kaptinlin/jsonschema v0.9.3; santhosh-tekuri/jsonschema v6.0.2
+
+BenchmarkCompile/faustbrian-16                 3566  336074 ns/op  389975 B/op  5441 allocs/op
+BenchmarkCompile/kaptinlin-16                170419    6884 ns/op   10147 B/op   133 allocs/op
+BenchmarkCompile/santhosh-tekuri-16           35186   34867 ns/op   44857 B/op   668 allocs/op
+BenchmarkValidateDecoded/faustbrian-16       342914    3426 ns/op    3699 B/op   108 allocs/op
+BenchmarkValidateDecoded/kaptinlin-16        346735    3410 ns/op    4471 B/op   112 allocs/op
+BenchmarkValidateDecoded/santhosh-tekuri-16  993880    1171 ns/op    2156 B/op    47 allocs/op

@@ -1,0 +1,22 @@
+id	evidence	kind	status	provenance
+QR-MODES	qr/qr_test.go and qr/qr_internal_test.go	logical and independent decode	passing	repository tests
+QR-CONTROLS	qr/qr_test.go and imagedecode/decode_test.go	control decode	passing	repository tests
+C128-DATA	code128 tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+C128-GS1	gs1 code128 and independent interop tests	dictionary logical and reciprocal interop	passing	repository tests and pinned GS1 linter reference
+C39	code39 tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+C93	code93 tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+EAN8	ean tests and imagedecode independent tests	logical supplements and reciprocal interop	passing	repository tests
+EAN13	ean tests and imagedecode independent tests	logical supplements and reciprocal interop	passing	repository tests
+UPCA	upc tests and imagedecode independent tests	logical supplements and reciprocal interop	passing	repository tests
+UPCE	upc tests and imagedecode independent tests	logical supplements and reciprocal interop	passing	repository tests
+ITF	itf tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+ITF14	itf tests and imagedecode independent tests	logical golden validation and reciprocal interop	passing	repository tests
+CODABAR	codabar tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+DM-DATA	datamatrix tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+DM-CONTROLS	datamatrix tests and imagedecode control tests	control decode	passing	repository tests
+PDF-DATA	pdf417 tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+PDF-CONTROLS	pdf417 tests and PDF417 reader metadata tests	control decode	passing	repository tests
+AZTEC-DATA	aztec tests and imagedecode independent tests	logical and reciprocal interop	passing	repository tests
+AZTEC-CONTROLS	aztec tests and imagedecode control tests	control decode	passing	repository tests
+RENDER	render fixture tests	per-format logical PNG SVG golden checksums	passing	repository tests and checked-in rendering artifacts
+DECODE	imagedecode tests and fuzz target	limits hostile images metadata cancellation and dependency panic containment	passing	repository tests
