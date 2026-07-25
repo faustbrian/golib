@@ -1,0 +1,838 @@
+PACKAGE github.com/faustbrian/golib/pkg/validation
+package validation // import "github.com/faustbrian/golib/pkg/validation"
+
+Package validation provides typed, deterministic, bounded application validation
+without transport, binding, or persistence dependencies.
+
+VARIABLES
+
+var (
+	// ErrInvalid marks a non-empty validation result containing errors.
+	ErrInvalid = errors.New("validation failed")
+	// ErrLimitExceeded marks rejected work that exceeded a configured bound.
+	ErrLimitExceeded = errors.New("validation limit exceeded")
+	// ErrInvalidLimit marks an invalid Limits configuration.
+	ErrInvalidLimit = errors.New("invalid validation limit")
+	// ErrValidatorPanic is the safe cause used for an isolated custom panic.
+	ErrValidatorPanic = errors.New("validator panicked")
+	// ErrInvalidViolation marks an unsafe or malformed custom diagnostic.
+	ErrInvalidViolation = errors.New("invalid validation diagnostic")
+)
+
+TYPES
+
+type AsyncValidator[T any] interface {
+	ValidateAsync(context.Context, Context, T) Report
+}
+    AsyncValidator is the separate contract for cancellation-aware I/O
+    validation. Implementations are not deterministic Validator values.
+
+func IsolateAsyncPanics[T any](validator AsyncValidator[T]) AsyncValidator[T]
+    IsolateAsyncPanics wraps an arbitrary asynchronous validator with the same
+    secret-safe panic containment provided by AsyncValidatorFunc.
+
+type AsyncValidatorFunc[T any] func(context.Context, Context, T) Report
+    AsyncValidatorFunc adapts a context-aware function to AsyncValidator.
+
+func (f AsyncValidatorFunc[T]) ValidateAsync(
+	ctx context.Context, validationContext Context, value T,
+) (report Report)
+    ValidateAsync calls the context-aware function.
+
+type Context struct {
+	// Has unexported fields.
+}
+    Context is immutable deterministic validation state. It intentionally does
+    not embed context.Context because ordinary validators cannot perform I/O.
+
+func NewContext(limits Limits, options ...ContextOption) (Context, error)
+    NewContext constructs immutable validation state.
+
+func (c Context) Limits() Limits
+    Limits returns the work limits. The zero-value Context uses DefaultLimits so
+    validators fail closed without requiring construction for simple use.
+
+func (c Context) Locale() string
+    Locale returns the application-defined locale.
+
+func (c Context) Metadata(key string) (string, bool)
+    Metadata returns one metadata value.
+
+func (c Context) Operation() string
+    Operation returns the application-defined operation.
+
+func (c Context) Path() Path
+    Path returns the current immutable path.
+
+func (c Context) WithPath(segment Segment) Context
+    WithPath returns a copy with segment appended.
+
+type ContextOption func(*contextConfig)
+    ContextOption configures NewContext.
+
+func WithLocale(locale string) ContextOption
+    WithLocale records an application-defined locale identifier.
+
+func WithMetadata(key, value string) ContextOption
+    WithMetadata adds bounded non-sensitive metadata.
+
+func WithOperation(operation string) ContextOption
+    WithOperation records an application-defined operation identifier.
+
+type InvalidError struct {
+	// Has unexported fields.
+}
+    InvalidError exposes a validation report through errors.As.
+
+func (e *InvalidError) Error() string
+    Error returns a value-safe summary.
+
+func (e *InvalidError) Report() Report
+    Report returns the immutable validation report.
+
+func (e *InvalidError) Unwrap() error
+    Unwrap makes InvalidError compatible with errors.Is and ErrInvalid.
+
+type Limits struct {
+	MaxDepth               int
+	MaxCollectionSize      int
+	MaxStringLength        int
+	MaxViolations          int
+	MaxPathLength          int
+	MaxMetadataEntries     int
+	MaxMetadataKeyLength   int
+	MaxMetadataValueLength int
+	MaxRegexPatternLength  int
+	MaxCustomConcurrency   int
+	MaxStructFields        int
+	MaxTagLength           int
+	MaxCompiledPlans       int
+}
+    Limits bounds validation work performed on untrusted input.
+
+func DefaultLimits() Limits
+    DefaultLimits returns conservative limits suitable for application input.
+
+type Mode uint8
+    Mode controls whether composition stops after a decisive result.
+
+const (
+	// ShortCircuit stops after the first decisive failure or success.
+	ShortCircuit Mode = iota + 1
+	// CollectAll evaluates every relevant validator in declaration order.
+	CollectAll
+)
+type Path struct {
+	// Has unexported fields.
+}
+    Path is an immutable ordered location.
+
+func RootPath() Path
+    RootPath returns an empty root path.
+
+func (p Path) Append(segment Segment) Path
+    Append returns a path copy with segment appended.
+
+func (p Path) JSONPointer() string
+    JSONPointer renders the path using RFC 6901 escaping.
+
+func (p Path) Segments() []Segment
+    Segments returns a defensive copy of the path segments.
+
+func (p Path) String() string
+    String renders a stable human-readable location.
+
+type Presence uint8
+    Presence represents whether an input was omitted, explicitly null, or set.
+
+const (
+	// MissingState means no input was supplied.
+	MissingState Presence = iota
+	// NullState means an explicit null was supplied.
+	NullState
+	// PresentState means a typed value was supplied.
+	PresentState
+)
+type Report struct {
+	// Has unexported fields.
+}
+    Report is an immutable, ordered, deduplicated collection of violations.
+
+func AsyncAll[T any](ctx context.Context, validationContext Context, value T,
+	validators ...AsyncValidator[T],
+) Report
+    AsyncAll executes context-aware validators with bounded concurrency and
+    merges their reports in declaration order. Cancellation stops unscheduled
+    work; validators already running remain responsible for honoring ctx.
+
+func NewReport(limits Limits) Report
+    NewReport creates an empty report governed by limits.
+
+func (r Report) Add(violation Violation) Report
+    Add returns a report with a violation appended if it is not a duplicate.
+
+func (r Report) Empty() bool
+    Empty reports whether no violations were retained.
+
+func (r Report) Err() error
+    Err returns a typed error if the report contains a blocking violation.
+
+func (r Report) HasCode(code string) bool
+    HasCode reports whether a retained violation has code.
+
+func (r Report) HasErrors() bool
+    HasErrors reports whether any blocking violation was observed, including one
+    omitted because MaxViolations was reached.
+
+func (r Report) Len() int
+    Len returns the number of retained violations.
+
+func (r Report) Merge(other Report) Report
+    Merge returns a report with other's violations appended in their order.
+
+func (r Report) String() string
+    String returns a value-safe report summary.
+
+func (r Report) Truncated() bool
+    Truncated reports whether a violation was omitted by the configured limit.
+
+func (r Report) Violations() []Violation
+    Violations returns a defensive copy preserving validation order.
+
+type Segment struct {
+	// Has unexported fields.
+}
+    Segment is one typed path component.
+
+func Field(name string) Segment
+    Field creates a field segment.
+
+func Index(index int) Segment
+    Index creates an index segment.
+
+func Item() Segment
+    Item creates a generic item segment.
+
+func Key(key string) Segment
+    Key creates a map-key segment.
+
+func (s Segment) Kind() SegmentKind
+    Kind returns the segment type.
+
+func (s Segment) Value() string
+    Value returns the segment's safe location value.
+
+type SegmentKind uint8
+    SegmentKind distinguishes fields, collection indexes, keys, and items.
+
+const (
+	// FieldSegment names an object field.
+	FieldSegment SegmentKind = iota + 1
+	// IndexSegment identifies a collection index.
+	IndexSegment
+	// KeySegment identifies a map key.
+	KeySegment
+	// ItemSegment identifies the current collection item in a plan.
+	ItemSegment
+)
+type Severity uint8
+    Severity distinguishes blocking errors from advisory warnings.
+
+const (
+	// Error is a blocking validation failure.
+	Error Severity = iota + 1
+	// Warning is a non-blocking validation observation.
+	Warning
+)
+type Validator[T any] interface {
+	Validate(Context, T) Report
+}
+    Validator is the deterministic, side-effect-free validation contract.
+
+func All[T any](mode Mode, validators ...Validator[T]) Validator[T]
+    All requires every validator to pass.
+
+func Any[T any](mode Mode, validators ...Validator[T]) Validator[T]
+    Any requires at least one validator to pass. Failed alternatives are
+    returned only when every alternative fails.
+
+func Dependent[T any](prerequisite, dependent Validator[T]) Validator[T]
+    Dependent runs dependent only when prerequisite has no blocking errors.
+
+func IsolatePanics[T any](validator Validator[T]) Validator[T]
+    IsolatePanics explicitly wraps a custom validator with panic containment.
+    The panic payload and rejected value are deliberately discarded.
+
+func Not[T any](validator Validator[T]) Validator[T]
+    Not passes only when validator fails.
+
+func When[T any](predicate func(T) bool, then, otherwise Validator[T]) Validator[T]
+    When chooses a validator using a deterministic typed predicate.
+
+type ValidatorFunc[T any] func(Context, T) Report
+    ValidatorFunc adapts an ordinary function to Validator.
+
+func (f ValidatorFunc[T]) Validate(ctx Context, value T) (report Report)
+    Validate calls the underlying validation function.
+
+type Value[T any] struct {
+	// Has unexported fields.
+}
+    Value preserves presence separately from a typed value.
+
+func Missing[T any]() Value[T]
+    Missing returns an omitted typed value.
+
+func Null[T any]() Value[T]
+    Null returns an explicitly null typed value.
+
+func Present[T any](value T) Value[T]
+    Present returns a supplied typed value, including its zero value.
+
+func (v Value[T]) Get() (T, bool)
+    Get returns the supplied value and whether it is present.
+
+func (v Value[T]) IsEmpty() bool
+    IsEmpty reports whether a present string, collection, or map has length
+    zero. Other values are empty when they are their Go zero value.
+
+func (v Value[T]) IsPresent() bool
+    IsPresent reports whether a typed value was supplied.
+
+func (v Value[T]) IsZero() bool
+    IsZero reports whether a present value is its Go zero value.
+
+func (v Value[T]) Presence() Presence
+    Presence returns the explicit input state.
+
+type Violation struct {
+	// Has unexported fields.
+}
+    Violation is a value-safe machine-readable validation finding.
+
+func NewViolation(path Path, code string, severity Severity,
+	parameters map[string]string, safeCause error,
+) Violation
+    NewViolation constructs a violation. Parameters and paths are copied;
+    malformed or unsafe diagnostic metadata fails closed.
+
+func (v Violation) Cause() error
+    Cause returns an explicitly safe underlying cause.
+
+func (v Violation) Code() string
+    Code returns the machine-readable rule identity.
+
+func (v Violation) Parameters() map[string]string
+    Parameters returns a defensive copy of safe message parameters.
+
+func (v Violation) Path() Path
+    Path returns the stable field location.
+
+func (v Violation) Severity() Severity
+    Severity returns whether the finding blocks acceptance.
+
+func (v Violation) String() string
+    String deliberately excludes parameters, causes, and rejected values.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/rules
+package rules // import "github.com/faustbrian/golib/pkg/validation/rules"
+
+Package rules provides reusable typed deterministic validators.
+
+FUNCTIONS
+
+func After(boundary time.Time) validation.Validator[time.Time]
+    After requires a time strictly after boundary.
+
+func Before(boundary time.Time) validation.Validator[time.Time]
+    Before requires a time strictly before boundary.
+
+func ByteLength(minimum, maximum int) validation.Validator[string]
+    ByteLength requires a byte length within the inclusive bounds.
+
+func CIDR() validation.Validator[string]
+    CIDR requires an IPv4 or IPv6 prefix.
+
+func Date(layout string) validation.Validator[string]
+    Date requires exact parsing with layout.
+
+func DurationBetween(minimum, maximum time.Duration) validation.Validator[time.Duration]
+    DurationBetween requires a duration within inclusive bounds.
+
+func Email() validation.Validator[string]
+    Email requires a bare mailbox address rather than a display-name form.
+
+func Empty[T any]() validation.Validator[validation.Value[T]]
+    Empty accepts only a present empty value.
+
+func ExcludedWhen[T any, V any](field string, condition func(T) bool,
+	accessor func(T) validation.Value[V],
+) validation.Validator[T]
+    ExcludedWhen requires a selected value to be omitted when condition is true.
+
+func FieldsEqual[T any, V comparable](leftName, rightName string,
+	left func(T) V, right func(T) V,
+) validation.Validator[T]
+    FieldsEqual requires two explicitly selected comparable fields to match.
+
+func FieldsOrdered[T any, V cmp.Ordered](leftName, rightName string,
+	left func(T) V, right func(T) V,
+) validation.Validator[T]
+    FieldsOrdered requires the left selected value not to exceed the right
+    selected value and locates failure on the right field.
+
+func Finite() validation.Validator[float64]
+    Finite rejects NaN and infinities.
+
+func Future(clock Clock) validation.Validator[time.Time]
+    Future requires a time strictly after the injected clock.
+
+func GreaterThan[T cmp.Ordered](boundary T) validation.Validator[T]
+    GreaterThan requires a value strictly greater than boundary.
+
+func Hostname() validation.Validator[string]
+    Hostname requires an RFC-style DNS hostname bounded to 253 bytes.
+
+func IP() validation.Validator[string]
+    IP requires an IPv4 or IPv6 literal.
+
+func Identifier() validation.Validator[string]
+    Identifier requires a bounded ASCII application identifier.
+
+func Items[T any](mode validation.Mode, validator validation.Validator[T]) validation.Validator[[]T]
+    Items applies a validator to slice items in index order.
+
+func Keys[K cmp.Ordered, V any](mode validation.Mode,
+	validator validation.Validator[K],
+) validation.Validator[map[K]V]
+    Keys validates ordered map keys in sorted order for deterministic reports.
+
+func LessThan[T cmp.Ordered](boundary T) validation.Validator[T]
+    LessThan requires a value strictly less than boundary.
+
+func MapSize[K comparable, V any](minimum, maximum int) validation.Validator[map[K]V]
+    MapSize requires an inclusive map-size range.
+
+func MultipleOf(divisor float64) validation.Validator[float64]
+    MultipleOf requires a finite value to be an integer multiple of divisor.
+
+func Nested[T, V any](field string, accessor func(T) V,
+	validator validation.Validator[V],
+) validation.Validator[T]
+    Nested validates a typed nested value at an explicit field path.
+
+func Omitted[T any]() validation.Validator[validation.Value[T]]
+    Omitted accepts only a missing value.
+
+func OneOf(values ...string) validation.Validator[string]
+    OneOf requires membership in a fixed string set.
+
+func OrderedInterval() validation.Validator[Interval]
+    OrderedInterval requires End not to precede Start.
+
+func Past(clock Clock) validation.Validator[time.Time]
+    Past requires a time strictly before the injected clock.
+
+func Pattern(expression string,
+	limits validation.Limits,
+) (validation.Validator[string], error)
+    Pattern compiles a bounded RE2 expression once and returns its validator.
+
+func Precision(decimalPlaces int) validation.Validator[float64]
+    Precision requires no more than decimalPlaces fractional decimal places.
+
+func Prefix(prefix string) validation.Validator[string]
+    Prefix requires a literal prefix.
+
+func Present[T any]() validation.Validator[validation.Value[T]]
+    Present accepts every supplied typed value, including empty and zero values.
+
+func Prohibited[T any]() validation.Validator[validation.Value[T]]
+    Prohibited accepts only a missing value.
+
+func Range[T cmp.Ordered](minimum, maximum T) validation.Validator[T]
+    Range requires an ordered value within inclusive bounds.
+
+func Required[T any]() validation.Validator[validation.Value[T]]
+    Required accepts only present, non-empty values.
+
+func RequiredWhen[T any, V any](field string, condition func(T) bool,
+	accessor func(T) validation.Value[V],
+) validation.Validator[T]
+    RequiredWhen requires a selected value when condition is true.
+
+func RuneLength(minimum, maximum int) validation.Validator[string]
+    RuneLength requires a Unicode code-point length within the inclusive bounds.
+
+func SliceSize[T any](minimum, maximum int) validation.Validator[[]T]
+    SliceSize requires an inclusive slice-size range.
+
+func Suffix(suffix string) validation.Validator[string]
+    Suffix requires a literal suffix.
+
+func TimeBetween(minimum, maximum time.Time) validation.Validator[time.Time]
+    TimeBetween requires a time within inclusive bounds.
+
+func URL() validation.Validator[string]
+    URL requires an absolute HTTP or HTTPS URL with a host.
+
+func UUID() validation.Validator[string]
+    UUID requires a canonical RFC 9562 UUID string.
+
+func Unique[T comparable]() validation.Validator[[]T]
+    Unique requires every comparable slice item to occur once.
+
+func Values[K cmp.Ordered, V any](mode validation.Mode,
+	validator validation.Validator[V],
+) validation.Validator[map[K]V]
+    Values validates map values in sorted key order and locates each finding at
+    its typed key segment.
+
+func ZeroValue[T any]() validation.Validator[validation.Value[T]]
+    ZeroValue accepts only a present Go zero value.
+
+
+TYPES
+
+type Clock interface{ Now() time.Time }
+    Clock supplies explicit deterministic current time.
+
+type Interval struct {
+	Start time.Time
+	End   time.Time
+}
+    Interval is a closed-open application time interval.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/structplan
+package structplan // import "github.com/faustbrian/golib/pkg/validation/structplan"
+
+Package structplan provides optional typed and startup-compiled struct plans.
+
+VARIABLES
+
+var (
+	// ErrDuplicateField marks a repeated typed-plan field name.
+	ErrDuplicateField = errors.New("duplicate validation field")
+	// ErrUnknownRule marks an unsupported strict tag rule.
+	ErrUnknownRule = errors.New("unknown validation rule")
+	// ErrDuplicateRule marks a repeated rule in one tag.
+	ErrDuplicateRule = errors.New("duplicate validation rule")
+	// ErrInvalidTag marks malformed tag grammar or parameters.
+	ErrInvalidTag = errors.New("invalid validation tag")
+	// ErrCycle marks a recursive reflective struct graph.
+	ErrCycle = errors.New("cyclic validation type")
+	// ErrUnsupportedKind marks a type a tag rule cannot evaluate.
+	ErrUnsupportedKind = errors.New("unsupported validation kind")
+	// ErrInvalidPlan marks malformed typed plan construction.
+	ErrInvalidPlan = errors.New("invalid validation plan")
+)
+
+FUNCTIONS
+
+func Add[T, V any](builder *Builder[T], name string, accessor func(T) V,
+	validator validation.Validator[V],
+) error
+    Add appends a named typed accessor and validator to builder.
+
+
+TYPES
+
+type Builder[T any] struct {
+	// Has unexported fields.
+}
+    Builder incrementally defines a reflection-free typed struct plan.
+
+func New[T any](limits validation.Limits) *Builder[T]
+    New creates a typed plan builder.
+
+func (builder *Builder[T]) Compile() (*Plan[T], error)
+    Compile snapshots the current builder into an immutable plan.
+
+type Cache struct {
+	// Has unexported fields.
+}
+    Cache is an instance-owned bounded cache of immutable compiled tag plans.
+
+func NewCache(limits validation.Limits) *Cache
+    NewCache creates an empty bounded plan cache.
+
+func (cache *Cache) Clear()
+    Clear removes all cached immutable plans.
+
+func (cache *Cache) Len() int
+    Len returns the current number of cached plans.
+
+type Plan[T any] struct {
+	// Has unexported fields.
+}
+    Plan is an immutable reflection-free typed struct plan.
+
+func (plan *Plan[T]) Validate(ctx validation.Context, value T) validation.Report
+    Validate evaluates fields in declaration order and collects all findings.
+
+type TagPlan[T any] struct {
+	// Has unexported fields.
+}
+    TagPlan is an immutable startup-compiled reflective plan.
+
+func CompileCached[T any](cache *Cache) (*TagPlan[T], error)
+    CompileCached compiles or reuses the cached plan for T.
+
+func CompileTags[T any](limits validation.Limits) (*TagPlan[T], error)
+    CompileTags strictly compiles validate tags for T.
+
+func (plan *TagPlan[T]) Validate(ctx validation.Context, value T) validation.Report
+    Validate evaluates precompiled fields in deterministic declaration order.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationconfig
+package validationconfig // import "github.com/faustbrian/golib/pkg/validation/validationconfig"
+
+Package validationconfig adapts typed validators to a small config contract.
+
+TYPES
+
+type Check[T any] struct {
+	// Has unexported fields.
+}
+    Check binds a value, immutable context, and typed validator.
+
+func CheckValue[T any](value T, ctx validation.Context,
+	validator validation.Validator[T],
+) Check[T]
+    CheckValue constructs a reusable configuration validation contract.
+
+func (check Check[T]) Validate() error
+    Validate returns the typed invalid error when validation fails.
+
+type Validator interface {
+	Validate() error
+}
+    Validator is the minimal validation contract used by configuration loaders.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationhttp
+package validationhttp // import "github.com/faustbrian/golib/pkg/validation/validationhttp"
+
+Package validationhttp provides router-neutral HTTP report projection.
+
+FUNCTIONS
+
+func WriteProblem(writer http.ResponseWriter, problem Problem) error
+    WriteProblem writes a problem without depending on a router.
+
+
+TYPES
+
+type Error struct {
+	Path       string            `json:"path"`
+	Code       string            `json:"code"`
+	Parameters map[string]string `json:"parameters,omitempty"`
+	Severity   string            `json:"severity"`
+}
+    Error is one safe HTTP validation finding.
+
+type Hook[T any] func(*http.Request, T) validation.Report
+    Hook is a transport integration seam that does not own routing or binding.
+
+func (hook Hook[T]) Validate(request *http.Request, value T) validation.Report
+    Validate invokes the application-supplied request validation hook.
+
+type Problem struct {
+	Type   string  `json:"type"`
+	Title  string  `json:"title"`
+	Status int     `json:"status"`
+	Errors []Error `json:"errors"`
+	// Truncated reports whether findings were omitted by MaxViolations.
+	Truncated bool `json:"truncated,omitempty"`
+}
+    Problem is an RFC 9457-style validation problem.
+
+func FromReport(report validation.Report) Problem
+    FromReport projects a report into an unprocessable-content problem.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationjsonapi
+package validationjsonapi // import "github.com/faustbrian/golib/pkg/validation/validationjsonapi"
+
+Package validationjsonapi projects reports into JSON:API error objects.
+
+TYPES
+
+type Document struct {
+	Errors []Error      `json:"errors"`
+	Meta   DocumentMeta `json:"meta"`
+}
+    Document is a JSON:API error document with report-level metadata.
+
+func Errors(report validation.Report) Document
+    Errors projects report findings in their deterministic order.
+
+type DocumentMeta struct {
+	Truncated bool `json:"truncated"`
+	HasErrors bool `json:"has_errors"`
+}
+    DocumentMeta preserves aggregation state.
+
+type Error struct {
+	Status string    `json:"status"`
+	Code   string    `json:"code"`
+	Source Source    `json:"source"`
+	Meta   ErrorMeta `json:"meta"`
+}
+    Error is a JSON:API validation error object.
+
+type ErrorMeta struct {
+	Parameters map[string]string `json:"parameters,omitempty"`
+	Severity   string            `json:"severity"`
+}
+    ErrorMeta preserves safe rule parameters and severity.
+
+type Source struct {
+	Pointer string `json:"pointer"`
+}
+    Source identifies the invalid document location.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationobserve
+package validationobserve // import "github.com/faustbrian/golib/pkg/validation/validationobserve"
+
+Package validationobserve exposes non-sensitive observation hooks.
+
+FUNCTIONS
+
+func Report(ctx validation.Context, report validation.Report, observer Observer)
+    Report emits one safe observation per retained violation.
+
+
+TYPES
+
+type Observation struct {
+	Code      string
+	Severity  string
+	Operation string
+}
+    Observation contains bounded labels only. It intentionally excludes paths,
+    parameters, causes, and rejected values.
+
+type Observer interface {
+	Observe(Observation)
+}
+    Observer receives safe validation observations.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationrpc
+package validationrpc // import "github.com/faustbrian/golib/pkg/validation/validationrpc"
+
+Package validationrpc projects reports into JSON-RPC invalid-params errors.
+
+TYPES
+
+type Data struct {
+	Violations []Violation `json:"violations"`
+	Truncated  bool        `json:"truncated,omitempty"`
+	HasErrors  bool        `json:"has_errors"`
+}
+    Data is the stable machine-readable invalid-params payload.
+
+type Error struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    Data   `json:"data"`
+}
+    Error is a JSON-RPC error object.
+
+func InvalidParams(report validation.Report) Error
+    InvalidParams projects a report using the standard -32602 error code.
+
+type Violation struct {
+	Path       string            `json:"path"`
+	Code       string            `json:"code"`
+	Parameters map[string]string `json:"parameters,omitempty"`
+	Severity   string            `json:"severity"`
+}
+    Violation is a safe JSON-RPC validation finding.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationservice
+package validationservice // import "github.com/faustbrian/golib/pkg/validation/validationservice"
+
+Package validationservice provides transport-neutral service hook contracts.
+
+TYPES
+
+type Hook[T any] func(context.Context, validation.Context, T) validation.Report
+    Hook adapts a service-boundary function to Validator.
+
+func (hook Hook[T]) Validate(ctx context.Context,
+	validationContext validation.Context, value T,
+) validation.Report
+    Validate invokes the service hook.
+
+type Validator[T any] interface {
+	Validate(context.Context, validation.Context, T) validation.Report
+}
+    Validator is a cancellation-aware service-boundary validation contract.
+
+func Chain[T any](mode validation.Mode, validators ...Validator[T]) Validator[T]
+    Chain evaluates service hooks in declaration order.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationtest
+package validationtest // import "github.com/faustbrian/golib/pkg/validation/validationtest"
+
+Package validationtest provides reusable report assertions and conformance
+helpers for consumers.
+
+FUNCTIONS
+
+func Conformance[T any](t TestingT, ctx validation.Context,
+	validator validation.Validator[T], cases []Case[T],
+)
+    Conformance runs reusable fixtures against a validator.
+
+func RejectMutations[T any](t TestingT, ctx validation.Context,
+	validator validation.Validator[T], mutations []T,
+)
+    RejectMutations proves that every supplied defect is rejected.
+
+func RequireCode(t TestingT, report validation.Report, code string)
+    RequireCode fails the test unless report contains code.
+
+func RequireValid(t TestingT, report validation.Report)
+    RequireValid fails the test when report contains any violation.
+
+
+TYPES
+
+type Case[T any] struct {
+	Name  string
+	Value T
+	Valid bool
+	Codes []string
+}
+    Case is a reusable typed validation fixture.
+
+type TestingT interface {
+	Helper()
+	Fatalf(format string, arguments ...any)
+}
+    TestingT is the subset of testing.TB used by these helpers.
+
+PACKAGE github.com/faustbrian/golib/pkg/validation/validationtext
+package validationtext // import "github.com/faustbrian/golib/pkg/validation/validationtext"
+
+Package validationtext applies application-supplied message catalogs.
+
+TYPES
+
+type Catalog interface {
+	Lookup(locale, code string, parameters map[string]string) (string, bool)
+}
+    Catalog looks up application-facing prose without changing rule semantics.
+
+type Message struct {
+	Path string
+	Code string
+	Text string
+}
+    Message pairs immutable machine identity with optional localized prose.
+
+func Messages(ctx validation.Context, report validation.Report,
+	catalog Catalog,
+) []Message
+    Messages translates findings in report order. Missing entries leave Text
+    empty rather than embedding core fallback prose.

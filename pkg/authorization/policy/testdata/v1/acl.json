@@ -1,0 +1,27 @@
+{
+  "format": "authorization.policy/v1",
+  "revision": 1,
+  "algorithm": "deny-overrides",
+  "policies": [
+    {
+      "id": "document-acl",
+      "revision": 1,
+      "model": "acl",
+      "document": {
+        "version": 1,
+        "entries": [
+          {
+            "id": "alice-read",
+            "subject_kind": "user",
+            "subject_id": "alice",
+            "action": "document.read",
+            "resource_type": "document",
+            "resource_id": "document-1",
+            "tenant": "tenant-1",
+            "effect": "allow"
+          }
+        ]
+      }
+    }
+  ]
+}

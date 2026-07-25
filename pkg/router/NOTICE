@@ -1,0 +1,8 @@
+router
+Copyright (c) 2026 Brian Faust
+
+This product includes software developed by the Go project contributors.
+The Go standard library is distributed under a BSD-style license.
+
+Third-party development tools are not linked into or distributed with the
+library. Their pinned versions are recorded in the Makefile and workflows.

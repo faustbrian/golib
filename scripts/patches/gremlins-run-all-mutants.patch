@@ -1,0 +1,10 @@
+diff --git a/internal/engine/engine.go b/internal/engine/engine.go
+--- a/internal/engine/engine.go
++++ b/internal/engine/engine.go
+@@ -188,5 +188 @@
+-	var status mutator.Status
+-
+-	if mu.codeData.Cov.IsCovered(pos) {
+-		status = mutator.Runnable
+-	}
++	status := mutator.Runnable

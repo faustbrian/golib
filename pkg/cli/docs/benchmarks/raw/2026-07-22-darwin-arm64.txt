@@ -1,0 +1,242 @@
+# Root: GOWORK=off go test . -run '^$' -bench Benchmark -benchmem -benchtime=50ms -count=5
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/cli
+cpu: Apple M4 Max
+BenchmarkCompileSmallTree-16      	    7010	      8531 ns/op	   22888 B/op	     110 allocs/op
+BenchmarkCompileSmallTree-16      	    8143	      8260 ns/op	   22888 B/op	     110 allocs/op
+BenchmarkCompileSmallTree-16      	    8095	      8326 ns/op	   22888 B/op	     110 allocs/op
+BenchmarkCompileSmallTree-16      	    8082	      8283 ns/op	   22888 B/op	     110 allocs/op
+BenchmarkCompileSmallTree-16      	    8172	      8235 ns/op	   22888 B/op	     110 allocs/op
+BenchmarkCompileLargeTree-16      	     165	    362363 ns/op	 1215894 B/op	    4405 allocs/op
+BenchmarkCompileLargeTree-16      	     163	    364840 ns/op	 1215860 B/op	    4405 allocs/op
+BenchmarkCompileLargeTree-16      	     164	    363331 ns/op	 1215868 B/op	    4405 allocs/op
+BenchmarkCompileLargeTree-16      	     165	    362912 ns/op	 1215862 B/op	    4405 allocs/op
+BenchmarkCompileLargeTree-16      	     164	    366536 ns/op	 1215863 B/op	    4405 allocs/op
+BenchmarkCompileShapes/broad-16   	      48	   1224540 ns/op	 3036863 B/op	   17401 allocs/op
+BenchmarkCompileShapes/broad-16   	      56	   1227096 ns/op	 3036869 B/op	   17401 allocs/op
+BenchmarkCompileShapes/broad-16   	      55	   1222233 ns/op	 3036856 B/op	   17401 allocs/op
+BenchmarkCompileShapes/broad-16   	      51	   1209603 ns/op	 3036860 B/op	   17401 allocs/op
+BenchmarkCompileShapes/broad-16   	      52	   1220090 ns/op	 3036864 B/op	   17401 allocs/op
+BenchmarkCompileShapes/deep-16    	    1641	     37188 ns/op	   91793 B/op	     530 allocs/op
+BenchmarkCompileShapes/deep-16    	    1670	     37270 ns/op	   91792 B/op	     530 allocs/op
+BenchmarkCompileShapes/deep-16    	    1704	     36144 ns/op	   91792 B/op	     530 allocs/op
+BenchmarkCompileShapes/deep-16    	    1752	     36012 ns/op	   91792 B/op	     530 allocs/op
+BenchmarkCompileShapes/deep-16    	    1690	     36037 ns/op	   91792 B/op	     530 allocs/op
+BenchmarkCompileShapes/maximum-commands-16         	      18	   3361079 ns/op	 7113712 B/op	   41040 allocs/op
+BenchmarkCompileShapes/maximum-commands-16         	      16	   3323193 ns/op	 7113438 B/op	   41040 allocs/op
+BenchmarkCompileShapes/maximum-commands-16         	      16	   3364602 ns/op	 7113779 B/op	   41041 allocs/op
+BenchmarkCompileShapes/maximum-commands-16         	      16	   3376354 ns/op	 7113438 B/op	   41040 allocs/op
+BenchmarkCompileShapes/maximum-commands-16         	      16	   3404398 ns/op	 7113426 B/op	   41040 allocs/op
+BenchmarkDispatch-16                               	    2197	     27417 ns/op	   78640 B/op	     584 allocs/op
+BenchmarkDispatch-16                               	    2330	     27052 ns/op	   78645 B/op	     584 allocs/op
+BenchmarkDispatch-16                               	    2313	     27113 ns/op	   78641 B/op	     584 allocs/op
+BenchmarkDispatch-16                               	    2217	     27166 ns/op	   78644 B/op	     584 allocs/op
+BenchmarkDispatch-16                               	    2170	     27270 ns/op	   78646 B/op	     584 allocs/op
+BenchmarkDeepDispatch-16                           	    3867	     16553 ns/op	   55583 B/op	     328 allocs/op
+BenchmarkDeepDispatch-16                           	    3892	     16588 ns/op	   55582 B/op	     328 allocs/op
+BenchmarkDeepDispatch-16                           	    3861	     16670 ns/op	   55584 B/op	     328 allocs/op
+BenchmarkDeepDispatch-16                           	    3579	     16571 ns/op	   55585 B/op	     328 allocs/op
+BenchmarkDeepDispatch-16                           	    3855	     16490 ns/op	   55583 B/op	     328 allocs/op
+BenchmarkGeneration/help-16                        	    8136	      7589 ns/op	   11082 B/op	     151 allocs/op
+BenchmarkGeneration/help-16                        	    8769	      7584 ns/op	   11082 B/op	     151 allocs/op
+BenchmarkGeneration/help-16                        	    8486	      7520 ns/op	   11082 B/op	     151 allocs/op
+BenchmarkGeneration/help-16                        	    8828	      7441 ns/op	   11082 B/op	     151 allocs/op
+BenchmarkGeneration/help-16                        	    8016	      7501 ns/op	   11082 B/op	     151 allocs/op
+BenchmarkGeneration/manifest-16                    	     129	    460986 ns/op	  859212 B/op	     923 allocs/op
+BenchmarkGeneration/manifest-16                    	     130	    456682 ns/op	  863851 B/op	     921 allocs/op
+BenchmarkGeneration/manifest-16                    	     129	    460068 ns/op	  871326 B/op	     922 allocs/op
+BenchmarkGeneration/manifest-16                    	     128	    463649 ns/op	  870703 B/op	     922 allocs/op
+BenchmarkGeneration/manifest-16                    	     130	    457000 ns/op	  865888 B/op	     921 allocs/op
+BenchmarkGeneration/completion-16                  	   13154	      4546 ns/op	    8104 B/op	       5 allocs/op
+BenchmarkGeneration/completion-16                  	   13454	      4479 ns/op	    8104 B/op	       5 allocs/op
+BenchmarkGeneration/completion-16                  	   13383	      4475 ns/op	    8104 B/op	       5 allocs/op
+BenchmarkGeneration/completion-16                  	   13315	      4483 ns/op	    8104 B/op	       5 allocs/op
+BenchmarkGeneration/completion-16                  	   13419	      4484 ns/op	    8104 B/op	       5 allocs/op
+BenchmarkExecutionScenarios/typed-conversion-16    	   30764	      1944 ns/op	    6422 B/op	      50 allocs/op
+BenchmarkExecutionScenarios/typed-conversion-16    	   31692	      2042 ns/op	    6421 B/op	      50 allocs/op
+BenchmarkExecutionScenarios/typed-conversion-16    	   29545	      1977 ns/op	    6421 B/op	      50 allocs/op
+BenchmarkExecutionScenarios/typed-conversion-16    	   30992	      1922 ns/op	    6421 B/op	      50 allocs/op
+BenchmarkExecutionScenarios/typed-conversion-16    	   30246	      1969 ns/op	    6422 B/op	      50 allocs/op
+BenchmarkExecutionScenarios/usage-error-16         	   27420	      2182 ns/op	    5517 B/op	      49 allocs/op
+BenchmarkExecutionScenarios/usage-error-16         	   27464	      2179 ns/op	    5517 B/op	      49 allocs/op
+BenchmarkExecutionScenarios/usage-error-16         	   27796	      2162 ns/op	    5516 B/op	      49 allocs/op
+BenchmarkExecutionScenarios/usage-error-16         	   27913	      2159 ns/op	    5517 B/op	      49 allocs/op
+BenchmarkExecutionScenarios/usage-error-16         	   27706	      2158 ns/op	    5517 B/op	      49 allocs/op
+BenchmarkExecutionScenarios/validation-error-16    	   27130	      2188 ns/op	    5325 B/op	      42 allocs/op
+BenchmarkExecutionScenarios/validation-error-16    	   27468	      2187 ns/op	    5325 B/op	      42 allocs/op
+BenchmarkExecutionScenarios/validation-error-16    	   27601	      2332 ns/op	    5325 B/op	      42 allocs/op
+BenchmarkExecutionScenarios/validation-error-16    	   26806	      2231 ns/op	    5325 B/op	      42 allocs/op
+BenchmarkExecutionScenarios/validation-error-16    	   27040	      2220 ns/op	    5325 B/op	      42 allocs/op
+BenchmarkExecutionScenarios/suggestion-16          	   16014	      3751 ns/op	    9456 B/op	      80 allocs/op
+BenchmarkExecutionScenarios/suggestion-16          	   15840	      3878 ns/op	    9457 B/op	      80 allocs/op
+BenchmarkExecutionScenarios/suggestion-16          	   13675	      4228 ns/op	    9456 B/op	      80 allocs/op
+BenchmarkExecutionScenarios/suggestion-16          	   15877	      3782 ns/op	    9456 B/op	      80 allocs/op
+BenchmarkExecutionScenarios/suggestion-16          	   15855	      3768 ns/op	    9456 B/op	      80 allocs/op
+BenchmarkExecutionScenarios/json-output-16         	   28760	      2054 ns/op	    5445 B/op	      43 allocs/op
+BenchmarkExecutionScenarios/json-output-16         	   28342	      2070 ns/op	    5445 B/op	      43 allocs/op
+BenchmarkExecutionScenarios/json-output-16         	   30372	      2031 ns/op	    5445 B/op	      43 allocs/op
+BenchmarkExecutionScenarios/json-output-16         	   29274	      2010 ns/op	    5445 B/op	      43 allocs/op
+BenchmarkExecutionScenarios/json-output-16         	   28047	      2045 ns/op	    5445 B/op	      43 allocs/op
+BenchmarkExecutionScenarios/cancellation-16        	  134018	       441.5 ns/op	     232 B/op	       7 allocs/op
+BenchmarkExecutionScenarios/cancellation-16        	  143629	       445.3 ns/op	     232 B/op	       7 allocs/op
+BenchmarkExecutionScenarios/cancellation-16        	  141366	       518.6 ns/op	     232 B/op	       7 allocs/op
+BenchmarkExecutionScenarios/cancellation-16        	  143010	       432.2 ns/op	     232 B/op	       7 allocs/op
+BenchmarkExecutionScenarios/cancellation-16        	  139579	       434.5 ns/op	     232 B/op	       7 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/cli	5.006s
+
+# Comparison: GOWORK=off go test ./... -run '^$' -bench 'BenchmarkEquivalent(Construction|Dispatch)$' -benchmem -benchtime=50ms -count=10
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/cli/benchmarks
+cpu: Apple M4 Max
+BenchmarkEquivalentConstruction/cli-16         	   39526	      1483 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   39178	      1501 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   40225	      1484 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   40228	      1487 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   41426	      1459 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   40406	      1494 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   39547	      1497 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   39705	      1500 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   40207	      1490 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cli-16         	   40356	      1479 ns/op	    3808 B/op	      28 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  157341	       364.2 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  176137	       368.6 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  165489	       365.3 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  163142	       362.1 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  166494	       358.3 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  175560	       360.4 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  165153	       356.7 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  170510	       358.5 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  166006	       360.1 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/cobra-16          	  171434	       361.5 ns/op	    2328 B/op	      14 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  320520	       206.2 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  304857	       211.6 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  289568	       211.9 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  285051	       210.4 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  247746	       215.3 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  294501	       209.0 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  280750	       214.7 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  278341	       213.3 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  288542	       213.1 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/urfave-cli-v3-16  	  303931	       209.8 ns/op	    1672 B/op	       5 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	    8660	      6813 ns/op	   12771 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6394 ns/op	   12746 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6147 ns/op	   12768 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6185 ns/op	   12761 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6118 ns/op	   12764 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6050 ns/op	   12757 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6051 ns/op	   12731 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6044 ns/op	   12761 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6047 ns/op	   12746 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/kong-16           	   10000	      6121 ns/op	   12769 B/op	     166 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  548880	       109.2 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  581817	       109.0 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  534402	       108.8 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  582877	       109.2 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  542596	       108.5 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  559092	       109.2 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  579873	       108.2 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  557145	       109.6 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  568944	       108.6 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentConstruction/flag-16           	  579499	       109.5 ns/op	     449 B/op	       6 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18432	      3251 ns/op	    8998 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18579	      3189 ns/op	    8998 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18795	      3197 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18728	      3190 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18420	      3252 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18176	      3314 ns/op	    8998 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18168	      3334 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18135	      3289 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18546	      3251 ns/op	    8998 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cli-16             	   18436	      3236 ns/op	    8997 B/op	      82 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   54816	      1269 ns/op	    1418 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   52525	      1431 ns/op	    1420 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   53296	      1175 ns/op	    1419 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   50978	      1151 ns/op	    1421 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   54594	      1269 ns/op	    1418 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   26017	      2184 ns/op	    1417 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   47163	      1285 ns/op	    1414 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   54446	      1126 ns/op	    1418 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   54205	      1137 ns/op	    1418 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/cobra-16              	   54408	      1137 ns/op	    1418 B/op	      24 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   13668	      4044 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   20409	      2935 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   13503	      6539 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   10000	      8732 ns/op	    4332 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   10000	      9559 ns/op	    4332 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   19862	      2957 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   21049	     13071 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   10000	     41235 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   10000	      6250 ns/op	    4332 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/urfave-cli-v3-16      	   10000	      8229 ns/op	    4331 B/op	     178 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	   10000	     16199 ns/op	    6521 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	   10000	     23546 ns/op	    6522 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	    8803	      7781 ns/op	    6522 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	   10000	     24863 ns/op	    6522 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	    3115	     59422 ns/op	    6524 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	   10000	     30485 ns/op	    6521 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	    6381	     22244 ns/op	    6524 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	    5133	     17942 ns/op	    6525 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	    6944	     21714 ns/op	    6522 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/kong-16               	   10000	     11518 ns/op	    6524 B/op	     136 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  628216	       183.0 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  624538	       193.8 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  606110	       118.2 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  618609	        97.67 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  632326	        96.07 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  627805	        96.81 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  641282	        94.97 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  622621	       126.0 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  404016	       135.0 ns/op	      24 B/op	       1 allocs/op
+BenchmarkEquivalentDispatch/flag-16               	  620887	        96.22 ns/op	      24 B/op	       1 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/cli/benchmarks	8.558s
+
+# Statistical summary: GOWORK=off go run golang.org/x/perf/cmd/benchstat@latest /tmp/cli-compare-bench.txt
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/cli/benchmarks
+cpu: Apple M4 Max
+                                        │ /tmp/cli-compare-bench.txt │
+                                        │            sec/op             │
+EquivalentConstruction/cli-16                           1.489µ ±  1%
+EquivalentConstruction/cobra-16                            360.9n ±  1%
+EquivalentConstruction/urfave-cli-v3-16                    211.8n ±  1%
+EquivalentConstruction/kong-16                             6.120µ ±  4%
+EquivalentConstruction/flag-16                             109.1n ±  1%
+EquivalentDispatch/cli-16                               3.251µ ±  2%
+EquivalentDispatch/cobra-16                                1.222µ ± 17%
+EquivalentDispatch/urfave-cli-v3-16                        7.384µ ± 77%
+EquivalentDispatch/kong-16                                 21.98µ ± 48%
+EquivalentDispatch/flag-16                                 107.9n ± 70%
+geomean                                                    1.181µ
+
+                                        │ /tmp/cli-compare-bench.txt │
+                                        │             B/op              │
+EquivalentConstruction/cli-16                           3.719Ki ± 0%
+EquivalentConstruction/cobra-16                            2.273Ki ± 0%
+EquivalentConstruction/urfave-cli-v3-16                    1.633Ki ± 0%
+EquivalentConstruction/kong-16                             12.46Ki ± 0%
+EquivalentConstruction/flag-16                               449.0 ± 0%
+EquivalentDispatch/cli-16                               8.786Ki ± 0%
+EquivalentDispatch/cobra-16                                1.385Ki ± 0%
+EquivalentDispatch/urfave-cli-v3-16                        4.229Ki ± 0%
+EquivalentDispatch/kong-16                                 6.369Ki ± 0%
+EquivalentDispatch/flag-16                                   24.00 ± 0%
+geomean                                                    1.889Ki
+
+                                        │ /tmp/cli-compare-bench.txt │
+                                        │           allocs/op           │
+EquivalentConstruction/cli-16                             28.00 ± 0%
+EquivalentConstruction/cobra-16                              14.00 ± 0%
+EquivalentConstruction/urfave-cli-v3-16                      5.000 ± 0%
+EquivalentConstruction/kong-16                               166.0 ± 0%
+EquivalentConstruction/flag-16                               6.000 ± 0%
+EquivalentDispatch/cli-16                                 82.00 ± 0%
+EquivalentDispatch/cobra-16                                  24.00 ± 0%
+EquivalentDispatch/urfave-cli-v3-16                          178.0 ± 0%
+EquivalentDispatch/kong-16                                   136.0 ± 0%
+EquivalentDispatch/flag-16                                   1.000 ± 0%
+geomean                                                      24.94

@@ -1,0 +1,3 @@
+source	audited	item	disposition	evidence
+ECMA publication index	2026-07-20	No technical corrigendum is published for ECMA-262 16th edition.	No edition behavior change.	https://ecma-international.org/publications-and-standards/standards/ecma-262/
+tc39/ecma262 current draft	2026-07-20	Post-ES2025 draft corrections and finished proposals.	Unsupported until a new edition inventory is added.	edition.go; edition_test.go

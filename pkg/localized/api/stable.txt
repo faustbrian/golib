@@ -1,0 +1,120 @@
+## .
+func EncodeJSON(value Text) ([]byte, error)
+type Builder struct{ ... }
+    func NewBuilder(options ConstructionOptions) *Builder
+type ConstructionOptions struct{ ... }
+type DecodeOptions struct{ ... }
+type DuplicatePolicy uint8
+    const RejectDuplicates DuplicatePolicy = iota ...
+type EmptyPolicy uint8
+    const EmptyIsValue EmptyPolicy = iota ...
+type Entry struct{ ... }
+type Error string
+    const ErrConflict Error = "localized: merge conflict" ...
+type JSONMode uint8
+    const StrictJSON JSONMode = iota ...
+type Limits struct{ ... }
+    func DefaultLimits() Limits
+type LocalePolicy struct{ ... }
+type MergeOptions struct{ ... }
+type MergePolicy uint8
+    const LeftWins MergePolicy = iota ...
+type MergeResolver func(locale locale.Tag, left, right string) (string, error)
+type Pair struct{ ... }
+type Text struct{ ... }
+    func DecodeJSON(data []byte, options DecodeOptions) (Text, error)
+    func NewText(entries ...Entry) (Text, error)
+    func NewTextWithLimits(limits Limits, entries ...Entry) (Text, error)
+    func NewTextWithOptions(options ConstructionOptions, entries ...Entry) (Text, error)
+    func TextFromMap(values map[string]string) (Text, error)
+    func TextFromPairs(pairs ...Pair) (Text, error)
+    func TextFromPairsWithOptions(options ConstructionOptions, pairs ...Pair) (Text, error)
+## ./encoding
+func MarshalEntries(value localized.Text) ([]byte, error)
+func UnmarshalEntries(data []byte, options DecodeOptions) (localized.Text, error)
+type DecodeOptions struct{ ... }
+type Entry struct{ ... }
+## ./http
+func ParseAcceptLanguage(header string, options ParseOptions) ([]localizedmatch.Preference, error)
+func Select(value localized.Text, header string, options ParseOptions) (localizedmatch.Result, error)
+type Error string
+    const ErrCandidateLimit Error = "localized http: candidate limit exceeded" ...
+type ParseOptions struct{ ... }
+## ./localizedconfig
+type Error string
+    const ErrInvalidValue Error = "localized config: invalid value"
+type Text struct{ ... }
+    func NewText(value localized.Text) Text
+## ./localizedhttpclient
+func SelectResponse(value localized.Text, response *http.Response, ...) (localizedmatch.Result, error)
+func WithPreferences(spec httpclient.RequestSpec, layer httpclient.RequestLayer, ...) (httpclient.RequestSpec, error)
+type Error string
+    const ErrInvalidResponse Error = "localized http client: invalid response"
+## ./localizedquery
+func ExactPredicate(name string, operator apiquery.Operator, value localized.Text, tag locale.Tag) (*apiquery.Predicate, error)
+func ExactValue(value localized.Text, tag locale.Tag) (apiquery.Value, bool)
+## ./localizedtest
+func AssertEqual(t testing.TB, got, want localized.Text)
+func AssertExact(t testing.TB, value localized.Text, tag locale.Tag, want string)
+func AssertResult(t testing.TB, result localizedmatch.Result, kind localizedmatch.Kind, ...)
+type Builder struct{ ... }
+    func New(t testing.TB) *Builder
+type CanonicalizationVector struct{ ... }
+    func CanonicalizationVectors() []CanonicalizationVector
+## ./localizedvalidation
+func Normalize(value localized.Text, form Form) (localized.Text, error)
+func Validate(value localized.Text, rules ...Rule) error
+func Validator(rules ...Rule) validationcore.Validator[localized.Text]
+type Error string
+    const ErrBytesExceeded Error = "localized validation: byte limit exceeded" ...
+type Form uint8
+    const NFC Form = iota ...
+type Rule interface{ ... }
+    func MaxBytes(max int) Rule
+    func MaxLines(max int) Rule
+    func MaxRunes(max int) Rule
+    func NoControlCharacters() Rule
+    func RequireNonEmpty() Rule
+    func RequireNonWhitespace() Rule
+## ./localizedwire
+func DecodeJSON(data []byte, options jsonwire.DecodeOptions) (localized.Text, error)
+func DecodeMessagePack(data []byte, options msgpackwire.DecodeOptions) (localized.Text, error)
+func DecodeTOML(data []byte, options tomlwire.DecodeOptions) (localized.Text, error)
+func DecodeYAML(data []byte, options yamlwire.DecodeOptions) (localized.Text, error)
+func EncodeJSON(value localized.Text, options jsonwire.EncodeOptions) ([]byte, error)
+func EncodeMessagePack(value localized.Text, options msgpackwire.EncodeOptions) ([]byte, error)
+func EncodeTOML(value localized.Text, options tomlwire.EncodeOptions) ([]byte, error)
+func EncodeYAML(value localized.Text, options yamlwire.EncodeOptions) ([]byte, error)
+## ./match
+type Candidate struct{ ... }
+type CandidateKind uint8
+    const ExactLocale CandidateKind = iota ...
+type Chain struct{ ... }
+type Error string
+    const ErrCandidateLimit Error = "localized match: candidate limit exceeded" ...
+type Event struct{ ... }
+type FallbackPlan struct{ ... }
+    func NewFallbackPlan(candidates []locale.Tag, defaultTag *locale.Tag, max int) (FallbackPlan, error)
+type Kind uint8
+    const Missing Kind = iota ...
+type Observer interface{ ... }
+type ObserverFunc func(Event)
+type Operation uint8
+    const OperationMatch Operation = iota ...
+type Options struct{ ... }
+type Plan struct{ ... }
+    func NewPlan(chains []Chain, options PlanOptions) (Plan, error)
+type PlanOptions struct{ ... }
+type Preference struct{ ... }
+type Result struct{ ... }
+    func Best(value localized.Text, preferences ...Preference) (Result, error)
+    func BestWithOptions(value localized.Text, options Options, preferences ...Preference) (Result, error)
+## ./postgres
+func FromRows(rows []Row) (localized.Text, error)
+func JSONBCodec() *pgtype.JSONBCodec
+type Error string
+    const ErrUnsupportedDatabaseType Error = "localized postgres: unsupported database type"
+type Row struct{ ... }
+    func Rows(value localized.Text) []Row
+type Text struct{ ... }
+    func NewText(value localized.Text) Text

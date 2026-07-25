@@ -1,0 +1,26 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      core-go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /adapters/goqueue
+    schedule:
+      interval: weekly
+    groups:
+      adapter-go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

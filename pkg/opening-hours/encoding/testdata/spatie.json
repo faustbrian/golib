@@ -1,0 +1,12 @@
+{
+  "timezone": "Europe/Helsinki",
+  "days": {
+    "monday": ["09:00-17:00"],
+    "tuesday": ["09:00-17:00"],
+    "wednesday": ["09:00-17:00"],
+    "thursday": ["09:00-17:00"],
+    "friday": ["09:00-17:00"],
+    "saturday": ["10:00-14:00"],
+    "sunday": []
+  }
+}

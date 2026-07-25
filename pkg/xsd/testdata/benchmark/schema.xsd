@@ -1,0 +1,17 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:tns="urn:benchmark"
+  targetNamespace="urn:benchmark"
+  elementFormDefault="qualified">
+  <xs:simpleType name="Code">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="Root">
+    <xs:sequence>
+      <xs:element name="code" type="tns:Code" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="status" type="xs:string" use="required"/>
+  </xs:complexType>
+  <xs:element name="root" type="tns:Root"/>
+</xs:schema>
