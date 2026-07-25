@@ -9,6 +9,8 @@ and releases use Semantic Versioning.
 
 - Replaced obsolete package-local workflow references with the authoritative
   root CI matrix and its canonical per-module quality contract.
+- Optional filesystem-backed sources now recognize missing files returned by
+  `os.DirFS` without invoking extension-defined error callbacks.
 
 ### Added
 
