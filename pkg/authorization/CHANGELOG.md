@@ -9,6 +9,8 @@ versioning for its Go API and portable policy format.
 
 ### Changed
 
+- Align the integration-contract module's indirect system dependency with its
+  resolved graph so clean consumers and CI obtain reproducible module metadata.
 - Make synchronizer cancellation coverage deterministic across scheduler timing
   differences on local and hosted runners.
 - Execute API compatibility tooling against the isolated module graph so owned
