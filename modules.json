@@ -7320,6 +7320,101 @@
       }
     },
     {
+      "directory": "pkg/kafka",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/kafka",
+          "directory": ".",
+          "name": "kafka",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`kafka` is the bounded first-party Apache Kafka client policy for Go services. It wraps franz-go with safe producer, consumer, transaction, replay, TLS, SASL, health, topic inspection, and consumer-lag behavior.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/kafka/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/twmb/franz-go",
+        "github.com/twmb/franz-go/pkg/kadm"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/kafka/.ai/GOAL.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/kafka/.ai/GOAL.md",
+          "requirements_sha256": "efe3785f362dcdb8d2254de7cc60f52311558bbf386557a2ba09403dc22cff0a",
+          "implementation_evidence": [
+            "pkg/kafka/CHANGELOG.md",
+            "pkg/kafka/README.md",
+            "pkg/kafka/docs/README.md",
+            "pkg/kafka/docs/api.md",
+            "pkg/kafka/docs/architecture.md",
+            "pkg/kafka/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/keyphrase",
       "module_path": "github.com/faustbrian/golib/pkg/keyphrase",
       "go_version": "1.26.5",
@@ -10687,6 +10782,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/webhook"
@@ -10786,6 +10882,62 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/outbox/adapters/gokafka",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/outbox/adapters/gokafka",
+          "directory": ".",
+          "name": "gokafka",
+          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`gokafka` adapts `outbox.Envelope` to the first-party `kafka.Producer`.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/outbox/adapters/gokafka/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/kafka",
+        "github.com/faustbrian/golib/pkg/outbox"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [
+        "postgresql"
+      ],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,

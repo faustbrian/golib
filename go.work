@@ -37,6 +37,7 @@ use (
 	./pkg/json-schema/benchmarks/comparison
 	./pkg/jsonapi
 	./pkg/jsonrpc
+	./pkg/kafka
 	./pkg/keyphrase
 	./pkg/knapsack
 	./pkg/knapsack/integration/references
@@ -53,6 +54,7 @@ use (
 	./pkg/opening-hours
 	./pkg/openrpc
 	./pkg/outbox
+	./pkg/outbox/adapters/gokafka
 	./pkg/outbox/adapters/goqueue
 	./pkg/outbox/adapters/gotelemetry
 	./pkg/password
@@ -156,6 +158,8 @@ replace github.com/faustbrian/golib/pkg/jsonapi v0.1.0 => ./pkg/jsonapi
 
 replace github.com/faustbrian/golib/pkg/jsonrpc v0.1.0 => ./pkg/jsonrpc
 
+replace github.com/faustbrian/golib/pkg/kafka v0.1.0 => ./pkg/kafka
+
 replace github.com/faustbrian/golib/pkg/keyphrase v0.1.0 => ./pkg/keyphrase
 
 replace github.com/faustbrian/golib/pkg/knapsack v0.1.0 => ./pkg/knapsack
@@ -187,6 +191,8 @@ replace github.com/faustbrian/golib/pkg/opening-hours v0.1.0 => ./pkg/opening-ho
 replace github.com/faustbrian/golib/pkg/openrpc v0.1.0 => ./pkg/openrpc
 
 replace github.com/faustbrian/golib/pkg/outbox/adapters/goqueue v0.1.0 => ./pkg/outbox/adapters/goqueue
+
+replace github.com/faustbrian/golib/pkg/outbox/adapters/gokafka v0.1.0 => ./pkg/outbox/adapters/gokafka
 
 replace github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry v0.1.0 => ./pkg/outbox/adapters/gotelemetry
 

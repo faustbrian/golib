@@ -2981,6 +2981,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/kafka",
+      "directory": ".",
+      "name": "kafka",
+      "import_path": "github.com/faustbrian/golib/pkg/kafka",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/keyphrase",
       "directory": ".",
       "name": "keyphrase",
@@ -4535,6 +4547,18 @@
       "directory": ".",
       "name": "outbox",
       "import_path": "github.com/faustbrian/golib/pkg/outbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/outbox/adapters/gokafka",
+      "directory": ".",
+      "name": "gokafka",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
       "kind": "public",
       "production": true,
       "executable": true,
