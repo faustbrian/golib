@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"math"
+	"syscall"
 	"time"
 
 	config "github.com/faustbrian/golib/pkg/config"
@@ -243,6 +244,9 @@ func classifyNotExist(sourceErr error) bool {
 	for range 16 {
 		if sourceErr == fs.ErrNotExist {
 			return true
+		}
+		if errno, ok := sourceErr.(syscall.Errno); ok {
+			return errors.Is(errno, fs.ErrNotExist)
 		}
 		pathError, ok := sourceErr.(*fs.PathError)
 		if !ok || pathError == nil {

@@ -124,6 +124,21 @@ func TestFromFSPreservesNonAbsenceOpenError(t *testing.T) {
 	}
 }
 
+func TestFromFSClassifiesMissingOSDirFSFileAsNotFound(t *testing.T) {
+	t.Parallel()
+
+	input, err := FromFS(os.DirFS(t.TempDir()), "missing.env")
+	if err != nil {
+		t.Fatalf("FromFS() error = %v", err)
+	}
+	if _, err := input.Read(context.Background(), 100); !errors.Is(
+		err,
+		config.ErrNotFound,
+	) {
+		t.Fatalf("Read() error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestFromFSClosesFileReturnedWithOpenError(t *testing.T) {
 	t.Parallel()
 
