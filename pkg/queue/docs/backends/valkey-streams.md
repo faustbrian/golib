@@ -59,7 +59,7 @@ that panics on the same errors.
 | `WithStreamName` | `golang-queue` | Source stream |
 | `WithGroup` | `golang-queue` | Consumer group created from ID `0` |
 | `WithConsumer` | `queue-PID` | Stable, non-empty worker identity |
-| `WithMaxLength` | 10,000 | Positive approximate source-stream trim target |
+| `WithMaxLength` | 10,000 | Positive hard source-stream admission capacity |
 | `WithRecordRetention` | Disabled | Positive exact maximum for failure and dead-letter streams |
 | `WithReadBatchSize` | 16 | 1 through 256 |
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
@@ -72,6 +72,15 @@ that panics on the same errors.
 The client uses one standalone endpoint, bounded blocking connections, 32 KiB
 per-connection buffers, no client cache, no transparent command retry, and
 cancellation-aware contexts. The package owns client creation and closure.
+
+Source capacity never uses `MAXLEN` trimming. Enqueue, retry, and replay return
+`queue.ErrMaxCapacity` or the equivalent rejected management outcome when the
+hard capacity is occupied. Successful acknowledgement atomically removes the
+entry from the current group's pending list, then deletes its source body only
+after every consumer group that already exists on the stream has delivered and
+settled that entry. Create every required group before admitting work; groups
+created later do not acquire entries that have already been settled and
+deleted.
 
 Failure and dead-letter retention is independent of source `WithMaxLength` and
 disabled by default. `WithRecordRetention(maxRecords)` deliberately enables an
@@ -106,9 +115,9 @@ dial failures return fixed safe text while preserving the native cause for
 `errors.Is` and `errors.As`; do not separately log the unwrapped cause.
 
 Grant producers append access and workers the minimum stream/group commands:
-`XADD`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`, `XAUTOCLAIM`,
-`XINFO GROUPS`, `XRANGE`, and append/read access to the configured failure and
-dead-letter streams.
+`EVAL`, `XADD`, `XLEN`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`,
+`XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and append/read access to the
+configured failure and dead-letter streams.
 
 ## Delivery, retry, and dead-letter behavior
 
@@ -117,7 +126,9 @@ The backend provides at-least-once delivery:
 1. `XADD` appends a bounded encoded message with a server-generated stream ID.
 2. `XREADGROUP` transfers it to the consumer group's pending-entry list.
 3. Handler retries run inside the same delivery attempt.
-4. Success sends `XACK` only after the handler returns successfully.
+4. Success atomically acknowledges only after the handler returns, retaining
+   the source body until every existing consumer group has settled it and then
+   deleting it.
 5. Each handler failure appends a bounded failed-attempt record and leaves the
    source entry pending.
 6. `XAUTOCLAIM` moves sufficiently idle work to a live consumer and increments

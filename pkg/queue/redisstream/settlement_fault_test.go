@@ -25,8 +25,8 @@ func TestRedisMalformedSettlementKeepsSourceRecoverableAtEveryBoundary(t *testin
 		"pending inspection": {command: "xpending"},
 		"lineage decoding":   {lineage: true},
 		"destination append": {command: "xadd"},
-		"source ack error":   {command: "xack"},
-		"source ack unknown": {command: "xack", stop: true},
+		"source ack error":   {command: "eval"},
+		"source ack unknown": {command: "eval", stop: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			worker, message := newPendingRedisMessage(t)
@@ -43,7 +43,7 @@ func TestRedisMalformedSettlementKeepsSourceRecoverableAtEveryBoundary(t *testin
 			if test.command == "xadd" {
 				assert.Equal(t, management.FailureCodeDeadLetterDestinationUnavailable, resolution.Code)
 			}
-			if test.command == "xack" && test.stop {
+			if test.command == "eval" && test.stop {
 				assert.Equal(t, management.FailureCodeLeaseLost, resolution.Code)
 			}
 			pending, pendingErr := worker.rdb.XPending(t.Context(), "jobs", "workers").Result()

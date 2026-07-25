@@ -36,6 +36,50 @@ const (
 	replayOriginalDeadLetterField = "replay_original_dead_letter_id"
 	replayPriorDeadLetterField    = "replay_prior_dead_letter_id"
 	replayGenerationField         = "replay_generation"
+	redisEnqueueScript            = `
+local capacity = tonumber(ARGV[1])
+if capacity > 0 and redis.call('XLEN', KEYS[1]) >= capacity then return 'capacity' end
+return redis.call('XADD', KEYS[1], '*', 'body', ARGV[2])
+`
+	redisAcknowledgeScript = `
+local function parseID(id)
+  local separator = string.find(id, '-', 1, true)
+  if not separator then return nil, nil end
+  return string.sub(id, 1, separator - 1), string.sub(id, separator + 1)
+end
+local function decimalBefore(left, right)
+  left = string.gsub(left, '^0+', '')
+  right = string.gsub(right, '^0+', '')
+  if left == '' then left = '0' end
+  if right == '' then right = '0' end
+  if string.len(left) ~= string.len(right) then return string.len(left) < string.len(right) end
+  return left < right
+end
+local function isBefore(left, right)
+  local leftTime, leftSequence = parseID(left)
+  local rightTime, rightSequence = parseID(right)
+  if not leftTime or not leftSequence or not rightTime or not rightSequence then return nil end
+  return decimalBefore(leftTime, rightTime) or
+    (leftTime == rightTime and decimalBefore(leftSequence, rightSequence))
+end
+if redis.call('XACK', KEYS[1], ARGV[1], ARGV[2]) ~= 1 then return 'lease_lost' end
+local groups = redis.call('XINFO', 'GROUPS', KEYS[1])
+for _, fields in ipairs(groups) do
+  local group = nil
+  local lastDelivered = nil
+  for index = 1, #fields, 2 do
+    if fields[index] == 'name' then group = fields[index + 1] end
+    if fields[index] == 'last-delivered-id' then lastDelivered = fields[index + 1] end
+  end
+  if not group or not lastDelivered then return 'retained' end
+  local pending = redis.call('XPENDING', KEYS[1], group, ARGV[2], ARGV[2], 1)
+  if #pending > 0 then return 'retained' end
+  local before = isBefore(lastDelivered, ARGV[2])
+  if before == nil or before then return 'retained' end
+end
+redis.call('XDEL', KEYS[1], ARGV[2])
+return 'deleted'
+`
 )
 
 // BackendName identifies Redis Streams in lifecycle events.
@@ -164,7 +208,7 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 		w.groupLagSupported = infoErr == nil && redisGroupLagSupported(info)
 	}
 	w.ack = func(id string) error {
-		return w.rdb.XAck(context.Background(), w.opts.streamName, w.opts.group, id).Err()
+		return w.acknowledgeRecord(context.Background(), id)
 	}
 	w.readGroup = func(ctx context.Context, args *redis.XReadGroupArgs) ([]redis.XStream, error) {
 		return w.rdb.XReadGroup(ctx, args).Result()
@@ -333,17 +377,19 @@ func (w *Worker) Shutdown() error {
 	return nil
 }
 
-func (w *Worker) queue(data interface{}) error {
+func (w *Worker) queue(body string) error {
 	ctx := context.Background()
-
-	// Publish a message.
-	err := w.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: w.opts.streamName,
-		MaxLen: w.opts.maxLength,
-		Values: data,
-	}).Err()
-
-	return err
+	outcome, err := w.rdb.Eval(
+		ctx, redisEnqueueScript, []string{w.opts.streamName},
+		w.opts.maxLength, body,
+	).Text()
+	if err != nil {
+		return err
+	}
+	if outcome == "capacity" {
+		return queue.ErrMaxCapacity
+	}
+	return nil
 }
 
 // Queue send notification to queue
@@ -352,7 +398,7 @@ func (w *Worker) Queue(task core.TaskMessage) error {
 		return queue.ErrQueueShutdown
 	}
 
-	return w.queue(map[string]interface{}{"body": bytesconv.BytesToStr(task.Bytes())})
+	return w.queue(bytesconv.BytesToStr(task.Bytes()))
 }
 
 // Run start the worker
@@ -595,15 +641,28 @@ func redisLineageFromValues(values map[string]any) (redisReplayLineage, error) {
 }
 
 func (w *Worker) acknowledgeRecord(ctx context.Context, id string) error {
-	acknowledged, err := w.rdb.XAck(ctx, w.opts.streamName, w.opts.group, id).Result()
+	outcome, err := w.rdb.Eval(
+		ctx, redisAcknowledgeScript, []string{w.opts.streamName}, w.opts.group, id,
+	).Text()
 	if err != nil {
-		return fmt.Errorf("settle Redis stream dead letter source: %w", err)
+		return management.NewFailure(
+			management.ClassificationInfrastructure,
+			management.FailureCodeLeaseLost,
+			fmt.Errorf("settle Redis stream dead letter source: %w", err),
+		)
 	}
-	if acknowledged != 1 {
+	if outcome == "lease_lost" {
 		return management.NewFailure(
 			management.ClassificationInfrastructure,
 			management.FailureCodeLeaseLost,
 			errors.New("redis stream delivery is no longer pending"),
+		)
+	}
+	if outcome != "deleted" && outcome != "retained" {
+		return management.NewFailure(
+			management.ClassificationInfrastructure,
+			management.FailureCodeLeaseLost,
+			errors.New("redis stream acknowledgement result is unknown"),
 		)
 	}
 

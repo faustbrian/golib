@@ -158,6 +158,12 @@ func TestNativeControllerFailsClosedAndReportsMutationUncertainty(t *testing.T) 
 	result, err = worker.Execute(context.Background(), malformed)
 	require.NoError(t, err)
 	assert.Equal(t, management.CommandFailed, result.Status)
+	transport.retryOutcome = nativeRetryCapacity
+	capacity := nativeCommand("capacity", management.CommandRetry, management.TargetFailure, "1-0")
+	result, err = worker.Execute(context.Background(), capacity)
+	require.NoError(t, err)
+	assert.Equal(t, management.CommandRejected, result.Status)
+	assert.Equal(t, "queue_capacity", result.FailureCode)
 	transport.retryOutcome = nativeRetryOutcome("unexpected")
 	unexpected := nativeCommand("unexpected", management.CommandRetry, management.TargetFailure, "1-0")
 	result, err = worker.Execute(context.Background(), unexpected)
@@ -195,6 +201,11 @@ func TestNativeControllerBulkPartialOutcomesAndExistingCancellation(t *testing.T
 	result, err = worker.Execute(context.Background(), bulk("delete-partial"))
 	require.NoError(t, err)
 	assert.Equal(t, management.CommandPartial, result.Status)
+	transport.retryOutcome = nativeRetryCapacity
+	result, err = worker.Execute(context.Background(), bulk("capacity"))
+	require.NoError(t, err)
+	assert.Equal(t, management.CommandRejected, result.Status)
+	assert.Equal(t, "queue_capacity", result.FailureCode)
 	transport.records = nil
 	transport.retryOutcome = ""
 	result, err = worker.Execute(context.Background(), bulk("empty"))
@@ -290,6 +301,7 @@ func TestNativeControllerReplaysOnlyToConfiguredDestinations(t *testing.T) {
 	for outcome, expected := range map[nativeReplayOutcome]management.CommandResultStatus{
 		nativeReplayNotFound:              management.CommandRejected,
 		nativeReplayMalformed:             management.CommandFailed,
+		nativeReplayCapacity:              management.CommandRejected,
 		nativeReplayOutcome("unexpected"): management.CommandUnknown,
 	} {
 		replay.ID = "replay-" + string(outcome)

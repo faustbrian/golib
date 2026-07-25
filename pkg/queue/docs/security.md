@@ -21,10 +21,12 @@ responsibilities.
   encoded-envelope limit.
 
 Redis Pub/Sub, Core NATS, NSQ, and RabbitMQ do not expose durable depth or
-retention controls through this package. Redis Streams pending entries are
-bounded only by broker and operational policy. Valkey bounds individual reads,
-reclaim scans, payloads, buffers, pools, waits, attempts, and approximate stream
-length, but server memory and retention remain operator responsibilities.
+retention controls through this package. Redis Streams direct admission is
+bounded only when a positive `WithMaxLength` is configured; administrative
+cross-key admission remains subject to documented race overrun. Valkey bounds source admission,
+individual reads, reclaim scans, payloads, buffers, pools, waits, and attempts,
+but server memory and management-record retention remain operator
+responsibilities.
 Configure broker-side quotas, retention, dead-lettering, and connection limits.
 
 ## Credentials and transport security

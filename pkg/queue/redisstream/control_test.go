@@ -60,7 +60,7 @@ func TestControllerRetriesDeadLetterIdempotentlyAfterDurableEnqueue(t *testing.T
 	assert.ErrorIs(t, err, management.ErrRecordNotFound)
 	length, err := worker.rdb.XLen(context.Background(), "jobs").Result()
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), length)
+	assert.Equal(t, int64(1), length)
 	retried, err := worker.rdb.XRevRangeN(context.Background(), "jobs", "+", "-", 1).Result()
 	require.NoError(t, err)
 	require.Len(t, retried, 1)
@@ -73,7 +73,7 @@ func TestControllerRetriesDeadLetterIdempotentlyAfterDurableEnqueue(t *testing.T
 	assert.Equal(t, result, repeated)
 	length, err = worker.rdb.XLen(context.Background(), "jobs").Result()
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), length)
+	assert.Equal(t, int64(1), length)
 }
 
 func TestControllerBulkRetryDeleteAndPurgeStayBounded(t *testing.T) {

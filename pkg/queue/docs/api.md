@@ -63,13 +63,15 @@ consumer-group `Depth`, `Pending`, `Lag`, whether lag is known, and
 `OldestJobAge`. `Depth` is `-1` when Redis reports indeterminate lag.
 `WithRecordRetention` deliberately enables exact maximum-count retention for
 failure and dead-letter streams; it is independent of source `WithMaxLength`.
+A positive source `WithMaxLength` is a hard direct-enqueue capacity and never
+uses destructive source trimming.
 
 Valkey Streams provides a package-owned API in `valkeystream`: `NewWorkerE`,
 `NewWorker`, `Worker`, `Option`, `ConfigurationError`, and `Stats`. Connection
 options cover address, ACL authentication, database, cloned TLS configuration,
 client identity, dial/command/request/block/shutdown timeouts, and the bounded
-blocking pool. Queue options cover stream, group, consumer, approximate source
-length, exact record retention, read batch, reclaim policy, dead-letter policy,
+blocking pool. Queue options cover stream, group, consumer, hard source
+admission capacity, exact record retention, read batch, reclaim policy, dead-letter policy,
 logger, and handler.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.

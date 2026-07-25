@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/internal/streamqueue"
 	"github.com/faustbrian/golib/pkg/queue/management"
 	"github.com/stretchr/testify/assert"
@@ -147,6 +148,11 @@ func TestNativeTransportPropagatesValidationAndBackendFailures(t *testing.T) {
 		_, err = transport.Add(ctx, streamqueue.AddRequest{Stream: "stream", MaxLength: 1, Body: []byte("x")})
 		assert.ErrorIs(t, err, backendErr)
 		assert.NotContains(t, err.Error(), backendErr.Error())
+		transport, _ = faultTransport(t, stubResult{text: "capacity"})
+		_, err = transport.Add(ctx, streamqueue.AddRequest{
+			Stream: "stream", MaxLength: 1, Body: []byte("x"),
+		})
+		assert.ErrorIs(t, err, queue.ErrMaxCapacity)
 	})
 
 	t.Run("read", func(t *testing.T) {
@@ -188,10 +194,12 @@ func TestNativeTransportPropagatesValidationAndBackendFailures(t *testing.T) {
 		assert.ErrorIs(t, transport.Ack(ctx, streamqueue.AckRequest{}), streamqueue.ErrInvalidSemanticRequest)
 		request := streamqueue.AckRequest{Stream: "stream", Group: "group", ID: "1-0"}
 		assert.ErrorIs(t, transport.Ack(ctx, request), backendErr)
-		client.results = []stubResult{{integer: 0}}
+		client.results = []stubResult{{text: "lease_lost"}}
 		resolution := management.ResolveFailure(transport.Ack(ctx, request))
 		assert.Equal(t, management.ClassificationInfrastructure, resolution.Classification)
 		assert.Equal(t, management.FailureCodeLeaseLost, resolution.Code)
+		client.results = []stubResult{{text: "unexpected"}}
+		assert.ErrorIs(t, transport.Ack(ctx, request), streamqueue.ErrMalformedDelivery)
 	})
 
 	t.Run("dead letter", func(t *testing.T) {
@@ -203,7 +211,7 @@ func TestNativeTransportPropagatesValidationAndBackendFailures(t *testing.T) {
 		transport, client := faultTransport(t, stubResult{err: backendErr})
 		assert.ErrorIs(t, transport.DeadLetter(ctx, streamqueue.DeadLetterRequest{}), streamqueue.ErrInvalidSemanticRequest)
 		assert.ErrorIs(t, transport.DeadLetter(ctx, request), backendErr)
-		client.results = []stubResult{{}, {integer: 0}}
+		client.results = []stubResult{{}, {text: "lease_lost"}}
 		assert.ErrorContains(t, transport.DeadLetter(ctx, request), "settle dead letter source")
 	})
 

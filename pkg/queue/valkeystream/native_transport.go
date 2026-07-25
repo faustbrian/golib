@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/internal/safeerr"
 	"github.com/faustbrian/golib/pkg/queue/internal/streamqueue"
 	"github.com/faustbrian/golib/pkg/queue/management"
@@ -31,7 +32,70 @@ const (
 	replayPriorDeadLetterField    = "replay_prior_dead_letter_id"
 	replayGenerationField         = "replay_generation"
 	minimumRingScale              = 8
-	retryRecordScript             = `
+	enqueueScript                 = `
+if redis.call('XLEN', KEYS[1]) >= tonumber(ARGV[1]) then return 'capacity' end
+return redis.call('XADD', KEYS[1], '*', 'body', ARGV[2])
+`
+	acknowledgeScript = `
+local function parseID(id)
+  local separator = string.find(id, '-', 1, true)
+  if not separator then return nil, nil end
+  return string.sub(id, 1, separator - 1), string.sub(id, separator + 1)
+end
+local function decimalBefore(left, right)
+  left = string.gsub(left, '^0+', '')
+  right = string.gsub(right, '^0+', '')
+  if left == '' then left = '0' end
+  if right == '' then right = '0' end
+  if string.len(left) ~= string.len(right) then return string.len(left) < string.len(right) end
+  return left < right
+end
+local function isBefore(left, right)
+  local leftTime, leftSequence = parseID(left)
+  local rightTime, rightSequence = parseID(right)
+  if not leftTime or not leftSequence or not rightTime or not rightSequence then return nil end
+  return decimalBefore(leftTime, rightTime) or
+    (leftTime == rightTime and decimalBefore(leftSequence, rightSequence))
+end
+if redis.call('XACK', KEYS[1], ARGV[1], ARGV[2]) ~= 1 then return 'lease_lost' end
+local groups = redis.call('XINFO', 'GROUPS', KEYS[1])
+for _, fields in ipairs(groups) do
+  local group = nil
+  local lastDelivered = nil
+  for index = 1, #fields, 2 do
+    if fields[index] == 'name' then group = fields[index + 1] end
+    if fields[index] == 'last-delivered-id' then lastDelivered = fields[index + 1] end
+  end
+  if not group or not lastDelivered then return 'retained' end
+  local pending = redis.call('XPENDING', KEYS[1], group, ARGV[2], ARGV[2], 1)
+  if #pending > 0 then return 'retained' end
+  local before = isBefore(lastDelivered, ARGV[2])
+  if before == nil or before then return 'retained' end
+end
+redis.call('XDEL', KEYS[1], ARGV[2])
+return 'deleted'
+`
+	retryRecordScript = `
+local function parseID(id)
+  local separator = string.find(id, '-', 1, true)
+  if not separator then return nil, nil end
+  return string.sub(id, 1, separator - 1), string.sub(id, separator + 1)
+end
+local function decimalBefore(left, right)
+  left = string.gsub(left, '^0+', '')
+  right = string.gsub(right, '^0+', '')
+  if left == '' then left = '0' end
+  if right == '' then right = '0' end
+  if string.len(left) ~= string.len(right) then return string.len(left) < string.len(right) end
+  return left < right
+end
+local function isBefore(left, right)
+  local leftTime, leftSequence = parseID(left)
+  local rightTime, rightSequence = parseID(right)
+  if not leftTime or not leftSequence or not rightTime or not rightSequence then return nil end
+  return decimalBefore(leftTime, rightTime) or
+    (leftTime == rightTime and decimalBefore(leftSequence, rightSequence))
+end
 local record = redis.call('XRANGE', KEYS[1], ARGV[1], ARGV[1])
 if #record == 0 then return 'not_found' end
 local body = nil
@@ -53,9 +117,27 @@ for index = 1, #record[1][2], 2 do
   end
 end
 if not body or not original then return 'malformed' end
+local sourceDeletable = false
 if ARGV[3] == 'failure' then
   local pending = redis.call('XPENDING', KEYS[3], ARGV[2], original, original, 1)
   if #pending == 0 then return 'stale' end
+  sourceDeletable = true
+  local groups = redis.call('XINFO', 'GROUPS', KEYS[3])
+  for _, fields in ipairs(groups) do
+    local group = nil
+    local lastDelivered = nil
+    for index = 1, #fields, 2 do
+      if fields[index] == 'name' then group = fields[index + 1] end
+      if fields[index] == 'last-delivered-id' then lastDelivered = fields[index + 1] end
+    end
+    if not group or not lastDelivered then sourceDeletable = false break end
+    if group ~= ARGV[2] then
+      local groupPending = redis.call('XPENDING', KEYS[3], group, original, original, 1)
+      if #groupPending > 0 then sourceDeletable = false break end
+    end
+    local before = isBefore(lastDelivered, original)
+    if before == nil or before then sourceDeletable = false break end
+  end
 end
 if ARGV[3] == 'dead_letter' then
   local hasAnyLineage = lineageOriginal or lineagePrior or lineageGeneration
@@ -73,17 +155,24 @@ if ARGV[3] == 'dead_letter' then
     nextGeneration = nextGeneration + 1
   end
   if string.len(nextOriginal) > 256 then return 'malformed' end
+  if redis.call('XLEN', KEYS[2]) >= tonumber(ARGV[4]) then return 'capacity' end
   redis.call(
-    'XADD', KEYS[2], 'MAXLEN', '~', ARGV[4], '*',
+    'XADD', KEYS[2], '*',
     'body', body,
     'replay_original_dead_letter_id', nextOriginal,
     'replay_prior_dead_letter_id', ARGV[1],
     'replay_generation', tostring(nextGeneration)
   )
 else
-  redis.call('XADD', KEYS[2], 'MAXLEN', '~', ARGV[4], '*', 'body', body)
+  local destinationLength = redis.call('XLEN', KEYS[2])
+  if KEYS[2] == KEYS[3] and sourceDeletable then destinationLength = destinationLength - 1 end
+  if destinationLength >= tonumber(ARGV[4]) then return 'capacity' end
+  redis.call('XADD', KEYS[2], '*', 'body', body)
 end
-if ARGV[3] == 'failure' then redis.call('XACK', KEYS[3], ARGV[2], original) end
+if ARGV[3] == 'failure' then
+  redis.call('XACK', KEYS[3], ARGV[2], original)
+  if sourceDeletable then redis.call('XDEL', KEYS[3], original) end
+end
 redis.call('XDEL', KEYS[1], ARGV[1])
 return 'ok'
 `
@@ -124,9 +213,15 @@ end
 if string.len(nextOriginal) > 256 then return 'malformed' end
 local prior = redis.call('HGET', KEYS[3], ARGV[3])
 if prior and ARGV[2] == 'reject_duplicate' then return 'duplicate' end
+local destinationLength = redis.call('XLEN', KEYS[2])
+if prior then
+  local priorRecord = redis.call('XRANGE', KEYS[2], prior, prior)
+  if #priorRecord > 0 then destinationLength = destinationLength - 1 end
+end
+if destinationLength >= tonumber(ARGV[4]) then return 'capacity' end
 if prior then redis.call('XDEL', KEYS[2], prior) end
 local replayed = redis.call(
-  'XADD', KEYS[2], 'MAXLEN', '~', ARGV[4], '*',
+  'XADD', KEYS[2], '*',
   'body', body,
   'replay_original_dead_letter_id', nextOriginal,
   'replay_prior_dead_letter_id', ARGV[1],
@@ -236,12 +331,14 @@ func (t *nativeTransport) Add(ctx context.Context, request streamqueue.AddReques
 	if err := request.Validate(t.maxPayloadBytes); err != nil {
 		return "", err
 	}
-	cmd := t.client.B().Xadd().Key(request.Stream).Maxlen().Almost().
-		Threshold(strconv.FormatInt(request.MaxLength, 10)).Id("*").FieldValue().
-		FieldValue(streamBodyField, string(request.Body)).Build()
+	cmd := t.client.B().Eval().Script(enqueueScript).Numkeys(1).Key(request.Stream).
+		Arg(strconv.FormatInt(request.MaxLength, 10), string(request.Body)).Build()
 	id, err := t.client.Do(ctx, cmd).ToString()
 	if err != nil {
 		return "", safeerr.Wrap("valkeystream: add delivery", err)
+	}
+	if id == "capacity" {
+		return "", queue.ErrMaxCapacity
 	}
 	return id, nil
 }
@@ -308,17 +405,21 @@ func (t *nativeTransport) Ack(ctx context.Context, request streamqueue.AckReques
 	if err := request.Validate(); err != nil {
 		return err
 	}
-	cmd := t.client.B().Xack().Key(request.Stream).Group(request.Group).Id(request.ID).Build()
-	acknowledged, err := t.client.Do(ctx, cmd).ToInt64()
+	cmd := t.client.B().Eval().Script(acknowledgeScript).Numkeys(1).Key(request.Stream).
+		Arg(request.Group, request.ID).Build()
+	outcome, err := t.client.Do(ctx, cmd).ToString()
 	if err != nil {
 		return safeerr.Wrap("valkeystream: acknowledge delivery", err)
 	}
-	if acknowledged != 1 {
+	if outcome == "lease_lost" {
 		return management.NewFailure(
 			management.ClassificationInfrastructure,
 			management.FailureCodeLeaseLost,
 			errors.New("valkey stream delivery is no longer pending"),
 		)
+	}
+	if outcome != "deleted" && outcome != "retained" {
+		return malformedResponse("invalid acknowledgement result")
 	}
 	return nil
 }

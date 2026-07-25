@@ -290,13 +290,15 @@ consumer-group `Depth`, `Pending`, `Lag`, whether lag is known, and
 `OldestJobAge`. `Depth` is `-1` when Redis reports indeterminate lag.
 `WithRecordRetention` deliberately enables exact maximum-count retention for
 failure and dead-letter streams; it is independent of source `WithMaxLength`.
+A positive source `WithMaxLength` is a hard direct-enqueue capacity and never
+uses destructive source trimming.
 
 Valkey Streams provides a package-owned API in `valkeystream`: `NewWorkerE`,
 `NewWorker`, `Worker`, `Option`, `ConfigurationError`, and `Stats`. Connection
 options cover address, ACL authentication, database, cloned TLS configuration,
 client identity, dial/command/request/block/shutdown timeouts, and the bounded
-blocking pool. Queue options cover stream, group, consumer, approximate source
-length, exact record retention, read batch, reclaim policy, dead-letter policy,
+blocking pool. Queue options cover stream, group, consumer, hard source
+admission capacity, exact record retention, read batch, reclaim policy, dead-letter policy,
 logger, and handler.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
@@ -723,8 +725,9 @@ Production capacity must account for:
 - the default 10,000-job in-memory admission cap;
 - one-mebibyte encoded broker messages;
 - worker count and NSQ `MaxInFlight` alignment;
-- Redis Streams pending-entry growth and claim policy;
-- Valkey read/reclaim batch bounds, blocking pool, pending age, and DLQ growth;
+- Redis Streams source admission, pending-entry growth, and claim policy;
+- Valkey hard source admission capacity, read/reclaim batch bounds, blocking
+  pool, pending age, and DLQ growth;
 - RabbitMQ synchronous publisher-confirm latency;
 - handler deadline and retry delay within the shutdown budget; and
 - broker depth, lag, oldest age, redelivery, and settlement errors.
@@ -840,10 +843,12 @@ responsibilities.
   encoded-envelope limit.
 
 Redis Pub/Sub, Core NATS, NSQ, and RabbitMQ do not expose durable depth or
-retention controls through this package. Redis Streams pending entries are
-bounded only by broker and operational policy. Valkey bounds individual reads,
-reclaim scans, payloads, buffers, pools, waits, attempts, and approximate stream
-length, but server memory and retention remain operator responsibilities.
+retention controls through this package. Redis Streams direct admission is
+bounded only when a positive `WithMaxLength` is configured; administrative
+cross-key admission remains subject to documented race overrun. Valkey bounds source admission,
+individual reads, reclaim scans, payloads, buffers, pools, waits, and attempts,
+but server memory and management-record retention remain operator
+responsibilities.
 Configure broker-side quotas, retention, dead-lettering, and connection limits.
 
 ## Credentials and transport security
@@ -1075,6 +1080,12 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Redis Streams and Valkey Streams no longer use source `MAXLEN` trimming,
+  which could delete accepted pending deliveries. Valkey source admission is
+  hard-bounded; Redis direct enqueue is hard-bounded when configured, while
+  cross-key administrative mutations preflight capacity without destructive
+  trimming. Successful acknowledgement deletes a source entry only after
+  every existing consumer group has settled it.
 - Bound Redis and Valkey management page allocations to the package maximum
   and remove narrowing conversions from record and status pagination.
 - Retry Valkey integration container creation when Docker starts the container
@@ -1504,6 +1515,20 @@ with `WithReclaim`, `WithFailureStream`, `WithDeadLetter`, and
 two, and reclaim/timeout bounds must be positive. Invalid policy fails before
 Redis is dialed.
 
+`WithMaxLength` no longer enables source `MAXLEN` trimming. A positive value is
+a hard, atomic direct-enqueue capacity; direct enqueue returns
+`queue.ErrMaxCapacity` instead of evicting accepted work. Zero retains the
+legacy unbounded mode. Successful acknowledgement deletes the source body only
+after every consumer group that already exists on the stream has delivered and
+settled it. Create required groups before admitting work.
+
+Cross-key administrative retry and replay cannot make a single atomic capacity
+decision on Redis Cluster. They preflight the destination length, reject known
+capacity exhaustion, and never trim accepted source entries. A concurrent
+external producer can cause a bounded-capacity overrun, so deployments that
+require a strict bound must serialize administrative and normal admission or
+use the standalone Valkey Streams backend.
+
 Failure and dead-letter retention is independent of source-stream
 `WithMaxLength`. It is disabled by default so throughput configuration cannot
 silently evict operational records. `WithRecordRetention(maxRecords)`
@@ -1664,7 +1689,7 @@ that panics on the same errors.
 | `WithStreamName` | `golang-queue` | Source stream |
 | `WithGroup` | `golang-queue` | Consumer group created from ID `0` |
 | `WithConsumer` | `queue-PID` | Stable, non-empty worker identity |
-| `WithMaxLength` | 10,000 | Positive approximate source-stream trim target |
+| `WithMaxLength` | 10,000 | Positive hard source-stream admission capacity |
 | `WithRecordRetention` | Disabled | Positive exact maximum for failure and dead-letter streams |
 | `WithReadBatchSize` | 16 | 1 through 256 |
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
@@ -1677,6 +1702,15 @@ that panics on the same errors.
 The client uses one standalone endpoint, bounded blocking connections, 32 KiB
 per-connection buffers, no client cache, no transparent command retry, and
 cancellation-aware contexts. The package owns client creation and closure.
+
+Source capacity never uses `MAXLEN` trimming. Enqueue, retry, and replay return
+`queue.ErrMaxCapacity` or the equivalent rejected management outcome when the
+hard capacity is occupied. Successful acknowledgement atomically removes the
+entry from the current group's pending list, then deletes its source body only
+after every consumer group that already exists on the stream has delivered and
+settled that entry. Create every required group before admitting work; groups
+created later do not acquire entries that have already been settled and
+deleted.
 
 Failure and dead-letter retention is independent of source `WithMaxLength` and
 disabled by default. `WithRecordRetention(maxRecords)` deliberately enables an
@@ -1711,9 +1745,9 @@ dial failures return fixed safe text while preserving the native cause for
 `errors.Is` and `errors.As`; do not separately log the unwrapped cause.
 
 Grant producers append access and workers the minimum stream/group commands:
-`XADD`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`, `XAUTOCLAIM`,
-`XINFO GROUPS`, `XRANGE`, and append/read access to the configured failure and
-dead-letter streams.
+`EVAL`, `XADD`, `XLEN`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`,
+`XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and append/read access to the
+configured failure and dead-letter streams.
 
 ## Delivery, retry, and dead-letter behavior
 
@@ -1722,7 +1756,9 @@ The backend provides at-least-once delivery:
 1. `XADD` appends a bounded encoded message with a server-generated stream ID.
 2. `XREADGROUP` transfers it to the consumer group's pending-entry list.
 3. Handler retries run inside the same delivery attempt.
-4. Success sends `XACK` only after the handler returns successfully.
+4. Success atomically acknowledges only after the handler returns, retaining
+   the source body until every existing consumer group has settled it and then
+   deleting it.
 5. Each handler failure appends a bounded failed-attempt record and leaves the
    source entry pending.
 6. `XAUTOCLAIM` moves sufficiently idle work to a live consumer and increments

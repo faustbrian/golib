@@ -187,9 +187,15 @@ func (w *Worker) replayRedisRecord(
 			return w.redisControlResult(command, management.CommandRejected, "replay_registry_capacity")
 		}
 	}
+	hasCapacity, capacityErr := w.redisStreamHasCapacity(ctx, destination, priorReplay)
+	if capacityErr != nil {
+		return w.redisControlResult(command, management.CommandUnknown, "")
+	}
+	if !hasCapacity {
+		return w.redisControlResult(command, management.CommandRejected, "queue_capacity")
+	}
 	replayedID, appendErr := w.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: destination, MaxLen: w.opts.maxLength,
-		Approx: w.opts.maxLength > 0,
+		Stream: destination,
 		Values: map[string]any{
 			streamBodyField:               body,
 			replayOriginalDeadLetterField: original,
@@ -354,17 +360,20 @@ func (w *Worker) retryRedisRecord(
 		values[replayPriorDeadLetterField] = prior
 		values[replayGenerationField] = strconv.FormatUint(uint64(generation), 10)
 	}
+	hasCapacity, capacityErr := w.redisStreamHasCapacity(ctx, w.opts.streamName, "")
+	if capacityErr != nil {
+		return w.redisControlResult(command, management.CommandUnknown, "")
+	}
+	if !hasCapacity {
+		return w.redisControlResult(command, management.CommandRejected, "queue_capacity")
+	}
 	if err := w.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: w.opts.streamName, MaxLen: w.opts.maxLength,
-		Approx: w.opts.maxLength > 0, Values: values,
+		Stream: w.opts.streamName, Values: values,
 	}).Err(); err != nil {
 		return w.redisControlResult(command, management.CommandFailed, "enqueue_failed")
 	}
 	if failure {
-		acknowledged, ackErr := w.rdb.XAck(
-			ctx, w.opts.streamName, w.opts.group, originalID,
-		).Result()
-		if ackErr != nil || acknowledged != 1 {
+		if ackErr := w.acknowledgeRecord(ctx, originalID); ackErr != nil {
 			return w.redisControlResult(command, management.CommandPartial, "source_ack_unknown")
 		}
 	}
@@ -374,6 +383,30 @@ func (w *Worker) retryRedisRecord(
 	}
 
 	return w.redisControlResult(command, management.CommandAcknowledged, "")
+}
+
+func (w *Worker) redisStreamHasCapacity(
+	ctx context.Context, stream, replacementID string,
+) (bool, error) {
+	if w.opts.maxLength <= 0 {
+		return true, nil
+	}
+	length, err := w.rdb.XLen(ctx, stream).Result()
+	if err != nil {
+		return false, err
+	}
+	if replacementID != "" {
+		replacement, replacementErr := w.rdb.XRangeN(
+			ctx, stream, replacementID, replacementID, 1,
+		).Result()
+		if replacementErr != nil {
+			return false, replacementErr
+		}
+		if len(replacement) == 1 && replacement[0].ID == replacementID {
+			length--
+		}
+	}
+	return length < w.opts.maxLength, nil
 }
 
 func (w *Worker) redisControlResult(

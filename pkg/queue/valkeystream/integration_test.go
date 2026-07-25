@@ -73,6 +73,153 @@ func TestValkey9NativeLifecycleAndStats(t *testing.T) {
 	require.NoError(t, worker.Shutdown())
 }
 
+func TestValkey9SourceBoundNeverTrimsPendingDelivery(t *testing.T) {
+	_, endpoint := startValkey9(t, nil, nil)
+	client := integrationClient(t, endpoint)
+	transport := newNativeTransport(client, 1, 1024)
+	t.Cleanup(func() { require.NoError(t, transport.Close()) })
+	ctx := t.Context()
+
+	require.NoError(t, transport.EnsureGroup(ctx, "bounded-source", "workers"))
+	pendingID, err := transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "bounded-source", MaxLength: 1, Body: []byte("pending"),
+	})
+	require.NoError(t, err)
+	deliveries, err := transport.Read(ctx, streamqueue.ReadRequest{
+		Stream: "bounded-source", Group: "workers", Consumer: "worker-1",
+		Count: 1, Block: time.Millisecond,
+	})
+	require.NoError(t, err)
+	require.Len(t, deliveries, 1)
+	require.Equal(t, pendingID, deliveries[0].ID)
+
+	_, err = transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "bounded-source", MaxLength: 1, Body: []byte("later"),
+	})
+	require.ErrorIs(t, err, queue.ErrMaxCapacity)
+
+	pending, err := client.Do(
+		ctx,
+		client.B().Xrange().Key("bounded-source").
+			Start(pendingID).End(pendingID).Build(),
+	).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	assert.Equal(t, "pending", pending[0].FieldValues[streamBodyField])
+
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "bounded-source", Group: "workers", ID: pendingID,
+	}))
+	_, err = transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "bounded-source", MaxLength: 1, Body: []byte("after-ack"),
+	})
+	require.NoError(t, err)
+}
+
+func TestValkey9AcknowledgementDeletesOnlyAfterEveryExistingGroupSettles(t *testing.T) {
+	_, endpoint := startValkey9(t, nil, nil)
+	client := integrationClient(t, endpoint)
+	transport := newNativeTransport(client, 1, 1024)
+	t.Cleanup(func() { require.NoError(t, transport.Close()) })
+	ctx := t.Context()
+
+	require.NoError(t, transport.EnsureGroup(ctx, "shared-source", "primary"))
+	require.NoError(t, transport.EnsureGroup(ctx, "shared-source", "audit"))
+	id, err := transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "shared-source", MaxLength: 1, Body: []byte("shared"),
+	})
+	require.NoError(t, err)
+	for _, group := range []string{"primary", "audit"} {
+		deliveries, readErr := transport.Read(ctx, streamqueue.ReadRequest{
+			Stream: "shared-source", Group: group, Consumer: group + "-worker",
+			Count: 1, Block: time.Millisecond,
+		})
+		require.NoError(t, readErr)
+		require.Len(t, deliveries, 1)
+		require.Equal(t, id, deliveries[0].ID)
+	}
+
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "shared-source", Group: "primary", ID: id,
+	}))
+	retained, err := client.Do(
+		ctx,
+		client.B().Xrange().Key("shared-source").Start(id).End(id).Build(),
+	).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, retained, 1)
+	_, err = transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "shared-source", MaxLength: 1, Body: []byte("blocked"),
+	})
+	require.ErrorIs(t, err, queue.ErrMaxCapacity)
+
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "shared-source", Group: "audit", ID: id,
+	}))
+	deleted, err := client.Do(
+		ctx,
+		client.B().Xrange().Key("shared-source").Start(id).End(id).Build(),
+	).AsXRange()
+	require.NoError(t, err)
+	assert.Empty(t, deleted)
+}
+
+func TestValkey9ActiveFailureRetryPreservesOtherGroups(t *testing.T) {
+	_, endpoint := startValkey9(t, nil, nil)
+	client := integrationClient(t, endpoint)
+	transport := newNativeTransport(client, 1, 1024)
+	t.Cleanup(func() { require.NoError(t, transport.Close()) })
+	ctx := t.Context()
+
+	require.NoError(t, transport.EnsureGroup(ctx, "retry-source", "primary"))
+	require.NoError(t, transport.EnsureGroup(ctx, "retry-source", "audit"))
+	sourceID, err := transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "retry-source", MaxLength: 1, Body: []byte("retry"),
+	})
+	require.NoError(t, err)
+	deliveries := make(map[string]streamqueue.Delivery, 2)
+	for _, group := range []string{"primary", "audit"} {
+		groupDeliveries, readErr := transport.Read(ctx, streamqueue.ReadRequest{
+			Stream: "retry-source", Group: group, Consumer: group + "-worker",
+			Count: 1, Block: time.Millisecond,
+		})
+		require.NoError(t, readErr)
+		require.Len(t, groupDeliveries, 1)
+		deliveries[group] = groupDeliveries[0]
+	}
+	require.NoError(t, transport.RecordFailure(
+		ctx, "retry-failures", "retry-source", "primary",
+		deliveries["primary"], testFailureMetadata(),
+	))
+	records, err := transport.ReadRecords(ctx, "retry-failures")
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+
+	outcome, err := transport.RetryRecord(
+		ctx, "retry-failures", records[0].ID,
+		"retry-source", "retry-source", "primary", true,
+	)
+	require.NoError(t, err)
+	require.Equal(t, nativeRetryCapacity, outcome)
+	retained, err := client.Do(
+		ctx,
+		client.B().Xrange().Key("retry-source").
+			Start(sourceID).End(sourceID).Build(),
+	).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, retained, 1)
+
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "retry-source", Group: "audit", ID: deliveries["audit"].ID,
+	}))
+	outcome, err = transport.RetryRecord(
+		ctx, "retry-failures", records[0].ID,
+		"retry-source", "retry-source", "primary", true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, nativeRetryOK, outcome)
+}
+
 func TestValkey9NativeManagementStatusIntegration(t *testing.T) {
 	_, endpoint := startValkey9(t, nil, nil)
 	options := integrationWorkerOptions(endpoint, "management-status", "worker-1")

@@ -25,23 +25,24 @@ func BenchmarkRedisStreamAck(b *testing.B) {
 	if err := client.XGroupCreateMkStream(ctx, "bench-ack", "workers", "0").Err(); err != nil {
 		b.Fatal(err)
 	}
-	id, err := client.XAdd(ctx, &redis.XAddArgs{
-		Stream: "bench-ack",
-		Values: map[string]any{"body": "payload"},
-	}).Result()
-	if err != nil {
-		b.Fatal(err)
-	}
-	if _, err := client.XReadGroup(ctx, &redis.XReadGroupArgs{
-		Group: "workers", Consumer: "worker-1", Streams: []string{"bench-ack", ">"},
-		Count: 1,
-	}).Result(); err != nil {
-		b.Fatal(err)
-	}
-
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
+		b.StopTimer()
+		id, addErr := client.XAdd(ctx, &redis.XAddArgs{
+			Stream: "bench-ack",
+			Values: map[string]any{"body": "payload"},
+		}).Result()
+		if addErr != nil {
+			b.Fatal(addErr)
+		}
+		if _, readErr := client.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group: "workers", Consumer: "worker-1", Streams: []string{"bench-ack", ">"},
+			Count: 1,
+		}).Result(); readErr != nil {
+			b.Fatal(readErr)
+		}
+		b.StartTimer()
 		if err := worker.ack(id); err != nil {
 			b.Fatal(err)
 		}

@@ -25,6 +25,20 @@ with `WithReclaim`, `WithFailureStream`, `WithDeadLetter`, and
 two, and reclaim/timeout bounds must be positive. Invalid policy fails before
 Redis is dialed.
 
+`WithMaxLength` no longer enables source `MAXLEN` trimming. A positive value is
+a hard, atomic direct-enqueue capacity; direct enqueue returns
+`queue.ErrMaxCapacity` instead of evicting accepted work. Zero retains the
+legacy unbounded mode. Successful acknowledgement deletes the source body only
+after every consumer group that already exists on the stream has delivered and
+settled it. Create required groups before admitting work.
+
+Cross-key administrative retry and replay cannot make a single atomic capacity
+decision on Redis Cluster. They preflight the destination length, reject known
+capacity exhaustion, and never trim accepted source entries. A concurrent
+external producer can cause a bounded-capacity overrun, so deployments that
+require a strict bound must serialize administrative and normal admission or
+use the standalone Valkey Streams backend.
+
 Failure and dead-letter retention is independent of source-stream
 `WithMaxLength`. It is disabled by default so throughput configuration cannot
 silently evict operational records. `WithRecordRetention(maxRecords)`

@@ -192,7 +192,8 @@ func WithConsumer(name string) Option {
 	}
 }
 
-// WithMaxLength sets the approximate maximum stream length.
+// WithMaxLength sets the hard source-stream admission capacity. Enqueue fails
+// with queue.ErrMaxCapacity rather than evicting accepted work.
 func WithMaxLength(length int64) Option {
 	return func(opts *options) error {
 		opts.maxLength = length

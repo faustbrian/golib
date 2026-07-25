@@ -7,6 +7,12 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Redis Streams and Valkey Streams no longer use source `MAXLEN` trimming,
+  which could delete accepted pending deliveries. Valkey source admission is
+  hard-bounded; Redis direct enqueue is hard-bounded when configured, while
+  cross-key administrative mutations preflight capacity without destructive
+  trimming. Successful acknowledgement deletes a source entry only after
+  every existing consumer group has settled it.
 - Bound Redis and Valkey management page allocations to the package maximum
   and remove narrowing conversions from record and status pagination.
 - Retry Valkey integration container creation when Docker starts the container

@@ -15,8 +15,9 @@ Production capacity must account for:
 - the default 10,000-job in-memory admission cap;
 - one-mebibyte encoded broker messages;
 - worker count and NSQ `MaxInFlight` alignment;
-- Redis Streams pending-entry growth and claim policy;
-- Valkey read/reclaim batch bounds, blocking pool, pending age, and DLQ growth;
+- Redis Streams source admission, pending-entry growth, and claim policy;
+- Valkey hard source admission capacity, read/reclaim batch bounds, blocking
+  pool, pending age, and DLQ growth;
 - RabbitMQ synchronous publisher-confirm latency;
 - handler deadline and retry delay within the shutdown budget; and
 - broker depth, lag, oldest age, redelivery, and settlement errors.

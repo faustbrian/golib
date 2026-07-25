@@ -159,6 +159,92 @@ func TestWorkerQueuesRequestsAcknowledgesRunsAndShutsDown(t *testing.T) {
 	assert.ErrorIs(t, worker.Queue(&message), queue.ErrQueueShutdown)
 }
 
+func TestWorkerBackpressuresInsteadOfTrimmingPendingDelivery(t *testing.T) {
+	server := miniredis.RunT(t)
+	worker, err := NewWorkerE(
+		WithAddr(server.Addr()),
+		WithStreamName("bounded"),
+		WithGroup("workers"),
+		WithConsumer("worker-1"),
+		WithMaxLength(1),
+		WithBlockTime(time.Millisecond),
+		WithRequestTimeout(time.Second),
+	)
+	require.NoError(t, err)
+	worker.startConsumer()
+	first := job.NewMessage(rawMessage("first"))
+	second := job.NewMessage(rawMessage("second"))
+
+	require.NoError(t, worker.Queue(&first))
+	pending, err := worker.Request()
+	require.NoError(t, err)
+	require.ErrorIs(t, worker.Queue(&second), queue.ErrMaxCapacity)
+	require.NoError(t, pending.(*job.Message).Ack())
+	require.NoError(t, worker.Queue(&second))
+	require.NoError(t, worker.Shutdown())
+}
+
+func TestWorkerReportsEnqueueAndAcknowledgementProtocolFailures(t *testing.T) {
+	t.Parallel()
+
+	worker, _ := newFaultControlWorker(t)
+	addRedisFault(t, worker, "eval", 1)
+	assert.Error(t, worker.queue("payload"))
+
+	worker, _ = newFaultControlWorker(t)
+	err := worker.acknowledgeRecord(t.Context(), "9999999999999-0")
+	assert.Equal(t, management.FailureCodeLeaseLost, management.ResolveFailure(err).Code)
+
+	worker, message := newPendingRedisMessage(t)
+	addRedisResult(t, worker, "eval", 1, "unexpected")
+	err = worker.acknowledgeRecord(t.Context(), message.ID)
+	assert.Equal(t, management.FailureCodeLeaseLost, management.ResolveFailure(err).Code)
+
+	worker, message = newPendingRedisMessage(t)
+	addRedisStop(t, worker, "eval", 1)
+	err = worker.acknowledgeRecord(t.Context(), message.ID)
+	assert.Equal(t, management.FailureCodeLeaseLost, management.ResolveFailure(err).Code)
+
+	worker, message = newPendingRedisMessage(t)
+	addRedisFault(t, worker, "eval", 1)
+	err = worker.acknowledgeRecord(t.Context(), message.ID)
+	assert.Equal(t, management.FailureCodeLeaseLost, management.ResolveFailure(err).Code)
+}
+
+func TestWorkersDeleteSourceOnlyAfterEveryExistingGroupSettles(t *testing.T) {
+	server := miniredis.RunT(t)
+	newWorker := func(group, consumer string) *Worker {
+		t.Helper()
+		worker, err := NewWorkerE(
+			WithAddr(server.Addr()),
+			WithStreamName("shared"),
+			WithGroup(group),
+			WithConsumer(consumer),
+			WithMaxLength(1),
+			WithBlockTime(time.Millisecond),
+			WithRequestTimeout(time.Second),
+		)
+		require.NoError(t, err)
+		worker.startConsumer()
+		return worker
+	}
+	primary := newWorker("primary", "primary-worker")
+	audit := newWorker("audit", "audit-worker")
+	message := job.NewMessage(rawMessage("shared"))
+	require.NoError(t, primary.Queue(&message))
+	primaryDelivery, err := primary.Request()
+	require.NoError(t, err)
+	auditDelivery, err := audit.Request()
+	require.NoError(t, err)
+
+	require.NoError(t, primaryDelivery.(*job.Message).Ack())
+	require.ErrorIs(t, primary.Queue(&message), queue.ErrMaxCapacity)
+	require.NoError(t, auditDelivery.(*job.Message).Ack())
+	require.NoError(t, primary.Queue(&message))
+	require.NoError(t, primary.Shutdown())
+	require.NoError(t, audit.Shutdown())
+}
+
 func TestWorkerConsumesMessagesQueuedBeforeConsumerGroupStarts(t *testing.T) {
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(

@@ -145,7 +145,8 @@ func WithAddr(addr string) Option {
 	}
 }
 
-// WithMaxLength setup the max length for publish messages
+// WithMaxLength sets a hard source admission capacity for direct enqueue.
+// Zero preserves the existing unbounded admission mode.
 func WithMaxLength(m int64) Option {
 	return func(w *options) {
 		w.maxLength = m

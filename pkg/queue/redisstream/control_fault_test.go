@@ -24,6 +24,7 @@ type redisCommandFault struct {
 	calls   int
 	err     error
 	stop    bool
+	result  string
 }
 
 type stagedCanceledContext struct {
@@ -51,6 +52,9 @@ func (h *redisCommandFault) ProcessHook(next redis.ProcessHook) redis.ProcessHoo
 			if h.calls == h.failAt {
 				h.mu.Unlock()
 				if h.stop {
+					if command, ok := cmd.(*redis.Cmd); ok && h.result != "" {
+						command.SetVal(h.result)
+					}
 					return nil
 				}
 				return h.err
@@ -272,6 +276,92 @@ func TestRedisRetryReportsEveryDurableBoundary(t *testing.T) {
 	assert.Equal(t, "record_not_found", result.FailureCode)
 }
 
+func TestRedisControlCapacityPreservesExistingStreamRecords(t *testing.T) {
+	t.Parallel()
+
+	worker, recordID := newFaultControlWorker(t)
+	worker.opts.maxLength = 1
+	require.NoError(t, worker.rdb.XAdd(t.Context(), &redis.XAddArgs{
+		Stream: "archive", Values: map[string]any{streamBodyField: "existing"},
+	}).Err())
+	replay := faultControlCommand(
+		management.CommandReplay, management.TargetDeadLetter, recordID,
+	)
+	replay.Replay = &management.ReplayOptions{
+		Destination: "archive", IdempotencyPolicy: management.ReplayRejectDuplicate,
+	}
+	result := worker.replayRedisRecord(t.Context(), replay)
+	assert.Equal(t, management.CommandRejected, result.Status)
+	assert.Equal(t, "queue_capacity", result.FailureCode)
+
+	result = worker.retryRedisRecord(t.Context(), faultControlCommand(
+		management.CommandRetry, management.TargetDeadLetter, recordID,
+	))
+	assert.Equal(t, management.CommandAcknowledged, result.Status)
+
+	worker, recordID = newFaultControlWorker(t)
+	worker.opts.maxLength = 1
+	require.NoError(t, worker.rdb.XAdd(t.Context(), &redis.XAddArgs{
+		Stream: "jobs", Values: map[string]any{streamBodyField: "existing"},
+	}).Err())
+	result = worker.retryRedisRecord(t.Context(), faultControlCommand(
+		management.CommandRetry, management.TargetDeadLetter, recordID,
+	))
+	assert.Equal(t, management.CommandRejected, result.Status)
+	assert.Equal(t, "queue_capacity", result.FailureCode)
+}
+
+func TestRedisControlCapacityReportsInspectionFailures(t *testing.T) {
+	t.Parallel()
+
+	worker, recordID := newFaultControlWorker(t)
+	worker.opts.maxLength = 1
+	addRedisFault(t, worker, "xlen", 1)
+	replay := faultControlCommand(
+		management.CommandReplay, management.TargetDeadLetter, recordID,
+	)
+	replay.Replay = &management.ReplayOptions{
+		Destination: "archive", IdempotencyPolicy: management.ReplayRejectDuplicate,
+	}
+	result := worker.replayRedisRecord(t.Context(), replay)
+	assert.Equal(t, management.CommandUnknown, result.Status)
+
+	worker, recordID = newFaultControlWorker(t)
+	worker.opts.maxLength = 1
+	addRedisFault(t, worker, "xlen", 1)
+	result = worker.retryRedisRecord(t.Context(), faultControlCommand(
+		management.CommandRetry, management.TargetDeadLetter, recordID,
+	))
+	assert.Equal(t, management.CommandUnknown, result.Status)
+}
+
+func TestRedisStreamCapacityAccountsForReplacedRecords(t *testing.T) {
+	t.Parallel()
+
+	worker, _ := newFaultControlWorker(t)
+	worker.opts.maxLength = 1
+	replacementID, err := worker.rdb.XAdd(t.Context(), &redis.XAddArgs{
+		Stream: "archive", Values: map[string]any{streamBodyField: "existing"},
+	}).Result()
+	require.NoError(t, err)
+
+	hasCapacity, err := worker.redisStreamHasCapacity(
+		t.Context(), "archive", replacementID,
+	)
+	require.NoError(t, err)
+	assert.True(t, hasCapacity)
+
+	hasCapacity, err = worker.redisStreamHasCapacity(
+		t.Context(), "archive", "9999999999999-0",
+	)
+	require.NoError(t, err)
+	assert.False(t, hasCapacity)
+
+	addRedisFault(t, worker, "xrange", 1)
+	_, err = worker.redisStreamHasCapacity(t.Context(), "archive", replacementID)
+	assert.Error(t, err)
+}
+
 func TestRedisDeletePurgeAndBulkFailuresRemainExplicit(t *testing.T) {
 	t.Parallel()
 
@@ -324,11 +414,11 @@ func TestRedisActiveFailureRetryReportsPendingAndAckUncertainty(t *testing.T) {
 
 	for name, command := range map[string]string{
 		"pending read": "xpending",
-		"source ack":   "xack",
+		"source ack":   "eval",
 	} {
 		t.Run(name, func(t *testing.T) {
 			worker, recordID := newActiveFailureControlWorker(t)
-			if command == "xack" {
+			if command == "eval" {
 				addRedisStop(t, worker, command, 1)
 			} else {
 				addRedisFault(t, worker, command, 1)
@@ -440,6 +530,17 @@ func addRedisStop(t *testing.T, worker *Worker, command string, failAt int) {
 	client, ok := worker.rdb.(*redis.Client)
 	require.True(t, ok)
 	client.AddHook(&redisCommandFault{command: command, failAt: failAt, stop: true})
+}
+
+func addRedisResult(
+	t *testing.T, worker *Worker, command string, failAt int, result string,
+) {
+	t.Helper()
+	client, ok := worker.rdb.(*redis.Client)
+	require.True(t, ok)
+	client.AddHook(&redisCommandFault{
+		command: command, failAt: failAt, stop: true, result: result,
+	})
 }
 
 func newActiveFailureControlWorker(t *testing.T) (*Worker, string) {

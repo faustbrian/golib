@@ -298,6 +298,68 @@ func TestNativeTransportAtomicallyRetriesActiveFailure(t *testing.T) {
 	assert.Equal(t, "1", retried[0].FieldValues[replayGenerationField])
 }
 
+func TestNativeTransportRetryPreservesWorkOwedToAnotherGroup(t *testing.T) {
+	server := miniredis.RunT(t)
+	client, err := valkey.NewClient(valkey.ClientOption{
+		InitAddress: []string{server.Addr()}, ForceSingleClient: true,
+		DisableCache: true, DisableRetry: true, AlwaysPipelining: true,
+	})
+	require.NoError(t, err)
+	transport := newNativeTransport(client, 1, 1024)
+	t.Cleanup(func() { require.NoError(t, transport.Close()) })
+	ctx := t.Context()
+	require.NoError(t, transport.EnsureGroup(ctx, "jobs", "primary"))
+	require.NoError(t, transport.EnsureGroup(ctx, "jobs", "audit"))
+	id, err := transport.Add(ctx, streamqueue.AddRequest{
+		Stream: "jobs", MaxLength: 1, Body: []byte("payload"),
+	})
+	require.NoError(t, err)
+	var primary streamqueue.Delivery
+	var audit streamqueue.Delivery
+	for group, destination := range map[string]*streamqueue.Delivery{
+		"primary": &primary,
+		"audit":   &audit,
+	} {
+		deliveries, readErr := transport.Read(ctx, streamqueue.ReadRequest{
+			Stream: "jobs", Group: group, Consumer: group + "-worker",
+			Count: 1, Block: time.Millisecond,
+		})
+		require.NoError(t, readErr)
+		require.Len(t, deliveries, 1)
+		*destination = deliveries[0]
+	}
+	require.NoError(t, transport.RecordFailure(
+		ctx, "failures", "jobs", "primary", primary, testFailureMetadata(),
+	))
+	records, err := transport.ReadRecords(ctx, "failures")
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+
+	outcome, err := transport.RetryRecord(
+		ctx, "failures", records[0].ID, "jobs", "jobs", "primary", true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, nativeRetryCapacity, outcome)
+	source, err := client.Do(ctx, client.B().Xrange().Key("jobs").
+		Start(id).End(id).Build()).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, source, 1)
+
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "jobs", Group: "audit", ID: audit.ID,
+	}))
+	outcome, err = transport.RetryRecord(
+		ctx, "failures", records[0].ID, "jobs", "jobs", "primary", true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, nativeRetryOK, outcome)
+	source, err = client.Do(ctx, client.B().Xrange().Key("jobs").
+		Start("-").End("+").Build()).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, source, 1)
+	assert.NotEqual(t, id, source[0].ID)
+}
+
 func TestNativeTransportReplayPoliciesAndBoundedRegistry(t *testing.T) {
 	server := miniredis.RunT(t)
 	client, err := valkey.NewClient(valkey.ClientOption{
@@ -355,6 +417,9 @@ func TestNativeTransportReplayPoliciesAndBoundedRegistry(t *testing.T) {
 		ctx, "repeated-dead", "archive", "archive-workers",
 		replayedDeliveries[0], testFailureMetadata(),
 	))
+	require.NoError(t, transport.Ack(ctx, streamqueue.AckRequest{
+		Stream: "archive", Group: "archive-workers", ID: replayedDeliveries[0].ID,
+	}))
 	repeatedRecords, err := transport.ReadRecords(ctx, "repeated-dead")
 	require.NoError(t, err)
 	require.Len(t, repeatedRecords, 1)
@@ -407,6 +472,45 @@ func TestNativeTransportReplayPoliciesAndBoundedRegistry(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, nativeReplayMalformed, outcome)
+}
+
+func TestNativeTransportReplayDoesNotCreditAStaleRegistryEntry(t *testing.T) {
+	server := miniredis.RunT(t)
+	client, err := valkey.NewClient(valkey.ClientOption{
+		InitAddress: []string{server.Addr()}, ForceSingleClient: true,
+		DisableCache: true, DisableRetry: true, AlwaysPipelining: true,
+	})
+	require.NoError(t, err)
+	transport := newNativeTransport(client, 1, 1024)
+	t.Cleanup(func() { require.NoError(t, transport.Close()) })
+	ctx := t.Context()
+	require.NoError(t, transport.AppendDeadLetter(
+		ctx, "dead", "jobs", "workers",
+		streamqueue.Delivery{ID: "source", Body: []byte("payload"), Attempts: 2},
+		testFailureMetadata(),
+	))
+	records, err := transport.ReadRecords(ctx, "dead")
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.NoError(t, client.Do(ctx, client.B().Xadd().Key("archive").Id("*").
+		FieldValue().FieldValue(streamBodyField, "occupied").Build()).Error())
+	replayKey := base64.RawURLEncoding.EncodeToString(
+		[]byte("dead" + "\x00" + records[0].ID),
+	)
+	require.NoError(t, client.Do(ctx, client.B().Hset().
+		Key("archive:queue:replay-index").FieldValue().
+		FieldValue(replayKey, "9999999999999-0").Build()).Error())
+
+	outcome, err := transport.ReplayRecord(
+		ctx, "dead", records[0].ID, "archive", management.ReplayReplaceDuplicate,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, nativeReplayCapacity, outcome)
+	archived, err := client.Do(ctx, client.B().Xrange().Key("archive").
+		Start("-").End("+").Build()).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, archived, 1)
+	assert.Equal(t, "occupied", archived[0].FieldValues[streamBodyField])
 }
 
 func TestNativeManagementRecordsPaginationValidationAndFailures(t *testing.T) {

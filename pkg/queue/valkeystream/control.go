@@ -31,11 +31,13 @@ const (
 	nativeReplayNotFound  nativeReplayOutcome = "not_found"
 	nativeReplayMalformed nativeReplayOutcome = "malformed"
 	nativeReplayDuplicate nativeReplayOutcome = "duplicate"
+	nativeReplayCapacity  nativeReplayOutcome = "capacity"
 )
 
 func (o nativeReplayOutcome) valid() bool {
 	switch o {
-	case nativeReplayOK, nativeReplayNotFound, nativeReplayMalformed, nativeReplayDuplicate:
+	case nativeReplayOK, nativeReplayNotFound, nativeReplayMalformed, nativeReplayDuplicate,
+		nativeReplayCapacity:
 		return true
 	default:
 		return false
@@ -49,11 +51,13 @@ const (
 	nativeRetryNotFound  nativeRetryOutcome = "not_found"
 	nativeRetryStale     nativeRetryOutcome = "stale"
 	nativeRetryMalformed nativeRetryOutcome = "malformed"
+	nativeRetryCapacity  nativeRetryOutcome = "capacity"
 )
 
 func (o nativeRetryOutcome) valid() bool {
 	switch o {
-	case nativeRetryOK, nativeRetryNotFound, nativeRetryStale, nativeRetryMalformed:
+	case nativeRetryOK, nativeRetryNotFound, nativeRetryStale, nativeRetryMalformed,
+		nativeRetryCapacity:
 		return true
 	default:
 		return false
@@ -195,6 +199,8 @@ func (w *Worker) replayNativeRecord(
 		return w.controlResult(command, management.CommandFailed, "record_malformed")
 	case nativeReplayDuplicate:
 		return w.controlResult(command, management.CommandRejected, "replay_duplicate")
+	case nativeReplayCapacity:
+		return w.controlResult(command, management.CommandRejected, "queue_capacity")
 	default:
 		return w.controlResult(command, management.CommandUnknown, "")
 	}
@@ -220,6 +226,8 @@ func (w *Worker) retryNativeRecord(
 		return w.controlResult(command, management.CommandRejected, "source_record_stale")
 	case nativeRetryMalformed:
 		return w.controlResult(command, management.CommandFailed, "record_malformed")
+	case nativeRetryCapacity:
+		return w.controlResult(command, management.CommandRejected, "queue_capacity")
 	default:
 		return w.controlResult(command, management.CommandUnknown, "")
 	}
@@ -244,6 +252,13 @@ func (w *Worker) bulkRetryNativeRecords(
 				return w.controlResult(command, management.CommandUnknown, "")
 			}
 			return w.controlResult(command, management.CommandPartial, "bulk_enqueue_unknown")
+		}
+		if outcome == nativeRetryCapacity {
+			status := management.CommandPartial
+			if index == 0 {
+				status = management.CommandRejected
+			}
+			return w.controlResult(command, status, "queue_capacity")
 		}
 		if outcome != nativeRetryOK {
 			return w.controlResult(command, management.CommandPartial, "bulk_record_unavailable")
