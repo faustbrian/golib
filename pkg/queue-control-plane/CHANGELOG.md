@@ -13,6 +13,8 @@ Versioning.
 
 ### Changed
 
+- Align indirect dependency metadata with the resolved graph so clean
+  consumers and CI obtain reproducible module metadata.
 - Refresh owned-module checksums against the final consolidated archives.
 - Made the documented idempotency example unambiguously synthetic so strict
   secret scanning does not mistake it for a credential.
