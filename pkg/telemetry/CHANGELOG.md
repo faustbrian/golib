@@ -48,5 +48,8 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
   item-bounded, and byte-bounded.
 - Default instrumentation excludes payloads, secrets, raw identifiers, SQL,
   cache keys, queue messages, and error text.
+- Standalone module resolution now selects patched `x/net` and `x/text`
+  releases instead of relying on higher versions supplied by the repository
+  workspace.
 
 [Unreleased]: https://github.com/faustbrian/golib/pkg/telemetry/compare/main...HEAD
