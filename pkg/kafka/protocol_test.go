@@ -67,7 +67,7 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newProducer() error = %v", err)
 		}
-		defer producer.Close()
+		defer closeProducerForTest(t, producer)
 		assertMinimum(t, client)
 	})
 
@@ -86,7 +86,7 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newConsumer() error = %v", err)
 		}
-		defer consumer.Close()
+		defer closeConsumerForTest(t, consumer)
 		assertMinimum(t, client)
 	})
 

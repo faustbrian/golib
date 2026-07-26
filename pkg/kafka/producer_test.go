@@ -316,8 +316,11 @@ func TestProducerConfigRejectsInvalidCompressionPreference(t *testing.T) {
 				CompressionPreferences: preferences,
 			})
 			if producer != nil {
-				producer.Close()
-				t.Fatal("constructed producer with invalid compression")
+				closeErr := producer.Close()
+				t.Fatalf(
+					"constructed producer with invalid compression; close error = %v",
+					closeErr,
+				)
 			}
 			if !errors.Is(err, ErrInvalidCompressionPreference) {
 				t.Fatalf(
@@ -483,8 +486,11 @@ func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
 				ClientID: test.client,
 			})
 			if producer != nil {
-				producer.Close()
-				t.Fatal("NewProducer() returned a producer with invalid identity")
+				closeErr := producer.Close()
+				t.Fatalf(
+					"NewProducer() returned a producer with invalid identity; close error = %v",
+					closeErr,
+				)
 			}
 			if !errors.Is(err, test.want) {
 				t.Fatalf("NewProducer() error = %v, want %v", err, test.want)
@@ -793,8 +799,11 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 			producer, err := NewProducer(config)
 
 			if producer != nil {
-				producer.Close()
-				t.Fatal("NewProducer() returned a producer with invalid configuration")
+				closeErr := producer.Close()
+				t.Fatalf(
+					"NewProducer() returned a producer with invalid configuration; close error = %v",
+					closeErr,
+				)
 			}
 			if !errors.Is(err, ErrInvalidProducerConfig) {
 				t.Fatalf("NewProducer() error = %v, want %v", err, ErrInvalidProducerConfig)
@@ -867,7 +876,7 @@ func TestNewProducerStopsAfterDetectedDataLoss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newProducer() error = %v", err)
 	}
-	defer producer.Close()
+	defer closeProducerForTest(t, producer)
 
 	if got := franzClient.OptValue(kgo.StopProducerOnDataLossDetected); got != true {
 		t.Fatalf("StopProducerOnDataLossDetected = %v, want true", got)
@@ -1374,6 +1383,13 @@ func TestProducerRejectsAggregateHeaderKeyOverflow(t *testing.T) {
 	}
 	if len(backend.records) != 0 {
 		t.Fatalf("Publish() records = %d, want 0", len(backend.records))
+	}
+}
+
+func closeProducerForTest(t *testing.T, producer *Producer) {
+	t.Helper()
+	if err := producer.Close(); err != nil {
+		t.Errorf("Producer.Close() error = %v", err)
 	}
 }
 

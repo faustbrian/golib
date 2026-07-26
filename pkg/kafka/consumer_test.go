@@ -66,7 +66,9 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewConsumer() error = %v", err)
 	}
-	consumer.Close()
+	if closeErr := consumer.Close(); closeErr != nil {
+		t.Fatalf("Consumer.Close() error = %v", closeErr)
+	}
 
 	factoryErr := errors.New("client construction failed")
 	latestConfig := validConsumerConfig()
@@ -75,8 +77,11 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 		return nil, factoryErr
 	})
 	if consumer != nil {
-		consumer.Close()
-		t.Fatal("newConsumer() returned a consumer after client factory failure")
+		closeErr := consumer.Close()
+		t.Fatalf(
+			"newConsumer() returned a consumer after client factory failure; close error = %v",
+			closeErr,
+		)
 	}
 	if !errors.Is(err, factoryErr) {
 		t.Fatalf("newConsumer() error = %v, want %v", err, factoryErr)
@@ -91,7 +96,11 @@ func TestNewConsumerOwnsPauseSubscriptionPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewConsumer() error = %v", err)
 	}
-	defer consumer.Close()
+	t.Cleanup(func() {
+		if closeErr := consumer.Close(); closeErr != nil {
+			t.Errorf("Consumer.Close() error = %v", closeErr)
+		}
+	})
 	originalTopic := config.Topics[0]
 	config.Topics[0] = "commands"
 
@@ -126,7 +135,7 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newConsumer() error = %v", err)
 	}
-	defer consumer.Close()
+	defer closeConsumerForTest(t, consumer)
 	if got := franzClient.OptValue(kgo.FetchMaxPartitionBytes); got != int32(2<<20) {
 		t.Fatalf("FetchMaxPartitionBytes option = %#v", got)
 	}
@@ -433,7 +442,7 @@ func TestNewConsumerAppliesExplicitBalancePolicies(t *testing.T) {
 			if err != nil {
 				t.Fatalf("newConsumer() error = %v", err)
 			}
-			defer consumer.Close()
+			defer closeConsumerForTest(t, consumer)
 			balancers, ok := franzClient.OptValue(kgo.Balancers).([]kgo.GroupBalancer)
 			if !ok || len(balancers) != 1 || balancers[0].ProtocolName() != test.want {
 				t.Fatalf("Balancers option = %#v", balancers)
@@ -617,7 +626,7 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 
 			consumer, err := NewConsumer(config)
 			if consumer != nil {
-				consumer.Close()
+				closeConsumerForTest(t, consumer)
 				t.Fatal("NewConsumer() returned a consumer with invalid configuration")
 			}
 			if !errors.Is(err, test.want) {
@@ -680,7 +689,7 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 
 			consumer, err := NewConsumer(config)
 			if consumer != nil {
-				consumer.Close()
+				closeConsumerForTest(t, consumer)
 				t.Fatal("NewConsumer() returned a consumer with invalid bounded configuration")
 			}
 			if !errors.Is(err, ErrInvalidConsumerConfig) {
@@ -1349,7 +1358,9 @@ func TestConsumerRunOnceHandlesEmptyPollAndClose(t *testing.T) {
 
 		return nil
 	}))
-	consumer.Close()
+	if closeErr := consumer.Close(); closeErr != nil {
+		t.Fatalf("Close() error = %v", closeErr)
+	}
 
 	if err != nil || result != (PollResult{}) || backend.allowed != 1 || backend.closed != 1 {
 		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
@@ -1435,6 +1446,13 @@ func validConsumerConfig() ConsumerConfig {
 		GroupID:     "track-projection-v1",
 		Topics:      []string{"track.tracking-event.v1"},
 		ResetOffset: OffsetEarliest,
+	}
+}
+
+func closeConsumerForTest(t *testing.T, consumer *Consumer) {
+	t.Helper()
+	if err := consumer.Close(); err != nil {
+		t.Errorf("Consumer.Close() error = %v", err)
 	}
 }
 

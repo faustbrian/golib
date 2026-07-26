@@ -832,7 +832,9 @@ func TestProducerRejectsOperationsAcrossTransactionAndMaintenanceBoundaries(t *t
 	backend.completeAsync(0, 0, 1, nil)
 	<-delivery
 
-	producer.Close()
+	if closeErr := producer.Close(); closeErr != nil {
+		t.Fatalf("Close() error = %v", closeErr)
+	}
 	if txErr := producer.RunTransaction(context.Background(), func(Transaction) error { return nil }); !errors.Is(txErr, ErrProducerClosed) {
 		t.Fatalf("RunTransaction() after close = %v", txErr)
 	}

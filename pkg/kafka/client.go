@@ -470,10 +470,17 @@ func validTLSConfigMaterial(config *tls.Config) bool {
 }
 
 func hasServerTLSFields(config *tls.Config) bool {
-	return config.NameToCertificate != nil || config.GetCertificate != nil ||
+	//lint:ignore SA1019 The policy must reject this deprecated server-only field.
+	hasLegacyNameMap := config.NameToCertificate != nil //nolint:staticcheck // Required rejection of a deprecated server field.
+	//lint:ignore SA1019 The policy must reject this deprecated server-only field.
+	hasLegacyCipherPreference := config.PreferServerCipherSuites //nolint:staticcheck // Required rejection of a deprecated server field.
+	//lint:ignore SA1019 The policy must reject this deprecated server-only field.
+	hasLegacyTicketKey := config.SessionTicketKey != [32]byte{} //nolint:staticcheck // Required rejection of a deprecated server field.
+
+	return hasLegacyNameMap || config.GetCertificate != nil ||
 		config.GetConfigForClient != nil || config.ClientAuth != tls.NoClientCert ||
-		config.ClientCAs != nil || config.PreferServerCipherSuites ||
-		config.SessionTicketKey != [32]byte{} || config.UnwrapSession != nil ||
+		config.ClientCAs != nil || hasLegacyCipherPreference ||
+		hasLegacyTicketKey || config.UnwrapSession != nil ||
 		config.WrapSession != nil ||
 		config.EncryptedClientHelloRejectionVerify != nil ||
 		config.GetEncryptedClientHelloKeys != nil ||
@@ -722,16 +729,20 @@ func validOAuthBearerToken(token []byte) bool {
 			padding = true
 			continue
 		}
-		if padding || !((character >= 'a' && character <= 'z') ||
-			(character >= 'A' && character <= 'Z') ||
-			(character >= '0' && character <= '9') ||
-			character == '-' || character == '.' || character == '_' ||
-			character == '~' || character == '+' || character == '/') {
+		if padding || !validOAuthBearerTokenCharacter(character) {
 			return false
 		}
 	}
 
 	return true
+}
+
+func validOAuthBearerTokenCharacter(character byte) bool {
+	return (character >= 'a' && character <= 'z') ||
+		(character >= 'A' && character <= 'Z') ||
+		(character >= '0' && character <= '9') ||
+		character == '-' || character == '.' || character == '_' ||
+		character == '~' || character == '+' || character == '/'
 }
 
 func validOAuthAuthorizationID(value string) bool {
@@ -872,21 +883,29 @@ func validOAuthExtensions(extensions map[string]string) bool {
 			return false
 		}
 		for _, character := range key {
-			if !((character >= 'a' && character <= 'z') ||
-				(character >= 'A' && character <= 'Z')) {
+			if !validOAuthExtensionKeyCharacter(character) {
 				return false
 			}
 		}
 		for _, character := range []byte(value) {
-			if !((character >= 0x21 && character <= 0x7e) ||
-				character == ' ' || character == '\t' || character == '\r' ||
-				character == '\n') {
+			if !validOAuthExtensionValueCharacter(character) {
 				return false
 			}
 		}
 	}
 
 	return true
+}
+
+func validOAuthExtensionKeyCharacter(character rune) bool {
+	return (character >= 'a' && character <= 'z') ||
+		(character >= 'A' && character <= 'Z')
+}
+
+func validOAuthExtensionValueCharacter(character byte) bool {
+	return (character >= 0x21 && character <= 0x7e) ||
+		character == ' ' || character == '\t' || character == '\r' ||
+		character == '\n'
 }
 
 func cloneStringMap(source map[string]string) map[string]string {

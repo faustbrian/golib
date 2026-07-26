@@ -347,7 +347,7 @@ func consumeMembershipValues(
 	if err != nil {
 		t.Fatalf("construct membership consumer: %v", err)
 	}
-	defer consumer.Close()
+	defer closeIntegrationConsumer(t, consumer)
 
 	values := make([]string, 0, count)
 	for len(values) < count {
@@ -396,7 +396,7 @@ func provePartitionSettlement(
 
 	const groupID = "golib-compatibility-partition-settlement"
 	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
-	defer consumer.Close()
+	defer closeIntegrationConsumer(t, consumer)
 	var handled []string
 	for {
 		result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
@@ -436,7 +436,7 @@ func consumeValues(
 	t.Helper()
 
 	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
-	defer consumer.Close()
+	defer closeIntegrationConsumer(t, consumer)
 
 	values := make([]string, 0, count)
 	for len(values) < count {
@@ -504,6 +504,13 @@ func newIntegrationConsumer(
 	}
 
 	return consumer
+}
+
+func closeIntegrationConsumer(t *testing.T, consumer *kafka.Consumer) {
+	t.Helper()
+	if err := consumer.Close(); err != nil {
+		t.Errorf("consumer close: %v", err)
+	}
 }
 
 func assertGroupCommitted(
