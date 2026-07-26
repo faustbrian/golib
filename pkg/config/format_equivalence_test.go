@@ -5,16 +5,80 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"math"
 	"reflect"
 	"testing"
 	"time"
 
 	config "github.com/faustbrian/golib/pkg/config"
+	"github.com/faustbrian/golib/pkg/config/defaults"
 	"github.com/faustbrian/golib/pkg/config/dotenv"
 	jsonsource "github.com/faustbrian/golib/pkg/config/json"
 	tomlsource "github.com/faustbrian/golib/pkg/config/toml"
 	yamlsource "github.com/faustbrian/golib/pkg/config/yaml"
 )
+
+func TestUnsignedTypedDefaultCanBeOverriddenByEquivalentJSONNumber(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	type settings struct {
+		Port uint16 `config:"port" default:"5432"`
+	}
+	defaultSource, err := defaults.For[settings]("defaults")
+	if err != nil {
+		t.Fatalf("construct default source: %v", err)
+	}
+	jsonSource, err := jsonsource.Bytes(
+		[]byte(`{"port":6432}`),
+		jsonsource.Options{Name: "json"},
+	)
+	if err != nil {
+		t.Fatalf("construct JSON source: %v", err)
+	}
+	plan, err := config.NewDefaultPlan(config.DefaultSources{
+		Defaults:      []config.Source{defaultSource},
+		ExplicitFiles: []config.Source{jsonSource},
+	})
+	if err != nil {
+		t.Fatalf("construct plan: %v", err)
+	}
+
+	snapshot, err := config.Load[settings](context.Background(), plan)
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if got := snapshot.Value().Port; got != 6432 {
+		t.Fatalf("port = %d, want 6432", got)
+	}
+}
+
+func TestUnsignedTypedDefaultPreservesValueAboveSignedRange(t *testing.T) {
+	t.Parallel()
+
+	type settings struct {
+		Sequence uint64 `config:"sequence" default:"18446744073709551615"`
+	}
+	defaultSource, err := defaults.For[settings]("defaults")
+	if err != nil {
+		t.Fatalf("construct default source: %v", err)
+	}
+	plan, err := config.NewDefaultPlan(config.DefaultSources{
+		Defaults: []config.Source{defaultSource},
+	})
+	if err != nil {
+		t.Fatalf("construct plan: %v", err)
+	}
+
+	snapshot, err := config.Load[settings](context.Background(), plan)
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if got := snapshot.Value().Sequence; got != math.MaxUint64 {
+		t.Fatalf("sequence = %d, want %d", got, uint64(math.MaxUint64))
+	}
+}
 
 func TestJSONYAMLAndTOMLEquivalentDocumentsProduceSameTree(t *testing.T) {
 	t.Parallel()

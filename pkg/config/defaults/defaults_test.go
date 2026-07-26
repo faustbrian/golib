@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"reflect"
 	"strings"
@@ -24,6 +25,29 @@ type configuration struct {
 		Host string `config:"host" default:"localhost"`
 	} `config:"nested"`
 	WithoutDefault string `config:"without_default"`
+}
+
+func TestForCanonicalizesUnsignedDefaultsLikeStructuredSources(t *testing.T) {
+	t.Parallel()
+
+	type unsigned struct {
+		Port     uint16 `config:"port" default:"5432"`
+		Sequence uint64 `config:"sequence" default:"18446744073709551615"`
+	}
+	source, err := defaults.For[unsigned]("defaults")
+	if err != nil {
+		t.Fatalf("For() error = %v", err)
+	}
+	document, err := source.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got := document.Tree["port"]; got != int64(5432) {
+		t.Fatalf("port = %T(%v), want int64(5432)", got, got)
+	}
+	if got := document.Tree["sequence"]; got != uint64(math.MaxUint64) {
+		t.Fatalf("sequence = %T(%v), want uint64 MaxUint64", got, got)
+	}
 }
 
 func TestForBuildsTypedDefaultSource(t *testing.T) {
@@ -300,6 +324,15 @@ func TestForRejectsInvalidNestedStructCollectionAndUnsupportedDefaults(t *testin
 			build: func() (config.Source, error) {
 				type invalid struct {
 					Value complex64 `config:"value" default:"1+2i"`
+				}
+				return defaults.For[invalid]("defaults")
+			},
+			path: "value",
+		},
+		"unsigned overflow": {
+			build: func() (config.Source, error) {
+				type invalid struct {
+					Value uint8 `config:"value" default:"256"`
 				}
 				return defaults.For[invalid]("defaults")
 			},

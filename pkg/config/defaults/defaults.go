@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -209,7 +210,15 @@ func convert(input string, typeOf reflect.Type) (any, error) {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.ParseInt(input, 10, typeOf.Bits())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.ParseUint(input, 10, typeOf.Bits())
+		value, err := strconv.ParseUint(input, 10, typeOf.Bits())
+		if err != nil {
+			return nil, err
+		}
+		if value <= math.MaxInt64 {
+			return int64(value), nil
+		}
+
+		return value, nil
 	case reflect.Float32, reflect.Float64:
 		return strconv.ParseFloat(input, typeOf.Bits())
 	case reflect.Slice, reflect.Map:
