@@ -7,6 +7,10 @@ infrastructure.
 - `Consumer` uses a group, disables automatic commits, blocks rebalancing while
   a bounded poll is processed, and commits only each partition's contiguous
   durable success prefix.
+- `FailureHandler` composes bounded per-record retry and terminal
+  retry-topic, dead-letter, or delegated decisions without owning group
+  offsets. Non-transactional target publication completes before the normal
+  consumer submits its separate source commit.
 - `Transaction` serializes a configured transactional producer and prevents a
   retained callback capability from publishing after completion.
 - `TransactionProcessor` owns one read-committed group member and transactional

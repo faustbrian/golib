@@ -136,6 +136,26 @@ beyond the handler call. The current runner is single-threaded and does not yet
 expose a separate drain operation or bounded cross-partition worker
 concurrency; these remain pre-v1 completion work.
 
+### Retry, retry topics, and dead letters
+
+Kafka has no per-record nack or visibility timeout. `NewFailureHandler`
+decorates the per-record handler with explicit stop, bounded category-selected
+in-process retry, versioned retry-topic, versioned dead-letter, or
+application-delegated policy. The default terminal mode stops and returns a
+redacted error without settling the record.
+
+A definite retry or dead-letter publish result turns that decorated handler
+call into a success. The consumer then submits its normal contiguous source
+commit. Those are separate effects: a crash or ambiguous commit between them
+can publish the target record more than once. Failed publication leaves the
+source unsettled. Use `TransactionProcessor` for a Kafka-only atomic
+source-offset and output transaction. Complete configuration, metadata, and
+failure-window guidance is in the
+[retry and dead-letter guide](retry-dead-letter.md).
+
+The decorator does not apply to `RunBatchOnce`; a failed partition batch does
+not identify a safe individual record to settle or reroute.
+
 ### Pause and resume
 
 `PausePartitions` stops future fetches only for explicit `TopicPartition`

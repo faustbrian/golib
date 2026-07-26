@@ -55,6 +55,10 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	transactionTopic := topic + "-transaction"
 	transactionSourceTopic := topic + "-transaction-source"
 	transactionOutputTopic := topic + "-transaction-output"
+	retrySourceTopic := topic + "-retry-source"
+	retryTopic := topic + "-retry-v2"
+	deadLetterSourceTopic := topic + "-dead-letter-source"
+	deadLetterTopic := topic + "-dead-letter-v3"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
@@ -62,6 +66,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
 			rebalanceTopic, batchTopic,
 			transactionSourceTopic,
+			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -74,9 +79,6 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 			t.Errorf("Close() error = %v", err)
 		}
 	})
-	if err := producer.Health(ctx); err != nil {
-		t.Fatalf("check Kafka health: %v", err)
-	}
 	createIntegrationTopic(t, ctx, brokers, topic, 1)
 	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
@@ -87,6 +89,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionOutputTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, retrySourceTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, retryTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, deadLetterSourceTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, deadLetterTopic, 1)
+	if err := producer.Health(ctx); err != nil {
+		t.Fatalf("check Kafka health: %v", err)
+	}
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -191,6 +200,281 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		transactionSourceTopic,
 		transactionOutputTopic,
 	)
+	proveFailureTopicPolicy(
+		t,
+		ctx,
+		brokers,
+		retrySourceTopic,
+		retryTopic,
+		deadLetterSourceTopic,
+		deadLetterTopic,
+	)
+}
+
+func proveFailureTopicPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	retrySourceTopic string,
+	retryTopic string,
+	deadLetterSourceTopic string,
+	deadLetterTopic string,
+) {
+	t.Helper()
+
+	failureProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-failure-policy-producer",
+		AllowedTopics: []string{
+			retrySourceTopic,
+			retryTopic,
+			deadLetterSourceTopic,
+			deadLetterTopic,
+		},
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct failure-policy producer: %v", err)
+	}
+	defer func() {
+		if err := failureProducer.Close(); err != nil {
+			t.Errorf("close failure-policy producer: %v", err)
+		}
+	}()
+	if err := failureProducer.Health(ctx); err != nil {
+		t.Fatalf("check failure-policy producer health: %v", err)
+	}
+
+	publishSource := func(topic string, value string) time.Time {
+		t.Helper()
+		timestamp := time.Now().UTC().Truncate(time.Millisecond)
+		result := failureProducer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("aggregate-failure"),
+			Value:     []byte(value),
+			Headers: []kafka.Header{{
+				Key: "correlation-id", Value: []byte("correlation-123"),
+			}},
+			Timestamp: timestamp,
+		})
+		if result.Err != nil {
+			t.Fatalf("publish failure-policy source %q: %v", value, result.Err)
+		}
+		if !result.Timestamp.Equal(timestamp) {
+			t.Fatalf(
+				"failure-policy source timestamp = %s, want %s",
+				result.Timestamp,
+				timestamp,
+			)
+		}
+		return result.Timestamp
+	}
+	retrySourceTimestamp := publishSource(retrySourceTopic, "retry-payload")
+	deadLetterSourceTimestamp := publishSource(
+		deadLetterSourceTopic,
+		"dead-letter-payload",
+	)
+
+	runFailureHandler := func(
+		sourceTopic string,
+		groupID string,
+		mode kafka.FailureMode,
+		target kafka.FailureTarget,
+		publisher kafka.FailurePublisher,
+		wantErr error,
+	) kafka.PollResult {
+		t.Helper()
+
+		consumer := newIntegrationConsumer(t, brokers, sourceTopic, groupID)
+		defer closeIntegrationConsumer(t, consumer)
+		handler, err := kafka.NewFailureHandler(kafka.FailureHandlerConfig{
+			Handler: kafka.HandlerFunc(func(
+				context.Context,
+				kafka.ConsumedMessage,
+			) error {
+				return errors.New("injected terminal application failure")
+			}),
+			Mode:      mode,
+			Target:    target,
+			Publisher: publisher,
+		})
+		if err != nil {
+			t.Fatalf("construct failure handler: %v", err)
+		}
+		for {
+			result, runErr := consumer.RunOnce(ctx, handler)
+			if result.Polled == 0 && runErr == nil {
+				continue
+			}
+			if !errors.Is(runErr, wantErr) {
+				t.Fatalf(
+					"failure-policy result/error = %#v/%v, want %v",
+					result,
+					runErr,
+					wantErr,
+				)
+			}
+
+			return result
+		}
+	}
+
+	retryGroup := "golib-compatibility-retry-topic"
+	retryResult := runFailureHandler(
+		retrySourceTopic,
+		retryGroup,
+		kafka.FailureModeRetryTopic,
+		kafka.FailureTarget{Topic: retryTopic, Version: 2},
+		failureProducer,
+		nil,
+	)
+	if retryResult != (kafka.PollResult{Polled: 1, Processed: 1, Committed: 1}) {
+		t.Fatalf("retry-topic result = %#v", retryResult)
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		retrySourceTopic,
+		retryGroup,
+		map[int32]int64{0: 1},
+	)
+	assertFailureTopicRecord(
+		t,
+		ctx,
+		brokers,
+		retryTopic,
+		"retry",
+		"2",
+		retrySourceTopic,
+		"retry-payload",
+		retrySourceTimestamp,
+	)
+
+	deniedProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-compatibility-denied-dead-letter-producer",
+		AllowedTopics: []string{deadLetterSourceTopic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct denied dead-letter producer: %v", err)
+	}
+	deadLetterGroup := "golib-compatibility-dead-letter"
+	failedResult := runFailureHandler(
+		deadLetterSourceTopic,
+		deadLetterGroup,
+		kafka.FailureModeDeadLetter,
+		kafka.FailureTarget{Topic: deadLetterTopic, Version: 3},
+		deniedProducer,
+		kafka.ErrFailurePublish,
+	)
+	if err := deniedProducer.Close(); err != nil {
+		t.Fatalf("close denied dead-letter producer: %v", err)
+	}
+	if failedResult != (kafka.PollResult{Polled: 1}) {
+		t.Fatalf("failed dead-letter result = %#v", failedResult)
+	}
+
+	redeliveredResult := runFailureHandler(
+		deadLetterSourceTopic,
+		deadLetterGroup,
+		kafka.FailureModeDeadLetter,
+		kafka.FailureTarget{Topic: deadLetterTopic, Version: 3},
+		failureProducer,
+		nil,
+	)
+	if redeliveredResult != (kafka.PollResult{
+		Polled: 1, Processed: 1, Committed: 1,
+	}) {
+		t.Fatalf("redelivered dead-letter result = %#v", redeliveredResult)
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		deadLetterSourceTopic,
+		deadLetterGroup,
+		map[int32]int64{0: 1},
+	)
+	assertFailureTopicRecord(
+		t,
+		ctx,
+		brokers,
+		deadLetterTopic,
+		"dead-letter",
+		"3",
+		deadLetterSourceTopic,
+		"dead-letter-payload",
+		deadLetterSourceTimestamp,
+	)
+}
+
+func assertFailureTopicRecord(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	kind string,
+	targetVersion string,
+	sourceTopic string,
+	value string,
+	sourceTimestamp time.Time,
+) {
+	t.Helper()
+
+	consumer := newIntegrationConsumer(
+		t,
+		brokers,
+		topic,
+		"golib-compatibility-failure-target-"+kind,
+	)
+	defer closeIntegrationConsumer(t, consumer)
+	var retained kafka.ConsumedRecord
+	for {
+		result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			record kafka.ConsumedMessage,
+		) error {
+			retained = record.Retain()
+
+			return nil
+		}))
+		if err != nil {
+			t.Fatalf("consume failure target: %v", err)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+		if result != (kafka.PollResult{Polled: 1, Processed: 1, Committed: 1}) {
+			t.Fatalf("failure target result = %#v", result)
+		}
+
+		break
+	}
+
+	headers := make(map[string]string, len(retained.Headers))
+	for _, header := range retained.Headers {
+		headers[header.Key] = string(header.Value)
+	}
+	if string(retained.Key) != "aggregate-failure" ||
+		string(retained.Value) != value ||
+		headers["correlation-id"] != "correlation-123" ||
+		headers["golib.kafka.failure.schema-version"] != "1" ||
+		headers["golib.kafka.failure.kind"] != kind ||
+		headers["golib.kafka.failure.target-version"] != targetVersion ||
+		headers["golib.kafka.failure.source-topic"] != sourceTopic ||
+		headers["golib.kafka.failure.source-partition"] != "0" ||
+		headers["golib.kafka.failure.source-offset"] != "0" ||
+		headers["golib.kafka.failure.source-timestamp"] !=
+			sourceTimestamp.UTC().Format(time.RFC3339Nano) ||
+		headers["golib.kafka.failure.source-timestamp-type"] != "create-time" ||
+		headers["golib.kafka.failure.source-leader-epoch"] == "" ||
+		headers["golib.kafka.failure.attempt"] != "1" ||
+		headers["golib.kafka.failure.error-category"] != "permanent" {
+		t.Fatalf("failure target record/headers = %#v/%#v", retained, headers)
+	}
 }
 
 func proveConsumeTransformProduce(

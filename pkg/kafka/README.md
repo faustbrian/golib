@@ -144,6 +144,19 @@ failed partition are skipped and remain available for redelivery. Handlers must
 tolerate duplicates. Retain copies if bytes are needed after the handler
 returns.
 
+`NewFailureHandler` composes explicit stop, bounded in-process retry,
+versioned retry-topic, versioned dead-letter, or application-delegated policy
+around a per-record handler. The zero terminal mode stops without settling.
+Retry categories, attempts, exponential backoff, publication time, target
+topic, and target version are bounded. Retry and dead-letter records preserve
+the original key, value, ordered headers, timestamp, source coordinates,
+attempt, and a safe error category without adding handler error text.
+Non-transactional target publication precedes source offset commit, so a crash
+or ambiguous commit can duplicate the target record. Use
+`TransactionProcessor` only when target publication and source settlement must
+be one Kafka transaction. See the
+[retry and dead-letter guide](docs/retry-dead-letter.md).
+
 When a rebalance waits on an active poll, the default policy requests handler
 cancellation and stops admitting later records. Handlers must honor their
 context. Select `RebalanceDrainHandler` only when the active handler can finish

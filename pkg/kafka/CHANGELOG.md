@@ -44,6 +44,13 @@ All notable changes to this module are documented here.
 - explicit blocked-rebalance handling that stops poll admission, cancels the
   active handler by default or drains only that handler, and preserves safe
   contiguous settlement before releasing the rebalance
+- bounded per-record failure handling with category-selected in-process retry,
+  versioned retry-topic and dead-letter publication, explicit stop and
+  application delegation, redacted errors, owned failure records, and
+  cancellation-aware backoff
+- real-broker evidence that acknowledged retry and dead-letter records preserve
+  source metadata before source settlement, while a failed dead-letter
+  publication leaves the source offset for redelivery
 - bounded transactional producer with fenced callback lifetime and explicit
   abortable, authorization, fenced, fatal, and unknown-outcome classification
 - real-broker evidence that committed transaction records are visible to

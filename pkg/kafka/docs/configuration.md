@@ -160,6 +160,31 @@ applications must return when the handler context is done.
 Automatic commits remain disabled and cannot be enabled through configuration.
 See the [consumer guide](consumer.md) for settlement and rollout semantics.
 
+## Consumer failure handler
+
+| Field | Default | Allowed policy |
+| --- | ---: | --- |
+| `Handler` | none | Required per-record handler. |
+| `Classifier` | package classifier | Optional synchronous stable-category mapping for application errors. |
+| `Retry.MaxAttempts` | 1 | 1 to 32, including the initial call. Values above 1 require bounded backoff. |
+| `Retry.InitialBackoff` | none | 1 millisecond or more when retries are enabled. |
+| `Retry.MaxBackoff` | none | At least the initial delay and at most 5 minutes. |
+| `Retry.Categories` | `ErrorRetryable` when retries are enabled | Unique valid `ErrorCategory` values. No category is retried when only one attempt is configured. |
+| `Mode` | `FailureModeStop` | Stop, versioned retry topic, versioned dead letter, or application delegate. |
+| `Target` | none | Publish modes require a valid Kafka topic different from the runtime source topic and a non-zero application version. |
+| `Publisher` | none | Required only for retry-topic and dead-letter modes. `Producer` satisfies the interface and independently enforces its topic allowlist. |
+| `Delegate` | none | Required only for delegated mode. |
+| `Limits` | `DefaultMessageLimits` | Bounds the complete target record after original data and 11 package metadata headers are preserved. |
+| `PublishTimeout` | 10 seconds for publish modes | 100 milliseconds to 2 minutes; forbidden for non-publish modes. |
+
+`FailureHandlerConfig.Validate` applies the same validation and defaulting as
+`NewFailureHandler` without allocating resources. Retry-category slices are
+copied. Interface implementations remain caller-owned and must be bounded,
+concurrency-safe, and cancellation-aware for every handler using them.
+Incompatible publisher, delegate, target, and timeout fields are rejected
+instead of ignored. See the
+[retry and dead-letter guide](retry-dead-letter.md).
+
 ## Replay and inspection
 
 Replay requires 1 to 1,024 unique topic-partition ranges. Start offsets are

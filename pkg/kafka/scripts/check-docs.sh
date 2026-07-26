@@ -11,6 +11,8 @@ required=(
 	docs/api.md
 	docs/architecture.md
 	docs/guarantees.md
+	docs/consumer.md
+	docs/retry-dead-letter.md
 	docs/transactions.md
 	docs/replay.md
 	docs/operations.md

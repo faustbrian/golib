@@ -132,6 +132,27 @@ fails closed before another handler is invoked.
 entire batch; an error settles none of it. Successful independent partition
 batches remain committable. `ConsumedBatch.Retain` copies the batch slice and
 every record byte for use after the handler returns.
+
+`NewFailureHandler` decorates the per-record `Handler` contract without
+changing `Consumer` or exposing franz-go. `FailureRetryPolicy` bounds selected
+error categories to 1 through 32 total attempts with capped,
+cancellation-aware exponential backoff. `FailureModeStop` is the zero terminal
+mode. `FailureModeRetryTopic` and `FailureModeDeadLetter` require a
+`FailurePublisher`, an explicit valid `FailureTarget.Topic`, a non-zero target
+version, and a bounded publish timeout. `Producer` implements the narrow
+publisher interface. `FailureModeDelegate` invokes one synchronous
+application-owned `FailureDelegate`; nil explicitly resolves the source
+handler and an error keeps it unsettled.
+
+`HandlerFailure` exposes borrowed source metadata, the attempt, stable
+`ErrorCategory`, and a programmatic cause; `Retain` deep-copies record bytes.
+`FailureHandlingError` renders only its stable stage and category while
+preserving original identities through `errors.Is` and `errors.As`.
+Classifier, publisher, and delegate panics are contained. Successful retry or
+dead-letter publication returns handler success so the normal consumer can
+commit the source offset afterward. The two effects are not atomic and can
+duplicate target records. Use `TransactionProcessor` for Kafka-transactional
+source-offset and output settlement.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

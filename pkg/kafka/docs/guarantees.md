@@ -104,6 +104,31 @@ error, so the counter remains zero after a failed commit and does not claim the
 request was wholly persisted or wholly rejected. Side effects must be
 idempotent.
 
+`FailureHandler` does not add a queue-style nack or visibility timeout. Its
+zero `FailureModeStop` returns a redacted error and leaves the failed source
+record unsettled. Optional in-process retries are limited by attempt count,
+selected stable categories, capped exponential backoff, the outer handler
+deadline, and cancellation. Cancellation, including the rebalance-cancellation
+cause, prevents a terminal target publication or delegated success from
+settling the record.
+
+A definite retry-topic or dead-letter publish result resolves the decorated
+handler, after which the normal consumer submits its source offset commit. A
+failed or panicking publisher does not resolve the handler. Publication and
+source commit are separate Kafka effects: a crash or ambiguous commit after
+publication can duplicate the target record. The package preserves source
+coordinates and application headers so target consumers can deduplicate, but
+it does not claim lossless deduplication for application side effects. Use
+`TransactionProcessor` when target output and source offsets must commit in one
+Kafka transaction.
+
+Failure target records own copies of the original key, value, ordered headers,
+and timestamp. Eleven appended schema, kind, target-version, source-coordinate,
+attempt, and category headers must fit the configured record limits. Handler
+error text is never copied. A record that cannot preserve all original data
+and package metadata fails closed and remains unsettled. Publishing to the
+runtime source topic is rejected to prevent an accidental self-loop.
+
 `RunBatchOnce` changes the handler boundary, not the delivery guarantee. One
 call receives records from exactly one topic partition. Only a nil batch result
 makes its final record committable; any failure leaves the entire partition
@@ -130,12 +155,14 @@ handler admission and settlement; it is not Kafka's broker generation ID.
 
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
-offset commits, redelivery after handler failure, eager group membership,
-partition pause/resume, a static member restart using the same instance ID,
-and committed-versus-aborted transaction visibility against Confluent Local
-7.5.0 using franz-go v1.21.5. The container image is pinned by repository
-digest. This compatibility fixture does not replace testing against an
-application's production broker version and configuration.
+offset commits, redelivery after handler failure and failed dead-letter
+publication, acknowledged retry-topic and dead-letter metadata followed by
+source settlement, eager group membership, partition pause/resume, a static
+member restart using the same instance ID, and committed-versus-aborted
+transaction visibility against Confluent Local 7.5.0 using franz-go v1.21.5.
+The container image is pinned by repository digest. This compatibility fixture
+does not replace testing against an application's production broker version
+and configuration.
 
 ## Context and memory
 
