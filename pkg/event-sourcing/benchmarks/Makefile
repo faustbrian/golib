@@ -50,7 +50,7 @@ capture-competitors: require-output
 capture-postgres: require-output
 	EVENT_SOURCING_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
 		$(GO) -C ../postgres test -tags=integration -run '^$$' \
-		-bench '^BenchmarkPostgreSQL(AppendEquivalentWork|OptimisticConflict)$$' \
+		-bench '^BenchmarkPostgreSQL(AppendEquivalentWork|OptimisticConflict|PoolSaturation)$$' \
 		-benchmem -benchtime='$(BENCH_TIME)' -count='$(COUNT)' \
 		> '$(POSTGRES_RAW)'
 

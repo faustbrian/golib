@@ -14,7 +14,7 @@ var projectionBenchmarkResult BatchResult
 func TestProjectionPerformanceFixture(t *testing.T) {
 	t.Parallel()
 
-	runner, checkpoints := projectionPerformanceRunner(t, 3)
+	runner, checkpoints := projectionPerformanceRunner(t, 0, 3)
 	result, err := runner.RunBatch(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -32,12 +32,29 @@ func TestProjectionPerformanceFixture(t *testing.T) {
 			checkpoints.handled,
 		)
 	}
+
+	liveRunner, liveCheckpoints := projectionPerformanceRunner(t, 10_000, 3)
+	liveResult, err := liveRunner.RunBatch(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if liveResult.Scanned() != 3 ||
+		liveResult.Checkpoint() != 10_003 ||
+		liveCheckpoints.saves != 3 ||
+		liveCheckpoints.handled != 3 {
+		t.Fatalf(
+			"live RunBatch() = %#v, saves=%d handled=%d",
+			liveResult,
+			liveCheckpoints.saves,
+			liveCheckpoints.handled,
+		)
+	}
 }
 
 func BenchmarkProjectionReplayAndCheckpoint(b *testing.B) {
 	for _, size := range []uint32{10, 100, 1_000} {
 		b.Run(fmt.Sprintf("batch_%d", size), func(b *testing.B) {
-			runner, checkpoints := projectionPerformanceRunner(b, size)
+			runner, checkpoints := projectionPerformanceRunner(b, 0, size)
 			ctx := context.Background()
 
 			b.ReportAllocs()
@@ -68,14 +85,50 @@ func BenchmarkProjectionReplayAndCheckpoint(b *testing.B) {
 	}
 }
 
+func BenchmarkProjectionLiveCatchUp(b *testing.B) {
+	for _, size := range []uint32{10, 100, 1_000} {
+		b.Run(fmt.Sprintf("tail_%d", size), func(b *testing.B) {
+			runner, checkpoints := projectionPerformanceRunner(b, 1_000_000, size)
+			ctx := context.Background()
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				result, err := runner.RunBatch(ctx)
+				if err != nil {
+					b.Fatal(err)
+				}
+				projectionBenchmarkResult = result
+			}
+
+			b.StopTimer()
+			if projectionBenchmarkResult.Scanned() != size ||
+				projectionBenchmarkResult.Handled() != size ||
+				projectionBenchmarkResult.Checkpointed() != size ||
+				projectionBenchmarkResult.Checkpoint() !=
+					eventsourcing.GlobalPosition(1_000_000+size) ||
+				checkpoints.saves != uint64(size) ||
+				checkpoints.handled != uint64(size) {
+				b.Fatalf(
+					"RunBatch() = %#v, saves=%d handled=%d",
+					projectionBenchmarkResult,
+					checkpoints.saves,
+					checkpoints.handled,
+				)
+			}
+		})
+	}
+}
+
 func projectionPerformanceRunner(
 	testingTB testing.TB,
+	checkpoint eventsourcing.GlobalPosition,
 	size uint32,
 ) (*Runner, *projectionPerformanceCheckpoints) {
 	testingTB.Helper()
 
-	messages := projectionPerformanceMessages(testingTB, size)
-	checkpoints := &projectionPerformanceCheckpoints{}
+	messages := projectionPerformanceMessages(testingTB, checkpoint, size)
+	checkpoints := &projectionPerformanceCheckpoints{initial: checkpoint}
 	runner, err := NewRunner(RunnerConfig{
 		Name:        "performance-projection",
 		Reader:      projectionPerformanceReader{messages: messages},
@@ -96,6 +149,7 @@ func projectionPerformanceRunner(
 
 func projectionPerformanceMessages(
 	testingTB testing.TB,
+	checkpoint eventsourcing.GlobalPosition,
 	size uint32,
 ) []eventsourcing.Message {
 	testingTB.Helper()
@@ -115,7 +169,7 @@ func projectionPerformanceMessages(
 	}
 	messages := make([]eventsourcing.Message, size)
 	for index := range messages {
-		position := uint64(index + 1)
+		position := uint64(checkpoint) + uint64(index) + 1
 		pending, pendingErr := eventsourcing.NewPendingMessage(
 			eventsourcing.PendingMessageInput{
 				ID:         fmt.Sprintf("projection-message-%d", position),
@@ -181,6 +235,7 @@ func (*projectionPerformanceIterator) Close() error {
 
 type projectionPerformanceCheckpoints struct {
 	checkpoint eventsourcing.GlobalPosition
+	initial    eventsourcing.GlobalPosition
 	saves      uint64
 	handled    uint64
 }
@@ -189,11 +244,15 @@ func (store *projectionPerformanceCheckpoints) Status(
 	context.Context,
 	string,
 ) (Status, error) {
-	store.checkpoint = 0
+	store.checkpoint = store.initial
 	store.saves = 0
 	store.handled = 0
 
-	return NewStatus(StatusInput{State: StateRunning})
+	return NewStatus(StatusInput{
+		Checkpoint:    store.initial,
+		HasCheckpoint: store.initial != 0,
+		State:         StateRunning,
+	})
 }
 
 func (store *projectionPerformanceCheckpoints) Save(

@@ -53,7 +53,9 @@ messages through the public runner, including replay delivery construction,
 one handler call, and one optimistic checkpoint save per message. Its reader,
 handler, and checkpoint store are deterministic in-memory fixtures, so the
 result isolates orchestration cost rather than durable read-model or checkpoint
-I/O. Benchmark those deployment-owned transactions separately.
+I/O. A separately named live-catch-up workload resumes from an existing
+1,000,000-message checkpoint and handles bounded tails of the same sizes.
+Benchmark deployment-owned read-model and checkpoint transactions separately.
 
 The in-memory concurrency benchmark compares workloads of 200 single-message
 appends from eight writers across independent streams and one hot stream. Event
@@ -69,6 +71,12 @@ The optional gooutbox adapter owns a real PostgreSQL benchmark that compares
 the same single-message append with and without one encoded outbox row in the
 commit transaction. It reports adapter staging overhead separately from relay
 publication and Kafka delivery.
+
+The PostgreSQL benchmark suite also drives parallel independent-stream appends
+through a pool restricted to two connections. It requires observed empty-pool
+waits, reports waits and wait duration per operation, and verifies every
+successful append durably. This measures client pool saturation plus the
+database's global-position contention on the capture host.
 
 ## Reproducibility
 

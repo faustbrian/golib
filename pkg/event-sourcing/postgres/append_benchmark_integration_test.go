@@ -21,6 +21,10 @@ var benchmarkPosition int64
 var benchmarkConflict error
 var benchmarkRun atomic.Uint64
 
+type poolSaturationFailure struct {
+	err error
+}
+
 func BenchmarkPostgreSQLAppendEquivalentWork(benchmark *testing.B) {
 	ctx, pool := newDerivedIntegrationPool(benchmark)
 	store, err := eventpostgres.New(pool, eventpostgres.Config{})
@@ -136,6 +140,96 @@ func BenchmarkPostgreSQLOptimisticConflict(benchmark *testing.B) {
 	}
 }
 
+func BenchmarkPostgreSQLPoolSaturation(benchmark *testing.B) {
+	ctx, pool := newDerivedIntegrationPool(benchmark)
+	config := pool.Config().Copy()
+	config.MaxConns = 2
+	config.MinConns = 0
+	config.MinIdleConns = 0
+	limitedPool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+	benchmark.Cleanup(limitedPool.Close)
+	store, err := eventpostgres.New(limitedPool, eventpostgres.Config{})
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+
+	prefix := fmt.Sprintf("pool-saturation-%d", benchmarkRun.Add(1))
+	before := limitedPool.Stat()
+	var sequence atomic.Uint64
+	var failure atomic.Pointer[poolSaturationFailure]
+
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	benchmark.RunParallel(func(worker *testing.PB) {
+		for worker.Next() {
+			current := sequence.Add(1)
+			stream, pending, messageErr := benchmarkPostgreSQLMessageAt(
+				prefix,
+				current,
+			)
+			if messageErr != nil {
+				failure.CompareAndSwap(nil, &poolSaturationFailure{err: messageErr})
+
+				continue
+			}
+			if _, appendErr := store.Append(
+				ctx,
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{pending},
+			); appendErr != nil {
+				failure.CompareAndSwap(nil, &poolSaturationFailure{err: appendErr})
+			}
+		}
+	})
+	benchmark.StopTimer()
+
+	if observed := failure.Load(); observed != nil {
+		benchmark.Fatal(observed.err)
+	}
+	operations := sequence.Load()
+	after := limitedPool.Stat()
+	waitCount := after.EmptyAcquireCount() - before.EmptyAcquireCount()
+	waitTime := after.EmptyAcquireWaitTime() - before.EmptyAcquireWaitTime()
+	if operations == 0 || waitCount == 0 || waitTime <= 0 {
+		benchmark.Fatalf(
+			"pool saturation = operations %d, waits %d, wait time %s",
+			operations,
+			waitCount,
+			waitTime,
+		)
+	}
+	benchmark.ReportMetric(
+		float64(waitCount)/float64(operations),
+		"pool_waits/op",
+	)
+	benchmark.ReportMetric(
+		float64(waitTime.Nanoseconds())/float64(operations),
+		"pool_wait_ns/op",
+	)
+
+	var persisted uint64
+	if err := limitedPool.QueryRow(
+		ctx,
+		`SELECT count(*) FROM event_sourcing.messages
+		 WHERE aggregate_type = 'benchmark.counter'
+		 AND aggregate_id LIKE $1`,
+		prefix+"-%",
+	).Scan(&persisted); err != nil {
+		benchmark.Fatal(err)
+	}
+	if persisted != operations {
+		benchmark.Fatalf(
+			"persisted messages = %d, want %d",
+			persisted,
+			operations,
+		)
+	}
+}
+
 func benchmarkPostgreSQLAppend(
 	benchmark *testing.B,
 	ctx context.Context,
@@ -186,6 +280,25 @@ func benchmarkPostgreSQLAppend(
 func benchmarkPostgreSQLMessage(
 	prefix string,
 	sequence int,
+) (eventsourcing.StreamID, eventsourcing.PendingMessage, error) {
+	stream, err := eventsourcing.NewStreamID(
+		"benchmark.counter",
+		fmt.Sprintf("%s-%d", prefix, sequence),
+	)
+	if err != nil {
+		return eventsourcing.StreamID{}, eventsourcing.PendingMessage{}, err
+	}
+	pending, err := benchmarkPostgreSQLPending(
+		stream,
+		fmt.Sprintf("%s-message-%d", prefix, sequence),
+	)
+
+	return stream, pending, err
+}
+
+func benchmarkPostgreSQLMessageAt(
+	prefix string,
+	sequence uint64,
 ) (eventsourcing.StreamID, eventsourcing.PendingMessage, error) {
 	stream, err := eventsourcing.NewStreamID(
 		"benchmark.counter",

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expand reproducible performance coverage across empty and single-event
   histories, bounded and hostile payloads, cold and warm codec registries,
   no-op upcasting, and synchronous dispatch batches.
+- Measure PostgreSQL pool saturation and projection live catch-up as distinct
+  bounded workloads with durable-state and checkpoint assertions.
 - Capture representative CPU, allocation, mutex, block, garbage-collection,
   PostgreSQL, and client I/O profiles alongside repeated benchmark samples.
 - Correct the previous unreleased adapter status note: Kafka and reusable
