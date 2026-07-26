@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Pin owned dependencies to published source revisions so clean consumers can
+  resolve the module before the first tags.
 - Snapshot localized validation rules in an explicit immutable adapter instead
   of relying on analyzer-ambiguous closure capture.
 - Refresh owned-module checksums against the final consolidated archives.
