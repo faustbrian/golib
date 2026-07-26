@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add PostgreSQL restart and physical streaming-replica promotion evidence
+  preserving event history, stream versions, and global ordering.
 - Document the custom outbox migration boundary, including non-event-sourced
   use, relay contracts, same-transaction bridge rules, and external evidence.
 - Add a PostgreSQL event/outbox relay scenario proving durable transient retry,

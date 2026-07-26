@@ -217,10 +217,22 @@ before retry.
 The backend-recovery suite durably appends history, terminates the pool's
 PostgreSQL backend, and proves the existing pool can establish a replacement
 connection, read unchanged history, and append the next stream and global
-versions. This exercises connection-loss recovery for one PostgreSQL instance;
-it is not evidence for server restart, replica promotion, DNS failover, or a
-managed-service control plane. Those deployment-specific paths require their
-own fault-injection and recovery evidence.
+versions.
+
+The server-restart suite stops and starts the PostgreSQL container, resolves
+its new test endpoint, reconstructs the caller-owned pool, reads unchanged
+history, and appends the next stream and global versions. The failover suite
+builds a physical streaming replica from the primary, appends additional WAL,
+waits for the replica to reach the exact stream version, stops the primary,
+promotes the replica, and proves ordered reads and the next append through the
+promoted server. Replication uses SCRAM authentication on an isolated Docker
+network.
+
+These tests prove adapter behavior after reconnecting to a writable server and
+preserve authoritative ordering across the pinned PostgreSQL 18 promotion.
+They do not make pgx discover a new primary. Applications or managed-service
+infrastructure own DNS, proxy, topology, fencing, retry, and pool-refresh
+policy and must fault-inject that exact deployment path.
 
 History is authoritative and must not be deleted as routine cleanup. Use
 PostgreSQL backup plus tested point-in-time recovery. Restore the stream heads,

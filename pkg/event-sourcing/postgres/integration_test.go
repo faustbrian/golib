@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	dockercontainer "github.com/moby/moby/api/types/container"
+
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/faustbrian/golib/pkg/event-sourcing/eventtest"
 	eventpostgres "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
@@ -21,8 +23,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/network"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestPostgreSQLEventStoreConformance(t *testing.T) {
@@ -427,6 +432,319 @@ func TestPostgreSQLStoreRecoversAfterBackendTermination(t *testing.T) {
 		!exists ||
 		position != 2 {
 		t.Fatalf("stored after backend termination = %#v", recovered)
+	}
+}
+
+func TestPostgreSQLStoreRecoversAfterServerRestart(t *testing.T) {
+	ctx, pool, container := newPostgreSQLIntegrationDatabase(t)
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t, "account", "server-restart")
+	first := mustPending(t, stream, "restart-message-1", 1)
+	stored, err := store.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{first},
+	)
+	if err != nil || len(stored) != 1 {
+		t.Fatalf("append before restart = %#v, %v", stored, err)
+	}
+
+	stopTimeout := 10 * time.Second
+	if err := container.Stop(ctx, &stopTimeout); err != nil {
+		t.Fatalf("stop PostgreSQL: %v", err)
+	}
+	outageCtx, cancelOutage := context.WithTimeout(ctx, 2*time.Second)
+	err = pool.Ping(outageCtx)
+	cancelOutage()
+	if err == nil {
+		t.Fatal("pool ping succeeded while PostgreSQL was stopped")
+	}
+	if err := container.Start(ctx); err != nil {
+		t.Fatalf("restart PostgreSQL: %v", err)
+	}
+	execPostgreSQLCommand(
+		t,
+		ctx,
+		container,
+		"pg_isready",
+		"--username=event_sourcing",
+		"--dbname=event_sourcing",
+	)
+	restartedConnectionString, err := container.ConnectionString(
+		ctx,
+		"sslmode=disable",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restartedPool, err := pgxpool.New(ctx, restartedConnectionString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restartedPool.Close)
+	recoveryCtx, cancelRecovery := context.WithTimeout(ctx, 30*time.Second)
+	waitForPostgreSQL(t, recoveryCtx, restartedPool)
+	cancelRecovery()
+	restartedStore, err := eventpostgres.New(
+		restartedPool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	options, err := eventsourcing.NewReadStreamOptions(
+		eventsourcing.ReadStreamOptionsInput{
+			FromVersion: 1,
+			Limit:       10,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iterator, err := restartedStore.ReadStream(ctx, stream, options)
+	messages := collectMessages(t, ctx, mustIterator(t, iterator, err))
+	if len(messages) != 1 || !messages[0].Equal(stored[0]) {
+		t.Fatalf("messages after restart = %#v", messages)
+	}
+
+	second := mustPending(t, stream, "restart-message-2", 2)
+	recovered, err := restartedStore.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectExactVersion(1),
+		[]eventsourcing.PendingMessage{second},
+	)
+	if err != nil || len(recovered) != 1 {
+		t.Fatalf("append after restart = %#v, %v", recovered, err)
+	}
+	position, exists := recovered[0].GlobalPosition()
+	if recovered[0].StreamVersion() != 2 || !exists || position != 2 {
+		t.Fatalf("stored after restart = %#v", recovered)
+	}
+}
+
+func TestPostgreSQLReplicaPromotionPreservesHistoryAndOrdering(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	t.Cleanup(cancel)
+	version := os.Getenv("EVENT_SOURCING_POSTGRES_VERSION")
+	if version == "" {
+		version = "18"
+	}
+	clusterNetwork, err := network.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			30*time.Second,
+		)
+		defer cleanupCancel()
+		if err := clusterNetwork.Remove(cleanupCtx); err != nil {
+			t.Errorf("remove PostgreSQL network: %v", err)
+		}
+	})
+
+	primary, err := tcpostgres.Run(
+		ctx,
+		"postgres:"+version+"-alpine",
+		network.WithNetwork([]string{"event-primary"}, clusterNetwork),
+		tcpostgres.WithDatabase("event_sourcing"),
+		tcpostgres.WithUsername("event_sourcing"),
+		tcpostgres.WithPassword("event_sourcing"),
+		tcpostgres.BasicWaitStrategies(),
+	)
+	if err != nil {
+		t.Fatalf("start PostgreSQL primary: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			30*time.Second,
+		)
+		defer cleanupCancel()
+		if err := primary.Terminate(cleanupCtx); err != nil {
+			t.Errorf("terminate PostgreSQL primary: %v", err)
+		}
+	})
+	primaryConnection, err := primary.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	primaryPool, err := pgxpool.New(ctx, primaryConnection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(primaryPool.Close)
+	if _, err := primaryPool.Exec(ctx, migrationUpSQL(t)); err != nil {
+		t.Fatalf("apply primary migration: %v", err)
+	}
+	if _, err := primaryPool.Exec(
+		ctx,
+		"CREATE ROLE event_replica WITH REPLICATION LOGIN PASSWORD 'event_replica'",
+	); err != nil {
+		t.Fatalf("create replication role: %v", err)
+	}
+	execPostgreSQLCommand(
+		t,
+		ctx,
+		primary,
+		"sh",
+		"-c",
+		`printf '%s\n' 'host replication event_replica 0.0.0.0/0 scram-sha-256' >> "$PGDATA/pg_hba.conf"`,
+	)
+	if _, err := primaryPool.Exec(ctx, "SELECT pg_reload_conf()"); err != nil {
+		t.Fatalf("reload primary access rules: %v", err)
+	}
+	primaryStore, err := eventpostgres.New(
+		primaryPool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t, "account", "replica-promotion")
+	first := mustPending(t, stream, "promotion-message-1", 1)
+	if _, err := primaryStore.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{first},
+	); err != nil {
+		t.Fatalf("append before replica base backup: %v", err)
+	}
+
+	const replicaData = "/tmp/event-sourcing-replica"
+	replica, err := testcontainers.Run(
+		ctx,
+		"postgres:"+version+"-alpine",
+		network.WithNetwork([]string{"event-replica"}, clusterNetwork),
+		testcontainers.WithEnv(map[string]string{"PGDATA": replicaData}),
+		testcontainers.WithExposedPorts("5432/tcp"),
+		testcontainers.WithEntrypoint("sh", "-c"),
+		testcontainers.WithCmd(
+			`set -eu
+mkdir -p "$PGDATA"
+rm -rf "$PGDATA"/*
+printf '%s\n' 'event-primary:5432:*:event_replica:event_replica' > /tmp/event-replica.pgpass
+chmod 600 /tmp/event-replica.pgpass
+pg_basebackup --dbname='host=event-primary port=5432 user=event_replica passfile=/tmp/event-replica.pgpass sslmode=disable' --pgdata="$PGDATA" --format=plain --wal-method=stream --write-recovery-conf
+chmod 700 "$PGDATA"
+exec postgres -D "$PGDATA"`,
+		),
+		testcontainers.WithConfigModifier(func(config *dockercontainer.Config) {
+			config.User = "postgres"
+		}),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept read-only connections").
+				WithStartupTimeout(time.Minute),
+		),
+	)
+	if err != nil {
+		t.Fatalf("start PostgreSQL replica: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(
+			context.Background(),
+			30*time.Second,
+		)
+		defer cleanupCancel()
+		if err := replica.Terminate(cleanupCtx); err != nil {
+			t.Errorf("terminate PostgreSQL replica: %v", err)
+		}
+	})
+	replicaHost, err := replica.Host(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replicaPort, err := replica.MappedPort(ctx, "5432/tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replicaConnection := fmt.Sprintf(
+		"postgres://event_sourcing:event_sourcing@%s:%s/event_sourcing?sslmode=disable",
+		replicaHost,
+		replicaPort.Port(),
+	)
+	replicaPool, err := pgxpool.New(ctx, replicaConnection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(replicaPool.Close)
+	var inRecovery bool
+	if err := replicaPool.QueryRow(
+		ctx,
+		"SELECT pg_is_in_recovery()",
+	).Scan(&inRecovery); err != nil {
+		t.Fatal(err)
+	}
+	if !inRecovery {
+		t.Fatal("replica started as writable primary")
+	}
+
+	second := mustPending(t, stream, "promotion-message-2", 2)
+	if _, err := primaryStore.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectExactVersion(1),
+		[]eventsourcing.PendingMessage{second},
+	); err != nil {
+		t.Fatalf("append while replica follows: %v", err)
+	}
+	waitForPostgreSQLStreamVersion(t, ctx, replicaPool, stream, 2)
+
+	stopTimeout := 10 * time.Second
+	if err := primary.Stop(ctx, &stopTimeout); err != nil {
+		t.Fatalf("stop PostgreSQL primary: %v", err)
+	}
+	execPostgreSQLCommand(
+		t,
+		ctx,
+		replica,
+		"pg_ctl",
+		"-D",
+		replicaData,
+		"-w",
+		"promote",
+	)
+	waitForPostgreSQLPromotion(t, ctx, replicaPool)
+	replicaStore, err := eventpostgres.New(
+		replicaPool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options, err := eventsourcing.NewReadStreamOptions(
+		eventsourcing.ReadStreamOptionsInput{FromVersion: 1, Limit: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iterator, err := replicaStore.ReadStream(ctx, stream, options)
+	messages := collectMessages(t, ctx, mustIterator(t, iterator, err))
+	if len(messages) != 2 || messages[0].StreamVersion() != 1 ||
+		messages[1].StreamVersion() != 2 {
+		t.Fatalf("promoted history = %#v", messages)
+	}
+	third := mustPending(t, stream, "promotion-message-3", 3)
+	promoted, err := replicaStore.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectExactVersion(2),
+		[]eventsourcing.PendingMessage{third},
+	)
+	if err != nil || len(promoted) != 1 {
+		t.Fatalf("append after promotion = %#v, %v", promoted, err)
+	}
+	position, exists := promoted[0].GlobalPosition()
+	if promoted[0].StreamVersion() != 3 || !exists || position != 3 {
+		t.Fatalf("stored after promotion = %#v", promoted)
 	}
 }
 
@@ -1093,6 +1411,77 @@ func waitForPostgreSQL(
 	}
 }
 
+func waitForPostgreSQLStreamVersion(
+	t testing.TB,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	stream eventsourcing.StreamID,
+	want int64,
+) {
+	t.Helper()
+
+	deadline, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var version int64
+		err := pool.QueryRow(
+			deadline,
+			`SELECT current_version
+FROM event_sourcing.streams
+WHERE aggregate_type = $1 AND aggregate_id = $2`,
+			stream.AggregateType(),
+			stream.AggregateID(),
+		).Scan(&version)
+		if err == nil && version == want {
+			return
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatalf(
+				"wait for replicated stream version %d: %v: %v",
+				want,
+				deadline.Err(),
+				err,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForPostgreSQLPromotion(
+	t testing.TB,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+) {
+	t.Helper()
+
+	deadline, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var inRecovery bool
+		err := pool.QueryRow(
+			deadline,
+			"SELECT pg_is_in_recovery()",
+		).Scan(&inRecovery)
+		if err == nil && !inRecovery {
+			return
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatalf(
+				"wait for PostgreSQL promotion: %v: %v",
+				deadline.Err(),
+				err,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
 func explainPostgreSQLPlan(
 	t testing.TB,
 	ctx context.Context,
@@ -1116,7 +1505,7 @@ func explainPostgreSQLPlan(
 func execPostgreSQLCommand(
 	t testing.TB,
 	ctx context.Context,
-	container *tcpostgres.PostgresContainer,
+	container testcontainers.Container,
 	command ...string,
 ) {
 	t.Helper()

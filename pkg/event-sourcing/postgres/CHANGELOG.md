@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real PostgreSQL server-restart and streaming-replica promotion evidence
+  preserving history plus the next stream and global positions
 - real PostgreSQL long-stream evidence for bounded pagination across 2,048
   sequential events
 - real PostgreSQL schema-contract evidence for envelope constraints, the

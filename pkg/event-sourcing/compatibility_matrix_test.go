@@ -109,6 +109,13 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 			statuses["Build an outbox"],
 		)
 	}
+	adapterStatuses := compatibilityAdapterStatuses(t, matrix)
+	if adapterStatuses["PostgreSQL"] != "Implemented" {
+		t.Fatalf(
+			"PostgreSQL adapter status = %q, want Implemented",
+			adapterStatuses["PostgreSQL"],
+		)
+	}
 }
 
 func TestChangelogMaintainsReleasePolicy(t *testing.T) {
@@ -175,6 +182,51 @@ func compatibilityInventory(
 	}
 
 	return pages, statuses
+}
+
+func compatibilityAdapterStatuses(
+	t *testing.T,
+	matrix string,
+) map[string]string {
+	t.Helper()
+
+	statuses := make(map[string]string, 6)
+	inMatrix := false
+	scanner := bufio.NewScanner(strings.NewReader(matrix))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "## Adapter capability matrix" {
+			inMatrix = true
+			continue
+		}
+		if inMatrix && strings.HasPrefix(line, "## ") {
+			break
+		}
+		if !inMatrix || !strings.HasPrefix(line, "| ") ||
+			strings.HasPrefix(line, "| ---") {
+			continue
+		}
+		cells := strings.Split(line, "|")
+		if len(cells) != 6 {
+			t.Fatalf("malformed adapter row: %q", line)
+		}
+		name := strings.Trim(strings.TrimSpace(cells[1]), "`")
+		if name == "Adapter" {
+			continue
+		}
+		status := strings.TrimSpace(cells[4])
+		switch status {
+		case "Implemented", "Partial", "External", "Excluded":
+		default:
+			t.Fatalf("adapter %q has unknown status %q", name, status)
+		}
+		statuses[name] = status
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("scan adapter matrix: %v", err)
+	}
+
+	return statuses
 }
 
 func readContractFile(t *testing.T, path string) string {
