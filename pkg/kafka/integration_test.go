@@ -47,10 +47,11 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	}
 	topic := fmt.Sprintf("golib-compatibility-%d", time.Now().UnixNano())
 	explicitTopic := topic + "-explicit"
+	settlementTopic := topic + "-settlement"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:                brokers,
 		ClientID:               "golib-compatibility-producer",
-		AllowedTopics:          []string{topic, explicitTopic},
+		AllowedTopics:          []string{topic, explicitTopic, settlementTopic},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
@@ -67,6 +68,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	}
 	createIntegrationTopic(t, ctx, brokers, topic, 1)
 	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
+	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -156,6 +158,60 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	if !slices.Equal(retried, values) {
 		t.Fatalf("retried values = %q, want %q", retried, values)
 	}
+
+	provePartitionSettlement(t, ctx, brokers, producer, settlementTopic)
+}
+
+func provePartitionSettlement(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	for _, record := range []kafka.ProducerRecord{
+		{Topic: topic, Partition: kafka.ExplicitPartition(0), Key: []byte("p0"), Value: []byte("p0-ok")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(0), Key: []byte("p0"), Value: []byte("p0-fail")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(0), Key: []byte("p0"), Value: []byte("p0-skipped")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(1), Key: []byte("p1"), Value: []byte("p1-first")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(1), Key: []byte("p1"), Value: []byte("p1-second")},
+	} {
+		if result := producer.PublishRecord(ctx, record); result.Err != nil {
+			t.Fatalf("publish settlement fixture: %v", result.Err)
+		}
+	}
+
+	const groupID = "golib-compatibility-partition-settlement"
+	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	defer consumer.Close()
+	var handled []string
+	for {
+		result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			handled = append(handled, string(message.Value))
+			if string(message.Value) == "p0-fail" {
+				return errors.New("partition zero failed")
+			}
+
+			return nil
+		}))
+		if result.Polled == 0 && err == nil {
+			continue
+		}
+		if err == nil || result != (kafka.PollResult{Polled: 5, Processed: 3, Committed: 3}) {
+			t.Fatalf("partition settlement result/error = %#v/%v", result, err)
+		}
+		break
+	}
+	slices.Sort(handled)
+	if !slices.Equal(handled, []string{"p0-fail", "p0-ok", "p1-first", "p1-second"}) {
+		t.Fatalf("partition settlement handled values = %q", handled)
+	}
+	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 1, 1: 2})
 }
 
 func consumeValues(
@@ -271,6 +327,44 @@ func assertGroupCommitted(
 		partition.EndOffset != 3 ||
 		partition.Lag != 0 {
 		t.Fatalf("committed group state = %#v", groups[0])
+	}
+}
+
+func assertPartitionCommits(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	want map[int32]int64,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-partition-settlement-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct partition settlement inspector: %v", err)
+	}
+	defer inspector.Close()
+	groups, err := inspector.ConsumerGroupLag(ctx, groupID)
+	if err != nil {
+		t.Fatalf("inspect partition settlement offsets: %v", err)
+	}
+	if len(groups) != 1 || len(groups[0].Partitions) != len(want) {
+		t.Fatalf("partition settlement group state = %#v", groups)
+	}
+	for _, partition := range groups[0].Partitions {
+		if partition.Topic != topic ||
+			partition.CommittedOffset != want[partition.Partition] {
+			t.Fatalf("partition settlement group state = %#v", groups[0])
+		}
+		delete(want, partition.Partition)
+	}
+	if len(want) != 0 {
+		t.Fatalf("partition settlement missing offsets = %#v", want)
 	}
 }
 

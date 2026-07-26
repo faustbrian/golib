@@ -3,6 +3,7 @@ package kafka
 import (
 	"crypto/tls"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -273,32 +274,45 @@ func TestConsumerRunOnceProcessesThenCommitsBoundedPoll(t *testing.T) {
 		string(handled[1].Key) != "second" {
 		t.Fatalf("handled messages = %#v", handled)
 	}
-	if len(backend.committed) != 2 ||
-		backend.committed[0] != records[0] ||
-		backend.committed[1] != records[1] ||
+	if len(backend.committed) != 1 ||
+		backend.committed[0] != records[1] ||
 		backend.allowed != 1 ||
 		backend.lastPollLimit != 10 {
 		t.Fatalf("backend state = %#v", backend)
 	}
 }
 
-func TestConsumerRunOnceDoesNotCommitPartialHandlerSuccess(t *testing.T) {
+func TestConsumerRunOnceCommitsOnlyContiguousPartitionSuccess(t *testing.T) {
 	t.Parallel()
 
 	handlerErr := errors.New("projection failed")
-	backend := &recordingConsumerBackend{fetches: recordFetches(
-		&kgo.Record{Topic: "events", Offset: 1},
-		&kgo.Record{Topic: "events", Offset: 2},
-	)}
+	partitionZeroFirst := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	partitionOneFirst := &kgo.Record{Topic: "events", Partition: 1, Offset: 4}
+	partitionOneFailed := &kgo.Record{Topic: "events", Partition: 1, Offset: 5}
+	partitionZeroSecond := &kgo.Record{Topic: "events", Partition: 0, Offset: 2}
+	partitionOneSkipped := &kgo.Record{Topic: "events", Partition: 1, Offset: 6}
+	backend := &recordingConsumerBackend{fetches: kgo.Fetches{{
+		Topics: []kgo.FetchTopic{{
+			Topic: "events",
+			Partitions: []kgo.FetchPartition{
+				{Partition: 1, Records: []*kgo.Record{
+					partitionOneFirst,
+					partitionOneFailed,
+					partitionOneSkipped,
+				}},
+				{Partition: 0, Records: []*kgo.Record{partitionZeroFirst, partitionZeroSecond}},
+			},
+		}},
+	}}}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
-	calls := 0
+	var handled []int64
 
 	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
-		context.Context,
-		ConsumedMessage,
+		_ context.Context,
+		message ConsumedMessage,
 	) error {
-		calls++
-		if calls == 2 {
+		handled = append(handled, message.Offset)
+		if message.Partition == 1 && message.Offset == 5 {
 			return handlerErr
 		}
 
@@ -308,8 +322,11 @@ func TestConsumerRunOnceDoesNotCommitPartialHandlerSuccess(t *testing.T) {
 	if !errors.Is(err, handlerErr) {
 		t.Fatalf("RunOnce() error = %v, want %v", err, handlerErr)
 	}
-	if result != (PollResult{Polled: 2, Processed: 1}) ||
-		len(backend.committed) != 0 ||
+	if result != (PollResult{Polled: 5, Processed: 3, Committed: 3}) ||
+		!reflect.DeepEqual(handled, []int64{4, 5, 1, 2}) ||
+		len(backend.committed) != 2 ||
+		backend.committed[0] != partitionOneFirst ||
+		backend.committed[1] != partitionZeroSecond ||
 		backend.allowed != 1 {
 		t.Fatalf("result/backend = %#v/%#v", result, backend)
 	}
@@ -360,10 +377,36 @@ func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 	) error {
 		return nil
 	}))
-	if !errors.Is(err, commitErr) ||
+	if err != commitErr ||
 		result != (PollResult{Polled: 1, Processed: 1}) ||
 		commitBackend.allowed != 1 {
 		t.Fatalf("commit result/error/backend = %#v/%v/%#v", result, err, commitBackend)
+	}
+
+	handlerErr := errors.New("handler failed")
+	combinedBackend := &recordingConsumerBackend{
+		fetches: recordFetches(
+			&kgo.Record{Topic: "events", Offset: 1},
+			&kgo.Record{Topic: "events", Offset: 2},
+		),
+		commitErr: commitErr,
+	}
+	combinedConsumer := consumerWithBackend(combinedBackend, 10, time.Second, time.Second)
+	result, err = combinedConsumer.RunOnce(context.Background(), HandlerFunc(func(
+		_ context.Context,
+		message ConsumedMessage,
+	) error {
+		if message.Offset == 2 {
+			return handlerErr
+		}
+
+		return nil
+	}))
+	if !errors.Is(err, handlerErr) || !errors.Is(err, commitErr) ||
+		result != (PollResult{Polled: 2, Processed: 1}) ||
+		len(combinedBackend.committed) != 1 ||
+		combinedBackend.committed[0].Offset != 1 {
+		t.Fatalf("combined result/error/backend = %#v/%v/%#v", result, err, combinedBackend)
 	}
 }
 

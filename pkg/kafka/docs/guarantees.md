@@ -48,18 +48,26 @@ started to finish backend admission before acting on the buffer.
 
 ## Consumer
 
-Automatic commits are disabled. A poll is processed in fetch order and committed
-only after all handlers return nil. A handler error or panic leaves the batch
-uncommitted. Rebalances are released after each poll.
+Automatic commits are disabled. A poll is processed in fetch order, sequentially
+within each partition. A partition stops at its first handler error, panic, or
+timeout, and later fetched records in that partition are skipped. The highest
+successfully processed record before that failure is committed, as are
+successful prefixes from independent partitions. The first handler failure is
+returned after the bounded commit attempt. If that commit also fails, the
+returned error preserves both identities. Rebalances are released after each
+poll.
 
 Delivery is at least once. A crash after a durable side effect but before the
-offset commit replays the record. Kafka may partially persist a multi-partition
-commit before returning an error, so result counters never claim a failed commit
-was wholly persisted or wholly rejected. Side effects must be idempotent.
+offset commit replays the record. `PollResult.Committed` counts processed records
+covered by a wholly successful commit call, not the number of partition offsets
+sent. Kafka may partially persist a multi-partition commit before returning an
+error, so the counter remains zero after a failed commit and does not claim the
+request was wholly persisted or wholly rejected. Side effects must be
+idempotent.
 
 The integration suite proves Zstandard production, same-key record order,
-explicit partition delivery, successful offset commits, and redelivery after
-handler failure against
+explicit partition delivery, per-partition contiguous settlement, successful
+offset commits, and redelivery after handler failure against
 Confluent Local 7.5.0 using franz-go v1.21.5. The container image is pinned by
 repository digest. This compatibility fixture does not replace testing against
 an application's production broker version and configuration.

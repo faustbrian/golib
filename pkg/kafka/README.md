@@ -115,9 +115,12 @@ return consumer.Run(ctx, kafka.HandlerFunc(func(
 }))
 ```
 
-Offsets are committed only after every handler in the bounded poll succeeds.
-Handlers must tolerate duplicates. Retain copies if bytes are needed after the
-handler returns.
+Offsets are committed only after handler success. Each partition stops at its
+first failure; its successful contiguous prefix and successful independent
+partitions are committed before the error is returned. Later records in the
+failed partition are skipped and remain available for redelivery. Handlers must
+tolerate duplicates. Retain copies if bytes are needed after the handler
+returns.
 
 ## Replay and inspection
 

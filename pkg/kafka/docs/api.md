@@ -49,8 +49,11 @@ The franz-go backend is configured to stop after detecting idempotent-producer
 data loss; a fatal delivery requires producer replacement or an explicit
 application recovery decision.
 
-`Consumer.RunOnce` returns one bounded poll result. `Consumer.Run` exits cleanly
-when its context is canceled.
+`Consumer.RunOnce` returns one bounded poll result. Processing is sequential
+within a partition. After one partition fails, its later fetched records are
+skipped while independent partitions continue; only each partition's contiguous
+successful prefix is submitted for commit. `Consumer.Run` exits cleanly when
+its context is canceled.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

@@ -14,7 +14,7 @@ recorded on 2026-07-26. Upstream protocol support is not package evidence.
 | testcontainers-go Kafka module | v0.43.0 | Go module proxy |
 | Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; actual runtime version still needs assertion |
 | Current Apache Kafka image selected for new evidence | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Docker registry manifest; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
-| Mutation tool | patched Gremlins v0.6.0 | 898 of 898 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-26 |
+| Mutation tool | patched Gremlins v0.6.0 | 905 of 905 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-26 |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
 | Security/release tools | govulncheck v1.6.0, Gitleaks v8.30.1, go-licenses v2.0.1, CycloneDX v1.10.0 | Repository tool pins |
 | OpenTelemetry semantic conventions | 1.43.0 | Selected current specification; adapter absent |

@@ -227,8 +227,10 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	return config, nil
 }
 
-// RunOnce polls at most the configured record limit, processes records in poll
-// order, and commits only after every handler call succeeds.
+// RunOnce polls at most the configured record limit and processes records in
+// fetch order. Each partition stops at its first handler failure; successful
+// contiguous prefixes from that partition and independent partitions are
+// committed before the first handler error is returned.
 func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollResult, error) {
 	if handler == nil {
 		return PollResult{}, ErrHandlerRequired
@@ -246,25 +248,65 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 		return PollResult{}, nil
 	}
 
+	type partitionKey struct {
+		topic     string
+		partition int32
+	}
+	type partitionProgress struct {
+		lastSuccessful *kgo.Record
+		failed         bool
+	}
+	progress := make(map[partitionKey]*partitionProgress)
+	partitionOrder := make([]partitionKey, 0)
+	var handlerErr error
 	for _, record := range records {
+		key := partitionKey{topic: record.Topic, partition: record.Partition}
+		state, exists := progress[key]
+		if !exists {
+			state = &partitionProgress{}
+			progress[key] = state
+			partitionOrder = append(partitionOrder, key)
+		}
+		if state.failed {
+			continue
+		}
 		handlerCtx, cancel := context.WithTimeout(ctx, consumer.handlerTimeout)
 		err := callHandler(handlerCtx, handler, consumedMessage(record))
 		cancel()
 		if err != nil {
-			return result, err
+			state.failed = true
+			if handlerErr == nil {
+				handlerErr = err
+			}
+
+			continue
 		}
+		state.lastSuccessful = record
 		result.Processed++
 	}
 
+	committable := make([]*kgo.Record, 0, len(partitionOrder))
+	for _, key := range partitionOrder {
+		if record := progress[key].lastSuccessful; record != nil {
+			committable = append(committable, record)
+		}
+	}
+	if len(committable) == 0 {
+		return result, handlerErr
+	}
 	commitCtx, cancel := context.WithTimeout(ctx, consumer.commitTimeout)
-	err := consumer.client.CommitRecords(commitCtx, records...)
+	err := consumer.client.CommitRecords(commitCtx, committable...)
 	cancel()
 	if err != nil {
-		return result, err
-	}
-	result.Committed = len(records)
+		if handlerErr == nil {
+			return result, err
+		}
 
-	return result, nil
+		return result, errors.Join(handlerErr, err)
+	}
+	result.Committed = result.Processed
+
+	return result, handlerErr
 }
 
 // Run continuously executes bounded poll cycles until cancellation or the

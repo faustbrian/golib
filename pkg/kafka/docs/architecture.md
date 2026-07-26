@@ -5,7 +5,8 @@ infrastructure.
 
 - `Producer` validates bounded records and waits for broker delivery.
 - `Consumer` uses a group, disables automatic commits, blocks rebalancing while
-  a bounded poll is processed, and commits after durable handlers succeed.
+  a bounded poll is processed, and commits only each partition's contiguous
+  durable success prefix.
 - `Transaction` serializes a configured transactional producer and prevents a
   retained callback capability from publishing after completion.
 - `ReplayReader` directly assigns explicit partition ranges and never commits.

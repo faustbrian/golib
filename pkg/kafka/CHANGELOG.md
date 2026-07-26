@@ -42,6 +42,11 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- consumer polls now stop only the failed partition, skip its later fetched
+  records, and commit contiguous successful prefixes from that partition and
+  independent partitions before returning the first handler failure; a commit
+  failure preserves both error identities and leaves `PollResult.Committed` at
+  zero because the broker outcome may be partial
 - `ProducerConfig.AllowedTopics` is now required, limited to 64 unique valid
   Kafka topic names, and copied during construction; production outside that
   allowlist fails with `ErrTopicNotAllowed` before franz-go admission
