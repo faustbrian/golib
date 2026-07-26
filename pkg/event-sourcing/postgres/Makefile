@@ -1,9 +1,10 @@
 GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
+BENCH_COUNT ?= 10
 POSTGRES_VERSION ?= 18
 
-.PHONY: benchmark check coverage docs format format-check fuzz integration race test vet
+.PHONY: benchmark benchmark-postgres check coverage docs format format-check fuzz integration race test vet
 
 format:
 	gofmt -w .
@@ -40,6 +41,12 @@ fuzz:
 benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem \
 		-benchtime="$(BENCH_TIME)"
+
+benchmark-postgres:
+	EVENT_SOURCING_POSTGRES_VERSION="$(POSTGRES_VERSION)" \
+		$(GO) test -tags=integration -run '^$$' \
+		-bench '^BenchmarkPostgreSQLAppendEquivalentWork$$' -benchmem \
+		-benchtime="$(BENCH_TIME)" -count="$(BENCH_COUNT)"
 
 vet:
 	$(GO) vet ./...

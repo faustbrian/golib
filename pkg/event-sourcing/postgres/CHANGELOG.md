@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- an equivalent-work PostgreSQL append benchmark comparing the public event
+  store with direct `pgx` application code as the documented cost floor
 - real PostgreSQL server-restart and streaming-replica promotion evidence
   preserving history plus the next stream and global positions
 - real PostgreSQL long-stream evidence for bounded pagination across 2,048

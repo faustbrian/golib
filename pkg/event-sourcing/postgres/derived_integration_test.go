@@ -433,7 +433,7 @@ func TestPostgreSQLProjectionStoreRejectsUnsupportedPosition(t *testing.T) {
 }
 
 func newDerivedIntegrationPool(
-	t *testing.T,
+	t testing.TB,
 ) (context.Context, *pgxpool.Pool) {
 	t.Helper()
 
@@ -443,7 +443,7 @@ func newDerivedIntegrationPool(
 }
 
 func newPostgreSQLIntegrationDatabase(
-	t *testing.T,
+	t testing.TB,
 ) (context.Context, *pgxpool.Pool, *tcpostgres.PostgresContainer) {
 	t.Helper()
 

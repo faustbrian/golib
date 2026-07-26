@@ -23,6 +23,14 @@ with equivalent record-and-apply behavior against current pinned releases of
 EventHorizon, Hallgren Eventsourcing, and TheFabric Eventsourcing. It does not
 put those dependencies in the core module graph.
 
+The PostgreSQL adapter's
+[`BenchmarkPostgreSQLAppendEquivalentWork`](../postgres/append_benchmark_integration_test.go)
+compares one durable append through the public event store with direct `pgx`
+application code. Both paths use the same validated envelope and perform one
+transaction, stream creation and lock, global-position allocation, message
+insert, stream-head update, and commit. The direct path remains a cost floor;
+it does not make the event store's reusable validation and error guarantees.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating

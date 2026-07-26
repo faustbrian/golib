@@ -271,4 +271,21 @@ EVENT_SOURCING_POSTGRES_VERSION=18 \
 	go test -tags=integration -count=1 ./...
 ```
 
+The equivalent-work append benchmark compares the public event-store boundary
+with direct application code over `pgx` in the same migrated PostgreSQL 18
+database. Both paths construct the same validated envelope, open and commit
+one transaction, create and lock a new stream, allocate a global position,
+insert one message, and advance the stream head. The direct path is a baseline
+cost floor: it does not provide the event store's reusable validation, error
+classification, defensive result construction, or adapter contract.
+
+```sh
+make benchmark-postgres BENCH_TIME=250ms BENCH_COUNT=20
+```
+
+The command starts a version-selected database through the integration harness;
+each sample uses distinct stream and message identities. Record the resolved
+image digest, Go and dependency versions, database settings, hardware, raw
+output, and `benchstat` analysis before publishing a result.
+
 The module is licensed under the [MIT License](LICENSE).
