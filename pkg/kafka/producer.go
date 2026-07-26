@@ -324,6 +324,7 @@ func newProducer(
 			kgo.UniformBytesPartitioner(64<<10, true, true, nil),
 		)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
+		kgo.StopProducerOnDataLossDetected(),
 		kgo.MaxBufferedRecords(config.MaxBufferedRecords),
 		kgo.MaxBufferedBytes(config.MaxBufferedBytes),
 		kgo.ProducerBatchMaxBytes(config.MaxBatchBytes),
@@ -592,7 +593,7 @@ func (producer *Producer) publishRecord(
 	}
 	deliveries := producer.client.ProduceSync(ctx, franzRecord(record.owned()))
 	if len(deliveries) != 1 || deliveries[0].Record == nil {
-		result.Err = ErrDeliveryResultMissing
+		result.Err = newDeliveryError(ErrDeliveryResultMissing)
 
 		return result
 	}
@@ -644,9 +645,9 @@ func (producer *Producer) PublishBatch(
 		if index >= len(deliveries) || deliveries[index].Record == nil {
 			results[index] = DeliveryResult{
 				Topic: records[index].Topic,
-				Err:   ErrDeliveryResultMissing,
+				Err:   newDeliveryError(ErrDeliveryResultMissing),
 			}
-			deliveryErrors = append(deliveryErrors, ErrDeliveryResultMissing)
+			deliveryErrors = append(deliveryErrors, results[index].Err)
 
 			continue
 		}
@@ -699,10 +700,10 @@ func (producer *Producer) PublishAsync(
 	) {
 		defer producer.finishOperation()
 		if record == nil {
-			delivery <- DeliveryResult{Topic: topic, Err: errors.Join(
+			delivery <- DeliveryResult{Topic: topic, Err: newDeliveryError(errors.Join(
 				ErrDeliveryResultMissing,
-				newDeliveryError(err),
-			)}
+				err,
+			))}
 		} else {
 			delivery <- deliveryResult(kgo.ProduceResult{Record: record, Err: err})
 		}

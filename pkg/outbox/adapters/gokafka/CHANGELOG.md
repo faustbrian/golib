@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- remain source-compatible with Kafka's expanded stable producer failure
+  categories; no adapter API migration is required
+
 ### Added
 
 - synchronous mapping from transactional outbox envelopes to bounded Kafka

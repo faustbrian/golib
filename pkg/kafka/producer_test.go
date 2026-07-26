@@ -721,6 +721,32 @@ func TestNewProducerPreservesClientConstructionFailure(t *testing.T) {
 	}
 }
 
+func TestNewProducerStopsAfterDetectedDataLoss(t *testing.T) {
+	t.Parallel()
+
+	var franzClient *kgo.Client
+	producer, err := newProducer(
+		ProducerConfig{
+			Brokers:  []string{"broker.internal:9092"},
+			ClientID: "track",
+		},
+		func(options ...kgo.Opt) (*kgo.Client, error) {
+			client, clientErr := kgo.NewClient(options...)
+			franzClient = client
+
+			return client, clientErr
+		},
+	)
+	if err != nil {
+		t.Fatalf("newProducer() error = %v", err)
+	}
+	defer producer.Close()
+
+	if got := franzClient.OptValue(kgo.StopProducerOnDataLossDetected); got != true {
+		t.Fatalf("StopProducerOnDataLossDetected = %v, want true", got)
+	}
+}
+
 func TestProducerPublishesMessageSynchronously(t *testing.T) {
 	t.Parallel()
 

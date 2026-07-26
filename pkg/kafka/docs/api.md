@@ -27,6 +27,14 @@ Producer admission is bounded independently by record count and total buffered
 bytes; a Kafka batch also has its own smaller byte and record limits.
 `Producer.Drain` preserves admitted records, `Abort` explicitly discards
 buffered records, and `Shutdown` performs a bounded drain before close.
+Every broker delivery failure is a redacted `DeliveryError`. Its stable
+category distinguishes retryable, authorization, fenced, oversized, timeout,
+canceled, shutdown, fatal producer-state, permanent, and ambiguous outcomes.
+`errors.Is` and `errors.As` retain the underlying identity for deliberate
+inspection; application retry is a separate policy decision.
+The franz-go backend is configured to stop after detecting idempotent-producer
+data loss; a fatal delivery requires producer replacement or an explicit
+application recovery decision.
 
 `Consumer.RunOnce` returns one bounded poll result. `Consumer.Run` exits cleanly
 when its context is canceled.

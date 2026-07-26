@@ -3,7 +3,10 @@ package kafka
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/twmb/franz-go/pkg/kerr"
@@ -25,8 +28,20 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 		{name: "fenced", cause: kerr.ProducerFenced, category: ErrorFenced},
 		{name: "oversized", cause: kerr.MessageTooLarge, category: ErrorOversized},
 		{name: "timeout", cause: context.DeadlineExceeded, category: ErrorTimeout},
+		{name: "record timeout", cause: kgo.ErrRecordTimeout, category: ErrorTimeout},
+		{name: "retries exhausted", cause: kgo.ErrRecordRetries, category: ErrorRetryable, retry: true},
+		{
+			name:     "transport",
+			cause:    &net.OpError{Op: "read", Err: os.NewSyscallError("read", syscall.ECONNRESET)},
+			category: ErrorRetryable,
+			retry:    true,
+		},
+		{name: "fatal sequence", cause: kerr.OutOfOrderSequenceNumber, category: ErrorFatal},
+		{name: "fatal producer ID", cause: kerr.UnknownProducerID, category: ErrorFatal},
+		{name: "ambiguous result", cause: ErrDeliveryResultMissing, category: ErrorAmbiguous},
 		{name: "cancelled", cause: context.Canceled, category: ErrorCanceled},
 		{name: "shutdown", cause: kgo.ErrClientClosed, category: ErrorShutdown},
+		{name: "aborted", cause: kgo.ErrAborting, category: ErrorShutdown},
 		{name: "permanent", cause: secretCause, category: ErrorPermanent},
 	}
 
@@ -81,6 +96,9 @@ func TestDeliveryErrorSupportsAllStableCategoriesAndNilReceiver(t *testing.T) {
 
 	if got := ErrorAmbiguous.String(); got != "ambiguous" {
 		t.Fatalf("ErrorAmbiguous.String() = %q", got)
+	}
+	if got := ErrorFatal.String(); got != "fatal" {
+		t.Fatalf("ErrorFatal.String() = %q", got)
 	}
 	if got := ErrorCategory(255).String(); got != "unknown" {
 		t.Fatalf("unknown ErrorCategory.String() = %q", got)

@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Remain source-compatible with Kafka's expanded stable producer failure
+  categories; no adapter API migration is required.
+
 ### Added
 
 - Add a bounded explicit record codec that maps complete live or replay event

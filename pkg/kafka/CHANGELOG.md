@@ -22,6 +22,9 @@ All notable changes to this module are documented here.
   unkeyed routing and pre-admission validation
 - explicit keyed-production defaults, redacted delivery error categories, and
   bounded drain, abort, and graceful shutdown operations
+- fail-closed producer data-loss handling, fatal producer-state and ambiguous
+  missing-result delivery categories, and corrected timeout, exhausted-retry,
+  abort, and transport-failure classification
 - producer configuration validation without client construction for composition
   roots
 - bounded idempotent acks-all producer with synchronous delivery results

@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Remain source-compatible with Kafka's expanded stable producer failure
+  categories; no propagation API migration is required.
+
 ### Added
 
 - Add explicit OpenTelemetry instrumentation for synchronous event dispatch

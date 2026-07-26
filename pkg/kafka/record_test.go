@@ -568,8 +568,13 @@ func TestProducerReportsMissingSyncAndAsyncDeliveryResults(t *testing.T) {
 		{Topic: "events", Key: []byte("b")},
 	}
 
-	if result := producer.PublishRecord(context.Background(), records[0]); !errors.Is(result.Err, ErrDeliveryResultMissing) {
+	result := producer.PublishRecord(context.Background(), records[0])
+	if !errors.Is(result.Err, ErrDeliveryResultMissing) {
 		t.Fatalf("PublishRecord() error = %v", result.Err)
+	}
+	var deliveryErr *DeliveryError
+	if !errors.As(result.Err, &deliveryErr) || deliveryErr.Category() != ErrorAmbiguous {
+		t.Fatalf("PublishRecord() error = %T %v, want ambiguous DeliveryError", result.Err, result.Err)
 	}
 	results, err := producer.PublishBatch(context.Background(), records)
 	if !errors.Is(err, ErrBatchDeliveryFailed) ||
@@ -578,6 +583,12 @@ func TestProducerReportsMissingSyncAndAsyncDeliveryResults(t *testing.T) {
 		!errors.Is(results[1].Err, ErrDeliveryResultMissing) {
 		t.Fatalf("PublishBatch() = %#v, %v", results, err)
 	}
+	for index := range results {
+		deliveryErr = nil
+		if !errors.As(results[index].Err, &deliveryErr) || deliveryErr.Category() != ErrorAmbiguous {
+			t.Fatalf("PublishBatch()[%d] error = %T %v, want ambiguous DeliveryError", index, results[index].Err, results[index].Err)
+		}
+	}
 
 	backend.omitDeliveries = false
 	delivery, err := producer.PublishAsync(context.Background(), records[0])
@@ -585,10 +596,14 @@ func TestProducerReportsMissingSyncAndAsyncDeliveryResults(t *testing.T) {
 		t.Fatalf("PublishAsync() error = %v", err)
 	}
 	backend.completeAsyncMissing(0, context.DeadlineExceeded)
-	result := <-delivery
+	result = <-delivery
 	if !errors.Is(result.Err, ErrDeliveryResultMissing) ||
 		!errors.Is(result.Err, context.DeadlineExceeded) {
 		t.Fatalf("PublishAsync() missing delivery error = %v", result.Err)
+	}
+	deliveryErr = nil
+	if !errors.As(result.Err, &deliveryErr) || deliveryErr.Category() != ErrorAmbiguous {
+		t.Fatalf("PublishAsync() error = %T %v, want ambiguous DeliveryError", result.Err, result.Err)
 	}
 }
 

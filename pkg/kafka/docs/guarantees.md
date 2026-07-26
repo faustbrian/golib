@@ -17,6 +17,16 @@ idempotent producer; the eventual result remains authoritative. Delivery
 errors use stable, redacted operational categories while preserving error
 identity for programmatic inspection.
 
+A delivery timeout or exhausted franz-go retry budget is classified by the
+condition that ended the attempt; neither classification automatically retries
+the application operation. With the required idempotent producer, franz-go
+only returns its record-delivery timeout when failing the record is safe. A
+missing delivery result is different: the package classifies it as ambiguous
+because no authoritative per-record outcome was supplied. Fatal sequence or
+producer-ID state stops the producer instead of allowing franz-go's default
+continue-after-data-loss behavior. Callers must replace or explicitly recover
+the producer rather than retrying blindly.
+
 Keyed production is the default ordering policy. Unkeyed records are accepted
 only when configured explicitly; their partition is selected by the configured
 adaptive franz-go policy. A record may instead select one exact non-negative
