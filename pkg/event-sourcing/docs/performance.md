@@ -30,6 +30,8 @@ application code. Both paths use the same validated envelope and perform one
 transaction, stream creation and lock, global-position allocation, message
 insert, stream-head update, and commit. The direct path remains a cost floor;
 it does not make the event store's reusable validation and error guarantees.
+The PostgreSQL harness separately times typed not-committed rejection of a
+stale exact version and verifies that the rejected workload changes no rows.
 
 The core benchmark suite separately measures lifecycle reconstitution at 10,
 100, 1,000, and 10,000 events, deterministic JSON payload round trips, and

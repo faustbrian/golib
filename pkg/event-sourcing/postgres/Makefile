@@ -45,7 +45,8 @@ benchmark:
 benchmark-postgres:
 	EVENT_SOURCING_POSTGRES_VERSION="$(POSTGRES_VERSION)" \
 		$(GO) test -tags=integration -run '^$$' \
-		-bench '^BenchmarkPostgreSQLAppendEquivalentWork$$' -benchmem \
+		-bench '^BenchmarkPostgreSQL(AppendEquivalentWork|OptimisticConflict)$$' \
+		-benchmem \
 		-benchtime="$(BENCH_TIME)" -count="$(BENCH_COUNT)"
 
 vet:

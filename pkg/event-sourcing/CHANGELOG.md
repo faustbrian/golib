@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   encoding and insertion overhead from core event persistence.
 - Add a real PostgreSQL equivalent-work append benchmark against direct `pgx`
   application code without treating the cost floor as an equivalent API.
+- Add a real PostgreSQL stale-version benchmark proving optimistic conflicts
+  leave the stream head and event history unchanged.
 - Add PostgreSQL restart and physical streaming-replica promotion evidence
   preserving event history, stream versions, and global ordering.
 - Document the custom outbox migration boundary, including non-event-sourced

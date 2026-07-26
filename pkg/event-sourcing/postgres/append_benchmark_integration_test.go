@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -17,6 +18,7 @@ import (
 )
 
 var benchmarkPosition int64
+var benchmarkConflict error
 var benchmarkRun atomic.Uint64
 
 func BenchmarkPostgreSQLAppendEquivalentWork(benchmark *testing.B) {
@@ -64,6 +66,74 @@ func BenchmarkPostgreSQLAppendEquivalentWork(benchmark *testing.B) {
 			},
 		)
 	})
+}
+
+func BenchmarkPostgreSQLOptimisticConflict(benchmark *testing.B) {
+	ctx, pool := newDerivedIntegrationPool(benchmark)
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+	prefix := fmt.Sprintf("conflict-%d", benchmarkRun.Add(1))
+	stream, seed, err := benchmarkPostgreSQLMessage(prefix, 1)
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+	if _, err := store.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{seed},
+	); err != nil {
+		benchmark.Fatal(err)
+	}
+	attempt, err := benchmarkPostgreSQLPending(
+		stream,
+		prefix+"-conflicting-message",
+	)
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for benchmark.Loop() {
+		_, benchmarkConflict = store.Append(
+			ctx,
+			stream,
+			eventsourcing.ExpectExactVersion(2),
+			[]eventsourcing.PendingMessage{attempt},
+		)
+		if !errors.Is(benchmarkConflict, eventsourcing.ErrConcurrencyConflict) ||
+			eventsourcing.AppendCommitOutcome(benchmarkConflict) !=
+				eventsourcing.CommitNotCommitted {
+			benchmark.Fatalf("conflicting append error = %v", benchmarkConflict)
+		}
+	}
+	benchmark.StopTimer()
+
+	var version, messages int
+	if err := pool.QueryRow(
+		ctx,
+		`SELECT current_version FROM event_sourcing.streams
+		 WHERE aggregate_type = $1 AND aggregate_id = $2`,
+		stream.AggregateType(),
+		stream.AggregateID(),
+	).Scan(&version); err != nil {
+		benchmark.Fatal(err)
+	}
+	if err := pool.QueryRow(
+		ctx,
+		`SELECT count(*) FROM event_sourcing.messages
+		 WHERE aggregate_type = $1 AND aggregate_id = $2`,
+		stream.AggregateType(),
+		stream.AggregateID(),
+	).Scan(&messages); err != nil {
+		benchmark.Fatal(err)
+	}
+	if version != 1 || messages != 1 {
+		benchmark.Fatalf("conflict changed stream to version %d with %d messages", version, messages)
+	}
 }
 
 func benchmarkPostgreSQLAppend(
@@ -124,6 +194,18 @@ func benchmarkPostgreSQLMessage(
 	if err != nil {
 		return eventsourcing.StreamID{}, eventsourcing.PendingMessage{}, err
 	}
+	pending, err := benchmarkPostgreSQLPending(
+		stream,
+		fmt.Sprintf("%s-message-%d", prefix, sequence),
+	)
+
+	return stream, pending, err
+}
+
+func benchmarkPostgreSQLPending(
+	stream eventsourcing.StreamID,
+	messageID string,
+) (eventsourcing.PendingMessage, error) {
 	event, err := eventsourcing.NewEncodedEvent(eventsourcing.EncodedEventInput{
 		Name:        "benchmark.counter.incremented",
 		Version:     1,
@@ -131,18 +213,19 @@ func benchmarkPostgreSQLMessage(
 		Payload:     []byte(`{"amount":1}`),
 	})
 	if err != nil {
-		return eventsourcing.StreamID{}, eventsourcing.PendingMessage{}, err
+		return eventsourcing.PendingMessage{}, err
 	}
 	pending, err := eventsourcing.NewPendingMessage(
 		eventsourcing.PendingMessageInput{
-			ID:         fmt.Sprintf("%s-message-%d", prefix, sequence),
+			ID:         messageID,
 			Stream:     stream,
 			Event:      event,
 			Metadata:   map[string]string{"benchmark": "equivalent-append"},
 			RecordedAt: time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC),
 		},
 	)
-	return stream, pending, err
+
+	return pending, err
 }
 
 func directPGXAppend(

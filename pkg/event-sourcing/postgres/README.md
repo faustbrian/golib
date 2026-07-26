@@ -279,6 +279,11 @@ insert one message, and advance the stream head. The direct path is a baseline
 cost floor: it does not provide the event store's reusable validation, error
 classification, defensive result construction, or adapter contract.
 
+The same harness separately measures a stale exact-version append against an
+existing stream. Every timed attempt must return the typed not-committed
+concurrency conflict, and the fixture verifies that neither the stream head nor
+message count changed.
+
 ```sh
 make benchmark-postgres BENCH_TIME=250ms BENCH_COUNT=20
 ```
