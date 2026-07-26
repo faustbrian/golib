@@ -42,5 +42,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- `Producer.Close` now returns an error and performs a bounded graceful drain
+  using the new `ProducerConfig.ShutdownTimeout`; callers that passed `Close`
+  as a `func()` must wrap it and handle the result
+- drain, abort, and shutdown now wait for already-started producer operations
+  to cross backend admission before acting on the client buffer
 - replaced the pre-v1 public franz-go SASL mechanism escape hatch with owned
   Kafka authentication policy; callers must migrate to the new constructors

@@ -37,7 +37,10 @@ cross-partition order.
 `Drain` rejects new operations while resolving admitted records. `Shutdown`
 fences new production before draining and closes only after a successful
 bounded flush. An incomplete shutdown retains ownership for a retry or an
-explicit `Abort`. The compatibility `Close` operation remains unbounded.
+explicit `Abort`. `Close` applies the configured `ShutdownTimeout`, returns the
+same incomplete-drain error, and never substitutes franz-go's record-dropping
+direct close path. Drain, abort, and shutdown wait for operations that already
+started to finish backend admission before acting on the buffer.
 
 ## Consumer
 

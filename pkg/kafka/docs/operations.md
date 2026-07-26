@@ -14,9 +14,14 @@ frequency. Do not export record keys or values.
 
 ## Shutdown
 
+Use `Producer.Shutdown` with the service's bounded shutdown context, or handle
+the error returned by `Producer.Close`, whose bound is `ShutdownTimeout`.
+Timeout fences new production but leaves the client open and admitted records
+owned for a retry or explicit `Abort`; do not exit as if shutdown succeeded.
+
 Cancel consumer and replay contexts, wait for the foreground operation, then
-close the client. A canceled consumer exits cleanly; replay cancellation is an
-incomplete operator action and must be recorded.
+close those clients. A canceled consumer exits cleanly; replay cancellation is
+an incomplete operator action and must be recorded.
 
 ## Recovery
 

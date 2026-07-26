@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Changed
 
+- Remain source-compatible with Kafka's error-returning bounded producer close;
+  the adapter publisher contract does not expose close and needs no migration.
 - Remain source-compatible with Kafka's expanded stable producer failure
   categories; no adapter API migration is required.
 

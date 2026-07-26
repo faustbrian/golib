@@ -415,11 +415,31 @@ func TestProducerPublishAsyncOwnsInputAndReportsLaterDelivery(t *testing.T) {
 func TestProducerCloseIsIdempotentAndFencesNewOperations(t *testing.T) {
 	t.Parallel()
 
-	backend := &recordingProducerBackend{}
-	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
+	backend := &recordingProducerBackend{
+		flushCompletesAsync: true,
+		closeCompletesAsync: true,
+	}
+	producer := &Producer{
+		client: backend, limits: DefaultMessageLimits(),
+		shutdownTimeout: time.Second,
+	}
+	delivery, err := producer.PublishAsync(context.Background(), ProducerRecord{
+		Topic: "events",
+		Key:   []byte("key"),
+	})
+	if err != nil {
+		t.Fatalf("PublishAsync() error = %v", err)
+	}
 
-	producer.Close()
-	producer.Close()
+	if err := producer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("second Close() error = %v", err)
+	}
+	if result := <-delivery; result.Err != nil {
+		t.Fatalf("admitted delivery error = %v", result.Err)
+	}
 	publishResult := producer.PublishRecord(context.Background(), ProducerRecord{
 		Topic: "events",
 		Key:   []byte("key"),
@@ -434,8 +454,8 @@ func TestProducerCloseIsIdempotentAndFencesNewOperations(t *testing.T) {
 	})
 	healthErr := producer.Health(context.Background())
 
-	if backend.closes != 1 {
-		t.Fatalf("Close() calls = %d, want 1", backend.closes)
+	if backend.flushes != 1 || backend.closes != 1 {
+		t.Fatalf("lifecycle calls = flush:%d close:%d", backend.flushes, backend.closes)
 	}
 	if !errors.Is(publishResult.Err, ErrProducerClosed) ||
 		batchResults != nil || !errors.Is(batchErr, ErrProducerClosed) ||
@@ -451,8 +471,68 @@ func TestProducerCloseIsIdempotentAndFencesNewOperations(t *testing.T) {
 			healthErr,
 		)
 	}
-	if len(backend.records) != 0 {
-		t.Fatalf("post-close produced %d records", len(backend.records))
+	if len(backend.records) != 1 {
+		t.Fatalf("record count after post-close attempts = %d, want 1", len(backend.records))
+	}
+}
+
+func TestProducerShutdownWaitsForPreexistingAdmission(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{
+		produceAdmissionStarted: make(chan struct{}),
+		produceAdmissionRelease: make(chan struct{}),
+		flushCompletesAsync:     true,
+	}
+	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
+	publishResult := make(chan struct {
+		delivery <-chan DeliveryResult
+		err      error
+	}, 1)
+	go func() {
+		delivery, err := producer.PublishAsync(context.Background(), ProducerRecord{
+			Topic: "events",
+			Key:   []byte("key"),
+		})
+		publishResult <- struct {
+			delivery <-chan DeliveryResult
+			err      error
+		}{delivery: delivery, err: err}
+	}()
+	<-backend.produceAdmissionStarted
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := producer.Drain(canceled); !errors.Is(err, ErrDrainIncomplete) ||
+		!errors.Is(err, context.Canceled) {
+		t.Fatalf("Drain() during admission error = %v", err)
+	}
+	if err := producer.Abort(canceled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Abort() during admission error = %v", err)
+	}
+	if err := producer.Shutdown(canceled); !errors.Is(err, ErrDrainIncomplete) ||
+		!errors.Is(err, context.Canceled) {
+		t.Fatalf("Shutdown() during admission error = %v", err)
+	}
+	if backend.flushes != 0 || backend.closes != 0 {
+		t.Fatalf("premature lifecycle calls = flush:%d close:%d", backend.flushes, backend.closes)
+	}
+
+	close(backend.produceAdmissionRelease)
+	published := <-publishResult
+	if published.err != nil {
+		t.Fatalf("PublishAsync() error = %v", published.err)
+	}
+	if err := producer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry Shutdown() error = %v", err)
+	}
+	if result := <-published.delivery; result.Err != nil {
+		t.Fatalf("admitted delivery error = %v", result.Err)
+	}
+	closedAdmissions := make(chan struct{})
+	close(closedAdmissions)
+	if err := waitAdmissions(context.Background(), closedAdmissions); err != nil {
+		t.Fatalf("waitAdmissions(closed) error = %v", err)
 	}
 }
 

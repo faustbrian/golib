@@ -48,13 +48,13 @@ producer, err := kafka.NewProducer(kafka.ProducerConfig{
 if err != nil {
     return err
 }
-defer producer.Close()
 
-err = producer.Publish(ctx, kafka.Message{
+publishErr := producer.Publish(ctx, kafka.Message{
     Topic: "track.tracking-event.v1",
     Key:   []byte(trackedItemID),
     Value: payload,
 })
+return errors.Join(publishErr, producer.Close())
 ```
 
 The producer leaves franz-go idempotence enabled, requests all in-sync replica
@@ -73,8 +73,8 @@ broker and consumer compatibility before selecting Zstandard.
 
 Call `Shutdown` with a bounded context for graceful drain and close. A failed
 drain fences new production while retaining admitted records so the caller can
-retry shutdown or explicitly accept data loss through `Abort`. `Close` remains
-the unbounded compatibility operation.
+retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
+configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
 Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
 material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's

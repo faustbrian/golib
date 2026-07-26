@@ -27,6 +27,10 @@ Producer admission is bounded independently by record count and total buffered
 bytes; a Kafka batch also has its own smaller byte and record limits.
 `Producer.Drain` preserves admitted records, `Abort` explicitly discards
 buffered records, and `Shutdown` performs a bounded drain before close.
+`ProducerConfig.ShutdownTimeout` defaults to `DeliveryTimeout`, cannot be
+shorter than delivery, and bounds the error-returning `Close` convenience
+method. Shutdown first fences new work and waits for already-started calls to
+finish backend admission so a concurrent flush cannot miss them.
 Every broker delivery failure is a redacted `DeliveryError`. Its stable
 category distinguishes retryable, authorization, fenced, oversized, timeout,
 canceled, shutdown, fatal producer-state, permanent, and ambiguous outcomes.

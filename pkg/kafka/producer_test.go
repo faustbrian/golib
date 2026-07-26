@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -413,7 +414,11 @@ func TestNewProducerUsesBoundedMessageDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewProducer() error = %v", err)
 	}
-	t.Cleanup(producer.Close)
+	t.Cleanup(func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
 
 	if producer.limits != DefaultMessageLimits() {
 		t.Fatalf("NewProducer() limits = %#v, want %#v", producer.limits, DefaultMessageLimits())
@@ -442,6 +447,9 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	}
 	if config.DeliveryTimeout != 30*time.Second {
 		t.Fatalf("DeliveryTimeout = %s, want 30s", config.DeliveryTimeout)
+	}
+	if config.ShutdownTimeout != config.DeliveryTimeout {
+		t.Fatalf("ShutdownTimeout = %s, want %s", config.ShutdownTimeout, config.DeliveryTimeout)
 	}
 	if config.RequestTimeout != 10*time.Second {
 		t.Fatalf("RequestTimeout = %s, want 10s", config.RequestTimeout)
@@ -561,6 +569,18 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 			name: "excessive delivery timeout",
 			change: func(config *ProducerConfig) {
 				config.DeliveryTimeout = 10*time.Minute + time.Nanosecond
+			},
+		},
+		{
+			name: "shutdown shorter than delivery timeout",
+			change: func(config *ProducerConfig) {
+				config.ShutdownTimeout = time.Second
+			},
+		},
+		{
+			name: "excessive shutdown timeout",
+			change: func(config *ProducerConfig) {
+				config.ShutdownTimeout = 15*time.Minute + time.Nanosecond
 			},
 		},
 		{
@@ -1228,27 +1248,33 @@ func TestProducerRejectsAggregateHeaderKeyOverflow(t *testing.T) {
 }
 
 type recordingProducerBackend struct {
-	records         []*kgo.Record
-	deliveryErr     error
-	deliveryErrors  []error
-	healthErr       error
-	beginErr        error
-	abortErr        error
-	endErr          error
-	endErrors       []error
-	begins          int
-	aborts          int
-	endTries        []kgo.TransactionEndTry
-	produceStarted  chan struct{}
-	produceRelease  chan struct{}
-	prepareDelivery func(*kgo.Record)
-	asyncPromises   []func(*kgo.Record, error)
-	closes          int
-	flushes         int
-	flushErr        error
-	flushStarted    chan struct{}
-	flushRelease    chan struct{}
-	omitDeliveries  bool
+	records                 []*kgo.Record
+	deliveryErr             error
+	deliveryErrors          []error
+	healthErr               error
+	beginErr                error
+	abortErr                error
+	endErr                  error
+	endErrors               []error
+	begins                  int
+	aborts                  int
+	endTries                []kgo.TransactionEndTry
+	produceStarted          chan struct{}
+	produceRelease          chan struct{}
+	produceAdmissionStarted chan struct{}
+	produceAdmissionRelease chan struct{}
+	prepareDelivery         func(*kgo.Record)
+	asyncPromises           []func(*kgo.Record, error)
+	asyncRecords            []*kgo.Record
+	closes                  int
+	flushes                 int
+	flushErr                error
+	flushStarted            chan struct{}
+	flushRelease            chan struct{}
+	flushSignalOnce         sync.Once
+	flushCompletesAsync     bool
+	closeCompletesAsync     bool
+	omitDeliveries          bool
 }
 
 func (backend *recordingProducerBackend) ProduceSync(
@@ -1284,7 +1310,12 @@ func (backend *recordingProducerBackend) Produce(
 	record *kgo.Record,
 	promise func(*kgo.Record, error),
 ) {
+	if backend.produceAdmissionStarted != nil {
+		close(backend.produceAdmissionStarted)
+		<-backend.produceAdmissionRelease
+	}
 	backend.records = append(backend.records, record)
+	backend.asyncRecords = append(backend.asyncRecords, record)
 	backend.asyncPromises = append(backend.asyncPromises, promise)
 }
 
@@ -1294,7 +1325,7 @@ func (backend *recordingProducerBackend) completeAsync(
 	offset int64,
 	err error,
 ) {
-	record := backend.records[index]
+	record := backend.asyncRecords[index]
 	record.Partition = partition
 	record.Offset = offset
 	backend.asyncPromises[index](record, err)
@@ -1311,8 +1342,13 @@ func (backend *recordingProducerBackend) Ping(context.Context) error {
 func (backend *recordingProducerBackend) Flush(context.Context) error {
 	backend.flushes++
 	if backend.flushStarted != nil {
-		close(backend.flushStarted)
-		<-backend.flushRelease
+		backend.flushSignalOnce.Do(func() {
+			close(backend.flushStarted)
+			<-backend.flushRelease
+		})
+	}
+	if backend.flushCompletesAsync {
+		backend.completePendingAsync(nil)
 	}
 
 	return backend.flushErr
@@ -1347,4 +1383,15 @@ func (backend *recordingProducerBackend) EndTransaction(
 
 func (backend *recordingProducerBackend) Close() {
 	backend.closes++
+	if backend.closeCompletesAsync {
+		backend.completePendingAsync(kgo.ErrClientClosed)
+	}
+}
+
+func (backend *recordingProducerBackend) completePendingAsync(err error) {
+	for index, promise := range backend.asyncPromises {
+		promise(backend.asyncRecords[index], err)
+	}
+	backend.asyncPromises = nil
+	backend.asyncRecords = nil
 }

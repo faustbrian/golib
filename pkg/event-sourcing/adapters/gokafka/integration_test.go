@@ -65,7 +65,11 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
 	}
-	t.Cleanup(producer.Close)
+	t.Cleanup(func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
 	dispatcher, err := gokafka.NewDispatcher(producer, codec)
 	if err != nil {
 		t.Fatalf("construct dispatcher: %v", err)

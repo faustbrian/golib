@@ -119,6 +119,7 @@ type ProducerConfig struct {
 	MaxBatchBytes          int32
 	RecordRetries          int
 	DeliveryTimeout        time.Duration
+	ShutdownTimeout        time.Duration
 	RequestTimeout         time.Duration
 	DialTimeout            time.Duration
 	Linger                 time.Duration
@@ -293,12 +294,15 @@ type Producer struct {
 	maxBatchBytes         int64
 	transactionsEnabled   bool
 	transactionEndTimeout time.Duration
+	shutdownTimeout       time.Duration
 	stateMu               sync.Mutex
 	closed                bool
 	transactionActive     bool
 	maintenanceActive     bool
 	shutdownComplete      bool
 	inflight              int
+	admitting             int
+	admissionsDone        chan struct{}
 	closeOnce             sync.Once
 }
 
@@ -358,6 +362,7 @@ func newProducer(
 		maxBatchBytes:         int64(config.MaxBatchBytes),
 		transactionsEnabled:   config.TransactionalID != "",
 		transactionEndTimeout: config.TransactionEndTimeout,
+		shutdownTimeout:       config.ShutdownTimeout,
 	}, nil
 }
 
@@ -396,6 +401,9 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	}
 	if config.DeliveryTimeout == 0 {
 		config.DeliveryTimeout = 30 * time.Second
+	}
+	if config.ShutdownTimeout == 0 {
+		config.ShutdownTimeout = config.DeliveryTimeout
 	}
 	if config.RequestTimeout == 0 {
 		config.RequestTimeout = 10 * time.Second
@@ -450,6 +458,8 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 		config.RecordRetries > 1_000 ||
 		config.DeliveryTimeout < time.Second ||
 		config.DeliveryTimeout > 10*time.Minute ||
+		config.ShutdownTimeout < config.DeliveryTimeout ||
+		config.ShutdownTimeout > 15*time.Minute ||
 		config.RequestTimeout < 100*time.Millisecond ||
 		config.RequestTimeout > 2*time.Minute ||
 		config.RequestTimeout > config.DeliveryTimeout ||
@@ -568,6 +578,7 @@ func (producer *Producer) PublishRecord(
 		return DeliveryResult{Topic: record.Topic, Err: err}
 	}
 	defer producer.finishOperation()
+	defer producer.finishAdmission()
 
 	return producer.publishRecord(ctx, record)
 }
@@ -614,6 +625,7 @@ func (producer *Producer) PublishBatch(
 		return nil, err
 	}
 	defer producer.finishOperation()
+	defer producer.finishAdmission()
 
 	if len(records) == 0 {
 		return nil, ErrRecordsRequired
@@ -680,6 +692,7 @@ func (producer *Producer) PublishAsync(
 	if err := producer.startOperation(); err != nil {
 		return nil, err
 	}
+	defer producer.finishAdmission()
 
 	if err := record.validate(producer.limits); err != nil {
 		producer.finishOperation()
@@ -770,6 +783,7 @@ func (producer *Producer) Health(ctx context.Context) error {
 		return err
 	}
 	defer producer.finishOperation()
+	defer producer.finishAdmission()
 
 	return producer.client.Ping(ctx)
 }
@@ -782,10 +796,14 @@ func (producer *Producer) Drain(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
 	}
-	if err := producer.startMaintenance(false); err != nil {
+	admissions, err := producer.startMaintenance(false)
+	if err != nil {
 		return err
 	}
 	defer producer.finishMaintenance(false)
+	if err := waitAdmissions(ctx, admissions); err != nil {
+		return drainResult(err)
+	}
 
 	return drainResult(producer.client.Flush(ctx))
 }
@@ -797,10 +815,14 @@ func (producer *Producer) Abort(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
 	}
-	if err := producer.startMaintenance(true); err != nil {
+	admissions, err := producer.startMaintenance(true)
+	if err != nil {
 		return err
 	}
 	defer producer.finishMaintenance(false)
+	if err := waitAdmissions(ctx, admissions); err != nil {
+		return err
+	}
 
 	return producer.client.AbortBufferedRecords(ctx)
 }
@@ -827,7 +849,13 @@ func (producer *Producer) Shutdown(ctx context.Context) error {
 	}
 	producer.closed = true
 	producer.maintenanceActive = true
+	admissions := producer.admissionsDone
 	producer.stateMu.Unlock()
+	if err := waitAdmissions(ctx, admissions); err != nil {
+		producer.finishMaintenance(false)
+
+		return drainResult(err)
+	}
 
 	if err := drainResult(producer.client.Flush(ctx)); err != nil {
 		producer.finishMaintenance(false)
@@ -846,6 +874,18 @@ func drainResult(err error) error {
 	}
 
 	return errors.Join(ErrDrainIncomplete, err)
+}
+
+func waitAdmissions(ctx context.Context, admissions <-chan struct{}) error {
+	if admissions == nil {
+		return nil
+	}
+	select {
+	case <-admissions:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Transaction is the producer surface available inside RunTransaction.
@@ -1025,17 +1065,15 @@ func (message ProducerRecord) validate(limits MessageLimits) error {
 	return nil
 }
 
-// Close waits for in-flight requests and closes the underlying Kafka client.
-func (producer *Producer) Close() {
-	producer.stateMu.Lock()
-	producer.closed = true
-	producer.stateMu.Unlock()
+// Close performs a configured bounded graceful shutdown. It returns
+// ErrDrainIncomplete without closing the client when admitted records cannot
+// resolve before ShutdownTimeout; callers may retry Shutdown or explicitly
+// Abort.
+func (producer *Producer) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), producer.shutdownTimeout)
+	defer cancel()
 
-	producer.closeOnce.Do(producer.client.Close)
-
-	producer.stateMu.Lock()
-	producer.shutdownComplete = true
-	producer.stateMu.Unlock()
+	return producer.Shutdown(ctx)
 }
 
 func (producer *Producer) startOperation() error {
@@ -1051,9 +1089,23 @@ func (producer *Producer) startOperation() error {
 	if producer.maintenanceActive {
 		return ErrProducerBusy
 	}
+	if producer.admitting == 0 {
+		producer.admissionsDone = make(chan struct{})
+	}
+	producer.admitting++
 	producer.inflight++
 
 	return nil
+}
+
+func (producer *Producer) finishAdmission() {
+	producer.stateMu.Lock()
+	producer.admitting--
+	if producer.admitting == 0 {
+		close(producer.admissionsDone)
+		producer.admissionsDone = nil
+	}
+	producer.stateMu.Unlock()
 }
 
 func (producer *Producer) finishOperation() {
@@ -1089,19 +1141,19 @@ func (producer *Producer) finishTransaction() {
 	producer.stateMu.Unlock()
 }
 
-func (producer *Producer) startMaintenance(allowClosed bool) error {
+func (producer *Producer) startMaintenance(allowClosed bool) (<-chan struct{}, error) {
 	producer.stateMu.Lock()
 	defer producer.stateMu.Unlock()
 
 	if producer.shutdownComplete || (producer.closed && !allowClosed) {
-		return ErrProducerClosed
+		return nil, ErrProducerClosed
 	}
 	if producer.maintenanceActive || producer.transactionActive {
-		return ErrProducerBusy
+		return nil, ErrProducerBusy
 	}
 	producer.maintenanceActive = true
 
-	return nil
+	return producer.admissionsDone, nil
 }
 
 func (producer *Producer) finishMaintenance(shutdownComplete bool) {

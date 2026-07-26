@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Changed
 
+- Remain source-compatible with Kafka's error-returning bounded producer close;
+  the propagation publisher contract does not expose close.
 - Remain source-compatible with Kafka's expanded stable producer failure
   categories; no propagation API migration is required.
 

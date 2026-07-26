@@ -55,7 +55,11 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
 	}
-	t.Cleanup(producer.Close)
+	t.Cleanup(func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
 	}
