@@ -150,6 +150,12 @@ Its epoch is a package-local settlement fence rather than Kafka's protocol
 generation ID. Broker-controlled assignment metadata is fail-closed and
 bounded by `MaxAssignedPartitions`, which defaults to 1,024.
 
+Use `RunBatchOnce` with a `BatchHandler` when one call should receive all
+records returned for a single partition. Batch success settles the whole
+partition batch; an error settles none of it while independent successful
+partition batches can still advance. It does not provide cross-partition
+atomicity.
+
 New groups default to cooperative-sticky balancing. Existing eager groups must
 use `BalanceEagerToCooperative` for one complete rolling deployment before all
 members switch to `BalanceCooperativeSticky`; joining a mixed group directly

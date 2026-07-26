@@ -113,15 +113,28 @@ path without invoking the handler. Its error identifies the rejected field,
 later records in that partition are skipped, and valid independent partitions
 may still advance.
 
+`RunBatchOnce` provides a deliberately different settlement contract. It
+groups the bounded poll by topic partition, preserves record order within each
+partition, and invokes `BatchHandler` once per non-empty partition batch. A nil
+handler result makes the complete batch committable at its final record. An
+error, panic, timeout, ownership loss, or rebalance cancellation makes none of
+that partition batch committable; successful independent batches can still
+advance. The package does not split a failed batch into a guessed successful
+prefix and does not claim atomic application side effects or cross-partition
+settlement.
+
+The `ConsumedBatch.Records` slice is owned for the handler call, while record
+bytes have the same borrowed lifetime as per-record handling. `Retain` returns
+an owned slice with deeply copied record bytes.
+
 Handlers must be idempotent and honor cancellation and their context deadline.
 Go context cancellation is cooperative: the package does not run application
 callbacks in disposable goroutines and cannot forcibly stop a handler that
 ignores its context. Such a handler can still exhaust the broker rebalance
 timeout and lose ownership. Retain a consumed record before storing its bytes
-beyond the handler call. The current runner is
-single-threaded and does not yet expose a separate drain operation, batch
-handling, or bounded cross-partition worker concurrency; these remain pre-v1
-completion work.
+beyond the handler call. The current runner is single-threaded and does not yet
+expose a separate drain operation or bounded cross-partition worker
+concurrency; these remain pre-v1 completion work.
 
 ### Pause and resume
 

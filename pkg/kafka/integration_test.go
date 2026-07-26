@@ -51,12 +51,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	membershipTopic := topic + "-membership"
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
+	batchTopic := topic + "-batch"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
-			rebalanceTopic,
+			rebalanceTopic, batchTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -78,6 +79,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -172,6 +174,64 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
+	proveBatchPolicy(t, ctx, brokers, producer, batchTopic)
+}
+
+func proveBatchPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	for _, record := range []kafka.ProducerRecord{
+		{Topic: topic, Partition: kafka.ExplicitPartition(0), Key: []byte("p0"), Value: []byte("p0-1")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(0), Key: []byte("p0"), Value: []byte("p0-2")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(1), Key: []byte("p1"), Value: []byte("p1-1")},
+		{Topic: topic, Partition: kafka.ExplicitPartition(1), Key: []byte("p1"), Value: []byte("p1-2")},
+	} {
+		if result := producer.PublishRecord(ctx, record); result.Err != nil {
+			t.Fatalf("publish batch fixture: %v", result.Err)
+		}
+	}
+
+	const groupID = "golib-compatibility-batch"
+	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	defer closeIntegrationConsumer(t, consumer)
+	var batches []kafka.ConsumedBatch
+	for {
+		result, err := consumer.RunBatchOnce(
+			ctx,
+			kafka.BatchHandlerFunc(func(
+				_ context.Context,
+				batch kafka.ConsumedBatch,
+			) error {
+				batches = append(batches, batch.Retain())
+
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatalf("consume partition batches: %v", err)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+		if result != (kafka.PollResult{Polled: 4, Processed: 4, Committed: 4}) {
+			t.Fatalf("batch poll result = %#v", result)
+		}
+
+		break
+	}
+	if len(batches) != 2 || len(batches[0].Records) != 2 ||
+		len(batches[1].Records) != 2 ||
+		batches[0].Topic != topic || batches[1].Topic != topic ||
+		batches[0].Partition == batches[1].Partition {
+		t.Fatalf("consumed batches = %#v", batches)
+	}
+	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 2, 1: 2})
 }
 
 func proveBlockedRebalancePolicy(

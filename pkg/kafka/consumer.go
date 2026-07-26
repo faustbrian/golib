@@ -26,6 +26,7 @@ var (
 	ErrDuplicateTopic         = errors.New("kafka: topic is duplicated")
 	ErrInvalidOffsetPolicy    = errors.New("kafka: consumer offset policy is invalid")
 	ErrHandlerRequired        = errors.New("kafka: consumer handler is required")
+	ErrBatchHandlerRequired   = errors.New("kafka: consumer batch handler is required")
 	ErrHandlerPanic           = errors.New("kafka: consumer handler panicked")
 	ErrConsumerBusy           = errors.New("kafka: consumer runner is already active")
 	ErrConsumerClosing        = errors.New("kafka: consumer is shutting down")
@@ -516,9 +517,6 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	partitionOrder := make([]partitionKey, 0)
 	var handlerErr error
 	for _, record := range records {
-		if consumer.rebalance.isPending() {
-			break
-		}
 		key := partitionKey{topic: record.Topic, partition: record.Partition}
 		state, exists := progress[key]
 		if !exists {
@@ -541,10 +539,13 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 		}
 		message, err := consumedMessageWithinLimits(record, consumer.limits)
 		if err == nil {
-			handlerCtx, cancel := consumer.rebalance.handlerContext(
+			handlerCtx, cancel, admitted := consumer.rebalance.handlerContext(
 				ctx,
 				consumer.handlerTimeout,
 			)
+			if !admitted {
+				break
+			}
 			err = callHandler(handlerCtx, handler, message)
 			if cause := context.Cause(handlerCtx); errors.Is(cause, ErrConsumerRebalance) {
 				err = errors.Join(err, cause)

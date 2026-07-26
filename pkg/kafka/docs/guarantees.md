@@ -70,6 +70,13 @@ error, so the counter remains zero after a failed commit and does not claim the
 request was wholly persisted or wholly rejected. Side effects must be
 idempotent.
 
+`RunBatchOnce` changes the handler boundary, not the delivery guarantee. One
+call receives records from exactly one topic partition. Only a nil batch result
+makes its final record committable; any failure leaves the entire partition
+batch unsettled. Independent successful partition batches may commit in the
+same cycle. Application work performed before a failed batch return can be
+repeated.
+
 New groups default to cooperative-sticky balancing. `BalanceEagerSticky` keeps
 an eager group eager. Migrating an existing eager group requires one complete
 rolling deployment with `BalanceEagerToCooperative`, followed by a second with

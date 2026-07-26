@@ -99,6 +99,11 @@ plus a package-local assignment epoch. The epoch is a settlement fence and
 diagnostic sequence, not Kafka's broker generation ID. Assignment callback
 metadata is bounded by `MaxAssignedPartitions`; invalid or oversized metadata
 fails closed before another handler is invoked.
+`Consumer.RunBatchOnce` groups one bounded poll by topic partition and invokes
+`BatchHandler` once per non-empty partition batch. A nil result settles the
+entire batch; an error settles none of it. Successful independent partition
+batches remain committable. `ConsumedBatch.Retain` copies the batch slice and
+every record byte for use after the handler returns.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

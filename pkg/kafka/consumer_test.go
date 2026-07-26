@@ -865,18 +865,50 @@ func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
 	}
 }
 
-func TestConsumerRebalanceSignalBeforeHandlerContextCancelsAdmission(t *testing.T) {
+func TestConsumerRebalanceSignalBeforeHandlerContextStopsAdmission(t *testing.T) {
 	t.Parallel()
 
 	rebalance := newConsumerRebalanceState(RebalanceCancelHandler)
 	rebalance.beginPoll()
 	rebalance.blocked()
-	handlerCtx, cleanup := rebalance.handlerContext(context.Background(), time.Minute)
-	defer cleanup()
+	handlerCtx, cleanup, admitted := rebalance.handlerContext(
+		context.Background(),
+		time.Minute,
+	)
 	defer rebalance.endPoll()
 
-	if !errors.Is(context.Cause(handlerCtx), ErrConsumerRebalance) {
-		t.Fatalf("handler context cause = %v, want %v", context.Cause(handlerCtx), ErrConsumerRebalance)
+	if admitted || handlerCtx != nil || cleanup != nil {
+		t.Fatalf(
+			"handler admission = %t, context nil = %t, cleanup nil = %t",
+			admitted,
+			handlerCtx == nil,
+			cleanup == nil,
+		)
+	}
+}
+
+func TestConsumerStopsAdmissionWhenRebalanceSignalPrecedesPollReturn(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	backend.poll = func(context.Context, int) kgo.Fetches {
+		consumer.onRebalanceBlocked()
+
+		return recordFetches(&kgo.Record{Topic: "events", Partition: 0, Offset: 1})
+	}
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("handler called after rebalance signal")
+
+		return nil
+	}))
+	if err != nil || result != (PollResult{Polled: 1}) ||
+		len(backend.committed) != 0 || backend.allowed != 1 {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
 }
 

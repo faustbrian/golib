@@ -35,6 +35,8 @@ All notable changes to this module are documented here.
 - validated ordered producer compression preferences, defaulting to Snappy with
   an uncompressed fallback
 - explicit post-handler consumer commits and cooperative group balancing
+- partition-scoped batch handling with all-or-nothing settlement per batch,
+  independent successful partition commits, and retained-copy ownership
 - bounded consumer partition pause/resume policy with immutable subscription
   validation and sorted diagnostic snapshots
 - bounded consumer assignment snapshots with cooperative revocation tracking,

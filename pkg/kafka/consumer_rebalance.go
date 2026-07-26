@@ -51,27 +51,21 @@ func (state *consumerRebalanceState) blocked() {
 	}
 }
 
-func (state *consumerRebalanceState) isPending() bool {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
-	return state.pending
-}
-
 func (state *consumerRebalanceState) handlerContext(
 	ctx context.Context,
 	timeout time.Duration,
-) (context.Context, func()) {
+) (context.Context, func(), bool) {
+	state.mu.Lock()
+	if state.active && state.pending {
+		state.mu.Unlock()
+
+		return nil, nil, false
+	}
 	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, timeout)
 	handlerCtx, handlerCancel := context.WithCancelCause(timeoutCtx)
-
-	state.mu.Lock()
 	state.handlerID++
 	handlerID := state.handlerID
 	state.handlerCancel = handlerCancel
-	if state.active && state.pending && state.policy == RebalanceCancelHandler {
-		handlerCancel(ErrConsumerRebalance)
-	}
 	state.mu.Unlock()
 
 	return handlerCtx, func() {
@@ -82,5 +76,5 @@ func (state *consumerRebalanceState) handlerContext(
 		state.mu.Unlock()
 		handlerCancel(nil)
 		timeoutCancel()
-	}
+	}, true
 }
