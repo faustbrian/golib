@@ -143,7 +143,8 @@ func TestDispatcherHandlesEmptyInvalidAndCancelledInput(t *testing.T) {
 	if len(publisher.messages) != 0 {
 		t.Fatalf("empty publishes = %d", len(publisher.messages))
 	}
-	if err := dispatcher.Dispatch(nil, nil); !errors.Is(
+	var nilContext context.Context
+	if err := dispatcher.Dispatch(nilContext, nil); !errors.Is(
 		err,
 		ErrContextRequired,
 	) {

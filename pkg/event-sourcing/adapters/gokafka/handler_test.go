@@ -402,7 +402,8 @@ func TestRecordHandlerRejectsInvalidReceiverAndContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct handler: %v", err)
 	}
-	if err := handler.Handle(nil, record); !errors.Is(
+	var nilContext context.Context
+	if err := handler.Handle(nilContext, record); !errors.Is(
 		err,
 		ErrContextRequired,
 	) {
