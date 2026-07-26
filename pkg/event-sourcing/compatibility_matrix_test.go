@@ -84,6 +84,12 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 	if !slices.Equal(gotPages, wantPages) {
 		t.Fatalf("documentation-page inventory = %#v, want %#v", gotPages, wantPages)
 	}
+	for page, status := range statuses {
+		switch status {
+		case "Partial", "Designed", "Planned":
+			t.Fatalf("compatibility page %q retains incomplete status %q", page, status)
+		}
+	}
 	for _, page := range []string{
 		"Introduction",
 		"Event sourcing",
@@ -110,11 +116,21 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 		)
 	}
 	adapterStatuses := compatibilityAdapterStatuses(t, matrix)
-	if adapterStatuses["PostgreSQL"] != "Implemented" {
-		t.Fatalf(
-			"PostgreSQL adapter status = %q, want Implemented",
-			adapterStatuses["PostgreSQL"],
-		)
+	for _, adapter := range []string{
+		"Synchronous core dispatch",
+		"PostgreSQL",
+		"gokafka",
+		"goqueue",
+		"gooutbox",
+		"gotelemetry",
+	} {
+		if adapterStatuses[adapter] != "Implemented" {
+			t.Fatalf(
+				"%s adapter status = %q, want Implemented",
+				adapter,
+				adapterStatuses[adapter],
+			)
+		}
 	}
 }
 
@@ -138,6 +154,14 @@ func TestChangelogMaintainsReleasePolicy(t *testing.T) {
 		!strings.Contains(changelog, "\n### Fixed\n\n-") &&
 		!strings.Contains(changelog, "\n### Security\n\n-") {
 		t.Fatal("Unreleased changelog has no categorized user-visible entry")
+	}
+	for _, stale := range []string{
+		"unfinished Kafka deployment",
+		"retaining partial status",
+	} {
+		if strings.Contains(changelog, stale) {
+			t.Fatalf("changelog retains obsolete release status %q", stale)
+		}
 	}
 }
 

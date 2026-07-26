@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Correct the previous unreleased adapter status note: Kafka and reusable
+  queue evidence are implemented; complete repository release evidence remains.
 - Align the queue guide with the implemented digest-pinned Valkey retention
   and post-handler acknowledgement evidence.
 - Align the package map with the intentional first-release code-generation
@@ -16,8 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Describe the library as a pre-release candidate whose published release
   still depends on complete repository evidence.
 - Reconcile the EventSauce outbox compatibility rows with the implemented
-  transactional adapter while retaining partial status for the unfinished
-  Kafka deployment and reusable adapter conformance evidence.
+  transactional adapter and preserve explicit external guarantee boundaries.
 
 ### Added
 
