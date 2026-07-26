@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
+- Pin the circuit-breaker module to its published source revision so clean
+  consumers can resolve the HTTP client before the first tagged release.
 - Added a pinned module export baseline so incompatible public API changes
   fail the canonical repository gate.
 

@@ -6,6 +6,6 @@ require golang.org/x/oauth2 v0.36.0
 
 require golang.org/x/net v0.57.0
 
-require github.com/faustbrian/golib/pkg/circuit-breaker v0.1.0
+require github.com/faustbrian/golib/pkg/circuit-breaker v0.0.0-20260726014151-129e137b63d8
 
 require go.uber.org/goleak v1.3.0
