@@ -45,7 +45,10 @@ All notable changes to this module are documented here.
   active handler by default or drains only that handler, and preserves safe
   contiguous settlement before releasing the rebalance
 - bounded transactional producer with fenced callback lifetime and explicit
-  unknown-outcome classification
+  abortable, authorization, fenced, fatal, and unknown-outcome classification
+- real-broker evidence that committed transaction records are visible to
+  read-committed consumers while aborted records remain visible only to
+  read-uncommitted consumers
 - exact direct-partition replay that never mutates consumer-group offsets
 - read-only topic metadata and consumer-group lag inspection
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility

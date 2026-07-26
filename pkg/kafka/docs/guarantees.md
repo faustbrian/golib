@@ -46,6 +46,14 @@ same incomplete-drain error, and never substitutes franz-go's record-dropping
 direct close path. Drain, abort, and shutdown wait for operations that already
 started to finish backend admission before acting on the buffer.
 
+Producer transaction begin, commit, and abort failures use redacted
+`TransactionError` values. Fencing, authorization denial, and fatal producer
+state are definitive failures rather than being mislabeled as unknown commit
+outcomes. `OperationNotAttempted` and `TransactionAbortable` are reported as
+abortable, known-not-committed results after the package attempts the required
+bounded abort. Other unclassified commit or abort failures are ambiguous and
+must be reconciled before the producer is reused.
+
 ## Consumer
 
 Automatic commits are disabled. A poll is processed in fetch order, sequentially
@@ -97,10 +105,11 @@ handler admission and settlement; it is not Kafka's broker generation ID.
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
 offset commits, redelivery after handler failure, eager group membership,
-partition pause/resume, and a static member restart using the same instance ID
-against Confluent Local 7.5.0 using franz-go v1.21.5. The container image is
-pinned by repository digest. This compatibility fixture does not replace
-testing against an application's production broker version and configuration.
+partition pause/resume, a static member restart using the same instance ID,
+and committed-versus-aborted transaction visibility against Confluent Local
+7.5.0 using franz-go v1.21.5. The container image is pinned by repository
+digest. This compatibility fixture does not replace testing against an
+application's production broker version and configuration.
 
 ## Context and memory
 

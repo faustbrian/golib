@@ -85,6 +85,14 @@ drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
 configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
+Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic
+production. Transaction lifecycle failures are redacted `TransactionError`
+values with an operation, stable category, abortability, and explicit outcome
+knowledge. An unknown commit outcome requires reconciliation rather than a
+blind retry. This producer-only callback does not include consumer offsets;
+therefore it does not yet provide consume-transform-produce exactly-once
+processing.
+
 Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
 material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's
 bounded credential-provider contracts; no franz-go authentication type appears

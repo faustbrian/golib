@@ -52,6 +52,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
+	transactionTopic := topic + "-transaction"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
@@ -80,6 +81,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -175,6 +177,113 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
 	proveBatchPolicy(t, ctx, brokers, producer, batchTopic)
+	proveProducerTransactionVisibility(t, ctx, brokers, transactionTopic)
+}
+
+func proveProducerTransactionVisibility(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:         brokers,
+		ClientID:        "golib-compatibility-transaction-producer",
+		AllowedTopics:   []string{topic},
+		TransactionalID: "golib-compatibility-transaction-producer",
+		Security:        kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct transactional producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("transactional producer close: %v", err)
+		}
+	}()
+
+	if err := producer.RunTransaction(ctx, func(transaction kafka.Transaction) error {
+		return transaction.Publish(ctx, kafka.Message{
+			Topic: topic, Key: []byte("committed"), Value: []byte("committed"),
+		})
+	}); err != nil {
+		t.Fatalf("commit transaction: %v", err)
+	}
+	abortCause := errors.New("abort transaction fixture")
+	err = producer.RunTransaction(ctx, func(transaction kafka.Transaction) error {
+		if err := transaction.Publish(ctx, kafka.Message{
+			Topic: topic, Key: []byte("aborted"), Value: []byte("aborted"),
+		}); err != nil {
+			return err
+		}
+
+		return abortCause
+	})
+	if !errors.Is(err, abortCause) {
+		t.Fatalf("abort transaction: %v", err)
+	}
+
+	committed := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadCommitted(),
+		1,
+	)
+	if !slices.Equal(committed, []string{"committed"}) {
+		t.Fatalf("read-committed values = %q", committed)
+	}
+	uncommitted := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadUncommitted(),
+		2,
+	)
+	if !slices.Equal(uncommitted, []string{"committed", "aborted"}) {
+		t.Fatalf("read-uncommitted values = %q", uncommitted)
+	}
+}
+
+func consumeTransactionValues(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	isolation kgo.IsolationLevel,
+	want int,
+) []string {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-compatibility-transaction-reader"),
+		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
+			topic: {0: kgo.NewOffset().AtStart()},
+		}),
+		kgo.FetchIsolationLevel(isolation),
+		kgo.DialTimeout(10*time.Second),
+	)
+	if err != nil {
+		t.Fatalf("construct transaction reader: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	values := make([]string, 0, want)
+	for len(values) < want {
+		fetches := client.PollRecords(ctx, want-len(values))
+		if err := fetches.Err(); err != nil {
+			t.Fatalf("read transaction records: %v", err)
+		}
+		for _, record := range fetches.Records() {
+			values = append(values, string(record.Value))
+		}
+	}
+
+	return values
 }
 
 func proveBatchPolicy(

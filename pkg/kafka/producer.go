@@ -993,7 +993,12 @@ func (producer *Producer) RunTransaction(
 	defer producer.finishTransaction()
 
 	if err := producer.client.BeginTransaction(); err != nil {
-		return err
+		return newTransactionError(
+			TransactionOperationBegin,
+			err,
+			false,
+			true,
+		)
 	}
 
 	session := &transactionSession{producer: producer}
@@ -1012,10 +1017,35 @@ func (producer *Producer) RunTransaction(
 	}
 	if errors.Is(commitErr, kerr.OperationNotAttempted) ||
 		errors.Is(commitErr, kerr.TransactionAbortable) {
-		return errors.Join(commitErr, producer.abortTransaction(ctx))
+		abortErr := producer.abortTransaction(ctx)
+		return errors.Join(
+			abortErr,
+			newTransactionError(
+				TransactionOperationCommit,
+				commitErr,
+				true,
+				true,
+			),
+		)
+	}
+	category := classifyError(commitErr)
+	if category == ErrorAuthorization ||
+		category == ErrorFenced ||
+		category == ErrorFatal {
+		return newTransactionError(
+			TransactionOperationCommit,
+			commitErr,
+			false,
+			true,
+		)
 	}
 
-	return errors.Join(ErrTransactionOutcomeUnknown, commitErr)
+	return newTransactionError(
+		TransactionOperationCommit,
+		errors.Join(ErrTransactionOutcomeUnknown, commitErr),
+		false,
+		false,
+	)
 }
 
 type transactionSession struct {
@@ -1071,7 +1101,34 @@ func (producer *Producer) abortTransaction(ctx context.Context) error {
 	endErr := producer.client.EndTransaction(endCtx, kgo.TryAbort)
 	cancelEnd()
 
-	return errors.Join(abortErr, endErr)
+	var bufferedErr error
+	if abortErr != nil {
+		bufferedErr = newTransactionErrorWithCategory(
+			TransactionOperationAbort,
+			abortErr,
+			ErrorFatal,
+			false,
+			endErr == nil || transactionAbortOutcomeKnown(endErr),
+		)
+	}
+
+	return errors.Join(
+		bufferedErr,
+		newTransactionError(
+			TransactionOperationAbort,
+			endErr,
+			false,
+			transactionAbortOutcomeKnown(endErr),
+		),
+	)
+}
+
+func transactionAbortOutcomeKnown(err error) bool {
+	category := classifyError(err)
+
+	return category == ErrorAuthorization ||
+		category == ErrorFenced ||
+		category == ErrorFatal
 }
 
 func (producer *Producer) transactionEndContext(

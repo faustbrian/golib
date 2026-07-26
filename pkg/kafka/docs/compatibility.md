@@ -44,7 +44,7 @@ does not prove or constrain the broker release and does not change this matrix.
 | MSK IAM | Optional AWS signer adapter | Unimplemented |
 | Producer | Single, batch, async, ordering, failure, shutdown | Policy APIs and deterministic tests exist; no real-broker batch, async, failure, or shutdown evidence yet |
 | Consumer group | Classic cooperative/eager and reviewed next-generation protocol | Explicit cooperative-sticky, eager-sticky, migration, static-membership, rack, and bounded partition pause/resume policy exists; the single-node fixture proves eager membership, same-ID static restart, and pause/resume delivery behavior, while rolling migration, fencing, cooperative overlap, and rack locality remain unverified |
-| Transactions | Produce and consume-transform-produce | Draft produce-only callback; no real-broker transaction evidence |
+| Transactions | Produce and consume-transform-produce | Producer-only callback has real-broker committed/aborted isolation evidence; source-offset transactions, fencing, and recovery remain unverified |
 | Replay | Offset/timestamp planning, exact ranges, gaps, resume | Draft direct offset reader; no broker gap/truncation evidence |
 | Inspection/health | Cluster/topic/group/durability and separated health signals | Partial metadata/lag/ping only |
 | Operating systems/architectures | Linux amd64/arm64 plus repository-supported developer platforms | Local Darwin arm64 only; CI matrix not yet established |

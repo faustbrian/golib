@@ -61,6 +61,13 @@ inspection; application retry is a separate policy decision.
 The franz-go backend is configured to stop after detecting idempotent-producer
 data loss; a fatal delivery requires producer replacement or an explicit
 application recovery decision.
+`Producer.RunTransaction` returns redacted `TransactionError` values for Kafka
+transaction begin, commit, and abort failures. `Category` distinguishes
+authorization, fencing, fatal producer state, retryable abort-required failure,
+and ambiguous outcome. `Abortable` means Kafka definitively rejected the
+commit and required an abort; `OutcomeKnown` is false when reconciliation is
+required before reuse. `errors.Is` and `errors.As` preserve the safe
+programmatic cause chain without rendering it.
 
 `Consumer.RunOnce` returns one bounded poll result. Processing is sequential
 within a partition. After one partition fails, its later fetched records are

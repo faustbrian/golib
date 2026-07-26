@@ -64,6 +64,136 @@ func (category ErrorCategory) String() string {
 	}
 }
 
+// TransactionOperation identifies the Kafka transaction phase that failed.
+type TransactionOperation uint8
+
+const (
+	// TransactionOperationBegin identifies failure to begin a transaction.
+	TransactionOperationBegin TransactionOperation = iota + 1
+	// TransactionOperationCommit identifies failure while ending a transaction
+	// with a commit attempt.
+	TransactionOperationCommit
+	// TransactionOperationAbort identifies failure while discarding buffered
+	// records or ending a transaction with an abort attempt.
+	TransactionOperationAbort
+)
+
+// String returns a stable low-cardinality transaction operation name.
+func (operation TransactionOperation) String() string {
+	switch operation {
+	case TransactionOperationBegin:
+		return "begin"
+	case TransactionOperationCommit:
+		return "commit"
+	case TransactionOperationAbort:
+		return "abort"
+	default:
+		return "unknown"
+	}
+}
+
+// TransactionError classifies a Kafka transaction lifecycle failure without
+// rendering its potentially sensitive cause. Abortable reports that Kafka
+// definitively rejected the commit and the producer may continue only after a
+// successful abort. OutcomeKnown reports whether the attempted transaction is
+// known not to have committed; false requires reconciliation before reuse.
+type TransactionError struct {
+	operation    TransactionOperation
+	category     ErrorCategory
+	abortable    bool
+	outcomeKnown bool
+	cause        error
+}
+
+// Error implements error with a stable redacted diagnostic.
+func (err *TransactionError) Error() string {
+	if err == nil {
+		return "kafka: transaction failed"
+	}
+
+	return "kafka: transaction " + err.operation.String() + " " +
+		err.category.String() + " failure"
+}
+
+// Unwrap returns the original failure for errors.Is and errors.As.
+func (err *TransactionError) Unwrap() error {
+	if err == nil {
+		return nil
+	}
+
+	return err.cause
+}
+
+// Operation returns the transaction phase that failed.
+func (err *TransactionError) Operation() TransactionOperation {
+	if err == nil {
+		return 0
+	}
+
+	return err.operation
+}
+
+// Category returns the stable operational category.
+func (err *TransactionError) Category() ErrorCategory {
+	if err == nil {
+		return 0
+	}
+
+	return err.category
+}
+
+// Abortable reports whether Kafka requires a bounded abort before the
+// transactional ID can be reused.
+func (err *TransactionError) Abortable() bool {
+	return err != nil && err.abortable
+}
+
+// OutcomeKnown reports whether the transaction is known not to have committed.
+func (err *TransactionError) OutcomeKnown() bool {
+	return err != nil && err.outcomeKnown
+}
+
+func newTransactionError(
+	operation TransactionOperation,
+	cause error,
+	abortable bool,
+	outcomeKnown bool,
+) error {
+	if cause == nil {
+		return nil
+	}
+	category := classifyError(cause)
+	if abortable {
+		category = ErrorRetryable
+	} else if !outcomeKnown {
+		category = ErrorAmbiguous
+	}
+
+	return newTransactionErrorWithCategory(
+		operation,
+		cause,
+		category,
+		abortable,
+		outcomeKnown,
+	)
+}
+
+func newTransactionErrorWithCategory(
+	operation TransactionOperation,
+	cause error,
+	category ErrorCategory,
+	abortable bool,
+	outcomeKnown bool,
+) error {
+	return &TransactionError{
+		operation:    operation,
+		category:     category,
+		abortable:    abortable,
+		outcomeKnown: outcomeKnown,
+		cause:        cause,
+	}
+}
+
 // DeliveryError classifies one producer delivery failure. Error deliberately
 // omits the underlying diagnostic so endpoints, credentials, record bytes, and
 // headers cannot be rendered accidentally. Unwrap preserves programmatic error
@@ -144,7 +274,8 @@ func classifyError(err error) ErrorCategory {
 
 func isFatalProducerError(err error) bool {
 	return errors.Is(err, kerr.OutOfOrderSequenceNumber) ||
-		errors.Is(err, kerr.UnknownProducerID)
+		errors.Is(err, kerr.UnknownProducerID) ||
+		errors.Is(err, kerr.InvalidProducerIDMapping)
 }
 
 func isAuthorizationError(err error) bool {
