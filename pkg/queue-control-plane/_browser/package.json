@@ -1,0 +1,20 @@
+{
+  "name": "queue-control-plane-browser-tests",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "check:browser": "prettier --check package.json eslint.config.js playwright.config.js browser-tests ../ui/assets && cd .. && _browser/node_modules/.bin/eslint --config _browser/eslint.config.js _browser/eslint.config.js _browser/playwright.config.js _browser/browser-tests ui/assets/app.js",
+    "lint:browser": "cd .. && _browser/node_modules/.bin/eslint --config _browser/eslint.config.js _browser/eslint.config.js _browser/playwright.config.js _browser/browser-tests ui/assets/app.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.61.1",
+    "eslint": "10.7.0",
+    "globals": "17.7.0",
+    "prettier": "3.9.5"
+  }
+}

@@ -1,0 +1,18 @@
+name: Bug report
+description: Report reproducible behavior without sensitive webhook data
+body:
+  - type: markdown
+    attributes:
+      value: Never include secrets, signatures, payloads, event IDs, or endpoint tokens. Use a private security advisory for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Module version and Go version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal synthetic reproduction
+    validations:
+      required: true

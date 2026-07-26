@@ -1,0 +1,26 @@
+json-schema uniqueItems optimization evidence
+captured: 2026-07-20
+go: go1.26.5
+goos: darwin
+goarch: arm64
+cpu: Apple M4 Max
+command: go test -run '^$' -bench '^(BenchmarkValidate|BenchmarkValidateUniqueItemsScaling)$' -benchmem -benchtime=500ms -count=3 .
+
+Median after results:
+BenchmarkValidate-16                                  2205 ns/op      2504 B/op       63 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_10-16       8983 ns/op      6104 B/op      171 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_100-16     68578 ns/op     57955 B/op     1917 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_500-16    351548 ns/op    310437 B/op     9560 allocs/op
+
+Pre-change baseline from benchmarks/baseline.txt:
+BenchmarkValidate-16                                  1940 ns/op      2504 B/op       63 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_10-16       5632 ns/op      6104 B/op      171 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_100-16    397970 ns/op    347083 B/op    11596 allocs/op
+BenchmarkValidateUniqueItemsScaling/items_500-16   9756319 ns/op   8291558 B/op   277959 allocs/op
+
+At 100 distinct items, latency fell 82.8%, bytes fell 83.3%, and allocations
+fell 83.5%. At 500 items, latency fell 96.4% (27.8x), bytes fell 96.3%, and
+allocations fell 96.6%. Small arrays retain direct equality comparisons and
+the same allocation profile; their short-duration latency samples remain
+noise-sensitive. The representative three-item validation retained 63
+allocations and 2,504 bytes per operation.

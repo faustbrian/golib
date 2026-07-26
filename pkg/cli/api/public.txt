@@ -1,0 +1,196 @@
+const ArgumentOptional
+const ArgumentRemainder
+const ArgumentRepeated
+const ArgumentRequired ArgumentCardinality = iota + 1
+const ErrorKindCanceled ErrorKind = "canceled"
+const ErrorKindCleanup ErrorKind = "cleanup"
+const ErrorKindCommand ErrorKind = "command"
+const ErrorKindCompletion ErrorKind = "completion"
+const ErrorKindDeadline ErrorKind = "deadline"
+const ErrorKindHelp ErrorKind = "help"
+const ErrorKindInternal ErrorKind = "internal"
+const ErrorKindMalformedValue ErrorKind = "malformed_value"
+const ErrorKindMissingValue ErrorKind = "missing_value"
+const ErrorKindOutput ErrorKind = "output"
+const ErrorKindUnknownCommand ErrorKind = "unknown_command"
+const ErrorKindUnknownOption ErrorKind = "unknown_option"
+const ErrorKindUsage ErrorKind = "usage"
+const ErrorKindValidation ErrorKind = "validation"
+const ErrorKindVersion ErrorKind = "version"
+const InteractionForbidden
+const InteractionOptional Interaction = iota
+const InteractionRequired
+const OutputHuman OutputMode = iota
+const OutputJSON
+const OutputQuiet
+const ShellBash Shell = "bash"
+const ShellFish Shell = "fish"
+const ShellPowerShell Shell = "powershell"
+const ShellZsh Shell = "zsh"
+const ShutdownAlreadyForced
+const ShutdownForced
+const ShutdownGraceful ShutdownAction = iota + 1
+const ValueDefaulted
+const ValueExplicit
+const ValueOmitted ValueState = iota
+func (application *Application) Complete( 	ctx context.Context, 	argv []string, ) ([]CompletionCandidate, error)
+func (application *Application) Completion(shell Shell) (string, error)
+func (application *Application) Help(path []string, options HelpOptions) (string, error)
+func (application *Application) ManifestJSON() ([]byte, error)
+func (application *Application) Markdown() (string, error)
+func (application *Application) Root() CommandMetadata
+func (application *Application) Run(ctx context.Context, request Request) Result
+func (argument *Argument[T]) Completion(provider CompletionProvider) *Argument[T]
+func (argument *Argument[T]) Description(description string) *Argument[T]
+func (argument *Argument[T]) Get(input Input) T
+func (argument *Argument[T]) Optional() *Argument[T]
+func (argument *Argument[T]) Remainder() *Argument[T]
+func (argument *Argument[T]) Secret() *Argument[T]
+func (argument *Argument[T]) State(input Input) ValueState
+func (command *Command) AddSubcommands(children ...*Command) error
+func (controller *ShutdownController) Close()
+func (controller *ShutdownController) Context() context.Context
+func (controller *ShutdownController) Forced() <-chan struct{}
+func (controller *ShutdownController) Signal(cause error) ShutdownAction
+func (err *Error) Error() string
+func (err *Error) Is(target error) bool
+func (err *Error) Kind() ErrorKind
+func (err *Error) Unwrap() error
+func (invocation Invocation) IO() IO
+func (invocation Invocation) Input() Input
+func (invocation Invocation) Interactive() bool
+func (invocation Invocation) Output() *Output
+func (metadata CommandMetadata) Aliases() []string
+func (metadata CommandMetadata) Children() []CommandMetadata
+func (metadata CommandMetadata) Deprecated() string
+func (metadata CommandMetadata) Description() string
+func (metadata CommandMetadata) Documentation() string
+func (metadata CommandMetadata) Examples() []string
+func (metadata CommandMetadata) Experimental() bool
+func (metadata CommandMetadata) Hidden() bool
+func (metadata CommandMetadata) Name() string
+func (metadata CommandMetadata) Options() []OptionMetadata
+func (metadata CommandMetadata) Replacement() string
+func (metadata CommandMetadata) Summary() string
+func (metadata OptionMetadata) AllowedValues() []string
+func (metadata OptionMetadata) Format() string
+func (metadata OptionMetadata) Name() string
+func (metadata OptionMetadata) Persistent() bool
+func (metadata OptionMetadata) Secret() bool
+func (metadata OptionMetadata) Short() rune
+func (metadata OptionMetadata) ValueType() string
+func (option *Option[T]) Completion(provider CompletionProvider) *Option[T]
+func (option *Option[T]) Default(value T) *Option[T]
+func (option *Option[T]) Description(description string) *Option[T]
+func (option *Option[T]) Get(input Input) T
+func (option *Option[T]) Persistent() *Option[T]
+func (option *Option[T]) Required() *Option[T]
+func (option *Option[T]) Secret() *Option[T]
+func (option *Option[T]) Short(short rune) *Option[T]
+func (option *Option[T]) State(input Input) ValueState
+func (output *Output) Info(message string) error
+func (output *Output) SetData(value any) error
+func BoolOption(name string) *Option[bool]
+func Compile(root *Command, options ...CompileOption) (*Application, error)
+func DurationArgument(name string) *Argument[time.Duration]
+func DurationOption(name string) *Option[time.Duration]
+func EnumArgument(name string, values ...string) *Argument[string]
+func EnumOption(name string, values ...string) *Option[string]
+func FloatArgument(name string) *Argument[float64]
+func FloatOption(name string) *Option[float64]
+func IntArgument(name string) *Argument[int64]
+func IntOption(name string) *Option[int64]
+func KeyValuesOption(name string) *Option[map[string]string]
+func NewCommand(name string, options ...CommandOption) *Command
+func NewShutdownController(parent context.Context) (*ShutdownController, error)
+func StringArgument(name string) *Argument[string]
+func StringOption(name string) *Option[string]
+func StringsArgument(name string) *Argument[[]string]
+func StringsOption(name string) *Option[[]string]
+func TimeArgument(name, layout string) *Argument[time.Time]
+func TimeOption(name, layout string) *Option[time.Time]
+func TypedArgument[T any](name, valueType string, parser Parser[T]) *Argument[T]
+func TypedOption[T any](name, valueType string, parser Parser[T]) *Option[T]
+func UintArgument(name string) *Argument[uint64]
+func UintOption(name string) *Option[uint64]
+func WithAliases(aliases ...string) CommandOption
+func WithArguments(arguments ...ArgumentDefinition) CommandOption
+func WithCleanup(hooks ...Handler) CommandOption
+func WithDeprecated(message string) CommandOption
+func WithDescription(description string) CommandOption
+func WithDocumentation(documentation string) CommandOption
+func WithExamples(examples ...string) CommandOption
+func WithExitCodePolicy(policy ExitCodePolicy) CompileOption
+func WithExperimental(experimental bool) CommandOption
+func WithHandler(handler Handler) CommandOption
+func WithHidden(hidden bool) CommandOption
+func WithInteraction(interaction Interaction) CommandOption
+func WithLimits(limits Limits) CompileOption
+func WithMiddleware(middlewares ...Middleware) CommandOption
+func WithMutuallyExclusive(options ...OptionDefinition) CommandOption
+func WithOptions(options ...OptionDefinition) CommandOption
+func WithPostRun(hooks ...Handler) CommandOption
+func WithPreRun(hooks ...Handler) CommandOption
+func WithReplacement(path string) CommandOption
+func WithRequiredTogether(options ...OptionDefinition) CommandOption
+func WithSubcommands(children ...*Command) CommandOption
+func WithSummary(summary string) CommandOption
+func WithValidation(validations ...Validation) CommandOption
+func WithVersion(version string) CommandOption
+type Application struct { }
+type ArgumentCardinality uint8
+type ArgumentDefinition interface { 	argumentSpecification() argumentSpec }
+type Argument[T any] struct { }
+type Command struct { }
+type CommandMetadata struct { }
+type CommandOption func(*Command)
+type CompileOption func(*compileConfiguration) error
+type CompletionCandidate struct { 	Value       string 	Description string }
+type CompletionProvider func(context.Context, CompletionRequest) ([]CompletionCandidate, error)
+type CompletionRequest struct { 	Command CommandMetadata 	Partial string }
+type Error struct { }
+type ErrorKind string
+type ExitCodePolicy struct { 	Usage    int 	Command  int 	Canceled int 	Deadline int 	Internal int }
+type Handler func(context.Context, Invocation) error
+type HelpOptions struct { 	Width int }
+type IO struct { 	Stdin  io.Reader 	Stdout io.Writer 	Stderr io.Writer }
+type Input struct { }
+type Interaction uint8
+type Invocation struct { }
+type Limits struct { 	MaximumCommandDepth        int 	MaximumCommands            int 	MaximumOptionsPerCommand   int 	MaximumArgumentsPerCommand int 	MaximumArguments           int 	MaximumArgvBytes           int 	MaximumMetadataBytes       int 	MaximumCompletionResults   int 	MaximumCompletionBytes     int }
+type Manifest struct { 	Schema   string            `json:"schema"` 	Name     string            `json:"name"` 	Version  string            `json:"version,omitempty"` 	Root     ManifestCommand   `json:"root"` 	Commands []ManifestCommand `json:"commands,omitempty"` }
+type ManifestArgument struct { 	Name          string              `json:"name"` 	Type          string              `json:"type"` 	Cardinality   ArgumentCardinality `json:"cardinality"` 	Description   string              `json:"description,omitempty"` 	Secret        bool                `json:"secret,omitempty"` 	AllowedValues []string            `json:"allowed_values,omitempty"` 	Format        string              `json:"format,omitempty"` }
+type ManifestCommand struct { 	Name             string             `json:"name"` 	Path             string             `json:"path"` 	Aliases          []string           `json:"aliases,omitempty"` 	Summary          string             `json:"summary,omitempty"` 	Description      string             `json:"description,omitempty"` 	Examples         []string           `json:"examples,omitempty"` 	Documentation    string             `json:"documentation,omitempty"` 	Hidden           bool               `json:"hidden,omitempty"` 	Experimental     bool               `json:"experimental,omitempty"` 	Deprecated       string             `json:"deprecated,omitempty"` 	Replacement      string             `json:"replacement,omitempty"` 	Arguments        []ManifestArgument `json:"arguments,omitempty"` 	Options          []ManifestOption   `json:"options,omitempty"` 	InheritedOptions []ManifestOption   `json:"inherited_options,omitempty"` 	Commands         []ManifestCommand  `json:"commands,omitempty"` }
+type ManifestOption struct { 	Name          string   `json:"name"` 	Short         string   `json:"short,omitempty"` 	Type          string   `json:"type"` 	Description   string   `json:"description,omitempty"` 	Persistent    bool     `json:"persistent,omitempty"` 	Secret        bool     `json:"secret,omitempty"` 	Defaulted     bool     `json:"defaulted,omitempty"` 	Required      bool     `json:"required,omitempty"` 	Source        string   `json:"source,omitempty"` 	AllowedValues []string `json:"allowed_values,omitempty"` 	Format        string   `json:"format,omitempty"` }
+type Middleware func(context.Context, CommandMetadata, Next) error
+type Next func(context.Context) error
+type OptionDefinition interface { 	optionSpecification() optionSpec }
+type OptionMetadata struct { }
+type Option[T any] struct { }
+type Output struct { }
+type OutputMode uint8
+type OutputPolicy struct { 	Mode    OutputMode 	NoColor bool 	Width   int }
+type Parser[T any] func(string) (T, error)
+type Request struct { 	Args   []string 	Stdin  io.Reader 	Stdout io.Writer 	Stderr io.Writer  	NonInteractive bool 	Output         OutputPolicy }
+type Result struct { 	ExitCode int 	Err      error 	Command  CommandMetadata }
+type Shell string
+type ShutdownAction uint8
+type ShutdownController struct { }
+type Validation func(context.Context, Input) error
+type ValueState uint8
+var ErrCanceled = errors.New("cli execution canceled")
+var ErrCleanup = errors.New("cli cleanup error")
+var ErrCommand = errors.New("cli command error")
+var ErrCompletion = errors.New("cli completion error")
+var ErrDeadline = errors.New("cli execution deadline exceeded")
+var ErrHelp = errors.New("cli help requested")
+var ErrInternal = errors.New("cli internal error")
+var ErrMalformedValue = errors.New("cli malformed value error")
+var ErrMissingValue = errors.New("cli missing option value")
+var ErrOutput = errors.New("cli output error")
+var ErrSignal = errors.New("shutdown signal received")
+var ErrUnknownCommand = errors.New("cli unknown command")
+var ErrUnknownOption = errors.New("cli unknown option")
+var ErrUsage = errors.New("cli usage error")
+var ErrValidation = errors.New("cli validation error")
+var ErrVersion = errors.New("cli version requested")

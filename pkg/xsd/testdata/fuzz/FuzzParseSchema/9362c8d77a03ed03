@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"  A00000:000=\"0000000000000\"   targetNamespace=\"0000000000000\"   elementFormDefault=\"qualified\">000<xs:simpleType/>0</xs:schema>0")

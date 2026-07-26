@@ -1,0 +1,22 @@
+# Changelog
+
+All notable changes to this module will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Add explicit OpenTelemetry instrumentation for synchronous event dispatch
+  and consumer handling with bounded low-cardinality metrics, trace-parent
+  preservation, panic transparency, redacted failure status, exact statement
+  coverage, race verification, and allocation-reporting benchmarks.
+- Add bounded Kafka trace-context injection and extraction with defensive
+  record ownership, reserved-header protection, stale-context replacement,
+  hostile-input fuzzing, and unchanged publication and settlement guarantees.
+- Add event-store append, bounded stream-read, and global-read spans and
+  operation metrics that include iterator lifetime without recording stream,
+  position, message, error, or database identity.

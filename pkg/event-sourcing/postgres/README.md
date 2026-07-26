@@ -1,0 +1,251 @@
+# event-sourcing PostgreSQL
+
+`postgres` is the independently releasable PostgreSQL adapter for
+`github.com/faustbrian/golib/pkg/event-sourcing`. Installing the core module
+does not add `pgx` or database dependencies.
+
+## Install
+
+```sh
+go get github.com/faustbrian/golib/pkg/event-sourcing/postgres
+```
+
+Apply the embedded migration through the repository's engine-neutral
+`migrations` package or another runner that understands the same directives:
+
+```go
+source, err := migrations.NewFSSource(eventpostgres.Migrations(), ".")
+if err != nil {
+	return err
+}
+```
+
+Migrations belong in a dedicated deployment job. Constructors do not inspect
+or modify schema.
+
+## Append and read
+
+```go
+store, err := eventpostgres.New(pool, eventpostgres.Config{})
+if err != nil {
+	return err
+}
+
+persisted, err := store.Append(
+	ctx,
+	stream,
+	eventsourcing.ExpectExactVersion(version),
+	pending,
+)
+```
+
+Pool-backed appends own one short PostgreSQL transaction. Validation and
+statement failures are `CommitNotCommitted`; a commit error is
+`CommitUnknown` and requires reconciliation by message ID before retry.
+Messages are returned only after a successful commit.
+
+Reads are bounded by the core read options. Returned iterators own their
+`pgx.Rows`; callers must always call `Close`. Cancellation stops iteration and
+closes the rows. Stream and global ordering are ascending and stable.
+
+## Caller-owned transactions
+
+Use `NewTx` when event persistence must share an application transaction:
+
+```go
+tx, err := pool.Begin(ctx)
+if err != nil {
+	return err
+}
+defer tx.Rollback(cleanupCtx)
+
+writer, err := eventpostgres.NewTx(tx, eventpostgres.Config{})
+if err != nil {
+	return err
+}
+staged, err := writer.Stage(ctx, stream, expected, pending)
+if err != nil {
+	return err // roll back the caller-owned transaction
+}
+
+return tx.Commit(ctx)
+```
+
+`TxWriter` intentionally does not implement `eventsourcing.EventStore`, because
+successful staging is not a durable append. `NewTx` never commits or rolls back
+the supplied transaction. Returned messages are transactionally written but
+are not durable until the caller commits. After any staging error, callers must
+roll back because PostgreSQL may have marked the transaction failed. Commit
+ambiguity belongs to the caller.
+
+## Snapshots
+
+`NewSnapshotStore` provides durable `eventsourcing.SnapshotStore` persistence.
+Each save owns one short transaction, serializes concurrent writes to one
+aggregate, accepts exact retries, and rejects aggregate or snapshot-schema
+regressions and same-version state conflicts. State and metadata retain the
+core bounds, and creation times round-trip at the core's canonical UTC
+microsecond precision.
+
+Snapshots remain derived acceleration data. Snapshot save is deliberately not
+atomic with event append: a crash can leave a missing or stale snapshot, which
+the snapshot manager follows with authoritative event history. Commit errors
+return `ErrCommitOutcomeUnknown`; callers load the snapshot and compare every
+observable field before retrying. Deletion is idempotent and exists for rebuild
+and repair workflows.
+
+## Projection checkpoints
+
+`NewProjectionStore` implements `projection.ControlStore` with durable
+optimistic checkpoints and running or paused operational state. A missing
+projection is running with no checkpoint. `Pause` and `Resume` are idempotent;
+checkpoint advancement is rejected while paused, and checkpoint reset requires
+the exact expected position while paused.
+
+Use `NewTxCheckpointWriter` when application read-model state and its checkpoint
+share PostgreSQL:
+
+```go
+tx, err := pool.Begin(ctx)
+if err != nil {
+	return err
+}
+defer tx.Rollback(cleanupCtx)
+
+if _, err := tx.Exec(ctx, updateReadModelSQL, arguments...); err != nil {
+	return err
+}
+writer, err := eventpostgres.NewTxCheckpointWriter(
+	tx,
+	eventpostgres.Config{},
+)
+if err != nil {
+	return err
+}
+if err := writer.Stage(ctx, name, expected, next); err != nil {
+	return err
+}
+
+return tx.Commit(ctx)
+```
+
+`TxCheckpointWriter` intentionally does not implement
+`projection.CheckpointStore`: successful staging is not durable until the
+caller commits. It never commits or rolls back. After any error, the caller
+must roll back. A commit error remains ambiguous, so recovery reads both the
+application model and durable checkpoint before retrying.
+
+Pool-owned checkpoint advancement and reset wrap commit failures with
+`ErrCommitOutcomeUnknown`. Idempotent pause and resume operations can be
+retried and reconciled through `Status`.
+
+## Schema and ordering
+
+The first migration creates:
+
+- `event_sourcing.streams`, one locked optimistic-concurrency head per stream;
+- `event_sourcing.positions`, one transactional global-position allocator; and
+- `event_sourcing.messages`, immutable envelopes keyed by global position with
+  unique message ID and stream-version indexes.
+
+The second migration creates:
+
+- `event_sourcing.snapshots`, one replaceable derived record per stream; and
+- `event_sourcing.projections`, one durable checkpoint and run state per
+  canonical projection name.
+
+The allocator row deliberately serializes position assignment until commit.
+This ensures a global reader cannot checkpoint a later committed event while
+an earlier position remains uncommitted. It is a correctness-first tradeoff:
+global ordering can become the append throughput bottleneck. Benchmarks and
+capacity tests must include this lock rather than comparing against unordered
+or sequence-only inserts.
+
+The real-database contention suite proves that concurrent writers on one new
+stream produce one committed winner and only optimistic conflicts, while
+concurrent independent streams all commit. It also verifies unique, gap-free,
+ascending global positions through the public global reader. This correctness
+evidence is not a throughput claim.
+
+The PostgreSQL 18 integration suite also runs the public committed event-store
+conformance profile for atomic append, every expected-version mode, duplicate
+identity rejection, bounded reads, ownership, cancellation, and iterator
+semantics. It separately runs the optional global-reader profile for empty
+reads, cross-stream ordering, inclusive ranges, limits, ownership,
+cancellation, and closure.
+
+PostgreSQL `bigint` bounds stream versions and global positions to
+`math.MaxInt64`, even though the storage-independent core types use `uint64`.
+Exhaustion returns `eventsourcing.ErrVersionOverflow`.
+
+## Operations
+
+Configure statement, lock, and transaction timeouts on the caller-owned pool
+or transaction. Keep transactions short; caller-owned transactions retain
+stream and global-position locks until commit or rollback. The adapter starts
+no goroutines and does not own pool shutdown.
+
+Set server-side bounds in the pgx pool configuration before creating the pool,
+and give each operation a shorter or equal context deadline:
+
+```go
+config, err := pgxpool.ParseConfig(connectionString)
+if err != nil {
+	return err
+}
+config.ConnConfig.RuntimeParams["statement_timeout"] = "5s"
+config.ConnConfig.RuntimeParams["lock_timeout"] = "1s"
+config.ConnConfig.RuntimeParams["idle_in_transaction_session_timeout"] = "15s"
+pool, err := pgxpool.NewWithConfig(ctx, config)
+```
+
+The real-database suite holds an append transaction open, proves that a
+competing append reaches PostgreSQL `lock_timeout` with SQLSTATE `55P03` and
+`CommitNotCommitted`, then proves a new append can succeed after rollback.
+Timeout errors before commit are safe to retry under the normal optimistic
+version contract. A commit error remains ambiguous and must be reconciled
+before retry.
+
+The backend-recovery suite durably appends history, terminates the pool's
+PostgreSQL backend, and proves the existing pool can establish a replacement
+connection, read unchanged history, and append the next stream and global
+versions. This exercises connection-loss recovery for one PostgreSQL instance;
+it is not evidence for server restart, replica promotion, DNS failover, or a
+managed-service control plane. Those deployment-specific paths require their
+own fault-injection and recovery evidence.
+
+History is authoritative and must not be deleted as routine cleanup. Use
+PostgreSQL backup plus tested point-in-time recovery. Restore the stream heads,
+position allocator, and messages together, verify uniqueness and foreign keys,
+then either restore or rebuild derived snapshots, checkpoints, and read models
+as one coordinated operation. Any history repair requires a reviewed, auditable
+procedure and must preserve message identity and ordering.
+
+The backup/restore integration suite uses PostgreSQL's `pg_dump` custom format
+and `pg_restore` into a clean database. It verifies identical event envelopes,
+snapshot state, and projection checkpoints, then appends the next expected
+stream version and global position. This proves logical backup compatibility
+for the pinned PostgreSQL version; production point-in-time recovery, replica
+promotion, encryption, retention, and storage-provider restoration still need
+deployment-specific drills.
+
+Partitioning, archival, and retention require an application-specific design.
+Do not detach or delete partitions while active streams, legal retention, or
+replay requirements still reference them. Tenant erasure and cryptographic
+shredding policies belong to the application and its compliance review.
+
+Direct database-to-Kafka publication is not atomic. Use the optional outbox
+adapter when durable asynchronous publication is required. Neither PostgreSQL
+transactions nor Kafka producer transactions provide end-to-end exactly-once
+delivery across both systems.
+
+## Verification
+
+The real-database suite uses the pinned repository PostgreSQL matrix:
+
+```sh
+EVENT_SOURCING_POSTGRES_VERSION=18 \
+	go test -tags=integration -count=1 ./...
+```
+
+The module is licensed under the [MIT License](LICENSE).

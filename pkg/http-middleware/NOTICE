@@ -1,0 +1,10 @@
+http-middleware
+Copyright 2026 Brian Faust
+
+This distribution includes github.com/felixge/httpsnoop, licensed under the
+MIT License, to preserve exact optional http.ResponseWriter capabilities.
+
+This distribution includes golang.org/x/net and its golang.org/x/text
+dependency, licensed under the BSD 3-Clause License, for IDNA origin handling.
+
+Dependency source, versions, and checksums are pinned in go.mod and go.sum.

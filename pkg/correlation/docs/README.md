@@ -1,0 +1,18 @@
+# Documentation
+
+- [API](api.md)
+- [Architecture](architecture.md)
+- [Semantics](semantics.md)
+- [Generation](generation.md)
+- [Trust](trust.md)
+- [Propagation](propagation.md)
+- [Observability](observability.md)
+- [Privacy](privacy.md)
+- [Adapters](adapters.md)
+- [Adoption](adoption.md)
+- [Migration from Cline Correlation](migration.md)
+- [Operations](operations.md)
+- [FAQ](faq.md)
+- [Compatibility](compatibility.md)
+- [Verification](verification.md)
+- [Hardening evidence](hardening.md)

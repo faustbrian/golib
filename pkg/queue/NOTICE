@@ -1,0 +1,11 @@
+queue
+
+Original golang-queue work:
+Copyright 2021 Bo-Yi Wu
+
+Consolidation and subsequent work:
+Copyright 2026 queue contributors
+
+This file is informational and does not modify the MIT License. Exact fork
+provenance and third-party attribution are recorded in
+THIRD_PARTY_NOTICES.md.

@@ -1,0 +1,17 @@
+object	model	validation	evidence	status
+#	document.go:Document	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/contactObject	metadata.go:Contact	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/contentDescriptorObject	method.go:ContentDescriptor	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/errorObject	method.go:Error	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/exampleObject	method.go:Example	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/examplePairingObject	method.go:ExamplePairing	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/externalDocumentationObject	metadata.go:ExternalDocumentation	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/infoObject	metadata.go:Info	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/licenseObject	metadata.go:License	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/linkObject	method.go:Link	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/methodObject	method.go:Method	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/referenceObject	method.go:Reference	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/serverObject	metadata.go:Server	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/serverObject/properties/variables/patternProperties/[0-z]+	metadata.go:ServerVariable	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/definitions/tagObject	method.go:Tag	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete
+#/properties/components	document.go:Components	validate/metaschema.go:MetaSchema	parse/complete_test.go:TestObjectFieldRequirednessAndNullabilityMatrix	complete

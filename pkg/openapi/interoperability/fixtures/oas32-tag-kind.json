@@ -1,0 +1,6 @@
+{
+  "openapi": "3.2.0",
+  "info": {"title": "Interoperability", "version": "1"},
+  "paths": {},
+  "tags": [{"name": "public", "kind": "audience"}]
+}

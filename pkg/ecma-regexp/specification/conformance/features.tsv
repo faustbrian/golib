@@ -1,0 +1,12 @@
+feature	test262_tag_occurrences	edition_or_stage	disposition	evidence
+regexp-dotall	16	ECMAScript 2018	implemented	grammar_match_test.go; differential_test.go
+regexp-lookbehind	18	ECMAScript 2018	implemented	lookaround_test.go; differential_test.go
+regexp-named-groups	98	ECMAScript 2018	implemented	lookaround_test.go; named_identifier_test.go
+regexp-unicode-property-escapes	669	ECMAScript 2018	implemented	unicode_property_test.go; test262_generated_test.go
+regexp-match-indices	30	ECMAScript 2022	implemented	matcher_test.go; differential_test.go
+regexp-v-flag	181	ECMAScript 2024	implemented	unicode_sets_test.go; test262_generated_test.go
+regexp-duplicate-named-groups	13	ECMAScript 2025	implemented	duplicate_names_test.go
+regexp-modifiers	230	ECMAScript 2025	implemented	modifier_test.go; test262_semantics_test.go
+RegExp.escape	20	ECMAScript 2025	out of scope: JavaScript object API	test262.tsv
+legacy-regexp	0	Stage 3 after ECMAScript 2025	rejected as proposal-stage syntax	edition_test.go; annexb_test.go
+non-regexp harness and object tags	365	various	accounted as harness or JavaScript object API	test262_semantics_test.go; test262.tsv

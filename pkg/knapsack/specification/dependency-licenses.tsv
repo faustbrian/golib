@@ -1,0 +1,3 @@
+module	version	replacement	license_file	spdx	sha256	license_status	release_status
+github.com/faustbrian/golib/pkg/math	v0.0.0	../math	../math/LICENSE	MIT	7878e35a1e72cd529970c529247d1bef0d53ded4c465e02d8e7794eb7c9da4f0	approved	workspace_only
+github.com/faustbrian/golib/pkg/measurement	v0.0.0	../measurement	../measurement/LICENSE	MIT	7878e35a1e72cd529970c529247d1bef0d53ded4c465e02d8e7794eb7c9da4f0	approved	workspace_only

@@ -1,0 +1,19 @@
+repository:
+  description: Explicit immutable net/http routing, composition, and URL generation for Go
+  homepage: https://pkg.go.dev/github.com/faustbrian/golib/pkg/router
+  topics:
+    - go
+    - golang
+    - http
+    - net-http
+    - router
+    - routing
+    - middleware
+    - url-generation
+  has_issues: true
+  has_projects: false
+  has_wiki: false
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+  delete_branch_on_merge: true

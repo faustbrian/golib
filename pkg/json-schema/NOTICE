@@ -1,0 +1,14 @@
+json-schema
+Copyright (c) 2026 Brian Faust
+
+This product includes golang.org/x/net and golang.org/x/text, distributed
+under the BSD 3-Clause license by The Go Authors.
+
+This product includes github.com/dlclark/regexp2/v2, distributed under the
+MIT License by Doug Clark and contributors.
+
+The vendored JSON Schema Test Suite is distributed under the MIT License by
+the JSON Schema organization. The embedded official JSON Schema meta-schemas
+are distributed under the specification project's BSD 3-Clause or Academic
+Free License 3.0 terms. Their source, exact revision or URI, checksums, and
+license locations are recorded under specification/.

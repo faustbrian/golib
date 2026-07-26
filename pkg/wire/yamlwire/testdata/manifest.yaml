@@ -1,0 +1,5 @@
+service: tracking
+image: registry.invalid/tracking:v1
+labels:
+  region: eu-north
+  owner: platform

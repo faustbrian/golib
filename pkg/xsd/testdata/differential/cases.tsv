@@ -1,0 +1,11 @@
+id	expected	file
+valid-minimal	valid	valid-minimal.xml
+valid-items	valid	valid-items.xml
+valid-nil-wildcard	valid	valid-nil-wildcard.xml
+invalid-decimal	invalid	invalid-decimal.xml
+invalid-pattern	invalid	invalid-pattern.xml
+invalid-missing-attribute	invalid	invalid-missing-attribute.xml
+invalid-order	invalid	invalid-order.xml
+invalid-duplicate-key	invalid	invalid-duplicate-key.xml
+invalid-nil-content	invalid	invalid-nil-content.xml
+invalid-local-wildcard	invalid	invalid-local-wildcard.xml

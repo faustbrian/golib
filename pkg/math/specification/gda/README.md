@@ -1,0 +1,26 @@
+# General Decimal Arithmetic vectors
+
+These files are the corresponding members of `dectest0.zip`, version 2.62,
+published on 19 April 2010 by Mike Cowlishaw at
+<https://speleotrove.com/decimal/>. They are retained verbatim so conformance
+tests do not depend on the network.
+
+The upstream notices describe the vectors as experimental and explain that
+passing them does not by itself establish standards conformance. The test
+harness executes the finite operations supported by this package and records
+unsupported grammar or exceptional-value cases separately.
+
+SHA-256 checksums:
+
+```text
+2a0e43703b9c5f0caf9aaf6077cf6cd7441f1d12c383dfc92f9459fdd5b4600e  add.decTest
+8b3d3ba081aa1e80d5cd21b622d68d66305ed407d982e3fe77dcddf3b8df862b  add0.decTest
+b71d0a18016c4434c80ad7d6aa0ade89b4d10bca148d1ca5299f81af96243c98  divide.decTest
+923f64762157dd12de87d57fe190ae907e892e63a510f2f8b9b52db9663ac220  divide0.decTest
+e4c3cdc1c2d0e08349ea9ceae094c94b1b942473c8ebc1e8a42f0e41e3fae282  multiply.decTest
+ea7d578a2a4cd632eed564ef94d038e6a1f76be22475507bcab24a054454f9ff  multiply0.decTest
+aad6ad6d6f20da15d6e0b7ed2d1c6abc45ca3b9976c33b0c306c0f423c04213e  quantize0.decTest
+20e76b459d0d2881f6d3891089078e06319d43ac30485cad6bf850315164592b  rounding0.decTest
+6e7b01cb70f844906c5d15609df32e86d14d8faf232b184e78eb96d65ee0b684  subtract.decTest
+2e3efc8af9113a1e892312ae38cd63def7534059b8d34e28053795afc5cb344b  subtract0.decTest
+```
