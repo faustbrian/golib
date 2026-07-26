@@ -1,0 +1,43 @@
+captured_at=2026-07-26T11:27:08Z
+revision=c270cfe9fe13c570b2ddd8147624e3ec4c5325fa
+working_tree_status_begin
+ M ../../kafka/CHANGELOG.md
+ M ../../kafka/README.md
+ M ../../kafka/api/baseline.txt
+ M ../../kafka/docs/api.md
+ M ../../kafka/docs/audit.md
+ M ../../kafka/docs/compatibility.md
+ M ../../kafka/docs/guarantees.md
+ M ../../kafka/docs/transactions.md
+ M ../../kafka/error.go
+ M ../../kafka/error_test.go
+ M ../../kafka/integration_test.go
+ M ../../kafka/producer.go
+?? ../../kafka/transaction_error_test.go
+working_tree_status_end
+go version go1.26.5 darwin/arm64
+darwin
+arm64
+v8.0
+1
+ProductName:		macOS
+ProductVersion:		27.0
+BuildVersion:		26A5388g
+Apple M4 Max
+137438953472
+16
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=36241507)	78%; AC attached; not charging present: true
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+client=29.6.2 server=29.6.2
+postgres_id=sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15 postgres_digests=["postgres@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"]
+github.com/hallgren/eventsourcing v0.9.1
+github.com/looplab/eventhorizon v0.17.0
+github.com/thefabric-io/eventsourcing v0.6.0
+golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d
+github.com/jackc/pgx/v5 v5.10.0
+github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
+github.com/faustbrian/golib/pkg/outbox
+github.com/jackc/pgx/v5 v5.10.0

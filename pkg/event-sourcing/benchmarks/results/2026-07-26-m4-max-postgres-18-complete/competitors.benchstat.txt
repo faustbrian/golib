@@ -1,0 +1,27 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors
+cpu: Apple M4 Max
+                                         │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/competitors.txt │
+                                         │                                     sec/op                                      │
+EquivalentRecordAndApply/golib-16                                                                             93.73n ± 22%
+EquivalentRecordAndApply/eventhorizon-16                                                                      90.50n ± 22%
+EquivalentRecordAndApply/hallgren-16                                                                          227.0n ± 29%
+EquivalentRecordAndApply/thefabric-16                                                                         1.111µ ± 10%
+geomean                                                                                                       215.0n
+
+                                         │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/competitors.txt │
+                                         │                                      B/op                                       │
+EquivalentRecordAndApply/golib-16                                                                               96.00 ± 0%
+EquivalentRecordAndApply/eventhorizon-16                                                                        184.0 ± 0%
+EquivalentRecordAndApply/hallgren-16                                                                            392.0 ± 0%
+EquivalentRecordAndApply/thefabric-16                                                                           721.0 ± 0%
+geomean                                                                                                         265.8
+
+                                         │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/competitors.txt │
+                                         │                                    allocs/op                                    │
+EquivalentRecordAndApply/golib-16                                                                               2.000 ± 0%
+EquivalentRecordAndApply/eventhorizon-16                                                                        4.000 ± 0%
+EquivalentRecordAndApply/hallgren-16                                                                            4.000 ± 0%
+EquivalentRecordAndApply/thefabric-16                                                                           17.00 ± 0%
+geomean                                                                                                         4.829

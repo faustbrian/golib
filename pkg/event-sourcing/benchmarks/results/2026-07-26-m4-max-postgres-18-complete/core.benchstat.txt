@@ -1,0 +1,187 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing
+cpu: Apple M4 Max
+                                                      │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                      │                                  sec/op                                  │
+PendingMessageConstruction-16                                                                                       155.5n ±  5%
+LifecycleReconstitution/0-16                                                                                        3.097n ±  0%
+LifecycleReconstitution/1-16                                                                                        13.89n ±  0%
+LifecycleReconstitution/10-16                                                                                       114.5n ±  0%
+LifecycleReconstitution/100-16                                                                                      1.093µ ±  0%
+LifecycleReconstitution/1000-16                                                                                     10.73µ ±  0%
+LifecycleReconstitution/10000-16                                                                                    109.5µ ±  0%
+PayloadValidation/small-16                                                                                          162.6n ±  2%
+PayloadValidation/normal-16                                                                                         471.4n ±  6%
+PayloadValidation/maximum-16                                                                                        36.98µ ±  8%
+PayloadValidation/hostile-16                                                                                        170.9n ±  1%
+JSONCodecRoundTrip-16                                                                                               4.174µ ±  0%
+JSONCodecRegistryPaths/warm-16                                                                                      4.302µ ±  0%
+JSONCodecRegistryPaths/cold-16                                                                                      4.905µ ±  0%
+SnapshotRestoreBreakEven/100/full-history-16                                                                        1.112µ ±  3%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                                                 1.256µ ±  1%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                                                 1.064µ ±  0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                                                 783.9n ±  0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                                                 724.1n ± 22%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                                                 412.2n ± 14%
+SnapshotRestoreBreakEven/1000/full-history-16                                                                       11.27µ ± 10%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                                                10.79µ ±  6%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                                                9.201µ ±  5%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                                                6.232µ ±  9%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                                                3.372µ ±  6%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                                                1.549µ ± 10%
+SnapshotRestoreBreakEven/10000/full-history-16                                                                      116.5µ ±  6%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                                               112.3µ ±  6%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                                               87.58µ ± 21%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                                               58.60µ ±  7%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                                               30.86µ ±  5%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                                               11.92µ ± 11%
+UpcasterChain/0-16                                                                                                  520.5n ± 19%
+UpcasterChain/1-16                                                                                                  2.873µ ± 11%
+UpcasterChain/4-16                                                                                                  9.715µ ± 14%
+UpcasterChain/16-16                                                                                                 42.39µ ± 22%
+SynchronousDispatch/1-16                                                                                            43.87n ± 15%
+SynchronousDispatch/10-16                                                                                           434.5n ± 12%
+SynchronousDispatch/100-16                                                                                          4.319µ ± 11%
+geomean                                                                                                             2.399µ
+
+                                                      │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                      │                                   B/op                                   │
+PendingMessageConstruction-16                                                                                       360.0 ± 0%
+LifecycleReconstitution/0-16                                                                                        0.000 ± 0%
+LifecycleReconstitution/1-16                                                                                        0.000 ± 0%
+LifecycleReconstitution/10-16                                                                                       0.000 ± 0%
+LifecycleReconstitution/100-16                                                                                      0.000 ± 0%
+LifecycleReconstitution/1000-16                                                                                     0.000 ± 0%
+LifecycleReconstitution/10000-16                                                                                    0.000 ± 0%
+PayloadValidation/small-16                                                                                          160.0 ± 0%
+PayloadValidation/normal-16                                                                                       4.125Ki ± 0%
+PayloadValidation/maximum-16                                                                                      1.000Mi ± 0%
+PayloadValidation/hostile-16                                                                                        160.0 ± 0%
+JSONCodecRoundTrip-16                                                                                             4.318Ki ± 0%
+JSONCodecRegistryPaths/warm-16                                                                                    4.318Ki ± 0%
+JSONCodecRegistryPaths/cold-16                                                                                    5.844Ki ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                                                        0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                                                 216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                                                 216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                                                 216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                                                 216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                                                 216.0 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                                                       0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                                                216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                                                216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                                                216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                                                216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                                                216.0 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                                                      0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                                               216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                                               216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                                               216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                                               216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                                               216.0 ± 0%
+UpcasterChain/0-16                                                                                                1.172Ki ± 0%
+UpcasterChain/1-16                                                                                                4.719Ki ± 0%
+UpcasterChain/4-16                                                                                                15.36Ki ± 0%
+UpcasterChain/16-16                                                                                               63.37Ki ± 0%
+SynchronousDispatch/1-16                                                                                            0.000 ± 0%
+SynchronousDispatch/10-16                                                                                           0.000 ± 0%
+SynchronousDispatch/100-16                                                                                          0.000 ± 0%
+geomean                                                                                                                        ¹
+¹ summaries must be >0 to compute geomean
+
+                                                      │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                      │                                allocs/op                                 │
+PendingMessageConstruction-16                                                                                       3.000 ± 0%
+LifecycleReconstitution/0-16                                                                                        0.000 ± 0%
+LifecycleReconstitution/1-16                                                                                        0.000 ± 0%
+LifecycleReconstitution/10-16                                                                                       0.000 ± 0%
+LifecycleReconstitution/100-16                                                                                      0.000 ± 0%
+LifecycleReconstitution/1000-16                                                                                     0.000 ± 0%
+LifecycleReconstitution/10000-16                                                                                    0.000 ± 0%
+PayloadValidation/small-16                                                                                          6.000 ± 0%
+PayloadValidation/normal-16                                                                                         6.000 ± 0%
+PayloadValidation/maximum-16                                                                                        6.000 ± 0%
+PayloadValidation/hostile-16                                                                                        6.000 ± 0%
+JSONCodecRoundTrip-16                                                                                               111.0 ± 0%
+JSONCodecRegistryPaths/warm-16                                                                                      111.0 ± 0%
+JSONCodecRegistryPaths/cold-16                                                                                      125.0 ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                                                        0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                                                 4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                                                 4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                                                 4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                                                 4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                                                 4.000 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                                                       0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                                                4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                                                4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                                                4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                                                4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                                                4.000 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                                                      0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                                               4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                                               4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                                               4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                                               4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                                               4.000 ± 0%
+UpcasterChain/0-16                                                                                                  10.00 ± 0%
+UpcasterChain/1-16                                                                                                  55.00 ± 0%
+UpcasterChain/4-16                                                                                                  190.0 ± 0%
+UpcasterChain/16-16                                                                                                 751.0 ± 0%
+SynchronousDispatch/1-16                                                                                            0.000 ± 0%
+SynchronousDispatch/10-16                                                                                           0.000 ± 0%
+SynchronousDispatch/100-16                                                                                          0.000 ± 0%
+geomean                                                                                                                        ¹
+¹ summaries must be >0 to compute geomean
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/memory
+                                                 │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                 │                                  sec/op                                  │
+ConcurrentAppendWorkloads/independent_streams-16                                                               224.8µ ± 32%
+ConcurrentAppendWorkloads/one_hot_stream-16                                                                    198.1µ ± 23%
+geomean                                                                                                        211.0µ
+
+                                                 │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                 │                                   B/op                                   │
+ConcurrentAppendWorkloads/independent_streams-16                                                               315.3Ki ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                                                    368.0Ki ± 0%
+geomean                                                                                                        340.6Ki
+
+                                                 │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                 │                                allocs/op                                 │
+ConcurrentAppendWorkloads/independent_streams-16                                                                1.048k ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                                                      846.0 ± 0%
+geomean                                                                                                          941.6
+
+                                                 │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                 │                                appends/s                                 │
+ConcurrentAppendWorkloads/independent_streams-16                                                               889.9k ± 48%
+ConcurrentAppendWorkloads/one_hot_stream-16                                                                    1.011M ± 30%
+geomean                                                                                                        948.4k
+
+                                                 │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                                 │                             appends/workload                             │
+ConcurrentAppendWorkloads/independent_streams-16                                                                 200.0 ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                                                      200.0 ± 0%
+geomean                                                                                                          200.0
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/projection
+                                            │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                            │                                  sec/op                                  │
+ProjectionReplayAndCheckpoint/batch_10-16                                                                 549.0n ±  8%
+ProjectionReplayAndCheckpoint/batch_100-16                                                                4.851µ ± 20%
+ProjectionReplayAndCheckpoint/batch_1000-16                                                               48.38µ ± 13%
+geomean                                                                                                   5.051µ
+
+                                            │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                            │                                   B/op                                   │
+ProjectionReplayAndCheckpoint/batch_10-16                                                                   32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                                                  32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                                                 32.00 ± 0%
+geomean                                                                                                     32.00
+
+                                            │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/core.txt │
+                                            │                                allocs/op                                 │
+ProjectionReplayAndCheckpoint/batch_10-16                                                                   1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                                                  1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                                                 1.000 ± 0%
+geomean                                                                                                     1.000

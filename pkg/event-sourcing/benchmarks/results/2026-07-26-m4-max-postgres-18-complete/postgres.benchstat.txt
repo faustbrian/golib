@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/postgres
+cpu: Apple M4 Max
+                                              │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/postgres.txt │
+                                              │                                    sec/op                                    │
+PostgreSQLAppendEquivalentWork/event-store-16                                                                   1.547m ± 45%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                                                    1.663m ± 61%
+PostgreSQLOptimisticConflict-16                                                                                 815.8µ ± 54%
+geomean                                                                                                         1.280m
+
+                                              │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/postgres.txt │
+                                              │                                     B/op                                     │
+PostgreSQLAppendEquivalentWork/event-store-16                                                                   6.834Ki ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                                                    5.104Ki ± 0%
+PostgreSQLOptimisticConflict-16                                                                                 2.813Ki ± 0%
+geomean                                                                                                         4.612Ki
+
+                                              │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/postgres.txt │
+                                              │                                  allocs/op                                   │
+PostgreSQLAppendEquivalentWork/event-store-16                                                                     123.0 ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                                                      99.00 ± 0%
+PostgreSQLOptimisticConflict-16                                                                                   52.00 ± 0%
+geomean                                                                                                           85.87

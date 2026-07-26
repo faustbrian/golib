@@ -1,0 +1,21 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox
+cpu: Apple M4 Max
+                                                          │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/outbox.txt │
+                                                          │                                   sec/op                                   │
+PostgreSQLOutboxAppendOverhead/event-store-only-16                                                                        1.482m ± 29%
+PostgreSQLOutboxAppendOverhead/event-store-with-outbox-16                                                                 1.782m ± 29%
+geomean                                                                                                                   1.625m
+
+                                                          │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/outbox.txt │
+                                                          │                                    B/op                                    │
+PostgreSQLOutboxAppendOverhead/event-store-only-16                                                                        7.034Ki ± 0%
+PostgreSQLOutboxAppendOverhead/event-store-with-outbox-16                                                                 13.19Ki ± 0%
+geomean                                                                                                                   9.630Ki
+
+                                                          │ /var/folders/c_/cyfs05854flfb113r0dpvz800000gn/T/tmp.9bklkOXVGD/outbox.txt │
+                                                          │                                 allocs/op                                  │
+PostgreSQLOutboxAppendOverhead/event-store-only-16                                                                          124.0 ± 0%
+PostgreSQLOutboxAppendOverhead/event-store-with-outbox-16                                                                   213.0 ± 0%
+geomean                                                                                                                     162.5

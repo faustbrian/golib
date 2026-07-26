@@ -1,0 +1,26 @@
+gc 1 @0.061s 0%: 0.48+3.9+0.006 ms clock, 7.6+0/1.8/0+0.11 ms cpu, 3->3->1 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 2 @0.093s 0%: 0.20+2.2+0.004 ms clock, 3.2+0.45/0.51/0+0.075 ms cpu, 3->4->1 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 3 @0.097s 1%: 0.33+6.7+0.004 ms clock, 5.3+0.19/7.3/0+0.078 ms cpu, 3->5->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 4 @0.119s 2%: 0.86+7.5+0.66 ms clock, 13+0.23/2.3/0.12+10 ms cpu, 4->5->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 5 @0.139s 2%: 0.039+0.35+0.004 ms clock, 0.63+0.020/0.81/0.17+0.070 ms cpu, 4->4->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 6 @0.141s 2%: 0.048+0.38+0.019 ms clock, 0.76+0.18/0.92/0.043+0.30 ms cpu, 4->5->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 7 @0.145s 2%: 0.035+0.80+0.002 ms clock, 0.57+0.032/1.7/0.18+0.036 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 8 @0.148s 2%: 0.11+0.73+0.14 ms clock, 1.9+0.14/1.2/0+2.2 ms cpu, 6->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 9 @0.152s 2%: 0.042+1.1+0.15 ms clock, 0.67+0.053/1.4/0.10+2.5 ms cpu, 7->8->4 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 10 @0.157s 2%: 0.037+3.0+0.041 ms clock, 0.59+0.038/3.0/0+0.65 ms cpu, 7->8->4 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 11 @0.166s 2%: 0.13+1.4+0.080 ms clock, 2.1+0.72/1.6/0+1.2 ms cpu, 8->10->6 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 12 @0.176s 2%: 0.025+0.55+0.013 ms clock, 0.41+0.027/1.5/1.1+0.22 ms cpu, 10->10->6 MB, 12 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 13 @0.190s 2%: 0.21+3.1+0.026 ms clock, 3.4+2.3/6.7/0.49+0.42 ms cpu, 10->12->7 MB, 12 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 14 @0.200s 2%: 0.11+1.9+0.006 ms clock, 1.8+0.88/3.4/0.004+0.10 ms cpu, 13->15->7 MB, 15 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 15 @0.206s 2%: 0.047+0.75+0.005 ms clock, 0.76+0.013/2.0/1.1+0.082 ms cpu, 13->14->7 MB, 16 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 16 @0.211s 2%: 0.082+0.92+0.039 ms clock, 1.3+0.19/2.5/0.059+0.63 ms cpu, 12->14->7 MB, 15 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 17 @0.215s 2%: 0.034+0.65+0.004 ms clock, 0.55+0.059/1.9/1.0+0.070 ms cpu, 13->14->7 MB, 16 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 18 @0.219s 2%: 0.055+1.1+0.015 ms clock, 0.88+0.22/3.0/0.17+0.24 ms cpu, 13->15->8 MB, 15 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 19 @0.351s 1%: 0.15+0.90+0.011 ms clock, 2.5+0.027/3.0/2.9+0.19 ms cpu, 15->15->7 MB, 17 MB goal, 0 MB stacks, 0 MB globals, 16 P
+# github.com/faustbrian/golib/pkg/event-sourcing.test
+gc 1 @0.000s 3%: 0.029+0.15+0.009 ms clock, 0.46+0.026/0.29/0.004+0.15 ms cpu, 3->4->4 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 2 @0.002s 2%: 0.010+0.20+0.008 ms clock, 0.17+0.022/0.40/0.13+0.13 ms cpu, 7->7->6 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 3 @0.006s 1%: 0.020+0.17+0.011 ms clock, 0.32+0.010/0.42/0.12+0.19 ms cpu, 12->12->11 MB, 13 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 4 @0.017s 1%: 0.021+0.25+0.014 ms clock, 0.33+0.032/0.63/0.37+0.23 ms cpu, 22->22->13 MB, 23 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 5 @0.048s 2%: 0.022+2.7+0.85 ms clock, 0.35+0.079/3.3/0.11+13 ms cpu, 25->26->18 MB, 27 MB goal, 0 MB stacks, 0 MB globals, 16 P
+gc 6 @0.073s 4%: 1.7+6.6+0.007 ms clock, 28+0.74/7.6/0+0.12 ms cpu, 35->38->27 MB, 38 MB goal, 0 MB stacks, 0 MB globals, 16 P

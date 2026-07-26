@@ -1,0 +1,46 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox
+cpu: Apple M4 Max
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     145	   2396883 ns/op	    7257 B/op	     122 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     274	   1057008 ns/op	    7197 B/op	     123 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     313	   1433769 ns/op	    7210 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     145	   2258886 ns/op	    7199 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     238	   1079829 ns/op	    7204 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     330	    917352 ns/op	    7201 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     302	   2102240 ns/op	    7210 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     242	   1090496 ns/op	    7203 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     286	    980615 ns/op	    7203 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     288	   1908714 ns/op	    7204 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     176	   1561087 ns/op	    7213 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     303	    985782 ns/op	    7203 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     303	   1852580 ns/op	    7201 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     328	   1327771 ns/op	    7208 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     279	    996210 ns/op	    7202 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     280	   1919374 ns/op	    7202 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     156	   1777514 ns/op	    7217 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     300	    949027 ns/op	    7203 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     331	   1746629 ns/op	    7216 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-only-16         	     294	   1530179 ns/op	    7203 B/op	     124 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     183	   1571788 ns/op	   13523 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     210	   2689571 ns/op	   13521 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     100	   2523686 ns/op	   13525 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     253	   1143946 ns/op	   13486 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     262	   2012003 ns/op	   13511 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     158	   1830406 ns/op	   13494 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     278	   1103548 ns/op	   13502 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     289	   1984462 ns/op	   13501 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     153	   1887526 ns/op	   13496 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     246	   1177849 ns/op	   13497 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     244	   2301857 ns/op	   13500 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     142	   2160587 ns/op	   13492 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     223	   1296889 ns/op	   13494 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     248	   1258511 ns/op	   13509 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	      30	   8793632 ns/op	   13680 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     217	   1733331 ns/op	   13513 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     252	   1167584 ns/op	   13509 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     265	   2133314 ns/op	   13505 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     262	   1573878 ns/op	   13499 B/op	     213 allocs/op
+BenchmarkPostgreSQLOutboxAppendOverhead/event-store-with-outbox-16  	     253	   1181841 ns/op	   13490 B/op	     213 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox	17.175s

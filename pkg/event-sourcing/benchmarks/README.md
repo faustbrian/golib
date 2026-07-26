@@ -6,6 +6,7 @@ do not enter the core dependency graph.
 
 ## Published results
 
+- [2026-07-26 complete M4 Max and PostgreSQL 18 evidence](results/2026-07-26-m4-max-postgres-18-complete/README.md)
 - [2026-07-26 M4 Max and PostgreSQL 18](results/2026-07-26-m4-max-postgres-18/README.md)
 
 Create an empty result directory, verify a quiet machine on external power,
