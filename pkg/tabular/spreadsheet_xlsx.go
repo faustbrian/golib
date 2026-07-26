@@ -13,6 +13,7 @@ import (
 type xlsxRowSource struct {
 	workbook xlsxWorkbook
 	rows     xlsxRows
+	presence xlsxPresenceReader
 	sheet    string
 	row      int
 }
@@ -83,7 +84,21 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 		_ = workbook.Close()
 		return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.rows", Format: string(FormatXLSX), Err: err}
 	}
-	return &xlsxRowSource{workbook: workbook, rows: rows, sheet: sheet}, nil
+	var presence xlsxPresenceReader
+	if config.PreserveCellPresence {
+		presence, err = openXLSXPresence(archive, sheet)
+		if err != nil {
+			_ = rows.Close()
+			_ = workbook.Close()
+			return nil, err
+		}
+	}
+	return &xlsxRowSource{
+		workbook: workbook,
+		rows:     rows,
+		presence: presence,
+		sheet:    sheet,
+	}, nil
 }
 
 func validateXLSXSheetLimit(archive *ZIPArchive, maximum int) error {
@@ -175,37 +190,61 @@ func xlsxWorksheetEntry(entry ZIPEntry) bool {
 		strings.HasSuffix(entry.Name, ".xml")
 }
 
-func (source *xlsxRowSource) Read() ([]spreadsheetCell, error) {
+func (source *xlsxRowSource) Read() (spreadsheetSourceRow, error) {
 	if !source.rows.Next() {
 		if err := source.rows.Error(); err != nil {
-			return nil, err
+			return spreadsheetSourceRow{}, err
 		}
-		return nil, io.EOF
+		if source.presence != nil {
+			if _, err := source.presence.Read(); !errors.Is(err, io.EOF) {
+				if err == nil {
+					err = errors.New("worksheet presence rows are not exhausted")
+				}
+				return spreadsheetSourceRow{}, err
+			}
+		}
+		return spreadsheetSourceRow{}, io.EOF
 	}
 	source.row++
 	values, err := source.rows.Columns(excelize.Options{RawCellValue: true})
 	if err != nil {
-		return nil, err
+		return spreadsheetSourceRow{}, err
 	}
-	row := make([]spreadsheetCell, len(values))
+	row := spreadsheetSourceRow{}
+	if source.presence != nil {
+		row.presence, err = source.presence.Read()
+		if err != nil {
+			return spreadsheetSourceRow{}, err
+		}
+	}
+	width := max(len(values), len(row.presence))
+	row.cells = make([]spreadsheetCell, width)
 	for index, value := range values {
-		row[index].value = value
+		row.cells[index].value = value
 		if !strings.HasPrefix(value, "#") {
 			continue
 		}
 		cellType, typeErr := source.workbook.GetCellType(source.sheet, cellName(index+1, source.row))
 		if typeErr != nil {
-			return nil, typeErr
+			return spreadsheetSourceRow{}, typeErr
 		}
 		if cellType == excelize.CellTypeError {
-			row[index].err = value
+			row.cells[index].err = value
 		}
 	}
 	return row, nil
 }
 
 func (source *xlsxRowSource) Close() error {
-	return errors.Join(source.rows.Close(), source.workbook.Close())
+	var presenceErr error
+	if source.presence != nil {
+		presenceErr = source.presence.Close()
+	}
+	return errors.Join(
+		source.rows.Close(),
+		presenceErr,
+		source.workbook.Close(),
+	)
 }
 
 func cellName(column, row int) string {

@@ -44,6 +44,15 @@ the first or named sheet.
 Archive and workbook limits still bound the underlying parser; parsed limits
 do not claim to prevent allocations inside the XLS or Excelize engines.
 
+`Read` intentionally exposes the compatibility `[]string` shape. Callers whose
+business contract distinguishes a missing cell from an explicitly stored empty
+cell must set `PreserveCellPresence` and use `ReadCells`. Each returned
+`SpreadsheetCell` reports its normalized value and whether the workbook stored
+that position. The option is disabled by default so string-only XLSX reads
+retain their optimized cell-type lookup behavior and neither format allocates
+per-cell presence storage. Enabled XLSX reads stream the selected worksheet XML
+alongside Excelize so numeric and stored-empty trailing cells remain present.
+
 Row normalization is ordered: trim whitespace, then replace empty values.
 Header normalization removes a UTF-8 BOM from field one, trims, changes case,
 applies exact replacements, then validates empty and duplicate names.

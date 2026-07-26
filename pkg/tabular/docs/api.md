@@ -48,10 +48,14 @@ task and records compatibility-sensitive semantics.
 
 - `FormatXLS` and `FormatXLSX` must be selected explicitly.
 - `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook, worksheet
-  count and XLSX ZIP limits, plus opt-in parsed-row and cell byte limits.
+  count and XLSX ZIP limits, plus opt-in parsed-row, cell byte, and cell
+  presence behavior.
 - Zero spreadsheet record and field limits preserve legacy behavior;
   untrusted sources require explicit positive limits.
-- `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common ingest lifecycle.
+- `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common string-row
+  lifecycle.
+- `PreserveCellPresence`, `SpreadsheetCell`, `SpreadsheetRow`, and
+  `ReadCells`: opt-in distinction between absent and stored-empty cells.
 
 ## Errors
 

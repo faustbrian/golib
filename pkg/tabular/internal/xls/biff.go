@@ -17,8 +17,9 @@ type Cell struct {
 
 // Sheet is one materialized BIFF worksheet.
 type Sheet struct {
-	Name string
-	Rows [][]Cell
+	Name     string
+	Rows     [][]Cell
+	Presence [][]bool
 }
 
 // Workbook is a bounded, materialized BIFF8 workbook.
@@ -39,14 +40,27 @@ type record struct {
 
 // Open parses the Workbook stream from an OLE2 compound file.
 func Open(data []byte) (*Workbook, error) {
+	return open(data, false)
+}
+
+// OpenWithPresence parses the workbook and records stored cell positions.
+func OpenWithPresence(data []byte) (*Workbook, error) {
+	return open(data, true)
+}
+
+func open(data []byte, preservePresence bool) (*Workbook, error) {
 	stream, err := openWorkbookStream(data)
 	if err != nil {
 		return nil, err
 	}
-	return parseBIFF8(stream)
+	return parseBIFF8State(stream, preservePresence)
 }
 
 func parseBIFF8(data []byte) (*Workbook, error) {
+	return parseBIFF8State(data, false)
+}
+
+func parseBIFF8State(data []byte, preservePresence bool) (*Workbook, error) {
 	first, err := readRecord(data, 0)
 	if err != nil || first.id != 0x0809 || len(first.payload) < 4 || binary.LittleEndian.Uint16(first.payload[:2]) != 0x0600 {
 		return nil, errors.New("xls: BIFF8 workbook globals not found")
@@ -93,11 +107,20 @@ func parseBIFF8(data []byte) (*Workbook, error) {
 
 	workbook := &Workbook{Sheets: make([]Sheet, 0, len(sheets))}
 	for _, definition := range sheets {
-		rows, rowErr := parseSheet(data, int(definition.offset), shared)
+		rows, presence, rowErr := parseSheetState(
+			data,
+			int(definition.offset),
+			shared,
+			preservePresence,
+		)
 		if rowErr != nil {
 			return nil, fmt.Errorf("xls: sheet %q: %w", definition.name, rowErr)
 		}
-		workbook.Sheets = append(workbook.Sheets, Sheet{Name: definition.name, Rows: rows})
+		workbook.Sheets = append(workbook.Sheets, Sheet{
+			Name:     definition.name,
+			Rows:     rows,
+			Presence: presence,
+		})
 	}
 	return workbook, nil
 }
@@ -128,9 +151,27 @@ func parseBoundSheet(data []byte) (boundSheet, error) {
 }
 
 func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
+	rows, _, err := parseSheetState(data, offset, shared, false)
+	return rows, err
+}
+
+func parseSheetWithPresence(
+	data []byte,
+	offset int,
+	shared []string,
+) ([][]Cell, [][]bool, error) {
+	return parseSheetState(data, offset, shared, true)
+}
+
+func parseSheetState(
+	data []byte,
+	offset int,
+	shared []string,
+	preservePresence bool,
+) ([][]Cell, [][]bool, error) {
 	first, err := readRecord(data, offset)
 	if err != nil || first.id != 0x0809 {
-		return nil, errors.New("worksheet BOF not found")
+		return nil, nil, errors.New("worksheet BOF not found")
 	}
 	rows := make(map[int]map[int]Cell)
 	widths := make(map[int]int)
@@ -138,7 +179,7 @@ func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
 	for offset < len(data) {
 		rec, recErr := readRecord(data, offset)
 		if recErr != nil {
-			return nil, recErr
+			return nil, nil, recErr
 		}
 		if rec.id == 0x000a {
 			break
@@ -146,7 +187,7 @@ func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
 		switch rec.id {
 		case 0x0208:
 			if len(rec.payload) < 6 {
-				return nil, errors.New("truncated ROW record")
+				return nil, nil, errors.New("truncated ROW record")
 			}
 			row := int(binary.LittleEndian.Uint16(rec.payload[:2]))
 			last := int(binary.LittleEndian.Uint16(rec.payload[4:6]))
@@ -154,18 +195,18 @@ func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
 			maxRow = max(maxRow, row)
 		case 0x00fd:
 			if len(rec.payload) != 10 {
-				return nil, errors.New("invalid LABELSST record")
+				return nil, nil, errors.New("invalid LABELSST record")
 			}
 			row, column := cellPosition(rec.payload)
 			index := binary.LittleEndian.Uint32(rec.payload[6:10])
 			if uint64(index) >= uint64(len(shared)) {
-				return nil, errors.New("shared string index outside SST")
+				return nil, nil, errors.New("shared string index outside SST")
 			}
 			setCell(rows, widths, row, column, Cell{Value: shared[index]})
 			maxRow = max(maxRow, row)
 		case 0x0203:
 			if len(rec.payload) != 14 {
-				return nil, errors.New("invalid NUMBER record")
+				return nil, nil, errors.New("invalid NUMBER record")
 			}
 			row, column := cellPosition(rec.payload)
 			value := math.Float64frombits(binary.LittleEndian.Uint64(rec.payload[6:14]))
@@ -173,30 +214,58 @@ func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
 			maxRow = max(maxRow, row)
 		case 0x027e:
 			if len(rec.payload) != 10 {
-				return nil, errors.New("invalid RK record")
+				return nil, nil, errors.New("invalid RK record")
 			}
 			row, column := cellPosition(rec.payload)
 			setCell(rows, widths, row, column, Cell{Value: decodeRK(binary.LittleEndian.Uint32(rec.payload[6:10]))})
 			maxRow = max(maxRow, row)
 		case 0x00bd:
 			if len(rec.payload) < 12 || (len(rec.payload)-6)%6 != 0 {
-				return nil, errors.New("invalid MULRK record")
+				return nil, nil, errors.New("invalid MULRK record")
 			}
 			row := int(binary.LittleEndian.Uint16(rec.payload[:2]))
 			column := int(binary.LittleEndian.Uint16(rec.payload[2:4]))
 			count := (len(rec.payload) - 6) / 6
 			last := int(binary.LittleEndian.Uint16(rec.payload[len(rec.payload)-2:]))
 			if last != column+count-1 {
-				return nil, errors.New("inconsistent MULRK range")
+				return nil, nil, errors.New("inconsistent MULRK range")
 			}
 			for index := 0; index < count; index++ {
 				start := 4 + index*6
 				setCell(rows, widths, row, column+index, Cell{Value: decodeRK(binary.LittleEndian.Uint32(rec.payload[start+2 : start+6]))})
 			}
 			maxRow = max(maxRow, row)
+		case 0x0201:
+			if !preservePresence {
+				break
+			}
+			if len(rec.payload) != 6 {
+				return nil, nil, errors.New("invalid BLANK record")
+			}
+			row, column := cellPosition(rec.payload)
+			setCell(rows, widths, row, column, Cell{})
+			maxRow = max(maxRow, row)
+		case 0x00be:
+			if !preservePresence {
+				break
+			}
+			if len(rec.payload) < 8 || (len(rec.payload)-6)%2 != 0 {
+				return nil, nil, errors.New("invalid MULBLANK record")
+			}
+			row := int(binary.LittleEndian.Uint16(rec.payload[:2]))
+			column := int(binary.LittleEndian.Uint16(rec.payload[2:4]))
+			count := (len(rec.payload) - 6) / 2
+			last := int(binary.LittleEndian.Uint16(rec.payload[len(rec.payload)-2:]))
+			if last != column+count-1 {
+				return nil, nil, errors.New("inconsistent MULBLANK range")
+			}
+			for index := 0; index < count; index++ {
+				setCell(rows, widths, row, column+index, Cell{})
+			}
+			maxRow = max(maxRow, row)
 		case 0x0205:
 			if len(rec.payload) != 8 {
-				return nil, errors.New("invalid BOOLERR record")
+				return nil, nil, errors.New("invalid BOOLERR record")
 			}
 			row, column := cellPosition(rec.payload)
 			cell := Cell{}
@@ -211,13 +280,23 @@ func parseSheet(data []byte, offset int, shared []string) ([][]Cell, error) {
 		offset = rec.next
 	}
 	result := make([][]Cell, maxRow+1)
+	var presence [][]bool
+	if preservePresence {
+		presence = make([][]bool, maxRow+1)
+	}
 	for rowIndex := range result {
 		result[rowIndex] = make([]Cell, widths[rowIndex])
+		if preservePresence {
+			presence[rowIndex] = make([]bool, widths[rowIndex])
+		}
 		for column, cell := range rows[rowIndex] {
 			result[rowIndex][column] = cell
+			if preservePresence {
+				presence[rowIndex][column] = true
+			}
 		}
 	}
-	return result, nil
+	return result, presence, nil
 }
 
 func cellPosition(payload []byte) (int, int) {

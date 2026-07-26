@@ -52,3 +52,7 @@ size. Profiling the optimized large case attributes most remaining allocation
 to worksheet XML validation and Excelize row decoding. ZIP limits bound
 declared expanded payload sizes; callers must also set process/job memory
 limits appropriate to their environment.
+
+Opt-in XLSX cell-presence reads stream the selected worksheet XML a second time
+beside Excelize. The default `Read` path does not allocate per-cell presence
+metadata or perform ordinary-value cell-type lookups.

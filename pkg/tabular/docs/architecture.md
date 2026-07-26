@@ -10,10 +10,12 @@ Fixed-width input scans bounded newline records and slices byte ranges before
 decoding. ZIP input validates the central directory before exposing exact
 entry readers.
 
-XLSX is a two-stage boundary: the package first validates ZIP limits and
-worksheet XML well-formedness, then uses Excelize's row iterator with raw cell
-values. XLS is intentionally separate under `internal/xls`; it reads OLE2
-compound streams and a limited BIFF8 record set into bounded memory.
+XLSX first validates ZIP limits and worksheet XML well-formedness, then uses
+Excelize's row iterator with raw cell values. When cell presence is enabled, a
+second streaming decoder follows the selected worksheet's actual `<c>`
+elements so numeric cells and stored-empty trailing cells remain distinguishable
+from absent positions. XLS is intentionally separate under `internal/xls`; it
+reads OLE2 compound streams and a limited BIFF8 record set into bounded memory.
 
 This split keeps a single public spreadsheet API while preserving honest
 format-specific resource behavior. Internal XLS types are not compatibility

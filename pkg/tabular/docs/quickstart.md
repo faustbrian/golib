@@ -21,6 +21,11 @@ to bound parsed rows and cells before normalization and caller delivery. For
 XLSX, set `MaxSheets`, `ZIP.MaxCompressionRatio`, and `ZIP.RejectSymlinks` from
 the accepted workbook policy.
 
+When an import distinguishes missing cells from explicitly stored empty
+strings, set `PreserveCellPresence` and call `ReadCells`. The default `Read`
+method intentionally returns only string values and preserves its existing
+optimized behavior.
+
 ## Handle typed errors
 
 ```go

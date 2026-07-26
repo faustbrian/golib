@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	internalxls "github.com/faustbrian/golib/pkg/tabular/internal/xls"
 )
 
 func TestXLSReaderIngestsRealWorkbookFixture(t *testing.T) {
@@ -75,6 +77,63 @@ func TestXLSReaderUsesFirstSheetWhenNameIsEmpty(t *testing.T) {
 	}
 	if want := (Row{"Code", "Name", "Description"}); !reflect.DeepEqual(row, want) {
 		t.Fatalf("Read() = %#v, want %#v", row, want)
+	}
+}
+
+func TestXLSReaderPreservesStoredCellPresence(t *testing.T) {
+	t.Parallel()
+
+	file, size := openSpreadsheetFixture(t, "testdata/spreadsheet/table.xls")
+	closeTestResource(t, file)
+	reader, err := OpenSpreadsheet(file, size, SpreadsheetConfig{
+		Format:               FormatXLS,
+		PreserveCellPresence: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeTestResource(t, reader)
+	row, err := reader.ReadCells()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(row) != 3 {
+		t.Fatalf("ReadCells() = %#v", row)
+	}
+	for index, cell := range row {
+		if !cell.Present() || cell.Value() == "" {
+			t.Fatalf("cell %d = %#v", index, cell)
+		}
+	}
+}
+
+func TestXLSReaderPadsEmptyRowsWithAbsentCells(t *testing.T) {
+	t.Parallel()
+
+	reader := newSpreadsheetReader(
+		&xlsRowSource{
+			rows: [][]internalxls.Cell{
+				{{Value: "First"}, {Value: "Second"}},
+				nil,
+			},
+			presence: [][]bool{{true, true}, nil},
+		},
+		SpreadsheetConfig{
+			Format:               FormatXLS,
+			Header:               &HeaderConfig{},
+			PreserveCellPresence: true,
+		},
+	)
+	row, err := reader.ReadCells()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(row) != 2 ||
+		row[0].Present() ||
+		row[1].Present() ||
+		row[0].Value() != "" ||
+		row[1].Value() != "" {
+		t.Fatalf("empty row = %#v", row)
 	}
 }
 
@@ -187,15 +246,16 @@ func FuzzOpenXLS(f *testing.F) {
 	f.Add(data)
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		reader, err := OpenSpreadsheet(bytes.NewReader(data), int64(len(data)), SpreadsheetConfig{
-			Format:           FormatXLS,
-			MaxWorkbookBytes: 1024 * 1024,
+			Format:               FormatXLS,
+			MaxWorkbookBytes:     1024 * 1024,
+			PreserveCellPresence: true,
 		})
 		if err != nil {
 			return
 		}
 		defer func() { _ = reader.Close() }()
 		for {
-			if _, err = reader.Read(); err != nil {
+			if _, err = reader.ReadCells(); err != nil {
 				return
 			}
 		}

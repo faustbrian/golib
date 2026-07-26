@@ -27,6 +27,7 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
     MaxRecordBytes: 64 << 10,
     MaxFieldBytes: 16 << 10,
     MaxSheets: 8,
+    PreserveCellPresence: true,
     ZIP: tabular.ZIPConfig{
         MaxEntryBytes: 32 << 20,
         MaxTotalBytes: 64 << 20,
@@ -36,6 +37,12 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
 })
 if err != nil { return err }
 defer reader.Close()
+
+row, err := reader.ReadCells()
+if err != nil { return err }
+if !row[0].Present() {
+    // The workbook omitted this position; Value returns "".
+}
 ```
 
 Complete compilable delimited and fixed-width examples live in

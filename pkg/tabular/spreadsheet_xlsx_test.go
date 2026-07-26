@@ -49,6 +49,120 @@ func TestXLSXReaderStreamsRawFixtureRows(t *testing.T) {
 	}
 }
 
+func TestXLSXReaderPreservesAbsentAndExplicitEmptyCells(t *testing.T) {
+	t.Parallel()
+
+	data := rewriteZIPEntry(
+		t,
+		makeErrorXLSX(t),
+		"xl/worksheets/sheet1.xml",
+		`<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+<row r="1">
+<c r="A1" t="inlineStr"><is><t>Absent</t></is></c>
+<c r="B1" t="inlineStr"><is><t>Empty</t></is></c>
+<c r="C1" t="inlineStr"><is><t>Value</t></is></c>
+<c r="D1" t="inlineStr"><is><t>Trailing</t></is></c>
+</row>
+<row r="2">
+<c r="A2"><v>42</v></c>
+<c r="C2" t="inlineStr"><is><t></t></is></c>
+</row>
+</sheetData></worksheet>`,
+	)
+	reader, err := OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{
+			Format:               FormatXLSX,
+			Header:               &HeaderConfig{Case: HeaderCaseLower},
+			PreserveCellPresence: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeTestResource(t, reader)
+
+	row, err := reader.ReadCells()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(row) != 4 ||
+		!row[0].Present() ||
+		row[0].Value() != "42" ||
+		row[1].Present() ||
+		row[1].Value() != "" ||
+		!row[2].Present() ||
+		row[2].Value() != "" ||
+		row[3].Present() ||
+		row[3].Value() != "" {
+		t.Fatalf("cells = %#v", row)
+	}
+
+	disabled, err := OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeTestResource(t, disabled)
+	if _, err = disabled.ReadCells(); !errors.Is(err, ErrorInvalidConfig) {
+		t.Fatalf("disabled ReadCells() error = %v", err)
+	}
+}
+
+func TestXLSXReaderPadsMissingRowsWithAbsentCells(t *testing.T) {
+	t.Parallel()
+
+	data := rewriteZIPEntry(
+		t,
+		makeErrorXLSX(t),
+		"xl/worksheets/sheet1.xml",
+		`<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>
+<row r="1"><c r="A1" t="inlineStr"><is><t>First</t></is></c>
+<c r="B1" t="inlineStr"><is><t>Second</t></is></c></row>
+<row r="3"><c r="A3" t="inlineStr"><is><t>later</t></is></c></row>
+</sheetData></worksheet>`,
+	)
+	reader, err := OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{
+			Format:               FormatXLSX,
+			Header:               &HeaderConfig{},
+			PreserveCellPresence: true,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeTestResource(t, reader)
+	gap, err := reader.ReadCells()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gap) != 2 ||
+		gap[0].Present() ||
+		gap[1].Present() ||
+		gap[0].Value() != "" ||
+		gap[1].Value() != "" {
+		t.Fatalf("gap row = %#v", gap)
+	}
+	later, err := reader.ReadCells()
+	if err != nil ||
+		len(later) != 2 ||
+		!later[0].Present() ||
+		later[0].Value() != "later" ||
+		later[1].Present() {
+		t.Fatalf("later row = %#v, %v", later, err)
+	}
+}
+
 func TestXLSXReaderRejectsOrPreservesCellErrorsExplicitly(t *testing.T) {
 	t.Parallel()
 
@@ -235,6 +349,9 @@ func TestXLSXCloseStopsIteration(t *testing.T) {
 	if _, err = reader.Read(); !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("Read() error = %v, want closed pipe", err)
 	}
+	if _, err = reader.ReadCells(); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("ReadCells() error = %v, want closed pipe", err)
+	}
 	if err = reader.Close(); err != nil {
 		t.Fatalf("second Close() error = %v", err)
 	}
@@ -243,17 +360,47 @@ func TestXLSXCloseStopsIteration(t *testing.T) {
 func FuzzOpenSpreadsheet(f *testing.F) {
 	data := makeErrorXLSX(f)
 	f.Add(data)
+	f.Add(rewriteZIPEntry(
+		f,
+		data,
+		"xl/worksheets/sheet1.xml",
+		`<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData><row r="2"><c r="A2"><v>42</v></c>
+<c r="C2" t="inlineStr"><is><t></t></is></c></row></sheetData>
+</worksheet>`,
+	))
+	f.Add(transformZIP(
+		f,
+		data,
+		func(name string, contents []byte) ([]byte, bool) {
+			if name == "xl/workbook.xml" {
+				contents = []byte(strings.Replace(
+					string(contents),
+					"<sheets>",
+					`<sheet name="Errors" r:id="rFake"/><sheets>`,
+					1,
+				))
+			}
+			return contents, true
+		},
+	))
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		reader, err := OpenSpreadsheet(bytes.NewReader(data), int64(len(data)), SpreadsheetConfig{
-			Format: FormatXLSX,
-			ZIP:    ZIPConfig{MaxEntries: 20, MaxEntryBytes: 4096, MaxTotalBytes: 16384},
+			Format:               FormatXLSX,
+			PreserveCellPresence: true,
+			ZIP: ZIPConfig{
+				MaxEntries:    20,
+				MaxEntryBytes: 4096,
+				MaxTotalBytes: 16384,
+			},
 		})
 		if err != nil {
 			return
 		}
 		defer func() { _ = reader.Close() }()
 		for {
-			if _, err = reader.Read(); err != nil {
+			if _, err = reader.ReadCells(); err != nil {
 				return
 			}
 		}

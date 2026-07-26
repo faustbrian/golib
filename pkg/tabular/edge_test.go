@@ -206,6 +206,75 @@ func TestSpreadsheetReaderCommonEdgeSemantics(t *testing.T) {
 	}
 }
 
+func TestSpreadsheetReaderCellPresenceReportsReadFailures(t *testing.T) {
+	t.Parallel()
+
+	wantRead := errors.New("read failed")
+	tests := []struct {
+		name   string
+		source *stubSpreadsheetSource
+		config SpreadsheetConfig
+		want   error
+		cause  error
+	}{
+		{
+			name:   "header",
+			source: &stubSpreadsheetSource{},
+			config: SpreadsheetConfig{
+				Format:               FormatXLSX,
+				Header:               &HeaderConfig{},
+				PreserveCellPresence: true,
+			},
+			want: ErrorInvalidHeader,
+		},
+		{
+			name:   "source",
+			source: &stubSpreadsheetSource{readErr: wantRead},
+			config: SpreadsheetConfig{
+				Format:               FormatXLSX,
+				PreserveCellPresence: true,
+			},
+			want:  ErrorSpreadsheet,
+			cause: wantRead,
+		},
+		{
+			name: "cell error",
+			source: &stubSpreadsheetSource{
+				rows:     [][]spreadsheetCell{{{err: "#ERR"}}},
+				presence: [][]bool{{true}},
+			},
+			config: SpreadsheetConfig{
+				Format:               FormatXLSX,
+				PreserveCellPresence: true,
+			},
+			want: ErrorSpreadsheet,
+		},
+		{
+			name: "missing presence",
+			source: &stubSpreadsheetSource{
+				rows: [][]spreadsheetCell{{{value: "present"}}},
+			},
+			config: SpreadsheetConfig{
+				Format:               FormatXLSX,
+				PreserveCellPresence: true,
+			},
+			want: ErrorSpreadsheet,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := newSpreadsheetReader(test.source, test.config)
+			if _, err := reader.ReadCells(); !errors.Is(err, test.want) ||
+				test.cause != nil && !errors.Is(err, test.cause) {
+				t.Fatalf("ReadCells() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
 func TestSpreadsheetReaderBoundsParsedRecordAndFields(t *testing.T) {
 	t.Parallel()
 
@@ -397,13 +466,61 @@ func TestXLSXRowSourceSkipsCellTypeLookupForOrdinaryValues(t *testing.T) {
 	if workbook.typeCalls != 0 {
 		t.Fatalf("GetCellType() calls = %d, want 0", workbook.typeCalls)
 	}
-	if row[0].value != "Alice" || row[1].value != "Helsinki" {
+	if row.cells[0].value != "Alice" ||
+		row.cells[1].value != "Helsinki" {
 		t.Fatalf("Read() row = %#v", row)
+	}
+}
+
+func TestXLSXRowSourceValidatesPresenceStream(t *testing.T) {
+	t.Parallel()
+
+	wantPresence := errors.New("presence failed")
+	activeFailure := &xlsxRowSource{
+		rows: &stubXLSXRows{
+			next:   true,
+			values: []string{"value"},
+		},
+		presence: &stubXLSXPresence{readErr: wantPresence},
+	}
+	if _, err := activeFailure.Read(); !errors.Is(err, wantPresence) {
+		t.Fatalf("active presence error = %v", err)
+	}
+
+	terminalFailure := &xlsxRowSource{
+		rows:     &stubXLSXRows{},
+		presence: &stubXLSXPresence{readErr: wantPresence},
+	}
+	if _, err := terminalFailure.Read(); !errors.Is(err, wantPresence) {
+		t.Fatalf("terminal presence error = %v", err)
+	}
+
+	notExhausted := &xlsxRowSource{
+		rows:     &stubXLSXRows{},
+		presence: &stubXLSXPresence{rows: [][]bool{{true}}},
+	}
+	if _, err := notExhausted.Read(); err == nil {
+		t.Fatal("Read() accepted unconsumed presence rows")
+	}
+
+	extended := &xlsxRowSource{
+		rows: &stubXLSXRows{
+			next:   true,
+			values: []string{"value"},
+		},
+		presence: &stubXLSXPresence{rows: [][]bool{{true, false}}},
+	}
+	row, err := extended.Read()
+	if err != nil ||
+		len(row.cells) != 2 ||
+		!reflect.DeepEqual(row.presence, []bool{true, false}) {
+		t.Fatalf("extended presence row = %#v, %v", row, err)
 	}
 }
 
 type stubSpreadsheetSource struct {
 	rows     [][]spreadsheetCell
+	presence [][]bool
 	readErr  error
 	closeErr error
 }
@@ -434,18 +551,25 @@ func (rows *stubXLSXRows) Columns(...excelize.Options) ([]string, error) {
 func (*stubXLSXRows) Close() error { return nil }
 
 type stubXLSXWorkbook struct {
+	cellType  excelize.CellType
 	typeErr   error
 	typeCalls int
 }
 
 func (workbook *stubXLSXWorkbook) GetCellType(string, string) (excelize.CellType, error) {
 	workbook.typeCalls++
-	return excelize.CellTypeUnset, workbook.typeErr
+	return workbook.cellType, workbook.typeErr
 }
 
 func (*stubXLSXWorkbook) Close() error { return nil }
 
-func (source *stubSpreadsheetSource) Read() ([]spreadsheetCell, error) {
+type stubXLSXPresence struct {
+	rows     [][]bool
+	readErr  error
+	closeErr error
+}
+
+func (source *stubXLSXPresence) Read() ([]bool, error) {
 	if source.readErr != nil {
 		return nil, source.readErr
 	}
@@ -457,9 +581,35 @@ func (source *stubSpreadsheetSource) Read() ([]spreadsheetCell, error) {
 	return row, nil
 }
 
+func (source *stubXLSXPresence) Close() error {
+	return source.closeErr
+}
+
+func (source *stubSpreadsheetSource) Read() (spreadsheetSourceRow, error) {
+	if source.readErr != nil {
+		return spreadsheetSourceRow{}, source.readErr
+	}
+	if len(source.rows) == 0 {
+		return spreadsheetSourceRow{}, io.EOF
+	}
+	row := source.rows[0]
+	source.rows = source.rows[1:]
+	result := spreadsheetSourceRow{cells: row}
+	if len(source.presence) != 0 {
+		result.presence = source.presence[0]
+		source.presence = source.presence[1:]
+	}
+	return result, nil
+}
+
 func (source *stubSpreadsheetSource) Close() error { return source.closeErr }
 
-func rewriteZIPEntry(t *testing.T, data []byte, target, replacement string) []byte {
+func rewriteZIPEntry(
+	t testingTB,
+	data []byte,
+	target string,
+	replacement string,
+) []byte {
 	t.Helper()
 	return transformZIP(t, data, func(name string, contents []byte) ([]byte, bool) {
 		if name == target {
@@ -469,14 +619,18 @@ func rewriteZIPEntry(t *testing.T, data []byte, target, replacement string) []by
 	})
 }
 
-func removeZIPEntry(t *testing.T, data []byte, target string) []byte {
+func removeZIPEntry(t testingTB, data []byte, target string) []byte {
 	t.Helper()
 	return transformZIP(t, data, func(name string, contents []byte) ([]byte, bool) {
 		return contents, name != target
 	})
 }
 
-func transformZIP(t *testing.T, data []byte, transform func(string, []byte) ([]byte, bool)) []byte {
+func transformZIP(
+	t testingTB,
+	data []byte,
+	transform func(string, []byte) ([]byte, bool),
+) []byte {
 	t.Helper()
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {

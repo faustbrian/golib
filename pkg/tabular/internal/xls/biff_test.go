@@ -196,11 +196,49 @@ func TestParseSheetDecodesSupportedCellRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := [][]Cell{
-		{{Value: "name"}, {Value: "12.5"}, {Value: "42"}, {Value: "1"}, {Value: "2"}, {Value: "true"}},
+		{
+			{Value: "name"},
+			{Value: "12.5"},
+			{Value: "42"},
+			{Value: "1"},
+			{Value: "2"},
+			{Value: "true"},
+		},
 		{{Error: "#DIV/0!"}, {}},
 	}
 	if !reflect.DeepEqual(rows, want) {
 		t.Fatalf("parseSheet() = %#v, want %#v", rows, want)
+	}
+}
+
+func TestParseSheetPreservesBlankCellRecords(t *testing.T) {
+	t.Parallel()
+
+	data := biffRecord(0x0809, []byte{0, 6, 0x10, 0})
+	data = append(data, biffRecord(0x0208, rowPayload(0, 0, 4))...)
+	data = append(data, biffRecord(0x0201, blankPayload(0, 1))...)
+	data = append(data, biffRecord(0x00be, mulBlankPayload(0, 2, 2))...)
+	data = append(data, biffRecord(0x000a, nil)...)
+
+	rows, presence, err := parseSheetWithPresence(data, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]Cell{{{}, {}, {}, {}}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Fatalf("parseSheet() = %#v, want %#v", rows, want)
+	}
+	wantPresence := [][]bool{{false, true, true, true}}
+	if !reflect.DeepEqual(presence, wantPresence) {
+		t.Fatalf(
+			"parseSheetWithPresence() = %#v, want %#v",
+			presence,
+			wantPresence,
+		)
+	}
+	defaultRows, err := parseSheet(data, 0, nil)
+	if err != nil || !reflect.DeepEqual(defaultRows, want) {
+		t.Fatalf("default parseSheet() = %#v, %v", defaultRows, err)
 	}
 }
 
@@ -209,9 +247,10 @@ func TestParseSheetRejectsMalformedRecords(t *testing.T) {
 
 	bof := biffRecord(0x0809, []byte{0, 6, 0x10, 0})
 	tests := []struct {
-		name   string
-		record []byte
-		shared []string
+		name             string
+		record           []byte
+		shared           []string
+		preservePresence bool
 	}{
 		{name: "row", record: biffRecord(0x0208, []byte{1})},
 		{name: "label size", record: biffRecord(0x00fd, []byte{1})},
@@ -220,13 +259,39 @@ func TestParseSheetRejectsMalformedRecords(t *testing.T) {
 		{name: "rk", record: biffRecord(0x027e, []byte{1})},
 		{name: "mulrk size", record: biffRecord(0x00bd, []byte{1})},
 		{name: "mulrk range", record: biffRecord(0x00bd, mulRKPayloadWithLast(0, 0, []uint32{2}, 2))},
+		{
+			name:             "blank",
+			record:           biffRecord(0x0201, []byte{1}),
+			preservePresence: true,
+		},
+		{
+			name:             "mulblank size",
+			record:           biffRecord(0x00be, []byte{1}),
+			preservePresence: true,
+		},
+		{
+			name: "mulblank range",
+			record: biffRecord(
+				0x00be,
+				mulBlankPayloadWithLast(0, 0, 1, 2),
+			),
+			preservePresence: true,
+		},
 		{name: "boolerr", record: biffRecord(0x0205, []byte{1})},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			data := append(append([]byte{}, bof...), test.record...)
 			data = append(data, biffRecord(0x000a, nil)...)
-			if _, err := parseSheet(data, 0, test.shared); err == nil {
+			if test.preservePresence {
+				if _, _, err := parseSheetWithPresence(
+					data,
+					0,
+					test.shared,
+				); err == nil {
+					t.Fatal("parseSheetWithPresence() returned nil error")
+				}
+			} else if _, err := parseSheet(data, 0, test.shared); err == nil {
 				t.Fatal("parseSheet() returned nil error")
 			}
 		})
@@ -371,6 +436,25 @@ func mulRKPayloadWithLast(row, column int, values []uint32, last int) []byte {
 	for index, value := range values {
 		binary.LittleEndian.PutUint32(data[6+index*6:], value)
 	}
+	binary.LittleEndian.PutUint16(data[len(data)-2:], uint16(last))
+	return data
+}
+
+func blankPayload(row, column int) []byte {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[:2], uint16(row))
+	binary.LittleEndian.PutUint16(data[2:4], uint16(column))
+	return data
+}
+
+func mulBlankPayload(row, column, count int) []byte {
+	return mulBlankPayloadWithLast(row, column, count, column+count-1)
+}
+
+func mulBlankPayloadWithLast(row, column, count, last int) []byte {
+	data := make([]byte, 6+count*2)
+	binary.LittleEndian.PutUint16(data[:2], uint16(row))
+	binary.LittleEndian.PutUint16(data[2:4], uint16(column))
 	binary.LittleEndian.PutUint16(data[len(data)-2:], uint16(last))
 	return data
 }

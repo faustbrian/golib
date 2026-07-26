@@ -59,6 +59,7 @@ spreadsheets, ZIP sources, encodings, and normalization.
 - archive entry-count, size, compression-ratio, path, link, and duplicate checks
 - opt-in XLSX worksheet-count limits
 - opt-in parsed record and field limits for delimited and spreadsheet rows
+- opt-in absent-versus-stored-empty spreadsheet cell preservation
 - opt-in normalization that does not mutate caller-owned rows
 - stable error kinds with one-based row and field coordinates
 
@@ -159,6 +160,11 @@ to bound parsed rows and cells before normalization and caller delivery. For
 XLSX, set `MaxSheets`, `ZIP.MaxCompressionRatio`, and `ZIP.RejectSymlinks` from
 the accepted workbook policy.
 
+When an import distinguishes missing cells from explicitly stored empty
+strings, set `PreserveCellPresence` and call `ReadCells`. The default `Read`
+method intentionally returns only string values and preserves its existing
+optimized behavior.
+
 ## Handle typed errors
 
 ```go
@@ -252,10 +258,14 @@ task and records compatibility-sensitive semantics.
 
 - `FormatXLS` and `FormatXLSX` must be selected explicitly.
 - `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook, worksheet
-  count and XLSX ZIP limits, plus opt-in parsed-row and cell byte limits.
+  count and XLSX ZIP limits, plus opt-in parsed-row, cell byte, and cell
+  presence behavior.
 - Zero spreadsheet record and field limits preserve legacy behavior;
   untrusted sources require explicit positive limits.
-- `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common ingest lifecycle.
+- `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common string-row
+  lifecycle.
+- `PreserveCellPresence`, `SpreadsheetCell`, `SpreadsheetRow`, and
+  `ReadCells`: opt-in distinction between absent and stored-empty cells.
 
 ## Errors
 
@@ -282,10 +292,12 @@ Fixed-width input scans bounded newline records and slices byte ranges before
 decoding. ZIP input validates the central directory before exposing exact
 entry readers.
 
-XLSX is a two-stage boundary: the package first validates ZIP limits and
-worksheet XML well-formedness, then uses Excelize's row iterator with raw cell
-values. XLS is intentionally separate under `internal/xls`; it reads OLE2
-compound streams and a limited BIFF8 record set into bounded memory.
+XLSX first validates ZIP limits and worksheet XML well-formedness, then uses
+Excelize's row iterator with raw cell values. When cell presence is enabled, a
+second streaming decoder follows the selected worksheet's actual `<c>`
+elements so numeric cells and stored-empty trailing cells remain distinguishable
+from absent positions. XLS is intentionally separate under `internal/xls`; it
+reads OLE2 compound streams and a limited BIFF8 record set into bounded memory.
 
 This split keeps a single public spreadsheet API while preserving honest
 format-specific resource behavior. Internal XLS types are not compatibility
@@ -323,6 +335,7 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
     MaxRecordBytes: 64 << 10,
     MaxFieldBytes: 16 << 10,
     MaxSheets: 8,
+    PreserveCellPresence: true,
     ZIP: tabular.ZIPConfig{
         MaxEntryBytes: 32 << 20,
         MaxTotalBytes: 64 << 20,
@@ -332,6 +345,12 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
 })
 if err != nil { return err }
 defer reader.Close()
+
+row, err := reader.ReadCells()
+if err != nil { return err }
+if !row[0].Present() {
+    // The workbook omitted this position; Value returns "".
+}
 ```
 
 Complete compilable delimited and fixed-width examples live in
@@ -523,6 +542,10 @@ size. Profiling the optimized large case attributes most remaining allocation
 to worksheet XML validation and Excelize row decoding. ZIP limits bound
 declared expanded payload sizes; callers must also set process/job memory
 limits appropriate to their environment.
+
+Opt-in XLSX cell-presence reads stream the selected worksheet XML a second time
+beside Excelize. The default `Read` path does not allocate per-cell presence
+metadata or perform ordinary-value cell-type lookups.
 
 ## Source: docs/hardening.md
 
@@ -761,6 +784,10 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added opt-in ZIP compression-ratio and symbolic-link policies plus an XLSX
   worksheet-count limit. Zero values preserve existing archive and workbook
   behavior.
+- Added opt-in spreadsheet cell-presence preservation through
+  `PreserveCellPresence` and `ReadCells`, distinguishing absent positions from
+  explicitly stored empty cells while keeping presence storage and ordinary
+  XLSX cell-type lookups off the default `Read` path.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and
@@ -839,6 +866,15 @@ XLSX callers may also set an explicit maximum worksheet count before selecting
 the first or named sheet.
 Archive and workbook limits still bound the underlying parser; parsed limits
 do not claim to prevent allocations inside the XLS or Excelize engines.
+
+`Read` intentionally exposes the compatibility `[]string` shape. Callers whose
+business contract distinguishes a missing cell from an explicitly stored empty
+cell must set `PreserveCellPresence` and use `ReadCells`. Each returned
+`SpreadsheetCell` reports its normalized value and whether the workbook stored
+that position. The option is disabled by default so string-only XLSX reads
+retain their optimized cell-type lookup behavior and neither format allocates
+per-cell presence storage. Enabled XLSX reads stream the selected worksheet XML
+alongside Excelize so numeric and stored-empty trailing cells remain present.
 
 Row normalization is ordered: trim whitespace, then replace empty values.
 Header normalization removes a UTF-8 BOM from field one, trims, changes case,

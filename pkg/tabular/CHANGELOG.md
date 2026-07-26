@@ -31,6 +31,10 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added opt-in ZIP compression-ratio and symbolic-link policies plus an XLSX
   worksheet-count limit. Zero values preserve existing archive and workbook
   behavior.
+- Added opt-in spreadsheet cell-presence preservation through
+  `PreserveCellPresence` and `ReadCells`, distinguishing absent positions from
+  explicitly stored empty cells while keeping presence storage and ordinary
+  XLSX cell-type lookups off the default `Read` path.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and

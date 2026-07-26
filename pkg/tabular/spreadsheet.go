@@ -28,7 +28,10 @@ type SpreadsheetConfig struct {
 	FieldsPerRecord     int
 	AllowVariableFields bool
 	PreserveCellErrors  bool
-	MaxWorkbookBytes    int64
+	// PreserveCellPresence enables ReadCells and its absent-versus-stored-empty
+	// distinction. Zero preserves the optimized string-only Read behavior.
+	PreserveCellPresence bool
+	MaxWorkbookBytes     int64
 	// MaxRecordBytes bounds one parsed worksheet row before normalization.
 	// Zero preserves the unbounded legacy behavior.
 	MaxRecordBytes int
@@ -41,22 +44,42 @@ type SpreadsheetConfig struct {
 	ZIP       ZIPConfig
 }
 
+// SpreadsheetCell is one immutable decoded worksheet cell.
+type SpreadsheetCell struct {
+	value   string
+	present bool
+}
+
+// Value returns the decoded and normalized cell value.
+func (cell SpreadsheetCell) Value() string {
+	return cell.value
+}
+
+// Present reports whether the workbook stored a cell at this position.
+func (cell SpreadsheetCell) Present() bool {
+	return cell.present
+}
+
+// SpreadsheetRow preserves workbook cell presence alongside decoded values.
+type SpreadsheetRow []SpreadsheetCell
+
 // SpreadsheetReader presents format-independent workbook rows.
 type SpreadsheetReader struct {
-	source         spreadsheetRowSource
-	index          int
-	format         SpreadsheetFormat
-	headerConfig   *HeaderConfig
-	header         Row
-	headerRead     bool
-	headerErr      error
-	normalize      NormalizationConfig
-	fields         int
-	variable       bool
-	preserveErrors bool
-	maxRecordBytes int
-	maxFieldBytes  int
-	closed         bool
+	source           spreadsheetRowSource
+	index            int
+	format           SpreadsheetFormat
+	headerConfig     *HeaderConfig
+	header           Row
+	headerRead       bool
+	headerErr        error
+	normalize        NormalizationConfig
+	fields           int
+	variable         bool
+	preserveErrors   bool
+	preservePresence bool
+	maxRecordBytes   int
+	maxFieldBytes    int
+	closed           bool
 }
 
 type spreadsheetCell struct {
@@ -64,26 +87,40 @@ type spreadsheetCell struct {
 	err   string
 }
 
+type spreadsheetSourceRow struct {
+	cells    []spreadsheetCell
+	presence []bool
+}
+
 type spreadsheetRowSource interface {
-	Read() ([]spreadsheetCell, error)
+	Read() (spreadsheetSourceRow, error)
 	Close() error
 }
 
 type xlsRowSource struct {
-	rows  [][]internalxls.Cell
-	index int
+	rows     [][]internalxls.Cell
+	presence [][]bool
+	index    int
 }
 
-func (source *xlsRowSource) Read() ([]spreadsheetCell, error) {
+func (source *xlsRowSource) Read() (spreadsheetSourceRow, error) {
 	if source.index >= len(source.rows) {
-		return nil, io.EOF
+		return spreadsheetSourceRow{}, io.EOF
 	}
 	input := source.rows[source.index]
-	source.index++
-	row := make([]spreadsheetCell, len(input))
-	for index, cell := range input {
-		row[index] = spreadsheetCell{value: cell.Value, err: cell.Error}
+	row := spreadsheetSourceRow{
+		cells: make([]spreadsheetCell, len(input)),
 	}
+	for index, cell := range input {
+		row.cells[index] = spreadsheetCell{
+			value: cell.Value,
+			err:   cell.Error,
+		}
+	}
+	if source.presence != nil {
+		row.presence = append([]bool(nil), source.presence[source.index]...)
+	}
+	source.index++
 	return row, nil
 }
 
@@ -115,7 +152,12 @@ func OpenSpreadsheet(source io.ReaderAt, size int64, config SpreadsheetConfig) (
 	if err != nil {
 		return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.open", Format: string(config.Format), Err: err}
 	}
-	workbook, err := internalxls.Open(data)
+	var workbook *internalxls.Workbook
+	if config.PreserveCellPresence {
+		workbook, err = internalxls.OpenWithPresence(data)
+	} else {
+		workbook, err = internalxls.Open(data)
+	}
 	if err != nil {
 		return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.open", Format: string(config.Format), Err: err}
 	}
@@ -132,21 +174,25 @@ func OpenSpreadsheet(source io.ReaderAt, size int64, config SpreadsheetConfig) (
 			return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.sheet", Format: string(config.Format), Err: errors.New("sheet not found")}
 		}
 	}
-	reader := newSpreadsheetReader(&xlsRowSource{rows: workbook.Sheets[sheetIndex].Rows}, config)
+	reader := newSpreadsheetReader(&xlsRowSource{
+		rows:     workbook.Sheets[sheetIndex].Rows,
+		presence: workbook.Sheets[sheetIndex].Presence,
+	}, config)
 	return reader, nil
 }
 
 func newSpreadsheetReader(source spreadsheetRowSource, config SpreadsheetConfig) *SpreadsheetReader {
 	return &SpreadsheetReader{
-		source:         source,
-		format:         config.Format,
-		headerConfig:   cloneHeaderConfig(config.Header),
-		normalize:      config.Normalize,
-		fields:         config.FieldsPerRecord,
-		variable:       config.AllowVariableFields,
-		preserveErrors: config.PreserveCellErrors,
-		maxRecordBytes: config.MaxRecordBytes,
-		maxFieldBytes:  config.MaxFieldBytes,
+		source:           source,
+		format:           config.Format,
+		headerConfig:     cloneHeaderConfig(config.Header),
+		normalize:        config.Normalize,
+		fields:           config.FieldsPerRecord,
+		variable:         config.AllowVariableFields,
+		preserveErrors:   config.PreserveCellErrors,
+		preservePresence: config.PreserveCellPresence,
+		maxRecordBytes:   config.MaxRecordBytes,
+		maxFieldBytes:    config.MaxFieldBytes,
 	}
 }
 
@@ -176,6 +222,45 @@ func (reader *SpreadsheetReader) Read() (Row, error) {
 	return reader.readRow()
 }
 
+// ReadCells returns the next worksheet row while preserving whether each cell
+// was stored or absent. Values follow the same normalization and error policy
+// as Read.
+func (reader *SpreadsheetReader) ReadCells() (SpreadsheetRow, error) {
+	if reader.closed {
+		return nil, io.ErrClosedPipe
+	}
+	if !reader.preservePresence {
+		return nil, &Error{
+			Kind:   ErrorInvalidConfig,
+			Op:     "spreadsheet.read",
+			Format: string(reader.format),
+			Err:    errors.New("cell presence was not enabled"),
+		}
+	}
+	if reader.headerConfig != nil {
+		reader.readHeader()
+		if reader.headerErr != nil {
+			return nil, reader.headerErr
+		}
+	}
+	sourceRow, err := reader.readSpreadsheetCells()
+	if err != nil {
+		return nil, err
+	}
+	values, err := reader.spreadsheetValues(sourceRow.cells)
+	if err != nil {
+		return nil, err
+	}
+	row := make(SpreadsheetRow, len(sourceRow.cells))
+	for index := range sourceRow.cells {
+		row[index] = SpreadsheetCell{
+			value:   values[index],
+			present: sourceRow.presence[index],
+		}
+	}
+	return row, nil
+}
+
 func (reader *SpreadsheetReader) readHeader() {
 	if reader.headerRead {
 		return
@@ -197,25 +282,62 @@ func (reader *SpreadsheetReader) readHeader() {
 }
 
 func (reader *SpreadsheetReader) readRow() (Row, error) {
-	cells, err := reader.source.Read()
+	sourceRow, err := reader.readSpreadsheetCells()
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, io.EOF
-		}
-		return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index + 1, Err: err}
-	}
-	reader.index++
-	if err = reader.validateLimits(cells); err != nil {
 		return nil, err
 	}
-	if reader.fields > 0 && !reader.variable {
-		if len(cells) > reader.fields {
-			return nil, &Error{Kind: ErrorMalformedRow, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index, Err: errors.New("unexpected field count")}
+	return reader.spreadsheetValues(sourceRow.cells)
+}
+
+func (reader *SpreadsheetReader) readSpreadsheetCells() (
+	spreadsheetSourceRow,
+	error,
+) {
+	sourceRow, err := reader.source.Read()
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return spreadsheetSourceRow{}, io.EOF
 		}
-		if len(cells) < reader.fields {
-			cells = append(cells, make([]spreadsheetCell, reader.fields-len(cells))...)
+		return spreadsheetSourceRow{}, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index + 1, Err: err}
+	}
+	reader.index++
+	if reader.preservePresence &&
+		len(sourceRow.presence) != len(sourceRow.cells) {
+		return spreadsheetSourceRow{}, &Error{
+			Kind:   ErrorSpreadsheet,
+			Op:     "spreadsheet.read",
+			Format: string(reader.format),
+			Row:    reader.index,
+			Err:    errors.New("cell presence row is inconsistent"),
 		}
 	}
+	if err = reader.validateLimits(sourceRow.cells); err != nil {
+		return spreadsheetSourceRow{}, err
+	}
+	if reader.fields > 0 && !reader.variable {
+		if len(sourceRow.cells) > reader.fields {
+			return spreadsheetSourceRow{}, &Error{Kind: ErrorMalformedRow, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index, Err: errors.New("unexpected field count")}
+		}
+		if len(sourceRow.cells) < reader.fields {
+			missing := reader.fields - len(sourceRow.cells)
+			sourceRow.cells = append(
+				sourceRow.cells,
+				make([]spreadsheetCell, missing)...,
+			)
+			if reader.preservePresence {
+				sourceRow.presence = append(
+					sourceRow.presence,
+					make([]bool, missing)...,
+				)
+			}
+		}
+	}
+	return sourceRow, nil
+}
+
+func (reader *SpreadsheetReader) spreadsheetValues(
+	cells []spreadsheetCell,
+) (Row, error) {
 	row := make(Row, len(cells))
 	for index, cell := range cells {
 		if cell.err != "" && !reader.preserveErrors {
