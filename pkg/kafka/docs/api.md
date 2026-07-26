@@ -163,7 +163,19 @@ dead-letter publication returns handler success so the normal consumer can
 commit the source offset afterward. The two effects are not atomic and can
 duplicate target records. Use `TransactionProcessor` for Kafka-transactional
 source-offset and output settlement.
-`ReplayReader.Replay` completes only after every requested offset is processed.
+`ReplayReader.Plan` returns an owned local dry-run plan after applying
+`ReplayCheckpoint`. `Replay` requires `ReplaySideEffectsAllowed`, uses exact
+no-reset offsets after first validating effective starts and exclusive ends
+against broker log-start and high-watermark offsets under `PlanningTimeout`.
+Unavailable bounds and out-of-range requests have distinct errors. Replay
+also returns `ErrReplayStalled` if `ProgressTimeout` elapses without advancing
+any range. It returns 64-bit aggregate plus per-range progress on every success
+or failure.
+`ReplayResult.Checkpoint` returns owned next offsets for a new reader. A reader
+permits one execution; concurrent and repeated calls have distinct lifecycle
+errors. `Shutdown` fences new work and is
+retriable after a bounded incomplete wait; `Close` returns the configured
+bounded shutdown result.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.
 

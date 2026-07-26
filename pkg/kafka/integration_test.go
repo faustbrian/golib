@@ -60,6 +60,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	retryTopic := topic + "-retry-v2"
 	deadLetterSourceTopic := topic + "-dead-letter-source"
 	deadLetterTopic := topic + "-dead-letter-v3"
+	replayTopic := topic + "-replay"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
@@ -68,6 +69,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 			rebalanceTopic, batchTopic,
 			transactionSourceTopic,
 			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
+			replayTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -94,6 +96,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, retryTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, replayTopic, 1)
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
 	}
@@ -210,6 +213,124 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		deadLetterSourceTopic,
 		deadLetterTopic,
 	)
+	proveReplayPolicy(t, ctx, brokers, producer, replayTopic)
+}
+
+func proveReplayPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	for index := range 3 {
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("replay-key"),
+			Value:     []byte(fmt.Sprintf("replay-%d", index)),
+		})
+		if result.Err != nil || result.Partition != 0 || result.Offset != int64(index) {
+			t.Fatalf("publish replay fixture %d: %#v", index, result)
+		}
+	}
+
+	config := kafka.ReplayConfig{
+		Brokers:     brokers,
+		ClientID:    "golib-compatibility-replay-initial",
+		Ranges:      []kafka.ReplayRange{{Topic: topic, Partition: 0, EndOffset: 3}},
+		SideEffects: kafka.ReplaySideEffectsAllowed,
+		Security:    kafka.DevelopmentPlaintextSecurity(),
+	}
+	reader, err := kafka.NewReplayReader(config)
+	if err != nil {
+		t.Fatalf("construct initial replay reader: %v", err)
+	}
+	injectedFailure := errors.New("injected replay interruption")
+	first, replayErr := reader.Replay(ctx, kafka.HandlerFunc(func(
+		_ context.Context,
+		message kafka.ConsumedMessage,
+	) error {
+		if message.Offset == 1 {
+			return injectedFailure
+		}
+
+		return nil
+	}))
+	if closeErr := reader.Close(); closeErr != nil {
+		t.Fatalf("close initial replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, injectedFailure) ||
+		first.Processed != 1 ||
+		first.Failed != 1 ||
+		first.IncompleteRanges != 1 ||
+		len(first.Ranges) != 1 ||
+		first.Ranges[0].NextOffset != 1 {
+		t.Fatalf("initial replay result/error = %#v/%v", first, replayErr)
+	}
+
+	config.ClientID = "golib-compatibility-replay-resume"
+	config.Checkpoint = first.Checkpoint()
+	reader, err = kafka.NewReplayReader(config)
+	if err != nil {
+		t.Fatalf("construct resumed replay reader: %v", err)
+	}
+	var resumed []int64
+	second, replayErr := reader.Replay(ctx, kafka.HandlerFunc(func(
+		_ context.Context,
+		message kafka.ConsumedMessage,
+	) error {
+		resumed = append(resumed, message.Offset)
+
+		return nil
+	}))
+	if closeErr := reader.Close(); closeErr != nil {
+		t.Fatalf("close resumed replay reader: %v", closeErr)
+	}
+	if replayErr != nil ||
+		!slices.Equal(resumed, []int64{1, 2}) ||
+		second.Processed != 2 ||
+		second.CompletedRanges != 1 ||
+		second.IncompleteRanges != 0 ||
+		len(second.Ranges) != 1 ||
+		second.Ranges[0].NextOffset != 3 ||
+		!second.Ranges[0].Complete {
+		t.Fatalf(
+			"resumed replay result/error/offsets = %#v/%v/%v",
+			second,
+			replayErr,
+			resumed,
+		)
+	}
+
+	outOfRange, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-replay-out-of-range",
+		Ranges: []kafka.ReplayRange{{
+			Topic: topic, Partition: 0, StartOffset: 10, EndOffset: 11,
+		}},
+		SideEffects: kafka.ReplaySideEffectsAllowed,
+		Security:    kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct out-of-range replay reader: %v", err)
+	}
+	_, replayErr = outOfRange.Replay(ctx, kafka.HandlerFunc(func(
+		context.Context,
+		kafka.ConsumedMessage,
+	) error {
+		t.Fatal("out-of-range replay invoked handler")
+
+		return nil
+	}))
+	if closeErr := outOfRange.Close(); closeErr != nil {
+		t.Fatalf("close out-of-range replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, kafka.ErrReplayOffsetOutOfRange) {
+		t.Fatalf("out-of-range replay error = %v", replayErr)
+	}
 }
 
 func proveFailureTopicPolicy(

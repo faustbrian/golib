@@ -128,7 +128,7 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newReplayReader() error = %v", err)
 		}
-		defer reader.Close()
+		defer closeReplayReaderForTest(t, reader)
 		assertMinimum(t, client)
 	})
 

@@ -17,7 +17,9 @@ infrastructure.
 - `TransactionProcessor` owns one read-committed group member and transactional
   producer; it commits one complete bounded source poll and its Kafka outputs
   together or aborts both.
-- `ReplayReader` directly assigns explicit partition ranges and never commits.
+- `ReplayReader` directly assigns explicit no-reset partition ranges, applies
+  caller-owned checkpoints, requires explicit side-effect authorization, and
+  never joins or commits a consumer group.
 - `Inspector` exposes read-only metadata and lag.
 
 franz-go remains an implementation detail. The root module exposes owned TLS,

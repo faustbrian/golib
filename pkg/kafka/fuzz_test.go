@@ -189,8 +189,32 @@ func FuzzTransactionProcessorConfig(f *testing.F) {
 }
 
 func FuzzReplayConfig(f *testing.F) {
-	f.Add("events", int32(0), int64(0), int64(1), uint16(100))
-	f.Add("", int32(-1), int64(-1), int64(0), uint16(0))
+	f.Add(
+		"events",
+		int32(0),
+		int64(0),
+		int64(1),
+		int64(0),
+		uint16(100),
+		uint32(1<<20),
+		uint16(10),
+		uint16(30),
+		uint16(30),
+		uint8(ReplaySideEffectsAllowed),
+	)
+	f.Add(
+		"",
+		int32(-1),
+		int64(-1),
+		int64(0),
+		int64(-1),
+		uint16(0),
+		uint32(0),
+		uint16(0),
+		uint16(0),
+		uint16(0),
+		uint8(2),
+	)
 
 	f.Fuzz(func(
 		t *testing.T,
@@ -198,16 +222,30 @@ func FuzzReplayConfig(f *testing.F) {
 		partition int32,
 		start int64,
 		end int64,
+		next int64,
 		maxPoll uint16,
+		fetchPartitionBytes uint32,
+		planningSeconds uint16,
+		progressSeconds uint16,
+		shutdownSeconds uint16,
+		sideEffects uint8,
 	) {
 		_, _ = normalizeReplayConfig(ReplayConfig{
-			Brokers:  []string{"broker.internal:9092"},
-			ClientID: "fuzz-replay",
+			Brokers:     []string{"broker.internal:9092"},
+			ClientID:    "fuzz-replay",
+			SideEffects: ReplaySideEffectPolicy(sideEffects),
 			Ranges: []ReplayRange{{
 				Topic: topic, Partition: partition,
 				StartOffset: start, EndOffset: end,
 			}},
-			MaxPollRecords: int(maxPoll),
+			Checkpoint: ReplayCheckpoint{Positions: []ReplayPosition{{
+				Topic: topic, Partition: partition, NextOffset: next,
+			}}},
+			MaxPollRecords:         int(maxPoll),
+			FetchMaxPartitionBytes: int32(fetchPartitionBytes),
+			PlanningTimeout:        time.Duration(planningSeconds) * time.Second,
+			ProgressTimeout:        time.Duration(progressSeconds) * time.Second,
+			ShutdownTimeout:        time.Duration(shutdownSeconds) * time.Second,
 		})
 	})
 }

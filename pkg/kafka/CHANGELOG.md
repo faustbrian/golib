@@ -71,7 +71,13 @@ All notable changes to this module are documented here.
 - real-broker evidence that consume-transform-produce advances source offsets
   only with read-committed outputs, filters aborted source transactions, and
   redelivers an aborted source poll
-- exact direct-partition replay that never mutates consumer-group offsets
+- direct-partition replay with explicit side-effect opt-in, owned dry-run
+  plans, external next-offset checkpoints, exact per-range progress,
+  bounded broker start/end validation, fail-closed record limits and
+  offset-reset policy, a no-progress deadline, and bounded retriable shutdown
+- real-broker evidence that interrupted replay resumes from its external
+  checkpoint and that a range beyond the high watermark is rejected before a
+  handler runs
 - read-only topic metadata and consumer-group lag inspection
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility
   coverage against a pinned Kafka fixture
@@ -87,6 +93,9 @@ All notable changes to this module are documented here.
   `Consumer.Shutdown` fences new work, waits for in-flight handling, preserves
   static membership, and supports bounded retry after an incomplete shutdown;
   `Consumer.Close` now returns the bounded shutdown error
+- replay execution now requires `ReplaySideEffectsAllowed`; existing callers
+  must opt in explicitly, persist `ReplayResult.Checkpoint()` externally to
+  resume, and handle the error now returned by `ReplayReader.Close`
 - consumers now apply validated record limits before the package copies
   fetched header metadata or invokes handlers; an invalid record stops only its
   partition and preserves contiguous settlement for valid independent

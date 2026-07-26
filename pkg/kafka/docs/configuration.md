@@ -193,9 +193,21 @@ instead of ignored. See the
 
 Replay requires 1 to 1,024 unique topic-partition ranges. Start offsets are
 inclusive, end offsets are exclusive, partitions and offsets are non-negative,
-and every end must exceed its start. Replay defaults to 100 poll records,
-50 MiB fetches, 500 millisecond fetch wait, 30 second handler timeout, and a
-10 second dial timeout. Their ranges match the corresponding consumer bounds.
+and every end must exceed its start. The aggregate remaining offset span must
+fit in a signed 64-bit integer. `Checkpoint.Positions` are copied and must be
+unique, target configured ranges, and stay within inclusive-start through
+inclusive-end next-offset bounds. Missing positions use the range start.
+
+`SideEffects` defaults to `ReplaySideEffectsDenied`; only the explicit
+`ReplaySideEffectsAllowed` value permits handler execution. `Limits` defaults
+to `DefaultMessageLimits` and must also admit every configured topic. Replay
+defaults to 100 poll records, 50 MiB aggregate fetch bytes, 1 MiB per-partition
+fetch bytes, 500 millisecond fetch wait, a 10 second broker-bound planning
+timeout, 30 second handler and shutdown timeouts, and a 10 second dial timeout.
+The planning timeout accepts 100 milliseconds through 2 minutes.
+`ProgressTimeout` defaults to 30 seconds, accepts 100 milliseconds through 30
+minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the
+corresponding consumer bounds.
 
 Inspection has only the shared connection policy. Each operation separately
 requires a bounded explicit target set; construction does not authorize topic,

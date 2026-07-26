@@ -201,7 +201,18 @@ for eager compatibility. Optional `InstanceID` enables static membership and
 ## Replay and inspection
 
 `ReplayReader` reads explicit inclusive-start, exclusive-end partition ranges
-without joining or changing a consumer group. It fails closed on offset gaps.
+without joining or changing a consumer group. `Plan` applies an owned external
+checkpoint without contacting a broker. Handler execution requires explicit
+`ReplaySideEffectsAllowed`, enforces record limits and handler deadlines, and
+returns exact per-range next offsets through `ReplayResult.Checkpoint`.
+Before invoking a handler, execution validates effective starts and exclusive
+ends against bounded broker log-start and high-watermark lookups. Unavailable
+bounds, out-of-range fetches, and offset gaps fail closed instead of resetting.
+`ProgressTimeout` prevents a compacted or empty exact range from polling
+forever without advancing its checkpoint.
+Completed partitions are paused while other ranges finish. Cancel the replay
+context, then use bounded `Shutdown` or error-returning `Close`. Readers are
+single-use; resume with a new reader and the returned checkpoint.
 `Inspector` provides bounded read-only topic metadata and consumer-group lag.
 Infrastructure remains responsible for topics, replication, ISR, retention,
 quotas, ACLs, and destructive administrative operations.

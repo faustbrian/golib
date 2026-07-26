@@ -3,6 +3,8 @@ package kafka
 import (
 	"context"
 	"testing"
+
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 func BenchmarkMessageValidation(b *testing.B) {
@@ -92,4 +94,39 @@ func BenchmarkConsumerPartitionWorkers(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkReplayProgress(b *testing.B) {
+	ctx := context.Background()
+	handler := HandlerFunc(func(context.Context, ConsumedMessage) error {
+		return nil
+	})
+	record := &kgo.Record{
+		Topic:     "track.tracking-event.v1",
+		Partition: 0,
+		Offset:    100,
+		Key:       []byte("tracked-item-1"),
+		Value:     []byte(`{"event_id":"event-1","schema_version":1}`),
+	}
+	replayRange := ReplayRange{
+		Topic:       record.Topic,
+		Partition:   record.Partition,
+		StartOffset: record.Offset,
+		EndOffset:   record.Offset + 1,
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		reader := replayReaderWithSafety(
+			&recordingReplayBackend{fetches: []kgo.Fetches{
+				recordFetches(record),
+			}},
+			[]ReplayRange{replayRange},
+			ReplayCheckpoint{},
+		)
+		result, err := reader.Replay(ctx, handler)
+		if err != nil || result.Processed != 1 || result.IncompleteRanges != 0 {
+			b.Fatalf("Replay() result/error = %#v/%v", result, err)
+		}
+	}
 }

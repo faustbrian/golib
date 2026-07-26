@@ -163,6 +163,23 @@ Broker-controlled assignment state is bounded by `MaxAssignedPartitions`.
 Assigned, revoked, and lost callbacks advance a package-local epoch that fences
 handler admission and settlement; it is not Kafka's broker generation ID.
 
+Replay never joins a consumer group or commits group offsets. Its zero-value
+side-effect policy permits planning but rejects handler execution. An explicit
+checkpoint selects the next offset per configured partition and is returned
+after every outcome; progress advances only after a successful handler call.
+Readers are single-use so an advanced direct-consumer cursor cannot be mistaken
+for a fresh replay.
+Execution validates effective starts and exclusive ends against current broker
+log-start and high-watermark offsets before invoking a handler. Exact
+assignments then disable franz-go offset reset, so broker out-of-range errors,
+missing offsets, handler timeout, cancellation, panic, and record-limit
+failures stop with an incomplete range rather than silently moving forward.
+`ProgressTimeout` bounds empty or skipped fetches that cannot advance any
+checkpoint, including an exact range emptied by compaction.
+Per-partition order is preserved, but no global partition order or exactly-once
+application side effect is claimed. The local plan does not prove current
+broker retention.
+
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
 offset commits, redelivery after handler failure and failed dead-letter
@@ -170,8 +187,9 @@ publication, acknowledged retry-topic and dead-letter metadata followed by
 source settlement, concurrent record and batch handling across independent
 partitions with sequential order inside each partition, eager group membership,
 partition pause/resume, a static member restart using the same instance ID, and
-committed-versus-aborted transaction visibility against Confluent Local 7.5.0
-using franz-go v1.21.5.
+committed-versus-aborted transaction visibility, plus replay interruption,
+external-checkpoint resume, and out-of-range rejection against Confluent Local
+7.5.0 using franz-go v1.21.5.
 The container image is pinned by repository digest. This compatibility fixture
 does not replace testing against an application's production broker version
 and configuration.

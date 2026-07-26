@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -20,8 +21,13 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 	}
 	if config.MaxPollRecords != 100 ||
 		config.FetchMaxBytes != 50<<20 ||
+		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||
+		config.PlanningTimeout != 10*time.Second ||
+		config.ProgressTimeout != 30*time.Second ||
 		config.HandlerTimeout != 30*time.Second ||
+		config.ShutdownTimeout != 30*time.Second ||
+		config.Limits != DefaultMessageLimits() ||
 		config.DialTimeout != 10*time.Second {
 		t.Fatalf("replay defaults = %#v", config)
 	}
@@ -63,9 +69,34 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 		}, want: ErrInvalidSecurityConfig},
 		{name: "excessive poll records", change: func(config *ReplayConfig) { config.MaxPollRecords = 1_001 }, want: ErrInvalidReplayConfig},
 		{name: "excessive fetch bytes", change: func(config *ReplayConfig) { config.FetchMaxBytes = 101 << 20 }, want: ErrInvalidReplayConfig},
+		{name: "excessive partition fetch bytes", change: func(config *ReplayConfig) {
+			config.FetchMaxPartitionBytes = 51 << 20
+			config.FetchMaxBytes = 50 << 20
+		}, want: ErrInvalidReplayConfig},
 		{name: "excessive fetch wait", change: func(config *ReplayConfig) { config.FetchMaxWait = 31 * time.Second }, want: ErrInvalidReplayConfig},
+		{name: "short planning timeout", change: func(config *ReplayConfig) {
+			config.PlanningTimeout = time.Millisecond
+		}, want: ErrInvalidReplayConfig},
+		{name: "long planning timeout", change: func(config *ReplayConfig) {
+			config.PlanningTimeout = 2*time.Minute + time.Second
+		}, want: ErrInvalidReplayConfig},
+		{name: "short progress timeout", change: func(config *ReplayConfig) {
+			config.ProgressTimeout = time.Millisecond
+		}, want: ErrInvalidReplayConfig},
+		{name: "long progress timeout", change: func(config *ReplayConfig) {
+			config.ProgressTimeout = 30*time.Minute + time.Second
+		}, want: ErrInvalidReplayConfig},
+		{name: "progress shorter than fetch wait", change: func(config *ReplayConfig) {
+			config.FetchMaxWait = time.Second
+			config.ProgressTimeout = 500 * time.Millisecond
+		}, want: ErrInvalidReplayConfig},
 		{name: "short handler timeout", change: func(config *ReplayConfig) { config.HandlerTimeout = time.Millisecond }, want: ErrInvalidReplayConfig},
+		{name: "short shutdown timeout", change: func(config *ReplayConfig) { config.ShutdownTimeout = time.Millisecond }, want: ErrInvalidReplayConfig},
 		{name: "short dial timeout", change: func(config *ReplayConfig) { config.DialTimeout = time.Millisecond }, want: ErrInvalidReplayConfig},
+		{name: "topic exceeds message limits", change: func(config *ReplayConfig) {
+			config.Limits = DefaultMessageLimits()
+			config.Limits.MaxTopicBytes = 5
+		}, want: ErrInvalidReplayRange},
 	}
 
 	for _, test := range tests {
@@ -77,7 +108,7 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 			test.change(&config)
 			reader, err := NewReplayReader(config)
 			if reader != nil {
-				reader.Close()
+				closeReplayReaderForTest(t, reader)
 				t.Fatal("NewReplayReader() returned reader for invalid config")
 			}
 			if !errors.Is(err, test.want) {
@@ -116,7 +147,15 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Replay() error = %v", err)
 	}
-	if result != (ReplayResult{Polled: 3, Processed: 2, CompletedRanges: 1}) ||
+	if result.Polled != 3 ||
+		result.Processed != 2 ||
+		result.Skipped != 1 ||
+		result.Failed != 0 ||
+		result.CompletedRanges != 1 ||
+		result.IncompleteRanges != 0 ||
+		len(result.Ranges) != 1 ||
+		result.Ranges[0].NextOffset != 3 ||
+		!result.Ranges[0].Complete ||
 		len(offsets) != 2 || offsets[0] != 1 || offsets[1] != 2 ||
 		backend.pollCalls != 2 {
 		t.Fatalf("result/offsets/backend = %#v/%v/%#v", result, offsets, backend)
@@ -226,14 +265,14 @@ func TestReplayReaderConstructsClosesAndPreservesFactoryFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewReplayReader() error = %v", err)
 	}
-	reader.Close()
+	closeReplayReaderForTest(t, reader)
 
 	factoryErr := errors.New("client construction failed")
 	reader, err = newReplayReader(validReplayConfig(), func(...kgo.Opt) (*kgo.Client, error) {
 		return nil, factoryErr
 	})
 	if reader != nil {
-		reader.Close()
+		closeReplayReaderForTest(t, reader)
 		t.Fatal("newReplayReader() returned a reader after factory failure")
 	}
 	if !errors.Is(err, factoryErr) {
@@ -241,10 +280,19 @@ func TestReplayReaderConstructsClosesAndPreservesFactoryFailure(t *testing.T) {
 	}
 }
 
+func closeReplayReaderForTest(t *testing.T, reader *ReplayReader) {
+	t.Helper()
+
+	if err := reader.Close(); err != nil {
+		t.Fatalf("ReplayReader.Close() error = %v", err)
+	}
+}
+
 func validReplayConfig() ReplayConfig {
 	return ReplayConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "track-replay",
+		Brokers:     []string{"broker.internal:9092"},
+		ClientID:    "track-replay",
+		SideEffects: ReplaySideEffectsAllowed,
 		Ranges: []ReplayRange{{
 			Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 2,
 		}},
@@ -256,25 +304,113 @@ func insecureTLSConfig() *tls.Config {
 }
 
 func replayReaderWithBackend(backend replayBackend, ranges []ReplayRange) *ReplayReader {
+	exactBounds := make(map[replayPartition][2]int64, len(ranges))
+	for _, replayRange := range ranges {
+		exactBounds[replayPartition{
+			topic: replayRange.Topic, partition: replayRange.Partition,
+		}] = [2]int64{replayRange.StartOffset, replayRange.EndOffset}
+	}
+
 	return &ReplayReader{
-		client:         backend,
-		ranges:         ranges,
-		maxPollRecords: 100,
-		handlerTimeout: time.Second,
+		client:          backend,
+		bounds:          &recordingReplayBoundsBackend{bounds: exactBounds},
+		ranges:          append([]ReplayRange(nil), ranges...),
+		sideEffects:     ReplaySideEffectsAllowed,
+		limits:          DefaultMessageLimits(),
+		maxPollRecords:  100,
+		planningTimeout: time.Second,
+		progressTimeout: time.Second,
+		handlerTimeout:  time.Second,
+		shutdownTimeout: time.Second,
+		now:             time.Now,
 	}
 }
 
 type recordingReplayBackend struct {
-	fetches   []kgo.Fetches
-	pollCalls int
-	closed    int
+	fetches      []kgo.Fetches
+	pollCalls    int
+	closed       int
+	closeStarted chan struct{}
+	releaseClose chan struct{}
+	poll         func(context.Context, int) kgo.Fetches
+	paused       []map[string][]int32
+}
+
+type recordingReplayBoundsBackend struct {
+	bounds         map[replayPartition][2]int64
+	err            error
+	endErr         error
+	startOffsetErr error
+	endOffsetErr   error
+	omitStart      bool
+	omitEnd        bool
+	waitForCancel  bool
+	startTopics    []string
+	endTopics      []string
+	calls          int
+}
+
+func (backend *recordingReplayBoundsBackend) ListStartOffsets(
+	ctx context.Context,
+	topics ...string,
+) (kadm.ListedOffsets, error) {
+	backend.calls++
+	backend.startTopics = append([]string(nil), topics...)
+	if backend.err != nil {
+		return nil, backend.err
+	}
+	if backend.waitForCancel {
+		<-ctx.Done()
+	}
+
+	return backend.listedOffsets(0, backend.omitStart, backend.startOffsetErr), nil
+}
+
+func (backend *recordingReplayBoundsBackend) ListEndOffsets(
+	_ context.Context,
+	topics ...string,
+) (kadm.ListedOffsets, error) {
+	backend.calls++
+	backend.endTopics = append([]string(nil), topics...)
+	if backend.endErr != nil {
+		return nil, backend.endErr
+	}
+
+	return backend.listedOffsets(1, backend.omitEnd, backend.endOffsetErr), nil
+}
+
+func (backend *recordingReplayBoundsBackend) listedOffsets(
+	index int,
+	omit bool,
+	offsetErr error,
+) kadm.ListedOffsets {
+	offsets := make(kadm.ListedOffsets)
+	if omit {
+		return offsets
+	}
+	for partition, bound := range backend.bounds {
+		if offsets[partition.topic] == nil {
+			offsets[partition.topic] = make(map[int32]kadm.ListedOffset)
+		}
+		offsets[partition.topic][partition.partition] = kadm.ListedOffset{
+			Topic:     partition.topic,
+			Partition: partition.partition,
+			Offset:    bound[index],
+			Err:       offsetErr,
+		}
+	}
+
+	return offsets
 }
 
 func (backend *recordingReplayBackend) PollRecords(
 	ctx context.Context,
-	_ int,
+	maxRecords int,
 ) kgo.Fetches {
 	backend.pollCalls++
+	if backend.poll != nil {
+		return backend.poll(ctx, maxRecords)
+	}
 	if len(backend.fetches) == 0 {
 		if err := ctx.Err(); err != nil {
 			return kgo.NewErrFetch(err)
@@ -289,5 +425,19 @@ func (backend *recordingReplayBackend) PollRecords(
 }
 
 func (backend *recordingReplayBackend) Close() {
+	if backend.closeStarted != nil {
+		close(backend.closeStarted)
+	}
+	if backend.releaseClose != nil {
+		<-backend.releaseClose
+	}
 	backend.closed++
+}
+
+func (backend *recordingReplayBackend) PauseFetchPartitions(
+	partitions map[string][]int32,
+) map[string][]int32 {
+	backend.paused = append(backend.paused, clonePartitionMap(partitions))
+
+	return nil
 }
