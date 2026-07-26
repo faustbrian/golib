@@ -79,6 +79,12 @@ handler.
 ordered eager-to-cooperative migration pair without exposing franz-go
 balancers. Optional validated `InstanceID` and `Rack` values select static
 membership and rack-aware fetching respectively.
+`ConsumerConfig.RebalanceHandler` defaults to `RebalanceCancelHandler`. A
+blocked rebalance cancels the one active handler with `ErrConsumerRebalance`
+and stops admitting records from that poll. The explicit
+`RebalanceDrainHandler` alternative lets only the active handler finish and
+settles it if successful. Both policies commit safe earlier prefixes before
+releasing franz-go's poll gate. Handler cancellation is cooperative.
 `Consumer.Run` and `Consumer.RunOnce` are mutually exclusive. `Shutdown`
 atomically fences new runs, waits for an active runner, explicitly leaves a
 dynamic group membership, and then closes the client. A deadline or leave

@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Changed
 
+- Keep real-broker consumer fixtures within Kafka's bounded rebalance handling
+  relationship; adapter settlement semantics are unchanged.
 - Keep the real-broker adapter fixture compatible with Kafka's required
   producer topic allowlist; codec routing and dead-letter destinations remain
   bounded by the same two explicit topics.

@@ -12,12 +12,15 @@ import (
 )
 
 var (
-	ErrGroupIDRequired        = errors.New("kafka: consumer group ID is required")
-	ErrGroupIDTooLarge        = errors.New("kafka: consumer group ID exceeds configured limit")
-	ErrInvalidGroupID         = errors.New("kafka: consumer group ID is invalid")
-	ErrInvalidInstanceID      = errors.New("kafka: consumer instance ID is invalid")
-	ErrInvalidRack            = errors.New("kafka: consumer rack is invalid")
-	ErrInvalidBalancePolicy   = errors.New("kafka: consumer balance policy is invalid")
+	ErrGroupIDRequired               = errors.New("kafka: consumer group ID is required")
+	ErrGroupIDTooLarge               = errors.New("kafka: consumer group ID exceeds configured limit")
+	ErrInvalidGroupID                = errors.New("kafka: consumer group ID is invalid")
+	ErrInvalidInstanceID             = errors.New("kafka: consumer instance ID is invalid")
+	ErrInvalidRack                   = errors.New("kafka: consumer rack is invalid")
+	ErrInvalidBalancePolicy          = errors.New("kafka: consumer balance policy is invalid")
+	ErrInvalidRebalanceHandlerPolicy = errors.New(
+		"kafka: consumer rebalance handler policy is invalid",
+	)
 	ErrTopicsRequired         = errors.New("kafka: at least one topic is required")
 	ErrTooManyTopics          = errors.New("kafka: topic count exceeds configured limit")
 	ErrDuplicateTopic         = errors.New("kafka: topic is duplicated")
@@ -54,6 +57,9 @@ var (
 	ErrConsumerOwnershipLost = errors.New(
 		"kafka: consumer partition ownership was lost",
 	)
+	ErrConsumerRebalance = errors.New(
+		"kafka: consumer handler canceled for a pending rebalance",
+	)
 	ErrPauseTopicNotSubscribed = errors.New(
 		"kafka: pause topic is not subscribed",
 	)
@@ -88,6 +94,19 @@ const (
 	BalanceEagerToCooperative
 )
 
+// RebalanceHandlerPolicy controls the active handler when franz-go reports
+// that a group rebalance callback is waiting for the current poll to finish.
+type RebalanceHandlerPolicy uint8
+
+const (
+	// RebalanceCancelHandler requests cancellation through the handler context.
+	// It is the safe zero-value policy because it releases rebalances promptly.
+	RebalanceCancelHandler RebalanceHandlerPolicy = iota
+	// RebalanceDrainHandler lets the active handler finish within its configured
+	// deadline, then settles its successful result before releasing the rebalance.
+	RebalanceDrainHandler
+)
+
 // ConsumerConfig defines one bounded consumer-group member.
 type ConsumerConfig struct {
 	Brokers                []string
@@ -99,6 +118,7 @@ type ConsumerConfig struct {
 	Topics                 []string
 	ResetOffset            OffsetPolicy
 	BalancePolicy          GroupBalancePolicy
+	RebalanceHandler       RebalanceHandlerPolicy
 	Limits                 MessageLimits
 	MaxPollRecords         int
 	MaxPausedPartitions    int
@@ -170,6 +190,7 @@ type Consumer struct {
 	maxPollRecords      int
 	maxPausedPartitions int
 	assignment          *consumerAssignmentState
+	rebalance           *consumerRebalanceState
 	handlerTimeout      time.Duration
 	commitTimeout       time.Duration
 	shutdownTimeout     time.Duration
@@ -209,6 +230,7 @@ func newConsumer(
 		config.MaxAssignedPartitions,
 		config.Topics,
 	)
+	rebalance := newConsumerRebalanceState(config.RebalanceHandler)
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
@@ -218,6 +240,9 @@ func newConsumer(
 		kgo.ConsumeResetOffset(resetOffset),
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
+		kgo.OnPartitionsCallbackBlocked(func(context.Context, *kgo.Client) {
+			rebalance.blocked()
+		}),
 		kgo.OnPartitionsAssigned(func(
 			_ context.Context,
 			_ *kgo.Client,
@@ -274,6 +299,7 @@ func newConsumer(
 		maxPollRecords:      config.MaxPollRecords,
 		maxPausedPartitions: config.MaxPausedPartitions,
 		assignment:          assignment,
+		rebalance:           rebalance,
 		handlerTimeout:      config.HandlerTimeout,
 		commitTimeout:       config.CommitTimeout,
 		shutdownTimeout:     config.ShutdownTimeout,
@@ -327,6 +353,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	if config.BalancePolicy > BalanceEagerToCooperative {
 		return ConsumerConfig{}, ErrInvalidBalancePolicy
+	}
+	if config.RebalanceHandler > RebalanceDrainHandler {
+		return ConsumerConfig{}, ErrInvalidRebalanceHandlerPolicy
 	}
 	if config.Limits == (MessageLimits{}) {
 		config.Limits = DefaultMessageLimits()
@@ -422,7 +451,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.ShutdownTimeout < 100*time.Millisecond ||
 		config.ShutdownTimeout > 15*time.Minute ||
 		config.DialTimeout < 100*time.Millisecond ||
-		config.DialTimeout > 2*time.Minute {
+		config.DialTimeout > 2*time.Minute ||
+		config.HeartbeatInterval+config.HandlerTimeout+config.CommitTimeout >=
+			config.RebalanceTimeout {
 		return ConsumerConfig{}, ErrInvalidConsumerConfig
 	}
 
@@ -453,6 +484,8 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 }
 
 func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollResult, error) {
+	consumer.rebalance.beginPoll()
+	defer consumer.rebalance.endPoll()
 
 	fetches := consumer.client.PollRecords(ctx, consumer.maxPollRecords)
 	defer consumer.client.AllowRebalance()
@@ -483,6 +516,9 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	partitionOrder := make([]partitionKey, 0)
 	var handlerErr error
 	for _, record := range records {
+		if consumer.rebalance.isPending() {
+			break
+		}
 		key := partitionKey{topic: record.Topic, partition: record.Partition}
 		state, exists := progress[key]
 		if !exists {
@@ -505,8 +541,14 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 		}
 		message, err := consumedMessageWithinLimits(record, consumer.limits)
 		if err == nil {
-			handlerCtx, cancel := context.WithTimeout(ctx, consumer.handlerTimeout)
+			handlerCtx, cancel := consumer.rebalance.handlerContext(
+				ctx,
+				consumer.handlerTimeout,
+			)
 			err = callHandler(handlerCtx, handler, message)
+			if cause := context.Cause(handlerCtx); errors.Is(cause, ErrConsumerRebalance) {
+				err = errors.Join(err, cause)
+			}
 			cancel()
 		}
 		if err != nil {
@@ -582,6 +624,10 @@ func (consumer *Consumer) onPartitionsRevoked(partitions map[string][]int32) {
 
 func (consumer *Consumer) onPartitionsLost(map[string][]int32) {
 	consumer.assignment.lost()
+}
+
+func (consumer *Consumer) onRebalanceBlocked() {
+	consumer.rebalance.blocked()
 }
 
 // Run continuously executes bounded poll cycles until cancellation or the

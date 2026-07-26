@@ -108,8 +108,8 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 		SessionTimeout:    10 * time.Second,
 		RebalanceTimeout:  10 * time.Second,
 		HeartbeatInterval: time.Second,
-		HandlerTimeout:    10 * time.Second,
-		CommitTimeout:     10 * time.Second,
+		HandlerTimeout:    3 * time.Second,
+		CommitTimeout:     2 * time.Second,
 		DialTimeout:       10 * time.Second,
 		Security:          kafka.DevelopmentPlaintextSecurity(),
 	})
@@ -381,8 +381,8 @@ func runIntegrationConsumer(
 		SessionTimeout:    10 * time.Second,
 		RebalanceTimeout:  10 * time.Second,
 		HeartbeatInterval: time.Second,
-		HandlerTimeout:    10 * time.Second,
-		CommitTimeout:     10 * time.Second,
+		HandlerTimeout:    3 * time.Second,
+		CommitTimeout:     2 * time.Second,
 		DialTimeout:       10 * time.Second,
 		Security:          kafka.DevelopmentPlaintextSecurity(),
 	})

@@ -28,6 +28,16 @@ before committing. If ownership changes across that boundary, it returns
 loss during a commit can still surface as a commit error with an ambiguous
 per-partition outcome and can cause redelivery.
 
+The consumer also installs franz-go's blocked-callback signal. Once a
+rebalance is waiting, the runner admits no later record from the poll.
+`RebalanceCancelHandler`, the zero-value policy, cancels the active handler
+context with `ErrConsumerRebalance`; that record is not settled even if the
+handler returns another error, and both error identities are retained.
+`RebalanceDrainHandler` lets only the active handler finish and settles it when
+successful before releasing the rebalance. Earlier successful contiguous
+prefixes remain committable because franz-go still holds the poll's rebalance
+gate until the commit attempt completes.
+
 ## Configuration
 
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest
@@ -35,6 +45,10 @@ or latest reset policy. Construction validates all policy before franz-go
 allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
 poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
 dial durations are bounded.
+The heartbeat, handler, and commit deadlines together must be strictly less
+than the rebalance timeout. This preserves time for franz-go to detect the
+rebalance, finish or cancel the one active handler, attempt the contiguous
+commit, and release the poll gate.
 `Limits` defaults to `DefaultMessageLimits`. Subscribed topics must fit its
 topic bound, and each fetched record must fit every key, value, header count,
 header key, individual header value, and aggregate header bound before the
@@ -99,8 +113,12 @@ path without invoking the handler. Its error identifies the rejected field,
 later records in that partition are skipped, and valid independent partitions
 may still advance.
 
-Handlers must be idempotent and honor their context deadline. Retain a consumed
-record before storing its bytes beyond the handler call. The current runner is
+Handlers must be idempotent and honor cancellation and their context deadline.
+Go context cancellation is cooperative: the package does not run application
+callbacks in disposable goroutines and cannot forcibly stop a handler that
+ignores its context. Such a handler can still exhaust the broker rebalance
+timeout and lose ownership. Retain a consumed record before storing its bytes
+beyond the handler call. The current runner is
 single-threaded and does not yet expose a separate drain operation, batch
 handling, or bounded cross-partition worker concurrency; these remain pre-v1
 completion work.
@@ -141,9 +159,10 @@ uses `ConsumerConfig.ShutdownTimeout`; applications must handle its error.
 Concurrent shutdown calls fail with `ErrConsumerShutdownActive`, and completed
 shutdown is idempotent.
 
-Shutdown never cancels a handler on its own. The application owns the runner
-context and must arrange for its handlers to stop. A handler, commit, or
-rebalance outcome interrupted before completion can be redelivered; an
+Shutdown never cancels a handler on its own. A pending Kafka rebalance can
+cancel it only under `RebalanceCancelHandler`; otherwise the application owns
+the runner context and must arrange for its handlers to stop. A handler,
+commit, or rebalance outcome interrupted before completion can be redelivered; an
 application side effect may already have occurred.
 
 ## Ownership boundaries

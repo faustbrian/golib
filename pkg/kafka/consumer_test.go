@@ -44,6 +44,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.MaxAssignedPartitions != 1_024 ||
 		config.Limits != DefaultMessageLimits() ||
 		config.BalancePolicy != BalanceCooperativeSticky ||
+		config.RebalanceHandler != RebalanceCancelHandler ||
 		config.MaxConcurrentFetches != 4 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
@@ -166,6 +167,13 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	if !ok {
 		t.Fatal("OnPartitionsLost option is not configured")
 	}
+	onBlocked, ok := franzClient.OptValue(kgo.OnPartitionsCallbackBlocked).(func(
+		context.Context, *kgo.Client,
+	))
+	if !ok {
+		t.Fatal("OnPartitionsCallbackBlocked option is not configured")
+	}
+	onBlocked(context.Background(), franzClient)
 	onAssigned(context.Background(), franzClient, map[string][]int32{
 		"track.tracking-event.v1": {0},
 	})
@@ -555,6 +563,13 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 			want:   ErrInvalidBalancePolicy,
 		},
 		{
+			name: "unknown rebalance handler policy",
+			change: func(config *ConsumerConfig) {
+				config.RebalanceHandler = 255
+			},
+			want: ErrInvalidRebalanceHandlerPolicy,
+		},
+		{
 			name:   "no topics",
 			change: func(config *ConsumerConfig) { config.Topics = nil },
 			want:   ErrTopicsRequired,
@@ -673,6 +688,12 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "excessive handler timeout", change: func(config *ConsumerConfig) { config.HandlerTimeout = 31 * time.Minute }},
 		{name: "short commit timeout", change: func(config *ConsumerConfig) { config.CommitTimeout = 99 * time.Millisecond }},
 		{name: "excessive commit timeout", change: func(config *ConsumerConfig) { config.CommitTimeout = 3 * time.Minute }},
+		{name: "rebalance cannot contain handler and commit", change: func(config *ConsumerConfig) {
+			config.HeartbeatInterval = time.Second
+			config.HandlerTimeout = 4 * time.Second
+			config.CommitTimeout = 5 * time.Second
+			config.RebalanceTimeout = 10 * time.Second
+		}},
 		{name: "short shutdown timeout", change: func(config *ConsumerConfig) { config.ShutdownTimeout = 99 * time.Millisecond }},
 		{name: "excessive shutdown timeout", change: func(config *ConsumerConfig) { config.ShutdownTimeout = 16 * time.Minute }},
 		{name: "short dial timeout", change: func(config *ConsumerConfig) { config.DialTimeout = 99 * time.Millisecond }},
@@ -745,6 +766,117 @@ func TestConsumerRunOnceProcessesThenCommitsBoundedPoll(t *testing.T) {
 		backend.allowed != 1 ||
 		backend.lastPollLimit != 10 {
 		t.Fatalf("backend state = %#v", backend)
+	}
+}
+
+func TestConsumerCancelsActiveHandlerForBlockedRebalance(t *testing.T) {
+	t.Parallel()
+
+	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	backend := &recordingConsumerBackend{fetches: recordFetches(
+		first,
+		&kgo.Record{Topic: "events", Partition: 0, Offset: 2},
+		&kgo.Record{Topic: "events", Partition: 0, Offset: 3},
+	)}
+	consumer := consumerWithBackend(backend, 10, time.Minute, time.Second)
+	handlerErr := errors.New("handler stopped after cancellation")
+	handlerStarted := make(chan struct{})
+	runDone := make(chan struct {
+		result PollResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := consumer.RunOnce(
+			context.Background(),
+			HandlerFunc(func(ctx context.Context, message ConsumedMessage) error {
+				if message.Offset == 1 {
+					return nil
+				}
+				if message.Offset != 2 {
+					t.Errorf("handler received offset %d after rebalance signal", message.Offset)
+				}
+				close(handlerStarted)
+				<-ctx.Done()
+
+				return handlerErr
+			}),
+		)
+		runDone <- struct {
+			result PollResult
+			err    error
+		}{result: result, err: err}
+	}()
+	<-handlerStarted
+	consumer.onRebalanceBlocked()
+	got := <-runDone
+
+	if !errors.Is(got.err, ErrConsumerRebalance) || !errors.Is(got.err, handlerErr) ||
+		got.result != (PollResult{Polled: 3, Processed: 1, Committed: 1}) ||
+		len(backend.committed) != 1 || backend.committed[0] != first ||
+		backend.allowed != 1 {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", got.result, got.err, backend)
+	}
+}
+
+func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
+	t.Parallel()
+
+	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	backend := &recordingConsumerBackend{fetches: recordFetches(
+		first,
+		&kgo.Record{Topic: "events", Partition: 0, Offset: 2},
+	)}
+	consumer := consumerWithBackend(backend, 10, time.Minute, time.Second)
+	consumer.rebalance = newConsumerRebalanceState(RebalanceDrainHandler)
+	handlerStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	runDone := make(chan struct {
+		result PollResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := consumer.RunOnce(
+			context.Background(),
+			HandlerFunc(func(_ context.Context, message ConsumedMessage) error {
+				if message.Offset != 1 {
+					t.Errorf("handler received offset %d after rebalance signal", message.Offset)
+				}
+				close(handlerStarted)
+				<-releaseHandler
+
+				return nil
+			}),
+		)
+		runDone <- struct {
+			result PollResult
+			err    error
+		}{result: result, err: err}
+	}()
+	<-handlerStarted
+	consumer.onRebalanceBlocked()
+	close(releaseHandler)
+	got := <-runDone
+
+	if got.err != nil ||
+		got.result != (PollResult{Polled: 2, Processed: 1, Committed: 1}) ||
+		len(backend.committed) != 1 || backend.committed[0] != first ||
+		backend.allowed != 1 {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", got.result, got.err, backend)
+	}
+}
+
+func TestConsumerRebalanceSignalBeforeHandlerContextCancelsAdmission(t *testing.T) {
+	t.Parallel()
+
+	rebalance := newConsumerRebalanceState(RebalanceCancelHandler)
+	rebalance.beginPoll()
+	rebalance.blocked()
+	handlerCtx, cleanup := rebalance.handlerContext(context.Background(), time.Minute)
+	defer cleanup()
+	defer rebalance.endPoll()
+
+	if !errors.Is(context.Cause(handlerCtx), ErrConsumerRebalance) {
+		t.Fatalf("handler context cause = %v, want %v", context.Cause(handlerCtx), ErrConsumerRebalance)
 	}
 }
 
@@ -1470,6 +1602,7 @@ func consumerWithBackend(
 			1_024,
 			[]string{"events"},
 		),
+		rebalance:           newConsumerRebalanceState(RebalanceCancelHandler),
 		handlerTimeout:      handlerTimeout,
 		commitTimeout:       commitTimeout,
 		shutdownTimeout:     time.Second,

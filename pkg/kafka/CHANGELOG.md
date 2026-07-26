@@ -39,6 +39,9 @@ All notable changes to this module are documented here.
   validation and sorted diagnostic snapshots
 - bounded consumer assignment snapshots with cooperative revocation tracking,
   fatal-loss handling, and package-local epoch settlement fencing
+- explicit blocked-rebalance handling that stops poll admission, cancels the
+  active handler by default or drains only that handler, and preserves safe
+  contiguous settlement before releasing the rebalance
 - bounded transactional producer with fenced callback lifetime and explicit
   unknown-outcome classification
 - exact direct-partition replay that never mutates consumer-group offsets
@@ -67,6 +70,8 @@ All notable changes to this module are documented here.
 - consumer configuration now defaults to four concurrent fetches, 50 MiB per
   fetch, and 1 MiB per partition; explicit values are bounded and the partition
   limit cannot exceed the aggregate fetch limit
+- consumer heartbeat, handler, and commit deadlines must now fit strictly
+  inside the rebalance timeout; handlers must cooperatively honor cancellation
 - consumer polls now stop only the failed partition, skip its later fetched
   records, and commit contiguous successful prefixes from that partition and
   independent partitions before returning the first handler failure; a commit

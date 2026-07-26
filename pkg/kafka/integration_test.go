@@ -50,11 +50,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	settlementTopic := topic + "-settlement"
 	membershipTopic := topic + "-membership"
 	pauseTopic := topic + "-pause"
+	rebalanceTopic := topic + "-rebalance"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
+			rebalanceTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -75,6 +77,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -168,6 +171,114 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	provePartitionSettlement(t, ctx, brokers, producer, settlementTopic)
 	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
+	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
+}
+
+func proveBlockedRebalancePolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	if result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic, Key: []byte("aggregate-1"), Value: []byte("redeliver"),
+		Headers: []kafka.Header{{Key: "event-index", Value: []byte("0")}},
+	}); result.Err != nil {
+		t.Fatalf("publish rebalance fixture: %v", result.Err)
+	}
+
+	const groupID = "golib-compatibility-blocked-rebalance"
+	first := newIntegrationConsumer(t, brokers, topic, groupID)
+	t.Cleanup(func() {
+		closeIntegrationConsumer(t, first)
+	})
+	firstStarted := make(chan struct{})
+	firstDone := make(chan struct {
+		result kafka.PollResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := first.RunOnce(ctx, kafka.HandlerFunc(func(
+			handlerCtx context.Context,
+			_ kafka.ConsumedMessage,
+		) error {
+			close(firstStarted)
+			<-handlerCtx.Done()
+
+			return context.Cause(handlerCtx)
+		}))
+		firstDone <- struct {
+			result kafka.PollResult
+			err    error
+		}{result: result, err: err}
+	}()
+	select {
+	case <-firstStarted:
+	case <-ctx.Done():
+		t.Fatalf("wait for blocked rebalance handler: %v", ctx.Err())
+	}
+
+	second := newIntegrationConsumer(t, brokers, topic, groupID)
+	t.Cleanup(func() {
+		closeIntegrationConsumer(t, second)
+	})
+	secondCtx, cancelSecond := context.WithCancel(ctx)
+	secondDone := make(chan error, 1)
+	probeErr := errors.New("second member must not settle the probe")
+	go func() {
+		_, err := second.RunOnce(secondCtx, kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedMessage,
+		) error {
+			return probeErr
+		}))
+		secondDone <- err
+	}()
+
+	var firstResult struct {
+		result kafka.PollResult
+		err    error
+	}
+	select {
+	case firstResult = <-firstDone:
+	case <-ctx.Done():
+		cancelSecond()
+		t.Fatalf("wait for blocked rebalance cancellation: %v", ctx.Err())
+	}
+	if !errors.Is(firstResult.err, kafka.ErrConsumerRebalance) ||
+		firstResult.result != (kafka.PollResult{Polled: 1}) {
+		cancelSecond()
+		t.Fatalf(
+			"blocked rebalance result/error = %#v/%v",
+			firstResult.result,
+			firstResult.err,
+		)
+	}
+
+	cancelSecond()
+	secondErr := <-secondDone
+	if secondErr != nil &&
+		!errors.Is(secondErr, context.Canceled) &&
+		!errors.Is(secondErr, probeErr) {
+		t.Fatalf("second rebalance member error = %v", secondErr)
+	}
+	closeIntegrationConsumer(t, first)
+	closeIntegrationConsumer(t, second)
+
+	redelivered := consumeValues(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		1,
+	)
+	if !slices.Equal(redelivered, []string{"redeliver"}) {
+		t.Fatalf("rebalance redelivery values = %q", redelivered)
+	}
 }
 
 func provePauseResumePolicy(
@@ -339,8 +450,8 @@ func consumeMembershipValues(
 		SessionTimeout:    10 * time.Second,
 		RebalanceTimeout:  10 * time.Second,
 		HeartbeatInterval: time.Second,
-		HandlerTimeout:    10 * time.Second,
-		CommitTimeout:     10 * time.Second,
+		HandlerTimeout:    3 * time.Second,
+		CommitTimeout:     2 * time.Second,
 		DialTimeout:       10 * time.Second,
 		Security:          kafka.DevelopmentPlaintextSecurity(),
 	})
@@ -494,8 +605,8 @@ func newIntegrationConsumer(
 		SessionTimeout:    10 * time.Second,
 		RebalanceTimeout:  10 * time.Second,
 		HeartbeatInterval: time.Second,
-		HandlerTimeout:    10 * time.Second,
-		CommitTimeout:     10 * time.Second,
+		HandlerTimeout:    3 * time.Second,
+		CommitTimeout:     2 * time.Second,
 		DialTimeout:       10 * time.Second,
 		Security:          kafka.DevelopmentPlaintextSecurity(),
 	})

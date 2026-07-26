@@ -128,6 +128,11 @@ failed partition are skipped and remain available for redelivery. Handlers must
 tolerate duplicates. Retain copies if bytes are needed after the handler
 returns.
 
+When a rebalance waits on an active poll, the default policy requests handler
+cancellation and stops admitting later records. Handlers must honor their
+context. Select `RebalanceDrainHandler` only when the active handler can finish
+within the validated rebalance deadline relationship.
+
 Consumer fetches default to at most four concurrent broker requests, 50 MiB per
 request, and 1 MiB per partition. All three limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a

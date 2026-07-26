@@ -94,6 +94,7 @@ options.
 | `Topics` | none | Required 1 to 64 unique topics fitting `Limits.MaxTopicBytes`. |
 | `ResetOffset` | unset and rejected | Explicitly `OffsetEarliest` or `OffsetLatest`. |
 | `BalancePolicy` | `BalanceCooperativeSticky` | Cooperative, eager, or the eager-to-cooperative rollout policy. |
+| `RebalanceHandler` | `RebalanceCancelHandler` | Cancel the active handler or drain only that handler when a rebalance callback is blocked. |
 | `Limits` | `DefaultMessageLimits` | Applied before package metadata copies and handler invocation. |
 | `MaxPollRecords` | 100 | 1 to 1,000. |
 | `MaxPausedPartitions` | 256 | 1 to 1,024; bounds each pause/resume request and accumulated pauses. |
@@ -109,6 +110,10 @@ options.
 | `CommitTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 | `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
+
+`HeartbeatInterval + HandlerTimeout + CommitTimeout` must be strictly less
+than `RebalanceTimeout`. Handler cancellation and deadlines remain cooperative;
+applications must return when the handler context is done.
 
 Automatic commits remain disabled and cannot be enabled through configuration.
 See the [consumer guide](consumer.md) for settlement and rollout semantics.

@@ -55,7 +55,12 @@ successfully processed record before that failure is committed, as are
 successful prefixes from independent partitions. The first handler failure is
 returned after the bounded commit attempt. If that commit also fails, the
 returned error preserves both identities. Rebalances are released after each
-poll.
+poll. A waiting rebalance stops admission from that poll. The default policy
+cancels the active handler with `ErrConsumerRebalance`; the explicit drain
+policy permits that handler alone to finish and settle. Earlier safe prefixes
+can still commit before the rebalance gate is released. Handler cancellation
+is cooperative, and the configured heartbeat, handler, and commit deadlines
+must fit strictly inside the rebalance timeout.
 
 Delivery is at least once. A crash after a durable side effect but before the
 offset commit replays the record. `PollResult.Committed` counts processed records
