@@ -78,6 +78,7 @@ type RepositoryConfig[ID, Aggregate any] struct {
 // It starts no goroutines and owns no transaction. One aggregate instance must
 // not be saved concurrently.
 type AggregateRepository[ID, Aggregate any] struct {
+	saveOwner      *repositorySaveOwner
 	aggregateType  string
 	encodeID       IdentifierEncoder[ID]
 	identify       AggregateIdentifier[ID, Aggregate]
@@ -127,6 +128,7 @@ func NewRepository[ID, Aggregate any](
 	decoder := &EventDecoder{codec: config.Codec, upcasters: config.Upcasters}
 
 	return &AggregateRepository[ID, Aggregate]{
+		saveOwner:      &repositorySaveOwner{},
 		aggregateType:  config.AggregateType,
 		encodeID:       config.EncodeID,
 		identify:       config.Identify,
@@ -143,6 +145,46 @@ func NewRepository[ID, Aggregate any](
 		messageContext: config.MessageContext,
 		readBatchSize:  config.ReadBatchSize,
 	}, nil
+}
+
+type repositorySaveOwner struct {
+	_ byte
+}
+
+// SavePlan is an immutable prepared aggregate append for caller-owned
+// transaction composition. Preparing a plan does not append, acknowledge,
+// dispatch, or release pending aggregate changes.
+//
+// Its zero value is invalid. A non-empty plan belongs to the repository and
+// aggregate lifecycle that created it and must not be reused after confirmation
+// or an unknown commit outcome.
+type SavePlan struct {
+	owner    *repositorySaveOwner
+	changes  ChangeSet
+	stream   StreamID
+	expected ExpectedVersion
+	prepared []PendingMessage
+}
+
+// Empty reports a valid plan with no pending changes and no persistence work.
+func (plan SavePlan) Empty() bool {
+	return plan.owner != nil && plan.changes.Empty()
+}
+
+// Stream returns the aggregate stream to stage. It is zero for an empty plan.
+func (plan SavePlan) Stream() StreamID {
+	return plan.stream
+}
+
+// ExpectedVersion returns the append precondition. It is invalid for an empty
+// plan.
+func (plan SavePlan) ExpectedVersion() ExpectedVersion {
+	return plan.expected
+}
+
+// PreparedMessages returns a defensive copy of the exact envelopes to stage.
+func (plan SavePlan) PreparedMessages() []PendingMessage {
+	return clonePendingMessages(plan.prepared)
 }
 
 // Load creates and reconstitutes one aggregate through bounded stream pages.
@@ -371,50 +413,28 @@ func (repository *AggregateRepository[ID, Aggregate]) Save(
 	ctx context.Context,
 	aggregate Aggregate,
 ) (SaveResult, error) {
-	if ctx == nil || repository == nil {
-		return SaveResult{}, ErrInvalidArgument
-	}
-	lifecycle := repository.lifecycle(aggregate)
-	if lifecycle == nil {
-		return SaveResult{}, invalid("lifecycle", "accessor returned nil")
-	}
-	changes, err := lifecycle.Changes()
+	plan, err := repository.PrepareSave(ctx, aggregate)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	if changes.Empty() {
+	if plan.Empty() {
 		return SaveResult{outcome: CommitNotCommitted}, nil
-	}
-	if changes.Len() > MaxAppendMessages {
-		return SaveResult{}, invalid("changes", "exceeds append batch limit")
-	}
-
-	stream, err := repository.streamID(repository.identify(aggregate))
-	if err != nil {
-		return SaveResult{}, err
-	}
-	prepared, err := repository.prepareMessages(ctx, aggregate, stream, changes)
-	if err != nil {
-		return SaveResult{}, err
-	}
-	expected := ExpectNewStream()
-	if changes.BaseVersion() != 0 {
-		expected = ExpectExactVersion(changes.BaseVersion())
 	}
 
 	messages, appendErr := repository.store.Append(
 		ctx,
-		stream,
-		expected,
-		prepared,
+		plan.stream,
+		plan.expected,
+		plan.prepared,
 	)
 	outcome := CommitCommitted
 	if appendErr != nil {
 		outcome = AppendCommitOutcome(appendErr)
 	}
 	result := SaveResult{
+		owner:    repository.saveOwner,
 		outcome:  outcome,
-		prepared: clonePendingMessages(prepared),
+		prepared: clonePendingMessages(plan.prepared),
 		messages: cloneMessages(messages),
 	}
 	switch outcome {
@@ -423,7 +443,8 @@ func (repository *AggregateRepository[ID, Aggregate]) Save(
 
 		return result, appendErr
 	case CommitUnknown:
-		if err := lifecycle.MarkPersistenceUnknown(changes); err != nil {
+		lifecycle := plan.changes.owner
+		if err := lifecycle.MarkPersistenceUnknown(plan.changes); err != nil {
 			lifecycle.poisoned = true
 
 			return result, errors.Join(appendErr, err)
@@ -435,18 +456,176 @@ func (repository *AggregateRepository[ID, Aggregate]) Save(
 		return result, ErrInvalidArgument
 	}
 
-	if err := lifecycle.Acknowledge(changes, prepared, messages); err != nil {
+	result, err = repository.ConfirmCommitted(aggregate, plan, messages)
+	if err != nil {
 		return result, errors.Join(appendErr, err)
 	}
+	result, dispatchErr := repository.DispatchCommitted(ctx, result)
 
-	deliveries := make([]Delivery, len(messages))
+	return result, errors.Join(appendErr, dispatchErr)
+}
+
+// PrepareSave validates and encodes the aggregate's current pending changes
+// without performing I/O. The returned plan may be staged by a caller-owned
+// transaction and then passed to ConfirmCommitted or MarkCommitUnknown.
+func (repository *AggregateRepository[ID, Aggregate]) PrepareSave(
+	ctx context.Context,
+	aggregate Aggregate,
+) (SavePlan, error) {
+	if ctx == nil || repository == nil {
+		return SavePlan{}, ErrInvalidArgument
+	}
+	lifecycle := repository.lifecycle(aggregate)
+	if lifecycle == nil {
+		return SavePlan{}, invalid("lifecycle", "accessor returned nil")
+	}
+	changes, err := lifecycle.Changes()
+	if err != nil {
+		return SavePlan{}, err
+	}
+	if changes.Empty() {
+		return SavePlan{owner: repository.saveOwner, changes: changes}, nil
+	}
+	if changes.Len() > MaxAppendMessages {
+		return SavePlan{}, invalid("changes", "exceeds append batch limit")
+	}
+
+	stream, err := repository.streamID(repository.identify(aggregate))
+	if err != nil {
+		return SavePlan{}, err
+	}
+	prepared, err := repository.prepareMessages(ctx, aggregate, stream, changes)
+	if err != nil {
+		return SavePlan{}, err
+	}
+	expected := ExpectNewStream()
+	if changes.BaseVersion() != 0 {
+		expected = ExpectExactVersion(changes.BaseVersion())
+	}
+
+	return SavePlan{
+		owner:    repository.saveOwner,
+		changes:  changes,
+		stream:   stream,
+		expected: expected,
+		prepared: clonePendingMessages(prepared),
+	}, nil
+}
+
+// ConfirmCommitted acknowledges a plan after the caller has confirmed that
+// its transaction committed. It does not dispatch the persisted messages.
+func (repository *AggregateRepository[ID, Aggregate]) ConfirmCommitted(
+	aggregate Aggregate,
+	plan SavePlan,
+	messages []Message,
+) (SaveResult, error) {
+	if repository == nil || plan.owner != repository.saveOwner {
+		return SaveResult{}, ErrInvalidArgument
+	}
+	lifecycle := repository.lifecycle(aggregate)
+	if lifecycle == nil {
+		return SaveResult{}, invalid("lifecycle", "accessor returned nil")
+	}
+	if plan.changes.owner != lifecycle {
+		return SaveResult{}, ErrInvalidChangeSet
+	}
+	if plan.Empty() {
+		if len(messages) != 0 {
+			return SaveResult{}, ErrInvalidArgument
+		}
+
+		return SaveResult{
+			owner:   repository.saveOwner,
+			outcome: CommitNotCommitted,
+		}, nil
+	}
+	result := SaveResult{
+		owner:    repository.saveOwner,
+		outcome:  CommitCommitted,
+		prepared: clonePendingMessages(plan.prepared),
+		messages: cloneMessages(messages),
+	}
+	if err := lifecycle.Acknowledge(plan.changes, plan.prepared, messages); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+// MarkCommitUnknown poisons the aggregate after an ambiguous caller-owned
+// transaction commit. The returned append error retains cause and classifies
+// the outcome as unknown so the prepared message IDs can be reconciled.
+func (repository *AggregateRepository[ID, Aggregate]) MarkCommitUnknown(
+	aggregate Aggregate,
+	plan SavePlan,
+	messages []Message,
+	cause error,
+) (SaveResult, error) {
+	if repository == nil ||
+		plan.owner != repository.saveOwner ||
+		plan.Empty() ||
+		cause == nil {
+		return SaveResult{}, ErrInvalidArgument
+	}
+	lifecycle := repository.lifecycle(aggregate)
+	if lifecycle == nil {
+		return SaveResult{}, invalid("lifecycle", "accessor returned nil")
+	}
+	if plan.changes.owner != lifecycle {
+		return SaveResult{}, ErrInvalidChangeSet
+	}
+	if err := validatePlannedMessages(plan, messages); err != nil {
+		return SaveResult{}, err
+	}
+	result := SaveResult{
+		owner:    repository.saveOwner,
+		outcome:  CommitUnknown,
+		prepared: clonePendingMessages(plan.prepared),
+		messages: cloneMessages(messages),
+	}
+	if err := lifecycle.MarkPersistenceUnknown(plan.changes); err != nil {
+		lifecycle.poisoned = true
+
+		return result, errors.Join(NewAppendError(CommitUnknown, cause), err)
+	}
+
+	return result, NewAppendError(CommitUnknown, cause)
+}
+
+func validatePlannedMessages(plan SavePlan, messages []Message) error {
+	if len(messages) != len(plan.prepared) {
+		return ErrPersistenceMismatch
+	}
 	for index, message := range messages {
+		if !pendingMessagesEqual(plan.prepared[index], message.pending) ||
+			message.StreamVersion() != plan.changes.base+uint64(index)+1 {
+			return ErrPersistenceMismatch
+		}
+	}
+
+	return nil
+}
+
+// DispatchCommitted performs live dispatch for a previously confirmed result.
+// Persistence remains committed when dispatch fails.
+func (repository *AggregateRepository[ID, Aggregate]) DispatchCommitted(
+	ctx context.Context,
+	result SaveResult,
+) (SaveResult, error) {
+	if ctx == nil || repository == nil ||
+		result.owner != repository.saveOwner ||
+		result.outcome != CommitCommitted ||
+		result.dispatchAttempted {
+		return result, ErrInvalidArgument
+	}
+
+	deliveries := make([]Delivery, len(result.messages))
+	for index, message := range result.messages {
 		deliveries[index] = Delivery{message: message, mode: DeliveryLive}
 	}
 	result.dispatchAttempted = true
-	dispatchErr := repository.dispatcher.Dispatch(ctx, deliveries)
 
-	return result, errors.Join(appendErr, dispatchErr)
+	return result, repository.dispatcher.Dispatch(ctx, deliveries)
 }
 
 func (repository *AggregateRepository[ID, Aggregate]) streamID(
@@ -513,6 +692,7 @@ func (repository *AggregateRepository[ID, Aggregate]) prepareMessages(
 // SaveResult reports the durable outcome independently from post-commit
 // dispatch success.
 type SaveResult struct {
+	owner             *repositorySaveOwner
 	outcome           CommitOutcome
 	prepared          []PendingMessage
 	messages          []Message

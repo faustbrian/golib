@@ -33,7 +33,9 @@ Dispatcher ---- Consumer(s)
 The safe repository path dispatches only after the event store reports a
 committed append. A failed, conflicting, or unknown append outcome never
 becomes an external dispatch. Caller-owned PostgreSQL transaction staging is a
-separately named adapter operation because it has not committed yet.
+separately named adapter operation because it has not committed yet. The core
+repository exposes an explicit prepare, confirm, unknown-outcome, and
+post-commit dispatch lifecycle without owning the transaction.
 
 No core constructor starts a goroutine or opens a transaction. The caller owns
 concurrency, cancellation, transaction commit or rollback, runner lifetimes,

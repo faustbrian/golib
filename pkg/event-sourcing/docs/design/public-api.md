@@ -379,18 +379,37 @@ dispatches.
 Caller-owned transactions use a two-phase application API instead of `Save`:
 
 ```go
-plan, err := repository.PrepareSave(aggregate)
+plan, err := repository.PrepareSave(ctx, aggregate)
 if err != nil {
     return err
 }
+if plan.Empty() {
+    _, err = repository.ConfirmCommitted(aggregate, plan, nil)
+    return err
+}
 
-staged, err := postgres.Stage(ctx, tx, plan)
+writer, err := postgres.NewTx(tx, postgres.Config{Schema: "event_store"})
+if err != nil {
+    return err
+}
+staged, err := writer.Stage(
+    ctx,
+    plan.Stream(),
+    plan.ExpectedVersion(),
+    plan.PreparedMessages(),
+)
 if err != nil {
     return err // the aggregate change set remains pending
 }
 
 if err := tx.Commit(ctx); err != nil {
-    return repository.CommitUnknown(plan, staged, err)
+    _, unknownErr := repository.MarkCommitUnknown(
+        aggregate,
+        plan,
+        staged,
+        err,
+    )
+    return unknownErr
 }
 
 result, err := repository.ConfirmCommitted(aggregate, plan, staged)
@@ -398,17 +417,14 @@ if err != nil {
     return err
 }
 
-return repository.DispatchCommitted(ctx, result)
+_, err = repository.DispatchCommitted(ctx, result)
+return err
 ```
-
-The one-call `Load` and `Save` repository is implemented. The caller-owned
-transaction staging API shown above remains a required design and is not yet an
-available package guarantee.
 
 `PrepareSave` is pure with respect to storage and does not release changes.
 `Stage` neither commits nor acknowledges the aggregate. `ConfirmCommitted`
 validates the exact plan and stored messages before acknowledgement.
-`CommitUnknown` poisons the in-memory lifecycle until the application
+`MarkCommitUnknown` poisons the in-memory lifecycle until the application
 reconciles the staged message IDs against durable storage. This explicit path
 also lets the optional outbox adapter stage event and outbox rows in the same
 transaction without dispatching before commit.

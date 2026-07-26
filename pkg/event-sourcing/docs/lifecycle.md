@@ -73,8 +73,10 @@ available for application-directed resolution.
 An unknown commit outcome is different: the lifecycle enters reconciliation
 state and must not be saved again until the application determines whether the
 prepared message IDs are durable. A caller-owned transaction uses the explicit
-prepare, stage, commit, and confirm flow instead of treating staged rows as
-committed.
+`PrepareSave`, adapter stage, commit, `ConfirmCommitted`, and
+`DispatchCommitted` flow instead of treating staged rows as committed. If the
+commit result is ambiguous, `MarkCommitUnknown` preserves the planned and
+staged messages for reconciliation and poisons that aggregate lifecycle.
 
 ## Dispatch boundary
 

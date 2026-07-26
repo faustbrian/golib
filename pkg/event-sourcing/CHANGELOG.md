@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add explicit aggregate save planning, caller-owned transaction commit
+  confirmation, ambiguous-commit poisoning, and post-commit dispatch APIs.
 - Add dedicated security, privacy, compliance, troubleshooting, glossary, and
   release-note guidance with explicit package, application, and deployment
   responsibility boundaries.
