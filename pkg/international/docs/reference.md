@@ -14,6 +14,12 @@
 `Canonicalize`, `Canonical`, or `Normalize` perform explicit transformations.
 Display names and phone formatting are presentation metadata, never identity.
 
+`international.LowercaseUnicode` performs explicit locale-neutral full
+Unicode lowercasing for protocol normalization. The caller supplies the
+maximum input and expanded-output byte size. Invalid UTF-8 and either
+resource-limit breach fail without returning partially transformed text.
+Each invocation owns its case transformer and is safe to call concurrently.
+
 Every scalar implements strict text, JSON, `database/sql.Scanner`, and
 `driver.Valuer` contracts. Zero means absent: text marshal fails, JSON emits
 `null`, SQL emits `NULL`, and decoding null resets the destination. Failed

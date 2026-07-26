@@ -4,6 +4,8 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+- Add bounded, locale-neutral full Unicode lowercasing for protocols that
+  require multi-rune and context-sensitive lowercase mappings.
 - Replace nonexistent owned-module v0.1.0 tags with available main revisions
   so clean consumers can resolve the international module.
 - Run API compatibility against the repository's isolated owned-module graph

@@ -46,6 +46,7 @@ and semantic record counts are in `docs/provenance.md` and
 | Locale | 255 bytes and 32 segments |
 | Phone | 128 input bytes and 20 extension bytes |
 | Postal | 32 UTF-8 bytes before optional normalization |
+| Full Unicode lowercase | Caller-owned input and expanded-output byte limit |
 | Generic JSON and SQL adapters | 512 encoded bytes |
 | Parse diagnostics | 256 bytes, with UTF-8-safe truncation and no caller input |
 | Dataset diff | 100,000 records per side |
