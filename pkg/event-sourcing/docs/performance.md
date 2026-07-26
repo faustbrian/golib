@@ -31,6 +31,13 @@ transaction, stream creation and lock, global-position allocation, message
 insert, stream-head update, and commit. The direct path remains a cost floor;
 it does not make the event store's reusable validation and error guarantees.
 
+The core benchmark suite separately measures lifecycle reconstitution at 10,
+100, 1,000, and 10,000 events, deterministic JSON payload round trips, and
+determinism-checked upcaster chains at depths 1, 4, and 16. Fixture construction
+is outside the timer, while validation, defensive ownership, event application,
+and deterministic upcaster double-execution remain inside because they are part
+of the public guarantees.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating

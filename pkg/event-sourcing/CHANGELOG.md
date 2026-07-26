@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   releases, with functional outcome checks and reproducibility guidance.
 - Pin `benchstat` and add repeatable capture, analysis, and environment commands
   for competitor benchmark evidence.
+- Add core reconstitution, deterministic JSON round-trip, and upcaster-chain
+  benchmarks with representative history lengths and chain depths.
 - Add a real PostgreSQL equivalent-work append benchmark against direct `pgx`
   application code without treating the cost floor as an equivalent API.
 - Add PostgreSQL restart and physical streaming-replica promotion evidence
