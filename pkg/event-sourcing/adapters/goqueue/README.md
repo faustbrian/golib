@@ -6,11 +6,13 @@ The event-sourcing core does not import queue.
 
 The adapter maps complete persisted deliveries to canonical JSON, enqueues
 them synchronously in input order, and decodes queue tasks for explicit
-delivery consumers. Backend conformance work remains follow-up, so the
-first-release adapter matrix remains partial.
+delivery consumers.
 
 The integration suite proves successful and failed event handling through the
-repository queue and its in-memory worker. Durable backend guarantees remain
+repository queue and its in-memory worker. It also proves that pinned Valkey
+Streams 9.1.0 retains a complete event delivery after the producer worker is
+closed, then delivers and acknowledges it through a separately constructed
+consumer group and worker. Durability, retry, and topology guarantees remain
 the responsibility of each selected queue backend and its own conformance
 evidence.
 
@@ -59,3 +61,6 @@ backend-specific behavior. It does not claim exactly-once delivery.
 ## Development
 
 Run `make check`.
+
+Run `make integration` with a Docker-compatible container runtime to exercise
+the digest-pinned durable Valkey Streams boundary.

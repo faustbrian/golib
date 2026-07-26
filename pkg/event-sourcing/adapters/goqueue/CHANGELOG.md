@@ -18,3 +18,5 @@ and this project adheres to
   immutable job options, and queue-owned settlement.
 - Prove successful and failed delivery through the repository queue and
   in-memory worker while retaining backend-specific guarantee boundaries.
+- Prove complete delivery retention and post-handler acknowledgement through
+  digest-pinned Valkey Streams 9.1.0 after the producer worker is closed.

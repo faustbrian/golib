@@ -1,14 +1,18 @@
 ROOT := ../../../..
 MODULE := pkg/event-sourcing/adapters/goqueue
+GO ?= go
 MODULES ?= $(MODULE)
 BASE ?= HEAD^
 JOBS ?= 1
 FUZZ_TIME ?= 10s
 BENCH_TIME ?= 100ms
 
-.PHONY: check format format-check tidy tidy-check test race coverage lint \
+.PHONY: check format format-check tidy tidy-check test race coverage integration lint \
 	staticcheck vulnerability secrets licenses sbom fuzz mutation nilaway \
 	docs api api-update benchmark
+
+integration:
+	$(GO) test -tags=integration -count=1 ./...
 
 check format format-check tidy tidy-check test race coverage lint staticcheck \
 	vulnerability secrets licenses sbom fuzz mutation nilaway docs api \

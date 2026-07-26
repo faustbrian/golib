@@ -4680,10 +4680,14 @@
         "github.com/faustbrian/golib/pkg/queue"
       ],
       "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/testcontainers/testcontainers-go"
+      ],
       "required_services": [],
       "build_tags": [],
-      "test_tags": [],
+      "test_tags": [
+        "integration"
+      ],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],
@@ -4797,6 +4801,8 @@
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
+        "github.com/moby/moby/api",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/postgres"
       ],
       "required_services": [],
