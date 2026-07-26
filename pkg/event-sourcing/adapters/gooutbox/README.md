@@ -193,3 +193,22 @@ absolute bounds and include adapter serialization overhead in capacity tests.
 The adapter starts no goroutines and does not own the pool, transaction, relay,
 or publisher lifecycle. Run the relay under an application-owned bounded
 context with explicit shutdown and retry policy.
+
+## Performance evidence
+
+The integration benchmark compares single-message PostgreSQL appends through
+the event store alone and through `Store` with one same-transaction outbox row.
+Both paths use the same validated message shape, new-stream expectation,
+PostgreSQL schema, connection pool, transaction ownership, and commit boundary.
+Envelope encoding and insertion are deliberately measured only on the adapter
+path because they are its production overhead. Run with:
+
+```console
+go test -tags=integration -run '^$' \
+  -bench '^BenchmarkPostgreSQLOutboxAppendOverhead$' \
+  -benchmem -count=10
+```
+
+Report the pinned PostgreSQL image, database settings, hardware, Go version,
+sample count, and raw `benchstat` analysis. These local transactions do not
+measure relay publication or Kafka delivery.

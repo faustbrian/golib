@@ -430,7 +430,7 @@ func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
 	assertStoredCounts(t, ctx, pool, 1, 1)
 }
 
-func newIntegrationPool(t *testing.T) (context.Context, *pgxpool.Pool) {
+func newIntegrationPool(t testing.TB) (context.Context, *pgxpool.Pool) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -471,7 +471,7 @@ func newIntegrationPool(t *testing.T) (context.Context, *pgxpool.Pool) {
 }
 
 func applyMigrations(
-	t *testing.T,
+	t testing.TB,
 	ctx context.Context,
 	pool *pgxpool.Pool,
 	migrations fs.FS,

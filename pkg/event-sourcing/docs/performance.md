@@ -61,6 +61,11 @@ hot-stream fixture explicitly uses any-version appends to isolate lock and
 growth contention without conflict retries. This is a contention comparison,
 not an optimistic-concurrency or durable-throughput claim.
 
+The optional gooutbox adapter owns a real PostgreSQL benchmark that compares
+the same single-message append with and without one encoded outbox row in the
+commit transaction. It reports adapter staging overhead separately from relay
+publication and Kafka delivery.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating
