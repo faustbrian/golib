@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Changed
 
+- Restrict releasable-module gate fingerprints to their files and declared
+  owned-dependency closure, excluding independently versioned nested modules so
+  adapter changes do not invalidate parent-module evidence.
 - Disable inherited Git file-system monitoring inside clean verification
   snapshots so checkout and module gates cannot hang on global fsmonitor state.
 - Build CodeQL targets from each owning module, compile every cataloged

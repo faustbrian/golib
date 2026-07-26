@@ -64,6 +64,109 @@ func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	}
 }
 
+func TestGateInputDigestExcludesIndependentlyVersionedNestedModules(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "modules.json"), `{
+  "modules": [
+    {
+      "directory": ".",
+      "module_path": "example.test/repository",
+      "owned_dependencies": []
+    },
+    {
+      "directory": "pkg/parent",
+      "module_path": "example.test/parent",
+      "owned_dependencies": []
+    },
+    {
+      "directory": "pkg/parent/adapter",
+      "module_path": "example.test/parent/adapter",
+      "owned_dependencies": []
+    },
+    {
+      "directory": "pkg/owner",
+      "module_path": "example.test/owner",
+      "owned_dependencies": ["example.test/parent/adapter"]
+    }
+  ]
+}
+`)
+	writeTestFile(t, filepath.Join(root, "packages.json"), "{\"packages\":[]}\n")
+	repositoryFile := filepath.Join(root, "tool.go")
+	parentFile := filepath.Join(root, "pkg", "parent", "parent.go")
+	adapterFile := filepath.Join(root, "pkg", "parent", "adapter", "adapter.go")
+	ownerFile := filepath.Join(root, "pkg", "owner", "owner.go")
+	for _, directory := range []string{filepath.Dir(adapterFile), filepath.Dir(ownerFile)} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, repositoryFile, "package repository\n")
+	writeTestFile(t, parentFile, "package parent\n")
+	writeTestFile(t, adapterFile, "package adapter\nconst Version = 1\n")
+	writeTestFile(t, ownerFile, "package owner\n")
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+
+	digest := func(module string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			"format-check",
+			module,
+		)
+		command.Dir = root
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		result, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest %s: %v\n%s", module, err, result)
+		}
+
+		return strings.TrimSpace(string(result))
+	}
+
+	repositoryBefore := digest(".")
+	parentBefore := digest("pkg/parent")
+	adapterBefore := digest("pkg/parent/adapter")
+	ownerBefore := digest("pkg/owner")
+	writeTestFile(t, adapterFile, "package adapter\nconst Version = 2\n")
+	repositoryAfterAdapterChange := digest(".")
+	parentAfterAdapterChange := digest("pkg/parent")
+	adapterAfter := digest("pkg/parent/adapter")
+	ownerAfter := digest("pkg/owner")
+	if repositoryAfterAdapterChange == repositoryBefore {
+		t.Fatal("repository tooling evidence ignored a nested module change")
+	}
+	if parentAfterAdapterChange != parentBefore {
+		t.Fatal("nested adapter change invalidated parent module evidence")
+	}
+	if adapterAfter == adapterBefore {
+		t.Fatal("nested adapter change did not invalidate its own evidence")
+	}
+	if ownerAfter == ownerBefore {
+		t.Fatal("owned nested adapter change did not invalidate owner evidence")
+	}
+
+	writeTestFile(t, parentFile, "package parent\nconst Version = 2\n")
+	if digest("pkg/parent") == parentAfterAdapterChange {
+		t.Fatal("parent module change did not invalidate parent evidence")
+	}
+	repositoryAfterParentChange := digest(".")
+	if repositoryAfterParentChange == repositoryAfterAdapterChange {
+		t.Fatal("repository tooling evidence ignored a nested parent change")
+	}
+
+	writeTestFile(t, repositoryFile, "package repository\nconst Version = 2\n")
+	if digest(".") == repositoryAfterParentChange {
+		t.Fatal("repository module change did not invalidate repository evidence")
+	}
+}
+
 func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T) {
 	root := testRepositoryRoot(t)
 	script := filepath.Join(root, "scripts", "build-local-proxy.sh")

@@ -23,10 +23,11 @@ input_files="$(mktemp "${TMPDIR:-/tmp}/golib-gate-files.XXXXXX")"
 package_data="${manifest}.packages"
 existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
+nested_directories="${manifest}.nested"
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
-        "${existing_files}" "${file_hashes}"
+        "${existing_files}" "${file_hashes}" "${nested_directories}"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -62,6 +63,36 @@ append_repository_files() {
         <"${existing_files}" >"${file_hashes}"
     paste "${file_hashes}" "${existing_files}" |
         awk -F '\t' '{ printf "file   %s  %s\n", $1, $2 }' >>"${manifest}"
+}
+
+append_module_files() {
+    local directory="$1"
+    : >"${nested_directories}"
+    jq -r --arg directory "${directory}" '
+        .modules[]
+        | .directory
+        | select(
+            $directory != "." and
+            . != $directory and
+            startswith($directory + "/")
+        )
+    ' "${root}/modules.json" >"${nested_directories}"
+    git -C "${root}" ls-files -co --exclude-standard -- "${directory}" |
+        awk '
+            FILENAME != "-" {
+                nested[++count] = $0
+                next
+            }
+            {
+                for (position = 1; position <= count; position++) {
+                    prefix = nested[position] "/"
+                    if ($0 == nested[position] || substr($0, 1, length(prefix)) == prefix) {
+                        next
+                    }
+                }
+                print
+            }
+        ' "${nested_directories}" - >>"${input_files}"
 }
 
 append_tool_inputs() {
@@ -132,8 +163,7 @@ verification_digest() {
 
     while IFS= read -r directory; do
         [[ -n "${directory}" ]] || continue
-        git -C "${root}" ls-files -co --exclude-standard -- "${directory}" \
-            >>"${input_files}"
+        append_module_files "${directory}"
     done < <(LC_ALL=C sort -u "${directories}")
     git -C "${root}" ls-files -co --exclude-standard -- \
         .github/workflows/ci.yml \
