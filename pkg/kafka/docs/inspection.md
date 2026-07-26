@@ -26,13 +26,37 @@ combines:
 - replica preference order;
 - sorted ISR and offline-replica node IDs;
 - log-start and exclusive high-watermark offsets; and
-- the effective topic `min.insync.replicas` value, including broker defaults.
+- effective topic configuration, including broker defaults, for
+  `min.insync.replicas`, `cleanup.policy`, `retention.ms`, `retention.bytes`,
+  `delete.retention.ms`, `min.compaction.lag.ms`,
+  `max.compaction.lag.ms`, `min.cleanable.dirty.ratio`, `segment.bytes`,
+  `segment.ms`, and `unclean.leader.election.enable`.
 
 `MaxMetadataPartitions` bounds aggregate returned partitions. Replica sets are
 also bounded by `MaxMetadataBrokers`. Missing topics, partial partition
 metadata, invalid replica relationships, missing offsets, and missing or
-malformed durability configuration fail closed. The method does not return a
+malformed selected configuration fail closed. At most 1,024 broker-returned
+configuration entries are accepted per topic, and each selected value is
+limited to 64 valid UTF-8 bytes before parsing. The method does not return a
 partially successful topic list.
+
+`TopicCleanupPolicy` preserves Kafka's delete and compact policies as flags;
+zero means that neither policy is active. Both policies may be active together.
+Retention, compaction-lag, tombstone-retention, and segment durations are
+returned as raw Kafka milliseconds rather than `time.Duration`: Kafka permits
+values, including `math.MaxInt64`, that a Go duration cannot represent.
+`RetentionMilliseconds` and `RetentionBytesPerPartition` use Kafka's `-1`
+sentinel for no limit. The byte limit is per partition, not a topic-wide total.
+
+These values describe effective topic policy, not a promise that a particular
+record still exists or will be removed at an exact instant. Kafka removes
+eligible closed segments asynchronously; compaction preserves key history only
+according to the cleaner's current state and policy. Beginning offsets remain
+the broker evidence for the currently readable range. Tiered-storage
+`local.retention.ms` and `local.retention.bytes` are not exposed yet, so this
+surface does not completely describe local-versus-remote retention. The
+unclean-election field reports configured permission, not whether an unclean
+election occurred.
 
 Metadata, offsets, and configuration are separate Kafka requests rather than
 an atomic cluster snapshot. franz-go may satisfy metadata from its bounded
@@ -42,9 +66,10 @@ diagnostic read but must not treat repeated inconsistency as healthy.
 
 Replication factor and ISR are current facts, not sufficient durability by
 themselves. For an all-ISR producer, `min.insync.replicas` controls the minimum
-ISR size required for a successful write. Operators must define acceptable
-replication, ISR, offline-replica, unclean-election, retention, and compaction
-policy for each topic.
+ISR size required for a successful write. Evaluate it with current ISR,
+replication factor, unclean-election permission, cleanup, segment, retention,
+and compaction policy. The package reports these facts but does not decide
+whether they satisfy an application's durability or recovery objectives.
 
 ## Authorization
 

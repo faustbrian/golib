@@ -412,15 +412,12 @@ func (backend *recordingInspectorBackend) DescribeTopicConfigs(
 	context.Context,
 	...string,
 ) (kadm.ResourceConfigs, error) {
-	value := "1"
 	configs := make(kadm.ResourceConfigs, 0, len(backend.topics))
 	for _, topic := range backend.topics.Sorted() {
-		configs = append(configs, kadm.ResourceConfig{
-			Name: topic.Topic,
-			Configs: []kadm.Config{{
-				Key: "min.insync.replicas", Value: &value,
-			}},
-		})
+		configs = append(
+			configs,
+			validTopicInspectionResource(topic.Topic, "1"),
+		)
 	}
 
 	return configs, nil

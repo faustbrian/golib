@@ -197,6 +197,8 @@ func TestInspectorReadinessIgnoresInvalidOrCanceledObservations(t *testing.T) {
 		t.Fatalf("initial Readiness() = %#v, %v", ready, err)
 	}
 
+	//nolint:staticcheck // Nil probes are an explicit inconclusive contract.
+	//lint:ignore SA1012 Nil probes are an explicit inconclusive contract.
 	nilState, err := inspector.Readiness(nil)
 	if !errors.Is(err, ErrContextRequired) || nilState != ready {
 		t.Fatalf("Readiness(nil) = %#v, %v, want %#v", nilState, err, ready)

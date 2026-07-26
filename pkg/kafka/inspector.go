@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -107,12 +108,55 @@ type TopicPartitionState struct {
 	EndOffset         int64
 }
 
+// TopicCleanupPolicy is the effective Kafka log cleanup policy. Zero means
+// that no cleanup policy is active.
+type TopicCleanupPolicy uint8
+
+const (
+	// TopicCleanupDelete removes old segments under the effective retention
+	// time or per-partition byte limit.
+	TopicCleanupDelete TopicCleanupPolicy = 1 << iota
+	// TopicCleanupCompact retains the latest record for each key, subject to
+	// Kafka's compaction and tombstone-retention policy.
+	TopicCleanupCompact
+)
+
 // TopicState is the current metadata for one requested topic.
 type TopicState struct {
-	Name              string
-	Internal          bool
+	// Name is the requested Kafka topic.
+	Name string
+	// Internal reports whether the broker marks the topic as internal.
+	Internal bool
+	// MinInSyncReplicas is the effective min.insync.replicas value.
 	MinInSyncReplicas int
-	Partitions        []TopicPartitionState
+	// CleanupPolicy is the effective cleanup.policy value.
+	CleanupPolicy TopicCleanupPolicy
+	// RetentionMilliseconds is the effective retention.ms value. Minus one
+	// means unlimited time retention.
+	RetentionMilliseconds int64
+	// RetentionBytesPerPartition is the effective retention.bytes value.
+	// Minus one means no size limit.
+	RetentionBytesPerPartition int64
+	// DeleteRetentionMilliseconds is the effective delete.retention.ms value.
+	DeleteRetentionMilliseconds int64
+	// MinimumCompactionLagMilliseconds is the effective
+	// min.compaction.lag.ms value.
+	MinimumCompactionLagMilliseconds int64
+	// MaximumCompactionLagMilliseconds is the effective
+	// max.compaction.lag.ms value.
+	MaximumCompactionLagMilliseconds int64
+	// MinimumCleanableDirtyRatio is the effective
+	// min.cleanable.dirty.ratio value in the inclusive range zero to one.
+	MinimumCleanableDirtyRatio float64
+	// SegmentBytes is the effective segment.bytes value.
+	SegmentBytes int64
+	// SegmentMilliseconds is the effective segment.ms value.
+	SegmentMilliseconds int64
+	// UncleanLeaderElectionEnabled is the effective
+	// unclean.leader.election.enable value.
+	UncleanLeaderElectionEnabled bool
+	// Partitions contains copied state sorted by partition number.
+	Partitions []TopicPartitionState
 }
 
 // ConsumerGroupPartitionLag is one committed offset and broker end-offset
@@ -555,11 +599,22 @@ func (inspector *Inspector) buildTopicStates(
 		if partitionCount > maxPartitions {
 			return nil, ErrInspectionResponseTooLarge
 		}
+		config := configByTopic[detail.Topic]
 		topic := TopicState{
-			Name:              detail.Topic,
-			Internal:          detail.IsInternal,
-			MinInSyncReplicas: configByTopic[detail.Topic],
-			Partitions:        make([]TopicPartitionState, 0, len(detail.Partitions)),
+			Name:                             detail.Topic,
+			Internal:                         detail.IsInternal,
+			MinInSyncReplicas:                config.minInSyncReplicas,
+			CleanupPolicy:                    config.cleanupPolicy,
+			RetentionMilliseconds:            config.retentionMilliseconds,
+			RetentionBytesPerPartition:       config.retentionBytesPerPartition,
+			DeleteRetentionMilliseconds:      config.deleteRetentionMilliseconds,
+			MinimumCompactionLagMilliseconds: config.minimumCompactionLagMilliseconds,
+			MaximumCompactionLagMilliseconds: config.maximumCompactionLagMilliseconds,
+			MinimumCleanableDirtyRatio:       config.minimumCleanableDirtyRatio,
+			SegmentBytes:                     config.segmentBytes,
+			SegmentMilliseconds:              config.segmentMilliseconds,
+			UncleanLeaderElectionEnabled:     config.uncleanLeaderElectionEnabled,
+			Partitions:                       make([]TopicPartitionState, 0, len(detail.Partitions)),
 		}
 		for _, partition := range detail.Partitions.Sorted() {
 			if err := validateInspectionPartition(
@@ -679,8 +734,8 @@ func (inspector *Inspector) metadataBrokerLimit() int {
 func inspectionTopicConfigs(
 	requested map[string]struct{},
 	configs kadm.ResourceConfigs,
-) (map[string]int, error) {
-	result := make(map[string]int, len(requested))
+) (map[string]topicInspectionConfig, error) {
+	result := make(map[string]topicInspectionConfig, len(requested))
 	for _, resource := range configs {
 		if _, exists := requested[resource.Name]; !exists {
 			return nil, ErrInvalidInspectionResponse
@@ -694,30 +749,199 @@ func inspectionTopicConfigs(
 		if len(resource.Configs) > 1_024 {
 			return nil, ErrInspectionResponseTooLarge
 		}
-		found := false
+		var parsed topicInspectionConfig
+		var found topicInspectionConfigFields
 		for _, config := range resource.Configs {
-			if config.Key != "min.insync.replicas" {
+			field := topicInspectionConfigField(config.Key)
+			if field == 0 {
 				continue
 			}
-			if found || config.Sensitive || config.Value == nil {
+			if found&field != 0 ||
+				config.Sensitive ||
+				config.Value == nil ||
+				len(*config.Value) > 64 ||
+				!utf8.ValidString(*config.Value) {
 				return nil, ErrInvalidInspectionResponse
 			}
-			value, err := strconv.ParseInt(*config.Value, 10, 32)
-			if err != nil || value < 1 {
+			if err := parsed.set(field, *config.Value); err != nil {
 				return nil, ErrInvalidInspectionResponse
 			}
-			result[resource.Name] = int(value)
-			found = true
+			found |= field
 		}
-		if !found {
+		if found != allTopicInspectionConfigFields ||
+			parsed.minimumCompactionLagMilliseconds >
+				parsed.maximumCompactionLagMilliseconds {
 			return nil, ErrInvalidInspectionResponse
 		}
+		result[resource.Name] = parsed
 	}
 	if len(result) != len(requested) {
 		return nil, ErrInvalidInspectionResponse
 	}
 
 	return result, nil
+}
+
+type topicInspectionConfig struct {
+	minInSyncReplicas                int
+	cleanupPolicy                    TopicCleanupPolicy
+	retentionMilliseconds            int64
+	retentionBytesPerPartition       int64
+	deleteRetentionMilliseconds      int64
+	minimumCompactionLagMilliseconds int64
+	maximumCompactionLagMilliseconds int64
+	minimumCleanableDirtyRatio       float64
+	segmentBytes                     int64
+	segmentMilliseconds              int64
+	uncleanLeaderElectionEnabled     bool
+}
+
+type topicInspectionConfigFields uint16
+
+const (
+	topicInspectionMinInSyncReplicas topicInspectionConfigFields = 1 << iota
+	topicInspectionCleanupPolicy
+	topicInspectionRetentionMilliseconds
+	topicInspectionRetentionBytes
+	topicInspectionDeleteRetentionMilliseconds
+	topicInspectionMinimumCompactionLagMilliseconds
+	topicInspectionMaximumCompactionLagMilliseconds
+	topicInspectionMinimumCleanableDirtyRatio
+	topicInspectionSegmentBytes
+	topicInspectionSegmentMilliseconds
+	topicInspectionUncleanLeaderElection
+	allTopicInspectionConfigFields = (topicInspectionUncleanLeaderElection << 1) - 1
+)
+
+func topicInspectionConfigField(key string) topicInspectionConfigFields {
+	switch key {
+	case "min.insync.replicas":
+		return topicInspectionMinInSyncReplicas
+	case "cleanup.policy":
+		return topicInspectionCleanupPolicy
+	case "retention.ms":
+		return topicInspectionRetentionMilliseconds
+	case "retention.bytes":
+		return topicInspectionRetentionBytes
+	case "delete.retention.ms":
+		return topicInspectionDeleteRetentionMilliseconds
+	case "min.compaction.lag.ms":
+		return topicInspectionMinimumCompactionLagMilliseconds
+	case "max.compaction.lag.ms":
+		return topicInspectionMaximumCompactionLagMilliseconds
+	case "min.cleanable.dirty.ratio":
+		return topicInspectionMinimumCleanableDirtyRatio
+	case "segment.bytes":
+		return topicInspectionSegmentBytes
+	case "segment.ms":
+		return topicInspectionSegmentMilliseconds
+	case "unclean.leader.election.enable":
+		return topicInspectionUncleanLeaderElection
+	default:
+		return 0
+	}
+}
+
+func (config *topicInspectionConfig) set(
+	field topicInspectionConfigFields,
+	value string,
+) error {
+	switch field {
+	case topicInspectionMinInSyncReplicas:
+		parsed, err := parseInspectionInteger(value, 1, math.MaxInt32)
+		config.minInSyncReplicas = int(parsed)
+
+		return err
+	case topicInspectionCleanupPolicy:
+		parsed, err := parseTopicCleanupPolicy(value)
+		config.cleanupPolicy = parsed
+
+		return err
+	case topicInspectionRetentionMilliseconds:
+		parsed, err := parseInspectionInteger(value, -1, math.MaxInt64)
+		config.retentionMilliseconds = parsed
+
+		return err
+	case topicInspectionRetentionBytes:
+		parsed, err := parseInspectionInteger(value, -1, math.MaxInt64)
+		config.retentionBytesPerPartition = parsed
+
+		return err
+	case topicInspectionDeleteRetentionMilliseconds:
+		parsed, err := parseInspectionInteger(value, 0, math.MaxInt64)
+		config.deleteRetentionMilliseconds = parsed
+
+		return err
+	case topicInspectionMinimumCompactionLagMilliseconds:
+		parsed, err := parseInspectionInteger(value, 0, math.MaxInt64)
+		config.minimumCompactionLagMilliseconds = parsed
+
+		return err
+	case topicInspectionMaximumCompactionLagMilliseconds:
+		parsed, err := parseInspectionInteger(value, 1, math.MaxInt64)
+		config.maximumCompactionLagMilliseconds = parsed
+
+		return err
+	case topicInspectionMinimumCleanableDirtyRatio:
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil ||
+			math.IsNaN(parsed) ||
+			math.IsInf(parsed, 0) ||
+			parsed < 0 ||
+			parsed > 1 {
+			return ErrInvalidInspectionResponse
+		}
+		config.minimumCleanableDirtyRatio = parsed
+
+		return nil
+	case topicInspectionSegmentBytes:
+		parsed, err := parseInspectionInteger(value, 1_048_576, math.MaxInt32)
+		config.segmentBytes = parsed
+
+		return err
+	case topicInspectionSegmentMilliseconds:
+		parsed, err := parseInspectionInteger(value, 1, math.MaxInt64)
+		config.segmentMilliseconds = parsed
+
+		return err
+	case topicInspectionUncleanLeaderElection:
+		switch value {
+		case "true":
+			config.uncleanLeaderElectionEnabled = true
+
+			return nil
+		case "false":
+			return nil
+		default:
+			return ErrInvalidInspectionResponse
+		}
+	default:
+		return ErrInvalidInspectionResponse
+	}
+}
+
+func parseInspectionInteger(value string, minimum, maximum int64) (int64, error) {
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed < minimum || parsed > maximum {
+		return 0, ErrInvalidInspectionResponse
+	}
+
+	return parsed, nil
+}
+
+func parseTopicCleanupPolicy(value string) (TopicCleanupPolicy, error) {
+	switch value {
+	case "":
+		return 0, nil
+	case "delete":
+		return TopicCleanupDelete, nil
+	case "compact":
+		return TopicCleanupCompact, nil
+	case "delete,compact", "compact,delete":
+		return TopicCleanupDelete | TopicCleanupCompact, nil
+	default:
+		return 0, ErrInvalidInspectionResponse
+	}
 }
 
 func validateInspectionTopics(topics []string) error {

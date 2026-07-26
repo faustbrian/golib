@@ -222,10 +222,15 @@ Inspection uses the shared connection policy plus these owned bounds:
 
 Topic and group operations separately require 1 to 64 unique explicit targets.
 Topic inspection lists metadata, log-start and high-watermark offsets, and
-effective topic configuration. It fails closed when any requested target or
-selected field is missing, inconsistent, unauthorized, excessive, or
-unavailable. Construction and inspection do not authorize topic, group,
-offset, ACL, or broker mutation.
+effective durability, cleanup, retention, compaction, segment, and
+unclean-election configuration. It accepts at most 1,024 returned configuration
+entries per topic and at most 64 bytes for each selected value. It fails closed
+when any requested target or selected field is missing, inconsistent,
+unauthorized, excessive, or unavailable. Kafka millisecond values remain
+signed 64-bit integers because valid values may exceed `time.Duration`;
+retention time and per-partition retention bytes preserve `-1` as unlimited.
+Construction and inspection do not authorize topic, group, offset, ACL, or
+broker mutation.
 
 Readiness state belongs to one inspector instance and is safe for concurrent
 probes. A nil or caller-canceled probe is inconclusive and does not advance

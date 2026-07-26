@@ -83,7 +83,25 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		}
 	})
 	createIntegrationTopic(t, ctx, brokers, topic, 1)
-	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
+	createIntegrationTopicWithConfigs(
+		t,
+		ctx,
+		brokers,
+		explicitTopic,
+		4,
+		map[string]*string{
+			"cleanup.policy":                 kadm.StringPtr("compact,delete"),
+			"retention.ms":                   kadm.StringPtr("86400000"),
+			"retention.bytes":                kadm.StringPtr("10485760"),
+			"delete.retention.ms":            kadm.StringPtr("43200000"),
+			"min.compaction.lag.ms":          kadm.StringPtr("60000"),
+			"max.compaction.lag.ms":          kadm.StringPtr("3600000"),
+			"min.cleanable.dirty.ratio":      kadm.StringPtr("0.75"),
+			"segment.bytes":                  kadm.StringPtr("1048576"),
+			"segment.ms":                     kadm.StringPtr("900000"),
+			"unclean.leader.election.enable": kadm.StringPtr("true"),
+		},
+	)
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
@@ -1629,6 +1647,17 @@ func assertInspectionState(
 	if len(topics) != 1 ||
 		topics[0].Name != topic ||
 		topics[0].MinInSyncReplicas != 1 ||
+		topics[0].CleanupPolicy !=
+			kafka.TopicCleanupDelete|kafka.TopicCleanupCompact ||
+		topics[0].RetentionMilliseconds != 86_400_000 ||
+		topics[0].RetentionBytesPerPartition != 10_485_760 ||
+		topics[0].DeleteRetentionMilliseconds != 43_200_000 ||
+		topics[0].MinimumCompactionLagMilliseconds != 60_000 ||
+		topics[0].MaximumCompactionLagMilliseconds != 3_600_000 ||
+		topics[0].MinimumCleanableDirtyRatio != 0.75 ||
+		topics[0].SegmentBytes != 1_048_576 ||
+		topics[0].SegmentMilliseconds != 900_000 ||
+		!topics[0].UncleanLeaderElectionEnabled ||
 		len(topics[0].Partitions) != 4 {
 		t.Fatalf("topic inspection state = %#v", topics)
 	}
@@ -1697,6 +1726,26 @@ func createIntegrationTopic(
 ) {
 	t.Helper()
 
+	createIntegrationTopicWithConfigs(
+		t,
+		ctx,
+		brokers,
+		topic,
+		partitions,
+		nil,
+	)
+}
+
+func createIntegrationTopicWithConfigs(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partitions int32,
+	configs map[string]*string,
+) {
+	t.Helper()
+
 	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
 	if err != nil {
 		t.Fatalf("construct Kafka administrator: %v", err)
@@ -1707,7 +1756,7 @@ func createIntegrationTopic(
 		ctx,
 		partitions,
 		1,
-		nil,
+		configs,
 		topic,
 	)
 	if err != nil {

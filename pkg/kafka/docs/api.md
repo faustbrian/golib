@@ -179,8 +179,11 @@ bounded shutdown result.
 `Inspector.Cluster` returns bounded copied cluster identity, controller
 visibility, and sorted broker metadata. `Inspector.Topics` returns bounded
 replica, ISR, offline-replica, leader-epoch, beginning/end offset, and effective
-`min.insync.replicas` state. `Inspector.ConsumerGroupLag` returns bounded
-classic-group coordinator, state, protocol, member identity, copied assignment,
+`min.insync.replicas`, cleanup, retention, compaction, segment, and
+unclean-election state. Kafka duration values remain raw milliseconds;
+retention limits preserve the `-1` unlimited sentinel and retention bytes are
+per partition. `Inspector.ConsumerGroupLag` returns bounded classic-group
+coordinator, state, protocol, member identity, copied assignment,
 committed-offset, and lag inspection. Members are sorted by member ID and their
 assignments by topic and partition. Topic and group methods require explicit
 target lists, and every operation derives `InspectorConfig.RequestTimeout`.

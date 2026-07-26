@@ -3,7 +3,9 @@ package kafka
 import (
 	"context"
 	"errors"
+	"math"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -64,7 +66,6 @@ func TestInspectorReturnsBoundedClusterIdentityAndBrokerState(t *testing.T) {
 func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 	t.Parallel()
 
-	minISR := "2"
 	backend := &metadataInspectorBackend{
 		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
 			"events": {
@@ -86,12 +87,9 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 		endOffsets: kadm.ListedOffsets{
 			"events": {0: {Topic: "events", Partition: 0, Offset: 25}},
 		},
-		configs: kadm.ResourceConfigs{{
-			Name: "events",
-			Configs: []kadm.Config{{
-				Key: "min.insync.replicas", Value: &minISR,
-			}},
-		}},
+		configs: kadm.ResourceConfigs{
+			validTopicInspectionResource("events", "2"),
+		},
 	}
 	inspector := inspectorWithMetadataBackend(backend)
 
@@ -100,8 +98,16 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 		t.Fatalf("Topics() error = %v", err)
 	}
 	want := []TopicState{{
-		Name:              "events",
-		MinInSyncReplicas: 2,
+		Name:                             "events",
+		MinInSyncReplicas:                2,
+		CleanupPolicy:                    TopicCleanupDelete,
+		RetentionMilliseconds:            604_800_000,
+		RetentionBytesPerPartition:       -1,
+		DeleteRetentionMilliseconds:      86_400_000,
+		MaximumCompactionLagMilliseconds: math.MaxInt64,
+		MinimumCleanableDirtyRatio:       0.5,
+		SegmentBytes:                     1_073_741_824,
+		SegmentMilliseconds:              604_800_000,
 		Partitions: []TopicPartitionState{{
 			Partition:         0,
 			Leader:            2,
@@ -123,6 +129,162 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 	backend.metadata.Topics["events"].Partitions[0].Replicas[0] = 9
 	if topics[0].Partitions[0].Replicas[0] != 2 {
 		t.Fatalf("Topics() returned aliased replica state = %#v", topics)
+	}
+}
+
+func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T) {
+	t.Parallel()
+
+	configs := map[string]string{
+		"min.insync.replicas":            "2",
+		"cleanup.policy":                 "compact,delete",
+		"retention.ms":                   "-1",
+		"retention.bytes":                "10485760",
+		"delete.retention.ms":            "86400000",
+		"min.compaction.lag.ms":          "60000",
+		"max.compaction.lag.ms":          "3600000",
+		"min.cleanable.dirty.ratio":      "0.75",
+		"segment.bytes":                  "1048576",
+		"segment.ms":                     "900000",
+		"unclean.leader.election.enable": "false",
+	}
+	resourceConfigs := make([]kadm.Config, 0, len(configs))
+	for key, value := range configs {
+		value := value
+		resourceConfigs = append(resourceConfigs, kadm.Config{
+			Key: key, Value: &value,
+		})
+	}
+	backend := &metadataInspectorBackend{
+		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+			"events": {
+				Topic: "events",
+				Partitions: kadm.PartitionDetails{0: {
+					Topic: "events", Partition: 0, Leader: 1,
+					Replicas: []int32{1, 2, 3}, ISR: []int32{1, 2, 3},
+				}},
+			},
+		}},
+		startOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0}},
+		},
+		endOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0}},
+		},
+		configs: kadm.ResourceConfigs{{
+			Name: "events", Configs: resourceConfigs,
+		}},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+
+	topics, err := inspector.Topics(context.Background(), "events")
+	if err != nil {
+		t.Fatalf("Topics() error = %v", err)
+	}
+	if len(topics) != 1 {
+		t.Fatalf("Topics() = %#v", topics)
+	}
+	topic := topics[0]
+	if topic.CleanupPolicy != TopicCleanupCompact|TopicCleanupDelete ||
+		topic.RetentionMilliseconds != -1 ||
+		topic.RetentionBytesPerPartition != 10_485_760 ||
+		topic.DeleteRetentionMilliseconds != 86_400_000 ||
+		topic.MinimumCompactionLagMilliseconds != 60_000 ||
+		topic.MaximumCompactionLagMilliseconds != 3_600_000 ||
+		topic.MinimumCleanableDirtyRatio != 0.75 ||
+		topic.SegmentBytes != 1_048_576 ||
+		topic.SegmentMilliseconds != 900_000 ||
+		topic.UncleanLeaderElectionEnabled {
+		t.Fatalf("topic cleanup policy = %#v", topic)
+	}
+}
+
+func TestInspectorTopicInspectionAcceptsCleanupPolicyValues(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		value string
+		want  TopicCleanupPolicy
+	}{
+		{value: ""},
+		{value: "delete", want: TopicCleanupDelete},
+		{value: "compact", want: TopicCleanupCompact},
+		{
+			value: "delete,compact",
+			want:  TopicCleanupDelete | TopicCleanupCompact,
+		},
+		{
+			value: "compact,delete",
+			want:  TopicCleanupDelete | TopicCleanupCompact,
+		},
+	} {
+		test := test
+		t.Run(test.value, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := parseTopicCleanupPolicy(test.value)
+			if err != nil || got != test.want {
+				t.Fatalf(
+					"parseTopicCleanupPolicy(%q) = %v, %v; want %v, nil",
+					test.value,
+					got,
+					err,
+					test.want,
+				)
+			}
+		})
+	}
+}
+
+func TestInspectorTopicInspectionAcceptsUncleanLeaderElection(t *testing.T) {
+	t.Parallel()
+
+	resource := validTopicInspectionResource("events", "2")
+	for index := range resource.Configs {
+		if resource.Configs[index].Key == "unclean.leader.election.enable" {
+			resource.Configs[index].Value = stringPointer("true")
+		}
+	}
+
+	configs, err := inspectionTopicConfigs(
+		map[string]struct{}{"events": {}},
+		kadm.ResourceConfigs{resource},
+	)
+	if err != nil {
+		t.Fatalf("inspectionTopicConfigs() error = %v", err)
+	}
+	if !configs["events"].uncleanLeaderElectionEnabled {
+		t.Fatalf("inspectionTopicConfigs() = %#v", configs)
+	}
+}
+
+func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
+	t.Parallel()
+
+	resource := validTopicInspectionResource("events", "2")
+	resource.Configs = append(resource.Configs, kadm.Config{
+		Key:       "local.retention.ms",
+		Sensitive: true,
+	})
+
+	configs, err := inspectionTopicConfigs(
+		map[string]struct{}{"events": {}},
+		kadm.ResourceConfigs{resource},
+	)
+	if err != nil || configs["events"].minInSyncReplicas != 2 {
+		t.Fatalf("inspectionTopicConfigs() = %#v, %v", configs, err)
+	}
+}
+
+func TestInspectorTopicInspectionRejectsUnknownSelectedField(t *testing.T) {
+	t.Parallel()
+
+	var config topicInspectionConfig
+	if err := config.set(0, "value"); !errors.Is(
+		err,
+		ErrInvalidInspectionResponse,
+	) {
+		t.Fatalf("topicInspectionConfig.set() error = %v", err)
 	}
 }
 
@@ -457,7 +619,6 @@ func TestInspectorConfigAppliesAndValidatesMetadataBounds(t *testing.T) {
 func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
 	t.Parallel()
 
-	minISR := "2"
 	base := func() *metadataInspectorBackend {
 		return &metadataInspectorBackend{
 			metadata: kadm.Metadata{Topics: kadm.TopicDetails{
@@ -475,12 +636,9 @@ func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
 			endOffsets: kadm.ListedOffsets{
 				"events": {0: {Topic: "events", Partition: 0, Offset: 1}},
 			},
-			configs: kadm.ResourceConfigs{{
-				Name: "events",
-				Configs: []kadm.Config{{
-					Key: "min.insync.replicas", Value: &minISR,
-				}},
-			}},
+			configs: kadm.ResourceConfigs{
+				validTopicInspectionResource("events", "2"),
+			},
 		}
 	}
 	brokerErr := errors.New("broker response failed")
@@ -671,7 +829,6 @@ func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
 func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
 	t.Parallel()
 
-	minISR := "1"
 	base := func() *metadataInspectorBackend {
 		return &metadataInspectorBackend{
 			metadata: kadm.Metadata{Topics: kadm.TopicDetails{
@@ -691,12 +848,9 @@ func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
 			endOffsets: kadm.ListedOffsets{
 				"events": {0: {Topic: "events", Partition: 0, Offset: 1}},
 			},
-			configs: kadm.ResourceConfigs{{
-				Name: "events",
-				Configs: []kadm.Config{{
-					Key: "min.insync.replicas", Value: &minISR,
-				}},
-			}},
+			configs: kadm.ResourceConfigs{
+				validTopicInspectionResource("events", "1"),
+			},
 		}
 	}
 	for _, test := range []struct {
@@ -814,18 +968,8 @@ func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T)
 		{
 			name: "duplicate resource",
 			configs: kadm.ResourceConfigs{
-				{
-					Name: "events",
-					Configs: []kadm.Config{{
-						Key: "min.insync.replicas", Value: &validValue,
-					}},
-				},
-				{
-					Name: "events",
-					Configs: []kadm.Config{{
-						Key: "min.insync.replicas", Value: &validValue,
-					}},
-				},
+				validTopicInspectionResource("events", "2"),
+				validTopicInspectionResource("events", "2"),
 			},
 			want: ErrInvalidInspectionResponse,
 		},
@@ -897,8 +1041,241 @@ func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T)
 	}
 }
 
+func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
+	t.Parallel()
+
+	set := func(resource *kadm.ResourceConfig, key, value string) {
+		for index := range resource.Configs {
+			if resource.Configs[index].Key == key {
+				resource.Configs[index].Value = stringPointer(value)
+
+				return
+			}
+		}
+		panic("missing test config " + key)
+	}
+	for _, test := range []struct {
+		name   string
+		change func(*kadm.ResourceConfig)
+	}{
+		{
+			name: "unknown cleanup policy",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "cleanup.policy", "archive")
+			},
+		},
+		{
+			name: "duplicate cleanup policy",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "cleanup.policy", "delete,delete")
+			},
+		},
+		{
+			name: "spaced cleanup policy",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "cleanup.policy", "delete, compact")
+			},
+		},
+		{
+			name: "retention time below unlimited sentinel",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.ms", "-2")
+			},
+		},
+		{
+			name: "retention bytes below unlimited sentinel",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.bytes", "-2")
+			},
+		},
+		{
+			name: "negative tombstone retention",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "delete.retention.ms", "-1")
+			},
+		},
+		{
+			name: "negative minimum compaction lag",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.compaction.lag.ms", "-1")
+			},
+		},
+		{
+			name: "zero maximum compaction lag",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "max.compaction.lag.ms", "0")
+			},
+		},
+		{
+			name: "minimum compaction lag above maximum",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.compaction.lag.ms", "9223372036854775807")
+				set(resource, "max.compaction.lag.ms", "1")
+			},
+		},
+		{
+			name: "negative dirty ratio",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.cleanable.dirty.ratio", "-0.1")
+			},
+		},
+		{
+			name: "dirty ratio above one",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.cleanable.dirty.ratio", "1.1")
+			},
+		},
+		{
+			name: "non-finite dirty ratio",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.cleanable.dirty.ratio", "NaN")
+			},
+		},
+		{
+			name: "infinite dirty ratio",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "min.cleanable.dirty.ratio", "+Inf")
+			},
+		},
+		{
+			name: "undersized segment bytes",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "segment.bytes", "1048575")
+			},
+		},
+		{
+			name: "oversized segment bytes",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "segment.bytes", "2147483648")
+			},
+		},
+		{
+			name: "zero segment time",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "segment.ms", "0")
+			},
+		},
+		{
+			name: "overflowing segment time",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "segment.ms", "9223372036854775808")
+			},
+		},
+		{
+			name: "noncanonical election boolean",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "unclean.leader.election.enable", "TRUE")
+			},
+		},
+		{
+			name: "invalid utf8",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.ms", string([]byte{0xff}))
+			},
+		},
+		{
+			name: "oversized selected value",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.ms", strings.Repeat("1", 65))
+			},
+		},
+		{
+			name: "duplicate selected value",
+			change: func(resource *kadm.ResourceConfig) {
+				resource.Configs = append(resource.Configs, kadm.Config{
+					Key: "retention.ms", Value: stringPointer("1"),
+				})
+			},
+		},
+		{
+			name: "sensitive selected value",
+			change: func(resource *kadm.ResourceConfig) {
+				resource.Configs[0].Sensitive = true
+			},
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			resource := validTopicInspectionResource("events", "2")
+			test.change(&resource)
+			if _, err := inspectionTopicConfigs(
+				map[string]struct{}{"events": {}},
+				kadm.ResourceConfigs{resource},
+			); !errors.Is(err, ErrInvalidInspectionResponse) {
+				t.Fatalf("inspectionTopicConfigs() error = %v", err)
+			}
+		})
+	}
+
+	for _, key := range []string{
+		"min.insync.replicas",
+		"cleanup.policy",
+		"retention.ms",
+		"retention.bytes",
+		"delete.retention.ms",
+		"min.compaction.lag.ms",
+		"max.compaction.lag.ms",
+		"min.cleanable.dirty.ratio",
+		"segment.bytes",
+		"segment.ms",
+		"unclean.leader.election.enable",
+	} {
+		key := key
+		t.Run("missing "+key, func(t *testing.T) {
+			t.Parallel()
+
+			resource := validTopicInspectionResource("events", "2")
+			resource.Configs = slices.DeleteFunc(
+				resource.Configs,
+				func(config kadm.Config) bool {
+					return config.Key == key
+				},
+			)
+			if _, err := inspectionTopicConfigs(
+				map[string]struct{}{"events": {}},
+				kadm.ResourceConfigs{resource},
+			); !errors.Is(err, ErrInvalidInspectionResponse) {
+				t.Fatalf("inspectionTopicConfigs() error = %v", err)
+			}
+		})
+	}
+}
+
 func stringPointer(value string) *string {
 	return &value
+}
+
+func validTopicInspectionResource(
+	topic string,
+	minInSyncReplicas string,
+) kadm.ResourceConfig {
+	values := []struct {
+		key   string
+		value string
+	}{
+		{key: "min.insync.replicas", value: minInSyncReplicas},
+		{key: "cleanup.policy", value: "delete"},
+		{key: "retention.ms", value: "604800000"},
+		{key: "retention.bytes", value: "-1"},
+		{key: "delete.retention.ms", value: "86400000"},
+		{key: "min.compaction.lag.ms", value: "0"},
+		{key: "max.compaction.lag.ms", value: "9223372036854775807"},
+		{key: "min.cleanable.dirty.ratio", value: "0.5"},
+		{key: "segment.bytes", value: "1073741824"},
+		{key: "segment.ms", value: "604800000"},
+		{key: "unclean.leader.election.enable", value: "false"},
+	}
+	configs := make([]kadm.Config, 0, len(values))
+	for _, entry := range values {
+		value := entry.value
+		configs = append(configs, kadm.Config{
+			Key: entry.key, Value: &value,
+		})
+	}
+
+	return kadm.ResourceConfig{Name: topic, Configs: configs}
 }
 
 func TestInspectorConsumerGroupLagBoundsAndValidatesBrokerState(t *testing.T) {

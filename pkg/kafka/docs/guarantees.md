@@ -188,7 +188,17 @@ reports whether Kafka supplied a cluster ID and a controller present in that
 broker set. Topic inspection copies at most `MaxMetadataPartitions` and
 preserves replica preference order while returning sorted ISR and offline
 replica sets, leader epochs, beginning offsets, exclusive end offsets, and the
-effective `min.insync.replicas` value.
+effective `min.insync.replicas`, cleanup, retention, compaction, segment, and
+unclean-election policy. Selected configuration is required, validated, and
+bounded. Millisecond values preserve Kafka's signed 64-bit domain rather than
+overflowing `time.Duration`; retention limits preserve `-1`, and retention
+bytes are explicitly per partition.
+
+Configuration inspection is diagnostic rather than a retention guarantee.
+Deletion occurs at segment granularity and asynchronously, compaction depends
+on cleaner state, beginning offsets remain the readable-range evidence, and
+unclean-election configuration does not report election history. Tiered
+storage local-retention overrides are not currently exposed.
 
 Classic consumer-group inspection returns copied coordinator, group state,
 protocol type and assignor, member identity, and current assignments alongside
@@ -224,7 +234,9 @@ partition pause/resume, a static member restart using the same instance ID, and
 committed-versus-aborted transaction visibility, plus replay interruption,
 external-checkpoint resume, out-of-range rejection, cluster/controller
 visibility, and topic durability/offset inspection against Confluent Local
-7.5.0 using franz-go v1.21.5. The same fixture proves a live classic static
+7.5.0 using franz-go v1.21.5. Topic inspection in that fixture includes
+explicit non-default cleanup, retention, compaction, segment, and
+unclean-election configuration. The same fixture proves a live classic static
 member's copied identity and two-partition assignment.
 The container image is pinned by repository digest. This compatibility fixture
 does not replace testing against an application's production broker version

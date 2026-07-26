@@ -293,12 +293,9 @@ func FuzzInspectionBrokerMetadata(f *testing.F) {
 					Topic: topic, Partition: partitionID, Offset: endOffset,
 				},
 			}},
-			kadm.ResourceConfigs{{
-				Name: topic,
-				Configs: []kadm.Config{{
-					Key: "min.insync.replicas", Value: &minISR,
-				}},
-			}},
+			kadm.ResourceConfigs{
+				validTopicInspectionResource(topic, minISR),
+			},
 		)
 		if err != nil {
 			return
@@ -312,6 +309,64 @@ func FuzzInspectionBrokerMetadata(f *testing.F) {
 		partition.Replicas[0]++
 		if states[0].Partitions[0].Replicas[0] != replicaID {
 			t.Fatalf("inspection states alias broker metadata = %#v", states)
+		}
+	})
+}
+
+func FuzzInspectionTopicPolicyConfig(f *testing.F) {
+	f.Add(
+		"delete",
+		"604800000",
+		"-1",
+		"0.5",
+		"1073741824",
+		"604800000",
+		"false",
+	)
+	f.Add(
+		"compact,delete",
+		"-2",
+		"9223372036854775808",
+		"NaN",
+		"0",
+		"-1",
+		"TRUE",
+	)
+
+	f.Fuzz(func(
+		t *testing.T,
+		cleanupPolicy string,
+		retentionMilliseconds string,
+		retentionBytes string,
+		dirtyRatio string,
+		segmentBytes string,
+		segmentMilliseconds string,
+		uncleanElection string,
+	) {
+		resource := validTopicInspectionResource("events", "1")
+		values := map[string]string{
+			"cleanup.policy":                 cleanupPolicy,
+			"retention.ms":                   retentionMilliseconds,
+			"retention.bytes":                retentionBytes,
+			"min.cleanable.dirty.ratio":      dirtyRatio,
+			"segment.bytes":                  segmentBytes,
+			"segment.ms":                     segmentMilliseconds,
+			"unclean.leader.election.enable": uncleanElection,
+		}
+		for index := range resource.Configs {
+			if value, exists := values[resource.Configs[index].Key]; exists {
+				resource.Configs[index].Value = stringPointer(value)
+			}
+		}
+
+		configs, err := inspectionTopicConfigs(
+			map[string]struct{}{"events": {}},
+			kadm.ResourceConfigs{resource},
+		)
+		if err == nil {
+			if _, exists := configs["events"]; !exists {
+				t.Fatalf("inspection configs = %#v", configs)
+			}
 		}
 	})
 }

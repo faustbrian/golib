@@ -133,7 +133,6 @@ func BenchmarkReplayProgress(b *testing.B) {
 }
 
 func BenchmarkInspectorTopicState(b *testing.B) {
-	minISR := "2"
 	backend := &metadataInspectorBackend{
 		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
 			"events": {
@@ -152,12 +151,9 @@ func BenchmarkInspectorTopicState(b *testing.B) {
 		endOffsets: kadm.ListedOffsets{
 			"events": {0: {Topic: "events", Partition: 0, Offset: 25}},
 		},
-		configs: kadm.ResourceConfigs{{
-			Name: "events",
-			Configs: []kadm.Config{{
-				Key: "min.insync.replicas", Value: &minISR,
-			}},
-		}},
+		configs: kadm.ResourceConfigs{
+			validTopicInspectionResource("events", "2"),
+		},
 	}
 	inspector := inspectorWithMetadataBackend(backend)
 	ctx := context.Background()

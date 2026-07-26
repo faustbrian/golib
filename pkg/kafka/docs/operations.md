@@ -20,6 +20,22 @@ Use `Inspector.Cluster` for cluster/controller/broker identity and
 `Inspector.Topics` with explicit targets for topic state. Treat any inspection
 error as unknown diagnostic state rather than silently healthy.
 
+## Topic durability and retention
+
+Evaluate `Inspector.Topics` as a combined snapshot of current replica/ISR
+state, log bounds, and effective topic configuration. A durable topic policy
+normally requires the application to compare replication factor,
+`MinInSyncReplicas`, offline replicas, and
+`UncleanLeaderElectionEnabled` against its deployment standard.
+
+Cleanup and retention values do not predict an exact deletion instant.
+`RetentionBytesPerPartition` is not a topic-wide capacity limit, `-1` means
+unlimited, and Kafka deletes eligible closed segments asynchronously.
+Compaction settings describe cleaner eligibility rather than a complete key
+history. Alert on unexpected policy drift, but use beginning offsets to decide
+whether a replay range remains readable. For tiered-storage topics, inspect
+`local.retention.*` with operator tooling until this package adds that surface.
+
 ## Lag
 
 Use `Inspector.ConsumerGroupLag` with explicit group names. Alert on lag,

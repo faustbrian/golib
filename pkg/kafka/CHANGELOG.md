@@ -81,6 +81,9 @@ All notable changes to this module are documented here.
 - bounded read-only cluster identity, controller, broker, topic durability,
   replica, beginning/end offset, and consumer-group lag inspection; inspector
   operations now apply an owned request deadline even when callers omit one
+- bounded effective topic cleanup, retention, compaction, segment, and
+  unclean-election inspection with fail-closed broker-controlled parsing and
+  raw Kafka millisecond and unlimited-sentinel semantics
 - copied, sorted classic consumer-group member identities and current
   assignments with explicit member and aggregate partition bounds
 - distinct dependency health, local inspector liveness, and stateful readiness

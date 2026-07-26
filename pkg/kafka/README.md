@@ -215,10 +215,13 @@ context, then use bounded `Shutdown` or error-returning `Close`. Readers are
 single-use; resume with a new reader and the returned checkpoint.
 `Inspector` provides bounded read-only cluster identity, controller and broker
 visibility, topic replica/ISR/offline state, beginning and end offsets,
-effective `min.insync.replicas`, and classic consumer-group lag, member
-identity, and assignments. Every operation derives `RequestTimeout`; response
-copying is capped by explicit broker, group-member, and partition limits.
-Inspection never mutates Kafka infrastructure.
+effective `min.insync.replicas`, cleanup, retention, compaction, segment, and
+unclean-election policy, plus classic consumer-group lag, member identity, and
+assignments. Every operation derives `RequestTimeout`; response copying is
+capped by explicit broker, group-member, partition, and configuration limits.
+Inspection never mutates Kafka infrastructure. Retention and segment durations
+remain raw Kafka milliseconds because valid broker values can exceed Go's
+`time.Duration`.
 
 `DependencyHealth` checks current bounded connectivity. `Readiness` applies
 configurable consecutive-failure and recovery hysteresis and returns the
