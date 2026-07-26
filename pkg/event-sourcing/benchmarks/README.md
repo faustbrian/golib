@@ -4,6 +4,10 @@ This directory owns reproducible capture and analysis for the event-sourcing
 benchmark layers. The competitor module remains nested so comparison libraries
 do not enter the core dependency graph.
 
+## Published results
+
+- [2026-07-26 M4 Max and PostgreSQL 18](results/2026-07-26-m4-max-postgres-18/README.md)
+
 Create an empty result directory, verify a quiet machine on external power,
 then run:
 

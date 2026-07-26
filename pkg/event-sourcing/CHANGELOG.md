@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish complete raw and statistically summarized core, competitor,
+  PostgreSQL, and outbox benchmark evidence with environment provenance and
+  stable input fingerprints.
 - Add explicit aggregate save planning, caller-owned transaction commit
   confirmation, ambiguous-commit poisoning, and post-commit dispatch APIs.
 - Add dedicated security, privacy, compliance, troubleshooting, glossary, and

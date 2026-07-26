@@ -1,0 +1,151 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing
+cpu: Apple M4 Max
+                                                      │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                      │                   sec/op                    │
+PendingMessageConstruction-16                                                          312.9n ± 55%
+LifecycleReconstitution/10-16                                                          125.9n ±  9%
+LifecycleReconstitution/100-16                                                         1.284µ ±  7%
+LifecycleReconstitution/1000-16                                                        12.77µ ±  8%
+LifecycleReconstitution/10000-16                                                       116.7µ ± 51%
+JSONCodecRoundTrip-16                                                                  5.385µ ± 12%
+SnapshotRestoreBreakEven/100/full-history-16                                           1.129µ ± 24%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                    1.304µ ± 22%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                    1.210µ ± 12%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                    860.6n ± 24%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                    578.4n ± 11%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                    373.7n ± 19%
+SnapshotRestoreBreakEven/1000/full-history-16                                          13.01µ ± 26%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                   11.45µ ± 10%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                   9.572µ ± 10%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                   5.860µ ± 18%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                   3.312µ ± 14%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                   1.566µ ± 10%
+SnapshotRestoreBreakEven/10000/full-history-16                                         117.4µ ± 14%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                  112.1µ ± 10%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                  90.77µ ±  7%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                  61.41µ ±  8%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                  32.62µ ±  8%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                  11.92µ ±  9%
+UpcasterChain/1-16                                                                     3.036µ ±  9%
+UpcasterChain/4-16                                                                     16.30µ ± 32%
+UpcasterChain/16-16                                                                    31.54µ ± 63%
+geomean                                                                                5.702µ
+
+                                                      │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                      │                    B/op                     │
+PendingMessageConstruction-16                                                          360.0 ± 0%
+LifecycleReconstitution/10-16                                                          0.000 ± 0%
+LifecycleReconstitution/100-16                                                         0.000 ± 0%
+LifecycleReconstitution/1000-16                                                        0.000 ± 0%
+LifecycleReconstitution/10000-16                                                       0.000 ± 0%
+JSONCodecRoundTrip-16                                                                4.318Ki ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                           0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                    216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                    216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                    216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                    216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                    216.0 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                          0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                   216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                   216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                   216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                   216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                   216.0 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                         0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                  216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                  216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                  216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                  216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                  216.0 ± 0%
+UpcasterChain/1-16                                                                   4.719Ki ± 0%
+UpcasterChain/4-16                                                                   15.36Ki ± 0%
+UpcasterChain/16-16                                                                  63.37Ki ± 0%
+geomean                                                                                           ¹
+¹ summaries must be >0 to compute geomean
+
+                                                      │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                      │                  allocs/op                  │
+PendingMessageConstruction-16                                                          3.000 ± 0%
+LifecycleReconstitution/10-16                                                          0.000 ± 0%
+LifecycleReconstitution/100-16                                                         0.000 ± 0%
+LifecycleReconstitution/1000-16                                                        0.000 ± 0%
+LifecycleReconstitution/10000-16                                                       0.000 ± 0%
+JSONCodecRoundTrip-16                                                                  111.0 ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                           0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                    4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                    4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                    4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                    4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                    4.000 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                          0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                   4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                   4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                   4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                   4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                   4.000 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                         0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                  4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                  4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                  4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                  4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                  4.000 ± 0%
+UpcasterChain/1-16                                                                     55.00 ± 0%
+UpcasterChain/4-16                                                                     190.0 ± 0%
+UpcasterChain/16-16                                                                    751.0 ± 0%
+geomean                                                                                           ¹
+¹ summaries must be >0 to compute geomean
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/memory
+                                                 │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                 │                   sec/op                    │
+ConcurrentAppendWorkloads/independent_streams-16                                  153.9µ ± 70%
+ConcurrentAppendWorkloads/one_hot_stream-16                                       218.9µ ± 34%
+geomean                                                                           183.6µ
+
+                                                 │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                 │                    B/op                     │
+ConcurrentAppendWorkloads/independent_streams-16                                  315.3Ki ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                       368.0Ki ± 0%
+geomean                                                                           340.6Ki
+
+                                                 │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                 │                  allocs/op                  │
+ConcurrentAppendWorkloads/independent_streams-16                                   1.048k ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                         846.0 ± 0%
+geomean                                                                             941.6
+
+                                                 │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                 │                  appends/s                  │
+ConcurrentAppendWorkloads/independent_streams-16                                  1.300M ± 41%
+ConcurrentAppendWorkloads/one_hot_stream-16                                       913.7k ± 51%
+geomean                                                                           1.090M
+
+                                                 │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                                 │              appends/workload               │
+ConcurrentAppendWorkloads/independent_streams-16                                    200.0 ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                         200.0 ± 0%
+geomean                                                                             200.0
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/projection
+                                            │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                            │                   sec/op                    │
+ProjectionReplayAndCheckpoint/batch_10-16                                    524.4n ± 23%
+ProjectionReplayAndCheckpoint/batch_100-16                                   5.336µ ±  7%
+ProjectionReplayAndCheckpoint/batch_1000-16                                  51.50µ ±  7%
+geomean                                                                      5.243µ
+
+                                            │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                            │                    B/op                     │
+ProjectionReplayAndCheckpoint/batch_10-16                                      32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                     32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                    32.00 ± 0%
+geomean                                                                        32.00
+
+                                            │ /tmp/event-sourcing-results.cBQ7NE/core.txt │
+                                            │                  allocs/op                  │
+ProjectionReplayAndCheckpoint/batch_10-16                                      1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                     1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                    1.000 ± 0%
+geomean                                                                        1.000

@@ -1,0 +1,66 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/postgres
+cpu: Apple M4 Max
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     279	   1048841 ns/op	    7016 B/op	     121 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     300	   1702079 ns/op	    7001 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     141	   2096271 ns/op	    6993 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     273	   1034952 ns/op	    6996 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     291	   1850982 ns/op	    6995 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     122	   2340435 ns/op	    6994 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     225	   1112012 ns/op	    6997 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     321	   1431494 ns/op	    6995 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     100	   2954436 ns/op	    6999 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     229	   1163134 ns/op	    6998 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     300	   1588129 ns/op	    6993 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     195	   1909994 ns/op	    7002 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     246	   1178099 ns/op	    6994 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     220	   2075880 ns/op	    6987 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     100	   3163850 ns/op	    7002 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     228	   1349261 ns/op	    6997 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     252	   1704965 ns/op	    6995 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     100	   2798481 ns/op	    7004 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     214	   1356893 ns/op	    6986 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/event-store-16         	     298	   1578017 ns/op	    7001 B/op	     123 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     288	   1921370 ns/op	    5236 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     330	    912269 ns/op	    5225 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     100	   2581097 ns/op	    5215 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     141	   2311256 ns/op	    5247 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     226	   1187345 ns/op	    5212 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     303	   1549242 ns/op	    5228 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     276	   1756803 ns/op	    5218 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     295	    969336 ns/op	    5217 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     332	   2003928 ns/op	    5226 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     236	   1132405 ns/op	    5225 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     328	   1510484 ns/op	    5220 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     100	   3188417 ns/op	    5249 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     100	   2692152 ns/op	    5243 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     270	   1030378 ns/op	    5221 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     100	   2694866 ns/op	    5247 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     100	   2886560 ns/op	    5215 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     222	   1244323 ns/op	    5225 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     320	   1565325 ns/op	    5225 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     188	   2036598 ns/op	    5219 B/op	      99 allocs/op
+BenchmarkPostgreSQLAppendEquivalentWork/direct-pgx-16          	     211	   1197948 ns/op	    5231 B/op	      99 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     217	   1387928 ns/op	    2885 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     532	    559645 ns/op	    2881 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     318	    841430 ns/op	    2885 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     157	   2069539 ns/op	    2877 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     492	    596247 ns/op	    2882 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     529	   1115002 ns/op	    2880 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     560	   1112700 ns/op	    2879 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     517	   1062460 ns/op	    2880 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     613	    528697 ns/op	    2882 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     409	    674545 ns/op	    2880 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     294	   1975002 ns/op	    2879 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     591	   1150023 ns/op	    2883 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     562	   1315462 ns/op	    2879 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     438	   1257850 ns/op	    2878 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     520	    529574 ns/op	    2881 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     354	    791822 ns/op	    2882 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     573	    814343 ns/op	    2879 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     505	    522188 ns/op	    2881 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     403	    918719 ns/op	    2880 B/op	      52 allocs/op
+BenchmarkPostgreSQLOptimisticConflict-16                       	     542	    620538 ns/op	    2880 B/op	      52 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/event-sourcing/postgres	54.843s

@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/postgres
+cpu: Apple M4 Max
+                                              │ /tmp/event-sourcing-results.cBQ7NE/postgres.txt │
+                                              │                     sec/op                      │
+PostgreSQLAppendEquivalentWork/event-store-16                                      1.645m ± 26%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                       1.661m ± 39%
+PostgreSQLOptimisticConflict-16                                                    880.1µ ± 31%
+geomean                                                                            1.340m
+
+                                              │ /tmp/event-sourcing-results.cBQ7NE/postgres.txt │
+                                              │                      B/op                       │
+PostgreSQLAppendEquivalentWork/event-store-16                                      6.833Ki ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                       5.103Ki ± 0%
+PostgreSQLOptimisticConflict-16                                                    2.812Ki ± 0%
+geomean                                                                            4.611Ki
+
+                                              │ /tmp/event-sourcing-results.cBQ7NE/postgres.txt │
+                                              │                    allocs/op                    │
+PostgreSQLAppendEquivalentWork/event-store-16                                        123.0 ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                         99.00 ± 0%
+PostgreSQLOptimisticConflict-16                                                      52.00 ± 0%
+geomean                                                                              85.87
