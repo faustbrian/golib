@@ -7,11 +7,14 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 var (
@@ -20,6 +23,8 @@ var (
 	ErrInvalidInspectionTarget    = errors.New("kafka: inspection target is invalid")
 	ErrDuplicateInspectionTarget  = errors.New("kafka: inspection target is duplicated")
 	ErrInvalidInspectorConfig     = errors.New("kafka: inspector configuration is outside bounded limits")
+	ErrInvalidReadinessPolicy     = errors.New("kafka: inspector readiness policy is outside bounded limits")
+	ErrInspectorClosed            = errors.New("kafka: inspector is closed")
 	ErrInvalidInspectionResponse  = errors.New("kafka: broker inspection response is invalid")
 	ErrInspectionResponseTooLarge = errors.New(
 		"kafka: broker inspection response exceeds configured limits",
@@ -37,6 +42,37 @@ type InspectorConfig struct {
 
 	MaxMetadataBrokers    int
 	MaxMetadataPartitions int
+	MaxGroupMembers       int
+	Readiness             ReadinessPolicy
+}
+
+// ReadinessPolicy controls stateful Kafka dependency-probe hysteresis.
+type ReadinessPolicy struct {
+	FailureThreshold  int
+	RecoveryThreshold int
+}
+
+// Validate checks readiness policy using the documented zero-value defaults.
+func (policy ReadinessPolicy) Validate() error {
+	_, err := normalizeReadinessPolicy(policy)
+
+	return err
+}
+
+// ReadinessState is the current stateful readiness decision and the latest
+// dependency observation. Ready is the service-composition signal; the method
+// error retains the latest dependency failure for diagnostics.
+type ReadinessState struct {
+	Ready                bool
+	DependencyHealthy    bool
+	ConsecutiveFailures  int
+	ConsecutiveSuccesses int
+}
+
+// LivenessState reports whether the inspector remains locally usable. Kafka
+// connectivity does not affect this signal.
+type LivenessState struct {
+	Live bool
 }
 
 // BrokerState is bounded, copied metadata for one Kafka broker.
@@ -92,14 +128,82 @@ type ConsumerGroupPartitionLag struct {
 
 // ConsumerGroupState is the current state and lag for one requested group.
 type ConsumerGroupState struct {
-	Group      string
-	State      string
-	Protocol   string
-	Partitions []ConsumerGroupPartitionLag
+	Group         string
+	CoordinatorID int32
+	State         string
+	ProtocolType  string
+	Protocol      string
+	Members       []ConsumerGroupMemberState
+	Partitions    []ConsumerGroupPartitionLag
+}
+
+// ConsumerGroupMemberState is bounded, copied classic consumer-group member
+// identity and current partition assignment.
+type ConsumerGroupMemberState struct {
+	MemberID          string
+	InstanceID        string
+	InstanceIDVisible bool
+	ClientID          string
+	ClientHost        string
+	Assignments       []TopicPartition
+}
+
+type inspectorGroupMember struct {
+	memberID          string
+	instanceID        *string
+	clientID          string
+	clientHost        string
+	assignmentDecoded bool
+	assignmentErr     error
+	assignments       map[string][]int32
+}
+
+type inspectorGroupLag struct {
+	group         string
+	coordinatorID int32
+	state         string
+	protocolType  string
+	protocol      string
+	members       []inspectorGroupMember
+	lag           kadm.GroupLag
+	describeErr   error
+	fetchErr      error
+}
+
+func (lag inspectorGroupLag) err() error {
+	if lag.describeErr != nil {
+		return lag.describeErr
+	}
+
+	return lag.fetchErr
+}
+
+type inspectorGroupLags map[string]inspectorGroupLag
+
+func (lags inspectorGroupLags) sorted() []inspectorGroupLag {
+	result := make([]inspectorGroupLag, 0, len(lags))
+	for _, lag := range lags {
+		result = append(result, lag)
+	}
+	slices.SortFunc(result, func(left, right inspectorGroupLag) int {
+		return cmp.Compare(left.group, right.group)
+	})
+
+	return result
+}
+
+func (lags inspectorGroupLags) err() error {
+	for _, lag := range lags.sorted() {
+		if err := lag.err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type inspectorBackend interface {
-	Lag(context.Context, ...string) (kadm.DescribedGroupLags, error)
+	Lag(context.Context, ...string) (inspectorGroupLags, error)
 	BrokerMetadata(context.Context) (kadm.Metadata, error)
 	Metadata(context.Context, ...string) (kadm.Metadata, error)
 	ListStartOffsets(context.Context, ...string) (kadm.ListedOffsets, error)
@@ -112,7 +216,7 @@ type inspectorClient interface {
 	Close()
 }
 
-type inspectorAdminFactory func(*kgo.Client) inspectorBackend
+type inspectorAdminFactory func(*kgo.Client, InspectorConfig) inspectorBackend
 
 // Inspector provides bounded, read-only protocol administration used by
 // readiness checks, dashboards, and replay planning.
@@ -122,12 +226,53 @@ type Inspector struct {
 	requestTimeout        time.Duration
 	maxMetadataBrokers    int
 	maxMetadataPartitions int
+	maxGroupMembers       int
+	readinessPolicy       ReadinessPolicy
+	readinessMu           sync.Mutex
+	readiness             ReadinessState
+	closeOnce             sync.Once
+	closed                atomic.Bool
+}
+
+type franzInspectorBackend struct {
+	*kadm.Client
+	groupLags             kadmGroupLagClient
+	maxGroupMembers       int
+	maxMetadataPartitions int
+}
+
+type kadmGroupLagClient interface {
+	Lag(context.Context, ...string) (kadm.DescribedGroupLags, error)
+}
+
+func (backend *franzInspectorBackend) Lag(
+	ctx context.Context,
+	groups ...string,
+) (inspectorGroupLags, error) {
+	lags, err := backend.groupLags.Lag(ctx, groups...)
+	translated, translateErr := translateDescribedGroupLags(
+		lags,
+		backend.maxGroupMembers,
+		backend.maxMetadataPartitions,
+	)
+
+	return translated, errors.Join(err, translateErr)
 }
 
 // NewInspector constructs a read-only Kafka inspector.
 func NewInspector(config InspectorConfig) (*Inspector, error) {
-	return newInspector(config, kgo.NewClient, func(client *kgo.Client) inspectorBackend {
-		return kadm.NewClient(client)
+	return newInspector(config, kgo.NewClient, func(
+		client *kgo.Client,
+		config InspectorConfig,
+	) inspectorBackend {
+		admin := kadm.NewClient(client)
+
+		return &franzInspectorBackend{
+			Client:                admin,
+			groupLags:             admin,
+			maxGroupMembers:       config.MaxGroupMembers,
+			maxMetadataPartitions: config.MaxMetadataPartitions,
+		}
 	})
 }
 
@@ -154,11 +299,13 @@ func newInspector(
 	}
 
 	return &Inspector{
-		admin:                 adminFactory(client),
+		admin:                 adminFactory(client, config),
 		client:                client,
 		requestTimeout:        config.RequestTimeout,
 		maxMetadataBrokers:    config.MaxMetadataBrokers,
 		maxMetadataPartitions: config.MaxMetadataPartitions,
+		maxGroupMembers:       config.MaxGroupMembers,
+		readinessPolicy:       config.Readiness,
 	}, nil
 }
 
@@ -186,6 +333,14 @@ func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 	if config.MaxMetadataPartitions == 0 {
 		config.MaxMetadataPartitions = 100_000
 	}
+	if config.MaxGroupMembers == 0 {
+		config.MaxGroupMembers = 10_000
+	}
+	readiness, err := normalizeReadinessPolicy(config.Readiness)
+	if err != nil {
+		return InspectorConfig{}, err
+	}
+	config.Readiness = readiness
 	if config.DialTimeout < 100*time.Millisecond ||
 		config.DialTimeout > 2*time.Minute ||
 		config.RequestTimeout < 100*time.Millisecond ||
@@ -193,11 +348,32 @@ func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 		config.MaxMetadataBrokers < 1 ||
 		config.MaxMetadataBrokers > 10_000 ||
 		config.MaxMetadataPartitions < 1 ||
-		config.MaxMetadataPartitions > 1_000_000 {
+		config.MaxMetadataPartitions > 1_000_000 ||
+		config.MaxGroupMembers < 1 ||
+		config.MaxGroupMembers > 100_000 {
 		return InspectorConfig{}, ErrInvalidInspectorConfig
 	}
 
 	return config, nil
+}
+
+func normalizeReadinessPolicy(
+	policy ReadinessPolicy,
+) (ReadinessPolicy, error) {
+	if policy.FailureThreshold == 0 {
+		policy.FailureThreshold = 3
+	}
+	if policy.RecoveryThreshold == 0 {
+		policy.RecoveryThreshold = 2
+	}
+	if policy.FailureThreshold < 1 ||
+		policy.FailureThreshold > 100 ||
+		policy.RecoveryThreshold < 1 ||
+		policy.RecoveryThreshold > 100 {
+		return ReadinessPolicy{}, ErrInvalidReadinessPolicy
+	}
+
+	return policy, nil
 }
 
 // Cluster returns bounded, sorted cluster identity and broker metadata. A
@@ -279,6 +455,9 @@ func (inspector *Inspector) requestContext(
 ) (context.Context, context.CancelFunc, error) {
 	if ctx == nil {
 		return nil, nil, ErrContextRequired
+	}
+	if inspector.closed.Load() {
+		return nil, nil, ErrInspectorClosed
 	}
 	timeout := inspector.requestTimeout
 	if timeout == 0 {
@@ -576,11 +755,11 @@ func (inspector *Inspector) ConsumerGroupLag(
 	if cause := context.Cause(requestCtx); cause != nil {
 		return nil, cause
 	}
-	if err := lags.Error(); err != nil {
+	if err := lags.err(); err != nil {
 		return nil, err
 	}
-	for _, described := range lags {
-		for _, lag := range described.Lag.Sorted() {
+	for _, described := range lags.sorted() {
+		for _, lag := range described.lag.Sorted() {
 			if lag.Err != nil {
 				return nil, lag.Err
 			}
@@ -591,14 +770,45 @@ func (inspector *Inspector) ConsumerGroupLag(
 	}
 
 	result := make([]ConsumerGroupState, 0, len(lags))
-	for _, described := range lags.Sorted() {
+	for _, described := range lags.sorted() {
 		group := ConsumerGroupState{
-			Group:      described.Group,
-			State:      described.State,
-			Protocol:   described.Protocol,
-			Partitions: make([]ConsumerGroupPartitionLag, 0, len(described.Lag)),
+			Group:         described.group,
+			CoordinatorID: described.coordinatorID,
+			State:         described.state,
+			ProtocolType:  described.protocolType,
+			Protocol:      described.protocol,
+			Members:       make([]ConsumerGroupMemberState, 0, len(described.members)),
+			Partitions:    make([]ConsumerGroupPartitionLag, 0, len(described.lag)),
 		}
-		for _, lag := range described.Lag.Sorted() {
+		for _, member := range described.members {
+			assignments := make([]TopicPartition, 0)
+			for topic, partitions := range member.assignments {
+				for _, partition := range partitions {
+					assignments = append(assignments, TopicPartition{
+						Topic: topic, Partition: partition,
+					})
+				}
+			}
+			slices.SortFunc(assignments, compareTopicPartition)
+			publicMember := ConsumerGroupMemberState{
+				MemberID:    member.memberID,
+				ClientID:    member.clientID,
+				ClientHost:  member.clientHost,
+				Assignments: assignments,
+			}
+			if member.instanceID != nil {
+				publicMember.InstanceID = *member.instanceID
+				publicMember.InstanceIDVisible = true
+			}
+			group.Members = append(group.Members, publicMember)
+		}
+		slices.SortFunc(group.Members, func(
+			left ConsumerGroupMemberState,
+			right ConsumerGroupMemberState,
+		) int {
+			return cmp.Compare(left.MemberID, right.MemberID)
+		})
+		for _, lag := range described.lag.Sorted() {
 			group.Partitions = append(group.Partitions, ConsumerGroupPartitionLag{
 				Topic:           lag.Topic,
 				Partition:       lag.Partition,
@@ -614,9 +824,17 @@ func (inspector *Inspector) ConsumerGroupLag(
 	return result, nil
 }
 
+func compareTopicPartition(left, right TopicPartition) int {
+	if compared := cmp.Compare(left.Topic, right.Topic); compared != 0 {
+		return compared
+	}
+
+	return cmp.Compare(left.Partition, right.Partition)
+}
+
 func (inspector *Inspector) validateConsumerGroupLags(
 	requested []string,
-	lags kadm.DescribedGroupLags,
+	lags inspectorGroupLags,
 ) error {
 	requestedSet := make(map[string]struct{}, len(requested))
 	for _, group := range requested {
@@ -626,17 +844,86 @@ func (inspector *Inspector) validateConsumerGroupLags(
 		return ErrInvalidInspectionResponse
 	}
 	partitionCount := 0
+	memberCount := 0
 	for groupName, described := range lags {
 		if _, requested := requestedSet[groupName]; !requested ||
-			described.Group != groupName ||
-			described.State == "" ||
-			len(described.State) > 255 ||
-			!utf8.ValidString(described.State) ||
-			len(described.Protocol) > 255 ||
-			!utf8.ValidString(described.Protocol) {
+			described.group != groupName ||
+			described.coordinatorID < 0 ||
+			described.state == "" ||
+			described.state != strings.TrimSpace(described.state) ||
+			!validKafkaText(described.state, 255) ||
+			described.protocolType != strings.TrimSpace(described.protocolType) ||
+			!validKafkaText(described.protocolType, 255) ||
+			(described.protocolType != "" &&
+				described.protocolType != "consumer") ||
+			described.protocol != strings.TrimSpace(described.protocol) ||
+			!validKafkaText(described.protocol, 255) ||
+			(described.protocolType == "" && described.protocol != "") ||
+			(len(described.members) > 0 &&
+				(described.protocolType != "consumer" ||
+					described.protocol == "" ||
+					described.state == "Empty" ||
+					described.state == "Dead")) {
 			return ErrInvalidInspectionResponse
 		}
-		for topicName, partitions := range described.Lag {
+		memberCount += len(described.members)
+		if memberCount > inspector.groupMemberLimit() {
+			return ErrInspectionResponseTooLarge
+		}
+		ownedAssignments := make(map[TopicPartition]struct{})
+		memberIDs := make(map[string]struct{}, len(described.members))
+		instanceIDs := make(map[string]struct{}, len(described.members))
+		for _, member := range described.members {
+			if member.memberID == "" ||
+				member.memberID != strings.TrimSpace(member.memberID) ||
+				!validKafkaText(member.memberID, 1_024) ||
+				member.clientID != strings.TrimSpace(member.clientID) ||
+				!validKafkaText(member.clientID, 255) ||
+				member.clientHost != strings.TrimSpace(member.clientHost) ||
+				!validKafkaText(member.clientHost, 255) ||
+				!member.assignmentDecoded ||
+				member.assignmentErr != nil {
+				return ErrInvalidInspectionResponse
+			}
+			if _, duplicate := memberIDs[member.memberID]; duplicate {
+				return ErrInvalidInspectionResponse
+			}
+			memberIDs[member.memberID] = struct{}{}
+			if member.instanceID != nil {
+				if *member.instanceID == "" ||
+					*member.instanceID != strings.TrimSpace(*member.instanceID) ||
+					!validKafkaText(*member.instanceID, 255) {
+					return ErrInvalidInspectionResponse
+				}
+				if _, duplicate := instanceIDs[*member.instanceID]; duplicate {
+					return ErrInvalidInspectionResponse
+				}
+				instanceIDs[*member.instanceID] = struct{}{}
+			}
+			for topicName, partitions := range member.assignments {
+				if !validKafkaTopicName(topicName, 249) ||
+					len(partitions) == 0 {
+					return ErrInvalidInspectionResponse
+				}
+				partitionCount += len(partitions)
+				if partitionCount > inspector.metadataPartitionLimit() {
+					return ErrInspectionResponseTooLarge
+				}
+				for _, partitionID := range partitions {
+					assignment := TopicPartition{
+						Topic: topicName, Partition: partitionID,
+					}
+					if partitionID < 0 {
+						return ErrInvalidInspectionResponse
+					}
+					if _, duplicate := ownedAssignments[assignment]; duplicate {
+						return ErrInvalidInspectionResponse
+					}
+					ownedAssignments[assignment] = struct{}{}
+				}
+			}
+		}
+		for topicName, partitions := range described.lag {
 			if !validKafkaTopicName(topicName, 249) {
 				return ErrInvalidInspectionResponse
 			}
@@ -683,6 +970,168 @@ func (inspector *Inspector) validateConsumerGroupLags(
 	return nil
 }
 
+func (inspector *Inspector) groupMemberLimit() int {
+	if inspector.maxGroupMembers == 0 {
+		return 10_000
+	}
+
+	return inspector.maxGroupMembers
+}
+
+func translateDescribedGroupLags(
+	lags kadm.DescribedGroupLags,
+	maxMembers int,
+	maxMetadataEntries int,
+) (inspectorGroupLags, error) {
+	return translateDescribedGroupLagsWithDecoder(
+		lags,
+		maxMembers,
+		maxMetadataEntries,
+		decodeKadmConsumerAssignment,
+	)
+}
+
+func decodeKadmConsumerAssignment(
+	member kadm.DescribedGroupMember,
+) (*kmsg.ConsumerMemberAssignment, bool) {
+	return member.Assigned.AsConsumer()
+}
+
+func translateDescribedGroupLagsWithDecoder(
+	lags kadm.DescribedGroupLags,
+	maxMembers int,
+	maxMetadataEntries int,
+	decode func(
+		kadm.DescribedGroupMember,
+	) (*kmsg.ConsumerMemberAssignment, bool),
+) (inspectorGroupLags, error) {
+	memberCount := 0
+	metadataEntries := 0
+	for _, lag := range lags {
+		if len(lag.Members) > maxMembers-memberCount {
+			return nil, ErrInspectionResponseTooLarge
+		}
+		memberCount += len(lag.Members)
+		for _, member := range lag.Members {
+			assignment, decoded := decode(member)
+			if err := consumeGroupAssignmentCopyBudget(
+				&metadataEntries,
+				maxMetadataEntries,
+				assignment,
+				decoded,
+			); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	result := make(inspectorGroupLags, len(lags))
+	for groupName, lag := range lags {
+		members := make([]inspectorGroupMember, 0, len(lag.Members))
+		for _, member := range lag.Members {
+			members = append(members, translateDescribedGroupMember(member))
+		}
+		result[groupName] = inspectorGroupLag{
+			group:         lag.Group,
+			coordinatorID: lag.Coordinator.NodeID,
+			state:         lag.State,
+			protocolType:  lag.ProtocolType,
+			protocol:      lag.Protocol,
+			members:       members,
+			lag:           lag.Lag,
+			describeErr:   lag.DescribeErr,
+			fetchErr:      lag.FetchErr,
+		}
+	}
+
+	return result, nil
+}
+
+func consumeGroupAssignmentCopyBudget(
+	used *int,
+	maximum int,
+	assignment *kmsg.ConsumerMemberAssignment,
+	decoded bool,
+) error {
+	if !decoded {
+		return nil
+	}
+	if assignment == nil {
+		return ErrInvalidInspectionResponse
+	}
+	if len(assignment.Topics) > maximum-*used {
+		return ErrInspectionResponseTooLarge
+	}
+	*used += len(assignment.Topics)
+	for _, topic := range assignment.Topics {
+		if len(topic.Partitions) > maximum-*used {
+			return ErrInspectionResponseTooLarge
+		}
+		*used += len(topic.Partitions)
+	}
+
+	return nil
+}
+
+func translateDescribedGroupMember(
+	member kadm.DescribedGroupMember,
+) inspectorGroupMember {
+	assignment, decoded := member.Assigned.AsConsumer()
+
+	return newInspectorGroupMember(
+		member.MemberID,
+		member.InstanceID,
+		member.ClientID,
+		member.ClientHost,
+		assignment,
+		decoded,
+	)
+}
+
+func newInspectorGroupMember(
+	memberID string,
+	instanceID *string,
+	clientID string,
+	clientHost string,
+	assignment *kmsg.ConsumerMemberAssignment,
+	decoded bool,
+) inspectorGroupMember {
+	result := inspectorGroupMember{
+		memberID:    memberID,
+		instanceID:  instanceID,
+		clientID:    clientID,
+		clientHost:  clientHost,
+		assignments: make(map[string][]int32),
+	}
+	if !decoded {
+		return result
+	}
+	result.assignmentDecoded = true
+	result.assignmentErr = copyConsumerMemberAssignment(
+		result.assignments,
+		assignment,
+	)
+
+	return result
+}
+
+func copyConsumerMemberAssignment(
+	target map[string][]int32,
+	assignment *kmsg.ConsumerMemberAssignment,
+) error {
+	if assignment == nil {
+		return ErrInvalidInspectionResponse
+	}
+	for _, topic := range assignment.Topics {
+		if _, duplicate := target[topic.Topic]; duplicate {
+			return ErrInvalidInspectionResponse
+		}
+		target[topic.Topic] = append([]int32(nil), topic.Partitions...)
+	}
+
+	return nil
+}
+
 func (inspector *Inspector) metadataPartitionLimit() int {
 	if inspector.maxMetadataPartitions == 0 {
 		return 100_000
@@ -715,9 +1164,9 @@ func validateInspectionTargets(targets []string, maximumBytes int) error {
 	return nil
 }
 
-// Health verifies that a broker is reachable within the configured request
-// deadline.
-func (inspector *Inspector) Health(ctx context.Context) error {
+// DependencyHealth verifies current Kafka connectivity within the configured
+// request deadline. It is diagnostic input, not liveness or readiness.
+func (inspector *Inspector) DependencyHealth(ctx context.Context) error {
 	requestCtx, cancel, err := inspector.requestContext(ctx)
 	if err != nil {
 		return err
@@ -725,6 +1174,79 @@ func (inspector *Inspector) Health(ctx context.Context) error {
 	defer cancel()
 
 	return inspectionRequestError(requestCtx, inspector.client.Ping(requestCtx))
+}
+
+// Health is the compatibility alias for DependencyHealth.
+func (inspector *Inspector) Health(ctx context.Context) error {
+	return inspector.DependencyHealth(ctx)
+}
+
+// Readiness observes current dependency health and applies the configured
+// consecutive-failure and recovery thresholds. A temporary dependency failure
+// does not immediately make a previously ready inspector unready.
+func (inspector *Inspector) Readiness(
+	ctx context.Context,
+) (ReadinessState, error) {
+	err := inspector.DependencyHealth(ctx)
+	if inspector.closed.Load() && !errors.Is(err, ErrInspectorClosed) {
+		err = errors.Join(err, ErrInspectorClosed)
+	}
+	if errors.Is(err, ErrInspectorClosed) {
+		inspector.readinessMu.Lock()
+		inspector.readiness = ReadinessState{}
+		state := inspector.readiness
+		inspector.readinessMu.Unlock()
+
+		return state, err
+	}
+	if errors.Is(err, ErrContextRequired) ||
+		errors.Is(err, context.Canceled) {
+		inspector.readinessMu.Lock()
+		state := inspector.readiness
+		inspector.readinessMu.Unlock()
+
+		return state, err
+	}
+
+	inspector.readinessMu.Lock()
+	defer inspector.readinessMu.Unlock()
+
+	if inspector.closed.Load() {
+		inspector.readiness = ReadinessState{}
+
+		return inspector.readiness, errors.Join(err, ErrInspectorClosed)
+	}
+	if err == nil {
+		inspector.readiness.DependencyHealthy = true
+		inspector.readiness.ConsecutiveFailures = 0
+		if inspector.readiness.ConsecutiveSuccesses <
+			inspector.readinessPolicy.RecoveryThreshold {
+			inspector.readiness.ConsecutiveSuccesses++
+		}
+		if inspector.readiness.ConsecutiveSuccesses >=
+			inspector.readinessPolicy.RecoveryThreshold {
+			inspector.readiness.Ready = true
+		}
+	} else {
+		inspector.readiness.DependencyHealthy = false
+		inspector.readiness.ConsecutiveSuccesses = 0
+		if inspector.readiness.ConsecutiveFailures <
+			inspector.readinessPolicy.FailureThreshold {
+			inspector.readiness.ConsecutiveFailures++
+		}
+		if inspector.readiness.ConsecutiveFailures >=
+			inspector.readinessPolicy.FailureThreshold {
+			inspector.readiness.Ready = false
+		}
+	}
+
+	return inspector.readiness, err
+}
+
+// Liveness reports only whether this inspector remains locally open. Broker
+// connectivity and readiness hysteresis do not affect it.
+func (inspector *Inspector) Liveness() LivenessState {
+	return LivenessState{Live: !inspector.closed.Load()}
 }
 
 func inspectionRequestError(ctx context.Context, err error) error {
@@ -735,7 +1257,13 @@ func inspectionRequestError(ctx context.Context, err error) error {
 	return err
 }
 
-// Close closes the underlying Kafka client.
+// Close idempotently closes the underlying Kafka client.
 func (inspector *Inspector) Close() {
-	inspector.client.Close()
+	inspector.closeOnce.Do(func() {
+		inspector.closed.Store(true)
+		inspector.readinessMu.Lock()
+		inspector.readiness = ReadinessState{}
+		inspector.readinessMu.Unlock()
+		inspector.client.Close()
+	})
 }

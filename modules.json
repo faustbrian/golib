@@ -7780,7 +7780,8 @@
       "external_runtime_dependencies": [
         "github.com/testcontainers/testcontainers-go/modules/kafka",
         "github.com/twmb/franz-go",
-        "github.com/twmb/franz-go/pkg/kadm"
+        "github.com/twmb/franz-go/pkg/kadm",
+        "github.com/twmb/franz-go/pkg/kmsg"
       ],
       "required_services": [],
       "build_tags": [],

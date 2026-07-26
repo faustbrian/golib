@@ -145,7 +145,7 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 			client, clientErr = kgo.NewClient(options...)
 
 			return client, clientErr
-		}, func(*kgo.Client) inspectorBackend {
+		}, func(*kgo.Client, InspectorConfig) inspectorBackend {
 			return &recordingInspectorBackend{}
 		})
 		if err != nil {

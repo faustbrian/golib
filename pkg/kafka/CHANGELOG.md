@@ -81,6 +81,10 @@ All notable changes to this module are documented here.
 - bounded read-only cluster identity, controller, broker, topic durability,
   replica, beginning/end offset, and consumer-group lag inspection; inspector
   operations now apply an owned request deadline even when callers omit one
+- copied, sorted classic consumer-group member identities and current
+  assignments with explicit member and aggregate partition bounds
+- distinct dependency health, local inspector liveness, and stateful readiness
+  hysteresis that requires bounded consecutive failures and recoveries
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility
   coverage against a pinned Kafka fixture
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
@@ -101,6 +105,10 @@ All notable changes to this module are documented here.
 - `Inspector.Topics` now also requires authorization to list offsets and
   describe topic configuration; it fails closed unless effective
   `min.insync.replicas` and exact per-partition offset bounds are available
+- `Inspector.Health` remains as a compatibility alias for the explicitly named
+  `DependencyHealth`; `Readiness` returns the current decision separately from
+  the latest dependency error, and `Close` is now idempotent and immediately
+  fences every inspector operation
 - consumers now apply validated record limits before the package copies
   fetched header metadata or invokes handlers; an invalid record stops only its
   partition and preserves contiguous settlement for valid independent

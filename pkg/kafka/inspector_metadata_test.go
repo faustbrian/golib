@@ -191,6 +191,7 @@ func inspectorWithMetadataBackend(backend *metadataInspectorBackend) *Inspector 
 		requestTimeout:        time.Second,
 		maxMetadataBrokers:    10,
 		maxMetadataPartitions: 100,
+		maxGroupMembers:       10,
 	}
 }
 
@@ -906,7 +907,8 @@ func TestInspectorConsumerGroupLagBoundsAndValidatesBrokerState(t *testing.T) {
 	valid := func() kadm.DescribedGroupLags {
 		return kadm.DescribedGroupLags{
 			"group": {
-				Group: "group", State: "Stable", Protocol: "range",
+				Group: "group", State: "Stable",
+				ProtocolType: "consumer", Protocol: "range",
 				Lag: kadm.GroupLag{"events": {
 					0: {
 						Topic: "events", Partition: 0,

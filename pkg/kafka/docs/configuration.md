@@ -215,7 +215,10 @@ Inspection uses the shared connection policy plus these owned bounds:
 | --- | --- | --- |
 | `RequestTimeout` | 10 seconds | 100 milliseconds through 2 minutes; each cluster, topic, group-lag, and dependency-health call derives this deadline. |
 | `MaxMetadataBrokers` | 1,000 | 1 through 10,000; caps copied cluster brokers and every partition replica set. |
-| `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate partitions copied by one topic request. |
+| `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate topic partitions, or group lag partitions plus assignment topic and partition entries, copied by one request. |
+| `MaxGroupMembers` | 10,000 | 1 through 100,000; caps members copied across one explicit group request. |
+| `Readiness.FailureThreshold` | 3 | 1 through 100 consecutive failed dependency probes before a ready inspector becomes unready. |
+| `Readiness.RecoveryThreshold` | 2 | 1 through 100 consecutive successful dependency probes before initial or recovered readiness. |
 
 Topic and group operations separately require 1 to 64 unique explicit targets.
 Topic inspection lists metadata, log-start and high-watermark offsets, and
@@ -223,6 +226,13 @@ effective topic configuration. It fails closed when any requested target or
 selected field is missing, inconsistent, unauthorized, excessive, or
 unavailable. Construction and inspection do not authorize topic, group,
 offset, ACL, or broker mutation.
+
+Readiness state belongs to one inspector instance and is safe for concurrent
+probes. A nil or caller-canceled probe is inconclusive and does not advance
+either threshold. A completed timeout or broker/authentication failure is an
+unhealthy dependency observation. Use `ReadinessState.Ready` for the readiness
+decision; the accompanying error is diagnostic and may be non-nil while a
+previously ready instance remains inside its failure threshold.
 
 ## Ownership and logging
 

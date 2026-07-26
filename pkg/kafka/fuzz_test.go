@@ -315,3 +315,60 @@ func FuzzInspectionBrokerMetadata(f *testing.F) {
 		}
 	})
 }
+
+func FuzzInspectionConsumerGroupMetadata(f *testing.F) {
+	f.Add("group-v1", "member-1", "events", int32(0))
+	f.Add("", "", "bad topic", int32(-1))
+
+	f.Fuzz(func(
+		t *testing.T,
+		groupID string,
+		memberID string,
+		topic string,
+		partition int32,
+	) {
+		lags := inspectorGroupLags{
+			groupID: {
+				group:         groupID,
+				coordinatorID: 1,
+				state:         "Stable",
+				protocolType:  "consumer",
+				protocol:      "cooperative-sticky",
+				members: []inspectorGroupMember{{
+					memberID:          memberID,
+					clientID:          "fuzz-client",
+					clientHost:        "/fuzz-host",
+					assignmentDecoded: true,
+					assignments: map[string][]int32{
+						topic: {partition},
+					},
+				}},
+			},
+		}
+		backend := &metadataInspectorBackend{
+			recordingInspectorBackend: recordingInspectorBackend{
+				groupLags: lags,
+			},
+		}
+		inspector := inspectorWithMetadataBackend(backend)
+		states, err := inspector.ConsumerGroupLag(
+			context.Background(),
+			groupID,
+		)
+		if err != nil {
+			return
+		}
+		if len(states) != 1 ||
+			len(states[0].Members) != 1 ||
+			len(states[0].Members[0].Assignments) != 1 ||
+			states[0].Members[0].Assignments[0] != (TopicPartition{
+				Topic: topic, Partition: partition,
+			}) {
+			t.Fatalf("group inspection states = %#v", states)
+		}
+		lags[groupID].members[0].assignments[topic][0]++
+		if states[0].Members[0].Assignments[0].Partition != partition {
+			t.Fatalf("group inspection aliases broker metadata = %#v", states)
+		}
+	})
+}

@@ -75,8 +75,8 @@ or unbounded waits. Constructors start no application-owned background work.
 | Signal | Meaning | Restart policy |
 | --- | --- | --- |
 | Liveness | The process and owned runner are not irrecoverably wedged. | Broker outage alone does not fail liveness. |
-| Readiness | Configurable evidence that this instance may safely accept work. | Broker outage may degrade readiness only under explicit thresholds/hysteresis. |
-| Dependency health | Current bounded Kafka connectivity and authorization state. | Diagnostic input, not an automatic restart instruction. |
+| Readiness | Stateful dependency evidence with configurable consecutive-failure and recovery thresholds; required topic and application policy remain compositional. | Broker outage degrades readiness only after explicit hysteresis. |
+| Dependency health | Current bounded Kafka connectivity. Authorization and required-resource state require explicit inspection. | Diagnostic input, not an automatic restart instruction. |
 | Inspection | Read-only cluster, topic, group, offset, durability, and transaction facts. | Never mutates infrastructure. |
 
 ## Evidence status vocabulary

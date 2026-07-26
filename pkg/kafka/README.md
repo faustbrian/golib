@@ -215,11 +215,17 @@ context, then use bounded `Shutdown` or error-returning `Close`. Readers are
 single-use; resume with a new reader and the returned checkpoint.
 `Inspector` provides bounded read-only cluster identity, controller and broker
 visibility, topic replica/ISR/offline state, beginning and end offsets,
-effective `min.insync.replicas`, and consumer-group lag. Every operation
-derives `RequestTimeout`; response copying is capped by explicit broker and
-partition limits. Inspection never mutates Kafka infrastructure. `Health`
-currently means dependency connectivity only and must not be used as process
-liveness.
+effective `min.insync.replicas`, and classic consumer-group lag, member
+identity, and assignments. Every operation derives `RequestTimeout`; response
+copying is capped by explicit broker, group-member, and partition limits.
+Inspection never mutates Kafka infrastructure.
+
+`DependencyHealth` checks current bounded connectivity. `Readiness` applies
+configurable consecutive-failure and recovery hysteresis and returns the
+readiness decision separately from the latest dependency error. `Liveness`
+only reports whether this inspector remains locally open; it never fails merely
+because Kafka is unavailable and is not a complete process-liveness signal.
+`Health` remains an error-only compatibility alias for `DependencyHealth`.
 
 See the [inspection guide](docs/inspection.md) for authorization, partial-state,
 durability, and readiness boundaries.

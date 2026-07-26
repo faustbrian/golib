@@ -173,3 +173,59 @@ func BenchmarkInspectorTopicState(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkInspectorConsumerGroupState(b *testing.B) {
+	backend := &metadataInspectorBackend{
+		recordingInspectorBackend: recordingInspectorBackend{
+			groupLags: inspectorGroupLags{
+				"orders-v1": {
+					group:         "orders-v1",
+					coordinatorID: 1,
+					state:         "Stable",
+					protocolType:  "consumer",
+					protocol:      "cooperative-sticky",
+					members: []inspectorGroupMember{{
+						memberID:          "member-1",
+						clientID:          "orders-worker",
+						clientHost:        "/host",
+						assignmentDecoded: true,
+						assignments: map[string][]int32{
+							"orders": {0, 1, 2, 3},
+						},
+					}},
+				},
+			},
+		},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		groups, err := inspector.ConsumerGroupLag(ctx, "orders-v1")
+		if err != nil ||
+			len(groups) != 1 ||
+			len(groups[0].Members) != 1 ||
+			len(groups[0].Members[0].Assignments) != 4 {
+			b.Fatalf("ConsumerGroupLag() result/error = %#v/%v", groups, err)
+		}
+	}
+}
+
+func BenchmarkInspectorReadiness(b *testing.B) {
+	backend := &metadataInspectorBackend{}
+	inspector := inspectorWithMetadataBackend(backend)
+	inspector.readinessPolicy = ReadinessPolicy{
+		FailureThreshold:  3,
+		RecoveryThreshold: 2,
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		state, err := inspector.Readiness(ctx)
+		if err != nil || !state.DependencyHealthy {
+			b.Fatalf("Readiness() result/error = %#v/%v", state, err)
+		}
+	}
+}

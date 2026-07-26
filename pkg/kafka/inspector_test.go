@@ -244,7 +244,7 @@ func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *test
 			ClientID: "track-inspector",
 		},
 		func(...kgo.Opt) (*kgo.Client, error) { return nil, factoryErr },
-		func(*kgo.Client) inspectorBackend {
+		func(*kgo.Client, InspectorConfig) inspectorBackend {
 			t.Fatal("admin factory called after client construction failure")
 
 			return nil
@@ -333,6 +333,7 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 type recordingInspectorBackend struct {
 	topics     kadm.TopicDetails
 	lags       kadm.DescribedGroupLags
+	groupLags  inspectorGroupLags
 	lagFn      func(context.Context) (kadm.DescribedGroupLags, error)
 	topicErr   error
 	lagErr     error
@@ -355,13 +356,29 @@ func (backend *recordingInspectorBackend) ListTopics(
 func (backend *recordingInspectorBackend) Lag(
 	ctx context.Context,
 	_ ...string,
-) (kadm.DescribedGroupLags, error) {
+) (inspectorGroupLags, error) {
 	backend.lagCalls++
+	if backend.groupLags != nil {
+		return backend.groupLags, backend.lagErr
+	}
 	if backend.lagFn != nil {
-		return backend.lagFn(ctx)
+		lags, err := backend.lagFn(ctx)
+		translated, translateErr := translateDescribedGroupLags(
+			lags,
+			10_000,
+			100_000,
+		)
+
+		return translated, errors.Join(err, translateErr)
 	}
 
-	return backend.lags, backend.lagErr
+	translated, err := translateDescribedGroupLags(
+		backend.lags,
+		10_000,
+		100_000,
+	)
+
+	return translated, errors.Join(backend.lagErr, err)
 }
 
 func (backend *recordingInspectorBackend) BrokerMetadata(

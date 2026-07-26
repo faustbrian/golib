@@ -190,17 +190,29 @@ preserves replica preference order while returning sorted ISR and offline
 replica sets, leader epochs, beginning offsets, exclusive end offsets, and the
 effective `min.insync.replicas` value.
 
-All inspector operations derive `RequestTimeout` from the caller context.
+Classic consumer-group inspection returns copied coordinator, group state,
+protocol type and assignor, member identity, and current assignments alongside
+committed-offset lag. Member IDs and assignments are sorted. Duplicate member
+or instance IDs, overlapping partition ownership, non-consumer assignment
+encodings, invalid parsed metadata, and excessive members or assignment entries
+fail closed.
+The current implementation uses the classic `DescribeGroups` path and does not
+claim KIP-848 consumer-protocol group inspection.
+
+All inspector broker operations derive `RequestTimeout` from the caller context.
 Missing, inconsistent, excessive, unauthorized, or unavailable required state
 returns an error instead of a partial success. A caller therefore cannot infer
 that omitted partitions, replicas, offsets, or durability configuration are
 healthy. Multi-target typed partial results are not implemented yet.
 
-`Inspector.Health` is only current bounded broker connectivity. It is not
-process liveness and does not prove required topics, authorization, durability,
-consumer progress, transaction health, or application readiness. Applications
-must keep broker failure out of process-liveness restart policy and compose
-readiness deliberately until the package exposes the planned stateful policy.
+`Inspector.DependencyHealth` is only current bounded broker connectivity, and
+`Health` is its compatibility alias. `Readiness` keeps a previously ready
+instance ready across fewer than three consecutive failures by default and
+requires two consecutive successes for initial or recovered readiness. The
+latest dependency error remains separately visible. `Liveness` reports only
+whether the inspector is locally open; it is not complete process liveness.
+None of these signals proves required topics, authorization, durability,
+consumer progress, transaction health, or application correctness.
 
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
@@ -212,7 +224,8 @@ partition pause/resume, a static member restart using the same instance ID, and
 committed-versus-aborted transaction visibility, plus replay interruption,
 external-checkpoint resume, out-of-range rejection, cluster/controller
 visibility, and topic durability/offset inspection against Confluent Local
-7.5.0 using franz-go v1.21.5.
+7.5.0 using franz-go v1.21.5. The same fixture proves a live classic static
+member's copied identity and two-partition assignment.
 The container image is pinned by repository digest. This compatibility fixture
 does not replace testing against an application's production broker version
 and configuration.

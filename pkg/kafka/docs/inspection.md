@@ -55,19 +55,55 @@ access. Amazon MSK IAM deployments additionally require the corresponding
 `DescribeTopicDynamicConfiguration` permissions. Authorization failure is
 returned unchanged and is not interpreted as topic absence.
 
-## Deadlines and failure
+## Consumer groups
+
+`ConsumerGroupLag` accepts 1 to 64 explicit classic consumer-group names. It
+returns coordinator node ID, group state, protocol type, selected assignor,
+members sorted by member ID, member and optional static-instance identity,
+client identity and host, assignments sorted by topic and partition, committed
+offsets, log bounds, and lag.
+
+`MaxGroupMembers` bounds members copied across the call.
+`MaxMetadataPartitions` bounds combined lag partitions plus assignment topic
+and partition entries copied from broker-controlled state. Duplicate member or
+instance IDs, overlapping partition ownership, invalid text or topics, negative
+partitions, non-consumer assignment encodings, invalid parsed metadata, and
+partial responses fail closed. Member IDs, client IDs, instance IDs, and client
+hosts are diagnostic identifiers. Client hosts may disclose internal addresses
+and must not become untrusted telemetry.
+
+The current franz-go-backed path uses classic `DescribeGroups`. Apache Kafka
+4.3 also supports the KIP-848 `consumer` group protocol through a different
+description API. This package does not yet claim KIP-848 group inspection;
+such groups are unverified rather than silently reported as classic groups.
+Group description, committed offsets, and end offsets are separate requests,
+so membership or lag can change during one call.
+
+## Deadlines and health signals
 
 Every operation derives `InspectorConfig.RequestTimeout` from its caller
 context. The caller's earlier cancellation or deadline wins. Request and Kafka
 errors preserve their identities for `errors.Is` and `errors.As`; the package
 adds stable errors for invalid or excessive broker-controlled results.
 
-`Health` uses the same bound but proves only that a broker currently responds.
-It is dependency health, not process liveness. It does not prove topic
-existence, authorization, durability, group progress, producer delivery, or
-transaction safety. Keep broker outages out of liveness-triggered restart
-loops. Stateful readiness thresholds and recovery hysteresis remain pending
-package policy.
+`DependencyHealth` uses the same bound and proves only that a broker currently
+responds. `Health` is its compatibility alias. `Readiness` applies configurable
+consecutive-failure and recovery thresholds; defaults are three failures and
+two successes. Initial readiness also requires the recovery threshold. Use
+`ReadinessState.Ready` for service composition and treat the separately
+returned error as the latest dependency diagnostic. Nil and caller-canceled
+probes do not mutate state.
+
+`Liveness` reports only whether this inspector remains locally open. Kafka
+outages do not fail it. It is not complete process liveness and does not prove
+that an application runner is making progress. Closing the inspector is
+idempotent, immediately makes local liveness and readiness false, and fences
+later calls with `ErrInspectorClosed`.
+
+No health signal proves topic existence, authorization, durability, group
+progress, producer delivery, or transaction safety. Compose those requirements
+from bounded diagnostic inspection and application policy, and keep broker
+outages out of liveness-triggered restart loops.
 
 ## Primary contracts
 
@@ -77,6 +113,10 @@ package policy.
 - [Apache Kafka 4.3 monitoring](https://kafka.apache.org/43/operations/monitoring/)
   defines under-replicated partition state as ISR smaller than the complete
   replica set.
+- [Apache Kafka 4.3 consumer-group operations](https://kafka.apache.org/43/operations/basic-kafka-operations/)
+  distinguishes group state, members, assignments, committed offsets, and lag.
+- [Apache Kafka 4.3 consumer rebalance protocol](https://kafka.apache.org/43/operations/consumer-rebalance-protocol/)
+  distinguishes classic and KIP-848 consumer-protocol groups.
 - [franz-go kadm v1.18.0](https://pkg.go.dev/github.com/twmb/franz-go/pkg/kadm@v1.18.0)
   supplies the pinned metadata, offset-listing, configuration-description, and
   lag protocol implementation behind these owned models.

@@ -2,13 +2,19 @@
 
 ## Readiness
 
-`Inspector.Health` is a bounded dependency-connectivity probe. Do not wire a
-broker outage to process liveness or an automatic restart. Readiness must also
+`Inspector.DependencyHealth` is a bounded connectivity probe, and `Health` is
+its compatibility alias. `Inspector.Readiness` adds consecutive-failure and
+recovery hysteresis; use its `Ready` field rather than treating the latest
+dependency error as the readiness decision. The default keeps a ready instance
+ready through two consecutive failures and requires two consecutive successes
+for initial or recovered readiness.
+
+Do not wire a broker outage to process liveness or an automatic restart.
+`Inspector.Liveness` only reports whether that inspector is locally open.
+Complete process liveness remains application-owned. Readiness must also
 inspect every required topic and evaluate partition leadership, offline and
 under-replicated state, offsets, replication factor, and
-`min.insync.replicas` against deployment policy. Stateful readiness
-thresholds/hysteresis remain application-owned until the package exposes that
-policy.
+`min.insync.replicas` against deployment policy.
 
 Use `Inspector.Cluster` for cluster/controller/broker identity and
 `Inspector.Topics` with explicit targets for topic state. Treat any inspection
@@ -18,7 +24,9 @@ error as unknown diagnostic state rather than silently healthy.
 
 Use `Inspector.ConsumerGroupLag` with explicit group names. Alert on lag,
 oldest-unprocessed age, handler failure rate, commit failure rate, and rebalance
-frequency. Do not export record keys or values.
+frequency. Classic member assignments can identify stalled or unexpectedly
+unbalanced members, but membership and lag are a non-atomic snapshot. Do not
+export record keys or values.
 
 ## Shutdown
 

@@ -179,11 +179,22 @@ bounded shutdown result.
 `Inspector.Cluster` returns bounded copied cluster identity, controller
 visibility, and sorted broker metadata. `Inspector.Topics` returns bounded
 replica, ISR, offline-replica, leader-epoch, beginning/end offset, and effective
-`min.insync.replicas` state. `Inspector.ConsumerGroupLag` retains bounded
-committed-offset and lag inspection. Topic and group methods require explicit
+`min.insync.replicas` state. `Inspector.ConsumerGroupLag` returns bounded
+classic-group coordinator, state, protocol, member identity, copied assignment,
+committed-offset, and lag inspection. Members are sorted by member ID and their
+assignments by topic and partition. Topic and group methods require explicit
 target lists, and every operation derives `InspectorConfig.RequestTimeout`.
-`Health` is a bounded dependency-connectivity probe, not liveness or a complete
-readiness decision.
+
+`DependencyHealth` is current bounded connectivity; `Health` is its
+compatibility alias. `Readiness` applies configured consecutive-failure and
+recovery thresholds. Its `ReadinessState.Ready` field is the composition
+decision, while the returned error retains the latest dependency failure for
+diagnostics. Nil or canceled probe contexts do not mutate readiness. Initial
+readiness requires the recovery threshold, and a ready inspector remains ready
+until the failure threshold is reached. `Liveness` reports only whether the
+inspector remains locally open, never Kafka availability. `Close` is
+idempotent, makes liveness and readiness false immediately, and fences later
+operations with `ErrInspectorClosed`.
 
 `ProducerConfig.CompressionPreferences` is an ordered, constructor-copied list
 of `CompressionCodec` values. An empty list defaults to Snappy followed by no

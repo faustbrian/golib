@@ -1312,8 +1312,65 @@ func consumeMembershipValues(
 			t.Fatalf("consume membership fixture: %v", ctx.Err())
 		}
 	}
+	assignment, assignmentErr := consumer.Assignment()
+	if assignmentErr != nil {
+		t.Fatalf("snapshot active static assignment: %v", assignmentErr)
+	}
+	assertActiveGroupAssignment(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		groupID,
+		"static-member-01",
+		assignment.Partitions,
+	)
 
 	return values
+}
+
+func assertActiveGroupAssignment(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	groupID string,
+	clientID string,
+	instanceID string,
+	assignments []kafka.TopicPartition,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-active-group-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct active group inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	groups, err := inspector.ConsumerGroupLag(ctx, groupID)
+	if err != nil {
+		t.Fatalf("inspect active group assignment: %v", err)
+	}
+	if len(groups) != 1 ||
+		groups[0].Group != groupID ||
+		groups[0].CoordinatorID < 0 ||
+		groups[0].State != "Stable" ||
+		groups[0].ProtocolType != "consumer" ||
+		len(groups[0].Members) != 1 {
+		t.Fatalf("active group state = %#v", groups)
+	}
+	member := groups[0].Members[0]
+	if member.MemberID == "" ||
+		!member.InstanceIDVisible ||
+		member.InstanceID != instanceID ||
+		member.ClientID != clientID ||
+		member.ClientHost == "" ||
+		!slices.Equal(member.Assignments, assignments) {
+		t.Fatalf("active group member = %#v", member)
+	}
 }
 
 func provePartitionSettlement(
