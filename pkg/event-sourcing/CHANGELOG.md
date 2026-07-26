@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add dedicated security, privacy, compliance, troubleshooting, glossary, and
+  release-note guidance with explicit package, application, and deployment
+  responsibility boundaries.
 - Add an isolated equivalent-work competitor benchmark harness pinned to the
   latest EventHorizon, Hallgren Eventsourcing, and TheFabric Eventsourcing
   releases, with functional outcome checks and reproducibility guidance.
