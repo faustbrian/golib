@@ -466,9 +466,22 @@ set -eu
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(invocation), "-modfile=") ||
-		strings.Contains(string(invocation), "-mod=readonly") {
-		t.Fatalf("documentation inherited unsupported module flags: %s", invocation)
+	documentationLines := strings.SplitN(string(invocation), "\n", 2)
+	for _, required := range []string{"-modfile=", "-mod=readonly"} {
+		if !strings.Contains(documentationLines[0], required) {
+			t.Fatalf(
+				"documentation environment lacks %q: %s",
+				required,
+				invocation,
+			)
+		}
+		if strings.Contains(documentationLines[1], required) {
+			t.Fatalf(
+				"documentation arguments contain %q: %s",
+				required,
+				invocation,
+			)
+		}
 	}
 	tidy := exec.Command(script, "mod", "tidy", "-diff")
 	tidy.Dir = module

@@ -49,9 +49,9 @@ documented in each module's changelog.
   CI-equivalent clean module environment exercises fixture-local modules.
 - Refresh all stale owned-module checksums against the final consolidated
   source archives through the canonical isolated tidy command.
-- Pass isolated module flags to supported outer Go commands without leaking a
-  temporary modfile into nested test processes or unsupported documentation
-  and versioned-tool commands.
+- Pass isolated module flags to supported outer Go commands and documentation
+  through command-local environment without leaking a temporary modfile into
+  nested test processes or versioned-tool commands.
 - Install versioned analysis tools outside the target module, then execute
   them against its isolated module graph so nested modules are linted instead
   of being misreported as empty.

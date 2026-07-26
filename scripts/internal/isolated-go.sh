@@ -127,7 +127,8 @@ case "${1:-}" in
             "-modfile=${modfile}" -mod=readonly "$@"
         ;;
     doc)
-        GOWORK=off GOFLAGS="${clean_flags}" "${real_go}" "$@"
+        command_flags="${clean_flags:+${clean_flags} }-modfile=${modfile} -mod=readonly"
+        GOWORK=off GOFLAGS="${command_flags}" "${real_go}" "$@"
         ;;
     mod)
         command_flags="${clean_flags:+${clean_flags} }-modfile=${modfile}"
