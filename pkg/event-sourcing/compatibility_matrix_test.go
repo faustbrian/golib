@@ -200,6 +200,28 @@ func TestQueueGuideMatchesCompatibilityEvidence(t *testing.T) {
 	}
 }
 
+func TestReleaseAuditPublishesFindingsAndResidualRisks(t *testing.T) {
+	t.Parallel()
+
+	readme := readContractFile(t, "README.md")
+	if !strings.Contains(readme, "[Release hardening findings](docs/release-audit.md)") {
+		t.Fatal("README does not link the release hardening findings")
+	}
+	audit := readContractFile(t, "docs/release-audit.md")
+	for _, required := range []string{
+		"# Release hardening findings",
+		"## Findings",
+		"Severity",
+		"Disposition",
+		"## Residual risks",
+		"## Evidence boundary",
+	} {
+		if !strings.Contains(audit, required) {
+			t.Fatalf("release audit is missing %q", required)
+		}
+	}
+}
+
 func compatibilityInventory(
 	t *testing.T,
 	matrix string,

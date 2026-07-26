@@ -41,6 +41,7 @@ durable adapters.
 - [Troubleshooting](docs/troubleshooting.md)
 - [Glossary](docs/glossary.md)
 - [Release notes and compatibility](docs/release-notes.md)
+- [Release hardening findings](docs/release-audit.md)
 - [Dispatcher and consumer semantics](docs/dispatch.md)
 - [Code generation decision](docs/code-generation.md)
 - [Anti-corruption translation](docs/translation.md)
