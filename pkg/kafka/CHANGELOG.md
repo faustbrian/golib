@@ -46,6 +46,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- consumer runners are now single-owner and reject concurrent execution;
+  `Consumer.Shutdown` fences new work, waits for in-flight handling, preserves
+  static membership, and supports bounded retry after an incomplete shutdown;
+  `Consumer.Close` now returns the bounded shutdown error
 - consumers now apply validated record limits before the package copies
   fetched header metadata or invokes handlers; an invalid record stops only its
   partition and preserves contiguous settlement for valid independent

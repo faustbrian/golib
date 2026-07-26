@@ -79,6 +79,12 @@ handler.
 ordered eager-to-cooperative migration pair without exposing franz-go
 balancers. Optional validated `InstanceID` and `Rack` values select static
 membership and rack-aware fetching respectively.
+`Consumer.Run` and `Consumer.RunOnce` are mutually exclusive. `Shutdown`
+atomically fences new runs, waits for an active runner, explicitly leaves a
+dynamic group membership, and then closes the client. A deadline or leave
+failure returns `ErrConsumerShutdownIncomplete` and leaves shutdown retriable.
+Static membership deliberately skips the leave request. `Close` applies the
+configured `ConsumerConfig.ShutdownTimeout` and returns its shutdown error.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

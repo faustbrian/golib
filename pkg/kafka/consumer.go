@@ -4,24 +4,34 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var (
-	ErrGroupIDRequired       = errors.New("kafka: consumer group ID is required")
-	ErrGroupIDTooLarge       = errors.New("kafka: consumer group ID exceeds configured limit")
-	ErrInvalidGroupID        = errors.New("kafka: consumer group ID is invalid")
-	ErrInvalidInstanceID     = errors.New("kafka: consumer instance ID is invalid")
-	ErrInvalidRack           = errors.New("kafka: consumer rack is invalid")
-	ErrInvalidBalancePolicy  = errors.New("kafka: consumer balance policy is invalid")
-	ErrTopicsRequired        = errors.New("kafka: at least one topic is required")
-	ErrTooManyTopics         = errors.New("kafka: topic count exceeds configured limit")
-	ErrDuplicateTopic        = errors.New("kafka: topic is duplicated")
-	ErrInvalidOffsetPolicy   = errors.New("kafka: consumer offset policy is invalid")
-	ErrHandlerRequired       = errors.New("kafka: consumer handler is required")
-	ErrHandlerPanic          = errors.New("kafka: consumer handler panicked")
+	ErrGroupIDRequired        = errors.New("kafka: consumer group ID is required")
+	ErrGroupIDTooLarge        = errors.New("kafka: consumer group ID exceeds configured limit")
+	ErrInvalidGroupID         = errors.New("kafka: consumer group ID is invalid")
+	ErrInvalidInstanceID      = errors.New("kafka: consumer instance ID is invalid")
+	ErrInvalidRack            = errors.New("kafka: consumer rack is invalid")
+	ErrInvalidBalancePolicy   = errors.New("kafka: consumer balance policy is invalid")
+	ErrTopicsRequired         = errors.New("kafka: at least one topic is required")
+	ErrTooManyTopics          = errors.New("kafka: topic count exceeds configured limit")
+	ErrDuplicateTopic         = errors.New("kafka: topic is duplicated")
+	ErrInvalidOffsetPolicy    = errors.New("kafka: consumer offset policy is invalid")
+	ErrHandlerRequired        = errors.New("kafka: consumer handler is required")
+	ErrHandlerPanic           = errors.New("kafka: consumer handler panicked")
+	ErrConsumerBusy           = errors.New("kafka: consumer runner is already active")
+	ErrConsumerClosing        = errors.New("kafka: consumer is shutting down")
+	ErrConsumerClosed         = errors.New("kafka: consumer is closed")
+	ErrConsumerShutdownActive = errors.New(
+		"kafka: consumer shutdown is already active",
+	)
+	ErrConsumerShutdownIncomplete = errors.New(
+		"kafka: consumer shutdown is incomplete",
+	)
 	ErrInvalidConsumerConfig = errors.New(
 		"kafka: consumer configuration is outside bounded limits",
 	)
@@ -76,6 +86,7 @@ type ConsumerConfig struct {
 	HeartbeatInterval time.Duration
 	HandlerTimeout    time.Duration
 	CommitTimeout     time.Duration
+	ShutdownTimeout   time.Duration
 	DialTimeout       time.Duration
 	Security          ClientSecurity
 }
@@ -105,18 +116,30 @@ type consumerBackend interface {
 	PollRecords(context.Context, int) kgo.Fetches
 	CommitRecords(context.Context, ...*kgo.Record) error
 	AllowRebalance()
+	LeaveGroupContext(context.Context) error
 	Close()
 }
 
 type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 
-// Consumer processes records with explicit post-handler offset commits.
+// Consumer processes records with explicit post-handler offset commits. One
+// Run or RunOnce call may be active at a time. Its methods are safe for
+// concurrent lifecycle coordination.
 type Consumer struct {
-	client         consumerBackend
-	limits         MessageLimits
-	maxPollRecords int
-	handlerTimeout time.Duration
-	commitTimeout  time.Duration
+	client           consumerBackend
+	limits           MessageLimits
+	maxPollRecords   int
+	handlerTimeout   time.Duration
+	commitTimeout    time.Duration
+	shutdownTimeout  time.Duration
+	staticMembership bool
+
+	lifecycleMu    sync.Mutex
+	running        bool
+	runDone        chan struct{}
+	closing        bool
+	closed         bool
+	shutdownActive bool
 }
 
 // NewConsumer constructs a group consumer with automatic commits disabled and
@@ -173,11 +196,13 @@ func newConsumer(
 	}
 
 	return &Consumer{
-		client:         client,
-		limits:         config.Limits,
-		maxPollRecords: config.MaxPollRecords,
-		handlerTimeout: config.HandlerTimeout,
-		commitTimeout:  config.CommitTimeout,
+		client:           client,
+		limits:           config.Limits,
+		maxPollRecords:   config.MaxPollRecords,
+		handlerTimeout:   config.HandlerTimeout,
+		commitTimeout:    config.CommitTimeout,
+		shutdownTimeout:  config.ShutdownTimeout,
+		staticMembership: config.InstanceID != "",
 	}, nil
 }
 
@@ -281,6 +306,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.CommitTimeout == 0 {
 		config.CommitTimeout = 10 * time.Second
 	}
+	if config.ShutdownTimeout == 0 {
+		config.ShutdownTimeout = 30 * time.Second
+	}
 	if config.DialTimeout == 0 {
 		config.DialTimeout = 10 * time.Second
 	}
@@ -304,6 +332,8 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.HandlerTimeout > 30*time.Minute ||
 		config.CommitTimeout < 100*time.Millisecond ||
 		config.CommitTimeout > 2*time.Minute ||
+		config.ShutdownTimeout < 100*time.Millisecond ||
+		config.ShutdownTimeout > 15*time.Minute ||
 		config.DialTimeout < 100*time.Millisecond ||
 		config.DialTimeout > 2*time.Minute {
 		return ConsumerConfig{}, ErrInvalidConsumerConfig
@@ -320,11 +350,22 @@ func validOptionalConsumerIdentity(value string) bool {
 // RunOnce polls at most the configured record limit and processes records in
 // fetch order. Each partition stops at its first handler failure; successful
 // contiguous prefixes from that partition and independent partitions are
-// committed before the first handler error is returned.
+// committed before the first handler error is returned. It returns
+// ErrConsumerBusy when another runner owns the consumer and a lifecycle error
+// once shutdown begins.
 func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollResult, error) {
 	if handler == nil {
 		return PollResult{}, ErrHandlerRequired
 	}
+	if err := consumer.beginRun(); err != nil {
+		return PollResult{}, err
+	}
+	defer consumer.endRun()
+
+	return consumer.runOnce(ctx, handler)
+}
+
+func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollResult, error) {
 
 	fetches := consumer.client.PollRecords(ctx, consumer.maxPollRecords)
 	defer consumer.client.AllowRebalance()
@@ -403,14 +444,20 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 }
 
 // Run continuously executes bounded poll cycles until cancellation or the
-// first processing failure. Context cancellation is a clean shutdown.
+// first processing failure. Context cancellation is a clean runner stop. It
+// returns ErrConsumerBusy when another runner owns the consumer and a lifecycle
+// error once shutdown begins.
 func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 	if handler == nil {
 		return ErrHandlerRequired
 	}
+	if err := consumer.beginRun(); err != nil {
+		return err
+	}
+	defer consumer.endRun()
 
 	for ctx.Err() == nil {
-		if _, err := consumer.RunOnce(ctx, handler); err != nil {
+		if _, err := consumer.runOnce(ctx, handler); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -420,6 +467,34 @@ func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 	}
 
 	return nil
+}
+
+func (consumer *Consumer) beginRun() error {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	if consumer.closed {
+		return ErrConsumerClosed
+	}
+	if consumer.closing {
+		return ErrConsumerClosing
+	}
+	if consumer.running {
+		return ErrConsumerBusy
+	}
+	consumer.running = true
+	consumer.runDone = make(chan struct{})
+
+	return nil
+}
+
+func (consumer *Consumer) endRun() {
+	consumer.lifecycleMu.Lock()
+	done := consumer.runDone
+	consumer.runDone = nil
+	consumer.running = false
+	consumer.lifecycleMu.Unlock()
+	close(done)
 }
 
 func callHandler(
@@ -477,7 +552,61 @@ func consumedMessageWithinLimits(
 	return message, nil
 }
 
-// Close leaves the consumer group and closes the underlying Kafka client.
-func (consumer *Consumer) Close() {
+// Shutdown fences new runs, waits for the active runner, and closes the Kafka
+// client. Dynamic members leave the group before close; static members preserve
+// their membership window. A context or leave failure is joined with
+// ErrConsumerShutdownIncomplete and leaves the consumer fenced so Shutdown can
+// be retried. Concurrent Shutdown calls return ErrConsumerShutdownActive.
+func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
+	consumer.lifecycleMu.Lock()
+	if consumer.closed {
+		consumer.lifecycleMu.Unlock()
+
+		return nil
+	}
+	if consumer.shutdownActive {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrConsumerShutdownActive
+	}
+	consumer.closing = true
+	consumer.shutdownActive = true
+	done := consumer.runDone
+	staticMembership := consumer.staticMembership
+	consumer.lifecycleMu.Unlock()
+
+	complete := false
+	defer func() {
+		consumer.lifecycleMu.Lock()
+		consumer.shutdownActive = false
+		if complete {
+			consumer.closed = true
+		}
+		consumer.lifecycleMu.Unlock()
+	}()
+
+	if done != nil {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return errors.Join(ErrConsumerShutdownIncomplete, ctx.Err())
+		}
+	}
+	if !staticMembership {
+		if leaveErr := consumer.client.LeaveGroupContext(ctx); leaveErr != nil {
+			return errors.Join(ErrConsumerShutdownIncomplete, leaveErr)
+		}
+	}
 	consumer.client.Close()
+	complete = true
+
+	return nil
+}
+
+// Close performs a bounded graceful shutdown using the configured timeout.
+func (consumer *Consumer) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), consumer.shutdownTimeout)
+	defer cancel()
+
+	return consumer.Shutdown(ctx)
 }

@@ -111,14 +111,14 @@ consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
 if err != nil {
     return err
 }
-defer consumer.Close()
 
-return consumer.Run(ctx, kafka.HandlerFunc(func(
+runErr := consumer.Run(ctx, kafka.HandlerFunc(func(
     ctx context.Context,
     message kafka.ConsumedMessage,
 ) error {
     return durableInbox.Insert(ctx, message.Value)
 }))
+return errors.Join(runErr, consumer.Close())
 ```
 
 Offsets are committed only after handler success. Each partition stops at its
@@ -132,6 +132,10 @@ Consumer fetches default to at most four concurrent broker requests, 50 MiB per
 request, and 1 MiB per partition. All three limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a
 consumer can make progress; broker topic limits must remain compatible.
+Only one `Run` or `RunOnce` call may be active. Graceful shutdown fences new
+runs, waits for the active runner, and leaves dynamic group membership before
+closing. Cancel the runner context first, then call `Shutdown` with a bounded
+context or handle the error returned by `Close`.
 
 New groups default to cooperative-sticky balancing. Existing eager groups must
 use `BalanceEagerToCooperative` for one complete rolling deployment before all

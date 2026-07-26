@@ -57,7 +57,7 @@ The following local evidence was executed on Darwin arm64 with Go 1.26.5:
 
 This baseline proves only the behavior already present in the draft.
 
-The current tree subsequently killed all 950 viable mutants with 100% test
+The current tree subsequently killed all 965 viable mutants with 100% test
 efficacy and mutator coverage. That result proves the deterministic package
 assertions detect the generated mutations; it does not substitute for the
 secured-broker and compatibility evidence still listed above.

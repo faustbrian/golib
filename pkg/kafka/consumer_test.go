@@ -51,6 +51,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.HeartbeatInterval != 3*time.Second ||
 		config.HandlerTimeout != 30*time.Second ||
 		config.CommitTimeout != 10*time.Second ||
+		config.ShutdownTimeout != 30*time.Second ||
 		config.DialTimeout != 10*time.Second {
 		t.Fatalf("unexpected defaults: %#v", config)
 	}
@@ -373,6 +374,8 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "excessive handler timeout", change: func(config *ConsumerConfig) { config.HandlerTimeout = 31 * time.Minute }},
 		{name: "short commit timeout", change: func(config *ConsumerConfig) { config.CommitTimeout = 99 * time.Millisecond }},
 		{name: "excessive commit timeout", change: func(config *ConsumerConfig) { config.CommitTimeout = 3 * time.Minute }},
+		{name: "short shutdown timeout", change: func(config *ConsumerConfig) { config.ShutdownTimeout = 99 * time.Millisecond }},
+		{name: "excessive shutdown timeout", change: func(config *ConsumerConfig) { config.ShutdownTimeout = 16 * time.Minute }},
 		{name: "short dial timeout", change: func(config *ConsumerConfig) { config.DialTimeout = 99 * time.Millisecond }},
 		{name: "excessive dial timeout", change: func(config *ConsumerConfig) { config.DialTimeout = 3 * time.Minute }},
 	}
@@ -571,6 +574,191 @@ func TestConsumerRunOnceRejectsMissingHandler(t *testing.T) {
 	if !errors.Is(err, ErrHandlerRequired) || result != (PollResult{}) ||
 		backend.pollCalls != 0 || backend.allowed != 0 {
 		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+}
+
+func TestConsumerShutdownFencesRunsAndCanResumeAfterTimeout(t *testing.T) {
+	t.Parallel()
+
+	handlerEntered := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	backend := &recordingConsumerBackend{
+		fetches: recordFetches(&kgo.Record{Topic: "events", Offset: 1}),
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	runDone := make(chan error, 1)
+	go func() {
+		_, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			close(handlerEntered)
+			<-releaseHandler
+
+			return nil
+		}))
+		runDone <- err
+	}()
+	<-handlerEntered
+
+	if err := consumer.Run(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("concurrent handler called")
+
+		return nil
+	})); !errors.Is(err, ErrConsumerBusy) {
+		t.Fatalf("concurrent Run() error = %v, want %v", err, ErrConsumerBusy)
+	}
+
+	shutdownCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := consumer.Shutdown(shutdownCtx)
+	if !errors.Is(err, ErrConsumerShutdownIncomplete) ||
+		!errors.Is(err, context.Canceled) ||
+		backend.leaveCalls != 0 || backend.closed != 0 {
+		t.Fatalf("Shutdown() error/backend = %v/%#v", err, backend)
+	}
+	if _, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("handler called after shutdown fenced new runs")
+
+		return nil
+	})); !errors.Is(err, ErrConsumerClosing) {
+		t.Fatalf("fenced RunOnce() error = %v, want %v", err, ErrConsumerClosing)
+	}
+
+	close(releaseHandler)
+	if err := <-runDone; err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if err := consumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry Shutdown() error = %v", err)
+	}
+	if err := consumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("second Shutdown() error = %v", err)
+	}
+	if backend.leaveCalls != 1 || backend.closed != 1 {
+		t.Fatalf("closed backend = %#v", backend)
+	}
+	if _, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("handler called after close")
+
+		return nil
+	})); !errors.Is(err, ErrConsumerClosed) {
+		t.Fatalf("closed RunOnce() error = %v, want %v", err, ErrConsumerClosed)
+	}
+}
+
+func TestConsumerShutdownRejectsConcurrentShutdown(t *testing.T) {
+	t.Parallel()
+
+	backend := &blockingLeaveConsumerBackend{
+		recordingConsumerBackend: &recordingConsumerBackend{},
+		leaveStarted:             make(chan struct{}),
+		releaseLeave:             make(chan struct{}),
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	shutdownDone := make(chan error, 1)
+	go func() {
+		shutdownDone <- consumer.Shutdown(context.Background())
+	}()
+	<-backend.leaveStarted
+
+	if err := consumer.Shutdown(context.Background()); !errors.Is(err, ErrConsumerShutdownActive) {
+		t.Fatalf("concurrent Shutdown() error = %v, want %v", err, ErrConsumerShutdownActive)
+	}
+	close(backend.releaseLeave)
+	if err := <-shutdownDone; err != nil {
+		t.Fatalf("first Shutdown() error = %v", err)
+	}
+}
+
+func TestConsumerShutdownCanRetryLeaveFailure(t *testing.T) {
+	t.Parallel()
+
+	leaveErr := errors.New("leave failed")
+	backend := &recordingConsumerBackend{leaveErr: leaveErr}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+
+	err := consumer.Shutdown(context.Background())
+	if !errors.Is(err, ErrConsumerShutdownIncomplete) ||
+		!errors.Is(err, leaveErr) || backend.leaveCalls != 1 || backend.closed != 0 {
+		t.Fatalf("first Shutdown() error/backend = %v/%#v", err, backend)
+	}
+	backend.leaveErr = nil
+	if err := consumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry Shutdown() error = %v", err)
+	}
+	if backend.leaveCalls != 2 || backend.closed != 1 {
+		t.Fatalf("retried backend = %#v", backend)
+	}
+}
+
+func TestConsumerShutdownPreservesStaticMembership(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.staticMembership = true
+
+	if err := consumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	if backend.leaveCalls != 0 || backend.closed != 1 {
+		t.Fatalf("backend = %#v", backend)
+	}
+}
+
+func TestConsumerCloseUsesConfiguredShutdown(t *testing.T) {
+	t.Parallel()
+
+	handlerEntered := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	backend := &recordingConsumerBackend{
+		fetches: recordFetches(&kgo.Record{Topic: "events", Offset: 1}),
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.shutdownTimeout = time.Nanosecond
+	runDone := make(chan error, 1)
+	go func() {
+		_, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			close(handlerEntered)
+			<-releaseHandler
+
+			return nil
+		}))
+		runDone <- err
+	}()
+	<-handlerEntered
+
+	err := consumer.Close()
+	if !errors.Is(err, ErrConsumerShutdownIncomplete) ||
+		!errors.Is(err, context.DeadlineExceeded) ||
+		backend.leaveCalls != 0 || backend.closed != 0 {
+		t.Fatalf("timed Close() error/backend = %v/%#v", err, backend)
+	}
+	close(releaseHandler)
+	if err := <-runDone; err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if err := consumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry Shutdown() error = %v", err)
+	}
+	if err := consumer.Close(); err != nil {
+		t.Fatalf("second Close() error = %v", err)
+	}
+	if backend.leaveCalls != 1 || backend.closed != 1 {
+		t.Fatalf("backend = %#v", backend)
 	}
 }
 
@@ -789,11 +977,12 @@ func consumerWithBackend(
 	commitTimeout time.Duration,
 ) *Consumer {
 	return &Consumer{
-		client:         backend,
-		limits:         DefaultMessageLimits(),
-		maxPollRecords: maxPollRecords,
-		handlerTimeout: handlerTimeout,
-		commitTimeout:  commitTimeout,
+		client:          backend,
+		limits:          DefaultMessageLimits(),
+		maxPollRecords:  maxPollRecords,
+		handlerTimeout:  handlerTimeout,
+		commitTimeout:   commitTimeout,
+		shutdownTimeout: time.Second,
 	}
 }
 
@@ -817,6 +1006,8 @@ type recordingConsumerBackend struct {
 	pollCalls     int
 	allowed       int
 	closed        int
+	leaveCalls    int
+	leaveErr      error
 	poll          func(context.Context, int) kgo.Fetches
 }
 
@@ -846,6 +1037,25 @@ func (backend *recordingConsumerBackend) AllowRebalance() {
 	backend.allowed++
 }
 
+func (backend *recordingConsumerBackend) LeaveGroupContext(context.Context) error {
+	backend.leaveCalls++
+
+	return backend.leaveErr
+}
+
 func (backend *recordingConsumerBackend) Close() {
 	backend.closed++
+}
+
+type blockingLeaveConsumerBackend struct {
+	*recordingConsumerBackend
+	leaveStarted chan struct{}
+	releaseLeave chan struct{}
+}
+
+func (backend *blockingLeaveConsumerBackend) LeaveGroupContext(context.Context) error {
+	close(backend.leaveStarted)
+	<-backend.releaseLeave
+
+	return nil
 }

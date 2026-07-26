@@ -18,7 +18,8 @@ header key, individual header value, and aggregate header bound before the
 package copies header metadata or runs a handler.
 
 Client and group IDs must be valid UTF-8 without whitespace padding or control
-characters and are limited to 255 bytes.
+characters and are limited to 255 bytes. `ShutdownTimeout` defaults to 30
+seconds and is bounded from 100 milliseconds through 15 minutes.
 
 `InstanceID` and `Rack` are optional UTF-8 identifiers of at most 255 bytes.
 Whitespace padding, control characters, invalid UTF-8, and oversized values
@@ -78,6 +79,30 @@ Handlers must be idempotent and honor their context deadline. Retain a consumed
 record before storing its bytes beyond the handler call. The current runner is
 single-threaded and does not yet expose pause, drain, batch handling, or bounded
 cross-partition worker concurrency; these remain pre-v1 completion work.
+
+## Runner and shutdown lifecycle
+
+One consumer permits one active `Run` or `RunOnce` call. A concurrent runner
+fails with `ErrConsumerBusy`; callbacks are never concurrent on that consumer.
+Cancel the runner context to stop polling. `Shutdown` then fences new runners,
+waits for the active runner to finish processing and settlement, and closes the
+client without calling franz-go `Close` while a blocked rebalance poll remains
+active.
+
+For dynamic members, shutdown performs a context-bounded group leave before
+closing the client. Static members intentionally skip that leave so a restart
+with the same instance ID retains Kafka's static-membership window. A shutdown
+deadline, cancellation, or failed leave returns
+`ErrConsumerShutdownIncomplete`, keeps new runs fenced, and leaves shutdown
+retriable. It does not claim that an ambiguous broker leave failed. `Close`
+uses `ConsumerConfig.ShutdownTimeout`; applications must handle its error.
+Concurrent shutdown calls fail with `ErrConsumerShutdownActive`, and completed
+shutdown is idempotent.
+
+Shutdown never cancels a handler on its own. The application owns the runner
+context and must arrange for its handlers to stop. A handler, commit, or
+rebalance outcome interrupted before completion can be redelivered; an
+application side effect may already have occurred.
 
 ## Ownership boundaries
 

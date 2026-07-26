@@ -105,6 +105,8 @@ options.
 | `HeartbeatInterval` | 3 seconds | 100 milliseconds or more and strictly less than session timeout. |
 | `HandlerTimeout` | 30 seconds | 1 second to 30 minutes. |
 | `CommitTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
+| `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
+| `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 
 Automatic commits remain disabled and cannot be enabled through configuration.
 See the [consumer guide](consumer.md) for settlement and rollout semantics.
