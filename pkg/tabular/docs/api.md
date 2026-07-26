@@ -14,8 +14,10 @@ task and records compatibility-sensitive semantics.
 
 ## Delimited text
 
-- `DelimitedConfig`: delimiter, comments, quote policy, row shape, header, and
-  normalization.
+- `DelimitedConfig`: delimiter, comments, quote policy, row shape, header,
+  normalization, and explicit logical-record and field byte limits.
+- Zero record and field limits preserve unbounded legacy behavior; untrusted
+  sources require explicit positive limits.
 - `NewCSVReader`: always selects comma, regardless of `Delimiter`.
 - `NewDelimitedReader`: requires a valid explicit delimiter.
 - `DelimitedReader.Header` and `Read`: cached header and streaming rows.

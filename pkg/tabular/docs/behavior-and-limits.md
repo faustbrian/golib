@@ -22,6 +22,16 @@ size. Applications processing untrusted files should combine package limits
 with job-level memory and execution limits. See
 [performance and memory verification](performance.md).
 
+Delimited record and field limits are opt-in so zero-valued configurations
+preserve the package's existing behavior and throughput. Applications reading
+untrusted delimited sources must set both limits explicitly. Record limits
+count the bytes presented to the parser, including delimiters and line endings.
+Quoted multiline fields remain part of one logical record. The reader stops
+the raw stream before the CSV parser can allocate past the configured record
+bound. Field limits count parsed UTF-8 bytes before optional normalization.
+Both failures use `ErrorLimitExceeded`; row and field coordinates are one-based
+when available.
+
 Row normalization is ordered: trim whitespace, then replace empty values.
 Header normalization removes a UTF-8 BOM from field one, trims, changes case,
 applies exact replacements, then validates empty and duplicate names.

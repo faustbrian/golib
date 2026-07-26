@@ -24,6 +24,8 @@ go get github.com/faustbrian/golib/pkg/tabular
 ```go
 reader, err := tabular.NewDelimitedReader(source, tabular.DelimitedConfig{
     Delimiter: ';',
+    MaxRecordBytes: 64 << 10,
+    MaxFieldBytes:  16 << 10,
     Header: &tabular.HeaderConfig{
         TrimSpace:        true,
         Case:             tabular.HeaderCaseLower,

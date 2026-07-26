@@ -21,6 +21,10 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added opt-in pre-allocation logical-record limits and parsed-field limits to
+  `DelimitedConfig`, including quoted multiline records and stable
+  `ErrorLimitExceeded` classification. Zero values preserve the existing
+  unbounded behavior.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and
