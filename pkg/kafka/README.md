@@ -16,7 +16,7 @@ once, and does not own topic creation or broker configuration.
 - Go 1.26.5 or later
 - an explicitly tested Apache Kafka version; franz-go protocol support alone is
   not a package compatibility claim
-- TLS 1.2 or later when TLS is configured
+- verified TLS 1.2 or later by default
 - durable, idempotent consumer side effects
 
 ## Producer
@@ -38,7 +38,7 @@ if err := config.Validate(); err != nil {
 producer, err := kafka.NewProducer(kafka.ProducerConfig{
     Brokers:               []string{"kafka.internal:9093"},
     ClientID:              "track-outbox",
-    Security:              kafka.ClientSecurity{TLS: tlsConfig},
+    Security:              kafka.ClientSecurity{}, // TLS 1.2+, system roots
     CompressionPreferences: []kafka.CompressionCodec{
         kafka.CompressionZstd,
         kafka.CompressionSnappy,
@@ -71,6 +71,13 @@ Call `Shutdown` with a bounded context for graceful drain and close. A failed
 drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` remains
 the unbounded compatibility operation.
+
+Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
+material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's
+bounded credential-provider contracts; no franz-go authentication type appears
+in the public API. Unencrypted connections require the visibly development-only
+`DevelopmentPlaintextSecurity()` policy and cannot be combined with
+authentication.
 
 ## Consumer
 

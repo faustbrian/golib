@@ -9,23 +9,22 @@ the current tree on 2026-07-26, not intended behavior.
 
 | Area | Current executable behavior | Required disposition |
 | --- | --- | --- |
-| Configuration | Separate producer, consumer, replay, and inspector structs validate some identities, durations, and byte limits. TLS configuration is cloned. | Replace the exported franz-go SASL mechanism, add explicit policy types, redacted snapshots, defensive ownership, allowlists/resolvers, version policy, and complete incompatible-option validation. |
+| Configuration | Separate producer, consumer, replay, and inspector structs validate some identities, durations, and byte limits. Security configuration now owns explicit transport/authentication policy, redacted formatting, and defensive copies. | Add allowlists/resolvers, protocol version policy, and complete incompatible-option validation across every concern. |
 | Records | Stable producer and consumed-record models now expose timestamp type and leader epoch, copy producer input, and provide `Retain` for borrowed consumed bytes. | Add explicit partition selection and bound diagnostic copies separately from transport limits. |
 | Producer | Synchronous single, synchronous batch, and bounded asynchronous methods return per-record delivery metadata. Keyed production is the safe default; delivery errors are redacted and classified; drain, abort, and shutdown are explicit. | Add byte-level client buffering, explicit partitions, ambiguity/throttling/fatal categories, observer callbacks, and real-broker failure and shutdown evidence. |
 | Transactions | A producer callback can begin, synchronously produce, commit, or abort. Calls are serialized and callback lifetime is fenced. | Add typed fatal, abortable, fenced, and unknown outcomes; source offsets; read-committed consume-transform-produce; explicit ownership; bounded close; and real fencing/recovery evidence. |
 | Consumer groups | A classic cooperative-sticky group polls up to a record count, runs one record at a time, then commits the complete poll. Rebalances are blocked during the poll. | Replace poll-wide settlement with per-partition contiguous settlement, explicit generation ownership, assignment/revocation/loss handling, record and batch handlers, parallel partitions, pause/drain/shutdown, retry and dead-letter strategies, lifecycle observations, and bounded fetched bytes per partition. |
 | Replay | Explicit partition offsets are directly assigned and checked for consecutive offsets. Replay is serialized and does not join a group. | Add broker-validated dry-run plans, timestamp planning, external checkpoints, multi-partition concurrency, exact incomplete reports, retention/truncation/compaction distinctions, side-effect opt-in, cancellation, and bounded shutdown. |
 | Inspection and health | Topic partition counts and group lag are read through kadm; ping is the only health signal. | Add cluster/controller, beginning/end offsets, group assignments, topic durability configuration, offline/under-replicated state, typed partial errors, and distinct liveness/readiness/dependency/diagnostic policy. |
-| Security | Verified TLS 1.2 minimum is enforced when TLS is supplied. Any franz-go SASL mechanism is accepted through the public API. Plaintext is the zero value. | Make verified TLS the production policy, isolate explicit development plaintext, provide owned mTLS/PLAIN/SCRAM/OAUTHBEARER contracts and rotation, move MSK IAM to a nested module, and prove redaction and secured-broker behavior. |
+| Security | Verified TLS 1.2 with system roots is the zero value. Plaintext is an explicit development-only policy. Owned, bounded mTLS, PLAIN, SCRAM-SHA-256/512, and OAUTHBEARER providers support rotation and redacted failures. | Add secured-broker authentication evidence, expiry/rotation stress evidence, and an independently versioned MSK IAM adapter before making support claims. |
 | Hooks and telemetry | No stable policy hook surface exists. | Add bounded synchronous observers with copied metadata and panic/reentrancy rules; keep OpenTelemetry and slog adapters optional. |
-| Evidence | Unit, race, exact statement coverage, two fuzz targets, docs, and a microbenchmark pass. One integration test uses one Confluent Local 7.5.0 broker. | Add meaningful mutation evidence, multi-broker Apache Kafka, failures, auth, transactions, multiprocess rebalances, replay faults, stress/leaks, adapters, clean consumer, compatibility, and equivalent-client benchmarks. |
+| Evidence | Unit, race, exact statement and mutation coverage, two fuzz targets, docs, and a microbenchmark pass. One integration test uses one Confluent Local 7.5.0 broker. | Add multi-broker Apache Kafka, failures, auth, transactions, multiprocess rebalances, replay faults, stress/leaks, adapters, clean consumer, compatibility, and equivalent-client benchmarks. |
 
 ## Public boundary violations
 
-The draft does not expose `kgo.Client`, `kgo.Record`, `kgo.Opt`, or kadm
-response types. It does expose `github.com/twmb/franz-go/pkg/sasl.Mechanism`
-through `ClientSecurity`; that is an implementation dependency in an ordinary
-public API and must be replaced before release.
+The draft does not expose `kgo.Client`, `kgo.Record`, `kgo.Opt`, kadm response
+types, or franz-go SASL mechanisms through ordinary public APIs. Security
+mechanism translation is internal to the franz-go-backed implementation.
 
 `Publish` remains the error-only compatibility method. `PublishRecord`,
 `PublishBatch`, and `PublishAsync` now expose assigned partition, offset, and
@@ -57,3 +56,8 @@ The following local evidence was executed on Darwin arm64 with Go 1.26.5:
   `confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd`.
 
 This baseline proves only the behavior already present in the draft.
+
+The security-policy batch subsequently killed all 839 viable mutants with
+100% test efficacy and mutator coverage. That result proves the deterministic
+package assertions detect the generated mutations; it does not substitute for
+the secured-broker and compatibility evidence still listed above.

@@ -14,7 +14,7 @@ recorded on 2026-07-26. Upstream protocol support is not package evidence.
 | testcontainers-go Kafka module | v0.43.0 | Go module proxy |
 | Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; actual runtime version still needs assertion |
 | Current Apache Kafka image selected for new evidence | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Docker registry manifest; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
-| Mutation tool | patched Gremlins v0.6.0 | Repository tool pin; no Kafka mutation result recorded yet |
+| Mutation tool | patched Gremlins v0.6.0 | 839 of 839 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-26 |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
 | Security/release tools | govulncheck v1.6.0, Gitleaks v8.30.1, go-licenses v2.0.1, CycloneDX v1.10.0 | Repository tool pins |
 | OpenTelemetry semantic conventions | 1.43.0 | Selected current specification; adapter absent |
@@ -34,10 +34,10 @@ multi-broker matrix runs and asserts the broker version from the runtime.
 | Amazon MSK Provisioned | Selected Kafka versions, TLS/mTLS/SCRAM/IAM | Unverified |
 | Amazon MSK Serverless | TLS and IAM with documented service limits | Unverified |
 | Redpanda, Confluent Cloud, Event Hubs, other compatible services | Add only after direct testing | Unverified and unsupported |
-| TLS and mTLS | TLS 1.2/1.3, hostname/root failures, rotation | Validation unit tests only; no secured broker evidence |
-| SASL/PLAIN | Verified TLS only | Unverified |
-| SCRAM-SHA-256/512 | Verified TLS only | Unverified |
-| OAUTHBEARER | Refreshing provider over verified TLS | Unimplemented |
+| TLS and mTLS | TLS 1.2/1.3, hostname/root failures, rotation | Policy, cloning, rotation, and local TLS-handshake tests exist; no secured broker evidence |
+| SASL/PLAIN | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
+| SCRAM-SHA-256/512 | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
+| OAUTHBEARER | Refreshing provider over verified TLS | Bounded expiring-provider policy tests exist; broker compatibility unverified |
 | MSK IAM | Optional AWS signer adapter | Unimplemented |
 | Producer | Single, batch, async, ordering, failure, shutdown | Policy APIs and deterministic tests exist; no real-broker batch, async, failure, or shutdown evidence yet |
 | Consumer group | Classic cooperative/eager and reviewed next-generation protocol | Draft classic cooperative single-worker path only |

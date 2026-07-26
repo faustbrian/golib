@@ -50,6 +50,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		Brokers:                brokers,
 		ClientID:               "golib-compatibility-producer",
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
+		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
@@ -213,6 +214,7 @@ func newIntegrationConsumer(
 		HandlerTimeout:    10 * time.Second,
 		CommitTimeout:     10 * time.Second,
 		DialTimeout:       10 * time.Second,
+		Security:          kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct consumer: %v", err)
@@ -233,6 +235,7 @@ func assertGroupCommitted(
 	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct inspector: %v", err)

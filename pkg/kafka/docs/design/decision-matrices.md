@@ -7,8 +7,8 @@ design constraint, not a support claim.
 
 | Surface | Decision | Ownership and dependency rule | Status |
 | --- | --- | --- | --- |
-| Root `kafka` module | Own Kafka-specific policy contracts and a franz-go implementation. | May depend on franz-go and kadm internally; ordinary public APIs must not expose their types. | Draft, replacement required |
-| Authentication | Root owns TLS, mTLS, PLAIN, SCRAM, and bounded OAUTHBEARER provider contracts. | No process-wide mutable credentials; providers own refresh and expiry semantics. | Planned |
+| Root `kafka` module | Own Kafka-specific policy contracts and a franz-go implementation. | May depend on franz-go and kadm internally; ordinary public APIs must not expose their types. | Implemented boundary; broader policy remains pre-v1 |
+| Authentication | Root owns TLS, mTLS, PLAIN, SCRAM, and bounded OAUTHBEARER provider contracts. | No process-wide mutable credentials; providers own refresh and expiry semantics. | Implemented; secured-broker evidence required |
 | `adapters/mskiam` nested module | Translate the supported AWS Go signer into the root token-provider contract. | The AWS SDK and signer must not enter the root module. | Planned |
 | `adapters/gotelemetry` nested module | Translate stable hooks into selected OpenTelemetry Kafka conventions. | OpenTelemetry must not be required for correctness or imported by the root. | Planned |
 | Test support | Publish conformance suites only for real consumer-facing seams. | No exported franz-go fakes or mock choreography contracts. | Planned |

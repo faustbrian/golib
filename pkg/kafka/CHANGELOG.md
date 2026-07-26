@@ -6,6 +6,12 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- verified TLS as the zero-value transport policy, explicit development-only
+  plaintext, and bounded rotating mTLS, PLAIN, SCRAM, and OAUTHBEARER providers
+- redacted security snapshots and defensively copied TLS, credential, token,
+  certificate, and authentication-request material
+- fail-closed bounds and protocol validation for TLS material, mTLS requests,
+  PLAIN and SCRAM credentials, and OAUTHBEARER framing
 - first-principles pre-v1 implementation audit, production policy decision
   matrices, and an evidence-scoped compatibility matrix
 - stable producer and consumed-record models with explicit retained-copy
@@ -28,3 +34,8 @@ All notable changes to this module are documented here.
   coverage against a pinned Kafka fixture
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
   race coverage, benchmarks, and exact statement coverage
+
+### Changed
+
+- replaced the pre-v1 public franz-go SASL mechanism escape hatch with owned
+  Kafka authentication policy; callers must migrate to the new constructors

@@ -11,7 +11,8 @@ infrastructure.
 - `ReplayReader` directly assigns explicit partition ranges and never commits.
 - `Inspector` exposes read-only metadata and lag.
 
-franz-go remains an implementation detail except for the caller-supplied SASL
-mechanism. Topic lifecycle, ACLs, replication, ISR, retention, quotas, and
-destructive group operations belong to infrastructure automation and audited
-operator procedures.
+franz-go remains an implementation detail. The root module exposes owned TLS,
+mTLS, PLAIN, SCRAM, and OAUTHBEARER policy contracts; optional vendor
+authentication belongs in independently versioned adapters. Topic lifecycle,
+ACLs, replication, ISR, retention, quotas, and destructive group operations
+belong to infrastructure automation and audited operator procedures.
