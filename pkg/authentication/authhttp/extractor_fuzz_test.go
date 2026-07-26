@@ -14,6 +14,7 @@ import (
 
 func FuzzAuthorizationExtraction(f *testing.F) {
 	f.Add("Bearer token")
+	f.Add("Bearer 42|opaque-secret")
 	f.Add("Basic dXNlcjpwYXNzd29yZA==")
 	f.Add("Bearer token token")
 	extractor := mustFuzzExtractor(f, authhttp.BasicAuthorization(), authhttp.BearerAuthorization())

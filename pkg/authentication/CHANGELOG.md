@@ -12,6 +12,8 @@ this project follows Semantic Versioning.
 
 ### Changed
 
+- Add explicit pipe-compatible bearer extraction for legacy opaque-token
+  contracts while retaining strict RFC 6750 syntax by default.
 - Preserve `apikey.Static` comparability while retaining per-authenticator
   keyed credential digests.
 - Execute API compatibility tooling against the isolated module graph so owned

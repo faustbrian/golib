@@ -9,6 +9,11 @@ Header sources are `BasicAuthorization`, `BearerAuthorization`, and
 `APIKeyHeader`. Query and cookie sources exist only through explicit bearer or
 API-key constructors. The extractor never reads the request body.
 
+Bearer sources enforce RFC 6750 `b64token` syntax by default. Pass
+`WithBearerPipe` only when an existing opaque-token contract requires a pipe
+delimiter. The option applies consistently to header, query, and cookie bearer
+sources.
+
 `BearerQuery` and `APIKeyQuery` are deprecated for new designs. Query secrets
 can be copied into browser history, referrers, reverse-proxy logs, and access
 logs before this package receives the request. If a legacy protocol forces

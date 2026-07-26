@@ -102,6 +102,30 @@ func TestBearerAuthorizationExtractionEnforcesGrammarAndBounds(t *testing.T) {
 	}
 }
 
+func TestBearerAuthorizationPipeRequiresExplicitOptIn(t *testing.T) {
+	t.Parallel()
+
+	request := requestWithHeaders([]string{"Bearer 42|opaque-secret"})
+	if _, err := mustExtractor(
+		t,
+		authhttp.BearerAuthorization(),
+	).Extract(request); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("strict Extract() error = %v, want invalid", err)
+	}
+
+	credential, err := mustExtractor(
+		t,
+		authhttp.BearerAuthorization(authhttp.WithBearerPipe()),
+	).Extract(request)
+	if err != nil {
+		t.Fatalf("pipe-compatible Extract() error = %v", err)
+	}
+	bearer, ok := credential.(authentication.BearerCredential)
+	if !ok || bearer.Token() != "42|opaque-secret" {
+		t.Fatalf("pipe-compatible Extract() credential = %#v", credential)
+	}
+}
+
 func TestAPIKeySourcesMustBeExplicitAndRejectDuplicates(t *testing.T) {
 	t.Parallel()
 
@@ -168,9 +192,12 @@ func TestBearerQueryAndCookieAreExplicitSources(t *testing.T) {
 		name    string
 		source  authhttp.Source
 		request *http.Request
+		token   string
 	}{
-		{name: "query", source: authhttp.BearerQuery("access_token"), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "access_token=query-token"}}},
-		{name: "cookie", source: authhttp.BearerCookie("access_token"), request: requestWithCookie(&http.Cookie{Name: "access_token", Value: "cookie-token"})},
+		{name: "query", source: authhttp.BearerQuery("access_token"), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "access_token=query-token"}}, token: "query-token"},
+		{name: "cookie", source: authhttp.BearerCookie("access_token"), request: requestWithCookie(&http.Cookie{Name: "access_token", Value: "cookie-token"}), token: "cookie-token"},
+		{name: "pipe query", source: authhttp.BearerQuery("access_token", authhttp.WithBearerPipe()), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "access_token=42%7Cquery-secret"}}, token: "42|query-secret"},
+		{name: "pipe cookie", source: authhttp.BearerCookie("access_token", authhttp.WithBearerPipe()), request: requestWithCookie(&http.Cookie{Name: "access_token", Value: "42|cookie-secret"}), token: "42|cookie-secret"},
 	}
 
 	for _, tt := range tests {
@@ -181,7 +208,8 @@ func TestBearerQueryAndCookieAreExplicitSources(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Extract() error = %v", err)
 			}
-			if _, ok := credential.(authentication.BearerCredential); !ok {
+			bearer, ok := credential.(authentication.BearerCredential)
+			if !ok || bearer.Token() != tt.token {
 				t.Fatalf("Extract() credential = %T", credential)
 			}
 		})

@@ -10,8 +10,8 @@ checked in CI. Use `go doc` for signatures and contracts.
 - `bearer`: opaque-token validator interface, function adapter, and bounds.
 - `apikey`: callback validator, atomically replaceable static entries, and
   bounds.
-- `authhttp`: explicit sources, extractor, challenge formatting, and middleware
-  policies.
+- `authhttp`: explicit sources, bearer compatibility options, extractor,
+  challenge formatting, and middleware policies.
 - `authlog`: standard `slog` instrumenter.
 - `authtest`: deterministic principals, results, clock, scripted authenticator,
   HTTP fixture, and assertions.

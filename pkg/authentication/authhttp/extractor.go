@@ -73,6 +73,7 @@ func (e *Extractor) Extract(request *http.Request) (authentication.Credential, e
 type authorizationSource struct {
 	kind     authentication.CredentialKind
 	maxBytes int
+	pipe     bool
 }
 
 // BasicAuthorization enables Basic extraction from the Authorization header.
@@ -86,6 +87,14 @@ type BearerOption func(*authorizationSource)
 // WithBearerMaxBytes sets the inclusive bearer-token size bound.
 func WithBearerMaxBytes(maximum int) BearerOption {
 	return func(source *authorizationSource) { source.maxBytes = maximum }
+}
+
+// WithBearerPipe permits the pipe character in an opaque bearer credential.
+//
+// RFC 6750 bearer syntax rejects pipes by default. Enable this option only for
+// an existing credential contract that uses a pipe-delimited opaque token.
+func WithBearerPipe() BearerOption {
+	return func(source *authorizationSource) { source.pipe = true }
 }
 
 // BearerAuthorization enables bearer extraction from the Authorization header.
@@ -132,7 +141,7 @@ func (s authorizationSource) extract(request *http.Request) (authentication.Cred
 	}
 
 	if s.kind == authentication.CredentialBearer {
-		if len(payload) > s.maxBytes || !validBearerToken(payload) {
+		if len(payload) > s.maxBytes || !validBearerToken(payload, s.pipe) {
 			return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 		}
 		return authentication.NewBearerCredential(payload), true, nil
@@ -164,6 +173,7 @@ type bearerNamedSource struct {
 	location sourceLocation
 	name     string
 	maxBytes int
+	pipe     bool
 }
 
 // BearerQuery explicitly enables bearer extraction from a query parameter.
@@ -173,14 +183,24 @@ type bearerNamedSource struct {
 func BearerQuery(name string, options ...BearerOption) Source {
 	configuration := authorizationSource{maxBytes: defaultMaxBearerBytes}
 	applyBearerOptions(&configuration, options)
-	return bearerNamedSource{location: locationQuery, name: name, maxBytes: configuration.maxBytes}
+	return bearerNamedSource{
+		location: locationQuery,
+		name:     name,
+		maxBytes: configuration.maxBytes,
+		pipe:     configuration.pipe,
+	}
 }
 
 // BearerCookie explicitly enables bearer extraction from a cookie.
 func BearerCookie(name string, options ...BearerOption) Source {
 	configuration := authorizationSource{maxBytes: defaultMaxBearerBytes}
 	applyBearerOptions(&configuration, options)
-	return bearerNamedSource{location: locationCookie, name: name, maxBytes: configuration.maxBytes}
+	return bearerNamedSource{
+		location: locationCookie,
+		name:     name,
+		maxBytes: configuration.maxBytes,
+		pipe:     configuration.pipe,
+	}
 }
 
 func applyBearerOptions(source *authorizationSource, options []BearerOption) {
@@ -209,7 +229,9 @@ func (s bearerNamedSource) extract(request *http.Request) (authentication.Creden
 	if len(values) != 1 {
 		return nil, false, authentication.NewFailure(authentication.FailureAmbiguous)
 	}
-	if values[0] == "" || len(values[0]) > s.maxBytes || !validBearerToken(values[0]) {
+	if values[0] == "" ||
+		len(values[0]) > s.maxBytes ||
+		!validBearerToken(values[0], s.pipe) {
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	return authentication.NewBearerCredential(values[0]), true, nil
@@ -328,14 +350,16 @@ func namedValues(request *http.Request, location sourceLocation, name string) ([
 	}
 }
 
-func validBearerToken(token string) bool {
+func validBearerToken(token string, allowPipe bool) bool {
 	padding := false
 	for _, character := range []byte(token) {
 		if character == '=' {
 			padding = true
 			continue
 		}
-		if padding || !isBearerCharacter(character) {
+		if padding ||
+			(!isBearerCharacter(character) &&
+				(!allowPipe || character != '|')) {
 			return false
 		}
 	}

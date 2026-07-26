@@ -29,10 +29,12 @@ Generated interfaces from dependencies are not part of this project’s API.
 ## Protocol compatibility
 
 Basic follows RFC 7617 extraction shape without negotiating a charset. Bearer
-header grammar follows RFC 6750 `b64token`. Challenges use safely quoted and
-escaped auth parameters. JWT validation requires compact signed JWS and strict
-registered claims. OIDC accepts asymmetric algorithms explicitly listed in
-configuration and supported by the package.
+header grammar follows RFC 6750 `b64token` by default.
+`authhttp.WithBearerPipe` explicitly permits pipe-delimited opaque tokens for
+legacy contracts without weakening the default. Challenges use safely quoted
+and escaped auth parameters. JWT validation requires compact signed JWS and
+strict registered claims. OIDC accepts asymmetric algorithms explicitly listed
+in configuration and supported by the package.
 
 ## Audited dependency lines
 
