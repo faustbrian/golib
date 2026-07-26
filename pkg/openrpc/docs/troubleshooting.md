@@ -2,8 +2,8 @@
 
 ## `openrpc: unsupported specification version`
 
-Use a canonical `1.4.x` version. Prerelease, build metadata, older, and future
-feature lines are intentionally rejected.
+Use a canonical `1.3.x` or `1.4.x` version. Prerelease, build metadata, earlier,
+and future feature lines are intentionally rejected.
 
 ## `reference resolution failed`
 

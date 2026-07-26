@@ -10,7 +10,15 @@ import (
 func TestParseVersionAcceptsSupportedPatchLine(t *testing.T) {
 	t.Parallel()
 
-	for _, input := range []string{"1.4.0", "1.4.1", "1.4.999"} {
+	tests := map[string]string{
+		"1.3.0":   "1.3",
+		"1.3.2":   "1.3",
+		"1.3.999": "1.3",
+		"1.4.0":   "1.4",
+		"1.4.1":   "1.4",
+		"1.4.999": "1.4",
+	}
+	for input, featureSet := range tests {
 		version, err := openrpc.ParseVersion(input)
 		if err != nil {
 			t.Errorf("ParseVersion(%q): %v", input, err)
@@ -19,7 +27,7 @@ func TestParseVersionAcceptsSupportedPatchLine(t *testing.T) {
 		if version.String() != input {
 			t.Errorf("ParseVersion(%q).String() = %q", input, version.String())
 		}
-		if version.FeatureSet() != "1.4" {
+		if version.FeatureSet() != featureSet {
 			t.Errorf("ParseVersion(%q).FeatureSet() = %q", input, version.FeatureSet())
 		}
 	}
@@ -30,7 +38,7 @@ func TestParseVersionRejectsUnsupportedOrMalformedVersions(t *testing.T) {
 
 	for _, input := range []string{
 		"",
-		"1.3.2",
+		"1.2.4",
 		"1.5.0",
 		"2.0.0",
 		"v1.4.1",
@@ -50,11 +58,13 @@ func TestSupportedVersionsReturnsAnOwnedSnapshot(t *testing.T) {
 	t.Parallel()
 
 	versions := openrpc.SupportedVersions()
-	if len(versions) != 1 || versions[0] != "1.4.x" {
+	if len(versions) != 2 ||
+		versions[0] != "1.3.x" ||
+		versions[1] != "1.4.x" {
 		t.Fatalf("SupportedVersions() = %#v", versions)
 	}
 	versions[0] = "changed"
-	if openrpc.SupportedVersions()[0] != "1.4.x" {
+	if openrpc.SupportedVersions()[0] != "1.3.x" {
 		t.Fatal("SupportedVersions exposed mutable package state")
 	}
 }

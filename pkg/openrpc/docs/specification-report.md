@@ -9,13 +9,14 @@ pins every copied input and its SHA-256 digest.
 
 | Input | Verdict | Reason |
 | --- | --- | --- |
+| Canonical `1.3.0` and any canonical non-negative `1.3` patch | accepted | Patch releases share the inventoried 1.3 feature set, whose document model is retained by 1.4 |
 | Canonical `1.4.0` and any canonical non-negative `1.4` patch | accepted | Patch releases share the inventoried 1.4 feature set |
 | Earlier `1.x`, future minor or major lines | rejected | Their semantics have not been inventoried |
 | Prerelease, build metadata, leading-zero, or malformed values | rejected | The supported field is a canonical release version |
 
-`SupportedVersions` reports only `1.4.x`. Strict and preserving parsing share
-this version boundary, so preserving mode cannot reinterpret a future feature
-line as 1.4.
+`SupportedVersions` reports `1.3.x` and `1.4.x`. Strict and preserving parsing
+share this version boundary, so preserving mode cannot reinterpret an earlier
+or future feature line as a supported version.
 
 ## Requirement and object audit
 
@@ -48,10 +49,9 @@ not inferred from either layer alone.
 The official examples repository is pinned independently at commit
 `dce69463ba9a3ca2232506b734606fa97f25dd45`. Its eight service descriptions
 span empty, link, metrics, named-parameter, expanded, example-rich, petstore,
-and arithmetic APIs. Every source document declares an older or otherwise
-unsupported feature line. Both the independent meta-schema validator and the
-typed parser reject each document specifically at `openrpc`; the fixtures are
-not silently relabeled as 1.4.1.
+and arithmetic APIs. The `1.3.0` metrics document passes the typed parser while
+the pinned `1.4.1` meta-schema rejects its declared version. Earlier examples
+remain rejected by both boundaries. Fixtures are never silently relabeled.
 
 The complete current-version fixture exercises every OpenRPC object and schema
 placement. It passes strict parsing, the pinned meta-schema, semantic
@@ -60,10 +60,10 @@ explicit-null tests. Boolean and object Draft 7 schemas additionally have
 focused composition, recursion, format, annotation, and hostile-input tests.
 
 The public ecosystem reviewed on 2026-07-20 still predominantly publishes
-older OpenRPC feature lines, including the current official example corpus.
-Those inputs are useful rejection evidence but cannot prove 1.4 acceptance.
-New external 1.4 documents must be pinned with source, license, digest, and
-expected verdict before joining the blocking corpus.
+older OpenRPC feature lines. The accepted official `1.3.0` document provides
+interoperability evidence for that feature line; rejected older inputs remain
+useful boundary evidence. New external documents must be pinned with source,
+license, digest, and expected verdict before joining the blocking corpus.
 
 ## Commands
 

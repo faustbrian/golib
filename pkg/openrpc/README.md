@@ -6,17 +6,17 @@
 [![Security](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/security.yml)
 [![Benchmarks](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml/badge.svg)](https://github.com/faustbrian/golib/pkg/openrpc/actions/workflows/benchmark.yml)
 
-`openrpc` is a design-first Go implementation of OpenRPC 1.4.x. It models
-the complete 1.4.1 document shape, preserves arbitrary Draft 7 schemas and
+`openrpc` is a design-first Go implementation of OpenRPC 1.3.x and 1.4.x. It
+models their shared document shape, preserves arbitrary Draft 7 schemas and
 extension values, parses untrusted JSON under finite policies, emits canonical
 JSON, and provides explicit validation, reference resolution, runtime
 expressions, discovery, composition, compatibility diffing, and JSON-RPC
 handler integration.
 
 The core performs no implicit network or filesystem access. External reference
-resolution requires a caller-supplied store and an allowlist policy. Future or
-older OpenRPC feature lines are rejected until their semantics are separately
-inventoried and tested.
+resolution requires a caller-supplied store and an allowlist policy. Earlier
+or future OpenRPC feature lines are rejected until their semantics are
+separately inventoried and tested.
 
 ## Five-minute design-first quickstart
 
@@ -134,12 +134,13 @@ redirect and timeout limits, compression rejection, and streamed byte limits.
 
 ## Compatibility and support
 
-- Supported OpenRPC feature line: `1.4.x`.
+- Supported OpenRPC feature lines: `1.3.x` and `1.4.x`.
 - Authoritative pinned release: OpenRPC 1.4.1.
 - JSON Schema dialect: Draft 7, including boolean schemas.
 - Minimum Go version: see `.go-version` and `go.mod`.
-- Older official examples are retained as explicit rejection/interoperability
-  fixtures because they declare older feature lines.
+- The official `1.3.0` metrics example is retained as accepted
+  interoperability evidence. Examples on earlier feature lines remain explicit
+  rejection fixtures.
 
 See [security](docs/security.md), [architecture](docs/architecture.md),
 [compatibility](docs/compatibility.md), and the generated conformance evidence

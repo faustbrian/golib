@@ -72,6 +72,47 @@ func TestCompareIgnoresJSONSchemaObjectOrdering(t *testing.T) {
 	}
 }
 
+func TestCompareClassifiesFeatureLineChanges(t *testing.T) {
+	t.Parallel()
+
+	before := parsedDocument(t, `{
+		"openrpc":"1.3.2",
+		"info":{"title":"Diff","version":"1"},
+		"methods":[]
+	}`)
+	after := parsedDocument(t, `{
+		"openrpc":"1.4.1",
+		"info":{"title":"Diff","version":"1"},
+		"methods":[]
+	}`)
+	changes := diff.Compare(
+		context.Background(),
+		before,
+		after,
+		diff.DefaultOptions(),
+	).Changes()
+	if len(changes) != 1 ||
+		changes[0].Code != diff.CodeVersionChanged ||
+		changes[0].Classification != diff.Conditional ||
+		changes[0].Pointer != "#/openrpc" {
+		t.Fatalf("changes = %#v", changes)
+	}
+
+	patch := parsedDocument(t, `{
+		"openrpc":"1.3.999",
+		"info":{"title":"Diff","version":"1"},
+		"methods":[]
+	}`)
+	if changes := diff.Compare(
+		context.Background(),
+		before,
+		patch,
+		diff.DefaultOptions(),
+	).Changes(); len(changes) != 0 {
+		t.Fatalf("patch changes = %#v", changes)
+	}
+}
+
 func TestCompareClassifiesResultsErrorsServersLinksExamplesAndComponents(t *testing.T) {
 	t.Parallel()
 

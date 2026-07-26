@@ -1,8 +1,11 @@
 # Compatibility policy
 
-The module supports the OpenRPC `1.4.x` feature line. Patch numbers select the
-same semantics. Other minor and major lines fail explicitly; they are not
-interpreted using guessed 1.4 behavior.
+The module supports the OpenRPC `1.3.x` and `1.4.x` feature lines. Patch
+numbers select the semantics of their declared feature line. OpenRPC 1.4
+introduced strict version matching without changing the document object model,
+so the typed model, parser, semantic validator, discovery, and canonical
+serializer support both inventoried lines. Earlier minor lines and future
+minor or major lines fail explicitly.
 
 Canonical output is deterministic for the same semantic model. Preserving mode
 retains accepted source bytes and future unknown fields according to parse
@@ -12,6 +15,9 @@ Semantic diff treats method removal, required parameter addition, parameter
 removal, and positional reordering as breaking. Optional additions are
 additive. Schema changes and unresolved references remain conditional until
 resolved semantic comparison can prove a stronger classification.
+Changing between supported OpenRPC feature lines is conditional because the
+declared document interpretation changes even when the represented method
+surface is otherwise identical.
 `Report.Compatible` fails closed for conditional findings, truncated reports,
 and execution errors; callers cannot silently treat incomplete evidence as a
 safe generation or deployment decision.
@@ -38,6 +44,6 @@ predefined protocol errors are assumed for every service and are not repeated
 automatically. Request execution and protocol error production remain owned by
 the JSON-RPC server.
 
-The pinned official example repository currently declares older OpenRPC
-feature lines. Those examples are retained and tested as explicit
-interoperability rejections; they are not relabeled as 1.4.1 fixtures.
+The pinned official example repository includes one OpenRPC `1.3.0` document,
+which is retained as accepted typed-parser interoperability evidence. Examples
+on earlier feature lines remain explicit rejections and are not relabeled.

@@ -27,6 +27,7 @@ const (
 type Code string
 
 const (
+	CodeVersionChanged         Code = "version.changed"
 	CodeMethodAdded            Code = "method.added"
 	CodeMethodRemoved          Code = "method.removed"
 	CodeParameterAddedRequired Code = "parameter.added.required"
@@ -237,6 +238,14 @@ func appendFieldChange(
 
 func compareRootSurfaces(before openrpc.Document, after openrpc.Document) ([]Change, int) {
 	changes := make([]Change, 0)
+	if before.Version().FeatureSet() != after.Version().FeatureSet() {
+		changes = append(changes, Change{
+			Code:           CodeVersionChanged,
+			Classification: Conditional,
+			Pointer:        "#/openrpc",
+			Message:        "OpenRPC feature line changed",
+		})
+	}
 	if !sameStrings(serverURLs(before.EffectiveServers()), serverURLs(after.EffectiveServers())) {
 		changes = append(changes, Change{Code: CodeServersChanged, Classification: Breaking, Pointer: "#/servers", Message: "document servers changed"})
 	}

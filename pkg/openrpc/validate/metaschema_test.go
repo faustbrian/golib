@@ -1,6 +1,7 @@
 package validate_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -13,7 +14,7 @@ import (
 	"github.com/faustbrian/golib/pkg/openrpc/validate"
 )
 
-func TestPinnedOfficialExamplesAreExplicitlyOutsideCurrentVersionLine(t *testing.T) {
+func TestPinnedOfficialExamplesRespectSupportedVersionLines(t *testing.T) {
 	t.Parallel()
 
 	examples, err := filepath.Glob("../specification/examples/*-openrpc.json")
@@ -37,7 +38,40 @@ func TestPinnedOfficialExamplesAreExplicitlyOutsideCurrentVersionLine(t *testing
 			report.Issues()[0].InstancePointer != "#/openrpc" {
 			t.Errorf("%s report = %#v, error = %v", filepath.Base(example), report.Issues(), report.Err())
 		}
-		_, parseErr := openrpcparse.Decode(data, openrpcparse.DefaultOptions())
+		parsed, parseErr := openrpcparse.Decode(
+			data,
+			openrpcparse.DefaultOptions(),
+		)
+		if filepath.Base(example) == "metrics-openrpc.json" {
+			if parseErr != nil ||
+				parsed.Document().Version().FeatureSet() != "1.3" {
+				t.Errorf("%s parse error = %v", filepath.Base(example), parseErr)
+				continue
+			}
+			semantic := validate.Document(
+				context.Background(),
+				parsed.Document(),
+				validate.DefaultOptions(),
+			)
+			if !semantic.Valid() {
+				t.Errorf(
+					"%s semantic report = %#v",
+					filepath.Base(example),
+					semantic.Diagnostics(),
+				)
+			}
+			canonical, err := openrpc.MarshalCanonical(parsed.Document())
+			if err != nil ||
+				!bytes.Contains(canonical, []byte(`"openrpc":"1.3.0"`)) {
+				t.Errorf(
+					"%s canonical output = %s, error = %v",
+					filepath.Base(example),
+					canonical,
+					err,
+				)
+			}
+			continue
+		}
 		var structuralError *openrpcparse.Error
 		if !errors.Is(parseErr, openrpc.ErrUnsupportedVersion) ||
 			!errors.As(parseErr, &structuralError) || structuralError.Pointer != "#/openrpc" {

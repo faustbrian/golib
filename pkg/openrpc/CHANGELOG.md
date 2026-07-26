@@ -7,6 +7,10 @@ Changelog principles, and releases use semantic versioning.
 
 ### Changed
 
+- Accept OpenRPC `1.3.x` documents through the typed model, parser, semantic
+  validator, discovery, and canonical serializer alongside `1.4.x`; the pinned
+  `1.4.1` meta-schema remains the structural validator for that feature line,
+  and semantic diffs classify feature-line changes as conditional.
 - Make every allowed reference path shape length-exact before indexing, keeping
   malformed and truncated paths fail-closed.
 - Execute API compatibility tooling against the isolated module graph so owned
@@ -53,5 +57,6 @@ Changelog principles, and releases use semantic versioning.
 
 ### Notes
 
-- Pinned upstream examples still declare older OpenRPC feature lines and are
-  tested explicitly against that provenance rather than relabeled as 1.4.1.
+- Pinned upstream examples retain their declared feature lines. The `1.3.0`
+  metrics document is accepted by the typed parser; earlier examples remain
+  explicit rejections rather than being relabeled as 1.4.1.

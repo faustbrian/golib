@@ -15,10 +15,11 @@ Run `scripts/sync-spec.sh` from this module directory to reproduce the local
 copies. The command performs explicit network access; package parsing and
 validation never invoke it.
 
-The 1.4 schema accepts the `1.4.x` compatibility line. This implementation will
-reject other minor or major lines until their semantics are separately
-inventoried and tested. JSON Schema values use Draft 7, as required by the
-OpenRPC specification.
+The pinned 1.4 schema structurally accepts the `1.4.x` compatibility line. The
+typed model, parser, semantic validator, discovery, and canonical serializer
+also accept the inventoried `1.3.x` line. Earlier minor lines and future minor
+or major lines remain rejected until their semantics are separately
+inventoried and tested. JSON Schema values use Draft 7, as required by OpenRPC.
 
 The published OpenRPC meta-schema references `https://meta.json-schema.tools/`
 as its companion Draft 7 schema dialect. That response is pinned, normalized

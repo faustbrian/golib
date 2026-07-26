@@ -12,11 +12,12 @@ Remove global URL and filesystem loaders. Create a resolver per policy scope,
 select an explicit store, and pass a context and absolute base at each resolve
 operation. Expect previously hidden I/O to become visible errors.
 
-## Between OpenRPC patch versions
+## Between OpenRPC versions
 
-All canonical `1.4.x` patch values share the 1.4 feature set. Preserve the
-declared patch spelling. Other minor and major lines require a new supported
-implementation and do not fall back to 1.4 behavior.
+All canonical `1.3.x` and `1.4.x` patch values share their declared
+major.minor feature set. Preserve the declared patch spelling. Earlier minor
+lines and future minor or major lines require a new supported implementation
+and do not fall back to supported behavior.
 
 ## Public API evolution
 

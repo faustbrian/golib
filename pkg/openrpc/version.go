@@ -11,7 +11,9 @@ import (
 // specification version. Callers must not infer semantics for rejected values.
 var ErrUnsupportedVersion = errors.New("openrpc: unsupported specification version")
 
-var supportedVersionPattern = regexp.MustCompile(`^1\.4\.(0|[1-9][0-9]*)$`)
+var supportedVersionPattern = regexp.MustCompile(
+	`^1\.(3|4)\.(0|[1-9][0-9]*)$`,
+)
 
 // Version is a validated OpenRPC specification version.
 type Version struct {
@@ -19,8 +21,8 @@ type Version struct {
 }
 
 // ParseVersion validates that value belongs to an explicitly supported OpenRPC
-// feature line. Patch releases share the 1.4 feature set as required by the
-// specification's versioning rules.
+// feature line. Patch releases share their major.minor feature set as required
+// by the specification's versioning rules.
 func ParseVersion(value string) (Version, error) {
 	if !supportedVersionPattern.MatchString(value) {
 		return Version{}, ErrUnsupportedVersion
@@ -38,10 +40,10 @@ func (version Version) FeatureSet() string {
 	if version.value == "" {
 		return ""
 	}
-	return "1.4"
+	return version.value[:3]
 }
 
 // SupportedVersions returns the supported OpenRPC compatibility lines.
 func SupportedVersions() []string {
-	return []string{"1.4.x"}
+	return []string{"1.3.x", "1.4.x"}
 }
