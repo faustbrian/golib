@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real PostgreSQL long-stream evidence for bounded pagination across 2,048
+  sequential events
 - real PostgreSQL schema-contract evidence for envelope constraints, the
   complete message index set, and indexed stream and global read plans
 - real PostgreSQL contention evidence for one optimistic hot-stream winner,

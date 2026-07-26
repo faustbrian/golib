@@ -46,6 +46,7 @@ durable adapters.
 - [Snapshot storage](docs/snapshots.md)
 - [Projection and replay foundations](docs/projections.md)
 - [Process managers](docs/process-managers.md)
+- [Database structure and capacity](docs/database-structure.md)
 - [PostgreSQL adapter](postgres/README.md)
 - [Transactional outbox integration](docs/outbox.md)
 - [Kafka integration](docs/kafka.md)

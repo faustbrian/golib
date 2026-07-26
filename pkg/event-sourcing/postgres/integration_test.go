@@ -178,6 +178,80 @@ func TestPostgreSQLSchemaEnforcesConstraintsAndReadIndexes(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLLongStreamReadsRemainBoundedAndSequential(t *testing.T) {
+	ctx, pool := newDerivedIntegrationPool(t)
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t, "account", "long-stream")
+	const (
+		messageCount = 2_048
+		appendSize   = 256
+		readSize     = 127
+	)
+	for first := 1; first <= messageCount; first += appendSize {
+		pending := make([]eventsourcing.PendingMessage, 0, appendSize)
+		for sequence := first; sequence < first+appendSize; sequence++ {
+			pending = append(
+				pending,
+				mustPending(
+					t,
+					stream,
+					fmt.Sprintf("long-stream-%d", sequence),
+					sequence,
+				),
+			)
+		}
+		expected := eventsourcing.ExpectExactVersion(uint64(first - 1))
+		if first == 1 {
+			expected = eventsourcing.ExpectNewStream()
+		}
+		stored, err := store.Append(ctx, stream, expected, pending)
+		if err != nil {
+			t.Fatalf("append from version %d: %v", first, err)
+		}
+		if len(stored) != appendSize ||
+			stored[len(stored)-1].StreamVersion() != uint64(first+appendSize-1) {
+			t.Fatalf("stored batch from version %d = %#v", first, stored)
+		}
+	}
+
+	read := 0
+	for from := uint64(1); from <= messageCount; {
+		options, err := eventsourcing.NewReadStreamOptions(
+			eventsourcing.ReadStreamOptionsInput{
+				FromVersion: from,
+				Limit:       readSize,
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		iterator, err := store.ReadStream(ctx, stream, options)
+		messages := collectMessages(t, ctx, mustIterator(t, iterator, err))
+		if len(messages) == 0 || len(messages) > readSize {
+			t.Fatalf("read from version %d returned %d messages", from, len(messages))
+		}
+		for index, message := range messages {
+			wantVersion := from + uint64(index)
+			if message.StreamVersion() != wantVersion {
+				t.Fatalf(
+					"read from version %d at %d = version %d",
+					from,
+					index,
+					message.StreamVersion(),
+				)
+			}
+		}
+		read += len(messages)
+		from += uint64(len(messages))
+	}
+	if read != messageCount {
+		t.Fatalf("read %d messages, want %d", read, messageCount)
+	}
+}
+
 func TestPostgreSQLLockTimeoutIsNotCommittedAndCanBeRetried(t *testing.T) {
 	ctx, pool := newDerivedIntegrationPool(t)
 	stream := mustStream(t, "account", "lock-timeout")

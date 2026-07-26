@@ -241,6 +241,9 @@ Partitioning, archival, and retention require an application-specific design.
 Do not detach or delete partitions while active streams, legal retention, or
 replay requirements still reference them. Tenant erasure and cryptographic
 shredding policies belong to the application and its compliance review.
+See the core [database-structure and capacity guide](../docs/database-structure.md)
+for shared-table alternatives, partitioning prerequisites, archive semantics,
+and deployment evidence.
 
 Direct database-to-Kafka publication is not atomic. Use the optional outbox
 adapter when durable asynchronous publication is required. Neither PostgreSQL
