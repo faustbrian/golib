@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,21 @@ var (
 	)
 	ErrConsumerShutdownIncomplete = errors.New(
 		"kafka: consumer shutdown is incomplete",
+	)
+	ErrPausePartitionsRequired = errors.New(
+		"kafka: at least one pause partition is required",
+	)
+	ErrTooManyPausedPartitions = errors.New(
+		"kafka: paused partition count exceeds configured limit",
+	)
+	ErrInvalidPausePartition = errors.New(
+		"kafka: pause partition is invalid",
+	)
+	ErrDuplicatePausePartition = errors.New(
+		"kafka: pause partition is duplicated",
+	)
+	ErrPauseTopicNotSubscribed = errors.New(
+		"kafka: pause topic is not subscribed",
 	)
 	ErrInvalidConsumerConfig = errors.New(
 		"kafka: consumer configuration is outside bounded limits",
@@ -76,6 +92,7 @@ type ConsumerConfig struct {
 	BalancePolicy          GroupBalancePolicy
 	Limits                 MessageLimits
 	MaxPollRecords         int
+	MaxPausedPartitions    int
 	MaxConcurrentFetches   int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
@@ -117,6 +134,8 @@ type consumerBackend interface {
 	CommitRecords(context.Context, ...*kgo.Record) error
 	AllowRebalance()
 	LeaveGroupContext(context.Context) error
+	PauseFetchPartitions(map[string][]int32) map[string][]int32
+	ResumeFetchPartitions(map[string][]int32)
 	Close()
 }
 
@@ -126,20 +145,23 @@ type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 // Run or RunOnce call may be active at a time. Its methods are safe for
 // concurrent lifecycle coordination.
 type Consumer struct {
-	client           consumerBackend
-	limits           MessageLimits
-	maxPollRecords   int
-	handlerTimeout   time.Duration
-	commitTimeout    time.Duration
-	shutdownTimeout  time.Duration
-	staticMembership bool
+	client              consumerBackend
+	limits              MessageLimits
+	maxPollRecords      int
+	maxPausedPartitions int
+	handlerTimeout      time.Duration
+	commitTimeout       time.Duration
+	shutdownTimeout     time.Duration
+	staticMembership    bool
 
-	lifecycleMu    sync.Mutex
-	running        bool
-	runDone        chan struct{}
-	closing        bool
-	closed         bool
-	shutdownActive bool
+	lifecycleMu      sync.Mutex
+	running          bool
+	runDone          chan struct{}
+	closing          bool
+	closed           bool
+	shutdownActive   bool
+	subscribedTopics map[string]struct{}
+	pausedPartitions map[TopicPartition]struct{}
 }
 
 // NewConsumer constructs a group consumer with automatic commits disabled and
@@ -195,14 +217,22 @@ func newConsumer(
 		return nil, err
 	}
 
+	subscribedTopics := make(map[string]struct{}, len(config.Topics))
+	for _, topic := range config.Topics {
+		subscribedTopics[topic] = struct{}{}
+	}
+
 	return &Consumer{
-		client:           client,
-		limits:           config.Limits,
-		maxPollRecords:   config.MaxPollRecords,
-		handlerTimeout:   config.HandlerTimeout,
-		commitTimeout:    config.CommitTimeout,
-		shutdownTimeout:  config.ShutdownTimeout,
-		staticMembership: config.InstanceID != "",
+		client:              client,
+		limits:              config.Limits,
+		maxPollRecords:      config.MaxPollRecords,
+		maxPausedPartitions: config.MaxPausedPartitions,
+		handlerTimeout:      config.HandlerTimeout,
+		commitTimeout:       config.CommitTimeout,
+		shutdownTimeout:     config.ShutdownTimeout,
+		staticMembership:    config.InstanceID != "",
+		subscribedTopics:    subscribedTopics,
+		pausedPartitions:    make(map[TopicPartition]struct{}),
 	}, nil
 }
 
@@ -279,6 +309,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.MaxPollRecords == 0 {
 		config.MaxPollRecords = 100
 	}
+	if config.MaxPausedPartitions == 0 {
+		config.MaxPausedPartitions = 256
+	}
 	if config.MaxConcurrentFetches == 0 {
 		config.MaxConcurrentFetches = 4
 	}
@@ -314,6 +347,8 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	if config.MaxPollRecords < 1 ||
 		config.MaxPollRecords > 1_000 ||
+		config.MaxPausedPartitions < 1 ||
+		config.MaxPausedPartitions > 1_024 ||
 		config.MaxConcurrentFetches < 1 ||
 		config.MaxConcurrentFetches > 64 ||
 		config.FetchMaxBytes < 1<<20 ||
@@ -473,17 +508,25 @@ func (consumer *Consumer) beginRun() error {
 	consumer.lifecycleMu.Lock()
 	defer consumer.lifecycleMu.Unlock()
 
-	if consumer.closed {
-		return ErrConsumerClosed
-	}
-	if consumer.closing {
-		return ErrConsumerClosing
+	if err := consumer.lifecycleErrorLocked(); err != nil {
+		return err
 	}
 	if consumer.running {
 		return ErrConsumerBusy
 	}
 	consumer.running = true
 	consumer.runDone = make(chan struct{})
+
+	return nil
+}
+
+func (consumer *Consumer) lifecycleErrorLocked() error {
+	if consumer.closed {
+		return ErrConsumerClosed
+	}
+	if consumer.closing {
+		return ErrConsumerClosing
+	}
 
 	return nil
 }
@@ -495,6 +538,113 @@ func (consumer *Consumer) endRun() {
 	consumer.running = false
 	consumer.lifecycleMu.Unlock()
 	close(done)
+}
+
+// PausePartitions stops future fetches for explicit subscribed partitions.
+// Records already buffered or returned by the current poll can still be
+// processed. Pauses persist across rebalances until explicitly resumed.
+func (consumer *Consumer) PausePartitions(partitions ...TopicPartition) error {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	if err := consumer.lifecycleErrorLocked(); err != nil {
+		return err
+	}
+	requested, err := consumer.pausePartitionMap(partitions)
+	if err != nil {
+		return err
+	}
+	additional := 0
+	for _, partition := range partitions {
+		if _, exists := consumer.pausedPartitions[partition]; !exists {
+			additional++
+		}
+	}
+	if len(consumer.pausedPartitions)+additional > consumer.maxPausedPartitions {
+		return ErrTooManyPausedPartitions
+	}
+
+	consumer.client.PauseFetchPartitions(requested)
+	for _, partition := range partitions {
+		consumer.pausedPartitions[partition] = struct{}{}
+	}
+
+	return nil
+}
+
+// ResumePartitions resumes future fetches for explicit subscribed partitions.
+// Partitions that are not paused are unchanged.
+func (consumer *Consumer) ResumePartitions(partitions ...TopicPartition) error {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	if err := consumer.lifecycleErrorLocked(); err != nil {
+		return err
+	}
+	requested, err := consumer.pausePartitionMap(partitions)
+	if err != nil {
+		return err
+	}
+
+	consumer.client.ResumeFetchPartitions(requested)
+	for _, partition := range partitions {
+		delete(consumer.pausedPartitions, partition)
+	}
+
+	return nil
+}
+
+// PausedPartitions returns a sorted snapshot of explicitly paused partitions.
+func (consumer *Consumer) PausedPartitions() []TopicPartition {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	paused := make([]TopicPartition, 0, len(consumer.pausedPartitions))
+	for partition := range consumer.pausedPartitions {
+		paused = append(paused, partition)
+	}
+	sort.Slice(paused, func(left, right int) bool {
+		if paused[left].Topic == paused[right].Topic {
+			return paused[left].Partition < paused[right].Partition
+		}
+
+		return paused[left].Topic < paused[right].Topic
+	})
+
+	return paused
+}
+
+func (consumer *Consumer) pausePartitionMap(
+	partitions []TopicPartition,
+) (map[string][]int32, error) {
+	if len(partitions) == 0 {
+		return nil, ErrPausePartitionsRequired
+	}
+	if len(partitions) > consumer.maxPausedPartitions {
+		return nil, ErrTooManyPausedPartitions
+	}
+
+	seen := make(map[TopicPartition]struct{}, len(partitions))
+	requested := make(map[string][]int32)
+	for _, partition := range partitions {
+		if !validKafkaTopicName(partition.Topic, consumer.limits.MaxTopicBytes) ||
+			partition.Partition < 0 {
+			return nil, ErrInvalidPausePartition
+		}
+		if _, subscribed := consumer.subscribedTopics[partition.Topic]; !subscribed {
+			return nil, ErrPauseTopicNotSubscribed
+		}
+		if _, duplicate := seen[partition]; duplicate {
+			return nil, ErrDuplicatePausePartition
+		}
+		seen[partition] = struct{}{}
+		requested[partition.Topic] = append(
+			requested[partition.Topic],
+			partition.Partition,
+		)
+	}
+
+	return requested, nil
 }
 
 func callHandler(

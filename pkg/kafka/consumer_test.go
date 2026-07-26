@@ -40,6 +40,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 	}
 
 	if config.MaxPollRecords != 100 ||
+		config.MaxPausedPartitions != 256 ||
 		config.Limits != DefaultMessageLimits() ||
 		config.BalancePolicy != BalanceCooperativeSticky ||
 		config.MaxConcurrentFetches != 4 ||
@@ -78,6 +79,30 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 	}
 	if !errors.Is(err, factoryErr) {
 		t.Fatalf("newConsumer() error = %v, want %v", err, factoryErr)
+	}
+}
+
+func TestNewConsumerOwnsPauseSubscriptionPolicy(t *testing.T) {
+	t.Parallel()
+
+	config := validConsumerConfig()
+	consumer, err := NewConsumer(config)
+	if err != nil {
+		t.Fatalf("NewConsumer() error = %v", err)
+	}
+	defer consumer.Close()
+	originalTopic := config.Topics[0]
+	config.Topics[0] = "commands"
+
+	if err := consumer.PausePartitions(TopicPartition{
+		Topic: originalTopic, Partition: 0,
+	}); err != nil {
+		t.Fatalf("PausePartitions(original topic) error = %v", err)
+	}
+	if err := consumer.PausePartitions(TopicPartition{
+		Topic: "commands", Partition: 0,
+	}); !errors.Is(err, ErrPauseTopicNotSubscribed) {
+		t.Fatalf("PausePartitions(mutated topic) error = %v, want %v", err, ErrPauseTopicNotSubscribed)
 	}
 }
 
@@ -350,6 +375,8 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 	}{
 		{name: "negative poll records", change: func(config *ConsumerConfig) { config.MaxPollRecords = -1 }},
 		{name: "excessive poll records", change: func(config *ConsumerConfig) { config.MaxPollRecords = 1_001 }},
+		{name: "negative paused partitions", change: func(config *ConsumerConfig) { config.MaxPausedPartitions = -1 }},
+		{name: "excessive paused partitions", change: func(config *ConsumerConfig) { config.MaxPausedPartitions = 1_025 }},
 		{name: "negative concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = -1 }},
 		{name: "excessive concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = 65 }},
 		{name: "negative fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = -1 }},
@@ -574,6 +601,184 @@ func TestConsumerRunOnceRejectsMissingHandler(t *testing.T) {
 	if !errors.Is(err, ErrHandlerRequired) || result != (PollResult{}) ||
 		backend.pollCalls != 0 || backend.allowed != 0 {
 		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+}
+
+func TestConsumerPauseResumePartitions(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	partitions := []TopicPartition{
+		{Topic: "other", Partition: 2},
+		{Topic: "events", Partition: 1},
+	}
+	consumer.subscribedTopics["other"] = struct{}{}
+
+	if err := consumer.PausePartitions(partitions...); err != nil {
+		t.Fatalf("PausePartitions() error = %v", err)
+	}
+	paused := consumer.PausedPartitions()
+	if !reflect.DeepEqual(paused, []TopicPartition{
+		{Topic: "events", Partition: 1},
+		{Topic: "other", Partition: 2},
+	}) {
+		t.Fatalf("PausedPartitions() = %#v", paused)
+	}
+	paused[0] = TopicPartition{Topic: "mutated", Partition: 99}
+	if got := consumer.PausedPartitions(); got[0] != (TopicPartition{Topic: "events", Partition: 1}) {
+		t.Fatalf("mutated PausedPartitions() = %#v", got)
+	}
+	if !reflect.DeepEqual(backend.pauseCalls, []map[string][]int32{{
+		"events": {1},
+		"other":  {2},
+	}}) {
+		t.Fatalf("pause calls = %#v", backend.pauseCalls)
+	}
+
+	if err := consumer.PausePartitions(partitions[0]); err != nil {
+		t.Fatalf("repeated PausePartitions() error = %v", err)
+	}
+	if err := consumer.ResumePartitions(partitions[1]); err != nil {
+		t.Fatalf("ResumePartitions() error = %v", err)
+	}
+	if got := consumer.PausedPartitions(); !reflect.DeepEqual(got, []TopicPartition{
+		{Topic: "other", Partition: 2},
+	}) {
+		t.Fatalf("resumed PausedPartitions() = %#v", got)
+	}
+	if !reflect.DeepEqual(backend.resumeCalls, []map[string][]int32{{
+		"events": {1},
+	}}) {
+		t.Fatalf("resume calls = %#v", backend.resumeCalls)
+	}
+}
+
+func TestConsumerPauseResumeRejectInvalidPartitions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		partitions []TopicPartition
+		want       error
+	}{
+		{name: "empty", want: ErrPausePartitionsRequired},
+		{
+			name:       "invalid topic",
+			partitions: []TopicPartition{{Topic: "bad/topic", Partition: 0}},
+			want:       ErrInvalidPausePartition,
+		},
+		{
+			name:       "unsubscribed topic",
+			partitions: []TopicPartition{{Topic: "commands", Partition: 0}},
+			want:       ErrPauseTopicNotSubscribed,
+		},
+		{
+			name:       "negative partition",
+			partitions: []TopicPartition{{Topic: "events", Partition: -1}},
+			want:       ErrInvalidPausePartition,
+		},
+		{
+			name: "duplicate",
+			partitions: []TopicPartition{
+				{Topic: "events", Partition: 1},
+				{Topic: "events", Partition: 1},
+			},
+			want: ErrDuplicatePausePartition,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			backend := &recordingConsumerBackend{}
+			consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+			if err := consumer.PausePartitions(test.partitions...); !errors.Is(err, test.want) {
+				t.Fatalf("PausePartitions() error = %v, want %v", err, test.want)
+			}
+			if err := consumer.ResumePartitions(test.partitions...); !errors.Is(err, test.want) {
+				t.Fatalf("ResumePartitions() error = %v, want %v", err, test.want)
+			}
+			if len(backend.pauseCalls) != 0 || len(backend.resumeCalls) != 0 {
+				t.Fatalf("backend calls = %#v/%#v", backend.pauseCalls, backend.resumeCalls)
+			}
+		})
+	}
+}
+
+func TestConsumerPauseBoundsAccumulatedPartitions(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.maxPausedPartitions = 2
+	if err := consumer.PausePartitions(
+		TopicPartition{Topic: "events", Partition: 0},
+		TopicPartition{Topic: "events", Partition: 1},
+	); err != nil {
+		t.Fatalf("first PausePartitions() error = %v", err)
+	}
+	if err := consumer.PausePartitions(
+		TopicPartition{Topic: "events", Partition: 2},
+	); !errors.Is(err, ErrTooManyPausedPartitions) {
+		t.Fatalf("bounded PausePartitions() error = %v, want %v", err, ErrTooManyPausedPartitions)
+	}
+	if len(backend.pauseCalls) != 1 || len(consumer.PausedPartitions()) != 2 {
+		t.Fatalf("backend/state = %#v/%#v", backend.pauseCalls, consumer.PausedPartitions())
+	}
+}
+
+func TestConsumerPauseRejectsOversizedRequestBeforeInspectingPartitions(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.maxPausedPartitions = 2
+	invalid := []TopicPartition{
+		{Topic: "bad/topic", Partition: -1},
+		{Topic: "events", Partition: 1},
+		{Topic: "events", Partition: 2},
+	}
+
+	if err := consumer.PausePartitions(invalid...); !errors.Is(err, ErrTooManyPausedPartitions) {
+		t.Fatalf("PausePartitions() error = %v, want %v", err, ErrTooManyPausedPartitions)
+	}
+	if err := consumer.ResumePartitions(invalid...); !errors.Is(err, ErrTooManyPausedPartitions) {
+		t.Fatalf("ResumePartitions() error = %v, want %v", err, ErrTooManyPausedPartitions)
+	}
+	if len(backend.pauseCalls) != 0 || len(backend.resumeCalls) != 0 {
+		t.Fatalf("backend calls = %#v/%#v", backend.pauseCalls, backend.resumeCalls)
+	}
+}
+
+func TestConsumerPauseRejectsLifecycleStates(t *testing.T) {
+	t.Parallel()
+
+	partition := TopicPartition{Topic: "events", Partition: 0}
+	closingBackend := &recordingConsumerBackend{leaveErr: errors.New("leave failed")}
+	closingConsumer := consumerWithBackend(closingBackend, 10, time.Second, time.Second)
+	if err := closingConsumer.Shutdown(context.Background()); err == nil {
+		t.Fatal("Shutdown() error = nil")
+	}
+	if err := closingConsumer.PausePartitions(partition); !errors.Is(err, ErrConsumerClosing) {
+		t.Fatalf("closing PausePartitions() error = %v, want %v", err, ErrConsumerClosing)
+	}
+	if err := closingConsumer.ResumePartitions(partition); !errors.Is(err, ErrConsumerClosing) {
+		t.Fatalf("closing ResumePartitions() error = %v, want %v", err, ErrConsumerClosing)
+	}
+
+	closedBackend := &recordingConsumerBackend{}
+	closedConsumer := consumerWithBackend(closedBackend, 10, time.Second, time.Second)
+	if err := closedConsumer.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	if err := closedConsumer.PausePartitions(partition); !errors.Is(err, ErrConsumerClosed) {
+		t.Fatalf("closed PausePartitions() error = %v, want %v", err, ErrConsumerClosed)
+	}
+	if err := closedConsumer.ResumePartitions(partition); !errors.Is(err, ErrConsumerClosed) {
+		t.Fatalf("closed ResumePartitions() error = %v, want %v", err, ErrConsumerClosed)
 	}
 }
 
@@ -977,12 +1182,17 @@ func consumerWithBackend(
 	commitTimeout time.Duration,
 ) *Consumer {
 	return &Consumer{
-		client:          backend,
-		limits:          DefaultMessageLimits(),
-		maxPollRecords:  maxPollRecords,
-		handlerTimeout:  handlerTimeout,
-		commitTimeout:   commitTimeout,
-		shutdownTimeout: time.Second,
+		client:              backend,
+		limits:              DefaultMessageLimits(),
+		maxPollRecords:      maxPollRecords,
+		handlerTimeout:      handlerTimeout,
+		commitTimeout:       commitTimeout,
+		shutdownTimeout:     time.Second,
+		maxPausedPartitions: 1_024,
+		subscribedTopics: map[string]struct{}{
+			"events": {},
+		},
+		pausedPartitions: make(map[TopicPartition]struct{}),
 	}
 }
 
@@ -1008,6 +1218,8 @@ type recordingConsumerBackend struct {
 	closed        int
 	leaveCalls    int
 	leaveErr      error
+	pauseCalls    []map[string][]int32
+	resumeCalls   []map[string][]int32
 	poll          func(context.Context, int) kgo.Fetches
 }
 
@@ -1041,6 +1253,29 @@ func (backend *recordingConsumerBackend) LeaveGroupContext(context.Context) erro
 	backend.leaveCalls++
 
 	return backend.leaveErr
+}
+
+func (backend *recordingConsumerBackend) PauseFetchPartitions(
+	partitions map[string][]int32,
+) map[string][]int32 {
+	backend.pauseCalls = append(backend.pauseCalls, clonePartitionMap(partitions))
+
+	return nil
+}
+
+func (backend *recordingConsumerBackend) ResumeFetchPartitions(
+	partitions map[string][]int32,
+) {
+	backend.resumeCalls = append(backend.resumeCalls, clonePartitionMap(partitions))
+}
+
+func clonePartitionMap(partitions map[string][]int32) map[string][]int32 {
+	cloned := make(map[string][]int32, len(partitions))
+	for topic, topicPartitions := range partitions {
+		cloned[topic] = append([]int32(nil), topicPartitions...)
+	}
+
+	return cloned
 }
 
 func (backend *recordingConsumerBackend) Close() {

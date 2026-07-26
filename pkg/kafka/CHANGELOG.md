@@ -35,6 +35,8 @@ All notable changes to this module are documented here.
 - validated ordered producer compression preferences, defaulting to Snappy with
   an uncompressed fallback
 - explicit post-handler consumer commits and cooperative group balancing
+- bounded consumer partition pause/resume policy with immutable subscription
+  validation and sorted diagnostic snapshots
 - bounded transactional producer with fenced callback lifetime and explicit
   unknown-outcome classification
 - exact direct-partition replay that never mutates consumer-group offsets

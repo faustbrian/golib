@@ -85,6 +85,9 @@ dynamic group membership, and then closes the client. A deadline or leave
 failure returns `ErrConsumerShutdownIncomplete` and leaves shutdown retriable.
 Static membership deliberately skips the leave request. `Close` applies the
 configured `ConsumerConfig.ShutdownTimeout` and returns its shutdown error.
+`Consumer.PausePartitions` and `ResumePartitions` accept owned
+`TopicPartition` values only for configured subscriptions. Each request and
+the accumulated pause set are bounded by `MaxPausedPartitions`.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

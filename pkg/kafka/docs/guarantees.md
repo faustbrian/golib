@@ -75,13 +75,17 @@ leaving removal to an explicit Kafka administrative action. Instance identity
 must be unique within the group or the broker may fence a member. `Rack` only
 requests preferred-replica fetching; broker topology determines the result.
 
+Explicit partition pauses are bounded by `MaxPausedPartitions` and persist
+until resumed. They affect future fetches, not records already buffered or
+returned in the active poll, and they do not establish assignment ownership.
+
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
-offset commits, redelivery after handler failure, eager group membership, and
-a static member restart using the same instance ID against
-Confluent Local 7.5.0 using franz-go v1.21.5. The container image is pinned by
-repository digest. This compatibility fixture does not replace testing against
-an application's production broker version and configuration.
+offset commits, redelivery after handler failure, eager group membership,
+partition pause/resume, and a static member restart using the same instance ID
+against Confluent Local 7.5.0 using franz-go v1.21.5. The container image is
+pinned by repository digest. This compatibility fixture does not replace
+testing against an application's production broker version and configuration.
 
 ## Context and memory
 

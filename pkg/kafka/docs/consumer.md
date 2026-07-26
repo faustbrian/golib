@@ -77,8 +77,25 @@ may still advance.
 
 Handlers must be idempotent and honor their context deadline. Retain a consumed
 record before storing its bytes beyond the handler call. The current runner is
-single-threaded and does not yet expose pause, drain, batch handling, or bounded
-cross-partition worker concurrency; these remain pre-v1 completion work.
+single-threaded and does not yet expose a separate drain operation, batch
+handling, or bounded cross-partition worker concurrency; these remain pre-v1
+completion work.
+
+### Pause and resume
+
+`PausePartitions` stops future fetches only for explicit `TopicPartition`
+values whose topics are in the immutable subscription. `ResumePartitions`
+removes those explicit pauses; resuming a partition that is not paused is a
+no-op. Topic names, non-negative partition numbers, duplicates, request count,
+and accumulated pause count are validated before changing backend state.
+`MaxPausedPartitions` defaults to 256 and is bounded from 1 through 1,024.
+
+Pausing does not cancel a handler, retract records returned by the current
+poll, or discard records already buffered by franz-go. Pauses persist across
+rebalances until resumed, but a `TopicPartition` does not prove assignment or
+generation ownership. `PausedPartitions` returns a sorted copied snapshot and
+remains diagnostic after close. Pause and resume reject calls once shutdown
+begins.
 
 ## Runner and shutdown lifecycle
 

@@ -136,6 +136,10 @@ Only one `Run` or `RunOnce` call may be active. Graceful shutdown fences new
 runs, waits for the active runner, and leaves dynamic group membership before
 closing. Cancel the runner context first, then call `Shutdown` with a bounded
 context or handle the error returned by `Close`.
+`PausePartitions` and `ResumePartitions` control future fetches for explicit
+subscribed topic-partitions. Pausing does not retract records already buffered
+or returned by the current poll; `MaxPausedPartitions` bounds both each request
+and accumulated paused state.
 
 New groups default to cooperative-sticky balancing. Existing eager groups must
 use `BalanceEagerToCooperative` for one complete rolling deployment before all

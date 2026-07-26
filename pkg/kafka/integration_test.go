@@ -49,11 +49,12 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	explicitTopic := topic + "-explicit"
 	settlementTopic := topic + "-settlement"
 	membershipTopic := topic + "-membership"
+	pauseTopic := topic + "-pause"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
-			topic, explicitTopic, settlementTopic, membershipTopic,
+			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -73,6 +74,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -165,6 +167,117 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 
 	provePartitionSettlement(t, ctx, brokers, producer, settlementTopic)
 	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
+	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
+}
+
+func provePauseResumePolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	publish := func(value string) {
+		t.Helper()
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic, Partition: kafka.ExplicitPartition(0),
+			Key: []byte(value), Value: []byte(value),
+		})
+		if result.Err != nil {
+			t.Fatalf("publish pause fixture %q: %v", value, result.Err)
+		}
+	}
+
+	consumer := newIntegrationConsumer(
+		t,
+		brokers,
+		topic,
+		"golib-compatibility-pause-resume",
+	)
+	t.Cleanup(func() {
+		if err := consumer.Close(); err != nil {
+			t.Errorf("close pause consumer: %v", err)
+		}
+	})
+	publish("prime")
+	for {
+		primeResult, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			if string(message.Value) != "prime" {
+				return fmt.Errorf("unexpected prime value %q", message.Value)
+			}
+
+			return nil
+		}))
+		if runErr != nil {
+			t.Fatalf("establish pause consumer assignment: %v", runErr)
+		}
+		if primeResult.Polled == 0 {
+			continue
+		}
+		if primeResult != (kafka.PollResult{Polled: 1, Processed: 1, Committed: 1}) {
+			t.Fatalf("prime poll result = %#v", primeResult)
+		}
+
+		break
+	}
+
+	partition := kafka.TopicPartition{Topic: topic, Partition: 0}
+	if err := consumer.PausePartitions(partition); err != nil {
+		t.Fatalf("pause partition: %v", err)
+	}
+	publish("paused")
+
+	pauseCtx, cancelPause := context.WithTimeout(ctx, time.Second)
+	defer cancelPause()
+	for pauseCtx.Err() == nil {
+		pausedResult, runErr := consumer.RunOnce(pauseCtx, kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedMessage,
+		) error {
+			t.Fatal("paused partition delivered a record")
+
+			return nil
+		}))
+		if pausedResult != (kafka.PollResult{}) ||
+			(runErr != nil && !errors.Is(runErr, context.DeadlineExceeded)) {
+			t.Fatalf("paused poll result/error = %#v/%v", pausedResult, runErr)
+		}
+	}
+	if !errors.Is(pauseCtx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("paused poll context error = %v", pauseCtx.Err())
+	}
+	if err := consumer.ResumePartitions(partition); err != nil {
+		t.Fatalf("resume partition: %v", err)
+	}
+
+	for {
+		resumedResult, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			if string(message.Value) != "paused" {
+				return fmt.Errorf("unexpected resumed value %q", message.Value)
+			}
+
+			return nil
+		}))
+		if runErr != nil {
+			t.Fatalf("consume resumed partition: %v", runErr)
+		}
+		if resumedResult.Polled == 0 {
+			continue
+		}
+		if resumedResult != (kafka.PollResult{Polled: 1, Processed: 1, Committed: 1}) {
+			t.Fatalf("resumed poll result = %#v", resumedResult)
+		}
+
+		break
+	}
 }
 
 func proveMembershipPolicy(

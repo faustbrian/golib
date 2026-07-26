@@ -2,6 +2,13 @@ package kafka
 
 import "time"
 
+// TopicPartition identifies one exact Kafka partition. It does not include a
+// consumer generation or imply current assignment ownership.
+type TopicPartition struct {
+	Topic     string
+	Partition int32
+}
+
 // PartitionSelectionMode identifies automatic or explicit producer partition
 // selection. The zero value preserves Kafka key-based or unkeyed partitioning.
 type PartitionSelectionMode uint8

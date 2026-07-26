@@ -96,6 +96,7 @@ options.
 | `BalancePolicy` | `BalanceCooperativeSticky` | Cooperative, eager, or the eager-to-cooperative rollout policy. |
 | `Limits` | `DefaultMessageLimits` | Applied before package metadata copies and handler invocation. |
 | `MaxPollRecords` | 100 | 1 to 1,000. |
+| `MaxPausedPartitions` | 256 | 1 to 1,024; bounds each pause/resume request and accumulated pauses. |
 | `MaxConcurrentFetches` | 4 | 1 to 64. |
 | `FetchMaxBytes` | 50 MiB | 1 to 100 MiB compressed fetch bytes. |
 | `FetchMaxPartitionBytes` | 1 MiB | At least 1 MiB and no greater than `FetchMaxBytes`. Kafka may return one larger record batch to make progress. |
