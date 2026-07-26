@@ -24,9 +24,10 @@ use (
 	./pkg/ecma-regexp
 	./pkg/event-sourcing
 	./pkg/event-sourcing/adapters/gokafka
+	./pkg/event-sourcing/adapters/gooutbox
 	./pkg/event-sourcing/adapters/goqueue
 	./pkg/event-sourcing/adapters/gotelemetry
-	./pkg/event-sourcing/adapters/gooutbox
+	./pkg/event-sourcing/benchmarks/competitors
 	./pkg/event-sourcing/postgres
 	./pkg/feature-flags
 	./pkg/filesystem
@@ -136,6 +137,8 @@ replace github.com/faustbrian/golib/pkg/ecma-regexp v0.1.0 => ./pkg/ecma-regexp
 replace github.com/faustbrian/golib/pkg/event-sourcing v0.1.0 => ./pkg/event-sourcing
 
 replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka v0.1.0 => ./pkg/event-sourcing/adapters/gokafka
+
+replace github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors v0.1.0 => ./pkg/event-sourcing/benchmarks/competitors
 
 replace github.com/faustbrian/golib/pkg/event-sourcing/postgres v0.1.0 => ./pkg/event-sourcing/postgres
 

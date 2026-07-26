@@ -47,6 +47,7 @@ durable adapters.
 - [Projection and replay foundations](docs/projections.md)
 - [Process managers](docs/process-managers.md)
 - [Database structure and capacity](docs/database-structure.md)
+- [Performance and capacity planning](docs/performance.md)
 - [PostgreSQL adapter](postgres/README.md)
 - [Transactional outbox integration](docs/outbox.md)
 - [Custom outbox boundary](docs/custom-outbox.md)

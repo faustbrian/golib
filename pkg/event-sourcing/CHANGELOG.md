@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add an isolated equivalent-work competitor benchmark harness pinned to the
+  latest EventHorizon, Hallgren Eventsourcing, and TheFabric Eventsourcing
+  releases, with functional outcome checks and reproducibility guidance.
 - Add PostgreSQL restart and physical streaming-replica promotion evidence
   preserving event history, stream versions, and global ordering.
 - Document the custom outbox migration boundary, including non-event-sourced

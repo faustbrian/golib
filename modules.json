@@ -4434,6 +4434,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
         "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
       ],
       "external_runtime_dependencies": [],
@@ -4456,7 +4457,8 @@
           "implementation_evidence": [
             "pkg/event-sourcing/CHANGELOG.md",
             "pkg/event-sourcing/README.md",
-            "pkg/event-sourcing/docs/architecture.md"
+            "pkg/event-sourcing/docs/architecture.md",
+            "pkg/event-sourcing/docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -4489,7 +4491,8 @@
           "implementation_evidence": [
             "pkg/event-sourcing/CHANGELOG.md",
             "pkg/event-sourcing/README.md",
-            "pkg/event-sourcing/docs/architecture.md"
+            "pkg/event-sourcing/docs/architecture.md",
+            "pkg/event-sourcing/docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -4765,6 +4768,49 @@
         "lint": true,
         "mutation": true,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/event-sourcing/benchmarks/competitors",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This non-releasable module isolates comparison dependencies from the event-sourcing core. It compares equivalent observable work and keeps correctness checks separate from timing.",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/event-sourcing"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/hallgren/eventsourcing",
+        "github.com/looplab/eventhorizon",
+        "github.com/thefabric-io/eventsourcing"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }
