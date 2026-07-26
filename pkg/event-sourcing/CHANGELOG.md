@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Align the queue guide with the implemented digest-pinned Valkey retention
+  and post-handler acknowledgement evidence.
 - Align the package map with the intentional first-release code-generation
   exclusion instead of advertising an unshipped generator module.
 - Describe the library as a pre-release candidate whose published release

@@ -159,6 +159,23 @@ func TestPackageMapMatchesCodeGenerationDecision(t *testing.T) {
 	}
 }
 
+func TestQueueGuideMatchesCompatibilityEvidence(t *testing.T) {
+	t.Parallel()
+
+	queueGuide := readContractFile(t, "docs/queue.md")
+	if strings.Contains(queueGuide, "Backend conformance evidence remains partial") {
+		t.Fatal("queue guide still describes implemented durable evidence as partial")
+	}
+	for _, required := range []string{
+		"digest-pinned Valkey Streams 9.1.0",
+		"post-handler acknowledgement",
+	} {
+		if !strings.Contains(queueGuide, required) {
+			t.Fatalf("queue guide is missing durable evidence %q", required)
+		}
+	}
+}
+
 func compatibilityInventory(
 	t *testing.T,
 	matrix string,

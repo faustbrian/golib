@@ -27,15 +27,18 @@ workers retain their own acknowledgement, rejection, retry, ordering, and
 redelivery semantics. The adapter does not claim exactly-once delivery and
 does not treat queue acceptance as durable processing.
 
-Backend conformance evidence remains partial. Kafka stays in the dedicated
-`gokafka` adapter because topics, partitions, keys, offsets, consumer groups,
-rebalances, acknowledgements, idempotence, and transactions must remain
+Durable backend evidence covers digest-pinned Valkey Streams 9.1.0 retention
+and post-handler acknowledgement through a consumer group. It does not
+generalize those guarantees to another queue backend. Kafka stays in the
+dedicated `gokafka` adapter because topics, partitions, keys, offsets, consumer
+groups, rebalances, acknowledgements, idempotence, and transactions must remain
 observable.
 
 The adapter integration suite proves the complete dispatch and handling path
 through the repository queue and its in-memory worker for both successful and
-failed consumers. This does not transfer in-memory evidence to durable
-backends; each backend retains its own operational and delivery guarantees.
+failed consumers, plus the named Valkey boundary above. Neither result
+transfers to another backend; each backend retains its own operational and
+delivery guarantees.
 
 See the [adapter guide](../adapters/goqueue/README.md) for the wire contract,
 bounds, guarantees, and current status.
