@@ -104,6 +104,21 @@ func TestOpenZIPValidatesConfigurationAndArchiveLimits(t *testing.T) {
 		{name: "entry count", data: makeZIP(t, map[string]string{"a": "1", "b": "2"}), config: ZIPConfig{MaxEntries: 1}, kind: ErrorLimitExceeded},
 		{name: "entry size", data: makeZIP(t, map[string]string{"a": "1234"}), config: ZIPConfig{MaxEntryBytes: 3}, kind: ErrorLimitExceeded},
 		{name: "total size", data: makeZIP(t, map[string]string{"a": "12", "b": "34"}), config: ZIPConfig{MaxTotalBytes: 3}, kind: ErrorLimitExceeded},
+		{
+			name: "compression ratio",
+			data: makeZIP(
+				t,
+				map[string]string{"a": strings.Repeat("a", 4096)},
+			),
+			config: ZIPConfig{MaxCompressionRatio: 2},
+			kind:   ErrorLimitExceeded,
+		},
+		{
+			name:   "symbolic link",
+			data:   makeSymlinkZIP(t),
+			config: ZIPConfig{RejectSymlinks: true},
+			kind:   ErrorArchive,
+		},
 	}
 
 	for _, test := range tests {
@@ -119,6 +134,92 @@ func TestOpenZIPValidatesConfigurationAndArchiveLimits(t *testing.T) {
 			_, err := OpenZIP(source, test.size, test.config)
 			if !errors.Is(err, test.kind) {
 				t.Fatalf("OpenZIP() error = %v, want kind %v", err, test.kind)
+			}
+		})
+	}
+}
+
+func TestOpenZIPPreservesOptInArchivePolicies(t *testing.T) {
+	t.Parallel()
+
+	data := makeSymlinkZIP(t)
+	if _, err := OpenZIP(
+		bytes.NewReader(data),
+		int64(len(data)),
+		ZIPConfig{},
+	); err != nil {
+		t.Fatalf("default symbolic-link policy error = %v", err)
+	}
+
+	compressed := makeZIP(
+		t,
+		map[string]string{"a": strings.Repeat("a", 4096)},
+	)
+	if _, err := OpenZIP(
+		bytes.NewReader(compressed),
+		int64(len(compressed)),
+		ZIPConfig{MaxCompressionRatio: 10_000},
+	); err != nil {
+		t.Fatalf("permitted compression ratio error = %v", err)
+	}
+}
+
+func TestCompressionRatioBoundaryIsExactAndOverflowSafe(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		uncompressed uint64
+		compressed   uint64
+		maximum      uint64
+		want         bool
+	}{
+		{name: "disabled", uncompressed: 10, compressed: 1},
+		{name: "empty", compressed: 1, maximum: 1},
+		{
+			name:         "zero compressed",
+			uncompressed: 1,
+			maximum:      1,
+			want:         true,
+		},
+		{
+			name:         "above integer ratio",
+			uncompressed: 11,
+			compressed:   5,
+			maximum:      1,
+			want:         true,
+		},
+		{
+			name:         "fraction above ratio",
+			uncompressed: 11,
+			compressed:   5,
+			maximum:      2,
+			want:         true,
+		},
+		{
+			name:         "exact ratio",
+			uncompressed: 10,
+			compressed:   5,
+			maximum:      2,
+		},
+		{
+			name:         "below ratio",
+			uncompressed: 9,
+			compressed:   5,
+			maximum:      2,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := exceedsCompressionRatio(
+				test.uncompressed,
+				test.compressed,
+				test.maximum,
+			); got != test.want {
+				t.Fatalf("exceedsCompressionRatio() = %t", got)
 			}
 		})
 	}
@@ -280,6 +381,26 @@ func makeZIPEntries(t testingTB, names []string) []byte {
 		}
 	}
 	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
+}
+
+func makeSymlinkZIP(t testingTB) []byte {
+	t.Helper()
+
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	header := &zip.FileHeader{Name: "link", Method: zip.Deflate}
+	header.SetMode(os.ModeSymlink | 0o777)
+	entry, err := writer.CreateHeader(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.WriteString(entry, "target"); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
 		t.Fatal(err)
 	}
 	return buffer.Bytes()

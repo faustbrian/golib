@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"errors"
 	"io"
+	"os"
 	"path"
 	"strings"
 )
@@ -14,12 +15,15 @@ const (
 	defaultMaxZIPTotalBytes = 4 * 1024 * 1024 * 1024
 )
 
-// ZIPConfig defines archive-bomb safeguards. Zero values select documented
-// defaults rather than disabling limits.
+// ZIPConfig defines archive-bomb safeguards. Zero size values select
+// documented finite defaults. A zero compression ratio and false link policy
+// preserve the prior behavior.
 type ZIPConfig struct {
-	MaxEntries    int
-	MaxEntryBytes uint64
-	MaxTotalBytes uint64
+	MaxEntries          int
+	MaxEntryBytes       uint64
+	MaxTotalBytes       uint64
+	MaxCompressionRatio uint64
+	RejectSymlinks      bool
 }
 
 // ZIPEntry is immutable metadata for one archive member.
@@ -82,8 +86,18 @@ func OpenZIP(source io.ReaderAt, size int64, config ZIPConfig) (*ZIPArchive, err
 		if !safeZIPName(file.Name) {
 			return nil, &Error{Kind: ErrorArchive, Op: "zip.open", Format: "zip", Err: errors.New("archive contains an unsafe entry name")}
 		}
+		if config.RejectSymlinks && file.Mode()&os.ModeSymlink != 0 {
+			return nil, &Error{Kind: ErrorArchive, Op: "zip.open", Format: "zip", Err: errors.New("archive contains a symbolic link")}
+		}
 		if _, exists := archive.files[file.Name]; exists {
 			return nil, &Error{Kind: ErrorArchive, Op: "zip.open", Format: "zip", Err: errors.New("archive contains a duplicate entry name")}
+		}
+		if exceedsCompressionRatio(
+			file.UncompressedSize64,
+			file.CompressedSize64,
+			config.MaxCompressionRatio,
+		) {
+			return nil, &Error{Kind: ErrorLimitExceeded, Op: "zip.open", Format: "zip", Err: errors.New("archive entry compression ratio is too large")}
 		}
 		if file.UncompressedSize64 > maxEntryBytes {
 			return nil, &Error{Kind: ErrorLimitExceeded, Op: "zip.open", Format: "zip", Err: errors.New("archive entry is too large")}
@@ -100,6 +114,22 @@ func OpenZIP(source io.ReaderAt, size int64, config ZIPConfig) (*ZIPArchive, err
 		})
 	}
 	return archive, nil
+}
+
+func exceedsCompressionRatio(
+	uncompressed uint64,
+	compressed uint64,
+	maximum uint64,
+) bool {
+	if maximum == 0 || uncompressed == 0 {
+		return false
+	}
+	if compressed == 0 {
+		return true
+	}
+	quotient := uncompressed / compressed
+	remainder := uncompressed % compressed
+	return quotient > maximum || quotient == maximum && remainder != 0
 }
 
 // Entries returns archive metadata in the original central-directory order.

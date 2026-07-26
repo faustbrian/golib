@@ -35,7 +35,10 @@ type SpreadsheetConfig struct {
 	// MaxFieldBytes bounds one parsed worksheet cell before normalization.
 	// Zero preserves the unbounded legacy behavior.
 	MaxFieldBytes int
-	ZIP           ZIPConfig
+	// MaxSheets bounds the number of worksheets in an XLSX workbook.
+	// Zero preserves the unbounded legacy behavior.
+	MaxSheets int
+	ZIP       ZIPConfig
 }
 
 // SpreadsheetReader presents format-independent workbook rows.
@@ -90,7 +93,7 @@ func (*xlsRowSource) Close() error { return nil }
 func OpenSpreadsheet(source io.ReaderAt, size int64, config SpreadsheetConfig) (*SpreadsheetReader, error) {
 	if source == nil || size < 0 || config.FieldsPerRecord < 0 ||
 		config.MaxWorkbookBytes < 0 || config.MaxRecordBytes < 0 ||
-		config.MaxFieldBytes < 0 ||
+		config.MaxFieldBytes < 0 || config.MaxSheets < 0 ||
 		(config.Format != FormatXLS && config.Format != FormatXLSX) {
 		return nil, &Error{Kind: ErrorInvalidConfig, Op: "spreadsheet.open", Format: string(config.Format)}
 	}

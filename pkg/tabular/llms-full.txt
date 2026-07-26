@@ -56,7 +56,8 @@ spreadsheets, ZIP sources, encodings, and normalization.
 - explicit format and encoding selection
 - streaming delimited, fixed-width, ZIP-entry, and XLSX row processing
 - bounded XLS materialization for OLE2/BIFF8 random access
-- archive entry-count, size, path, and duplicate checks
+- archive entry-count, size, compression-ratio, path, link, and duplicate checks
+- opt-in XLSX worksheet-count limits
 - opt-in parsed record and field limits for delimited and spreadsheet rows
 - opt-in normalization that does not mutate caller-owned rows
 - stable error kinds with one-based row and field coordinates
@@ -154,7 +155,9 @@ Defaults are protective, not unlimited. Set limits from the surrounding
 system's upload policy when those limits are smaller. XLS uses
 `MaxWorkbookBytes`; XLSX uses the limits in `SpreadsheetConfig.ZIP`.
 Untrusted spreadsheets should also set `MaxRecordBytes` and `MaxFieldBytes`
-to bound parsed rows and cells before normalization and caller delivery.
+to bound parsed rows and cells before normalization and caller delivery. For
+XLSX, set `MaxSheets`, `ZIP.MaxCompressionRatio`, and `ZIP.RejectSymlinks` from
+the accepted workbook policy.
 
 ## Handle typed errors
 
@@ -239,7 +242,8 @@ task and records compatibility-sensitive semantics.
 
 ## Archives
 
-- `ZIPConfig`: maximum entries, per-entry bytes, and total expanded bytes.
+- `ZIPConfig`: maximum entries, per-entry bytes, total expanded bytes,
+  compression ratio, and symbolic-link rejection.
 - `OpenZIP`: validates and indexes a random-access ZIP source.
 - `ZIPArchive.Entries`, `Open`, and `Extract`: copied metadata, exact entry
   streaming, and writer-based extraction.
@@ -247,8 +251,8 @@ task and records compatibility-sensitive semantics.
 ## Spreadsheets
 
 - `FormatXLS` and `FormatXLSX` must be selected explicitly.
-- `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook and XLSX
-  ZIP limits, plus opt-in parsed-row and cell byte limits.
+- `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook, worksheet
+  count and XLSX ZIP limits, plus opt-in parsed-row and cell byte limits.
 - Zero spreadsheet record and field limits preserve legacy behavior;
   untrusted sources require explicit positive limits.
 - `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common ingest lifecycle.
@@ -318,7 +322,13 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
     Header: &tabular.HeaderConfig{RejectEmpty: true, RejectDuplicates: true},
     MaxRecordBytes: 64 << 10,
     MaxFieldBytes: 16 << 10,
-    ZIP: tabular.ZIPConfig{MaxEntryBytes: 32 << 20, MaxTotalBytes: 64 << 20},
+    MaxSheets: 8,
+    ZIP: tabular.ZIPConfig{
+        MaxEntryBytes: 32 << 20,
+        MaxTotalBytes: 64 << 20,
+        MaxCompressionRatio: 100,
+        RejectSymlinks: true,
+    },
 })
 if err != nil { return err }
 defer reader.Close()
@@ -748,6 +758,9 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added opt-in parsed-row and cell limits to `SpreadsheetConfig` for XLS and
   XLSX. Limit failures report `ErrorLimitExceeded`; zero values preserve
   existing behavior.
+- Added opt-in ZIP compression-ratio and symbolic-link policies plus an XLSX
+  worksheet-count limit. Zero values preserve existing archive and workbook
+  behavior.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and
@@ -796,8 +809,10 @@ Zero-valued limits select safe defaults:
 Applications should normally choose smaller values consistent with their
 upload and job policies. ZIP limits use central-directory declarations and
 entry reads still verify CRC data. Unsafe absolute, parent, backslash, empty,
-and duplicate entry names are rejected. This package never writes ZIP entries
-to the filesystem.
+and duplicate entry names are rejected. Callers may also reject symbolic links
+and bound each entry's expanded-to-compressed byte ratio. Those two policies
+are opt-in for compatibility. This package never writes ZIP entries to the
+filesystem.
 
 These payload limits are not heap guarantees. In particular, XLSX validation
 and Excelize may allocate substantially more than the compressed workbook
@@ -820,6 +835,8 @@ parsed XLS and XLSX cell values before normalization or caller delivery.
 Record limits count the sum of bytes that would be delivered for one worksheet
 row, including preserved spreadsheet error text. Field limits apply the same
 rule to one cell and report its one-based coordinate.
+XLSX callers may also set an explicit maximum worksheet count before selecting
+the first or named sheet.
 Archive and workbook limits still bound the underlying parser; parsed limits
 do not claim to prevent allocations inside the XLS or Excelize engines.
 

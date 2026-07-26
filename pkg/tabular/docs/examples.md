@@ -26,7 +26,13 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
     Header: &tabular.HeaderConfig{RejectEmpty: true, RejectDuplicates: true},
     MaxRecordBytes: 64 << 10,
     MaxFieldBytes: 16 << 10,
-    ZIP: tabular.ZIPConfig{MaxEntryBytes: 32 << 20, MaxTotalBytes: 64 << 20},
+    MaxSheets: 8,
+    ZIP: tabular.ZIPConfig{
+        MaxEntryBytes: 32 << 20,
+        MaxTotalBytes: 64 << 20,
+        MaxCompressionRatio: 100,
+        RejectSymlinks: true,
+    },
 })
 if err != nil { return err }
 defer reader.Close()

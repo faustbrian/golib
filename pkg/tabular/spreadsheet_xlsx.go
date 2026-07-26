@@ -34,6 +34,9 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 	if err != nil {
 		return nil, err
 	}
+	if err = validateXLSXSheetLimit(archive, config.MaxSheets); err != nil {
+		return nil, err
+	}
 	if err = validateXLSXWorksheets(archive); err != nil {
 		return nil, err
 	}
@@ -83,9 +86,69 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 	return &xlsxRowSource{workbook: workbook, rows: rows, sheet: sheet}, nil
 }
 
+func validateXLSXSheetLimit(archive *ZIPArchive, maximum int) error {
+	if maximum == 0 {
+		return nil
+	}
+	reader, err := archive.Open("xl/workbook.xml")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = reader.Close() }()
+
+	decoder := xml.NewDecoder(reader)
+	depth := 0
+	sheetsDepth := 0
+	count := 0
+	for {
+		token, tokenErr := decoder.Token()
+		if errors.Is(tokenErr, io.EOF) {
+			return nil
+		}
+		if tokenErr != nil {
+			return &Error{
+				Kind:   ErrorSpreadsheet,
+				Op:     "spreadsheet.validate",
+				Format: string(FormatXLSX),
+				Err:    tokenErr,
+			}
+		}
+		switch element := token.(type) {
+		case xml.StartElement:
+			depth++
+			if sheetsDepth == 0 &&
+				depth == 2 &&
+				element.Name.Local == "sheets" {
+				sheetsDepth = depth
+				continue
+			}
+			if sheetsDepth != 0 &&
+				depth == sheetsDepth+1 &&
+				element.Name.Local == "sheet" {
+				count++
+				if count > maximum {
+					return &Error{
+						Kind:   ErrorLimitExceeded,
+						Op:     "spreadsheet.open",
+						Format: string(FormatXLSX),
+						Err: errors.New(
+							"workbook contains too many worksheets",
+						),
+					}
+				}
+			}
+		case xml.EndElement:
+			if depth == sheetsDepth {
+				sheetsDepth = 0
+			}
+			depth--
+		}
+	}
+}
+
 func validateXLSXWorksheets(archive *ZIPArchive) error {
 	for _, entry := range archive.Entries() {
-		if entry.Directory || !strings.HasPrefix(entry.Name, "xl/worksheets/") || !strings.HasSuffix(entry.Name, ".xml") {
+		if !xlsxWorksheetEntry(entry) {
 			continue
 		}
 		reader, err := archive.Open(entry.Name)
@@ -104,6 +167,12 @@ func validateXLSXWorksheets(archive *ZIPArchive) error {
 		}
 	}
 	return nil
+}
+
+func xlsxWorksheetEntry(entry ZIPEntry) bool {
+	return !entry.Directory &&
+		strings.HasPrefix(entry.Name, "xl/worksheets/") &&
+		strings.HasSuffix(entry.Name, ".xml")
 }
 
 func (source *xlsxRowSource) Read() ([]spreadsheetCell, error) {

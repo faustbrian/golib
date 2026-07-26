@@ -38,7 +38,8 @@ task and records compatibility-sensitive semantics.
 
 ## Archives
 
-- `ZIPConfig`: maximum entries, per-entry bytes, and total expanded bytes.
+- `ZIPConfig`: maximum entries, per-entry bytes, total expanded bytes,
+  compression ratio, and symbolic-link rejection.
 - `OpenZIP`: validates and indexes a random-access ZIP source.
 - `ZIPArchive.Entries`, `Open`, and `Extract`: copied metadata, exact entry
   streaming, and writer-based extraction.
@@ -46,8 +47,8 @@ task and records compatibility-sensitive semantics.
 ## Spreadsheets
 
 - `FormatXLS` and `FormatXLSX` must be selected explicitly.
-- `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook and XLSX
-  ZIP limits, plus opt-in parsed-row and cell byte limits.
+- `SpreadsheetConfig`: sheet, headers, row shape, errors, workbook, worksheet
+  count and XLSX ZIP limits, plus opt-in parsed-row and cell byte limits.
 - Zero spreadsheet record and field limits preserve legacy behavior;
   untrusted sources require explicit positive limits.
 - `OpenSpreadsheet`, `Header`, `Read`, and `Close`: common ingest lifecycle.

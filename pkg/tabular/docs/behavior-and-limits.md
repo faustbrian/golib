@@ -13,8 +13,10 @@ Zero-valued limits select safe defaults:
 Applications should normally choose smaller values consistent with their
 upload and job policies. ZIP limits use central-directory declarations and
 entry reads still verify CRC data. Unsafe absolute, parent, backslash, empty,
-and duplicate entry names are rejected. This package never writes ZIP entries
-to the filesystem.
+and duplicate entry names are rejected. Callers may also reject symbolic links
+and bound each entry's expanded-to-compressed byte ratio. Those two policies
+are opt-in for compatibility. This package never writes ZIP entries to the
+filesystem.
 
 These payload limits are not heap guarantees. In particular, XLSX validation
 and Excelize may allocate substantially more than the compressed workbook
@@ -37,6 +39,8 @@ parsed XLS and XLSX cell values before normalization or caller delivery.
 Record limits count the sum of bytes that would be delivered for one worksheet
 row, including preserved spreadsheet error text. Field limits apply the same
 rule to one cell and report its one-based coordinate.
+XLSX callers may also set an explicit maximum worksheet count before selecting
+the first or named sheet.
 Archive and workbook limits still bound the underlying parser; parsed limits
 do not claim to prevent allocations inside the XLS or Excelize engines.
 

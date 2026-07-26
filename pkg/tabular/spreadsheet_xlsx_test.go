@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/xuri/excelize/v2"
@@ -113,6 +114,110 @@ func TestXLSXReaderReportsMissingSheetsBrokenFilesAndLimits(t *testing.T) {
 	if !errors.Is(err, ErrorLimitExceeded) {
 		t.Fatalf("limited workbook error = %v, want limit-exceeded kind", err)
 	}
+
+	data := makeMultiSheetXLSX(t)
+	_, err = OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if !errors.Is(err, ErrorLimitExceeded) {
+		t.Fatalf("sheet limit error = %v, want limit-exceeded kind", err)
+	}
+
+	data = renameZIPEntry(
+		t,
+		makeMultiSheetXLSX(t),
+		"xl/worksheets/sheet2.xml",
+		"xl/custom/sheet2.xml",
+	)
+	data = transformZIP(t, data, func(name string, contents []byte) ([]byte, bool) {
+		if name == "xl/_rels/workbook.xml.rels" {
+			contents = []byte(strings.ReplaceAll(
+				string(contents),
+				"worksheets/sheet2.xml",
+				"custom/sheet2.xml",
+			))
+		}
+		return contents, true
+	})
+	_, err = OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if !errors.Is(err, ErrorLimitExceeded) {
+		t.Fatalf(
+			"related sheet limit error = %v, want limit-exceeded kind",
+			err,
+		)
+	}
+
+	data = rewriteZIPEntry(
+		t,
+		makeMultiSheetXLSX(t),
+		"xl/worksheets/sheet2.xml",
+		"<broken",
+	)
+	_, err = OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if !errors.Is(err, ErrorLimitExceeded) {
+		t.Fatalf(
+			"early sheet limit error = %v, want limit-exceeded kind",
+			err,
+		)
+	}
+
+	data = removeZIPEntry(t, makeErrorXLSX(t), "xl/workbook.xml")
+	_, err = OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if !errors.Is(err, ErrorEntryNotFound) {
+		t.Fatalf(
+			"missing workbook manifest error = %v, want entry-not-found kind",
+			err,
+		)
+	}
+
+	data = rewriteZIPEntry(
+		t,
+		makeErrorXLSX(t),
+		"xl/workbook.xml",
+		"<broken",
+	)
+	_, err = OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if !errors.Is(err, ErrorSpreadsheet) {
+		t.Fatalf(
+			"broken workbook manifest error = %v, want spreadsheet kind",
+			err,
+		)
+	}
+
+	data = addZIPEntry(
+		t,
+		makeErrorXLSX(t),
+		"xl/worksheets/orphan.xml",
+		`<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>`,
+	)
+	reader, err := OpenSpreadsheet(
+		bytes.NewReader(data),
+		int64(len(data)),
+		SpreadsheetConfig{Format: FormatXLSX, MaxSheets: 1},
+	)
+	if err != nil {
+		t.Fatalf("orphan worksheet OpenSpreadsheet() error = %v", err)
+	}
+	closeTestResource(t, reader)
 }
 
 func TestXLSXCloseStopsIteration(t *testing.T) {
@@ -236,4 +341,103 @@ func makeErrorXLSX(t testingTB) []byte {
 		t.Fatal(err)
 	}
 	return buffer.Bytes()
+}
+
+func makeMultiSheetXLSX(t testingTB) []byte {
+	t.Helper()
+
+	workbook := excelize.NewFile()
+	if _, err := workbook.NewSheet("Second"); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := workbook.Write(&output); err != nil {
+		t.Fatal(err)
+	}
+	if err := workbook.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return output.Bytes()
+}
+
+func renameZIPEntry(t testingTB, data []byte, oldName, newName string) []byte {
+	t.Helper()
+
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	found := false
+	for _, file := range reader.File {
+		name := file.Name
+		if name == oldName {
+			name = newName
+			found = true
+		}
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = io.Copy(entry, source); err != nil {
+			_ = source.Close()
+			t.Fatal(err)
+		}
+		if err = source.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !found {
+		t.Fatal(fmt.Sprintf("ZIP entry %q not found", oldName))
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return output.Bytes()
+}
+
+func addZIPEntry(t testingTB, data []byte, name, contents string) []byte {
+	t.Helper()
+
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, file := range reader.File {
+		entry, err := writer.CreateHeader(&file.FileHeader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = io.Copy(entry, source); err != nil {
+			_ = source.Close()
+			t.Fatal(err)
+		}
+		if err = source.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entry, err := writer.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.WriteString(entry, contents); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	return output.Bytes()
 }
