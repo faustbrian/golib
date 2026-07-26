@@ -19,12 +19,16 @@ The table includes both implemented and remaining release boundaries.
 | `adapters/gokafka` nested module | Kafka-native producer and consumer semantics | Core and `franz-go` |
 | `adapters/goqueue` nested module | Adapters for queue backends that preserve the required event semantics | Core and public queue contracts |
 | `adapters/gotelemetry` nested module | OpenTelemetry spans, metrics, and propagation | Core and public telemetry contracts |
-| `codegen` and `cmd/golib-event-sourcing` nested module | Optional deterministic registry and event declaration generation | Core plus generation-only dependencies |
 
 Subpackages will not be created merely to hold one interface. The root package
 owns coherent storage-independent contracts. Nested modules are required for
-PostgreSQL, Kafka, telemetry, queue, outbox, and generator dependency
-isolation.
+PostgreSQL, Kafka, telemetry, queue, and outbox dependency isolation.
+
+Code generation is intentionally excluded from the first release. Applications
+can use their own `go generate` tooling against the public codec APIs; a future
+first-party generator would be an independently versioned nested module only
+after it satisfies the evidence requirements in the
+[code-generation decision](../code-generation.md).
 
 ## Dependency direction
 

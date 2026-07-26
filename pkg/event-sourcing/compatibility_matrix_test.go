@@ -141,6 +141,24 @@ func TestChangelogMaintainsReleasePolicy(t *testing.T) {
 	}
 }
 
+func TestPackageMapMatchesCodeGenerationDecision(t *testing.T) {
+	t.Parallel()
+
+	packageMap := readContractFile(t, "docs/design/package-boundaries.md")
+	if strings.Contains(
+		packageMap,
+		"| `codegen` and `cmd/golib-event-sourcing` nested module |",
+	) {
+		t.Fatal("package map advertises the intentionally excluded generator module")
+	}
+	if !strings.Contains(
+		packageMap,
+		"Code generation is intentionally excluded from the first release",
+	) {
+		t.Fatal("package map does not explain the first-release generator exclusion")
+	}
+}
+
 func compatibilityInventory(
 	t *testing.T,
 	matrix string,
