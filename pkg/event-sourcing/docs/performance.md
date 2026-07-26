@@ -44,6 +44,13 @@ total stream lengths 100, 1,000, and 10,000. They measure state-codec and
 lifecycle work without storage I/O; PostgreSQL snapshot retrieval must be
 measured separately on deployment-shaped data.
 
+The projection benchmark measures bounded replay batches of 10, 100, and 1,000
+messages through the public runner, including replay delivery construction,
+one handler call, and one optimistic checkpoint save per message. Its reader,
+handler, and checkpoint store are deterministic in-memory fixtures, so the
+result isolates orchestration cost rather than durable read-model or checkpoint
+I/O. Benchmark those deployment-owned transactions separately.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating
