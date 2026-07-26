@@ -2,6 +2,8 @@
 
 Transactions require a stable, unique `TransactionalID` for each live producer
 identity. Reusing an identity fences the older producer.
+Transactional IDs must be valid UTF-8 without whitespace padding or control
+characters and are limited to 255 bytes.
 
 `RunTransaction` requires exclusive producer ownership. It fails when another
 transaction, maintenance operation, or admitted non-transactional production

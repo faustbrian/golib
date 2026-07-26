@@ -268,6 +268,14 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 			want: ErrBrokersRequired,
 		},
 		{
+			name: "invalid client ID",
+			config: InspectorConfig{
+				Brokers:  []string{"broker.internal:9092"},
+				ClientID: "track\ninspector",
+			},
+			want: ErrInvalidClientID,
+		},
+		{
 			name: "security",
 			config: InspectorConfig{
 				Brokers:  []string{"broker.internal:9092"},

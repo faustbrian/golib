@@ -45,6 +45,9 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 		want   error
 	}{
 		{name: "no broker", change: func(config *ReplayConfig) { config.Brokers = nil }, want: ErrBrokersRequired},
+		{name: "invalid client ID", change: func(config *ReplayConfig) {
+			config.ClientID = "replay\tid"
+		}, want: ErrInvalidClientID},
 		{name: "no ranges", change: func(config *ReplayConfig) { config.Ranges = nil }, want: ErrReplayRangesRequired},
 		{name: "too many ranges", change: func(config *ReplayConfig) { config.Ranges = manyRanges }, want: ErrTooManyReplayRanges},
 		{name: "blank topic", change: func(config *ReplayConfig) { config.Ranges[0].Topic = " " }, want: ErrInvalidReplayRange},

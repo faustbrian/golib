@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -20,6 +22,7 @@ var (
 	ErrDuplicateBroker           = errors.New("kafka: broker address is duplicated")
 	ErrClientIDRequired          = errors.New("kafka: client ID is required")
 	ErrClientIDTooLarge          = errors.New("kafka: client ID exceeds configured limit")
+	ErrInvalidClientID           = errors.New("kafka: client ID is invalid")
 	ErrTopicRequired             = errors.New("kafka: topic is required")
 	ErrTopicTooLarge             = errors.New("kafka: topic exceeds configured limit")
 	ErrInvalidTopic              = errors.New("kafka: topic name is invalid")
@@ -448,7 +451,7 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 		}
 	} else {
 		if config.TransactionalID != strings.TrimSpace(config.TransactionalID) ||
-			len(config.TransactionalID) > 255 {
+			!validKafkaText(config.TransactionalID, 255) {
 			return ProducerConfig{}, ErrInvalidProducerConfig
 		}
 		if config.TransactionTimeout == 0 {
@@ -569,7 +572,8 @@ func validateClientIdentity(brokers []string, clientID string) error {
 	}
 	seenBrokers := make(map[string]struct{}, len(brokers))
 	for _, broker := range brokers {
-		if broker == "" || broker != strings.TrimSpace(broker) || len(broker) > 255 {
+		if broker == "" || broker != strings.TrimSpace(broker) ||
+			!validKafkaText(broker, 255) {
 			return ErrInvalidBroker
 		}
 		if _, exists := seenBrokers[broker]; exists {
@@ -580,11 +584,19 @@ func validateClientIdentity(brokers []string, clientID string) error {
 	if strings.TrimSpace(clientID) == "" {
 		return ErrClientIDRequired
 	}
-	if clientID != strings.TrimSpace(clientID) || len(clientID) > 255 {
+	if len(clientID) > 255 {
 		return ErrClientIDTooLarge
+	}
+	if clientID != strings.TrimSpace(clientID) || !validKafkaText(clientID, 255) {
+		return ErrInvalidClientID
 	}
 
 	return nil
+}
+
+func validKafkaText(value string, maxBytes int) bool {
+	return len(value) <= maxBytes && utf8.ValidString(value) &&
+		strings.IndexFunc(value, unicode.IsControl) == -1
 }
 
 // Publish waits for Kafka to accept the message or returns the first delivery

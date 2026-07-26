@@ -193,6 +193,16 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 			want:   ErrGroupIDTooLarge,
 		},
 		{
+			name:   "invalid UTF-8 group ID",
+			change: func(config *ConsumerConfig) { config.GroupID = string([]byte{0xff}) },
+			want:   ErrInvalidGroupID,
+		},
+		{
+			name:   "control character group ID",
+			change: func(config *ConsumerConfig) { config.GroupID = "group\nid" },
+			want:   ErrInvalidGroupID,
+		},
+		{
 			name:   "blank instance ID",
 			change: func(config *ConsumerConfig) { config.InstanceID = " " },
 			want:   ErrInvalidInstanceID,

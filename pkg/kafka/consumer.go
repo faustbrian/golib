@@ -5,8 +5,6 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -14,6 +12,7 @@ import (
 var (
 	ErrGroupIDRequired       = errors.New("kafka: consumer group ID is required")
 	ErrGroupIDTooLarge       = errors.New("kafka: consumer group ID exceeds configured limit")
+	ErrInvalidGroupID        = errors.New("kafka: consumer group ID is invalid")
 	ErrInvalidInstanceID     = errors.New("kafka: consumer instance ID is invalid")
 	ErrInvalidRack           = errors.New("kafka: consumer rack is invalid")
 	ErrInvalidBalancePolicy  = errors.New("kafka: consumer balance policy is invalid")
@@ -203,8 +202,12 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if strings.TrimSpace(config.GroupID) == "" {
 		return ConsumerConfig{}, ErrGroupIDRequired
 	}
-	if config.GroupID != strings.TrimSpace(config.GroupID) || len(config.GroupID) > 255 {
+	if len(config.GroupID) > 255 {
 		return ConsumerConfig{}, ErrGroupIDTooLarge
+	}
+	if config.GroupID != strings.TrimSpace(config.GroupID) ||
+		!validKafkaText(config.GroupID, 255) {
+		return ConsumerConfig{}, ErrInvalidGroupID
 	}
 	if !validOptionalConsumerIdentity(config.InstanceID) {
 		return ConsumerConfig{}, ErrInvalidInstanceID
@@ -297,9 +300,7 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 
 func validOptionalConsumerIdentity(value string) bool {
 	return value == "" ||
-		(len(value) <= 255 && utf8.ValidString(value) &&
-			value == strings.TrimSpace(value) &&
-			strings.IndexFunc(value, unicode.IsControl) == -1)
+		(value == strings.TrimSpace(value) && validKafkaText(value, 255))
 }
 
 // RunOnce polls at most the configured record limit and processes records in

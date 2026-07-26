@@ -4,6 +4,13 @@ Use `NewProducer`, `NewConsumer`, `NewReplayReader`, and `NewInspector` as the
 composition roots. Every constructor validates identities and bounded resource
 policy before franz-go is configured.
 
+Broker addresses and Kafka client, group, transactional, instance, and rack
+identifiers must be valid UTF-8 without control characters or surrounding
+whitespace. Identifiers are bounded to 255 bytes. Empty required client and
+group IDs retain their required-value errors, oversized IDs retain their size
+errors, and other malformed client or group IDs return `ErrInvalidClientID` or
+`ErrInvalidGroupID`.
+
 Topic names are validated consistently at every producer, consumer, replay,
 and inspection boundary against Kafka's broker naming rules: 1 to 249 ASCII
 bytes containing only alphanumerics, `.`, `_`, or `-`, excluding `.` and `..`.

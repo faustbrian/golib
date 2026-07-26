@@ -13,6 +13,9 @@ allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
 poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
 dial durations are bounded.
 
+Client and group IDs must be valid UTF-8 without whitespace padding or control
+characters and are limited to 255 bytes.
+
 `InstanceID` and `Rack` are optional UTF-8 identifiers of at most 255 bytes.
 Whitespace padding, control characters, invalid UTF-8, and oversized values
 fail construction.

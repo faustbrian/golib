@@ -424,6 +424,18 @@ func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
 			want:    ErrInvalidBroker,
 		},
 		{
+			name:    "invalid UTF-8 broker",
+			brokers: []string{string([]byte{0xff})},
+			client:  "track",
+			want:    ErrInvalidBroker,
+		},
+		{
+			name:    "control character broker",
+			brokers: []string{"broker\n.internal:9092"},
+			client:  "track",
+			want:    ErrInvalidBroker,
+		},
+		{
 			name:    "too many brokers",
 			brokers: manyBrokers,
 			client:  "track",
@@ -446,6 +458,18 @@ func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
 			brokers: []string{"broker:9092"},
 			client:  strings.Repeat("c", 256),
 			want:    ErrClientIDTooLarge,
+		},
+		{
+			name:    "invalid UTF-8 client ID",
+			brokers: []string{"broker:9092"},
+			client:  string([]byte{0xff}),
+			want:    ErrInvalidClientID,
+		},
+		{
+			name:    "control character client ID",
+			brokers: []string{"broker:9092"},
+			client:  "track\tid",
+			want:    ErrInvalidClientID,
 		},
 	}
 
@@ -705,6 +729,18 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 			name: "oversized transactional ID",
 			change: func(config *ProducerConfig) {
 				config.TransactionalID = strings.Repeat("t", 256)
+			},
+		},
+		{
+			name: "invalid UTF-8 transactional ID",
+			change: func(config *ProducerConfig) {
+				config.TransactionalID = string([]byte{0xff})
+			},
+		},
+		{
+			name: "control character transactional ID",
+			change: func(config *ProducerConfig) {
+				config.TransactionalID = "track\noutbox"
 			},
 		},
 		{
