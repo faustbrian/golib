@@ -4,8 +4,10 @@ package kafka_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"net"
 	"slices"
 	"sync"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/faustbrian/golib/pkg/kafka"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -868,7 +871,19 @@ func proveProducerTransactionVisibility(
 			Topic: topic, Key: []byte("committed"), Value: []byte("committed"),
 		})
 	}); err != nil {
-		t.Fatalf("commit transaction: %v", err)
+		var brokerErr *kerr.Error
+		if errors.As(err, &brokerErr) {
+			t.Fatalf(
+				"commit transaction: %v (Kafka error code %d)",
+				err,
+				brokerErr.Code,
+			)
+		}
+		t.Fatalf(
+			"commit transaction: %v (non-broker cause %s)",
+			err,
+			errorFingerprint(err, brokers),
+		)
 	}
 	abortCause := errors.New("abort transaction fixture")
 	err = producer.RunTransaction(ctx, func(transaction kafka.Transaction) error {
@@ -904,6 +919,54 @@ func proveProducerTransactionVisibility(
 	if !slices.Equal(uncommitted, []string{"committed", "aborted"}) {
 		t.Fatalf("read-uncommitted values = %q", uncommitted)
 	}
+}
+
+func errorFingerprint(err error, brokers []string) string {
+	type multiUnwrapper interface {
+		Unwrap() []error
+	}
+
+	var operationErr *net.OpError
+	brokerIndex := -1
+	operation := ""
+	if errors.As(err, &operationErr) && operationErr.Addr != nil {
+		operation = operationErr.Op
+		for index, broker := range brokers {
+			if operationErr.Addr.String() == broker {
+				brokerIndex = index
+
+				break
+			}
+		}
+	}
+	for err != nil {
+		if joined, ok := err.(multiUnwrapper); ok {
+			causes := joined.Unwrap()
+			if len(causes) == 0 {
+				break
+			}
+			err = causes[0]
+
+			continue
+		}
+		next := errors.Unwrap(err)
+		if next == nil {
+			break
+		}
+		err = next
+	}
+	if err == nil {
+		return "none"
+	}
+	digest := sha256.Sum256([]byte(err.Error()))
+
+	return fmt.Sprintf(
+		"%T sha256:%x operation:%s broker-index:%d",
+		err,
+		digest[:8],
+		operation,
+		brokerIndex,
+	)
 }
 
 func consumeTransactionValues(
@@ -1746,6 +1809,28 @@ func createIntegrationTopicWithConfigs(
 ) {
 	t.Helper()
 
+	createIntegrationTopicWithReplication(
+		t,
+		ctx,
+		brokers,
+		topic,
+		partitions,
+		1,
+		configs,
+	)
+}
+
+func createIntegrationTopicWithReplication(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partitions int32,
+	replicationFactor int16,
+	configs map[string]*string,
+) {
+	t.Helper()
+
 	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
 	if err != nil {
 		t.Fatalf("construct Kafka administrator: %v", err)
@@ -1755,7 +1840,7 @@ func createIntegrationTopicWithConfigs(
 	responses, err := kadm.NewClient(client).CreateTopics(
 		ctx,
 		partitions,
-		1,
+		replicationFactor,
 		configs,
 		topic,
 	)

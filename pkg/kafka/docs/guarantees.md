@@ -25,6 +25,9 @@ A delivery timeout or exhausted franz-go retry budget is classified by the
 condition that ended the attempt; neither classification automatically retries
 the application operation. With the required idempotent producer, franz-go
 only returns its record-delivery timeout when failing the record is safe. A
+bounded dial failure caused by a broker refusing a connection during restart
+is a retryable transport failure; the package still does not retry the
+application operation after franz-go returns that final delivery result. A
 missing delivery result is different: the package classifies it as ambiguous
 because no authoritative per-record outcome was supplied. Fatal sequence or
 producer-ID state stops the producer instead of allowing franz-go's default

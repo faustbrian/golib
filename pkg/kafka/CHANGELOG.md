@@ -90,6 +90,11 @@ All notable changes to this module are documented here.
   hysteresis that requires bounded consecutive failures and recoveries
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility
   coverage against a pinned Kafka fixture
+- pinned three-node Apache Kafka 4.3.1 KRaft evidence with runtime-version
+  assertion, replication factor three, `min.insync.replicas=2`, leader and ISR
+  failover, continued acks-all production with one broker unavailable, exact
+  ISR recovery, and committed/aborted transaction isolation before and after
+  broker-process recovery
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
   race coverage, benchmarks, and exact statement coverage
 
@@ -119,6 +124,9 @@ All notable changes to this module are documented here.
 - broker addresses and client, group, transactional, instance, and rack
   identifiers now reject invalid UTF-8 and control characters before client
   construction; malformed client and group IDs have distinct errors
+- bounded producer dial failures such as a broker refusing connections during
+  restart are now classified as retryable transport failures rather than
+  permanent delivery failures
 - consumer groups now expose cooperative-sticky, eager-sticky, and an ordered
   eager-to-cooperative rolling-migration policy plus optional validated static
   member and rack identities; no franz-go balancer type enters the public API

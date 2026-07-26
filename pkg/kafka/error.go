@@ -3,6 +3,8 @@ package kafka
 import (
 	"context"
 	"errors"
+	"os"
+	"syscall"
 
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -251,7 +253,8 @@ func classifyError(err error) ErrorCategory {
 		return ErrorShutdown
 	case errors.Is(err, context.DeadlineExceeded),
 		errors.Is(err, kerr.RequestTimedOut),
-		errors.Is(err, kgo.ErrRecordTimeout):
+		errors.Is(err, kgo.ErrRecordTimeout),
+		isTimeoutError(err):
 		return ErrorTimeout
 	case errors.Is(err, context.Canceled):
 		return ErrorCanceled
@@ -265,11 +268,27 @@ func classifyError(err error) ErrorCategory {
 		return ErrorOversized
 	case errors.Is(err, kgo.ErrRecordRetries),
 		kerr.IsRetriable(err),
-		kgo.IsRetryableBrokerErr(err):
+		kgo.IsRetryableBrokerErr(err),
+		isTransportError(err):
 		return ErrorRetryable
 	default:
 		return ErrorPermanent
 	}
+}
+
+func isTimeoutError(err error) bool {
+	var timeoutErr interface{ Timeout() bool }
+
+	return errors.As(err, &timeoutErr) && timeoutErr.Timeout()
+}
+
+func isTransportError(err error) bool {
+	if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) {
+		return false
+	}
+	var syscallErr *os.SyscallError
+
+	return errors.As(err, &syscallErr)
 }
 
 func isFatalProducerError(err error) bool {

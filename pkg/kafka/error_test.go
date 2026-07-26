@@ -36,6 +36,22 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 			category: ErrorRetryable,
 			retry:    true,
 		},
+		{
+			name:     "dial transport",
+			cause:    &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)},
+			category: ErrorRetryable,
+			retry:    true,
+		},
+		{
+			name:     "dial timeout",
+			cause:    &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ETIMEDOUT)},
+			category: ErrorTimeout,
+		},
+		{
+			name:     "dial permission",
+			cause:    &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.EACCES)},
+			category: ErrorPermanent,
+		},
 		{name: "fatal sequence", cause: kerr.OutOfOrderSequenceNumber, category: ErrorFatal},
 		{name: "fatal producer ID", cause: kerr.UnknownProducerID, category: ErrorFatal},
 		{name: "fatal producer mapping", cause: kerr.InvalidProducerIDMapping, category: ErrorFatal},

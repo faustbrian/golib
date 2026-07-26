@@ -20,6 +20,12 @@ Use `Inspector.Cluster` for cluster/controller/broker identity and
 `Inspector.Topics` with explicit targets for topic state. Treat any inspection
 error as unknown diagnostic state rather than silently healthy.
 
+The pinned Apache Kafka fixture proves that an RF=3 topic with
+`min.insync.replicas=2` remains writable with acks-all after one broker process
+stops and an in-sync leader is elected. That evidence does not make the same
+claim for an operator's topic, rack placement, network partition, storage
+failure, or managed service; readiness must inspect the actual deployment.
+
 ## Topic durability and retention
 
 Evaluate `Inspector.Topics` as a combined snapshot of current replica/ISR
@@ -60,3 +66,9 @@ an incomplete operator action and must be recorded.
 Consumers replay through normal at-least-once group behavior. Audited historical
 replay uses `ReplayReader`; never reset production group offsets as a substitute
 for an explicit replay plan.
+
+The Apache compatibility fixture stops the Kafka process without replacing its
+container, waits for observable leader/ISR changes, and requires every
+advertised client endpoint plus the application and transaction-state ISRs to
+recover before post-restart delivery. Operational automation should likewise
+wait for broker and topic state rather than using a fixed sleep.

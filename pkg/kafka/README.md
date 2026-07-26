@@ -242,9 +242,11 @@ See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibilit
 ## Development
 
 Run `make check`. With Docker available, `make integration` exercises the
-current draft against one pinned Confluent Local 7.5.0 broker. That fixture is
-not the required multi-broker Apache Kafka, auth, failure, or service
-compatibility matrix. Exact inputs and evidence gaps are recorded in the
+package against one pinned Confluent Local 7.5.0 broker and three pinned Apache
+Kafka 4.3.1 combined KRaft broker/controller nodes. The Apache fixture asserts
+the runtime version and proves one bounded leader/ISR failure and recovery
+scenario; it is not the complete auth, compatibility, or chaos matrix. Exact
+inputs and remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
-[SECURITY.md](SECURITY.md). The module is licensed under the
-[MIT License](LICENSE).
+[SECURITY.md](SECURITY.md). The module is licensed under the [MIT
+License](LICENSE).
