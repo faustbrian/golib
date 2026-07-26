@@ -1,0 +1,27 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors
+cpu: Apple M4 Max
+                                         │ /tmp/event-sourcing-results-final.CA4hYb/competitors.txt │
+                                         │                          sec/op                          │
+EquivalentRecordAndApply/golib-16                                                       80.32n ± 3%
+EquivalentRecordAndApply/eventhorizon-16                                                68.30n ± 7%
+EquivalentRecordAndApply/hallgren-16                                                    146.9n ± 3%
+EquivalentRecordAndApply/thefabric-16                                                   954.9n ± 1%
+geomean                                                                                 166.6n
+
+                                         │ /tmp/event-sourcing-results-final.CA4hYb/competitors.txt │
+                                         │                           B/op                           │
+EquivalentRecordAndApply/golib-16                                                        96.00 ± 0%
+EquivalentRecordAndApply/eventhorizon-16                                                 184.0 ± 0%
+EquivalentRecordAndApply/hallgren-16                                                     392.0 ± 0%
+EquivalentRecordAndApply/thefabric-16                                                    721.0 ± 0%
+geomean                                                                                  265.8
+
+                                         │ /tmp/event-sourcing-results-final.CA4hYb/competitors.txt │
+                                         │                        allocs/op                         │
+EquivalentRecordAndApply/golib-16                                                        2.000 ± 0%
+EquivalentRecordAndApply/eventhorizon-16                                                 4.000 ± 0%
+EquivalentRecordAndApply/hallgren-16                                                     4.000 ± 0%
+EquivalentRecordAndApply/thefabric-16                                                    17.00 ± 0%
+geomean                                                                                  4.829

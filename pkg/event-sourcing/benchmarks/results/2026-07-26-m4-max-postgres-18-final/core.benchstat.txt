@@ -1,0 +1,196 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing
+cpu: Apple M4 Max
+                                                      │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                      │                      sec/op                       │
+PendingMessageConstruction-16                                                                153.9n ±  3%
+LifecycleReconstitution/0-16                                                                 3.104n ±  0%
+LifecycleReconstitution/1-16                                                                 13.85n ±  1%
+LifecycleReconstitution/10-16                                                                113.7n ±  0%
+LifecycleReconstitution/100-16                                                               1.088µ ±  0%
+LifecycleReconstitution/1000-16                                                              10.72µ ±  0%
+LifecycleReconstitution/10000-16                                                             109.2µ ±  0%
+PayloadValidation/small-16                                                                   160.3n ±  1%
+PayloadValidation/normal-16                                                                  431.0n ±  0%
+PayloadValidation/maximum-16                                                                 35.29µ ± 15%
+PayloadValidation/hostile-16                                                                 166.1n ±  0%
+JSONCodecRoundTrip-16                                                                        4.191µ ±  0%
+JSONCodecRegistryPaths/warm-16                                                               4.265µ ±  3%
+JSONCodecRegistryPaths/cold-16                                                               4.856µ ±  4%
+SnapshotRestoreBreakEven/100/full-history-16                                                 1.101µ ±  2%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                          1.222µ ±  0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                          1.059µ ±  1%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                          794.1n ±  1%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                          542.3n ± 21%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                          328.1n ±  7%
+SnapshotRestoreBreakEven/1000/full-history-16                                                10.76µ ±  0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                         9.985µ ±  0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                         8.350µ ±  0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                         5.691µ ±  1%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                         3.021µ ± 47%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                         1.355µ ±  3%
+SnapshotRestoreBreakEven/10000/full-history-16                                               110.3µ ±  0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                        99.33µ ±  0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                        83.55µ ±  0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                        59.28µ ±  5%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                        28.68µ ±  2%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                        11.19µ ±  3%
+UpcasterChain/0-16                                                                           351.7n ±  3%
+UpcasterChain/1-16                                                                           1.927µ ±  1%
+UpcasterChain/4-16                                                                           6.754µ ±  1%
+UpcasterChain/16-16                                                                          27.64µ ±  0%
+SynchronousDispatch/1-16                                                                     43.21n ±  0%
+SynchronousDispatch/10-16                                                                    419.2n ±  0%
+SynchronousDispatch/100-16                                                                   4.237µ ±  1%
+geomean                                                                                      2.203µ
+
+                                                      │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                      │                       B/op                        │
+PendingMessageConstruction-16                                                                360.0 ± 0%
+LifecycleReconstitution/0-16                                                                 0.000 ± 0%
+LifecycleReconstitution/1-16                                                                 0.000 ± 0%
+LifecycleReconstitution/10-16                                                                0.000 ± 0%
+LifecycleReconstitution/100-16                                                               0.000 ± 0%
+LifecycleReconstitution/1000-16                                                              0.000 ± 0%
+LifecycleReconstitution/10000-16                                                             0.000 ± 0%
+PayloadValidation/small-16                                                                   160.0 ± 0%
+PayloadValidation/normal-16                                                                4.125Ki ± 0%
+PayloadValidation/maximum-16                                                               1.000Mi ± 0%
+PayloadValidation/hostile-16                                                                 160.0 ± 0%
+JSONCodecRoundTrip-16                                                                      4.318Ki ± 0%
+JSONCodecRegistryPaths/warm-16                                                             4.318Ki ± 0%
+JSONCodecRegistryPaths/cold-16                                                             5.844Ki ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                                 0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                          216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                          216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                          216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                          216.0 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                          216.0 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                                0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                         216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                         216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                         216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                         216.0 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                         216.0 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                               0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                        216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                        216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                        216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                        216.0 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                        216.0 ± 0%
+UpcasterChain/0-16                                                                         1.172Ki ± 0%
+UpcasterChain/1-16                                                                         4.719Ki ± 0%
+UpcasterChain/4-16                                                                         15.36Ki ± 0%
+UpcasterChain/16-16                                                                        63.37Ki ± 0%
+SynchronousDispatch/1-16                                                                     0.000 ± 0%
+SynchronousDispatch/10-16                                                                    0.000 ± 0%
+SynchronousDispatch/100-16                                                                   0.000 ± 0%
+geomean                                                                                                 ¹
+¹ summaries must be >0 to compute geomean
+
+                                                      │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                      │                     allocs/op                     │
+PendingMessageConstruction-16                                                                3.000 ± 0%
+LifecycleReconstitution/0-16                                                                 0.000 ± 0%
+LifecycleReconstitution/1-16                                                                 0.000 ± 0%
+LifecycleReconstitution/10-16                                                                0.000 ± 0%
+LifecycleReconstitution/100-16                                                               0.000 ± 0%
+LifecycleReconstitution/1000-16                                                              0.000 ± 0%
+LifecycleReconstitution/10000-16                                                             0.000 ± 0%
+PayloadValidation/small-16                                                                   6.000 ± 0%
+PayloadValidation/normal-16                                                                  6.000 ± 0%
+PayloadValidation/maximum-16                                                                 6.000 ± 0%
+PayloadValidation/hostile-16                                                                 6.000 ± 0%
+JSONCodecRoundTrip-16                                                                        111.0 ± 0%
+JSONCodecRegistryPaths/warm-16                                                               111.0 ± 0%
+JSONCodecRegistryPaths/cold-16                                                               125.0 ± 0%
+SnapshotRestoreBreakEven/100/full-history-16                                                 0.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-10-percent-16                                          4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-25-percent-16                                          4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-50-percent-16                                          4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-75-percent-16                                          4.000 ± 0%
+SnapshotRestoreBreakEven/100/snapshot-90-percent-16                                          4.000 ± 0%
+SnapshotRestoreBreakEven/1000/full-history-16                                                0.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-10-percent-16                                         4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-25-percent-16                                         4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-50-percent-16                                         4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-75-percent-16                                         4.000 ± 0%
+SnapshotRestoreBreakEven/1000/snapshot-90-percent-16                                         4.000 ± 0%
+SnapshotRestoreBreakEven/10000/full-history-16                                               0.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-10-percent-16                                        4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-25-percent-16                                        4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-50-percent-16                                        4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-75-percent-16                                        4.000 ± 0%
+SnapshotRestoreBreakEven/10000/snapshot-90-percent-16                                        4.000 ± 0%
+UpcasterChain/0-16                                                                           10.00 ± 0%
+UpcasterChain/1-16                                                                           55.00 ± 0%
+UpcasterChain/4-16                                                                           190.0 ± 0%
+UpcasterChain/16-16                                                                          751.0 ± 0%
+SynchronousDispatch/1-16                                                                     0.000 ± 0%
+SynchronousDispatch/10-16                                                                    0.000 ± 0%
+SynchronousDispatch/100-16                                                                   0.000 ± 0%
+geomean                                                                                                 ¹
+¹ summaries must be >0 to compute geomean
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/memory
+                                                 │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                 │                      sec/op                       │
+ConcurrentAppendWorkloads/independent_streams-16                                        149.2µ ± 13%
+ConcurrentAppendWorkloads/one_hot_stream-16                                             162.0µ ±  1%
+geomean                                                                                 155.5µ
+
+                                                 │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                 │                       B/op                        │
+ConcurrentAppendWorkloads/independent_streams-16                                        315.3Ki ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                             368.0Ki ± 0%
+geomean                                                                                 340.6Ki
+
+                                                 │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                 │                     allocs/op                     │
+ConcurrentAppendWorkloads/independent_streams-16                                         1.048k ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                               846.0 ± 0%
+geomean                                                                                   941.6
+
+                                                 │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                 │                     appends/s                     │
+ConcurrentAppendWorkloads/independent_streams-16                                        1.340M ± 12%
+ConcurrentAppendWorkloads/one_hot_stream-16                                             1.235M ±  1%
+geomean                                                                                 1.286M
+
+                                                 │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                                 │                 appends/workload                  │
+ConcurrentAppendWorkloads/independent_streams-16                                          200.0 ± 0%
+ConcurrentAppendWorkloads/one_hot_stream-16                                               200.0 ± 0%
+geomean                                                                                   200.0
+
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/projection
+                                            │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                            │                      sec/op                       │
+ProjectionReplayAndCheckpoint/batch_10-16                                           528.9n ± 2%
+ProjectionReplayAndCheckpoint/batch_100-16                                          4.939µ ± 2%
+ProjectionReplayAndCheckpoint/batch_1000-16                                         49.09µ ± 4%
+ProjectionLiveCatchUp/tail_10-16                                                    521.4n ± 1%
+ProjectionLiveCatchUp/tail_100-16                                                   4.937µ ± 3%
+ProjectionLiveCatchUp/tail_1000-16                                                  49.46µ ± 1%
+geomean                                                                             5.036µ
+
+                                            │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                            │                       B/op                        │
+ProjectionReplayAndCheckpoint/batch_10-16                                            32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                           32.00 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                          32.00 ± 0%
+ProjectionLiveCatchUp/tail_10-16                                                     32.00 ± 0%
+ProjectionLiveCatchUp/tail_100-16                                                    32.00 ± 0%
+ProjectionLiveCatchUp/tail_1000-16                                                   32.00 ± 0%
+geomean                                                                              32.00
+
+                                            │ /tmp/event-sourcing-results-final.CA4hYb/core.txt │
+                                            │                     allocs/op                     │
+ProjectionReplayAndCheckpoint/batch_10-16                                            1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_100-16                                           1.000 ± 0%
+ProjectionReplayAndCheckpoint/batch_1000-16                                          1.000 ± 0%
+ProjectionLiveCatchUp/tail_10-16                                                     1.000 ± 0%
+ProjectionLiveCatchUp/tail_100-16                                                    1.000 ± 0%
+ProjectionLiveCatchUp/tail_1000-16                                                   1.000 ± 0%
+geomean                                                                              1.000

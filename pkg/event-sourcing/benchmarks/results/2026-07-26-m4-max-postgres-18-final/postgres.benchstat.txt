@@ -1,0 +1,35 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/event-sourcing/postgres
+cpu: Apple M4 Max
+                                              │ /tmp/event-sourcing-results-final.CA4hYb/postgres.txt │
+                                              │                        sec/op                         │
+PostgreSQLAppendEquivalentWork/event-store-16                                            1.198m ± 22%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                             1.109m ±  5%
+PostgreSQLOptimisticConflict-16                                                          532.1µ ± 15%
+PostgreSQLPoolSaturation-16                                                              599.4µ ± 19%
+geomean                                                                                  806.8µ
+
+                                              │ /tmp/event-sourcing-results-final.CA4hYb/postgres.txt │
+                                              │                         B/op                          │
+PostgreSQLAppendEquivalentWork/event-store-16                                            6.831Ki ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                             5.099Ki ± 0%
+PostgreSQLOptimisticConflict-16                                                          2.813Ki ± 0%
+PostgreSQLPoolSaturation-16                                                              7.437Ki ± 1%
+geomean                                                                                  5.196Ki
+
+                                              │ /tmp/event-sourcing-results-final.CA4hYb/postgres.txt │
+                                              │                       allocs/op                       │
+PostgreSQLAppendEquivalentWork/event-store-16                                              123.0 ± 0%
+PostgreSQLAppendEquivalentWork/direct-pgx-16                                               99.00 ± 0%
+PostgreSQLOptimisticConflict-16                                                            52.00 ± 0%
+PostgreSQLPoolSaturation-16                                                                127.0 ± 0%
+geomean                                                                                    94.70
+
+                            │ /tmp/event-sourcing-results-final.CA4hYb/postgres.txt │
+                            │                    pool_wait_ns/op                    │
+PostgreSQLPoolSaturation-16                                            8.273M ± 18%
+
+                            │ /tmp/event-sourcing-results-final.CA4hYb/postgres.txt │
+                            │                     pool_waits/op                     │
+PostgreSQLPoolSaturation-16                                              1.000 ± 0%

@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish refreshed final benchmark evidence for PostgreSQL pool saturation
+  and projection live catch-up alongside the complete existing workload set.
 - Add the final source-level hardening findings, dispositions, evidence
   boundaries, and residual-risk register.
 - Add the documented transport-neutral `MessageCodec` contract separately
