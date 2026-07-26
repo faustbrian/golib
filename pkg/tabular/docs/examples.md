@@ -24,6 +24,8 @@ reader, err := tabular.OpenSpreadsheet(file, size, tabular.SpreadsheetConfig{
     Format: tabular.FormatXLSX,
     Sheet: "Orders",
     Header: &tabular.HeaderConfig{RejectEmpty: true, RejectDuplicates: true},
+    MaxRecordBytes: 64 << 10,
+    MaxFieldBytes: 16 << 10,
     ZIP: tabular.ZIPConfig{MaxEntryBytes: 32 << 20, MaxTotalBytes: 64 << 20},
 })
 if err != nil { return err }

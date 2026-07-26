@@ -206,6 +206,102 @@ func TestSpreadsheetReaderCommonEdgeSemantics(t *testing.T) {
 	}
 }
 
+func TestSpreadsheetReaderBoundsParsedRecordAndFields(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		config      SpreadsheetConfig
+		row         []spreadsheetCell
+		wantField   int
+		wantSuccess Row
+	}{
+		{
+			name: "record limit",
+			config: SpreadsheetConfig{
+				Format:         FormatXLSX,
+				MaxRecordBytes: 3,
+			},
+			row: []spreadsheetCell{{value: "ab"}, {value: "cd"}},
+		},
+		{
+			name: "field limit takes precedence",
+			config: SpreadsheetConfig{
+				Format:         FormatXLSX,
+				MaxRecordBytes: 1,
+				MaxFieldBytes:  3,
+			},
+			row:       []spreadsheetCell{{value: "ab"}, {value: "toolong"}},
+			wantField: 2,
+		},
+		{
+			name: "preserved error field limit",
+			config: SpreadsheetConfig{
+				Format:             FormatXLSX,
+				PreserveCellErrors: true,
+				MaxFieldBytes:      3,
+			},
+			row:       []spreadsheetCell{{err: "#ERR"}},
+			wantField: 1,
+		},
+		{
+			name: "preserved error record limit",
+			config: SpreadsheetConfig{
+				Format:             FormatXLS,
+				PreserveCellErrors: true,
+				MaxRecordBytes:     3,
+			},
+			row: []spreadsheetCell{{err: "#ERR"}},
+		},
+		{
+			name: "positive limits allow row",
+			config: SpreadsheetConfig{
+				Format:         FormatXLSX,
+				MaxRecordBytes: 16,
+				MaxFieldBytes:  8,
+			},
+			row:         []spreadsheetCell{{value: "ab"}, {value: "toolong"}},
+			wantSuccess: Row{"ab", "toolong"},
+		},
+		{
+			name: "zero limits preserve legacy behavior",
+			config: SpreadsheetConfig{
+				Format: FormatXLSX,
+			},
+			row:         []spreadsheetCell{{value: "ab"}, {value: "toolong"}},
+			wantSuccess: Row{"ab", "toolong"},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := newSpreadsheetReader(
+				&stubSpreadsheetSource{rows: [][]spreadsheetCell{test.row}},
+				test.config,
+			)
+			row, err := reader.Read()
+			if test.wantSuccess != nil {
+				if err != nil || !reflect.DeepEqual(row, test.wantSuccess) {
+					t.Fatalf("Read() = %#v, %v", row, err)
+				}
+				return
+			}
+			var limitError *Error
+			if !errors.Is(err, ErrorLimitExceeded) ||
+				!errors.As(err, &limitError) ||
+				limitError.Field != test.wantField {
+				t.Fatalf(
+					"Read() error = %#v, want limit at field %d",
+					err,
+					test.wantField,
+				)
+			}
+		})
+	}
+}
+
 func TestOpenSpreadsheetSurfacesReaderAndOOXMLFailures(t *testing.T) {
 	t.Parallel()
 

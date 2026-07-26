@@ -29,7 +29,13 @@ type SpreadsheetConfig struct {
 	AllowVariableFields bool
 	PreserveCellErrors  bool
 	MaxWorkbookBytes    int64
-	ZIP                 ZIPConfig
+	// MaxRecordBytes bounds one parsed worksheet row before normalization.
+	// Zero preserves the unbounded legacy behavior.
+	MaxRecordBytes int
+	// MaxFieldBytes bounds one parsed worksheet cell before normalization.
+	// Zero preserves the unbounded legacy behavior.
+	MaxFieldBytes int
+	ZIP           ZIPConfig
 }
 
 // SpreadsheetReader presents format-independent workbook rows.
@@ -45,6 +51,8 @@ type SpreadsheetReader struct {
 	fields         int
 	variable       bool
 	preserveErrors bool
+	maxRecordBytes int
+	maxFieldBytes  int
 	closed         bool
 }
 
@@ -80,7 +88,9 @@ func (*xlsRowSource) Close() error { return nil }
 
 // OpenSpreadsheet opens an explicitly configured XLS or XLSX workbook.
 func OpenSpreadsheet(source io.ReaderAt, size int64, config SpreadsheetConfig) (*SpreadsheetReader, error) {
-	if source == nil || size < 0 || config.FieldsPerRecord < 0 || config.MaxWorkbookBytes < 0 ||
+	if source == nil || size < 0 || config.FieldsPerRecord < 0 ||
+		config.MaxWorkbookBytes < 0 || config.MaxRecordBytes < 0 ||
+		config.MaxFieldBytes < 0 ||
 		(config.Format != FormatXLS && config.Format != FormatXLSX) {
 		return nil, &Error{Kind: ErrorInvalidConfig, Op: "spreadsheet.open", Format: string(config.Format)}
 	}
@@ -132,6 +142,8 @@ func newSpreadsheetReader(source spreadsheetRowSource, config SpreadsheetConfig)
 		fields:         config.FieldsPerRecord,
 		variable:       config.AllowVariableFields,
 		preserveErrors: config.PreserveCellErrors,
+		maxRecordBytes: config.MaxRecordBytes,
+		maxFieldBytes:  config.MaxFieldBytes,
 	}
 }
 
@@ -190,6 +202,9 @@ func (reader *SpreadsheetReader) readRow() (Row, error) {
 		return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index + 1, Err: err}
 	}
 	reader.index++
+	if err = reader.validateLimits(cells); err != nil {
+		return nil, err
+	}
 	if reader.fields > 0 && !reader.variable {
 		if len(cells) > reader.fields {
 			return nil, &Error{Kind: ErrorMalformedRow, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index, Err: errors.New("unexpected field count")}
@@ -210,6 +225,50 @@ func (reader *SpreadsheetReader) readRow() (Row, error) {
 		}
 	}
 	return NormalizeRow(row, reader.normalize), nil
+}
+
+func (reader *SpreadsheetReader) validateLimits(
+	cells []spreadsheetCell,
+) error {
+	if reader.maxFieldBytes > 0 {
+		for index, cell := range cells {
+			if len(reader.outputCellValue(cell)) > reader.maxFieldBytes {
+				return &Error{
+					Kind:   ErrorLimitExceeded,
+					Op:     "spreadsheet.read",
+					Format: string(reader.format),
+					Row:    reader.index,
+					Field:  index + 1,
+				}
+			}
+		}
+	}
+	if reader.maxRecordBytes == 0 {
+		return nil
+	}
+	remaining := reader.maxRecordBytes
+	for _, cell := range cells {
+		value := reader.outputCellValue(cell)
+		if len(value) > remaining {
+			return &Error{
+				Kind:   ErrorLimitExceeded,
+				Op:     "spreadsheet.read",
+				Format: string(reader.format),
+				Row:    reader.index,
+			}
+		}
+		remaining -= len(value)
+	}
+	return nil
+}
+
+func (reader *SpreadsheetReader) outputCellValue(
+	cell spreadsheetCell,
+) string {
+	if reader.preserveErrors && cell.err != "" {
+		return cell.err
+	}
+	return cell.value
 }
 
 // Close releases iterator resources. It does not close the caller's source.

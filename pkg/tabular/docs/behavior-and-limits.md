@@ -32,6 +32,14 @@ bound. Field limits count parsed UTF-8 bytes before optional normalization.
 Both failures use `ErrorLimitExceeded`; row and field coordinates are one-based
 when available.
 
+Spreadsheet record and field limits are also opt-in. They are enforced on
+parsed XLS and XLSX cell values before normalization or caller delivery.
+Record limits count the sum of bytes that would be delivered for one worksheet
+row, including preserved spreadsheet error text. Field limits apply the same
+rule to one cell and report its one-based coordinate.
+Archive and workbook limits still bound the underlying parser; parsed limits
+do not claim to prevent allocations inside the XLS or Excelize engines.
+
 Row normalization is ordered: trim whitespace, then replace empty values.
 Header normalization removes a UTF-8 BOM from field one, trims, changes case,
 applies exact replacements, then validates empty and duplicate names.

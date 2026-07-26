@@ -125,6 +125,8 @@ func TestSpreadsheetValidatesCommonConfiguration(t *testing.T) {
 		{name: "unknown format", source: valid, size: 4, config: SpreadsheetConfig{Format: SpreadsheetFormat("ods")}},
 		{name: "negative fields", source: valid, size: 4, config: SpreadsheetConfig{Format: FormatXLS, FieldsPerRecord: -1}},
 		{name: "negative limit", source: valid, size: 4, config: SpreadsheetConfig{Format: FormatXLS, MaxWorkbookBytes: -1}},
+		{name: "negative record limit", source: valid, size: 4, config: SpreadsheetConfig{Format: FormatXLS, MaxRecordBytes: -1}},
+		{name: "negative field limit", source: valid, size: 4, config: SpreadsheetConfig{Format: FormatXLS, MaxFieldBytes: -1}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

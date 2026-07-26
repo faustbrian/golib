@@ -53,6 +53,7 @@ spreadsheets, ZIP sources, encodings, and normalization.
 - streaming delimited, fixed-width, ZIP-entry, and XLSX row processing
 - bounded XLS materialization for OLE2/BIFF8 random access
 - archive entry-count, size, path, and duplicate checks
+- opt-in parsed record and field limits for delimited and spreadsheet rows
 - opt-in normalization that does not mutate caller-owned rows
 - stable error kinds with one-based row and field coordinates
 

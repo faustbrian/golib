@@ -16,6 +16,8 @@ policy.
 Defaults are protective, not unlimited. Set limits from the surrounding
 system's upload policy when those limits are smaller. XLS uses
 `MaxWorkbookBytes`; XLSX uses the limits in `SpreadsheetConfig.ZIP`.
+Untrusted spreadsheets should also set `MaxRecordBytes` and `MaxFieldBytes`
+to bound parsed rows and cells before normalization and caller delivery.
 
 ## Handle typed errors
 

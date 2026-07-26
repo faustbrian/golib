@@ -25,6 +25,9 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `DelimitedConfig`, including quoted multiline records and stable
   `ErrorLimitExceeded` classification. Zero values preserve the existing
   unbounded behavior.
+- Added opt-in parsed-row and cell limits to `SpreadsheetConfig` for XLS and
+  XLSX. Limit failures report `ErrorLimitExceeded`; zero values preserve
+  existing behavior.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Gated, disk-backed benchmarks for CSV and XLSX inputs of at least 50 MiB and
