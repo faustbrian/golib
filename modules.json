@@ -4458,7 +4458,8 @@
             "pkg/event-sourcing/CHANGELOG.md",
             "pkg/event-sourcing/README.md",
             "pkg/event-sourcing/docs/architecture.md",
-            "pkg/event-sourcing/docs/performance.md"
+            "pkg/event-sourcing/docs/performance.md",
+            "pkg/event-sourcing/docs/security.md"
           ],
           "verification_gates": [
             "format-check",
@@ -4492,7 +4493,8 @@
             "pkg/event-sourcing/CHANGELOG.md",
             "pkg/event-sourcing/README.md",
             "pkg/event-sourcing/docs/architecture.md",
-            "pkg/event-sourcing/docs/performance.md"
+            "pkg/event-sourcing/docs/performance.md",
+            "pkg/event-sourcing/docs/security.md"
           ],
           "verification_gates": [
             "format-check",
