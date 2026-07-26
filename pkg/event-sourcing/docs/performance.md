@@ -70,6 +70,10 @@ publication and Kafka delivery.
 
 ## Reproducibility
 
+The [performance evidence harness](../benchmarks/README.md) captures the core,
+competitor, real PostgreSQL, and real outbox layers as separate raw files and
+analyzes each with the dependency-pinned `benchstat` version.
+
 Publish the Go version, exact module versions and checksums, hardware, operating
 system, CPU and power mode, database image digest and settings, connection-pool
 limits, schema, payload corpus, stream-length distribution, concurrency,

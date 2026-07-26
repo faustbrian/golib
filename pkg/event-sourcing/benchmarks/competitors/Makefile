@@ -1,5 +1,6 @@
 GO ?= go
 BENCH_COUNT ?= 20
+BENCH_TIME ?= 250ms
 BENCH_PATTERN ?= ^BenchmarkEquivalentRecordAndApply$$
 
 .PHONY: analyze benchmark capture environment test
@@ -9,12 +10,12 @@ test:
 
 benchmark:
 	$(GO) test -run '^$$' -bench '$(BENCH_PATTERN)' -benchmem \
-		-count='$(BENCH_COUNT)'
+		-benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)'
 
 capture:
 	test -n '$(OUTPUT)'
 	$(GO) test -run '^$$' -bench '$(BENCH_PATTERN)' -benchmem \
-		-count='$(BENCH_COUNT)' > '$(OUTPUT)'
+		-benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' > '$(OUTPUT)'
 	cat '$(OUTPUT)'
 
 analyze:

@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   releases, with functional outcome checks and reproducibility guidance.
 - Pin `benchstat` and add repeatable capture, analysis, and environment commands
   for competitor benchmark evidence.
+- Add one reproducible evidence harness for core, competitor, PostgreSQL, and
+  outbox benchmark capture with pinned statistical analysis and environment
+  provenance.
 - Add core reconstitution, deterministic JSON round-trip, and upcaster-chain
   benchmarks with representative history lengths and chain depths.
 - Add snapshot restoration break-even comparisons between full replay and JSON

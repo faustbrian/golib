@@ -44,7 +44,7 @@ enough independent samples rather than selecting a best run:
 ```sh
 make test
 make environment > environment.txt
-make capture OUTPUT=raw-record-and-apply.txt
+make capture OUTPUT=raw-record-and-apply.txt BENCH_COUNT=20 BENCH_TIME=250ms
 make analyze INPUT=raw-record-and-apply.txt
 ```
 
