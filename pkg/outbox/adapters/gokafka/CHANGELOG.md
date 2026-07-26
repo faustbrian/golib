@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- refresh dependency checksums for Kafka's transactional-processing test graph;
+  no adapter API migration is required
 - remain source-compatible with Kafka's error-returning bounded producer close;
   the adapter client contract does not expose close and needs no migration
 - remain source-compatible with Kafka's expanded stable producer failure
