@@ -1,6 +1,7 @@
 package eventsourcing_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -12,6 +13,7 @@ import (
 var (
 	benchmarkLifecycleState int
 	benchmarkDecodedEvent   eventsourcing.DecodedEvent
+	benchmarkSnapshotState  snapshotBenchmarkState
 	benchmarkUpcastEvents   []eventsourcing.UpcastEvent
 )
 
@@ -20,6 +22,10 @@ type benchmarkCounterIncremented struct {
 	Sequence   int64             `json:"sequence"`
 	OccurredAt time.Time         `json:"occurred_at"`
 	Labels     map[string]string `json:"labels"`
+}
+
+type snapshotBenchmarkState struct {
+	Count int `json:"count"`
 }
 
 func BenchmarkLifecycleReconstitution(benchmark *testing.B) {
@@ -84,6 +90,39 @@ func BenchmarkJSONCodecRoundTrip(benchmark *testing.B) {
 	}
 }
 
+func BenchmarkSnapshotRestoreBreakEven(benchmark *testing.B) {
+	for _, total := range []int{100, 1_000, 10_000} {
+		fullHistory := benchmarkHistory(benchmark, total)
+		benchmark.Run(fmt.Sprintf("%d/full-history", total), func(benchmark *testing.B) {
+			benchmarkSnapshotRestore(benchmark, 0, nil, fullHistory, total)
+		})
+		for _, percent := range []int{10, 25, 50, 75, 90} {
+			snapshotVersion := total * percent / 100
+			tail := benchmarkHistoryFrom(
+				benchmark,
+				snapshotVersion,
+				total-snapshotVersion,
+			)
+			state, err := json.Marshal(snapshotBenchmarkState{Count: snapshotVersion})
+			if err != nil {
+				benchmark.Fatal(err)
+			}
+			benchmark.Run(
+				fmt.Sprintf("%d/snapshot-%d-percent", total, percent),
+				func(benchmark *testing.B) {
+					benchmarkSnapshotRestore(
+						benchmark,
+						snapshotVersion,
+						state,
+						tail,
+						total,
+					)
+				},
+			)
+		}
+	}
+}
+
 func BenchmarkUpcasterChain(benchmark *testing.B) {
 	for _, depth := range []int{1, 4, 16} {
 		chain, input := benchmarkUpcasterFixture(benchmark, depth)
@@ -133,9 +172,33 @@ func TestPerformanceBenchmarkFixtures(t *testing.T) {
 	if err != nil || len(output) != 1 || output[0].Event().Version() != 4 {
 		t.Fatalf("upcaster fixture = %#v, %v", output, err)
 	}
+
+	tail := benchmarkHistoryFrom(t, 9, 1)
+	snapshotState := snapshotBenchmarkState{Count: 9}
+	var restored eventsourcing.Lifecycle
+	if err := restored.Reconstitute(9, tail, func(event eventsourcing.DecodedEvent) error {
+		snapshotState.Count += event.Value().(benchmarkCounterIncremented).Amount
+		return nil
+	}); err != nil || snapshotState.Count != 10 || restored.CommittedVersion() != 10 {
+		t.Fatalf(
+			"snapshot fixture = state %d, version %d, error %v",
+			snapshotState.Count,
+			restored.CommittedVersion(),
+			err,
+		)
+	}
 }
 
 func benchmarkHistory(t testing.TB, length int) []eventsourcing.HistoricalEvent {
+	t.Helper()
+	return benchmarkHistoryFrom(t, 0, length)
+}
+
+func benchmarkHistoryFrom(
+	t testing.TB,
+	baseVersion int,
+	length int,
+) []eventsourcing.HistoricalEvent {
 	t.Helper()
 	decoded, err := eventsourcing.NewDecodedEvent(eventsourcing.DecodedEventInput{
 		Name:    "benchmark.counter.incremented",
@@ -149,7 +212,7 @@ func benchmarkHistory(t testing.TB, length int) []eventsourcing.HistoricalEvent 
 	for index := range history {
 		history[index], err = eventsourcing.NewHistoricalEvent(
 			eventsourcing.HistoricalEventInput{
-				SourceVersion: uint64(index + 1),
+				SourceVersion: uint64(baseVersion + index + 1),
 				SegmentCount:  1,
 				Event:         decoded,
 			},
@@ -159,6 +222,51 @@ func benchmarkHistory(t testing.TB, length int) []eventsourcing.HistoricalEvent 
 		}
 	}
 	return history
+}
+
+func benchmarkSnapshotRestore(
+	benchmark *testing.B,
+	baseVersion int,
+	encodedState []byte,
+	history []eventsourcing.HistoricalEvent,
+	want int,
+) {
+	benchmark.Helper()
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	var lifecycle eventsourcing.Lifecycle
+	var err error
+	for benchmark.Loop() {
+		lifecycle = eventsourcing.Lifecycle{}
+		benchmarkSnapshotState = snapshotBenchmarkState{}
+		if encodedState != nil {
+			if err = json.Unmarshal(encodedState, &benchmarkSnapshotState); err != nil {
+				break
+			}
+		}
+		err = lifecycle.Reconstitute(
+			uint64(baseVersion),
+			history,
+			func(event eventsourcing.DecodedEvent) error {
+				benchmarkSnapshotState.Count += event.Value().(benchmarkCounterIncremented).Amount
+				return nil
+			},
+		)
+		if err != nil {
+			break
+		}
+	}
+	benchmark.StopTimer()
+	if err != nil {
+		benchmark.Fatal(err)
+	}
+	if benchmarkSnapshotState.Count != want || lifecycle.CommittedVersion() != uint64(want) {
+		benchmark.Fatalf(
+			"restoration = state %d, version %d",
+			benchmarkSnapshotState.Count,
+			lifecycle.CommittedVersion(),
+		)
+	}
 }
 
 func benchmarkJSONFixture(

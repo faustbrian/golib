@@ -38,6 +38,12 @@ is outside the timer, while validation, defensive ownership, event application,
 and deterministic upcaster double-execution remain inside because they are part
 of the public guarantees.
 
+Snapshot break-even benchmarks compare full replay with JSON state decoding
+plus the remaining history after snapshots at 10%, 25%, 50%, 75%, and 90% of
+total stream lengths 100, 1,000, and 10,000. They measure state-codec and
+lifecycle work without storage I/O; PostgreSQL snapshot retrieval must be
+measured separately on deployment-shaped data.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating
