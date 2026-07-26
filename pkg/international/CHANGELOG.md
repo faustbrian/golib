@@ -4,6 +4,8 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+- Replace nonexistent owned-module v0.1.0 tags with available main revisions
+  so clean consumers can resolve the international module.
 - Run API compatibility against the repository's isolated owned-module graph
   instead of stale published checksums.
 - Refresh owned-module checksums against the final consolidated archives.
