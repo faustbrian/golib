@@ -1,10 +1,10 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/faustbrian/golib/pkg/jsonapi v0.1.0 h1:itOjsVGOmi+pOo5pIZMhibyChTmOAHu40uGsbwGtzdU=
-github.com/faustbrian/golib/pkg/jsonapi v0.1.0/go.mod h1:XFuI+hNgwttBHrMXp1vQHJkHPv4aO9eM/yUN8SPsg6s=
-github.com/faustbrian/golib/pkg/validation v0.1.0 h1:ornHE2u/tq9zsaDz9/0s8NIOUYnP6vi3wsH8WUhRhfU=
-github.com/faustbrian/golib/pkg/validation v0.1.0/go.mod h1:6U38RsR3lglL1QGqCuDz/CyiFRcuSpa3wyt9W/Gi9Ps=
+github.com/faustbrian/golib/pkg/jsonapi v0.0.0-20260726153332-1cdb844d1acf h1:qIRSYwkV8Sjt/X4Ddan3dLm+PYuqbAC7JEF90jfCmcs=
+github.com/faustbrian/golib/pkg/jsonapi v0.0.0-20260726153332-1cdb844d1acf/go.mod h1:XFuI+hNgwttBHrMXp1vQHJkHPv4aO9eM/yUN8SPsg6s=
+github.com/faustbrian/golib/pkg/validation v0.0.0-20260726153332-1cdb844d1acf h1:CGpWBxvnpQdsBzQSm/5cY2BNEdH+MHnchsSpQlRqWoE=
+github.com/faustbrian/golib/pkg/validation v0.0.0-20260726153332-1cdb844d1acf/go.mod h1:6U38RsR3lglL1QGqCuDz/CyiFRcuSpa3wyt9W/Gi9Ps=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=

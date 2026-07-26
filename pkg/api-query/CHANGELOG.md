@@ -11,6 +11,8 @@ versioning once v1 is released.
 
 ### Changed
 
+- Pin owned dependencies to published source revisions so clean consumers can
+  resolve the module before the first tags.
 - Execute API compatibility tooling against the isolated module graph so owned
   dependency source changes cannot conflict with release checksums.
 - Normalized standalone module metadata against the canonical owned dependency
