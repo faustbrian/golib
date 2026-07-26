@@ -103,6 +103,12 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 			)
 		}
 	}
+	if statuses["Build an outbox"] != "External" {
+		t.Fatalf(
+			"Build an outbox compatibility status = %q, want External",
+			statuses["Build an outbox"],
+		)
+	}
 }
 
 func TestChangelogMaintainsReleasePolicy(t *testing.T) {

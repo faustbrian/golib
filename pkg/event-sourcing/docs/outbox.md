@@ -13,6 +13,8 @@ never publishes before commit and replay reads never enqueue records.
 The complete API, envelope mapping, crash matrix, limits, recovery procedure,
 and examples are documented in the
 [gooutbox adapter guide](../adapters/gooutbox/README.md).
+Applications replacing either side should follow the
+[custom outbox boundary](custom-outbox.md) without coupling the two cores.
 
 The production path is:
 
@@ -24,4 +26,3 @@ The production path is:
 
 This is at-least-once delivery. PostgreSQL and Kafka do not share a transaction.
 Producer idempotence and Kafka transactions do not change that boundary.
-

@@ -49,6 +49,7 @@ durable adapters.
 - [Database structure and capacity](docs/database-structure.md)
 - [PostgreSQL adapter](postgres/README.md)
 - [Transactional outbox integration](docs/outbox.md)
+- [Custom outbox boundary](docs/custom-outbox.md)
 - [Kafka integration](docs/kafka.md)
 - [Compatible queue integration](docs/queue.md)
 - [OpenTelemetry integration](docs/telemetry.md)
