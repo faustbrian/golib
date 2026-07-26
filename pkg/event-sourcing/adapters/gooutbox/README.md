@@ -112,21 +112,43 @@ stager, err := gooutbox.NewStager(
 if err != nil {
 	return err
 }
-messages, err := stager.Stage(ctx, stream, expected, pending)
+plan, err := repository.PrepareSave(ctx, aggregate)
+if err != nil {
+	return err
+}
+if plan.Empty() {
+	_, err = repository.ConfirmCommitted(aggregate, plan, nil)
+	return err
+}
+messages, err := stager.StagePlan(ctx, plan)
 if err != nil {
 	return err // roll back; nothing was committed by Stager
 }
 if err := tx.Commit(ctx); err != nil {
-	// The durable outcome is ambiguous. Reconcile every message ID against
-	// both stores before retrying or acknowledging aggregate changes.
+	_, unknownErr := repository.MarkCommitUnknown(
+		aggregate,
+		plan,
+		messages,
+		err,
+	)
+	return unknownErr
+}
+result, err := repository.ConfirmCommitted(aggregate, plan, messages)
+if err != nil {
 	return err
 }
-_ = messages // now durable; acknowledge through the owning lifecycle.
+_, err = repository.DispatchCommitted(ctx, result)
+return err
 ```
 
 `Stager` deliberately does not implement `eventsourcing.EventStore`: a
 successful stage is not a committed append. It never commits, rolls back,
 dispatches, or acknowledges aggregate lifecycle state.
+
+`StagePlan` accepts the adapter-owned `AppendPlan` contract, which the core
+`eventsourcing.SavePlan` implements. The lower-level `Stage` method remains
+available to custom repositories that already own stable stream, expectation,
+and pending-message values.
 
 ## Envelope mapping
 

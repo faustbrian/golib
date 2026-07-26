@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- same-transaction event and outbox staging directly from a prepared core
+  aggregate save plan
 - real PostgreSQL benchmark isolating same-transaction outbox append overhead
 - complete committed-store-to-relay composition guidance and real PostgreSQL
   evidence for transient retry, delivery, and replay isolation

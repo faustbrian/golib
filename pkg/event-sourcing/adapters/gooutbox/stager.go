@@ -63,6 +63,14 @@ type Stager struct {
 	codec       *EnvelopeCodec
 }
 
+// AppendPlan exposes the immutable data required to stage a prepared aggregate
+// save. eventsourcing.SavePlan implements this consumer-owned contract.
+type AppendPlan interface {
+	Stream() eventsourcing.StreamID
+	ExpectedVersion() eventsourcing.ExpectedVersion
+	PreparedMessages() []eventsourcing.PendingMessage
+}
+
 // NewStager binds both public PostgreSQL writers to one caller-owned
 // transaction. The caller exclusively owns commit, rollback, timeout, retry,
 // and commit-ambiguity reconciliation.
@@ -125,6 +133,24 @@ func (stager *Stager) Stage(
 	}
 
 	return append([]eventsourcing.Message(nil), messages...), nil
+}
+
+// StagePlan stages one prepared aggregate save and its outbox envelopes in the
+// caller-owned transaction. It does not commit, acknowledge, or dispatch.
+func (stager *Stager) StagePlan(
+	ctx context.Context,
+	plan AppendPlan,
+) ([]eventsourcing.Message, error) {
+	if plan == nil {
+		return nil, notCommitted(eventsourcing.ErrInvalidArgument)
+	}
+
+	return stager.Stage(
+		ctx,
+		plan.Stream(),
+		plan.ExpectedVersion(),
+		plan.PreparedMessages(),
+	)
 }
 
 func stageFailure(category, cause error) error {

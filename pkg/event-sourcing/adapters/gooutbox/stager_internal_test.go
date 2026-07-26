@@ -43,6 +43,51 @@ func TestStagerStagesEventsBeforeOutboxEnvelopes(t *testing.T) {
 	}
 }
 
+func TestStagerStagesPreparedSavePlan(t *testing.T) {
+	t.Parallel()
+
+	transaction := &fakeTransaction{rows: []int64{0, 1, 1}}
+	stager := mustStager(t, transaction, FixedTopic("account-events"))
+	stream, pending := internalPending(t)
+	plan := stagerAppendPlan{
+		stream:   stream,
+		expected: eventsourcing.ExpectNewStream(),
+		pending:  []eventsourcing.PendingMessage{pending},
+	}
+	messages, err := stager.StagePlan(t.Context(), plan)
+	if err != nil || len(messages) != 1 || transaction.execCalls != 3 {
+		t.Fatalf(
+			"StagePlan() = %#v, %v; Exec calls = %d",
+			messages,
+			err,
+			transaction.execCalls,
+		)
+	}
+
+	var nilPlan AppendPlan
+	if _, err := stager.StagePlan(t.Context(), nilPlan); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("StagePlan(nil) error = %v", err)
+	}
+}
+
+type stagerAppendPlan struct {
+	stream   eventsourcing.StreamID
+	expected eventsourcing.ExpectedVersion
+	pending  []eventsourcing.PendingMessage
+}
+
+func (plan stagerAppendPlan) Stream() eventsourcing.StreamID {
+	return plan.stream
+}
+
+func (plan stagerAppendPlan) ExpectedVersion() eventsourcing.ExpectedVersion {
+	return plan.expected
+}
+
+func (plan stagerAppendPlan) PreparedMessages() []eventsourcing.PendingMessage {
+	return append([]eventsourcing.PendingMessage(nil), plan.pending...)
+}
+
 func TestStagerClassifiesEventMappingAndOutboxFailures(t *testing.T) {
 	t.Parallel()
 
