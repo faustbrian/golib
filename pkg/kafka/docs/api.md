@@ -65,6 +65,10 @@ its context is canceled.
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
 still be returned.
+`ConsumerConfig.Limits` defaults to `DefaultMessageLimits` and bounds fetched
+topic, key, value, header count, header keys, individual header values, and
+aggregate header bytes before the package copies header metadata or runs a
+handler.
 `ConsumerConfig.BalancePolicy` selects cooperative-sticky, eager-sticky, or the
 ordered eager-to-cooperative migration pair without exposing franz-go
 balancers. Optional validated `InstanceID` and `Rack` values select static

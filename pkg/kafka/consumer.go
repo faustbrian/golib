@@ -63,6 +63,7 @@ type ConsumerConfig struct {
 	Topics                 []string
 	ResetOffset            OffsetPolicy
 	BalancePolicy          GroupBalancePolicy
+	Limits                 MessageLimits
 	MaxPollRecords         int
 	MaxConcurrentFetches   int
 	FetchMaxBytes          int32
@@ -111,6 +112,7 @@ type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 // Consumer processes records with explicit post-handler offset commits.
 type Consumer struct {
 	client         consumerBackend
+	limits         MessageLimits
 	maxPollRecords int
 	handlerTimeout time.Duration
 	commitTimeout  time.Duration
@@ -170,6 +172,7 @@ func newConsumer(
 
 	return &Consumer{
 		client:         client,
+		limits:         config.Limits,
 		maxPollRecords: config.MaxPollRecords,
 		handlerTimeout: config.HandlerTimeout,
 		commitTimeout:  config.CommitTimeout,
@@ -218,6 +221,12 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.BalancePolicy > BalanceEagerToCooperative {
 		return ConsumerConfig{}, ErrInvalidBalancePolicy
 	}
+	if config.Limits == (MessageLimits{}) {
+		config.Limits = DefaultMessageLimits()
+	}
+	if err := config.Limits.Validate(); err != nil {
+		return ConsumerConfig{}, err
+	}
 	if len(config.Topics) == 0 {
 		return ConsumerConfig{}, ErrTopicsRequired
 	}
@@ -226,7 +235,7 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	seenTopics := make(map[string]struct{}, len(config.Topics))
 	for _, topic := range config.Topics {
-		if !validKafkaTopicName(topic, 249) {
+		if !validKafkaTopicName(topic, config.Limits.MaxTopicBytes) {
 			return ConsumerConfig{}, ErrInvalidTopic
 		}
 		if _, exists := seenTopics[topic]; exists {
@@ -346,9 +355,12 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 		if state.failed {
 			continue
 		}
-		handlerCtx, cancel := context.WithTimeout(ctx, consumer.handlerTimeout)
-		err := callHandler(handlerCtx, handler, consumedMessage(record))
-		cancel()
+		message, err := consumedMessageWithinLimits(record, consumer.limits)
+		if err == nil {
+			handlerCtx, cancel := context.WithTimeout(ctx, consumer.handlerTimeout)
+			err = callHandler(handlerCtx, handler, message)
+			cancel()
+		}
 		if err != nil {
 			state.failed = true
 			if handlerErr == nil {
@@ -436,6 +448,28 @@ func consumedMessage(record *kgo.Record) ConsumedMessage {
 		Offset:        record.Offset,
 		LeaderEpoch:   record.LeaderEpoch,
 	}
+}
+
+func consumedMessageWithinLimits(
+	record *kgo.Record,
+	limits MessageLimits,
+) (ConsumedMessage, error) {
+	if len(record.Headers) > limits.MaxHeaders {
+		return ConsumedMessage{}, ErrTooManyHeaders
+	}
+
+	message := consumedMessage(record)
+	err := (ProducerRecord{
+		Topic:   message.Topic,
+		Key:     message.Key,
+		Value:   message.Value,
+		Headers: message.Headers,
+	}).validate(limits)
+	if err != nil {
+		return ConsumedMessage{}, err
+	}
+
+	return message, nil
 }
 
 // Close leaves the consumer group and closes the underlying Kafka client.

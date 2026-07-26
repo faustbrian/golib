@@ -12,6 +12,10 @@ or latest reset policy. Construction validates all policy before franz-go
 allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
 poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
 dial durations are bounded.
+`Limits` defaults to `DefaultMessageLimits`. Subscribed topics must fit its
+topic bound, and each fetched record must fit every key, value, header count,
+header key, individual header value, and aggregate header bound before the
+package copies header metadata or runs a handler.
 
 Client and group IDs must be valid UTF-8 without whitespace padding or control
 characters and are limited to 255 bytes.
@@ -64,6 +68,11 @@ that partition in the current poll are skipped. Its successful prefix and
 successful independent partitions are committed together. A failed commit has
 an ambiguous per-partition broker outcome, leaves `PollResult.Committed` at
 zero, and may redeliver records whose side effects already completed.
+
+A fetched record outside `Limits` follows the same partition-local failure
+path without invoking the handler. Its error identifies the rejected field,
+later records in that partition are skipped, and valid independent partitions
+may still advance.
 
 Handlers must be idempotent and honor their context deadline. Retain a consumed
 record before storing its bytes beyond the handler call. The current runner is

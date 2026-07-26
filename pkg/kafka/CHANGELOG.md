@@ -42,6 +42,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- consumers now apply validated record limits before the package copies
+  fetched header metadata or invokes handlers; an invalid record stops only its
+  partition and preserves contiguous settlement for valid independent
+  partitions
 - broker addresses and client, group, transactional, instance, and rack
   identifiers now reject invalid UTF-8 and control characters before client
   construction; malformed client and group IDs have distinct errors

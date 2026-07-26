@@ -40,6 +40,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 	}
 
 	if config.MaxPollRecords != 100 ||
+		config.Limits != DefaultMessageLimits() ||
 		config.BalancePolicy != BalanceCooperativeSticky ||
 		config.MaxConcurrentFetches != 4 ||
 		config.FetchMaxBytes != 50<<20 ||
@@ -283,6 +284,14 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 			want:   ErrInvalidTopic,
 		},
 		{
+			name: "topic exceeds record policy",
+			change: func(config *ConsumerConfig) {
+				config.Limits = DefaultMessageLimits()
+				config.Limits.MaxTopicBytes = 5
+			},
+			want: ErrInvalidTopic,
+		},
+		{
 			name:   "duplicate topic",
 			change: func(config *ConsumerConfig) { config.Topics = []string{"events", "events"} },
 			want:   ErrDuplicateTopic,
@@ -303,6 +312,11 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 				config.Security.TLS = &tls.Config{InsecureSkipVerify: true}
 			},
 			want: ErrInvalidSecurityConfig,
+		},
+		{
+			name:   "partial record limits",
+			change: func(config *ConsumerConfig) { config.Limits.MaxHeaders = 1 },
+			want:   ErrInvalidMessageLimits,
 		},
 	}
 
@@ -479,6 +493,70 @@ func TestConsumerRunOnceCommitsOnlyContiguousPartitionSuccess(t *testing.T) {
 		backend.committed[1] != partitionZeroSecond ||
 		backend.allowed != 1 {
 		t.Fatalf("result/backend = %#v/%#v", result, backend)
+	}
+}
+
+func TestConsumerRunOnceRejectsFetchedRecordOutsideLimits(t *testing.T) {
+	t.Parallel()
+
+	partitionZeroFirst := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	partitionZeroInvalid := &kgo.Record{
+		Topic: "events", Partition: 0, Offset: 2,
+		Headers: []kgo.RecordHeader{{Key: "one"}, {Key: "two"}},
+	}
+	partitionZeroSkipped := &kgo.Record{Topic: "events", Partition: 0, Offset: 3}
+	partitionOne := &kgo.Record{Topic: "events", Partition: 1, Offset: 4}
+	backend := &recordingConsumerBackend{fetches: recordFetches(
+		partitionZeroFirst,
+		partitionZeroInvalid,
+		partitionZeroSkipped,
+		partitionOne,
+	)}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.limits.MaxHeaders = 1
+	var handled []int64
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		_ context.Context,
+		message ConsumedMessage,
+	) error {
+		handled = append(handled, message.Offset)
+
+		return nil
+	}))
+
+	if !errors.Is(err, ErrTooManyHeaders) ||
+		result != (PollResult{Polled: 4, Processed: 2, Committed: 2}) ||
+		!reflect.DeepEqual(handled, []int64{1, 4}) ||
+		len(backend.committed) != 2 ||
+		backend.committed[0] != partitionZeroFirst ||
+		backend.committed[1] != partitionOne {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+}
+
+func TestConsumerRunOnceRejectsFetchedBytesBeforeHandler(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{fetches: recordFetches(&kgo.Record{
+		Topic: "events", Partition: 0, Offset: 1, Key: []byte("oversized"),
+	})}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.limits.MaxKeyBytes = 1
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("handler called for fetched record outside limits")
+
+		return nil
+	}))
+
+	if !errors.Is(err, ErrKeyTooLarge) ||
+		result != (PollResult{Polled: 1}) ||
+		len(backend.committed) != 0 || backend.allowed != 1 {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
 }
 
@@ -712,6 +790,7 @@ func consumerWithBackend(
 ) *Consumer {
 	return &Consumer{
 		client:         backend,
+		limits:         DefaultMessageLimits(),
 		maxPollRecords: maxPollRecords,
 		handlerTimeout: handlerTimeout,
 		commitTimeout:  commitTimeout,
