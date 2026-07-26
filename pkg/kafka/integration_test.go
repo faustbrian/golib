@@ -48,10 +48,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	topic := fmt.Sprintf("golib-compatibility-%d", time.Now().UnixNano())
 	explicitTopic := topic + "-explicit"
 	settlementTopic := topic + "-settlement"
+	membershipTopic := topic + "-membership"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
-		Brokers:                brokers,
-		ClientID:               "golib-compatibility-producer",
-		AllowedTopics:          []string{topic, explicitTopic, settlementTopic},
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-producer",
+		AllowedTopics: []string{
+			topic, explicitTopic, settlementTopic, membershipTopic,
+		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
@@ -69,6 +72,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, topic, 1)
 	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -160,6 +164,100 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	}
 
 	provePartitionSettlement(t, ctx, brokers, producer, settlementTopic)
+	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
+}
+
+func proveMembershipPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	publish := func(partition int32, value string) {
+		t.Helper()
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic, Partition: kafka.ExplicitPartition(partition),
+			Key: []byte(value), Value: []byte(value),
+		})
+		if result.Err != nil {
+			t.Fatalf("publish membership fixture: %v", result.Err)
+		}
+	}
+	publish(0, "first")
+	publish(1, "second")
+
+	const groupID = "golib-compatibility-static-member"
+	first := consumeMembershipValues(t, ctx, brokers, topic, groupID, 2)
+	slices.Sort(first)
+	if !slices.Equal(first, []string{"first", "second"}) {
+		t.Fatalf("first static membership values = %q", first)
+	}
+
+	publish(0, "third")
+	second := consumeMembershipValues(t, ctx, brokers, topic, groupID, 1)
+	if !slices.Equal(second, []string{"third"}) {
+		t.Fatalf("restarted static membership values = %q", second)
+	}
+}
+
+func consumeMembershipValues(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	count int,
+) []string {
+	t.Helper()
+
+	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+		Brokers:           brokers,
+		ClientID:          groupID,
+		GroupID:           groupID,
+		InstanceID:        "static-member-01",
+		Rack:              "integration-rack",
+		Topics:            []string{topic},
+		ResetOffset:       kafka.OffsetEarliest,
+		BalancePolicy:     kafka.BalanceEagerSticky,
+		MaxPollRecords:    10,
+		SessionTimeout:    10 * time.Second,
+		RebalanceTimeout:  10 * time.Second,
+		HeartbeatInterval: time.Second,
+		HandlerTimeout:    10 * time.Second,
+		CommitTimeout:     10 * time.Second,
+		DialTimeout:       10 * time.Second,
+		Security:          kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct membership consumer: %v", err)
+	}
+	defer consumer.Close()
+
+	values := make([]string, 0, count)
+	for len(values) < count {
+		result, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			values = append(values, string(message.Value))
+
+			return nil
+		}))
+		if runErr != nil {
+			t.Fatalf("consume membership fixture: %v", runErr)
+		}
+		if result.Processed != result.Committed {
+			t.Fatalf("membership consume result = %#v", result)
+		}
+		if result.Polled == 0 && ctx.Err() != nil {
+			t.Fatalf("consume membership fixture: %v", ctx.Err())
+		}
+	}
+
+	return values
 }
 
 func provePartitionSettlement(

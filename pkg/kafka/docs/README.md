@@ -6,6 +6,7 @@
 - [Compatibility and execution matrix](compatibility.md)
 - [API](api.md)
 - [Guarantees and failure model](guarantees.md)
+- [Consumer groups and rebalances](consumer.md)
 - [Transactions](transactions.md)
 - [Replay](replay.md)
 - [Operations](operations.md)

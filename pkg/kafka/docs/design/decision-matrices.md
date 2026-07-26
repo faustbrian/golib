@@ -27,6 +27,8 @@ design constraint, not a support claim.
 | Async | Bound admitted records and bytes and make backpressure explicit. | Admission failure, delivery completion, callback panic, drain, abort, and close have separate outcomes. |
 | Consumer guarantee | Provide at-least-once processing with automatic commits disabled. | Handler success precedes settlement; commit ambiguity, rebalance, cancellation, panic, timeout, and process death may redeliver. |
 | Partition settlement | Advance only the highest contiguous successful offset owned by the current generation. | A later success never commits past a failed earlier record in the same partition; independent partitions may advance. |
+| Group balancing | Default new groups to cooperative-sticky; expose eager-sticky and an ordered eager-first migration policy. | Existing eager groups require one full dual-protocol rolling deployment before cooperative-only rollout; a direct mixed rollout is unsafe. |
+| Static membership and rack | Accept optional bounded instance and rack identities. | Static close does not explicitly leave the group; duplicate instance identities may fence a member. Rack-aware fetches require compatible broker replica placement. |
 
 ## Failure and retry policy
 

@@ -40,6 +40,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 	}
 
 	if config.MaxPollRecords != 100 ||
+		config.BalancePolicy != BalanceCooperativeSticky ||
 		config.MaxConcurrentFetches != 4 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
@@ -78,10 +79,13 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 	}
 }
 
-func TestNewConsumerAppliesPerPartitionFetchLimit(t *testing.T) {
+func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	t.Parallel()
 
 	config := validConsumerConfig()
+	config.InstanceID = "track-processor-01"
+	config.Rack = "eu-west-1a"
+	config.BalancePolicy = BalanceEagerToCooperative
 	config.MaxConcurrentFetches = 3
 	config.FetchMaxPartitionBytes = 2 << 20
 	var franzClient *kgo.Client
@@ -100,6 +104,53 @@ func TestNewConsumerAppliesPerPartitionFetchLimit(t *testing.T) {
 	}
 	if got := franzClient.OptValue(kgo.MaxConcurrentFetches); got != 3 {
 		t.Fatalf("MaxConcurrentFetches option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.InstanceID); got != "track-processor-01" {
+		t.Fatalf("InstanceID option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.Rack); got != "eu-west-1a" {
+		t.Fatalf("Rack option = %#v", got)
+	}
+	balancers, ok := franzClient.OptValue(kgo.Balancers).([]kgo.GroupBalancer)
+	if !ok || len(balancers) != 2 ||
+		balancers[0].ProtocolName() != "sticky" ||
+		balancers[1].ProtocolName() != "cooperative-sticky" {
+		t.Fatalf("Balancers option = %#v", balancers)
+	}
+}
+
+func TestNewConsumerAppliesExplicitBalancePolicies(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		policy GroupBalancePolicy
+		want   string
+	}{
+		"cooperative": {policy: BalanceCooperativeSticky, want: "cooperative-sticky"},
+		"eager":       {policy: BalanceEagerSticky, want: "sticky"},
+	} {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			config := validConsumerConfig()
+			config.BalancePolicy = test.policy
+			var franzClient *kgo.Client
+			consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
+				client, clientErr := kgo.NewClient(options...)
+				franzClient = client
+
+				return client, clientErr
+			})
+			if err != nil {
+				t.Fatalf("newConsumer() error = %v", err)
+			}
+			defer consumer.Close()
+			balancers, ok := franzClient.OptValue(kgo.Balancers).([]kgo.GroupBalancer)
+			if !ok || len(balancers) != 1 || balancers[0].ProtocolName() != test.want {
+				t.Fatalf("Balancers option = %#v", balancers)
+			}
+		})
 	}
 }
 
@@ -140,6 +191,61 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 			name:   "oversized group ID",
 			change: func(config *ConsumerConfig) { config.GroupID = strings.Repeat("g", 256) },
 			want:   ErrGroupIDTooLarge,
+		},
+		{
+			name:   "blank instance ID",
+			change: func(config *ConsumerConfig) { config.InstanceID = " " },
+			want:   ErrInvalidInstanceID,
+		},
+		{
+			name:   "oversized instance ID",
+			change: func(config *ConsumerConfig) { config.InstanceID = strings.Repeat("i", 256) },
+			want:   ErrInvalidInstanceID,
+		},
+		{
+			name:   "invalid UTF-8 instance ID",
+			change: func(config *ConsumerConfig) { config.InstanceID = string([]byte{0xff}) },
+			want:   ErrInvalidInstanceID,
+		},
+		{
+			name:   "NUL instance ID",
+			change: func(config *ConsumerConfig) { config.InstanceID = "instance\x00id" },
+			want:   ErrInvalidInstanceID,
+		},
+		{
+			name:   "control character instance ID",
+			change: func(config *ConsumerConfig) { config.InstanceID = "instance\tid" },
+			want:   ErrInvalidInstanceID,
+		},
+		{
+			name:   "blank rack",
+			change: func(config *ConsumerConfig) { config.Rack = " " },
+			want:   ErrInvalidRack,
+		},
+		{
+			name:   "oversized rack",
+			change: func(config *ConsumerConfig) { config.Rack = strings.Repeat("r", 256) },
+			want:   ErrInvalidRack,
+		},
+		{
+			name:   "invalid UTF-8 rack",
+			change: func(config *ConsumerConfig) { config.Rack = string([]byte{0xff}) },
+			want:   ErrInvalidRack,
+		},
+		{
+			name:   "NUL rack",
+			change: func(config *ConsumerConfig) { config.Rack = "rack\x00id" },
+			want:   ErrInvalidRack,
+		},
+		{
+			name:   "control character rack",
+			change: func(config *ConsumerConfig) { config.Rack = "rack\nid" },
+			want:   ErrInvalidRack,
+		},
+		{
+			name:   "unknown balance policy",
+			change: func(config *ConsumerConfig) { config.BalancePolicy = 255 },
+			want:   ErrInvalidBalancePolicy,
 		},
 		{
 			name:   "no topics",

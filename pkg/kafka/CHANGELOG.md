@@ -42,6 +42,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- consumer groups now expose cooperative-sticky, eager-sticky, and an ordered
+  eager-to-cooperative rolling-migration policy plus optional validated static
+  member and rack identities; no franz-go balancer type enters the public API
 - consumer configuration now defaults to four concurrent fetches, 50 MiB per
   fetch, and 1 MiB per partition; explicit values are bounded and the partition
   limit cannot exceed the aggregate fetch limit

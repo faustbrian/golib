@@ -58,6 +58,10 @@ its context is canceled.
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
 still be returned.
+`ConsumerConfig.BalancePolicy` selects cooperative-sticky, eager-sticky, or the
+ordered eager-to-cooperative migration pair without exposing franz-go
+balancers. Optional validated `InstanceID` and `Rack` values select static
+membership and rack-aware fetching respectively.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

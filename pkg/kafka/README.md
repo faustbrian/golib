@@ -101,6 +101,7 @@ consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
     GroupID:     "track-outbound-delivery-planner-v1",
     Topics:      []string{"track.tracking-event.v1"},
     ResetOffset: kafka.OffsetEarliest,
+    BalancePolicy: kafka.BalanceCooperativeSticky,
 })
 if err != nil {
     return err
@@ -126,6 +127,14 @@ Consumer fetches default to at most four concurrent broker requests, 50 MiB per
 request, and 1 MiB per partition. All three limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a
 consumer can make progress; broker topic limits must remain compatible.
+
+New groups default to cooperative-sticky balancing. Existing eager groups must
+use `BalanceEagerToCooperative` for one complete rolling deployment before all
+members switch to `BalanceCooperativeSticky`; joining a mixed group directly
+with cooperative-only policy is unsafe. `BalanceEagerSticky` remains available
+for eager compatibility. Optional `InstanceID` enables static membership and
+`Rack` enables broker-supported rack-aware fetching. See the
+[consumer guide](docs/consumer.md) for rollout and close semantics.
 
 ## Replay and inspection
 

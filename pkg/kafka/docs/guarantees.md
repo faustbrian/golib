@@ -65,9 +65,20 @@ error, so the counter remains zero after a failed commit and does not claim the
 request was wholly persisted or wholly rejected. Side effects must be
 idempotent.
 
+New groups default to cooperative-sticky balancing. `BalanceEagerSticky` keeps
+an eager group eager. Migrating an existing eager group requires one complete
+rolling deployment with `BalanceEagerToCooperative`, followed by a second with
+`BalanceCooperativeSticky`; the package does not claim a direct mixed rollout
+is safe. When `InstanceID` is set, franz-go static-membership close semantics do
+not send an ordinary leave-group request, allowing a bounded restart window but
+leaving removal to an explicit Kafka administrative action. Instance identity
+must be unique within the group or the broker may fence a member. `Rack` only
+requests preferred-replica fetching; broker topology determines the result.
+
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
-offset commits, and redelivery after handler failure against
+offset commits, redelivery after handler failure, eager group membership, and
+a static member restart using the same instance ID against
 Confluent Local 7.5.0 using franz-go v1.21.5. The container image is pinned by
 repository digest. This compatibility fixture does not replace testing against
 an application's production broker version and configuration.

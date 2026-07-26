@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -12,6 +14,9 @@ import (
 var (
 	ErrGroupIDRequired       = errors.New("kafka: consumer group ID is required")
 	ErrGroupIDTooLarge       = errors.New("kafka: consumer group ID exceeds configured limit")
+	ErrInvalidInstanceID     = errors.New("kafka: consumer instance ID is invalid")
+	ErrInvalidRack           = errors.New("kafka: consumer rack is invalid")
+	ErrInvalidBalancePolicy  = errors.New("kafka: consumer balance policy is invalid")
 	ErrTopicsRequired        = errors.New("kafka: at least one topic is required")
 	ErrTooManyTopics         = errors.New("kafka: topic count exceeds configured limit")
 	ErrDuplicateTopic        = errors.New("kafka: topic is duplicated")
@@ -32,13 +37,33 @@ const (
 	OffsetLatest
 )
 
+// GroupBalancePolicy selects the consumer-group partition assignment and
+// rebalance protocol.
+type GroupBalancePolicy uint8
+
+const (
+	// BalanceCooperativeSticky is the safe default for new groups and avoids
+	// revoking every assignment during a rebalance.
+	BalanceCooperativeSticky GroupBalancePolicy = iota
+	// BalanceEagerSticky revokes all assignments during each rebalance for
+	// compatibility with eager group members.
+	BalanceEagerSticky
+	// BalanceEagerToCooperative advertises eager sticky first and cooperative
+	// sticky second for the first rolling deployment of a migration. A second
+	// deployment must select BalanceCooperativeSticky.
+	BalanceEagerToCooperative
+)
+
 // ConsumerConfig defines one bounded consumer-group member.
 type ConsumerConfig struct {
 	Brokers                []string
 	ClientID               string
 	GroupID                string
+	InstanceID             string
+	Rack                   string
 	Topics                 []string
 	ResetOffset            OffsetPolicy
+	BalancePolicy          GroupBalancePolicy
 	MaxPollRecords         int
 	MaxConcurrentFetches   int
 	FetchMaxBytes          int32
@@ -121,7 +146,7 @@ func newConsumer(
 		kgo.ConsumeResetOffset(resetOffset),
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
-		kgo.Balancers(kgo.CooperativeStickyBalancer()),
+		kgo.Balancers(consumerGroupBalancers(config.BalancePolicy)...),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
@@ -130,6 +155,12 @@ func newConsumer(
 		kgo.RebalanceTimeout(config.RebalanceTimeout),
 		kgo.HeartbeatInterval(config.HeartbeatInterval),
 		kgo.DialTimeout(config.DialTimeout),
+	}
+	if config.InstanceID != "" {
+		options = append(options, kgo.InstanceID(config.InstanceID))
+	}
+	if config.Rack != "" {
+		options = append(options, kgo.Rack(config.Rack))
 	}
 	options = append(options, clientSecurityOptions(config.Security)...)
 
@@ -146,6 +177,20 @@ func newConsumer(
 	}, nil
 }
 
+func consumerGroupBalancers(policy GroupBalancePolicy) []kgo.GroupBalancer {
+	if policy == BalanceEagerSticky {
+		return []kgo.GroupBalancer{kgo.StickyBalancer()}
+	}
+	if policy == BalanceEagerToCooperative {
+		return []kgo.GroupBalancer{
+			kgo.StickyBalancer(),
+			kgo.CooperativeStickyBalancer(),
+		}
+	}
+
+	return []kgo.GroupBalancer{kgo.CooperativeStickyBalancer()}
+}
+
 func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if err := validateClientIdentity(config.Brokers, config.ClientID); err != nil {
 		return ConsumerConfig{}, err
@@ -160,6 +205,15 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	if config.GroupID != strings.TrimSpace(config.GroupID) || len(config.GroupID) > 255 {
 		return ConsumerConfig{}, ErrGroupIDTooLarge
+	}
+	if !validOptionalConsumerIdentity(config.InstanceID) {
+		return ConsumerConfig{}, ErrInvalidInstanceID
+	}
+	if !validOptionalConsumerIdentity(config.Rack) {
+		return ConsumerConfig{}, ErrInvalidRack
+	}
+	if config.BalancePolicy > BalanceEagerToCooperative {
+		return ConsumerConfig{}, ErrInvalidBalancePolicy
 	}
 	if len(config.Topics) == 0 {
 		return ConsumerConfig{}, ErrTopicsRequired
@@ -239,6 +293,13 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 
 	return config, nil
+}
+
+func validOptionalConsumerIdentity(value string) bool {
+	return value == "" ||
+		(len(value) <= 255 && utf8.ValidString(value) &&
+			value == strings.TrimSpace(value) &&
+			strings.IndexFunc(value, unicode.IsControl) == -1)
 }
 
 // RunOnce polls at most the configured record limit and processes records in
