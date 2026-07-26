@@ -138,6 +138,7 @@ type ProducerConfig struct {
 
 	TransactionEndTimeout time.Duration
 	Security              ClientSecurity
+	Observers             ObserverPolicy
 }
 
 // Validate reports whether the producer configuration satisfies the bounded
@@ -297,6 +298,7 @@ type producerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 // replica acknowledgements.
 type Producer struct {
 	client                producerBackend
+	clientID              string
 	limits                MessageLimits
 	keyRequired           bool
 	maxBatchRecords       int
@@ -312,8 +314,10 @@ type Producer struct {
 	shutdownComplete      bool
 	inflight              int
 	admitting             int
+	observerCallbacks     int
 	admissionsDone        chan struct{}
 	closeOnce             sync.Once
+	observers             observerDispatcher
 }
 
 // NewProducer constructs a producer without dialing brokers. Connectivity is
@@ -372,6 +376,7 @@ func newProducer(
 
 	return &Producer{
 		client:                client,
+		clientID:              strings.Clone(config.ClientID),
 		limits:                config.Limits,
 		keyRequired:           config.KeyPolicy == KeyRequired,
 		maxBatchRecords:       config.MaxBatchRecords,
@@ -380,6 +385,7 @@ func newProducer(
 		transactionEndTimeout: config.TransactionEndTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		allowedTopics:         allowedTopics,
+		observers:             newObserverDispatcher(config.Observers),
 	}, nil
 }
 
@@ -395,6 +401,11 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 		return ProducerConfig{}, err
 	}
 	config.Security = security
+	observers, err := normalizeObserverPolicy(config.Observers)
+	if err != nil {
+		return ProducerConfig{}, err
+	}
+	config.Observers = observers
 	if config.Limits == (MessageLimits{}) {
 		config.Limits = DefaultMessageLimits()
 	}
@@ -625,13 +636,62 @@ func (producer *Producer) PublishRecord(
 	if ctx == nil {
 		return DeliveryResult{Topic: record.Topic, Err: ErrContextRequired}
 	}
-	if err := producer.startOperation(); err != nil {
-		return DeliveryResult{Topic: record.Topic, Err: err}
+	if isObserverContext(ctx) {
+		return DeliveryResult{Topic: record.Topic, Err: ErrObserverReentry}
 	}
-	defer producer.finishOperation()
-	defer producer.finishAdmission()
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+	}
+	if err := producer.startOperation(); err != nil {
+		result := DeliveryResult{Topic: record.Topic, Err: err}
+		producer.observeProducerRecord(ctx, startedAt, record, result)
 
-	return producer.publishRecord(ctx, record)
+		return result
+	}
+
+	result := producer.publishRecord(ctx, record)
+	producer.finishAdmission()
+	producer.finishOperation()
+	producer.observeProducerRecord(ctx, startedAt, record, result)
+
+	return result
+}
+
+func (producer *Producer) observeProducerRecord(
+	ctx context.Context,
+	startedAt time.Time,
+	record ProducerRecord,
+	result DeliveryResult,
+) {
+	if !producer.observers.enabled() {
+		return
+	}
+	topic := ""
+	var bytes int64
+	if record.validate(producer.limits) == nil {
+		topic = strings.Clone(record.Topic)
+		bytes = recordSize(record)
+	}
+	observation := Observation{
+		Kind:           ObservationProduceRecord,
+		StartedAt:      startedAt,
+		Duration:       time.Since(startedAt),
+		ClientID:       producer.clientID,
+		Topic:          topic,
+		Partition:      result.Partition,
+		PartitionKnown: result.Err == nil,
+		Offset:         result.Offset,
+		OffsetKnown:    result.Err == nil,
+		Timestamp:      result.Timestamp,
+		RecordCount:    1,
+		RecordBytes:    bytes,
+		Succeeded:      result.Err == nil,
+	}
+	if result.Err != nil {
+		observation.Category = classifyError(result.Err)
+	}
+	producer.dispatchObservation(ctx, observation)
 }
 
 func (producer *Producer) publish(ctx context.Context, message Message) error {
@@ -673,9 +733,24 @@ func (producer *Producer) publishRecord(
 func (producer *Producer) PublishBatch(
 	ctx context.Context,
 	records []ProducerRecord,
-) ([]DeliveryResult, error) {
+) (results []DeliveryResult, resultErr error) {
 	if ctx == nil {
 		return nil, ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return nil, ErrObserverReentry
+	}
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			producer.observeProducerBatch(
+				ctx,
+				startedAt,
+				records,
+				resultErr,
+			)
+		}()
 	}
 	if err := producer.startOperation(); err != nil {
 		return nil, err
@@ -710,7 +785,7 @@ func (producer *Producer) PublishBatch(
 	}
 
 	deliveries := producer.client.ProduceSync(ctx, franzRecords...)
-	results := make([]DeliveryResult, len(records))
+	results = make([]DeliveryResult, len(records))
 	var deliveryErrors []error
 	for index := range records {
 		if index >= len(deliveries) || deliveries[index].Record == nil {
@@ -736,6 +811,55 @@ func (producer *Producer) PublishBatch(
 	return results, nil
 }
 
+func (producer *Producer) observeProducerBatch(
+	ctx context.Context,
+	startedAt time.Time,
+	records []ProducerRecord,
+	err error,
+) {
+	topic, bytes := producer.batchObservationMetadata(records)
+	observation := Observation{
+		Kind:        ObservationProduceBatch,
+		StartedAt:   startedAt,
+		Duration:    time.Since(startedAt),
+		ClientID:    producer.clientID,
+		Topic:       topic,
+		RecordCount: len(records),
+		RecordBytes: bytes,
+		Succeeded:   err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	producer.dispatchObservation(ctx, observation)
+}
+
+func (producer *Producer) batchObservationMetadata(
+	records []ProducerRecord,
+) (string, int64) {
+	if len(records) == 0 || len(records) > producer.maxBatchRecords {
+		return "", 0
+	}
+
+	topic := records[0].Topic
+	var bytes int64
+	for _, record := range records {
+		if record.validate(producer.limits) != nil {
+			return "", 0
+		}
+		if record.Topic != topic {
+			topic = ""
+		}
+		size := recordSize(record)
+		if size > producer.maxBatchBytes-bytes {
+			return "", 0
+		}
+		bytes += size
+	}
+
+	return strings.Clone(topic), bytes
+}
+
 // PublishAsync admits one owned record to the bounded franz-go producer and
 // returns a one-result buffered channel. The caller may stop waiting without
 // cancelling a record already sent to Kafka; franz-go's idempotent producer
@@ -747,47 +871,124 @@ func (producer *Producer) PublishAsync(
 	if ctx == nil {
 		return nil, ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return nil, ErrObserverReentry
+	}
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+	}
 
 	if err := producer.startOperation(); err != nil {
+		producer.observeProducerAsync(
+			ctx,
+			startedAt,
+			record,
+			DeliveryResult{Topic: record.Topic, Err: err},
+		)
+
 		return nil, err
 	}
 	defer producer.finishAdmission()
 
 	if err := record.validate(producer.limits); err != nil {
 		producer.finishOperation()
+		producer.observeProducerAsync(
+			ctx,
+			startedAt,
+			record,
+			DeliveryResult{Topic: record.Topic, Err: err},
+		)
 
 		return nil, err
 	}
 	if !producer.topicAllowed(record.Topic) {
 		producer.finishOperation()
+		producer.observeProducerAsync(
+			ctx,
+			startedAt,
+			record,
+			DeliveryResult{Topic: record.Topic, Err: ErrTopicNotAllowed},
+		)
 
 		return nil, ErrTopicNotAllowed
 	}
 	if producer.keyRequired && len(record.Key) == 0 {
 		producer.finishOperation()
+		producer.observeProducerAsync(
+			ctx,
+			startedAt,
+			record,
+			DeliveryResult{Topic: record.Topic, Err: ErrKeyRequired},
+		)
 
 		return nil, ErrKeyRequired
 	}
 
 	delivery := make(chan DeliveryResult, 1)
 	topic := record.Topic
-	producer.client.Produce(ctx, franzRecord(record.owned()), func(
+	owned := record.owned()
+	producer.client.Produce(ctx, franzRecord(owned), func(
 		record *kgo.Record,
 		err error,
 	) {
-		defer producer.finishOperation()
+		if producer.observers.enabled() {
+			producer.beginObservation()
+			defer producer.finishObservation()
+		}
+
+		var result DeliveryResult
 		if record == nil {
-			delivery <- DeliveryResult{Topic: topic, Err: newDeliveryError(errors.Join(
+			result = DeliveryResult{Topic: topic, Err: newDeliveryError(errors.Join(
 				ErrDeliveryResultMissing,
 				err,
 			))}
 		} else {
-			delivery <- deliveryResult(kgo.ProduceResult{Record: record, Err: err})
+			result = deliveryResult(kgo.ProduceResult{Record: record, Err: err})
 		}
+		producer.finishOperation()
+		producer.observeProducerAsync(ctx, startedAt, owned, result)
+		delivery <- result
 		close(delivery)
 	})
 
 	return delivery, nil
+}
+
+func (producer *Producer) observeProducerAsync(
+	ctx context.Context,
+	startedAt time.Time,
+	record ProducerRecord,
+	result DeliveryResult,
+) {
+	if !producer.observers.enabled() {
+		return
+	}
+	topic := ""
+	var bytes int64
+	if record.validate(producer.limits) == nil {
+		topic = strings.Clone(record.Topic)
+		bytes = recordSize(record)
+	}
+	observation := Observation{
+		Kind:           ObservationProduceAsync,
+		StartedAt:      startedAt,
+		Duration:       time.Since(startedAt),
+		ClientID:       producer.clientID,
+		Topic:          topic,
+		Partition:      result.Partition,
+		PartitionKnown: result.Err == nil,
+		Offset:         result.Offset,
+		OffsetKnown:    result.Err == nil,
+		Timestamp:      result.Timestamp,
+		RecordCount:    1,
+		RecordBytes:    bytes,
+		Succeeded:      result.Err == nil,
+	}
+	if result.Err != nil {
+		observation.Category = classifyError(result.Err)
+	}
+	producer.dispatchObservation(ctx, observation)
 }
 
 func franzRecord(record ProducerRecord) *kgo.Record {
@@ -852,6 +1053,9 @@ func (producer *Producer) Health(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 	if err := producer.startOperation(); err != nil {
 		return err
 	}
@@ -868,6 +1072,9 @@ func (producer *Producer) Health(ctx context.Context) error {
 func (producer *Producer) Drain(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
 	}
 	admissions, err := producer.startMaintenance(false)
 	if err != nil {
@@ -888,6 +1095,9 @@ func (producer *Producer) Abort(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 	admissions, err := producer.startMaintenance(true)
 	if err != nil {
 		return err
@@ -907,6 +1117,9 @@ func (producer *Producer) Abort(ctx context.Context) error {
 func (producer *Producer) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
 	}
 
 	producer.stateMu.Lock()
@@ -984,6 +1197,9 @@ func (producer *Producer) RunTransaction(
 ) error {
 	if ctx == nil {
 		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
 	}
 	if !producer.transactionsEnabled {
 		return ErrTransactionsDisabled
@@ -1207,10 +1423,40 @@ func (message ProducerRecord) validate(limits MessageLimits) error {
 // resolve before ShutdownTimeout; callers may retry Shutdown or explicitly
 // Abort.
 func (producer *Producer) Close() error {
+	producer.stateMu.Lock()
+	if producer.observerCallbacks != 0 {
+		producer.stateMu.Unlock()
+
+		return ErrObserverReentry
+	}
+	producer.stateMu.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), producer.shutdownTimeout)
 	defer cancel()
 
 	return producer.Shutdown(ctx)
+}
+
+func (producer *Producer) dispatchObservation(
+	ctx context.Context,
+	observation Observation,
+) {
+	producer.beginObservation()
+	defer producer.finishObservation()
+
+	producer.observers.observe(ctx, observation)
+}
+
+func (producer *Producer) beginObservation() {
+	producer.stateMu.Lock()
+	producer.observerCallbacks++
+	producer.stateMu.Unlock()
+}
+
+func (producer *Producer) finishObservation() {
+	producer.stateMu.Lock()
+	producer.observerCallbacks--
+	producer.stateMu.Unlock()
 }
 
 func (producer *Producer) startOperation() error {

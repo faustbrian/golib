@@ -85,6 +85,12 @@ drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
 configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
+Optional `ProducerConfig.Observers` receive ordered synchronous completion
+events for record, batch, and asynchronous delivery. Events contain copied
+payload-free metadata; callback errors and panics cannot replace the delivery
+result. Callbacks are cooperatively deadline-bound and must not re-enter the
+producer. See the [observability guide](docs/observability.md).
+
 Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic
 production. Transaction lifecycle failures are redacted `TransactionError`
 values with an operation, stable category, abortability, and explicit outcome
@@ -237,7 +243,8 @@ quotas, ACLs, and destructive administrative operations.
 
 See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibility.md),
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
-[operations](docs/operations.md), and [security](docs/security.md).
+[observability](docs/observability.md), [operations](docs/operations.md), and
+[security](docs/security.md).
 
 ## Development
 

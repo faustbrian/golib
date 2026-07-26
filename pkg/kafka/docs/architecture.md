@@ -22,6 +22,9 @@ infrastructure.
   never joins or commits a consumer group.
 - `Inspector` exposes bounded read-only cluster, broker, topic durability,
   partition offset, and lag state without infrastructure mutation.
+- `ObserverPolicy` exposes ordered, payload-free producer completion metadata
+  without exporting franz-go hooks or making observation part of delivery
+  correctness.
 
 franz-go remains an implementation detail. The root module exposes owned TLS,
 mTLS, PLAIN, SCRAM, and OAUTHBEARER policy contracts; optional vendor

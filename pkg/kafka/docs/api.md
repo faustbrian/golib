@@ -61,6 +61,16 @@ inspection; application retry is a separate policy decision.
 The franz-go backend is configured to stop after detecting idempotent-producer
 data loss; a fatal delivery requires producer replacement or an explicit
 application recovery decision.
+
+`ProducerConfig.Observers` configures ordered synchronous completion events for
+single, batch, and asynchronous production without exposing franz-go hooks.
+`Observation` contains copied payload-free metadata and a stable failure
+category. Observer errors and panics are contained and reported through the
+required `ObservationFailureFunc`; they never replace the delivery result.
+Callbacks share one cooperative deadline, can run concurrently across producer
+operations, and cannot re-enter the invoking producer. See the
+[observability guide](observability.md).
+
 `Producer.RunTransaction` returns redacted `TransactionError` values for Kafka
 transaction begin, commit, and abort failures. `Category` distinguishes
 authorization, fencing, fatal producer state, retryable abort-required failure,

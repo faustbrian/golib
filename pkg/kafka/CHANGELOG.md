@@ -95,6 +95,9 @@ All notable changes to this module are documented here.
   failover, continued acks-all production with one broker unavailable, exact
   ISR recovery, and committed/aborted transaction isolation before and after
   broker-process recovery
+- ordered synchronous producer delivery observers with copied payload-free
+  metadata, bounded callback count and cooperative deadline, contained and
+  explicitly reported failures, and same-producer reentrancy fencing
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
   race coverage, benchmarks, and exact statement coverage
 

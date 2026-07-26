@@ -16,7 +16,7 @@ recorded on 2026-07-27. Upstream protocol support is not package evidence.
 | Testcontainers resource reaper | `testcontainers/ryuk:0.14.0`, locally resolved digest `sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0` | Runtime log and local Docker image metadata; testcontainers invokes the tag, so an immutable source-level pin remains a release blocker |
 | Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; actual runtime version still needs assertion |
 | Current Apache Kafka fixture | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Source-pinned three-node combined KRaft fixture; runtime reports exactly `4.3.1`; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
-| Mutation tool | patched Gremlins v0.6.0 | 1,810 of 1,810 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-27 |
+| Mutation tool | patched Gremlins v0.6.0 | 1,862 of 1,862 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-27 |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
 | Security/release tools | govulncheck v1.6.0, Gitleaks v8.30.1, go-licenses v2.0.1, CycloneDX v1.10.0 | Repository tool pins |
 | OpenTelemetry semantic conventions | 1.43.0 | Selected current specification; adapter absent |

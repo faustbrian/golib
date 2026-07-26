@@ -16,6 +16,7 @@ required=(
 	docs/transactions.md
 	docs/replay.md
 	docs/inspection.md
+	docs/observability.md
 	docs/operations.md
 	docs/security.md
 )

@@ -14,6 +14,10 @@ import (
 // franz-go and Kafka protocol error types.
 type ErrorCategory uint8
 
+// ErrorUnknown is the zero value used when no failure category applies or a
+// caller supplies an unrecognized category.
+const ErrorUnknown ErrorCategory = 0
+
 const (
 	// ErrorPermanent identifies a definite failure that policy must not retry
 	// without changing input or configuration.
