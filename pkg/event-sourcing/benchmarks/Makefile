@@ -3,6 +3,10 @@ COUNT ?= 10
 BENCH_TIME ?= 100ms
 POSTGRES_VERSION ?= 18
 OUTPUT_DIR ?=
+FINGERPRINT_OUTPUT ?=
+FINGERPRINT_BEFORE ?=
+FINGERPRINT_AFTER ?=
+GATE_INPUT_DIGEST = ../../../scripts/gate-input-digest.sh
 
 CORE_RAW = $(OUTPUT_DIR)/core.txt
 COMPETITORS_RAW = $(OUTPUT_DIR)/competitors.txt
@@ -10,7 +14,8 @@ POSTGRES_RAW = $(OUTPUT_DIR)/postgres.txt
 OUTBOX_RAW = $(OUTPUT_DIR)/outbox.txt
 
 .PHONY: analyze capture capture-core capture-competitors capture-outbox \
-	capture-postgres environment require-output test test-integration
+	capture-postgres environment fingerprint require-output test \
+	test-integration verify-fingerprint
 
 require-output:
 	test -n '$(OUTPUT_DIR)'
@@ -93,3 +98,23 @@ environment: require-output
 			github.com/faustbrian/golib/pkg/outbox \
 			github.com/jackc/pgx/v5; \
 	} > '$(OUTPUT_DIR)/environment.txt'
+
+fingerprint:
+	test -n '$(FINGERPRINT_OUTPUT)'
+	{ \
+		printf 'core='; \
+		'$(GATE_INPUT_DIGEST)' benchmark pkg/event-sourcing; \
+		printf 'competitors='; \
+		'$(GATE_INPUT_DIGEST)' benchmark \
+			pkg/event-sourcing/benchmarks/competitors; \
+		printf 'postgres='; \
+		'$(GATE_INPUT_DIGEST)' benchmark pkg/event-sourcing/postgres; \
+		printf 'outbox='; \
+		'$(GATE_INPUT_DIGEST)' benchmark \
+			pkg/event-sourcing/adapters/gooutbox; \
+	} > '$(FINGERPRINT_OUTPUT)'
+
+verify-fingerprint:
+	test -n '$(FINGERPRINT_BEFORE)'
+	test -n '$(FINGERPRINT_AFTER)'
+	cmp '$(FINGERPRINT_BEFORE)' '$(FINGERPRINT_AFTER)'

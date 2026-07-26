@@ -11,9 +11,16 @@ then run:
 mkdir benchmarks/results/YYYY-MM-DD-environment
 make -C benchmarks test
 make -C benchmarks test-integration POSTGRES_VERSION=18
+make -C benchmarks fingerprint \
+  FINGERPRINT_OUTPUT=/tmp/event-sourcing-inputs-before.txt
 make -C benchmarks capture \
   OUTPUT_DIR="$PWD/benchmarks/results/YYYY-MM-DD-environment" \
   COUNT=20 BENCH_TIME=250ms POSTGRES_VERSION=18
+make -C benchmarks fingerprint \
+  FINGERPRINT_OUTPUT=/tmp/event-sourcing-inputs-after.txt
+make -C benchmarks verify-fingerprint \
+  FINGERPRINT_BEFORE=/tmp/event-sourcing-inputs-before.txt \
+  FINGERPRINT_AFTER=/tmp/event-sourcing-inputs-after.txt
 make -C benchmarks analyze \
   OUTPUT_DIR="$PWD/benchmarks/results/YYYY-MM-DD-environment"
 make -C benchmarks environment \
@@ -26,6 +33,11 @@ raw Go benchmark files. `analyze` uses the dependency-pinned `benchstat` tool.
 The database benchmarks each start a fresh PostgreSQL container with the
 module's migrations and default image configuration. They do not reuse a
 database across result files.
+
+The before and after fingerprints cover each module, owned dependencies,
+benchmark fixtures, repository gate inputs, toolchain, operating system, and
+container runtime. A history-only commit does not invalidate equal input
+fingerprints. Do not publish a capture when the fingerprints differ.
 
 Before publishing, add a result-specific README that records the exact command,
 deliberate concurrent load, power mode, PostgreSQL settings, sample count,
