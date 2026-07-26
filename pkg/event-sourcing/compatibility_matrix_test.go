@@ -89,6 +89,7 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 		"Event sourcing",
 		"Changelog",
 		"Database structure",
+		"Outbox setup and usage",
 		"Process managers",
 		"Projections and read models",
 		"Repository table schema",

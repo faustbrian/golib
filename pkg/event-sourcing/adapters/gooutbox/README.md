@@ -53,6 +53,47 @@ for external publication, an outbox relay after commit, and an idempotent
 consumer. A dispatcher can still update in-process consumers after commit, but
 it is independent of the outbox transaction.
 
+## Relay setup
+
+Relay lifecycle and publication policy remain owned by the independently
+usable outbox module. Compose the committed rows with any outbox publisher:
+
+```go
+func runRelay(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	publisher relay.Publisher,
+) error {
+	store, err := outboxpostgres.NewStore(
+		pool,
+		outboxpostgres.StoreConfig{},
+	)
+	if err != nil {
+		return err
+	}
+	worker, err := relay.New(store, publisher, relay.Config{
+		Owner:         "account-events",
+		BatchSize:     100,
+		Workers:       8,
+		LeaseDuration: 30 * time.Second,
+		MaxAttempts:   10,
+		PollInterval:  time.Second,
+	})
+	if err != nil {
+		return err
+	}
+
+	return worker.Run(ctx)
+}
+```
+
+The relay claims only committed envelopes. Publisher success marks a lease
+delivered; transient failure durably schedules the configured bounded backoff;
+permanent or exhausted failure becomes a dead letter. The application owns the
+bounded context, goroutine, shutdown, publisher, classifier, and operational
+monitoring. The outbox Kafka publisher is the production Kafka boundary; a
+direct event-store dispatcher is not part of this transaction.
+
 Use `Stager` only when an application already owns the transaction:
 
 ```go
@@ -131,6 +172,11 @@ records. There is intentionally no replay-to-outbox method. A future explicit
 republish operation must be separately named, authorized, audited, and marked
 as replay before it can create external side effects.
 
+The real PostgreSQL integration scenario commits one event and envelope,
+durably retries one transient relay failure, delivers on the second claim, and
+then performs stream and global replay reads while proving the outbox row count
+does not change.
+
 Outbox envelopes are derived delivery records, but event history remains
 authoritative. Backup and restore event rows and pending outbox rows to one
 consistent PostgreSQL recovery point. Retention of delivered or dead outbox
@@ -147,4 +193,3 @@ absolute bounds and include adapter serialization overhead in capacity tests.
 The adapter starts no goroutines and does not own the pool, transaction, relay,
 or publisher lifecycle. Run the relay under an application-owned bounded
 context with explicit shutdown and retry policy.
-

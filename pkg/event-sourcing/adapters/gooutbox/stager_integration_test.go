@@ -18,6 +18,7 @@ import (
 	eventpostgres "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
 	"github.com/faustbrian/golib/pkg/outbox"
 	outboxpostgres "github.com/faustbrian/golib/pkg/outbox/postgres"
+	outboxrelay "github.com/faustbrian/golib/pkg/outbox/relay"
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
@@ -319,6 +320,116 @@ func TestStoreRollsBackEventsWhenOutboxInsertConflicts(t *testing.T) {
 	assertStoredCounts(t, ctx, pool, 0, 1)
 }
 
+func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
+	ctx, pool := newIntegrationPool(t)
+	limits := gooutbox.DefaultLimits()
+	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
+		Limits:       limits,
+		MaxBatchSize: eventsourcing.MaxAppendMessages,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	codec, err := gooutbox.NewEnvelopeCodec(
+		gooutbox.FixedTopic("account-events"),
+		limits,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := gooutbox.NewStore(
+		pool,
+		eventpostgres.Config{},
+		writer,
+		codec,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t)
+	messages, err := store.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{testPending(t, stream)},
+	)
+	if err != nil || len(messages) != 1 {
+		t.Fatalf("Append() = %#v, %v", messages, err)
+	}
+	assertStoredCounts(t, ctx, pool, 1, 1)
+
+	relayStore, err := outboxpostgres.NewStore(
+		pool,
+		outboxpostgres.StoreConfig{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := &retryOncePublisher{failure: errors.New("retry publication")}
+	worker, err := outboxrelay.New(
+		relayStore,
+		publisher,
+		outboxrelay.Config{
+			Owner:         "event-relay",
+			BatchSize:     1,
+			Workers:       1,
+			LeaseDuration: time.Second,
+			MaxAttempts:   3,
+			PollInterval:  time.Millisecond,
+			Backoff:       func(int) time.Duration { return 0 },
+			ClassifyError: func(error) outboxrelay.ErrorClass { return outboxrelay.ErrorTransient },
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := worker.RunOnce(ctx)
+	if err != nil || first.Claimed != 1 || first.Retried != 1 ||
+		first.Delivered != 0 {
+		t.Fatalf("first relay result = %#v, %v", first, err)
+	}
+	second, err := worker.RunOnce(ctx)
+	if err != nil || second.Claimed != 1 || second.Delivered != 1 ||
+		second.Retried != 0 {
+		t.Fatalf("second relay result = %#v, %v", second, err)
+	}
+	if len(publisher.envelopes) != 2 ||
+		publisher.envelopes[0].ID != messages[0].ID().String() ||
+		publisher.envelopes[1].ID != messages[0].ID().String() {
+		t.Fatalf("published envelopes = %#v", publisher.envelopes)
+	}
+	var state string
+	var attempts int
+	if err := pool.QueryRow(
+		ctx,
+		"SELECT state, attempts FROM outbox_messages WHERE id = $1",
+		messages[0].ID().String(),
+	).Scan(&state, &attempts); err != nil {
+		t.Fatal(err)
+	}
+	if state != "delivered" || attempts != 2 {
+		t.Fatalf("delivered state = %q after %d attempts", state, attempts)
+	}
+
+	streamOptions, err := eventsourcing.NewReadStreamOptions(
+		eventsourcing.ReadStreamOptionsInput{FromVersion: 1, Limit: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	streamIterator, err := store.ReadStream(ctx, stream, streamOptions)
+	assertSingleReadMessage(t, ctx, streamIterator, err, messages[0])
+	globalOptions, err := eventsourcing.NewReadGlobalOptions(
+		eventsourcing.ReadGlobalOptionsInput{FromPosition: 1, Limit: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	globalIterator, err := store.ReadGlobal(ctx, globalOptions)
+	assertSingleReadMessage(t, ctx, globalIterator, err, messages[0])
+	assertStoredCounts(t, ctx, pool, 1, 1)
+}
+
 func newIntegrationPool(t *testing.T) (context.Context, *pgxpool.Pool) {
 	t.Helper()
 
@@ -480,4 +591,47 @@ func assertStoredCounts(
 			wantEnvelopes,
 		)
 	}
+}
+
+func assertSingleReadMessage(
+	t *testing.T,
+	ctx context.Context,
+	iterator eventsourcing.MessageIterator,
+	err error,
+	want eventsourcing.Message,
+) {
+	t.Helper()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := iterator.Close(); err != nil {
+			t.Errorf("close iterator: %v", err)
+		}
+	}()
+	if !iterator.Next(ctx) || !iterator.Message().Equal(want) ||
+		iterator.Next(ctx) || iterator.Err() != nil {
+		t.Fatal("read did not return the one committed message")
+	}
+}
+
+type retryOncePublisher struct {
+	failure   error
+	envelopes []outbox.Envelope
+}
+
+func (publisher *retryOncePublisher) Publish(
+	ctx context.Context,
+	envelope outbox.Envelope,
+) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	publisher.envelopes = append(publisher.envelopes, envelope)
+	if len(publisher.envelopes) == 1 {
+		return publisher.failure
+	}
+
+	return nil
 }

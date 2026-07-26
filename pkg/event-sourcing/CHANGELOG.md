@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a PostgreSQL event/outbox relay scenario proving durable transient retry,
+  eventual delivery, and replay reads without new outbox records.
 - Add database-structure and capacity guidance covering shared, per-type,
   per-ID, and document layouts plus partitioning, archive, and repair policy.
 - Add real PostgreSQL schema evidence for envelope constraints, the complete
