@@ -3,6 +3,7 @@ package kafka
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func FuzzMessageValidation(f *testing.F) {
@@ -30,6 +31,59 @@ func FuzzMessageValidation(f *testing.F) {
 		}
 
 		_ = message.validate(limits)
+	})
+}
+
+func FuzzTransactionProcessorConfig(f *testing.F) {
+	f.Add(
+		"source-events",
+		"derived-events",
+		"transaction-worker-0",
+		"2.5",
+		uint16(100),
+		uint16(1_000),
+		uint32(10<<20),
+		uint16(30),
+		uint16(60),
+	)
+	f.Add(
+		"",
+		"",
+		"",
+		"2.4",
+		uint16(0),
+		uint16(0),
+		uint32(0),
+		uint16(0),
+		uint16(0),
+	)
+
+	f.Fuzz(func(
+		t *testing.T,
+		sourceTopic string,
+		outputTopic string,
+		transactionalID string,
+		minimumVersion string,
+		maxPoll uint16,
+		maxOutputs uint16,
+		maxOutputBytes uint32,
+		processingSeconds uint16,
+		transactionSeconds uint16,
+	) {
+		config := validTransactionProcessorConfig()
+		config.Connection.Protocol.MinimumVersion = minimumVersion
+		config.Group.Topics = []string{sourceTopic}
+		config.Group.MaxPollRecords = int(maxPoll)
+		config.Group.ProcessingTimeout =
+			time.Duration(processingSeconds) * time.Second
+		config.Output.AllowedTopics = []string{outputTopic}
+		config.Output.TransactionalID = transactionalID
+		config.Output.MaxOutputRecords = int(maxOutputs)
+		config.Output.MaxOutputBytes = int64(maxOutputBytes)
+		config.Output.TransactionTimeout =
+			time.Duration(transactionSeconds) * time.Second
+
+		_, _ = normalizeTransactionProcessorConfig(config)
 	})
 }
 

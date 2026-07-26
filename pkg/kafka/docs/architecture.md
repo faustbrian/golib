@@ -9,6 +9,9 @@ infrastructure.
   durable success prefix.
 - `Transaction` serializes a configured transactional producer and prevents a
   retained callback capability from publishing after completion.
+- `TransactionProcessor` owns one read-committed group member and transactional
+  producer; it commits one complete bounded source poll and its Kafka outputs
+  together or aborts both.
 - `ReplayReader` directly assigns explicit partition ranges and never commits.
 - `Inspector` exposes read-only metadata and lag.
 

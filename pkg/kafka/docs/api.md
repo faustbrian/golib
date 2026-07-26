@@ -69,6 +69,27 @@ commit and required an abort; `OutcomeKnown` is false when reconciliation is
 required before reuse. `errors.Is` and `errors.As` preserve the safe
 programmatic cause chain without rendering it.
 
+`TransactionProcessor` is the Kafka-only consume-transform-produce surface.
+`TransactionProcessorConfig` separates connection, consumer-group, output,
+record-limit, and shutdown concerns. `RunOnce` polls at most
+`Group.MaxPollRecords`, begins one transaction, calls the
+`TransactionHandler` sequentially for every fetched record, and commits only
+after all handlers and all synchronous output deliveries succeed.
+`TransactionPollResult.Published` counts acknowledged records inside the open
+transaction; they are durable to `read_committed` consumers only when
+`Committed` is true. A false commit result returns
+`ErrTransactionNotCommitted`, leaves the poll unsettled, and is safe to retry.
+Begin, end, or abort failures fence further runs with
+`ErrTransactionProcessorFatal`; the application must close the processor,
+reconcile ambiguous outcomes where reported, and construct a new instance.
+Each handler receives a callback-lifetime `Transaction`; retaining it does not
+extend its lifetime. `Run` and `RunOnce` are mutually exclusive. `Shutdown`
+fences new runs, waits within the caller context, preserves static membership,
+and can be retried after an incomplete shutdown. Transaction publishes own
+copies of record bytes. Concurrent publishes are safe, but their admission
+order is scheduler-dependent; callers that require source-derived output order
+must publish synchronously in that order.
+
 `Consumer.RunOnce` returns one bounded poll result. Processing is sequential
 within a partition. After one partition fails, its later fetched records are
 skipped while independent partitions continue; only each partition's contiguous

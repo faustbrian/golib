@@ -54,6 +54,32 @@ abortable, known-not-committed results after the package attempts the required
 bounded abort. Other unclassified commit or abort failures are ambiguous and
 must be reconciled before the producer is reused.
 
+`TransactionProcessor` consumes only committed source records and disables
+automatic commits. One bounded poll is the settlement unit: every fetched
+record must pass package limits, complete its handler, and resolve every
+transactional output delivery before the processor asks Kafka to commit the
+outputs and all source offsets atomically. Any validation, handler, panic,
+processing-timeout, or delivery failure aborts the complete poll. Outputs
+acknowledged inside an aborted transaction remain visible to
+`read_uncommitted` inspection but not to `read_committed` consumers; source
+records remain eligible for redelivery.
+
+The processor does not partially settle successful partitions from a failed
+transactional poll because franz-go's group transaction commits the complete
+poll position. `MaxPollRecords` bounds that all-or-nothing unit. A rebalance
+before transaction completion converts the commit to an abort and returns
+`ErrTransactionNotCommitted`. Begin, commit, or abort lifecycle failure fences
+the processor so it cannot silently poll past unsettled source records.
+Unknown end outcomes retain `ErrTransactionOutcomeUnknown` and require
+reconciliation before replacement. These guarantees apply only to Kafka
+source offsets and Kafka output records. Application side effects outside
+Kafka are neither atomic nor exactly once.
+
+`MaxOutputRecords` and `MaxOutputBytes` bound all output attempts in one
+transaction independently of franz-go's instantaneous buffer limits. Exceeding
+either limit aborts the source poll even if the handler ignores the publish
+error.
+
 ## Consumer
 
 Automatic commits are disabled. A poll is processed in fetch order, sequentially

@@ -35,6 +35,29 @@ func TestProtocolPolicyValidatesMinimumVersion(t *testing.T) {
 	}
 }
 
+func TestKafkaReleaseMinimumComparison(t *testing.T) {
+	t.Parallel()
+
+	for version, want := range map[string]bool{
+		"2":    false,
+		"2.4":  false,
+		"2.5":  true,
+		"v2.5": true,
+		"3.0":  true,
+		"x.5":  false,
+		"2.x":  false,
+	} {
+		version := version
+		t.Run(version, func(t *testing.T) {
+			t.Parallel()
+
+			if got := kafkaReleaseAtLeast(version, 2, 5); got != want {
+				t.Fatalf("kafkaReleaseAtLeast(%q) = %t, want %t", version, got, want)
+			}
+		})
+	}
+}
+
 func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 	t.Parallel()
 

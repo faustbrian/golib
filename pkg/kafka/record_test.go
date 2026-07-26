@@ -667,7 +667,7 @@ func TestProducerRejectsNilOperationContexts(t *testing.T) {
 	if err := producer.RunTransaction(nilContext, func(Transaction) error { return nil }); !errors.Is(err, ErrContextRequired) {
 		t.Fatalf("RunTransaction(nil) error = %v", err)
 	}
-	if err := (Transaction{session: &transactionSession{producer: producer}}).Publish(nilContext, record); !errors.Is(err, ErrContextRequired) {
+	if err := (Transaction{session: &transactionSession{publisher: producer}}).Publish(nilContext, record); !errors.Is(err, ErrContextRequired) {
 		t.Fatalf("Transaction.Publish(nil) error = %v", err)
 	}
 	if err := producer.Drain(nilContext); !errors.Is(err, ErrContextRequired) {

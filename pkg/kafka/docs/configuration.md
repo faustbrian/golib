@@ -85,6 +85,48 @@ Idempotence, all-ISR acknowledgements, ordering-preserving production, and
 data-loss detection are mandatory package policy rather than configurable
 options.
 
+## Consume-transform-produce
+
+`TransactionProcessorConfig` separates the connection, source group, output,
+record limits, and lifecycle timeout. It reuses the same validation bounds as
+the producer and consumer policies. The processor always selects
+`read_committed` and disables automatic commits; neither is caller-configurable.
+
+| Concern and field | Default | Validation and meaning |
+| --- | ---: | --- |
+| `Connection.Brokers`, `ClientID`, `Security`, `DialTimeout` | shared defaults above | One immutable connection policy for both group consumption and transactional production. |
+| `Connection.Protocol.MinimumVersion` | Kafka 2.5 | A caller may raise but not lower the request-version floor; franz-go avoids requests that would need to downgrade below KIP-447 rather than using its older best-effort transaction-marker delay. |
+| `Group.GroupID` | none | Required bounded Kafka consumer-group identity. |
+| `Group.InstanceID`, `Rack` | empty | Optional static member and rack identities. |
+| `Group.Topics` | none | Required 1 to 64 unique copied source topics. |
+| `Group.ResetOffset` | none | Explicit `OffsetEarliest` or `OffsetLatest` is required. |
+| `Group.BalancePolicy` | cooperative-sticky | Cooperative, eager, or reviewed eager-to-cooperative migration. |
+| `Group.MaxPollRecords` | 100 | 1 to 1,000; this is the maximum all-or-nothing transaction input count. |
+| `Group.MaxConcurrentFetches` | 4 | 1 to 64. |
+| `Group.FetchMaxBytes` | 50 MiB | 1 to 100 MiB. |
+| `Group.FetchMaxPartitionBytes` | 1 MiB | 1 MiB through the aggregate fetch maximum. |
+| `Group.FetchMaxWait` | 500 milliseconds | 1 millisecond to 30 seconds. |
+| `Group.SessionTimeout` | 45 seconds | 1 second to 6 minutes. |
+| `Group.RebalanceTimeout` | 60 seconds | 1 second to 10 minutes. |
+| `Group.HeartbeatInterval` | 3 seconds | 100 milliseconds and less than the session timeout. |
+| `Group.ProcessingTimeout` | 30 seconds | Bounds the complete poll's application processing, not each record independently. |
+| `Output.AllowedTopics` | none | Required 1 to 64 unique copied output topics; source overlap is rejected. |
+| `Output.KeyPolicy` | `KeyRequired` | Unkeyed output requires explicit `UnkeyedAllowed`. |
+| `Output.MaxBufferedRecords` | 1,000 | 1 to 100,000. |
+| `Output.MaxBufferedBytes` | 64 MiB | At least the batch maximum and at most 1 GiB. |
+| `Output.MaxBatchBytes` | 1 MiB | 512 bytes to 100 MiB and sufficient for one policy record. |
+| `Output.MaxOutputRecords` | 1,000 | 1 to 100,000 records acknowledged or attempted inside one source-poll transaction. |
+| `Output.MaxOutputBytes` | 10 MiB | At least one maximum policy record and at most 1 GiB per source-poll transaction. |
+| `Output.RecordRetries` | 10 | 1 to 1,000 idempotent franz-go attempts. |
+| `Output.DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. |
+| `Output.RequestTimeout` | 10 seconds | 100 milliseconds to 2 minutes and no longer than delivery. |
+| `Output.Linger` | 5 milliseconds | 0 to 1 second. |
+| `Output.CompressionPreferences` | Snappy, then none | Same ordered producer compression policy. |
+| `Output.TransactionalID` | none | Required, unique to one live processor, valid and at most 255 bytes. |
+| `Output.TransactionTimeout` | 60 seconds | 1 second to 15 minutes; must exceed processing plus end time. |
+| `Output.TransactionEndTimeout` | 10 seconds | 1 second to 2 minutes; combined heartbeat, processing, and end time must fit inside rebalance time. |
+| `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
+
 ## Consumer group
 
 | Field | Default | Allowed policy |

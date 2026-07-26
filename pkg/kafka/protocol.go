@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -30,6 +31,21 @@ func (policy ProtocolPolicy) Validate() error {
 	}
 
 	return nil
+}
+
+func kafkaReleaseAtLeast(value string, minimumMajor int, minimumMinor int) bool {
+	parts := strings.Split(strings.TrimPrefix(value, "v"), ".")
+	if len(parts) < 2 {
+		return false
+	}
+	major, majorErr := strconv.Atoi(parts[0])
+	minor, minorErr := strconv.Atoi(parts[1])
+	if majorErr != nil || minorErr != nil {
+		return false
+	}
+
+	return major > minimumMajor ||
+		(major == minimumMajor && minor >= minimumMinor)
 }
 
 func clientProtocolOptions(policy ProtocolPolicy) []kgo.Opt {

@@ -494,11 +494,7 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 				config.TransactionEndTimeout > 2*time.Minute)) {
 		return ProducerConfig{}, ErrInvalidProducerConfig
 	}
-	maximumRecordBytes := int64(config.Limits.MaxTopicBytes) +
-		int64(config.Limits.MaxKeyBytes) +
-		int64(config.Limits.MaxValueBytes) +
-		int64(config.Limits.MaxHeaderBytes) +
-		1_024
+	maximumRecordBytes := maximumRecordPolicyBytes(config.Limits)
 	if int64(config.MaxBatchBytes) < maximumRecordBytes {
 		return ProducerConfig{}, ErrInvalidProducerConfig
 	}
@@ -521,6 +517,15 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	config.AllowedTopics = append([]string(nil), config.AllowedTopics...)
 
 	return config, nil
+}
+
+func maximumRecordPolicyBytes(limits MessageLimits) int64 {
+	return int64(limits.MaxTopicBytes) +
+		int64(limits.MaxKeyBytes) +
+		int64(limits.MaxValueBytes) +
+		int64(limits.MaxHeaderBytes) +
+		int64(limits.MaxHeaders)*8 +
+		32
 }
 
 func validateCompressionPreferences(
@@ -1001,7 +1006,7 @@ func (producer *Producer) RunTransaction(
 		)
 	}
 
-	session := &transactionSession{producer: producer}
+	session := &transactionSession{publisher: producer}
 	callbackErr := callTransaction(callback, Transaction{session: session})
 	session.closeAndWait()
 	if callbackErr != nil {
@@ -1049,10 +1054,14 @@ func (producer *Producer) RunTransaction(
 }
 
 type transactionSession struct {
-	producer *Producer
-	mu       sync.Mutex
-	active   sync.WaitGroup
-	closed   bool
+	publisher transactionRecordPublisher
+	mu        sync.Mutex
+	active    sync.WaitGroup
+	closed    bool
+}
+
+type transactionRecordPublisher interface {
+	publish(context.Context, ProducerRecord) error
 }
 
 func (session *transactionSession) publish(ctx context.Context, message Message) error {
@@ -1069,7 +1078,7 @@ func (session *transactionSession) publish(ctx context.Context, message Message)
 	session.mu.Unlock()
 	defer session.active.Done()
 
-	return session.producer.publish(ctx, message)
+	return session.publisher.publish(ctx, message)
 }
 
 func (session *transactionSession) closeAndWait() {

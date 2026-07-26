@@ -26,6 +26,9 @@ multi-broker matrix runs and asserts the broker version from the runtime.
 The zero `ProtocolPolicy` negotiates request versions with each connection.
 `MinimumVersion` is only a request downgrade floor recognized by franz-go; it
 does not prove or constrain the broker release and does not change this matrix.
+The transaction processor is stricter: its empty policy becomes a Kafka 2.5
+request floor and lower explicit values are rejected for KIP-447 safety. That
+floor still does not establish operational support for an untested broker.
 
 ## Current support status
 
@@ -44,7 +47,7 @@ does not prove or constrain the broker release and does not change this matrix.
 | MSK IAM | Optional AWS signer adapter | Unimplemented |
 | Producer | Single, batch, async, ordering, failure, shutdown | Policy APIs and deterministic tests exist; no real-broker batch, async, failure, or shutdown evidence yet |
 | Consumer group | Classic cooperative/eager and reviewed next-generation protocol | Explicit cooperative-sticky, eager-sticky, migration, static-membership, rack, and bounded partition pause/resume policy exists; the single-node fixture proves eager membership, same-ID static restart, and pause/resume delivery behavior, while rolling migration, fencing, cooperative overlap, and rack locality remain unverified |
-| Transactions | Produce and consume-transform-produce | Producer-only callback has real-broker committed/aborted isolation evidence; source-offset transactions, fencing, and recovery remain unverified |
+| Transactions | Produce and consume-transform-produce | Producer-only and source-offset consume-transform-produce commit/abort isolation are exercised against the pinned single-node fixture; multi-broker rebalance, fencing, timeout, and recovery remain unverified |
 | Replay | Offset/timestamp planning, exact ranges, gaps, resume | Draft direct offset reader; no broker gap/truncation evidence |
 | Inspection/health | Cluster/topic/group/durability and separated health signals | Partial metadata/lag/ping only |
 | Operating systems/architectures | Linux amd64/arm64 plus repository-supported developer platforms | Local Darwin arm64 only; CI matrix not yet established |

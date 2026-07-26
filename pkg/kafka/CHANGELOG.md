@@ -49,6 +49,13 @@ All notable changes to this module are documented here.
 - real-broker evidence that committed transaction records are visible to
   read-committed consumers while aborted records remain visible only to
   read-uncommitted consumers
+- read-committed consume-transform-produce processing that commits every
+  bounded source poll and its outputs in one Kafka transaction, aborts the
+  complete poll on any record or delivery failure, and fences ambiguous or
+  fatal processor state; per-transaction output count and bytes are bounded
+- real-broker evidence that consume-transform-produce advances source offsets
+  only with read-committed outputs, filters aborted source transactions, and
+  redelivers an aborted source poll
 - exact direct-partition replay that never mutates consumer-group offsets
 - read-only topic metadata and consumer-group lag inspection
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility
@@ -58,6 +65,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- producer and transaction-output aggregate validation now includes framing
+  overhead for every allowed header, so custom high-header-count limits cannot
+  admit a batch or transaction byte ceiling too small for one maximum record
 - consumer runners are now single-owner and reject concurrent execution;
   `Consumer.Shutdown` fences new work, waits for in-flight handling, preserves
   static membership, and supports bounded retry after an incomplete shutdown;

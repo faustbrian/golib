@@ -53,12 +53,15 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
 	transactionTopic := topic + "-transaction"
+	transactionSourceTopic := topic + "-transaction-source"
+	transactionOutputTopic := topic + "-transaction-output"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
 			rebalanceTopic, batchTopic,
+			transactionSourceTopic,
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -82,6 +85,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, transactionSourceTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, transactionOutputTopic, 1)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,
 		Partition: kafka.ExplicitPartition(3),
@@ -178,6 +183,235 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
 	proveBatchPolicy(t, ctx, brokers, producer, batchTopic)
 	proveProducerTransactionVisibility(t, ctx, brokers, transactionTopic)
+	proveConsumeTransformProduce(
+		t,
+		ctx,
+		brokers,
+		producer,
+		transactionSourceTopic,
+		transactionOutputTopic,
+	)
+}
+
+func proveConsumeTransformProduce(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	sourceTopic string,
+	outputTopic string,
+) {
+	t.Helper()
+
+	sourceTransaction, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:         brokers,
+		ClientID:        "golib-compatibility-transaction-source-producer",
+		AllowedTopics:   []string{sourceTopic},
+		TransactionalID: "golib-compatibility-transaction-source-producer",
+		Security:        kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct transactional source producer: %v", err)
+	}
+	hiddenSourceErr := errors.New("abort source transaction")
+	err = sourceTransaction.RunTransaction(ctx, func(
+		transaction kafka.Transaction,
+	) error {
+		if err := transaction.Publish(ctx, kafka.ProducerRecord{
+			Topic: sourceTopic,
+			Key:   []byte("hidden"),
+			Value: []byte("hidden"),
+		}); err != nil {
+			return err
+		}
+
+		return hiddenSourceErr
+	})
+	if !errors.Is(err, hiddenSourceErr) {
+		t.Fatalf("abort source transaction: %v", err)
+	}
+	if err := sourceTransaction.Close(); err != nil {
+		t.Fatalf("close transactional source producer: %v", err)
+	}
+
+	for _, value := range []string{"first", "second"} {
+		if err := producer.Publish(ctx, kafka.ProducerRecord{
+			Topic: sourceTopic, Key: []byte(value), Value: []byte(value),
+		}); err != nil {
+			t.Fatalf("publish transaction source %q: %v", value, err)
+		}
+	}
+
+	const groupID = "golib-compatibility-transaction-processor"
+	processor, err := kafka.NewTransactionProcessor(
+		kafka.TransactionProcessorConfig{
+			Connection: kafka.TransactionConnectionConfig{
+				Brokers:  brokers,
+				ClientID: "golib-compatibility-transaction-processor",
+				Security: kafka.DevelopmentPlaintextSecurity(),
+			},
+			Group: kafka.TransactionGroupConfig{
+				GroupID:        groupID,
+				Topics:         []string{sourceTopic},
+				ResetOffset:    kafka.OffsetEarliest,
+				MaxPollRecords: 10,
+			},
+			Output: kafka.TransactionOutputConfig{
+				AllowedTopics:   []string{outputTopic},
+				TransactionalID: "golib-compatibility-transaction-processor",
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct transaction processor: %v", err)
+	}
+	defer func() {
+		if err := processor.Close(); err != nil {
+			t.Errorf("transaction processor close: %v", err)
+		}
+	}()
+
+	transform := func(
+		ctx context.Context,
+		record kafka.ConsumedRecord,
+		transaction kafka.Transaction,
+	) error {
+		return transaction.Publish(ctx, kafka.ProducerRecord{
+			Topic: outputTopic,
+			Key:   record.Key,
+			Value: append([]byte("derived-"), record.Value...),
+		})
+	}
+	for {
+		result, err := processor.RunOnce(
+			ctx,
+			kafka.TransactionHandlerFunc(transform),
+		)
+		if err != nil {
+			t.Fatalf("commit consume-transform-produce: %v", err)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+		if result != (kafka.TransactionPollResult{
+			Polled: 2, Processed: 2, Published: 2, Committed: true,
+		}) {
+			t.Fatalf("transaction processor result = %#v", result)
+		}
+
+		break
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		sourceTopic,
+		groupID,
+		map[int32]int64{0: 4},
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+		2,
+	); !slices.Equal(values, []string{"derived-first", "derived-second"}) {
+		t.Fatalf("committed transaction outputs = %q", values)
+	}
+
+	if err := producer.Publish(ctx, kafka.ProducerRecord{
+		Topic: sourceTopic, Key: []byte("third"), Value: []byte("third"),
+	}); err != nil {
+		t.Fatalf("publish abort source: %v", err)
+	}
+	transformErr := errors.New("abort transformed source")
+	for {
+		result, err := processor.RunOnce(
+			ctx,
+			kafka.TransactionHandlerFunc(func(
+				ctx context.Context,
+				record kafka.ConsumedRecord,
+				transaction kafka.Transaction,
+			) error {
+				if err := transform(ctx, record, transaction); err != nil {
+					return err
+				}
+
+				return transformErr
+			}),
+		)
+		if result.Polled == 0 && err == nil {
+			continue
+		}
+		if !errors.Is(err, transformErr) ||
+			result != (kafka.TransactionPollResult{
+				Polled: 1, Published: 1,
+			}) {
+			t.Fatalf("aborted transaction result = %#v, error = %v", result, err)
+		}
+
+		break
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		sourceTopic,
+		groupID,
+		map[int32]int64{0: 4},
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadUncommitted(),
+		3,
+	); !slices.Equal(
+		values,
+		[]string{"derived-first", "derived-second", "derived-third"},
+	) {
+		t.Fatalf("uncommitted transaction outputs = %q", values)
+	}
+
+	for {
+		result, err := processor.RunOnce(
+			ctx,
+			kafka.TransactionHandlerFunc(transform),
+		)
+		if err != nil {
+			t.Fatalf("retry consume-transform-produce: %v", err)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+		if result != (kafka.TransactionPollResult{
+			Polled: 1, Processed: 1, Published: 1, Committed: true,
+		}) {
+			t.Fatalf("retried transaction result = %#v", result)
+		}
+
+		break
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		sourceTopic,
+		groupID,
+		map[int32]int64{0: 5},
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+		3,
+	); !slices.Equal(
+		values,
+		[]string{"derived-first", "derived-second", "derived-third"},
+	) {
+		t.Fatalf("retried committed transaction outputs = %q", values)
+	}
 }
 
 func proveProducerTransactionVisibility(

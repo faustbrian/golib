@@ -141,6 +141,31 @@ func TestProducerConfigRequiresAndOwnsTopicAllowlist(t *testing.T) {
 	}
 }
 
+func TestProducerConfigBoundsMaximumHeaderFraming(t *testing.T) {
+	t.Parallel()
+
+	limits := MessageLimits{
+		MaxTopicBytes:       1,
+		MaxKeyBytes:         1,
+		MaxValueBytes:       1,
+		MaxHeaders:          10_000,
+		MaxHeaderKeyBytes:   1,
+		MaxHeaderValueBytes: 1,
+		MaxHeaderBytes:      1,
+	}
+	_, err := normalizeProducerConfig(ProducerConfig{
+		Brokers:          []string{"broker.internal:9092"},
+		ClientID:         "track",
+		AllowedTopics:    []string{"e"},
+		Limits:           limits,
+		MaxBatchBytes:    2_000,
+		MaxBufferedBytes: 2_000,
+	})
+	if !errors.Is(err, ErrInvalidProducerConfig) {
+		t.Fatalf("normalizeProducerConfig() error = %v", err)
+	}
+}
+
 func TestProducerPartitionerCombinesAutomaticAndExplicitSelection(t *testing.T) {
 	t.Parallel()
 
