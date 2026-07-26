@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the documented transport-neutral `MessageCodec` contract separately
+  from aggregate payload serialization.
 - Publish complete raw and statistically summarized core, competitor,
   PostgreSQL, and outbox benchmark evidence with environment provenance and
   stable input fingerprints.

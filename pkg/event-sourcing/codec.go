@@ -25,6 +25,18 @@ type PayloadCodec interface {
 	Decode(EncodedEvent) (DecodedEvent, error)
 }
 
+// MessageCodec encodes and decodes complete persisted message envelopes.
+//
+// Implementations must be deterministic, safe for concurrent use, enforce the
+// core envelope field limits, and treat decoded bytes as untrusted input. Encode
+// returns caller-owned bytes. Decode must not retain input bytes and returns an
+// independently owned Message. Stored or external input must return an error,
+// never panic.
+type MessageCodec interface {
+	Encode(Message) ([]byte, error)
+	Decode([]byte) (Message, error)
+}
+
 type eventKey struct {
 	name    string
 	version SchemaVersion
