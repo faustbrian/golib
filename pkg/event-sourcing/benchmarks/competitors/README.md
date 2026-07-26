@@ -38,16 +38,17 @@ throughput. Those require separately named equivalent-work benchmarks.
 
 ## Running
 
-Use enough independent samples for `benchstat` rather than selecting a best
-run:
+The module pins `benchstat` through the Go tool dependency in `go.mod`. Use
+enough independent samples rather than selecting a best run:
 
 ```sh
-go test -run '^TestEquivalentRecordAndApplyOutcomes$' ./...
-go test -run '^$' -bench '^BenchmarkEquivalentRecordAndApply$' \
-  -benchmem -count=20 | tee raw-record-and-apply.txt
-benchstat raw-record-and-apply.txt
+make test
+make environment > environment.txt
+make capture OUTPUT=raw-record-and-apply.txt
+make analyze INPUT=raw-record-and-apply.txt
 ```
 
 Record the Go version, dependency versions, operating system, architecture,
-CPU, power mode, concurrent load, sample count, and command with every result.
-Do not compare these in-memory lifecycle numbers with durable writes.
+CPU, power mode, concurrent load, sample count, command, and workspace revision
+with every result. Do not compare these in-memory lifecycle numbers with
+durable writes.

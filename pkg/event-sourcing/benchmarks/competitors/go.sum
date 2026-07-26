@@ -1,3 +1,5 @@
+github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 h1:xlwdaKcTNVW4PtpQb8aKA4Pjy0CdJHEqvFbAnvR5m2g=
+github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794/go.mod h1:7e+I0LQFUI9AXWxOfsQROs9xPhoJtbsyWcjJqDd4KPY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/faustbrian/golib/pkg/event-sourcing v0.1.0 h1:/EMJQsZfc9tW2Gmi5Fi/zLnOhlM4nk1OQ1LniIqXwdU=
@@ -18,5 +20,7 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/thefabric-io/eventsourcing v0.6.0 h1:r2UKpbYSWagHa/5+D8NnxDsXhfVAwXL2yPtLtNgRD84=
 github.com/thefabric-io/eventsourcing v0.6.0/go.mod h1:NXaUKuSFx02uztlri6vkbVoYAEON4eu/9rnpjcDt6ZI=
+golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d h1:mDNWm9XMiduP5opv8zcdZJixEU5+yBIj1hefXe09kSY=
+golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d/go.mod h1:N6rE9oqNql+XyUUA7hIpm+CorIvF5RWMdE7+p0BiB5s=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
