@@ -5935,6 +5935,30 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/secret-envelope",
+      "directory": ".",
+      "name": "secretenvelope",
+      "import_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/secret-envelope",
+      "directory": "adapters/awskms",
+      "name": "awskms",
+      "import_path": "github.com/faustbrian/golib/pkg/secret-envelope/adapters/awskms",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/sequencer",
       "directory": ".",
       "name": "sequencer",

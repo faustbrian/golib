@@ -1,0 +1,4 @@
+title = "secret-envelope gitleaks configuration"
+
+[extend]
+useDefault = true

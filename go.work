@@ -79,6 +79,7 @@ use (
 	./pkg/rule-engine/adapters/gotemporal
 	./pkg/rule-engine/benchmarks/competitors
 	./pkg/scheduler
+	./pkg/secret-envelope
 	./pkg/sequencer
 	./pkg/service
 	./pkg/service/compatibility

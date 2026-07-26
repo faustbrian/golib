@@ -14463,6 +14463,72 @@
       }
     },
     {
+      "directory": "pkg/secret-envelope",
+      "module_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/secret-envelope",
+          "directory": ".",
+          "name": "secretenvelope",
+          "import_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/secret-envelope",
+          "directory": "adapters/awskms",
+          "name": "awskms",
+          "import_path": "github.com/faustbrian/golib/pkg/secret-envelope/adapters/awskms",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`secret-envelope` encrypts application-owned secret payloads with one-use AES-256-GCM data keys and delegates key wrapping to an explicit provider. The AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are best-effort zeroized after each local operation.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/secret-envelope/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2",
+        "github.com/aws/aws-sdk-go-v2/service/kms"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/sequencer",
       "module_path": "github.com/faustbrian/golib/pkg/sequencer",
       "go_version": "1.26.5",
