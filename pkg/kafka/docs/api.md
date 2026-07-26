@@ -4,6 +4,11 @@ Use `NewProducer`, `NewConsumer`, `NewReplayReader`, and `NewInspector` as the
 composition roots. Every constructor validates identities and bounded resource
 policy before franz-go is configured.
 
+Topic names are validated consistently at every producer, consumer, replay,
+and inspection boundary against Kafka's broker naming rules: 1 to 249 ASCII
+bytes containing only alphanumerics, `.`, `_`, or `-`, excluding `.` and `..`.
+Invalid names fail before client admission or a broker request.
+
 Use `ProducerConfig.Validate` when a composition root must validate producer
 policy before constructing a client. It applies the same validation and
 defaulting policy as `NewProducer` without allocating a client or dialing

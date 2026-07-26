@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -129,9 +128,7 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	}
 	seen := make(map[replayPartition]struct{}, len(config.Ranges))
 	for _, replayRange := range config.Ranges {
-		if replayRange.Topic == "" ||
-			replayRange.Topic != strings.TrimSpace(replayRange.Topic) ||
-			len(replayRange.Topic) > 249 ||
+		if !validKafkaTopicName(replayRange.Topic, 249) ||
 			replayRange.Partition < 0 ||
 			replayRange.StartOffset < 0 ||
 			replayRange.EndOffset <= replayRange.StartOffset {

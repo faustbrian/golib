@@ -66,6 +66,9 @@ Records use automatic keyed partitioning by default. Use
 `Partition: kafka.ExplicitPartition(n)` only when the application owns the
 exact topic-partition routing contract; the key is still transported but no
 longer selects the partition.
+All producer, consumer, replay, and inspection topic names must follow Kafka's
+broker rules: 1 to 249 ASCII bytes using alphanumerics, `.`, `_`, or `-`, with
+`.` and `..` rejected.
 Compression preferences are ordered and copied during construction. The
 default is Snappy with an uncompressed fallback. `CompressionNone` is valid
 only as the final preference; use it alone to disable compression. Confirm

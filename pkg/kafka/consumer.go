@@ -14,7 +14,6 @@ var (
 	ErrGroupIDTooLarge       = errors.New("kafka: consumer group ID exceeds configured limit")
 	ErrTopicsRequired        = errors.New("kafka: at least one consumer topic is required")
 	ErrTooManyTopics         = errors.New("kafka: consumer topic count exceeds configured limit")
-	ErrInvalidTopic          = errors.New("kafka: consumer topic is invalid")
 	ErrDuplicateTopic        = errors.New("kafka: consumer topic is duplicated")
 	ErrInvalidOffsetPolicy   = errors.New("kafka: consumer offset policy is invalid")
 	ErrHandlerRequired       = errors.New("kafka: consumer handler is required")
@@ -166,7 +165,7 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	seenTopics := make(map[string]struct{}, len(config.Topics))
 	for _, topic := range config.Topics {
-		if topic == "" || topic != strings.TrimSpace(topic) || len(topic) > 249 {
+		if !validKafkaTopicName(topic, 249) {
 			return ConsumerConfig{}, ErrInvalidTopic
 		}
 		if _, exists := seenTopics[topic]; exists {

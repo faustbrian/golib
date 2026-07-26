@@ -42,6 +42,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- producer, consumer, replay, and topic inspection now reject names Kafka
+  brokers reject: empty, `.` or `..`, over 249 bytes, or characters outside
+  ASCII alphanumerics plus `.`, `_`, and `-`
 - `Producer.Close` now returns an error and performs a bounded graceful drain
   using the new `ProducerConfig.ShutdownTimeout`; callers that passed `Close`
   as a `func()` must wrap it and handle the result

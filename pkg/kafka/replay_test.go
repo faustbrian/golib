@@ -48,6 +48,7 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 		{name: "no ranges", change: func(config *ReplayConfig) { config.Ranges = nil }, want: ErrReplayRangesRequired},
 		{name: "too many ranges", change: func(config *ReplayConfig) { config.Ranges = manyRanges }, want: ErrTooManyReplayRanges},
 		{name: "blank topic", change: func(config *ReplayConfig) { config.Ranges[0].Topic = " " }, want: ErrInvalidReplayRange},
+		{name: "broker-invalid topic", change: func(config *ReplayConfig) { config.Ranges[0].Topic = ".." }, want: ErrInvalidReplayRange},
 		{name: "negative partition", change: func(config *ReplayConfig) { config.Ranges[0].Partition = -1 }, want: ErrInvalidReplayRange},
 		{name: "negative start", change: func(config *ReplayConfig) { config.Ranges[0].StartOffset = -1 }, want: ErrInvalidReplayRange},
 		{name: "empty range", change: func(config *ReplayConfig) { config.Ranges[0].EndOffset = 1 }, want: ErrInvalidReplayRange},

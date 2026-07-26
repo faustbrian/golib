@@ -1119,6 +1119,29 @@ func TestProducerRejectsTopicAboveConfiguredLimit(t *testing.T) {
 	}
 }
 
+func TestProducerRejectsBrokerInvalidTopicName(t *testing.T) {
+	t.Parallel()
+
+	for _, topic := range []string{".", "..", "events/commands", "events\x00", "events-\xff"} {
+		topic := topic
+		t.Run(topic, func(t *testing.T) {
+			t.Parallel()
+
+			backend := &recordingProducerBackend{}
+			producer := &Producer{client: backend, limits: DefaultMessageLimits()}
+
+			err := producer.Publish(context.Background(), Message{Topic: topic})
+
+			if !errors.Is(err, ErrInvalidTopic) {
+				t.Fatalf("Publish() error = %v, want %v", err, ErrInvalidTopic)
+			}
+			if len(backend.records) != 0 {
+				t.Fatalf("Publish() records = %d, want 0", len(backend.records))
+			}
+		})
+	}
+}
+
 func TestProducerRejectsMessageFieldsAboveConfiguredLimits(t *testing.T) {
 	t.Parallel()
 

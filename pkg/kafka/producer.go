@@ -22,6 +22,7 @@ var (
 	ErrClientIDTooLarge          = errors.New("kafka: client ID exceeds configured limit")
 	ErrTopicRequired             = errors.New("kafka: topic is required")
 	ErrTopicTooLarge             = errors.New("kafka: topic exceeds configured limit")
+	ErrInvalidTopic              = errors.New("kafka: topic name is invalid")
 	ErrInvalidPartitionSelection = errors.New(
 		"kafka: producer partition selection is invalid",
 	)
@@ -1018,6 +1019,9 @@ func (message ProducerRecord) validate(limits MessageLimits) error {
 	}
 	if len(message.Topic) > limits.MaxTopicBytes {
 		return ErrTopicTooLarge
+	}
+	if !validKafkaTopicName(message.Topic, limits.MaxTopicBytes) {
+		return ErrInvalidTopic
 	}
 	switch message.Partition.Mode {
 	case PartitionAutomatic:

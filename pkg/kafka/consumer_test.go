@@ -134,6 +134,11 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 			want:   ErrInvalidTopic,
 		},
 		{
+			name:   "broker-invalid topic",
+			change: func(config *ConsumerConfig) { config.Topics = []string{"events/commands"} },
+			want:   ErrInvalidTopic,
+		},
+		{
 			name:   "duplicate topic",
 			change: func(config *ConsumerConfig) { config.Topics = []string{"events", "events"} },
 			want:   ErrDuplicateTopic,

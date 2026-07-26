@@ -136,7 +136,7 @@ func (inspector *Inspector) Topics(
 	ctx context.Context,
 	topics ...string,
 ) ([]TopicState, error) {
-	if err := validateInspectionTargets(topics, 249); err != nil {
+	if err := validateInspectionTopics(topics); err != nil {
 		return nil, err
 	}
 	details, err := inspector.admin.ListTopics(ctx, topics...)
@@ -167,6 +167,19 @@ func (inspector *Inspector) Topics(
 	}
 
 	return result, nil
+}
+
+func validateInspectionTopics(topics []string) error {
+	if err := validateInspectionTargets(topics, 249); err != nil {
+		return err
+	}
+	for _, topic := range topics {
+		if !validKafkaTopicName(topic, 249) {
+			return ErrInvalidInspectionTarget
+		}
+	}
+
+	return nil
 }
 
 // ConsumerGroupLag returns sorted committed and end offsets for an explicit

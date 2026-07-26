@@ -122,6 +122,15 @@ func TestInspectorValidatesBoundedRequests(t *testing.T) {
 			want: ErrInvalidInspectionTarget,
 		},
 		{
+			name: "broker-invalid topic",
+			call: func() error {
+				_, err := inspector.Topics(context.Background(), ".")
+
+				return err
+			},
+			want: ErrInvalidInspectionTarget,
+		},
+		{
 			name: "groups required",
 			call: func() error {
 				_, err := inspector.ConsumerGroupLag(context.Background())
