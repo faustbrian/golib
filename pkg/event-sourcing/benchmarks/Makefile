@@ -67,7 +67,7 @@ capture-profiles-core: require-output
 	@profile_binary=$$(mktemp); \
 	trap 'rm -f "$$profile_binary"' EXIT HUP INT TERM; \
 	GODEBUG=gctrace=1 $(GO) test .. -run '^$$' \
-		-bench '^(BenchmarkLifecycleReconstitution/1000|BenchmarkJSONCodecRegistryPaths/warm|BenchmarkUpcasterChain/16|BenchmarkSynchronousDispatch/100)$$' \
+		-bench '^Benchmark(LifecycleReconstitution|JSONCodecRegistryPaths|UpcasterChain|SynchronousDispatch)$$/(1000|warm|16|100)$$' \
 		-benchtime='$(BENCH_TIME)' -count=1 \
 		-cpuprofile='$(abspath $(OUTPUT_DIR))/core.cpu.pprof' \
 		-memprofile='$(abspath $(OUTPUT_DIR))/core.mem.pprof' \
