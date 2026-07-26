@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   snapshot state plus a bounded event tail.
 - Add bounded projection replay benchmarks covering handler delivery and
   optimistic checkpoint advancement for every message.
+- Add concurrent in-memory append benchmarks comparing independent streams
+  with one hot stream under the same globally ordered workload.
 - Add a real PostgreSQL equivalent-work append benchmark against direct `pgx`
   application code without treating the cost floor as an equivalent API.
 - Add PostgreSQL restart and physical streaming-replica promotion evidence

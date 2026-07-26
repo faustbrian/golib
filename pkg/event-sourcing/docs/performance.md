@@ -51,6 +51,16 @@ handler, and checkpoint store are deterministic in-memory fixtures, so the
 result isolates orchestration cost rather than durable read-model or checkpoint
 I/O. Benchmark those deployment-owned transactions separately.
 
+The in-memory concurrency benchmark compares workloads of 200 single-message
+appends from eight writers across independent streams and one hot stream. Event
+and message construction stays outside the timer; store construction, goroutine
+coordination, append validation, defensive ownership, and global-position
+assignment stay inside. Both shapes serialize global-position assignment in
+the reference store. Independent streams require new-stream expectations; the
+hot-stream fixture explicitly uses any-version appends to isolate lock and
+growth contention without conflict retries. This is a contention comparison,
+not an optimistic-concurrency or durable-throughput claim.
+
 ## Reproducibility
 
 Publish the Go version, exact module versions and checksums, hardware, operating
