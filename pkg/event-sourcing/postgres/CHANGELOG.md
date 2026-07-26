@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real PostgreSQL schema-contract evidence for envelope constraints, the
+  complete message index set, and indexed stream and global read plans
 - real PostgreSQL contention evidence for one optimistic hot-stream winner,
   independent-stream success, unique positions, and gap-free global read order
 - real PostgreSQL lock-timeout evidence proving a blocked append is not

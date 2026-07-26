@@ -154,6 +154,14 @@ The second migration creates:
 - `event_sourcing.projections`, one durable checkpoint and run state per
   canonical projection name.
 
+The real-database schema contract starts from an empty database, applies the
+embedded migrations, verifies the complete message index set, rejects an
+invalid event schema version through the named check constraint, and proves
+the stream and global read shapes select their intended indexes. Query-plan
+evidence disables sequential scans only inside the test transaction so small
+fixtures cannot hide a missing index; production planning remains PostgreSQL's
+responsibility for the deployed data distribution and statistics.
+
 The allocator row deliberately serializes position assignment until commit.
 This ensures a global reader cannot checkpoint a later committed event while
 an earlier position remains uncommitted. It is a correctness-first tradeoff:

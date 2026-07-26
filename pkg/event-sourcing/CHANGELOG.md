@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add real PostgreSQL schema evidence for envelope constraints, the complete
+  message index set, and indexed stream and global read plans.
 - Add explicit process-manager duplicate-delivery evidence using triggering
   message IDs for application-owned idempotent command execution.
 - Add explicit projection retry evidence showing duplicate handler delivery,

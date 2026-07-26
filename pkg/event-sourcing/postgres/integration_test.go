@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,117 @@ func TestPostgreSQLGlobalReaderConformance(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("CheckGlobalReader() error = %v", err)
+	}
+}
+
+func TestPostgreSQLSchemaEnforcesConstraintsAndReadIndexes(t *testing.T) {
+	ctx, pool := newDerivedIntegrationPool(t)
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t, "account", "schema-contract")
+	if _, err := store.Append(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{
+			mustPending(t, stream, "schema-message-1", 1),
+		},
+	); err != nil {
+		t.Fatalf("seed schema contract: %v", err)
+	}
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO event_sourcing.messages (
+			global_position,
+			message_id,
+			aggregate_type,
+			aggregate_id,
+			stream_version,
+			event_name,
+			event_schema_version,
+			content_type,
+			payload,
+			metadata,
+			recorded_at
+		) VALUES (
+			2,
+			'invalid-schema-message',
+			'account',
+			'schema-contract',
+			2,
+			'account.opened',
+			0,
+			'application/json',
+			'{}'::bytea,
+			'{}'::jsonb,
+			clock_timestamp()
+		)`)
+	var constraintError *pgconn.PgError
+	if !errors.As(err, &constraintError) ||
+		constraintError.Code != "23514" ||
+		constraintError.ConstraintName != "messages_event_schema_version" {
+		t.Fatalf("invalid schema version insert = %v", err)
+	}
+
+	rows, err := pool.Query(ctx, `
+		SELECT indexname
+		FROM pg_indexes
+		WHERE schemaname = 'event_sourcing'
+			AND tablename = 'messages'
+		ORDER BY indexname`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexes, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantIndexes := []string{
+		"messages_message_id_unique",
+		"messages_pkey",
+		"messages_recorded_at_idx",
+		"messages_stream_version_idx",
+	}
+	if !slices.Equal(indexes, wantIndexes) {
+		t.Fatalf("message indexes = %#v", indexes)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = tx.Rollback(cleanupCtx)
+	})
+	if _, err := tx.Exec(ctx, "SET LOCAL enable_seqscan = off"); err != nil {
+		t.Fatal(err)
+	}
+	streamPlan := explainPostgreSQLPlan(t, ctx, tx, `
+		SELECT global_position
+		FROM event_sourcing.messages
+		WHERE aggregate_type = 'account'
+			AND aggregate_id = 'schema-contract'
+			AND stream_version >= 1
+		ORDER BY stream_version
+		LIMIT 100`)
+	if !strings.Contains(streamPlan, "messages_stream_version_idx") {
+		t.Fatalf("stream read plan = %s", streamPlan)
+	}
+	globalPlan := explainPostgreSQLPlan(t, ctx, tx, `
+		SELECT global_position
+		FROM event_sourcing.messages
+		WHERE global_position >= 1
+		ORDER BY global_position
+		LIMIT 100`)
+	if !strings.Contains(globalPlan, "messages_pkey") {
+		t.Fatalf("global read plan = %s", globalPlan)
 	}
 }
 
@@ -905,6 +1017,26 @@ func waitForPostgreSQL(
 		case <-ticker.C:
 		}
 	}
+}
+
+func explainPostgreSQLPlan(
+	t testing.TB,
+	ctx context.Context,
+	tx pgx.Tx,
+	query string,
+) string {
+	t.Helper()
+
+	rows, err := tx.Query(ctx, "EXPLAIN (COSTS OFF) "+query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return strings.Join(plan, "\n")
 }
 
 func execPostgreSQLCommand(

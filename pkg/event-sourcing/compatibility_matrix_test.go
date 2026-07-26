@@ -90,6 +90,7 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 		"Changelog",
 		"Process managers",
 		"Projections and read models",
+		"Repository table schema",
 		"Replaying messages",
 	} {
 		if statuses[page] != "Implemented" {
