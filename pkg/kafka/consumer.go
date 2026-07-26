@@ -95,36 +95,41 @@ const (
 	BalanceEagerToCooperative
 )
 
-// RebalanceHandlerPolicy controls the active handler when franz-go reports
-// that a group rebalance callback is waiting for the current poll to finish.
+// RebalanceHandlerPolicy controls active handlers when franz-go reports that a
+// group rebalance callback is waiting for the current poll to finish.
 type RebalanceHandlerPolicy uint8
 
 const (
-	// RebalanceCancelHandler requests cancellation through the handler context.
-	// It is the safe zero-value policy because it releases rebalances promptly.
+	// RebalanceCancelHandler requests cancellation through every active handler
+	// context. It is the safe zero-value policy because it releases rebalances
+	// promptly.
 	RebalanceCancelHandler RebalanceHandlerPolicy = iota
-	// RebalanceDrainHandler lets the active handler finish within its configured
-	// deadline, then settles its successful result before releasing the rebalance.
+	// RebalanceDrainHandler lets active handlers finish within their configured
+	// deadlines, then settles successful results before releasing the rebalance.
 	RebalanceDrainHandler
 )
 
 // ConsumerConfig defines one bounded consumer-group member.
 type ConsumerConfig struct {
-	Brokers                []string
-	ClientID               string
-	Protocol               ProtocolPolicy
-	GroupID                string
-	InstanceID             string
-	Rack                   string
-	Topics                 []string
-	ResetOffset            OffsetPolicy
-	BalancePolicy          GroupBalancePolicy
-	RebalanceHandler       RebalanceHandlerPolicy
-	Limits                 MessageLimits
-	MaxPollRecords         int
-	MaxPausedPartitions    int
-	MaxAssignedPartitions  int
-	MaxConcurrentFetches   int
+	Brokers               []string
+	ClientID              string
+	Protocol              ProtocolPolicy
+	GroupID               string
+	InstanceID            string
+	Rack                  string
+	Topics                []string
+	ResetOffset           OffsetPolicy
+	BalancePolicy         GroupBalancePolicy
+	RebalanceHandler      RebalanceHandlerPolicy
+	Limits                MessageLimits
+	MaxPollRecords        int
+	MaxPausedPartitions   int
+	MaxAssignedPartitions int
+	MaxConcurrentFetches  int
+	// MaxConcurrentHandlers bounds simultaneous callbacks across independent
+	// topic partitions. One partition always remains sequential. The zero
+	// value defaults to one.
+	MaxConcurrentHandlers  int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
 	FetchMaxWait           time.Duration
@@ -140,7 +145,8 @@ type ConsumerConfig struct {
 }
 
 // Handler durably processes one consumed message before its offset may be
-// committed.
+// committed. Implementations must be concurrency-safe when the consumer
+// permits more than one concurrent handler.
 type Handler interface {
 	Handle(context.Context, ConsumedMessage) error
 }
@@ -183,19 +189,21 @@ type consumerBackend interface {
 type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 
 // Consumer processes records with explicit post-handler offset commits. One
-// Run or RunOnce call may be active at a time. Its methods are safe for
-// concurrent lifecycle coordination.
+// Run, RunOnce, or RunBatchOnce call may be active at a time. Handler callbacks
+// can overlap only across independent partitions when MaxConcurrentHandlers is
+// greater than one. Its methods are safe for concurrent lifecycle coordination.
 type Consumer struct {
-	client              consumerBackend
-	limits              MessageLimits
-	maxPollRecords      int
-	maxPausedPartitions int
-	assignment          *consumerAssignmentState
-	rebalance           *consumerRebalanceState
-	handlerTimeout      time.Duration
-	commitTimeout       time.Duration
-	shutdownTimeout     time.Duration
-	staticMembership    bool
+	client                consumerBackend
+	limits                MessageLimits
+	maxPollRecords        int
+	maxPausedPartitions   int
+	maxConcurrentHandlers int
+	assignment            *consumerAssignmentState
+	rebalance             *consumerRebalanceState
+	handlerTimeout        time.Duration
+	commitTimeout         time.Duration
+	shutdownTimeout       time.Duration
+	staticMembership      bool
 
 	lifecycleMu      sync.Mutex
 	running          bool
@@ -295,18 +303,19 @@ func newConsumer(
 	}
 
 	return &Consumer{
-		client:              client,
-		limits:              config.Limits,
-		maxPollRecords:      config.MaxPollRecords,
-		maxPausedPartitions: config.MaxPausedPartitions,
-		assignment:          assignment,
-		rebalance:           rebalance,
-		handlerTimeout:      config.HandlerTimeout,
-		commitTimeout:       config.CommitTimeout,
-		shutdownTimeout:     config.ShutdownTimeout,
-		staticMembership:    config.InstanceID != "",
-		subscribedTopics:    subscribedTopics,
-		pausedPartitions:    make(map[TopicPartition]struct{}),
+		client:                client,
+		limits:                config.Limits,
+		maxPollRecords:        config.MaxPollRecords,
+		maxPausedPartitions:   config.MaxPausedPartitions,
+		maxConcurrentHandlers: config.MaxConcurrentHandlers,
+		assignment:            assignment,
+		rebalance:             rebalance,
+		handlerTimeout:        config.HandlerTimeout,
+		commitTimeout:         config.CommitTimeout,
+		shutdownTimeout:       config.ShutdownTimeout,
+		staticMembership:      config.InstanceID != "",
+		subscribedTopics:      subscribedTopics,
+		pausedPartitions:      make(map[TopicPartition]struct{}),
 	}, nil
 }
 
@@ -395,6 +404,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.MaxConcurrentFetches == 0 {
 		config.MaxConcurrentFetches = 4
 	}
+	if config.MaxConcurrentHandlers == 0 {
+		config.MaxConcurrentHandlers = 1
+	}
 	if config.FetchMaxBytes == 0 {
 		config.FetchMaxBytes = 50 << 20
 	}
@@ -433,6 +445,8 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.MaxAssignedPartitions > 65_536 ||
 		config.MaxConcurrentFetches < 1 ||
 		config.MaxConcurrentFetches > 64 ||
+		config.MaxConcurrentHandlers < 1 ||
+		config.MaxConcurrentHandlers > 64 ||
 		config.FetchMaxBytes < 1<<20 ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
@@ -466,13 +480,17 @@ func validOptionalConsumerIdentity(value string) bool {
 		(value == strings.TrimSpace(value) && validKafkaText(value, 255))
 }
 
-// RunOnce polls at most the configured record limit and processes records in
-// fetch order. Each partition stops at its first handler failure; successful
-// contiguous prefixes from that partition and independent partitions are
-// committed before the first handler error is returned. It returns
-// ErrConsumerBusy when another runner owns the consumer and a lifecycle error
-// once shutdown begins.
+// RunOnce polls at most the configured record limit and processes each
+// partition in fetch order, with bounded concurrency across partitions. Each
+// partition stops at its first handler failure; successful contiguous prefixes
+// from that partition and independent partitions are committed before the
+// first handler error in stable poll-partition order is returned. It returns
+// ErrContextRequired for a nil context, ErrConsumerBusy when another runner
+// owns the consumer, and a lifecycle error once shutdown begins.
 func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollResult, error) {
+	if ctx == nil {
+		return PollResult{}, ErrContextRequired
+	}
 	if handler == nil {
 		return PollResult{}, ErrHandlerRequired
 	}
@@ -504,107 +522,16 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 		return PollResult{}, nil
 	}
 
-	type partitionKey struct {
-		topic     string
-		partition int32
-	}
-	type partitionProgress struct {
-		lastSuccessful *kgo.Record
-		successful     int
-		failed         bool
-	}
-	progress := make(map[partitionKey]*partitionProgress)
-	partitionOrder := make([]partitionKey, 0)
-	var handlerErr error
-	for _, record := range records {
-		key := partitionKey{topic: record.Topic, partition: record.Partition}
-		state, exists := progress[key]
-		if !exists {
-			state = &partitionProgress{}
-			progress[key] = state
-			partitionOrder = append(partitionOrder, key)
-		}
-		if state.failed {
-			continue
-		}
-		if !consumer.assignment.owns(token, TopicPartition{
-			Topic: record.Topic, Partition: record.Partition,
-		}) {
-			state.failed = true
-			if handlerErr == nil {
-				handlerErr = ErrConsumerOwnershipLost
-			}
+	batches := partitionBatches(records)
+	partitionResults := runConsumerPartitionWorkers(
+		batches,
+		consumer.maxConcurrentHandlers,
+		func(batch consumerPartitionBatch) consumerPartitionResult {
+			return consumer.processRecordPartition(ctx, token, handler, batch)
+		},
+	)
 
-			continue
-		}
-		message, err := consumedMessageWithinLimits(record, consumer.limits)
-		if err == nil {
-			handlerCtx, cancel, admitted := consumer.rebalance.handlerContext(
-				ctx,
-				consumer.handlerTimeout,
-			)
-			if !admitted {
-				break
-			}
-			err = callHandler(handlerCtx, handler, message)
-			if cause := context.Cause(handlerCtx); errors.Is(cause, ErrConsumerRebalance) {
-				err = errors.Join(err, cause)
-			}
-			cancel()
-		}
-		if err != nil {
-			state.failed = true
-			if handlerErr == nil {
-				handlerErr = err
-			}
-
-			continue
-		}
-		result.Processed++
-		if !consumer.assignment.owns(token, TopicPartition{
-			Topic: record.Topic, Partition: record.Partition,
-		}) {
-			state.failed = true
-			state.lastSuccessful = nil
-			state.successful = 0
-			if handlerErr == nil {
-				handlerErr = ErrConsumerOwnershipLost
-			}
-
-			continue
-		}
-		state.lastSuccessful = record
-		state.successful++
-	}
-
-	committable := make([]*kgo.Record, 0, len(partitionOrder))
-	committed := 0
-	if ownershipErr := consumer.assignment.validate(token); ownershipErr != nil {
-		return result, errors.Join(handlerErr, ownershipErr)
-	}
-	for _, key := range partitionOrder {
-		state := progress[key]
-		if record := state.lastSuccessful; record != nil {
-			committable = append(committable, record)
-			committed += state.successful
-		}
-	}
-	if len(committable) == 0 {
-		return result, handlerErr
-	}
-	commitCtx, cancel := context.WithTimeout(ctx, consumer.commitTimeout)
-	err = consumer.client.CommitRecords(commitCtx, committable...)
-	cancel()
-	if err != nil {
-		if handlerErr == nil {
-			return result, err
-		}
-
-		return result, errors.Join(handlerErr, err)
-	}
-	result.Committed = committed
-
-	return result, handlerErr
+	return consumer.settlePartitionResults(ctx, token, result, partitionResults)
 }
 
 // Assignment returns a sorted, copied snapshot of current assignment state.
@@ -633,9 +560,12 @@ func (consumer *Consumer) onRebalanceBlocked() {
 
 // Run continuously executes bounded poll cycles until cancellation or the
 // first processing failure. Context cancellation is a clean runner stop. It
-// returns ErrConsumerBusy when another runner owns the consumer and a lifecycle
-// error once shutdown begins.
+// returns ErrContextRequired for a nil context, ErrConsumerBusy when another
+// runner owns the consumer, and a lifecycle error once shutdown begins.
 func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
+	if ctx == nil {
+		return ErrContextRequired
+	}
 	if handler == nil {
 		return ErrHandlerRequired
 	}
@@ -859,8 +789,13 @@ func consumedMessageWithinLimits(
 // client. Dynamic members leave the group before close; static members preserve
 // their membership window. A context or leave failure is joined with
 // ErrConsumerShutdownIncomplete and leaves the consumer fenced so Shutdown can
-// be retried. Concurrent Shutdown calls return ErrConsumerShutdownActive.
+// be retried. A nil context returns ErrContextRequired without fencing the
+// consumer. Concurrent Shutdown calls return ErrConsumerShutdownActive.
 func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
+	if ctx == nil {
+		return ErrContextRequired
+	}
+
 	consumer.lifecycleMu.Lock()
 	if consumer.closed {
 		consumer.lifecycleMu.Unlock()

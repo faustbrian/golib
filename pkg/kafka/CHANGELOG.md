@@ -42,8 +42,16 @@ All notable changes to this module are documented here.
 - bounded consumer assignment snapshots with cooperative revocation tracking,
   fatal-loss handling, and package-local epoch settlement fencing
 - explicit blocked-rebalance handling that stops poll admission, cancels the
-  active handler by default or drains only that handler, and preserves safe
-  contiguous settlement before releasing the rebalance
+  active handlers by default or drains only handlers already active, and
+  preserves safe contiguous settlement before releasing the rebalance
+- explicit bounded record and batch handler concurrency across independent
+  partitions, with sequential per-partition processing, deterministic
+  settlement, and cancellation or draining of every active rebalance handler
+- handler context cancellation or expiry now prevents record and batch
+  settlement even when the application callback returns nil afterward, and
+  canceled runners no longer admit buffered records to a new callback
+- consumer record, batch, continuous-run, and shutdown entry points now reject
+  nil contexts before polling or changing lifecycle state
 - bounded per-record failure handling with category-selected in-process retry,
   versioned retry-topic and dead-letter publication, explicit stop and
   application delegation, redacted errors, owned failure records, and

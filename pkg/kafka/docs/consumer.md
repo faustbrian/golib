@@ -30,13 +30,14 @@ per-partition outcome and can cause redelivery.
 
 The consumer also installs franz-go's blocked-callback signal. Once a
 rebalance is waiting, the runner admits no later record from the poll.
-`RebalanceCancelHandler`, the zero-value policy, cancels the active handler
-context with `ErrConsumerRebalance`; that record is not settled even if the
+`RebalanceCancelHandler`, the zero-value policy, cancels every active handler
+context with `ErrConsumerRebalance`; those records are not settled even if a
 handler returns another error, and both error identities are retained.
-`RebalanceDrainHandler` lets only the active handler finish and settles it when
-successful before releasing the rebalance. Earlier successful contiguous
-prefixes remain committable because franz-go still holds the poll's rebalance
-gate until the commit attempt completes.
+`RebalanceDrainHandler` lets only handlers already active finish and settles
+their successful results before releasing the rebalance. No worker admits
+another callback after the signal. Earlier successful contiguous prefixes
+remain committable because franz-go still holds the poll's rebalance gate until
+the commit attempt completes.
 
 ## Configuration
 
@@ -47,7 +48,7 @@ poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
 dial durations are bounded.
 The heartbeat, handler, and commit deadlines together must be strictly less
 than the rebalance timeout. This preserves time for franz-go to detect the
-rebalance, finish or cancel the one active handler, attempt the contiguous
+rebalance, finish or cancel all active handlers, attempt the contiguous
 commit, and release the poll gate.
 `Limits` defaults to `DefaultMessageLimits`. Subscribed topics must fit its
 topic bound, and each fetched record must fit every key, value, header count,
@@ -108,6 +109,16 @@ committed together. A failed commit has an ambiguous per-partition broker
 outcome, leaves `PollResult.Committed` at
 zero, and may redeliver records whose side effects already completed.
 
+`MaxConcurrentHandlers` defaults to one and can explicitly permit 1 through 64
+simultaneous callbacks across independent topic partitions. The runner creates
+no more workers than the smaller of that limit and the partitions in the
+bounded poll. A worker owns one partition at a time and invokes its records in
+fetched order; two callbacks for the same partition never overlap.
+Cross-partition start and completion order is scheduler-dependent.
+When several partitions fail, the returned error is the first failure in the
+stable partition order of the poll. Successful independent partition results
+remain committable.
+
 A fetched record outside `Limits` follows the same partition-local failure
 path without invoking the handler. Its error identifies the rejected field,
 later records in that partition are skipped, and valid independent partitions
@@ -128,13 +139,16 @@ bytes have the same borrowed lifetime as per-record handling. `Retain` returns
 an owned slice with deeply copied record bytes.
 
 Handlers must be idempotent and honor cancellation and their context deadline.
+When `MaxConcurrentHandlers` exceeds one, the same handler value can be called
+concurrently and must synchronize its own shared state.
 Go context cancellation is cooperative: the package does not run application
 callbacks in disposable goroutines and cannot forcibly stop a handler that
 ignores its context. Such a handler can still exhaust the broker rebalance
-timeout and lose ownership. Retain a consumed record before storing its bytes
-beyond the handler call. The current runner is single-threaded and does not yet
-expose a separate drain operation or bounded cross-partition worker
-concurrency; these remain pre-v1 completion work.
+timeout and lose ownership. A context cause observed after callback return
+overrides a nil handler result and prevents settlement. A canceled runner
+admits no new callback even if the backend returns already-buffered records.
+Retain a consumed record before storing its bytes beyond the handler call. A
+separate public drain operation remains pre-v1 completion work.
 
 ### Retry, retry topics, and dead letters
 
@@ -175,8 +189,10 @@ shutdown begins.
 
 ## Runner and shutdown lifecycle
 
-One consumer permits one active `Run` or `RunOnce` call. A concurrent runner
-fails with `ErrConsumerBusy`; callbacks are never concurrent on that consumer.
+One consumer permits one active `Run`, `RunOnce`, or `RunBatchOnce` call. A
+concurrent runner fails with `ErrConsumerBusy`. Within that one runner,
+callbacks may overlap only across partitions and only up to
+`MaxConcurrentHandlers`.
 Cancel the runner context to stop polling. `Shutdown` then fences new runners,
 waits for the active runner to finish processing and settlement, and closes the
 client without calling franz-go `Close` while a blocked rebalance poll remains

@@ -50,7 +50,7 @@ design constraint, not a support claim.
 | Producer buffer | Producer | Bounded by records and bytes; drain or abort is explicit; no silent drop. |
 | Transaction | One serialized transaction session | Callback lifetime is fenced; concurrent use has an explicit error; commit/abort/close are bounded. |
 | Group partition | Current consumer generation | One sequential worker per partition; generation revocation stops admission and fences settlement. |
-| Cross-partition work | Group runner | Optional bounded parallelism; caller owns `Run` goroutine and cancellation. |
+| Cross-partition work | Group runner | Explicit fixed-size parallelism with a sequential default; caller owns the `Run` goroutine, handler synchronization, and cancellation. |
 | Replay partition | Replay invocation | Ascending per-partition order; optional bounded parallelism; no global-order claim. |
 | Hook callback | Calling operation | Synchronous, bounded by policy, receives immutable/copied metadata, cannot re-enter lifecycle methods, and panics are contained and reported. |
 | Credential provider | Security configuration/provider | Bounded context, explicit expiry, concurrent-safe refresh, no global cache, and no secret in diagnostics. |

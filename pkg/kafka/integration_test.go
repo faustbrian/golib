@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -825,17 +826,39 @@ func proveBatchPolicy(
 	}
 
 	const groupID = "golib-compatibility-batch"
-	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	consumer := newIntegrationConsumerWithHandlerConcurrency(
+		t,
+		brokers,
+		topic,
+		groupID,
+		2,
+	)
 	defer closeIntegrationConsumer(t, consumer)
 	var batches []kafka.ConsumedBatch
+	var handlerMu sync.Mutex
+	started := 0
+	barrier := make(chan struct{})
 	for {
 		result, err := consumer.RunBatchOnce(
 			ctx,
 			kafka.BatchHandlerFunc(func(
-				_ context.Context,
+				handlerCtx context.Context,
 				batch kafka.ConsumedBatch,
 			) error {
+				handlerMu.Lock()
+				started++
+				if started == 2 {
+					close(barrier)
+				}
+				handlerMu.Unlock()
+				select {
+				case <-barrier:
+				case <-handlerCtx.Done():
+					return context.Cause(handlerCtx)
+				}
+				handlerMu.Lock()
 				batches = append(batches, batch.Retain())
+				handlerMu.Unlock()
 
 				return nil
 			}),
@@ -1193,16 +1216,41 @@ func provePartitionSettlement(
 	}
 
 	const groupID = "golib-compatibility-partition-settlement"
-	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	consumer := newIntegrationConsumerWithHandlerConcurrency(
+		t,
+		brokers,
+		topic,
+		groupID,
+		2,
+	)
 	defer closeIntegrationConsumer(t, consumer)
 	var handled []string
+	var handlerMu sync.Mutex
+	started := 0
+	barrier := make(chan struct{})
 	for {
 		result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
-			_ context.Context,
+			handlerCtx context.Context,
 			message kafka.ConsumedMessage,
 		) error {
+			value := string(message.Value)
+			if value == "p0-ok" || value == "p1-first" {
+				handlerMu.Lock()
+				started++
+				if started == 2 {
+					close(barrier)
+				}
+				handlerMu.Unlock()
+				select {
+				case <-barrier:
+				case <-handlerCtx.Done():
+					return context.Cause(handlerCtx)
+				}
+			}
+			handlerMu.Lock()
 			handled = append(handled, string(message.Value))
-			if string(message.Value) == "p0-fail" {
+			handlerMu.Unlock()
+			if value == "p0-fail" {
 				return errors.New("partition zero failed")
 			}
 
@@ -1281,21 +1329,40 @@ func newIntegrationConsumer(
 ) *kafka.Consumer {
 	t.Helper()
 
+	return newIntegrationConsumerWithHandlerConcurrency(
+		t,
+		brokers,
+		topic,
+		groupID,
+		1,
+	)
+}
+
+func newIntegrationConsumerWithHandlerConcurrency(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	groupID string,
+	maxConcurrentHandlers int,
+) *kafka.Consumer {
+	t.Helper()
+
 	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
-		Brokers:           brokers,
-		ClientID:          groupID,
-		GroupID:           groupID,
-		Topics:            []string{topic},
-		ResetOffset:       kafka.OffsetEarliest,
-		MaxPollRecords:    10,
-		FetchMaxWait:      100 * time.Millisecond,
-		SessionTimeout:    10 * time.Second,
-		RebalanceTimeout:  10 * time.Second,
-		HeartbeatInterval: time.Second,
-		HandlerTimeout:    3 * time.Second,
-		CommitTimeout:     2 * time.Second,
-		DialTimeout:       10 * time.Second,
-		Security:          kafka.DevelopmentPlaintextSecurity(),
+		Brokers:               brokers,
+		ClientID:              groupID,
+		GroupID:               groupID,
+		Topics:                []string{topic},
+		ResetOffset:           kafka.OffsetEarliest,
+		MaxPollRecords:        10,
+		MaxConcurrentHandlers: maxConcurrentHandlers,
+		FetchMaxWait:          100 * time.Millisecond,
+		SessionTimeout:        10 * time.Second,
+		RebalanceTimeout:      10 * time.Second,
+		HeartbeatInterval:     time.Second,
+		HandlerTimeout:        3 * time.Second,
+		CommitTimeout:         2 * time.Second,
+		DialTimeout:           10 * time.Second,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
 		t.Fatalf("construct consumer: %v", err)

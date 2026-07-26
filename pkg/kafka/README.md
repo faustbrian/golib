@@ -158,18 +158,23 @@ be one Kafka transaction. See the
 [retry and dead-letter guide](docs/retry-dead-letter.md).
 
 When a rebalance waits on an active poll, the default policy requests handler
-cancellation and stops admitting later records. Handlers must honor their
-context. Select `RebalanceDrainHandler` only when the active handler can finish
-within the validated rebalance deadline relationship.
+cancellation for every active partition and stops every worker from admitting
+later records. Handlers must honor their context. Select
+`RebalanceDrainHandler` only when all active handlers can finish within the
+validated rebalance deadline relationship.
 
 Consumer fetches default to at most four concurrent broker requests, 50 MiB per
 request, and 1 MiB per partition. All three limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a
 consumer can make progress; broker topic limits must remain compatible.
-Only one `Run` or `RunOnce` call may be active. Graceful shutdown fences new
-runs, waits for the active runner, and leaves dynamic group membership before
-closing. Cancel the runner context first, then call `Shutdown` with a bounded
-context or handle the error returned by `Close`.
+Application callbacks default to one at a time. Set
+`MaxConcurrentHandlers` explicitly, up to 64, to process independent
+partitions concurrently; records inside each partition remain sequential and
+the handler must then be concurrency-safe. Only one `Run`, `RunOnce`, or
+`RunBatchOnce` call may be active. Graceful shutdown fences new runs, waits for
+the active runner, and leaves dynamic group membership before closing. Cancel
+the runner context first, then call `Shutdown` with a bounded context or handle
+the error returned by `Close`.
 `PausePartitions` and `ResumePartitions` control future fetches for explicit
 subscribed topic-partitions. Pausing does not retract records already buffered
 or returned by the current poll; `MaxPausedPartitions` bounds both each request

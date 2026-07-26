@@ -136,12 +136,13 @@ the producer and consumer policies. The processor always selects
 | `Topics` | none | Required 1 to 64 unique topics fitting `Limits.MaxTopicBytes`. |
 | `ResetOffset` | unset and rejected | Explicitly `OffsetEarliest` or `OffsetLatest`. |
 | `BalancePolicy` | `BalanceCooperativeSticky` | Cooperative, eager, or the eager-to-cooperative rollout policy. |
-| `RebalanceHandler` | `RebalanceCancelHandler` | Cancel the active handler or drain only that handler when a rebalance callback is blocked. |
+| `RebalanceHandler` | `RebalanceCancelHandler` | Cancel every active handler or drain only handlers already active when a rebalance callback is blocked. |
 | `Limits` | `DefaultMessageLimits` | Applied before package metadata copies and handler invocation. |
 | `MaxPollRecords` | 100 | 1 to 1,000. |
 | `MaxPausedPartitions` | 256 | 1 to 1,024; bounds each pause/resume request and accumulated pauses. |
 | `MaxAssignedPartitions` | 1,024 | 1 to 65,536; bounds broker-controlled assignment callback state and copied diagnostics. |
 | `MaxConcurrentFetches` | 4 | 1 to 64. |
+| `MaxConcurrentHandlers` | 1 | 1 to 64 callbacks across independent partitions; one partition always remains sequential. |
 | `FetchMaxBytes` | 50 MiB | 1 to 100 MiB compressed fetch bytes. |
 | `FetchMaxPartitionBytes` | 1 MiB | At least 1 MiB and no greater than `FetchMaxBytes`. Kafka may return one larger record batch to make progress. |
 | `FetchMaxWait` | 500 milliseconds | 1 millisecond to 30 seconds. |
@@ -156,6 +157,9 @@ the producer and consumer policies. The processor always selects
 `HeartbeatInterval + HandlerTimeout + CommitTimeout` must be strictly less
 than `RebalanceTimeout`. Handler cancellation and deadlines remain cooperative;
 applications must return when the handler context is done.
+`MaxConcurrentFetches` bounds broker fetch requests and is independent of
+`MaxConcurrentHandlers`, which bounds application callbacks. Values above one
+require a concurrency-safe handler.
 
 Automatic commits remain disabled and cannot be enabled through configuration.
 See the [consumer guide](consumer.md) for settlement and rollout semantics.

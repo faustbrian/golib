@@ -90,11 +90,21 @@ successful prefixes from independent partitions. The first handler failure is
 returned after the bounded commit attempt. If that commit also fails, the
 returned error preserves both identities. Rebalances are released after each
 poll. A waiting rebalance stops admission from that poll. The default policy
-cancels the active handler with `ErrConsumerRebalance`; the explicit drain
-policy permits that handler alone to finish and settle. Earlier safe prefixes
-can still commit before the rebalance gate is released. Handler cancellation
-is cooperative, and the configured heartbeat, handler, and commit deadlines
-must fit strictly inside the rebalance timeout.
+cancels every active partition handler with `ErrConsumerRebalance`; the
+explicit drain policy permits only handlers already active to finish and
+settle. Earlier safe prefixes can still commit before the rebalance gate is
+released. Handler cancellation is cooperative, and the configured heartbeat,
+handler, and commit deadlines must fit strictly inside the rebalance timeout.
+A nil callback result does not settle a record when its handler context already
+has a timeout, cancellation, or rebalance cause. A canceled runner does not
+admit another record or batch callback from already-buffered fetch results.
+
+Application callbacks default to sequential execution. An explicit
+`MaxConcurrentHandlers` from 2 through 64 permits overlap only across
+independent partitions. Each partition remains sequential, worker count never
+exceeds the configured limit, and commit/error aggregation follows stable
+poll-partition order rather than scheduler completion order. A shared handler
+must be concurrency-safe when this policy is enabled.
 
 Delivery is at least once. A crash after a durable side effect but before the
 offset commit replays the record. `PollResult.Committed` counts processed records
@@ -157,9 +167,11 @@ The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
 offset commits, redelivery after handler failure and failed dead-letter
 publication, acknowledged retry-topic and dead-letter metadata followed by
-source settlement, eager group membership, partition pause/resume, a static
-member restart using the same instance ID, and committed-versus-aborted
-transaction visibility against Confluent Local 7.5.0 using franz-go v1.21.5.
+source settlement, concurrent record and batch handling across independent
+partitions with sequential order inside each partition, eager group membership,
+partition pause/resume, a static member restart using the same instance ID, and
+committed-versus-aborted transaction visibility against Confluent Local 7.5.0
+using franz-go v1.21.5.
 The container image is pinned by repository digest. This compatibility fixture
 does not replace testing against an application's production broker version
 and configuration.

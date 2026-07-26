@@ -91,10 +91,17 @@ order is scheduler-dependent; callers that require source-derived output order
 must publish synchronously in that order.
 
 `Consumer.RunOnce` returns one bounded poll result. Processing is sequential
-within a partition. After one partition fails, its later fetched records are
-skipped while independent partitions continue; only each partition's contiguous
-successful prefix is submitted for commit. `Consumer.Run` exits cleanly when
-its context is canceled.
+within a partition. `ConsumerConfig.MaxConcurrentHandlers` defaults to one and
+can permit up to 64 concurrent callbacks across independent partitions. The
+same handler value must be concurrency-safe when the value exceeds one.
+Cross-partition callback order is scheduler-dependent; commit construction and
+the first returned handler error retain stable poll-partition order. After one
+partition fails, its later fetched records are skipped while independent
+partitions continue; only each partition's contiguous successful prefix is
+submitted for commit. `Consumer.Run` exits cleanly when its context is canceled.
+A canceled runner admits no new callback from buffered fetch results, and a
+context cause observed after a callback prevents settlement even if it returns
+nil.
 `ConsumerConfig.MaxConcurrentFetches`, `FetchMaxBytes`, and
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
@@ -108,17 +115,19 @@ ordered eager-to-cooperative migration pair without exposing franz-go
 balancers. Optional validated `InstanceID` and `Rack` values select static
 membership and rack-aware fetching respectively.
 `ConsumerConfig.RebalanceHandler` defaults to `RebalanceCancelHandler`. A
-blocked rebalance cancels the one active handler with `ErrConsumerRebalance`
-and stops admitting records from that poll. The explicit
-`RebalanceDrainHandler` alternative lets only the active handler finish and
-settles it if successful. Both policies commit safe earlier prefixes before
-releasing franz-go's poll gate. Handler cancellation is cooperative.
+blocked rebalance cancels every active handler with `ErrConsumerRebalance` and
+stops every worker from admitting another callback from that poll. The explicit
+`RebalanceDrainHandler` alternative lets only already-active handlers finish
+and settles successful results. Both policies commit safe earlier prefixes
+before releasing franz-go's poll gate. Handler cancellation is cooperative.
 `Consumer.Run` and `Consumer.RunOnce` are mutually exclusive. `Shutdown`
 atomically fences new runs, waits for an active runner, explicitly leaves a
 dynamic group membership, and then closes the client. A deadline or leave
 failure returns `ErrConsumerShutdownIncomplete` and leaves shutdown retriable.
 Static membership deliberately skips the leave request. `Close` applies the
 configured `ConsumerConfig.ShutdownTimeout` and returns its shutdown error.
+`Run`, `RunOnce`, `RunBatchOnce`, and `Shutdown` reject a nil context with
+`ErrContextRequired` before polling or changing lifecycle state.
 `Consumer.PausePartitions` and `ResumePartitions` accept owned
 `TopicPartition` values only for configured subscriptions. Each request and
 the accumulated pause set are bounded by `MaxPausedPartitions`.
@@ -128,10 +137,11 @@ diagnostic sequence, not Kafka's broker generation ID. Assignment callback
 metadata is bounded by `MaxAssignedPartitions`; invalid or oversized metadata
 fails closed before another handler is invoked.
 `Consumer.RunBatchOnce` groups one bounded poll by topic partition and invokes
-`BatchHandler` once per non-empty partition batch. A nil result settles the
-entire batch; an error settles none of it. Successful independent partition
-batches remain committable. `ConsumedBatch.Retain` copies the batch slice and
-every record byte for use after the handler returns.
+`BatchHandler` once per non-empty partition batch, using the same bounded
+cross-partition concurrency policy. A nil result settles the entire batch; an
+error settles none of it. Successful independent partition batches remain
+committable. `ConsumedBatch.Retain` copies the batch slice and every record byte
+for use after the handler returns.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
 changing `Consumer` or exposing franz-go. `FailureRetryPolicy` bounds selected

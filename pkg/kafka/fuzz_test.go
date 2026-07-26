@@ -7,6 +7,44 @@ import (
 	"time"
 )
 
+func FuzzConsumerConfig(f *testing.F) {
+	f.Add(
+		"events",
+		"projection-v1",
+		uint16(100),
+		uint8(4),
+		uint8(1),
+		uint16(30),
+		uint16(10),
+		uint16(60),
+	)
+	f.Add("", "", uint16(0), uint8(0), uint8(0), uint16(0), uint16(0), uint16(0))
+
+	f.Fuzz(func(
+		t *testing.T,
+		topic string,
+		groupID string,
+		maxPollRecords uint16,
+		maxConcurrentFetches uint8,
+		maxConcurrentHandlers uint8,
+		handlerSeconds uint16,
+		commitSeconds uint16,
+		rebalanceSeconds uint16,
+	) {
+		config := validConsumerConfig()
+		config.Topics = []string{topic}
+		config.GroupID = groupID
+		config.MaxPollRecords = int(maxPollRecords)
+		config.MaxConcurrentFetches = int(maxConcurrentFetches)
+		config.MaxConcurrentHandlers = int(maxConcurrentHandlers)
+		config.HandlerTimeout = time.Duration(handlerSeconds) * time.Second
+		config.CommitTimeout = time.Duration(commitSeconds) * time.Second
+		config.RebalanceTimeout = time.Duration(rebalanceSeconds) * time.Second
+
+		_, _ = normalizeConsumerConfig(config)
+	})
+}
+
 func FuzzFailureHandlerConfig(f *testing.F) {
 	f.Add(
 		"events.retry.v1",

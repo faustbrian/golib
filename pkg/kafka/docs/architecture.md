@@ -5,8 +5,9 @@ infrastructure.
 
 - `Producer` validates bounded records and waits for broker delivery.
 - `Consumer` uses a group, disables automatic commits, blocks rebalancing while
-  a bounded poll is processed, and commits only each partition's contiguous
-  durable success prefix.
+  a bounded poll is processed, runs a fixed-size worker set across independent
+  partitions while keeping each partition sequential, and commits only each
+  partition's contiguous durable success prefix.
 - `FailureHandler` composes bounded per-record retry and terminal
   retry-topic, dead-letter, or delegated decisions without owning group
   offsets. Non-transactional target publication completes before the normal

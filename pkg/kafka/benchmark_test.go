@@ -61,3 +61,35 @@ func BenchmarkFailureHandlerSuccess(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkConsumerPartitionWorkers(b *testing.B) {
+	batches := make([]consumerPartitionBatch, 8)
+	process := func(consumerPartitionBatch) consumerPartitionResult {
+		return consumerPartitionResult{processed: 1, successful: 1}
+	}
+
+	b.Run("sequential", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if results := runConsumerPartitionWorkers(
+				batches,
+				1,
+				process,
+			); len(results) != len(batches) {
+				b.Fatal("worker result count changed")
+			}
+		}
+	})
+	b.Run("four-workers", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if results := runConsumerPartitionWorkers(
+				batches,
+				4,
+				process,
+			); len(results) != len(batches) {
+				b.Fatal("worker result count changed")
+			}
+		}
+	})
+}

@@ -46,6 +46,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.BalancePolicy != BalanceCooperativeSticky ||
 		config.RebalanceHandler != RebalanceCancelHandler ||
 		config.MaxConcurrentFetches != 4 ||
+		config.MaxConcurrentHandlers != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||
@@ -125,6 +126,7 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	config.Rack = "eu-west-1a"
 	config.BalancePolicy = BalanceEagerToCooperative
 	config.MaxConcurrentFetches = 3
+	config.MaxConcurrentHandlers = 3
 	config.FetchMaxPartitionBytes = 2 << 20
 	var franzClient *kgo.Client
 	consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
@@ -142,6 +144,12 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	}
 	if got := franzClient.OptValue(kgo.MaxConcurrentFetches); got != 3 {
 		t.Fatalf("MaxConcurrentFetches option = %#v", got)
+	}
+	if consumer.maxConcurrentHandlers != 3 {
+		t.Fatalf(
+			"consumer MaxConcurrentHandlers = %d",
+			consumer.maxConcurrentHandlers,
+		)
 	}
 	if got := franzClient.OptValue(kgo.InstanceID); got != "track-processor-01" {
 		t.Fatalf("InstanceID option = %#v", got)
@@ -1531,7 +1539,7 @@ func TestConsumerRunOnceHandlesEmptyPollAndClose(t *testing.T) {
 	}
 }
 
-func TestConsumerRunProcessesUntilCancellation(t *testing.T) {
+func TestConsumerRunCancellationLeavesActiveRecordUnsettled(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1553,7 +1561,7 @@ func TestConsumerRunProcessesUntilCancellation(t *testing.T) {
 		return nil
 	}))
 
-	if err != nil || len(backend.committed) != 1 || backend.allowed != 1 {
+	if err != nil || len(backend.committed) != 0 || backend.allowed != 1 {
 		t.Fatalf("Run() error/backend = %v/%#v", err, backend)
 	}
 }
@@ -1601,6 +1609,34 @@ func TestConsumerRunRejectsMissingHandlerAndStopsOnCanceledPoll(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("Run() canceled poll error = %v", err)
 	}
+
+	ctx, cancel = context.WithCancel(context.Background())
+	emptyBackend := &recordingConsumerBackend{
+		poll: func(context.Context, int) kgo.Fetches {
+			cancel()
+
+			return nil
+		},
+	}
+	emptyConsumer := consumerWithBackend(
+		emptyBackend,
+		10,
+		time.Second,
+		time.Second,
+	)
+	if err := emptyConsumer.Run(
+		ctx,
+		HandlerFunc(func(context.Context, ConsumedMessage) error {
+			t.Fatal("handler called after canceled empty poll")
+
+			return nil
+		}),
+	); err != nil {
+		t.Fatalf("Run() canceled empty poll error = %v", err)
+	}
+	if emptyBackend.pollCalls != 1 || emptyBackend.allowed != 1 {
+		t.Fatalf("canceled empty poll backend = %#v", emptyBackend)
+	}
 }
 
 func validConsumerConfig() ConsumerConfig {
@@ -1627,9 +1663,10 @@ func consumerWithBackend(
 	commitTimeout time.Duration,
 ) *Consumer {
 	return &Consumer{
-		client:         backend,
-		limits:         DefaultMessageLimits(),
-		maxPollRecords: maxPollRecords,
+		client:                backend,
+		limits:                DefaultMessageLimits(),
+		maxPollRecords:        maxPollRecords,
+		maxConcurrentHandlers: 1,
 		assignment: newConsumerAssignmentState(
 			1_024,
 			[]string{"events"},

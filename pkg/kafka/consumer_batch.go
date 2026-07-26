@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"errors"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -32,7 +31,8 @@ func (batch ConsumedBatch) Retain() ConsumedBatch {
 }
 
 // BatchHandler durably processes one partition batch. A nil result settles the
-// entire batch; any error settles none of it.
+// entire batch; any error settles none of it. Implementations must be
+// concurrency-safe when the consumer permits more than one concurrent handler.
 type BatchHandler interface {
 	HandleBatch(context.Context, ConsumedBatch) error
 }
@@ -49,13 +49,17 @@ func (handler BatchHandlerFunc) HandleBatch(
 }
 
 // RunBatchOnce polls at most the configured record limit and invokes handler
-// once per non-empty partition batch. A successful batch commits its last
-// record; a failed batch commits no record from that partition. Independent
-// successful partition batches remain committable.
+// once per non-empty partition batch, with bounded concurrency across
+// partitions. A successful batch commits its last record; a failed batch
+// commits no record from that partition. Independent successful partition
+// batches remain committable. A nil context returns ErrContextRequired.
 func (consumer *Consumer) RunBatchOnce(
 	ctx context.Context,
 	handler BatchHandler,
 ) (PollResult, error) {
+	if ctx == nil {
+		return PollResult{}, ErrContextRequired
+	}
 	if handler == nil {
 		return PollResult{}, ErrBatchHandlerRequired
 	}
@@ -96,67 +100,15 @@ func (consumer *Consumer) runBatchOnce(
 	}
 
 	batches := partitionBatches(records)
-	committable := make([]*kgo.Record, 0, len(batches))
-	committed := 0
-	var handlerErr error
-	for _, batch := range batches {
-		if !consumer.assignment.owns(token, batch.partition) {
-			if handlerErr == nil {
-				handlerErr = ErrConsumerOwnershipLost
-			}
+	partitionResults := runConsumerPartitionWorkers(
+		batches,
+		consumer.maxConcurrentHandlers,
+		func(batch consumerPartitionBatch) consumerPartitionResult {
+			return consumer.processBatchPartition(ctx, token, handler, batch)
+		},
+	)
 
-			continue
-		}
-
-		consumed, batchErr := consumer.consumedBatch(batch)
-		if batchErr == nil {
-			handlerCtx, cancel, admitted := consumer.rebalance.handlerContext(
-				ctx,
-				consumer.handlerTimeout,
-			)
-			if !admitted {
-				break
-			}
-			batchErr = callBatchHandler(handlerCtx, handler, consumed)
-			if cause := context.Cause(handlerCtx); errors.Is(cause, ErrConsumerRebalance) {
-				batchErr = errors.Join(batchErr, cause)
-			}
-			cancel()
-		}
-		if batchErr != nil {
-			if handlerErr == nil {
-				handlerErr = batchErr
-			}
-
-			continue
-		}
-		result.Processed += len(batch.records)
-		if !consumer.assignment.owns(token, batch.partition) {
-			if handlerErr == nil {
-				handlerErr = ErrConsumerOwnershipLost
-			}
-
-			continue
-		}
-		committable = append(committable, batch.records[len(batch.records)-1])
-		committed += len(batch.records)
-	}
-
-	if ownershipErr := consumer.assignment.validate(token); ownershipErr != nil {
-		return result, errors.Join(handlerErr, ownershipErr)
-	}
-	if len(committable) == 0 {
-		return result, handlerErr
-	}
-	commitCtx, cancel := context.WithTimeout(ctx, consumer.commitTimeout)
-	err = consumer.client.CommitRecords(commitCtx, committable...)
-	cancel()
-	if err != nil {
-		return result, errors.Join(handlerErr, err)
-	}
-	result.Committed = committed
-
-	return result, handlerErr
+	return consumer.settlePartitionResults(ctx, token, result, partitionResults)
 }
 
 func partitionBatches(records []*kgo.Record) []consumerPartitionBatch {
