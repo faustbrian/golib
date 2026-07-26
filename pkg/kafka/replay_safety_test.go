@@ -812,6 +812,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 		ReplayCheckpoint{},
 	)
 	handlerEntered := make(chan struct{})
+	nestedChecked := make(chan struct{})
 	releaseHandler := make(chan struct{})
 	runDone := make(chan error, 1)
 	go func() {
@@ -824,12 +825,14 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 					time.Second,
 				)
 				defer nestedCancel()
-				if _, nestedErr := reader.Replay(
+				_, nestedErr := reader.Replay(
 					nestedCtx,
 					HandlerFunc(func(context.Context, ConsumedMessage) error {
 						return nil
 					}),
-				); !errors.Is(nestedErr, ErrReplayBusy) {
+				)
+				close(nestedChecked)
+				if !errors.Is(nestedErr, ErrReplayBusy) {
 					return errors.Join(
 						errors.New("nested replay did not fail busy"),
 						nestedErr,
@@ -843,6 +846,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 		runDone <- err
 	}()
 	<-handlerEntered
+	<-nestedChecked
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(
 		context.Background(),
