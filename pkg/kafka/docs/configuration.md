@@ -209,9 +209,20 @@ The planning timeout accepts 100 milliseconds through 2 minutes.
 minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the
 corresponding consumer bounds.
 
-Inspection has only the shared connection policy. Each operation separately
-requires a bounded explicit target set; construction does not authorize topic,
-group, offset, ACL, or broker mutation.
+Inspection uses the shared connection policy plus these owned bounds:
+
+| Field | Default | Validation and meaning |
+| --- | --- | --- |
+| `RequestTimeout` | 10 seconds | 100 milliseconds through 2 minutes; each cluster, topic, group-lag, and dependency-health call derives this deadline. |
+| `MaxMetadataBrokers` | 1,000 | 1 through 10,000; caps copied cluster brokers and every partition replica set. |
+| `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate partitions copied by one topic request. |
+
+Topic and group operations separately require 1 to 64 unique explicit targets.
+Topic inspection lists metadata, log-start and high-watermark offsets, and
+effective topic configuration. It fails closed when any requested target or
+selected field is missing, inconsistent, unauthorized, excessive, or
+unavailable. Construction and inspection do not authorize topic, group,
+offset, ACL, or broker mutation.
 
 ## Ownership and logging
 

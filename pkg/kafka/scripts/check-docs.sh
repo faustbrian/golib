@@ -15,6 +15,7 @@ required=(
 	docs/retry-dead-letter.md
 	docs/transactions.md
 	docs/replay.md
+	docs/inspection.md
 	docs/operations.md
 	docs/security.md
 )

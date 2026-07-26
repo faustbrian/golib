@@ -39,10 +39,16 @@ func TestInspectorReturnsSortedTopicAndLagState(t *testing.T) {
 					"events": {
 						0: {
 							Topic: "events", Partition: 0,
-							Commit: kadm.Offset{At: 10},
-							Start:  kadm.ListedOffset{Offset: 0},
-							End:    kadm.ListedOffset{Offset: 15},
-							Lag:    5,
+							Commit: kadm.Offset{
+								Topic: "events", Partition: 0, At: 10,
+							},
+							Start: kadm.ListedOffset{
+								Topic: "events", Partition: 0, Offset: 0,
+							},
+							End: kadm.ListedOffset{
+								Topic: "events", Partition: 0, Offset: 15,
+							},
+							Lag: 5,
 						},
 					},
 				},
@@ -151,6 +157,18 @@ func TestInspectorValidatesBoundedRequests(t *testing.T) {
 				return err
 			},
 			want: ErrDuplicateInspectionTarget,
+		},
+		{
+			name: "invalid UTF-8 group",
+			call: func() error {
+				_, err := inspector.ConsumerGroupLag(
+					context.Background(),
+					string([]byte{0xff}),
+				)
+
+				return err
+			},
+			want: ErrInvalidInspectionTarget,
 		},
 	} {
 		test := test
@@ -315,9 +333,11 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 type recordingInspectorBackend struct {
 	topics     kadm.TopicDetails
 	lags       kadm.DescribedGroupLags
+	lagFn      func(context.Context) (kadm.DescribedGroupLags, error)
 	topicErr   error
 	lagErr     error
 	healthErr  error
+	healthFn   func(context.Context) error
 	topicCalls int
 	lagCalls   int
 	closed     int
@@ -333,15 +353,82 @@ func (backend *recordingInspectorBackend) ListTopics(
 }
 
 func (backend *recordingInspectorBackend) Lag(
-	context.Context,
-	...string,
+	ctx context.Context,
+	_ ...string,
 ) (kadm.DescribedGroupLags, error) {
 	backend.lagCalls++
+	if backend.lagFn != nil {
+		return backend.lagFn(ctx)
+	}
 
 	return backend.lags, backend.lagErr
 }
 
-func (backend *recordingInspectorBackend) Ping(context.Context) error {
+func (backend *recordingInspectorBackend) BrokerMetadata(
+	context.Context,
+) (kadm.Metadata, error) {
+	return kadm.Metadata{}, nil
+}
+
+func (backend *recordingInspectorBackend) Metadata(
+	context.Context,
+	...string,
+) (kadm.Metadata, error) {
+	return kadm.Metadata{Topics: backend.topics}, backend.topicErr
+}
+
+func (backend *recordingInspectorBackend) ListStartOffsets(
+	context.Context,
+	...string,
+) (kadm.ListedOffsets, error) {
+	return inspectorOffsetsForTopics(backend.topics), nil
+}
+
+func (backend *recordingInspectorBackend) ListEndOffsets(
+	context.Context,
+	...string,
+) (kadm.ListedOffsets, error) {
+	return inspectorOffsetsForTopics(backend.topics), nil
+}
+
+func (backend *recordingInspectorBackend) DescribeTopicConfigs(
+	context.Context,
+	...string,
+) (kadm.ResourceConfigs, error) {
+	value := "1"
+	configs := make(kadm.ResourceConfigs, 0, len(backend.topics))
+	for _, topic := range backend.topics.Sorted() {
+		configs = append(configs, kadm.ResourceConfig{
+			Name: topic.Topic,
+			Configs: []kadm.Config{{
+				Key: "min.insync.replicas", Value: &value,
+			}},
+		})
+	}
+
+	return configs, nil
+}
+
+func inspectorOffsetsForTopics(topics kadm.TopicDetails) kadm.ListedOffsets {
+	offsets := make(kadm.ListedOffsets, len(topics))
+	for _, topic := range topics {
+		partitions := make(map[int32]kadm.ListedOffset, len(topic.Partitions))
+		for _, partition := range topic.Partitions {
+			partitions[partition.Partition] = kadm.ListedOffset{
+				Topic: topic.Topic, Partition: partition.Partition,
+			}
+		}
+		offsets[topic.Topic] = partitions
+	}
+
+	return offsets
+}
+
+func (backend *recordingInspectorBackend) Ping(ctx context.Context) error {
+	if backend.healthFn != nil {
+		return backend.healthFn(ctx)
+	}
+
 	return backend.healthErr
 }
 

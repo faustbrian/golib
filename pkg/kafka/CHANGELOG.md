@@ -78,7 +78,9 @@ All notable changes to this module are documented here.
 - real-broker evidence that interrupted replay resumes from its external
   checkpoint and that a range beyond the high watermark is rejected before a
   handler runs
-- read-only topic metadata and consumer-group lag inspection
+- bounded read-only cluster identity, controller, broker, topic durability,
+  replica, beginning/end offset, and consumer-group lag inspection; inspector
+  operations now apply an owned request deadline even when callers omit one
 - real-broker producer, ordered consumer, offset-commit, and retry compatibility
   coverage against a pinned Kafka fixture
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
@@ -96,6 +98,9 @@ All notable changes to this module are documented here.
 - replay execution now requires `ReplaySideEffectsAllowed`; existing callers
   must opt in explicitly, persist `ReplayResult.Checkpoint()` externally to
   resume, and handle the error now returned by `ReplayReader.Close`
+- `Inspector.Topics` now also requires authorization to list offsets and
+  describe topic configuration; it fails closed unless effective
+  `min.insync.replicas` and exact per-partition offset bounds are available
 - consumers now apply validated record limits before the package copies
   fetched header metadata or invokes handlers; an invalid record stops only its
   partition and preserves contiguous settlement for valid independent

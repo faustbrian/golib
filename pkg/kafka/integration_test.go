@@ -97,6 +97,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, deadLetterSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, replayTopic, 1)
+	assertInspectionState(t, ctx, brokers, explicitTopic)
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
 	}
@@ -1531,6 +1532,64 @@ func assertGroupCommitted(
 		partition.EndOffset != 3 ||
 		partition.Lag != 0 {
 		t.Fatalf("committed group state = %#v", groups[0])
+	}
+}
+
+func assertInspectionState(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-cluster-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct cluster inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	cluster, err := inspector.Cluster(ctx)
+	if err != nil {
+		t.Fatalf("inspect cluster: %v", err)
+	}
+	if !cluster.IDVisible ||
+		cluster.ID == "" ||
+		!cluster.ControllerVisible ||
+		len(cluster.Brokers) != 1 ||
+		cluster.Brokers[0].NodeID != cluster.ControllerID {
+		t.Fatalf("cluster inspection state = %#v", cluster)
+	}
+
+	topics, err := inspector.Topics(ctx, topic)
+	if err != nil {
+		t.Fatalf("inspect topic: %v", err)
+	}
+	if len(topics) != 1 ||
+		topics[0].Name != topic ||
+		topics[0].MinInSyncReplicas != 1 ||
+		len(topics[0].Partitions) != 4 {
+		t.Fatalf("topic inspection state = %#v", topics)
+	}
+	for index, partition := range topics[0].Partitions {
+		if partition.Partition != int32(index) ||
+			partition.Leader != cluster.ControllerID ||
+			partition.ReplicationFactor != 1 ||
+			len(partition.Replicas) != 1 ||
+			partition.Replicas[0] != cluster.ControllerID ||
+			partition.InSyncReplicas != 1 ||
+			len(partition.InSyncReplicaIDs) != 1 ||
+			partition.InSyncReplicaIDs[0] != cluster.ControllerID ||
+			partition.OfflineReplicas != 0 ||
+			len(partition.OfflineReplicaIDs) != 0 ||
+			partition.BeginningOffset != 0 ||
+			partition.EndOffset != 0 {
+			t.Fatalf("topic partition inspection state = %#v", partition)
+		}
 	}
 }
 

@@ -1,0 +1,1052 @@
+package kafka
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/twmb/franz-go/pkg/kadm"
+)
+
+func TestInspectorReturnsBoundedClusterIdentityAndBrokerState(t *testing.T) {
+	t.Parallel()
+
+	rack := "eu-north-1a"
+	backend := &metadataInspectorBackend{
+		brokerMetadata: kadm.Metadata{
+			Cluster:    "cluster-1",
+			Controller: 2,
+			Brokers: kadm.BrokerDetails{
+				{NodeID: 2, Host: "broker-2.internal", Port: 9093},
+				{
+					NodeID: 1,
+					Host:   "broker-1.internal",
+					Port:   9092,
+					Rack:   &rack,
+				},
+			},
+		},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+
+	cluster, err := inspector.Cluster(context.Background())
+	if err != nil {
+		t.Fatalf("Cluster() error = %v", err)
+	}
+	want := ClusterState{
+		ID:                "cluster-1",
+		IDVisible:         true,
+		ControllerID:      2,
+		ControllerVisible: true,
+		Brokers: []BrokerState{
+			{
+				NodeID: 1,
+				Host:   "broker-1.internal",
+				Port:   9092,
+				Rack:   "eu-north-1a",
+			},
+			{NodeID: 2, Host: "broker-2.internal", Port: 9093},
+		},
+	}
+	if !reflect.DeepEqual(cluster, want) {
+		t.Fatalf("Cluster() = %#v, want %#v", cluster, want)
+	}
+
+	backend.brokerMetadata.Brokers[0].Host = "changed"
+	if cluster.Brokers[1].Host != "broker-2.internal" {
+		t.Fatalf("Cluster() returned aliased broker state = %#v", cluster)
+	}
+}
+
+func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
+	t.Parallel()
+
+	minISR := "2"
+	backend := &metadataInspectorBackend{
+		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+			"events": {
+				Topic: "events",
+				Partitions: kadm.PartitionDetails{
+					0: {
+						Topic: "events", Partition: 0,
+						Leader: 2, LeaderEpoch: 7,
+						Replicas:        []int32{2, 3, 4},
+						ISR:             []int32{2, 3},
+						OfflineReplicas: []int32{4},
+					},
+				},
+			},
+		}},
+		startOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0, Offset: 10}},
+		},
+		endOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0, Offset: 25}},
+		},
+		configs: kadm.ResourceConfigs{{
+			Name: "events",
+			Configs: []kadm.Config{{
+				Key: "min.insync.replicas", Value: &minISR,
+			}},
+		}},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+
+	topics, err := inspector.Topics(context.Background(), "events")
+	if err != nil {
+		t.Fatalf("Topics() error = %v", err)
+	}
+	want := []TopicState{{
+		Name:              "events",
+		MinInSyncReplicas: 2,
+		Partitions: []TopicPartitionState{{
+			Partition:         0,
+			Leader:            2,
+			LeaderEpoch:       7,
+			Replicas:          []int32{2, 3, 4},
+			InSyncReplicaIDs:  []int32{2, 3},
+			OfflineReplicaIDs: []int32{4},
+			ReplicationFactor: 3,
+			InSyncReplicas:    2,
+			OfflineReplicas:   1,
+			BeginningOffset:   10,
+			EndOffset:         25,
+		}},
+	}}
+	if !reflect.DeepEqual(topics, want) {
+		t.Fatalf("Topics() = %#v, want %#v", topics, want)
+	}
+
+	backend.metadata.Topics["events"].Partitions[0].Replicas[0] = 9
+	if topics[0].Partitions[0].Replicas[0] != 2 {
+		t.Fatalf("Topics() returned aliased replica state = %#v", topics)
+	}
+}
+
+type metadataInspectorBackend struct {
+	recordingInspectorBackend
+	brokerMetadata    kadm.Metadata
+	brokerMetadataErr error
+	brokerMetadataFn  func(context.Context) (kadm.Metadata, error)
+	metadata          kadm.Metadata
+	metadataErr       error
+	startOffsets      kadm.ListedOffsets
+	startOffsetsErr   error
+	endOffsets        kadm.ListedOffsets
+	endOffsetsErr     error
+	configs           kadm.ResourceConfigs
+	configsErr        error
+	configsFn         func(context.Context) (kadm.ResourceConfigs, error)
+}
+
+func (backend *metadataInspectorBackend) BrokerMetadata(
+	ctx context.Context,
+) (kadm.Metadata, error) {
+	if backend.brokerMetadataFn != nil {
+		return backend.brokerMetadataFn(ctx)
+	}
+
+	return backend.brokerMetadata, backend.brokerMetadataErr
+}
+
+func (backend *metadataInspectorBackend) Metadata(
+	context.Context,
+	...string,
+) (kadm.Metadata, error) {
+	return backend.metadata, backend.metadataErr
+}
+
+func (backend *metadataInspectorBackend) ListStartOffsets(
+	context.Context,
+	...string,
+) (kadm.ListedOffsets, error) {
+	return backend.startOffsets, backend.startOffsetsErr
+}
+
+func (backend *metadataInspectorBackend) ListEndOffsets(
+	context.Context,
+	...string,
+) (kadm.ListedOffsets, error) {
+	return backend.endOffsets, backend.endOffsetsErr
+}
+
+func (backend *metadataInspectorBackend) DescribeTopicConfigs(
+	ctx context.Context,
+	_ ...string,
+) (kadm.ResourceConfigs, error) {
+	if backend.configsFn != nil {
+		return backend.configsFn(ctx)
+	}
+
+	return backend.configs, backend.configsErr
+}
+
+func inspectorWithMetadataBackend(backend *metadataInspectorBackend) *Inspector {
+	return &Inspector{
+		admin:                 backend,
+		client:                backend,
+		requestTimeout:        time.Second,
+		maxMetadataBrokers:    10,
+		maxMetadataPartitions: 100,
+	}
+}
+
+var _ inspectorBackend = (*metadataInspectorBackend)(nil)
+var _ inspectorClient = (*metadataInspectorBackend)(nil)
+
+func TestInspectorClusterRejectsInvalidOrExcessiveBrokerMetadata(t *testing.T) {
+	t.Parallel()
+
+	valid := kadm.Metadata{
+		Cluster:    "cluster-1",
+		Controller: 1,
+		Brokers: kadm.BrokerDetails{{
+			NodeID: 1, Host: "broker.internal", Port: 9092,
+		}},
+	}
+	for _, test := range []struct {
+		name   string
+		change func(*kadm.Metadata)
+		want   error
+	}{
+		{
+			name: "missing brokers",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Brokers = nil
+				metadata.Controller = -1
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid cluster ID",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Cluster = strings.Repeat("c", 256)
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "whitespace cluster ID",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Cluster = " cluster "
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "duplicate broker",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Brokers = append(metadata.Brokers, metadata.Brokers[0])
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid broker address",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Brokers[0].Host = " broker.internal "
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid rack",
+			change: func(metadata *kadm.Metadata) {
+				rack := " rack "
+				metadata.Brokers[0].Rack = &rack
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "broker limit",
+			change: func(metadata *kadm.Metadata) {
+				metadata.Brokers = append(metadata.Brokers, kadm.BrokerDetail{
+					NodeID: 2, Host: "broker-2.internal", Port: 9092,
+				})
+			},
+			want: ErrInspectionResponseTooLarge,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			metadata := valid
+			metadata.Brokers = append(kadm.BrokerDetails(nil), valid.Brokers...)
+			test.change(&metadata)
+			backend := &metadataInspectorBackend{brokerMetadata: metadata}
+			inspector := inspectorWithMetadataBackend(backend)
+			if test.name == "broker limit" {
+				inspector.maxMetadataBrokers = 1
+			}
+
+			if _, err := inspector.Cluster(context.Background()); !errors.Is(
+				err,
+				test.want,
+			) {
+				t.Fatalf("Cluster() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestInspectorClusterRepresentsUnavailableIdentityAndController(t *testing.T) {
+	t.Parallel()
+
+	backend := &metadataInspectorBackend{brokerMetadata: kadm.Metadata{
+		Controller: 9,
+		Brokers: kadm.BrokerDetails{{
+			NodeID: 1, Host: "broker.internal", Port: 9092,
+		}},
+	}}
+	inspector := inspectorWithMetadataBackend(backend)
+	cluster, err := inspector.Cluster(context.Background())
+	if err != nil {
+		t.Fatalf("Cluster() error = %v", err)
+	}
+	if cluster.IDVisible ||
+		cluster.ID != "" ||
+		cluster.ControllerVisible ||
+		cluster.ControllerID != 9 {
+		t.Fatalf("Cluster() unavailable state = %#v", cluster)
+	}
+}
+
+func TestInspectorOperationsEnforceOwnedRequestDeadline(t *testing.T) {
+	t.Parallel()
+
+	backend := &metadataInspectorBackend{
+		brokerMetadataFn: func(ctx context.Context) (kadm.Metadata, error) {
+			<-ctx.Done()
+
+			return kadm.Metadata{}, nil
+		},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+	inspector.requestTimeout = time.Millisecond
+
+	if _, err := inspector.Cluster(context.Background()); !errors.Is(
+		err,
+		context.DeadlineExceeded,
+	) {
+		t.Fatalf("Cluster() deadline error = %v", err)
+	}
+	var nilContext context.Context
+	if _, err := inspector.Cluster(nilContext); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Cluster(nil) error = %v", err)
+	}
+	if _, err := inspector.Topics(nilContext, "events"); !errors.Is(
+		err,
+		ErrContextRequired,
+	) {
+		t.Fatalf("Topics(nil) error = %v", err)
+	}
+
+	lagBackend := &recordingInspectorBackend{
+		lagFn: func(ctx context.Context) (kadm.DescribedGroupLags, error) {
+			<-ctx.Done()
+
+			return nil, nil
+		},
+	}
+	lagInspector := &Inspector{
+		admin: lagBackend, client: lagBackend, requestTimeout: time.Millisecond,
+	}
+	if _, err := lagInspector.ConsumerGroupLag(
+		context.Background(),
+		"group",
+	); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("ConsumerGroupLag() deadline error = %v", err)
+	}
+	if _, err := lagInspector.ConsumerGroupLag(
+		nilContext,
+		"group",
+	); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("ConsumerGroupLag(nil) error = %v", err)
+	}
+
+	healthBackend := &recordingInspectorBackend{
+		healthFn: func(ctx context.Context) error {
+			<-ctx.Done()
+
+			return nil
+		},
+	}
+	healthInspector := &Inspector{
+		admin: healthBackend, client: healthBackend, requestTimeout: time.Millisecond,
+	}
+	if err := healthInspector.Health(context.Background()); !errors.Is(
+		err,
+		context.DeadlineExceeded,
+	) {
+		t.Fatalf("Health() deadline error = %v", err)
+	}
+	if err := healthInspector.Health(nilContext); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("Health(nil) error = %v", err)
+	}
+
+	requestErr := errors.New("cluster metadata unavailable")
+	errorBackend := &metadataInspectorBackend{brokerMetadataErr: requestErr}
+	errorInspector := inspectorWithMetadataBackend(errorBackend)
+	if _, err := errorInspector.Cluster(context.Background()); !errors.Is(
+		err,
+		requestErr,
+	) {
+		t.Fatalf("Cluster() request error = %v", err)
+	}
+}
+
+func TestInspectorConfigAppliesAndValidatesMetadataBounds(t *testing.T) {
+	t.Parallel()
+
+	config, err := normalizeInspectorConfig(InspectorConfig{
+		Brokers:  []string{"broker.internal:9092"},
+		ClientID: "inspector",
+	})
+	if err != nil {
+		t.Fatalf("normalizeInspectorConfig() error = %v", err)
+	}
+	if config.RequestTimeout != 10*time.Second ||
+		config.MaxMetadataBrokers != 1_000 ||
+		config.MaxMetadataPartitions != 100_000 {
+		t.Fatalf("inspector defaults = %#v", config)
+	}
+
+	for _, test := range []struct {
+		name   string
+		change func(*InspectorConfig)
+	}{
+		{
+			name: "short request timeout",
+			change: func(config *InspectorConfig) {
+				config.RequestTimeout = time.Millisecond
+			},
+		},
+		{
+			name: "too many brokers",
+			change: func(config *InspectorConfig) {
+				config.MaxMetadataBrokers = 10_001
+			},
+		},
+		{
+			name: "too many partitions",
+			change: func(config *InspectorConfig) {
+				config.MaxMetadataPartitions = 1_000_001
+			},
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			config := InspectorConfig{
+				Brokers:  []string{"broker.internal:9092"},
+				ClientID: "inspector",
+			}
+			test.change(&config)
+			if _, err := normalizeInspectorConfig(config); !errors.Is(
+				err,
+				ErrInvalidInspectorConfig,
+			) {
+				t.Fatalf("normalizeInspectorConfig() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
+	t.Parallel()
+
+	minISR := "2"
+	base := func() *metadataInspectorBackend {
+		return &metadataInspectorBackend{
+			metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+				"events": {
+					Topic: "events",
+					Partitions: kadm.PartitionDetails{0: {
+						Topic: "events", Partition: 0, Leader: 1,
+						Replicas: []int32{1}, ISR: []int32{1},
+					}},
+				},
+			}},
+			startOffsets: kadm.ListedOffsets{
+				"events": {0: {Topic: "events", Partition: 0}},
+			},
+			endOffsets: kadm.ListedOffsets{
+				"events": {0: {Topic: "events", Partition: 0, Offset: 1}},
+			},
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{{
+					Key: "min.insync.replicas", Value: &minISR,
+				}},
+			}},
+		}
+	}
+	brokerErr := errors.New("broker response failed")
+	for _, test := range []struct {
+		name   string
+		change func(*metadataInspectorBackend)
+		want   error
+	}{
+		{
+			name: "metadata request",
+			change: func(backend *metadataInspectorBackend) {
+				backend.metadataErr = brokerErr
+			},
+			want: brokerErr,
+		},
+		{
+			name: "start-offset request",
+			change: func(backend *metadataInspectorBackend) {
+				backend.startOffsetsErr = brokerErr
+			},
+			want: brokerErr,
+		},
+		{
+			name: "end-offset request",
+			change: func(backend *metadataInspectorBackend) {
+				backend.endOffsetsErr = brokerErr
+			},
+			want: brokerErr,
+		},
+		{
+			name: "config request",
+			change: func(backend *metadataInspectorBackend) {
+				backend.configsErr = brokerErr
+			},
+			want: brokerErr,
+		},
+		{
+			name: "missing topic metadata",
+			change: func(backend *metadataInspectorBackend) {
+				backend.metadata.Topics = nil
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "unexpected topic metadata",
+			change: func(backend *metadataInspectorBackend) {
+				delete(backend.metadata.Topics, "events")
+				backend.metadata.Topics["other"] = kadm.TopicDetail{Topic: "other"}
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "topic metadata error",
+			change: func(backend *metadataInspectorBackend) {
+				detail := backend.metadata.Topics["events"]
+				detail.Err = brokerErr
+				backend.metadata.Topics["events"] = detail
+			},
+			want: brokerErr,
+		},
+		{
+			name: "partition metadata error",
+			change: func(backend *metadataInspectorBackend) {
+				partition := backend.metadata.Topics["events"].Partitions[0]
+				partition.Err = brokerErr
+				backend.metadata.Topics["events"].Partitions[0] = partition
+			},
+			want: brokerErr,
+		},
+		{
+			name: "partition metadata identity",
+			change: func(backend *metadataInspectorBackend) {
+				partition := backend.metadata.Topics["events"].Partitions[0]
+				partition.Topic = "other"
+				backend.metadata.Topics["events"].Partitions[0] = partition
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "missing start offset",
+			change: func(backend *metadataInspectorBackend) {
+				backend.startOffsets = nil
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "start offset error",
+			change: func(backend *metadataInspectorBackend) {
+				offset := backend.startOffsets["events"][0]
+				offset.Err = brokerErr
+				backend.startOffsets["events"][0] = offset
+			},
+			want: brokerErr,
+		},
+		{
+			name: "start offset identity",
+			change: func(backend *metadataInspectorBackend) {
+				offset := backend.startOffsets["events"][0]
+				offset.Topic = "other"
+				backend.startOffsets["events"][0] = offset
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "end offset error",
+			change: func(backend *metadataInspectorBackend) {
+				offset := backend.endOffsets["events"][0]
+				offset.Err = brokerErr
+				backend.endOffsets["events"][0] = offset
+			},
+			want: brokerErr,
+		},
+		{
+			name: "invalid end offset",
+			change: func(backend *metadataInspectorBackend) {
+				backend.endOffsets["events"][0] = kadm.ListedOffset{
+					Topic: "events", Partition: 0, Offset: -1,
+				}
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "missing durability config",
+			change: func(backend *metadataInspectorBackend) {
+				backend.configs = nil
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid durability config",
+			change: func(backend *metadataInspectorBackend) {
+				invalid := strings.Repeat("9", 12)
+				backend.configs[0].Configs[0].Value = &invalid
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "partition limit",
+			change: func(backend *metadataInspectorBackend) {
+				backend.metadata.Topics["events"].Partitions[1] = kadm.PartitionDetail{
+					Topic: "events", Partition: 1, Leader: 1,
+					Replicas: []int32{1}, ISR: []int32{1},
+				}
+				backend.startOffsets["events"][1] = kadm.ListedOffset{
+					Topic: "events", Partition: 1,
+				}
+				backend.endOffsets["events"][1] = kadm.ListedOffset{
+					Topic: "events", Partition: 1, Offset: 1,
+				}
+			},
+			want: ErrInspectionResponseTooLarge,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			backend := base()
+			test.change(backend)
+			inspector := inspectorWithMetadataBackend(backend)
+			if test.name == "partition limit" {
+				inspector.maxMetadataPartitions = 1
+			}
+			if _, err := inspector.Topics(
+				context.Background(),
+				"events",
+			); !errors.Is(err, test.want) {
+				t.Fatalf("Topics() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+
+	cancelBackend := base()
+	cancelBackend.configsFn = func(context.Context) (kadm.ResourceConfigs, error) {
+		return cancelBackend.configs, nil
+	}
+	cancelInspector := inspectorWithMetadataBackend(cancelBackend)
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := cancelInspector.Topics(canceled, "events"); !errors.Is(
+		err,
+		context.Canceled,
+	) {
+		t.Fatalf("Topics(canceled) error = %v", err)
+	}
+}
+
+func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
+	t.Parallel()
+
+	minISR := "1"
+	base := func() *metadataInspectorBackend {
+		return &metadataInspectorBackend{
+			metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+				"events": {
+					Topic: "events",
+					Partitions: kadm.PartitionDetails{0: {
+						Topic: "events", Partition: 0,
+						Leader: 1, LeaderEpoch: 2,
+						Replicas: []int32{1, 2},
+						ISR:      []int32{1, 2},
+					}},
+				},
+			}},
+			startOffsets: kadm.ListedOffsets{
+				"events": {0: {Topic: "events", Partition: 0}},
+			},
+			endOffsets: kadm.ListedOffsets{
+				"events": {0: {Topic: "events", Partition: 0, Offset: 1}},
+			},
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{{
+					Key: "min.insync.replicas", Value: &minISR,
+				}},
+			}},
+		}
+	}
+	for _, test := range []struct {
+		name   string
+		change func(*kadm.PartitionDetail)
+	}{
+		{
+			name: "no replicas",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.Replicas = nil
+				partition.ISR = nil
+			},
+		},
+		{
+			name: "duplicate replica",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.Replicas = []int32{1, 1}
+			},
+		},
+		{
+			name: "negative replica",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.Replicas = []int32{-1, 2}
+			},
+		},
+		{
+			name: "leader outside replicas",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.Leader = 3
+			},
+		},
+		{
+			name: "isr outside replicas",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.ISR = []int32{3}
+			},
+		},
+		{
+			name: "duplicate isr",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.ISR = []int32{1, 1}
+			},
+		},
+		{
+			name: "offline replica outside replicas",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.OfflineReplicas = []int32{3}
+			},
+		},
+		{
+			name: "offline replica in isr",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.OfflineReplicas = []int32{2}
+			},
+		},
+		{
+			name: "duplicate offline replica",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.ISR = []int32{1}
+				partition.OfflineReplicas = []int32{2, 2}
+			},
+		},
+		{
+			name: "invalid leader epoch",
+			change: func(partition *kadm.PartitionDetail) {
+				partition.LeaderEpoch = -2
+			},
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			backend := base()
+			partition := backend.metadata.Topics["events"].Partitions[0]
+			test.change(&partition)
+			backend.metadata.Topics["events"].Partitions[0] = partition
+			inspector := inspectorWithMetadataBackend(backend)
+
+			if _, err := inspector.Topics(
+				context.Background(),
+				"events",
+			); !errors.Is(err, ErrInvalidInspectionResponse) {
+				t.Fatalf("Topics() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T) {
+	t.Parallel()
+
+	validValue := "2"
+	requested := map[string]struct{}{"events": {}}
+	brokerErr := errors.New("topic config unavailable")
+	for _, test := range []struct {
+		name    string
+		configs kadm.ResourceConfigs
+		want    error
+	}{
+		{
+			name: "unexpected resource",
+			configs: kadm.ResourceConfigs{{
+				Name: "other",
+			}},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "resource error",
+			configs: kadm.ResourceConfigs{{
+				Name: "events", Err: brokerErr,
+			}},
+			want: brokerErr,
+		},
+		{
+			name: "duplicate resource",
+			configs: kadm.ResourceConfigs{
+				{
+					Name: "events",
+					Configs: []kadm.Config{{
+						Key: "min.insync.replicas", Value: &validValue,
+					}},
+				},
+				{
+					Name: "events",
+					Configs: []kadm.Config{{
+						Key: "min.insync.replicas", Value: &validValue,
+					}},
+				},
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "missing selected config",
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{{
+					Key: "cleanup.policy", Value: &validValue,
+				}},
+			}},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "excessive configs",
+			configs: kadm.ResourceConfigs{{
+				Name:    "events",
+				Configs: make([]kadm.Config, 1_025),
+			}},
+			want: ErrInspectionResponseTooLarge,
+		},
+		{
+			name: "duplicate selected config",
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{
+					{Key: "min.insync.replicas", Value: &validValue},
+					{Key: "min.insync.replicas", Value: &validValue},
+				},
+			}},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "sensitive selected config",
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{{
+					Key: "min.insync.replicas", Sensitive: true,
+				}},
+			}},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "zero selected config",
+			configs: kadm.ResourceConfigs{{
+				Name: "events",
+				Configs: []kadm.Config{{
+					Key: "min.insync.replicas", Value: stringPointer("0"),
+				}},
+			}},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "missing resource",
+			want: ErrInvalidInspectionResponse,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := inspectionTopicConfigs(
+				requested,
+				test.configs,
+			); !errors.Is(err, test.want) {
+				t.Fatalf("inspectionTopicConfigs() error = %v", err)
+			}
+		})
+	}
+}
+
+func stringPointer(value string) *string {
+	return &value
+}
+
+func TestInspectorConsumerGroupLagBoundsAndValidatesBrokerState(t *testing.T) {
+	t.Parallel()
+
+	valid := func() kadm.DescribedGroupLags {
+		return kadm.DescribedGroupLags{
+			"group": {
+				Group: "group", State: "Stable", Protocol: "range",
+				Lag: kadm.GroupLag{"events": {
+					0: {
+						Topic: "events", Partition: 0,
+						Commit: kadm.Offset{
+							Topic: "events", Partition: 0, At: 3,
+						},
+						Start: kadm.ListedOffset{
+							Topic: "events", Partition: 0, Offset: 1,
+						},
+						End: kadm.ListedOffset{
+							Topic: "events", Partition: 0, Offset: 5,
+						},
+						Lag: 2,
+					},
+				}},
+			},
+		}
+	}
+	offsetErr := errors.New("offset unavailable")
+	for _, test := range []struct {
+		name   string
+		change func(kadm.DescribedGroupLags)
+		limit  int
+		want   error
+	}{
+		{
+			name: "missing group",
+			change: func(lags kadm.DescribedGroupLags) {
+				delete(lags, "group")
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "unexpected group",
+			change: func(lags kadm.DescribedGroupLags) {
+				group := lags["group"]
+				delete(lags, "group")
+				group.Group = "other"
+				lags["other"] = group
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid partition identity",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.Topic = "other"
+				lags["group"].Lag["events"][0] = partition
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "invalid topic",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.Topic = "bad topic"
+				partition.Commit.Topic = "bad topic"
+				partition.Start.Topic = "bad topic"
+				partition.End.Topic = "bad topic"
+				delete(lags["group"].Lag, "events")
+				lags["group"].Lag["bad topic"] = map[int32]kadm.GroupMemberLag{
+					0: partition,
+				}
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "start offset error",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.Start.Err = offsetErr
+				lags["group"].Lag["events"][0] = partition
+			},
+			want: offsetErr,
+		},
+		{
+			name: "end offset error",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.End.Err = offsetErr
+				lags["group"].Lag["events"][0] = partition
+			},
+			want: offsetErr,
+		},
+		{
+			name: "commit beyond end is zero lag",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.Commit.At = 6
+				partition.Lag = 0
+				lags["group"].Lag["events"][0] = partition
+			},
+		},
+		{
+			name: "invalid lag",
+			change: func(lags kadm.DescribedGroupLags) {
+				partition := lags["group"].Lag["events"][0]
+				partition.Lag = 3
+				lags["group"].Lag["events"][0] = partition
+			},
+			want: ErrInvalidInspectionResponse,
+		},
+		{
+			name: "partition limit",
+			change: func(lags kadm.DescribedGroupLags) {
+				lags["group"].Lag["events"][1] = kadm.GroupMemberLag{
+					Topic: "events", Partition: 1,
+					Commit: kadm.Offset{
+						Topic: "events", Partition: 1, At: 0,
+					},
+					Start: kadm.ListedOffset{
+						Topic: "events", Partition: 1, Offset: 0,
+					},
+					End: kadm.ListedOffset{
+						Topic: "events", Partition: 1, Offset: 0,
+					},
+					Lag: 0,
+				}
+			},
+			limit: 1,
+			want:  ErrInspectionResponseTooLarge,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			lags := valid()
+			test.change(lags)
+			backend := &recordingInspectorBackend{lags: lags}
+			inspector := &Inspector{
+				admin: backend, client: backend,
+				maxMetadataPartitions: test.limit,
+			}
+			if _, err := inspector.ConsumerGroupLag(
+				context.Background(),
+				"group",
+			); !errors.Is(err, test.want) {
+				t.Fatalf("ConsumerGroupLag() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}

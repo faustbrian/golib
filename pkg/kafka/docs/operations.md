@@ -2,9 +2,17 @@
 
 ## Readiness
 
-Use `Producer.Health` or `Inspector.Health` with a bounded readiness deadline.
-Readiness must also verify required topic policy through infrastructure state;
-broker reachability alone is insufficient.
+`Inspector.Health` is a bounded dependency-connectivity probe. Do not wire a
+broker outage to process liveness or an automatic restart. Readiness must also
+inspect every required topic and evaluate partition leadership, offline and
+under-replicated state, offsets, replication factor, and
+`min.insync.replicas` against deployment policy. Stateful readiness
+thresholds/hysteresis remain application-owned until the package exposes that
+policy.
+
+Use `Inspector.Cluster` for cluster/controller/broker identity and
+`Inspector.Topics` with explicit targets for topic state. Treat any inspection
+error as unknown diagnostic state rather than silently healthy.
 
 ## Lag
 

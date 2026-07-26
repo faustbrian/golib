@@ -11,5 +11,6 @@
 - [Consumer retry and dead-letter policy](retry-dead-letter.md)
 - [Transactions](transactions.md)
 - [Replay](replay.md)
+- [Inspection and dependency health](inspection.md)
 - [Operations](operations.md)
 - [Security](security.md)

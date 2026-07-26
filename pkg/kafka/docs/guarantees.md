@@ -180,6 +180,28 @@ Per-partition order is preserved, but no global partition order or exactly-once
 application side effect is claimed. The local plan does not prove current
 broker retention.
 
+## Inspection and health
+
+Inspection is read-only and requires explicit bounded topic or group targets.
+Cluster inspection copies at most `MaxMetadataBrokers` validated brokers and
+reports whether Kafka supplied a cluster ID and a controller present in that
+broker set. Topic inspection copies at most `MaxMetadataPartitions` and
+preserves replica preference order while returning sorted ISR and offline
+replica sets, leader epochs, beginning offsets, exclusive end offsets, and the
+effective `min.insync.replicas` value.
+
+All inspector operations derive `RequestTimeout` from the caller context.
+Missing, inconsistent, excessive, unauthorized, or unavailable required state
+returns an error instead of a partial success. A caller therefore cannot infer
+that omitted partitions, replicas, offsets, or durability configuration are
+healthy. Multi-target typed partial results are not implemented yet.
+
+`Inspector.Health` is only current bounded broker connectivity. It is not
+process liveness and does not prove required topics, authorization, durability,
+consumer progress, transaction health, or application readiness. Applications
+must keep broker failure out of process-liveness restart policy and compose
+readiness deliberately until the package exposes the planned stateful policy.
+
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful
 offset commits, redelivery after handler failure and failed dead-letter
@@ -188,7 +210,8 @@ source settlement, concurrent record and batch handling across independent
 partitions with sequential order inside each partition, eager group membership,
 partition pause/resume, a static member restart using the same instance ID, and
 committed-versus-aborted transaction visibility, plus replay interruption,
-external-checkpoint resume, and out-of-range rejection against Confluent Local
+external-checkpoint resume, out-of-range rejection, cluster/controller
+visibility, and topic durability/offset inspection against Confluent Local
 7.5.0 using franz-go v1.21.5.
 The container image is pinned by repository digest. This compatibility fixture
 does not replace testing against an application's production broker version

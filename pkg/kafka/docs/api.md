@@ -176,8 +176,14 @@ permits one execution; concurrent and repeated calls have distinct lifecycle
 errors. `Shutdown` fences new work and is
 retriable after a bounded incomplete wait; `Close` returns the configured
 bounded shutdown result.
-`Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
-target lists.
+`Inspector.Cluster` returns bounded copied cluster identity, controller
+visibility, and sorted broker metadata. `Inspector.Topics` returns bounded
+replica, ISR, offline-replica, leader-epoch, beginning/end offset, and effective
+`min.insync.replicas` state. `Inspector.ConsumerGroupLag` retains bounded
+committed-offset and lag inspection. Topic and group methods require explicit
+target lists, and every operation derives `InspectorConfig.RequestTimeout`.
+`Health` is a bounded dependency-connectivity probe, not liveness or a complete
+readiness decision.
 
 `ProducerConfig.CompressionPreferences` is an ordered, constructor-copied list
 of `CompressionCodec` values. An empty list defaults to Snappy followed by no

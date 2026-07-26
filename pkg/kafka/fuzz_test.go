@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/twmb/franz-go/pkg/kadm"
 )
 
 func FuzzConsumerConfig(f *testing.F) {
@@ -247,5 +249,69 @@ func FuzzReplayConfig(f *testing.F) {
 			ProgressTimeout:        time.Duration(progressSeconds) * time.Second,
 			ShutdownTimeout:        time.Duration(shutdownSeconds) * time.Second,
 		})
+	})
+}
+
+func FuzzInspectionBrokerMetadata(f *testing.F) {
+	f.Add("events", int32(0), int32(1), int32(1), int64(0), int64(1), "1")
+	f.Add("", int32(-1), int32(-2), int32(-1), int64(-1), int64(-1), "")
+
+	f.Fuzz(func(
+		t *testing.T,
+		topic string,
+		partitionID int32,
+		leaderID int32,
+		replicaID int32,
+		startOffset int64,
+		endOffset int64,
+		minISR string,
+	) {
+		partition := kadm.PartitionDetail{
+			Topic: topic, Partition: partitionID,
+			Leader: leaderID, LeaderEpoch: 0,
+			Replicas: []int32{replicaID},
+			ISR:      []int32{replicaID},
+		}
+		inspector := &Inspector{
+			maxMetadataBrokers: 4, maxMetadataPartitions: 4,
+		}
+		states, err := inspector.buildTopicStates(
+			[]string{topic},
+			kadm.TopicDetails{topic: {
+				Topic: topic,
+				Partitions: kadm.PartitionDetails{
+					partitionID: partition,
+				},
+			}},
+			kadm.ListedOffsets{topic: {
+				partitionID: {
+					Topic: topic, Partition: partitionID, Offset: startOffset,
+				},
+			}},
+			kadm.ListedOffsets{topic: {
+				partitionID: {
+					Topic: topic, Partition: partitionID, Offset: endOffset,
+				},
+			}},
+			kadm.ResourceConfigs{{
+				Name: topic,
+				Configs: []kadm.Config{{
+					Key: "min.insync.replicas", Value: &minISR,
+				}},
+			}},
+		)
+		if err != nil {
+			return
+		}
+		if len(states) != 1 ||
+			len(states[0].Partitions) != 1 ||
+			states[0].Partitions[0].BeginningOffset != startOffset ||
+			states[0].Partitions[0].EndOffset != endOffset {
+			t.Fatalf("inspection states = %#v", states)
+		}
+		partition.Replicas[0]++
+		if states[0].Partitions[0].Replicas[0] != replicaID {
+			t.Fatalf("inspection states alias broker metadata = %#v", states)
+		}
 	})
 }

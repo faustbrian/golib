@@ -213,7 +213,16 @@ forever without advancing its checkpoint.
 Completed partitions are paused while other ranges finish. Cancel the replay
 context, then use bounded `Shutdown` or error-returning `Close`. Readers are
 single-use; resume with a new reader and the returned checkpoint.
-`Inspector` provides bounded read-only topic metadata and consumer-group lag.
+`Inspector` provides bounded read-only cluster identity, controller and broker
+visibility, topic replica/ISR/offline state, beginning and end offsets,
+effective `min.insync.replicas`, and consumer-group lag. Every operation
+derives `RequestTimeout`; response copying is capped by explicit broker and
+partition limits. Inspection never mutates Kafka infrastructure. `Health`
+currently means dependency connectivity only and must not be used as process
+liveness.
+
+See the [inspection guide](docs/inspection.md) for authorization, partial-state,
+durability, and readiness boundaries.
 Infrastructure remains responsible for topics, replication, ISR, retention,
 quotas, ACLs, and destructive administrative operations.
 

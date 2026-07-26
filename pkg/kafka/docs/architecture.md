@@ -20,7 +20,8 @@ infrastructure.
 - `ReplayReader` directly assigns explicit no-reset partition ranges, applies
   caller-owned checkpoints, requires explicit side-effect authorization, and
   never joins or commits a consumer group.
-- `Inspector` exposes read-only metadata and lag.
+- `Inspector` exposes bounded read-only cluster, broker, topic durability,
+  partition offset, and lag state without infrastructure mutation.
 
 franz-go remains an implementation detail. The root module exposes owned TLS,
 mTLS, PLAIN, SCRAM, and OAUTHBEARER policy contracts; optional vendor

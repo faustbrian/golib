@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -127,6 +128,48 @@ func BenchmarkReplayProgress(b *testing.B) {
 		result, err := reader.Replay(ctx, handler)
 		if err != nil || result.Processed != 1 || result.IncompleteRanges != 0 {
 			b.Fatalf("Replay() result/error = %#v/%v", result, err)
+		}
+	}
+}
+
+func BenchmarkInspectorTopicState(b *testing.B) {
+	minISR := "2"
+	backend := &metadataInspectorBackend{
+		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+			"events": {
+				Topic: "events",
+				Partitions: kadm.PartitionDetails{0: {
+					Topic: "events", Partition: 0,
+					Leader: 1, LeaderEpoch: 4,
+					Replicas: []int32{1, 2, 3},
+					ISR:      []int32{1, 2, 3},
+				}},
+			},
+		}},
+		startOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0, Offset: 10}},
+		},
+		endOffsets: kadm.ListedOffsets{
+			"events": {0: {Topic: "events", Partition: 0, Offset: 25}},
+		},
+		configs: kadm.ResourceConfigs{{
+			Name: "events",
+			Configs: []kadm.Config{{
+				Key: "min.insync.replicas", Value: &minISR,
+			}},
+		}},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		topics, err := inspector.Topics(ctx, "events")
+		if err != nil ||
+			len(topics) != 1 ||
+			len(topics[0].Partitions) != 1 ||
+			topics[0].Partitions[0].EndOffset != 25 {
+			b.Fatalf("Topics() result/error = %#v/%v", topics, err)
 		}
 	}
 }
