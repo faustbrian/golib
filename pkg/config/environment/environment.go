@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"os"
 	"reflect"
@@ -429,6 +430,10 @@ func convert(input string, typeOf reflect.Type) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if value <= math.MaxInt64 {
+			return int64(value), nil
+		}
+
 		return value, nil
 	case reflect.Float32, reflect.Float64:
 		return strconv.ParseFloat(input, typeOf.Bits())

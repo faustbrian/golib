@@ -7,10 +7,10 @@ and releases use Semantic Versioning.
 
 ### Changed
 
-- Unsigned typed defaults within the signed integer range now use the same
-  canonical numeric representation as JSON, YAML, and TOML sources, allowing
-  equivalent higher-precedence values to override them without a false type
-  conflict.
+- Unsigned typed defaults and environment or dotenv values within the signed
+  integer range now use the same canonical numeric representation as JSON,
+  YAML, and TOML sources, allowing equivalent higher-precedence values to
+  override them without a false type conflict.
 - Replaced obsolete package-local workflow references with the authoritative
   root CI matrix and its canonical per-module quality contract.
 - Optional filesystem-backed sources now recognize missing files returned by

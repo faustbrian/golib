@@ -54,6 +54,42 @@ func TestUnsignedTypedDefaultCanBeOverriddenByEquivalentJSONNumber(
 	}
 }
 
+func TestUnsignedTypedDefaultCanBeOverriddenByEquivalentDotenvNumber(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	type settings struct {
+		Port uint16 `config:"port" env:"PORT" default:"5432"`
+	}
+	defaultSource, err := defaults.For[settings]("defaults")
+	if err != nil {
+		t.Fatalf("construct default source: %v", err)
+	}
+	dotenvSource, err := dotenv.BytesFor[settings](
+		[]byte("PORT=6432"),
+		dotenv.Options{Name: "dotenv"},
+	)
+	if err != nil {
+		t.Fatalf("construct dotenv source: %v", err)
+	}
+	plan, err := config.NewDefaultPlan(config.DefaultSources{
+		Defaults: []config.Source{defaultSource},
+		Dotenv:   []config.Source{dotenvSource},
+	})
+	if err != nil {
+		t.Fatalf("construct plan: %v", err)
+	}
+
+	snapshot, err := config.Load[settings](context.Background(), plan)
+	if err != nil {
+		t.Fatalf("load settings: %v", err)
+	}
+	if got := snapshot.Value().Port; got != 6432 {
+		t.Fatalf("port = %d, want 6432", got)
+	}
+}
+
 func TestUnsignedTypedDefaultPreservesValueAboveSignedRange(t *testing.T) {
 	t.Parallel()
 

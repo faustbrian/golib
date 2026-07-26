@@ -3,6 +3,7 @@ package environment_test
 import (
 	"context"
 	"errors"
+	"math"
 	"os"
 	"reflect"
 	"strings"
@@ -247,20 +248,35 @@ func TestEnvironForConvertsUnsignedScalar(t *testing.T) {
 	t.Parallel()
 
 	type settings struct {
-		Value uint8 `config:"value"`
+		Value    uint8  `config:"value"`
+		Sequence uint64 `config:"sequence"`
 	}
 	source, err := environment.EnvironFor[settings](
-		[]string{"APP_VALUE=42"}, options(),
+		[]string{
+			"APP_VALUE=42",
+			"APP_SEQUENCE=18446744073709551615",
+		},
+		options(),
 	)
 	if err != nil {
 		t.Fatalf("EnvironFor() error = %v", err)
+	}
+	document, err := source.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Source.Load() error = %v", err)
+	}
+	if document.Tree["value"] != int64(42) ||
+		document.Tree["sequence"] != uint64(math.MaxUint64) {
+		t.Fatalf("Source.Load() tree = %#v", document.Tree)
 	}
 	plan, err := config.NewPlan(source)
 	if err != nil {
 		t.Fatalf("NewPlan() error = %v", err)
 	}
 	snapshot, err := config.Load[settings](context.Background(), plan)
-	if err != nil || snapshot.Value().Value != 42 {
+	if err != nil ||
+		snapshot.Value().Value != 42 ||
+		snapshot.Value().Sequence != math.MaxUint64 {
 		t.Fatalf("Load() = %#v, %v", snapshot, err)
 	}
 }
