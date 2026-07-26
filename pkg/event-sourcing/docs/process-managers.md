@@ -40,6 +40,12 @@ message. The package does not claim exactly-once planning or execution.
 Applications should key durable process state and command deduplication by the
 triggering message ID.
 
+The package tests deliver the same message twice and use `PlanResult`'s
+message ID to prove one application-owned command execution. That in-memory
+set demonstrates the integration contract, not crash-safe deduplication. A
+production executor must persist its processed-message state and command
+effects atomically where its storage permits that composition.
+
 ## Bounds and failures
 
 Every manager requires a non-zero command limit no greater than
@@ -58,6 +64,7 @@ message identity, delivery mode, ordered commands, expected error categories,
 and the absence of partial output on failure. Applications supply command
 equality, so the helper does not use reflection or format command state.
 
-Durable process-state composition, duplicate suppression, retries, and
-executor conformance remain application or adapter responsibilities. The
-compatibility matrix therefore marks process managers as partial.
+Durable process-state composition, retry policy, and executor conformance
+remain application or adapter responsibilities. The compatibility matrix marks
+the EventSauce process-manager planning outcome implemented; that status does
+not claim a command bus, workflow engine, or exactly-once execution.

@@ -190,6 +190,40 @@ func TestManagerAllowsReplayOnlyWhenExplicitlySelected(t *testing.T) {
 	}
 }
 
+func TestManagerSupportsApplicationOwnedDuplicateSuppression(t *testing.T) {
+	t.Parallel()
+
+	delivery := managerDelivery(t, eventsourcing.DeliveryLive)
+	manager := newProcessManager(t, processmanager.RejectReplay, 1, func(
+		context.Context,
+		eventsourcing.Delivery,
+	) ([]managerCommand, error) {
+		return []managerCommand{{AccountID: "account-1", Action: "notify"}}, nil
+	})
+
+	processed := make(map[eventsourcing.MessageID]struct{})
+	executions := 0
+	for range 2 {
+		planned, err := manager.Plan(context.Background(), delivery)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, duplicate := processed[planned.MessageID()]; duplicate {
+			continue
+		}
+		processed[planned.MessageID()] = struct{}{}
+		executions += len(planned.Commands())
+	}
+
+	if executions != 1 || len(processed) != 1 {
+		t.Fatalf(
+			"duplicate execution = %d commands, %d message IDs",
+			executions,
+			len(processed),
+		)
+	}
+}
+
 func TestManagerReportsEmptyAndExcessivePlans(t *testing.T) {
 	t.Parallel()
 
