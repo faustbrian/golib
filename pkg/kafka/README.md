@@ -92,6 +92,11 @@ in the public API. Unencrypted connections require the visibly development-only
 `DevelopmentPlaintextSecurity()` policy and cannot be combined with
 authentication.
 
+Kafka request versions are negotiated per broker connection by default. Set a
+validated `ProtocolPolicy.MinimumVersion` only when a reviewed capability must
+not downgrade below a known Kafka request table. This is not a broker-version
+or support check. See the [configuration reference](docs/configuration.md).
+
 ## Consumer
 
 ```go

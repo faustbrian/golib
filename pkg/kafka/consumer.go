@@ -57,6 +57,7 @@ const (
 type ConsumerConfig struct {
 	Brokers                []string
 	ClientID               string
+	Protocol               ProtocolPolicy
 	GroupID                string
 	InstanceID             string
 	Rack                   string
@@ -163,6 +164,7 @@ func newConsumer(
 	if config.Rack != "" {
 		options = append(options, kgo.Rack(config.Rack))
 	}
+	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
 
 	client, err := factory(options...)
@@ -195,6 +197,9 @@ func consumerGroupBalancers(policy GroupBalancePolicy) []kgo.GroupBalancer {
 
 func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if err := validateClientIdentity(config.Brokers, config.ClientID); err != nil {
+		return ConsumerConfig{}, err
+	}
+	if err := config.Protocol.Validate(); err != nil {
 		return ConsumerConfig{}, err
 	}
 	security, err := normalizeClientSecurity(config.Security)

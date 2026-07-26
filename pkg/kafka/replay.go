@@ -34,6 +34,7 @@ type ReplayRange struct {
 type ReplayConfig struct {
 	Brokers  []string
 	ClientID string
+	Protocol ProtocolPolicy
 	Ranges   []ReplayRange
 	Security ClientSecurity
 
@@ -96,6 +97,7 @@ func newReplayReader(
 		kgo.FetchMaxWait(config.FetchMaxWait),
 		kgo.DialTimeout(config.DialTimeout),
 	}
+	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
 
 	client, err := factory(options...)
@@ -113,6 +115,9 @@ func newReplayReader(
 
 func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	if err := validateClientIdentity(config.Brokers, config.ClientID); err != nil {
+		return ReplayConfig{}, err
+	}
+	if err := config.Protocol.Validate(); err != nil {
 		return ReplayConfig{}, err
 	}
 	security, err := normalizeClientSecurity(config.Security)

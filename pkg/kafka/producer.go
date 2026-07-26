@@ -118,6 +118,7 @@ func (codec CompressionCodec) String() string {
 type ProducerConfig struct {
 	Brokers                []string
 	ClientID               string
+	Protocol               ProtocolPolicy
 	AllowedTopics          []string
 	KeyPolicy              KeyPolicy
 	Limits                 MessageLimits
@@ -356,6 +357,7 @@ func newProducer(
 			kgo.TransactionTimeout(config.TransactionTimeout),
 		)
 	}
+	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
 
 	client, err := factory(options...)
@@ -383,6 +385,9 @@ func newProducer(
 
 func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	if err := validateClientIdentity(config.Brokers, config.ClientID); err != nil {
+		return ProducerConfig{}, err
+	}
+	if err := config.Protocol.Validate(); err != nil {
 		return ProducerConfig{}, err
 	}
 	security, err := normalizeClientSecurity(config.Security)

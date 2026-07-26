@@ -5,6 +5,7 @@
 - [Production policy decision matrices](design/decision-matrices.md)
 - [Compatibility and execution matrix](compatibility.md)
 - [API](api.md)
+- [Configuration reference](configuration.md)
 - [Guarantees and failure model](guarantees.md)
 - [Consumer groups and rebalances](consumer.md)
 - [Transactions](transactions.md)

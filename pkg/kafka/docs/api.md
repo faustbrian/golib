@@ -4,6 +4,12 @@ Use `NewProducer`, `NewConsumer`, `NewReplayReader`, and `NewInspector` as the
 composition roots. Every constructor validates identities and bounded resource
 policy before franz-go is configured.
 
+All four client roles accept `ProtocolPolicy`. Its zero value preserves
+per-connection `ApiVersions` negotiation. `MinimumVersion` applies an owned
+request-version downgrade floor without exposing franz-go version types. It is
+not a broker release check or compatibility claim. See the
+[configuration reference](configuration.md).
+
 Broker addresses and Kafka client, group, transactional, instance, and rack
 identifiers must be valid UTF-8 without control characters or surrounding
 whitespace. Identifiers are bounded to 255 bytes. Empty required client and

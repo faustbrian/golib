@@ -22,6 +22,7 @@ var (
 type InspectorConfig struct {
 	Brokers     []string
 	ClientID    string
+	Protocol    ProtocolPolicy
 	Security    ClientSecurity
 	DialTimeout time.Duration
 }
@@ -102,6 +103,7 @@ func newInspector(
 		kgo.ClientID(config.ClientID),
 		kgo.DialTimeout(config.DialTimeout),
 	}
+	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
 	client, err := clientFactory(options...)
 	if err != nil {
@@ -113,6 +115,9 @@ func newInspector(
 
 func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 	if err := validateClientIdentity(config.Brokers, config.ClientID); err != nil {
+		return InspectorConfig{}, err
+	}
+	if err := config.Protocol.Validate(); err != nil {
 		return InspectorConfig{}, err
 	}
 	security, err := normalizeClientSecurity(config.Security)

@@ -8,6 +8,10 @@ All notable changes to this module are documented here.
 
 - verified TLS as the zero-value transport policy, explicit development-only
   plaintext, and bounded rotating mTLS, PLAIN, SCRAM, and OAUTHBEARER providers
+- owned Kafka request-version negotiation policy with an optional validated
+  minimum downgrade floor shared by every client role
+- configuration reference covering defaults, bounds, validation, ownership,
+  protocol negotiation, and safe composition
 - redacted security snapshots and defensively copied TLS, credential, token,
   certificate, and authentication-request material
 - fail-closed bounds and protocol validation for TLS material, mTLS requests,
