@@ -63,12 +63,34 @@ writer, err := eventpostgres.NewTx(tx, eventpostgres.Config{})
 if err != nil {
 	return err
 }
-staged, err := writer.Stage(ctx, stream, expected, pending)
+plan, err := repository.PrepareSave(ctx, aggregate)
+if err != nil {
+	return err
+}
+if plan.Empty() {
+	_, err = repository.ConfirmCommitted(aggregate, plan, nil)
+	return err
+}
+staged, err := writer.StagePlan(ctx, plan)
 if err != nil {
 	return err // roll back the caller-owned transaction
 }
 
-return tx.Commit(ctx)
+if err := tx.Commit(ctx); err != nil {
+	_, unknownErr := repository.MarkCommitUnknown(
+		aggregate,
+		plan,
+		staged,
+		err,
+	)
+	return unknownErr
+}
+result, err := repository.ConfirmCommitted(aggregate, plan, staged)
+if err != nil {
+	return err
+}
+_, err = repository.DispatchCommitted(ctx, result)
+return err
 ```
 
 `TxWriter` intentionally does not implement `eventsourcing.EventStore`, because
@@ -77,6 +99,11 @@ the supplied transaction. Returned messages are transactionally written but
 are not durable until the caller commits. After any staging error, callers must
 roll back because PostgreSQL may have marked the transaction failed. Commit
 ambiguity belongs to the caller.
+
+`StagePlan` accepts the consumer-owned `AppendPlan` contract, which the core
+`eventsourcing.SavePlan` implements. The lower-level `Stage` method remains
+available to custom repositories that already own stable stream, expectation,
+and pending-message values.
 
 ## Snapshots
 

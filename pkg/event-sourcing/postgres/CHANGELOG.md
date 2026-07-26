@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- caller-owned transaction staging directly from a prepared core aggregate
+  save plan without acknowledging or dispatching before commit
 - an equivalent-work PostgreSQL append benchmark comparing the public event
   store with direct `pgx` application code as the documented cost floor
 - a real PostgreSQL optimistic-conflict benchmark proving rejected attempts do

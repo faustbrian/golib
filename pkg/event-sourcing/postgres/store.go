@@ -102,6 +102,14 @@ type TxWriter struct {
 	store *Store
 }
 
+// AppendPlan exposes the immutable data required to stage a prepared aggregate
+// save. eventsourcing.SavePlan implements this consumer-owned contract.
+type AppendPlan interface {
+	Stream() eventsourcing.StreamID
+	ExpectedVersion() eventsourcing.ExpectedVersion
+	PreparedMessages() []eventsourcing.PendingMessage
+}
+
 // NewTx constructs a writer bound to a caller-owned PostgreSQL transaction.
 //
 // The caller exclusively owns commit, rollback, timeout, and retry policy.
@@ -191,6 +199,24 @@ func (writer *TxWriter) Stage(
 	}
 
 	return messages, nil
+}
+
+// StagePlan stages one non-empty prepared aggregate save inside the
+// caller-owned transaction. It does not commit or acknowledge the aggregate.
+func (writer *TxWriter) StagePlan(
+	ctx context.Context,
+	plan AppendPlan,
+) ([]eventsourcing.Message, error) {
+	if plan == nil {
+		return nil, notCommitted(eventsourcing.ErrInvalidArgument)
+	}
+
+	return writer.Stage(
+		ctx,
+		plan.Stream(),
+		plan.ExpectedVersion(),
+		plan.PreparedMessages(),
+	)
 }
 
 func (store *Store) append(
@@ -600,5 +626,6 @@ func rollbackContext(_ context.Context) (context.Context, context.CancelFunc) {
 var (
 	_ eventsourcing.EventStore   = (*Store)(nil)
 	_ eventsourcing.GlobalReader = (*Store)(nil)
+	_ AppendPlan                 = eventsourcing.SavePlan{}
 	_ error                      = (*CommitError)(nil)
 )

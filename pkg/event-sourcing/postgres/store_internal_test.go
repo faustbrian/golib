@@ -97,6 +97,64 @@ func TestTransactionStoreAppendsAndClassifiesExpectedVersions(t *testing.T) {
 	}
 }
 
+func TestTransactionWriterStagesPreparedSavePlan(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	plan := testAppendPlan{
+		stream:   stream,
+		expected: eventsourcing.ExpectNewStream(),
+		pending: []eventsourcing.PendingMessage{
+			testPending(t, stream, "planned-message"),
+		},
+	}
+	database := appendDatabase(0, 17)
+	messages, err := testWriter(database).StagePlan(
+		context.Background(),
+		plan,
+	)
+	if err != nil || len(messages) != 1 ||
+		messages[0].StreamVersion() != 1 {
+		t.Fatalf("StagePlan() = %#v, %v", messages, err)
+	}
+
+	if _, err := testWriter(&fakeDatabase{}).StagePlan(
+		context.Background(),
+		testAppendPlan{},
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("StagePlan(empty) error = %v", err)
+	}
+	var nilPlan AppendPlan
+	if _, err := testWriter(&fakeDatabase{}).StagePlan(
+		context.Background(),
+		nilPlan,
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("StagePlan(nil) error = %v", err)
+	}
+	var nilWriter *TxWriter
+	if _, err := nilWriter.StagePlan(context.Background(), plan); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("nil StagePlan() error = %v", err)
+	}
+}
+
+type testAppendPlan struct {
+	stream   eventsourcing.StreamID
+	expected eventsourcing.ExpectedVersion
+	pending  []eventsourcing.PendingMessage
+}
+
+func (plan testAppendPlan) Stream() eventsourcing.StreamID {
+	return plan.stream
+}
+
+func (plan testAppendPlan) ExpectedVersion() eventsourcing.ExpectedVersion {
+	return plan.expected
+}
+
+func (plan testAppendPlan) PreparedMessages() []eventsourcing.PendingMessage {
+	return append([]eventsourcing.PendingMessage(nil), plan.pending...)
+}
+
 func TestTransactionStoreAppendsMessageWithoutOptionalEnvelopeFields(
 	t *testing.T,
 ) {
