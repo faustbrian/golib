@@ -75,6 +75,154 @@ func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
 	}
 }
 
+func TestProducerPartitionerCombinesAutomaticAndExplicitSelection(t *testing.T) {
+	t.Parallel()
+
+	automatic := &recordingBackupTopicPartitioner{
+		recordingTopicPartitioner: recordingTopicPartitioner{
+			partition:  2,
+			consistent: false,
+		},
+	}
+	partitioner := newPolicyPartitioner(
+		staticPartitioner{topic: automatic},
+	).ForTopic("events")
+	backup, ok := partitioner.(kgo.TopicBackupPartitioner)
+	if !ok {
+		t.Fatal("policy partitioner does not preserve backup partitioning")
+	}
+	batch, ok := partitioner.(kgo.TopicPartitionerOnNewBatch)
+	if !ok {
+		t.Fatal("policy partitioner does not preserve new-batch notification")
+	}
+
+	automaticRecord := &kgo.Record{Partition: -1}
+	if partitioner.RequiresConsistency(automaticRecord) {
+		t.Fatal("automatic record unexpectedly requires consistency")
+	}
+	if got := backup.PartitionByBackup(
+		automaticRecord,
+		4,
+		&recordingBackupIter{remaining: 4},
+	); got != 2 {
+		t.Fatalf("automatic partition = %d, want 2", got)
+	}
+	batch.OnNewBatch()
+	if automatic.backupCalls != 1 || automatic.batchCalls != 1 {
+		t.Fatalf(
+			"automatic calls = backup:%d batch:%d",
+			automatic.backupCalls,
+			automatic.batchCalls,
+		)
+	}
+
+	explicitRecord := &kgo.Record{Partition: 3}
+	if !partitioner.RequiresConsistency(explicitRecord) {
+		t.Fatal("explicit record does not require partition consistency")
+	}
+	if got := backup.PartitionByBackup(
+		explicitRecord,
+		4,
+		&recordingBackupIter{remaining: 4},
+	); got != 3 {
+		t.Fatalf("explicit partition = %d, want 3", got)
+	}
+	if automatic.backupCalls != 1 {
+		t.Fatalf("explicit selection delegated %d backup calls", automatic.backupCalls)
+	}
+	batch.OnNewBatch()
+	if automatic.batchCalls != 1 {
+		t.Fatalf("explicit selection delegated %d batch calls", automatic.batchCalls)
+	}
+}
+
+type staticPartitioner struct {
+	topic kgo.TopicPartitioner
+}
+
+func (partitioner staticPartitioner) ForTopic(string) kgo.TopicPartitioner {
+	return partitioner.topic
+}
+
+type recordingTopicPartitioner struct {
+	partition      int
+	consistent     bool
+	partitionCalls int
+}
+
+func (partitioner *recordingTopicPartitioner) RequiresConsistency(*kgo.Record) bool {
+	return partitioner.consistent
+}
+
+func (partitioner *recordingTopicPartitioner) Partition(*kgo.Record, int) int {
+	partitioner.partitionCalls++
+
+	return partitioner.partition
+}
+
+type recordingBackupTopicPartitioner struct {
+	recordingTopicPartitioner
+	backupCalls int
+	batchCalls  int
+}
+
+func (partitioner *recordingBackupTopicPartitioner) PartitionByBackup(
+	_ *kgo.Record,
+	_ int,
+	backup kgo.TopicBackupIter,
+) int {
+	partitioner.backupCalls++
+	backup.Next()
+
+	return partitioner.partition
+}
+
+func (partitioner *recordingBackupTopicPartitioner) OnNewBatch() {
+	partitioner.batchCalls++
+}
+
+type recordingBackupIter struct {
+	remaining int
+}
+
+func (iterator *recordingBackupIter) Next() (int, int64) {
+	iterator.remaining--
+
+	return iterator.remaining, 0
+}
+
+func (iterator *recordingBackupIter) Rem() int {
+	return iterator.remaining
+}
+
+func TestProducerPartitionerFallsBackToAutomaticPartition(t *testing.T) {
+	t.Parallel()
+
+	automatic := &recordingTopicPartitioner{partition: 1}
+	partitioner := newPolicyPartitioner(
+		staticPartitioner{topic: automatic},
+	).ForTopic("events")
+	backup := partitioner.(kgo.TopicBackupPartitioner)
+
+	if got := backup.PartitionByBackup(
+		&kgo.Record{Partition: -1},
+		3,
+		&recordingBackupIter{remaining: 3},
+	); got != 1 {
+		t.Fatalf("automatic partition = %d, want 1", got)
+	}
+	if automatic.partitionCalls != 1 {
+		t.Fatalf("automatic partition calls = %d, want 1", automatic.partitionCalls)
+	}
+	if got := partitioner.Partition(&kgo.Record{Partition: -1}, 3); got != 1 {
+		t.Fatalf("direct automatic partition = %d, want 1", got)
+	}
+	if got := partitioner.Partition(&kgo.Record{Partition: 2}, 3); got != 2 {
+		t.Fatalf("direct explicit partition = %d, want 2", got)
+	}
+	partitioner.(kgo.TopicPartitionerOnNewBatch).OnNewBatch()
+}
+
 func TestProducerConfigRejectsInvalidCompressionPreference(t *testing.T) {
 	t.Parallel()
 

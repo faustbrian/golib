@@ -14,14 +14,17 @@ import (
 )
 
 var (
-	ErrBrokersRequired      = errors.New("kafka: at least one broker is required")
-	ErrTooManyBrokers       = errors.New("kafka: broker count exceeds configured limit")
-	ErrInvalidBroker        = errors.New("kafka: broker address is invalid")
-	ErrDuplicateBroker      = errors.New("kafka: broker address is duplicated")
-	ErrClientIDRequired     = errors.New("kafka: client ID is required")
-	ErrClientIDTooLarge     = errors.New("kafka: client ID exceeds configured limit")
-	ErrTopicRequired        = errors.New("kafka: topic is required")
-	ErrTopicTooLarge        = errors.New("kafka: topic exceeds configured limit")
+	ErrBrokersRequired           = errors.New("kafka: at least one broker is required")
+	ErrTooManyBrokers            = errors.New("kafka: broker count exceeds configured limit")
+	ErrInvalidBroker             = errors.New("kafka: broker address is invalid")
+	ErrDuplicateBroker           = errors.New("kafka: broker address is duplicated")
+	ErrClientIDRequired          = errors.New("kafka: client ID is required")
+	ErrClientIDTooLarge          = errors.New("kafka: client ID exceeds configured limit")
+	ErrTopicRequired             = errors.New("kafka: topic is required")
+	ErrTopicTooLarge             = errors.New("kafka: topic exceeds configured limit")
+	ErrInvalidPartitionSelection = errors.New(
+		"kafka: producer partition selection is invalid",
+	)
 	ErrKeyRequired          = errors.New("kafka: record key is required by producer policy")
 	ErrKeyTooLarge          = errors.New("kafka: key exceeds configured limit")
 	ErrValueTooLarge        = errors.New("kafka: value exceeds configured limit")
@@ -211,6 +214,73 @@ type producerBackend interface {
 	Close()
 }
 
+type policyPartitioner struct {
+	automatic kgo.Partitioner
+}
+
+func newPolicyPartitioner(automatic kgo.Partitioner) kgo.Partitioner {
+	return policyPartitioner{automatic: automatic}
+}
+
+func (partitioner policyPartitioner) ForTopic(topic string) kgo.TopicPartitioner {
+	return &policyTopicPartitioner{
+		automatic: partitioner.automatic.ForTopic(topic),
+	}
+}
+
+type policyTopicPartitioner struct {
+	automatic kgo.TopicPartitioner
+	// franz-go serializes partitioner calls for one topic, so this state is
+	// owned by that topic's producer path and requires no separate lock.
+	lastAutomatic bool
+}
+
+func (partitioner *policyTopicPartitioner) RequiresConsistency(record *kgo.Record) bool {
+	if record.Partition >= 0 {
+		return true
+	}
+
+	return partitioner.automatic.RequiresConsistency(record)
+}
+
+func (partitioner *policyTopicPartitioner) Partition(record *kgo.Record, count int) int {
+	if record.Partition >= 0 {
+		partitioner.lastAutomatic = false
+
+		return int(record.Partition)
+	}
+	partitioner.lastAutomatic = true
+
+	return partitioner.automatic.Partition(record, count)
+}
+
+func (partitioner *policyTopicPartitioner) PartitionByBackup(
+	record *kgo.Record,
+	count int,
+	backup kgo.TopicBackupIter,
+) int {
+	if record.Partition >= 0 {
+		partitioner.lastAutomatic = false
+
+		return int(record.Partition)
+	}
+	partitioner.lastAutomatic = true
+	if automatic, ok := partitioner.automatic.(kgo.TopicBackupPartitioner); ok {
+		return automatic.PartitionByBackup(record, count, backup)
+	}
+
+	return partitioner.automatic.Partition(record, count)
+}
+
+func (partitioner *policyTopicPartitioner) OnNewBatch() {
+	if !partitioner.lastAutomatic {
+		return
+	}
+	if automatic, ok := partitioner.automatic.(kgo.TopicPartitionerOnNewBatch); ok {
+		automatic.OnNewBatch()
+	}
+}
+
 type producerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 
 // Producer publishes records with Kafka's idempotent producer and all in-sync
@@ -250,6 +320,9 @@ func newProducer(
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
+		kgo.RecordPartitioner(newPolicyPartitioner(
+			kgo.UniformBytesPartitioner(64<<10, true, true, nil),
+		)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.MaxBufferedRecords(config.MaxBufferedRecords),
 		kgo.MaxBufferedBytes(config.MaxBufferedBytes),
@@ -645,8 +718,14 @@ func franzRecord(record ProducerRecord) *kgo.Record {
 		headers[index] = kgo.RecordHeader{Key: header.Key, Value: header.Value}
 	}
 
+	partition := int32(-1)
+	if record.Partition.Mode == PartitionExplicit {
+		partition = record.Partition.Partition
+	}
+
 	return &kgo.Record{
 		Topic:     record.Topic,
+		Partition: partition,
 		Key:       record.Key,
 		Value:     record.Value,
 		Headers:   headers,
@@ -898,6 +977,18 @@ func (message ProducerRecord) validate(limits MessageLimits) error {
 	}
 	if len(message.Topic) > limits.MaxTopicBytes {
 		return ErrTopicTooLarge
+	}
+	switch message.Partition.Mode {
+	case PartitionAutomatic:
+		if message.Partition.Partition != 0 {
+			return ErrInvalidPartitionSelection
+		}
+	case PartitionExplicit:
+		if message.Partition.Partition < 0 {
+			return ErrInvalidPartitionSelection
+		}
+	default:
+		return ErrInvalidPartitionSelection
 	}
 	if len(message.Key) > limits.MaxKeyBytes {
 		return ErrKeyTooLarge

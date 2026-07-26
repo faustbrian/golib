@@ -59,7 +59,18 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
 	}
-	createIntegrationTopic(t, ctx, brokers, topic)
+	createIntegrationTopic(t, ctx, brokers, topic, 1)
+	explicitTopic := topic + "-explicit"
+	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
+	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic:     explicitTopic,
+		Partition: kafka.ExplicitPartition(3),
+		Key:       []byte("aggregate-explicit"),
+		Value:     []byte("explicit"),
+	})
+	if explicitResult.Err != nil || explicitResult.Partition != 3 {
+		t.Fatalf("explicit partition delivery = %#v", explicitResult)
+	}
 
 	for index, value := range []string{"first", "second", "third"} {
 		err := producer.Publish(ctx, kafka.Message{
@@ -263,6 +274,7 @@ func createIntegrationTopic(
 	ctx context.Context,
 	brokers []string,
 	topic string,
+	partitions int32,
 ) {
 	t.Helper()
 
@@ -274,7 +286,7 @@ func createIntegrationTopic(
 
 	responses, err := kadm.NewClient(client).CreateTopics(
 		ctx,
-		1,
+		partitions,
 		1,
 		nil,
 		topic,

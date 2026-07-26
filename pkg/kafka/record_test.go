@@ -157,6 +157,73 @@ func TestProducerRequiresKeysUnlessUnkeyedProductionIsExplicit(t *testing.T) {
 	}
 }
 
+func TestProducerRoutesAutomaticAndExplicitPartitionsWithoutAliasingPolicy(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	producer := &Producer{
+		client:          backend,
+		limits:          DefaultMessageLimits(),
+		keyRequired:     true,
+		maxBatchRecords: 2,
+		maxBatchBytes:   1 << 20,
+	}
+	records := []ProducerRecord{
+		{Topic: "events", Key: []byte("automatic")},
+		{
+			Topic:     "events",
+			Key:       []byte("explicit"),
+			Partition: ExplicitPartition(3),
+		},
+	}
+
+	results, err := producer.PublishBatch(context.Background(), records)
+	if err != nil {
+		t.Fatalf("PublishBatch(): %v", err)
+	}
+	if len(results) != 2 || len(backend.records) != 2 {
+		t.Fatalf("PublishBatch() results = %d, records = %d", len(results), len(backend.records))
+	}
+	if backend.records[0].Partition != -1 {
+		t.Fatalf("automatic record partition = %d, want unset", backend.records[0].Partition)
+	}
+	if backend.records[1].Partition != 3 {
+		t.Fatalf("explicit record partition = %d, want 3", backend.records[1].Partition)
+	}
+	if records[0].Partition.Mode != PartitionAutomatic ||
+		records[1].Partition.Mode != PartitionExplicit ||
+		records[1].Partition.Partition != 3 {
+		t.Fatalf("caller partition policies changed: %#v", records)
+	}
+}
+
+func TestProducerRejectsInvalidPartitionSelectionsBeforeAdmission(t *testing.T) {
+	t.Parallel()
+
+	tests := []PartitionSelection{
+		{Mode: PartitionAutomatic, Partition: 1},
+		{Mode: PartitionExplicit, Partition: -1},
+		{Mode: PartitionSelectionMode(255)},
+	}
+	for index, partition := range tests {
+		backend := &recordingProducerBackend{}
+		producer := &Producer{
+			client:      backend,
+			limits:      DefaultMessageLimits(),
+			keyRequired: true,
+		}
+		result := producer.PublishRecord(context.Background(), ProducerRecord{
+			Topic: "events", Key: []byte("key"), Partition: partition,
+		})
+		if !errors.Is(result.Err, ErrInvalidPartitionSelection) {
+			t.Fatalf("case %d error = %v", index, result.Err)
+		}
+		if len(backend.records) != 0 {
+			t.Fatalf("case %d admitted %d records", index, len(backend.records))
+		}
+	}
+}
+
 func TestProducerConfigurationBoundsBufferedBytesIndependentlyFromBatchBytes(t *testing.T) {
 	t.Parallel()
 
@@ -544,6 +611,17 @@ func TestProducerBatchAndAsyncValidateEveryRecordPolicy(t *testing.T) {
 	}
 	if delivery, err := producer.PublishAsync(context.Background(), ProducerRecord{Topic: "events"}); delivery != nil || !errors.Is(err, ErrKeyRequired) {
 		t.Fatalf("key-required PublishAsync() = %v, %v", delivery, err)
+	}
+	invalidPartition := ExplicitPartition(-1)
+	if results, err := producer.PublishBatch(context.Background(), []ProducerRecord{{
+		Topic: "events", Key: []byte("key"), Partition: invalidPartition,
+	}}); results != nil || !errors.Is(err, ErrInvalidPartitionSelection) {
+		t.Fatalf("invalid-partition PublishBatch() = %#v, %v", results, err)
+	}
+	if delivery, err := producer.PublishAsync(context.Background(), ProducerRecord{
+		Topic: "events", Key: []byte("key"), Partition: invalidPartition,
+	}); delivery != nil || !errors.Is(err, ErrInvalidPartitionSelection) {
+		t.Fatalf("invalid-partition PublishAsync() = %v, %v", delivery, err)
 	}
 
 	producer.keyRequired = false

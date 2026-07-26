@@ -2,6 +2,33 @@ package kafka
 
 import "time"
 
+// PartitionSelectionMode identifies automatic or explicit producer partition
+// selection. The zero value preserves Kafka key-based or unkeyed partitioning.
+type PartitionSelectionMode uint8
+
+const (
+	// PartitionAutomatic delegates partition selection to the producer's
+	// automatic keyed or unkeyed partitioner.
+	PartitionAutomatic PartitionSelectionMode = iota
+	// PartitionExplicit sends the record to one exact Kafka partition.
+	PartitionExplicit
+)
+
+// PartitionSelection is one immutable-by-value producer partition decision.
+// Automatic selection requires Partition to remain zero. Explicit selections
+// require a non-negative Partition and are validated before admission.
+type PartitionSelection struct {
+	Mode      PartitionSelectionMode
+	Partition int32
+}
+
+// ExplicitPartition selects one exact non-negative Kafka partition. A negative
+// value is retained so normal record validation can return a classifiable
+// error without panicking during record construction.
+func ExplicitPartition(partition int32) PartitionSelection {
+	return PartitionSelection{Mode: PartitionExplicit, Partition: partition}
+}
+
 // TimestampType identifies how Kafka assigned a record timestamp.
 type TimestampType int8
 
@@ -19,6 +46,7 @@ const (
 // copies all byte slices before retaining or passing the record to franz-go.
 type ProducerRecord struct {
 	Topic     string
+	Partition PartitionSelection
 	Key       []byte
 	Value     []byte
 	Headers   []Header

@@ -18,6 +18,11 @@ of borrowed fetch bytes for retention beyond a handler call.
 
 `ProducerConfig.KeyPolicy` defaults to `KeyRequired`; callers must select
 `UnkeyedAllowed` explicitly when unkeyed partition selection is intended.
+`ProducerRecord.Partition` defaults to automatic selection. Use
+`ExplicitPartition` for an exact non-negative partition; invalid modes and
+partition numbers fail before producer admission. An explicit partition
+overrides key-based selection but does not remove the configured key
+requirement.
 Producer admission is bounded independently by record count and total buffered
 bytes; a Kafka batch also has its own smaller byte and record limits.
 `Producer.Drain` preserves admitted records, `Abort` explicitly discards

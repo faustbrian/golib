@@ -18,6 +18,8 @@ All notable changes to this module are documented here.
   ownership, timestamp type, leader epoch, and delivery metadata
 - synchronous batch and bounded asynchronous production with ordered
   per-record delivery results and partial-failure reporting
+- explicit producer partition selection with zero-value automatic keyed or
+  unkeyed routing and pre-admission validation
 - explicit keyed-production defaults, redacted delivery error categories, and
   bounded drain, abort, and graceful shutdown operations
 - producer configuration validation without client construction for composition

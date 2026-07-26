@@ -19,7 +19,10 @@ identity for programmatic inspection.
 
 Keyed production is the default ordering policy. Unkeyed records are accepted
 only when configured explicitly; their partition is selected by the configured
-franz-go policy and no cross-partition order is implied.
+adaptive franz-go policy. A record may instead select one exact non-negative
+partition explicitly. Explicit selection overrides key hashing, fails through
+the delivery result when the partition does not exist, and does not imply
+cross-partition order.
 
 `Drain` rejects new operations while resolving admitted records. `Shutdown`
 fences new production before draining and closes only after a successful
@@ -38,7 +41,8 @@ commit before returning an error, so result counters never claim a failed commit
 was wholly persisted or wholly rejected. Side effects must be idempotent.
 
 The integration suite proves Zstandard production, same-key record order,
-successful offset commits, and redelivery after handler failure against
+explicit partition delivery, successful offset commits, and redelivery after
+handler failure against
 Confluent Local 7.5.0 using franz-go v1.21.5. The container image is pinned by
 repository digest. This compatibility fixture does not replace testing against
 an application's production broker version and configuration.
