@@ -78,6 +78,9 @@ requests preferred-replica fetching; broker topology determines the result.
 Explicit partition pauses are bounded by `MaxPausedPartitions` and persist
 until resumed. They affect future fetches, not records already buffered or
 returned in the active poll, and they do not establish assignment ownership.
+Broker-controlled assignment state is bounded by `MaxAssignedPartitions`.
+Assigned, revoked, and lost callbacks advance a package-local epoch that fences
+handler admission and settlement; it is not Kafka's broker generation ID.
 
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful

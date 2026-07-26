@@ -140,6 +140,10 @@ context or handle the error returned by `Close`.
 subscribed topic-partitions. Pausing does not retract records already buffered
 or returned by the current poll; `MaxPausedPartitions` bounds both each request
 and accumulated paused state.
+`Assignment` returns a sorted copied snapshot of current partition ownership.
+Its epoch is a package-local settlement fence rather than Kafka's protocol
+generation ID. Broker-controlled assignment metadata is fail-closed and
+bounded by `MaxAssignedPartitions`, which defaults to 1,024.
 
 New groups default to cooperative-sticky balancing. Existing eager groups must
 use `BalanceEagerToCooperative` for one complete rolling deployment before all

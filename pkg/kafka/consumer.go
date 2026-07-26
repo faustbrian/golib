@@ -45,6 +45,15 @@ var (
 	ErrDuplicatePausePartition = errors.New(
 		"kafka: pause partition is duplicated",
 	)
+	ErrTooManyAssignedPartitions = errors.New(
+		"kafka: assigned partition count exceeds configured limit",
+	)
+	ErrInvalidAssignment = errors.New(
+		"kafka: consumer assignment is invalid",
+	)
+	ErrConsumerOwnershipLost = errors.New(
+		"kafka: consumer partition ownership was lost",
+	)
 	ErrPauseTopicNotSubscribed = errors.New(
 		"kafka: pause topic is not subscribed",
 	)
@@ -93,6 +102,7 @@ type ConsumerConfig struct {
 	Limits                 MessageLimits
 	MaxPollRecords         int
 	MaxPausedPartitions    int
+	MaxAssignedPartitions  int
 	MaxConcurrentFetches   int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
@@ -129,6 +139,16 @@ type PollResult struct {
 	Committed int
 }
 
+// ConsumerAssignment is a copied snapshot of the member's current partition
+// ownership. Epoch is a package-local lifecycle fence, not Kafka's broker
+// generation ID. Lost reports that the latest lifecycle transition was a
+// fatal ownership loss.
+type ConsumerAssignment struct {
+	Epoch      uint64
+	Partitions []TopicPartition
+	Lost       bool
+}
+
 type consumerBackend interface {
 	PollRecords(context.Context, int) kgo.Fetches
 	CommitRecords(context.Context, ...*kgo.Record) error
@@ -149,6 +169,7 @@ type Consumer struct {
 	limits              MessageLimits
 	maxPollRecords      int
 	maxPausedPartitions int
+	assignment          *consumerAssignmentState
 	handlerTimeout      time.Duration
 	commitTimeout       time.Duration
 	shutdownTimeout     time.Duration
@@ -184,6 +205,10 @@ func newConsumer(
 		resetOffset = kgo.NewOffset().AtEnd()
 	}
 
+	assignment := newConsumerAssignmentState(
+		config.MaxAssignedPartitions,
+		config.Topics,
+	)
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
@@ -193,6 +218,27 @@ func newConsumer(
 		kgo.ConsumeResetOffset(resetOffset),
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
+		kgo.OnPartitionsAssigned(func(
+			_ context.Context,
+			_ *kgo.Client,
+			partitions map[string][]int32,
+		) {
+			assignment.assigned(partitions)
+		}),
+		kgo.OnPartitionsRevoked(func(
+			_ context.Context,
+			_ *kgo.Client,
+			partitions map[string][]int32,
+		) {
+			assignment.revoked(partitions)
+		}),
+		kgo.OnPartitionsLost(func(
+			_ context.Context,
+			_ *kgo.Client,
+			_ map[string][]int32,
+		) {
+			assignment.lost()
+		}),
 		kgo.Balancers(consumerGroupBalancers(config.BalancePolicy)...),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
@@ -227,6 +273,7 @@ func newConsumer(
 		limits:              config.Limits,
 		maxPollRecords:      config.MaxPollRecords,
 		maxPausedPartitions: config.MaxPausedPartitions,
+		assignment:          assignment,
 		handlerTimeout:      config.HandlerTimeout,
 		commitTimeout:       config.CommitTimeout,
 		shutdownTimeout:     config.ShutdownTimeout,
@@ -312,6 +359,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.MaxPausedPartitions == 0 {
 		config.MaxPausedPartitions = 256
 	}
+	if config.MaxAssignedPartitions == 0 {
+		config.MaxAssignedPartitions = 1_024
+	}
 	if config.MaxConcurrentFetches == 0 {
 		config.MaxConcurrentFetches = 4
 	}
@@ -349,6 +399,8 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.MaxPollRecords > 1_000 ||
 		config.MaxPausedPartitions < 1 ||
 		config.MaxPausedPartitions > 1_024 ||
+		config.MaxAssignedPartitions < 1 ||
+		config.MaxAssignedPartitions > 65_536 ||
 		config.MaxConcurrentFetches < 1 ||
 		config.MaxConcurrentFetches > 64 ||
 		config.FetchMaxBytes < 1<<20 ||
@@ -410,6 +462,10 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	if err := fetches.Err(); err != nil {
 		return PollResult{}, err
 	}
+	token, err := consumer.assignment.token()
+	if err != nil {
+		return result, err
+	}
 	if len(records) == 0 {
 		return PollResult{}, nil
 	}
@@ -420,6 +476,7 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	}
 	type partitionProgress struct {
 		lastSuccessful *kgo.Record
+		successful     int
 		failed         bool
 	}
 	progress := make(map[partitionKey]*partitionProgress)
@@ -436,6 +493,16 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 		if state.failed {
 			continue
 		}
+		if !consumer.assignment.owns(token, TopicPartition{
+			Topic: record.Topic, Partition: record.Partition,
+		}) {
+			state.failed = true
+			if handlerErr == nil {
+				handlerErr = ErrConsumerOwnershipLost
+			}
+
+			continue
+		}
 		message, err := consumedMessageWithinLimits(record, consumer.limits)
 		if err == nil {
 			handlerCtx, cancel := context.WithTimeout(ctx, consumer.handlerTimeout)
@@ -450,21 +517,40 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 
 			continue
 		}
-		state.lastSuccessful = record
 		result.Processed++
+		if !consumer.assignment.owns(token, TopicPartition{
+			Topic: record.Topic, Partition: record.Partition,
+		}) {
+			state.failed = true
+			state.lastSuccessful = nil
+			state.successful = 0
+			if handlerErr == nil {
+				handlerErr = ErrConsumerOwnershipLost
+			}
+
+			continue
+		}
+		state.lastSuccessful = record
+		state.successful++
 	}
 
 	committable := make([]*kgo.Record, 0, len(partitionOrder))
+	committed := 0
+	if ownershipErr := consumer.assignment.validate(token); ownershipErr != nil {
+		return result, errors.Join(handlerErr, ownershipErr)
+	}
 	for _, key := range partitionOrder {
-		if record := progress[key].lastSuccessful; record != nil {
+		state := progress[key]
+		if record := state.lastSuccessful; record != nil {
 			committable = append(committable, record)
+			committed += state.successful
 		}
 	}
 	if len(committable) == 0 {
 		return result, handlerErr
 	}
 	commitCtx, cancel := context.WithTimeout(ctx, consumer.commitTimeout)
-	err := consumer.client.CommitRecords(commitCtx, committable...)
+	err = consumer.client.CommitRecords(commitCtx, committable...)
 	cancel()
 	if err != nil {
 		if handlerErr == nil {
@@ -473,9 +559,29 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 
 		return result, errors.Join(handlerErr, err)
 	}
-	result.Committed = result.Processed
+	result.Committed = committed
 
 	return result, handlerErr
+}
+
+// Assignment returns a sorted, copied snapshot of current assignment state.
+// Its package-local epoch changes at every assign, revoke, or loss callback.
+// Invalid or oversized broker-controlled callback metadata fails closed and is
+// returned until the member loses its assignment and rejoins.
+func (consumer *Consumer) Assignment() (ConsumerAssignment, error) {
+	return consumer.assignment.snapshot()
+}
+
+func (consumer *Consumer) onPartitionsAssigned(partitions map[string][]int32) {
+	consumer.assignment.assigned(partitions)
+}
+
+func (consumer *Consumer) onPartitionsRevoked(partitions map[string][]int32) {
+	consumer.assignment.revoked(partitions)
+}
+
+func (consumer *Consumer) onPartitionsLost(map[string][]int32) {
+	consumer.assignment.lost()
 }
 
 // Run continuously executes bounded poll cycles until cancellation or the

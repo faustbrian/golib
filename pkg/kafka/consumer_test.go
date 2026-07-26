@@ -41,6 +41,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 
 	if config.MaxPollRecords != 100 ||
 		config.MaxPausedPartitions != 256 ||
+		config.MaxAssignedPartitions != 1_024 ||
 		config.Limits != DefaultMessageLimits() ||
 		config.BalancePolicy != BalanceCooperativeSticky ||
 		config.MaxConcurrentFetches != 4 ||
@@ -138,11 +139,271 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	if got := franzClient.OptValue(kgo.Rack); got != "eu-west-1a" {
 		t.Fatalf("Rack option = %#v", got)
 	}
+	onAssigned, ok := franzClient.OptValue(kgo.OnPartitionsAssigned).(func(
+		context.Context, *kgo.Client, map[string][]int32,
+	))
+	if !ok {
+		t.Fatal("OnPartitionsAssigned option is not configured")
+	}
+	onRevoked, ok := franzClient.OptValue(kgo.OnPartitionsRevoked).(func(
+		context.Context, *kgo.Client, map[string][]int32,
+	))
+	if !ok {
+		t.Fatal("OnPartitionsRevoked option is not configured")
+	}
+	onLost, ok := franzClient.OptValue(kgo.OnPartitionsLost).(func(
+		context.Context, *kgo.Client, map[string][]int32,
+	))
+	if !ok {
+		t.Fatal("OnPartitionsLost option is not configured")
+	}
+	onAssigned(context.Background(), franzClient, map[string][]int32{
+		"track.tracking-event.v1": {0},
+	})
+	onRevoked(context.Background(), franzClient, map[string][]int32{})
+	onLost(context.Background(), franzClient, map[string][]int32{
+		"track.tracking-event.v1": {0},
+	})
+	if assignment, assignmentErr := consumer.Assignment(); assignmentErr != nil ||
+		assignment.Epoch != 3 || !assignment.Lost {
+		t.Fatalf("callback assignment = %#v, %v", assignment, assignmentErr)
+	}
 	balancers, ok := franzClient.OptValue(kgo.Balancers).([]kgo.GroupBalancer)
 	if !ok || len(balancers) != 2 ||
 		balancers[0].ProtocolName() != "sticky" ||
 		balancers[1].ProtocolName() != "cooperative-sticky" {
 		t.Fatalf("Balancers option = %#v", balancers)
+	}
+}
+
+func TestConsumerTracksAssignmentLifecycle(t *testing.T) {
+	t.Parallel()
+
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{}, 10, time.Second, time.Second,
+	)
+	assigned := map[string][]int32{"events": {2, 0}}
+	consumer.onPartitionsAssigned(assigned)
+	assigned["events"][0] = 99
+
+	if got, err := consumer.Assignment(); err != nil || !reflect.DeepEqual(got, ConsumerAssignment{
+		Epoch: 1,
+		Partitions: []TopicPartition{
+			{Topic: "events", Partition: 0},
+			{Topic: "events", Partition: 2},
+		},
+	}) {
+		t.Fatalf("Assignment() after assign = %#v, %v", got, err)
+	}
+	snapshot, err := consumer.Assignment()
+	if err != nil {
+		t.Fatalf("Assignment() snapshot error = %v", err)
+	}
+	snapshot.Partitions[0].Partition = 99
+	if got, assignmentErr := consumer.Assignment(); assignmentErr != nil ||
+		got.Partitions[0].Partition != 0 {
+		t.Fatalf("Assignment() retained caller mutation: %#v, %v", got, assignmentErr)
+	}
+
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {1}})
+	consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
+	if got, err := consumer.Assignment(); err != nil || !reflect.DeepEqual(got, ConsumerAssignment{
+		Epoch: 3,
+		Partitions: []TopicPartition{
+			{Topic: "events", Partition: 1},
+			{Topic: "events", Partition: 2},
+		},
+	}) {
+		t.Fatalf("Assignment() after cooperative rebalance = %#v, %v", got, err)
+	}
+
+	consumer.onPartitionsRevoked(map[string][]int32{})
+	consumer.onPartitionsLost(map[string][]int32{"events": {1, 2}})
+	if got, err := consumer.Assignment(); err != nil || !reflect.DeepEqual(got, ConsumerAssignment{
+		Epoch: 5,
+		Lost:  true,
+	}) {
+		t.Fatalf("Assignment() after loss = %#v, %v", got, err)
+	}
+
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {3}})
+	if got, err := consumer.Assignment(); err != nil || !reflect.DeepEqual(got, ConsumerAssignment{
+		Epoch:      6,
+		Partitions: []TopicPartition{{Topic: "events", Partition: 3}},
+	}) {
+		t.Fatalf("Assignment() after recovery = %#v, %v", got, err)
+	}
+}
+
+func TestConsumerRejectsInvalidOrOversizedAssignments(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		maximum    int
+		assignment map[string][]int32
+		want       error
+	}{
+		"oversized": {
+			maximum:    1,
+			assignment: map[string][]int32{"events": {0, 1}},
+			want:       ErrTooManyAssignedPartitions,
+		},
+		"unsubscribed topic": {
+			maximum:    2,
+			assignment: map[string][]int32{"commands": {0}},
+			want:       ErrInvalidAssignment,
+		},
+		"negative partition": {
+			maximum:    2,
+			assignment: map[string][]int32{"events": {-1}},
+			want:       ErrInvalidAssignment,
+		},
+		"duplicate partition": {
+			maximum:    2,
+			assignment: map[string][]int32{"events": {0, 0}},
+			want:       ErrInvalidAssignment,
+		},
+	} {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			consumer := consumerWithBackend(
+				&recordingConsumerBackend{}, 10, time.Second, time.Second,
+			)
+			consumer.assignment.maximum = test.maximum
+			consumer.onPartitionsAssigned(test.assignment)
+			if _, err := consumer.Assignment(); !errors.Is(err, test.want) {
+				t.Fatalf("Assignment() error = %v, want %v", err, test.want)
+			}
+			if _, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+				context.Context,
+				ConsumedMessage,
+			) error {
+				t.Fatal("handler called for a rejected assignment")
+
+				return nil
+			})); !errors.Is(err, test.want) {
+				t.Fatalf("RunOnce() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestConsumerAssignmentErrorsRemainFailClosedUntilLoss(t *testing.T) {
+	t.Parallel()
+
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{}, 10, time.Second, time.Second,
+	)
+	consumer.assignment.maximum = 1
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0, 1}})
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0}})
+	consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
+	if _, err := consumer.Assignment(); !errors.Is(err, ErrTooManyAssignedPartitions) {
+		t.Fatalf("Assignment() persistent error = %v", err)
+	}
+
+	consumer.onPartitionsLost(nil)
+	if assignment, err := consumer.Assignment(); err != nil || !assignment.Lost {
+		t.Fatalf("Assignment() after loss = %#v, %v", assignment, err)
+	}
+}
+
+func TestConsumerRejectsInvalidRevocationAndAccumulatedAssignment(t *testing.T) {
+	t.Parallel()
+
+	invalidRevocation := consumerWithBackend(
+		&recordingConsumerBackend{}, 10, time.Second, time.Second,
+	)
+	invalidRevocation.onPartitionsAssigned(map[string][]int32{"events": {0}})
+	invalidRevocation.onPartitionsRevoked(map[string][]int32{"commands": {0}})
+	if _, err := invalidRevocation.Assignment(); !errors.Is(err, ErrInvalidAssignment) {
+		t.Fatalf("Assignment() invalid revocation error = %v", err)
+	}
+
+	accumulated := consumerWithBackend(
+		&recordingConsumerBackend{}, 10, time.Second, time.Second,
+	)
+	accumulated.assignment.maximum = 1
+	accumulated.onPartitionsAssigned(map[string][]int32{"events": {0}})
+	accumulated.onPartitionsAssigned(map[string][]int32{"events": {1}})
+	if _, err := accumulated.Assignment(); !errors.Is(err, ErrTooManyAssignedPartitions) {
+		t.Fatalf("Assignment() accumulated error = %v", err)
+	}
+}
+
+func TestConsumerAssignmentSortsTopicsAndPartitions(t *testing.T) {
+	t.Parallel()
+
+	state := newConsumerAssignmentState(3, []string{"z-events", "a-events"})
+	state.assigned(map[string][]int32{
+		"z-events": {0},
+		"a-events": {2, 1},
+	})
+	assignment, err := state.snapshot()
+	if err != nil || !reflect.DeepEqual(assignment.Partitions, []TopicPartition{
+		{Topic: "a-events", Partition: 1},
+		{Topic: "a-events", Partition: 2},
+		{Topic: "z-events", Partition: 0},
+	}) {
+		t.Fatalf("snapshot() = %#v, %v", assignment, err)
+	}
+}
+
+func TestConsumerFencesSettlementAfterAssignmentEpochChanges(t *testing.T) {
+	t.Parallel()
+
+	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	second := &kgo.Record{Topic: "events", Partition: 1, Offset: 2}
+	backend := &recordingConsumerBackend{fetches: recordFetches(first, second)}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0, 1}})
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		_ context.Context,
+		message ConsumedMessage,
+	) error {
+		if message.Partition == 0 {
+			consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
+		}
+
+		return nil
+	}))
+
+	if !errors.Is(err, ErrConsumerOwnershipLost) {
+		t.Fatalf("RunOnce() error = %v, want %v", err, ErrConsumerOwnershipLost)
+	}
+	if result != (PollResult{Polled: 2, Processed: 1}) || len(backend.committed) != 0 {
+		t.Fatalf("result/backend = %#v/%#v", result, backend)
+	}
+}
+
+func TestConsumerRejectsFetchedRecordWithoutCurrentOwnership(t *testing.T) {
+	t.Parallel()
+
+	record := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0}})
+	backend.poll = func(context.Context, int) kgo.Fetches {
+		consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
+
+		return recordFetches(record)
+	}
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("handler called without current partition ownership")
+
+		return nil
+	}))
+	if !errors.Is(err, ErrConsumerOwnershipLost) ||
+		result != (PollResult{Polled: 1}) ||
+		len(backend.committed) != 0 {
+		t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
 }
 
@@ -377,6 +638,8 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "excessive poll records", change: func(config *ConsumerConfig) { config.MaxPollRecords = 1_001 }},
 		{name: "negative paused partitions", change: func(config *ConsumerConfig) { config.MaxPausedPartitions = -1 }},
 		{name: "excessive paused partitions", change: func(config *ConsumerConfig) { config.MaxPausedPartitions = 1_025 }},
+		{name: "negative assigned partitions", change: func(config *ConsumerConfig) { config.MaxAssignedPartitions = -1 }},
+		{name: "excessive assigned partitions", change: func(config *ConsumerConfig) { config.MaxAssignedPartitions = 65_537 }},
 		{name: "negative concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = -1 }},
 		{name: "excessive concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = 65 }},
 		{name: "negative fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = -1 }},
@@ -1182,9 +1445,13 @@ func consumerWithBackend(
 	commitTimeout time.Duration,
 ) *Consumer {
 	return &Consumer{
-		client:              backend,
-		limits:              DefaultMessageLimits(),
-		maxPollRecords:      maxPollRecords,
+		client:         backend,
+		limits:         DefaultMessageLimits(),
+		maxPollRecords: maxPollRecords,
+		assignment: newConsumerAssignmentState(
+			1_024,
+			[]string{"events"},
+		),
 		handlerTimeout:      handlerTimeout,
 		commitTimeout:       commitTimeout,
 		shutdownTimeout:     time.Second,

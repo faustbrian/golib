@@ -88,6 +88,11 @@ configured `ConsumerConfig.ShutdownTimeout` and returns its shutdown error.
 `Consumer.PausePartitions` and `ResumePartitions` accept owned
 `TopicPartition` values only for configured subscriptions. Each request and
 the accumulated pause set are bounded by `MaxPausedPartitions`.
+`Consumer.Assignment` returns a sorted copy of currently tracked partitions
+plus a package-local assignment epoch. The epoch is a settlement fence and
+diagnostic sequence, not Kafka's broker generation ID. Assignment callback
+metadata is bounded by `MaxAssignedPartitions`; invalid or oversized metadata
+fails closed before another handler is invoked.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

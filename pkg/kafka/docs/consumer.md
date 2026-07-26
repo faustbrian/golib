@@ -5,6 +5,29 @@ consumer group, subscribes to explicit topics, disables automatic commits, and
 blocks franz-go rebalances while one bounded poll is handled and settled. It is
 not a queue-style worker with nack or visibility-timeout semantics.
 
+## Assignment ownership
+
+The consumer installs fast internal assigned, revoked, and lost callbacks.
+Cooperative assignments merge newly added partitions, revocations remove only
+the partitions Kafka reports, and a fatal loss clears all ownership. Every
+callback advances a package-local assignment epoch, including empty lifecycle
+callbacks. That epoch is a local settlement fence and diagnostic sequence; it
+is not Kafka's broker generation or member ID.
+
+`Assignment` returns a sorted copied snapshot and any fail-closed assignment
+validation error. `MaxAssignedPartitions` defaults to 1,024 and is configurable
+from 1 through 65,536. Unsubscribed topics, negative or duplicate partitions,
+and assignment growth beyond the limit clear tracked ownership and stop the
+runner before another handler. A fatal loss followed by a new assignment is
+the recovery boundary.
+
+`BlockRebalanceOnPoll` serializes these callbacks with the active bounded poll.
+The runner additionally verifies the same local epoch before handling and
+before committing. If ownership changes across that boundary, it returns
+`ErrConsumerOwnershipLost` and does not submit stale offsets. Broker generation
+loss during a commit can still surface as a commit error with an ambiguous
+per-partition outcome and can cause redelivery.
+
 ## Configuration
 
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest
@@ -63,11 +86,12 @@ See [KIP-392](https://cwiki.apache.org/confluence/display/KAFKA/KIP-392%3A%20All
 
 ## Processing, settlement, and redelivery
 
-Records remain sequential within a partition. A handler success is required
-before settlement. At the first failure in one partition, later records from
-that partition in the current poll are skipped. Its successful prefix and
-successful independent partitions are committed together. A failed commit has
-an ambiguous per-partition broker outcome, leaves `PollResult.Committed` at
+Records remain sequential within a partition. A handler success and unchanged
+assignment ownership are required before settlement. At the first failure in
+one partition, later records from that partition in the current poll are
+skipped. Its successful prefix and successful independent partitions are
+committed together. A failed commit has an ambiguous per-partition broker
+outcome, leaves `PollResult.Committed` at
 zero, and may redeliver records whose side effects already completed.
 
 A fetched record outside `Limits` follows the same partition-local failure
@@ -93,9 +117,10 @@ and accumulated pause count are validated before changing backend state.
 Pausing does not cancel a handler, retract records returned by the current
 poll, or discard records already buffered by franz-go. Pauses persist across
 rebalances until resumed, but a `TopicPartition` does not prove assignment or
-generation ownership. `PausedPartitions` returns a sorted copied snapshot and
-remains diagnostic after close. Pause and resume reject calls once shutdown
-begins.
+generation ownership. Use `Assignment` for a bounded diagnostic snapshot, not
+as authority for an external commit. `PausedPartitions` returns a sorted copied
+snapshot and remains diagnostic after close. Pause and resume reject calls once
+shutdown begins.
 
 ## Runner and shutdown lifecycle
 
@@ -123,8 +148,9 @@ application side effect may already have occurred.
 
 ## Ownership boundaries
 
-Kafka owns the group generation, assignments, offsets, retention, and broker
-acknowledgements. franz-go implements the group protocol and heartbeats. This
-package owns configuration, bounded polling, handler invocation, contiguous
-settlement, and the exposed lifecycle policy. The application owns durable side
-effects, idempotency, poison-record decisions, and deployment-specific IDs.
+Kafka owns the broker group generation, assignments, offsets, retention, and
+broker acknowledgements. franz-go implements the group protocol and heartbeats.
+This package owns configuration, bounded assignment tracking and local epochs,
+polling, handler invocation, contiguous settlement, and the exposed lifecycle
+policy. The application owns durable side effects, idempotency, poison-record
+decisions, and deployment-specific IDs.
