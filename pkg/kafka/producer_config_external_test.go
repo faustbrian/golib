@@ -16,8 +16,9 @@ func TestProducerConfigValidate(t *testing.T) {
 	}{
 		"valid": {
 			config: kafka.ProducerConfig{
-				Brokers:  []string{"kafka.internal:9093"},
-				ClientID: "track",
+				Brokers:       []string{"kafka.internal:9093"},
+				ClientID:      "track",
+				AllowedTopics: []string{"events"},
 			},
 		},
 		"missing broker": {

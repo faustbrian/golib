@@ -26,8 +26,9 @@ a client or dialing brokers:
 
 ```go
 config := kafka.ProducerConfig{
-    Brokers:  []string{"kafka.internal:9093"},
-    ClientID: "track-outbox",
+    Brokers:       []string{"kafka.internal:9093"},
+    ClientID:      "track-outbox",
+    AllowedTopics: []string{"track.tracking-event.v1"},
 }
 if err := config.Validate(); err != nil {
     return err
@@ -38,6 +39,7 @@ if err := config.Validate(); err != nil {
 producer, err := kafka.NewProducer(kafka.ProducerConfig{
     Brokers:               []string{"kafka.internal:9093"},
     ClientID:              "track-outbox",
+    AllowedTopics:         []string{"track.tracking-event.v1"},
     Security:              kafka.ClientSecurity{}, // TLS 1.2+, system roots
     CompressionPreferences: []kafka.CompressionCodec{
         kafka.CompressionZstd,
@@ -69,6 +71,10 @@ longer selects the partition.
 All producer, consumer, replay, and inspection topic names must follow Kafka's
 broker rules: 1 to 249 ASCII bytes using alphanumerics, `.`, `_`, or `-`, with
 `.` and `..` rejected.
+`ProducerConfig.AllowedTopics` is a required, constructor-copied allowlist of at
+most 64 topics. Records outside it fail before franz-go admission. Services
+with dynamic routing must build and review the bounded allowlist before client
+construction; unrestricted production is not a zero-value fallback.
 Compression preferences are ordered and copied during construction. The
 default is Snappy with an uncompressed fallback. `CompressionNone` is valid
 only as the final preference; use it alone to disable compression. Confirm

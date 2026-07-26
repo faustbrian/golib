@@ -12,9 +12,9 @@ import (
 var (
 	ErrGroupIDRequired       = errors.New("kafka: consumer group ID is required")
 	ErrGroupIDTooLarge       = errors.New("kafka: consumer group ID exceeds configured limit")
-	ErrTopicsRequired        = errors.New("kafka: at least one consumer topic is required")
-	ErrTooManyTopics         = errors.New("kafka: consumer topic count exceeds configured limit")
-	ErrDuplicateTopic        = errors.New("kafka: consumer topic is duplicated")
+	ErrTopicsRequired        = errors.New("kafka: at least one topic is required")
+	ErrTooManyTopics         = errors.New("kafka: topic count exceeds configured limit")
+	ErrDuplicateTopic        = errors.New("kafka: topic is duplicated")
 	ErrInvalidOffsetPolicy   = errors.New("kafka: consumer offset policy is invalid")
 	ErrHandlerRequired       = errors.New("kafka: consumer handler is required")
 	ErrHandlerPanic          = errors.New("kafka: consumer handler panicked")

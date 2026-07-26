@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -18,8 +19,9 @@ func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
 	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "track",
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: []string{"events"},
 	})
 	if err != nil {
 		t.Fatalf("normalize default config: %v", err)
@@ -43,6 +45,7 @@ func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
 	config, err = normalizeProducerConfig(ProducerConfig{
 		Brokers:                []string{"broker.internal:9092"},
 		ClientID:               "track",
+		AllowedTopics:          []string{"events"},
 		CompressionPreferences: preferences,
 	})
 	if err != nil {
@@ -73,6 +76,68 @@ func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("franz compression = %#v, want %#v", got, want)
+	}
+}
+
+func TestProducerConfigRequiresAndOwnsTopicAllowlist(t *testing.T) {
+	t.Parallel()
+
+	if _, err := normalizeProducerConfig(ProducerConfig{
+		Brokers:  []string{"broker.internal:9092"},
+		ClientID: "track",
+	}); !errors.Is(err, ErrTopicsRequired) {
+		t.Fatalf("missing allowlist error = %v, want %v", err, ErrTopicsRequired)
+	}
+
+	allowed := []string{"events", "commands"}
+	config, err := normalizeProducerConfig(ProducerConfig{
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: allowed,
+	})
+	if err != nil {
+		t.Fatalf("normalizeProducerConfig() error = %v", err)
+	}
+	allowed[0] = "mutated"
+	if !reflect.DeepEqual(config.AllowedTopics, []string{"events", "commands"}) {
+		t.Fatalf("owned allowlist = %#v", config.AllowedTopics)
+	}
+	limits := DefaultMessageLimits()
+	limits.MaxTopicBytes = 5
+	if _, err := normalizeProducerConfig(ProducerConfig{
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: []string{"events"},
+		Limits:        limits,
+	}); !errors.Is(err, ErrInvalidTopic) {
+		t.Fatalf("topic above message limit error = %v, want %v", err, ErrInvalidTopic)
+	}
+
+	for name, test := range map[string]struct {
+		topics []string
+		want   error
+	}{
+		"too many":  {topics: make([]string, 65), want: ErrTooManyTopics},
+		"invalid":   {topics: []string{"events/commands"}, want: ErrInvalidTopic},
+		"duplicate": {topics: []string{"events", "events"}, want: ErrDuplicateTopic},
+	} {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			for index := range test.topics {
+				if test.topics[index] == "" {
+					test.topics[index] = "topic-" + strconv.Itoa(index)
+				}
+			}
+			_, err := normalizeProducerConfig(ProducerConfig{
+				Brokers:       []string{"broker.internal:9092"},
+				ClientID:      "track",
+				AllowedTopics: test.topics,
+			})
+			if !errors.Is(err, test.want) {
+				t.Fatalf("normalizeProducerConfig() error = %v", err)
+			}
+		})
 	}
 }
 
@@ -408,8 +473,9 @@ func TestNewProducerUsesBoundedMessageDefaults(t *testing.T) {
 	t.Parallel()
 
 	producer, err := NewProducer(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "track",
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: []string{"events"},
 	})
 	if err != nil {
 		t.Fatalf("NewProducer() error = %v", err)
@@ -429,8 +495,9 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "track",
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: []string{"events"},
 	})
 	if err != nil {
 		t.Fatalf("normalizeProducerConfig() error = %v", err)
@@ -464,6 +531,7 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	transactionalConfig, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:         []string{"broker.internal:9092"},
 		ClientID:        "track",
+		AllowedTopics:   []string{"events"},
 		TransactionalID: "track-outbox-0",
 	})
 	if err != nil {
@@ -480,9 +548,10 @@ func TestProducerConfigNormalizesSecureTransport(t *testing.T) {
 
 	sourceTLS := &tls.Config{}
 	config, err := normalizeProducerConfig(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "track",
-		Security: ClientSecurity{TLS: sourceTLS},
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "track",
+		AllowedTopics: []string{"events"},
+		Security:      ClientSecurity{TLS: sourceTLS},
 	})
 	if err != nil {
 		t.Fatalf("normalizeProducerConfig() error = %v", err)
@@ -726,6 +795,7 @@ func TestNewProducerPreservesClientConstructionFailure(t *testing.T) {
 		ProducerConfig{
 			Brokers:         []string{"broker.internal:9092"},
 			ClientID:        "track",
+			AllowedTopics:   []string{"events"},
 			TransactionalID: "track-outbox-0",
 		},
 		func(...kgo.Opt) (*kgo.Client, error) {
@@ -747,8 +817,9 @@ func TestNewProducerStopsAfterDetectedDataLoss(t *testing.T) {
 	var franzClient *kgo.Client
 	producer, err := newProducer(
 		ProducerConfig{
-			Brokers:  []string{"broker.internal:9092"},
-			ClientID: "track",
+			Brokers:       []string{"broker.internal:9092"},
+			ClientID:      "track",
+			AllowedTopics: []string{"events"},
 		},
 		func(options ...kgo.Opt) (*kgo.Client, error) {
 			client, clientErr := kgo.NewClient(options...)

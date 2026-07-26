@@ -46,9 +46,11 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		t.Fatalf("resolve Kafka brokers: %v", err)
 	}
 	topic := fmt.Sprintf("golib-compatibility-%d", time.Now().UnixNano())
+	explicitTopic := topic + "-explicit"
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:                brokers,
 		ClientID:               "golib-compatibility-producer",
+		AllowedTopics:          []string{topic, explicitTopic},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
 	})
@@ -64,7 +66,6 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		t.Fatalf("check Kafka health: %v", err)
 	}
 	createIntegrationTopic(t, ctx, brokers, topic, 1)
-	explicitTopic := topic + "-explicit"
 	createIntegrationTopic(t, ctx, brokers, explicitTopic, 4)
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,

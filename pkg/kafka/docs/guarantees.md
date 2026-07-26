@@ -17,6 +17,10 @@ idempotent producer; the eventual result remains authoritative. Delivery
 errors use stable, redacted operational categories while preserving error
 identity for programmatic inspection.
 
+Construction copies a required bounded topic allowlist. Every publish mode,
+including transaction callbacks, rejects records outside that immutable set
+before franz-go admission.
+
 A delivery timeout or exhausted franz-go retry budget is classified by the
 condition that ended the attempt; neither classification automatically retries
 the application operation. With the required idempotent producer, franz-go

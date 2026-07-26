@@ -119,8 +119,9 @@ func TestProducerRequiresKeysUnlessUnkeyedProductionIsExplicit(t *testing.T) {
 	t.Parallel()
 
 	defaultConfig, err := normalizeProducerConfig(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "producer",
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "producer",
+		AllowedTopics: []string{"events"},
 	})
 	if err != nil {
 		t.Fatalf("normalize default producer: %v", err)
@@ -224,12 +225,60 @@ func TestProducerRejectsInvalidPartitionSelectionsBeforeAdmission(t *testing.T) 
 	}
 }
 
+func TestProducerRejectsTopicsOutsideConfiguredAllowlist(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	producer := &Producer{
+		client:          backend,
+		limits:          DefaultMessageLimits(),
+		allowedTopics:   map[string]struct{}{"events": {}},
+		maxBatchRecords: 2,
+		maxBatchBytes:   1 << 20,
+	}
+	denied := ProducerRecord{Topic: "commands"}
+
+	if result := producer.PublishRecord(context.Background(), denied); !errors.Is(result.Err, ErrTopicNotAllowed) {
+		t.Fatalf("PublishRecord() error = %v", result.Err)
+	}
+	if results, err := producer.PublishBatch(context.Background(), []ProducerRecord{denied}); results != nil || !errors.Is(err, ErrTopicNotAllowed) {
+		t.Fatalf("PublishBatch() results/error = %#v/%v", results, err)
+	}
+	if delivery, err := producer.PublishAsync(context.Background(), denied); delivery != nil || !errors.Is(err, ErrTopicNotAllowed) {
+		t.Fatalf("PublishAsync() delivery/error = %#v/%v", delivery, err)
+	}
+	if len(backend.records) != 0 {
+		t.Fatalf("denied topics admitted %d records", len(backend.records))
+	}
+}
+
+func TestTransactionRejectsTopicOutsideConfiguredAllowlist(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	producer := transactionalProducer(backend)
+	producer.allowedTopics = map[string]struct{}{"events": {}}
+
+	err := producer.RunTransaction(context.Background(), func(transaction Transaction) error {
+		return transaction.Publish(context.Background(), Message{Topic: "commands"})
+	})
+
+	if !errors.Is(err, ErrTopicNotAllowed) {
+		t.Fatalf("RunTransaction() error = %v, want %v", err, ErrTopicNotAllowed)
+	}
+	if len(backend.records) != 0 || backend.aborts != 1 ||
+		len(backend.endTries) != 1 || backend.endTries[0] != kgo.TryAbort {
+		t.Fatalf("transaction backend = %#v", backend)
+	}
+}
+
 func TestProducerConfigurationBoundsBufferedBytesIndependentlyFromBatchBytes(t *testing.T) {
 	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
-		Brokers:  []string{"broker.internal:9092"},
-		ClientID: "producer",
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "producer",
+		AllowedTopics: []string{"events"},
 	})
 	if err != nil {
 		t.Fatalf("normalize default producer: %v", err)

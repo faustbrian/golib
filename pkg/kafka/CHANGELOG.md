@@ -42,6 +42,11 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- `ProducerConfig.AllowedTopics` is now required, limited to 64 unique valid
+  Kafka topic names, and copied during construction; production outside that
+  allowlist fails with `ErrTopicNotAllowed` before franz-go admission
+- shared topic configuration errors now apply to producer and consumer policy;
+  their diagnostic text no longer says consumer when producer validation fails
 - producer, consumer, replay, and topic inspection now reject names Kafka
   brokers reject: empty, `.` or `..`, over 249 bytes, or characters outside
   ASCII alphanumerics plus `.`, `_`, and `-`

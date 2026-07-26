@@ -8,6 +8,10 @@ Topic names are validated consistently at every producer, consumer, replay,
 and inspection boundary against Kafka's broker naming rules: 1 to 249 ASCII
 bytes containing only alphanumerics, `.`, `_`, or `-`, excluding `.` and `..`.
 Invalid names fail before client admission or a broker request.
+Producer construction additionally requires 1 to 64 unique
+`ProducerConfig.AllowedTopics`. The constructor copies the slice, and every
+single, batch, asynchronous, and transactional publish rejects a topic outside
+the resulting immutable allowlist with `ErrTopicNotAllowed`.
 
 Use `ProducerConfig.Validate` when a composition root must validate producer
 policy before constructing a client. It applies the same validation and

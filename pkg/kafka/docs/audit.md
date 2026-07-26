@@ -9,7 +9,7 @@ the current tree on 2026-07-26, not intended behavior.
 
 | Area | Current executable behavior | Required disposition |
 | --- | --- | --- |
-| Configuration | Separate producer, consumer, replay, and inspector structs validate some identities, durations, byte limits, and Kafka broker-compatible topic names. Security configuration owns explicit transport/authentication policy, redacted formatting, and defensive copies. | Add allowlists/resolvers, protocol version policy, and complete incompatible-option validation across every concern. |
+| Configuration | Separate producer, consumer, replay, and inspector structs validate some identities, durations, byte limits, and Kafka broker-compatible topic names. Producers require a copied bounded topic allowlist; consumers, replay, and inspectors have explicit topic or group target sets. Security configuration owns explicit transport/authentication policy, redacted formatting, and defensive copies. | Add optional reviewed resolver policies, protocol version policy, and complete incompatible-option validation across every concern. |
 | Records | Stable producer and consumed-record models expose explicit automatic or exact partition selection, timestamp type, and leader epoch, copy producer input, and provide `Retain` for borrowed consumed bytes. | Bound diagnostic copies separately from transport limits. |
 | Producer | Synchronous single, synchronous batch, and bounded asynchronous methods return per-record delivery metadata. Keyed production is the safe default; exact partitions require an explicit record policy; detected idempotent-producer data loss stops the producer; delivery errors include redacted fatal and ambiguous classifications; drain, abort, shutdown, and error-returning bounded close preserve preexisting admissions. | Add byte-level client buffering, broker-throttling metadata, observer callbacks, and real-broker failure and shutdown evidence. |
 | Transactions | A producer callback can begin, synchronously produce, commit, or abort. Calls are serialized and callback lifetime is fenced. | Add typed fatal, abortable, fenced, and unknown outcomes; source offsets; read-committed consume-transform-produce; explicit ownership; bounded close; and real fencing/recovery evidence. |
@@ -57,7 +57,7 @@ The following local evidence was executed on Darwin arm64 with Go 1.26.5:
 
 This baseline proves only the behavior already present in the draft.
 
-The current tree subsequently killed all 894 viable mutants with 100% test
+The current tree subsequently killed all 898 viable mutants with 100% test
 efficacy and mutator coverage. That result proves the deterministic package
 assertions detect the generated mutations; it does not substitute for the
 secured-broker and compatibility evidence still listed above.

@@ -58,6 +58,7 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:                brokers,
 		ClientID:               "event-sourcing-compatibility-producer",
+		AllowedTopics:          []string{topic, deadLetterTopic},
 		Limits:                 gokafka.DefaultRecordLimits(),
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),

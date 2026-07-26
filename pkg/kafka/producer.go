@@ -23,6 +23,7 @@ var (
 	ErrTopicRequired             = errors.New("kafka: topic is required")
 	ErrTopicTooLarge             = errors.New("kafka: topic exceeds configured limit")
 	ErrInvalidTopic              = errors.New("kafka: topic name is invalid")
+	ErrTopicNotAllowed           = errors.New("kafka: topic is outside producer allowlist")
 	ErrInvalidPartitionSelection = errors.New(
 		"kafka: producer partition selection is invalid",
 	)
@@ -108,10 +109,13 @@ func (codec CompressionCodec) String() string {
 	}
 }
 
-// ProducerConfig defines the Kafka seed brokers and client identity.
+// ProducerConfig defines bounded Kafka producer identity, routing, delivery,
+// lifecycle, and security policy. AllowedTopics is required and copied during
+// construction.
 type ProducerConfig struct {
 	Brokers                []string
 	ClientID               string
+	AllowedTopics          []string
 	KeyPolicy              KeyPolicy
 	Limits                 MessageLimits
 	MaxBufferedRecords     int
@@ -296,6 +300,7 @@ type Producer struct {
 	transactionsEnabled   bool
 	transactionEndTimeout time.Duration
 	shutdownTimeout       time.Duration
+	allowedTopics         map[string]struct{}
 	stateMu               sync.Mutex
 	closed                bool
 	transactionActive     bool
@@ -355,6 +360,11 @@ func newProducer(
 		return nil, err
 	}
 
+	allowedTopics := make(map[string]struct{}, len(config.AllowedTopics))
+	for _, topic := range config.AllowedTopics {
+		allowedTopics[topic] = struct{}{}
+	}
+
 	return &Producer{
 		client:                client,
 		limits:                config.Limits,
@@ -364,6 +374,7 @@ func newProducer(
 		transactionsEnabled:   config.TransactionalID != "",
 		transactionEndTimeout: config.TransactionEndTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
+		allowedTopics:         allowedTopics,
 	}, nil
 }
 
@@ -483,6 +494,23 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	if int64(config.MaxBatchBytes) < maximumRecordBytes {
 		return ProducerConfig{}, ErrInvalidProducerConfig
 	}
+	if len(config.AllowedTopics) == 0 {
+		return ProducerConfig{}, ErrTopicsRequired
+	}
+	if len(config.AllowedTopics) > 64 {
+		return ProducerConfig{}, ErrTooManyTopics
+	}
+	seenTopics := make(map[string]struct{}, len(config.AllowedTopics))
+	for _, topic := range config.AllowedTopics {
+		if !validKafkaTopicName(topic, config.Limits.MaxTopicBytes) {
+			return ProducerConfig{}, ErrInvalidTopic
+		}
+		if _, duplicate := seenTopics[topic]; duplicate {
+			return ProducerConfig{}, ErrDuplicateTopic
+		}
+		seenTopics[topic] = struct{}{}
+	}
+	config.AllowedTopics = append([]string(nil), config.AllowedTopics...)
 
 	return config, nil
 }
@@ -598,6 +626,11 @@ func (producer *Producer) publishRecord(
 
 		return result
 	}
+	if !producer.topicAllowed(record.Topic) {
+		result.Err = ErrTopicNotAllowed
+
+		return result
+	}
 	if producer.keyRequired && len(record.Key) == 0 {
 		result.Err = ErrKeyRequired
 
@@ -640,6 +673,9 @@ func (producer *Producer) PublishBatch(
 	for index, record := range records {
 		if err := record.validate(producer.limits); err != nil {
 			return nil, err
+		}
+		if !producer.topicAllowed(record.Topic) {
+			return nil, ErrTopicNotAllowed
 		}
 		if producer.keyRequired && len(record.Key) == 0 {
 			return nil, ErrKeyRequired
@@ -700,6 +736,11 @@ func (producer *Producer) PublishAsync(
 
 		return nil, err
 	}
+	if !producer.topicAllowed(record.Topic) {
+		producer.finishOperation()
+
+		return nil, ErrTopicNotAllowed
+	}
 	if producer.keyRequired && len(record.Key) == 0 {
 		producer.finishOperation()
 
@@ -746,6 +787,15 @@ func franzRecord(record ProducerRecord) *kgo.Record {
 		Headers:   headers,
 		Timestamp: record.Timestamp,
 	}
+}
+
+func (producer *Producer) topicAllowed(topic string) bool {
+	if producer.allowedTopics == nil {
+		return true
+	}
+	_, allowed := producer.allowedTopics[topic]
+
+	return allowed
 }
 
 func deliveryResult(delivery kgo.ProduceResult) DeliveryResult {

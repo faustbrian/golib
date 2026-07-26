@@ -10,6 +10,9 @@ and this project adheres to
 
 ### Changed
 
+- Keep the real-broker adapter fixture compatible with Kafka's required
+  producer topic allowlist; codec routing and dead-letter destinations remain
+  bounded by the same two explicit topics.
 - Remain source-compatible with Kafka's error-returning bounded producer close;
   the adapter publisher contract does not expose close and needs no migration.
 - Remain source-compatible with Kafka's expanded stable producer failure
