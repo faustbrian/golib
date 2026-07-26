@@ -13,8 +13,10 @@ small consumer-owned interfaces, and `context.Context` at I/O boundaries. It
 does not require CQRS, a command bus, a query bus, a queue, an outbox, a
 framework, reflection-based handler discovery, or code generation.
 
-The package is in its early implementation phase and is not ready for
-application use.
+The package is a pre-release candidate. Its documented core and adapter
+capabilities are implemented, but applications should pin a reviewed revision
+until the first versioned release and its complete release evidence are
+published.
 
 ## Quickstart
 
@@ -68,6 +70,7 @@ justify its modeling, evolution, replay, privacy, and operational costs.
 
 ## Status
 
-No compatibility or stability promise applies until the first release. Planned
-work is tracked explicitly in the compatibility matrix; a planned row is not
-an implemented capability.
+No compatibility or stability promise applies until the first release. The
+compatibility matrix distinguishes implemented, excluded, and externally owned
+capabilities; release readiness still depends on the complete repository gates
+described in the release notes.

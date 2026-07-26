@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Describe the library as a pre-release candidate whose published release
+  still depends on complete repository evidence.
 - Reconcile the EventSauce outbox compatibility rows with the implemented
   transactional adapter while retaining partial status for the unfinished
   Kafka deployment and reusable adapter conformance evidence.
