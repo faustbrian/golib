@@ -42,6 +42,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- consumer configuration now defaults to four concurrent fetches, 50 MiB per
+  fetch, and 1 MiB per partition; explicit values are bounded and the partition
+  limit cannot exceed the aggregate fetch limit
 - consumer polls now stop only the failed partition, skip its later fetched
   records, and commit contiguous successful prefixes from that partition and
   independent partitions before returning the first handler failure; a commit

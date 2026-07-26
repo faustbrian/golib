@@ -54,6 +54,10 @@ within a partition. After one partition fails, its later fetched records are
 skipped while independent partitions continue; only each partition's contiguous
 successful prefix is submitted for commit. `Consumer.Run` exits cleanly when
 its context is canceled.
+`ConsumerConfig.MaxConcurrentFetches`, `FetchMaxBytes`, and
+`FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
+per-partition limit follows Kafka's progress rule: one larger record batch may
+still be returned.
 `ReplayReader.Replay` completes only after every requested offset is processed.
 `Inspector.Topics` and `Inspector.ConsumerGroupLag` require explicit bounded
 target lists.

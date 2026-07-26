@@ -122,6 +122,11 @@ failed partition are skipped and remain available for redelivery. Handlers must
 tolerate duplicates. Retain copies if bytes are needed after the handler
 returns.
 
+Consumer fetches default to at most four concurrent broker requests, 50 MiB per
+request, and 1 MiB per partition. All three limits are explicit and validated.
+A broker can return one record batch larger than the per-partition limit so a
+consumer can make progress; broker topic limits must remain compatible.
+
 ## Replay and inspection
 
 `ReplayReader` reads explicit inclusive-start, exclusive-end partition ranges

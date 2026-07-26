@@ -78,3 +78,8 @@ Handler deadlines are cooperative; a handler must honor context cancellation.
 Consumed byte slices reference the current fetch. Use `ConsumedRecord.Retain`
 before keeping a record beyond its handler call. Configuration and record
 bounds prevent unbounded caller-controlled allocation inside this module.
+Consumer fetch policy limits concurrent requests, response bytes, and bytes per
+partition. These are compressed-fetch controls rather than a strict heap cap:
+franz-go may accept one batch above the partition limit to make progress, and
+decompression can expand the retained bytes. Broker record limits remain part
+of the deployment safety boundary.

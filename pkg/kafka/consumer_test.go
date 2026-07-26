@@ -40,7 +40,9 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 	}
 
 	if config.MaxPollRecords != 100 ||
+		config.MaxConcurrentFetches != 4 ||
 		config.FetchMaxBytes != 50<<20 ||
+		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||
 		config.SessionTimeout != 45*time.Second ||
 		config.RebalanceTimeout != 60*time.Second ||
@@ -73,6 +75,31 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 	}
 	if !errors.Is(err, factoryErr) {
 		t.Fatalf("newConsumer() error = %v, want %v", err, factoryErr)
+	}
+}
+
+func TestNewConsumerAppliesPerPartitionFetchLimit(t *testing.T) {
+	t.Parallel()
+
+	config := validConsumerConfig()
+	config.MaxConcurrentFetches = 3
+	config.FetchMaxPartitionBytes = 2 << 20
+	var franzClient *kgo.Client
+	consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
+		client, clientErr := kgo.NewClient(options...)
+		franzClient = client
+
+		return client, clientErr
+	})
+	if err != nil {
+		t.Fatalf("newConsumer() error = %v", err)
+	}
+	defer consumer.Close()
+	if got := franzClient.OptValue(kgo.FetchMaxPartitionBytes); got != int32(2<<20) {
+		t.Fatalf("FetchMaxPartitionBytes option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.MaxConcurrentFetches); got != 3 {
+		t.Fatalf("MaxConcurrentFetches option = %#v", got)
 	}
 }
 
@@ -192,8 +219,15 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 	}{
 		{name: "negative poll records", change: func(config *ConsumerConfig) { config.MaxPollRecords = -1 }},
 		{name: "excessive poll records", change: func(config *ConsumerConfig) { config.MaxPollRecords = 1_001 }},
+		{name: "negative concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = -1 }},
+		{name: "excessive concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = 65 }},
 		{name: "negative fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = -1 }},
 		{name: "excessive fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = 101 << 20 }},
+		{name: "small partition fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxPartitionBytes = 1<<20 - 1 }},
+		{name: "partition fetch exceeds aggregate", change: func(config *ConsumerConfig) {
+			config.FetchMaxBytes = 2 << 20
+			config.FetchMaxPartitionBytes = 3 << 20
+		}},
 		{name: "negative fetch wait", change: func(config *ConsumerConfig) { config.FetchMaxWait = -1 }},
 		{name: "excessive fetch wait", change: func(config *ConsumerConfig) { config.FetchMaxWait = 31 * time.Second }},
 		{name: "short session timeout", change: func(config *ConsumerConfig) { config.SessionTimeout = 999 * time.Millisecond }},

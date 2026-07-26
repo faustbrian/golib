@@ -34,14 +34,16 @@ const (
 
 // ConsumerConfig defines one bounded consumer-group member.
 type ConsumerConfig struct {
-	Brokers        []string
-	ClientID       string
-	GroupID        string
-	Topics         []string
-	ResetOffset    OffsetPolicy
-	MaxPollRecords int
-	FetchMaxBytes  int32
-	FetchMaxWait   time.Duration
+	Brokers                []string
+	ClientID               string
+	GroupID                string
+	Topics                 []string
+	ResetOffset            OffsetPolicy
+	MaxPollRecords         int
+	MaxConcurrentFetches   int
+	FetchMaxBytes          int32
+	FetchMaxPartitionBytes int32
+	FetchMaxWait           time.Duration
 
 	SessionTimeout    time.Duration
 	RebalanceTimeout  time.Duration
@@ -120,7 +122,9 @@ func newConsumer(
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.Balancers(kgo.CooperativeStickyBalancer()),
+		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
+		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
 		kgo.FetchMaxWait(config.FetchMaxWait),
 		kgo.SessionTimeout(config.SessionTimeout),
 		kgo.RebalanceTimeout(config.RebalanceTimeout),
@@ -179,8 +183,14 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.MaxPollRecords == 0 {
 		config.MaxPollRecords = 100
 	}
+	if config.MaxConcurrentFetches == 0 {
+		config.MaxConcurrentFetches = 4
+	}
 	if config.FetchMaxBytes == 0 {
 		config.FetchMaxBytes = 50 << 20
+	}
+	if config.FetchMaxPartitionBytes == 0 {
+		config.FetchMaxPartitionBytes = 1 << 20
 	}
 	if config.FetchMaxWait == 0 {
 		config.FetchMaxWait = 500 * time.Millisecond
@@ -205,8 +215,12 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	}
 	if config.MaxPollRecords < 1 ||
 		config.MaxPollRecords > 1_000 ||
+		config.MaxConcurrentFetches < 1 ||
+		config.MaxConcurrentFetches > 64 ||
 		config.FetchMaxBytes < 1<<20 ||
 		config.FetchMaxBytes > 100<<20 ||
+		config.FetchMaxPartitionBytes < 1<<20 ||
+		config.FetchMaxPartitionBytes > config.FetchMaxBytes ||
 		config.FetchMaxWait < time.Millisecond ||
 		config.FetchMaxWait > 30*time.Second ||
 		config.SessionTimeout < time.Second ||
