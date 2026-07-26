@@ -11028,7 +11028,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`openrpc` is a design-first Go implementation of OpenRPC 1.4.x. It models the complete 1.4.1 document shape, preserves arbitrary Draft 7 schemas and extension values, parses untrusted JSON under finite policies, emits canonical JSON, and provides explicit validation, reference resolution, runtime expressions, discovery, composition, compatibility diffing, and JSON-RPC handler integration.",
+      "purpose": "`openrpc` is a design-first Go implementation of OpenRPC 1.3.x and 1.4.x. It models their shared document shape, preserves arbitrary Draft 7 schemas and extension values, parses untrusted JSON under finite policies, emits canonical JSON, and provides explicit validation, reference resolution, runtime expressions, discovery, composition, compatibility diffing, and JSON-RPC handler integration.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
