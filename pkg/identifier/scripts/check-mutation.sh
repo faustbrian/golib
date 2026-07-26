@@ -2,7 +2,7 @@
 set -euo pipefail
 
 version="v0.6.0"
-packages=(. ./uuid ./ulid ./typeid ./ksuid ./nanoid)
+packages=(. ./uuid ./ulid ./typeid ./ksuid ./nanoid ./slug)
 for package in "${packages[@]}"; do
   echo "mutation scope: ${package}"
   if [[ "$package" == "." ]]; then
@@ -10,7 +10,7 @@ for package in "${packages[@]}"; do
       "$package" --integration --coverpkg "$package" --workers 2 \
       --timeout-coefficient 10 --threshold-mcover 100 \
       --threshold-efficacy 100 --output-statuses lct \
-      --exclude-files '^(idtest|uuid|ulid|typeid|ksuid|nanoid)/'
+      --exclude-files '^(idtest|uuid|ulid|typeid|ksuid|nanoid|slug)/'
     continue
   fi
   go run "github.com/go-gremlins/gremlins/cmd/gremlins@${version}" unleash \

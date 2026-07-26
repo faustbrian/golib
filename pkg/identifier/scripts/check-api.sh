@@ -3,7 +3,7 @@ set -euo pipefail
 
 temporary="$(mktemp)"
 trap 'rm -f "$temporary"' EXIT
-for package in . ./uuid ./ulid ./typeid ./ksuid ./nanoid ./idtest; do
+for package in . ./uuid ./ulid ./typeid ./ksuid ./nanoid ./slug ./idtest; do
   go doc -all "$package"
 done >"$temporary"
 

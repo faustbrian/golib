@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-go test -coverprofile=coverage.out . ./uuid ./ulid ./typeid ./ksuid ./nanoid
+go test -coverprofile=coverage.out . ./uuid ./ulid ./typeid ./ksuid ./nanoid \
+  ./slug
 coverage="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')"
 if [[ "$coverage" != "100.0%" ]]; then
   echo "production statement coverage is $coverage, want 100.0%" >&2

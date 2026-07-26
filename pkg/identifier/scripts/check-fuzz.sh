@@ -7,3 +7,5 @@ for target in FuzzUUIDParse FuzzULIDParse FuzzTypeIDParse FuzzKSUIDParse \
   go test . -run '^$' -fuzz="^${target}$" -fuzztime="$duration" \
     -parallel=4 -timeout=2m
 done
+go test ./slug -run '^$' -fuzz='^FuzzLaravelEnglish$' \
+  -fuzztime="$duration" -parallel=4 -timeout=2m

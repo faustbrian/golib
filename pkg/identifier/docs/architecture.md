@@ -15,3 +15,9 @@ decoding to recover validation behavior from the type argument.
 
 External maintained packages are codec/differential references, not ambient
 generation state. Standard-library `crypto/rand` is the production default.
+
+The `slug` package has no ambient locale or runtime dependency. Its generated
+replacement table is grouped by leading UTF-8 byte and ordered longest-first
+to preserve PHP `strtr` matching without scanning the complete table for every
+input character. Slug uniqueness is deliberately outside the package because
+it requires a transactional view of application-owned persistence.

@@ -1,0 +1,6002 @@
+[
+    {
+        "source": "",
+        "expected": ""
+    },
+    {
+        "source": "Carrier@example.com",
+        "expected": "carrier-at-examplecom"
+    },
+    {
+        "source": "mixed\u0000control\tid",
+        "expected": "mixedcontrol-id"
+    },
+    {
+        "source": "åååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååååå suffix",
+        "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+        "source": "before Á after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before á after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ä after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ä after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before À after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before à after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Â after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before â after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before É after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before é after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ë after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ë after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before È after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before è after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ê after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ê after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Í after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before í after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ï after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ï after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ì after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ì after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Î after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before î after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ó after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ó after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ö after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ö after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ò after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ò after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ô after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ô after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ú after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ú after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ü after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ü after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ù after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ù after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Û after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before û after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ý after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ý after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ÿ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before А after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Б after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before В after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before Г after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Д after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Ѓ after",
+        "expected": "before-gj-after"
+    },
+    {
+        "source": "before Е after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ж after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before З after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ѕ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before И after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ј after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before К after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before Л after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Љ after",
+        "expected": "before-lj-after"
+    },
+    {
+        "source": "before М after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before Н after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Њ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before О after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before П after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before Р after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before С after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Т after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ќ after",
+        "expected": "before-kj-after"
+    },
+    {
+        "source": "before У after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ф after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before Х after",
+        "expected": "before-x-after"
+    },
+    {
+        "source": "before Ц after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ч after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Џ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before Ш after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before а after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before б after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before в after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before г after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before д after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ѓ after",
+        "expected": "before-gj-after"
+    },
+    {
+        "source": "before е after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ж after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before з after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ѕ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before и after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ј after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before к after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before л after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before љ after",
+        "expected": "before-lj-after"
+    },
+    {
+        "source": "before м after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before н after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before њ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before о after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before п after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before р after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before с after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before т after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ќ after",
+        "expected": "before-kj-after"
+    },
+    {
+        "source": "before у after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ф after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before х after",
+        "expected": "before-x-after"
+    },
+    {
+        "source": "before ц after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ч after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before џ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ш after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before æ after",
+        "expected": "before-ae-after"
+    },
+    {
+        "source": "before ǽ after",
+        "expected": "before-ae-after"
+    },
+    {
+        "source": "before Ã after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Å after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ǻ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ă after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ǎ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Æ after",
+        "expected": "before-ae-after"
+    },
+    {
+        "source": "before Ǽ after",
+        "expected": "before-ae-after"
+    },
+    {
+        "source": "before ã after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before å after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ǻ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ă after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ǎ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ª after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ĉ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ċ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ç after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ç after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ĉ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ċ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ð after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Đ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ð after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before đ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Ĕ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ė after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ĕ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ė after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ƒ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before Ĝ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Ġ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ĝ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ġ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Ĥ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before Ħ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ĥ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ħ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before Ĩ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ĭ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ǐ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Į after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ĳ after",
+        "expected": "before-ij-after"
+    },
+    {
+        "source": "before ĩ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ĭ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ǐ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before į after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ĳ after",
+        "expected": "before-ij-after"
+    },
+    {
+        "source": "before Ĵ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ĵ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before Ĺ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ľ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ŀ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ĺ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ľ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ŀ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ñ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ñ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ŉ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Õ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ō after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ŏ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ǒ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ő after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ơ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ø after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ǿ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Œ after",
+        "expected": "before-oe-after"
+    },
+    {
+        "source": "before õ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ō after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ŏ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ǒ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ő after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ơ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ø after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ǿ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before º after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before œ after",
+        "expected": "before-oe-after"
+    },
+    {
+        "source": "before Ŕ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Ŗ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ŕ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ŗ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Ŝ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ș after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ŝ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ș after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ſ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ţ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ț after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ŧ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Þ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ţ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ț after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ŧ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before þ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before Ũ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ŭ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ű after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ų after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ư after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ǔ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ǖ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ǘ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ǚ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ǜ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ũ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ŭ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ű after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ų after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ư after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ǔ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ǖ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ǘ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ǚ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ǜ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ŵ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ŵ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before Ŷ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ÿ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ŷ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ΑΥ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before ΑΎ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before Αυ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before Αύ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before ΕΊ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΕΙ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ει after",
+        "expected": "before-ei-after"
+    },
+    {
+        "source": "before ΕΥ after",
+        "expected": "before-ef-after"
+    },
+    {
+        "source": "before ΕΎ after",
+        "expected": "before-eu-after"
+    },
+    {
+        "source": "before Εί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ευ after",
+        "expected": "before-ef-after"
+    },
+    {
+        "source": "before Εύ after",
+        "expected": "before-eu-after"
+    },
+    {
+        "source": "before ΟΙ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΟΊ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΟΥ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ΟΎ after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before Οι after",
+        "expected": "before-oi-after"
+    },
+    {
+        "source": "before Οί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ου after",
+        "expected": "before-oy-after"
+    },
+    {
+        "source": "before Ού after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before ΥΙ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΎΙ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Υι after",
+        "expected": "before-yi-after"
+    },
+    {
+        "source": "before Ύι after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΥΊ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Υί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before αυ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before αύ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before εί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ει after",
+        "expected": "before-ei-after"
+    },
+    {
+        "source": "before ευ after",
+        "expected": "before-ef-after"
+    },
+    {
+        "source": "before εύ after",
+        "expected": "before-eu-after"
+    },
+    {
+        "source": "before οι after",
+        "expected": "before-oi-after"
+    },
+    {
+        "source": "before οί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ου after",
+        "expected": "before-oy-after"
+    },
+    {
+        "source": "before ού after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before υι after",
+        "expected": "before-yi-after"
+    },
+    {
+        "source": "before ύι after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before υί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Α after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ά after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Β after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before Δ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Ε after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Έ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Φ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before Γ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Η after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before Ή after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ι after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ϊ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Κ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before Ξ after",
+        "expected": "before-ks-after"
+    },
+    {
+        "source": "before Λ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Μ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before Ν after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Π after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before Ο after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ό after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ψ after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before Ρ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Σ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Τ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Θ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before Ω after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ώ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before Χ after",
+        "expected": "before-x-after"
+    },
+    {
+        "source": "before ϒ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Υ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ύ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ϋ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ζ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before α after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ά after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before β after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before δ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ε after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before έ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before φ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before γ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before η after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ή after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ι after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ί after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ϊ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ΐ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before κ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ξ after",
+        "expected": "before-ks-after"
+    },
+    {
+        "source": "before λ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before μ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ν after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ο after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ό after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before π after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before ψ after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before ρ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before σ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ς after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before τ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ϑ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before θ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ϐ after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before ω after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ώ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before χ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before υ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ύ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ΰ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ϋ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ζ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before अ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before आ after",
+        "expected": "before-aa-after"
+    },
+    {
+        "source": "before ए after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ई after",
+        "expected": "before-ii-after"
+    },
+    {
+        "source": "before ऍ after",
+        "expected": "before-ei-after"
+    },
+    {
+        "source": "before ऎ after",
+        "expected": "before-ae-after"
+    },
+    {
+        "source": "before ऐ after",
+        "expected": "before-ai-after"
+    },
+    {
+        "source": "before इ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ओ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ऑ after",
+        "expected": "before-oi-after"
+    },
+    {
+        "source": "before ऒ after",
+        "expected": "before-oii-after"
+    },
+    {
+        "source": "before ऊ after",
+        "expected": "before-uu-after"
+    },
+    {
+        "source": "before औ after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before उ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ब after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before भ after",
+        "expected": "before-bha-after"
+    },
+    {
+        "source": "before च after",
+        "expected": "before-ca-after"
+    },
+    {
+        "source": "before छ after",
+        "expected": "before-chha-after"
+    },
+    {
+        "source": "before ड after",
+        "expected": "before-da-after"
+    },
+    {
+        "source": "before ढ after",
+        "expected": "before-dha-after"
+    },
+    {
+        "source": "before फ after",
+        "expected": "before-fa-after"
+    },
+    {
+        "source": "before फ़ after",
+        "expected": "before-fi-after"
+    },
+    {
+        "source": "before ग after",
+        "expected": "before-ga-after"
+    },
+    {
+        "source": "before घ after",
+        "expected": "before-gha-after"
+    },
+    {
+        "source": "before ग़ after",
+        "expected": "before-ghi-after"
+    },
+    {
+        "source": "before ह after",
+        "expected": "before-ha-after"
+    },
+    {
+        "source": "before ज after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before झ after",
+        "expected": "before-jha-after"
+    },
+    {
+        "source": "before क after",
+        "expected": "before-ka-after"
+    },
+    {
+        "source": "before ख after",
+        "expected": "before-kha-after"
+    },
+    {
+        "source": "before ख़ after",
+        "expected": "before-khi-after"
+    },
+    {
+        "source": "before ल after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ळ after",
+        "expected": "before-li-after"
+    },
+    {
+        "source": "before ऌ after",
+        "expected": "before-li-after"
+    },
+    {
+        "source": "before ऴ after",
+        "expected": "before-lii-after"
+    },
+    {
+        "source": "before ॡ after",
+        "expected": "before-lii-after"
+    },
+    {
+        "source": "before म after",
+        "expected": "before-ma-after"
+    },
+    {
+        "source": "before न after",
+        "expected": "before-na-after"
+    },
+    {
+        "source": "before ङ after",
+        "expected": "before-na-after"
+    },
+    {
+        "source": "before ञ after",
+        "expected": "before-nia-after"
+    },
+    {
+        "source": "before ण after",
+        "expected": "before-nae-after"
+    },
+    {
+        "source": "before ऩ after",
+        "expected": "before-ni-after"
+    },
+    {
+        "source": "before ॐ after",
+        "expected": "before-oms-after"
+    },
+    {
+        "source": "before प after",
+        "expected": "before-pa-after"
+    },
+    {
+        "source": "before क़ after",
+        "expected": "before-qi-after"
+    },
+    {
+        "source": "before र after",
+        "expected": "before-ra-after"
+    },
+    {
+        "source": "before ऋ after",
+        "expected": "before-ri-after"
+    },
+    {
+        "source": "before ॠ after",
+        "expected": "before-ri-after"
+    },
+    {
+        "source": "before ऱ after",
+        "expected": "before-ri-after"
+    },
+    {
+        "source": "before स after",
+        "expected": "before-sa-after"
+    },
+    {
+        "source": "before श after",
+        "expected": "before-sha-after"
+    },
+    {
+        "source": "before ष after",
+        "expected": "before-shha-after"
+    },
+    {
+        "source": "before ट after",
+        "expected": "before-ta-after"
+    },
+    {
+        "source": "before त after",
+        "expected": "before-ta-after"
+    },
+    {
+        "source": "before ठ after",
+        "expected": "before-tha-after"
+    },
+    {
+        "source": "before द after",
+        "expected": "before-tha-after"
+    },
+    {
+        "source": "before थ after",
+        "expected": "before-tha-after"
+    },
+    {
+        "source": "before ध after",
+        "expected": "before-thha-after"
+    },
+    {
+        "source": "before ड़ after",
+        "expected": "before-ugdha-after"
+    },
+    {
+        "source": "before ढ़ after",
+        "expected": "before-ugdhha-after"
+    },
+    {
+        "source": "before व after",
+        "expected": "before-va-after"
+    },
+    {
+        "source": "before य after",
+        "expected": "before-ya-after"
+    },
+    {
+        "source": "before य़ after",
+        "expected": "before-yi-after"
+    },
+    {
+        "source": "before ज़ after",
+        "expected": "before-za-after"
+    },
+    {
+        "source": "before Ա after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Բ after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before Գ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Դ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Ե after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Զ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Է after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ը after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Թ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before Ժ after",
+        "expected": "before-zh-after"
+    },
+    {
+        "source": "before Ի after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Լ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Խ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before Ծ after",
+        "expected": "before-ts-after"
+    },
+    {
+        "source": "before Կ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before Հ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before Ձ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before Ղ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before Ճ after",
+        "expected": "before-tch-after"
+    },
+    {
+        "source": "before Մ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before Յ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ն after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Շ after",
+        "expected": "before-sh-after"
+    },
+    {
+        "source": "before Ո after",
+        "expected": "before-vo-after"
+    },
+    {
+        "source": "before Չ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before Պ after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before Ջ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before Ռ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Ս after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Վ after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before Տ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ր after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Ց after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ւ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Փ after",
+        "expected": "before-ph-after"
+    },
+    {
+        "source": "before Ք after",
+        "expected": "before-q-after"
+    },
+    {
+        "source": "before և after",
+        "expected": "before-ev-after"
+    },
+    {
+        "source": "before Օ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ֆ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before ա after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before բ after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before գ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before դ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ե after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before զ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before է after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ը after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before թ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ժ after",
+        "expected": "before-zh-after"
+    },
+    {
+        "source": "before ի after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before լ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before խ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before ծ after",
+        "expected": "before-ts-after"
+    },
+    {
+        "source": "before կ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before հ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ձ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ղ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before ճ after",
+        "expected": "before-tch-after"
+    },
+    {
+        "source": "before մ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before յ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ն after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before շ after",
+        "expected": "before-sh-after"
+    },
+    {
+        "source": "before ո after",
+        "expected": "before-vo-after"
+    },
+    {
+        "source": "before չ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before պ after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before ջ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ռ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ս after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before վ after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before տ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ր after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ց after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ւ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before փ after",
+        "expected": "before-ph-after"
+    },
+    {
+        "source": "before ք after",
+        "expected": "before-q-after"
+    },
+    {
+        "source": "before օ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ֆ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before Ž after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ň after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ş after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ž after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ň after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ş after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ı after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before İ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ğ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Ğ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ьо after",
+        "expected": "before-yo-after"
+    },
+    {
+        "source": "before Й after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Щ after",
+        "expected": "before-shh-after"
+    },
+    {
+        "source": "before Ъ after",
+        "expected": "before-ie-after"
+    },
+    {
+        "source": "before Ь after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before Ю after",
+        "expected": "before-iu-after"
+    },
+    {
+        "source": "before Я after",
+        "expected": "before-ia-after"
+    },
+    {
+        "source": "before й after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before щ after",
+        "expected": "before-shh-after"
+    },
+    {
+        "source": "before ъ after",
+        "expected": "before-ie-after"
+    },
+    {
+        "source": "before ь after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ю after",
+        "expected": "before-iu-after"
+    },
+    {
+        "source": "before я after",
+        "expected": "before-ia-after"
+    },
+    {
+        "source": "before Ē after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ē after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before န်ုပ် after",
+        "expected": "before-nub-after"
+    },
+    {
+        "source": "before ောင် after",
+        "expected": "before-aung-after"
+    },
+    {
+        "source": "before ိုက် after",
+        "expected": "before-aik-after"
+    },
+    {
+        "source": "before ိုဒ် after",
+        "expected": "before-ok-after"
+    },
+    {
+        "source": "before ိုင် after",
+        "expected": "before-aing-after"
+    },
+    {
+        "source": "before ိုလ် after",
+        "expected": "before-ol-after"
+    },
+    {
+        "source": "before ေါင် after",
+        "expected": "before-aung-after"
+    },
+    {
+        "source": "before သြော after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ောက် after",
+        "expected": "before-auk-after"
+    },
+    {
+        "source": "before ိတ် after",
+        "expected": "before-eik-after"
+    },
+    {
+        "source": "before ုတ် after",
+        "expected": "before-ok-after"
+    },
+    {
+        "source": "before ုန် after",
+        "expected": "before-on-after"
+    },
+    {
+        "source": "before ေတ် after",
+        "expected": "before-it-after"
+    },
+    {
+        "source": "before ုဒ် after",
+        "expected": "before-ait-after"
+    },
+    {
+        "source": "before ာန် after",
+        "expected": "before-an-after"
+    },
+    {
+        "source": "before ိန် after",
+        "expected": "before-ein-after"
+    },
+    {
+        "source": "before ွတ် after",
+        "expected": "before-ut-after"
+    },
+    {
+        "source": "before ေါ် after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ွန် after",
+        "expected": "before-un-after"
+    },
+    {
+        "source": "before ိပ် after",
+        "expected": "before-eik-after"
+    },
+    {
+        "source": "before ုပ် after",
+        "expected": "before-ok-after"
+    },
+    {
+        "source": "before ွပ် after",
+        "expected": "before-ut-after"
+    },
+    {
+        "source": "before ိမ် after",
+        "expected": "before-ein-after"
+    },
+    {
+        "source": "before ုမ် after",
+        "expected": "before-on-after"
+    },
+    {
+        "source": "before ော် after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ွမ် after",
+        "expected": "before-un-after"
+    },
+    {
+        "source": "before က် after",
+        "expected": "before-et-after"
+    },
+    {
+        "source": "before ေါ after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ော after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ျွ after",
+        "expected": "before-ywa-after"
+    },
+    {
+        "source": "before ြွ after",
+        "expected": "before-yw-after"
+    },
+    {
+        "source": "before ို after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ုံ after",
+        "expected": "before-on-after"
+    },
+    {
+        "source": "before တ် after",
+        "expected": "before-at-after"
+    },
+    {
+        "source": "before င် after",
+        "expected": "before-in-after"
+    },
+    {
+        "source": "before ည် after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ဒ် after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before န် after",
+        "expected": "before-an-after"
+    },
+    {
+        "source": "before ပ် after",
+        "expected": "before-at-after"
+    },
+    {
+        "source": "before မ် after",
+        "expected": "before-an-after"
+    },
+    {
+        "source": "before စျ after",
+        "expected": "before-za-after"
+    },
+    {
+        "source": "before ယ် after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ဉ် after",
+        "expected": "before-in-after"
+    },
+    {
+        "source": "before စ် after",
+        "expected": "before-it-after"
+    },
+    {
+        "source": "before ိံ after",
+        "expected": "before-ein-after"
+    },
+    {
+        "source": "before ဲ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before း after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ာ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ါ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ေ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ံ after",
+        "expected": "before-an-after"
+    },
+    {
+        "source": "before ိ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ီ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ု after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ူ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ် after",
+        "expected": "before-at-after"
+    },
+    {
+        "source": "before ္ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ့ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before က after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ၉ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before တ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ရ after",
+        "expected": "before-ya-after"
+    },
+    {
+        "source": "before ယ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before မ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ဘ after",
+        "expected": "before-ba-after"
+    },
+    {
+        "source": "before ဗ after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before ဖ after",
+        "expected": "before-pa-after"
+    },
+    {
+        "source": "before ပ after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before န after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ဓ after",
+        "expected": "before-da-after"
+    },
+    {
+        "source": "before ဒ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ထ after",
+        "expected": "before-ta-after"
+    },
+    {
+        "source": "before ဏ after",
+        "expected": "before-na-after"
+    },
+    {
+        "source": "before ဝ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ဎ after",
+        "expected": "before-da-after"
+    },
+    {
+        "source": "before ဍ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ဌ after",
+        "expected": "before-ta-after"
+    },
+    {
+        "source": "before ဋ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ည after",
+        "expected": "before-ny-after"
+    },
+    {
+        "source": "before ဇ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ဆ after",
+        "expected": "before-sa-after"
+    },
+    {
+        "source": "before စ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before င after",
+        "expected": "before-ng-after"
+    },
+    {
+        "source": "before ဃ after",
+        "expected": "before-ga-after"
+    },
+    {
+        "source": "before ဂ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before လ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before သ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ၈ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ဩ after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ခ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before ၆ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ၅ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ၄ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ၃ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ၂ after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ၁ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ၀ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ၌ after",
+        "expected": "before-hnaik-after"
+    },
+    {
+        "source": "before ၍ after",
+        "expected": "before-ywae-after"
+    },
+    {
+        "source": "before ဪ after",
+        "expected": "before-aw-after"
+    },
+    {
+        "source": "before ဦ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ဟ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ဉ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ဤ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ဣ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ၏ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ဧ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ှ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ွ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ျ after",
+        "expected": "before-ya-after"
+    },
+    {
+        "source": "before ြ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before အ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ဠ after",
+        "expected": "before-la-after"
+    },
+    {
+        "source": "before ၇ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before DŽ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before Dž after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before dž after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before Ǳ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ǲ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ǳ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before Ǉ after",
+        "expected": "before-lj-after"
+    },
+    {
+        "source": "before ǈ after",
+        "expected": "before-lj-after"
+    },
+    {
+        "source": "before ǉ after",
+        "expected": "before-lj-after"
+    },
+    {
+        "source": "before Ǌ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before ǋ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before ǌ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before č after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Č after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ć after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ć after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before š after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Š after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ა after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ბ after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before გ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before დ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ე after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ვ after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before ზ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before თ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ი after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before კ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ლ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before მ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ნ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ო after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before პ after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before ჟ after",
+        "expected": "before-zh-after"
+    },
+    {
+        "source": "before რ after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ს after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ტ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before უ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ფ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before ქ after",
+        "expected": "before-q-after"
+    },
+    {
+        "source": "before ღ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before ყ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before შ after",
+        "expected": "before-sh-after"
+    },
+    {
+        "source": "before ჩ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before ც after",
+        "expected": "before-ts-after"
+    },
+    {
+        "source": "before ძ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before წ after",
+        "expected": "before-ts-after"
+    },
+    {
+        "source": "before ჭ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before ხ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before ჯ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ჰ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before Ё after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ё after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ы after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ы after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Э after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before э after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before І after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before і after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ѳ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before ѳ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before Ѣ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ѣ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ѵ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ѵ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Є after",
+        "expected": "before-je-after"
+    },
+    {
+        "source": "before є after",
+        "expected": "before-je-after"
+    },
+    {
+        "source": "before Ѥ after",
+        "expected": "before-je-after"
+    },
+    {
+        "source": "before ѥ after",
+        "expected": "before-je-after"
+    },
+    {
+        "source": "before Ꙋ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ꙋ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ѡ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ѡ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ѿ after",
+        "expected": "before-ot-after"
+    },
+    {
+        "source": "before ѿ after",
+        "expected": "before-ot-after"
+    },
+    {
+        "source": "before Ѫ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ѫ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ѧ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before ѧ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before Ѭ after",
+        "expected": "before-ju-after"
+    },
+    {
+        "source": "before ѭ after",
+        "expected": "before-ju-after"
+    },
+    {
+        "source": "before Ѩ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before ѩ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before Ѯ after",
+        "expected": "before-ks-after"
+    },
+    {
+        "source": "before ѯ after",
+        "expected": "before-ks-after"
+    },
+    {
+        "source": "before Ѱ after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before ѱ after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before Ґ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ґ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Ї after",
+        "expected": "before-yi-after"
+    },
+    {
+        "source": "before ї after",
+        "expected": "before-yi-after"
+    },
+    {
+        "source": "before Ә after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ғ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Қ after",
+        "expected": "before-q-after"
+    },
+    {
+        "source": "before Ң after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ө after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ұ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ү after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Һ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ә after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ғ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before қ after",
+        "expected": "before-q-after"
+    },
+    {
+        "source": "before ң after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ө after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ұ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ү after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before һ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before ď after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before Ď after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ě after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ě after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ř after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before Ř after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ť after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ť after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ů after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ů after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ą after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ę after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ł after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ń after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ś after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ź after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ż after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ą after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ę after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ł after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ń after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ś after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ź after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ż after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ā after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ģ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ī after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ķ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ļ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ņ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ū after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ā after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ģ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before Ī after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ķ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before Ļ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ņ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ū after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ả after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ạ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ắ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ằ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ẳ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ẵ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ặ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ấ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ầ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ẩ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ẫ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ậ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ả after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ạ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ắ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ằ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ẳ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ẵ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ặ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ấ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ầ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ẩ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ẫ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ậ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ẻ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ẽ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ẹ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ế after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ề after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ể after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ễ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ệ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ẻ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ẽ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ẹ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ế after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ề after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ể after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ễ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ệ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ỉ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ị after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ỉ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ị after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ỏ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ọ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ố after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ồ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ổ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ỗ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ộ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ớ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ờ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ở after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ỡ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ợ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ỏ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ọ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ố after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ồ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ổ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ỗ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ộ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ớ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ờ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ở after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ỡ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ợ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ủ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ụ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ứ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ừ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ử after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ữ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ự after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ủ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ụ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ứ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ừ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ử after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ữ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ự after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ỳ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ỷ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ỹ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ỵ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ỳ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ỷ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ỹ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ỵ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ا after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ب after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before پ after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before ت after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ث after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ج after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before چ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before ح after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before خ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before د after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ذ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ر after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ز after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before س after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ش after",
+        "expected": "before-sh-after"
+    },
+    {
+        "source": "before ص after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ض after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ط after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ظ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ع after",
+        "expected": "before-aa-after"
+    },
+    {
+        "source": "before غ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before ف after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before ق after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ک after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before گ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before ل after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ژ after",
+        "expected": "before-zh-after"
+    },
+    {
+        "source": "before ك after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before م after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ن after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ه after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before و after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ی after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before آ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ٠ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ١ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ٢ after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ٣ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ٤ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ٥ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ٦ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ٧ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before ٨ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ٩ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before أ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ي after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before إ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ؤ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ئ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ء after",
+        "expected": "before-aa-after"
+    },
+    {
+        "source": "before ђ after",
+        "expected": "before-dj-after"
+    },
+    {
+        "source": "before ћ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ђ after",
+        "expected": "before-dj-after"
+    },
+    {
+        "source": "before Ћ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ə after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ə after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ß after",
+        "expected": "before-ss-after"
+    },
+    {
+        "source": "before ẞ after",
+        "expected": "before-ss-after"
+    },
+    {
+        "source": "before ভ্ল after",
+        "expected": "before-vl-after"
+    },
+    {
+        "source": "before পশ after",
+        "expected": "before-psh-after"
+    },
+    {
+        "source": "before ব্ধ after",
+        "expected": "before-bdh-after"
+    },
+    {
+        "source": "before ব্জ after",
+        "expected": "before-bj-after"
+    },
+    {
+        "source": "before ব্দ after",
+        "expected": "before-bd-after"
+    },
+    {
+        "source": "before ব্ব after",
+        "expected": "before-bb-after"
+    },
+    {
+        "source": "before ব্ল after",
+        "expected": "before-bl-after"
+    },
+    {
+        "source": "before ভ after",
+        "expected": "before-v-after"
+    },
+    {
+        "source": "before ব after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before চ্ঞ after",
+        "expected": "before-cng-after"
+    },
+    {
+        "source": "before চ্ছ after",
+        "expected": "before-cch-after"
+    },
+    {
+        "source": "before চ্চ after",
+        "expected": "before-cc-after"
+    },
+    {
+        "source": "before ছ after",
+        "expected": "before-ch-after"
+    },
+    {
+        "source": "before চ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ধ্ন after",
+        "expected": "before-dhn-after"
+    },
+    {
+        "source": "before ধ্ম after",
+        "expected": "before-dhm-after"
+    },
+    {
+        "source": "before দ্ঘ after",
+        "expected": "before-dgh-after"
+    },
+    {
+        "source": "before দ্ধ after",
+        "expected": "before-ddh-after"
+    },
+    {
+        "source": "before দ্ভ after",
+        "expected": "before-dv-after"
+    },
+    {
+        "source": "before দ্ম after",
+        "expected": "before-dm-after"
+    },
+    {
+        "source": "before ড্ড after",
+        "expected": "before-dd-after"
+    },
+    {
+        "source": "before ঢ after",
+        "expected": "before-dh-after"
+    },
+    {
+        "source": "before ধ after",
+        "expected": "before-dh-after"
+    },
+    {
+        "source": "before দ্গ after",
+        "expected": "before-dg-after"
+    },
+    {
+        "source": "before দ্দ after",
+        "expected": "before-dd-after"
+    },
+    {
+        "source": "before ড after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before দ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before । after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ঘ্ন after",
+        "expected": "before-ghn-after"
+    },
+    {
+        "source": "before গ্ধ after",
+        "expected": "before-gdh-after"
+    },
+    {
+        "source": "before গ্ণ after",
+        "expected": "before-gn-after"
+    },
+    {
+        "source": "before গ্ন after",
+        "expected": "before-gn-after"
+    },
+    {
+        "source": "before গ্ম after",
+        "expected": "before-gm-after"
+    },
+    {
+        "source": "before গ্ল after",
+        "expected": "before-gl-after"
+    },
+    {
+        "source": "before জ্ঞ after",
+        "expected": "before-jng-after"
+    },
+    {
+        "source": "before ঘ after",
+        "expected": "before-gh-after"
+    },
+    {
+        "source": "before গ after",
+        "expected": "before-g-after"
+    },
+    {
+        "source": "before হ্ণ after",
+        "expected": "before-hn-after"
+    },
+    {
+        "source": "before হ্ন after",
+        "expected": "before-hn-after"
+    },
+    {
+        "source": "before হ্ম after",
+        "expected": "before-hm-after"
+    },
+    {
+        "source": "before হ্ল after",
+        "expected": "before-hl-after"
+    },
+    {
+        "source": "before হ after",
+        "expected": "before-h-after"
+    },
+    {
+        "source": "before জ্ঝ after",
+        "expected": "before-jjh-after"
+    },
+    {
+        "source": "before ঝ after",
+        "expected": "before-jh-after"
+    },
+    {
+        "source": "before জ্জ after",
+        "expected": "before-jj-after"
+    },
+    {
+        "source": "before জ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ক্ষ্ণ after",
+        "expected": "before-kxn-after"
+    },
+    {
+        "source": "before ক্ষ্ম after",
+        "expected": "before-kxm-after"
+    },
+    {
+        "source": "before ক্ষ after",
+        "expected": "before-ksh-after"
+    },
+    {
+        "source": "before কশ after",
+        "expected": "before-ksh-after"
+    },
+    {
+        "source": "before ক্ক after",
+        "expected": "before-kk-after"
+    },
+    {
+        "source": "before ক্ট after",
+        "expected": "before-kt-after"
+    },
+    {
+        "source": "before ক্ত after",
+        "expected": "before-kt-after"
+    },
+    {
+        "source": "before ক্ল after",
+        "expected": "before-kl-after"
+    },
+    {
+        "source": "before ক্স after",
+        "expected": "before-ks-after"
+    },
+    {
+        "source": "before খ after",
+        "expected": "before-kh-after"
+    },
+    {
+        "source": "before ক after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ল্ভ after",
+        "expected": "before-lv-after"
+    },
+    {
+        "source": "before ল্ধ after",
+        "expected": "before-ldh-after"
+    },
+    {
+        "source": "before লখ after",
+        "expected": "before-lkh-after"
+    },
+    {
+        "source": "before লঘ after",
+        "expected": "before-lgh-after"
+    },
+    {
+        "source": "before লফ after",
+        "expected": "before-lph-after"
+    },
+    {
+        "source": "before ল্ক after",
+        "expected": "before-lk-after"
+    },
+    {
+        "source": "before ল্গ after",
+        "expected": "before-lg-after"
+    },
+    {
+        "source": "before ল্ট after",
+        "expected": "before-lt-after"
+    },
+    {
+        "source": "before ল্ড after",
+        "expected": "before-ld-after"
+    },
+    {
+        "source": "before ল্প after",
+        "expected": "before-lp-after"
+    },
+    {
+        "source": "before ল্ম after",
+        "expected": "before-lm-after"
+    },
+    {
+        "source": "before ল্ল after",
+        "expected": "before-ll-after"
+    },
+    {
+        "source": "before ল্ব after",
+        "expected": "before-lb-after"
+    },
+    {
+        "source": "before ল after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ম্থ after",
+        "expected": "before-mth-after"
+    },
+    {
+        "source": "before ম্ফ after",
+        "expected": "before-mf-after"
+    },
+    {
+        "source": "before ম্ভ after",
+        "expected": "before-mv-after"
+    },
+    {
+        "source": "before মপ্ল after",
+        "expected": "before-mpl-after"
+    },
+    {
+        "source": "before ম্ন after",
+        "expected": "before-mn-after"
+    },
+    {
+        "source": "before ম্প after",
+        "expected": "before-mp-after"
+    },
+    {
+        "source": "before ম্ম after",
+        "expected": "before-mm-after"
+    },
+    {
+        "source": "before ম্ল after",
+        "expected": "before-ml-after"
+    },
+    {
+        "source": "before ম্ব after",
+        "expected": "before-mb-after"
+    },
+    {
+        "source": "before ম after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ০ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ১ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ২ after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ৩ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ৪ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ৫ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ৬ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ৭ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before ৮ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ৯ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before ঙ্ক্ষ after",
+        "expected": "before-ngkx-after"
+    },
+    {
+        "source": "before ঞ্ছ after",
+        "expected": "before-nch-after"
+    },
+    {
+        "source": "before ঙ্ঘ after",
+        "expected": "before-ngh-after"
+    },
+    {
+        "source": "before ঙ্খ after",
+        "expected": "before-nkh-after"
+    },
+    {
+        "source": "before ঞ্ঝ after",
+        "expected": "before-njh-after"
+    },
+    {
+        "source": "before ঙ্গৌ after",
+        "expected": "before-ngou-after"
+    },
+    {
+        "source": "before ঙ্গৈ after",
+        "expected": "before-ngoi-after"
+    },
+    {
+        "source": "before ঞ্চ after",
+        "expected": "before-nc-after"
+    },
+    {
+        "source": "before ঙ্ক after",
+        "expected": "before-nk-after"
+    },
+    {
+        "source": "before ঙ্ষ after",
+        "expected": "before-ngx-after"
+    },
+    {
+        "source": "before ঙ্গ after",
+        "expected": "before-ngo-after"
+    },
+    {
+        "source": "before ঙ্ম after",
+        "expected": "before-ngm-after"
+    },
+    {
+        "source": "before ঞ্জ after",
+        "expected": "before-nj-after"
+    },
+    {
+        "source": "before ন্ধ after",
+        "expected": "before-ndh-after"
+    },
+    {
+        "source": "before ন্ঠ after",
+        "expected": "before-nth-after"
+    },
+    {
+        "source": "before ণ্ঠ after",
+        "expected": "before-nth-after"
+    },
+    {
+        "source": "before ন্থ after",
+        "expected": "before-nth-after"
+    },
+    {
+        "source": "before ঙ্গা after",
+        "expected": "before-nga-after"
+    },
+    {
+        "source": "before ঙ্গি after",
+        "expected": "before-ngi-after"
+    },
+    {
+        "source": "before ঙ্গী after",
+        "expected": "before-ngi-after"
+    },
+    {
+        "source": "before ঙ্গু after",
+        "expected": "before-ngu-after"
+    },
+    {
+        "source": "before ঙ্গূ after",
+        "expected": "before-ngu-after"
+    },
+    {
+        "source": "before ঙ্গে after",
+        "expected": "before-nge-after"
+    },
+    {
+        "source": "before ঙ্গো after",
+        "expected": "before-ngo-after"
+    },
+    {
+        "source": "before ণ্ঢ after",
+        "expected": "before-ndh-after"
+    },
+    {
+        "source": "before নশ after",
+        "expected": "before-nsh-after"
+    },
+    {
+        "source": "before ঙর after",
+        "expected": "before-ngr-after"
+    },
+    {
+        "source": "before ঞর after",
+        "expected": "before-ngr-after"
+    },
+    {
+        "source": "before ংর after",
+        "expected": "before-ngr-after"
+    },
+    {
+        "source": "before ঙ after",
+        "expected": "before-ng-after"
+    },
+    {
+        "source": "before ঞ after",
+        "expected": "before-ng-after"
+    },
+    {
+        "source": "before ং after",
+        "expected": "before-ng-after"
+    },
+    {
+        "source": "before ন্ন after",
+        "expected": "before-nn-after"
+    },
+    {
+        "source": "before ণ্ণ after",
+        "expected": "before-nn-after"
+    },
+    {
+        "source": "before ণ্ন after",
+        "expected": "before-nn-after"
+    },
+    {
+        "source": "before ন্ম after",
+        "expected": "before-nm-after"
+    },
+    {
+        "source": "before ণ্ম after",
+        "expected": "before-nm-after"
+    },
+    {
+        "source": "before ন্দ after",
+        "expected": "before-nd-after"
+    },
+    {
+        "source": "before ন্ট after",
+        "expected": "before-nt-after"
+    },
+    {
+        "source": "before ণ্ট after",
+        "expected": "before-nt-after"
+    },
+    {
+        "source": "before ন্ড after",
+        "expected": "before-nd-after"
+    },
+    {
+        "source": "before ণ্ড after",
+        "expected": "before-nd-after"
+    },
+    {
+        "source": "before ন্ত after",
+        "expected": "before-nt-after"
+    },
+    {
+        "source": "before ন্স after",
+        "expected": "before-ns-after"
+    },
+    {
+        "source": "before ন after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ণ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ৈ after",
+        "expected": "before-oi-after"
+    },
+    {
+        "source": "before ৌ after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before ো after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ঐ after",
+        "expected": "before-oi-after"
+    },
+    {
+        "source": "before ঔ after",
+        "expected": "before-ou-after"
+    },
+    {
+        "source": "before অ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ও after",
+        "expected": "before-oo-after"
+    },
+    {
+        "source": "before ফ্ল after",
+        "expected": "before-fl-after"
+    },
+    {
+        "source": "before প্ট after",
+        "expected": "before-pt-after"
+    },
+    {
+        "source": "before প্ত after",
+        "expected": "before-pt-after"
+    },
+    {
+        "source": "before প্ন after",
+        "expected": "before-pn-after"
+    },
+    {
+        "source": "before প্প after",
+        "expected": "before-pp-after"
+    },
+    {
+        "source": "before প্ল after",
+        "expected": "before-pl-after"
+    },
+    {
+        "source": "before প্স after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before ফ after",
+        "expected": "before-f-after"
+    },
+    {
+        "source": "before প after",
+        "expected": "before-p-after"
+    },
+    {
+        "source": "before ৃ after",
+        "expected": "before-rri-after"
+    },
+    {
+        "source": "before ঋ after",
+        "expected": "before-rri-after"
+    },
+    {
+        "source": "before রর‍্য after",
+        "expected": "before-rry-after"
+    },
+    {
+        "source": "before ্র্য after",
+        "expected": "before-ry-after"
+    },
+    {
+        "source": "before ্রর after",
+        "expected": "before-rr-after"
+    },
+    {
+        "source": "before ড়্গ after",
+        "expected": "before-rg-after"
+    },
+    {
+        "source": "before ঢ় after",
+        "expected": "before-rh-after"
+    },
+    {
+        "source": "before ড় after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before র after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before ্র after",
+        "expected": "before-r-after"
+    },
+    {
+        "source": "before শ্ছ after",
+        "expected": "before-sch-after"
+    },
+    {
+        "source": "before ষ্ঠ after",
+        "expected": "before-shth-after"
+    },
+    {
+        "source": "before ষ্ফ after",
+        "expected": "before-shf-after"
+    },
+    {
+        "source": "before স্ক্ল after",
+        "expected": "before-skl-after"
+    },
+    {
+        "source": "before স্খ after",
+        "expected": "before-skh-after"
+    },
+    {
+        "source": "before স্থ after",
+        "expected": "before-sth-after"
+    },
+    {
+        "source": "before স্ফ after",
+        "expected": "before-sf-after"
+    },
+    {
+        "source": "before শ্চ after",
+        "expected": "before-sc-after"
+    },
+    {
+        "source": "before শ্ত after",
+        "expected": "before-st-after"
+    },
+    {
+        "source": "before শ্ন after",
+        "expected": "before-sn-after"
+    },
+    {
+        "source": "before শ্ম after",
+        "expected": "before-sm-after"
+    },
+    {
+        "source": "before শ্ল after",
+        "expected": "before-sl-after"
+    },
+    {
+        "source": "before ষ্ক after",
+        "expected": "before-shk-after"
+    },
+    {
+        "source": "before ষ্ট after",
+        "expected": "before-sht-after"
+    },
+    {
+        "source": "before ষ্ণ after",
+        "expected": "before-shn-after"
+    },
+    {
+        "source": "before ষ্প after",
+        "expected": "before-shp-after"
+    },
+    {
+        "source": "before ষ্ম after",
+        "expected": "before-shm-after"
+    },
+    {
+        "source": "before স্প্ল after",
+        "expected": "before-spl-after"
+    },
+    {
+        "source": "before স্ক after",
+        "expected": "before-sk-after"
+    },
+    {
+        "source": "before স্ট after",
+        "expected": "before-st-after"
+    },
+    {
+        "source": "before স্ত after",
+        "expected": "before-st-after"
+    },
+    {
+        "source": "before স্ন after",
+        "expected": "before-sn-after"
+    },
+    {
+        "source": "before স্প after",
+        "expected": "before-sp-after"
+    },
+    {
+        "source": "before স্ম after",
+        "expected": "before-sm-after"
+    },
+    {
+        "source": "before স্ল after",
+        "expected": "before-sl-after"
+    },
+    {
+        "source": "before শ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ষ after",
+        "expected": "before-sh-after"
+    },
+    {
+        "source": "before স after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ু after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before উ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before অ্য after",
+        "expected": "before-oz-after"
+    },
+    {
+        "source": "before ত্থ after",
+        "expected": "before-tth-after"
+    },
+    {
+        "source": "before ৎ after",
+        "expected": "before-tt-after"
+    },
+    {
+        "source": "before ট্ট after",
+        "expected": "before-tt-after"
+    },
+    {
+        "source": "before ট্ম after",
+        "expected": "before-tm-after"
+    },
+    {
+        "source": "before ঠ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ত্ন after",
+        "expected": "before-tn-after"
+    },
+    {
+        "source": "before ত্ম after",
+        "expected": "before-tm-after"
+    },
+    {
+        "source": "before থ after",
+        "expected": "before-th-after"
+    },
+    {
+        "source": "before ত্ত after",
+        "expected": "before-tt-after"
+    },
+    {
+        "source": "before ট after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ত after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before অ্যা after",
+        "expected": "before-az-after"
+    },
+    {
+        "source": "before া after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before আ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before য়া after",
+        "expected": "before-ya-after"
+    },
+    {
+        "source": "before য় after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ি after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ই after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ী after",
+        "expected": "before-ee-after"
+    },
+    {
+        "source": "before ঈ after",
+        "expected": "before-ee-after"
+    },
+    {
+        "source": "before ূ after",
+        "expected": "before-uu-after"
+    },
+    {
+        "source": "before ঊ after",
+        "expected": "before-uu-after"
+    },
+    {
+        "source": "before ে after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before এ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before য after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ্য after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ইয় after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ওয় after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ্ব after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before এক্স after",
+        "expected": "before-x-after"
+    },
+    {
+        "source": "before ঃ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ঁ after",
+        "expected": "before-nn-after"
+    },
+    {
+        "source": "before ্‌ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ˚ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ¹ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ² after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ³ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ⁴ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ⁵ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ⁶ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ⁷ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before ⁸ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ⁹ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before ₀ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ₁ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ₂ after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ₃ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ₄ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ₅ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ₆ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ₇ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before ₈ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ₉ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before ௦ after",
+        "expected": "before-0-after"
+    },
+    {
+        "source": "before ௧ after",
+        "expected": "before-1-after"
+    },
+    {
+        "source": "before ௨ after",
+        "expected": "before-2-after"
+    },
+    {
+        "source": "before ௩ after",
+        "expected": "before-3-after"
+    },
+    {
+        "source": "before ௪ after",
+        "expected": "before-4-after"
+    },
+    {
+        "source": "before ௫ after",
+        "expected": "before-5-after"
+    },
+    {
+        "source": "before ௬ after",
+        "expected": "before-6-after"
+    },
+    {
+        "source": "before ௭ after",
+        "expected": "before-7-after"
+    },
+    {
+        "source": "before ௮ after",
+        "expected": "before-8-after"
+    },
+    {
+        "source": "before ௯ after",
+        "expected": "before-9-after"
+    },
+    {
+        "source": "before ௰ after",
+        "expected": "before-10-after"
+    },
+    {
+        "source": "before ௱ after",
+        "expected": "before-100-after"
+    },
+    {
+        "source": "before ௲ after",
+        "expected": "before-1000-after"
+    },
+    {
+        "source": "before Ꜳ after",
+        "expected": "before-aa-after"
+    },
+    {
+        "source": "before ꜳ after",
+        "expected": "before-aa-after"
+    },
+    {
+        "source": "before Ꜵ after",
+        "expected": "before-ao-after"
+    },
+    {
+        "source": "before ꜵ after",
+        "expected": "before-ao-after"
+    },
+    {
+        "source": "before Ꜷ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before ꜷ after",
+        "expected": "before-au-after"
+    },
+    {
+        "source": "before Ꜹ after",
+        "expected": "before-av-after"
+    },
+    {
+        "source": "before ꜹ after",
+        "expected": "before-av-after"
+    },
+    {
+        "source": "before Ꜻ after",
+        "expected": "before-av-after"
+    },
+    {
+        "source": "before ꜻ after",
+        "expected": "before-av-after"
+    },
+    {
+        "source": "before Ꜽ after",
+        "expected": "before-ay-after"
+    },
+    {
+        "source": "before ꜽ after",
+        "expected": "before-ay-after"
+    },
+    {
+        "source": "before ȸ after",
+        "expected": "before-db-after"
+    },
+    {
+        "source": "before ʣ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ʥ after",
+        "expected": "before-dz-after"
+    },
+    {
+        "source": "before ʤ after",
+        "expected": "before-dezh-after"
+    },
+    {
+        "source": "before 🙰 after",
+        "expected": "before-et-after"
+    },
+    {
+        "source": "before ﬀ after",
+        "expected": "before-ff-after"
+    },
+    {
+        "source": "before ﬃ after",
+        "expected": "before-ffi-after"
+    },
+    {
+        "source": "before ﬄ after",
+        "expected": "before-ffl-after"
+    },
+    {
+        "source": "before ﬁ after",
+        "expected": "before-fi-after"
+    },
+    {
+        "source": "before ﬂ after",
+        "expected": "before-fl-after"
+    },
+    {
+        "source": "before ʩ after",
+        "expected": "before-feng-after"
+    },
+    {
+        "source": "before ʪ after",
+        "expected": "before-ls-after"
+    },
+    {
+        "source": "before ʫ after",
+        "expected": "before-lz-after"
+    },
+    {
+        "source": "before ɮ after",
+        "expected": "before-lezh-after"
+    },
+    {
+        "source": "before ȹ after",
+        "expected": "before-qp-after"
+    },
+    {
+        "source": "before ʨ after",
+        "expected": "before-tc-after"
+    },
+    {
+        "source": "before ʦ after",
+        "expected": "before-ts-after"
+    },
+    {
+        "source": "before ʧ after",
+        "expected": "before-tesh-after"
+    },
+    {
+        "source": "before Ꝏ after",
+        "expected": "before-oo-after"
+    },
+    {
+        "source": "before ꝏ after",
+        "expected": "before-oo-after"
+    },
+    {
+        "source": "before ﬆ after",
+        "expected": "before-st-after"
+    },
+    {
+        "source": "before ﬅ after",
+        "expected": "before-st-after"
+    },
+    {
+        "source": "before Ꜩ after",
+        "expected": "before-tz-after"
+    },
+    {
+        "source": "before ꜩ after",
+        "expected": "before-tz-after"
+    },
+    {
+        "source": "before ᵫ after",
+        "expected": "before-ue-after"
+    },
+    {
+        "source": "before Aι after",
+        "expected": "before-ai-after"
+    },
+    {
+        "source": "before αι after",
+        "expected": "before-ai-after"
+    },
+    {
+        "source": "before ἀ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἁ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἂ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἃ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἄ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἅ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἆ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ἇ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἀ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἁ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἂ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἃ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἄ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἅ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἆ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ἇ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾰ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾱ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾲ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾳ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾴ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾶ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾷ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ᾰ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ᾱ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ὰ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ά after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ᾼ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before A̧ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before a̧ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ⱥ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ⱥ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ȧ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before ȧ after",
+        "expected": "before-a-after"
+    },
+    {
+        "source": "before Ɓ after",
+        "expected": "before-b-after"
+    },
+    {
+        "source": "before C̈ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̈ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before C̨ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̨ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ȼ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ȼ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before C̀ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̀ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before C̣ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̣ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before C̄ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̄ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before C̃ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before c̃ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before Ȩ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ȩ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before Ɇ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before ɇ after",
+        "expected": "before-e-after"
+    },
+    {
+        "source": "before I̧ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before i̧ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before Ɨ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before ɨ after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before i after",
+        "expected": "before-i-after"
+    },
+    {
+        "source": "before J́́ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j́ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̀̀ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̀ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̈ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̈ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̧ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̧ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̨ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̨ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before Ɉ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ɉ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̌ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ǰ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̇ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̣ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̣ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̄ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̄ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before J̃ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before j̃ after",
+        "expected": "before-j-after"
+    },
+    {
+        "source": "before ĸ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before L̀ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̀ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̂ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̂ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̈ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̈ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̨ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̨ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ƚ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ƚ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̇ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̇ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ḷ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ḷ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̄ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̄ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before L̃ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before l̃ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before Ŋ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ŋ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ǹ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ǹ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before N̂ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before n̂ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before N̈ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before n̈ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before N̨ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before n̨ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ꞥ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ꞥ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ṅ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ṅ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before Ṇ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ṇ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before N̄ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before n̄ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before O̧ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before o̧ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ǫ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ǫ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ɵ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ɵ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before Ȯ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before ȯ after",
+        "expected": "before-o-after"
+    },
+    {
+        "source": "before S̀ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before s̀ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ŝ̀ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before S̈ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before s̈ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before S̨ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before s̨ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ꞩ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ꞩ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ṡ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ṡ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before Ṣ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before ṣ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before S̄ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before s̄ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before S̃ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before s̃ after",
+        "expected": "before-s-after"
+    },
+    {
+        "source": "before T́ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t́ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̀ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t̀ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̂ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t̂ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̈ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ẗ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̨ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t̨ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ⱦ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ⱦ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ṫ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ṫ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before Ṭ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ṭ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̄ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t̄ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before T̃ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before t̃ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before U̧ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before u̧ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ʉ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ʉ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before U̇ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before u̇ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ʊ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before ʊ after",
+        "expected": "before-u-after"
+    },
+    {
+        "source": "before Ẁ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ẁ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before Ẃ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ẃ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before Ẅ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ẅ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before Ꙗ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before ꙗ after",
+        "expected": "before-ja-after"
+    },
+    {
+        "source": "before Y̧ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before y̧ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Y̨ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before y̨ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ɏ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ɏ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Y̌ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before y̌ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ẏ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ẏ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Ȳ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before ȳ after",
+        "expected": "before-y-after"
+    },
+    {
+        "source": "before Z̀ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̀ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ẑ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ẑ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Z̈ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̈ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Z̧ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̧ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Z̨ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̨ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ƶ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ƶ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Ẓ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before ẓ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Z̄ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̄ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before Z̃ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before z̃ after",
+        "expected": "before-z-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before \u2028 after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before \u2029 after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ​ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before   after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before 　 after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ﾠ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before « after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before » after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ‘ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ’ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ‚ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ‛ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before “ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ” after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before „ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ‟ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ‹ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before › after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before – after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before — after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before … after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before € after",
+        "expected": "before-eur-after"
+    },
+    {
+        "source": "before $ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ₢ after",
+        "expected": "before-cr-after"
+    },
+    {
+        "source": "before ₣ after",
+        "expected": "before-fr-after"
+    },
+    {
+        "source": "before £ after",
+        "expected": "before-ps-after"
+    },
+    {
+        "source": "before ₤ after",
+        "expected": "before-l-after"
+    },
+    {
+        "source": "before ℳ after",
+        "expected": "before-m-after"
+    },
+    {
+        "source": "before ₥ after",
+        "expected": "before-mil-after"
+    },
+    {
+        "source": "before ₦ after",
+        "expected": "before-n-after"
+    },
+    {
+        "source": "before ₧ after",
+        "expected": "before-pts-after"
+    },
+    {
+        "source": "before ₨ after",
+        "expected": "before-rs-after"
+    },
+    {
+        "source": "before රු after",
+        "expected": "before-lkr-after"
+    },
+    {
+        "source": "before ரூ after",
+        "expected": "before-lkr-after"
+    },
+    {
+        "source": "before ௹ after",
+        "expected": "before-rs-after"
+    },
+    {
+        "source": "before रू after",
+        "expected": "before-npr-after"
+    },
+    {
+        "source": "before ₹ after",
+        "expected": "before-rs-after"
+    },
+    {
+        "source": "before ૱ after",
+        "expected": "before-rs-after"
+    },
+    {
+        "source": "before ₩ after",
+        "expected": "before-w-after"
+    },
+    {
+        "source": "before ₪ after",
+        "expected": "before-ns-after"
+    },
+    {
+        "source": "before ₸ after",
+        "expected": "before-kzt-after"
+    },
+    {
+        "source": "before ₫ after",
+        "expected": "before-d-after"
+    },
+    {
+        "source": "before ֏ after",
+        "expected": "before-amd-after"
+    },
+    {
+        "source": "before ₭ after",
+        "expected": "before-k-after"
+    },
+    {
+        "source": "before ₺ after",
+        "expected": "before-tl-after"
+    },
+    {
+        "source": "before ₼ after",
+        "expected": "before-azn-after"
+    },
+    {
+        "source": "before ₮ after",
+        "expected": "before-t-after"
+    },
+    {
+        "source": "before ₯ after",
+        "expected": "before-dr-after"
+    },
+    {
+        "source": "before ₲ after",
+        "expected": "before-pyg-after"
+    },
+    {
+        "source": "before ₾ after",
+        "expected": "before-gel-after"
+    },
+    {
+        "source": "before ₳ after",
+        "expected": "before-ara-after"
+    },
+    {
+        "source": "before ₴ after",
+        "expected": "before-uah-after"
+    },
+    {
+        "source": "before ₽ after",
+        "expected": "before-rub-after"
+    },
+    {
+        "source": "before ₵ after",
+        "expected": "before-ghs-after"
+    },
+    {
+        "source": "before ₡ after",
+        "expected": "before-cl-after"
+    },
+    {
+        "source": "before ¢ after",
+        "expected": "before-c-after"
+    },
+    {
+        "source": "before ¥ after",
+        "expected": "before-yen-after"
+    },
+    {
+        "source": "before 円 after",
+        "expected": "before-jpy-after"
+    },
+    {
+        "source": "before ৳ after",
+        "expected": "before-bdt-after"
+    },
+    {
+        "source": "before 元 after",
+        "expected": "before-cny-after"
+    },
+    {
+        "source": "before ﷼ after",
+        "expected": "before-sar-after"
+    },
+    {
+        "source": "before ៛ after",
+        "expected": "before-kr-after"
+    },
+    {
+        "source": "before ₠ after",
+        "expected": "before-ecu-after"
+    },
+    {
+        "source": "before ¤ after",
+        "expected": "before-after"
+    },
+    {
+        "source": "before ฿ after",
+        "expected": "before-thb-after"
+    },
+    {
+        "source": "before ؋ after",
+        "expected": "before-afn-after"
+    }
+]

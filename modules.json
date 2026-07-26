@@ -6581,6 +6581,18 @@
         },
         {
           "module_directory": "pkg/identifier",
+          "directory": "slug",
+          "name": "slug",
+          "import_path": "github.com/faustbrian/golib/pkg/identifier/slug",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/identifier",
           "directory": "typeid",
           "name": "typeid",
           "import_path": "github.com/faustbrian/golib/pkg/identifier/typeid",
@@ -6616,7 +6628,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`identifier` provides strict, immutable UUID, ULID, TypeID, KSUID, and NanoID values plus compile-time domain wrappers. Each family keeps its own clock, entropy, ordering, leakage, and persistence contract; an identifier is never treated as a secret, authorization fact, idempotency proof, or tracing context merely because it is unique.",
+      "purpose": "`identifier` provides strict, immutable UUID, ULID, TypeID, KSUID, and NanoID values, compile-time domain wrappers, and explicit compatibility profiles for derived public identifiers. Each generated family keeps its own clock, entropy, ordering, leakage, and persistence contract; an identifier is never treated as a secret, authorization fact, idempotency proof, or tracing context merely because it is unique.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,

@@ -2742,6 +2742,18 @@
     },
     {
       "module_directory": "pkg/identifier",
+      "directory": "slug",
+      "name": "slug",
+      "import_path": "github.com/faustbrian/golib/pkg/identifier/slug",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/identifier",
       "directory": "typeid",
       "name": "typeid",
       "import_path": "github.com/faustbrian/golib/pkg/identifier/typeid",

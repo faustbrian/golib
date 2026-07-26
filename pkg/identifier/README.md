@@ -1,7 +1,8 @@
 # identifier
 
 `identifier` provides strict, immutable UUID, ULID, TypeID, KSUID, and
-NanoID values plus compile-time domain wrappers. Each family keeps its own
+NanoID values, compile-time domain wrappers, and explicit compatibility
+profiles for derived public identifiers. Each generated family keeps its own
 clock, entropy, ordering, leakage, and persistence contract; an identifier is
 never treated as a secret, authorization fact, idempotency proof, or tracing
 context merely because it is unique.
@@ -39,6 +40,12 @@ fmt.Println(id.String())
 There is no package-global generator. Keep one generator per ownership and
 failure domain, and share that instance only when its monotonic sequence should
 also be shared.
+
+The `slug` package is intentionally narrower than a general transliteration
+library. `slug.LaravelEnglish` reproduces the frozen Laravel 13 and
+spatie/laravel-sluggable 4.0.2 English profile needed when an existing public
+slug contract must survive a service rewrite. Database uniqueness and suffix
+selection remain application persistence concerns.
 
 ## Contracts
 

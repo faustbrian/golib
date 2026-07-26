@@ -15,6 +15,8 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 ### Added
 
+- A deterministic `slug.LaravelEnglish` compatibility profile backed by the
+  attributed voku/portable-ascii 2.1.1 replacement data used by Laravel 13.
 - Typed domain identifiers without reflection or runtime registration.
 - UUID v4/v7, ULID, TypeID 0.3.0, KSUID, and NanoID packages.
 - Text, JSON, binary, SQL, and PostgreSQL UUID serialization.

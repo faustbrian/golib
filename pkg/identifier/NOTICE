@@ -3,3 +3,9 @@ Copyright 2026 Brian Faust
 
 This product includes interoperability and benchmark dependencies under their
 respective licenses. See go.mod and each upstream module for license terms.
+
+The generated Laravel-compatible slug replacement table is derived from
+voku/portable-ascii 2.1.1:
+
+Copyright (C) 2019 Lars Moelleken
+Licensed under the MIT License. See slug/THIRD_PARTY_LICENSES.md.

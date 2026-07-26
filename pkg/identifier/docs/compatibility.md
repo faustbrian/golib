@@ -20,9 +20,18 @@ domain and also accepts this module's validated `uuid.ID`. The unprefixed,
 all-zero TypeID is the Go zero value and serializes as the canonical 26-zero
 suffix, matching the official Go implementation.
 
+`slug.LaravelEnglish` is pinned to Laravel 13.18.0 `Str::slug` at revision
+`138e5806ed7e4e21591948b661119d3810f052cf`, the default English profile of
+spatie/laravel-sluggable 4.0.2 at revision
+`82a69be1ef661ce2ff38242b271457ef0b9611dd`, and voku/portable-ascii 2.1.1 at
+revision `8e1051fe39379367aecf014f41744ce7539a856f`. It truncates the source to
+250 Unicode code points before replacement and may return an empty slug.
+Uniqueness and numeric suffixes are not part of the package contract.
+
 Changing case acceptance, null handling, byte order, timestamp extraction,
-prefix grammar, minimum entropy, rollback behavior, or monotonic behavior is a
-compatibility change even if method signatures stay stable.
+prefix grammar, minimum entropy, rollback behavior, monotonic behavior, or
+slug replacement output is a compatibility change even if method signatures
+stay stable.
 
 Snowflake is not part of this module. Adding it requires a separately reviewed
 deployment contract and must not silently broaden the existing guarantees.

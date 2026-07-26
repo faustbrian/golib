@@ -14,6 +14,7 @@ claims inferred from statement coverage.
 | Privacy | exact leakage tests and `slog.LogValuer` redaction tests for every identifier and typed wrapper |
 | Fuzz and mutation | parser targets for every family, a combined binary and JSON codec target, and production mutation gates |
 | Performance and locality | comparative generation, parsing, formatting, sorting, and binary-search locality-proxy benchmarks |
+| Laravel slug compatibility | 1,500 differential vectors generated through the pinned Laravel and Spatie runtime, plus deterministic and concurrency checks |
 
 The cross-language vector pins are in
 `specification/vector-provenance.tsv`. Both official TypeID JSON corpus files
