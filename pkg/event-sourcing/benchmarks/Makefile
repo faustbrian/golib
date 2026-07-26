@@ -64,6 +64,8 @@ capture-outbox: require-output
 capture-profiles: capture-profiles-core capture-profiles-postgres
 
 capture-profiles-core: require-output
+	@profile_binary=$$(mktemp); \
+	trap 'rm -f "$$profile_binary"' EXIT HUP INT TERM; \
 	GODEBUG=gctrace=1 $(GO) test .. -run '^$$' \
 		-bench '^(BenchmarkLifecycleReconstitution/1000|BenchmarkJSONCodecRegistryPaths/warm|BenchmarkUpcasterChain/16|BenchmarkSynchronousDispatch/100)$$' \
 		-benchtime='$(BENCH_TIME)' -count=1 \
@@ -71,11 +73,13 @@ capture-profiles-core: require-output
 		-memprofile='$(abspath $(OUTPUT_DIR))/core.mem.pprof' \
 		-mutexprofile='$(abspath $(OUTPUT_DIR))/core.mutex.pprof' \
 		-blockprofile='$(abspath $(OUTPUT_DIR))/core.block.pprof' \
-		-o='$(abspath $(OUTPUT_DIR))/core.profile.test' \
+		-o="$$profile_binary" \
 		> '$(OUTPUT_DIR)/core.profile.txt' \
 		2> '$(OUTPUT_DIR)/core.gc.txt'
 
 capture-profiles-postgres: require-output
+	@profile_binary=$$(mktemp); \
+	trap 'rm -f "$$profile_binary"' EXIT HUP INT TERM; \
 	EVENT_SOURCING_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
 		GODEBUG=gctrace=1 $(GO) -C ../postgres test -tags=integration \
 		-run '^$$' -bench '^BenchmarkPostgreSQLAppendEquivalentWork/event-store$$' \
@@ -84,7 +88,7 @@ capture-profiles-postgres: require-output
 		-memprofile='$(abspath $(OUTPUT_DIR))/postgres.mem.pprof' \
 		-mutexprofile='$(abspath $(OUTPUT_DIR))/postgres.mutex.pprof' \
 		-blockprofile='$(abspath $(OUTPUT_DIR))/postgres.block.pprof' \
-		-o='$(abspath $(OUTPUT_DIR))/postgres.profile.test' \
+		-o="$$profile_binary" \
 		> '$(OUTPUT_DIR)/postgres.profile.txt' \
 		2> '$(OUTPUT_DIR)/postgres.gc.txt'
 
