@@ -33,7 +33,13 @@ make -C benchmarks environment \
 ```
 
 `capture` keeps core, competitor, PostgreSQL, and outbox samples in separate
-raw Go benchmark files. `analyze` uses the dependency-pinned `benchstat` tool.
+raw Go benchmark files. It also captures CPU, allocation, mutex, block, and GC
+profiles for representative core and durable PostgreSQL workloads. The
+PostgreSQL client profiles include database and network-I/O wait observed by
+the Go process; use PostgreSQL server statistics for server-side attribution.
+Each profile capture retains its exact test binary in the result directory so
+`go tool pprof` can resolve symbols without rebuilding changed source.
+`analyze` uses the dependency-pinned `benchstat` tool.
 The database benchmarks each start a fresh PostgreSQL container with the
 module's migrations and default image configuration. They do not reuse a
 database across result files.

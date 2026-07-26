@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Expand reproducible performance coverage across empty and single-event
+  histories, bounded and hostile payloads, cold and warm codec registries,
+  no-op upcasting, and synchronous dispatch batches.
+- Capture representative CPU, allocation, mutex, block, garbage-collection,
+  PostgreSQL, and client I/O profiles alongside repeated benchmark samples.
 - Correct the previous unreleased adapter status note: Kafka and reusable
   queue evidence are implemented; complete repository release evidence remains.
 - Align the queue guide with the implemented digest-pinned Valkey retention

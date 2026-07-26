@@ -14,7 +14,8 @@ POSTGRES_RAW = $(OUTPUT_DIR)/postgres.txt
 OUTBOX_RAW = $(OUTPUT_DIR)/outbox.txt
 
 .PHONY: analyze capture capture-core capture-competitors capture-outbox \
-	capture-postgres environment fingerprint require-output test \
+	capture-postgres capture-profiles capture-profiles-core \
+	capture-profiles-postgres environment fingerprint require-output test \
 	test-integration verify-fingerprint
 
 require-output:
@@ -33,7 +34,8 @@ test-integration:
 	EVENT_SOURCING_OUTBOX_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
 		$(GO) -C ../adapters/gooutbox test -tags=integration -count=1 ./...
 
-capture: capture-core capture-competitors capture-postgres capture-outbox
+capture: capture-core capture-competitors capture-postgres capture-outbox \
+	capture-profiles
 
 capture-core: require-output
 	$(GO) test ../... -run '^$$' -bench . -benchmem \
@@ -58,6 +60,33 @@ capture-outbox: require-output
 		-bench '^BenchmarkPostgreSQLOutboxAppendOverhead$$' -benchmem \
 		-benchtime='$(BENCH_TIME)' -count='$(COUNT)' \
 		> '$(OUTBOX_RAW)'
+
+capture-profiles: capture-profiles-core capture-profiles-postgres
+
+capture-profiles-core: require-output
+	GODEBUG=gctrace=1 $(GO) test .. -run '^$$' \
+		-bench '^(BenchmarkLifecycleReconstitution/1000|BenchmarkJSONCodecRegistryPaths/warm|BenchmarkUpcasterChain/16|BenchmarkSynchronousDispatch/100)$$' \
+		-benchtime='$(BENCH_TIME)' -count=1 \
+		-cpuprofile='$(abspath $(OUTPUT_DIR))/core.cpu.pprof' \
+		-memprofile='$(abspath $(OUTPUT_DIR))/core.mem.pprof' \
+		-mutexprofile='$(abspath $(OUTPUT_DIR))/core.mutex.pprof' \
+		-blockprofile='$(abspath $(OUTPUT_DIR))/core.block.pprof' \
+		-o='$(abspath $(OUTPUT_DIR))/core.profile.test' \
+		> '$(OUTPUT_DIR)/core.profile.txt' \
+		2> '$(OUTPUT_DIR)/core.gc.txt'
+
+capture-profiles-postgres: require-output
+	EVENT_SOURCING_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
+		GODEBUG=gctrace=1 $(GO) -C ../postgres test -tags=integration \
+		-run '^$$' -bench '^BenchmarkPostgreSQLAppendEquivalentWork/event-store$$' \
+		-benchtime='$(BENCH_TIME)' -count=1 \
+		-cpuprofile='$(abspath $(OUTPUT_DIR))/postgres.cpu.pprof' \
+		-memprofile='$(abspath $(OUTPUT_DIR))/postgres.mem.pprof' \
+		-mutexprofile='$(abspath $(OUTPUT_DIR))/postgres.mutex.pprof' \
+		-blockprofile='$(abspath $(OUTPUT_DIR))/postgres.block.pprof' \
+		-o='$(abspath $(OUTPUT_DIR))/postgres.profile.test' \
+		> '$(OUTPUT_DIR)/postgres.profile.txt' \
+		2> '$(OUTPUT_DIR)/postgres.gc.txt'
 
 analyze: require-output
 	$(GO) -C competitors tool benchstat '$(abspath $(CORE_RAW))' \

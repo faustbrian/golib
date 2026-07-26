@@ -33,12 +33,14 @@ it does not make the event store's reusable validation and error guarantees.
 The PostgreSQL harness separately times typed not-committed rejection of a
 stale exact version and verifies that the rejected workload changes no rows.
 
-The core benchmark suite separately measures lifecycle reconstitution at 10,
-100, 1,000, and 10,000 events, deterministic JSON payload round trips, and
-determinism-checked upcaster chains at depths 1, 4, and 16. Fixture construction
-is outside the timer, while validation, defensive ownership, event application,
-and deterministic upcaster double-execution remain inside because they are part
-of the public guarantees.
+The core benchmark suite separately measures lifecycle reconstitution at 0, 1,
+10, 100, 1,000, and 10,000 events; small, normal, maximum, and rejected hostile
+payloads; warm and cold JSON codec registries; synchronous dispatch batches;
+and determinism-checked upcaster chains with no rule and depths 1, 4, and 16.
+Fixture construction is outside the timer except for the deliberately cold
+registry case. Validation, defensive ownership, event application, and
+deterministic upcaster double-execution remain inside because they are part of
+the public guarantees.
 
 Snapshot break-even benchmarks compare full replay with JSON state decoding
 plus the remaining history after snapshots at 10%, 25%, 50%, 75%, and 90% of
@@ -82,8 +84,11 @@ distributions, throughput, and allocations.
 
 Use repeated independent samples after warm-up. Report variance and confidence
 intervals; do not publish only the fastest run. Keep functional correctness
-tests separate and require them to pass before timing. Capture CPU, allocation,
-mutex, block, database, and I/O profiles when a regression needs explanation.
+tests separate and require them to pass before timing. The evidence harness
+captures CPU, allocation, mutex, block, and GC profiles for representative core
+and PostgreSQL paths. PostgreSQL client profiles expose database and network-I/O
+wait from the Go process; pair them with server statistics when server-side
+attribution is required.
 
 ## Capacity decisions
 

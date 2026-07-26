@@ -1,9 +1,12 @@
 package eventsourcing_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +18,20 @@ var (
 	benchmarkDecodedEvent   eventsourcing.DecodedEvent
 	benchmarkSnapshotState  snapshotBenchmarkState
 	benchmarkUpcastEvents   []eventsourcing.UpcastEvent
+	benchmarkEncodedEvent   eventsourcing.EncodedEvent
 )
+
+var benchmarkStreamLengths = []int{0, 1, 10, 100, 1_000, 10_000}
+
+var benchmarkPayloadSizes = []struct {
+	name string
+	size int
+}{
+	{name: "small", size: 32},
+	{name: "normal", size: 4 << 10},
+	{name: "maximum", size: eventsourcing.MaxPayloadBytes},
+	{name: "hostile", size: eventsourcing.MaxPayloadBytes + 1},
+}
 
 type benchmarkCounterIncremented struct {
 	Amount     int               `json:"amount"`
@@ -29,7 +45,7 @@ type snapshotBenchmarkState struct {
 }
 
 func BenchmarkLifecycleReconstitution(benchmark *testing.B) {
-	for _, length := range []int{10, 100, 1_000, 10_000} {
+	for _, length := range benchmarkStreamLengths {
 		history := benchmarkHistory(benchmark, length)
 		benchmark.Run(strconv.Itoa(length), func(benchmark *testing.B) {
 			benchmark.ReportAllocs()
@@ -64,6 +80,42 @@ func BenchmarkLifecycleReconstitution(benchmark *testing.B) {
 	}
 }
 
+func BenchmarkPayloadValidation(benchmark *testing.B) {
+	for _, dimension := range benchmarkPayloadSizes {
+		payload := []byte(strings.Repeat("x", dimension.size))
+		benchmark.Run(dimension.name, func(benchmark *testing.B) {
+			benchmark.ReportAllocs()
+			benchmark.ResetTimer()
+			var err error
+			for benchmark.Loop() {
+				benchmarkEncodedEvent, err = eventsourcing.NewEncodedEvent(
+					eventsourcing.EncodedEventInput{
+						Name:        "benchmark.payload",
+						Version:     1,
+						ContentType: eventsourcing.JSONContentType,
+						Payload:     payload,
+					},
+				)
+			}
+			benchmark.StopTimer()
+			if dimension.name == "hostile" {
+				if err == nil {
+					benchmark.Fatal("hostile payload was accepted")
+				}
+				return
+			}
+			if err != nil || len(benchmarkEncodedEvent.Payload()) != dimension.size {
+				benchmark.Fatalf(
+					"payload size %d = encoded %d, error %v",
+					dimension.size,
+					len(benchmarkEncodedEvent.Payload()),
+					err,
+				)
+			}
+		})
+	}
+}
+
 func BenchmarkJSONCodecRoundTrip(benchmark *testing.B) {
 	codec, decoded := benchmarkJSONFixture(benchmark)
 	benchmark.ReportAllocs()
@@ -88,6 +140,39 @@ func BenchmarkJSONCodecRoundTrip(benchmark *testing.B) {
 	if value.Sequence != 9_007_199_254_740_993 || value.Labels["a"] != "first" {
 		benchmark.Fatalf("round trip = %#v", value)
 	}
+}
+
+func BenchmarkJSONCodecRegistryPaths(benchmark *testing.B) {
+	benchmark.Run("warm", func(benchmark *testing.B) {
+		codec, decoded := benchmarkJSONFixture(benchmark)
+		benchmark.ReportAllocs()
+		benchmark.ResetTimer()
+		benchmarkJSONRoundTrip(benchmark, codec, decoded)
+	})
+	benchmark.Run("cold", func(benchmark *testing.B) {
+		benchmark.ReportAllocs()
+		benchmark.ResetTimer()
+		for benchmark.Loop() {
+			codec, err := eventsourcing.NewJSONCodec(
+				eventsourcing.JSONEvent[benchmarkCounterIncremented](
+					"benchmark.counter.incremented",
+					1,
+				),
+			)
+			if err != nil {
+				benchmark.Fatal(err)
+			}
+			decoded := benchmarkDecodedFixture(benchmark)
+			encoded, err := codec.Encode(decoded)
+			if err != nil {
+				benchmark.Fatal(err)
+			}
+			benchmarkDecodedEvent, err = codec.Decode(encoded)
+			if err != nil {
+				benchmark.Fatal(err)
+			}
+		}
+	})
 }
 
 func BenchmarkSnapshotRestoreBreakEven(benchmark *testing.B) {
@@ -124,7 +209,7 @@ func BenchmarkSnapshotRestoreBreakEven(benchmark *testing.B) {
 }
 
 func BenchmarkUpcasterChain(benchmark *testing.B) {
-	for _, depth := range []int{1, 4, 16} {
+	for _, depth := range []int{0, 1, 4, 16} {
 		chain, input := benchmarkUpcasterFixture(benchmark, depth)
 		benchmark.Run(strconv.Itoa(depth), func(benchmark *testing.B) {
 			benchmark.ReportAllocs()
@@ -140,6 +225,35 @@ func BenchmarkUpcasterChain(benchmark *testing.B) {
 			if len(benchmarkUpcastEvents) != 1 ||
 				benchmarkUpcastEvents[0].Event().Version() != eventsourcing.SchemaVersion(depth+1) {
 				benchmark.Fatalf("upcast depth %d = %#v", depth, benchmarkUpcastEvents)
+			}
+		})
+	}
+}
+
+func BenchmarkSynchronousDispatch(benchmark *testing.B) {
+	for _, count := range []int{1, 10, 100} {
+		deliveries := make([]eventsourcing.Delivery, count)
+		for index := range deliveries {
+			deliveries[index] = benchmarkDelivery(benchmark, index+1)
+		}
+		consumer, err := eventsourcing.NewConsumer(
+			"benchmark-consumer",
+			func(context.Context, eventsourcing.Delivery) error { return nil },
+		)
+		if err != nil {
+			benchmark.Fatal(err)
+		}
+		dispatcher, err := eventsourcing.NewSyncDispatcher(consumer)
+		if err != nil {
+			benchmark.Fatal(err)
+		}
+		benchmark.Run(strconv.Itoa(count), func(benchmark *testing.B) {
+			benchmark.ReportAllocs()
+			benchmark.ResetTimer()
+			for benchmark.Loop() {
+				if err := dispatcher.Dispatch(context.Background(), deliveries); err != nil {
+					benchmark.Fatal(err)
+				}
 			}
 		})
 	}
@@ -186,6 +300,22 @@ func TestPerformanceBenchmarkFixtures(t *testing.T) {
 			restored.CommittedVersion(),
 			err,
 		)
+	}
+}
+
+func TestPerformanceBenchmarkDimensions(t *testing.T) {
+	t.Parallel()
+
+	if !slices.Equal(benchmarkStreamLengths, []int{0, 1, 10, 100, 1_000, 10_000}) {
+		t.Fatalf("stream lengths = %v", benchmarkStreamLengths)
+	}
+	wantPayloads := []int{32, 4 << 10, eventsourcing.MaxPayloadBytes, eventsourcing.MaxPayloadBytes + 1}
+	gotPayloads := make([]int, len(benchmarkPayloadSizes))
+	for index, dimension := range benchmarkPayloadSizes {
+		gotPayloads[index] = dimension.size
+	}
+	if !slices.Equal(gotPayloads, wantPayloads) {
+		t.Fatalf("payload sizes = %v", gotPayloads)
 	}
 }
 
@@ -282,6 +412,11 @@ func benchmarkJSONFixture(
 	if err != nil {
 		t.Fatal(err)
 	}
+	return codec, benchmarkDecodedFixture(t)
+}
+
+func benchmarkDecodedFixture(t testing.TB) eventsourcing.DecodedEvent {
+	t.Helper()
 	decoded, err := eventsourcing.NewDecodedEvent(eventsourcing.DecodedEventInput{
 		Name:    "benchmark.counter.incremented",
 		Version: 1,
@@ -295,7 +430,25 @@ func benchmarkJSONFixture(
 	if err != nil {
 		t.Fatal(err)
 	}
-	return codec, decoded
+	return decoded
+}
+
+func benchmarkJSONRoundTrip(
+	benchmark *testing.B,
+	codec *eventsourcing.JSONCodec,
+	decoded eventsourcing.DecodedEvent,
+) {
+	benchmark.Helper()
+	for benchmark.Loop() {
+		encoded, err := codec.Encode(decoded)
+		if err != nil {
+			benchmark.Fatal(err)
+		}
+		benchmarkDecodedEvent, err = codec.Decode(encoded)
+		if err != nil {
+			benchmark.Fatal(err)
+		}
+	}
 }
 
 func benchmarkUpcasterFixture(
@@ -353,4 +506,42 @@ func benchmarkUpcasterFixture(
 		t.Fatal(err)
 	}
 	return chain, input
+}
+
+func benchmarkDelivery(t testing.TB, sequence int) eventsourcing.Delivery {
+	t.Helper()
+	stream, err := eventsourcing.NewStreamID("benchmark.counter", "counter-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := eventsourcing.NewEncodedEvent(eventsourcing.EncodedEventInput{
+		Name:        "benchmark.counter.incremented",
+		Version:     1,
+		ContentType: eventsourcing.JSONContentType,
+		Payload:     []byte(`{"amount":1}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := eventsourcing.NewPendingMessage(eventsourcing.PendingMessageInput{
+		ID:         fmt.Sprintf("benchmark-message-%d", sequence),
+		Stream:     stream,
+		Event:      event,
+		RecordedAt: time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+		Pending:       pending,
+		StreamVersion: uint64(sequence),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	delivery, err := eventsourcing.NewDelivery(message, eventsourcing.DeliveryLive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return delivery
 }
