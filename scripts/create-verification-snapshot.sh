@@ -17,6 +17,7 @@ fi
 git -C "${source_repository}" rev-parse --verify HEAD >/dev/null
 git clone --shared --no-checkout --quiet \
     "${source_repository}" "${snapshot_directory}"
+git -C "${snapshot_directory}" config --local core.fsmonitor false
 git -C "${snapshot_directory}" checkout --detach --quiet \
     "$(git -C "${source_repository}" rev-parse HEAD)"
 

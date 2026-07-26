@@ -5,6 +5,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -12,8 +13,56 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
+
+func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
+	root := testRepositoryRoot(t)
+	globalConfig := filepath.Join(t.TempDir(), "gitconfig")
+	writeTestFile(t, globalConfig, "[core]\n\tfsmonitor = true\n")
+	snapshot := filepath.Join(t.TempDir(), "repository")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	command := exec.CommandContext(
+		ctx,
+		filepath.Join(root, "scripts", "create-verification-snapshot.sh"),
+		root,
+		snapshot,
+	)
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"GIT_CONFIG_GLOBAL",
+		globalConfig,
+	)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}
+	command.WaitDelay = time.Second
+	if result, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("create verification snapshot: %v\n%s", err, result)
+	}
+
+	config := exec.Command(
+		"git",
+		"-C",
+		snapshot,
+		"config",
+		"--local",
+		"--get",
+		"core.fsmonitor",
+	)
+	value, err := config.Output()
+	if err != nil {
+		t.Fatalf("read snapshot fsmonitor policy: %v", err)
+	}
+	if strings.TrimSpace(string(value)) != "false" {
+		t.Fatalf("snapshot core.fsmonitor = %q, want false", value)
+	}
+}
 
 func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T) {
 	root := testRepositoryRoot(t)

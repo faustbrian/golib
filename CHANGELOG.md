@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Disable inherited Git file-system monitoring inside clean verification
+  snapshots so checkout and module gates cannot hang on global fsmonitor state.
 - Build CodeQL targets from each owning module, compile every cataloged
   production package to an isolated output, provision a second pinned
   JavaScript engine for ECMAScript differential checks, and execute API tools
