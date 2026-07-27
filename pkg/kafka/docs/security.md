@@ -63,9 +63,15 @@ not render the provider's possibly sensitive message. Applications must apply
 the same rule to errors they unwrap and to their own provider diagnostics.
 
 MSK IAM authentication and OpenTelemetry remain absent from the root module.
-An eventual MSK IAM integration belongs in an independently versioned adapter
-so the AWS SDK does not become a core dependency. No MSK compatibility claim is
-made without direct provisioned or serverless evidence.
+The independently versioned [`adapters/mskiam`](../adapters/mskiam) module uses
+AWS's supported Go signer and either the refreshing SDK v2 default credential
+chain or one explicit caller-owned provider. It bounds token generation,
+invalidates and retrieves nearly expired cached credentials once, caps
+effective token expiry at the signing credential expiry, rejects nearly expired
+or malformed tokens, contains panics, and redacts provider diagnostics. It
+does not retain arbitrary provider causes in returned errors and never enables
+the signer's global credential-debug flag. No MSK compatibility claim is made
+without direct Provisioned or Serverless evidence.
 
 The authentication wire rules follow [RFC 4616](https://www.rfc-editor.org/rfc/rfc4616)
 for PLAIN, [RFC 5802](https://www.rfc-editor.org/rfc/rfc5802) for SCRAM,

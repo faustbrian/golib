@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- independently versioned Amazon MSK IAM adapter using AWS's supported Go
+  signer, bounded token generation and credential refresh, effective expiry
+  capped by signing credentials, and redacted failure handling
 - independently versioned OpenTelemetry adapter for stable producer, consumer,
   group, transaction, and broker observations with explicit identity
   allowlists and messaging semantic-convention 1.43.0 mapping

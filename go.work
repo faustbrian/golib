@@ -45,6 +45,7 @@ use (
 	./pkg/jsonrpc
 	./pkg/kafka
 	./pkg/kafka/adapters/gotelemetry
+	./pkg/kafka/adapters/mskiam
 	./pkg/keyphrase
 	./pkg/knapsack
 	./pkg/knapsack/integration/references

@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-07-27",
+  "sources": [
+    {
+      "name": "AWS MSK IAM SASL Signer for Go",
+      "repository": "https://github.com/aws/aws-msk-iam-sasl-signer-go",
+      "version": "v1.0.4",
+      "revision": "53637de1b411b2a2c8b2ccb8f103fc1d6b761c07",
+      "license": "Apache-2.0",
+      "use": "supported non-Java MSK SASL/OAUTHBEARER token signing"
+    },
+    {
+      "name": "AWS SDK for Go v2",
+      "repository": "https://github.com/aws/aws-sdk-go-v2",
+      "version": "v1.43.0",
+      "tag_revision": "ffa53df6cfb5b1e5a9db64f3d4ed1c6d01602d8f",
+      "revision": "4fef3455fe2dcb5ea3de4e9fbacf889b84c8a255",
+      "config_version": "v1.32.31",
+      "credentials_version": "v1.19.30",
+      "sts_version": "v1.45.0",
+      "license": "Apache-2.0",
+      "use": "default and caller-selected refreshing credential providers"
+    },
+    {
+      "name": "Amazon MSK Developer Guide",
+      "repository": "https://docs.aws.amazon.com/msk/latest/developerguide/",
+      "status": "current",
+      "documents": [
+        "iam-access-control.html",
+        "configure-clients-for-iam-access-control.html",
+        "create-iam-access-control-policies.html",
+        "iam-access-control-use-cases.html",
+        "get-bootstrap-cli.html",
+        "troubleshooting.html"
+      ]
+    },
+    {
+      "name": "AWS SDKs and Tools Reference Guide",
+      "repository": "https://docs.aws.amazon.com/sdkref/latest/guide/",
+      "status": "current",
+      "documents": [
+        "standardized-credentials.html",
+        "feature-container-credentials.html"
+      ]
+    }
+  ]
+}

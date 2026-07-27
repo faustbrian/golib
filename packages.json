@@ -3137,6 +3137,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/kafka/adapters/mskiam",
+      "directory": ".",
+      "name": "mskiam",
+      "import_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/keyphrase",
       "directory": ".",
       "name": "keyphrase",

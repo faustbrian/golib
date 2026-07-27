@@ -19,8 +19,8 @@ recorded on 2026-07-27. Upstream protocol support is not package evidence.
 | Mutation tool | patched Gremlins v0.6.0 | 2,131 of 2,131 viable mutants killed; 100% efficacy and mutator coverage on 2026-07-27 |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
 | Security/release tools | govulncheck v1.6.0, Gitleaks v8.30.1, go-licenses v2.0.1, CycloneDX v1.10.0 | Repository tool pins |
-| OpenTelemetry semantic conventions | 1.43.0 | Selected current specification; adapter absent |
-| MSK IAM Go signer | Not selected | Adapter absent; version must be pinned and reviewed before implementation |
+| OpenTelemetry semantic conventions and Go API | Semantic conventions 1.43.0; Go v1.44.0 | Independently versioned adapter provenance and module pins |
+| MSK IAM Go signer and AWS SDK for Go v2 | Signer v1.0.4 at `53637de1b411b2a2c8b2ccb8f103fc1d6b761c07`; SDK v1.43.0 and config v1.32.31 at `4fef3455fe2dcb5ea3de4e9fbacf889b84c8a255` | Upstream tags, Go module proxy, and adapter provenance |
 
 Apache Kafka 4.3.1 was the latest supported Apache release found at execution
 time. The executed three-node fixture establishes compatibility only for the
@@ -48,7 +48,7 @@ floor still does not establish operational support for an untested broker.
 | SASL/PLAIN | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
 | SCRAM-SHA-256/512 | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
 | OAUTHBEARER | Refreshing provider over verified TLS | Bounded expiring-provider policy tests exist; broker compatibility unverified |
-| MSK IAM | Optional AWS signer adapter | Unimplemented |
+| MSK IAM | Optional AWS signer adapter | The independently versioned adapter uses the supported Go signer, refreshing SDK v2 default chain or explicit provider, bounded cancellation and refresh, effective expiry capped by signing credentials, and redacted failures. Local contract, race, fuzz, and allocation evidence exists; no Provisioned or Serverless broker has been exercised, so operational compatibility remains unverified. |
 | Producer | Single, batch, async, ordering, failure, shutdown | Policy APIs and deterministic tests exist. The Apache fixture proves explicit-partition synchronous delivery before failure, after clean leader failover at ISR=2, and after ISR=3 recovery; batch, async, ambiguous-outcome, throttle, and shutdown broker evidence remains unverified. |
 | Consumer group | Classic cooperative/eager and reviewed next-generation protocol | Explicit cooperative-sticky, eager-sticky, migration, static-membership, rack, bounded cross-partition handling, partition pause/resume, and per-record failure policy exists; the single-node fixture proves eager membership, same-ID static restart, pause/resume, concurrent independent-partition handling with sequential partition order, retry/dead-letter publication followed by source settlement, and redelivery after failed dead-letter publication, while rolling migration, fencing, cooperative overlap, rack locality, and batch failure policy remain unverified |
 | Transactions | Produce and consume-transform-produce | Producer-only and source-offset consume-transform-produce commit/abort isolation are exercised against the pinned single-node fixture. Producer-only committed/aborted isolation also passes before and after one broker process is recovered in the three-node Apache fixture with the transaction-state ISR restored; multi-broker consume-transform-produce rebalance, fencing, timeout, unknown-outcome, and process-termination recovery remain unverified. |

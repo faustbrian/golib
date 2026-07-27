@@ -117,7 +117,11 @@ material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's
 bounded credential-provider contracts; no franz-go authentication type appears
 in the public API. Unencrypted connections require the visibly development-only
 `DevelopmentPlaintextSecurity()` policy and cannot be combined with
-authentication.
+authentication. The independently versioned
+[`adapters/mskiam`](adapters/mskiam) module supplies AWS's supported
+SASL/OAUTHBEARER signer and refreshing SDK v2 credential chain without adding
+AWS dependencies to this root module. Amazon MSK Provisioned and Serverless
+remain unverified until direct repository integration evidence exists.
 
 Kafka request versions are negotiated per broker connection by default. Set a
 validated `ProtocolPolicy.MinimumVersion` only when a reviewed capability must

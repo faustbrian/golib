@@ -7776,6 +7776,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
       ],
       "external_runtime_dependencies": [
@@ -7933,6 +7934,65 @@
       "conformance_corpora": [],
       "provenance": [
         "pkg/kafka/adapters/gotelemetry/specification/manifest.json"
+      ],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/kafka/adapters/mskiam",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/kafka/adapters/mskiam",
+          "directory": ".",
+          "name": "mskiam",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`mskiam` is the independently versioned Amazon MSK IAM authentication adapter for [`github.com/faustbrian/golib/pkg/kafka`](../..). The root Kafka module remains AWS-independent.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/kafka/adapters/mskiam/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/kafka"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-msk-iam-sasl-signer-go",
+        "github.com/aws/aws-sdk-go-v2",
+        "github.com/aws/aws-sdk-go-v2/config"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [
+        "pkg/kafka/adapters/mskiam/specification/manifest.json"
       ],
       "goal_files": [],
       "goal_status": "not-applicable",
