@@ -4,6 +4,10 @@ Snapshots are optional derived acceleration data. Event history remains the
 authority: applications must be able to delete snapshots and rebuild them from
 the event store.
 
+The [runnable snapshot example](../snapshot_example_test.go) persists an
+aggregate, refreshes derived snapshot state synchronously, and restores the
+aggregate through the snapshot manager.
+
 ## Snapshot envelope
 
 `Snapshot` owns and validates:

@@ -2,6 +2,10 @@
 
 `Dispatcher` is the replaceable delivery boundary:
 
+The [runnable synchronous-dispatch example](../dispatch_example_test.go)
+constructs one persisted delivery and invokes an explicitly registered
+consumer.
+
 ```go
 type Dispatcher interface {
 	Dispatch(context.Context, []Delivery) error

@@ -5,6 +5,9 @@ global state, or a third-party assertion framework. A scenario is immutable:
 `GivenNone`, `Given`, and `GivenHistory` return independent setups, and every
 run constructs a fresh aggregate.
 
+The [runnable scenario example](../scenario_example_test.go) exercises the
+given-no-history workflow and reports committed and pending versions.
+
 ## Basic scenario
 
 ```go
