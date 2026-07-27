@@ -46,6 +46,15 @@ Handler execution is disabled by default. Applications must set
 schema, and operational review. This is an execution opt-in, not a claim that
 the handler is idempotent or safe.
 
+`Replay` accepts a dedicated `ReplayHandler`, commonly adapted with
+`ReplayHandlerFunc`. Every callback receives a `ReplayRecord` containing the
+borrowed consumed record plus `ReplayMetadata`. The metadata repeats the
+complete requested range and its checkpoint-derived effective inclusive start.
+This distinguishes replay callbacks from consumer-group delivery and lets an
+application propagate reviewed source-range and resume provenance. It does not
+provide an application replay identifier, authorization decision, or audit
+record; those remain application-owned.
+
 ## Progress and resume
 
 `ReplayResult` reports polled, processed, skipped, and failed record counts,
@@ -135,7 +144,8 @@ Each reader is single-use. A concurrent call returns `ErrReplayBusy`; any later
 call returns `ErrReplayAlreadyRun`, including after failure. Resume by
 constructing a new reader with the returned checkpoint. The lifecycle lock is
 not held across application callbacks, polling, or close. Handler bytes are
-borrowed for the callback and must be retained before escape. Context
+borrowed for the callback and must be retained with `ReplayRecord.Retain` before
+escape. Replay metadata contains values only and remains safe to copy. Context
 cancellation and handler expiry override a nil callback result, leave the
 current offset unprocessed, and return it in the checkpoint. With parallel
 execution, a canceled queued partition is returned unchanged without invoking

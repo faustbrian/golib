@@ -347,9 +347,9 @@ func proveReplayPolicy(
 		t.Fatalf("broker-validated replay plan = %#v", plan)
 	}
 	injectedFailure := errors.New("injected replay interruption")
-	first, replayErr := reader.Replay(ctx, kafka.HandlerFunc(func(
+	first, replayErr := reader.Replay(ctx, kafka.ReplayHandlerFunc(func(
 		_ context.Context,
-		message kafka.ConsumedMessage,
+		message kafka.ReplayRecord,
 	) error {
 		if message.Offset == 1 {
 			return injectedFailure
@@ -376,9 +376,9 @@ func proveReplayPolicy(
 		t.Fatalf("construct resumed replay reader: %v", err)
 	}
 	var resumed []int64
-	second, replayErr := reader.Replay(ctx, kafka.HandlerFunc(func(
+	second, replayErr := reader.Replay(ctx, kafka.ReplayHandlerFunc(func(
 		_ context.Context,
-		message kafka.ConsumedMessage,
+		message kafka.ReplayRecord,
 	) error {
 		resumed = append(resumed, message.Offset)
 
@@ -438,9 +438,9 @@ func proveReplayPolicy(
 	sequences := make(map[int32][]int64)
 	parallelResult, replayErr := parallel.Replay(
 		ctx,
-		kafka.HandlerFunc(func(
+		kafka.ReplayHandlerFunc(func(
 			handlerCtx context.Context,
-			message kafka.ConsumedMessage,
+			message kafka.ReplayRecord,
 		) error {
 			sequenceMu.Lock()
 			sequences[message.Partition] = append(
@@ -491,9 +491,9 @@ func proveReplayPolicy(
 	if err != nil {
 		t.Fatalf("construct out-of-range replay reader: %v", err)
 	}
-	_, replayErr = outOfRange.Replay(ctx, kafka.HandlerFunc(func(
+	_, replayErr = outOfRange.Replay(ctx, kafka.ReplayHandlerFunc(func(
 		context.Context,
-		kafka.ConsumedMessage,
+		kafka.ReplayRecord,
 	) error {
 		t.Fatal("out-of-range replay invoked handler")
 

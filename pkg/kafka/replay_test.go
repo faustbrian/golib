@@ -137,9 +137,9 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 	}})
 	var offsets []int64
 
-	result, err := reader.Replay(context.Background(), HandlerFunc(func(
+	result, err := reader.Replay(context.Background(), ReplayHandlerFunc(func(
 		_ context.Context,
-		message ConsumedMessage,
+		message ReplayRecord,
 	) error {
 		offsets = append(offsets, message.Offset)
 
@@ -161,6 +161,58 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 		len(offsets) != 2 || offsets[0] != 1 || offsets[1] != 2 ||
 		backend.pollCalls != 2 {
 		t.Fatalf("result/offsets/backend = %#v/%v/%#v", result, offsets, backend)
+	}
+}
+
+func TestReplayHandlerReceivesRangeAndResumeMetadataWithRetainableRecord(t *testing.T) {
+	t.Parallel()
+
+	source := &kgo.Record{
+		Topic:     "events",
+		Partition: 1,
+		Offset:    2,
+		Key:       []byte("key"),
+		Value:     []byte("value"),
+		Headers:   []kgo.RecordHeader{{Key: "trace-id", Value: []byte("trace")}},
+	}
+	reader := replayReaderWithBackend(
+		&recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(source)}},
+		[]ReplayRange{{
+			Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 3,
+		}},
+	)
+	reader.checkpoint = ReplayCheckpoint{Positions: []ReplayPosition{{
+		Topic: "events", Partition: 1, NextOffset: 2,
+	}}}
+	var retained ReplayRecord
+
+	result, err := reader.Replay(
+		context.Background(),
+		ReplayHandlerFunc(func(_ context.Context, record ReplayRecord) error {
+			if record.Metadata.Range != (ReplayRange{
+				Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 3,
+			}) || record.Metadata.EffectiveStartOffset != 2 {
+				t.Fatalf("replay metadata = %#v", record.Metadata)
+			}
+			retained = record.Retain()
+
+			return nil
+		}),
+	)
+
+	if err != nil {
+		t.Fatalf("Replay() error = %v", err)
+	}
+	if result.Processed != 1 || result.Ranges[0].NextOffset != 3 {
+		t.Fatalf("Replay() result = %#v", result)
+	}
+	source.Key[0] = 'x'
+	source.Value[0] = 'x'
+	source.Headers[0].Value[0] = 'x'
+	if string(retained.Key) != "key" ||
+		string(retained.Value) != "value" ||
+		string(retained.Headers[0].Value) != "trace" {
+		t.Fatalf("retained replay record = %#v", retained)
 	}
 }
 
@@ -403,9 +455,9 @@ func TestReplayStopsOnFetchHandlerAndConfigurationFailures(t *testing.T) {
 	reader = replayReaderWithBackend(&recordingReplayBackend{
 		fetches: []kgo.Fetches{kgo.NewErrFetch(fetchErr)},
 	}, []ReplayRange{{Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 2}})
-	if _, err := reader.Replay(context.Background(), HandlerFunc(func(
+	if _, err := reader.Replay(context.Background(), ReplayHandlerFunc(func(
 		context.Context,
-		ConsumedMessage,
+		ReplayRecord,
 	) error {
 		t.Fatal("handler called after fetch error")
 
@@ -420,13 +472,31 @@ func TestReplayStopsOnFetchHandlerAndConfigurationFailures(t *testing.T) {
 			&kgo.Record{Topic: "events", Partition: 1, Offset: 1},
 		)},
 	}, []ReplayRange{{Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 2}})
-	if _, err := reader.Replay(context.Background(), HandlerFunc(func(
+	if _, err := reader.Replay(context.Background(), ReplayHandlerFunc(func(
 		context.Context,
-		ConsumedMessage,
+		ReplayRecord,
 	) error {
 		return handlerErr
 	})); !errors.Is(err, handlerErr) {
 		t.Fatalf("Replay() handler error = %v, want %v", err, handlerErr)
+	}
+
+	reader = replayReaderWithBackend(&recordingReplayBackend{
+		fetches: []kgo.Fetches{recordFetches(
+			&kgo.Record{Topic: "events", Partition: 1, Offset: 1},
+		)},
+	}, []ReplayRange{{Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 2}})
+	result, err := reader.Replay(
+		context.Background(),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
+			panic("sensitive replay panic")
+		}),
+	)
+	if !errors.Is(err, ErrHandlerPanic) ||
+		strings.Contains(err.Error(), "sensitive") ||
+		result.Failed != 1 ||
+		result.Ranges[0].NextOffset != 1 {
+		t.Fatalf("Replay() panic result/error = %#v/%v", result, err)
 	}
 }
 
@@ -470,9 +540,9 @@ func TestReplayFailsClosedOnUnexpectedRecordsAndOffsetGaps(t *testing.T) {
 			}, []ReplayRange{{
 				Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 3,
 			}})
-			_, err := reader.Replay(context.Background(), HandlerFunc(func(
+			_, err := reader.Replay(context.Background(), ReplayHandlerFunc(func(
 				context.Context,
-				ConsumedMessage,
+				ReplayRecord,
 			) error {
 				t.Fatal("handler called for invalid replay record")
 

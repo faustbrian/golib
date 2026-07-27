@@ -58,6 +58,45 @@ type ReplayRange struct {
 	EndOffset   int64
 }
 
+// ReplayMetadata identifies the complete requested range and the effective
+// inclusive start selected by the external checkpoint for one replay run.
+type ReplayMetadata struct {
+	Range                ReplayRange
+	EffectiveStartOffset int64
+}
+
+// ReplayRecord is one borrowed Kafka record plus immutable replay provenance.
+// Record bytes remain valid only for the synchronous handler call unless
+// Retain is used.
+type ReplayRecord struct {
+	ConsumedRecord
+	Metadata ReplayMetadata
+}
+
+// Retain returns a replay record with independently owned Kafka record bytes.
+func (record ReplayRecord) Retain() ReplayRecord {
+	record.ConsumedRecord = record.ConsumedRecord.Retain()
+
+	return record
+}
+
+// ReplayHandler processes one replay record. Implementations must be
+// concurrency-safe when replay permits more than one concurrent handler.
+type ReplayHandler interface {
+	HandleReplay(context.Context, ReplayRecord) error
+}
+
+// ReplayHandlerFunc adapts a function to ReplayHandler.
+type ReplayHandlerFunc func(context.Context, ReplayRecord) error
+
+// HandleReplay invokes handler.
+func (handler ReplayHandlerFunc) HandleReplay(
+	ctx context.Context,
+	record ReplayRecord,
+) error {
+	return handler(ctx, record)
+}
+
 // ReplayPosition is the next offset an external replay checkpoint requests for
 // one configured topic partition.
 type ReplayPosition struct {
@@ -600,7 +639,7 @@ func (reader *ReplayReader) PlanAgainstBroker(
 // and persist the returned checkpoint outside this package before resuming.
 func (reader *ReplayReader) Replay(
 	ctx context.Context,
-	handler Handler,
+	handler ReplayHandler,
 ) (result ReplayResult, resultErr error) {
 	if ctx == nil {
 		return ReplayResult{}, ErrContextRequired
@@ -632,6 +671,20 @@ func (reader *ReplayReader) Replay(
 	result, indexes := reader.initialReplayResult()
 	if err := reader.validateReplayBounds(ctx, result.Ranges); err != nil {
 		return result, err
+	}
+	metadata := make(map[replayPartition]ReplayMetadata, len(result.Ranges))
+	for _, replayRange := range result.Ranges {
+		metadata[replayPartition{
+			topic: replayRange.Topic, partition: replayRange.Partition,
+		}] = ReplayMetadata{
+			Range: ReplayRange{
+				Topic:       replayRange.Topic,
+				Partition:   replayRange.Partition,
+				StartOffset: replayRange.StartOffset,
+				EndOffset:   replayRange.EndOffset,
+			},
+			EffectiveStartOffset: replayRange.NextOffset,
+		}
 	}
 	progressDeadlines := reader.initialReplayProgressDeadlines(result.Ranges)
 	for result.IncompleteRanges > 0 {
@@ -671,6 +724,7 @@ func (reader *ReplayReader) Replay(
 				records,
 				&result,
 				indexes,
+				metadata,
 				progressDeadlines,
 			); err != nil {
 				return result, err
@@ -684,6 +738,7 @@ func (reader *ReplayReader) Replay(
 			records,
 			&result,
 			indexes,
+			metadata,
 			progressDeadlines,
 		); err != nil {
 			return result, err

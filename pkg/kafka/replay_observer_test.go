@@ -31,7 +31,7 @@ func TestReplayEmitsPlanRecordRunAndShutdownObservations(t *testing.T) {
 	}
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error { return nil }),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error { return nil }),
 	)
 	if err != nil || result.Processed != 1 {
 		t.Fatalf("Replay() = %#v, %v", result, err)
@@ -85,7 +85,7 @@ func TestReplayObservesGapFailureAndExactProgress(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error { return nil }),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error { return nil }),
 	)
 
 	if !errors.Is(err, ErrReplayOffsetGap) ||
@@ -141,7 +141,7 @@ func TestReplayValidatesCopiesAndFencesObservers(t *testing.T) {
 		_, planErr := reader.PlanAgainstBroker(context.Background())
 		_, replayErr := reader.Replay(
 			context.Background(),
-			HandlerFunc(func(context.Context, ConsumedMessage) error { return nil }),
+			ReplayHandlerFunc(func(context.Context, ReplayRecord) error { return nil }),
 		)
 		shutdownErr := reader.Shutdown(context.Background())
 		closeErr := reader.Close()
@@ -167,7 +167,7 @@ func TestReplayValidatesCopiesAndFencesObservers(t *testing.T) {
 
 	if _, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error { return nil }),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error { return nil }),
 	); err != nil {
 		t.Fatalf("Replay() error = %v", err)
 	}
@@ -196,7 +196,7 @@ func TestReplayValidatesCopiesAndFencesObservers(t *testing.T) {
 	}
 	if _, err := reader.Replay(
 		observerCtx,
-		HandlerFunc(func(context.Context, ConsumedMessage) error { return nil }),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error { return nil }),
 	); !errors.Is(err, ErrObserverReentry) {
 		t.Fatalf("Replay(observer context) error = %v", err)
 	}

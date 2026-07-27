@@ -23,10 +23,11 @@ type replayPartitionResult struct {
 
 func (reader *ReplayReader) processReplayRecordsSerial(
 	ctx context.Context,
-	handler Handler,
+	handler ReplayHandler,
 	records []*kgo.Record,
 	result *ReplayResult,
 	indexes map[replayPartition]int,
+	metadata map[replayPartition]ReplayMetadata,
 	deadlines map[replayPartition]time.Time,
 ) error {
 	for _, record := range records {
@@ -50,6 +51,7 @@ func (reader *ReplayReader) processReplayRecordsSerial(
 				records: []*kgo.Record{record},
 			},
 			result.Ranges[index],
+			metadata[partition],
 			deadlines[partition],
 		)
 		reader.applyReplayPartitionResult(
@@ -69,10 +71,11 @@ func (reader *ReplayReader) processReplayRecordsSerial(
 
 func (reader *ReplayReader) processReplayRecordsParallel(
 	ctx context.Context,
-	handler Handler,
+	handler ReplayHandler,
 	records []*kgo.Record,
 	result *ReplayResult,
 	indexes map[replayPartition]int,
+	metadata map[replayPartition]ReplayMetadata,
 	deadlines map[replayPartition]time.Time,
 ) error {
 	batches := partitionBatches(records)
@@ -99,6 +102,7 @@ func (reader *ReplayReader) processReplayRecordsParallel(
 				handler,
 				batch,
 				result.Ranges[index],
+				metadata[partition],
 				deadlines[partition],
 			)
 		},
@@ -161,9 +165,10 @@ func runReplayPartitionWorkers(
 
 func (reader *ReplayReader) processReplayPartition(
 	ctx context.Context,
-	handler Handler,
+	handler ReplayHandler,
 	batch consumerPartitionBatch,
 	progress ReplayRangeResult,
+	metadata ReplayMetadata,
 	deadline time.Time,
 ) replayPartitionResult {
 	result := replayPartitionResult{progress: progress, deadline: deadline}
@@ -249,7 +254,10 @@ func (reader *ReplayReader) processReplayPartition(
 		message, err := consumedMessageWithinLimits(record, reader.limits)
 		if err == nil {
 			handlerCtx, cancel := context.WithTimeout(ctx, reader.handlerTimeout)
-			err = callHandler(handlerCtx, handler, message)
+			err = callReplayHandler(handlerCtx, handler, ReplayRecord{
+				ConsumedRecord: message,
+				Metadata:       metadata,
+			})
 			if cause := context.Cause(handlerCtx); cause != nil {
 				err = errors.Join(err, cause)
 			}
@@ -293,6 +301,20 @@ func (reader *ReplayReader) processReplayPartition(
 	}
 
 	return result
+}
+
+func callReplayHandler(
+	ctx context.Context,
+	handler ReplayHandler,
+	record ReplayRecord,
+) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrHandlerPanic
+		}
+	}()
+
+	return handler.HandleReplay(ctx, record)
 }
 
 func (reader *ReplayReader) observeReplayRecord(

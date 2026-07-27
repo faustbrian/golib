@@ -134,7 +134,7 @@ func TestReplayCompleteCheckpointDoesNotPoll(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called for a completed replay checkpoint")
 
 			return nil
@@ -190,7 +190,7 @@ func TestReplayPlanAndResultExposeOwnedResumableProgress(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			return nil
 		}),
 	)
@@ -230,7 +230,7 @@ func TestReplayPlanAndResultExposeOwnedResumableProgress(t *testing.T) {
 	polls := backend.pollCalls
 	if _, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			return nil
 		}),
 	); !errors.Is(err, ErrReplayAlreadyRun) || backend.pollCalls != polls {
@@ -255,7 +255,7 @@ func TestReplayFailureReturnsExactIncompleteCheckpoint(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(_ context.Context, record ConsumedMessage) error {
+		ReplayHandlerFunc(func(_ context.Context, record ReplayRecord) error {
 			if record.Offset == 2 {
 				return handlerErr
 			}
@@ -302,7 +302,7 @@ func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(ctx context.Context, _ ConsumedMessage) error {
+		ReplayHandlerFunc(func(ctx context.Context, _ ReplayRecord) error {
 			<-ctx.Done()
 
 			return nil
@@ -320,7 +320,7 @@ func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
 	var nilContext context.Context
 	if _, err := reader.Replay(
 		nilContext,
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called with nil replay context")
 
 			return nil
@@ -334,7 +334,7 @@ func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
 	polls := backend.pollCalls
 	if _, err := reader.Replay(
 		ctx,
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called after replay cancellation")
 
 			return nil
@@ -360,7 +360,7 @@ func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
 	)
 	if _, err := cancelingReader.Replay(
 		ctx,
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called after replay poll cancellation")
 
 			return nil
@@ -384,7 +384,7 @@ func TestReplayClassifiesOutOfRangeAndRecordLimitFailures(t *testing.T) {
 	)
 	result, err := outOfRangeReader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called after an out-of-range fetch")
 
 			return nil
@@ -411,7 +411,7 @@ func TestReplayClassifiesOutOfRangeAndRecordLimitFailures(t *testing.T) {
 	limitReader.limits.MaxValueBytes = 1
 	result, err = limitReader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called for a replay record outside limits")
 
 			return nil
@@ -477,7 +477,7 @@ func TestReplayValidatesBrokerBoundsBeforePolling(t *testing.T) {
 			reader.bounds = bounds
 			result, err := reader.Replay(
 				context.Background(),
-				HandlerFunc(func(context.Context, ConsumedMessage) error {
+				ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 					t.Fatal("handler called for unavailable exact range")
 
 					return nil
@@ -605,7 +605,7 @@ func TestReplayBoundsPlanningTimeoutAndCompletedRangeFiltering(t *testing.T) {
 	)
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			return nil
 		}),
 	)
@@ -631,7 +631,7 @@ func TestReplayBoundsPlanningTimeoutAndCompletedRangeFiltering(t *testing.T) {
 	}
 	result, err = timeoutReader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called after replay planning timeout")
 
 			return nil
@@ -663,7 +663,7 @@ func TestReplayFailsBoundedlyWhenAnExactRangeMakesNoProgress(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("stalled replay invoked handler")
 
 			return nil
@@ -703,7 +703,7 @@ func TestReplayProgressDeadlineIsPartitionScoped(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(_ context.Context, message ConsumedMessage) error {
+		ReplayHandlerFunc(func(_ context.Context, message ReplayRecord) error {
 			if message.Partition != 1 || message.Offset != 0 {
 				t.Fatalf("handler message = %#v", message)
 			}
@@ -752,7 +752,7 @@ func TestReplayChecksProgressDeadlineBeforeEachPoll(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("expired replay invoked handler")
 
 			return nil
@@ -786,7 +786,7 @@ func TestReplayRequiresExplicitSideEffectOptIn(t *testing.T) {
 
 	if _, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("handler called without replay side-effect opt-in")
 
 			return nil
@@ -818,7 +818,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 	go func() {
 		_, err := reader.Replay(
 			context.Background(),
-			HandlerFunc(func(context.Context, ConsumedMessage) error {
+			ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 				close(handlerEntered)
 				nestedCtx, nestedCancel := context.WithTimeout(
 					context.Background(),
@@ -827,7 +827,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 				defer nestedCancel()
 				_, nestedErr := reader.Replay(
 					nestedCtx,
-					HandlerFunc(func(context.Context, ConsumedMessage) error {
+					ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 						return nil
 					}),
 				)
@@ -861,7 +861,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 	}
 	if _, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			return nil
 		}),
 	); !errors.Is(err, ErrReplayClosing) {
@@ -880,7 +880,7 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 	}
 	if _, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			return nil
 		}),
 	); !errors.Is(err, ErrReplayClosed) {
@@ -949,7 +949,7 @@ func TestReplayShutdownValidatesContextAndWaitsForActiveReplay(t *testing.T) {
 	go func() {
 		_, err := reader.Replay(
 			context.Background(),
-			HandlerFunc(func(context.Context, ConsumedMessage) error {
+			ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 				close(handlerEntered)
 				<-releaseHandler
 

@@ -13,6 +13,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- replay execution now accepts `ReplayHandler` instead of the consumer-group
+  `Handler` and supplies each `ReplayRecord` with its complete requested range
+  and checkpoint-derived effective start; callers must migrate
+  `HandlerFunc` callbacks to `ReplayHandlerFunc`
 - bounded payload-free producer, consumer, and consume-transform-produce
   shutdown-attempt observations with retry outcomes and same-client lifecycle
   reentrancy fencing

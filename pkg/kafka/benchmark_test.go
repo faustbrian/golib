@@ -99,7 +99,7 @@ func BenchmarkConsumerPartitionWorkers(b *testing.B) {
 
 func BenchmarkReplayProgress(b *testing.B) {
 	ctx := context.Background()
-	handler := HandlerFunc(func(context.Context, ConsumedMessage) error {
+	handler := ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 		return nil
 	})
 	records := make([]*kgo.Record, 4)

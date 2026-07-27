@@ -225,6 +225,11 @@ same validation before handler admission. Unavailable bounds and out-of-range
 requests have distinct errors. Replay also returns `ErrReplayStalled` if
 `ProgressTimeout` elapses without advancing any range. It returns 64-bit
 aggregate plus per-range progress on every success or failure.
+Replay accepts the dedicated `ReplayHandler` contract rather than a
+consumer-group `Handler`. Each borrowed `ReplayRecord` carries the requested
+`ReplayRange` and the checkpoint-derived `EffectiveStartOffset`, so the
+application can preserve replay provenance with its side effects.
+`ReplayRecord.Retain` deep-copies the embedded consumed-record bytes.
 `ReplayConfig.MaxConcurrentFetches` independently bounds broker fetch requests.
 `MaxConcurrentHandlers` defaults to one and permits 1 through 64 fixed workers.
 Values above one process one sequential batch per partition concurrently. All

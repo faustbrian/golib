@@ -126,10 +126,11 @@ func TestReplayProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 	firstBarrier := make(chan struct{})
 	var sequenceMu sync.Mutex
 	sequences := make(map[int32][]int64)
+	metadata := make(map[int32]ReplayMetadata)
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(ctx context.Context, record ConsumedMessage) error {
+		ReplayHandlerFunc(func(ctx context.Context, record ReplayRecord) error {
 			current := active.Add(1)
 			defer active.Add(-1)
 			updateMaximum(&maximum, current)
@@ -139,6 +140,7 @@ func TestReplayProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 				sequences[record.Partition],
 				record.Offset,
 			)
+			metadata[record.Partition] = record.Metadata
 			sequenceMu.Unlock()
 
 			if record.Offset != 0 {
@@ -164,13 +166,20 @@ func TestReplayProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 		result.IncompleteRanges != 0 ||
 		maximum.Load() != 2 ||
 		!reflect.DeepEqual(sequences[0], []int64{0, 1}) ||
-		!reflect.DeepEqual(sequences[1], []int64{0, 1}) {
+		!reflect.DeepEqual(sequences[1], []int64{0, 1}) ||
+		metadata[0] != (ReplayMetadata{
+			Range: ranges[0], EffectiveStartOffset: 0,
+		}) ||
+		metadata[1] != (ReplayMetadata{
+			Range: ranges[1], EffectiveStartOffset: 0,
+		}) {
 		t.Fatalf(
-			"result/error/max/sequences = %#v/%v/%d/%#v",
+			"result/error/max/sequences/metadata = %#v/%v/%d/%#v/%#v",
 			result,
 			err,
 			maximum.Load(),
 			sequences,
+			metadata,
 		)
 	}
 }
@@ -197,7 +206,7 @@ func TestReplayParallelFailurePreservesIndependentPartitionProgress(
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(ctx context.Context, record ConsumedMessage) error {
+		ReplayHandlerFunc(func(ctx context.Context, record ReplayRecord) error {
 			if record.Partition == 0 {
 				select {
 				case <-partitionOneDone:
@@ -245,7 +254,7 @@ func TestReplayParallelRejectsUnexpectedPartitionBeforeHandlers(t *testing.T) {
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("parallel replay invoked handler for an invalid poll")
 
 			return nil
@@ -280,7 +289,7 @@ func TestReplayRejectsBackendRecordsBeyondPollLimitBeforeHandlers(t *testing.T) 
 
 	result, err := reader.Replay(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			calls.Add(1)
 
 			return nil
@@ -329,7 +338,7 @@ func TestReplayPartitionWorkerSingleBatchAndExpiredDeadline(t *testing.T) {
 	)
 	expired := reader.processReplayPartition(
 		context.Background(),
-		HandlerFunc(func(context.Context, ConsumedMessage) error {
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 			t.Fatal("expired partition invoked handler")
 
 			return nil
@@ -338,6 +347,7 @@ func TestReplayPartitionWorkerSingleBatchAndExpiredDeadline(t *testing.T) {
 		ReplayRangeResult{ReplayRange: ReplayRange{
 			Topic: "events", Partition: 1, StartOffset: 0, EndOffset: 1,
 		}},
+		ReplayMetadata{},
 		reader.now().Add(-1),
 	)
 	if !errors.Is(expired.err, ErrReplayStalled) ||
@@ -376,7 +386,7 @@ func TestReplayParallelCancellationDoesNotAdmitQueuedPartition(t *testing.T) {
 	go func() {
 		result, err := reader.Replay(
 			ctx,
-			HandlerFunc(func(context.Context, ConsumedMessage) error {
+			ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
 				calls.Add(1)
 				started <- struct{}{}
 				<-release
