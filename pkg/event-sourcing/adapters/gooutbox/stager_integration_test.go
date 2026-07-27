@@ -441,7 +441,7 @@ func newIntegrationPool(t testing.TB) (context.Context, *pgxpool.Pool) {
 	}
 	container, err := tcpostgres.Run(
 		ctx,
-		"postgres:"+version+"-alpine",
+		outboxPostgresIntegrationImage(t, version),
 		tcpostgres.WithDatabase("event_sourcing_outbox"),
 		tcpostgres.WithUsername("event_sourcing_outbox"),
 		tcpostgres.WithPassword("event_sourcing_outbox"),
@@ -468,6 +468,17 @@ func newIntegrationPool(t testing.TB) (context.Context, *pgxpool.Pool) {
 	applyMigrations(t, ctx, pool, outboxpostgres.Migrations())
 
 	return ctx, pool
+}
+
+func outboxPostgresIntegrationImage(t testing.TB, version string) string {
+	t.Helper()
+
+	if version != "18" {
+		t.Fatalf("unsupported PostgreSQL integration version %q", version)
+	}
+
+	return "postgres:18.4-alpine@" +
+		"sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"
 }
 
 func applyMigrations(

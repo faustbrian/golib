@@ -3,8 +3,9 @@ FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 BENCH_COUNT ?= 10
 POSTGRES_VERSION ?= 18
+POSTGRES_VERSIONS ?= 14 15 16 17 18
 
-.PHONY: benchmark benchmark-postgres check coverage docs format format-check fuzz integration race test vet
+.PHONY: benchmark benchmark-postgres check coverage docs format format-check fuzz integration integration-version race test vet
 
 format:
 	gofmt -w .
@@ -16,6 +17,14 @@ test:
 	$(GO) test ./...
 
 integration:
+	@set -eu; \
+	for version in $(POSTGRES_VERSIONS); do \
+		printf 'PostgreSQL %s integration\n' "$${version}"; \
+		$(MAKE) --no-print-directory integration-version \
+			POSTGRES_VERSION="$${version}"; \
+	done
+
+integration-version:
 	EVENT_SOURCING_POSTGRES_VERSION="$(POSTGRES_VERSION)" \
 		$(GO) test -tags=integration -count=1 ./...
 

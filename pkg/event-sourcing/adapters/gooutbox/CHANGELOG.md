@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- a digest-pinned PostgreSQL 18.4 fixture for same-transaction integration
+  evidence
 - same-transaction event and outbox staging directly from a prepared core
   aggregate save plan
 - real PostgreSQL benchmark isolating same-transaction outbox append overhead

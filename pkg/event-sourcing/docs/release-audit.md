@@ -24,6 +24,7 @@ content-addressed repository and module evidence for the exact release inputs.
 | ES-010 | Medium | A process manager could invoke its planner without declaring which stable events it accepts | Resolved | Construction requires a bounded unique event-name allowlist; accepted and ignored delivery scenarios prove planner isolation |
 | ES-011 | High | Resumed projection replay had no required per-batch authorization or audit boundary | Resolved | Every runner requires a guard that runs before initial, resumed, and terminal hooks, reads, handlers, and checkpoint changes; rejection, panic, cancellation, and ordering tests fail closed |
 | ES-012 | High | Applications had no storage-independent hook to authenticate event history before reconstitution, replay, or projection | Resolved | Verifying stream and global-reader decorators invoke one application verifier before message exposure, fail closed on rejection, panic, cancellation, or corrupt input, and retain store conformance |
+| ES-013 | Medium | PostgreSQL compatibility and recovery were proven only on major version 18 | Resolved | The complete real-database suite now runs serially against digest-pinned current minors for every major version supported upstream on 2026-07-27, from 14 through 18 |
 
 Excluded EventSauce mechanisms and externally owned guarantees are decisions,
 not open findings. They remain enumerated in the

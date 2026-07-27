@@ -1024,7 +1024,7 @@ func TestPostgreSQLReplicaPromotionPreservesHistoryAndOrdering(t *testing.T) {
 
 	primary, err := tcpostgres.Run(
 		ctx,
-		"postgres:"+version+"-alpine",
+		postgresIntegrationImage(t, version),
 		network.WithNetwork([]string{"event-primary"}, clusterNetwork),
 		tcpostgres.WithDatabase("event_sourcing"),
 		tcpostgres.WithUsername("event_sourcing"),
@@ -1094,7 +1094,7 @@ func TestPostgreSQLReplicaPromotionPreservesHistoryAndOrdering(t *testing.T) {
 	const replicaData = "/tmp/event-sourcing-replica"
 	replica, err := testcontainers.Run(
 		ctx,
-		"postgres:"+version+"-alpine",
+		postgresIntegrationImage(t, version),
 		network.WithNetwork([]string{"event-replica"}, clusterNetwork),
 		testcontainers.WithEnv(map[string]string{"PGDATA": replicaData}),
 		testcontainers.WithExposedPorts("5432/tcp"),
@@ -1559,7 +1559,7 @@ func TestPostgreSQLStoreLifecycleAndCallerOwnedTransaction(t *testing.T) {
 	}
 	container, err := tcpostgres.Run(
 		ctx,
-		"postgres:"+version+"-alpine",
+		postgresIntegrationImage(t, version),
 		tcpostgres.WithDatabase("event_sourcing"),
 		tcpostgres.WithUsername("event_sourcing"),
 		tcpostgres.WithPassword("event_sourcing"),
@@ -2142,6 +2142,32 @@ func withPositions(
 	}
 
 	return message
+}
+
+func postgresIntegrationImage(t testing.TB, version string) string {
+	t.Helper()
+
+	switch version {
+	case "14":
+		return "postgres:14.23-alpine@" +
+			"sha256:f1341c01408dc7278e9d365ed4f860cd3f87dd16b4464ac326fc0f422083a579"
+	case "15":
+		return "postgres:15.18-alpine@" +
+			"sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f"
+	case "16":
+		return "postgres:16.14-alpine@" +
+			"sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+	case "17":
+		return "postgres:17.10-alpine@" +
+			"sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
+	case "18":
+		return "postgres:18.4-alpine@" +
+			"sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"
+	default:
+		t.Fatalf("unsupported PostgreSQL integration version %q", version)
+
+		return ""
+	}
 }
 
 func mustIterator(

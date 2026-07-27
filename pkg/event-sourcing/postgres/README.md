@@ -202,11 +202,11 @@ concurrent independent streams all commit. It also verifies unique, gap-free,
 ascending global positions through the public global reader. This correctness
 evidence is not a throughput claim.
 
-The PostgreSQL 18 integration suite also runs the public committed event-store
-conformance profile for atomic append, every expected-version mode, duplicate
-identity rejection, bounded reads, ownership, cancellation, and iterator
-semantics. It separately runs the optional global-reader profile for empty
-reads, cross-stream ordering, inclusive ranges, limits, ownership,
+The PostgreSQL 14 through 18 integration matrix runs the public committed
+event-store conformance profile for atomic append, every expected-version mode,
+duplicate identity rejection, bounded reads, ownership, cancellation, and
+iterator semantics. It separately runs the optional global-reader profile for
+empty reads, cross-stream ordering, inclusive ranges, limits, ownership,
 cancellation, and closure.
 
 PostgreSQL `bigint` bounds stream versions and global positions to
@@ -277,7 +277,8 @@ proves ordered reads and the next append through the same store and pool.
 Replication uses SCRAM authentication on an isolated Docker network.
 
 These tests prove adapter behavior after reconnecting to a writable server and
-preserve authoritative ordering across the pinned PostgreSQL 18 promotion.
+preserve authoritative ordering across each pinned PostgreSQL 14 through 18
+promotion.
 They do not make pgx discover a new primary. Applications or managed-service
 infrastructure own DNS, proxy, topology, fencing, retry, and pool-refresh
 policy and must fault-inject that exact deployment path.
@@ -293,9 +294,9 @@ The backup/restore integration suite uses PostgreSQL's `pg_dump` custom format
 and `pg_restore` into a clean database. It verifies identical event envelopes,
 snapshot state, and projection checkpoints, then appends the next expected
 stream version and global position. This proves logical backup compatibility
-for the pinned PostgreSQL version; production point-in-time recovery, replica
-promotion, encryption, retention, and storage-provider restoration still need
-deployment-specific drills.
+for every pinned supported major version; production point-in-time recovery,
+replica promotion, encryption, retention, and storage-provider restoration
+still need deployment-specific drills.
 
 Partitioning, archival, and retention require an application-specific design.
 Do not detach or delete partitions while active streams, legal retention, or
@@ -312,11 +313,20 @@ delivery across both systems.
 
 ## Verification
 
-The real-database suite uses the pinned repository PostgreSQL matrix:
+The real-database suite follows the
+[upstream support window](https://www.postgresql.org/support/versioning/) and
+covers the versions supported there on 2026-07-27: PostgreSQL 14.23, 15.18,
+16.14, 17.10, and 18.4. Each image is pinned by manifest digest. The matrix
+runs serially so failover networks and database resources remain bounded:
 
 ```sh
-EVENT_SOURCING_POSTGRES_VERSION=18 \
-	go test -tags=integration -count=1 ./...
+make integration
+```
+
+Run one pinned major version while developing:
+
+```sh
+make integration-version POSTGRES_VERSION=18
 ```
 
 The equivalent-work append benchmark compares the public event-store boundary

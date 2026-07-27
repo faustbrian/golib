@@ -74,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add digest-pinned PostgreSQL 14 through 18 compatibility evidence covering
+  the complete conformance, contention, recovery, failover, and restore suite.
 - Add storage-independent event-store and global-reader decorators that verify
   every stored message before exposure, contain verifier panics, preserve
   inspectable causes, and fail closed with redacted diagnostics.

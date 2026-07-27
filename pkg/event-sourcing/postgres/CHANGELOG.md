@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- a serial real-database compatibility matrix for every upstream-supported
+  PostgreSQL major version from 14 through 18, using exact current-minor image
+  digests and the complete conformance, contention, recovery, promotion, and
+  backup/restore suite
 - caller-owned transaction staging directly from a prepared core aggregate
   save plan without acknowledging or dispatching before commit
 - an equivalent-work PostgreSQL append benchmark comparing the public event
@@ -39,10 +43,10 @@ All notable changes to this module are documented here.
   losing durable history
 - logical `pg_dump` and `pg_restore` evidence preserving event history,
   snapshots, projection checkpoints, stream heads, and global ordering
-- public committed event-store conformance against a real PostgreSQL 18
-  database
-- public optional global-reader conformance against a real PostgreSQL 18
-  database
+- public committed event-store conformance against real PostgreSQL 14 through
+  18 databases
+- public optional global-reader conformance against real PostgreSQL 14 through
+  18 databases
 - atomic PostgreSQL stream append with optimistic concurrency and duplicate
   message-ID protection
 - bounded stream and global-position reads with caller-closed iterators

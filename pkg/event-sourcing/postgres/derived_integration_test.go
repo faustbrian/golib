@@ -455,7 +455,7 @@ func newPostgreSQLIntegrationDatabase(
 	}
 	container, err := tcpostgres.Run(
 		ctx,
-		"postgres:"+version+"-alpine",
+		postgresIntegrationImage(t, version),
 		tcpostgres.WithDatabase("event_sourcing"),
 		tcpostgres.WithUsername("event_sourcing"),
 		tcpostgres.WithPassword("event_sourcing"),
