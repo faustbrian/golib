@@ -6,11 +6,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
+	dockernetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -27,6 +29,7 @@ const (
 	apacheKafkaStartFile  = "/tmp/golib-kafka-start.sh"
 	apacheKafkaPIDFile    = "/tmp/golib-kafka.pid"
 	apacheKafkaStopFile   = "/tmp/golib-kafka.stop"
+	apacheKafkaSubnetPool = 4_096
 )
 
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
@@ -194,10 +197,7 @@ func startApacheKafkaCluster(
 ) *apacheKafkaCluster {
 	t.Helper()
 
-	dockerNetwork, err := network.New(ctx)
-	if err != nil {
-		t.Fatalf("create Apache Kafka network: %v", err)
-	}
+	dockerNetwork := newApacheKafkaNetwork(t, ctx)
 	testcontainers.CleanupNetwork(t, dockerNetwork)
 
 	cluster := &apacheKafkaCluster{nodes: make([]apacheKafkaNode, 0, 3)}
@@ -288,6 +288,50 @@ func startApacheKafkaCluster(
 	}
 
 	return cluster
+}
+
+func newApacheKafkaNetwork(
+	t *testing.T,
+	ctx context.Context,
+) *testcontainers.DockerNetwork {
+	t.Helper()
+
+	start := int(time.Now().UnixNano() % apacheKafkaSubnetPool)
+	var lastErr error
+	for attempt := range apacheKafkaSubnetPool {
+		index := (start + attempt) % apacheKafkaSubnetPool
+		prefix := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{
+				10,
+				253,
+				byte(index / 16),
+				byte(index%16) * 16,
+			}),
+			28,
+		)
+		dockerNetwork, err := network.New(
+			ctx,
+			network.WithIPAM(&dockernetwork.IPAM{
+				Driver: "default",
+				Config: []dockernetwork.IPAMConfig{{Subnet: prefix}},
+			}),
+		)
+		if err == nil {
+			return dockerNetwork
+		}
+		if context.Cause(ctx) != nil ||
+			!strings.Contains(err.Error(), "Pool overlaps") {
+			t.Fatalf("create Apache Kafka network: %v", err)
+		}
+		lastErr = err
+	}
+
+	t.Fatalf(
+		"create Apache Kafka network from dedicated subnet pool: %v",
+		lastErr,
+	)
+
+	return nil
 }
 
 func apacheKafkaEnvironment(nodeID int32) map[string]string {

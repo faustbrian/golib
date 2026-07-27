@@ -270,6 +270,18 @@ func proveReplayPolicy(
 	if err != nil {
 		t.Fatalf("construct initial replay reader: %v", err)
 	}
+	plan, err := reader.PlanAgainstBroker(ctx)
+	if err != nil {
+		t.Fatalf("plan initial replay against broker: %v", err)
+	}
+	if plan.TotalRemaining != 3 ||
+		len(plan.Ranges) != 1 ||
+		plan.Ranges[0].Topic != topic ||
+		plan.Ranges[0].Partition != 0 ||
+		plan.Ranges[0].NextOffset != 0 ||
+		plan.Ranges[0].Remaining != 3 {
+		t.Fatalf("broker-validated replay plan = %#v", plan)
+	}
 	injectedFailure := errors.New("injected replay interruption")
 	first, replayErr := reader.Replay(ctx, kafka.HandlerFunc(func(
 		_ context.Context,

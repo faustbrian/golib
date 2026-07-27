@@ -121,8 +121,8 @@ type ReplayPlannedRange struct {
 	Remaining  int64
 }
 
-// ReplayPlan is a local dry-run plan. It performs no broker request and does
-// not prove that retention still contains every requested record.
+// ReplayPlan is an owned dry-run plan. Plan produces it without broker
+// validation; PlanAgainstBroker returns it only after validating broker bounds.
 type ReplayPlan struct {
 	Ranges         []ReplayPlannedRange
 	TotalRemaining int64
@@ -506,6 +506,35 @@ func (reader *ReplayReader) Plan() ReplayPlan {
 	return plan
 }
 
+// PlanAgainstBroker returns an owned dry-run plan after confirming that every
+// effective start remains retained and every exclusive end is at or before the
+// current broker log end. It does not poll records, invoke handlers,
+// mutate group offsets, or consume the reader's single execution. Any error
+// returns a zero plan so an unvalidated local plan cannot be mistaken for a
+// broker-validated result.
+func (reader *ReplayReader) PlanAgainstBroker(
+	ctx context.Context,
+) (ReplayPlan, error) {
+	if ctx == nil {
+		return ReplayPlan{}, ErrContextRequired
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return ReplayPlan{}, cause
+	}
+	if err := reader.beginPlan(); err != nil {
+		return ReplayPlan{}, err
+	}
+	defer reader.endRun()
+
+	plan := reader.Plan()
+	progress, _ := reader.initialReplayResult()
+	if err := reader.validateReplayBounds(ctx, progress.Ranges); err != nil {
+		return ReplayPlan{}, err
+	}
+
+	return plan, nil
+}
+
 // Replay performs one execution of every requested retained offset in
 // partition order. A reader is single-use even after failure.
 // Missing offsets fail closed; the caller must explicitly approve side effects
@@ -747,6 +776,25 @@ func (reader *ReplayReader) initialReplayResult() (
 	}
 
 	return result, indexes
+}
+
+func (reader *ReplayReader) beginPlan() error {
+	reader.mu.Lock()
+	defer reader.mu.Unlock()
+
+	if reader.closed {
+		return ErrReplayClosed
+	}
+	if reader.closing {
+		return ErrReplayClosing
+	}
+	if reader.running {
+		return ErrReplayBusy
+	}
+	reader.running = true
+	reader.runDone = make(chan struct{})
+
+	return nil
 }
 
 func (reader *ReplayReader) beginRun() error {

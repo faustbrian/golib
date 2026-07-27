@@ -187,13 +187,18 @@ commit the source offset afterward. The two effects are not atomic and can
 duplicate target records. Use `TransactionProcessor` for Kafka-transactional
 source-offset and output settlement.
 `ReplayReader.Plan` returns an owned local dry-run plan after applying
-`ReplayCheckpoint`. `Replay` requires `ReplaySideEffectsAllowed`, uses exact
-no-reset offsets after first validating effective starts and exclusive ends
-against broker log-start and high-watermark offsets under `PlanningTimeout`.
-Unavailable bounds and out-of-range requests have distinct errors. Replay
-also returns `ErrReplayStalled` if `ProgressTimeout` elapses without advancing
-any range. It returns 64-bit aggregate plus per-range progress on every success
-or failure.
+`ReplayCheckpoint`. `PlanAgainstBroker` additionally validates effective starts
+and exclusive ends against broker log-start and log-end offsets under
+`PlanningTimeout`. It polls no records, invokes no handler, changes no group
+offset, and does not consume the reader's single replay execution. Planning is
+fenced by replay and shutdown lifecycle state. An error returns a zero plan so
+an unvalidated local plan cannot be mistaken for a broker-validated result.
+`Replay` requires
+`ReplaySideEffectsAllowed`, uses exact no-reset offsets after repeating the
+same validation before handler admission. Unavailable bounds and out-of-range
+requests have distinct errors. Replay also returns `ErrReplayStalled` if
+`ProgressTimeout` elapses without advancing any range. It returns 64-bit
+aggregate plus per-range progress on every success or failure.
 `ReplayResult.Checkpoint` returns owned next offsets for a new reader. A reader
 permits one execution; concurrent and repeated calls have distinct lifecycle
 errors. `Shutdown` fences new work and is

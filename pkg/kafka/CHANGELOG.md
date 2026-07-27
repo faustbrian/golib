@@ -71,13 +71,14 @@ All notable changes to this module are documented here.
 - real-broker evidence that consume-transform-produce advances source offsets
   only with read-committed outputs, filters aborted source transactions, and
   redelivers an aborted source poll
-- direct-partition replay with explicit side-effect opt-in, owned dry-run
-  plans, external next-offset checkpoints, exact per-range progress,
-  bounded broker start/end validation, fail-closed record limits and
-  offset-reset policy, a no-progress deadline, and bounded retriable shutdown
-- real-broker evidence that interrupted replay resumes from its external
-  checkpoint and that a range beyond the high watermark is rejected before a
-  handler runs
+- direct-partition replay with explicit side-effect opt-in, owned local and
+  broker-validated dry-run plans, external next-offset checkpoints, exact
+  per-range progress, bounded broker start/end validation, fail-closed record
+  limits, zero-plan validation failures, offset-reset policy, a no-progress
+  deadline, and bounded retriable shutdown
+- real-broker evidence that a broker-validated plan remains executable,
+  interrupted replay resumes from its external checkpoint, and a range beyond
+  the log end is rejected before a handler runs
 - bounded read-only cluster identity, controller, broker, topic durability,
   replica, beginning/end offset, and consumer-group lag inspection; inspector
   operations now apply an owned request deadline even when callers omit one

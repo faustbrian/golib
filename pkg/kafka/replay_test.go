@@ -162,6 +162,231 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 	}
 }
 
+func TestReplayPlanAgainstBrokerValidatesEffectiveRangesWithoutRunning(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingReplayBackend{}
+	ranges := []ReplayRange{
+		{Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 5},
+		{Topic: "events", Partition: 2, StartOffset: 8, EndOffset: 10},
+	}
+	reader := replayReaderWithBackend(backend, ranges)
+	reader.checkpoint = ReplayCheckpoint{Positions: []ReplayPosition{{
+		Topic: "events", Partition: 1, NextOffset: 3,
+	}}}
+	bounds := reader.bounds.(*recordingReplayBoundsBackend)
+	bounds.bounds[replayPartition{topic: "events", partition: 1}] = [2]int64{2, 6}
+	bounds.bounds[replayPartition{topic: "events", partition: 2}] = [2]int64{8, 10}
+
+	plan, err := reader.PlanAgainstBroker(context.Background())
+
+	if err != nil {
+		t.Fatalf("PlanAgainstBroker() error = %v", err)
+	}
+	if plan.TotalRemaining != 4 ||
+		len(plan.Ranges) != 2 ||
+		plan.Ranges[0].NextOffset != 3 ||
+		plan.Ranges[0].Remaining != 2 ||
+		plan.Ranges[1].NextOffset != 8 ||
+		plan.Ranges[1].Remaining != 2 ||
+		bounds.calls != 2 ||
+		backend.pollCalls != 0 ||
+		reader.running ||
+		reader.used ||
+		reader.runDone != nil {
+		t.Fatalf("plan/bounds/backend = %#v/%#v/%#v", plan, bounds, backend)
+	}
+
+	plan.Ranges[0].Topic = "changed"
+	local := reader.Plan()
+	if local.Ranges[0].Topic != "events" {
+		t.Fatalf("Plan() after caller mutation = %#v", local)
+	}
+}
+
+func TestReplayPlanAgainstBrokerFailsClosedWithoutConsumingReader(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		change func(*ReplayReader, *recordingReplayBoundsBackend)
+		ctx    context.Context
+		want   error
+	}{
+		{
+			name: "nil context",
+			ctx:  nil,
+			want: ErrContextRequired,
+		},
+		{
+			name: "retained start",
+			change: func(
+				_ *ReplayReader,
+				bounds *recordingReplayBoundsBackend,
+			) {
+				bounds.bounds[replayPartition{
+					topic: "events", partition: 1,
+				}] = [2]int64{2, 4}
+			},
+			ctx:  context.Background(),
+			want: ErrReplayOffsetOutOfRange,
+		},
+		{
+			name: "end beyond log end",
+			change: func(
+				_ *ReplayReader,
+				bounds *recordingReplayBoundsBackend,
+			) {
+				bounds.bounds[replayPartition{
+					topic: "events", partition: 1,
+				}] = [2]int64{1, 3}
+			},
+			ctx:  context.Background(),
+			want: ErrReplayOffsetOutOfRange,
+		},
+		{
+			name: "bounds unavailable",
+			change: func(
+				_ *ReplayReader,
+				bounds *recordingReplayBoundsBackend,
+			) {
+				bounds.omitEnd = true
+			},
+			ctx:  context.Background(),
+			want: ErrReplayBoundsUnavailable,
+		},
+		{
+			name: "closed reader",
+			change: func(
+				reader *ReplayReader,
+				_ *recordingReplayBoundsBackend,
+			) {
+				reader.closed = true
+			},
+			ctx:  context.Background(),
+			want: ErrReplayClosed,
+		},
+		{
+			name: "closing reader",
+			change: func(
+				reader *ReplayReader,
+				_ *recordingReplayBoundsBackend,
+			) {
+				reader.closing = true
+			},
+			ctx:  context.Background(),
+			want: ErrReplayClosing,
+		},
+		{
+			name: "busy reader",
+			change: func(
+				reader *ReplayReader,
+				_ *recordingReplayBoundsBackend,
+			) {
+				reader.running = true
+			},
+			ctx:  context.Background(),
+			want: ErrReplayBusy,
+		},
+		{
+			name: "canceled context",
+			change: func(
+				_ *ReplayReader,
+				bounds *recordingReplayBoundsBackend,
+			) {
+				bounds.waitForCancel = true
+			},
+			ctx: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				return ctx
+			}(),
+			want: context.Canceled,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			reader := replayReaderWithBackend(
+				&recordingReplayBackend{},
+				[]ReplayRange{{
+					Topic: "events", Partition: 1,
+					StartOffset: 1, EndOffset: 4,
+				}},
+			)
+			bounds := reader.bounds.(*recordingReplayBoundsBackend)
+			if test.change != nil {
+				test.change(reader, bounds)
+			}
+			wasRunning := reader.running
+			wasUsed := reader.used
+
+			plan, err := reader.PlanAgainstBroker(test.ctx)
+
+			if !errors.Is(err, test.want) {
+				t.Fatalf(
+					"PlanAgainstBroker() error = %v, want %v",
+					err,
+					test.want,
+				)
+			}
+			if plan.TotalRemaining != 0 || len(plan.Ranges) != 0 {
+				t.Fatalf(
+					"PlanAgainstBroker() plan on error = %#v",
+					plan,
+				)
+			}
+			if reader.used != wasUsed || reader.running != wasRunning {
+				t.Fatalf("planning consumed reader = %#v", reader)
+			}
+		})
+	}
+}
+
+func TestReplayShutdownWaitsForActiveBrokerPlan(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingReplayBackend{}
+	reader := replayReaderWithBackend(backend, []ReplayRange{{
+		Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 4,
+	}})
+	bounds := reader.bounds.(*recordingReplayBoundsBackend)
+	bounds.startEntered = make(chan struct{})
+	bounds.releaseStart = make(chan struct{})
+	planDone := make(chan error, 1)
+	go func() {
+		_, err := reader.PlanAgainstBroker(context.Background())
+		planDone <- err
+	}()
+	<-bounds.startEntered
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(
+		context.Background(),
+		20*time.Millisecond,
+	)
+	defer cancelShutdown()
+	err := reader.Shutdown(shutdownCtx)
+	if !errors.Is(err, ErrReplayShutdownIncomplete) ||
+		backend.closed != 0 {
+		t.Fatalf("Shutdown() error/backend = %v/%#v", err, backend)
+	}
+
+	close(bounds.releaseStart)
+	if err := <-planDone; err != nil {
+		t.Fatalf("PlanAgainstBroker() error = %v", err)
+	}
+	if err := reader.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry Shutdown() error = %v", err)
+	}
+	if backend.closed != 1 {
+		t.Fatalf("backend close count = %d", backend.closed)
+	}
+}
+
 func TestReplayStopsOnFetchHandlerAndConfigurationFailures(t *testing.T) {
 	t.Parallel()
 
@@ -345,6 +570,8 @@ type recordingReplayBoundsBackend struct {
 	omitStart      bool
 	omitEnd        bool
 	waitForCancel  bool
+	startEntered   chan struct{}
+	releaseStart   chan struct{}
 	startTopics    []string
 	endTopics      []string
 	calls          int
@@ -361,6 +588,12 @@ func (backend *recordingReplayBoundsBackend) ListStartOffsets(
 	}
 	if backend.waitForCancel {
 		<-ctx.Done()
+	}
+	if backend.startEntered != nil {
+		close(backend.startEntered)
+	}
+	if backend.releaseStart != nil {
+		<-backend.releaseStart
 	}
 
 	return backend.listedOffsets(0, backend.omitStart, backend.startOffsetErr), nil

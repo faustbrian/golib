@@ -444,7 +444,7 @@ func TestReplayValidatesBrokerBoundsBeforePolling(t *testing.T) {
 			want: ErrReplayOffsetOutOfRange,
 		},
 		{
-			name: "end after high watermark",
+			name: "end after log end",
 			bounds: map[replayPartition][2]int64{
 				{topic: "events", partition: 1}: {0, 3},
 			},

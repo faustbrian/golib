@@ -215,12 +215,15 @@ for eager compatibility. Optional `InstanceID` enables static membership and
 
 `ReplayReader` reads explicit inclusive-start, exclusive-end partition ranges
 without joining or changing a consumer group. `Plan` applies an owned external
-checkpoint without contacting a broker. Handler execution requires explicit
-`ReplaySideEffectsAllowed`, enforces record limits and handler deadlines, and
-returns exact per-range next offsets through `ReplayResult.Checkpoint`.
-Before invoking a handler, execution validates effective starts and exclusive
-ends against bounded broker log-start and high-watermark lookups. Unavailable
-bounds, out-of-range fetches, and offset gaps fail closed instead of resetting.
+checkpoint without contacting a broker. `PlanAgainstBroker` performs the same
+dry run while confirming effective starts and exclusive ends against bounded
+broker log-start and log-end lookups; it does not consume the reader.
+Any validation error returns no plan.
+Handler execution requires explicit `ReplaySideEffectsAllowed`, enforces
+record limits and handler deadlines, and returns exact per-range next offsets
+through `ReplayResult.Checkpoint`. Replay repeats the broker-boundary validation
+before the first handler. Unavailable bounds, out-of-range fetches, and offset
+gaps fail closed instead of resetting.
 `ProgressTimeout` prevents a compacted or empty exact range from polling
 forever without advancing its checkpoint.
 Completed partitions are paused while other ranges finish. Cancel the replay
