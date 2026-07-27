@@ -253,6 +253,55 @@ func TestReleaseAuditPublishesFindingsAndResidualRisks(t *testing.T) {
 	}
 }
 
+func TestPrimaryWorkflowsHaveExecutableArtifacts(t *testing.T) {
+	t.Parallel()
+
+	examples := readContractFile(t, "docs/examples.md")
+	for _, required := range []string{
+		"Example_adoptionPersistenceChoice",
+		"Example_fiveMinuteQuickstart",
+		"Example_eventSchemaEvolution",
+		"Example_synchronousDispatch",
+		"Example_scenarioTesting",
+		"Example_snapshotRestoration",
+		"Example_replayProjection",
+		"Example_processManagerPlanning",
+		"TestEventStoreConformanceAcceptsMemoryStore",
+		"TestPostgreSQLEventStoreConformance",
+		"TestEventDeliveriesRoundTripThroughKafka",
+		"TestValkeyStreamRetainsAndSettlesCompleteDelivery",
+		"TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes",
+		"TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation",
+		"TestPublisherMapsEnvelopeToKafkaMessage",
+		"TestInstrumentationTracesAndMeasuresDispatchAndConsumption",
+	} {
+		if !strings.Contains(examples, required) {
+			t.Fatalf("runnable workflow catalog is missing %q", required)
+		}
+	}
+	for _, artifact := range []string{
+		"adoption_example_test.go",
+		"quickstart_example_test.go",
+		"evolution_example_test.go",
+		"dispatch_example_test.go",
+		"scenario_example_test.go",
+		"snapshot_example_test.go",
+		"replay_example_test.go",
+		"process_manager_example_test.go",
+		"eventtest/store_conformance_test.go",
+		"postgres/integration_test.go",
+		"adapters/gokafka/integration_test.go",
+		"adapters/goqueue/durable_integration_test.go",
+		"adapters/gooutbox/stager_integration_test.go",
+		"../outbox/adapters/gokafka/publisher_test.go",
+		"adapters/gotelemetry/instrumentation_test.go",
+	} {
+		if _, err := os.Stat(artifact); err != nil {
+			t.Fatalf("runnable workflow artifact %q: %v", artifact, err)
+		}
+	}
+}
+
 func compatibilityInventory(
 	t *testing.T,
 	matrix string,

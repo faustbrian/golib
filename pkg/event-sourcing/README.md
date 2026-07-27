@@ -27,6 +27,7 @@ durable adapters.
 ## Design documents
 
 - [Five-minute quickstart](docs/quickstart.md)
+- [Runnable workflow examples](docs/examples.md)
 - [Adoption guide and anti-patterns](docs/adoption.md)
 - [Aggregate modeling](docs/aggregates.md)
 - [Aggregate identifiers and UUID encoding](docs/identifiers.md)

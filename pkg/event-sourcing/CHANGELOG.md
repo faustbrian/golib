@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exercise the public contracts without hidden execution.
 - Add runnable synchronous-dispatch, snapshot-restoration, and aggregate
   scenario examples for the remaining core adoption workflows.
+- Add a runnable workflow catalog that binds core, PostgreSQL, Kafka, queue,
+  outbox, and telemetry documentation to executable examples and integration
+  tests.
 - Publish refreshed final benchmark evidence for PostgreSQL pool saturation
   and projection live catch-up alongside the complete existing workload set.
 - Add the final source-level hardening findings, dispositions, evidence
