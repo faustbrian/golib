@@ -73,6 +73,15 @@ record update inside a caller-owned `pgx.Tx`. Commit the business effect or
 outbox row and completion together. See the [transaction and outbox
 recipe](outbox.md).
 
+When a business table must reject stale owners before the final completion,
+`RecordKeyDigest` returns a fresh copy of the exact opaque primary-key digest
+used by this adapter. Pass that digest into a database operation that locks the
+matching idempotency row and validates its full logical key, active state,
+owner token, fencing token, and unexpired lease in the same transaction as the
+business mutation. The digest identifies a row; it is not authorization by
+itself. Its encoding is persisted adapter compatibility and must not be
+reimplemented by consumers.
+
 ## Cleanup and capacity
 
 Active records use `lease_expires_at + Retention` as their initial purge

@@ -9,6 +9,15 @@ import (
 )
 
 func recordDigest(key idempotency.Key) []byte {
+	return RecordKeyDigest(key)
+}
+
+// RecordKeyDigest returns the opaque table-key digest used by this adapter.
+//
+// The returned slice is newly allocated and may be retained or mutated by the
+// caller. Business transactions may use it to lock and validate the same
+// idempotency row before applying a fenced side effect.
+func RecordKeyDigest(key idempotency.Key) []byte {
 	digest := sha256.New()
 	writeDigestPart(digest, key.Namespace())
 	writeDigestPart(digest, key.Tenant())

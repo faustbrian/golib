@@ -23,6 +23,8 @@ public API reaches its first stable version.
 
 ### Added
 
+- Public PostgreSQL record-key digest derivation for business transactions that
+  must lock and validate the same idempotency row before fenced side effects.
 - Durable semantic core with namespaced keys, canonical fingerprints, owner and
   fencing tokens, leases, heartbeats, attempts, terminal results, typed errors,
   and explicit acquisition outcomes.
