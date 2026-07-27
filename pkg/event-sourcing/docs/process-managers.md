@@ -6,6 +6,10 @@ workflow engine, scheduler, queue, or hidden process-state store.
 
 ## Explicit planning
 
+The [runnable process-manager example](../process_manager_example_test.go)
+constructs a live delivery and derives one application-owned command without
+executing it.
+
 `processmanager.Manager[Command]` accepts one typed `Planner` and returns an
 ordered `PlanResult[Command]`. The application owns the command type and the
 executor:

@@ -142,6 +142,10 @@ mechanisms are intentionally distinct.
 
 ## Evolution workflow
 
+The [runnable schema-evolution example](../evolution_example_test.go) upcasts a
+stored event to a renamed event identity and newer schema, then decodes it
+through the explicit JSON registry without rewriting stored history.
+
 For every event change:
 
 1. retain the old registration or readable stored identity;
