@@ -165,6 +165,23 @@ func TestChangelogMaintainsReleasePolicy(t *testing.T) {
 	}
 }
 
+func TestPublicAPIDocumentationUsesCurrentGlobalReaderContract(t *testing.T) {
+	t.Parallel()
+
+	documentation := readContractFile(t, "docs/design/public-api.md")
+	if !strings.Contains(
+		documentation,
+		"ReadGlobal(context.Context, ReadGlobalOptions) (MessageIterator, error)",
+	) {
+		t.Fatal("public API documentation does not show GlobalReader.ReadGlobal")
+	}
+	for _, stale := range []string{"ReadAll(", "ReadAllOptions"} {
+		if strings.Contains(documentation, stale) {
+			t.Fatalf("public API documentation retains stale symbol %q", stale)
+		}
+	}
+}
+
 func TestPackageMapMatchesCodeGenerationDecision(t *testing.T) {
 	t.Parallel()
 

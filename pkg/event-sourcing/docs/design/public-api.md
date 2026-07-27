@@ -190,7 +190,7 @@ type assertions:
 
 ```go
 type GlobalReader interface {
-    ReadAll(context.Context, ReadAllOptions) (MessageIterator, error)
+    ReadGlobal(context.Context, ReadGlobalOptions) (MessageIterator, error)
 }
 ```
 

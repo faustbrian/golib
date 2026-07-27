@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Correct the public API guide to use the implemented `GlobalReader.ReadGlobal`
+  and `ReadGlobalOptions` names.
 - Extend the optional telemetry adapter with payload codec and upcaster spans
   that use the repository's context-aware serialization boundary.
 - Propagate repository operation context through optional context-aware payload
