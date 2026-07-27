@@ -1,7 +1,9 @@
 package eventsourcing_test
 
 import (
+	"bytes"
 	"errors"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -53,6 +55,14 @@ func TestJSONCodecRoundTripsRegisteredEventDeterministically(t *testing.T) {
 	}
 	if string(first.Payload()) != string(second.Payload()) {
 		t.Fatalf("encoding is not deterministic: %q != %q", first.Payload(), second.Payload())
+	}
+	golden, err := os.ReadFile("testdata/json/customer-registered-v2.json")
+	if err != nil {
+		t.Fatalf("read golden payload: %v", err)
+	}
+	golden = bytes.TrimSuffix(golden, []byte{'\n'})
+	if !bytes.Equal(first.Payload(), golden) {
+		t.Fatalf("encoded payload differs from the v2 golden fixture")
 	}
 
 	roundTrip, err := codec.Decode(first)

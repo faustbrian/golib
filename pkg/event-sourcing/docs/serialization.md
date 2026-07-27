@@ -68,6 +68,12 @@ but semantic compatibility must not depend on insignificant whitespace or
 object-member order. Golden fixtures should pin the bytes only when the exact
 wire representation is a documented contract.
 
+The module's [compatibility corpus](../testdata/README.md) pins one
+first-party JSON representation and a representative rename, split, and
+schema-advance upcast path. Its checked checksums make an intentional wire or
+evolution change visible in review without treating application payload
+schemas as library-owned.
+
 ## Custom codecs
 
 Protobuf, MessagePack, or another format implements the two-method

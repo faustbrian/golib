@@ -76,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a checksum-pinned first-party JSON and upcast compatibility corpus with
+  provenance and focused exact-byte assertions.
 - Compare public aggregate reconstruction across the pinned Go event-sourcing
   libraries at 1, 10, 100, and 1,000 events with state and version equivalence
   checks, explicit accounting for implementation-required work, and published

@@ -1,0 +1,4 @@
+ba065aa1228ed3d23ab7acbc376a18b4471107526b24c6aae7824a1c0be097e5  testdata/json/customer-registered-v2.json
+9fc1c315f83de34998ca187174588aa5b73363790e45908e5f1c3bca11f092df  testdata/upcast/legacy-user-created-v1.json
+de751cd1b0a9e526f4cbe754faa00090a7867f182eafbbaac914dad31554910e  testdata/upcast/user-registered-v1.json
+79a1e497530192bed2a602390797500b0d1b8b12f6a2d5afb709ca6033761921  testdata/upcast/user-email-changed-v2.json

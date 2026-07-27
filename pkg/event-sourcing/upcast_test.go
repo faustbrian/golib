@@ -1,7 +1,9 @@
 package eventsourcing_test
 
 import (
+	"bytes"
 	"errors"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -55,7 +57,7 @@ func TestUpcasterChainRenamesSplitsAndAdvancesInOrder(t *testing.T) {
 		t,
 		"legacy.user-created",
 		1,
-		[]byte(`{"id":42,"email":"a@example.com"}`),
+		readGoldenPayload(t, "testdata/upcast/legacy-user-created-v1.json"),
 		map[string]string{"source": "legacy"},
 	)
 
@@ -83,6 +85,14 @@ func TestUpcasterChainRenamesSplitsAndAdvancesInOrder(t *testing.T) {
 			t.Fatalf("metadata = %v", event.Metadata())
 		}
 	}
+	for index, path := range []string{
+		"testdata/upcast/user-registered-v1.json",
+		"testdata/upcast/user-email-changed-v2.json",
+	} {
+		if !bytes.Equal(output[index].Event().Payload(), readGoldenPayload(t, path)) {
+			t.Fatalf("upcast output %d differs from its golden fixture", index)
+		}
+	}
 
 	payload := output[0].Event().Payload()
 	payload[0] = '!'
@@ -92,6 +102,16 @@ func TestUpcasterChainRenamesSplitsAndAdvancesInOrder(t *testing.T) {
 		output[0].Metadata()["source"] != "legacy" {
 		t.Fatal("upcast output aliases caller-owned data")
 	}
+}
+
+func readGoldenPayload(t *testing.T, path string) []byte {
+	t.Helper()
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read golden payload: %v", err)
+	}
+
+	return bytes.TrimSuffix(payload, []byte{'\n'})
 }
 
 func TestUpcasterChainReturnsUnmatchedEventDefensively(t *testing.T) {
