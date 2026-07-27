@@ -28,6 +28,12 @@ All notable changes to this module are documented here.
 - real PostgreSQL deadlock evidence preserving SQLSTATE `40P01`, classifying
   the victim stage as not committed, and proving both transactions leave no
   staged event writes after rollback
+- real PostgreSQL statement-timeout and mid-operation context-deadline
+  evidence classifying blocked appends as not committed and retryable only
+  with a fresh operation context after lock release
+- real PostgreSQL read-only replica evidence preserving SQLSTATE `25006`
+  before promotion and proving the same store becomes writable only after
+  explicit promotion
 - real PostgreSQL backend-termination evidence proving the existing pool can
   replace a lost connection and resume reads and ordered appends without
   losing durable history

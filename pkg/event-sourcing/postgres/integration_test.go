@@ -339,6 +339,144 @@ func TestPostgreSQLLockTimeoutIsNotCommittedAndCanBeRetried(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLStatementAndContextTimeoutsAreNotCommittedAndRetryable(
+	t *testing.T,
+) {
+	tests := []struct {
+		name           string
+		statementLimit string
+		requestLimit   time.Duration
+		wantCode       string
+		wantError      error
+	}{
+		{
+			name:           "statement timeout",
+			statementLimit: "100ms",
+			wantCode:       "57014",
+		},
+		{
+			name:         "context deadline",
+			requestLimit: 100 * time.Millisecond,
+			wantError:    context.DeadlineExceeded,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			ctx, pool := newDerivedIntegrationPool(t)
+			stream := mustStream(
+				t,
+				"account",
+				"timeout-"+strings.ReplaceAll(test.name, " ", "-"),
+			)
+			holder, err := pool.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				cleanupCtx, cancel := context.WithTimeout(
+					context.Background(),
+					5*time.Second,
+				)
+				defer cancel()
+				_ = holder.Rollback(cleanupCtx)
+			})
+			holderWriter, err := eventpostgres.NewTx(
+				holder,
+				eventpostgres.Config{},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := holderWriter.Stage(
+				ctx,
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{
+					mustPending(t, stream, "timeout-holder", 1),
+				},
+			); err != nil {
+				t.Fatalf("stage timeout holder: %v", err)
+			}
+
+			clientPool := pool
+			if test.statementLimit != "" {
+				config, err := pgxpool.ParseConfig(
+					pool.Config().ConnString(),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				config.ConnConfig.RuntimeParams["statement_timeout"] =
+					test.statementLimit
+				clientPool, err = pgxpool.NewWithConfig(ctx, config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(clientPool.Close)
+			}
+			store, err := eventpostgres.New(
+				clientPool,
+				eventpostgres.Config{},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			operationCtx := ctx
+			cancelOperation := func() {}
+			if test.requestLimit != 0 {
+				operationCtx, cancelOperation = context.WithTimeout(
+					ctx,
+					test.requestLimit,
+				)
+			}
+			_, appendErr := store.Append(
+				operationCtx,
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{
+					mustPending(t, stream, "timed-out-writer", 2),
+				},
+			)
+			cancelOperation()
+			if eventsourcing.AppendCommitOutcome(appendErr) !=
+				eventsourcing.CommitNotCommitted {
+				t.Fatalf("timed-out append outcome = %v", appendErr)
+			}
+			if test.wantCode != "" {
+				var postgresError *pgconn.PgError
+				if !errors.As(appendErr, &postgresError) ||
+					postgresError.Code != test.wantCode {
+					t.Fatalf("statement-timeout append = %v", appendErr)
+				}
+			}
+			if test.wantError != nil &&
+				!errors.Is(appendErr, test.wantError) {
+				t.Fatalf("context-timeout append = %v", appendErr)
+			}
+
+			if err := holder.Rollback(ctx); err != nil {
+				t.Fatal(err)
+			}
+			retried, err := store.Append(
+				ctx,
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{
+					mustPending(t, stream, "timeout-retry", 3),
+				},
+			)
+			if err != nil {
+				t.Fatalf("retry after timeout: %v", err)
+			}
+			if len(retried) != 1 ||
+				retried[0].StreamVersion() != 1 {
+				t.Fatalf("retried timeout messages = %#v", retried)
+			}
+		})
+	}
+}
+
 func TestPostgreSQLSerializableFailureIsNotCommittedAndCanBeRetried(
 	t *testing.T,
 ) {
@@ -1020,6 +1158,29 @@ exec postgres -D "$PGDATA"`,
 	if !inRecovery {
 		t.Fatal("replica started as writable primary")
 	}
+	replicaStore, err := eventpostgres.New(
+		replicaPool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnlyStream := mustStream(t, "account", "replica-read-only")
+	_, readOnlyErr := replicaStore.Append(
+		ctx,
+		readOnlyStream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{
+			mustPending(t, readOnlyStream, "replica-read-only-message", 2),
+		},
+	)
+	var readOnlyPostgreSQLError *pgconn.PgError
+	if !errors.As(readOnlyErr, &readOnlyPostgreSQLError) ||
+		readOnlyPostgreSQLError.Code != "25006" ||
+		eventsourcing.AppendCommitOutcome(readOnlyErr) !=
+			eventsourcing.CommitNotCommitted {
+		t.Fatalf("append to read-only replica = %v", readOnlyErr)
+	}
 
 	second := mustPending(t, stream, "promotion-message-2", 2)
 	if _, err := primaryStore.Append(
@@ -1047,13 +1208,6 @@ exec postgres -D "$PGDATA"`,
 		"promote",
 	)
 	waitForPostgreSQLPromotion(t, ctx, replicaPool)
-	replicaStore, err := eventpostgres.New(
-		replicaPool,
-		eventpostgres.Config{},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	options, err := eventsourcing.NewReadStreamOptions(
 		eventsourcing.ReadStreamOptionsInput{FromVersion: 1, Limit: 10},
 	)

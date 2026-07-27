@@ -254,6 +254,13 @@ appends acquire their own stream and global-position locks in one consistent
 order, but a larger caller-owned transaction can introduce additional lock
 ordering.
 
+The same blocked-append fixture proves server-side `statement_timeout`
+returns SQLSTATE `57014` and a caller deadline returns
+`context.DeadlineExceeded`. Both are `CommitNotCommitted` because they occur
+before commit. After the locking transaction ends, a new operation context can
+retry safely; a canceled context and a PostgreSQL transaction left in an error
+state must never be reused.
+
 The backend-recovery suite durably appends history, terminates the pool's
 PostgreSQL backend, and proves the existing pool can establish a replacement
 connection, read unchanged history, and append the next stream and global
@@ -263,10 +270,11 @@ The server-restart suite stops and starts the PostgreSQL container, resolves
 its new test endpoint, reconstructs the caller-owned pool, reads unchanged
 history, and appends the next stream and global versions. The failover suite
 builds a physical streaming replica from the primary, appends additional WAL,
-waits for the replica to reach the exact stream version, stops the primary,
-promotes the replica, and proves ordered reads and the next append through the
-promoted server. Replication uses SCRAM authentication on an isolated Docker
-network.
+waits for the replica to reach the exact stream version, and proves an append
+to the still-read-only replica fails with SQLSTATE `25006` and
+`CommitNotCommitted`. It then stops the primary, promotes the replica, and
+proves ordered reads and the next append through the same store and pool.
+Replication uses SCRAM authentication on an isolated Docker network.
 
 These tests prove adapter behavior after reconnecting to a writable server and
 preserve authoritative ordering across the pinned PostgreSQL 18 promotion.
