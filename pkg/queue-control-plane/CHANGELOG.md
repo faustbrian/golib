@@ -13,6 +13,8 @@ Versioning.
 
 ### Changed
 
+- Upgraded the resolved gRPC dependency to 1.82.1 and refreshed owned-module
+  checksums after the shared telemetry dependency update.
 - Align indirect dependency metadata with the resolved graph so clean
   consumers and CI obtain reproducible module metadata.
 - Refresh owned-module checksums against the final consolidated archives.
