@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- correct the audit and compatibility matrix to reflect existing byte-bounded
+  producer buffering and current replay, mutation, franz-go, and kadm evidence
 - reject broker topic metadata that contradicts Kafka by returning a requested
   topic with no partitions
 - reject replay observations whose success state contradicts their exact
