@@ -85,6 +85,19 @@ func startSecuredValkey(
 			"--tls-ca-cert-file", "/tls/ca.crt",
 			"--tls-auth-clients", "no",
 		)
+		request.WaitingFor = wait.ForAll(
+			wait.ForListeningPort("6379/tcp"),
+			wait.ForLog("Ready to accept connections"),
+			wait.ForExec([]string{
+				"valkey-cli",
+				"--tls",
+				"--cacert", "/tls/ca.crt",
+				"--sni", "cache.test",
+				"-a", valkeyTestPassword,
+				"-e",
+				"PING",
+			}),
+		)
 	}
 	container, err := testcontainers.GenericContainer(t.Context(), testcontainers.GenericContainerRequest{
 		ContainerRequest: request,
