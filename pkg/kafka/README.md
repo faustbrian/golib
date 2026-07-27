@@ -170,7 +170,12 @@ operations on the consumer. See the
 [`adapters/gotelemetry`](adapters/gotelemetry) module maps these stable events
 to OpenTelemetry with deny-by-default topic, group, and client attributes; it
 does not add OpenTelemetry to the root module or claim record-header context
-propagation.
+propagation. The standard-library
+[`adapters/golog`](adapters/golog) package maps the same observations to fixed
+`log/slog` records. It also denies client, topic, and group identities unless
+they are present in copied bounded allowlists. Adapter-generated fields never
+contain payloads, headers, credentials, broker endpoints, or application error
+text.
 
 `NewFailureHandler` composes explicit stop, bounded in-process retry,
 versioned retry-topic, versioned dead-letter, or application-delegated policy

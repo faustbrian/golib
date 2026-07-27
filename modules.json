@@ -4790,6 +4790,7 @@
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
         "github.com/hallgren/eventsourcing",
+        "github.com/hallgren/eventsourcing/core",
         "github.com/looplab/eventhorizon",
         "github.com/thefabric-io/eventsourcing"
       ],
@@ -7757,6 +7758,18 @@
           "directory": ".",
           "name": "kafka",
           "import_path": "github.com/faustbrian/golib/pkg/kafka",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/kafka",
+          "directory": "adapters/golog",
+          "name": "golog",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/adapters/golog",
           "kind": "public",
           "production": true,
           "executable": true,

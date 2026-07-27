@@ -188,6 +188,18 @@ transaction-processor broker activity. Standalone authentication, retry,
 complete broker rebalance timing, replay, inspection, health, and shutdown
 events remain unimplemented.
 
+The standard-library [`kafka/adapters/golog`](../adapters/golog) package
+translates every current stable root observation into one fixed `log/slog`
+record. Its fields are bounded scalar metadata. Client IDs, topics, and
+consumer groups are denied unless exactly present in copied allowlists of at
+most 128 identities each. Adapter-generated fields never contain payloads,
+keys, headers, credentials, broker endpoints, application errors, or panic
+values. Attributes already attached to the caller's logger remain
+application-owned. A slog handler panic becomes the stable
+`golog.ErrLoggerPanic`; slog handler errors cannot be surfaced because
+`slog.Logger` intentionally does not return them. Handler blocking is governed
+by the root observer's cooperative deadline and must remain bounded.
+
 The independently versioned
 [`kafka/adapters/gotelemetry`](../adapters/gotelemetry) module translates every
 current stable root observation. It emits the reviewed OpenTelemetry messaging

@@ -25,7 +25,9 @@ infrastructure.
 - `ObserverPolicy` exposes ordered, payload-free producer delivery, consumer
   processing/commit/poll, and copied broker connection/request/throttle/
   disconnect metadata without exporting franz-go hooks or making observation
-  part of Kafka correctness.
+  part of Kafka correctness. The root module's `adapters/golog` package maps
+  those stable observations to `log/slog`; the independently versioned
+  `adapters/gotelemetry` module maps them to OpenTelemetry.
 
 franz-go remains an implementation detail. The root module exposes owned TLS,
 mTLS, PLAIN, SCRAM, and OAUTHBEARER policy contracts; optional vendor

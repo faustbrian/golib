@@ -75,6 +75,10 @@ values against the same bounded metadata, settlement-count, failure-category,
 and event-cardinality policy. Observer errors and panics are contained and
 reported through the required `ObservationFailureFunc`; they never replace the
 delivery result.
+`adapters/golog` emits fixed standard-library `log/slog` records from this
+contract. Its copied client, topic, and group allowlists deny every identity by
+default. `adapters/gotelemetry` supplies the independently versioned
+OpenTelemetry mapping.
 Callbacks share one cooperative deadline, can run concurrently across producer
 and franz-go broker operations, and cannot re-enter the invoking producer. See the
 [observability guide](observability.md).

@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- optional standard-library `log/slog` adapter with fixed payload-free fields,
+  deny-by-default bounded Kafka identity allowlists, handler panic containment,
+  concurrent observer evidence, fuzzing, and allocation benchmarks
 - public `Observation.Validate` policy for bounded metadata, settlement counts,
   failure categories, and event-specific record cardinality
 - independently versioned Amazon MSK IAM adapter using AWS's supported Go
