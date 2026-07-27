@@ -7,6 +7,8 @@ semantic versioning after the first tagged release.
 
 ### Changed
 
+- Pin unpublished owned modules to exact resolvable revisions so clean
+  consumers no longer depend on nonexistent `v0.1.0` tags.
 - Refresh owned-module checksums against the final consolidated archives.
 - Normalized standalone module metadata against the canonical owned dependency
   graph, including complete checksums for clean consumer resolution.
