@@ -248,6 +248,7 @@ Inspection uses the shared connection policy plus these owned bounds:
 | `MaxGroupMembers` | 10,000 | 1 through 100,000; caps members copied across one explicit group request. |
 | `Readiness.FailureThreshold` | 3 | 1 through 100 consecutive failed dependency probes before a ready inspector becomes unready. |
 | `Readiness.RecoveryThreshold` | 2 | 1 through 100 consecutive successful dependency probes before initial or recovered readiness. |
+| `Observers` | disabled | Shared `ObserverPolicy`: 1 through 16 copied ordered callbacks, explicit failure handler, and one 1 millisecond through 5 second cooperative event budget. |
 
 Topic and group operations separately require 1 to 64 unique explicit targets.
 Topic inspection lists metadata, log-start and high-watermark offsets, and
@@ -267,6 +268,9 @@ either threshold. A completed timeout or broker/authentication failure is an
 unhealthy dependency observation. Use `ReadinessState.Ready` for the readiness
 decision; the accompanying error is diagnostic and may be non-nil while a
 previously ready instance remains inside its failure threshold.
+Observer callbacks cannot re-enter inspection, health, readiness, or close on
+the same inspector. `Close` returns `ErrObserverReentry` while any inspector
+observer is active and otherwise remains idempotent.
 
 ## Ownership and logging
 

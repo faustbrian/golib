@@ -145,6 +145,13 @@ func (adapter *Adapter) observe(
 		slog.Int64("kafka.duration_ms", observation.Duration.Milliseconds()),
 		slog.Int("kafka.record.count", observation.RecordCount),
 		slog.Int("kafka.partition.count", observation.PartitionCount),
+		slog.Int("kafka.broker.count", observation.BrokerCount),
+		slog.Int("kafka.topic.count", observation.TopicCount),
+		slog.Int("kafka.consumer_group.count", observation.GroupCount),
+		slog.Int(
+			"kafka.consumer_group.member.count",
+			observation.GroupMemberCount,
+		),
 		slog.Int("kafka.processed.count", observation.ProcessedCount),
 		slog.Int("kafka.committed.count", observation.CommittedCount),
 		slog.Int64("kafka.record.size", observation.RecordBytes),
@@ -152,6 +159,16 @@ func (adapter *Adapter) observe(
 		slog.Int64("kafka.replay.skipped", observation.ReplaySkipped),
 		slog.Int64("kafka.replay.failed", observation.ReplayFailed),
 		slog.Int64("kafka.replay.remaining", observation.ReplayRemaining),
+		slog.Bool("kafka.dependency.healthy", observation.DependencyHealthy),
+		slog.Bool("kafka.readiness.ready", observation.Ready),
+		slog.Int(
+			"kafka.readiness.consecutive_failures",
+			observation.ConsecutiveFailures,
+		),
+		slog.Int(
+			"kafka.readiness.consecutive_successes",
+			observation.ConsecutiveSuccesses,
+		),
 		slog.Int64("kafka.request.size", observation.RequestBytes),
 		slog.Int64("kafka.response.size", observation.ResponseBytes),
 		slog.Int64(

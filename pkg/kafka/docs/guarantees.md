@@ -217,6 +217,10 @@ Missing, inconsistent, excessive, unauthorized, or unavailable required state
 returns an error instead of a partial success. A caller therefore cannot infer
 that omitted partitions, replicas, offsets, or durability configuration are
 healthy. Multi-target typed partial results are not implemented yet.
+Optional inspector observers receive only bounded aggregate counts and
+health/readiness state. They never receive cluster IDs, broker hosts, target
+names, group members, assignments, or lag coordinates. A conclusive readiness
+probe emits a dependency-health event followed by the hysteresis decision.
 
 `Inspector.DependencyHealth` is only current bounded broker connectivity, and
 `Health` is its compatibility alias. `Readiness` keeps a previously ready
@@ -226,6 +230,8 @@ latest dependency error remains separately visible. `Liveness` reports only
 whether the inspector is locally open; it is not complete process liveness.
 None of these signals proves required topics, authorization, durability,
 consumer progress, transaction health, or application correctness.
+Inspector close is idempotent and returns `ErrObserverReentry` rather than
+allowing an active inspector observer to re-enter lifecycle work.
 
 The integration suite proves Zstandard production, same-key record order,
 explicit partition delivery, per-partition contiguous settlement, successful

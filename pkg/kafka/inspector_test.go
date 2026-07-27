@@ -235,7 +235,9 @@ func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *test
 	if err != nil {
 		t.Fatalf("NewInspector() error = %v", err)
 	}
-	inspector.Close()
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
 
 	factoryErr := errors.New("client construction failed")
 	inspector, err = newInspector(
@@ -251,7 +253,9 @@ func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *test
 		},
 	)
 	if inspector != nil {
-		inspector.Close()
+		if closeErr := inspector.Close(); closeErr != nil {
+			t.Errorf("Close() after factory failure error = %v", closeErr)
+		}
 		t.Fatal("newInspector() returned inspector after factory failure")
 	}
 	if !errors.Is(err, factoryErr) {
@@ -264,7 +268,9 @@ func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *test
 	if err := inspector.Health(context.Background()); !errors.Is(err, healthErr) {
 		t.Fatalf("Health() error = %v, want %v", err, healthErr)
 	}
-	inspector.Close()
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
 	if backend.closed != 1 {
 		t.Fatalf("Close() calls = %d, want 1", backend.closed)
 	}
@@ -320,7 +326,9 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 
 			inspector, err := NewInspector(test.config)
 			if inspector != nil {
-				inspector.Close()
+				if closeErr := inspector.Close(); closeErr != nil {
+					t.Errorf("Close() after invalid config error = %v", closeErr)
+				}
 				t.Fatal("NewInspector() returned inspector for invalid config")
 			}
 			if !errors.Is(err, test.want) {

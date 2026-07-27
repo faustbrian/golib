@@ -11,6 +11,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- `CLIENT` spans and bounded adapter-owned diagnostics for cluster, topic,
+  consumer-group, dependency-health, readiness, and inspector shutdown
+  observations
 - replay plan, record-processing, exact aggregate progress, and shutdown spans
   plus fixed replay progress attributes
 - independently versioned OpenTelemetry adapter for every stable root Kafka

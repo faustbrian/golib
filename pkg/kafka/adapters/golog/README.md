@@ -42,6 +42,10 @@ the same redaction policy.
 Replay observations add fixed signed-64-bit processed, skipped, failed, and
 remaining counts. They preserve exact replay progress without turning source
 coordinates or identities into unbounded fields.
+Inspector observations add fixed broker, topic, consumer-group, member, and
+partition counts plus dependency-health and readiness-hysteresis fields.
+Inspected identities, broker hosts, cluster IDs, assignments, and lag
+coordinates never enter adapter-generated fields.
 
 Client IDs, topics, and consumer groups are denied by default. Each identity is
 logged only when exactly present in its constructor-copied allowlist. Lists are

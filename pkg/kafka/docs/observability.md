@@ -5,16 +5,18 @@ reports producer delivery plus consumer poll, record-handler, batch-handler,
 offset-commit, assignment, revocation, ownership-loss, blocked-rebalance, group
 management error, Kafka transaction begin/commit/abort, broker connection,
 broker request, broker throttle, broker disconnect, and replay plan, record,
-run, and shutdown completion. The franz-go hook bridge is private;
+run, and shutdown completion. Inspector cluster, topic, consumer-group,
+dependency-health, readiness, shutdown, and broker events use the same
+contract. The franz-go hook bridge is private;
 observations do not expose franz-go hooks, records, requests, responses,
 clients, network connections, broker endpoints, or raw group errors.
 
 ## Configuration and execution
 
 `ProducerConfig.Observers`, `ConsumerConfig.Observers`,
-`TransactionProcessorConfig.Observers`, and `ReplayConfig.Observers` accept
-1 to 16 ordered `ObserverFunc` callbacks. The callback slice is copied during
-client construction. A
+`TransactionProcessorConfig.Observers`, `ReplayConfig.Observers`, and
+`InspectorConfig.Observers` accept 1 to 16 ordered `ObserverFunc` callbacks.
+The callback slice is copied during client construction. A
 non-empty policy requires an explicit
 `ObservationFailureFunc`; observation failures never change producer delivery,
 handler, commit, or poll results.
@@ -31,6 +33,11 @@ callbacks may run after configuration validation but before `NewConsumer`
 returns. They must not depend on assignment of the constructor result.
 The transaction processor uses the same private broker hook and can emit broker
 events before `NewTransactionProcessor` returns.
+The inspector emits operation observations after each admitted read-only call.
+One `Readiness` call emits the underlying dependency-health observation and,
+when that probe conclusively updates hysteresis, a separate readiness
+observation. Nil, caller-canceled, closed, or observer-reentrant readiness
+calls do not invent a readiness decision.
 Replay partition workers can invoke record observers concurrently across
 independent partitions, while broker events can overlap planning, execution,
 and shutdown. Records within one replay partition remain sequential.
@@ -95,6 +102,14 @@ Every callback context is callback-scoped and must not be retained.
   fails with its exact resumable progress;
 - `ObservationReplayShutdown` after an admitted bounded shutdown completes or
   remains incomplete;
+- `ObservationInspectorCluster` after one cluster metadata query;
+- `ObservationInspectorTopics` after one explicit bounded topic query;
+- `ObservationInspectorConsumerGroups` after one explicit bounded
+  consumer-group lag
+  query;
+- `ObservationDependencyHealth` after one admitted connectivity probe;
+- `ObservationReadiness` after one conclusive readiness-hysteresis update;
+- `ObservationInspectorShutdown` after the inspector closes its client;
 - `ObservationBrokerConnect` after a connection initialization attempt,
   including API-version negotiation and configured SASL;
 - `ObservationBrokerRequest` after one Kafka protocol request fails during
@@ -129,6 +144,12 @@ exporting a public observation rather than reimplementing these invariants.
 | Replay record | `RecordCount=1`; exactly one of `ReplayProcessed`, `ReplaySkipped`, or `ReplayFailed` is one; processed and skipped outcomes succeed, failed outcomes fail, processed records set `ProcessedCount=1`, and validated source topic, partition, offset, timestamp, and conservative bytes are present |
 | Replay run | `PartitionCount` is the configured range count; `ReplayProcessed`, `ReplaySkipped`, `ReplayFailed`, and `ReplayRemaining` exactly match the returned result and its resumable ranges; success requires zero failed and remaining records |
 | Replay shutdown | Reports bounded reader shutdown without record coordinates or progress counts |
+| Inspector cluster | `BrokerCount` is the validated returned broker count; failure exports zero brokers |
+| Inspector topics | `TopicCount` is the bounded requested target count and `PartitionCount` is the validated returned aggregate; failure exports no partitions |
+| Inspector consumer groups | `GroupCount` is the bounded requested target count; `GroupMemberCount` and `PartitionCount` are validated returned aggregates and are zero on failure |
+| Dependency health | `DependencyHealthy` exactly matches the completed probe outcome |
+| Readiness | `DependencyHealthy`, `Ready`, `ConsecutiveFailures`, and `ConsecutiveSuccesses` are the conclusive post-probe state; operation success matches dependency health, not the stateful `Ready` decision |
+| Inspector shutdown | Reports one successful idempotent close transition; repeated closes emit nothing |
 | Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
 | Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay |
@@ -194,7 +215,8 @@ contained and discarded because recursively reporting reporter failure would
 be unbounded.
 
 Observers must not call the client that invoked them. Producer, consumer,
-transaction-processor, and replay operations using the callback context fail
+transaction-processor, replay, and inspector operations using the callback
+context fail
 with `ErrObserverReentry`. Their `Close` methods, plus context-free mutating
 consumer operations, also fail with that error while a callback is active. This
 conservative fence can reject a concurrent context-free call from another
@@ -207,10 +229,11 @@ package holds no client lifecycle lock while application observer code runs.
 The root observer model currently covers producer delivery, nontransactional
 consumer processing, commits, group lifecycle, producer and
 consume-transform-produce transaction lifecycle, replay planning, record
-outcomes, aggregate progress and shutdown, plus producer, consumer,
-transaction-processor, and replay broker activity. Standalone authentication,
-retry, complete broker rebalance timing, inspection, health, and non-replay
-shutdown events remain unimplemented.
+outcomes, aggregate progress and shutdown, inspector read-only operations,
+dependency health, readiness, and shutdown, plus producer, consumer,
+transaction-processor, replay, and inspector broker activity. Standalone
+authentication, retry, complete broker rebalance timing, and producer,
+consumer, and transaction-processor shutdown events remain unimplemented.
 
 The standard-library [`kafka/adapters/golog`](../adapters/golog) package
 translates every current stable root observation into one fixed `log/slog`

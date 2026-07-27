@@ -34,7 +34,8 @@ combines:
 
 `MaxMetadataPartitions` bounds aggregate returned partitions. Replica sets are
 also bounded by `MaxMetadataBrokers`. Missing topics, partial partition
-metadata, invalid replica relationships, missing offsets, and missing or
+metadata, a topic with no partitions, invalid replica relationships, missing
+offsets, and missing or
 malformed selected configuration fail closed. At most 1,024 broker-returned
 configuration entries are accepted per topic, and each selected value is
 limited to 64 valid UTF-8 bytes before parsing. The method does not return a
@@ -123,7 +124,19 @@ probes do not mutate state.
 outages do not fail it. It is not complete process liveness and does not prove
 that an application runner is making progress. Closing the inspector is
 idempotent, immediately makes local liveness and readiness false, and fences
-later calls with `ErrInspectorClosed`.
+later calls with `ErrInspectorClosed`. `Close` returns an error so an observer
+attempting same-inspector lifecycle reentry receives `ErrObserverReentry`
+instead of deadlocking or silently closing the client.
+
+`InspectorConfig.Observers` uses the shared copied, ordered, bounded
+`ObserverPolicy`. Cluster, topic, and group observations export only bounded
+aggregate counts, never broker hosts, cluster IDs, topic names, group names,
+member identities, assignments, or lag coordinates. Dependency-health and
+readiness observations keep probe success separate from the stateful readiness
+decision. A conclusive `Readiness` call emits both its dependency probe and its
+post-hysteresis decision; inconclusive nil, canceled, closed, or reentrant calls
+do not mutate state or emit a readiness decision. Inspector broker events use
+the same private franz-go hook as other clients.
 
 No health signal proves topic existence, authorization, durability, group
 progress, producer delivery, or transaction safety. Compose those requirements

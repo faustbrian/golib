@@ -75,6 +75,10 @@ values against the same bounded metadata, settlement-count, failure-category,
 and event-cardinality policy. Observer errors and panics are contained and
 reported through the required `ObservationFailureFunc`; they never replace the
 delivery result.
+Inspector observations add only bounded broker, topic, consumer-group, member,
+and partition aggregates plus dependency-health and readiness hysteresis
+state. They never copy broker hosts, cluster IDs, inspected target names,
+member identities, assignments, or lag coordinates.
 `adapters/golog` emits fixed standard-library `log/slog` records from this
 contract. Its copied client, topic, and group allowlists deny every identity by
 default. `adapters/gotelemetry` supplies the independently versioned
@@ -258,6 +262,8 @@ coordinator, state, protocol, member identity, copied assignment,
 committed-offset, and lag inspection. Members are sorted by member ID and their
 assignments by topic and partition. Topic and group methods require explicit
 target lists, and every operation derives `InspectorConfig.RequestTimeout`.
+`InspectorConfig.Observers` reports inspection, dependency, readiness,
+shutdown, and broker activity through the shared stable observation contract.
 
 `DependencyHealth` is current bounded connectivity; `Health` is its
 compatibility alias. `Readiness` applies configured consecutive-failure and
@@ -266,8 +272,9 @@ decision, while the returned error retains the latest dependency failure for
 diagnostics. Nil or canceled probe contexts do not mutate readiness. Initial
 readiness requires the recovery threshold, and a ready inspector remains ready
 until the failure threshold is reached. `Liveness` reports only whether the
-inspector remains locally open, never Kafka availability. `Close` is
-idempotent, makes liveness and readiness false immediately, and fences later
+inspector remains locally open, never Kafka availability. `Close` returns
+`ErrObserverReentry` for same-inspector observer reentry and otherwise closes
+idempotently, makes liveness and readiness false immediately, and fences later
 operations with `ErrInspectorClosed`.
 
 `ProducerConfig.CompressionPreferences` is an ordered, constructor-copied list

@@ -92,6 +92,20 @@ const (
 	ObservationReplayRun
 	// ObservationReplayShutdown reports one bounded replay-reader shutdown.
 	ObservationReplayShutdown
+	// ObservationInspectorCluster reports one bounded cluster metadata query.
+	ObservationInspectorCluster
+	// ObservationInspectorTopics reports one bounded topic metadata and
+	// durability query.
+	ObservationInspectorTopics
+	// ObservationInspectorConsumerGroups reports one bounded consumer-group
+	// lag query.
+	ObservationInspectorConsumerGroups
+	// ObservationDependencyHealth reports one bounded Kafka connectivity probe.
+	ObservationDependencyHealth
+	// ObservationReadiness reports one conclusive readiness-hysteresis update.
+	ObservationReadiness
+	// ObservationInspectorShutdown reports the inspector client closing.
+	ObservationInspectorShutdown
 )
 
 // String returns the stable low-cardinality observation name.
@@ -135,6 +149,18 @@ func (kind ObservationKind) String() string {
 		return "replay.run"
 	case ObservationReplayShutdown:
 		return "replay.shutdown"
+	case ObservationInspectorCluster:
+		return "inspector.cluster"
+	case ObservationInspectorTopics:
+		return "inspector.topics"
+	case ObservationInspectorConsumerGroups:
+		return "inspector.consumer_groups"
+	case ObservationDependencyHealth:
+		return "inspector.dependency_health"
+	case ObservationReadiness:
+		return "inspector.readiness"
+	case ObservationInspectorShutdown:
+		return "inspector.shutdown"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
@@ -199,6 +225,18 @@ type Observation struct {
 	RecordCount int
 	// PartitionCount is the bounded number of Kafka partitions represented.
 	PartitionCount int
+	// BrokerCount is the bounded number of Kafka brokers represented by a
+	// cluster inspection. It is zero for other observations.
+	BrokerCount int
+	// TopicCount is the bounded number of requested Kafka topics represented
+	// by a topic inspection. It is zero for other observations.
+	TopicCount int
+	// GroupCount is the bounded number of requested Kafka consumer groups
+	// represented by a group inspection. It is zero for other observations.
+	GroupCount int
+	// GroupMemberCount is the bounded number of consumer-group members
+	// represented by a group inspection. It is zero for other observations.
+	GroupMemberCount int
 	// ProcessedCount is the number of records whose handler completed.
 	ProcessedCount int
 	// CommittedCount is the number of source records durably settled.
@@ -218,6 +256,17 @@ type Observation struct {
 	// ReplayRemaining is the exact number of requested offsets not yet
 	// processed. It is zero for non-replay observations.
 	ReplayRemaining int64
+	// DependencyHealthy reports the result of a dependency probe or the
+	// dependency state used by a readiness decision.
+	DependencyHealthy bool
+	// Ready reports the stateful readiness decision after a conclusive probe.
+	Ready bool
+	// ConsecutiveFailures is the bounded readiness failure count after a
+	// conclusive probe.
+	ConsecutiveFailures int
+	// ConsecutiveSuccesses is the bounded readiness success count after a
+	// conclusive probe.
+	ConsecutiveSuccesses int
 	// Succeeded reports whether the package operation returned success.
 	Succeeded bool
 	// Truncated reports that bounded diagnostic counts or metadata were clipped.
@@ -230,11 +279,15 @@ type Observation struct {
 // metadata, settlement-count, and event-cardinality invariants.
 func (observation Observation) Validate() error {
 	if observation.Kind < ObservationProduceRecord ||
-		observation.Kind > ObservationReplayShutdown ||
+		observation.Kind > ObservationInspectorShutdown ||
 		observation.StartedAt.IsZero() ||
 		observation.Duration < 0 ||
 		observation.RecordCount < 0 ||
 		observation.PartitionCount < 0 ||
+		observation.BrokerCount < 0 ||
+		observation.TopicCount < 0 ||
+		observation.GroupCount < 0 ||
+		observation.GroupMemberCount < 0 ||
 		observation.ProcessedCount < 0 ||
 		observation.CommittedCount < 0 ||
 		observation.RecordBytes < 0 ||
@@ -244,6 +297,8 @@ func (observation Observation) Validate() error {
 		observation.ReplayRemaining < 0 ||
 		observation.RequestBytes < 0 ||
 		observation.ResponseBytes < 0 ||
+		observation.ConsecutiveFailures < 0 ||
+		observation.ConsecutiveSuccesses < 0 ||
 		observation.QueueDuration < 0 ||
 		observation.ThrottleDuration < 0 ||
 		observation.ProcessedCount > observation.RecordCount ||
@@ -256,11 +311,107 @@ func (observation Observation) Validate() error {
 		(!observation.Succeeded &&
 			!validErrorCategory(observation.Category)) ||
 		!validObservationRecordCardinality(observation) ||
-		!validReplayObservationProgress(observation) {
+		!validReplayObservationProgress(observation) ||
+		!validInspectorObservationMetadata(observation) {
 		return ErrInvalidObservation
 	}
 
 	return nil
+}
+
+func validInspectorObservationMetadata(observation Observation) bool {
+	isInspector := observation.Kind >= ObservationInspectorCluster &&
+		observation.Kind <= ObservationInspectorShutdown
+	if !isInspector {
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount == 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			!observation.DependencyHealthy &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0
+	}
+	if observation.BrokerCount > 10_000 ||
+		observation.TopicCount > 64 ||
+		observation.GroupCount > 64 ||
+		observation.GroupMemberCount > 100_000 ||
+		observation.PartitionCount > 1_000_000 ||
+		observation.ConsecutiveFailures > 100 ||
+		observation.ConsecutiveSuccesses > 100 {
+		return false
+	}
+
+	switch observation.Kind {
+	case ObservationInspectorCluster:
+		return observation.TopicCount == 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			observation.PartitionCount == 0 &&
+			!observation.DependencyHealthy &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0 &&
+			observation.Succeeded == (observation.BrokerCount > 0)
+	case ObservationInspectorTopics:
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount > 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			!observation.DependencyHealthy &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0 &&
+			((observation.Succeeded && observation.PartitionCount > 0) ||
+				(!observation.Succeeded && observation.PartitionCount == 0))
+	case ObservationInspectorConsumerGroups:
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount == 0 &&
+			observation.GroupCount > 0 &&
+			!observation.DependencyHealthy &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0 &&
+			(observation.Succeeded ||
+				(observation.GroupMemberCount == 0 &&
+					observation.PartitionCount == 0))
+	case ObservationDependencyHealth:
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount == 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			observation.PartitionCount == 0 &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0 &&
+			observation.Succeeded == observation.DependencyHealthy
+	case ObservationReadiness:
+		countsValid := (observation.DependencyHealthy &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses > 0) ||
+			(!observation.DependencyHealthy &&
+				observation.ConsecutiveFailures > 0 &&
+				observation.ConsecutiveSuccesses == 0)
+
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount == 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			observation.PartitionCount == 0 &&
+			observation.Succeeded == observation.DependencyHealthy &&
+			countsValid
+	default:
+		return observation.BrokerCount == 0 &&
+			observation.TopicCount == 0 &&
+			observation.GroupCount == 0 &&
+			observation.GroupMemberCount == 0 &&
+			observation.PartitionCount == 0 &&
+			!observation.DependencyHealthy &&
+			!observation.Ready &&
+			observation.ConsecutiveFailures == 0 &&
+			observation.ConsecutiveSuccesses == 0 &&
+			observation.Succeeded
+	}
 }
 
 func validObservationRecordCardinality(observation Observation) bool {

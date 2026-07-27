@@ -6,11 +6,16 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- reject broker topic metadata that contradicts Kafka by returning a requested
+  topic with no partitions
 - reject replay observations whose success state contradicts their exact
   failed or remaining progress
 
 ### Added
 
+- bounded payload-free inspector observations for cluster, topic,
+  consumer-group, dependency-health, readiness, shutdown, and broker activity,
+  including aggregate counts and readiness hysteresis state
 - replay plan, per-record outcome, exact aggregate progress, shutdown, and
   broker observations with copied policy metadata, same-reader reentrancy
   fencing, and independently validatable replay observer configuration
@@ -149,6 +154,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- `Inspector.Close` now returns an error and rejects same-inspector observer
+  lifecycle reentry with `ErrObserverReentry`; ordinary and deferred calls may
+  continue to ignore the idempotent nil result
 - topic inspection now parses `min.insync.replicas` directly at platform `int`
   width before applying the Kafka `int32` upper bound
 - producer and transaction-output aggregate validation now includes framing

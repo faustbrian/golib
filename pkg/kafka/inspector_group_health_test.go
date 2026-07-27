@@ -237,8 +237,12 @@ func TestInspectorCloseImmediatelyFencesAllHealthSignals(t *testing.T) {
 		t.Fatalf("initial Readiness() = %#v, %v", state, err)
 	}
 
-	inspector.Close()
-	inspector.Close()
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("second Close() error = %v", err)
+	}
 
 	if state := inspector.Liveness(); state.Live {
 		t.Fatalf("Liveness() after Close() = %#v", state)
@@ -293,7 +297,9 @@ func TestInspectorCloseFencesAnInFlightReadinessObservation(t *testing.T) {
 	}()
 
 	<-started
-	inspector.Close()
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
 	close(release)
 	observation := <-result
 	if !errors.Is(observation.err, ErrInspectorClosed) ||
@@ -335,10 +341,9 @@ func TestInspectorCloseFencesReadinessWaitingToRecordObservation(t *testing.T) {
 	}()
 	<-probed
 
-	closed := make(chan struct{})
+	closed := make(chan error, 1)
 	go func() {
-		inspector.Close()
-		close(closed)
+		closed <- inspector.Close()
 	}()
 	for inspector.Liveness().Live {
 		runtime.Gosched()
@@ -354,7 +359,9 @@ func TestInspectorCloseFencesReadinessWaitingToRecordObservation(t *testing.T) {
 			observation.err,
 		)
 	}
-	<-closed
+	if err := <-closed; err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
 }
 
 func TestReadinessPolicyDefaultsAndValidatesBounds(t *testing.T) {

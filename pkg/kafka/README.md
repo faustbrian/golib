@@ -272,12 +272,18 @@ capped by explicit broker, group-member, partition, and configuration limits.
 Inspection never mutates Kafka infrastructure. Retention and segment durations
 remain raw Kafka milliseconds because valid broker values can exceed Go's
 `time.Duration`.
+Optional `InspectorConfig.Observers` report only bounded aggregate inspection
+counts, dependency/readiness state, shutdown, and broker activity. Inspector
+targets, cluster IDs, broker hosts, member identities, assignments, and lag
+coordinates are never copied into observations.
 
 `DependencyHealth` checks current bounded connectivity. `Readiness` applies
 configurable consecutive-failure and recovery hysteresis and returns the
 readiness decision separately from the latest dependency error. `Liveness`
 only reports whether this inspector remains locally open; it never fails merely
 because Kafka is unavailable and is not a complete process-liveness signal.
+`Close` returns `ErrObserverReentry` for same-inspector callback reentry and is
+otherwise idempotent.
 `Health` remains an error-only compatibility alias for `DependencyHealth`.
 
 See the [inspection guide](docs/inspection.md) for authorization, partial-state,

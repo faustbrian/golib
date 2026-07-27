@@ -637,6 +637,36 @@ func appendObservationDiagnostics(
 			),
 		)
 	}
+	if observation.BrokerCount > 0 {
+		attributes = append(
+			attributes,
+			attribute.Int64("kafka.broker.count", int64(observation.BrokerCount)),
+		)
+	}
+	if observation.TopicCount > 0 {
+		attributes = append(
+			attributes,
+			attribute.Int64("kafka.topic.count", int64(observation.TopicCount)),
+		)
+	}
+	if observation.GroupCount > 0 {
+		attributes = append(
+			attributes,
+			attribute.Int64(
+				"kafka.consumer_group.count",
+				int64(observation.GroupCount),
+			),
+		)
+	}
+	if observation.GroupMemberCount > 0 {
+		attributes = append(
+			attributes,
+			attribute.Int64(
+				"kafka.consumer_group.member.count",
+				int64(observation.GroupMemberCount),
+			),
+		)
+	}
 	if observation.ProcessedCount > 0 {
 		attributes = append(
 			attributes,
@@ -676,6 +706,31 @@ func appendObservationDiagnostics(
 			attribute.Int64(
 				"kafka.replay.remaining",
 				observation.ReplayRemaining,
+			),
+		)
+	case kafka.ObservationDependencyHealth:
+		attributes = append(
+			attributes,
+			attribute.Bool(
+				"kafka.dependency.healthy",
+				observation.DependencyHealthy,
+			),
+		)
+	case kafka.ObservationReadiness:
+		attributes = append(
+			attributes,
+			attribute.Bool(
+				"kafka.dependency.healthy",
+				observation.DependencyHealthy,
+			),
+			attribute.Bool("kafka.readiness.ready", observation.Ready),
+			attribute.Int64(
+				"kafka.readiness.consecutive_failures",
+				int64(observation.ConsecutiveFailures),
+			),
+			attribute.Int64(
+				"kafka.readiness.consecutive_successes",
+				int64(observation.ConsecutiveSuccesses),
 			),
 		)
 	}
@@ -1037,6 +1092,36 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 	case kafka.ObservationReplayShutdown:
 		return operationDescriptor{
 			spanName: "kafka replay.shutdown",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationInspectorCluster:
+		return operationDescriptor{
+			spanName: "kafka inspector.cluster",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationInspectorTopics:
+		return operationDescriptor{
+			spanName: "kafka inspector.topics",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationInspectorConsumerGroups:
+		return operationDescriptor{
+			spanName: "kafka inspector.consumer_groups",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationDependencyHealth:
+		return operationDescriptor{
+			spanName: "kafka inspector.dependency_health",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationReadiness:
+		return operationDescriptor{
+			spanName: "kafka inspector.readiness",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationInspectorShutdown:
+		return operationDescriptor{
+			spanName: "kafka inspector.shutdown",
 			spanKind: trace.SpanKindClient,
 		}
 	default:

@@ -132,6 +132,32 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 	}
 }
 
+func TestInspectorRejectsTopicMetadataWithoutPartitions(t *testing.T) {
+	t.Parallel()
+
+	backend := &metadataInspectorBackend{
+		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
+			"events": {
+				Topic:      "events",
+				Partitions: kadm.PartitionDetails{},
+			},
+		}},
+		startOffsets: kadm.ListedOffsets{"events": {}},
+		endOffsets:   kadm.ListedOffsets{"events": {}},
+		configs: kadm.ResourceConfigs{
+			validTopicInspectionResource("events", "1"),
+		},
+	}
+	inspector := inspectorWithMetadataBackend(backend)
+
+	if _, err := inspector.Topics(
+		context.Background(),
+		"events",
+	); !errors.Is(err, ErrInvalidInspectionResponse) {
+		t.Fatalf("Topics() error = %v, want %v", err, ErrInvalidInspectionResponse)
+	}
+}
+
 func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T) {
 	t.Parallel()
 

@@ -310,6 +310,12 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 		kafka.ObservationReplayRecord,
 		kafka.ObservationReplayRun,
 		kafka.ObservationReplayShutdown,
+		kafka.ObservationInspectorCluster,
+		kafka.ObservationInspectorTopics,
+		kafka.ObservationInspectorConsumerGroups,
+		kafka.ObservationDependencyHealth,
+		kafka.ObservationReadiness,
+		kafka.ObservationInspectorShutdown,
 	}
 	observer := instrumentation.Observer()
 	for index, kind := range kinds {
@@ -333,6 +339,19 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 			observation.RecordCount = 1
 			observation.ProcessedCount = 1
 			observation.ReplayProcessed = 1
+		case kafka.ObservationInspectorCluster:
+			observation.BrokerCount = 1
+		case kafka.ObservationInspectorTopics:
+			observation.TopicCount = 1
+			observation.PartitionCount = 1
+		case kafka.ObservationInspectorConsumerGroups:
+			observation.GroupCount = 1
+		case kafka.ObservationDependencyHealth:
+			observation.DependencyHealthy = true
+		case kafka.ObservationReadiness:
+			observation.DependencyHealthy = true
+			observation.Ready = true
+			observation.ConsecutiveSuccesses = 1
 		}
 		if err := observer(context.Background(), observation); err != nil {
 			t.Fatalf("observe %s: %v", kind, err)
@@ -365,6 +384,126 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 			map[string]any{"kafka.operation": kind.String()},
 		)
 	}
+}
+
+func TestObserverEmitsInspectorSpansAndBoundedDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	spans := tracetest.NewSpanRecorder()
+	reader := sdkmetric.NewManualReader()
+	instrumentation, err := New(Config{
+		Runtime: testRuntime{
+			tracerProvider: sdktrace.NewTracerProvider(
+				sdktrace.WithSpanProcessor(spans),
+			),
+			meterProvider: sdkmetric.NewMeterProvider(
+				sdkmetric.WithReader(reader),
+			),
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observer := instrumentation.Observer()
+	observations := []kafka.Observation{
+		{
+			Kind:        kafka.ObservationInspectorCluster,
+			StartedAt:   time.Unix(1, 0),
+			Duration:    time.Millisecond,
+			BrokerCount: 3,
+			Succeeded:   true,
+		},
+		{
+			Kind:           kafka.ObservationInspectorTopics,
+			StartedAt:      time.Unix(2, 0),
+			Duration:       2 * time.Millisecond,
+			TopicCount:     2,
+			PartitionCount: 6,
+			Succeeded:      true,
+		},
+		{
+			Kind:             kafka.ObservationInspectorConsumerGroups,
+			StartedAt:        time.Unix(3, 0),
+			Duration:         3 * time.Millisecond,
+			GroupCount:       2,
+			GroupMemberCount: 4,
+			PartitionCount:   8,
+			Succeeded:        true,
+		},
+		{
+			Kind:                 kafka.ObservationReadiness,
+			StartedAt:            time.Unix(4, 0),
+			Duration:             4 * time.Millisecond,
+			DependencyHealthy:    false,
+			Ready:                true,
+			ConsecutiveFailures:  2,
+			ConsecutiveSuccesses: 0,
+			Succeeded:            false,
+			Category:             kafka.ErrorRetryable,
+		},
+	}
+	for _, observation := range observations {
+		if err := observer(context.Background(), observation); err != nil {
+			t.Fatalf("observe %s: %v", observation.Kind, err)
+		}
+	}
+
+	ended := spans.Ended()
+	wantNames := []string{
+		"kafka inspector.cluster",
+		"kafka inspector.topics",
+		"kafka inspector.consumer_groups",
+		"kafka inspector.readiness",
+	}
+	if len(ended) != len(wantNames) {
+		t.Fatalf("ended spans = %d, want %d", len(ended), len(wantNames))
+	}
+	for index, span := range ended {
+		if span.Name() != wantNames[index] ||
+			span.SpanKind() != trace.SpanKindClient {
+			t.Fatalf(
+				"inspector span %d = %q/%s",
+				index,
+				span.Name(),
+				span.SpanKind(),
+			)
+		}
+	}
+	assertSpanAttributes(t, ended[0].Attributes(), map[string]any{
+		"kafka.broker.count": int64(3),
+	})
+	assertSpanAttributes(t, ended[1].Attributes(), map[string]any{
+		"kafka.topic.count":     int64(2),
+		"kafka.partition.count": int64(6),
+	})
+	assertSpanAttributes(t, ended[2].Attributes(), map[string]any{
+		"kafka.consumer_group.count":        int64(2),
+		"kafka.consumer_group.member.count": int64(4),
+		"kafka.partition.count":             int64(8),
+	})
+	assertSpanAttributes(t, ended[3].Attributes(), map[string]any{
+		"kafka.dependency.healthy":              false,
+		"kafka.readiness.ready":                 true,
+		"kafka.readiness.consecutive_failures":  int64(2),
+		"kafka.readiness.consecutive_successes": int64(0),
+		"error.type":                            "retryable",
+	})
+
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	for _, observation := range observations {
+		assertIntCounter(
+			t,
+			metrics,
+			"kafka.client.operations",
+			1,
+			map[string]any{"kafka.operation": observation.Kind.String()},
+		)
+	}
+	assertMetricAbsent(t, metrics, "messaging.client.operation.duration")
+	assertMetricAbsent(t, metrics, "messaging.process.duration")
 }
 
 func TestObserverEmitsReplayMessagingAndExactProgress(t *testing.T) {

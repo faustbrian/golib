@@ -45,6 +45,9 @@ type InspectorConfig struct {
 	MaxMetadataPartitions int
 	MaxGroupMembers       int
 	Readiness             ReadinessPolicy
+	// Observers receive payload-free inspection, health, readiness, shutdown,
+	// and broker events under one bounded synchronous callback policy.
+	Observers ObserverPolicy
 }
 
 // ReadinessPolicy controls stateful Kafka dependency-probe hysteresis.
@@ -270,6 +273,7 @@ type inspectorAdminFactory func(*kgo.Client, InspectorConfig) inspectorBackend
 // Inspector provides bounded, read-only protocol administration used by
 // readiness checks, dashboards, and replay planning.
 type Inspector struct {
+	clientID              string
 	admin                 inspectorBackend
 	client                inspectorClient
 	requestTimeout        time.Duration
@@ -279,6 +283,9 @@ type Inspector struct {
 	readinessPolicy       ReadinessPolicy
 	readinessMu           sync.Mutex
 	readiness             ReadinessState
+	lifecycleMu           sync.Mutex
+	observerCallbacks     int
+	observers             observerDispatcher
 	closeOnce             sync.Once
 	closed                atomic.Bool
 }
@@ -344,20 +351,31 @@ func newInspector(
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
-	client, err := clientFactory(options...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Inspector{
-		admin:                 adminFactory(client, config),
-		client:                client,
+	dispatcher := newObserverDispatcher(config.Observers)
+	inspector := &Inspector{
+		clientID:              strings.Clone(config.ClientID),
 		requestTimeout:        config.RequestTimeout,
 		maxMetadataBrokers:    config.MaxMetadataBrokers,
 		maxMetadataPartitions: config.MaxMetadataPartitions,
 		maxGroupMembers:       config.MaxGroupMembers,
 		readinessPolicy:       config.Readiness,
-	}, nil
+		observers:             dispatcher,
+	}
+	if dispatcher.enabled() {
+		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook.before = inspector.beginObservation
+		observerHook.after = inspector.finishObservation
+		options = append(options, kgo.WithHooks(observerHook))
+	}
+	client, err := clientFactory(options...)
+	if err != nil {
+		return nil, err
+	}
+
+	inspector.client = client
+	inspector.admin = adminFactory(client, config)
+
+	return inspector, nil
 }
 
 func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
@@ -392,6 +410,11 @@ func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 		return InspectorConfig{}, err
 	}
 	config.Readiness = readiness
+	observers, err := normalizeObserverPolicy(config.Observers)
+	if err != nil {
+		return InspectorConfig{}, err
+	}
+	config.Observers = observers
 	if config.DialTimeout < 100*time.Millisecond ||
 		config.DialTimeout > 2*time.Minute ||
 		config.RequestTimeout < 100*time.Millisecond ||
@@ -429,12 +452,26 @@ func normalizeReadinessPolicy(
 
 // Cluster returns bounded, sorted cluster identity and broker metadata. A
 // controller ID is visible only when it identifies a returned broker.
-func (inspector *Inspector) Cluster(ctx context.Context) (ClusterState, error) {
+func (inspector *Inspector) Cluster(
+	ctx context.Context,
+) (result ClusterState, resultErr error) {
 	requestCtx, cancel, err := inspector.requestContext(ctx)
 	if err != nil {
 		return ClusterState{}, err
 	}
 	defer cancel()
+	startedAt := inspector.observationStart()
+	defer func() {
+		inspector.observeInspection(
+			ctx,
+			ObservationInspectorCluster,
+			startedAt,
+			resultErr,
+			func(observation *Observation) {
+				observation.BrokerCount = len(result.Brokers)
+			},
+		)
+	}()
 
 	metadata, err := inspector.admin.BrokerMetadata(requestCtx)
 	if err != nil {
@@ -453,7 +490,7 @@ func (inspector *Inspector) Cluster(ctx context.Context) (ClusterState, error) {
 		return ClusterState{}, ErrInvalidInspectionResponse
 	}
 
-	result := ClusterState{
+	result = ClusterState{
 		ID:           metadata.Cluster,
 		IDVisible:    metadata.Cluster != "",
 		ControllerID: metadata.Controller,
@@ -507,6 +544,14 @@ func (inspector *Inspector) requestContext(
 	if ctx == nil {
 		return nil, nil, ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return nil, nil, ErrObserverReentry
+	}
+	inspector.lifecycleMu.Lock()
+	defer inspector.lifecycleMu.Unlock()
+	if inspector.observerCallbacks != 0 {
+		return nil, nil, ErrObserverReentry
+	}
 	if inspector.closed.Load() {
 		return nil, nil, ErrInspectorClosed
 	}
@@ -523,7 +568,7 @@ func (inspector *Inspector) requestContext(
 func (inspector *Inspector) Topics(
 	ctx context.Context,
 	topics ...string,
-) ([]TopicState, error) {
+) (result []TopicState, resultErr error) {
 	if err := validateInspectionTopics(topics); err != nil {
 		return nil, err
 	}
@@ -532,6 +577,21 @@ func (inspector *Inspector) Topics(
 		return nil, err
 	}
 	defer cancel()
+	startedAt := inspector.observationStart()
+	defer func() {
+		inspector.observeInspection(
+			ctx,
+			ObservationInspectorTopics,
+			startedAt,
+			resultErr,
+			func(observation *Observation) {
+				observation.TopicCount = len(topics)
+				for _, topic := range result {
+					observation.PartitionCount += len(topic.Partitions)
+				}
+			},
+		)
+	}()
 
 	metadata, err := inspector.admin.Metadata(requestCtx, topics...)
 	if err != nil {
@@ -582,6 +642,9 @@ func (inspector *Inspector) buildTopicStates(
 		}
 		if detail.Err != nil {
 			return nil, detail.Err
+		}
+		if len(detail.Partitions) == 0 {
+			return nil, ErrInvalidInspectionResponse
 		}
 		for partitionID, partition := range detail.Partitions {
 			if partition.Topic != detail.Topic ||
@@ -978,7 +1041,7 @@ func validateInspectionTopics(topics []string) error {
 func (inspector *Inspector) ConsumerGroupLag(
 	ctx context.Context,
 	groups ...string,
-) ([]ConsumerGroupState, error) {
+) (result []ConsumerGroupState, resultErr error) {
 	if err := validateInspectionTargets(groups, 255); err != nil {
 		return nil, err
 	}
@@ -987,6 +1050,22 @@ func (inspector *Inspector) ConsumerGroupLag(
 		return nil, err
 	}
 	defer cancel()
+	startedAt := inspector.observationStart()
+	defer func() {
+		inspector.observeInspection(
+			ctx,
+			ObservationInspectorConsumerGroups,
+			startedAt,
+			resultErr,
+			func(observation *Observation) {
+				observation.GroupCount = len(groups)
+				for _, group := range result {
+					observation.GroupMemberCount += len(group.Members)
+					observation.PartitionCount += len(group.Partitions)
+				}
+			},
+		)
+	}()
 
 	lags, err := inspector.admin.Lag(requestCtx, groups...)
 	if err != nil {
@@ -1009,7 +1088,7 @@ func (inspector *Inspector) ConsumerGroupLag(
 		return nil, err
 	}
 
-	result := make([]ConsumerGroupState, 0, len(lags))
+	result = make([]ConsumerGroupState, 0, len(lags))
 	for _, described := range lags.sorted() {
 		group := ConsumerGroupState{
 			Group:         described.group,
@@ -1406,12 +1485,26 @@ func validateInspectionTargets(targets []string, maximumBytes int) error {
 
 // DependencyHealth verifies current Kafka connectivity within the configured
 // request deadline. It is diagnostic input, not liveness or readiness.
-func (inspector *Inspector) DependencyHealth(ctx context.Context) error {
+func (inspector *Inspector) DependencyHealth(
+	ctx context.Context,
+) (resultErr error) {
 	requestCtx, cancel, err := inspector.requestContext(ctx)
 	if err != nil {
 		return err
 	}
 	defer cancel()
+	startedAt := inspector.observationStart()
+	defer func() {
+		inspector.observeInspection(
+			ctx,
+			ObservationDependencyHealth,
+			startedAt,
+			resultErr,
+			func(observation *Observation) {
+				observation.DependencyHealthy = resultErr == nil
+			},
+		)
+	}()
 
 	return inspectionRequestError(requestCtx, inspector.client.Ping(requestCtx))
 }
@@ -1426,7 +1519,36 @@ func (inspector *Inspector) Health(ctx context.Context) error {
 // does not immediately make a previously ready inspector unready.
 func (inspector *Inspector) Readiness(
 	ctx context.Context,
-) (ReadinessState, error) {
+) (state ReadinessState, resultErr error) {
+	if err := inspector.operationAllowed(ctx); err != nil {
+		inspector.readinessMu.Lock()
+		state := inspector.readiness
+		inspector.readinessMu.Unlock()
+		if errors.Is(err, ErrInspectorClosed) {
+			state = ReadinessState{}
+		}
+
+		return state, err
+	}
+	startedAt := inspector.observationStart()
+	conclusive := false
+	defer func() {
+		if !conclusive {
+			return
+		}
+		inspector.observeInspection(
+			ctx,
+			ObservationReadiness,
+			startedAt,
+			resultErr,
+			func(observation *Observation) {
+				observation.DependencyHealthy = state.DependencyHealthy
+				observation.Ready = state.Ready
+				observation.ConsecutiveFailures = state.ConsecutiveFailures
+				observation.ConsecutiveSuccesses = state.ConsecutiveSuccesses
+			},
+		)
+	}()
 	err := inspector.DependencyHealth(ctx)
 	if inspector.closed.Load() && !errors.Is(err, ErrInspectorClosed) {
 		err = errors.Join(err, ErrInspectorClosed)
@@ -1440,7 +1562,8 @@ func (inspector *Inspector) Readiness(
 		return state, err
 	}
 	if errors.Is(err, ErrContextRequired) ||
-		errors.Is(err, context.Canceled) {
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, ErrObserverReentry) {
 		inspector.readinessMu.Lock()
 		state := inspector.readiness
 		inspector.readinessMu.Unlock()
@@ -1479,6 +1602,7 @@ func (inspector *Inspector) Readiness(
 			inspector.readiness.Ready = false
 		}
 	}
+	conclusive = true
 
 	return inspector.readiness, err
 }
@@ -1497,13 +1621,111 @@ func inspectionRequestError(ctx context.Context, err error) error {
 	return err
 }
 
-// Close idempotently closes the underlying Kafka client.
-func (inspector *Inspector) Close() {
+// Close idempotently closes the underlying Kafka client. Calls made from an
+// inspector observer fail with ErrObserverReentry and leave the client open.
+func (inspector *Inspector) Close() error {
+	inspector.lifecycleMu.Lock()
+	if inspector.observerCallbacks != 0 {
+		inspector.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
+	inspector.lifecycleMu.Unlock()
+
+	closed := false
+	startedAt := inspector.observationStart()
 	inspector.closeOnce.Do(func() {
 		inspector.closed.Store(true)
 		inspector.readinessMu.Lock()
 		inspector.readiness = ReadinessState{}
 		inspector.readinessMu.Unlock()
 		inspector.client.Close()
+		closed = true
 	})
+	if closed {
+		inspector.observeInspection(
+			context.Background(),
+			ObservationInspectorShutdown,
+			startedAt,
+			nil,
+			nil,
+		)
+	}
+
+	return nil
+}
+
+func (inspector *Inspector) operationAllowed(ctx context.Context) error {
+	if ctx == nil {
+		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
+	inspector.lifecycleMu.Lock()
+	defer inspector.lifecycleMu.Unlock()
+	if inspector.observerCallbacks != 0 {
+		return ErrObserverReentry
+	}
+	if inspector.closed.Load() {
+		return ErrInspectorClosed
+	}
+
+	return nil
+}
+
+func (inspector *Inspector) observationStart() time.Time {
+	if !inspector.observers.enabled() {
+		return time.Time{}
+	}
+
+	return time.Now()
+}
+
+func (inspector *Inspector) observeInspection(
+	ctx context.Context,
+	kind ObservationKind,
+	startedAt time.Time,
+	err error,
+	populate func(*Observation),
+) {
+	if startedAt.IsZero() {
+		return
+	}
+	observation := Observation{
+		Kind:      kind,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  inspector.clientID,
+		Succeeded: err == nil,
+	}
+	if populate != nil {
+		populate(&observation)
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	inspector.dispatchObservation(ctx, observation)
+}
+
+func (inspector *Inspector) dispatchObservation(
+	ctx context.Context,
+	observation Observation,
+) {
+	inspector.beginObservation()
+	defer inspector.finishObservation()
+
+	inspector.observers.observe(ctx, observation)
+}
+
+func (inspector *Inspector) beginObservation() {
+	inspector.lifecycleMu.Lock()
+	inspector.observerCallbacks++
+	inspector.lifecycleMu.Unlock()
+}
+
+func (inspector *Inspector) finishObservation() {
+	inspector.lifecycleMu.Lock()
+	inspector.observerCallbacks--
+	inspector.lifecycleMu.Unlock()
 }

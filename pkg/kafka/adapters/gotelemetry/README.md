@@ -78,6 +78,8 @@ website content.
 | successfully processed replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | skipped or failed replay record | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
 | replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
+| inspector cluster, topics, consumer groups | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
+| dependency health, readiness, inspector shutdown | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
 
 The optional `[topic]` suffix is present only for an allowlisted topic. Failed
 operations set a generic error span status and the root package's stable,
@@ -100,6 +102,11 @@ only when explicitly allowlisted; partition and offset remain span-only.
 The adapter does not emit `messaging.client.consumed.messages` from replay
 outcomes because replay currently has no separate observation that proves
 delivery to the application exactly once.
+Inspector spans use only adapter-owned `kafka.*` attributes. Bounded broker,
+topic, consumer-group, member, and partition counts are present when non-zero;
+dependency and readiness spans include the fixed health, decision, and
+hysteresis fields. Inspected identities and broker-controlled descriptive
+metadata are never attributes.
 
 ## Trace timing and propagation boundary
 

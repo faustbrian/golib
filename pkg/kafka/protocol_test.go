@@ -151,7 +151,11 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newInspector() error = %v", err)
 		}
-		defer inspector.Close()
+		t.Cleanup(func() {
+			if closeErr := inspector.Close(); closeErr != nil {
+				t.Errorf("Close() error = %v", closeErr)
+			}
+		})
 		assertMinimum(t, client)
 	})
 }

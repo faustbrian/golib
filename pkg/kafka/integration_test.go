@@ -312,7 +312,9 @@ func proveReplayPolicy(
 			}},
 		},
 	)
-	inspector.Close()
+	if closeErr := inspector.Close(); closeErr != nil {
+		t.Fatalf("close timestamp replay inspector: %v", closeErr)
+	}
 	if err != nil ||
 		timestampPlan.TotalRemaining != 3 ||
 		len(timestampPlan.Partitions) != 1 ||

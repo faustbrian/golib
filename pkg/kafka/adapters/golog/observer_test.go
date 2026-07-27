@@ -79,6 +79,10 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 		"kafka.duration_ms":                     float64(1500),
 		"kafka.record.count":                    float64(4),
 		"kafka.partition.count":                 float64(1),
+		"kafka.broker.count":                    float64(0),
+		"kafka.topic.count":                     float64(0),
+		"kafka.consumer_group.count":            float64(0),
+		"kafka.consumer_group.member.count":     float64(0),
 		"kafka.processed.count":                 float64(4),
 		"kafka.committed.count":                 float64(4),
 		"kafka.record.size":                     float64(1024),
@@ -86,6 +90,10 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 		"kafka.replay.skipped":                  float64(0),
 		"kafka.replay.failed":                   float64(0),
 		"kafka.replay.remaining":                float64(0),
+		"kafka.dependency.healthy":              false,
+		"kafka.readiness.ready":                 false,
+		"kafka.readiness.consecutive_failures":  float64(0),
+		"kafka.readiness.consecutive_successes": float64(0),
 		"kafka.request.size":                    float64(128),
 		"kafka.response.size":                   float64(64),
 		"kafka.request.queue.duration_ms":       float64(20),
@@ -120,6 +128,49 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 	} {
 		if strings.Contains(rendered, forbidden) {
 			t.Fatalf("log contains forbidden value %q: %s", forbidden, rendered)
+		}
+	}
+}
+
+func TestObserverEmitsBoundedInspectorAndReadinessState(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	adapter, err := New(Config{
+		Logger: slog.New(slog.NewJSONHandler(&output, nil)),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observation := kafka.Observation{
+		Kind:                 kafka.ObservationReadiness,
+		StartedAt:            time.Unix(1, 0),
+		Duration:             time.Millisecond,
+		DependencyHealthy:    false,
+		Ready:                true,
+		ConsecutiveFailures:  2,
+		ConsecutiveSuccesses: 0,
+		Succeeded:            false,
+		Category:             kafka.ErrorRetryable,
+	}
+	if err := adapter.Observer()(context.Background(), observation); err != nil {
+		t.Fatalf("Observer() error = %v", err)
+	}
+
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	want := map[string]any{
+		"kafka.operation":                       "inspector.readiness",
+		"kafka.dependency.healthy":              false,
+		"kafka.readiness.ready":                 true,
+		"kafka.readiness.consecutive_failures":  float64(2),
+		"kafka.readiness.consecutive_successes": float64(0),
+	}
+	for key, value := range want {
+		if got := record[key]; got != value {
+			t.Fatalf("attribute %q = %#v, want %#v", key, got, value)
 		}
 	}
 }
