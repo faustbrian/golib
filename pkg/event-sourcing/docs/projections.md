@@ -153,6 +153,28 @@ filter change that must backfill earlier history requires an explicitly
 coordinated read-model reset and checkpoint reset. Applications should treat
 the projection name and filter configuration as one operational identity.
 
+## Replay authorization and auditing
+
+Every `RunnerConfig` requires a `ReplayGuard`. The runner invokes it before
+every initial, resumed, and terminal batch, and before any replay hook, history
+read, handler, poison policy, or checkpoint mutation. `ReplayAttempt` exposes
+only the stable projection name, current optional checkpoint, and bounded batch
+size. This lets an application authorize the operation and durably record its
+own operator, reason, approval, and request identity without exposing event
+payloads.
+
+A guard rejection stops the batch without reading or handling history. Guard
+errors and panics return a redacted `ReplayGuardError`; causes remain available
+through `errors.Is` and `errors.As`, while panic values are discarded. If a
+guard cancels the context, cancellation is observed before any later callback
+or I/O.
+
+The guard can be invoked repeatedly after failures and for repeated terminal
+probes, so authorization and audit writes must be idempotent. Applications that
+enforce both concerns outside the runner must still opt in explicitly with
+`projection.PermitReplay`. That function is not an authorization mechanism; it
+only records the caller's deliberate decision to own the boundary elsewhere.
+
 ## Operational control
 
 `projection.Controller` binds a canonical projection name to a

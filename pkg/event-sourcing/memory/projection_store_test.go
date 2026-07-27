@@ -194,6 +194,7 @@ func TestProjectionStorePausesRunnerBeforeReadingOrHandling(t *testing.T) {
 
 			return nil
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 1,
 	})
 	if err != nil {
@@ -281,6 +282,7 @@ func TestProjectionStoreRejectsCheckpointFromHandlerPausedInFlight(
 
 			return nil
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 1,
 	})
 	if err != nil {

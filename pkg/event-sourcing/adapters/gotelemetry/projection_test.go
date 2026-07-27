@@ -65,6 +65,7 @@ func TestProjectionRunnerInstrumentationMeasuresProgressAndTermination(
 
 			return nil
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 1,
 	})
 	if err != nil {
@@ -187,6 +188,7 @@ func TestProjectionRunnerInstrumentationMeasuresSkippedPoison(t *testing.T) {
 		) (projection.PoisonDecision, error) {
 			return projection.SkipPoison, nil
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 1,
 	})
 	if err != nil {

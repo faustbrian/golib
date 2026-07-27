@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require every projection runner to configure an explicit replay guard. The
+  guard authorizes or audits every initial, resumed, and terminal batch before
+  replay hooks, history reads, handlers, or checkpoint mutations.
 - Require every process manager to declare a bounded stable event-name
   allowlist and expose whether a delivery was accepted, preventing unrelated
   events from invoking planners implicitly.

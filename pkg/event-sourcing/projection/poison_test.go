@@ -373,5 +373,6 @@ func poisonRunnerConfig(t *testing.T, count int) projection.RunnerConfig {
 		) error {
 			return nil
 		},
+		Guard: projection.PermitReplay,
 	}
 }

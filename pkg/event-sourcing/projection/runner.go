@@ -57,6 +57,7 @@ type RunnerConfig struct {
 	Handler      Handler
 	Filter       *ReplayFilter
 	PoisonPolicy PoisonPolicy
+	Guard        ReplayGuard
 	BeforeReplay ReplayHook
 	AfterReplay  ReplayHook
 	BatchSize    uint32
@@ -75,6 +76,7 @@ type Runner struct {
 	filter       ReplayFilter
 	hasFilter    bool
 	poisonPolicy PoisonPolicy
+	guard        ReplayGuard
 	beforeReplay ReplayHook
 	afterReplay  ReplayHook
 	batchSize    uint32
@@ -90,9 +92,10 @@ func NewRunner(config RunnerConfig) (*Runner, error) {
 	}
 	if config.Reader == nil ||
 		config.Checkpoints == nil ||
-		config.Handler == nil {
+		config.Handler == nil ||
+		config.Guard == nil {
 		return nil, fmt.Errorf(
-			"%w: projection dependencies must be assigned",
+			"%w: projection dependencies and replay guard must be assigned",
 			eventsourcing.ErrInvalidArgument,
 		)
 	}
@@ -116,6 +119,7 @@ func NewRunner(config RunnerConfig) (*Runner, error) {
 		checkpoints:  config.Checkpoints,
 		handler:      config.Handler,
 		poisonPolicy: config.PoisonPolicy,
+		guard:        config.Guard,
 		beforeReplay: config.BeforeReplay,
 		afterReplay:  config.AfterReplay,
 		batchSize:    config.BatchSize,
@@ -191,6 +195,22 @@ func (runner *Runner) RunBatch(
 	result.checkpoint = checkpoint
 	if status.State() == StatePaused {
 		return result, ErrProjectionPaused
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if err := callReplayGuard(
+		ctx,
+		runner.guard,
+		ReplayAttempt{
+			projectionName: runner.name,
+			checkpoint:     checkpoint,
+			hasCheckpoint:  hasCheckpoint,
+			batchSize:      runner.batchSize,
+			valid:          true,
+		},
+	); err != nil {
+		return result, err
 	}
 	if err := ctx.Err(); err != nil {
 		return result, err

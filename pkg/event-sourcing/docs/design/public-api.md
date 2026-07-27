@@ -592,6 +592,12 @@ advance a durable checkpoint. Stores that support atomic projection update
 plus checkpoint expose that as an optional capability. Reset, rebuild, resume,
 pause, and status are explicit operations.
 
+Construction requires a `projection.ReplayGuard`. It runs before every initial,
+resumed, or terminal batch so applications can authorize and audit replay
+before hooks, reads, handlers, or checkpoint changes. `PermitReplay` is an
+explicit opt-in only for callers that enforce those controls outside the
+runner.
+
 The generic control API pauses new work, reports one atomic state and
 checkpoint, and compare-and-resets checkpoint state. It does not imply that an
 application read model was reset. Callers drain in-flight work and explicitly

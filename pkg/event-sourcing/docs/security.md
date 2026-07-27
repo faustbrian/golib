@@ -47,6 +47,10 @@ Where PostgreSQL row-level security or separate schemas/databases are used,
 test caller-owned transactions and maintenance operations under the exact
 production roles. A global reader crosses streams by design and therefore
 requires stricter operational authorization than an aggregate read.
+Projection runners therefore require a per-batch `ReplayGuard` before any
+replay callback or history read. Use it to enforce current authority and record
+an idempotent operational audit entry. `PermitReplay` is appropriate only when
+equivalent controls are proven outside the runner.
 
 ## Encryption and keys
 

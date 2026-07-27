@@ -106,6 +106,7 @@ func TestRunnerRejectsCheckpointAheadOfRestoredHistory(t *testing.T) {
 
 			return nil
 		},
+		Guard: projection.PermitReplay,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -495,6 +496,7 @@ func projectionRunner(
 		Checkpoints: checkpoints,
 		BatchSize:   batchSize,
 		Handler:     handler,
+		Guard:       projection.PermitReplay,
 	})
 	if err != nil {
 		t.Fatal(err)

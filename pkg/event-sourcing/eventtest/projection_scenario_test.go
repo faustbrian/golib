@@ -87,6 +87,7 @@ func TestCheckProjectionScenarioRunsRealProjectionAndChecksState(
 
 			return nil
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 10,
 	})
 	if err != nil {
@@ -141,6 +142,7 @@ func TestCheckProjectionScenarioSupportsExpectedPartialFailure(
 
 			return secretFailure
 		},
+		Guard:     projection.PermitReplay,
 		BatchSize: 10,
 	})
 	if err != nil {

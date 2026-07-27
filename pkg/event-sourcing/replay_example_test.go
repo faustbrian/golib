@@ -36,6 +36,7 @@ func Example_replayProjection() {
 
 			return nil
 		},
+		Guard: projection.PermitReplay,
 	})
 	if err != nil {
 		panic(err)

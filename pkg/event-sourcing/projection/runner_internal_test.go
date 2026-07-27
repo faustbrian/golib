@@ -11,6 +11,18 @@ import (
 
 var errProjectionTest = errors.New("projection test failure")
 
+func TestNewRunnerRequiresExplicitReplayGuard(t *testing.T) {
+	t.Parallel()
+
+	config := internalRunnerConfig()
+	config.Guard = nil
+	runner, err := NewRunner(config)
+	if runner != nil ||
+		!errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("NewRunner() = %#v, %v", runner, err)
+	}
+}
+
 func TestNewRunnerRejectsInvalidConfiguration(t *testing.T) {
 	t.Parallel()
 
@@ -27,6 +39,9 @@ func TestNewRunnerRejectsInvalidConfiguration(t *testing.T) {
 		},
 		"handler": func(config *RunnerConfig) {
 			config.Handler = nil
+		},
+		"guard": func(config *RunnerConfig) {
+			config.Guard = nil
 		},
 		"zero batch": func(config *RunnerConfig) {
 			config.BatchSize = 0
@@ -437,6 +452,7 @@ func internalRunnerConfig() RunnerConfig {
 		Handler: func(context.Context, eventsourcing.Delivery) error {
 			return nil
 		},
+		Guard:     PermitReplay,
 		BatchSize: 1,
 	}
 }

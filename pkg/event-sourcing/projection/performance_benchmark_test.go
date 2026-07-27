@@ -138,6 +138,7 @@ func projectionPerformanceRunner(
 
 			return nil
 		},
+		Guard:     PermitReplay,
 		BatchSize: size,
 	})
 	if err != nil {
