@@ -49,6 +49,9 @@ draining handlers, or resetting application read models.
 Projection-handler wrappers create one child span per delivery while preserving
 the exact delivery and downstream context. They never record event identity,
 payload, read-model state, errors, or panic values.
+Process-manager wrappers observe pure planning with a static bounded name,
+delivery mode, and successful command count. They preserve typed results and
+never inspect commands, execute effects, or record event or command data.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

@@ -71,6 +71,15 @@ projectionRunner, err := instrumentation.WrapProjectionRunner(
 if err != nil {
 	return err
 }
+
+processManager, err := gotelemetry.WrapProcessManager(
+	instrumentation,
+	"welcome-email",
+	baseProcessManager,
+)
+if err != nil {
+	return err
+}
 ```
 
 `runtime` may be `*telemetry.Runtime` or any value exposing standard
@@ -154,6 +163,13 @@ outcome, and duration. The exact delivery and child span context reach the
 downstream handler; returned errors and panic values are preserved but never
 recorded. A handler wrapper can be passed directly to `projection.NewRunner`.
 
+`WrapProcessManager` accepts the generic consumer-owned `ProcessManager`
+interface implemented by `*processmanager.Manager`. It is a function because Go
+does not permit methods with their own type parameters. Each planning call
+records the static manager name, delivery mode, bounded outcome, duration, and
+successful command count. It preserves the exact result, error, panic, context,
+and delivery while neither executing nor inspecting planned commands.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -174,6 +190,7 @@ The adapter emits:
 | span | `event_sourcing.projection.control.resume` | static projection name, resulting state, and optional checkpoint |
 | span | `event_sourcing.projection.control.reset` | static projection name, expected checkpoint, and resulting state |
 | span | `event_sourcing.projection.handle` | static projection name and delivery mode |
+| span | `event_sourcing.process_manager.plan` | static process-manager name, delivery mode, and successful command count |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
@@ -186,7 +203,8 @@ Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `projection_checkpoint_save`; projection-control operations are
 `projection_control_status`, `projection_control_pause`,
 `projection_control_resume`, and `projection_control_reset`; projection
-handling uses `projection_handle`.
+handling uses `projection_handle`, and process-manager planning uses
+`process_manager_plan`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
@@ -234,6 +252,10 @@ read-model state, reset callback, drain status, or failure diagnostics.
 Projection-handler instrumentation records the static projection name and
 delivery mode but not message identity, event data, read-model mutations,
 errors, or panic values.
+Process-manager instrumentation records only its bounded static name, delivery
+mode, and successful command count. It records no message identity, event data,
+planned command data, process state, errors, or panic values. Applications must
+not derive manager names from tenants or customers.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

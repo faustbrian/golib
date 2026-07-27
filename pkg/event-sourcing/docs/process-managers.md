@@ -26,8 +26,9 @@ manager, err := processmanager.New(processmanager.Config[SendEmail]{
 
 Planning never executes a command. `PlanResult` retains the triggering message
 identifier and delivery mode for application idempotency and diagnostics.
-Command slice ownership is defensive, while command values themselves must be
-application-owned immutable values.
+`CommandCount` reports the bounded plan size without copying commands. Command
+slice ownership from `Commands` is defensive, while command values themselves
+must be application-owned immutable values.
 
 ## Replay and duplicates
 
@@ -68,3 +69,8 @@ Durable process-state composition, retry policy, and executor conformance
 remain application or adapter responsibilities. The compatibility matrix marks
 the EventSauce process-manager planning outcome implemented; that status does
 not claim a command bus, workflow engine, or exactly-once execution.
+
+The optional `gotelemetry.WrapProcessManager` adapter observes planning latency,
+outcome, delivery mode, and successful command count using a bounded static
+manager name. It never records event or command data and never executes the
+returned plan.

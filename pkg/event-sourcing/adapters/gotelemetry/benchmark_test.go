@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
+	"github.com/faustbrian/golib/pkg/event-sourcing/processmanager"
 	"github.com/faustbrian/golib/pkg/event-sourcing/projection"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
@@ -227,6 +228,52 @@ func BenchmarkProjectionHandler(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		if err := handler(ctx, delivery); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkProcessManager(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	manager, err := processmanager.New(processmanager.Config[uint64]{
+		Name:        "benchmark-planner",
+		Replay:      processmanager.RejectReplay,
+		MaxCommands: 1,
+		Planner: func(
+			context.Context,
+			eventsourcing.Delivery,
+		) ([]uint64, error) {
+			return []uint64{1}, nil
+		},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	wrapped, err := WrapProcessManager(
+		instrumentation,
+		"benchmark-planner",
+		manager,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	delivery := telemetryDelivery(
+		b,
+		"benchmark-process-manager",
+		eventsourcing.DeliveryLive,
+	)
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := wrapped.Plan(ctx, delivery); err != nil {
 			b.Fatal(err)
 		}
 	}

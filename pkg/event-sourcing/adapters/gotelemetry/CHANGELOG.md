@@ -28,6 +28,8 @@ and this project adheres to
   and checkpoint reset with exact unsigned checkpoint attributes.
 - Add statically named projection-handler spans and delivery metrics that
   preserve handler results, errors, panics, context, and delivery values.
+- Add generic process-manager planning spans and delivery metrics with bounded
+  static names and successful command counts, without inspecting commands.
 - Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
   stale, error, and panic outcomes while preserving downstream errors, panic
   values, context propagation, and aggregate-state privacy.

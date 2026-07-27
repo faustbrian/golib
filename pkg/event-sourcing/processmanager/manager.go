@@ -103,6 +103,11 @@ func (result PlanResult[Command]) Mode() eventsourcing.DeliveryMode {
 	return result.mode
 }
 
+// CommandCount returns the number of planned commands without copying them.
+func (result PlanResult[Command]) CommandCount() int {
+	return len(result.commands)
+}
+
 // Commands returns a defensive copy of the ordered planned commands.
 func (result PlanResult[Command]) Commands() []Command {
 	return append([]Command(nil), result.commands...)

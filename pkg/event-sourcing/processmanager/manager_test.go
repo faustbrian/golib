@@ -136,6 +136,7 @@ func TestManagerPlansExplicitCommandsForLiveDelivery(t *testing.T) {
 	commands := planned.Commands()
 	if planned.MessageID() != delivery.Message().ID() ||
 		planned.Mode() != eventsourcing.DeliveryLive ||
+		planned.CommandCount() != 2 ||
 		len(commands) != 2 ||
 		commands[0].Action != "notify" ||
 		commands[1].Action != "index" {

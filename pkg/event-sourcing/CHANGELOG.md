@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Expose process-manager plan command counts without copying application-owned
+  command values.
 - Extend the optional telemetry boundary with projection-runner progress,
   poison-skip, checkpoint, and terminal-replay spans that preserve downstream
   results and failures without exposing event or read-model data.
@@ -20,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checkpoint reset operations without starting or draining work.
 - Add optional per-delivery projection-handler telemetry that preserves
   replay context without exposing message or failure data.
+- Add optional process-manager planning telemetry with bounded command counts
+  and no command execution or data disclosure.
 - Extend the optional telemetry guide and compatibility boundary with explicit
   snapshot load, refresh, and deletion instrumentation whose bounded outcomes
   do not expose aggregate identity or derived snapshot state.
