@@ -12,8 +12,8 @@ extraction. Event-store wrappers observe append and complete iterator
 lifetimes for bounded stream and global reads. Snapshot-store wrappers observe
 explicit load, refresh, and deletion with bounded hit, miss, stale, error, and
 panic outcomes. Projection-runner wrappers observe bounded batch progress,
-poison skips, durable checkpoint position, and terminal empty reads. The
-adapter never records
+poison skips, durable checkpoint position, terminal empty reads, and bounded
+throughput counters. The adapter never records
 aggregate, message, correlation, causation, tenant, partition, event, payload,
 metadata, error, panic, topic, event-store read position, database, or
 credential data. Projection spans deliberately record the configured static
@@ -37,6 +37,9 @@ Projection wrappers preserve partial batch results, errors, cancellation, and
 panic values while distinguishing replay progress from a successful terminal
 empty batch. A terminal batch is an observation at that read boundary, not a
 claim that later appends cannot create more work.
+Applications may report lag explicitly from a durable checkpoint and a
+caller-owned high watermark. The adapter performs no hidden read and rejects
+reversed or unrepresentable distances rather than truncating them.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

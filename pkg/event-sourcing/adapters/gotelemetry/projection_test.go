@@ -87,6 +87,14 @@ func TestProjectionRunnerInstrumentationMeasuresProgressAndTermination(
 		terminated.Checkpoint() != 1 {
 		t.Fatalf("RunBatch(terminated) = %#v, %v", terminated, err)
 	}
+	if err := instrumentation.RecordProjectionLag(
+		parentCtx,
+		"account-summary",
+		1,
+		5,
+	); err != nil {
+		t.Fatalf("RecordProjectionLag() error = %v", err)
+	}
 	parent.End()
 	if handlerSpan.TraceID() != parent.SpanContext().TraceID() {
 		t.Fatal("projection handler did not receive the operation context")
@@ -103,6 +111,16 @@ func TestProjectionRunnerInstrumentationMeasuresProgressAndTermination(
 			t.Fatal("projection span did not preserve its parent")
 		}
 	}
+	if projectionSpanValue(
+		spans[2],
+		"event_sourcing.projection.name",
+	) != "account-summary" ||
+		projectionSpanInt64(
+			spans[2],
+			"event_sourcing.projection.lag",
+		) != 4 {
+		t.Fatalf("parent lag span = %#v", spans[2])
+	}
 	if telemetry := fmt.Sprint(spans); strings.Contains(
 		telemetry,
 		message.ID().String(),
@@ -115,17 +133,28 @@ func TestProjectionRunnerInstrumentationMeasuresProgressAndTermination(
 		t.Fatalf("Collect() error = %v", err)
 	}
 	assertOperationMetric(t, metrics, "projection_run_batch", "success", 2)
+	assertProjectionMessageMetric(t, metrics, "account-summary", "scanned", 1)
+	assertProjectionMessageMetric(t, metrics, "account-summary", "handled", 1)
+	assertProjectionMessageMetric(
+		t,
+		metrics,
+		"account-summary",
+		"checkpointed",
+		1,
+	)
+	assertProjectionLagMetric(t, metrics, "account-summary", 4)
 }
 
 func TestProjectionRunnerInstrumentationMeasuresSkippedPoison(t *testing.T) {
 	t.Parallel()
 
 	recorder := tracetest.NewSpanRecorder()
+	reader := sdkmetric.NewManualReader()
 	instrumentation, err := New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(
 			sdktrace.WithSpanProcessor(recorder),
 		),
-		meter:      sdkmetric.NewMeterProvider(),
+		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 		propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -185,6 +214,17 @@ func TestProjectionRunnerInstrumentationMeasuresSkippedPoison(t *testing.T) {
 	if strings.Contains(fmt.Sprint(spans), "secret") {
 		t.Fatal("projection poison telemetry disclosed failure data")
 	}
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	assertProjectionMessageMetric(
+		t,
+		metrics,
+		"poison-summary",
+		"skipped",
+		1,
+	)
 }
 
 func TestProjectionRunnerInstrumentationPreservesErrorsAndPanics(
@@ -279,6 +319,46 @@ func TestProjectionRunnerInstrumentationRejectsInvalidCalls(t *testing.T) {
 		ErrContextRequired,
 	) {
 		t.Fatalf("nil context error = %v", err)
+	}
+	if err := instrumentation.RecordProjectionLag(
+		nilContext(),
+		"summary",
+		0,
+		1,
+	); !errors.Is(err, ErrContextRequired) {
+		t.Fatalf("nil lag context error = %v", err)
+	}
+	if err := instrumentation.RecordProjectionLag(
+		context.Background(),
+		"",
+		0,
+		1,
+	); !errors.Is(err, ErrProjectionNameInvalid) {
+		t.Fatalf("invalid lag name error = %v", err)
+	}
+	if err := instrumentation.RecordProjectionLag(
+		context.Background(),
+		"summary",
+		2,
+		1,
+	); !errors.Is(err, ErrProjectionLagInvalid) {
+		t.Fatalf("reversed lag error = %v", err)
+	}
+	if err := instrumentation.RecordProjectionLag(
+		context.Background(),
+		"summary",
+		0,
+		eventsourcing.GlobalPosition(^uint64(0)),
+	); !errors.Is(err, ErrProjectionLagInvalid) {
+		t.Fatalf("overflow lag error = %v", err)
+	}
+	if err := nilInstrumentation.RecordProjectionLag(
+		context.Background(),
+		"summary",
+		0,
+		1,
+	); !errors.Is(err, ErrRuntimeRequired) {
+		t.Fatalf("nil instrumentation lag error = %v", err)
 	}
 }
 
@@ -380,4 +460,96 @@ func projectionSpanValue(span sdktrace.ReadOnlySpan, key string) string {
 	}
 
 	return ""
+}
+
+func projectionSpanInt64(span sdktrace.ReadOnlySpan, key string) int64 {
+	for _, item := range span.Attributes() {
+		if string(item.Key) == key {
+			return item.Value.AsInt64()
+		}
+	}
+
+	return -1
+}
+
+func assertProjectionMessageMetric(
+	t testing.TB,
+	metrics metricdata.ResourceMetrics,
+	name string,
+	kind string,
+	want int64,
+) {
+	t.Helper()
+
+	for _, scope := range metrics.ScopeMetrics {
+		for _, item := range scope.Metrics {
+			if item.Name != "event_sourcing.projection.messages" {
+				continue
+			}
+			sum, ok := item.Data.(metricdata.Sum[int64])
+			if !ok {
+				t.Fatalf("projection messages data = %T", item.Data)
+			}
+			for _, point := range sum.DataPoints {
+				if attributeValue(
+					point.Attributes,
+					"event_sourcing.projection.name",
+				) == name &&
+					attributeValue(
+						point.Attributes,
+						"event_sourcing.projection.result",
+					) == kind {
+					if point.Value != want {
+						t.Fatalf(
+							"projection message count = %d, want %d",
+							point.Value,
+							want,
+						)
+					}
+
+					return
+				}
+			}
+		}
+	}
+	t.Fatalf("projection message metric %s/%s is missing", name, kind)
+}
+
+func assertProjectionLagMetric(
+	t testing.TB,
+	metrics metricdata.ResourceMetrics,
+	name string,
+	want int64,
+) {
+	t.Helper()
+
+	for _, scope := range metrics.ScopeMetrics {
+		for _, item := range scope.Metrics {
+			if item.Name != "event_sourcing.projection.lag" {
+				continue
+			}
+			histogram, ok := item.Data.(metricdata.Histogram[int64])
+			if !ok {
+				t.Fatalf("projection lag data = %T", item.Data)
+			}
+			for _, point := range histogram.DataPoints {
+				if attributeValue(
+					point.Attributes,
+					"event_sourcing.projection.name",
+				) == name {
+					if point.Count != 1 || point.Sum != want {
+						t.Fatalf(
+							"projection lag = %d/%d, want 1/%d",
+							point.Count,
+							point.Sum,
+							want,
+						)
+					}
+
+					return
+				}
+			}
+		}
+	}
+	t.Fatalf("projection lag metric %s is missing", name)
 }

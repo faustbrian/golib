@@ -121,6 +121,14 @@ resulting checkpoint and whether replay made progress or reached a terminal
 empty batch. It preserves partial results, errors, panic values, cancellation,
 and downstream context. The configured projection name is an operator-facing
 attribute and must be a bounded static name, never a tenant or customer ID.
+Successful and partial batch results also increment projection message
+counters for scanned, handled, filtered, skipped, and checkpointed work.
+
+`RecordProjectionLag` accepts the caller's exact durable checkpoint and high
+watermark. It records their distance without reading a store, starting work, or
+claiming the watermark remains current. The observation decorates the active
+span and emits one histogram sample. Reversed positions or a distance outside
+OpenTelemetry's signed 64-bit metric range fail explicitly.
 
 The adapter emits:
 
@@ -138,6 +146,8 @@ The adapter emits:
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
+| counter | `event_sourcing.projection.messages` | static projection name, result kind, and batch outcome |
+| histogram | `event_sourcing.projection.lag` | static projection name |
 
 Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`, or
@@ -149,6 +159,9 @@ may additionally report `mixed` or `empty`.
 Projection replay termination is `progress`, `terminated`, `error`, or
 `panic`. A successful terminal span means the wrapped runner returned an empty
 batch; it does not promise that no later append can create more work.
+Projection result kinds are `scanned`, `handled`, `filtered`, `skipped`, or
+`checkpointed`. Zero counts are omitted. Failed batches report only work
+present in the returned partial result.
 Store message counts mean submitted messages for append spans and messages
 yielded before termination for read spans; they do not claim a failed append
 committed.
@@ -174,9 +187,9 @@ state, metadata, schema or aggregate versions, timestamps, or failure
 diagnostics.
 
 Projection instrumentation records only its explicitly configured bounded
-name, aggregate counts, and durable numeric checkpoint. It does not record
-messages, event identities, filters, handler or poison-policy diagnostics, or
-read-model state.
+name, aggregate counts, durable numeric checkpoint, and caller-supplied numeric
+lag. It does not record messages, event identities, filters, handler or
+poison-policy diagnostics, or read-model state.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

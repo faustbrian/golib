@@ -68,11 +68,13 @@ func (err *InstrumentError) Unwrap() []error {
 // Instrumentation owns immutable event-sourcing tracing and metric
 // instruments. It starts no goroutines.
 type Instrumentation struct {
-	propagator propagation.TextMapPropagator
-	tracer     trace.Tracer
-	operations metric.Int64Counter
-	duration   metric.Float64Histogram
-	deliveries metric.Int64Counter
+	propagator         propagation.TextMapPropagator
+	tracer             trace.Tracer
+	operations         metric.Int64Counter
+	duration           metric.Float64Histogram
+	deliveries         metric.Int64Counter
+	projectionMessages metric.Int64Counter
+	projectionLag      metric.Int64Histogram
 }
 
 // New constructs instrumentation from explicit standard providers.
@@ -114,13 +116,35 @@ func New(runtime Runtime) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
+	projectionMessages, err := meter.Int64Counter(
+		"event_sourcing.projection.messages",
+		metric.WithDescription(
+			"Projection messages observed by bounded replay results",
+		),
+		metric.WithUnit("{message}"),
+	)
+	if err != nil {
+		return nil, instrumentFailure(err)
+	}
+	projectionLag, err := meter.Int64Histogram(
+		"event_sourcing.projection.lag",
+		metric.WithDescription(
+			"Caller-observed projection distance from a durable high watermark",
+		),
+		metric.WithUnit("{message}"),
+	)
+	if err != nil {
+		return nil, instrumentFailure(err)
+	}
 
 	return &Instrumentation{
-		propagator: propagator,
-		tracer:     tracerProvider.Tracer(instrumentationName),
-		operations: operations,
-		duration:   duration,
-		deliveries: deliveries,
+		propagator:         propagator,
+		tracer:             tracerProvider.Tracer(instrumentationName),
+		operations:         operations,
+		duration:           duration,
+		deliveries:         deliveries,
+		projectionMessages: projectionMessages,
+		projectionLag:      projectionLag,
 	}, nil
 }
 
@@ -160,7 +184,9 @@ func (instrumentation *Instrumentation) valid() bool {
 		instrumentation.tracer != nil &&
 		instrumentation.operations != nil &&
 		instrumentation.duration != nil &&
-		instrumentation.deliveries != nil
+		instrumentation.deliveries != nil &&
+		instrumentation.projectionMessages != nil &&
+		instrumentation.projectionLag != nil
 }
 
 type dispatcher struct {

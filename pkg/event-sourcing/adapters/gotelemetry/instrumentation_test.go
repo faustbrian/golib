@@ -288,6 +288,14 @@ func TestInstrumentationValidatesDependenciesAndInstrumentConstruction(
 			Meter:           base,
 			deliveriesError: failure,
 		},
+		"projection messages": failingMeter{
+			Meter:                   base,
+			projectionMessagesError: failure,
+		},
+		"projection lag": failingMeter{
+			Meter:              base,
+			projectionLagError: failure,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -538,9 +546,11 @@ func (provider failingMeterProvider) Meter(
 
 type failingMeter struct {
 	metric.Meter
-	counterErr      error
-	histogramErr    error
-	deliveriesError error
+	counterErr              error
+	histogramErr            error
+	deliveriesError         error
+	projectionMessagesError error
+	projectionLagError      error
 }
 
 func (meter failingMeter) Int64Counter(
@@ -554,8 +564,24 @@ func (meter failingMeter) Int64Counter(
 		meter.deliveriesError != nil {
 		return nil, meter.deliveriesError
 	}
+	if name == "event_sourcing.projection.messages" &&
+		meter.projectionMessagesError != nil {
+		return nil, meter.projectionMessagesError
+	}
 
 	return meter.Meter.Int64Counter(name, options...)
+}
+
+func (meter failingMeter) Int64Histogram(
+	name string,
+	options ...metric.Int64HistogramOption,
+) (metric.Int64Histogram, error) {
+	if name == "event_sourcing.projection.lag" &&
+		meter.projectionLagError != nil {
+		return nil, meter.projectionLagError
+	}
+
+	return meter.Meter.Int64Histogram(name, options...)
 }
 
 func (meter failingMeter) Float64Histogram(

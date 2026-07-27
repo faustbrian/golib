@@ -3,6 +3,7 @@ package gotelemetry
 import (
 	"context"
 	"errors"
+	"math"
 	"strconv"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/faustbrian/golib/pkg/event-sourcing/projection"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -23,6 +25,11 @@ var (
 	// runner.
 	ErrProjectionRunnerRequired = errors.New(
 		"event-sourcing/gotelemetry: projection runner is required",
+	)
+	// ErrProjectionLagInvalid reports reversed or unrepresentable projection
+	// progress.
+	ErrProjectionLagInvalid = errors.New(
+		"event-sourcing/gotelemetry: projection lag is invalid",
 	)
 )
 
@@ -45,7 +52,7 @@ func (instrumentation *Instrumentation) WrapProjectionRunner(
 	if instrumentation == nil || !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
-	if _, err := eventsourcing.NewStreamID("projection", name); err != nil {
+	if !validTelemetryProjectionName(name) {
 		return nil, ErrProjectionNameInvalid
 	}
 	if next == nil {
@@ -133,6 +140,12 @@ func (runner projectionRunner) RunBatch(
 			outcome,
 			time.Since(started),
 		)
+		runner.instrumentation.recordProjectionResult(
+			ctx,
+			runner.name,
+			result,
+			outcome,
+		)
 		span.End()
 		if panicValue != nil {
 			panic(panicValue)
@@ -158,6 +171,118 @@ func projectionTermination(
 	}
 
 	return "progress"
+}
+
+// RecordProjectionLag records caller-observed lag without reading a store or
+// discovering a high watermark implicitly.
+//
+// Current and highWatermark are exact durable global positions supplied by the
+// caller. The observation also decorates the current span. Values that cannot
+// be represented by OpenTelemetry's signed 64-bit metric API are rejected.
+func (instrumentation *Instrumentation) RecordProjectionLag(
+	ctx context.Context,
+	name string,
+	current eventsourcing.GlobalPosition,
+	highWatermark eventsourcing.GlobalPosition,
+) error {
+	if instrumentation == nil || !instrumentation.valid() {
+		return ErrRuntimeRequired
+	}
+	if ctx == nil {
+		return ErrContextRequired
+	}
+	if !validTelemetryProjectionName(name) {
+		return ErrProjectionNameInvalid
+	}
+	if highWatermark < current {
+		return ErrProjectionLagInvalid
+	}
+	lag := uint64(highWatermark - current)
+	if lag > math.MaxInt64 {
+		return ErrProjectionLagInvalid
+	}
+	attributes := []attribute.KeyValue{
+		attribute.String("event_sourcing.projection.name", name),
+		attribute.Int64("event_sourcing.projection.lag", int64(lag)),
+	}
+	trace.SpanFromContext(ctx).SetAttributes(attributes...)
+	instrumentation.projectionLag.Record(
+		ctx,
+		int64(lag),
+		metric.WithAttributes(attributes[0]),
+	)
+
+	return nil
+}
+
+func (instrumentation *Instrumentation) recordProjectionResult(
+	ctx context.Context,
+	name string,
+	result projection.BatchResult,
+	outcome string,
+) {
+	instrumentation.recordProjectionMessageCount(
+		ctx,
+		name,
+		"scanned",
+		outcome,
+		int64(result.Scanned()),
+	)
+	instrumentation.recordProjectionMessageCount(
+		ctx,
+		name,
+		"handled",
+		outcome,
+		int64(result.Handled()),
+	)
+	instrumentation.recordProjectionMessageCount(
+		ctx,
+		name,
+		"filtered",
+		outcome,
+		int64(result.Filtered()),
+	)
+	instrumentation.recordProjectionMessageCount(
+		ctx,
+		name,
+		"skipped",
+		outcome,
+		int64(result.Skipped()),
+	)
+	instrumentation.recordProjectionMessageCount(
+		ctx,
+		name,
+		"checkpointed",
+		outcome,
+		int64(result.Checkpointed()),
+	)
+}
+
+func (instrumentation *Instrumentation) recordProjectionMessageCount(
+	ctx context.Context,
+	name string,
+	result string,
+	outcome string,
+	count int64,
+) {
+	if count == 0 {
+		return
+	}
+	instrumentation.projectionMessages.Add(
+		ctx,
+		count,
+		metric.WithAttributes(
+			attribute.String("event_sourcing.projection.name", name),
+			attribute.String("event_sourcing.projection.result", result),
+			attribute.String("event_sourcing.outcome", outcome),
+		),
+	)
+}
+
+func validTelemetryProjectionName(name string) bool {
+	_, err := eventsourcing.NewStreamID("projection", name)
+
+	return err == nil
 }
 
 var _ ProjectionRunner = projectionRunner{}
