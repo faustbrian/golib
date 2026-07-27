@@ -48,6 +48,10 @@ explicit `Abort`. `Close` applies the configured `ShutdownTimeout`, returns the
 same incomplete-drain error, and never substitutes franz-go's record-dropping
 direct close path. Drain, abort, and shutdown wait for operations that already
 started to finish backend admission before acting on the buffer.
+Every shutdown attempt that acquires producer lifecycle ownership emits one
+payload-free observation after it completes. An incomplete attempt and a later
+successful retry remain distinct; idempotent calls after completion emit
+nothing.
 
 Producer transaction begin, commit, and abort failures use redacted
 `TransactionError` values. Fencing, authorization denial, and fatal producer
@@ -82,6 +86,10 @@ Kafka are neither atomic nor exactly once.
 transaction independently of franz-go's instantaneous buffer limits. Exceeding
 either limit aborts the source poll even if the handler ignores the publish
 error.
+Consumer and transaction-processor shutdown observations follow the same
+attempt model: waiting, group leave, close, and a stable incomplete outcome are
+reported only after an attempt acquired lifecycle ownership. Invalid,
+concurrent, observer-reentrant, and already-completed calls emit nothing.
 
 ## Consumer
 

@@ -1121,7 +1121,7 @@ func (producer *Producer) Abort(ctx context.Context) error {
 // and closes the underlying client. If draining is incomplete the producer
 // remains fenced but open so the caller can retry Shutdown or explicitly
 // Abort. Successful shutdown is idempotent.
-func (producer *Producer) Shutdown(ctx context.Context) error {
+func (producer *Producer) Shutdown(ctx context.Context) (resultErr error) {
 	if ctx == nil {
 		return ErrContextRequired
 	}
@@ -1130,6 +1130,11 @@ func (producer *Producer) Shutdown(ctx context.Context) error {
 	}
 
 	producer.stateMu.Lock()
+	if producer.observerCallbacks != 0 {
+		producer.stateMu.Unlock()
+
+		return ErrObserverReentry
+	}
 	if producer.shutdownComplete {
 		producer.stateMu.Unlock()
 
@@ -1144,6 +1149,13 @@ func (producer *Producer) Shutdown(ctx context.Context) error {
 	producer.maintenanceActive = true
 	admissions := producer.admissionsDone
 	producer.stateMu.Unlock()
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			producer.observeShutdown(ctx, startedAt, resultErr)
+		}()
+	}
 	if err := waitAdmissions(ctx, admissions); err != nil {
 		producer.finishMaintenance(false)
 
@@ -1530,6 +1542,24 @@ func (producer *Producer) Close() error {
 	defer cancel()
 
 	return producer.Shutdown(ctx)
+}
+
+func (producer *Producer) observeShutdown(
+	ctx context.Context,
+	startedAt time.Time,
+	err error,
+) {
+	observation := Observation{
+		Kind:      ObservationProducerShutdown,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  producer.clientID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	producer.dispatchObservation(ctx, observation)
 }
 
 func (producer *Producer) dispatchObservation(

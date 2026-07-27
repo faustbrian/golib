@@ -103,8 +103,9 @@ topic-partition, never global.
 `ProducerConfig.Observers` reports begin and commit on a successful producer
 transaction, or begin and abort when callback failure or panic requires
 cleanup. `TransactionProcessorConfig.Observers` reports the same phases for
-each non-empty source poll and also enables payload-free broker and
-group-management-error events for its combined client.
+each non-empty source poll and also enables payload-free shutdown, broker, and
+group-management-error events for its combined client. Producer shutdown
+attempts use the producer observer policy.
 
 Lifecycle events contain copied client identity and local phase duration.
 Processor events additionally contain the copied source group identity. They
@@ -113,7 +114,10 @@ values, headers, broker endpoints, or application error text. A known
 abort-required commit failure is retryable; an unknown commit or abort outcome
 is ambiguous. Observer error, panic, or cooperative timeout is reported only
 through the observer failure handler and never changes the transaction result.
-Observers cannot re-enter the invoking producer or transaction processor.
+An admitted shutdown reports after waiting, group leave where applicable,
+flush, and close. Incomplete and later successful retry attempts remain
+separate. Observers cannot re-enter the invoking producer or transaction
+processor.
 
 Caller cancellation requests a clean stop but does not cancel transaction
 cleanup. `Run` returns nil only after the active transaction aborts

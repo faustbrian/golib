@@ -67,7 +67,8 @@ application recovery decision.
 
 `ProducerConfig.Observers` configures ordered synchronous completion events for
 single, batch, and asynchronous production plus broker connection, Kafka
-request, throttle, and disconnect activity without exposing franz-go hooks.
+request, throttle, disconnect, and shutdown activity without exposing franz-go
+hooks.
 `Observation` contains copied payload-free metadata, numeric Kafka broker and
 API-key coordinates, bounded duration/byte metadata, and a stable failure
 category. `Observation.Validate` lets optional adapters reject malformed public
@@ -98,8 +99,8 @@ programmatic cause chain without rendering it.
 `TransactionProcessor` is the Kafka-only consume-transform-produce surface.
 `TransactionProcessorConfig` separates connection, consumer-group, output,
 record-limit, observer, and shutdown concerns. Its observer policy reports
-copied begin, commit, abort, group-management-error, and broker events without
-exposing franz-go values or transaction payload counts. `RunOnce` polls at most
+copied begin, commit, abort, shutdown, group-management-error, and broker events
+without exposing franz-go values or transaction payload counts. `RunOnce` polls at most
 `Group.MaxPollRecords`, begins one transaction, calls the
 `TransactionHandler` sequentially for every fetched record, and commits only
 after all handlers and all synchronous output deliveries succeed.
@@ -119,7 +120,10 @@ order is scheduler-dependent; callers that require source-derived output order
 must publish synchronously in that order.
 Producer and processor transaction observers classify unknown commit or abort
 outcomes as `ErrorAmbiguous`; their failures and panics never replace the
-transaction result. Transaction observers cannot re-enter the invoking client.
+transaction result. Producer and processor shutdown attempts emit one event
+after each acquired lifecycle attempt, including an incomplete attempt and a
+later successful retry. Transaction observers cannot re-enter the invoking
+client.
 
 `Consumer.RunOnce` returns one bounded poll result. Processing is sequential
 within a partition. `ConsumerConfig.MaxConcurrentHandlers` defaults to one and

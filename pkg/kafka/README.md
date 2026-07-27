@@ -87,7 +87,7 @@ configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
 Optional `ProducerConfig.Observers` receive ordered synchronous completion
 events for record, batch, and asynchronous delivery plus broker connections,
-Kafka protocol requests, throttling, and disconnects. Events contain copied
+Kafka protocol requests, throttling, disconnects, and shutdown attempts. Events contain copied
 payload-free metadata and never broker endpoints; callback errors and panics
 cannot replace the delivery result. Callbacks are cooperatively deadline-bound
 and must not re-enter the producer. See the
@@ -109,8 +109,8 @@ aborts all poll outputs and leaves every source offset for redelivery.
 ends at the Kafka read-process-write boundary and never includes databases,
 HTTP calls, object storage, email, or other external effects. See the
 [transaction guide](docs/transactions.md). Processor observers report the same
-transaction lifecycle plus broker activity with copied client and group
-identity.
+transaction lifecycle plus shutdown attempts and broker activity with copied
+client and group identity.
 
 Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
 material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's
@@ -161,7 +161,7 @@ returns.
 
 Optional `ConsumerConfig.Observers` report copied, payload-free record,
 partition-batch, commit, complete poll, broker connection, Kafka request,
-throttle, and disconnect outcomes. Commit failures report zero committed
+throttle, disconnect, and shutdown outcomes. Commit failures report zero committed
 records even when handlers succeeded. Consumer callbacks can run concurrently
 across partition workers and franz-go broker goroutines, execute before the
 rebalance gate is released, and cannot re-enter mutating or lifecycle
@@ -207,7 +207,9 @@ the handler must then be concurrency-safe. Only one `Run`, `RunOnce`, or
 `RunBatchOnce` call may be active. Graceful shutdown fences new runs, waits for
 the active runner, and leaves dynamic group membership before closing. Cancel
 the runner context first, then call `Shutdown` with a bounded context or handle
-the error returned by `Close`.
+the error returned by `Close`. Each admitted shutdown attempt emits one
+payload-free observation, so an incomplete attempt and its successful retry
+remain distinct.
 `PausePartitions` and `ResumePartitions` control future fetches for explicit
 subscribed topic-partitions. Pausing does not retract records already buffered
 or returned by the current poll; `MaxPausedPartitions` bounds both each request

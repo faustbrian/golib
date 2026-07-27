@@ -5,7 +5,8 @@ reports producer delivery plus consumer poll, record-handler, batch-handler,
 offset-commit, assignment, revocation, ownership-loss, blocked-rebalance, group
 management error, Kafka transaction begin/commit/abort, broker connection,
 broker request, broker throttle, broker disconnect, and replay plan, record,
-run, and shutdown completion. Inspector cluster, topic, consumer-group,
+run, and shutdown completion. Producer, consumer, and transaction-processor
+shutdown attempts plus inspector cluster, topic, consumer-group,
 dependency-health, readiness, shutdown, and broker events use the same
 contract. The franz-go hook bridge is private;
 observations do not expose franz-go hooks, records, requests, responses,
@@ -110,6 +111,12 @@ Every callback context is callback-scoped and must not be retained.
 - `ObservationDependencyHealth` after one admitted connectivity probe;
 - `ObservationReadiness` after one conclusive readiness-hysteresis update;
 - `ObservationInspectorShutdown` after the inspector closes its client;
+- `ObservationProducerShutdown` after an admitted producer shutdown completes
+  or remains incomplete;
+- `ObservationConsumerShutdown` after an admitted consumer shutdown completes
+  or remains incomplete;
+- `ObservationTransactionProcessorShutdown` after an admitted
+  consume-transform-produce shutdown completes or remains incomplete;
 - `ObservationBrokerConnect` after a connection initialization attempt,
   including API-version negotiation and configured SASL;
 - `ObservationBrokerRequest` after one Kafka protocol request fails during
@@ -150,6 +157,7 @@ exporting a public observation rather than reimplementing these invariants.
 | Dependency health | `DependencyHealthy` exactly matches the completed probe outcome |
 | Readiness | `DependencyHealthy`, `Ready`, `ConsecutiveFailures`, and `ConsecutiveSuccesses` are the conclusive post-probe state; operation success matches dependency health, not the stateful `Ready` decision |
 | Inspector shutdown | Reports one successful idempotent close transition; repeated closes emit nothing |
+| Producer/consumer/transaction-processor shutdown | Reports each attempt that acquires lifecycle ownership, including incomplete attempts and a later successful retry; invalid, observer-reentrant, concurrent, and already-completed calls emit nothing |
 | Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
 | Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay |
@@ -182,6 +190,11 @@ through the returned result. Shutdown duration covers waiting for an active
 replay and closing the direct client. Replay handler errors preserve a valid
 application-provided `Category`; invalid or panicking category methods are
 contained as `ErrorPermanent`.
+Producer shutdown duration covers admission fencing, in-flight admission
+draining, flushing, and close. Consumer and transaction-processor shutdown
+duration covers waiting for the active runner, the dynamic-member group leave,
+and close. Incomplete attempts retain their stable cancellation, timeout, or
+other redacted error category; a successful retry is a separate event.
 
 `RecordBytes` is a conservative policy-size estimate rather than Kafka's
 encoded wire size. Topic is copied only for validated single-topic metadata;
@@ -216,13 +229,13 @@ be unbounded.
 
 Observers must not call the client that invoked them. Producer, consumer,
 transaction-processor, replay, and inspector operations using the callback
-context fail
-with `ErrObserverReentry`. Their `Close` methods, plus context-free mutating
-consumer operations, also fail with that error while a callback is active. This
-conservative fence can reject a concurrent context-free call from another
-goroutine while an observer is running. Replacing the callback context to
-bypass the fence violates the contract and can deadlock lifecycle work. The
-package holds no client lifecycle lock while application observer code runs.
+context fail with `ErrObserverReentry`. Their `Shutdown` and `Close` methods,
+plus context-free mutating consumer operations, also fail with that error while
+a callback is active, even when the callback replaces its context. This
+conservative fence can reject a concurrent lifecycle call from another
+goroutine while an observer is running. Replacing the callback context for any
+other operation violates the contract. The package holds no client lifecycle
+lock while application observer code runs.
 
 ## Current boundary
 
@@ -231,9 +244,10 @@ consumer processing, commits, group lifecycle, producer and
 consume-transform-produce transaction lifecycle, replay planning, record
 outcomes, aggregate progress and shutdown, inspector read-only operations,
 dependency health, readiness, and shutdown, plus producer, consumer,
-transaction-processor, replay, and inspector broker activity. Standalone
-authentication, retry, complete broker rebalance timing, and producer,
-consumer, and transaction-processor shutdown events remain unimplemented.
+transaction-processor, replay, and inspector broker activity. Producer,
+consumer, and transaction-processor shutdown attempts are also covered.
+Standalone authentication, retry, and complete broker rebalance timing remain
+unimplemented.
 
 The standard-library [`kafka/adapters/golog`](../adapters/golog) package
 translates every current stable root observation into one fixed `log/slog`

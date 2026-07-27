@@ -1124,6 +1124,21 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 			spanName: "kafka inspector.shutdown",
 			spanKind: trace.SpanKindClient,
 		}
+	case kafka.ObservationProducerShutdown:
+		return operationDescriptor{
+			spanName: "kafka producer.shutdown",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationConsumerShutdown:
+		return operationDescriptor{
+			spanName: "kafka consumer.shutdown",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationTransactionProcessorShutdown:
+		return operationDescriptor{
+			spanName: "kafka transaction_processor.shutdown",
+			spanKind: trace.SpanKindClient,
+		}
 	default:
 		return operationDescriptor{}
 	}

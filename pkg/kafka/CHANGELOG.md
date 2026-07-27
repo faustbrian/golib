@@ -13,6 +13,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- bounded payload-free producer, consumer, and consume-transform-produce
+  shutdown-attempt observations with retry outcomes and same-client lifecycle
+  reentrancy fencing
 - bounded payload-free inspector observations for cluster, topic,
   consumer-group, dependency-health, readiness, shutdown, and broker activity,
   including aggregate counts and readiness hysteresis state

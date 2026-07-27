@@ -41,8 +41,8 @@ producer, err := kafka.NewProducer(kafka.ProducerConfig{
 ```
 
 The same policy can be supplied to `ConsumerConfig`,
-`TransactionProcessorConfig`, and `ReplayConfig`. One `Instrumentation` is
-concurrency-safe and starts no goroutines.
+`TransactionProcessorConfig`, `ReplayConfig`, and `InspectorConfig`. One
+`Instrumentation` is concurrency-safe and starts no goroutines.
 
 ## Cardinality and data policy
 
@@ -80,6 +80,7 @@ website content.
 | replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
 | inspector cluster, topics, consumer groups | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
 | dependency health, readiness, inspector shutdown | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
+| producer, consumer, transaction-processor shutdown | `kafka *.shutdown`, `CLIENT` | adapter-owned policy metrics only |
 
 The optional `[topic]` suffix is present only for an allowlisted topic. Failed
 operations set a generic error span status and the root package's stable,

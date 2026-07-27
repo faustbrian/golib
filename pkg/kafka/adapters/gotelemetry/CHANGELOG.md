@@ -11,6 +11,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- `CLIENT` spans for producer, consumer, and consume-transform-produce
+  shutdown-attempt observations
 - `CLIENT` spans and bounded adapter-owned diagnostics for cluster, topic,
   consumer-group, dependency-health, readiness, and inspector shutdown
   observations

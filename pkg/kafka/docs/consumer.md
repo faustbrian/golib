@@ -220,6 +220,10 @@ retriable. It does not claim that an ambiguous broker leave failed. `Close`
 uses `ConsumerConfig.ShutdownTimeout`; applications must handle its error.
 Concurrent shutdown calls fail with `ErrConsumerShutdownActive`, and completed
 shutdown is idempotent.
+Each attempt that acquires shutdown ownership emits one payload-free
+`ObservationConsumerShutdown` after waiting, group leave, and close finish. An
+incomplete attempt and its successful retry are separate observations;
+concurrent, observer-reentrant, and already-completed calls emit nothing.
 
 Shutdown never cancels a handler on its own. A pending Kafka rebalance can
 cancel it only under `RebalanceCancelHandler`; otherwise the application owns

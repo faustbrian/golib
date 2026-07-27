@@ -80,7 +80,7 @@ separate and necessary bound.
 | `TransactionalID` | empty | Enables transactions when set; valid UTF-8, no padding/control characters, at most 255 bytes. |
 | `TransactionTimeout` | 30 seconds when transactional | 1 second to 15 minutes. Must be zero without a transactional ID. |
 | `TransactionEndTimeout` | 30 seconds when transactional | 1 second to 2 minutes. Must be zero without a transactional ID. |
-| `Observers` | disabled | Optional 1 to 16 ordered synchronous delivery and broker callbacks, a required failure handler, and one shared 1 millisecond to 5 second cooperative timeout. The default timeout is 100 milliseconds. |
+| `Observers` | disabled | Optional 1 to 16 ordered synchronous delivery, transaction, shutdown, and broker callbacks, a required failure handler, and one shared 1 millisecond to 5 second cooperative timeout. The default timeout is 100 milliseconds. |
 
 Idempotence, all-ISR acknowledgements, ordering-preserving production, and
 data-loss detection are mandatory package policy rather than configurable

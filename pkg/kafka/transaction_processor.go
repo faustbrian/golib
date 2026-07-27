@@ -942,6 +942,11 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 		return ErrObserverReentry
 	}
 	processor.lifecycleMu.Lock()
+	if processor.observerCallbacks != 0 {
+		processor.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
 	if processor.closed {
 		processor.lifecycleMu.Unlock()
 
@@ -957,6 +962,13 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 	done := processor.runDone
 	staticMembership := processor.staticMembership
 	processor.lifecycleMu.Unlock()
+	var startedAt time.Time
+	if processor.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			processor.observeShutdown(ctx, startedAt, err)
+		}()
+	}
 
 	complete := false
 	defer func() {
@@ -1008,6 +1020,25 @@ func (processor *TransactionProcessor) Close() error {
 	defer cancel()
 
 	return processor.Shutdown(ctx)
+}
+
+func (processor *TransactionProcessor) observeShutdown(
+	ctx context.Context,
+	startedAt time.Time,
+	err error,
+) {
+	observation := Observation{
+		Kind:      ObservationTransactionProcessorShutdown,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  processor.clientID,
+		GroupID:   processor.groupID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	processor.dispatchObservation(ctx, observation)
 }
 
 func (processor *TransactionProcessor) observeTransaction(

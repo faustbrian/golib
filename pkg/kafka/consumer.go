@@ -1004,6 +1004,11 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 	}
 
 	consumer.lifecycleMu.Lock()
+	if consumer.observerCallbacks != 0 {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
 	if consumer.closed {
 		consumer.lifecycleMu.Unlock()
 
@@ -1019,6 +1024,13 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 	done := consumer.runDone
 	staticMembership := consumer.staticMembership
 	consumer.lifecycleMu.Unlock()
+	var startedAt time.Time
+	if consumer.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			consumer.observeShutdown(ctx, startedAt, err)
+		}()
+	}
 
 	complete := false
 	defer func() {
@@ -1062,4 +1074,23 @@ func (consumer *Consumer) Close() error {
 	defer cancel()
 
 	return consumer.Shutdown(ctx)
+}
+
+func (consumer *Consumer) observeShutdown(
+	ctx context.Context,
+	startedAt time.Time,
+	err error,
+) {
+	observation := Observation{
+		Kind:      ObservationConsumerShutdown,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  consumer.clientID,
+		GroupID:   consumer.groupID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	consumer.dispatchObservation(ctx, observation)
 }

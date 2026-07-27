@@ -106,6 +106,16 @@ const (
 	ObservationReadiness
 	// ObservationInspectorShutdown reports the inspector client closing.
 	ObservationInspectorShutdown
+	// ObservationProducerShutdown reports one bounded producer shutdown
+	// attempt that acquired lifecycle ownership.
+	ObservationProducerShutdown
+	// ObservationConsumerShutdown reports one bounded consumer shutdown
+	// attempt that acquired lifecycle ownership.
+	ObservationConsumerShutdown
+	// ObservationTransactionProcessorShutdown reports one bounded
+	// consume-transform-produce processor shutdown attempt that acquired
+	// lifecycle ownership.
+	ObservationTransactionProcessorShutdown
 )
 
 // String returns the stable low-cardinality observation name.
@@ -161,6 +171,12 @@ func (kind ObservationKind) String() string {
 		return "inspector.readiness"
 	case ObservationInspectorShutdown:
 		return "inspector.shutdown"
+	case ObservationProducerShutdown:
+		return "producer.shutdown"
+	case ObservationConsumerShutdown:
+		return "consumer.shutdown"
+	case ObservationTransactionProcessorShutdown:
+		return "transaction_processor.shutdown"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
@@ -279,7 +295,7 @@ type Observation struct {
 // metadata, settlement-count, and event-cardinality invariants.
 func (observation Observation) Validate() error {
 	if observation.Kind < ObservationProduceRecord ||
-		observation.Kind > ObservationInspectorShutdown ||
+		observation.Kind > ObservationTransactionProcessorShutdown ||
 		observation.StartedAt.IsZero() ||
 		observation.Duration < 0 ||
 		observation.RecordCount < 0 ||

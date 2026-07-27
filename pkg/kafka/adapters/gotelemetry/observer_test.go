@@ -316,6 +316,9 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 		kafka.ObservationDependencyHealth,
 		kafka.ObservationReadiness,
 		kafka.ObservationInspectorShutdown,
+		kafka.ObservationProducerShutdown,
+		kafka.ObservationConsumerShutdown,
+		kafka.ObservationTransactionProcessorShutdown,
 	}
 	observer := instrumentation.Observer()
 	for index, kind := range kinds {
