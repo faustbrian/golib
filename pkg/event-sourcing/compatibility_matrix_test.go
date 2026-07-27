@@ -165,17 +165,30 @@ func TestChangelogMaintainsReleasePolicy(t *testing.T) {
 	}
 }
 
-func TestPublicAPIDocumentationUsesCurrentGlobalReaderContract(t *testing.T) {
+func TestPublicAPIDocumentationUsesCurrentContracts(t *testing.T) {
 	t.Parallel()
 
 	documentation := readContractFile(t, "docs/design/public-api.md")
-	if !strings.Contains(
-		documentation,
+	for _, current := range []string{
 		"ReadGlobal(context.Context, ReadGlobalOptions) (MessageIterator, error)",
-	) {
-		t.Fatal("public API documentation does not show GlobalReader.ReadGlobal")
+		"ErrDuplicateMessageID",
+		"ErrMalformedEvent",
+		"ErrSnapshotIncompatible",
+		"ErrUnsupportedCapability",
+		"AppendCommitOutcome",
+	} {
+		if !strings.Contains(documentation, current) {
+			t.Fatalf("public API documentation is missing %q", current)
+		}
 	}
-	for _, stale := range []string{"ReadAll(", "ReadAllOptions"} {
+	for _, stale := range []string{
+		"ReadAll(",
+		"ReadAllOptions",
+		"ErrDuplicateMessage ",
+		"ErrCommitUnknown ",
+		"ErrIncompatibleVersion ",
+		"ErrUnsupported ",
+	} {
 		if strings.Contains(documentation, stale) {
 			t.Fatalf("public API documentation retains stale symbol %q", stale)
 		}

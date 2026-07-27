@@ -631,16 +631,19 @@ Sentinel categories support `errors.Is`; structured errors support
 
 ```go
 var (
-    ErrStreamNotFound       = errors.New("event stream not found")
-    ErrConcurrencyConflict  = errors.New("event stream concurrency conflict")
-    ErrDuplicateMessage     = errors.New("duplicate message identifier")
-    ErrCommitUnknown        = errors.New("event store commit outcome unknown")
-    ErrCorruptHistory       = errors.New("corrupt event history")
-    ErrUnknownEvent         = errors.New("unknown event")
-    ErrIncompatibleVersion  = errors.New("incompatible event version")
-    ErrUnsupported          = errors.New("unsupported capability")
+    ErrStreamNotFound        = errors.New("event stream not found")
+    ErrConcurrencyConflict   = errors.New("event stream concurrency conflict")
+    ErrDuplicateMessageID    = errors.New("duplicate event message identifier")
+    ErrCorruptHistory        = errors.New("corrupt event history")
+    ErrUnknownEvent          = errors.New("unknown event")
+    ErrMalformedEvent        = errors.New("malformed event data")
+    ErrSnapshotIncompatible  = errors.New("aggregate snapshot is incompatible")
+    ErrUnsupportedCapability = errors.New("unsupported event-store capability")
 )
 ```
+
+Commit ambiguity is represented by an `AppendError` whose outcome is
+`CommitUnknown`; use `AppendCommitOutcome` instead of matching an error string.
 
 Errors never include payloads, metadata values, credentials, connection
 strings, or arbitrary codec input.
