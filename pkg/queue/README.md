@@ -50,6 +50,9 @@ Redis Pub/Sub is low-latency and non-durable. Use Redis Streams or Valkey
 Streams when work must remain pending until settlement. They are independent
 native backends; adopting Valkey does not require removing Redis. Read
 [delivery semantics](docs/delivery-semantics.md) before selecting a backend.
+Scheduler and API processes that only submit Valkey work should use
+`valkeystream.NewPublisherE`; it appends jobs without joining a consumer group
+or starting worker loops.
 
 External control planes should depend on the backend-neutral contracts in
 [`management`](docs/management.md). Incompatible workers remain visible, but

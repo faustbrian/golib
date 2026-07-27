@@ -73,6 +73,38 @@ func TestValkey9NativeLifecycleAndStats(t *testing.T) {
 	require.NoError(t, worker.Shutdown())
 }
 
+func TestValkey9PublisherAppendsWithoutConsumerGroup(t *testing.T) {
+	_, endpoint := startValkey9(t, nil, nil)
+	publisher, err := NewPublisherE(
+		WithAddress(endpoint),
+		WithStreamName("publisher-only"),
+	)
+	require.NoError(t, err)
+	require.NoError(t, publisher.Queue(integrationMessage("scheduled")))
+
+	client := integrationClient(t, endpoint)
+	groups, err := client.Do(
+		t.Context(),
+		client.B().XinfoGroups().Key("publisher-only").Build(),
+	).ToArray()
+	require.NoError(t, err)
+	assert.Empty(t, groups)
+
+	entries, err := client.Do(
+		t.Context(),
+		client.B().Xrange().Key("publisher-only").Start("-").End("+").Build(),
+	).AsXRange()
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	queued, err := job.DecodeE(
+		[]byte(entries[0].FieldValues[streamBodyField]),
+		job.DefaultMaxMessageBytes,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("scheduled"), queued.Payload())
+	require.NoError(t, publisher.Shutdown())
+}
+
 func TestValkey9SourceBoundNeverTrimsPendingDelivery(t *testing.T) {
 	_, endpoint := startValkey9(t, nil, nil)
 	client := integrationClient(t, endpoint)

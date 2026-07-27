@@ -79,6 +79,9 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- A producer-only Valkey Streams `Publisher` that validates and appends durable
+  jobs without creating consumer groups or starting worker read and reclaim
+  loops.
 - Dedicated dead-letter incident/recovery and Laravel Horizon failed-job
   migration guides covering capability negotiation, privacy, retention,
   redrive, ambiguous outcomes, backup, rollback, and intentional differences.

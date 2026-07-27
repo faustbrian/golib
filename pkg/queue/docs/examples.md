@@ -16,9 +16,9 @@ package.
 ## Valkey Streams
 
 The [Valkey example](../examples/valkey) is runnable against standalone Valkey
-9 and demonstrates enqueue, handler retry, reclaim, terminal dead-lettering,
-monotonic stats, and graceful signal shutdown. TLS, ACL, Kubernetes, failure
-recovery, and dual-backend rollout examples are in the
+9 and demonstrates producer-only enqueue, handler retry, reclaim, terminal
+dead-lettering, monotonic stats, and graceful signal shutdown. TLS, ACL,
+Kubernetes, failure recovery, and dual-backend rollout examples are in the
 [Valkey Streams guide](backends/valkey-streams.md).
 
 ## Failure Scenarios

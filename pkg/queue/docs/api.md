@@ -67,12 +67,15 @@ A positive source `WithMaxLength` is a hard direct-enqueue capacity and never
 uses destructive source trimming.
 
 Valkey Streams provides a package-owned API in `valkeystream`: `NewWorkerE`,
-`NewWorker`, `Worker`, `Option`, `ConfigurationError`, and `Stats`. Connection
-options cover address, ACL authentication, database, cloned TLS configuration,
-client identity, dial/command/request/block/shutdown timeouts, and the bounded
-blocking pool. Queue options cover stream, group, consumer, hard source
-admission capacity, exact record retention, read batch, reclaim policy, dead-letter policy,
-logger, and handler.
+`NewWorker`, `Worker`, `NewPublisherE`, `Publisher`, `Option`,
+`ConfigurationError`, and `Stats`. `Publisher.Queue` accepts the same queued
+message and job-option contract as the root queue, but never creates a consumer
+group or starts read and reclaim loops. Connection options cover address, ACL
+authentication, database, cloned TLS configuration, client identity,
+dial/command/request/block/shutdown timeouts, and the bounded blocking pool.
+Queue options cover stream, group, consumer, hard source admission capacity,
+exact record retention, read batch, reclaim policy, dead-letter policy, logger,
+and handler.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
 

@@ -19,7 +19,8 @@ Create the backend with explicit connection options, register a task handler,
 start it with a cancellable context, and treat shutdown errors as operational
 failures. The runnable [Redis example](../examples/redis) shows the complete
 lifecycle. The [Valkey example](../examples/valkey) shows bounded retries,
-reclaim, dead-letter policy, statistics, and signal-driven shutdown.
+producer-only submission, reclaim, dead-letter policy, statistics, and
+signal-driven shutdown.
 
 ## Production Checklist
 

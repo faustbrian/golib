@@ -54,6 +54,9 @@ Redis Pub/Sub is low-latency and non-durable. Use Redis Streams or Valkey
 Streams when work must remain pending until settlement. They are independent
 native backends; adopting Valkey does not require removing Redis. Read
 [delivery semantics](docs/delivery-semantics.md) before selecting a backend.
+Scheduler and API processes that only submit Valkey work should use
+`valkeystream.NewPublisherE`; it appends jobs without joining a consumer group
+or starting worker loops.
 
 External control planes should depend on the backend-neutral contracts in
 [`management`](docs/management.md). Incompatible workers remain visible, but
@@ -188,7 +191,8 @@ Create the backend with explicit connection options, register a task handler,
 start it with a cancellable context, and treat shutdown errors as operational
 failures. The runnable [Redis example](../examples/redis) shows the complete
 lifecycle. The [Valkey example](../examples/valkey) shows bounded retries,
-reclaim, dead-letter policy, statistics, and signal-driven shutdown.
+producer-only submission, reclaim, dead-letter policy, statistics, and
+signal-driven shutdown.
 
 ## Production Checklist
 
@@ -294,12 +298,15 @@ A positive source `WithMaxLength` is a hard direct-enqueue capacity and never
 uses destructive source trimming.
 
 Valkey Streams provides a package-owned API in `valkeystream`: `NewWorkerE`,
-`NewWorker`, `Worker`, `Option`, `ConfigurationError`, and `Stats`. Connection
-options cover address, ACL authentication, database, cloned TLS configuration,
-client identity, dial/command/request/block/shutdown timeouts, and the bounded
-blocking pool. Queue options cover stream, group, consumer, hard source
-admission capacity, exact record retention, read batch, reclaim policy, dead-letter policy,
-logger, and handler.
+`NewWorker`, `Worker`, `NewPublisherE`, `Publisher`, `Option`,
+`ConfigurationError`, and `Stats`. `Publisher.Queue` accepts the same queued
+message and job-option contract as the root queue, but never creates a consumer
+group or starts read and reclaim loops. Connection options cover address, ACL
+authentication, database, cloned TLS configuration, client identity,
+dial/command/request/block/shutdown timeouts, and the bounded blocking pool.
+Queue options cover stream, group, consumer, hard source admission capacity,
+exact record retention, read batch, reclaim policy, dead-letter policy, logger,
+and handler.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
 
@@ -378,6 +385,9 @@ differences.
 - `Ring` is the in-memory worker.
 - Backend packages own connection, publish, receive, and transport-specific
   settlement behavior.
+- `valkeystream.Publisher` is a producer-only runtime boundary for processes
+  that must append durable work without consumer-group membership or worker
+  goroutines.
 - `internal/streamqueue` owns only shared Streams command semantics, delivery
   envelopes, validation, group state, and transport-neutral transitions.
   `redisstream` converts those semantics through `go-redis/v9`; `valkeystream`
@@ -393,6 +403,12 @@ The processing path is:
 ```text
 producer -> Worker.Queue -> backend -> Worker.Request -> Queue.handle
          -> retry/backoff -> Ack on success | Nack on final failure
+```
+
+The producer-only Valkey path ends after a confirmed bounded append:
+
+```text
+producer -> Publisher.Queue -> Valkey Stream
 ```
 
 ## Lifecycle
@@ -442,9 +458,9 @@ package.
 ## Valkey Streams
 
 The [Valkey example](../examples/valkey) is runnable against standalone Valkey
-9 and demonstrates enqueue, handler retry, reclaim, terminal dead-lettering,
-monotonic stats, and graceful signal shutdown. TLS, ACL, Kubernetes, failure
-recovery, and dual-backend rollout examples are in the
+9 and demonstrates producer-only enqueue, handler retry, reclaim, terminal
+dead-lettering, monotonic stats, and graceful signal shutdown. TLS, ACL,
+Kubernetes, failure recovery, and dual-backend rollout examples are in the
 [Valkey Streams guide](backends/valkey-streams.md).
 
 ## Failure Scenarios
@@ -1152,6 +1168,9 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- A producer-only Valkey Streams `Publisher` that validates and appends durable
+  jobs without creating consumer groups or starting worker read and reclaim
+  loops.
 - Dedicated dead-letter incident/recovery and Laravel Horizon failed-job
   migration guides covering capability negotiation, privacy, retention,
   redrive, ambiguous outcomes, backup, rollback, and intentional differences.
@@ -1671,6 +1690,35 @@ Use `NewWorkerE` in services so configuration, authentication, TLS, and initial
 group-creation failures can fail startup. `NewWorker` is a compatibility wrapper
 that panics on the same errors.
 
+## Producer-only processes
+
+Schedulers, API processes, and other enqueue-only roles must not construct a
+worker merely to publish. Use `NewPublisherE` so the process owns only its
+Valkey connections and never creates a consumer group or starts read and
+reclaim loops:
+
+```go
+publisher, err := valkeystream.NewPublisherE(
+    valkeystream.WithAddress("127.0.0.1:6379"),
+    valkeystream.WithAuthentication("default", os.Getenv("VALKEY_PASSWORD")),
+    valkeystream.WithStreamName("orders"),
+    valkeystream.WithMaxLength(10_000),
+)
+if err != nil {
+    return err
+}
+defer publisher.Shutdown()
+
+if err := publisher.Queue(orderMessage); err != nil {
+    return err
+}
+```
+
+`Publisher.Queue` validates and encodes the root queue job envelope before the
+bounded append. It accepts `job.AllowOption` values for timeout, retry, and
+metadata parity with `Queue.Queue`. `Shutdown` rejects later submissions and
+closes producer-owned connections.
+
 ## Configuration
 
 | Option | Default | Contract |
@@ -1744,10 +1792,10 @@ policy. Certificate verification remains enabled. Authentication, TLS, and
 dial failures return fixed safe text while preserving the native cause for
 `errors.Is` and `errors.As`; do not separately log the unwrapped cause.
 
-Grant producers append access and workers the minimum stream/group commands:
-`EVAL`, `XADD`, `XLEN`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`,
-`XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and append/read access to the
-configured failure and dead-letter streams.
+Grant producer-only identities `PING`, `EVAL`, `XLEN`, and `XADD` access to the
+source stream. Workers additionally require `XGROUP CREATE`, `XREADGROUP`,
+`XACK`, `XPENDING`, `XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and
+append/read access to the configured failure and dead-letter streams.
 
 ## Delivery, retry, and dead-letter behavior
 

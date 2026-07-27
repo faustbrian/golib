@@ -14,6 +14,9 @@ differences.
 - `Ring` is the in-memory worker.
 - Backend packages own connection, publish, receive, and transport-specific
   settlement behavior.
+- `valkeystream.Publisher` is a producer-only runtime boundary for processes
+  that must append durable work without consumer-group membership or worker
+  goroutines.
 - `internal/streamqueue` owns only shared Streams command semantics, delivery
   envelopes, validation, group state, and transport-neutral transitions.
   `redisstream` converts those semantics through `go-redis/v9`; `valkeystream`
@@ -29,6 +32,12 @@ The processing path is:
 ```text
 producer -> Worker.Queue -> backend -> Worker.Request -> Queue.handle
          -> retry/backoff -> Ack on success | Nack on final failure
+```
+
+The producer-only Valkey path ends after a confirmed bounded append:
+
+```text
+producer -> Publisher.Queue -> Valkey Stream
 ```
 
 ## Lifecycle

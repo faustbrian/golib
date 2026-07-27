@@ -30,6 +30,7 @@ var (
 
 	_ func(...valkeystream.Option) *valkeystream.Worker                       = valkeystream.NewWorker
 	_ func(...valkeystream.Option) (*valkeystream.Worker, error)              = valkeystream.NewWorkerE
+	_ func(...valkeystream.Option) (*valkeystream.Publisher, error)           = valkeystream.NewPublisherE
 	_ func(string) valkeystream.Option                                        = valkeystream.WithAddress
 	_ func(string, string) valkeystream.Option                                = valkeystream.WithAuthentication
 	_ func(time.Duration) valkeystream.Option                                 = valkeystream.WithBlockTime

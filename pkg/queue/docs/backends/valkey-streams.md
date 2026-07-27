@@ -41,6 +41,35 @@ Use `NewWorkerE` in services so configuration, authentication, TLS, and initial
 group-creation failures can fail startup. `NewWorker` is a compatibility wrapper
 that panics on the same errors.
 
+## Producer-only processes
+
+Schedulers, API processes, and other enqueue-only roles must not construct a
+worker merely to publish. Use `NewPublisherE` so the process owns only its
+Valkey connections and never creates a consumer group or starts read and
+reclaim loops:
+
+```go
+publisher, err := valkeystream.NewPublisherE(
+    valkeystream.WithAddress("127.0.0.1:6379"),
+    valkeystream.WithAuthentication("default", os.Getenv("VALKEY_PASSWORD")),
+    valkeystream.WithStreamName("orders"),
+    valkeystream.WithMaxLength(10_000),
+)
+if err != nil {
+    return err
+}
+defer publisher.Shutdown()
+
+if err := publisher.Queue(orderMessage); err != nil {
+    return err
+}
+```
+
+`Publisher.Queue` validates and encodes the root queue job envelope before the
+bounded append. It accepts `job.AllowOption` values for timeout, retry, and
+metadata parity with `Queue.Queue`. `Shutdown` rejects later submissions and
+closes producer-owned connections.
+
 ## Configuration
 
 | Option | Default | Contract |
@@ -114,10 +143,10 @@ policy. Certificate verification remains enabled. Authentication, TLS, and
 dial failures return fixed safe text while preserving the native cause for
 `errors.Is` and `errors.As`; do not separately log the unwrapped cause.
 
-Grant producers append access and workers the minimum stream/group commands:
-`EVAL`, `XADD`, `XLEN`, `XGROUP CREATE`, `XREADGROUP`, `XACK`, `XPENDING`,
-`XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and append/read access to the
-configured failure and dead-letter streams.
+Grant producer-only identities `PING`, `EVAL`, `XLEN`, and `XADD` access to the
+source stream. Workers additionally require `XGROUP CREATE`, `XREADGROUP`,
+`XACK`, `XPENDING`, `XAUTOCLAIM`, `XINFO GROUPS`, `XDEL`, `XRANGE`, and
+append/read access to the configured failure and dead-letter streams.
 
 ## Delivery, retry, and dead-letter behavior
 

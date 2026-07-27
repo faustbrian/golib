@@ -56,11 +56,22 @@ func main() {
 	}
 	q.Start()
 
-	if err = q.Queue(order("order-42"), job.AllowOption{
+	publisher, err := valkeystream.NewPublisherE(
+		valkeystream.WithAddress(env("VALKEY_ADDRESS", "127.0.0.1:6379")),
+		valkeystream.WithAuthentication("default", os.Getenv("VALKEY_PASSWORD")),
+		valkeystream.WithStreamName("orders"),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = publisher.Queue(order("order-42"), job.AllowOption{
 		RetryCount: job.Int64(3), RetryDelay: job.Time(250 * time.Millisecond),
 		Timeout: job.Time(10 * time.Second),
 	}); err != nil {
 		log.Printf("enqueue: %v", err)
+	}
+	if err = publisher.Shutdown(); err != nil {
+		log.Printf("publisher shutdown: %v", err)
 	}
 
 	<-ctx.Done()
