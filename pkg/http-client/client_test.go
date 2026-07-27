@@ -65,6 +65,26 @@ func TestNewClientRejectsNegativeTimeout(t *testing.T) {
 	}
 }
 
+func TestNewClientAppliesAndValidatesConnectTimeout(t *testing.T) {
+	t.Parallel()
+
+	client, err := New(Config{ConnectTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	dialer := newTransportDialer(5 * time.Second)
+	if dialer.Timeout != 5*time.Second {
+		t.Fatalf("connect timeout = %v, want 5s", dialer.Timeout)
+	}
+	if _, err := New(Config{
+		ConnectTimeout: -time.Second,
+	}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("negative connect timeout error = %v", err)
+	}
+}
+
 func TestNewClientRejectsUnknownTransportOwnership(t *testing.T) {
 	t.Parallel()
 

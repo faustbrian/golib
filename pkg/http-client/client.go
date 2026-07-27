@@ -57,6 +57,9 @@ type Config struct {
 	// When set, it is the legacy client-level operation-timeout override and
 	// takes precedence over Policy.OperationTimeout.
 	Timeout time.Duration
+	// ConnectTimeout bounds establishing a network connection on the standard
+	// transport. Zero selects the production-safe 10-second default.
+	ConnectTimeout time.Duration
 	// Transport replaces the default transport. It is borrowed unless
 	// TransportOwnership is TransportOwned.
 	Transport http.RoundTripper
@@ -109,6 +112,12 @@ func New(config Config) (*Client, error) {
 	if config.Timeout < 0 {
 		return nil, fmt.Errorf("%w: timeout must not be negative", ErrInvalidConfig)
 	}
+	if config.ConnectTimeout < 0 {
+		return nil, fmt.Errorf(
+			"%w: connect timeout must not be negative",
+			ErrInvalidConfig,
+		)
+	}
 	if config.TransportOwnership > TransportOwned {
 		return nil, fmt.Errorf("%w: unknown transport ownership %d", ErrInvalidConfig, config.TransportOwnership)
 	}
@@ -158,7 +167,16 @@ func New(config Config) (*Client, error) {
 	transport := config.Transport
 	ownedTransport := config.TransportOwnership == TransportOwned
 	if transport == nil {
-		transport = defaultTransportWithPolicy(resolvedPolicy.Values(), config.Egress, config.TLS)
+		connectTimeout := config.ConnectTimeout
+		if connectTimeout == 0 {
+			connectTimeout = defaultConnectTimeout
+		}
+		transport = defaultTransportWithPolicy(
+			resolvedPolicy.Values(),
+			config.Egress,
+			config.TLS,
+			connectTimeout,
+		)
 		ownedTransport = true
 	}
 
@@ -453,18 +471,21 @@ func defaultTransport() *http.Transport {
 
 func defaultTransportWithEgress(policy *EgressPolicy) *http.Transport {
 	resolved, _ := ResolvePolicy(defaultPolicyProfile, PolicyOverrides{}, PolicyOverrides{})
-	return defaultTransportWithPolicy(resolved.Values(), policy, nil)
+	return defaultTransportWithPolicy(
+		resolved.Values(),
+		policy,
+		nil,
+		defaultConnectTimeout,
+	)
 }
 
 func defaultTransportWithPolicy(
 	values PolicyValues,
 	egress *EgressPolicy,
 	tlsPolicy *TLSPolicy,
+	connectTimeout time.Duration,
 ) *http.Transport {
-	dialer := &net.Dialer{
-		Timeout:   defaultConnectTimeout,
-		KeepAlive: defaultKeepAlive,
-	}
+	dialer := newTransportDialer(connectTimeout)
 
 	dialContext := dialer.DialContext
 	if egress != nil {
@@ -490,6 +511,13 @@ func defaultTransportWithPolicy(
 		ExpectContinueTimeout:  defaultExpectContinueTimeout,
 		MaxResponseHeaderBytes: defaultMaxResponseHeaderSize,
 		TLSClientConfig:        tlsConfig,
+	}
+}
+
+func newTransportDialer(connectTimeout time.Duration) *net.Dialer {
+	return &net.Dialer{
+		Timeout:   connectTimeout,
+		KeepAlive: defaultKeepAlive,
 	}
 }
 
