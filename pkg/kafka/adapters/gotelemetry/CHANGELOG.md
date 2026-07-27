@@ -17,3 +17,8 @@ All notable changes to this module are documented here.
   application error text
 - exact operation timestamps, stable redacted error categories, concurrent
   observer safety, fuzz targets, race coverage, and allocation benchmarks
+
+### Changed
+
+- validate public observations through the root Kafka contract so adapters do
+  not define divergent settlement or cardinality rules

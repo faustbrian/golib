@@ -95,6 +95,11 @@ success flag, and stable failure category. Consumer events also contain the
 copied group ID. Successful events use `ErrorUnknown` because no failure
 category applies.
 
+`Observation.Validate` applies the root-owned bounds, settlement-count
+relationships, success/category relationship, Kafka coordinate bounds, and
+event-specific record cardinality. Optional adapters should call it before
+exporting a public observation rather than reimplementing these invariants.
+
 | Kind | Count and coordinate meaning |
 | --- | --- |
 | Produce record/async | `RecordCount=1`; successful delivery has partition, offset, and broker timestamp |

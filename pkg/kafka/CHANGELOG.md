@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- public `Observation.Validate` policy for bounded metadata, settlement counts,
+  failure categories, and event-specific record cardinality
 - independently versioned Amazon MSK IAM adapter using AWS's supported Go
   signer, bounded token generation and credential refresh, effective expiry
   capped by signing credentials, and redacted failure handling

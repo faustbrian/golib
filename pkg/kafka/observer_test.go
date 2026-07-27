@@ -762,6 +762,143 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 	}
 }
 
+func TestObservationValidationRejectsMetadataOutsideThePublicContract(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	base := Observation{
+		Kind:        ObservationProduceRecord,
+		StartedAt:   time.Unix(1, 0),
+		Duration:    time.Millisecond,
+		RecordCount: 1,
+		Succeeded:   true,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid observation error = %v", err)
+	}
+	mutations := []func(*Observation){
+		func(value *Observation) { value.Kind = 0 },
+		func(value *Observation) { value.Kind = ObservationKind(255) },
+		func(value *Observation) { value.StartedAt = time.Time{} },
+		func(value *Observation) { value.Duration = -1 },
+		func(value *Observation) { value.RecordCount = -1 },
+		func(value *Observation) { value.PartitionCount = -1 },
+		func(value *Observation) { value.ProcessedCount = -1 },
+		func(value *Observation) { value.CommittedCount = -1 },
+		func(value *Observation) { value.RecordBytes = -1 },
+		func(value *Observation) { value.RequestBytes = -1 },
+		func(value *Observation) { value.ResponseBytes = -1 },
+		func(value *Observation) { value.QueueDuration = -1 },
+		func(value *Observation) { value.ThrottleDuration = -1 },
+		func(value *Observation) { value.ProcessedCount = 2 },
+		func(value *Observation) {
+			value.ProcessedCount = 1
+			value.CommittedCount = 2
+		},
+		func(value *Observation) {
+			value.PartitionKnown = true
+			value.Partition = -1
+		},
+		func(value *Observation) {
+			value.OffsetKnown = true
+			value.Offset = -1
+		},
+		func(value *Observation) {
+			value.BrokerKnown = true
+			value.BrokerID = -1
+		},
+		func(value *Observation) {
+			value.APIKeyKnown = true
+			value.APIKey = -1
+		},
+		func(value *Observation) { value.Category = ErrorRetryable },
+		func(value *Observation) {
+			value.Succeeded = false
+			value.Category = ErrorUnknown
+		},
+		func(value *Observation) {
+			value.Succeeded = false
+			value.Category = ErrorCategory(255)
+		},
+		func(value *Observation) { value.RecordCount = 2 },
+	}
+	for index, mutate := range mutations {
+		observation := base
+		mutate(&observation)
+		if err := observation.Validate(); !errors.Is(
+			err,
+			ErrInvalidObservation,
+		) {
+			t.Fatalf("invalid observation %d error = %v", index, err)
+		}
+	}
+}
+
+func TestObservationValidationEnforcesEventRecordCardinality(t *testing.T) {
+	t.Parallel()
+
+	base := Observation{
+		StartedAt: time.Unix(1, 0),
+		Duration:  time.Millisecond,
+		Succeeded: true,
+	}
+	tests := []Observation{
+		func() Observation {
+			value := base
+			value.Kind = ObservationProduceAsync
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationConsumeRecord
+			value.RecordCount = 2
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationProduceBatch
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationConsumeBatch
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationConsumeCommit
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationTransactionCommit
+			value.RecordCount = 1
+
+			return value
+		}(),
+	}
+	for _, observation := range tests {
+		if err := observation.Validate(); !errors.Is(
+			err,
+			ErrInvalidObservation,
+		) {
+			t.Fatalf("invalid %s cardinality error = %v", observation.Kind, err)
+		}
+	}
+
+	poll := base
+	poll.Kind = ObservationConsumePoll
+	if err := poll.Validate(); err != nil {
+		t.Fatalf("empty poll observation error = %v", err)
+	}
+}
+
 func repeatedObservers(observer ObserverFunc, count int) []ObserverFunc {
 	observers := make([]ObserverFunc, count)
 	for index := range observers {

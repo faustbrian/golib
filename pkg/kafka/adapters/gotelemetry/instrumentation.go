@@ -398,8 +398,8 @@ func (instrumentation *Instrumentation) observe(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := validateObservation(observation); err != nil {
-		return err
+	if err := observation.Validate(); err != nil {
+		return ErrInvalidObservation
 	}
 
 	operation := messagingOperation(observation.Kind)
@@ -854,58 +854,6 @@ func validTopic(value string, maxLength int) bool {
 	return true
 }
 
-func validateObservation(observation kafka.Observation) error {
-	if !knownObservationKind(observation.Kind) ||
-		observation.StartedAt.IsZero() ||
-		observation.Duration < 0 ||
-		observation.RecordCount < 0 ||
-		observation.PartitionCount < 0 ||
-		observation.ProcessedCount < 0 ||
-		observation.CommittedCount < 0 ||
-		observation.RecordBytes < 0 ||
-		observation.RequestBytes < 0 ||
-		observation.ResponseBytes < 0 ||
-		observation.QueueDuration < 0 ||
-		observation.ThrottleDuration < 0 ||
-		observation.ProcessedCount > observation.RecordCount ||
-		observation.CommittedCount > observation.ProcessedCount ||
-		(observation.PartitionKnown && observation.Partition < 0) ||
-		(observation.OffsetKnown && observation.Offset < 0) ||
-		(observation.BrokerKnown && observation.BrokerID < 0) ||
-		(observation.APIKeyKnown && observation.APIKey < 0) ||
-		(observation.Succeeded && observation.Category != kafka.ErrorUnknown) ||
-		(!observation.Succeeded && !validErrorCategory(observation.Category)) ||
-		!validObservationRecordCardinality(observation) {
-		return ErrInvalidObservation
-	}
-
-	return nil
-}
-
-func validObservationRecordCardinality(observation kafka.Observation) bool {
-	switch observation.Kind {
-	case kafka.ObservationProduceRecord,
-		kafka.ObservationProduceAsync,
-		kafka.ObservationConsumeRecord:
-		return observation.RecordCount == 1
-	case kafka.ObservationProduceBatch,
-		kafka.ObservationConsumeBatch,
-		kafka.ObservationConsumeCommit:
-		return observation.RecordCount > 0
-	case kafka.ObservationConsumePoll:
-		return true
-	default:
-		return observation.RecordCount == 0 &&
-			observation.ProcessedCount == 0 &&
-			observation.CommittedCount == 0 &&
-			observation.RecordBytes == 0
-	}
-}
-
-func validErrorCategory(category kafka.ErrorCategory) bool {
-	return category >= kafka.ErrorPermanent && category <= kafka.ErrorFatal
-}
-
 type operationDescriptor struct {
 	spanName         string
 	name             string
@@ -1045,10 +993,6 @@ func messagingOperation(kind kafka.ObservationKind) operationDescriptor {
 	default:
 		return operationDescriptor{}
 	}
-}
-
-func knownObservationKind(kind kafka.ObservationKind) bool {
-	return messagingOperation(kind).spanName != ""
 }
 
 func instrumentFailure(cause error) error {

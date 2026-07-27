@@ -23,6 +23,9 @@ var (
 	// ErrObserverReentry identifies an operation attempted with the context
 	// supplied to an observer callback.
 	ErrObserverReentry = errors.New("kafka: observer callback cannot re-enter client")
+	// ErrInvalidObservation identifies metadata outside the stable public
+	// observation contract.
+	ErrInvalidObservation = errors.New("kafka: observation is invalid")
 )
 
 // ObservationKind identifies one stable package-policy event.
@@ -190,6 +193,58 @@ type Observation struct {
 	Truncated bool
 	// Category classifies failure and is ErrorUnknown after success.
 	Category ErrorCategory
+}
+
+// Validate reports whether the observation satisfies the public bounded
+// metadata, settlement-count, and event-cardinality invariants.
+func (observation Observation) Validate() error {
+	if observation.Kind < ObservationProduceRecord ||
+		observation.Kind > ObservationTransactionAbort ||
+		observation.StartedAt.IsZero() ||
+		observation.Duration < 0 ||
+		observation.RecordCount < 0 ||
+		observation.PartitionCount < 0 ||
+		observation.ProcessedCount < 0 ||
+		observation.CommittedCount < 0 ||
+		observation.RecordBytes < 0 ||
+		observation.RequestBytes < 0 ||
+		observation.ResponseBytes < 0 ||
+		observation.QueueDuration < 0 ||
+		observation.ThrottleDuration < 0 ||
+		observation.ProcessedCount > observation.RecordCount ||
+		observation.CommittedCount > observation.ProcessedCount ||
+		(observation.PartitionKnown && observation.Partition < 0) ||
+		(observation.OffsetKnown && observation.Offset < 0) ||
+		(observation.BrokerKnown && observation.BrokerID < 0) ||
+		(observation.APIKeyKnown && observation.APIKey < 0) ||
+		(observation.Succeeded && observation.Category != ErrorUnknown) ||
+		(!observation.Succeeded &&
+			!validErrorCategory(observation.Category)) ||
+		!validObservationRecordCardinality(observation) {
+		return ErrInvalidObservation
+	}
+
+	return nil
+}
+
+func validObservationRecordCardinality(observation Observation) bool {
+	switch observation.Kind {
+	case ObservationProduceRecord,
+		ObservationProduceAsync,
+		ObservationConsumeRecord:
+		return observation.RecordCount == 1
+	case ObservationProduceBatch,
+		ObservationConsumeBatch,
+		ObservationConsumeCommit:
+		return observation.RecordCount > 0
+	case ObservationConsumePoll:
+		return true
+	default:
+		return observation.RecordCount == 0 &&
+			observation.ProcessedCount == 0 &&
+			observation.CommittedCount == 0 &&
+			observation.RecordBytes == 0
+	}
 }
 
 // ObserverFunc synchronously observes one copied event. Implementations must

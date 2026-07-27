@@ -70,8 +70,11 @@ single, batch, and asynchronous production plus broker connection, Kafka
 request, throttle, and disconnect activity without exposing franz-go hooks.
 `Observation` contains copied payload-free metadata, numeric Kafka broker and
 API-key coordinates, bounded duration/byte metadata, and a stable failure
-category. Observer errors and panics are contained and reported through the
-required `ObservationFailureFunc`; they never replace the delivery result.
+category. `Observation.Validate` lets optional adapters reject malformed public
+values against the same bounded metadata, settlement-count, failure-category,
+and event-cardinality policy. Observer errors and panics are contained and
+reported through the required `ObservationFailureFunc`; they never replace the
+delivery result.
 Callbacks share one cooperative deadline, can run concurrently across producer
 and franz-go broker operations, and cannot re-enter the invoking producer. See the
 [observability guide](observability.md).

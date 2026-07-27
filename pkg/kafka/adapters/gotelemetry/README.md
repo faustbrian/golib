@@ -113,11 +113,12 @@ returns a redacted `InstrumentError` if a provider rejects any instrument.
 The provider error remains available through `errors.Is`/`errors.As` for
 intentional local handling.
 
-`Observer` rejects nil or canceled contexts and observations outside the root
-contract. Recording is synchronous at the OpenTelemetry API boundary. Export
-and queue limits remain the responsibility of the configured OpenTelemetry
-SDK and exporter. Configure the root `ObserverPolicy` deadline and SDK queues
-so telemetry cannot become an unbounded Kafka delivery or rebalance delay.
+`Observer` rejects nil or canceled contexts and delegates public observation
+validation to `kafka.Observation.Validate`. Recording is synchronous at the
+OpenTelemetry API boundary. Export and queue limits remain the responsibility
+of the configured OpenTelemetry SDK and exporter. Configure the root
+`ObserverPolicy` deadline and SDK queues so telemetry cannot become an
+unbounded Kafka delivery or rebalance delay.
 
 ## Verification
 
