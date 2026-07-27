@@ -20,6 +20,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Refresh aggregate release evidence after pinning the Go Money objective's
+  resolvable owned-module revisions.
 - Restrict evidence discovery to tracked and non-ignored source inputs so
   ignored local dependency trees cannot change clean-clone evidence.
 - Enforce the nested Go Money objective fuzzer through the canonical fuzz
