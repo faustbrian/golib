@@ -73,6 +73,78 @@ func TestJSONCodecRoundTripsRegisteredEventDeterministically(t *testing.T) {
 	}
 }
 
+func TestJSONCodecSupportsReaderFirstRollingSchemaDeployment(t *testing.T) {
+	t.Parallel()
+
+	type registeredV1 struct {
+		ID uint64 `json:"id"`
+	}
+	type registeredV2 struct {
+		ID      uint64 `json:"id"`
+		Segment string `json:"segment"`
+	}
+
+	oldWriter, err := eventsourcing.NewJSONCodec(
+		eventsourcing.JSONEvent[registeredV1]("customer.registered", 1),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newReader, err := eventsourcing.NewJSONCodec(
+		eventsourcing.JSONEvent[registeredV1]("customer.registered", 1),
+		eventsourcing.JSONEvent[registeredV2]("customer.registered", 2),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldEvent, err := eventsourcing.NewDecodedEvent(
+		eventsourcing.DecodedEventInput{
+			Name:    "customer.registered",
+			Version: 1,
+			Value:   registeredV1{ID: 42},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedByOldWriter, err := oldWriter.Encode(oldEvent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decodedByNewReader, err := newReader.Decode(storedByOldWriter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decodedByNewReader.Version() != 1 ||
+		decodedByNewReader.Value() != (registeredV1{ID: 42}) {
+		t.Fatalf("new reader decoded old event = %#v", decodedByNewReader)
+	}
+
+	newEvent, err := eventsourcing.NewDecodedEvent(
+		eventsourcing.DecodedEventInput{
+			Name:    "customer.registered",
+			Version: 2,
+			Value:   registeredV2{ID: 42, Segment: "business"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedByNewWriter, err := newReader.Encode(newEvent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := oldWriter.Decode(storedByNewWriter); !errors.Is(
+		err,
+		eventsourcing.ErrIncompatibleVersion,
+	) {
+		t.Fatalf(
+			"old reader Decode(new schema) error = %v, want ErrIncompatibleVersion",
+			err,
+		)
+	}
+}
+
 func TestJSONCodecUsesExplicitAliasesWithoutChangingStoredHistory(t *testing.T) {
 	t.Parallel()
 

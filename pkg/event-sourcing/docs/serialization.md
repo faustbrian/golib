@@ -158,6 +158,19 @@ For every event change:
    and
 8. deploy readers before writers when compatibility requires it.
 
+For a rolling schema deployment, first release readers with registrations or
+upcasters for both the retained and new schema versions while writers continue
+emitting the retained version. After every active reader can consume both,
+release writers that emit the new version. An old reader encountering that new
+version fails explicitly with `ErrIncompatibleVersion`; it does not skip the
+event or treat its stable name as wholly unknown. Once any new-version event
+may be durable, rollback must retain the dual-version reader rather than
+returning to the old reader. New-version decoding remains required for the
+lifetime of retained history, broker records, backups, and outbox envelopes.
+The
+`TestJSONCodecSupportsReaderFirstRollingSchemaDeployment` test exercises this
+old-writer/new-reader and new-writer/old-reader boundary.
+
 Never mutate an existing event's meaning while keeping its name and version.
 Never remove a decoder while retained history or backups still contain that
 identity. Snapshot schema evolution is separate from event schema evolution;
