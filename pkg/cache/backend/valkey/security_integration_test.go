@@ -67,7 +67,10 @@ func startSecuredValkey(
 	request := testcontainers.ContainerRequest{
 		Image:        image,
 		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForListeningPort("6379/tcp"),
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("6379/tcp"),
+			wait.ForLog("Ready to accept connections"),
+		),
 		Cmd: []string{
 			"valkey-server", "--requirepass", valkeyTestPassword,
 		},
