@@ -19,6 +19,8 @@ Versioning and keeps an Unreleased section at the top.
 
 - Atomic Valkey `SetIfOwned` publication guarded by an active lease owner and
   fencing token, with fail-closed ownership errors and typed cache support.
+- Atomic `SetNegativeIfOwned` publication for authoritative absence under the
+  same active lease and fencing-token guarantee.
 - Typed cache API with explicit hit, miss, stale, and negative results.
 - Bounded cache-aside loading, cancellation, panic cleanup, negative caching,
   stale policies, and refresh jitter.

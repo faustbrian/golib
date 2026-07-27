@@ -56,13 +56,14 @@ The Valkey adapter uses valkey-go's command builder and binary-safe values. Its
 wire and conditional semantics match the Redis adapter, including the relative
 hard deadline and 1 ms minimum.
 
-It also implements `OwnershipBackend`. `SetIfOwned` atomically checks a
-compatible lease hash's exact owner and fencing token before setting the cache
-record. Obtain the opaque guard from `lease/valkey.Store.Guard`; do not derive
-lease storage keys in application code. Both adapters must use the same
-standalone Valkey deployment and an ACL that permits the cache key and guarded
-lease hash. The protected script intentionally fails closed when the lease is
-missing or expired.
+It also implements `OwnershipBackend`. `SetIfOwned` and
+`SetNegativeIfOwned` atomically check a compatible lease hash's exact owner and
+fencing token before setting a positive or explicit negative cache record.
+Obtain the opaque guard from `lease/valkey.Store.Guard`; do not derive lease
+storage keys in application code. Both adapters must use the same standalone
+Valkey deployment and an ACL that permits the cache key and guarded lease hash.
+The protected script intentionally fails closed when the lease is missing or
+expired.
 
 ## Ownership and shutdown
 

@@ -35,6 +35,8 @@ absence marker.
 - `Set` writes unconditionally.
 - `SetIfOwned` atomically writes only while an `OwnershipGuard` matches an
   active owner in an `OwnershipBackend`.
+- `SetNegativeIfOwned` atomically writes an explicit negative record under the
+  same ownership check and requires a positive configured `NegativeTTL`.
 - `Add` atomically writes only if no live record exists.
 - `Replace` atomically writes only if a live record exists.
 - `Delete` is idempotent at the semantic API.
@@ -42,13 +44,14 @@ absence marker.
 Conditional false results are not errors. Backends must implement the
 conditions atomically.
 
-`SetIfOwned` fails with `ErrOwnershipUnsupported` before encoding when the
-configured backend lacks the optional capability. A missing, expired, or
-superseded guard fails with `ErrOwnershipLost` and is also classified as
-`ErrBackend` by the semantic cache. A successful protected write has the same
-TTL, size, observation, and same-instance load-precedence behavior as `Set`.
-The built-in implementation is the Valkey adapter; the cache package does not
-acquire, renew, or release leases.
+Protected publication fails with `ErrOwnershipUnsupported` when the configured
+backend lacks the optional capability. A missing, expired, or superseded guard
+fails with `ErrOwnershipLost` and is also classified as `ErrBackend` by the
+semantic cache. A successful protected write has the same observation and
+same-instance load-precedence behavior as `Set`; positive records use the
+normal TTL policy and negative records use `NegativeTTL`. The built-in
+implementation is the Valkey adapter; the cache package does not acquire,
+renew, or release leases.
 
 ## Cache-aside loading
 

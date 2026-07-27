@@ -35,6 +35,70 @@ func TestSetIfOwnedUsesAtomicBackendCapability(t *testing.T) {
 	}
 }
 
+func TestSetNegativeIfOwnedUsesAtomicBackendCapability(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	backend := &ownershipBackend{recordingBackend: newRecordingBackend()}
+	store, err := cache.New(cache.Config[string, string]{
+		Backend:  backend,
+		Keys:     mustStringKeySpace(t),
+		Codec:    cache.JSONCodec[string]{Version: 1},
+		TTL:      cache.TTLPolicy{TTL: time.Minute},
+		Clock:    fixedClock{now: now},
+		MaxValue: 1024,
+		Load: cache.LoadPolicy{
+			NegativeTTL: 30 * time.Second,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard := ownershipGuard{key: "lease:key", owner: "worker", token: "42"}
+
+	if err := store.SetNegativeIfOwned(
+		context.Background(),
+		"catalog",
+		guard,
+	); err != nil {
+		t.Fatalf("SetNegativeIfOwned() error = %v", err)
+	}
+	record := backend.records[backendKey(t, "catalog")]
+	if len(record.Payload) != 0 ||
+		!record.Negative ||
+		!record.ExpiresAt.Equal(now.Add(30*time.Second)) ||
+		!record.StaleAt.Equal(now.Add(30*time.Second)) {
+		t.Fatalf("protected negative record = %#v", record)
+	}
+	if backend.guard != guard {
+		t.Fatalf("protected guard = %#v, want %#v", backend.guard, guard)
+	}
+}
+
+func TestSetNegativeIfOwnedRequiresConfiguredTTL(t *testing.T) {
+	t.Parallel()
+
+	backend := &ownershipBackend{recordingBackend: newRecordingBackend()}
+	store := newStringCache(
+		t,
+		backend,
+		fixedClock{now: time.Now()},
+		cache.TTLPolicy{TTL: time.Minute},
+	)
+	guard := ownershipGuard{key: "lease:key", owner: "worker", token: "42"}
+
+	if err := store.SetNegativeIfOwned(
+		t.Context(),
+		"catalog",
+		guard,
+	); !errors.Is(err, cache.ErrInvalidPolicy) {
+		t.Fatalf("SetNegativeIfOwned() error = %v", err)
+	}
+	if len(backend.records) != 0 {
+		t.Fatal("invalid protected negative write mutated the cache")
+	}
+}
+
 func TestSetIfOwnedFailsClosed(t *testing.T) {
 	t.Parallel()
 
@@ -220,6 +284,64 @@ func TestSetIfOwnedSupersedesActiveLocalLoad(t *testing.T) {
 	result, err := store.Get(t.Context(), "catalog")
 	if err != nil || result.State != cache.Hit || result.Value != "fresh" {
 		t.Fatalf("protected mutation was resurrected: result=%#v err=%v", result, err)
+	}
+}
+
+func TestSetNegativeIfOwnedSupersedesActiveLocalLoad(t *testing.T) {
+	t.Parallel()
+
+	backend := &ownershipBackend{recordingBackend: newRecordingBackend()}
+	store, err := cache.New(cache.Config[string, string]{
+		Backend:  backend,
+		Keys:     mustStringKeySpace(t),
+		Codec:    cache.JSONCodec[string]{Version: 1},
+		TTL:      cache.TTLPolicy{TTL: time.Minute},
+		Clock:    cache.SystemClock{},
+		MaxValue: 1024,
+		Load: cache.LoadPolicy{
+			NegativeTTL: 30 * time.Second,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	loaded := make(chan error, 1)
+	go func() {
+		_, err := store.GetOrLoad(t.Context(), "catalog", func(
+			context.Context,
+			string,
+		) (cache.LoadResult[string], error) {
+			close(started)
+			<-release
+			return cache.LoadResult[string]{
+				Value: "obsolete",
+				Found: true,
+			}, nil
+		})
+		loaded <- err
+	}()
+	<-started
+	guard := ownershipGuard{key: "lease:key", owner: "worker", token: "42"}
+	if err := store.SetNegativeIfOwned(
+		t.Context(),
+		"catalog",
+		guard,
+	); err != nil {
+		t.Fatalf("SetNegativeIfOwned() error = %v", err)
+	}
+	close(release)
+	if err := <-loaded; err != nil {
+		t.Fatalf("GetOrLoad() error = %v", err)
+	}
+	result, err := store.Get(t.Context(), "catalog")
+	if err != nil || result.State != cache.Miss || !result.Negative {
+		t.Fatalf(
+			"protected negative mutation was resurrected: result=%#v err=%v",
+			result,
+			err,
+		)
 	}
 }
 

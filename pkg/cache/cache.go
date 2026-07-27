@@ -424,6 +424,58 @@ func (c *Cache[K, V]) SetIfOwned(
 	logical K,
 	value V,
 	guard OwnershipGuard,
+) error {
+	return c.setIfOwned(ctx, logical, guard, func() (Record, int, error) {
+		payload, err := c.codec.Encode(value)
+		if err != nil {
+			return Record{}, 0, err
+		}
+		if len(payload) > c.maxValue {
+			return Record{}, 0, &Error{
+				Kind:      LimitError,
+				Operation: OperationSet,
+				Cause:     ErrValueTooLarge,
+			}
+		}
+		now := c.clock.Now().Round(0)
+		return Record{
+			Payload:   payload,
+			ExpiresAt: now.Add(c.ttl.TTL),
+			StaleAt:   now.Add(c.ttl.TTL).Add(c.ttl.StaleFor),
+		}, len(payload), nil
+	})
+}
+
+// SetNegativeIfOwned atomically writes an explicit negative record only while
+// guard identifies the active backend owner. The configured NegativeTTL must
+// be positive. Ownership loss is reported as ErrOwnershipLost.
+func (c *Cache[K, V]) SetNegativeIfOwned(
+	ctx context.Context,
+	logical K,
+	guard OwnershipGuard,
+) error {
+	return c.setIfOwned(ctx, logical, guard, func() (Record, int, error) {
+		if c.load.NegativeTTL <= 0 {
+			return Record{}, 0, &Error{
+				Kind:      PolicyError,
+				Operation: OperationSet,
+				Cause:     ErrInvalidPolicy,
+			}
+		}
+		now := c.clock.Now().Round(0)
+		return Record{
+			ExpiresAt: now.Add(c.load.NegativeTTL),
+			StaleAt:   now.Add(c.load.NegativeTTL),
+			Negative:  true,
+		}, 0, nil
+	})
+}
+
+func (c *Cache[K, V]) setIfOwned(
+	ctx context.Context,
+	logical K,
+	guard OwnershipGuard,
+	buildRecord func() (Record, int, error),
 ) (err error) {
 	start := c.clock.Now()
 	size := 0
@@ -463,19 +515,9 @@ func (c *Cache[K, V]) SetIfOwned(
 	if flight != nil {
 		defer flight.mutation.Unlock()
 	}
-	payload, err := c.codec.Encode(value)
+	record, size, err := buildRecord()
 	if err != nil {
 		return err
-	}
-	if len(payload) > c.maxValue {
-		return &Error{Kind: LimitError, Operation: OperationSet, Cause: ErrValueTooLarge}
-	}
-	size = len(payload)
-	now := c.clock.Now().Round(0)
-	record := Record{
-		Payload:   payload,
-		ExpiresAt: now.Add(c.ttl.TTL),
-		StaleAt:   now.Add(c.ttl.TTL).Add(c.ttl.StaleFor),
 	}
 	if err := record.Validate(); err != nil {
 		return err

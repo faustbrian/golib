@@ -89,9 +89,11 @@ errors and can be classified with `errors.Is`.
 
 For distributed refreshes, acquire a Valkey lease through
 `github.com/faustbrian/golib/pkg/lease/valkey`, derive its opaque guard with
-`Store.Guard`, and pass that guard to `Cache.SetIfOwned`. The cache record and
-active owner/token comparison occur in one Valkey script. The lease store and
-cache backend must use the same standalone Valkey deployment.
+`Store.Guard`, and pass that guard to `Cache.SetIfOwned` or
+`Cache.SetNegativeIfOwned`. The cache record and active owner/token comparison
+occur in one Valkey script. Protected negative publication uses the configured
+`NegativeTTL`. The lease store and cache backend must use the same standalone
+Valkey deployment.
 
 ## Choose a policy
 

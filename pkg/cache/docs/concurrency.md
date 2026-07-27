@@ -18,18 +18,20 @@ Loader panics are recovered, classified as `ErrLoaderPanic`, and cannot poison
 the flight map. Source errors match `ErrLoader`; they are never converted into
 negative entries. A `Found:false` result may create a bounded negative record.
 
-A successful `Set`, `SetIfOwned`, `Add`, `Replace`, or `Delete` on the same
-cache instance wins over a concurrent foreground load or background refresh.
-Failed writes and rejected conditions do not suppress a valid loader result.
-Ordinary mutations do not fence another process or another `Cache` instance.
+A successful `Set`, `SetIfOwned`, `SetNegativeIfOwned`, `Add`, `Replace`, or
+`Delete` on the same cache instance wins over a concurrent foreground load or
+background refresh. Failed writes and rejected conditions do not suppress a
+valid loader result. Ordinary mutations do not fence another process or
+another `Cache` instance.
 
-For a distributed refresh using the Valkey backend, `SetIfOwned` compares the
-exact active lease storage key, owner, and fencing token and writes the cache
-record in one server-side script. Expired, released, missing, and successor
-leases reject the publish with `ErrOwnershipLost`, even when the previous cache
-record has expired or was deleted. This protects reconstructible cache
-publication; it is not a distributed lock API, exactly-once loading promise, or
-substitute for resource-side fencing of durable business effects.
+For a distributed refresh using the Valkey backend, `SetIfOwned` and
+`SetNegativeIfOwned` compare the exact active lease storage key, owner, and
+fencing token and write the cache record in one server-side script. Expired,
+released, missing, and successor leases reject the publish with
+`ErrOwnershipLost`, even when the previous cache record has expired or was
+deleted. This protects reconstructible cache publication; it is not a
+distributed lock API, exactly-once loading promise, or substitute for
+resource-side fencing of durable business effects.
 
 Stale-while-revalidate uses the same flight map and global bound. Repeated stale
 reads therefore start one background refresh per key. Stale-if-error waits on

@@ -57,5 +57,6 @@ deterministic `JitterSource` in tests.
 Load coalescing and mutation precedence are process-local. If another process
 can invalidate while this process loads, use source versioning, versioned keys,
 or another application-level fence. For reconstructible Valkey refreshes,
-`SetIfOwned` can atomically require an active external lease. The cache still
-does not claim a distributed lock or globally ordered invalidation.
+`SetIfOwned` and `SetNegativeIfOwned` can atomically require an active external
+lease. The cache still does not claim a distributed lock or globally ordered
+invalidation.
