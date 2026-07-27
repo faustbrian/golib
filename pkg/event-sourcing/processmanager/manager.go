@@ -11,6 +11,9 @@ import (
 )
 
 const (
+	// MaxAcceptedEventNames bounds one process manager's stable event-name
+	// allowlist.
+	MaxAcceptedEventNames = 1_000
 	// MaxPlannedCommands bounds one process-manager reaction.
 	MaxPlannedCommands = 1_000
 )
@@ -44,6 +47,7 @@ type Planner[Command any] func(
 type Config[Command any] struct {
 	Name        string
 	Replay      ReplayPolicy
+	EventNames  []eventsourcing.EventName
 	MaxCommands uint32
 	Planner     Planner[Command]
 }
@@ -55,6 +59,7 @@ type Config[Command any] struct {
 type Manager[Command any] struct {
 	planner     Planner[Command]
 	replay      ReplayPolicy
+	eventNames  map[eventsourcing.EventName]struct{}
 	maxCommands uint32
 }
 
@@ -69,6 +74,23 @@ func New[Command any](config Config[Command]) (*Manager[Command], error) {
 	if config.Replay != RejectReplay && config.Replay != AllowReplay {
 		return nil, invalid("replay policy is unknown")
 	}
+	if len(config.EventNames) == 0 ||
+		len(config.EventNames) > MaxAcceptedEventNames {
+		return nil, invalid("accepted event names must be bounded")
+	}
+	eventNames := make(
+		map[eventsourcing.EventName]struct{},
+		len(config.EventNames),
+	)
+	for _, eventName := range config.EventNames {
+		if eventName.IsZero() {
+			return nil, invalid("accepted event name must be assigned")
+		}
+		if _, duplicate := eventNames[eventName]; duplicate {
+			return nil, invalid("accepted event names must be unique")
+		}
+		eventNames[eventName] = struct{}{}
+	}
 	if config.MaxCommands == 0 ||
 		config.MaxCommands > MaxPlannedCommands {
 		return nil, invalid("command limit must be bounded")
@@ -80,6 +102,7 @@ func New[Command any](config Config[Command]) (*Manager[Command], error) {
 	return &Manager[Command]{
 		planner:     config.Planner,
 		replay:      config.Replay,
+		eventNames:  eventNames,
 		maxCommands: config.MaxCommands,
 	}, nil
 }
@@ -90,6 +113,7 @@ func New[Command any](config Config[Command]) (*Manager[Command], error) {
 type PlanResult[Command any] struct {
 	messageID eventsourcing.MessageID
 	mode      eventsourcing.DeliveryMode
+	accepted  bool
 	commands  []Command
 }
 
@@ -101,6 +125,12 @@ func (result PlanResult[Command]) MessageID() eventsourcing.MessageID {
 // Mode returns whether the triggering delivery was live or replay.
 func (result PlanResult[Command]) Mode() eventsourcing.DeliveryMode {
 	return result.mode
+}
+
+// Accepted reports whether the triggering event name matched the manager's
+// explicit allowlist and invoked its planner.
+func (result PlanResult[Command]) Accepted() bool {
+	return result.accepted
 }
 
 // CommandCount returns the number of planned commands without copying them.
@@ -134,6 +164,12 @@ func (manager *Manager[Command]) Plan(
 		manager.replay != AllowReplay {
 		return PlanResult[Command]{}, ErrReplayRejected
 	}
+	if _, accepted := manager.eventNames[message.Event().Name()]; !accepted {
+		return PlanResult[Command]{
+			messageID: message.ID(),
+			mode:      delivery.Mode(),
+		}, nil
+	}
 	commands, err := callPlanner(ctx, manager.planner, delivery)
 	if err != nil {
 		return PlanResult[Command]{}, &PlannerError{Cause: err}
@@ -145,6 +181,7 @@ func (manager *Manager[Command]) Plan(
 	return PlanResult[Command]{
 		messageID: message.ID(),
 		mode:      delivery.Mode(),
+		accepted:  true,
 		commands:  commands,
 	}, nil
 }

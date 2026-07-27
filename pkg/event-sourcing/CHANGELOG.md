@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require every process manager to declare a bounded stable event-name
+  allowlist and expose whether a delivery was accepted, preventing unrelated
+  events from invoking planners implicitly.
 - Distinguish unknown event names from known names at unsupported schema
   versions through `ErrIncompatibleVersion`; JSON aliases remain decode-only.
 - Correct the pinned EventSauce 3.9.1 publication provenance and refresh the

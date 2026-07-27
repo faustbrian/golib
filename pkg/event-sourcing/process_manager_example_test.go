@@ -14,10 +14,15 @@ type sendWelcomeEmail struct {
 }
 
 func Example_processManagerPlanning() {
+	opened, err := eventsourcing.NewEventName("account.opened")
+	if err != nil {
+		panic(err)
+	}
 	manager, err := processmanager.New(
 		processmanager.Config[sendWelcomeEmail]{
 			Name:        "welcome-email",
 			Replay:      processmanager.RejectReplay,
+			EventNames:  []eventsourcing.EventName{opened},
 			MaxCommands: 1,
 			Planner: func(
 				_ context.Context,

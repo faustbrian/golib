@@ -177,8 +177,10 @@ conformance diagnostics never format aggregate or snapshot state.
 
 `CheckProcessManagerScenario` exercises a real process manager through its
 public planning contract. Success scenarios compare message identity, live or
-replay mode, and ordered application commands. Failure scenarios use
-`errors.Is` categories and reject partial plan output:
+replay mode, explicit event acceptance, and ordered application commands.
+`Ignored: true` proves an unmatched stable event name returns no plan without
+invoking the planner. Failure scenarios use `errors.Is` categories and reject
+partial plan output:
 
 ```go
 err := eventtest.CheckProcessManagerScenario(ctx,

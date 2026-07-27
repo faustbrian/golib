@@ -622,7 +622,9 @@ type ProcessManager[Command any] interface {
 
 Planning returns commands or messages for an application-owned executor. A
 replay delivery is rejected by default, so rebuilding a projection cannot
-silently execute external effects.
+silently execute external effects. Construction requires a bounded allowlist
+of stable event names; `PlanResult.Accepted` distinguishes an ignored delivery
+from an accepted event that intentionally plans zero commands.
 
 ## Errors
 

@@ -451,14 +451,21 @@ type telemetryGlobalReader struct {
 	iterator   eventsourcing.MessageIterator
 	err        error
 	panicValue any
+	read       func(
+		context.Context,
+		eventsourcing.ReadGlobalOptions,
+	) (eventsourcing.MessageIterator, error)
 }
 
 func (reader *telemetryGlobalReader) ReadGlobal(
-	context.Context,
-	eventsourcing.ReadGlobalOptions,
+	ctx context.Context,
+	options eventsourcing.ReadGlobalOptions,
 ) (eventsourcing.MessageIterator, error) {
 	if reader.panicValue != nil {
 		panic(reader.panicValue)
+	}
+	if reader.read != nil {
+		return reader.read(ctx, options)
 	}
 	return reader.iterator, reader.err
 }

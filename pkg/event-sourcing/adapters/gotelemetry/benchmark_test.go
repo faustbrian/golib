@@ -243,8 +243,11 @@ func BenchmarkProcessManager(b *testing.B) {
 		b.Fatal(err)
 	}
 	manager, err := processmanager.New(processmanager.Config[uint64]{
-		Name:        "benchmark-planner",
-		Replay:      processmanager.RejectReplay,
+		Name:   "benchmark-planner",
+		Replay: processmanager.RejectReplay,
+		EventNames: []eventsourcing.EventName{
+			telemetryEventName(b),
+		},
 		MaxCommands: 1,
 		Planner: func(
 			context.Context,

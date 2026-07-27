@@ -644,6 +644,17 @@ func telemetryDelivery(
 	return delivery
 }
 
+func telemetryEventName(t testing.TB) eventsourcing.EventName {
+	t.Helper()
+
+	name, err := eventsourcing.NewEventName("account.changed")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return name
+}
+
 func assertPanicPreserved(t *testing.T, want any, operation func()) {
 	t.Helper()
 

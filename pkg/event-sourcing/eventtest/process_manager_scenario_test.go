@@ -36,8 +36,11 @@ func TestCheckProcessManagerScenarioMatchesPlanAndExpectedFailure(
 
 	delivery := processManagerDelivery(t, eventsourcing.DeliveryLive)
 	manager, err := processmanager.New(processmanager.Config[scenarioCommand]{
-		Name:        "welcome-flow",
-		Replay:      processmanager.RejectReplay,
+		Name:   "welcome-flow",
+		Replay: processmanager.RejectReplay,
+		EventNames: []eventsourcing.EventName{
+			delivery.Message().Event().Name(),
+		},
 		MaxCommands: 2,
 		Planner: func(
 			context.Context,
@@ -70,6 +73,40 @@ func TestCheckProcessManagerScenarioMatchesPlanAndExpectedFailure(
 		t.Fatalf("CheckProcessManagerScenario(success) error = %v", err)
 	}
 
+	closedName, err := eventsourcing.NewEventName("account.closed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ignoredManager, err := processmanager.New(
+		processmanager.Config[scenarioCommand]{
+			Name:        "ignored-flow",
+			EventNames:  []eventsourcing.EventName{closedName},
+			MaxCommands: 1,
+			Planner: func(
+				context.Context,
+				eventsourcing.Delivery,
+			) ([]scenarioCommand, error) {
+				t.Fatal("planner ran for an ignored event")
+
+				return nil, nil
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = eventtest.CheckProcessManagerScenario(
+		context.Background(),
+		eventtest.ProcessManagerScenario[scenarioCommand]{
+			Manager:  ignoredManager,
+			Delivery: delivery,
+			Ignored:  true,
+		},
+	)
+	if err != nil {
+		t.Fatalf("CheckProcessManagerScenario(ignored) error = %v", err)
+	}
+
 	replay := processManagerDelivery(t, eventsourcing.DeliveryReplay)
 	err = eventtest.CheckProcessManagerScenario(
 		context.Background(),
@@ -91,7 +128,10 @@ func TestCheckProcessManagerScenarioRejectsInvalidConfiguration(
 
 	delivery := processManagerDelivery(t, eventsourcing.DeliveryLive)
 	manager, err := processmanager.New(processmanager.Config[scenarioCommand]{
-		Name:        "validation-flow",
+		Name: "validation-flow",
+		EventNames: []eventsourcing.EventName{
+			delivery.Message().Event().Name(),
+		},
 		MaxCommands: 1,
 		Planner: func(
 			context.Context,
@@ -154,6 +194,33 @@ func TestCheckProcessManagerScenarioRejectsInvalidConfiguration(
 				WantError: errors.New("expected"),
 			},
 		},
+		"ignored with commands": {
+			ctx: context.Background(),
+			scenario: eventtest.ProcessManagerScenario[scenarioCommand]{
+				Manager:  manager,
+				Delivery: delivery,
+				Commands: []scenarioCommand{{action: "notify"}},
+				Ignored:  true,
+			},
+		},
+		"ignored with equality": {
+			ctx: context.Background(),
+			scenario: eventtest.ProcessManagerScenario[scenarioCommand]{
+				Manager:  manager,
+				Delivery: delivery,
+				Equal:    func(scenarioCommand, scenarioCommand) bool { return true },
+				Ignored:  true,
+			},
+		},
+		"error with ignored": {
+			ctx: context.Background(),
+			scenario: eventtest.ProcessManagerScenario[scenarioCommand]{
+				Manager:   manager,
+				Delivery:  delivery,
+				Ignored:   true,
+				WantError: errors.New("expected"),
+			},
+		},
 	}
 	for name, testCase := range tests {
 		testCase := testCase
@@ -179,7 +246,10 @@ func TestCheckProcessManagerScenarioReportsRedactedMismatches(
 	delivery := processManagerDelivery(t, eventsourcing.DeliveryLive)
 	secretFailure := errors.New("secret planner failure")
 	success, err := processmanager.New(processmanager.Config[scenarioCommand]{
-		Name:        "mismatch-flow",
+		Name: "mismatch-flow",
+		EventNames: []eventsourcing.EventName{
+			delivery.Message().Event().Name(),
+		},
 		MaxCommands: 1,
 		Planner: func(
 			context.Context,
@@ -214,8 +284,11 @@ func TestCheckProcessManagerScenarioReportsRedactedMismatches(
 	})
 	replayManager, err := processmanager.New(
 		processmanager.Config[scenarioCommand]{
-			Name:        "replay-mismatch-flow",
-			Replay:      processmanager.AllowReplay,
+			Name:   "replay-mismatch-flow",
+			Replay: processmanager.AllowReplay,
+			EventNames: []eventsourcing.EventName{
+				delivery.Message().Event().Name(),
+			},
 			MaxCommands: 1,
 			Planner: func(
 				context.Context,
@@ -235,6 +308,33 @@ func TestCheckProcessManagerScenarioReportsRedactedMismatches(
 	if err != nil {
 		t.Fatal(err)
 	}
+	ignoredName, err := eventsourcing.NewEventName("account.closed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ignoredManager, err := processmanager.New(
+		processmanager.Config[scenarioCommand]{
+			Name:        "ignored-mismatch-flow",
+			EventNames:  []eventsourcing.EventName{ignoredName},
+			MaxCommands: 1,
+			Planner: func(
+				context.Context,
+				eventsourcing.Delivery,
+			) ([]scenarioCommand, error) {
+				return nil, nil
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ignoredResult, err := ignoredManager.Plan(
+		context.Background(),
+		delivery,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	wrongMode := processManagerFunc[scenarioCommand](func(
 		context.Context,
 		eventsourcing.Delivery,
@@ -246,6 +346,12 @@ func TestCheckProcessManagerScenarioReportsRedactedMismatches(
 		eventsourcing.Delivery,
 	) (processmanager.PlanResult[scenarioCommand], error) {
 		return otherResult, secretFailure
+	})
+	wrongAcceptance := processManagerFunc[scenarioCommand](func(
+		context.Context,
+		eventsourcing.Delivery,
+	) (processmanager.PlanResult[scenarioCommand], error) {
+		return ignoredResult, nil
 	})
 	tests := map[string]eventtest.ProcessManagerScenario[scenarioCommand]{
 		"length": {
@@ -269,6 +375,10 @@ func TestCheckProcessManagerScenarioReportsRedactedMismatches(
 			Delivery: delivery,
 			Commands: []scenarioCommand{{action: "secret-command"}},
 			Equal:    func(left, right scenarioCommand) bool { return left == right },
+		},
+		"event acceptance": {
+			Manager:  wrongAcceptance,
+			Delivery: delivery,
 		},
 		"unexpected failure": {
 			Manager:  failure,

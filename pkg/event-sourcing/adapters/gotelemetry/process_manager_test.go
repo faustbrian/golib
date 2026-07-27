@@ -52,8 +52,11 @@ func TestProcessManagerInstrumentationMeasuresSuccessfulPlan(t *testing.T) {
 	var handled eventsourcing.Delivery
 	manager, err := processmanager.New(
 		processmanager.Config[telemetryCommand]{
-			Name:        "welcome-email",
-			Replay:      processmanager.AllowReplay,
+			Name:   "welcome-email",
+			Replay: processmanager.AllowReplay,
+			EventNames: []eventsourcing.EventName{
+				telemetryEventName(t),
+			},
 			MaxCommands: 2,
 			Planner: func(
 				ctx context.Context,

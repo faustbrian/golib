@@ -39,8 +39,16 @@ func TestProjectionRunnerInstrumentationMeasuresProgressAndTermination(
 	}
 	message := telemetryMessageAtPosition(t, 1)
 	global := &telemetryGlobalReader{
-		iterator: &telemetryIterator{
-			messages: []eventsourcing.Message{message},
+		read: func(
+			_ context.Context,
+			options eventsourcing.ReadGlobalOptions,
+		) (eventsourcing.MessageIterator, error) {
+			messages := []eventsourcing.Message(nil)
+			if options.FromPosition() == 1 {
+				messages = []eventsourcing.Message{message}
+			}
+
+			return &telemetryIterator{messages: messages}, nil
 		},
 	}
 	checkpoints := memory.NewProjectionStore()

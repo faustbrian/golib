@@ -24,6 +24,7 @@ type ProcessManagerScenario[Command any] struct {
 	Delivery  eventsourcing.Delivery
 	Commands  []Command
 	Equal     func(Command, Command) bool
+	Ignored   bool
 	WantError error
 }
 
@@ -37,9 +38,14 @@ func CheckProcessManagerScenario[Command any](
 		return eventsourcing.ErrInvalidArgument
 	}
 	if scenario.WantError != nil {
-		if len(scenario.Commands) != 0 || scenario.Equal != nil {
+		if len(scenario.Commands) != 0 ||
+			scenario.Equal != nil ||
+			scenario.Ignored {
 			return eventsourcing.ErrInvalidArgument
 		}
+	} else if scenario.Ignored &&
+		(len(scenario.Commands) != 0 || scenario.Equal != nil) {
+		return eventsourcing.ErrInvalidArgument
 	} else if len(scenario.Commands) != 0 && scenario.Equal == nil {
 		return eventsourcing.ErrInvalidArgument
 	}
@@ -60,6 +66,12 @@ func CheckProcessManagerScenario[Command any](
 	if result.Mode() != scenario.Delivery.Mode() {
 		return fmt.Errorf(
 			"%w: process-manager delivery mode differs",
+			ErrConformance,
+		)
+	}
+	if result.Accepted() == scenario.Ignored {
+		return fmt.Errorf(
+			"%w: process-manager event acceptance differs",
 			ErrConformance,
 		)
 	}
@@ -96,6 +108,7 @@ func checkProcessManagerFailure[Command any](
 	}
 	if !result.MessageID().IsZero() ||
 		result.Mode() != 0 ||
+		result.Accepted() ||
 		len(result.Commands()) != 0 {
 		return fmt.Errorf(
 			"%w: failed process-manager plan returned partial output",

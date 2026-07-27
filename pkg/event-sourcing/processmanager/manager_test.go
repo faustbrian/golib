@@ -20,8 +20,11 @@ func TestNewManagerRejectsInvalidConfiguration(t *testing.T) {
 	t.Parallel()
 
 	valid := processmanager.Config[managerCommand]{
-		Name:        "welcome-flow",
-		Replay:      processmanager.RejectReplay,
+		Name:   "welcome-flow",
+		Replay: processmanager.RejectReplay,
+		EventNames: []eventsourcing.EventName{
+			managerEventName(t, "account.opened"),
+		},
 		MaxCommands: 1,
 		Planner: func(
 			context.Context,
@@ -36,6 +39,18 @@ func TestNewManagerRejectsInvalidConfiguration(t *testing.T) {
 		},
 		"replay": func(config *processmanager.Config[managerCommand]) {
 			config.Replay = 99
+		},
+		"zero event name": func(config *processmanager.Config[managerCommand]) {
+			config.EventNames = []eventsourcing.EventName{{}}
+		},
+		"duplicate event name": func(config *processmanager.Config[managerCommand]) {
+			config.EventNames = append(config.EventNames, config.EventNames[0])
+		},
+		"too many event names": func(config *processmanager.Config[managerCommand]) {
+			config.EventNames = make(
+				[]eventsourcing.EventName,
+				processmanager.MaxAcceptedEventNames+1,
+			)
 		},
 		"zero limit": func(config *processmanager.Config[managerCommand]) {
 			config.MaxCommands = 0
@@ -60,6 +75,26 @@ func TestNewManagerRejectsInvalidConfiguration(t *testing.T) {
 				t.Fatalf("New() = %#v, %v", manager, err)
 			}
 		})
+	}
+}
+
+func TestNewManagerRequiresExplicitAcceptedEvents(t *testing.T) {
+	t.Parallel()
+
+	manager, err := processmanager.New(processmanager.Config[managerCommand]{
+		Name:        "welcome-flow",
+		Replay:      processmanager.RejectReplay,
+		MaxCommands: 1,
+		Planner: func(
+			context.Context,
+			eventsourcing.Delivery,
+		) ([]managerCommand, error) {
+			return nil, nil
+		},
+	})
+	if manager != nil ||
+		!errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("New() = %#v, %v", manager, err)
 	}
 }
 
@@ -136,6 +171,7 @@ func TestManagerPlansExplicitCommandsForLiveDelivery(t *testing.T) {
 	commands := planned.Commands()
 	if planned.MessageID() != delivery.Message().ID() ||
 		planned.Mode() != eventsourcing.DeliveryLive ||
+		!planned.Accepted() ||
 		planned.CommandCount() != 2 ||
 		len(commands) != 2 ||
 		commands[0].Action != "notify" ||
@@ -145,6 +181,63 @@ func TestManagerPlansExplicitCommandsForLiveDelivery(t *testing.T) {
 	commands[0].Action = "mutated"
 	if planned.Commands()[0].Action != "notify" {
 		t.Fatal("Commands() exposed owned slice state")
+	}
+}
+
+func TestManagerInvokesPlannerOnlyForAcceptedEventNames(t *testing.T) {
+	t.Parallel()
+
+	acceptedName := managerEventName(t, "account.opened")
+	otherName := managerEventName(t, "account.closed")
+	eventNames := []eventsourcing.EventName{acceptedName}
+	calls := 0
+	manager, err := processmanager.New(processmanager.Config[managerCommand]{
+		Name:        "welcome-flow",
+		Replay:      processmanager.RejectReplay,
+		EventNames:  eventNames,
+		MaxCommands: 1,
+		Planner: func(
+			context.Context,
+			eventsourcing.Delivery,
+		) ([]managerCommand, error) {
+			calls++
+
+			return []managerCommand{{Action: "notify"}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventNames[0] = otherName
+
+	ignoredDelivery := managerDeliveryForEvent(
+		t,
+		eventsourcing.DeliveryLive,
+		"account.closed",
+	)
+	ignored, err := manager.Plan(context.Background(), ignoredDelivery)
+	if err != nil ||
+		ignored.MessageID() != ignoredDelivery.Message().ID() ||
+		ignored.Mode() != eventsourcing.DeliveryLive ||
+		ignored.Accepted() ||
+		ignored.CommandCount() != 0 ||
+		calls != 0 {
+		t.Fatalf("Plan(ignored) = %#v, %v calls=%d", ignored, err, calls)
+	}
+
+	accepted, err := manager.Plan(
+		context.Background(),
+		managerDeliveryForEvent(
+			t,
+			eventsourcing.DeliveryLive,
+			"account.opened",
+		),
+	)
+	if err != nil ||
+		!accepted.Accepted() ||
+		accepted.CommandCount() != 1 ||
+		calls != 1 {
+		t.Fatalf("Plan(accepted) = %#v, %v calls=%d", accepted, err, calls)
 	}
 }
 
@@ -186,6 +279,7 @@ func TestManagerAllowsReplayOnlyWhenExplicitlySelected(t *testing.T) {
 	)
 	if err != nil ||
 		planned.Mode() != eventsourcing.DeliveryReplay ||
+		!planned.Accepted() ||
 		len(planned.Commands()) != 1 {
 		t.Fatalf("Plan(replay) = %#v, %v", planned, err)
 	}
@@ -240,6 +334,9 @@ func TestManagerReportsEmptyAndExcessivePlans(t *testing.T) {
 	)
 	if err != nil || len(planned.Commands()) != 0 {
 		t.Fatalf("empty Plan() = %#v, %v", planned, err)
+	}
+	if !planned.Accepted() {
+		t.Fatal("empty accepted plan was reported as ignored")
 	}
 
 	excessive := newProcessManager(t, processmanager.RejectReplay, 1, func(
@@ -320,8 +417,11 @@ func newProcessManager(
 	t.Helper()
 
 	manager, err := processmanager.New(processmanager.Config[managerCommand]{
-		Name:        "welcome-flow",
-		Replay:      replay,
+		Name:   "welcome-flow",
+		Replay: replay,
+		EventNames: []eventsourcing.EventName{
+			managerEventName(t, "account.opened"),
+		},
 		MaxCommands: maxCommands,
 		Planner:     planner,
 	})
@@ -338,12 +438,22 @@ func managerDelivery(
 ) eventsourcing.Delivery {
 	t.Helper()
 
+	return managerDeliveryForEvent(t, mode, "account.opened")
+}
+
+func managerDeliveryForEvent(
+	t *testing.T,
+	mode eventsourcing.DeliveryMode,
+	eventName string,
+) eventsourcing.Delivery {
+	t.Helper()
+
 	stream, err := eventsourcing.NewStreamID("account", "account-1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	event, err := eventsourcing.NewEncodedEvent(eventsourcing.EncodedEventInput{
-		Name:        "account.opened",
+		Name:        eventName,
 		Version:     1,
 		ContentType: "application/json",
 		Payload:     []byte("{}"),
@@ -376,4 +486,15 @@ func managerDelivery(
 	}
 
 	return delivery
+}
+
+func managerEventName(t *testing.T, value string) eventsourcing.EventName {
+	t.Helper()
+
+	name, err := eventsourcing.NewEventName(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return name
 }

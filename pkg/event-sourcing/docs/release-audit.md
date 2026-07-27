@@ -20,6 +20,8 @@ content-addressed repository and module evidence for the exact release inputs.
 | ES-006 | Medium | Benchmark claims lacked one complete raw, reproducible evidence set | Resolved | Raw core, competitor, PostgreSQL, and outbox results include checksums, input fingerprints, environment provenance, and statistical summaries |
 | ES-007 | Medium | Known event names at unsupported schema versions were reported as wholly unknown identities | Resolved | `ErrIncompatibleVersion` now distinguishes canonical and decode-alias version failures from unknown event names, with focused encode/decode regressions |
 | ES-008 | Low | The pinned EventSauce matrix recorded 2026-04-25 as the package release date | Resolved | The matrix records the Packagist publication date and a separately dated source and documentation verification |
+| ES-009 | High | Projection replay treated a restored event store behind its durable checkpoint as terminal | Resolved | The runner verifies the exact checkpoint position before terminal hooks, fails closed on missing history, and preserves terminal cancellation |
+| ES-010 | Medium | A process manager could invoke its planner without declaring which stable events it accepts | Resolved | Construction requires a bounded unique event-name allowlist; accepted and ignored delivery scenarios prove planner isolation |
 
 Excluded EventSauce mechanisms and externally owned guarantees are decisions,
 not open findings. They remain enumerated in the
