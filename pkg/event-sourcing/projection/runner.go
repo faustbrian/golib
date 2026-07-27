@@ -17,6 +17,12 @@ var (
 	ErrCheckpointConflict = errors.New("projection checkpoint conflict")
 	// ErrCheckpointCorrupt reports an invalid durable checkpoint value.
 	ErrCheckpointCorrupt = errors.New("projection checkpoint is corrupt")
+	// ErrCheckpointAheadOfHistory reports durable projection progress whose
+	// global position no longer exists in the authoritative event history.
+	ErrCheckpointAheadOfHistory = fmt.Errorf(
+		"%w: checkpoint is ahead of event history",
+		ErrCheckpointCorrupt,
+	)
 	// ErrHandlerPanic reports a contained projection handler panic.
 	ErrHandlerPanic = errors.New("projection handler panicked")
 )
@@ -205,6 +211,10 @@ func (runner *Runner) RunBatch(
 		checkpoint = 0
 	}
 	if checkpoint == eventsourcing.GlobalPosition(^uint64(0)) {
+		if err := runner.verifyCheckpoint(ctx, checkpoint); err != nil {
+			return result, err
+		}
+
 		return result, runner.afterReplayHook(ctx)
 	}
 	options, err := eventsourcing.NewReadGlobalOptions(
@@ -325,10 +335,71 @@ func (runner *Runner) RunBatch(
 		return result, err
 	}
 	if result.scanned == 0 {
+		if hasCheckpoint {
+			if err := runner.verifyCheckpoint(ctx, checkpoint); err != nil {
+				return result, err
+			}
+		}
+
 		return result, runner.afterReplayHook(ctx)
 	}
 
 	return result, nil
+}
+
+func (runner *Runner) verifyCheckpoint(
+	ctx context.Context,
+	checkpoint eventsourcing.GlobalPosition,
+) (err error) {
+	options, err := eventsourcing.NewReadGlobalOptions(
+		eventsourcing.ReadGlobalOptionsInput{
+			FromPosition: checkpoint,
+			ToPosition:   checkpoint,
+			Limit:        1,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	iterator, err := runner.reader.ReadGlobal(ctx, options)
+	if err != nil {
+		return err
+	}
+	if iterator == nil {
+		return fmt.Errorf(
+			"%w: global reader returned a nil iterator",
+			eventsourcing.ErrInvalidArgument,
+		)
+	}
+	closed := false
+	defer func() {
+		if !closed {
+			err = errors.Join(err, iterator.Err(), iterator.Close())
+		}
+	}()
+
+	if !iterator.Next(ctx) {
+		iteratorErr := iterator.Err()
+		closeErr := iterator.Close()
+		closed = true
+		if err := errors.Join(iteratorErr, closeErr); err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		return ErrCheckpointAheadOfHistory
+	}
+	position, ok := iterator.Message().GlobalPosition()
+	if !ok || position != checkpoint || iterator.Next(ctx) {
+		return eventsourcing.ErrCorruptHistory
+	}
+	iteratorErr := iterator.Err()
+	closeErr := iterator.Close()
+	closed = true
+
+	return errors.Join(iteratorErr, closeErr)
 }
 
 // HandlerError redacts application projection diagnostics while preserving
@@ -362,11 +433,11 @@ func callHandler(
 }
 
 func (runner *Runner) afterReplayHook(ctx context.Context) error {
-	if runner.afterReplay == nil {
-		return nil
-	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if runner.afterReplay == nil {
+		return nil
 	}
 
 	return callReplayHook(ctx, ReplayHookAfter, runner.afterReplay)

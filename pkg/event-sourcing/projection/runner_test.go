@@ -67,6 +67,59 @@ func TestRunnerProcessesReplayInGlobalOrderAndCheckpointsEachMessage(
 	}
 }
 
+func TestRunnerRejectsCheckpointAheadOfRestoredHistory(t *testing.T) {
+	t.Parallel()
+
+	checkpoints := projectionCheckpointStore{
+		load: func(
+			context.Context,
+			string,
+		) (eventsourcing.GlobalPosition, error) {
+			return 2, nil
+		},
+		save: func(
+			context.Context,
+			string,
+			eventsourcing.GlobalPosition,
+			eventsourcing.GlobalPosition,
+		) error {
+			t.Fatal("checkpoint saved while history was behind")
+
+			return nil
+		},
+	}
+	runner, err := projection.NewRunner(projection.RunnerConfig{
+		Name:        "account-summary",
+		Reader:      projectionReader(t, 1),
+		Checkpoints: checkpoints,
+		BatchSize:   10,
+		Handler: func(
+			context.Context,
+			eventsourcing.Delivery,
+		) error {
+			t.Fatal("handler ran while history was behind")
+
+			return nil
+		},
+		AfterReplay: func(context.Context) error {
+			t.Fatal("terminal hook ran while history was behind")
+
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := runner.RunBatch(context.Background())
+	if !errors.Is(err, projection.ErrCheckpointAheadOfHistory) ||
+		!errors.Is(err, projection.ErrCheckpointCorrupt) ||
+		result.Scanned() != 0 ||
+		result.Checkpoint() != 2 {
+		t.Fatalf("RunBatch() = %#v, %v", result, err)
+	}
+}
+
 func TestRunnerReplaysUpcastLogicalEventsBeforeCheckpointingSource(t *testing.T) {
 	t.Parallel()
 
@@ -496,6 +549,50 @@ func projectionReader(t *testing.T, count int) eventsourcing.GlobalReader {
 	}
 
 	return store
+}
+
+func projectionMessageAtPosition(
+	t *testing.T,
+	position eventsourcing.GlobalPosition,
+) eventsourcing.Message {
+	t.Helper()
+
+	stream, err := eventsourcing.NewStreamID("account", "account-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := eventsourcing.NewEncodedEvent(
+		eventsourcing.EncodedEventInput{
+			Name:        "account.changed",
+			Version:     1,
+			ContentType: "application/json",
+			Payload:     []byte("{}"),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := eventsourcing.NewPendingMessage(
+		eventsourcing.PendingMessageInput{
+			ID:         "checkpoint-message",
+			Stream:     stream,
+			Event:      event,
+			RecordedAt: time.Date(2026, time.July, 25, 14, 0, 0, 0, time.UTC),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+		Pending:        pending,
+		StreamVersion:  1,
+		GlobalPosition: position,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return message
 }
 
 type projectionCheckpointStore struct {

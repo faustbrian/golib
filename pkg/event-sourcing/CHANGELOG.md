@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fail projection replay closed when a restored or truncated event store no
+  longer contains the durable checkpoint position, preventing terminal hooks
+  from running against history behind recorded projection progress. Terminal
+  cancellation is also preserved when no after-replay hook is configured.
+
 ### Changed
 
 - Distinguish unknown event names from known names at unsupported schema

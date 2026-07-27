@@ -187,12 +187,25 @@ func TestRunnerInvokesAfterReplayAtMaximumCheckpoint(t *testing.T) {
 	}
 	config.Reader = hookReader{
 		read: func(
-			context.Context,
-			eventsourcing.ReadGlobalOptions,
+			_ context.Context,
+			options eventsourcing.ReadGlobalOptions,
 		) (eventsourcing.MessageIterator, error) {
-			t.Fatal("global read started after maximum checkpoint")
+			if options.FromPosition() != maximum ||
+				options.ToPosition() != maximum ||
+				options.Limit() != 1 {
+				t.Fatalf("checkpoint verification options = %#v", options)
+			}
+			next := true
 
-			return nil, nil
+			return &hookIterator{
+				next: func(context.Context) bool {
+					available := next
+					next = false
+
+					return available
+				},
+				message: projectionMessageAtPosition(t, maximum),
+			}, nil
 		},
 	}
 	afterCalled := false
@@ -441,6 +454,35 @@ func TestRunnerDoesNotInvokeReplayHooksAfterCancellation(t *testing.T) {
 			t.Fatalf("RunBatch() = %v", err)
 		}
 	})
+
+	t.Run("terminal without hook", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		config := poisonRunnerConfig(t, 1)
+		config.Reader = hookReader{
+			read: func(
+				context.Context,
+				eventsourcing.ReadGlobalOptions,
+			) (eventsourcing.MessageIterator, error) {
+				return &hookIterator{
+					next: func(context.Context) bool {
+						cancel()
+
+						return false
+					},
+				}, nil
+			},
+		}
+		runner, err := projection.NewRunner(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err = runner.RunBatch(ctx); !errors.Is(err, context.Canceled) {
+			t.Fatalf("RunBatch() = %v", err)
+		}
+	})
 }
 
 func TestRunnerDoesNotInvokeAfterReplayWhenTerminalIteratorFails(t *testing.T) {
@@ -504,9 +546,10 @@ func (reader hookReader) ReadGlobal(
 }
 
 type hookIterator struct {
-	next  func(context.Context) bool
-	err   error
-	close func() error
+	next    func(context.Context) bool
+	message eventsourcing.Message
+	err     error
+	close   func() error
 }
 
 func (iterator *hookIterator) Next(ctx context.Context) bool {
@@ -517,8 +560,8 @@ func (iterator *hookIterator) Next(ctx context.Context) bool {
 	return false
 }
 
-func (*hookIterator) Message() eventsourcing.Message {
-	return eventsourcing.Message{}
+func (iterator *hookIterator) Message() eventsourcing.Message {
+	return iterator.message
 }
 
 func (iterator *hookIterator) Err() error {

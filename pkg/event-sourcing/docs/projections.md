@@ -50,6 +50,15 @@ returns the run state and optional checkpoint used to start one batch. A
 missing direct `memory.ProjectionStore.Load` is explicit through
 `projection.ErrCheckpointNotFound`; a successful load never returns zero.
 
+Before declaring a checkpointed projection terminal, the runner performs one
+bounded exact-position read to prove that the durable checkpoint still exists
+in authoritative history. A restored or truncated event store behind the
+checkpoint fails closed with `projection.ErrCheckpointAheadOfHistory`, which
+also matches `projection.ErrCheckpointCorrupt`; the after-replay hook does not
+run. Operators must reconcile or reset the derived checkpoint against the
+authoritative restored history before resuming. Cancellation at this terminal
+boundary is returned even when no after-replay hook is configured.
+
 `BatchResult` distinguishes successful handler calls from successfully saved
 checkpoints. `Scanned` includes every message examined, `Filtered` includes
 messages deliberately omitted from handling, and `Checkpointed` includes both

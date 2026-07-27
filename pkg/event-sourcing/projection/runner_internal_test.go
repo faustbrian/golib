@@ -149,10 +149,36 @@ func TestRunnerHandlesExhaustedAndInvalidReaders(t *testing.T) {
 			return nil
 		},
 	}
+	config.Reader = internalGlobalReader{
+		read: func(
+			_ context.Context,
+			options eventsourcing.ReadGlobalOptions,
+		) (eventsourcing.MessageIterator, error) {
+			if options.FromPosition() != maximum ||
+				options.ToPosition() != maximum ||
+				options.Limit() != 1 {
+				t.Fatalf("checkpoint verification options = %#v", options)
+			}
+
+			return &internalIterator{
+				messages: []eventsourcing.Message{
+					internalProjectionMessage(t, maximum),
+				},
+			}, nil
+		},
+	}
 	runner := internalRunner(t, config)
 	result, err := runner.RunBatch(context.Background())
 	if err != nil || result.Checkpoint() != maximum {
 		t.Fatalf("RunBatch(maximum) = %#v, %v", result, err)
+	}
+
+	config.Reader = readerWithIterator(&internalIterator{})
+	runner = internalRunner(t, config)
+	if _, err := runner.RunBatch(
+		context.Background(),
+	); !errors.Is(err, ErrCheckpointAheadOfHistory) {
+		t.Fatalf("RunBatch(missing maximum) = %v", err)
 	}
 
 	tests := map[string]struct {
@@ -236,6 +262,136 @@ func TestRunnerRejectsCorruptGlobalHistoryAndReaderOverrun(t *testing.T) {
 			_, err := runner.RunBatch(context.Background())
 			if !errors.Is(err, eventsourcing.ErrCorruptHistory) {
 				t.Fatalf("RunBatch() = %v", err)
+			}
+		})
+	}
+}
+
+func TestRunnerCheckpointVerificationFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	iteratorFailure := errors.New("checkpoint iterator failed")
+	closeFailure := errors.New("checkpoint iterator close failed")
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	tests := map[string]struct {
+		checkpoint eventsourcing.GlobalPosition
+		ctx        context.Context
+		reader     eventsourcing.GlobalReader
+		want       []error
+	}{
+		"invalid checkpoint": {
+			ctx:  context.Background(),
+			want: []error{eventsourcing.ErrInvalidArgument},
+		},
+		"reader failure": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: internalGlobalReader{read: func(
+				context.Context,
+				eventsourcing.ReadGlobalOptions,
+			) (eventsourcing.MessageIterator, error) {
+				return nil, errProjectionTest
+			}},
+			want: []error{errProjectionTest},
+		},
+		"nil iterator": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: internalGlobalReader{read: func(
+				context.Context,
+				eventsourcing.ReadGlobalOptions,
+			) (eventsourcing.MessageIterator, error) {
+				return nil, nil
+			}},
+			want: []error{eventsourcing.ErrInvalidArgument},
+		},
+		"missing checkpoint": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader:     readerWithIterator(&internalIterator{}),
+			want: []error{
+				ErrCheckpointAheadOfHistory,
+				ErrCheckpointCorrupt,
+			},
+		},
+		"canceled verification": {
+			checkpoint: 1,
+			ctx:        cancelled,
+			reader:     readerWithIterator(&internalIterator{}),
+			want:       []error{context.Canceled},
+		},
+		"empty iterator failure": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: readerWithIterator(&internalIterator{
+				err:      iteratorFailure,
+				closeErr: closeFailure,
+			}),
+			want: []error{iteratorFailure, closeFailure},
+		},
+		"missing global position": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: readerWithIterator(&internalIterator{
+				messages: []eventsourcing.Message{
+					internalProjectionMessage(t, 0),
+				},
+			}),
+			want: []error{eventsourcing.ErrCorruptHistory},
+		},
+		"wrong global position": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: readerWithIterator(&internalIterator{
+				messages: []eventsourcing.Message{
+					internalProjectionMessage(t, 2),
+				},
+			}),
+			want: []error{eventsourcing.ErrCorruptHistory},
+		},
+		"reader overrun": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: readerWithIterator(&internalIterator{
+				messages: []eventsourcing.Message{
+					internalProjectionMessage(t, 1),
+					internalProjectionMessage(t, 2),
+				},
+			}),
+			want: []error{eventsourcing.ErrCorruptHistory},
+		},
+		"terminal iterator failures": {
+			checkpoint: 1,
+			ctx:        context.Background(),
+			reader: readerWithIterator(&internalIterator{
+				messages: []eventsourcing.Message{
+					internalProjectionMessage(t, 1),
+				},
+				err:      iteratorFailure,
+				closeErr: closeFailure,
+			}),
+			want: []error{iteratorFailure, closeFailure},
+		},
+	}
+	for name, testCase := range tests {
+		testCase := testCase
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			config := internalRunnerConfig()
+			if testCase.reader != nil {
+				config.Reader = testCase.reader
+			}
+			runner := internalRunner(t, config)
+			err := runner.verifyCheckpoint(
+				testCase.ctx,
+				testCase.checkpoint,
+			)
+			for _, want := range testCase.want {
+				if !errors.Is(err, want) {
+					t.Fatalf("verifyCheckpoint() = %v, want %v", err, want)
+				}
 			}
 		})
 	}
