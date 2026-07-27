@@ -67,6 +67,12 @@ append_repository_files() {
 
 append_module_files() {
     local directory="$1"
+    local include_documentation=0
+    case "${gate}" in
+        docs|secrets)
+            include_documentation=1
+            ;;
+    esac
     : >"${nested_directories}"
     jq -r --arg directory "${directory}" '
         .modules[]
@@ -78,17 +84,32 @@ append_module_files() {
         )
     ' "${root}/modules.json" >"${nested_directories}"
     git -C "${root}" ls-files -co --exclude-standard -- "${directory}" |
-        awk '
+        awk \
+            -v include_documentation="${include_documentation}" \
+            -v module_directory="${directory}" '
             FILENAME != "-" {
                 nested[++count] = $0
                 next
             }
             {
+                relative = tolower($0)
+                module_prefix = module_directory == "." ? "" : tolower(module_directory) "/"
+                if (module_prefix != "" && substr(relative, 1, length(module_prefix)) == module_prefix) {
+                    relative = substr(relative, length(module_prefix) + 1)
+                }
+                is_markdown = relative ~ /\.(md|markdown)$/
+                in_documentation = relative ~ /^(docs|\.ai)\//
+                in_test_data = relative ~ /(^|\/)(testdata|fixtures|corpus)\//
+                is_named_documentation = relative ~ /(^|\/)(readme|changelog|contributing|security|code_of_conduct|support)\.(md|markdown)$/
+                skip_documentation = !include_documentation && is_markdown && (in_documentation || (!in_test_data && is_named_documentation))
                 for (position = 1; position <= count; position++) {
                     prefix = nested[position] "/"
                     if ($0 == nested[position] || substr($0, 1, length(prefix)) == prefix) {
                         next
                     }
+                }
+                if (skip_documentation) {
+                    next
                 }
                 print
             }

@@ -1264,6 +1264,131 @@ func TestValue(t *testing.T) {
 	}
 }
 
+func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "pkg", "example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/example",
+    "owned_dependencies": [],
+    "gates": {
+      "documentation": true,
+      "security": true,
+      "tests": true
+    },
+    "packages": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(root, "packages.json"), "{\"packages\":[]}\n")
+	writeTestFile(t, filepath.Join(root, "pkg", "example", "go.mod"), `module example.test/example
+
+go 1.26.5
+`)
+	writeTestFile(
+		t,
+		filepath.Join(root, "pkg", "example", "example.go"),
+		"package example\n",
+	)
+	readme := filepath.Join(root, "pkg", "example", "README.md")
+	writeTestFile(t, readme, "# Example\n")
+	guide := filepath.Join(root, "pkg", "example", "docs", "guide.md")
+	if err := os.MkdirAll(filepath.Dir(guide), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, guide, "# Guide\n")
+	fixture := filepath.Join(root, "pkg", "example", "testdata", "README.md")
+	if err := os.MkdirAll(filepath.Dir(fixture), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, fixture, "# Fixture\n")
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+
+	digest := func(gate string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			gate,
+			"pkg/example",
+		)
+		command.Dir = root
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		result, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest %s: %v\n%s", gate, err, result)
+		}
+
+		return strings.TrimSpace(string(result))
+	}
+
+	testBefore := digest("test")
+	docsBefore := digest("docs")
+	secretsBefore := digest("secrets")
+	writeTestFile(t, readme, "# Revised example\n")
+	if testAfter := digest("test"); testAfter != testBefore {
+		t.Fatalf(
+			"documentation changed test digest: %s != %s",
+			testAfter,
+			testBefore,
+		)
+	}
+	docsAfterReadme := digest("docs")
+	if docsAfterReadme == docsBefore {
+		t.Fatal("documentation did not change docs digest")
+	}
+	secretsAfterReadme := digest("secrets")
+	if secretsAfterReadme == secretsBefore {
+		t.Fatal("documentation did not change secrets digest")
+	}
+	writeTestFile(t, guide, "# Revised guide\n")
+	if testAfter := digest("test"); testAfter != testBefore {
+		t.Fatalf(
+			"documentation directory changed test digest: %s != %s",
+			testAfter,
+			testBefore,
+		)
+	}
+	if docsAfter := digest("docs"); docsAfter == docsAfterReadme {
+		t.Fatal("documentation directory did not change docs digest")
+	}
+	if secretsAfter := digest("secrets"); secretsAfter == secretsAfterReadme {
+		t.Fatal("documentation directory did not change secrets digest")
+	}
+	writeTestFile(
+		t,
+		filepath.Join(root, "pkg", "example", "example.go"),
+		"package example\n\nconst Value = 1\n",
+	)
+	if testAfter := digest("test"); testAfter == testBefore {
+		t.Fatal("production source did not change test digest")
+	}
+	writeTestFile(
+		t,
+		filepath.Join(root, "pkg", "example", "example.go"),
+		"package example\n",
+	)
+	if testAfter := digest("test"); testAfter != testBefore {
+		t.Fatalf(
+			"restored production source did not restore test digest: %s != %s",
+			testAfter,
+			testBefore,
+		)
+	}
+	writeTestFile(t, fixture, "# Revised fixture\n")
+	if testAfter := digest("test"); testAfter == testBefore {
+		t.Fatal("Markdown test fixture did not change test digest")
+	}
+}
+
 func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	root := testRepositoryRoot(t)
 	repository := t.TempDir()
@@ -1434,7 +1559,16 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	command := exec.Command(filepath.Join(root, "scripts", "check-module.sh"), ".", "docs")
 	command.Dir = root
 	command.Env = environmentWith("MAKE_MARKER", makeMarker)
-	command.Env = environmentWithValues(command.Env, "PATH", bin+":"+os.Getenv("PATH"))
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_LOCAL_PROXY",
+		t.TempDir(),
+	)
+	command.Env = environmentWithValues(
+		command.Env,
+		"PATH",
+		bin+":"+os.Getenv("PATH"),
+	)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("root documentation gate: %v\n%s", err, output)
