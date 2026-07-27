@@ -74,8 +74,10 @@ group or starts read and reclaim loops. Connection options cover address, ACL
 authentication, database, cloned TLS configuration, client identity,
 dial/command/request/block/shutdown timeouts, and the bounded blocking pool.
 Queue options cover stream, group, consumer, hard source admission capacity,
-exact record retention, read batch, reclaim policy, dead-letter policy, logger,
-and handler.
+exact record retention, read batch, reclaim policy, dead-letter policy,
+explicit canceled failure codes that become terminal only after attempt
+exhaustion, logger, and handler. Infrastructure failures and unlisted
+cancellations remain pending.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
 

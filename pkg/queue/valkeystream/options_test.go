@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/core"
+	"github.com/faustbrian/golib/pkg/queue/management"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,6 +65,10 @@ func TestOptionsApplyExplicitConfiguration(t *testing.T) {
 		WithReclaim(10*time.Second, time.Second, 32),
 		WithFailureStream("jobs-failures"),
 		WithDeadLetter("jobs-dead", 7),
+		WithCanceledDeadLetterCodes(
+			"deadline_exceeded",
+			"catalogue_import_timed_out",
+		),
 		WithReplayDestinations("archive", "quarantine"),
 		WithLogger(logger),
 		WithRunFunc(func(context.Context, core.TaskMessage) error { return runErr }),
@@ -93,6 +99,10 @@ func TestOptionsApplyExplicitConfiguration(t *testing.T) {
 	assert.Equal(t, "jobs-failures", opts.failureStream)
 	assert.Equal(t, "jobs-dead", opts.deadLetterStream)
 	assert.Equal(t, int64(7), opts.maxDeliveryAttempts)
+	assert.Equal(t, map[string]struct{}{
+		"deadline_exceeded":          {},
+		"catalogue_import_timed_out": {},
+	}, opts.canceledDeadLetterCodes)
 	assert.Equal(t, map[string]struct{}{
 		"archive": {}, "quarantine": {},
 	}, opts.replayDestinations)
@@ -131,6 +141,10 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 	for index := range tooManyReplayDestinations {
 		tooManyReplayDestinations[index] = fmt.Sprintf("archive-%d", index)
 	}
+	tooManyCanceledCodes := make([]string, maxCanceledDeadLetterCodes+1)
+	for index := range tooManyCanceledCodes {
+		tooManyCanceledCodes[index] = fmt.Sprintf("deadline-%d", index)
+	}
 	tests := map[string]Option{
 		"missing address":          nil,
 		"negative database":        WithDB(-1),
@@ -168,9 +182,24 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 		"empty dead letter":        WithDeadLetter(" ", 3),
 		"same dead letter stream":  WithDeadLetter("golang-queue", 3),
 		"invalid delivery limit":   WithDeadLetter("dead", 1),
-		"nil logger":               WithLogger(nil),
-		"nil run function":         WithRunFunc(nil),
-		"nil TLS config":           WithTLSConfig(nil),
+		"missing canceled codes":   WithCanceledDeadLetterCodes(),
+		"too many canceled codes": WithCanceledDeadLetterCodes(
+			tooManyCanceledCodes...,
+		),
+		"empty canceled code": WithCanceledDeadLetterCodes(" "),
+		"unsafe canceled code": WithCanceledDeadLetterCodes(
+			"deadline\nsecret",
+		),
+		"oversized canceled code": WithCanceledDeadLetterCodes(
+			strings.Repeat("x", management.MaxIdentityBytes+1),
+		),
+		"duplicate canceled code": WithCanceledDeadLetterCodes(
+			"deadline_exceeded",
+			"deadline_exceeded",
+		),
+		"nil logger":       WithLogger(nil),
+		"nil run function": WithRunFunc(nil),
+		"nil TLS config":   WithTLSConfig(nil),
 	}
 
 	for name, option := range tests {

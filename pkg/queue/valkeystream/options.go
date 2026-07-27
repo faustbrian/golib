@@ -15,43 +15,45 @@ import (
 )
 
 const (
-	maxReadBatchSize      = 256
-	maxReclaimBatchSize   = 256
-	maxBlockingPoolSize   = 128
-	maxReplayDestinations = 64
+	maxReadBatchSize           = 256
+	maxReclaimBatchSize        = 256
+	maxBlockingPoolSize        = 128
+	maxReplayDestinations      = 64
+	maxCanceledDeadLetterCodes = 32
 )
 
 type options struct {
-	address             string
-	username            string
-	password            string
-	db                  int
-	tlsConfig           *tls.Config
-	clientName          string
-	dialTimeout         time.Duration
-	commandTimeout      time.Duration
-	requestTimeout      time.Duration
-	blockTime           time.Duration
-	shutdownTimeout     time.Duration
-	blockingPoolMinSize int
-	blockingPoolSize    int
-	blockingPoolCleanup time.Duration
-	stream              string
-	group               string
-	consumer            string
-	maxLength           int64
-	recordMaxLength     int64
-	readBatchSize       int
-	reclaimMinIdle      time.Duration
-	reclaimInterval     time.Duration
-	reclaimBatchSize    int
-	failureStream       string
-	deadLetterStream    string
-	maxDeliveryAttempts int64
-	logger              queue.Logger
-	runFunc             func(context.Context, core.TaskMessage) error
-	management          *management.StatusMetadata
-	replayDestinations  map[string]struct{}
+	address                 string
+	username                string
+	password                string
+	db                      int
+	tlsConfig               *tls.Config
+	clientName              string
+	dialTimeout             time.Duration
+	commandTimeout          time.Duration
+	requestTimeout          time.Duration
+	blockTime               time.Duration
+	shutdownTimeout         time.Duration
+	blockingPoolMinSize     int
+	blockingPoolSize        int
+	blockingPoolCleanup     time.Duration
+	stream                  string
+	group                   string
+	consumer                string
+	maxLength               int64
+	recordMaxLength         int64
+	readBatchSize           int
+	reclaimMinIdle          time.Duration
+	reclaimInterval         time.Duration
+	reclaimBatchSize        int
+	failureStream           string
+	deadLetterStream        string
+	maxDeliveryAttempts     int64
+	canceledDeadLetterCodes map[string]struct{}
+	logger                  queue.Logger
+	runFunc                 func(context.Context, core.TaskMessage) error
+	management              *management.StatusMetadata
+	replayDestinations      map[string]struct{}
 }
 
 // WithManagementStatus enables native worker and queue status reporting.
@@ -245,6 +247,42 @@ func WithDeadLetter(stream string, maxAttempts int64) Option {
 	return func(opts *options) error {
 		opts.deadLetterStream = strings.TrimSpace(stream)
 		opts.maxDeliveryAttempts = maxAttempts
+		return nil
+	}
+}
+
+// WithCanceledDeadLetterCodes allows selected canceled failure codes to become
+// terminal at the configured maximum delivery attempt. Unlisted cancellation
+// and every infrastructure failure remain pending for safe recovery.
+func WithCanceledDeadLetterCodes(codes ...string) Option {
+	return func(opts *options) error {
+		if len(codes) == 0 || len(codes) > maxCanceledDeadLetterCodes {
+			return invalidOption(
+				"canceled dead-letter codes",
+				errors.New("unsafe value"),
+			)
+		}
+		allowed := make(map[string]struct{}, len(codes))
+		for _, code := range codes {
+			if strings.TrimSpace(code) != code ||
+				code == "" ||
+				len(code) > management.MaxIdentityBytes ||
+				strings.ContainsAny(code, "\x00\r\n") {
+				return invalidOption(
+					"canceled dead-letter code",
+					errors.New("unsafe value"),
+				)
+			}
+			if _, duplicate := allowed[code]; duplicate {
+				return invalidOption(
+					"canceled dead-letter code",
+					errors.New("duplicate value"),
+				)
+			}
+			allowed[code] = struct{}{}
+		}
+		opts.canceledDeadLetterCodes = allowed
+
 		return nil
 	}
 }

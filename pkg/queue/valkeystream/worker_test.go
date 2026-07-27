@@ -135,26 +135,97 @@ func TestWorkerDeadLettersPermanentFailureBeforeAttemptLimit(t *testing.T) {
 func TestTerminalFailurePolicy(t *testing.T) {
 	t.Parallel()
 
+	exhaustedCanceledCodes := map[string]struct{}{
+		"deadline_exceeded": {},
+	}
 	tests := map[string]struct {
 		classification management.Classification
+		code           string
 		attempts       int64
 		want           bool
 	}{
-		"retryable below limit":      {management.ClassificationRetryable, 2, false},
-		"retryable at limit":         {management.ClassificationRetryable, 3, true},
-		"permanent below limit":      {management.ClassificationPermanent, 1, true},
-		"malformed below limit":      {management.ClassificationMalformed, 1, true},
-		"canceled at limit":          {management.ClassificationCanceled, 3, false},
-		"infrastructure above limit": {management.ClassificationInfrastructure, 4, false},
+		"retryable below limit": {
+			management.ClassificationRetryable, "retryable", 2, false,
+		},
+		"retryable at limit": {
+			management.ClassificationRetryable, "retryable", 3, true,
+		},
+		"permanent below limit": {
+			management.ClassificationPermanent, "permanent", 1, true,
+		},
+		"malformed below limit": {
+			management.ClassificationMalformed, "malformed", 1, true,
+		},
+		"unconfigured canceled at limit": {
+			management.ClassificationCanceled, "context_canceled", 3, false,
+		},
+		"configured deadline below limit": {
+			management.ClassificationCanceled, "deadline_exceeded", 2, false,
+		},
+		"configured deadline at limit": {
+			management.ClassificationCanceled, "deadline_exceeded", 3, true,
+		},
+		"infrastructure above limit": {
+			management.ClassificationInfrastructure, "infrastructure", 4, false,
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			err := management.NewFailure(tt.classification, "classified_failure", errors.New("cause"))
-			assert.Equal(t, tt.want, terminalFailure(err, tt.attempts, 3))
+			err := management.NewFailure(
+				tt.classification,
+				tt.code,
+				errors.New("cause"),
+			)
+			assert.Equal(
+				t,
+				tt.want,
+				terminalFailure(
+					err,
+					tt.attempts,
+					3,
+					exhaustedCanceledCodes,
+				),
+			)
 		})
 	}
+}
+
+func TestConfiguredCanceledFailureDeadLettersAtAttemptLimit(t *testing.T) {
+	t.Parallel()
+
+	opts, err := newOptions(
+		WithAddress("127.0.0.1:6379"),
+		WithFailureStream("jobs-failures"),
+		WithDeadLetter("jobs-dead", 3),
+		WithCanceledDeadLetterCodes("deadline_exceeded"),
+	)
+	require.NoError(t, err)
+	transport := &recordTransportStub{}
+	worker := &Worker{opts: opts, transport: transport}
+	message := job.NewMessage(rawMessage("timed-out"))
+	delivery, err := worker.decode(streamqueue.Delivery{
+		ID:       "1-0",
+		Body:     message.Bytes(),
+		Attempts: 3,
+	})
+	require.NoError(t, err)
+	handlerErr := management.NewFailure(
+		management.ClassificationCanceled,
+		"deadline_exceeded",
+		context.DeadlineExceeded,
+	)
+
+	require.NoError(t, delivery.(*job.Message).NackFailure(handlerErr))
+	assert.Equal(t, 1, transport.failureCalls)
+	assert.Equal(t, 1, transport.deadLetterCalls)
+	assert.Equal(
+		t,
+		management.ClassificationCanceled,
+		transport.deadLetterFailure.Classification,
+	)
+	assert.Equal(t, "deadline_exceeded", transport.deadLetterFailure.Code)
 }
 
 func TestWorkerStatsReportsOutstandingWorkAndLifecycleCounters(t *testing.T) {

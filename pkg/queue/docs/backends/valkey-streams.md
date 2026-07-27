@@ -94,6 +94,7 @@ closes producer-owned connections.
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
 | `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
+| `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
 | `WithRunFunc` | No-op | Handler used by the root queue coordinator |
@@ -166,7 +167,11 @@ The backend provides at-least-once delivery:
    payload, original ID, and attempt count to the dead-letter stream, then
    acknowledges the source. Permanent and malformed failures take this path
    immediately. Canceled and infrastructure failures remain pending for safe
-   recovery rather than becoming terminal through the attempt count.
+   recovery rather than becoming terminal through the attempt count. A caller
+   may use `WithCanceledDeadLetterCodes` to allowlist specific canceled failure
+   codes, such as an owned handler deadline, to become terminal only after the
+   configured attempt limit. Unlisted cancellations and all infrastructure
+   failures remain pending.
 
 Dead-letter append occurs before source acknowledgement. If append succeeds but
 the acknowledgement result is lost, a later reclaim can append a duplicate

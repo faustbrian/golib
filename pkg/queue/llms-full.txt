@@ -305,8 +305,10 @@ group or starts read and reclaim loops. Connection options cover address, ACL
 authentication, database, cloned TLS configuration, client identity,
 dial/command/request/block/shutdown timeouts, and the bounded blocking pool.
 Queue options cover stream, group, consumer, hard source admission capacity,
-exact record retention, read batch, reclaim policy, dead-letter policy, logger,
-and handler.
+exact record retention, read batch, reclaim policy, dead-letter policy,
+explicit canceled failure codes that become terminal only after attempt
+exhaustion, logger, and handler. Infrastructure failures and unlisted
+cancellations remain pending.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
 
@@ -1168,6 +1170,10 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- Valkey Streams `WithCanceledDeadLetterCodes` for callers that need selected,
+  owned cancellation outcomes such as handler deadlines to enter the terminal
+  dead-letter path after attempt exhaustion. Unlisted cancellations and all
+  infrastructure failures remain recoverable in the pending list.
 - A producer-only Valkey Streams `Publisher` that validates and appends durable
   jobs without creating consumer groups or starting worker read and reclaim
   loops.
@@ -1743,6 +1749,7 @@ closes producer-owned connections.
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
 | `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
+| `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
 | `WithRunFunc` | No-op | Handler used by the root queue coordinator |
@@ -1815,7 +1822,11 @@ The backend provides at-least-once delivery:
    payload, original ID, and attempt count to the dead-letter stream, then
    acknowledges the source. Permanent and malformed failures take this path
    immediately. Canceled and infrastructure failures remain pending for safe
-   recovery rather than becoming terminal through the attempt count.
+   recovery rather than becoming terminal through the attempt count. A caller
+   may use `WithCanceledDeadLetterCodes` to allowlist specific canceled failure
+   codes, such as an owned handler deadline, to become terminal only after the
+   configured attempt limit. Unlisted cancellations and all infrastructure
+   failures remain pending.
 
 Dead-letter append occurs before source acknowledgement. If append succeeds but
 the acknowledgement result is lost, a later reclaim can append a duplicate

@@ -787,10 +787,12 @@ func TestNativeFailureRecordingPrecedesRetryAndPropagatesErrors(t *testing.T) {
 }
 
 type recordTransportStub struct {
-	records      []nativeRecord
-	err          error
-	recordErr    error
-	failureCalls int
+	records           []nativeRecord
+	err               error
+	recordErr         error
+	failureCalls      int
+	deadLetterCalls   int
+	deadLetterFailure streamqueue.FailureMetadata
 }
 
 type recordPageTransportStub struct {
@@ -839,7 +841,13 @@ func (*recordTransportStub) Claim(context.Context, streamqueue.ClaimRequest) (st
 	return streamqueue.ClaimResult{}, nil
 }
 func (*recordTransportStub) Ack(context.Context, streamqueue.AckRequest) error { return nil }
-func (*recordTransportStub) DeadLetter(context.Context, streamqueue.DeadLetterRequest) error {
+func (s *recordTransportStub) DeadLetter(
+	_ context.Context,
+	request streamqueue.DeadLetterRequest,
+) error {
+	s.deadLetterCalls++
+	s.deadLetterFailure = request.Failure
+
 	return nil
 }
 func (*recordTransportStub) GroupState(context.Context, string, string) (streamqueue.GroupState, error) {

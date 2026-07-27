@@ -365,7 +365,12 @@ func (w *Worker) decode(delivery streamqueue.Delivery) (core.TaskMessage, error)
 						return err
 					}
 				}
-				if !terminalFailure(handlerErr, delivery.Attempts, w.opts.maxDeliveryAttempts) {
+				if !terminalFailure(
+					handlerErr,
+					delivery.Attempts,
+					w.opts.maxDeliveryAttempts,
+					w.opts.canceledDeadLetterCodes,
+				) {
 					return nil
 				}
 				err := w.deadLetter(
@@ -384,12 +389,22 @@ func (w *Worker) decode(delivery streamqueue.Delivery) (core.TaskMessage, error)
 	return message, nil
 }
 
-func terminalFailure(handlerErr error, attempts, maximumAttempts int64) bool {
-	switch management.ClassifyFailure(handlerErr) {
+func terminalFailure(
+	handlerErr error,
+	attempts int64,
+	maximumAttempts int64,
+	canceledCodes map[string]struct{},
+) bool {
+	resolution := management.ResolveFailure(handlerErr)
+	switch resolution.Classification {
 	case management.ClassificationPermanent, management.ClassificationMalformed:
 		return true
 	case management.ClassificationRetryable:
 		return attempts >= maximumAttempts
+	case management.ClassificationCanceled:
+		_, configured := canceledCodes[resolution.Code]
+
+		return configured && attempts >= maximumAttempts
 	default:
 		return false
 	}

@@ -79,6 +79,10 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- Valkey Streams `WithCanceledDeadLetterCodes` for callers that need selected,
+  owned cancellation outcomes such as handler deadlines to enter the terminal
+  dead-letter path after attempt exhaustion. Unlisted cancellations and all
+  infrastructure failures remain recoverable in the pending list.
 - A producer-only Valkey Streams `Publisher` that validates and appends durable
   jobs without creating consumer groups or starting worker read and reclaim
   loops.

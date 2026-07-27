@@ -40,6 +40,7 @@ var (
 	_ func(string) valkeystream.Option                                        = valkeystream.WithConsumer
 	_ func(int) valkeystream.Option                                           = valkeystream.WithDB
 	_ func(string, int64) valkeystream.Option                                 = valkeystream.WithDeadLetter
+	_ func(...string) valkeystream.Option                                     = valkeystream.WithCanceledDeadLetterCodes
 	_ func(time.Duration) valkeystream.Option                                 = valkeystream.WithDialTimeout
 	_ func(string) valkeystream.Option                                        = valkeystream.WithFailureStream
 	_ func(...string) valkeystream.Option                                     = valkeystream.WithReplayDestinations
