@@ -219,6 +219,12 @@ checkpoint without contacting a broker. `PlanAgainstBroker` performs the same
 dry run while confirming effective starts and exclusive ends against bounded
 broker log-start and high-watermark lookups; it does not consume the reader.
 Any validation error returns no plan.
+`Inspector.PlanReplayByTimestamp` converts one millisecond-aligned,
+inclusive-start and exclusive-end record-time window over explicit partitions
+into owned exact offset ranges. It requests only those partitions, rejects
+retention-ambiguous history, and performs no polling, group operation, or
+handler call. Empty partition windows are visible in the timestamp plan and
+omitted by `ReplayRanges`.
 Handler execution requires explicit `ReplaySideEffectsAllowed`, enforces
 record limits and handler deadlines, and returns exact per-range next offsets
 through `ReplayResult.Checkpoint`. Replay repeats the broker-boundary validation

@@ -252,6 +252,11 @@ type inspectorBackend interface {
 	Metadata(context.Context, ...string) (kadm.Metadata, error)
 	ListStartOffsets(context.Context, ...string) (kadm.ListedOffsets, error)
 	ListEndOffsets(context.Context, ...string) (kadm.ListedOffsets, error)
+	ListPartitionOffsets(
+		context.Context,
+		int64,
+		[]TopicPartition,
+	) (kadm.ListedOffsets, error)
 	DescribeTopicConfigs(context.Context, ...string) (kadm.ResourceConfigs, error)
 }
 
@@ -280,6 +285,7 @@ type Inspector struct {
 
 type franzInspectorBackend struct {
 	*kadm.Client
+	offsetRequester       replayTimestampRequester
 	groupLags             kadmGroupLagClient
 	maxGroupMembers       int
 	maxMetadataPartitions int
@@ -313,6 +319,7 @@ func NewInspector(config InspectorConfig) (*Inspector, error) {
 
 		return &franzInspectorBackend{
 			Client:                admin,
+			offsetRequester:       client,
 			groupLags:             admin,
 			maxGroupMembers:       config.MaxGroupMembers,
 			maxMetadataPartitions: config.MaxMetadataPartitions,

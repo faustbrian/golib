@@ -79,6 +79,9 @@ All notable changes to this module are documented here.
 - real-broker evidence that a broker-validated plan remains executable,
   interrupted replay resumes from its external checkpoint, and a range beyond
   the high watermark is rejected before a handler runs
+- bounded exact-partition timestamp replay planning with owned executable
+  ranges, millisecond precision, empty-window handling, and fail-closed
+  retention ambiguity, plus real-broker execution evidence
 - bounded read-only cluster identity, controller, broker, topic durability,
   replica, beginning/end offset, and consumer-group lag inspection; inspector
   operations now apply an owned request deadline even when callers omit one

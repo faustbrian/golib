@@ -252,6 +252,40 @@ func FuzzReplayConfig(f *testing.F) {
 	})
 }
 
+func FuzzReplayTimestampRequest(f *testing.F) {
+	f.Add("events", int32(0), int64(0), int64(1), int32(0))
+	f.Add(".", int32(-1), int64(-1), int64(0), int32(1))
+
+	f.Fuzz(func(
+		t *testing.T,
+		topic string,
+		partition int32,
+		startMillis int64,
+		endMillis int64,
+		extraNanos int32,
+	) {
+		request := ReplayTimestampRequest{
+			StartInclusive: time.UnixMilli(startMillis).Add(
+				time.Duration(extraNanos) * time.Nanosecond,
+			),
+			EndExclusive: time.UnixMilli(endMillis),
+			Partitions: []TopicPartition{{
+				Topic: topic, Partition: partition,
+			}},
+		}
+		if err := request.Validate(); err == nil {
+			start := request.StartInclusive.UnixMilli()
+			end := request.EndExclusive.UnixMilli()
+			if start < 0 ||
+				end <= start ||
+				!time.UnixMilli(start).Equal(request.StartInclusive) ||
+				!time.UnixMilli(end).Equal(request.EndExclusive) {
+				t.Fatalf("validated timestamp request is not canonical")
+			}
+		}
+	})
+}
+
 func FuzzInspectionBrokerMetadata(f *testing.F) {
 	f.Add("events", int32(0), int32(1), int32(1), int64(0), int64(1), "1")
 	f.Add("", int32(-1), int32(-2), int32(-1), int64(-1), int64(-1), "")

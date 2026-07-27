@@ -247,22 +247,51 @@ func proveReplayPolicy(
 ) {
 	t.Helper()
 
+	replayStart := time.Now().UTC().Truncate(time.Millisecond)
 	for index := range 3 {
 		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 			Topic:     topic,
 			Partition: kafka.ExplicitPartition(0),
 			Key:       []byte("replay-key"),
 			Value:     []byte(fmt.Sprintf("replay-%d", index)),
+			Timestamp: replayStart.Add(time.Duration(index) * time.Second),
 		})
 		if result.Err != nil || result.Partition != 0 || result.Offset != int64(index) {
 			t.Fatalf("publish replay fixture %d: %#v", index, result)
 		}
 	}
 
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-replay-timestamps",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct timestamp replay inspector: %v", err)
+	}
+	timestampPlan, err := inspector.PlanReplayByTimestamp(
+		ctx,
+		kafka.ReplayTimestampRequest{
+			StartInclusive: replayStart,
+			EndExclusive:   replayStart.Add(3 * time.Second),
+			Partitions: []kafka.TopicPartition{{
+				Topic: topic, Partition: 0,
+			}},
+		},
+	)
+	inspector.Close()
+	if err != nil ||
+		timestampPlan.TotalRemaining != 3 ||
+		len(timestampPlan.Partitions) != 1 ||
+		timestampPlan.Partitions[0].StartOffset != 0 ||
+		timestampPlan.Partitions[0].EndOffset != 3 {
+		t.Fatalf("timestamp replay plan/error = %#v/%v", timestampPlan, err)
+	}
+
 	config := kafka.ReplayConfig{
 		Brokers:     brokers,
 		ClientID:    "golib-compatibility-replay-initial",
-		Ranges:      []kafka.ReplayRange{{Topic: topic, Partition: 0, EndOffset: 3}},
+		Ranges:      timestampPlan.ReplayRanges(),
 		SideEffects: kafka.ReplaySideEffectsAllowed,
 		Security:    kafka.DevelopmentPlaintextSecurity(),
 	}

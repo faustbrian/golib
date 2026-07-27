@@ -207,6 +207,13 @@ fit in a signed 64-bit integer. `Checkpoint.Positions` are copied and must be
 unique, target configured ranges, and stay within inclusive-start through
 inclusive-end next-offset bounds. Missing positions use the range start.
 
+Timestamp replay planning accepts 1 to 1,024 unique explicit partitions across
+at most 64 topics. Its common inclusive start and exclusive end must be exact
+millisecond values at or after the Unix epoch, and the end must be later.
+Planning inherits `InspectorConfig.RequestTimeout` and
+`MaxMetadataPartitions`; it does not allocate topic-wide partition metadata.
+The request partition slice is copied before sorting or broker use.
+
 `SideEffects` defaults to `ReplaySideEffectsDenied`; only the explicit
 `ReplaySideEffectsAllowed` value permits handler execution. `Limits` defaults
 to `DefaultMessageLimits` and must also admit every configured topic. Replay

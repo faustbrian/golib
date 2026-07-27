@@ -204,6 +204,14 @@ permits one execution; concurrent and repeated calls have distinct lifecycle
 errors. `Shutdown` fences new work and is
 retriable after a bounded incomplete wait; `Close` returns the configured
 bounded shutdown result.
+`Inspector.PlanReplayByTimestamp` maps one millisecond-aligned record-time
+window and an explicit bounded partition set to a sorted owned
+`ReplayTimestampPlan`. It uses exact-partition broker requests for log starts,
+high watermarks, and both timestamp boundaries. `ReplayRanges` returns owned
+non-empty `ReplayRange` values suitable for `ReplayConfig`. Missing, malformed,
+out-of-bounds, or retention-ambiguous responses fail closed and return a zero
+plan. Planning performs no fetch, handler invocation, group join, or offset
+mutation, and Kafka timestamps do not imply cross-partition ordering.
 `Inspector.Cluster` returns bounded copied cluster identity, controller
 visibility, and sorted broker metadata. `Inspector.Topics` returns bounded
 replica, ISR, offline-replica, leader-epoch, beginning/end offset, and effective

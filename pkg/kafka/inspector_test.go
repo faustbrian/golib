@@ -408,6 +408,14 @@ func (backend *recordingInspectorBackend) ListEndOffsets(
 	return inspectorOffsetsForTopics(backend.topics), nil
 }
 
+func (backend *recordingInspectorBackend) ListPartitionOffsets(
+	context.Context,
+	int64,
+	[]TopicPartition,
+) (kadm.ListedOffsets, error) {
+	return inspectorOffsetsForTopics(backend.topics), nil
+}
+
 func (backend *recordingInspectorBackend) DescribeTopicConfigs(
 	context.Context,
 	...string,

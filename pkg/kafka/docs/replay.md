@@ -18,7 +18,28 @@ replay execution. Any error returns a zero plan; use `Plan` explicitly when an
 unvalidated local plan is wanted. Broker planning participates in the reader
 lifecycle: replay or another broker plan excludes it, and shutdown waits for
 it. `Replay` repeats the same validation before the first handler call.
-Timestamp planning remains pre-v1 work.
+
+`Inspector.PlanReplayByTimestamp` resolves one inclusive-start,
+exclusive-end timestamp window for 1 through 1,024 explicit partitions across
+at most 64 topics. Both boundaries must be non-negative, exact Kafka
+milliseconds. Four bounded exact-partition `ListOffsets` requests resolve the
+current log starts, high watermarks, start offsets, and end offsets. The method
+polls no records, joins no group, changes no offsets, invokes no handler, and
+returns a zero plan on every error.
+
+The returned partitions are sorted and owned. `ReplayRanges` returns new exact
+offset ranges and omits empty partition windows. A timestamp before deleted
+history can resolve to the current log start; when that makes the requested
+start ambiguous, planning fails with `ErrReplayTimestampRangeIncomplete`
+instead of silently presenting retained history as complete. Broker movement
+after planning remains possible, so execution performs its normal boundary
+preflight.
+
+Kafka timestamp lookup chooses partition offsets; it does not establish global
+order across partitions or guarantee that every record inside the resulting
+offset span has a timestamp inside the requested window. Producer timestamps
+can be non-monotonic. Applications must retain the original timestamp request
+and resolved offset plan in their replay audit record.
 
 Handler execution is disabled by default. Applications must set
 `SideEffects: ReplaySideEffectsAllowed` after applying their own authorization,
