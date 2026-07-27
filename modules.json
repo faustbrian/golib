@@ -14972,6 +14972,7 @@
       "goal_files": [
         "pkg/service/.ai/GOAL.md",
         "pkg/service/.ai/GOAL_HARDEN.md",
+        "pkg/service/.ai/GOAL_PLATFORM.md",
         "pkg/service/.ai/GOAL_POLISH.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
@@ -15017,6 +15018,44 @@
         {
           "file": "pkg/service/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "ccea6e30f7a9d123b2acf48b74472723c2723f6d83a817e37b444ea31b2ffe6c",
+          "implementation_evidence": [
+            "pkg/service/CHANGELOG.md",
+            "pkg/service/README.md",
+            "pkg/service/docs/api.md",
+            "pkg/service/docs/architecture.md",
+            "pkg/service/docs/compatibility.md",
+            "pkg/service/docs/hardening.md",
+            "pkg/service/docs/performance.md",
+            "pkg/service/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/service/.ai/GOAL_PLATFORM.md",
+          "requirements_sha256": "ad4990f26b78235edd18d7e7c3381447bb5b0ef129793a19b6860eebc6a3b5c3",
           "implementation_evidence": [
             "pkg/service/CHANGELOG.md",
             "pkg/service/README.md",
