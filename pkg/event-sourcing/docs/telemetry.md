@@ -11,9 +11,14 @@ Kafka publishers and handlers with bounded W3C context injection and
 extraction. Event-store wrappers observe append and complete iterator
 lifetimes for bounded stream and global reads. Snapshot-store wrappers observe
 explicit load, refresh, and deletion with bounded hit, miss, stale, error, and
-panic outcomes. The adapter never records
+panic outcomes. Projection-runner wrappers observe bounded batch progress,
+poison skips, durable checkpoint position, and terminal empty reads. The
+adapter never records
 aggregate, message, correlation, causation, tenant, partition, event, payload,
-metadata, error, panic, topic, position, database, or credential data.
+metadata, error, panic, topic, event-store read position, database, or
+credential data. Projection spans deliberately record the configured static
+projection name and its resulting numeric checkpoint; applications must not
+use tenant or customer identifiers as projection names.
 
 The adapter accepts a narrow standard-provider runtime interface implemented by
 the repository telemetry runtime. It creates no providers, exporters, global
@@ -28,6 +33,10 @@ and ignores inbound propagation outside those bounds or with duplicate
 declared fields. Store wrappers preserve the caller-owned iterator lifecycle:
 read spans end on iterator close, terminal error, or panic, and no hidden
 cleanup goroutine is created.
+Projection wrappers preserve partial batch results, errors, cancellation, and
+panic values while distinguishing replay progress from a successful terminal
+empty batch. A terminal batch is an observation at that read boundary, not a
+claim that later appends cannot create more work.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

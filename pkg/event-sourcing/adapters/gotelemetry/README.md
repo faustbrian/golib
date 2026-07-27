@@ -8,7 +8,8 @@ This adapter instruments synchronous dispatch and consumer handling and adds
 bounded Kafka context propagation plus event-store append, stream-read, and
 global-read instrumentation. Snapshot-store instrumentation observes explicit
 load, refresh, and deletion without exposing derived state or aggregate
-identity.
+identity. Projection-runner instrumentation observes bounded replay progress,
+poison skips, durable checkpoint position, and terminal probes.
 
 ## Quick start
 
@@ -28,6 +29,9 @@ if err != nil {
 	return err
 }
 consumer, err := eventsourcing.NewConsumer("account_projection", handler)
+if err != nil {
+	return err
+}
 
 kafkaPublisher, err := instrumentation.WrapKafkaPublisher(
 	producer,
@@ -41,6 +45,9 @@ kafkaHandler, err := instrumentation.WrapKafkaHandler(
 	recordHandler,
 	gotelemetry.KafkaPropagationConfig{},
 )
+if err != nil {
+	return err
+}
 
 store, err := instrumentation.WrapEventStore(baseStore)
 if err != nil {
@@ -53,6 +60,14 @@ if err != nil {
 }
 
 snapshotStore, err := instrumentation.WrapSnapshotStore(baseSnapshotStore)
+if err != nil {
+	return err
+}
+
+projectionRunner, err := instrumentation.WrapProjectionRunner(
+	"account-summary",
+	baseProjectionRunner,
+)
 if err != nil {
 	return err
 }
@@ -99,6 +114,14 @@ the application’s explicit snapshot refresh or rebuild. Delete spans report
 remain unchanged, and panics are measured before the original value is
 re-raised.
 
+`WrapProjectionRunner` accepts the consumer-owned `ProjectionRunner` interface,
+which is implemented by `*projection.Runner`. Each `RunBatch` span records
+scanned, handled, filtered, skipped, and durably checkpointed counts plus the
+resulting checkpoint and whether replay made progress or reached a terminal
+empty batch. It preserves partial results, errors, panic values, cancellation,
+and downstream context. The configured projection name is an operator-facing
+attribute and must be a bounded static name, never a tenant or customer ID.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -111,16 +134,21 @@ The adapter emits:
 | span | `event_sourcing.snapshot.load` | operation and outcome |
 | span | `event_sourcing.snapshot.save` | operation and outcome |
 | span | `event_sourcing.snapshot.delete` | operation and outcome |
+| span | `event_sourcing.projection.run_batch` | static projection name, bounded counts, checkpoint, and replay termination |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
 
 Operation values are `dispatch`, `consume`, `append`, `read_stream`,
-`read_global`, `snapshot_load`, `snapshot_save`, or `snapshot_delete`.
+`read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`, or
+`projection_run_batch`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
 may additionally report `mixed` or `empty`.
+Projection replay termination is `progress`, `terminated`, `error`, or
+`panic`. A successful terminal span means the wrapped runner returned an empty
+batch; it does not promise that no later append can create more work.
 Store message counts mean submitted messages for append spans and messages
 yielded before termination for read spans; they do not claim a failed append
 committed.
@@ -144,6 +172,11 @@ and telemetry-runtime responsibilities.
 Snapshot instrumentation does not record aggregate IDs or types, snapshot
 state, metadata, schema or aggregate versions, timestamps, or failure
 diagnostics.
+
+Projection instrumentation records only its explicitly configured bounded
+name, aggregate counts, and durable numeric checkpoint. It does not record
+messages, event identities, filters, handler or poison-policy diagnostics, or
+read-model state.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

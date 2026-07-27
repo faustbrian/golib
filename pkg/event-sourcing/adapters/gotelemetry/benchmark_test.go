@@ -102,6 +102,32 @@ func BenchmarkEventStoreAppend(b *testing.B) {
 	}
 }
 
+func BenchmarkProjectionRunner(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	runner, err := instrumentation.WrapProjectionRunner(
+		"benchmark-summary",
+		&telemetryProjectionRunner{},
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := runner.RunBatch(ctx); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type discardDispatcher struct{}
 
 func (discardDispatcher) Dispatch(

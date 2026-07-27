@@ -17,6 +17,9 @@ and this project adheres to
 
 ### Added
 
+- Add projection-runner spans for bounded replay progress, poison skips,
+  durable checkpoint position, and terminal empty batches while preserving
+  partial results, cancellation, errors, panic values, and context.
 - Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
   stale, error, and panic outcomes while preserving downstream errors, panic
   values, context propagation, and aggregate-state privacy.

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extend the optional telemetry boundary with projection-runner progress,
+  poison-skip, checkpoint, and terminal-replay spans that preserve downstream
+  results and failures without exposing event or read-model data.
 - Extend the optional telemetry guide and compatibility boundary with explicit
   snapshot load, refresh, and deletion instrumentation whose bounded outcomes
   do not expose aggregate identity or derived snapshot state.
