@@ -855,8 +855,8 @@ func (config *topicInspectionConfig) set(
 ) error {
 	switch field {
 	case topicInspectionMinInSyncReplicas:
-		parsed, err := parseInspectionInteger(value, 1, math.MaxInt32)
-		config.minInSyncReplicas = int(parsed)
+		parsed, err := parseInspectionInt(value, 1, math.MaxInt32)
+		config.minInSyncReplicas = parsed
 
 		return err
 	case topicInspectionCleanupPolicy:
@@ -929,6 +929,15 @@ func (config *topicInspectionConfig) set(
 
 func parseInspectionInteger(value string, minimum, maximum int64) (int64, error) {
 	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed < minimum || parsed > maximum {
+		return 0, ErrInvalidInspectionResponse
+	}
+
+	return parsed, nil
+}
+
+func parseInspectionInt(value string, minimum, maximum int) (int, error) {
+	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed < minimum || parsed > maximum {
 		return 0, ErrInvalidInspectionResponse
 	}

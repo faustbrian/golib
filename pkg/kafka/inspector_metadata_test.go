@@ -258,6 +258,33 @@ func TestInspectorTopicInspectionAcceptsUncleanLeaderElection(t *testing.T) {
 	}
 }
 
+func TestTopicInspectionMinInSyncReplicasUsesPlatformSafeBounds(t *testing.T) {
+	t.Parallel()
+
+	var config topicInspectionConfig
+	if err := config.set(
+		topicInspectionMinInSyncReplicas,
+		"2147483647",
+	); err != nil {
+		t.Fatalf("set(maximum) error = %v", err)
+	}
+	if config.minInSyncReplicas != math.MaxInt32 {
+		t.Fatalf(
+			"minimum in-sync replicas = %d, want %d",
+			config.minInSyncReplicas,
+			math.MaxInt32,
+		)
+	}
+	for _, value := range []string{"2147483648", "9223372036854775808"} {
+		if err := config.set(
+			topicInspectionMinInSyncReplicas,
+			value,
+		); !errors.Is(err, ErrInvalidInspectionResponse) {
+			t.Fatalf("set(%q) error = %v", value, err)
+		}
+	}
+}
+
 func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
 	t.Parallel()
 

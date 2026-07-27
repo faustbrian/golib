@@ -130,6 +130,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- topic inspection now parses `min.insync.replicas` directly at platform `int`
+  width before applying the Kafka `int32` upper bound
 - producer and transaction-output aggregate validation now includes framing
   overhead for every allowed header, so custom high-header-count limits cannot
   admit a batch or transaction byte ceiling too small for one maximum record
