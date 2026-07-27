@@ -15,6 +15,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real-broker producer-quota evidence that successful delivery emits a
+  positive request-level post-response throttle observation without unsafe
+  per-record attribution
 - real-broker producer evidence for ordered batch and asynchronous delivery,
   exact broker-visible values, graceful draining of an admitted record, and
   post-shutdown fencing

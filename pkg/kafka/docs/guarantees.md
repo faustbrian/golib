@@ -56,8 +56,12 @@ nothing.
 The pinned single-broker compatibility fixture proves ordered batch and
 asynchronous delivery metadata against the records subsequently read from
 Kafka. It also proves that graceful shutdown drains an admitted asynchronous
-record before closing and fences later production. Broker throttling and
-ambiguous delivery outcomes still lack broker fault evidence.
+record before closing and fences later production. A broker-enforced
+client-ID byte-rate quota also proves that delivery can succeed while the
+observer reports Kafka's positive post-response throttle interval. The
+throttle is request-level metadata because a produce request can contain many
+records; it is not attributed to an individual delivery result. Ambiguous
+delivery outcomes still lack broker fault evidence.
 
 Producer transaction begin, commit, and abort failures use redacted
 `TransactionError` values. Fencing, authorization denial, and fatal producer

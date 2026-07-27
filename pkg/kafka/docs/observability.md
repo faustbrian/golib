@@ -160,7 +160,7 @@ exporting a public observation rather than reimplementing these invariants.
 | Producer/consumer/transaction-processor shutdown | Reports each attempt that acquires lifecycle ownership, including incomplete attempts and a later successful retry; invalid, observer-reentrant, concurrent, and already-completed calls emit nothing |
 | Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
-| Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay |
+| Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay. The event is request-level and deliberately omits topic, partition, and record coordinates because franz-go's throttle hook does not identify the request and one produce response can cover many records. |
 | Broker disconnect | Reports the connection close without inventing a cause because franz-go does not supply one to this hook |
 
 `BrokerID` is present only when franz-go supplies a non-negative Kafka node ID.
@@ -171,6 +171,8 @@ the package's stable redacted `ErrorCategory`. A successful broker connection
 proves that configured SASL initialization completed, but franz-go does not
 provide a separate successful-authentication hook, so the package does not
 invent an authentication event or distinct authentication latency.
+The pinned single-broker fixture applies a client-ID producer-byte quota and
+proves a positive post-response throttle event alongside successful delivery.
 
 Assignment, revocation, loss, and blocked-rebalance durations cover only the
 local package state transition before observer dispatch. They do not represent

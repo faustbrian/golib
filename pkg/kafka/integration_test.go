@@ -58,6 +58,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
 	producerModesTopic := topic + "-producer-modes"
+	producerThrottleTopic := topic + "-producer-throttle"
 	transactionTopic := topic + "-transaction"
 	transactionSourceTopic := topic + "-transaction-source"
 	transactionOutputTopic := topic + "-transaction-output"
@@ -138,6 +139,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, producerModesTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, producerThrottleTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionOutputTopic, 1)
@@ -167,6 +169,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		t.Fatalf("explicit partition delivery = %#v", explicitResult)
 	}
 	proveProducerModes(t, ctx, brokers, producer, producerModesTopic)
+	proveProducerThrottle(t, ctx, brokers, producerThrottleTopic)
 
 	for index, value := range []string{"first", "second", "third"} {
 		err := producer.Publish(ctx, kafka.Message{
@@ -407,6 +410,143 @@ func awaitIntegrationDelivery(
 		t.Fatalf("wait for delivery: %v", ctx.Err())
 
 		return kafka.DeliveryResult{}
+	}
+}
+
+func proveProducerThrottle(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	const clientID = "golib-compatibility-throttled-producer"
+	adminClient, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-compatibility-quota-admin"),
+		kgo.DialTimeout(10*time.Second),
+	)
+	if err != nil {
+		t.Fatalf("construct quota admin client: %v", err)
+	}
+	defer adminClient.Close()
+	admin := kadm.NewClient(adminClient)
+	entity := kadm.ClientQuotaEntity{{
+		Type: "client-id",
+		Name: kadm.StringPtr(clientID),
+	}}
+	alterClientQuota(
+		t,
+		ctx,
+		admin,
+		entity,
+		kadm.AlterClientQuotaOp{
+			Key:   "producer_byte_rate",
+			Value: 1024,
+		},
+	)
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			10*time.Second,
+		)
+		defer cancel()
+		alterClientQuota(
+			t,
+			cleanupCtx,
+			admin,
+			entity,
+			kadm.AlterClientQuotaOp{
+				Key:    "producer_byte_rate",
+				Remove: true,
+			},
+		)
+	}()
+
+	var throttleDuration atomic.Int64
+	var throttledAfterResponse atomic.Bool
+	var throttleBrokerKnown atomic.Bool
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:                brokers,
+		ClientID:               clientID,
+		AllowedTopics:          []string{topic},
+		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionNone},
+		Security:               kafka.DevelopmentPlaintextSecurity(),
+		Observers: kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{
+				func(
+					_ context.Context,
+					observation kafka.Observation,
+				) error {
+					if observation.Kind != kafka.ObservationBrokerThrottle {
+						return nil
+					}
+					throttledAfterResponse.Store(
+						observation.ThrottledAfterResponse,
+					)
+					throttleBrokerKnown.Store(observation.BrokerKnown)
+					throttleDuration.Store(
+						int64(observation.ThrottleDuration),
+					)
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct throttled producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("close throttled producer: %v", err)
+		}
+	}()
+
+	result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic:     topic,
+		Partition: kafka.ExplicitPartition(0),
+		Key:       []byte("producer-throttle"),
+		Value:     make([]byte, 128*1024),
+	})
+	if result.Err != nil || result.Topic != topic || result.Partition != 0 {
+		t.Fatalf("throttled producer result = %#v", result)
+	}
+	if duration := time.Duration(throttleDuration.Load()); duration <= 0 ||
+		!throttledAfterResponse.Load() ||
+		!throttleBrokerKnown.Load() {
+		t.Fatalf(
+			"broker throttle observation = duration:%s after-response:%t broker-known:%t",
+			duration,
+			throttledAfterResponse.Load(),
+			throttleBrokerKnown.Load(),
+		)
+	}
+}
+
+func alterClientQuota(
+	t *testing.T,
+	ctx context.Context,
+	admin *kadm.Client,
+	entity kadm.ClientQuotaEntity,
+	op kadm.AlterClientQuotaOp,
+) {
+	t.Helper()
+
+	results, err := admin.AlterClientQuotas(
+		ctx,
+		[]kadm.AlterClientQuotaEntry{{
+			Entity: entity,
+			Ops:    []kadm.AlterClientQuotaOp{op},
+		}},
+	)
+	if err != nil {
+		t.Fatalf("alter client quota: %v", err)
+	}
+	if len(results) != 1 || results[0].Err != nil {
+		t.Fatalf("alter client quota results = %#v", results)
 	}
 }
 
