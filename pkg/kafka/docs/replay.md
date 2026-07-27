@@ -125,6 +125,12 @@ appended records are outside the requested end and are skipped. Truncation
 below the requested range still fails through bounds, no-reset, or gap
 detection.
 
+The pinned broker fixture issues Kafka `DeleteRecords` for a replayed partition,
+verifies the returned low watermark, and proves that replay rejects the deleted
+range before polling or invoking a handler. It also cancels a real
+broker-delivered handler and proves that the current offset remains unsettled
+and resumable.
+
 Already-buffered offsets before an explicit resume position are counted as
 skipped. Records beyond a completed end can also be observed from the final
 bounded fetch and are counted as skipped; the partition is then paused while

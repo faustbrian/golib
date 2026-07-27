@@ -403,6 +403,53 @@ func proveReplayPolicy(
 		)
 	}
 
+	canceledConfig := config
+	canceledConfig.ClientID = "golib-compatibility-replay-canceled"
+	canceledConfig.Checkpoint = kafka.ReplayCheckpoint{}
+	canceledConfig.Ranges = []kafka.ReplayRange{{
+		Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 1,
+	}}
+	canceledReader, err := kafka.NewReplayReader(canceledConfig)
+	if err != nil {
+		t.Fatalf("construct canceled replay reader: %v", err)
+	}
+	canceledCtx, cancelReplay := context.WithCancel(ctx)
+	defer cancelReplay()
+	handlerObservedCancellation := false
+	canceledResult, replayErr := canceledReader.Replay(
+		canceledCtx,
+		kafka.ReplayHandlerFunc(func(
+			handlerCtx context.Context,
+			_ kafka.ReplayRecord,
+		) error {
+			cancelReplay()
+			<-handlerCtx.Done()
+			handlerObservedCancellation = errors.Is(
+				context.Cause(handlerCtx),
+				context.Canceled,
+			)
+
+			return nil
+		}),
+	)
+	if closeErr := canceledReader.Close(); closeErr != nil {
+		t.Fatalf("close canceled replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, context.Canceled) ||
+		!handlerObservedCancellation ||
+		canceledResult.Processed != 0 ||
+		canceledResult.Failed != 1 ||
+		canceledResult.IncompleteRanges != 1 ||
+		len(canceledResult.Ranges) != 1 ||
+		canceledResult.Ranges[0].NextOffset != 0 {
+		t.Fatalf(
+			"canceled replay result/error/handler = %#v/%v/%t",
+			canceledResult,
+			replayErr,
+			handlerObservedCancellation,
+		)
+	}
+
 	for index := range 2 {
 		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 			Topic:     topic,
@@ -504,6 +551,46 @@ func proveReplayPolicy(
 	}
 	if !errors.Is(replayErr, kafka.ErrReplayOffsetOutOfRange) {
 		t.Fatalf("out-of-range replay error = %v", replayErr)
+	}
+
+	deleteIntegrationRecords(t, ctx, brokers, topic, 0, 1)
+	retentionReader, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-replay-retention-gap",
+		Ranges: []kafka.ReplayRange{{
+			Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 1,
+		}},
+		SideEffects: kafka.ReplaySideEffectsAllowed,
+		Security:    kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct retention-gap replay reader: %v", err)
+	}
+	retentionResult, replayErr := retentionReader.Replay(
+		ctx,
+		kafka.ReplayHandlerFunc(func(
+			context.Context,
+			kafka.ReplayRecord,
+		) error {
+			t.Fatal("retention-gap replay invoked handler")
+
+			return nil
+		}),
+	)
+	if closeErr := retentionReader.Close(); closeErr != nil {
+		t.Fatalf("close retention-gap replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, kafka.ErrReplayOffsetOutOfRange) ||
+		retentionResult.Polled != 0 ||
+		retentionResult.Processed != 0 ||
+		retentionResult.IncompleteRanges != 1 ||
+		len(retentionResult.Ranges) != 1 ||
+		retentionResult.Ranges[0].NextOffset != 0 {
+		t.Fatalf(
+			"retention-gap replay result/error = %#v/%v",
+			retentionResult,
+			replayErr,
+		)
 	}
 }
 
@@ -2113,5 +2200,35 @@ func createIntegrationTopicWithReplication(
 	}
 	if response.Err != nil {
 		t.Fatalf("create topic %q: %v", topic, response.Err)
+	}
+}
+
+func deleteIntegrationRecords(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partition int32,
+	beforeOffset int64,
+) {
+	t.Helper()
+
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct Kafka deletion administrator: %v", err)
+	}
+	defer client.Close()
+
+	var offsets kadm.Offsets
+	offsets.AddOffset(topic, partition, beforeOffset, -1)
+	responses, err := kadm.NewClient(client).DeleteRecords(ctx, offsets)
+	if err != nil {
+		t.Fatalf("delete Kafka records: %v", err)
+	}
+	response, exists := responses.Lookup(topic, partition)
+	if !exists ||
+		response.Err != nil ||
+		response.LowWatermark != beforeOffset {
+		t.Fatalf("delete Kafka records response = %#v/%t", response, exists)
 	}
 }

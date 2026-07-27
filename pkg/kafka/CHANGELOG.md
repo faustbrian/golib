@@ -13,6 +13,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real-broker replay evidence for cancellation after handler admission and
+  fail-closed rejection after Kafka advances a partition log-start offset
 - replay execution now accepts `ReplayHandler` instead of the consumer-group
   `Handler` and supplies each `ReplayRecord` with its complete requested range
   and checkpoint-derived effective start; callers must migrate
