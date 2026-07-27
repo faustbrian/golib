@@ -45,12 +45,14 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	}
 	topic := fmt.Sprintf("event-sourcing-compatibility-%d", time.Now().UnixNano())
 	deadLetterTopic := topic + ".dead-letter"
+	replayTopic := topic + ".replay"
 	createIntegrationTopic(t, ctx, brokers, topic)
 	createIntegrationTopic(t, ctx, brokers, deadLetterTopic)
+	createIntegrationTopic(t, ctx, brokers, replayTopic)
 
 	codec, err := gokafka.NewRecordCodec(gokafka.RecordCodecConfig{
 		Resolver:      gokafka.FixedTopic(topic),
-		AllowedTopics: []string{topic, deadLetterTopic},
+		AllowedTopics: []string{topic, deadLetterTopic, replayTopic},
 	})
 	if err != nil {
 		t.Fatalf("construct record codec: %v", err)
@@ -58,7 +60,7 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:                brokers,
 		ClientID:               "event-sourcing-compatibility-producer",
-		AllowedTopics:          []string{topic, deadLetterTopic},
+		AllowedTopics:          []string{topic, deadLetterTopic, replayTopic},
 		Limits:                 gokafka.DefaultRecordLimits(),
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
@@ -231,6 +233,117 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	) {
 		t.Fatalf("dead-letter deliveries = %#v", deadLettered)
 	}
+
+	proveReplaySettlementPolicy(
+		t,
+		ctx,
+		brokers,
+		producer,
+		replayTopic,
+		deliveries[0],
+	)
+}
+
+func proveReplaySettlementPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+	live eventsourcing.Delivery,
+) {
+	t.Helper()
+
+	codec, err := gokafka.NewRecordCodec(gokafka.RecordCodecConfig{
+		Resolver:      gokafka.FixedTopic(topic),
+		AllowedTopics: []string{topic},
+	})
+	if err != nil {
+		t.Fatalf("construct replay record codec: %v", err)
+	}
+	dispatcher, err := gokafka.NewDispatcher(
+		producer,
+		codec,
+		gokafka.AllowReplay(),
+	)
+	if err != nil {
+		t.Fatalf("construct replay dispatcher: %v", err)
+	}
+	replay, err := eventsourcing.NewDelivery(
+		live.Message(),
+		eventsourcing.DeliveryReplay,
+	)
+	if err != nil {
+		t.Fatalf("construct replay delivery: %v", err)
+	}
+	if err := dispatcher.Dispatch(ctx, []eventsourcing.Delivery{replay}); err != nil {
+		t.Fatalf("dispatch replay delivery: %v", err)
+	}
+
+	groupID := "event-sourcing-compatibility-replay"
+	rejectedCalls := 0
+	rejected, err := gokafka.NewRecordHandler(
+		codec,
+		gokafka.DeliveryConsumerFunc(func(
+			context.Context,
+			eventsourcing.Delivery,
+		) error {
+			rejectedCalls++
+
+			return errors.New("default handler consumed replay delivery")
+		}),
+	)
+	if err != nil {
+		t.Fatalf("construct replay-rejecting handler: %v", err)
+	}
+	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	for {
+		result, runErr := consumer.RunOnce(ctx, rejected)
+		if result.Polled == 0 && runErr == nil {
+			if ctx.Err() != nil {
+				consumer.Close()
+				t.Fatalf("consume rejected replay: %v", ctx.Err())
+			}
+			continue
+		}
+		if !errors.Is(runErr, gokafka.ErrReplayHandlingDenied) ||
+			result.Committed != 0 {
+			consumer.Close()
+			t.Fatalf(
+				"rejected replay result/error = %#v/%v",
+				result,
+				runErr,
+			)
+		}
+		break
+	}
+	consumer.Close()
+	if rejectedCalls != 0 {
+		t.Fatalf("default handler replay calls = %d", rejectedCalls)
+	}
+
+	var handled eventsourcing.Delivery
+	allowed, err := gokafka.NewRecordHandler(
+		codec,
+		gokafka.DeliveryConsumerFunc(func(
+			_ context.Context,
+			delivery eventsourcing.Delivery,
+		) error {
+			handled = delivery
+
+			return nil
+		}),
+		gokafka.AllowReplayHandling(),
+	)
+	if err != nil {
+		t.Fatalf("construct replay handler: %v", err)
+	}
+	runIntegrationConsumer(t, ctx, brokers, topic, groupID, allowed, 1)
+	if handled.Mode() != eventsourcing.DeliveryReplay ||
+		!handled.Message().Equal(live.Message()) {
+		t.Fatalf("handled replay delivery = %#v", handled)
+	}
+	assertGroupCommitted(t, ctx, brokers, topic, groupID, 1)
 }
 
 func integrationDeliveries(t *testing.T) []eventsourcing.Delivery {
@@ -370,6 +483,34 @@ func runIntegrationConsumer(
 ) {
 	t.Helper()
 
+	consumer := newIntegrationConsumer(t, brokers, topic, groupID)
+	defer consumer.Close()
+
+	processed := 0
+	for processed < count {
+		result, err := consumer.RunOnce(ctx, handler)
+		if err != nil {
+			t.Fatalf("consume records: %v", err)
+		}
+		if result.Processed != result.Polled ||
+			result.Committed != result.Processed {
+			t.Fatalf("consume result = %#v", result)
+		}
+		processed += result.Processed
+		if result.Polled == 0 && ctx.Err() != nil {
+			t.Fatalf("consume records: %v", ctx.Err())
+		}
+	}
+}
+
+func newIntegrationConsumer(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	groupID string,
+) *kafka.Consumer {
+	t.Helper()
+
 	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
 		Brokers:           brokers,
 		ClientID:          groupID,
@@ -389,23 +530,8 @@ func runIntegrationConsumer(
 	if err != nil {
 		t.Fatalf("construct consumer: %v", err)
 	}
-	defer consumer.Close()
 
-	processed := 0
-	for processed < count {
-		result, err := consumer.RunOnce(ctx, handler)
-		if err != nil {
-			t.Fatalf("consume records: %v", err)
-		}
-		if result.Processed != result.Polled ||
-			result.Committed != result.Processed {
-			t.Fatalf("consume result = %#v", result)
-		}
-		processed += result.Processed
-		if result.Polled == 0 && ctx.Err() != nil {
-			t.Fatalf("consume records: %v", ctx.Err())
-		}
-	}
+	return consumer
 }
 
 func deadLetterSourceTopic(headers []kafka.Header) string {

@@ -22,6 +22,9 @@ and this project adheres to
 
 ### Added
 
+- Prove against the digest-pinned real broker that replay deliveries remain
+  unsettled when a consumer has not opted in, then are redelivered and committed
+  only after explicit replay handling is enabled.
 - Add a bounded explicit record codec that maps complete live or replay event
   deliveries to stable Kafka keys, payloads, and headers and reconstructs them
   without reflection.

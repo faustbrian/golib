@@ -14,7 +14,8 @@ settlement only after synchronous durable poison quarantine or dead-letter
 handling. A digest-pinned real-broker suite covers synchronous Zstandard
 dispatch, stable envelope reconstruction, per-aggregate order, consumer
 handling, acknowledged dead-letter publication, dead-letter reconstruction,
-and committed offsets. See the
+replay rejection without offset settlement, redelivery after explicit replay
+opt-in, and committed offsets. See the
 [adapter guide](../adapters/gokafka/README.md).
 
 Direct event-store-to-Kafka dispatch is not atomic. The recommended durable
