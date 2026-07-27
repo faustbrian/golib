@@ -15,6 +15,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real-broker producer evidence for ordered batch and asynchronous delivery,
+  exact broker-visible values, graceful draining of an admitted record, and
+  post-shutdown fencing
 - real-broker replay evidence for cancellation after handler admission and
   fail-closed rejection after Kafka advances a partition log-start offset
 - replay execution now accepts `ReplayHandler` instead of the consumer-group

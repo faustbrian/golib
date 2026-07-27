@@ -53,6 +53,12 @@ payload-free observation after it completes. An incomplete attempt and a later
 successful retry remain distinct; idempotent calls after completion emit
 nothing.
 
+The pinned single-broker compatibility fixture proves ordered batch and
+asynchronous delivery metadata against the records subsequently read from
+Kafka. It also proves that graceful shutdown drains an admitted asynchronous
+record before closing and fences later production. Broker throttling and
+ambiguous delivery outcomes still lack broker fault evidence.
+
 Producer transaction begin, commit, and abort failures use redacted
 `TransactionError` values. Fencing, authorization denial, and fatal producer
 state are definitive failures rather than being mislabeled as unknown commit

@@ -57,6 +57,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
+	producerModesTopic := topic + "-producer-modes"
 	transactionTopic := topic + "-transaction"
 	transactionSourceTopic := topic + "-transaction-source"
 	transactionOutputTopic := topic + "-transaction-output"
@@ -72,7 +73,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
-			rebalanceTopic, batchTopic,
+			rebalanceTopic, batchTopic, producerModesTopic,
 			transactionSourceTopic,
 			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
 			replayTopic,
@@ -136,6 +137,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, producerModesTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionOutputTopic, 1)
@@ -164,6 +166,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	if explicitResult.Err != nil || explicitResult.Partition != 3 {
 		t.Fatalf("explicit partition delivery = %#v", explicitResult)
 	}
+	proveProducerModes(t, ctx, brokers, producer, producerModesTopic)
 
 	for index, value := range []string{"first", "second", "third"} {
 		err := producer.Publish(ctx, kafka.Message{
@@ -269,6 +272,142 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		deadLetterTopic,
 	)
 	proveReplayPolicy(t, ctx, brokers, producer, replayTopic)
+}
+
+func proveProducerModes(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	batch, err := producer.PublishBatch(ctx, []kafka.ProducerRecord{
+		{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("producer-modes"),
+			Value:     []byte("batch-first"),
+		},
+		{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("producer-modes"),
+			Value:     []byte("batch-second"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("publish producer-mode batch: %v", err)
+	}
+	if len(batch) != 2 {
+		t.Fatalf("producer-mode batch results = %d, want 2", len(batch))
+	}
+	for index, result := range batch {
+		if result.Err != nil ||
+			result.Topic != topic ||
+			result.Partition != 0 ||
+			result.Offset != int64(index) ||
+			result.Timestamp.IsZero() {
+			t.Fatalf("producer-mode batch result %d = %#v", index, result)
+		}
+	}
+
+	async, err := producer.PublishAsync(ctx, kafka.ProducerRecord{
+		Topic:     topic,
+		Partition: kafka.ExplicitPartition(0),
+		Key:       []byte("producer-modes"),
+		Value:     []byte("async"),
+	})
+	if err != nil {
+		t.Fatalf("admit asynchronous producer-mode record: %v", err)
+	}
+	asyncResult := awaitIntegrationDelivery(t, ctx, async)
+	if asyncResult.Err != nil ||
+		asyncResult.Topic != topic ||
+		asyncResult.Partition != 0 ||
+		asyncResult.Offset != 2 ||
+		asyncResult.Timestamp.IsZero() {
+		t.Fatalf("asynchronous producer-mode result = %#v", asyncResult)
+	}
+
+	shutdownProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-compatibility-shutdown-producer",
+		AllowedTopics: []string{topic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct shutdown producer: %v", err)
+	}
+	shutdownDelivery, err := shutdownProducer.PublishAsync(
+		ctx,
+		kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("producer-modes"),
+			Value:     []byte("shutdown-drained"),
+		},
+	)
+	if err != nil {
+		_ = shutdownProducer.Close()
+		t.Fatalf("admit shutdown producer record: %v", err)
+	}
+	if err := shutdownProducer.Shutdown(ctx); err != nil {
+		_ = shutdownProducer.Close()
+		t.Fatalf("shutdown producer with admitted record: %v", err)
+	}
+	shutdownResult := awaitIntegrationDelivery(t, ctx, shutdownDelivery)
+	if shutdownResult.Err != nil ||
+		shutdownResult.Topic != topic ||
+		shutdownResult.Partition != 0 ||
+		shutdownResult.Offset != 3 ||
+		shutdownResult.Timestamp.IsZero() {
+		t.Fatalf("shutdown producer-mode result = %#v", shutdownResult)
+	}
+	if result := shutdownProducer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte("producer-modes"),
+		Value: []byte("must-not-publish"),
+	}); !errors.Is(result.Err, kafka.ErrProducerClosed) {
+		t.Fatalf("post-shutdown producer result = %#v", result)
+	}
+
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadUncommitted(),
+		4,
+	); !slices.Equal(values, []string{
+		"batch-first",
+		"batch-second",
+		"async",
+		"shutdown-drained",
+	}) {
+		t.Fatalf("producer-mode broker values = %q", values)
+	}
+}
+
+func awaitIntegrationDelivery(
+	t *testing.T,
+	ctx context.Context,
+	delivery <-chan kafka.DeliveryResult,
+) kafka.DeliveryResult {
+	t.Helper()
+
+	select {
+	case result, ok := <-delivery:
+		if !ok {
+			t.Fatal("delivery channel closed without a result")
+		}
+
+		return result
+	case <-ctx.Done():
+		t.Fatalf("wait for delivery: %v", ctx.Err())
+
+		return kafka.DeliveryResult{}
+	}
 }
 
 func proveReplayPolicy(
