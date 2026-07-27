@@ -7,6 +7,10 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Handler backoff now retries only retryable failures. Permanent, malformed,
+  canceled, and infrastructure outcomes reach backend settlement after the
+  first handler execution instead of repeating a known terminal or uncertain
+  operation inside the same delivery.
 - Redis Streams and Valkey Streams no longer use source `MAXLEN` trimming,
   which could delete accepted pending deliveries. Valkey source admission is
   hard-bounded; Redis direct enqueue is hard-bounded when configured, while

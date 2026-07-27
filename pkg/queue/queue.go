@@ -362,8 +362,12 @@ func (q *Queue) handle(m *job.Message) error {
 				err = q.worker.Run(ctx, m)
 			}
 
-			// If no error or no retries left, exit loop.
-			if err == nil || m.RetryCount == 0 {
+			// Retry only recoverable handler failures. Permanent, malformed,
+			// canceled, and infrastructure outcomes must reach backend
+			// settlement without another handler execution.
+			if err == nil || m.RetryCount == 0 ||
+				management.ClassifyFailure(err) !=
+					management.ClassificationRetryable {
 				break
 			}
 			m.RetryCount--

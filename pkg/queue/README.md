@@ -67,6 +67,8 @@ clients.
   behavior
 - safe failure classification and codes that preserve `errors.Is` while
   redacting arbitrary handler, panic, and settlement text
+- handler backoff limited to retryable failures so terminal and uncertain
+  classifications reach backend settlement without repeated side effects
 - durable Redis Streams, Valkey Streams, NSQ, and RabbitMQ paths with explicit settlement
 - observable lifecycle events, metrics, and backend identity
 - stable management-protocol version and capability negotiation for external

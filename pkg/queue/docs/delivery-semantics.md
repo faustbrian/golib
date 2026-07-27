@@ -13,9 +13,11 @@ idempotent whenever a transport can redeliver.
 | NSQ | At-least-once | FIN after success | REQ for recoverable failures; exhausted, permanent, and malformed work is published to the terminal topic before FIN | Publish/FIN crash windows may duplicate; ordering is not guaranteed |
 | RabbitMQ | At-least-once when `autoAck=false` | Ack after success | Confirmed retry republish; exhausted, permanent, and malformed work is confirmed to the package-owned terminal exchange before source ack | `autoAck=true` disables post-handler settlement; confirm/ack crash windows may duplicate; connection loss requires a replacement worker |
 
-Retries occur inside a delivery attempt. The backend ack is not sent between
-handler retries. A process crash can redeliver work even after application side
-effects completed but before the ack reached the broker.
+Retryable failures may retry inside a delivery attempt. Permanent, malformed,
+canceled, and infrastructure failures proceed to backend settlement after the
+first handler execution. The backend ack is not sent between retryable handler
+attempts. A process crash can redeliver work even after application side effects
+completed but before the ack reached the broker.
 
 Backends may implement the additive `core.FailureAcknowledger` contract to
 receive the classified final handler error. `job.Message` exposes

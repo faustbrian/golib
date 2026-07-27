@@ -217,6 +217,82 @@ func TestNormalizeHandlerFailureUsesStableOriginCodes(t *testing.T) {
 	}
 }
 
+func TestHandlerRetriesOnlyRetryableFailures(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		failure      error
+		wantAttempts int64
+	}{
+		"plain retryable": {
+			failure:      errors.New("temporary failure"),
+			wantAttempts: 4,
+		},
+		"classified retryable": {
+			failure: management.NewFailure(
+				management.ClassificationRetryable,
+				"provider_unavailable",
+				errors.New("temporary failure"),
+			),
+			wantAttempts: 4,
+		},
+		"permanent": {
+			failure: management.NewFailure(
+				management.ClassificationPermanent,
+				"invalid_record",
+				errors.New("invalid record"),
+			),
+			wantAttempts: 1,
+		},
+		"malformed": {
+			failure: management.NewFailure(
+				management.ClassificationMalformed,
+				"unsupported_payload",
+				errors.New("unsupported payload"),
+			),
+			wantAttempts: 1,
+		},
+		"canceled": {
+			failure: management.NewFailure(
+				management.ClassificationCanceled,
+				"worker_draining",
+				context.Canceled,
+			),
+			wantAttempts: 1,
+		},
+		"infrastructure": {
+			failure: management.NewFailure(
+				management.ClassificationInfrastructure,
+				"ownership_uncertain",
+				errors.New("ownership uncertain"),
+			),
+			wantAttempts: 1,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var attempts atomic.Int64
+			message := job.NewTask(
+				func(context.Context) error {
+					attempts.Add(1)
+					return test.failure
+				},
+				job.AllowOption{
+					RetryCount: job.Int64(3),
+					RetryDelay: job.Time(time.Nanosecond),
+				},
+			)
+			q, err := NewQueue(WithWorker(NewRing()))
+			require.NoError(t, err)
+
+			require.ErrorIs(t, q.handle(&message), test.failure)
+			assert.Equal(t, test.wantAttempts, attempts.Load())
+		})
+	}
+}
+
 func TestAcknowledgementPanicFailsDeliveryWithoutEscaping(t *testing.T) {
 	observer := &recordingObserver{}
 	q, err := NewQueue(

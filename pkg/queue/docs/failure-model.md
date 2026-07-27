@@ -45,6 +45,9 @@ failure makes durable outcome uncertain. Cancellation wins over handler
 terminality because shutdown and deadline interruption do not become dead
 letters without explicit backend policy. Plain handler errors are retryable.
 Context cancellation and deadline expiration are canceled, never permanent.
+Only retryable failures use the root queue's configured handler backoff.
+Permanent, malformed, canceled, and infrastructure outcomes proceed to backend
+settlement after their first handler execution.
 
 Panic, retry exhaustion, unsupported payload version, lease loss,
 acknowledgement failure, dead-letter destination failure, and administrative
