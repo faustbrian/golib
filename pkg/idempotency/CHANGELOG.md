@@ -13,6 +13,8 @@ public API reaches its first stable version.
 
 ### Changed
 
+- Pinned unpublished owned `clock` and `migrations` dependencies to resolvable
+  main-branch pseudo-versions so external consumers can install this module.
 - Refresh owned-module checksums against the final consolidated archives.
 - Kept the ecosystem compile-contract assertion explicit without redundantly
   spelling a generic function type that strict static analysis can infer.
