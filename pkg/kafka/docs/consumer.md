@@ -46,6 +46,15 @@ or latest reset policy. Construction validates all policy before franz-go
 allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
 poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
 dial durations are bounded.
+The package rejects a backend poll above `MaxPollRecords` with
+`ErrTooManyFetchedRecords` before invoking a handler, even though franz-go is
+also configured with that limit.
+`ConsumerConfig.Validate` applies the same defaults and checks without
+allocating a client. Optional `ConsumerConfig.Observers` report payload-free
+record, partition-batch, commit, and complete poll outcomes. They execute
+synchronously before the poll releases its rebalance gate, can run
+concurrently across partition workers, and cannot re-enter consumer mutation
+or lifecycle operations. See the [observability guide](observability.md).
 The heartbeat, handler, and commit deadlines together must be strictly less
 than the rebalance timeout. This preserves time for franz-go to detect the
 rebalance, finish or cancel all active handlers, attempt the contiguous

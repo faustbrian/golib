@@ -30,6 +30,8 @@ Use `ProducerConfig.Validate` when a composition root must validate producer
 policy before constructing a client. It applies the same validation and
 defaulting policy as `NewProducer` without allocating a client or dialing
 brokers.
+`ConsumerConfig.Validate` provides the equivalent allocation-free check for a
+consumer-group policy.
 
 `Producer.Publish` is the compatibility synchronous error-only method.
 `Producer.PublishRecord` returns one `DeliveryResult`; `PublishBatch` returns
@@ -116,6 +118,8 @@ nil.
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
 still be returned.
+`MaxPollRecords` is enforced again at the package boundary; a backend response
+above it fails with `ErrTooManyFetchedRecords` before any handler runs.
 `ConsumerConfig.Limits` defaults to `DefaultMessageLimits` and bounds fetched
 topic, key, value, header count, header keys, individual header values, and
 aggregate header bytes before the package copies header metadata or runs a
@@ -152,6 +156,15 @@ cross-partition concurrency policy. A nil result settles the entire batch; an
 error settles none of it. Successful independent partition batches remain
 committable. `ConsumedBatch.Retain` copies the batch slice and every record byte
 for use after the handler returns.
+
+`ConsumerConfig.Observers` uses the same copied, ordered `ObserverPolicy` as
+the producer. Consumer events report each record or partition-batch processing
+attempt, each offset-commit attempt, and the final bounded poll result.
+Validated single-topic metadata can include source coordinates and conservative
+record bytes; mixed-topic or invalid metadata is omitted. Observer failures do
+not change handler, commit, or poll outcomes. Consumer observers run before the
+poll releases its rebalance gate and cannot re-enter mutating or lifecycle
+operations on that consumer.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
 changing `Consumer` or exposing franz-go. `FailureRetryPolicy` bounds selected

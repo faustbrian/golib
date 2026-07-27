@@ -37,6 +37,14 @@ const (
 	ObservationProduceBatch
 	// ObservationProduceAsync reports final asynchronous record delivery.
 	ObservationProduceAsync
+	// ObservationConsumeRecord reports one completed record-handler call.
+	ObservationConsumeRecord
+	// ObservationConsumeBatch reports one completed partition-batch handler call.
+	ObservationConsumeBatch
+	// ObservationConsumeCommit reports one completed source-offset commit attempt.
+	ObservationConsumeCommit
+	// ObservationConsumePoll reports one completed bounded consumer poll cycle.
+	ObservationConsumePoll
 )
 
 // String returns the stable low-cardinality observation name.
@@ -48,6 +56,14 @@ func (kind ObservationKind) String() string {
 		return "producer.batch"
 	case ObservationProduceAsync:
 		return "producer.async"
+	case ObservationConsumeRecord:
+		return "consumer.record"
+	case ObservationConsumeBatch:
+		return "consumer.batch"
+	case ObservationConsumeCommit:
+		return "consumer.commit"
+	case ObservationConsumePoll:
+		return "consumer.poll"
 	default:
 		return "unknown"
 	}
@@ -65,6 +81,8 @@ type Observation struct {
 	Duration time.Duration
 	// ClientID is the copied configured Kafka client identity.
 	ClientID string
+	// GroupID is the copied configured consumer-group identity when applicable.
+	GroupID string
 	// Topic is present only when validated metadata has one common topic.
 	Topic string
 	// Partition is the delivered partition when PartitionKnown is true.
@@ -79,11 +97,19 @@ type Observation struct {
 	Timestamp time.Time
 	// RecordCount is the bounded operation input count.
 	RecordCount int
+	// PartitionCount is the bounded number of Kafka partitions represented.
+	PartitionCount int
+	// ProcessedCount is the number of records whose handler completed.
+	ProcessedCount int
+	// CommittedCount is the number of source records durably settled.
+	CommittedCount int
 	// RecordBytes is a conservative payload and framing size, not a broker
 	// encoded-byte measurement.
 	RecordBytes int64
 	// Succeeded reports whether the package operation returned success.
 	Succeeded bool
+	// Truncated reports that bounded diagnostic counts or metadata were clipped.
+	Truncated bool
 	// Category classifies failure and is ErrorUnknown after success.
 	Category ErrorCategory
 }

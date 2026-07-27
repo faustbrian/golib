@@ -159,6 +159,7 @@ the producer and consumer policies. The processor always selects
 | `CommitTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 | `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
+| `Observers` | disabled | Same copied 1 to 16 callback policy and shared 1 millisecond to 5 second cooperative timeout as the producer. Consumer partition workers can invoke callbacks concurrently. |
 
 `HeartbeatInterval + HandlerTimeout + CommitTimeout` must be strictly less
 than `RebalanceTimeout`. Handler cancellation and deadlines remain cooperative;
@@ -168,6 +169,8 @@ applications must return when the handler context is done.
 require a concurrency-safe handler.
 
 Automatic commits remain disabled and cannot be enabled through configuration.
+`ConsumerConfig.Validate` applies these defaults and checks without allocating
+a client or dialing brokers.
 See the [consumer guide](consumer.md) for settlement and rollout semantics.
 
 ## Consumer failure handler

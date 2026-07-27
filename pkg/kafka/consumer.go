@@ -52,6 +52,9 @@ var (
 	ErrTooManyAssignedPartitions = errors.New(
 		"kafka: assigned partition count exceeds configured limit",
 	)
+	ErrTooManyFetchedRecords = errors.New(
+		"kafka: fetched record count exceeds configured limit",
+	)
 	ErrInvalidAssignment = errors.New(
 		"kafka: consumer assignment is invalid",
 	)
@@ -142,6 +145,15 @@ type ConsumerConfig struct {
 	ShutdownTimeout   time.Duration
 	DialTimeout       time.Duration
 	Security          ClientSecurity
+	Observers         ObserverPolicy
+}
+
+// Validate reports whether the consumer configuration satisfies the bounded
+// group policy without constructing a client or dialing brokers.
+func (config ConsumerConfig) Validate() error {
+	_, err := normalizeConsumerConfig(config)
+
+	return err
 }
 
 // Handler durably processes one consumed message before its offset may be
@@ -194,6 +206,8 @@ type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 // greater than one. Its methods are safe for concurrent lifecycle coordination.
 type Consumer struct {
 	client                consumerBackend
+	clientID              string
+	groupID               string
 	limits                MessageLimits
 	maxPollRecords        int
 	maxPausedPartitions   int
@@ -204,15 +218,17 @@ type Consumer struct {
 	commitTimeout         time.Duration
 	shutdownTimeout       time.Duration
 	staticMembership      bool
+	observers             observerDispatcher
 
-	lifecycleMu      sync.Mutex
-	running          bool
-	runDone          chan struct{}
-	closing          bool
-	closed           bool
-	shutdownActive   bool
-	subscribedTopics map[string]struct{}
-	pausedPartitions map[TopicPartition]struct{}
+	lifecycleMu       sync.Mutex
+	running           bool
+	runDone           chan struct{}
+	closing           bool
+	closed            bool
+	shutdownActive    bool
+	subscribedTopics  map[string]struct{}
+	pausedPartitions  map[TopicPartition]struct{}
+	observerCallbacks int
 }
 
 // NewConsumer constructs a group consumer with automatic commits disabled and
@@ -304,6 +320,8 @@ func newConsumer(
 
 	return &Consumer{
 		client:                client,
+		clientID:              strings.Clone(config.ClientID),
+		groupID:               strings.Clone(config.GroupID),
 		limits:                config.Limits,
 		maxPollRecords:        config.MaxPollRecords,
 		maxPausedPartitions:   config.MaxPausedPartitions,
@@ -314,6 +332,7 @@ func newConsumer(
 		commitTimeout:         config.CommitTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		staticMembership:      config.InstanceID != "",
+		observers:             newObserverDispatcher(config.Observers),
 		subscribedTopics:      subscribedTopics,
 		pausedPartitions:      make(map[TopicPartition]struct{}),
 	}, nil
@@ -345,6 +364,11 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		return ConsumerConfig{}, err
 	}
 	config.Security = security
+	observers, err := normalizeObserverPolicy(config.Observers)
+	if err != nil {
+		return ConsumerConfig{}, err
+	}
+	config.Observers = observers
 	if strings.TrimSpace(config.GroupID) == "" {
 		return ConsumerConfig{}, ErrGroupIDRequired
 	}
@@ -491,6 +515,9 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 	if ctx == nil {
 		return PollResult{}, ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return PollResult{}, ErrObserverReentry
+	}
 	if handler == nil {
 		return PollResult{}, ErrHandlerRequired
 	}
@@ -502,7 +529,14 @@ func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollRes
 	return consumer.runOnce(ctx, handler)
 }
 
-func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollResult, error) {
+func (consumer *Consumer) runOnce(
+	ctx context.Context,
+	handler Handler,
+) (result PollResult, resultErr error) {
+	var startedAt time.Time
+	if consumer.observers.enabled() {
+		startedAt = time.Now()
+	}
 	consumer.rebalance.beginPoll()
 	defer consumer.rebalance.endPoll()
 
@@ -510,7 +544,21 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
-	result := PollResult{Polled: len(records)}
+	if consumer.observers.enabled() {
+		defer func() {
+			consumer.observeConsumerPoll(
+				ctx,
+				startedAt,
+				records,
+				result,
+				resultErr,
+			)
+		}()
+	}
+	result = PollResult{Polled: len(records)}
+	if len(records) > consumer.maxPollRecords {
+		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
+	}
 	if err := fetches.Err(); err != nil {
 		return PollResult{}, err
 	}
@@ -532,6 +580,61 @@ func (consumer *Consumer) runOnce(ctx context.Context, handler Handler) (PollRes
 	)
 
 	return consumer.settlePartitionResults(ctx, token, result, partitionResults)
+}
+
+func (consumer *Consumer) observeConsumerPoll(
+	ctx context.Context,
+	startedAt time.Time,
+	records []*kgo.Record,
+	result PollResult,
+	err error,
+) {
+	topic, partitions, bytes := consumer.consumedObservationMetadata(records)
+	observation := Observation{
+		Kind:           ObservationConsumePoll,
+		StartedAt:      startedAt,
+		Duration:       time.Since(startedAt),
+		ClientID:       consumer.clientID,
+		GroupID:        consumer.groupID,
+		Topic:          topic,
+		RecordCount:    min(result.Polled, consumer.maxPollRecords),
+		PartitionCount: partitions,
+		ProcessedCount: result.Processed,
+		CommittedCount: result.Committed,
+		RecordBytes:    bytes,
+		Succeeded:      err == nil,
+		Truncated:      result.Polled > consumer.maxPollRecords,
+	}
+	if err != nil {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	consumer.dispatchObservation(ctx, observation)
+}
+
+func (consumer *Consumer) consumedObservationMetadata(
+	records []*kgo.Record,
+) (string, int, int64) {
+	if len(records) == 0 || len(records) > consumer.maxPollRecords {
+		return "", 0, 0
+	}
+
+	topic := records[0].Topic
+	partitions := make(map[TopicPartition]struct{}, len(records))
+	var bytes int64
+	for _, record := range records {
+		if _, err := consumedMessageWithinLimits(record, consumer.limits); err != nil {
+			return "", 0, 0
+		}
+		if record.Topic != topic {
+			topic = ""
+		}
+		partitions[TopicPartition{
+			Topic: record.Topic, Partition: record.Partition,
+		}] = struct{}{}
+		bytes += consumedRecordSize(record)
+	}
+
+	return strings.Clone(topic), len(partitions), bytes
 }
 
 // Assignment returns a sorted, copied snapshot of current assignment state.
@@ -565,6 +668,9 @@ func (consumer *Consumer) onRebalanceBlocked() {
 func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 	if ctx == nil {
 		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
 	}
 	if handler == nil {
 		return ErrHandlerRequired
@@ -630,6 +736,9 @@ func (consumer *Consumer) PausePartitions(partitions ...TopicPartition) error {
 	consumer.lifecycleMu.Lock()
 	defer consumer.lifecycleMu.Unlock()
 
+	if consumer.observerCallbacks != 0 {
+		return ErrObserverReentry
+	}
 	if err := consumer.lifecycleErrorLocked(); err != nil {
 		return err
 	}
@@ -661,6 +770,9 @@ func (consumer *Consumer) ResumePartitions(partitions ...TopicPartition) error {
 	consumer.lifecycleMu.Lock()
 	defer consumer.lifecycleMu.Unlock()
 
+	if consumer.observerCallbacks != 0 {
+		return ErrObserverReentry
+	}
 	if err := consumer.lifecycleErrorLocked(); err != nil {
 		return err
 	}
@@ -795,6 +907,9 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 
 	consumer.lifecycleMu.Lock()
 	if consumer.closed {
@@ -843,6 +958,14 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 
 // Close performs a bounded graceful shutdown using the configured timeout.
 func (consumer *Consumer) Close() error {
+	consumer.lifecycleMu.Lock()
+	if consumer.observerCallbacks != 0 {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
+	consumer.lifecycleMu.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), consumer.shutdownTimeout)
 	defer cancel()
 

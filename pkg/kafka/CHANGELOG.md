@@ -98,6 +98,12 @@ All notable changes to this module are documented here.
 - ordered synchronous producer delivery observers with copied payload-free
   metadata, bounded callback count and cooperative deadline, contained and
   explicitly reported failures, and same-producer reentrancy fencing
+- pre-construction consumer configuration validation and ordered payload-free
+  record, partition-batch, commit, and poll observations with exact processing
+  and settlement counts, bounded diagnostic metadata, and same-consumer
+  reentrancy fencing
+- fail-closed enforcement when a consumer backend returns more records than
+  `MaxPollRecords`, with clipped and explicitly marked observation metadata
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
   race coverage, benchmarks, and exact statement coverage
 

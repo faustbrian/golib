@@ -150,6 +150,13 @@ failed partition are skipped and remain available for redelivery. Handlers must
 tolerate duplicates. Retain copies if bytes are needed after the handler
 returns.
 
+Optional `ConsumerConfig.Observers` report copied, payload-free record,
+partition-batch, commit, and complete poll outcomes. Commit failures report
+zero committed records even when handlers succeeded. Consumer callbacks can
+run concurrently across partition workers, execute before the rebalance gate
+is released, and cannot re-enter mutating or lifecycle operations on the
+consumer. See the [observability guide](docs/observability.md).
+
 `NewFailureHandler` composes explicit stop, bounded in-process retry,
 versioned retry-topic, versioned dead-letter, or application-delegated policy
 around a per-record handler. The zero terminal mode stops without settling.

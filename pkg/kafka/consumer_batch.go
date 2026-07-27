@@ -2,6 +2,8 @@ package kafka
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -60,6 +62,9 @@ func (consumer *Consumer) RunBatchOnce(
 	if ctx == nil {
 		return PollResult{}, ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return PollResult{}, ErrObserverReentry
+	}
 	if handler == nil {
 		return PollResult{}, ErrBatchHandlerRequired
 	}
@@ -79,7 +84,11 @@ type consumerPartitionBatch struct {
 func (consumer *Consumer) runBatchOnce(
 	ctx context.Context,
 	handler BatchHandler,
-) (PollResult, error) {
+) (result PollResult, resultErr error) {
+	var startedAt time.Time
+	if consumer.observers.enabled() {
+		startedAt = time.Now()
+	}
 	consumer.rebalance.beginPoll()
 	defer consumer.rebalance.endPoll()
 
@@ -87,7 +96,21 @@ func (consumer *Consumer) runBatchOnce(
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
-	result := PollResult{Polled: len(records)}
+	if consumer.observers.enabled() {
+		defer func() {
+			consumer.observeConsumerPoll(
+				ctx,
+				startedAt,
+				records,
+				result,
+				resultErr,
+			)
+		}()
+	}
+	result = PollResult{Polled: len(records)}
+	if len(records) > consumer.maxPollRecords {
+		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
+	}
 	if err := fetches.Err(); err != nil {
 		return PollResult{}, err
 	}

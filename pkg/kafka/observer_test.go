@@ -708,6 +708,10 @@ func TestObservationKindString(t *testing.T) {
 		ObservationProduceRecord: "producer.record",
 		ObservationProduceBatch:  "producer.batch",
 		ObservationProduceAsync:  "producer.async",
+		ObservationConsumeRecord: "consumer.record",
+		ObservationConsumeBatch:  "consumer.batch",
+		ObservationConsumeCommit: "consumer.commit",
+		ObservationConsumePoll:   "consumer.poll",
 		ObservationKind(255):     "unknown",
 	} {
 		if got := kind.String(); got != want {

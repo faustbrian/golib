@@ -3,7 +3,9 @@ package kafka
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -60,13 +62,19 @@ func (consumer *Consumer) processRecordPartition(
 ) consumerPartitionResult {
 	var result consumerPartitionResult
 	for _, record := range batch.records {
+		var startedAt time.Time
+		if consumer.observers.enabled() {
+			startedAt = time.Now()
+		}
 		if cause := context.Cause(ctx); cause != nil {
 			result.err = cause
+			consumer.observeConsumedRecord(ctx, startedAt, record, result.err)
 
 			return result
 		}
 		if !consumer.assignment.owns(token, batch.partition) {
 			result.err = ErrConsumerOwnershipLost
+			consumer.observeConsumedRecord(ctx, startedAt, record, result.err)
 
 			return result
 		}
@@ -86,10 +94,12 @@ func (consumer *Consumer) processRecordPartition(
 		}
 		if err != nil {
 			result.err = err
+			consumer.observeConsumedRecord(ctx, startedAt, record, err)
 
 			return result
 		}
 		result.processed++
+		consumer.observeConsumedRecord(ctx, startedAt, record, nil)
 		if !consumer.assignment.owns(token, batch.partition) {
 			result.err = ErrConsumerOwnershipLost
 			result.lastSuccessful = nil
@@ -110,10 +120,23 @@ func (consumer *Consumer) processBatchPartition(
 	handler BatchHandler,
 	batch consumerPartitionBatch,
 ) consumerPartitionResult {
+	var startedAt time.Time
+	if consumer.observers.enabled() {
+		startedAt = time.Now()
+	}
 	if cause := context.Cause(ctx); cause != nil {
+		consumer.observeConsumedBatch(ctx, startedAt, batch, cause)
+
 		return consumerPartitionResult{err: cause}
 	}
 	if !consumer.assignment.owns(token, batch.partition) {
+		consumer.observeConsumedBatch(
+			ctx,
+			startedAt,
+			batch,
+			ErrConsumerOwnershipLost,
+		)
+
 		return consumerPartitionResult{err: ErrConsumerOwnershipLost}
 	}
 
@@ -124,6 +147,13 @@ func (consumer *Consumer) processBatchPartition(
 			consumer.handlerTimeout,
 		)
 		if !admitted {
+			consumer.observeConsumedBatch(
+				ctx,
+				startedAt,
+				batch,
+				ErrConsumerRebalance,
+			)
+
 			return consumerPartitionResult{}
 		}
 		err = callBatchHandler(handlerCtx, handler, consumed)
@@ -132,10 +162,13 @@ func (consumer *Consumer) processBatchPartition(
 		}
 	}
 	if err != nil {
+		consumer.observeConsumedBatch(ctx, startedAt, batch, err)
+
 		return consumerPartitionResult{err: err}
 	}
 
 	result := consumerPartitionResult{processed: len(batch.records)}
+	consumer.observeConsumedBatch(ctx, startedAt, batch, nil)
 	if !consumer.assignment.owns(token, batch.partition) {
 		result.err = ErrConsumerOwnershipLost
 
@@ -145,6 +178,55 @@ func (consumer *Consumer) processBatchPartition(
 	result.successful = len(batch.records)
 
 	return result
+}
+
+func (consumer *Consumer) observeConsumedBatch(
+	ctx context.Context,
+	startedAt time.Time,
+	batch consumerPartitionBatch,
+	err error,
+) {
+	if !consumer.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:        ObservationConsumeBatch,
+		StartedAt:   startedAt,
+		Duration:    time.Since(startedAt),
+		ClientID:    consumer.clientID,
+		GroupID:     consumer.groupID,
+		RecordCount: len(batch.records),
+		Succeeded:   err == nil,
+	}
+	var bytes int64
+	valid := len(batch.records) != 0
+	for _, record := range batch.records {
+		if _, validationErr := consumedMessageWithinLimits(
+			record,
+			consumer.limits,
+		); validationErr != nil {
+			valid = false
+
+			break
+		}
+		bytes += consumedRecordSize(record)
+	}
+	if valid {
+		last := batch.records[len(batch.records)-1]
+		observation.Topic = strings.Clone(batch.partition.Topic)
+		observation.Partition = batch.partition.Partition
+		observation.PartitionKnown = true
+		observation.PartitionCount = 1
+		observation.Offset = last.Offset
+		observation.OffsetKnown = true
+		observation.RecordBytes = bytes
+	}
+	if err == nil {
+		observation.ProcessedCount = len(batch.records)
+	} else {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	consumer.dispatchObservation(ctx, observation)
 }
 
 func (consumer *Consumer) settlePartitionResults(
@@ -177,8 +259,19 @@ func (consumer *Consumer) settlePartitionResults(
 		return result, handlerErr
 	}
 	commitCtx, cancel := context.WithTimeout(ctx, consumer.commitTimeout)
+	var startedAt time.Time
+	if consumer.observers.enabled() {
+		startedAt = time.Now()
+	}
 	err := consumer.client.CommitRecords(commitCtx, committable...)
 	cancel()
+	consumer.observeConsumerCommit(
+		ctx,
+		startedAt,
+		committable,
+		committed,
+		err,
+	)
 	if err != nil {
 		if handlerErr == nil {
 			return result, err
@@ -189,4 +282,123 @@ func (consumer *Consumer) settlePartitionResults(
 	result.Committed = committed
 
 	return result, handlerErr
+}
+
+func (consumer *Consumer) observeConsumedRecord(
+	ctx context.Context,
+	startedAt time.Time,
+	record *kgo.Record,
+	err error,
+) {
+	if !consumer.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:        ObservationConsumeRecord,
+		StartedAt:   startedAt,
+		Duration:    time.Since(startedAt),
+		ClientID:    consumer.clientID,
+		GroupID:     consumer.groupID,
+		RecordCount: 1,
+		Succeeded:   err == nil,
+	}
+	if _, validationErr := consumedMessageWithinLimits(record, consumer.limits); validationErr == nil {
+		observation.Topic = strings.Clone(record.Topic)
+		observation.Partition = record.Partition
+		observation.PartitionKnown = true
+		observation.PartitionCount = 1
+		observation.Offset = record.Offset
+		observation.OffsetKnown = true
+		observation.RecordBytes = consumedRecordSize(record)
+	}
+	if err == nil {
+		observation.ProcessedCount = 1
+	} else {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	consumer.dispatchObservation(ctx, observation)
+}
+
+func (consumer *Consumer) observeConsumerCommit(
+	ctx context.Context,
+	startedAt time.Time,
+	records []*kgo.Record,
+	committed int,
+	err error,
+) {
+	if !consumer.observers.enabled() {
+		return
+	}
+	topic := ""
+	if len(records) != 0 {
+		topic = records[0].Topic
+		for _, record := range records[1:] {
+			if record.Topic != topic {
+				topic = ""
+
+				break
+			}
+		}
+	}
+	observation := Observation{
+		Kind:           ObservationConsumeCommit,
+		StartedAt:      startedAt,
+		Duration:       time.Since(startedAt),
+		ClientID:       consumer.clientID,
+		GroupID:        consumer.groupID,
+		Topic:          strings.Clone(topic),
+		RecordCount:    committed,
+		PartitionCount: len(records),
+		ProcessedCount: committed,
+		Succeeded:      err == nil,
+	}
+	if err == nil {
+		observation.CommittedCount = committed
+	} else {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	consumer.dispatchObservation(ctx, observation)
+}
+
+func consumedRecordSize(record *kgo.Record) int64 {
+	size := int64(len(record.Topic) + len(record.Key) + len(record.Value) + 32)
+	for _, header := range record.Headers {
+		size += int64(len(header.Key) + len(header.Value) + 8)
+	}
+
+	return size
+}
+
+func classifyConsumerObservationError(err error) (category ErrorCategory) {
+	defer func() {
+		if recover() != nil {
+			category = ErrorPermanent
+		}
+	}()
+
+	var categorized interface{ Category() ErrorCategory }
+	if errors.As(err, &categorized) {
+		category = categorized.Category()
+		if validErrorCategory(category) {
+			return category
+		}
+	}
+
+	return classifyError(err)
+}
+
+func (consumer *Consumer) dispatchObservation(
+	ctx context.Context,
+	observation Observation,
+) {
+	consumer.lifecycleMu.Lock()
+	consumer.observerCallbacks++
+	consumer.lifecycleMu.Unlock()
+	defer func() {
+		consumer.lifecycleMu.Lock()
+		consumer.observerCallbacks--
+		consumer.lifecycleMu.Unlock()
+	}()
+
+	consumer.observers.observe(ctx, observation)
 }
