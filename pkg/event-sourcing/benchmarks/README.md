@@ -43,8 +43,9 @@ The raw Go profiles retain symbol metadata for `go tool pprof`; temporary test
 binaries are removed after capture and are not published as evidence.
 `analyze` uses the dependency-pinned `benchstat` tool.
 The database benchmarks each start a fresh PostgreSQL container with the
-module's migrations and default image configuration. They do not reuse a
-database across result files.
+module's migrations and digest-pinned PostgreSQL 18.4 image. The harness
+records that exact image reference, resolved ID, and repository digest. It does
+not reuse a database across result files.
 
 The before and after fingerprints cover each module, owned dependencies,
 benchmark fixtures, repository gate inputs, toolchain, operating system, and

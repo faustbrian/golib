@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pin the performance harness to the exact PostgreSQL 18.4 fixture used by
+  durable benchmark captures and record that complete reference in evidence.
 - Require every projection runner to configure an explicit replay guard. The
   guard authorizes or audits every initial, resumed, and terminal batch before
   replay hooks, history reads, handlers, or checkpoint mutations.

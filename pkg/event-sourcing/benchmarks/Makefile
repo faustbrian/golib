@@ -2,6 +2,10 @@ GO ?= go
 COUNT ?= 10
 BENCH_TIME ?= 100ms
 POSTGRES_VERSION ?= 18
+ifneq ($(POSTGRES_VERSION),18)
+$(error benchmark evidence requires POSTGRES_VERSION=18)
+endif
+override POSTGRES_IMAGE := postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
 OUTPUT_DIR ?=
 FINGERPRINT_OUTPUT ?=
 FINGERPRINT_BEFORE ?=
@@ -117,7 +121,8 @@ environment: require-output
 		pmset -g therm; \
 		docker version --format \
 			'client={{.Client.Version}} server={{.Server.Version}}'; \
-		docker image inspect 'postgres:$(POSTGRES_VERSION)-alpine' \
+		printf 'postgres_image=%s\n' '$(POSTGRES_IMAGE)'; \
+		docker image inspect '$(POSTGRES_IMAGE)' \
 			--format 'postgres_id={{.Id}} postgres_digests={{json .RepoDigests}}'; \
 		$(GO) -C competitors list -m \
 			github.com/hallgren/eventsourcing \
