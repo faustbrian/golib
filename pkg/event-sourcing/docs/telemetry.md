@@ -40,6 +40,9 @@ claim that later appends cannot create more work.
 Applications may report lag explicitly from a durable checkpoint and a
 caller-owned high watermark. The adapter performs no hidden read and rejects
 reversed or unrepresentable distances rather than truncating them.
+Checkpoint-store wrappers observe status and optimistic saves without changing
+conflict or pause semantics. Exact unsigned positions are recorded as strings;
+invalid projection names are redacted instead of entering telemetry.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
+	"github.com/faustbrian/golib/pkg/event-sourcing/projection"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
@@ -123,6 +124,44 @@ func BenchmarkProjectionRunner(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		if _, err := runner.RunBatch(ctx); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkProjectionCheckpointStore(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	status, err := projection.NewStatus(projection.StatusInput{
+		State:         projection.StateRunning,
+		Checkpoint:    1,
+		HasCheckpoint: true,
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	store, err := instrumentation.WrapProjectionCheckpointStore(
+		&telemetryCheckpointStore{status: status},
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := store.Save(
+			ctx,
+			"benchmark-summary",
+			1,
+			2,
+		); err != nil {
 			b.Fatal(err)
 		}
 	}

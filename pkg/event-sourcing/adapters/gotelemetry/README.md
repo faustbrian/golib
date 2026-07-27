@@ -130,6 +130,16 @@ claiming the watermark remains current. The observation decorates the active
 span and emits one histogram sample. Reversed positions or a distance outside
 OpenTelemetry's signed 64-bit metric range fail explicitly.
 
+`WrapProjectionCheckpointStore` observes durable checkpoint status and
+optimistic saves through the standard `projection.CheckpointStore` contract.
+It preserves the supplied projection name and exact unsigned positions for the
+downstream store. Canonical projection names and positions are recorded as
+strings so telemetry does not truncate them; an invalid name is reported only
+as `invalid`. The wrapper does not validate returned status or alter conflict,
+pause, error, or panic behavior. A failed status call records no returned state,
+and checkpoint fields on a failed save describe the requested transition rather
+than committed progress.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -143,6 +153,8 @@ The adapter emits:
 | span | `event_sourcing.snapshot.save` | operation and outcome |
 | span | `event_sourcing.snapshot.delete` | operation and outcome |
 | span | `event_sourcing.projection.run_batch` | static projection name, bounded counts, checkpoint, and replay termination |
+| span | `event_sourcing.projection.checkpoint.status` | canonical projection name, run state, and optional checkpoint |
+| span | `event_sourcing.projection.checkpoint.save` | canonical projection name, expected checkpoint, and next checkpoint |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
@@ -150,8 +162,9 @@ The adapter emits:
 | histogram | `event_sourcing.projection.lag` | static projection name |
 
 Operation values are `dispatch`, `consume`, `append`, `read_stream`,
-`read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`, or
-`projection_run_batch`.
+`read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`,
+`projection_run_batch`, `projection_checkpoint_status`, or
+`projection_checkpoint_save`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
@@ -190,6 +203,9 @@ Projection instrumentation records only its explicitly configured bounded
 name, aggregate counts, durable numeric checkpoint, and caller-supplied numeric
 lag. It does not record messages, event identities, filters, handler or
 poison-policy diagnostics, or read-model state.
+Checkpoint-store instrumentation records canonical projection names plus exact
+expected and resulting positions. Applications must keep the set of projection
+names bounded and must not derive them from tenants or customers.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

@@ -22,6 +22,8 @@ and this project adheres to
   partial results, cancellation, errors, panic values, and context.
 - Add bounded projection result counters and explicit caller-supplied lag
   observations with no hidden store reads or unsigned-to-signed truncation.
+- Add checkpoint status and save spans that preserve exact global positions,
+  downstream failures, panics, and operation context.
 - Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
   stale, error, and panic outcomes while preserving downstream errors, panic
   values, context propagation, and aggregate-state privacy.
