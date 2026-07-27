@@ -44,6 +44,8 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Security
 
+- Upgrade gRPC to 1.82.1 to remove the reachable `GO-2026-6061` xDS RBAC and
+  HTTP/2 transport vulnerability from OTLP/gRPC consumers.
 - Untrusted baggage is rejected by default and trusted baggage is allow-listed,
   item-bounded, and byte-bounded.
 - Default instrumentation excludes payloads, secrets, raw identifiers, SQL,
