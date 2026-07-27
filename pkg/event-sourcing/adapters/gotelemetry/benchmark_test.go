@@ -199,6 +199,39 @@ func BenchmarkProjectionController(b *testing.B) {
 	}
 }
 
+func BenchmarkProjectionHandler(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	handler, err := instrumentation.WrapProjectionHandler(
+		"benchmark-summary",
+		func(context.Context, eventsourcing.Delivery) error {
+			return nil
+		},
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	delivery := telemetryDelivery(
+		b,
+		"benchmark-projection-handler",
+		eventsourcing.DeliveryReplay,
+	)
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := handler(ctx, delivery); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type discardDispatcher struct{}
 
 func (discardDispatcher) Dispatch(

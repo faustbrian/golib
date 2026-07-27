@@ -46,6 +46,9 @@ invalid projection names are redacted instead of entering telemetry.
 Projection-controller wrappers bind one canonical static name and observe
 status, pause, resume, and checkpoint reset without starting runner work,
 draining handlers, or resetting application read models.
+Projection-handler wrappers create one child span per delivery while preserving
+the exact delivery and downstream context. They never record event identity,
+payload, read-model state, errors, or panic values.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

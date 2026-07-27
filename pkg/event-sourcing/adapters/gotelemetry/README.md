@@ -148,6 +148,12 @@ calls. Reset expectations are exact strings and describe the requested
 transition. The wrapper neither starts runner work nor drains in-flight work;
 those remain caller responsibilities.
 
+`WrapProjectionHandler` decorates a standard `projection.Handler` with one span
+per delivery. It records only the static projection name, delivery mode, bounded
+outcome, and duration. The exact delivery and child span context reach the
+downstream handler; returned errors and panic values are preserved but never
+recorded. A handler wrapper can be passed directly to `projection.NewRunner`.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -167,6 +173,7 @@ The adapter emits:
 | span | `event_sourcing.projection.control.pause` | static projection name, resulting state, and optional checkpoint |
 | span | `event_sourcing.projection.control.resume` | static projection name, resulting state, and optional checkpoint |
 | span | `event_sourcing.projection.control.reset` | static projection name, expected checkpoint, and resulting state |
+| span | `event_sourcing.projection.handle` | static projection name and delivery mode |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
@@ -178,7 +185,8 @@ Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `projection_run_batch`, `projection_checkpoint_status`, or
 `projection_checkpoint_save`; projection-control operations are
 `projection_control_status`, `projection_control_pause`,
-`projection_control_resume`, and `projection_control_reset`.
+`projection_control_resume`, and `projection_control_reset`; projection
+handling uses `projection_handle`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
@@ -223,6 +231,9 @@ names bounded and must not derive them from tenants or customers.
 Projection-controller instrumentation records the same bounded static name,
 operation, resulting state, and relevant checkpoint positions. It records no
 read-model state, reset callback, drain status, or failure diagnostics.
+Projection-handler instrumentation records the static projection name and
+delivery mode but not message identity, event data, read-model mutations,
+errors, or panic values.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

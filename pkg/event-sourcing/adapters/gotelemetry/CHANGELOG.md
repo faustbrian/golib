@@ -26,6 +26,8 @@ and this project adheres to
   downstream failures, panics, and operation context.
 - Add statically named projection-controller spans for status, pause, resume,
   and checkpoint reset with exact unsigned checkpoint attributes.
+- Add statically named projection-handler spans and delivery metrics that
+  preserve handler results, errors, panics, context, and delivery values.
 - Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
   stale, error, and panic outcomes while preserving downstream errors, panic
   values, context propagation, and aggregate-state privacy.
