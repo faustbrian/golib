@@ -32,9 +32,25 @@ timestamp and clones aggregate state during `Apply`; those are observable parts
 of its public operation and are not removed to improve its result. The golib
 path validates the stable event name and schema version on every iteration.
 
-This initial workload does not support claims about persistence,
-reconstitution, serialization, snapshots, projections, or end-to-end
-throughput. Those require separately named equivalent-work benchmarks.
+`BenchmarkEquivalentReconstitution` rebuilds a new counter aggregate from
+preconstructed histories of 1, 10, 100, and 1,000 increment events. Every
+candidate must finish with state and aggregate version equal to the history
+length. Fixture creation is outside the timer; aggregate construction and each
+library's required public reconstruction work remain inside.
+
+The public reconstruction surfaces differ materially. The golib lifecycle
+validates ordered, already-decoded historical coordinates. EventHorizon applies
+already-decoded stored events. Hallgren exposes reconstruction through
+`aggregate.Load`, so its in-memory store iteration, event copying, registry
+lookup, and JSON decoding remain measured. TheFabric's storage reconstruction
+uses `InitEvent` followed by `Apply`, so JSON decoding, version advancement,
+change retention, metadata merging, and aggregate cloning remain measured.
+These costs are not normalized away; interpret the result as the cost of each
+library's public reconstruction path, not an isolated event-handler comparison.
+
+These workloads do not support claims about durable persistence, snapshotting,
+projections, or end-to-end throughput. Serialization results are comparable
+only where serialization is required by a library's reconstruction path.
 
 ## Running
 
@@ -44,8 +60,8 @@ enough independent samples rather than selecting a best run:
 ```sh
 make test
 make environment > environment.txt
-make capture OUTPUT=raw-record-and-apply.txt BENCH_COUNT=20 BENCH_TIME=250ms
-make analyze INPUT=raw-record-and-apply.txt
+make capture OUTPUT=raw-competitors.txt BENCH_COUNT=20 BENCH_TIME=250ms
+make analyze INPUT=raw-competitors.txt
 ```
 
 Record the Go version, dependency versions, operating system, architecture,

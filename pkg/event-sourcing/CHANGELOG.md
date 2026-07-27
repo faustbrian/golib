@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Compare public aggregate reconstruction across the pinned Go event-sourcing
+  libraries at 1, 10, 100, and 1,000 events with state and version equivalence
+  checks and explicit accounting for implementation-required work.
 - Add digest-pinned PostgreSQL 14 through 18 compatibility evidence covering
   the complete conformance, contention, recovery, failover, and restore suite.
 - Add storage-independent event-store and global-reader decorators that verify

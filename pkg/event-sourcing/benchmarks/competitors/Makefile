@@ -1,7 +1,7 @@
 GO ?= go
 BENCH_COUNT ?= 20
 BENCH_TIME ?= 250ms
-BENCH_PATTERN ?= ^BenchmarkEquivalentRecordAndApply$$
+BENCH_PATTERN ?= ^BenchmarkEquivalent(RecordAndApply|Reconstitution)$$
 
 .PHONY: analyze benchmark capture environment test
 

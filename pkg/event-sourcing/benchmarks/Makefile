@@ -47,7 +47,7 @@ capture-core: require-output
 
 capture-competitors: require-output
 	$(GO) -C competitors test -run '^$$' \
-		-bench '^BenchmarkEquivalentRecordAndApply$$' -benchmem \
+		-bench '^BenchmarkEquivalent(RecordAndApply|Reconstitution)$$' -benchmem \
 		-benchtime='$(BENCH_TIME)' -count='$(COUNT)' \
 		> '$(COMPETITORS_RAW)'
 

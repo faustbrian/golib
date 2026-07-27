@@ -18,10 +18,13 @@ Measure and report these layers separately:
 7. projection replay and checkpoint persistence; and
 8. optional outbox staging and publication overhead.
 
-The isolated [competitor harness](../benchmarks/competitors/README.md) begins
-with equivalent record-and-apply behavior against current pinned releases of
-EventHorizon, Hallgren Eventsourcing, and TheFabric Eventsourcing. It does not
-put those dependencies in the core module graph.
+The isolated [competitor harness](../benchmarks/competitors/README.md) compares
+equivalent record-and-apply behavior and public aggregate reconstruction at 1,
+10, 100, and 1,000 events against current pinned releases of EventHorizon,
+Hallgren Eventsourcing, and TheFabric Eventsourcing. It documents
+implementation-required decoding, iteration, and state-copying costs instead of
+normalizing them away, and it does not put those dependencies in the core
+module graph.
 
 The PostgreSQL adapter's
 [`BenchmarkPostgreSQLAppendEquivalentWork`](../postgres/append_benchmark_integration_test.go)
