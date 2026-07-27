@@ -18,6 +18,8 @@ content-addressed repository and module evidence for the exact release inputs.
 | ES-004 | Medium | Payload serialization existed without a transport-neutral message-codec contract | Resolved | The core `MessageCodec` contract is separate from payload codecs and has ownership, validation, and round-trip tests |
 | ES-005 | Medium | Release-facing package, queue, and adapter status documents contradicted implemented behavior | Resolved | Contract tests reject incomplete matrix states, an advertised first-release generator, stale Kafka status, and stale durable-queue status |
 | ES-006 | Medium | Benchmark claims lacked one complete raw, reproducible evidence set | Resolved | Raw core, competitor, PostgreSQL, and outbox results include checksums, input fingerprints, environment provenance, and statistical summaries |
+| ES-007 | Medium | Known event names at unsupported schema versions were reported as wholly unknown identities | Resolved | `ErrIncompatibleVersion` now distinguishes canonical and decode-alias version failures from unknown event names, with focused encode/decode regressions |
+| ES-008 | Low | The pinned EventSauce matrix recorded 2026-04-25 as the package release date | Resolved | The matrix records the Packagist publication date and a separately dated source and documentation verification |
 
 Excluded EventSauce mechanisms and externally owned guarantees are decisions,
 not open findings. They remain enumerated in the

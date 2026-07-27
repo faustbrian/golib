@@ -17,7 +17,8 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 	for _, required := range []string{
 		"# EventSauce 3.9.1 compatibility matrix",
 		"`33ea9b97ec3ac56991caad03b791fee418a43e41`",
-		"released on 2026-04-25",
+		"published on Packagist on 2026-05-03",
+		"verified on 2026-07-27",
 	} {
 		if !strings.Contains(matrix, required) {
 			t.Fatalf("compatibility baseline is missing %q", required)

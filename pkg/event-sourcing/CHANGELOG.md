@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Distinguish unknown event names from known names at unsupported schema
   versions through `ErrIncompatibleVersion`; JSON aliases remain decode-only.
+- Correct the pinned EventSauce 3.9.1 publication provenance and refresh the
+  source and documentation verification date.
 - Correct the public API guide to use the implemented `GlobalReader.ReadGlobal`
   and `ReadGlobalOptions` names.
 - Replace illustrative error identifiers in the public API guide with the

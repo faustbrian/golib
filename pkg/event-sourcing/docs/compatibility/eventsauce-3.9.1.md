@@ -3,10 +3,10 @@
 ## Pin and scope
 
 This matrix uses EventSauce `3.9.1`, Git tag commit
-`33ea9b97ec3ac56991caad03b791fee418a43e41`, released on 2026-04-25.
-The tag and commit were verified against the upstream Git repository on
-2026-07-25. The live documentation changelog listed 3.9.1 as the latest stable
-release on the same date.
+`33ea9b97ec3ac56991caad03b791fee418a43e41`. Version 3.9.1 was
+published on Packagist on 2026-05-03. The tag, commit, and package metadata were
+verified on 2026-07-27. The live documentation changelog listed 3.9.1 as the
+latest stable release on the same date.
 
 The upstream source is MIT licensed. The license was reviewed before this
 design inventory. No EventSauce source or documentation text is copied into
@@ -15,7 +15,7 @@ decisions.
 
 EventSauce's documentation site is not versioned in its URLs. Every page below
 is therefore pinned by the 3.9.1 source tag and the documentation inventory
-retrieved on 2026-07-25. A future baseline update must review every row rather
+retrieved on 2026-07-27. A future baseline update must review every row rather
 than silently replacing the target.
 
 Status meanings:
@@ -51,7 +51,7 @@ No status in this document means production-ready.
 | [Configure persistence](https://eventsauce.io/docs/event-sourcing/configure-persistence/) | A message repository reconstitutes aggregates and a dispatcher reacts to persisted messages | Separate `EventStore` and `Dispatcher`; projections handle arbitrary queries | Store/dispatcher conformance and repository integration tests | [Scenario and conformance testing](../testing.md), [dispatch](../dispatch.md), and quickstart | Implemented |
 | [Bootstrap](https://eventsauce.io/docs/event-sourcing/bootstrap/) | Construct a default aggregate repository from aggregate type, message repository, and dispatcher | Build a validated generic repository from factory, ID codec, lifecycle access, codecs, store, clock, ID generator, decorators, and dispatcher | Constructor matrix plus executable save-and-load example | [Five-minute quickstart](../quickstart.md) and API reference | Implemented |
 | [Object mapper serialization](https://eventsauce.io/docs/serialization/object-mapper/) | Object hydration can serialize payloads with little application code | Do not reproduce arbitrary object hydration; use typed explicit registrations, with optional generation for repetition | Registration, ambiguity, schema, and generated-code tests | EventSauce migration guide | Excluded |
-| [Plain serialization](https://eventsauce.io/docs/serialization/plain-serialization/) | Payload values convert explicitly to and from serializable arrays | Provide explicit encoder/decoder functions through a payload-codec registry | Golden round trips, strict mode, bounds, Unicode, numbers, and time tests | [Serialization and schema evolution](../serialization.md) | Implemented |
+| [Plain serialization](https://eventsauce.io/docs/serialization/plain-serialization/) | Payload values convert explicitly to and from serializable arrays | Provide explicit encoder/decoder functions through a payload-codec registry; distinguish unknown names from known names at unsupported schema versions | Golden round trips, strict mode, identity error, bounds, Unicode, numbers, and time tests | [Serialization and schema evolution](../serialization.md) | Implemented |
 | [Testing aggregates](https://eventsauce.io/docs/testing/) | Scenario tests stage history, execute behavior, and assert emitted events | `eventtest` uses ordinary functions and result values without a custom runner or global assertion DSL | Self-tests plus aggregate scenario conformance | [Scenario and conformance testing](../testing.md) | Implemented |
 | [Testing preconditions](https://eventsauce.io/docs/testing/preconditions/) | Scenarios accept no history or specified historical events | Provide immutable `GivenNone`, consecutive `Given`, and explicit split-aware `GivenHistory` scenarios | No-history, history, reconstitution-only, and malformed-history scenarios | [Scenario and conformance testing](../testing.md) | Implemented |
 | [Handling exceptions](https://eventsauce.io/docs/testing/handling-exceptions/) | Tests assert expected failures and define whether events recorded before failure remain | Return Go errors, propagate panics by default, and capture panics only through an explicitly named operation; pending events include completed `Record` calls | Error, panic, partial behavior, and no-event scenarios | [Scenario and conformance testing](../testing.md) | Implemented |
