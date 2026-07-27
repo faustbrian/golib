@@ -24,14 +24,17 @@ differences.
   queue API.
 - `core.WorkerMetadata` enriches every lifecycle event with backend and logical
   queue identity without importing backend packages into the coordinator.
+- `core.DeliveryValidator` optionally validates one decoded delivery before the
+  coordinator enters handler timeout and retry execution.
 - Retry and settlement failure events carry stable classification and safe-code
   fields so exporters do not need to parse or label arbitrary error text.
 
 The processing path is:
 
 ```text
-producer -> Worker.Queue -> backend -> Worker.Request -> Queue.handle
-         -> retry/backoff -> Ack on success | Nack on final failure
+producer -> Worker.Queue -> backend -> Worker.Request -> delivery validation
+         -> Queue.handle -> retry/backoff
+         -> Ack on success | Nack on final failure
 ```
 
 The producer-only Valkey path ends after a confirmed bounded append:

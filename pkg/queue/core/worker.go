@@ -31,6 +31,12 @@ type WorkerMetadata interface {
 	QueueName() string
 }
 
+// DeliveryValidator is an additive worker extension for validating one
+// decoded delivery before the root queue starts its handler retry loop.
+type DeliveryValidator interface {
+	ValidateDelivery(TaskMessage) error
+}
+
 // QueuedMessage represents an interface for a message that can be queued.
 // It requires the implementation of a Bytes method, which returns the message
 // content as a slice of bytes.

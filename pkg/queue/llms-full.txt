@@ -73,6 +73,7 @@ clients.
   redacting arbitrary handler, panic, and settlement text
 - handler backoff limited to retryable failures so terminal and uncertain
   classifications reach backend settlement without repeated side effects
+- optional one-time decoded-delivery validation before handler retry execution
 - durable Redis Streams, Valkey Streams, NSQ, and RabbitMQ paths with explicit settlement
 - observable lifecycle events, metrics, and backend identity
 - stable management-protocol version and capability negotiation for external
@@ -253,6 +254,9 @@ maps the stable concepts new adopters need.
   diagnostic handling and must not be used as a metric label.
 - `core.WorkerMetadata` lets workers add backend and queue identity to every
   lifecycle event.
+- `core.DeliveryValidator` lets a worker validate each decoded task once before
+  handler timeout and retry execution. Validation errors use normal classified
+  backend settlement.
 
 ## Job package
 
@@ -399,14 +403,17 @@ differences.
   queue API.
 - `core.WorkerMetadata` enriches every lifecycle event with backend and logical
   queue identity without importing backend packages into the coordinator.
+- `core.DeliveryValidator` optionally validates one decoded delivery before the
+  coordinator enters handler timeout and retry execution.
 - Retry and settlement failure events carry stable classification and safe-code
   fields so exporters do not need to parse or label arbitrary error text.
 
 The processing path is:
 
 ```text
-producer -> Worker.Queue -> backend -> Worker.Request -> Queue.handle
-         -> retry/backoff -> Ack on success | Nack on final failure
+producer -> Worker.Queue -> backend -> Worker.Request -> delivery validation
+         -> Queue.handle -> retry/backoff
+         -> Ack on success | Nack on final failure
 ```
 
 The producer-only Valkey path ends after a confirmed bounded append:
@@ -1176,6 +1183,9 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- Additive `core.DeliveryValidator` support lets a worker validate one decoded
+  delivery exactly once before the root queue starts handler timeout and retry
+  execution. Classified validation failures proceed directly to settlement.
 - Valkey Streams `WithCanceledDeadLetterCodes` for callers that need selected,
   owned cancellation outcomes such as handler deadlines to enter the terminal
   dead-letter path after attempt exhaustion. Unlisted cancellations and all
@@ -2351,6 +2361,11 @@ canceled, and infrastructure failures proceed to backend settlement after the
 first handler execution. The backend ack is not sent between retryable handler
 attempts. A process crash can redeliver work even after application side effects
 completed but before the ack reached the broker.
+
+Workers may implement `core.DeliveryValidator` for deterministic checks that
+must observe the original decoded execution metadata. The root queue invokes it
+once before handler timeout or retry execution. A validation failure skips the
+handler and proceeds through the delivery's classified backend settlement.
 
 Backends may implement the additive `core.FailureAcknowledger` contract to
 receive the classified final handler error. `job.Message` exposes

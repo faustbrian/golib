@@ -83,6 +83,9 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- Additive `core.DeliveryValidator` support lets a worker validate one decoded
+  delivery exactly once before the root queue starts handler timeout and retry
+  execution. Classified validation failures proceed directly to settlement.
 - Valkey Streams `WithCanceledDeadLetterCodes` for callers that need selected,
   owned cancellation outcomes such as handler deadlines to enter the terminal
   dead-letter path after attempt exhaustion. Unlisted cancellations and all

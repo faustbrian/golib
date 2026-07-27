@@ -315,6 +315,11 @@ func invokeSettlement(operation string, settle func() error) (err error) {
 func (q *Queue) run(task core.TaskMessage) error {
 	switch t := task.(type) {
 	case *job.Message:
+		if validator, ok := q.worker.(core.DeliveryValidator); ok {
+			if err := validator.ValidateDelivery(t); err != nil {
+				return err
+			}
+		}
 		return q.handle(t)
 	default:
 		return errors.New("invalid task type")

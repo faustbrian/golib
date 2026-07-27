@@ -69,6 +69,7 @@ clients.
   redacting arbitrary handler, panic, and settlement text
 - handler backoff limited to retryable failures so terminal and uncertain
   classifications reach backend settlement without repeated side effects
+- optional one-time decoded-delivery validation before handler retry execution
 - durable Redis Streams, Valkey Streams, NSQ, and RabbitMQ paths with explicit settlement
 - observable lifecycle events, metrics, and backend identity
 - stable management-protocol version and capability negotiation for external

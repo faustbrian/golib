@@ -19,6 +19,11 @@ first handler execution. The backend ack is not sent between retryable handler
 attempts. A process crash can redeliver work even after application side effects
 completed but before the ack reached the broker.
 
+Workers may implement `core.DeliveryValidator` for deterministic checks that
+must observe the original decoded execution metadata. The root queue invokes it
+once before handler timeout or retry execution. A validation failure skips the
+handler and proceeds through the delivery's classified backend settlement.
+
 Backends may implement the additive `core.FailureAcknowledger` contract to
 receive the classified final handler error. `job.Message` exposes
 `SetFailureAcknowledgement` for this path and falls back to the legacy `Nack`

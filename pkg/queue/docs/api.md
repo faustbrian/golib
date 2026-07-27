@@ -20,6 +20,9 @@ maps the stable concepts new adopters need.
   diagnostic handling and must not be used as a metric label.
 - `core.WorkerMetadata` lets workers add backend and queue identity to every
   lifecycle event.
+- `core.DeliveryValidator` lets a worker validate each decoded task once before
+  handler timeout and retry execution. Validation errors use normal classified
+  backend settlement.
 
 ## Job package
 

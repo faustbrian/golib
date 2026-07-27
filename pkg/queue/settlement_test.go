@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
 	"github.com/faustbrian/golib/pkg/queue/management"
 	"github.com/stretchr/testify/assert"
@@ -293,6 +294,69 @@ func TestHandlerRetriesOnlyRetryableFailures(t *testing.T) {
 	}
 }
 
+func TestDeliveryValidationRunsOnceBeforeHandlerRetries(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid delivery", func(t *testing.T) {
+		t.Parallel()
+
+		worker := &deliveryValidatingWorker{
+			handlerErr: errors.New("temporary failure"),
+		}
+		message := job.NewMessage(
+			staticQueuedMessage("payload"),
+			job.AllowOption{
+				RetryCount: job.Int64(3),
+				RetryDelay: job.Time(time.Nanosecond),
+			},
+		)
+		q, err := NewQueue(WithWorker(worker))
+		require.NoError(t, err)
+
+		require.ErrorIs(t, q.run(&message), worker.handlerErr)
+		assert.EqualValues(t, 1, worker.validations.Load())
+		assert.EqualValues(t, 4, worker.runs.Load())
+	})
+
+	t.Run("invalid delivery", func(t *testing.T) {
+		t.Parallel()
+
+		validationErr := management.NewFailure(
+			management.ClassificationMalformed,
+			"unsupported_payload",
+			errors.New("unsupported payload"),
+		)
+		worker := &deliveryValidatingWorker{
+			validationErr: validationErr,
+			handlerErr:    errors.New("must not run"),
+		}
+		message := job.NewMessage(
+			staticQueuedMessage("payload"),
+			job.AllowOption{
+				RetryCount: job.Int64(3),
+				RetryDelay: job.Time(time.Nanosecond),
+			},
+		)
+		var settled error
+		message.SetFailureAcknowledgement(
+			func() error { return nil },
+			func(failure error) error {
+				settled = failure
+				return nil
+			},
+		)
+		q, err := NewQueue(WithWorker(worker))
+		require.NoError(t, err)
+		atomic.StoreInt64(&q.activeWorkers, 1)
+		q.metric.IncBusyWorker()
+
+		q.work(&message)
+		require.ErrorIs(t, settled, validationErr)
+		assert.EqualValues(t, 1, worker.validations.Load())
+		assert.Zero(t, worker.runs.Load())
+	})
+}
+
 func TestAcknowledgementPanicFailsDeliveryWithoutEscaping(t *testing.T) {
 	observer := &recordingObserver{}
 	q, err := NewQueue(
@@ -409,6 +473,40 @@ func (d *failureAwareDelivery) Nack() error {
 func (d *failureAwareDelivery) NackFailure(err error) error {
 	d.failure = err
 	return nil
+}
+
+type deliveryValidatingWorker struct {
+	validationErr error
+	handlerErr    error
+	validations   atomic.Int64
+	runs          atomic.Int64
+}
+
+func (w *deliveryValidatingWorker) ValidateDelivery(core.TaskMessage) error {
+	w.validations.Add(1)
+	return w.validationErr
+}
+
+func (w *deliveryValidatingWorker) Run(
+	context.Context,
+	core.TaskMessage,
+) error {
+	w.runs.Add(1)
+	return w.handlerErr
+}
+
+func (*deliveryValidatingWorker) Shutdown() error { return nil }
+func (*deliveryValidatingWorker) Queue(core.TaskMessage) error {
+	return nil
+}
+func (*deliveryValidatingWorker) Request() (core.TaskMessage, error) {
+	return nil, ErrNoTaskInQueue
+}
+
+type staticQueuedMessage string
+
+func (message staticQueuedMessage) Bytes() []byte {
+	return []byte(message)
 }
 
 func channelClosed(channel <-chan struct{}) bool {
