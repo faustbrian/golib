@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extend the optional telemetry guide and compatibility boundary with explicit
+  snapshot load, refresh, and deletion instrumentation whose bounded outcomes
+  do not expose aggregate identity or derived snapshot state.
 - Expand reproducible performance coverage across empty and single-event
   histories, bounded and hostile payloads, cold and warm codec registries,
   no-op upcasting, and synchronous dispatch batches.

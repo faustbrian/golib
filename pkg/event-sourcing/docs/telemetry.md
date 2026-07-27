@@ -9,7 +9,9 @@ preserves parent trace context and emits fixed-name spans plus
 finite-cardinality operation, duration, and delivery metrics. It also wraps
 Kafka publishers and handlers with bounded W3C context injection and
 extraction. Event-store wrappers observe append and complete iterator
-lifetimes for bounded stream and global reads. The adapter never records
+lifetimes for bounded stream and global reads. Snapshot-store wrappers observe
+explicit load, refresh, and deletion with bounded hit, miss, stale, error, and
+panic outcomes. The adapter never records
 aggregate, message, correlation, causation, tenant, partition, event, payload,
 metadata, error, panic, topic, position, database, or credential data.
 

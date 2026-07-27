@@ -17,6 +17,9 @@ and this project adheres to
 
 ### Added
 
+- Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
+  stale, error, and panic outcomes while preserving downstream errors, panic
+  values, context propagation, and aggregate-state privacy.
 - Add explicit OpenTelemetry instrumentation for synchronous event dispatch
   and consumer handling with bounded low-cardinality metrics, trace-parent
   preservation, panic transparency, redacted failure status, exact statement
