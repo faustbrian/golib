@@ -938,14 +938,6 @@ func TestPostgreSQLStoreRecoversAfterServerRestart(t *testing.T) {
 	if err := container.Start(ctx); err != nil {
 		t.Fatalf("restart PostgreSQL: %v", err)
 	}
-	execPostgreSQLCommand(
-		t,
-		ctx,
-		container,
-		"pg_isready",
-		"--username=event_sourcing",
-		"--dbname=event_sourcing",
-	)
 	restartedConnectionString, err := container.ConnectionString(
 		ctx,
 		"sslmode=disable",
