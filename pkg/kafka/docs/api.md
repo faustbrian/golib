@@ -199,6 +199,16 @@ same validation before handler admission. Unavailable bounds and out-of-range
 requests have distinct errors. Replay also returns `ErrReplayStalled` if
 `ProgressTimeout` elapses without advancing any range. It returns 64-bit
 aggregate plus per-range progress on every success or failure.
+`ReplayConfig.MaxConcurrentFetches` independently bounds broker fetch requests.
+`MaxConcurrentHandlers` defaults to one and permits 1 through 64 fixed workers.
+Values above one process one sequential batch per partition concurrently. All
+partition batches returned by one bounded poll are admitted together; after a
+partition failure, already admitted independent partitions finish and their
+successful next offsets remain in the result checkpoint. Errors are joined in
+stable first-seen partition order. Cancellation reaches every active callback
+and prevents a queued partition from invoking a new callback. A backend result
+above `MaxPollRecords` fails with `ErrTooManyFetchedRecords` before grouping or
+handler admission.
 `ReplayResult.Checkpoint` returns owned next offsets for a new reader. A reader
 permits one execution; concurrent and repeated calls have distinct lifecycle
 errors. `Shutdown` fences new work and is

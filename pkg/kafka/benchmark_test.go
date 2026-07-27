@@ -102,33 +102,54 @@ func BenchmarkReplayProgress(b *testing.B) {
 	handler := HandlerFunc(func(context.Context, ConsumedMessage) error {
 		return nil
 	})
-	record := &kgo.Record{
-		Topic:     "track.tracking-event.v1",
-		Partition: 0,
-		Offset:    100,
-		Key:       []byte("tracked-item-1"),
-		Value:     []byte(`{"event_id":"event-1","schema_version":1}`),
-	}
-	replayRange := ReplayRange{
-		Topic:       record.Topic,
-		Partition:   record.Partition,
-		StartOffset: record.Offset,
-		EndOffset:   record.Offset + 1,
+	records := make([]*kgo.Record, 4)
+	ranges := make([]ReplayRange, 4)
+	for partition := range 4 {
+		records[partition] = &kgo.Record{
+			Topic:     "track.tracking-event.v1",
+			Partition: int32(partition),
+			Offset:    100,
+			Key:       []byte("tracked-item-1"),
+			Value:     []byte(`{"event_id":"event-1","schema_version":1}`),
+		}
+		ranges[partition] = ReplayRange{
+			Topic:       records[partition].Topic,
+			Partition:   records[partition].Partition,
+			StartOffset: records[partition].Offset,
+			EndOffset:   records[partition].Offset + 1,
+		}
 	}
 
-	b.ReportAllocs()
-	for b.Loop() {
-		reader := replayReaderWithSafety(
-			&recordingReplayBackend{fetches: []kgo.Fetches{
-				recordFetches(record),
-			}},
-			[]ReplayRange{replayRange},
-			ReplayCheckpoint{},
-		)
-		result, err := reader.Replay(ctx, handler)
-		if err != nil || result.Processed != 1 || result.IncompleteRanges != 0 {
-			b.Fatalf("Replay() result/error = %#v/%v", result, err)
-		}
+	for _, benchmark := range []struct {
+		name     string
+		handlers int
+	}{
+		{name: "serial", handlers: 1},
+		{name: "four-partition-workers", handlers: 4},
+	} {
+		b.Run(benchmark.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				reader := replayReaderWithSafety(
+					&recordingReplayBackend{fetches: []kgo.Fetches{
+						recordFetches(records...),
+					}},
+					ranges,
+					ReplayCheckpoint{},
+				)
+				reader.maxConcurrentHandlers = benchmark.handlers
+				result, err := reader.Replay(ctx, handler)
+				if err != nil ||
+					result.Processed != int64(len(records)) ||
+					result.IncompleteRanges != 0 {
+					b.Fatalf(
+						"Replay() result/error = %#v/%v",
+						result,
+						err,
+					)
+				}
+			}
+		})
 	}
 }
 

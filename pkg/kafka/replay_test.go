@@ -20,6 +20,8 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 		t.Fatalf("normalizeReplayConfig() error = %v", err)
 	}
 	if config.MaxPollRecords != 100 ||
+		config.MaxConcurrentFetches != 1 ||
+		config.MaxConcurrentHandlers != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||

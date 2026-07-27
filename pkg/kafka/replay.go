@@ -102,7 +102,12 @@ type ReplayConfig struct {
 	Limits      MessageLimits
 	Security    ClientSecurity
 
-	MaxPollRecords         int
+	MaxPollRecords int
+	// MaxConcurrentFetches bounds broker fetch requests.
+	MaxConcurrentFetches int
+	// MaxConcurrentHandlers bounds simultaneous callbacks across independent
+	// partitions. Records within one partition always remain sequential.
+	MaxConcurrentHandlers  int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
 	FetchMaxWait           time.Duration
@@ -226,18 +231,19 @@ func listReplayBounds(
 // ReplayReader processes exact offset ranges without changing consumer-group
 // state.
 type ReplayReader struct {
-	client          replayBackend
-	bounds          replayBoundsBackend
-	ranges          []ReplayRange
-	checkpoint      ReplayCheckpoint
-	sideEffects     ReplaySideEffectPolicy
-	limits          MessageLimits
-	maxPollRecords  int
-	planningTimeout time.Duration
-	progressTimeout time.Duration
-	handlerTimeout  time.Duration
-	shutdownTimeout time.Duration
-	now             func() time.Time
+	client                replayBackend
+	bounds                replayBoundsBackend
+	ranges                []ReplayRange
+	checkpoint            ReplayCheckpoint
+	sideEffects           ReplaySideEffectPolicy
+	limits                MessageLimits
+	maxPollRecords        int
+	maxConcurrentHandlers int
+	planningTimeout       time.Duration
+	progressTimeout       time.Duration
+	handlerTimeout        time.Duration
+	shutdownTimeout       time.Duration
+	now                   func() time.Time
 
 	mu             sync.Mutex
 	running        bool
@@ -277,6 +283,7 @@ func newReplayReader(
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
 		kgo.ConsumePartitions(partitions),
+		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
 		kgo.FetchMaxWait(config.FetchMaxWait),
@@ -291,18 +298,19 @@ func newReplayReader(
 	}
 
 	return &ReplayReader{
-		client:          client,
-		bounds:          kadm.NewClient(client),
-		ranges:          append([]ReplayRange(nil), config.Ranges...),
-		checkpoint:      config.Checkpoint.Retain(),
-		sideEffects:     config.SideEffects,
-		limits:          config.Limits,
-		maxPollRecords:  config.MaxPollRecords,
-		planningTimeout: config.PlanningTimeout,
-		progressTimeout: config.ProgressTimeout,
-		handlerTimeout:  config.HandlerTimeout,
-		shutdownTimeout: config.ShutdownTimeout,
-		now:             time.Now,
+		client:                client,
+		bounds:                kadm.NewClient(client),
+		ranges:                append([]ReplayRange(nil), config.Ranges...),
+		checkpoint:            config.Checkpoint.Retain(),
+		sideEffects:           config.SideEffects,
+		limits:                config.Limits,
+		maxPollRecords:        config.MaxPollRecords,
+		maxConcurrentHandlers: config.MaxConcurrentHandlers,
+		planningTimeout:       config.PlanningTimeout,
+		progressTimeout:       config.ProgressTimeout,
+		handlerTimeout:        config.HandlerTimeout,
+		shutdownTimeout:       config.ShutdownTimeout,
+		now:                   time.Now,
 	}, nil
 }
 
@@ -364,6 +372,12 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	if config.MaxPollRecords == 0 {
 		config.MaxPollRecords = 100
 	}
+	if config.MaxConcurrentFetches == 0 {
+		config.MaxConcurrentFetches = 1
+	}
+	if config.MaxConcurrentHandlers == 0 {
+		config.MaxConcurrentHandlers = 1
+	}
 	if config.FetchMaxBytes == 0 {
 		config.FetchMaxBytes = 50 << 20
 	}
@@ -390,6 +404,10 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	}
 	if config.MaxPollRecords < 1 ||
 		config.MaxPollRecords > 1_000 ||
+		config.MaxConcurrentFetches < 1 ||
+		config.MaxConcurrentFetches > 64 ||
+		config.MaxConcurrentHandlers < 1 ||
+		config.MaxConcurrentHandlers > 64 ||
 		config.FetchMaxBytes < 1<<20 ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
@@ -592,76 +610,32 @@ func (reader *ReplayReader) Replay(
 		}
 		records := fetches.Records()
 		result.Polled += int64(len(records))
-		for _, record := range records {
-			if replayProgressExpired(progressDeadlines, reader.now()) {
-				return result, ErrReplayStalled
-			}
-			partition := replayPartition{
-				topic: record.Topic, partition: record.Partition,
-			}
-			index, exists := indexes[partition]
-			if !exists {
-				return result, ErrUnexpectedReplayRecord
-			}
-			progress := &result.Ranges[index]
-			if progress.Complete {
-				result.Skipped++
-				progress.Skipped++
-
-				continue
-			}
-			if record.Offset < progress.StartOffset {
-				result.Failed++
-				progress.Failed++
-
-				return result, ErrReplayOffsetGap
-			}
-			if record.Offset < progress.NextOffset {
-				result.Skipped++
-				progress.Skipped++
-
-				continue
-			}
-			if record.Offset != progress.NextOffset ||
-				record.Offset >= progress.EndOffset {
-				result.Failed++
-				progress.Failed++
-
-				return result, ErrReplayOffsetGap
-			}
-
-			message, err := consumedMessageWithinLimits(record, reader.limits)
-			if err != nil {
-				result.Failed++
-				progress.Failed++
-
+		if len(records) > reader.maxPollRecords {
+			return result, ErrTooManyFetchedRecords
+		}
+		if reader.maxConcurrentHandlers <= 1 {
+			if err := reader.processReplayRecordsSerial(
+				ctx,
+				handler,
+				records,
+				&result,
+				indexes,
+				progressDeadlines,
+			); err != nil {
 				return result, err
 			}
-			handlerCtx, cancel := context.WithTimeout(ctx, reader.handlerTimeout)
-			err = callHandler(handlerCtx, handler, message)
-			if cause := context.Cause(handlerCtx); cause != nil {
-				err = errors.Join(err, cause)
-			}
-			cancel()
-			if err != nil {
-				result.Failed++
-				progress.Failed++
 
-				return result, err
-			}
-			result.Processed++
-			progress.Processed++
-			progress.NextOffset++
-			progressDeadlines[partition] = reader.now().Add(reader.progressTimeout)
-			if progress.NextOffset == progress.EndOffset {
-				progress.Complete = true
-				result.CompletedRanges++
-				result.IncompleteRanges--
-				delete(progressDeadlines, partition)
-				reader.client.PauseFetchPartitions(map[string][]int32{
-					progress.Topic: {progress.Partition},
-				})
-			}
+			continue
+		}
+		if err := reader.processReplayRecordsParallel(
+			ctx,
+			handler,
+			records,
+			&result,
+			indexes,
+			progressDeadlines,
+		); err != nil {
+			return result, err
 		}
 	}
 

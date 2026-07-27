@@ -60,6 +60,28 @@ configured ranges; unknown, duplicate, before-start, and after-end positions
 are rejected before a Kafka client is allocated. This package does not store,
 commit, reset, or delete replay or consumer-group offsets.
 
+## Partition concurrency
+
+Replay is sequential by default. `MaxConcurrentFetches` bounds franz-go broker
+fetch requests and `MaxConcurrentHandlers` bounds application callbacks; both
+accept 1 through 64 and default to one. They are independent limits.
+
+When handler concurrency exceeds one, a bounded poll is grouped by
+topic-partition in first-seen order. A fixed worker set processes those
+partition batches concurrently, while records in each partition remain
+strictly ascending and sequential. There is no global order across partitions.
+The handler must be concurrency-safe.
+
+Every partition batch returned by that poll is admitted as one bounded unit.
+If one partition fails, other admitted partitions finish. Replay joins their
+errors in stable batch order and returns exact progress for every partition;
+the failing partition never advances past its failed record, while successful
+independent partitions remain resumable from their later checkpoints.
+Cancellation reaches all active callbacks and prevents a queued partition from
+starting another callback. Callback cancellation remains cooperative. A
+backend result exceeding `MaxPollRecords` is rejected before partition grouping
+or handler admission.
+
 ## Failure and retention
 
 Every expected offset must be present in ascending partition order. franz-go
@@ -106,7 +128,9 @@ constructing a new reader with the returned checkpoint. The lifecycle lock is
 not held across application callbacks, polling, or close. Handler bytes are
 borrowed for the callback and must be retained before escape. Context
 cancellation and handler expiry override a nil callback result, leave the
-current offset unprocessed, and return it in the checkpoint.
+current offset unprocessed, and return it in the checkpoint. With parallel
+execution, a canceled queued partition is returned unchanged without invoking
+its handler.
 
 `Shutdown` fences new replay calls, waits for the active call, and closes the
 direct Kafka client. A deadline leaves shutdown fenced and retriable.

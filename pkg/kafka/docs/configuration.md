@@ -217,9 +217,14 @@ The request partition slice is copied before sorting or broker use.
 `SideEffects` defaults to `ReplaySideEffectsDenied`; only the explicit
 `ReplaySideEffectsAllowed` value permits handler execution. `Limits` defaults
 to `DefaultMessageLimits` and must also admit every configured topic. Replay
-defaults to 100 poll records, 50 MiB aggregate fetch bytes, 1 MiB per-partition
-fetch bytes, 500 millisecond fetch wait, a 10 second broker-bound planning
-timeout, 30 second handler and shutdown timeouts, and a 10 second dial timeout.
+defaults to 100 poll records, one concurrent fetch, one handler, 50 MiB
+aggregate fetch bytes, 1 MiB per-partition fetch bytes, 500 millisecond fetch
+wait, a 10 second broker-bound planning timeout, 30 second handler and shutdown
+timeouts, and a 10 second dial timeout. `MaxConcurrentFetches` and
+`MaxConcurrentHandlers` each accept 1 through 64. Fetch concurrency bounds
+franz-go broker requests independently of handler concurrency. Handler values
+above one require a concurrency-safe callback and overlap only independent
+partitions; each partition remains sequential.
 The planning timeout accepts 100 milliseconds through 2 minutes.
 `ProgressTimeout` defaults to 30 seconds, accepts 100 milliseconds through 30
 minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the

@@ -230,6 +230,10 @@ record limits and handler deadlines, and returns exact per-range next offsets
 through `ReplayResult.Checkpoint`. Replay repeats the broker-boundary validation
 before the first handler. Unavailable bounds, out-of-range fetches, and offset
 gaps fail closed instead of resetting.
+Replay is sequential by default. Explicit `MaxConcurrentHandlers` values above
+one permit bounded overlap only across independent partitions; each partition
+remains ordered. A failed partition does not discard progress completed by
+other partition batches already admitted from the same bounded poll.
 `ProgressTimeout` prevents a compacted or empty exact range from polling
 forever without advancing its checkpoint.
 Completed partitions are paused while other ranges finish. Cancel the replay

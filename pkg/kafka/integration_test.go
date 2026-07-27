@@ -10,6 +10,7 @@ import (
 	"net"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -117,7 +118,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, retryTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterTopic, 1)
-	createIntegrationTopic(t, ctx, brokers, replayTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, replayTopic, 2)
 	assertInspectionState(t, ctx, brokers, explicitTopic)
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
@@ -365,6 +366,82 @@ func proveReplayPolicy(
 			second,
 			replayErr,
 			resumed,
+		)
+	}
+
+	for index := range 2 {
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(1),
+			Key:       []byte("replay-key-partition-1"),
+			Value:     []byte(fmt.Sprintf("replay-partition-1-%d", index)),
+		})
+		if result.Err != nil ||
+			result.Partition != 1 ||
+			result.Offset != int64(index) {
+			t.Fatalf("publish parallel replay fixture %d: %#v", index, result)
+		}
+	}
+
+	parallel, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-compatibility-replay-parallel",
+		Ranges: []kafka.ReplayRange{
+			{Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 3},
+			{Topic: topic, Partition: 1, StartOffset: 0, EndOffset: 2},
+		},
+		SideEffects:           kafka.ReplaySideEffectsAllowed,
+		MaxConcurrentFetches:  2,
+		MaxConcurrentHandlers: 2,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct parallel replay reader: %v", err)
+	}
+	release := make(chan struct{})
+	var firstPartitions atomic.Int32
+	var sequenceMu sync.Mutex
+	sequences := make(map[int32][]int64)
+	parallelResult, replayErr := parallel.Replay(
+		ctx,
+		kafka.HandlerFunc(func(
+			handlerCtx context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			sequenceMu.Lock()
+			sequences[message.Partition] = append(
+				sequences[message.Partition],
+				message.Offset,
+			)
+			sequenceMu.Unlock()
+			if message.Offset != 0 {
+				return nil
+			}
+			if firstPartitions.Add(1) == 2 {
+				close(release)
+			}
+			select {
+			case <-release:
+				return nil
+			case <-handlerCtx.Done():
+				return context.Cause(handlerCtx)
+			}
+		}),
+	)
+	if closeErr := parallel.Close(); closeErr != nil {
+		t.Fatalf("close parallel replay reader: %v", closeErr)
+	}
+	if replayErr != nil ||
+		parallelResult.Processed != 5 ||
+		parallelResult.CompletedRanges != 2 ||
+		parallelResult.IncompleteRanges != 0 ||
+		!slices.Equal(sequences[0], []int64{0, 1, 2}) ||
+		!slices.Equal(sequences[1], []int64{0, 1}) {
+		t.Fatalf(
+			"parallel replay result/error/sequences = %#v/%v/%v",
+			parallelResult,
+			replayErr,
+			sequences,
 		)
 	}
 

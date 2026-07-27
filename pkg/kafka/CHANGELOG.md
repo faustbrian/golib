@@ -76,6 +76,13 @@ All notable changes to this module are documented here.
   per-range progress, bounded broker start/end validation, fail-closed record
   limits, zero-plan validation failures, offset-reset policy, a no-progress
   deadline, and bounded retriable shutdown
+- independently bounded replay fetch and handler concurrency with a sequential
+  default, ordered per-partition processing, exact successful
+  independent-partition checkpoints after failure, and cancellation that
+  prevents queued callbacks from starting; backend poll-limit violations now
+  fail before partition grouping or handler admission
+- real-broker replay evidence for bounded cross-partition handler overlap while
+  preserving ascending order within each partition
 - real-broker evidence that a broker-validated plan remains executable,
   interrupted replay resumes from its external checkpoint, and a range beyond
   the high watermark is rejected before a handler runs
