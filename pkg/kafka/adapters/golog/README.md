@@ -39,6 +39,9 @@ fields never contain record keys, values, headers, credentials, broker
 endpoints, application error text, or panic values. Attributes already attached
 to the supplied logger or its handler remain application-owned and must follow
 the same redaction policy.
+Replay observations add fixed signed-64-bit processed, skipped, failed, and
+remaining counts. They preserve exact replay progress without turning source
+coordinates or identities into unbounded fields.
 
 Client IDs, topics, and consumer groups are denied by default. Each identity is
 logged only when exactly present in its constructor-copied allowlist. Lists are

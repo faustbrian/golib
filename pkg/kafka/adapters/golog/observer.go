@@ -148,6 +148,10 @@ func (adapter *Adapter) observe(
 		slog.Int("kafka.processed.count", observation.ProcessedCount),
 		slog.Int("kafka.committed.count", observation.CommittedCount),
 		slog.Int64("kafka.record.size", observation.RecordBytes),
+		slog.Int64("kafka.replay.processed", observation.ReplayProcessed),
+		slog.Int64("kafka.replay.skipped", observation.ReplaySkipped),
+		slog.Int64("kafka.replay.failed", observation.ReplayFailed),
+		slog.Int64("kafka.replay.remaining", observation.ReplayRemaining),
 		slog.Int64("kafka.request.size", observation.RequestBytes),
 		slog.Int64("kafka.response.size", observation.ResponseBytes),
 		slog.Int64(

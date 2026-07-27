@@ -231,6 +231,12 @@ The planning timeout accepts 100 milliseconds through 2 minutes.
 `ProgressTimeout` defaults to 30 seconds, accepts 100 milliseconds through 30
 minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the
 corresponding consumer bounds.
+`Observers` uses the same copied 1 to 16 callback policy and shared
+1 millisecond to 5 second cooperative timeout as producer and consumer
+configuration. Replay partition workers and franz-go broker goroutines can
+invoke callbacks concurrently. `ReplayConfig.Validate` applies every replay,
+security, limit, deadline, checkpoint, and observer rule without allocating a
+Kafka client or retaining caller-owned slices.
 
 Inspection uses the shared connection policy plus these owned bounds:
 

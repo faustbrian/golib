@@ -30,6 +30,7 @@ func FuzzIdentityPolicyValidate(f *testing.F) {
 
 func FuzzObserverValidation(f *testing.F) {
 	f.Add(uint8(kafka.ObservationProduceRecord), int64(1), true, uint8(0))
+	f.Add(uint8(kafka.ObservationReplayRecord), int64(1), true, uint8(0))
 	f.Add(uint8(0), int64(-1), false, uint8(255))
 
 	adapter, err := New(Config{
@@ -55,6 +56,14 @@ func FuzzObserverValidation(f *testing.F) {
 			Succeeded:   succeeded,
 			Category:    kafka.ErrorCategory(category),
 		}
+		switch observation.Kind {
+		case kafka.ObservationReplayPlan,
+			kafka.ObservationReplayRun:
+			observation.PartitionCount = 1
+		case kafka.ObservationReplayRecord:
+			observation.ProcessedCount = 1
+			observation.ReplayProcessed = 1
+		}
 		err := adapter.Observer()(context.Background(), observation)
 		if err != nil && !errors.Is(err, ErrInvalidObservation) {
 			t.Fatalf("unexpected observer error = %v", err)
@@ -67,6 +76,7 @@ func recordCount(kind kafka.ObservationKind) int {
 	case kafka.ObservationProduceRecord,
 		kafka.ObservationProduceAsync,
 		kafka.ObservationConsumeRecord,
+		kafka.ObservationReplayRecord,
 		kafka.ObservationProduceBatch,
 		kafka.ObservationConsumeBatch,
 		kafka.ObservationConsumeCommit:

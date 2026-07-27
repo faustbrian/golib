@@ -81,6 +81,17 @@ const (
 	// ObservationTransactionAbort reports a completed Kafka transaction abort
 	// attempt.
 	ObservationTransactionAbort
+	// ObservationReplayPlan reports broker validation of one bounded replay
+	// plan without executing its handlers.
+	ObservationReplayPlan
+	// ObservationReplayRecord reports one replay record outcome, including
+	// processed, skipped, and failed records.
+	ObservationReplayRecord
+	// ObservationReplayRun reports the exact aggregate outcome of one replay
+	// execution.
+	ObservationReplayRun
+	// ObservationReplayShutdown reports one bounded replay-reader shutdown.
+	ObservationReplayShutdown
 )
 
 // String returns the stable low-cardinality observation name.
@@ -116,6 +127,14 @@ func (kind ObservationKind) String() string {
 		return "transaction.commit"
 	case ObservationTransactionAbort:
 		return "transaction.abort"
+	case ObservationReplayPlan:
+		return "replay.plan"
+	case ObservationReplayRecord:
+		return "replay.record"
+	case ObservationReplayRun:
+		return "replay.run"
+	case ObservationReplayShutdown:
+		return "replay.shutdown"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
@@ -187,6 +206,18 @@ type Observation struct {
 	// RecordBytes is a conservative payload and framing size, not a broker
 	// encoded-byte measurement.
 	RecordBytes int64
+	// ReplayProcessed is the exact number of records processed by a replay
+	// operation. It is zero for non-replay observations.
+	ReplayProcessed int64
+	// ReplaySkipped is the exact number of records skipped by a replay
+	// operation. It is zero for non-replay observations.
+	ReplaySkipped int64
+	// ReplayFailed is the exact number of records failed by a replay operation.
+	// It is zero for non-replay observations.
+	ReplayFailed int64
+	// ReplayRemaining is the exact number of requested offsets not yet
+	// processed. It is zero for non-replay observations.
+	ReplayRemaining int64
 	// Succeeded reports whether the package operation returned success.
 	Succeeded bool
 	// Truncated reports that bounded diagnostic counts or metadata were clipped.
@@ -199,7 +230,7 @@ type Observation struct {
 // metadata, settlement-count, and event-cardinality invariants.
 func (observation Observation) Validate() error {
 	if observation.Kind < ObservationProduceRecord ||
-		observation.Kind > ObservationTransactionAbort ||
+		observation.Kind > ObservationReplayShutdown ||
 		observation.StartedAt.IsZero() ||
 		observation.Duration < 0 ||
 		observation.RecordCount < 0 ||
@@ -207,6 +238,10 @@ func (observation Observation) Validate() error {
 		observation.ProcessedCount < 0 ||
 		observation.CommittedCount < 0 ||
 		observation.RecordBytes < 0 ||
+		observation.ReplayProcessed < 0 ||
+		observation.ReplaySkipped < 0 ||
+		observation.ReplayFailed < 0 ||
+		observation.ReplayRemaining < 0 ||
 		observation.RequestBytes < 0 ||
 		observation.ResponseBytes < 0 ||
 		observation.QueueDuration < 0 ||
@@ -220,7 +255,8 @@ func (observation Observation) Validate() error {
 		(observation.Succeeded && observation.Category != ErrorUnknown) ||
 		(!observation.Succeeded &&
 			!validErrorCategory(observation.Category)) ||
-		!validObservationRecordCardinality(observation) {
+		!validObservationRecordCardinality(observation) ||
+		!validReplayObservationProgress(observation) {
 		return ErrInvalidObservation
 	}
 
@@ -231,7 +267,8 @@ func validObservationRecordCardinality(observation Observation) bool {
 	switch observation.Kind {
 	case ObservationProduceRecord,
 		ObservationProduceAsync,
-		ObservationConsumeRecord:
+		ObservationConsumeRecord,
+		ObservationReplayRecord:
 		return observation.RecordCount == 1
 	case ObservationProduceBatch,
 		ObservationConsumeBatch,
@@ -244,6 +281,42 @@ func validObservationRecordCardinality(observation Observation) bool {
 			observation.ProcessedCount == 0 &&
 			observation.CommittedCount == 0 &&
 			observation.RecordBytes == 0
+	}
+}
+
+func validReplayObservationProgress(observation Observation) bool {
+	switch observation.Kind {
+	case ObservationReplayPlan:
+		return observation.PartitionCount > 0 &&
+			observation.RecordCount == 0 &&
+			observation.ProcessedCount == 0 &&
+			observation.ReplayProcessed == 0 &&
+			observation.ReplaySkipped == 0 &&
+			observation.ReplayFailed == 0
+	case ObservationReplayRecord:
+		outcomes := observation.ReplayProcessed +
+			observation.ReplaySkipped +
+			observation.ReplayFailed
+
+		return outcomes == 1 &&
+			observation.ReplayRemaining == 0 &&
+			int64(observation.ProcessedCount) == observation.ReplayProcessed
+	case ObservationReplayRun:
+		return observation.PartitionCount > 0 &&
+			observation.RecordCount == 0 &&
+			observation.ProcessedCount == 0 &&
+			observation.CommittedCount == 0 &&
+			observation.RecordBytes == 0
+	case ObservationReplayShutdown:
+		return observation.ReplayProcessed == 0 &&
+			observation.ReplaySkipped == 0 &&
+			observation.ReplayFailed == 0 &&
+			observation.ReplayRemaining == 0
+	default:
+		return observation.ReplayProcessed == 0 &&
+			observation.ReplaySkipped == 0 &&
+			observation.ReplayFailed == 0 &&
+			observation.ReplayRemaining == 0
 	}
 }
 

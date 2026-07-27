@@ -256,6 +256,10 @@ remains ordered. A failed partition does not discard progress completed by
 other partition batches already admitted from the same bounded poll.
 `ProgressTimeout` prevents a compacted or empty exact range from polling
 forever without advancing its checkpoint.
+Optional `ReplayConfig.Observers` report payload-free broker-validated plans,
+per-record outcomes, exact aggregate progress, bounded shutdown, and broker
+activity. The callback policy is validated and copied before client
+construction, and same-reader reentry fails closed.
 Completed partitions are paused while other ranges finish. Cancel the replay
 context, then use bounded `Shutdown` or error-returning `Close`. Readers are
 single-use; resume with a new reader and the returned checkpoint.

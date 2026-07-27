@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- replay plan, per-record outcome, exact aggregate progress, shutdown, and
+  broker observations with copied policy metadata, same-reader reentrancy
+  fencing, and independently validatable replay observer configuration
 - optional standard-library `log/slog` adapter with fixed payload-free fields,
   deny-by-default bounded Kafka identity allowlists, handler panic containment,
   concurrent observer evidence, fuzzing, and allocation benchmarks

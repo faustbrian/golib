@@ -82,6 +82,10 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 		"kafka.processed.count":                 float64(4),
 		"kafka.committed.count":                 float64(4),
 		"kafka.record.size":                     float64(1024),
+		"kafka.replay.processed":                float64(0),
+		"kafka.replay.skipped":                  float64(0),
+		"kafka.replay.failed":                   float64(0),
+		"kafka.replay.remaining":                float64(0),
 		"kafka.request.size":                    float64(128),
 		"kafka.response.size":                   float64(64),
 		"kafka.request.queue.duration_ms":       float64(20),
@@ -116,6 +120,50 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 	} {
 		if strings.Contains(rendered, forbidden) {
 			t.Fatalf("log contains forbidden value %q: %s", forbidden, rendered)
+		}
+	}
+}
+
+func TestObserverEmitsExactReplayProgress(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	adapter, err := New(Config{
+		Logger: slog.New(slog.NewJSONHandler(&output, nil)),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observation := kafka.Observation{
+		Kind:            kafka.ObservationReplayRun,
+		StartedAt:       time.Unix(1, 0),
+		Duration:        time.Second,
+		PartitionCount:  2,
+		ReplayProcessed: 5,
+		ReplaySkipped:   3,
+		ReplayFailed:    1,
+		ReplayRemaining: 8,
+		Succeeded:       false,
+		Category:        kafka.ErrorPermanent,
+	}
+	if err := adapter.Observer()(context.Background(), observation); err != nil {
+		t.Fatalf("Observer() error = %v", err)
+	}
+
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	want := map[string]any{
+		"kafka.operation":        "replay.run",
+		"kafka.replay.processed": float64(5),
+		"kafka.replay.skipped":   float64(3),
+		"kafka.replay.failed":    float64(1),
+		"kafka.replay.remaining": float64(8),
+	}
+	for key, value := range want {
+		if got := record[key]; got != value {
+			t.Fatalf("attribute %q = %#v, want %#v", key, got, value)
 		}
 	}
 }

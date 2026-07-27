@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,6 +102,10 @@ type ReplayConfig struct {
 	SideEffects ReplaySideEffectPolicy
 	Limits      MessageLimits
 	Security    ClientSecurity
+	// Observers receive payload-free plan, record, run, shutdown, and broker
+	// events. Replay partition workers and broker goroutines can invoke the
+	// copied callbacks concurrently.
+	Observers ObserverPolicy
 
 	MaxPollRecords int
 	// MaxConcurrentFetches bounds broker fetch requests.
@@ -116,6 +121,14 @@ type ReplayConfig struct {
 	HandlerTimeout         time.Duration
 	ShutdownTimeout        time.Duration
 	DialTimeout            time.Duration
+}
+
+// Validate reports whether the replay policy is explicit, compatible, and
+// bounded without constructing a Kafka client or retaining caller-owned data.
+func (config ReplayConfig) Validate() error {
+	_, err := normalizeReplayConfig(config)
+
+	return err
 }
 
 // ReplayPlannedRange is one immutable dry-run range after applying the
@@ -233,6 +246,7 @@ func listReplayBounds(
 type ReplayReader struct {
 	client                replayBackend
 	bounds                replayBoundsBackend
+	clientID              string
 	ranges                []ReplayRange
 	checkpoint            ReplayCheckpoint
 	sideEffects           ReplaySideEffectPolicy
@@ -244,14 +258,16 @@ type ReplayReader struct {
 	handlerTimeout        time.Duration
 	shutdownTimeout       time.Duration
 	now                   func() time.Time
+	observers             observerDispatcher
 
-	mu             sync.Mutex
-	running        bool
-	used           bool
-	runDone        chan struct{}
-	closing        bool
-	closed         bool
-	shutdownActive bool
+	mu                sync.Mutex
+	running           bool
+	used              bool
+	runDone           chan struct{}
+	closing           bool
+	closed            bool
+	shutdownActive    bool
+	observerCallbacks int
 }
 
 // NewReplayReader constructs a direct-partition replay reader.
@@ -291,15 +307,9 @@ func newReplayReader(
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
-
-	client, err := factory(options...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ReplayReader{
-		client:                client,
-		bounds:                kadm.NewClient(client),
+	dispatcher := newObserverDispatcher(config.Observers)
+	reader := &ReplayReader{
+		clientID:              strings.Clone(config.ClientID),
 		ranges:                append([]ReplayRange(nil), config.Ranges...),
 		checkpoint:            config.Checkpoint.Retain(),
 		sideEffects:           config.SideEffects,
@@ -311,7 +321,23 @@ func newReplayReader(
 		handlerTimeout:        config.HandlerTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		now:                   time.Now,
-	}, nil
+		observers:             dispatcher,
+	}
+	if dispatcher.enabled() {
+		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook.before = reader.beginObservation
+		observerHook.after = reader.finishObservation
+		options = append(options, kgo.WithHooks(observerHook))
+	}
+
+	client, err := factory(options...)
+	if err != nil {
+		return nil, err
+	}
+	reader.client = client
+	reader.bounds = kadm.NewClient(client)
+
+	return reader, nil
 }
 
 func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
@@ -326,6 +352,11 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 		return ReplayConfig{}, err
 	}
 	config.Security = security
+	observers, err := normalizeObserverPolicy(config.Observers)
+	if err != nil {
+		return ReplayConfig{}, err
+	}
+	config.Observers = observers
 	if config.SideEffects > ReplaySideEffectsAllowed {
 		return ReplayConfig{}, ErrInvalidReplayConfig
 	}
@@ -532,9 +563,12 @@ func (reader *ReplayReader) Plan() ReplayPlan {
 // broker-validated result.
 func (reader *ReplayReader) PlanAgainstBroker(
 	ctx context.Context,
-) (ReplayPlan, error) {
+) (plan ReplayPlan, resultErr error) {
 	if ctx == nil {
 		return ReplayPlan{}, ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ReplayPlan{}, ErrObserverReentry
 	}
 	if cause := context.Cause(ctx); cause != nil {
 		return ReplayPlan{}, cause
@@ -544,7 +578,14 @@ func (reader *ReplayReader) PlanAgainstBroker(
 	}
 	defer reader.endRun()
 
-	plan := reader.Plan()
+	var startedAt time.Time
+	if reader.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			reader.observeReplayPlan(ctx, startedAt, plan, resultErr)
+		}()
+	}
+	plan = reader.Plan()
 	progress, _ := reader.initialReplayResult()
 	if err := reader.validateReplayBounds(ctx, progress.Ranges); err != nil {
 		return ReplayPlan{}, err
@@ -560,9 +601,12 @@ func (reader *ReplayReader) PlanAgainstBroker(
 func (reader *ReplayReader) Replay(
 	ctx context.Context,
 	handler Handler,
-) (ReplayResult, error) {
+) (result ReplayResult, resultErr error) {
 	if ctx == nil {
 		return ReplayResult{}, ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ReplayResult{}, ErrObserverReentry
 	}
 	if handler == nil {
 		return ReplayResult{}, ErrHandlerRequired
@@ -577,6 +621,13 @@ func (reader *ReplayReader) Replay(
 		return ReplayResult{}, err
 	}
 	defer reader.endRun()
+	var startedAt time.Time
+	if reader.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			reader.observeReplayRun(ctx, startedAt, result, resultErr)
+		}()
+	}
 
 	result, indexes := reader.initialReplayResult()
 	if err := reader.validateReplayBounds(ctx, result.Ranges); err != nil {
@@ -640,6 +691,60 @@ func (reader *ReplayReader) Replay(
 	}
 
 	return result, nil
+}
+
+func (reader *ReplayReader) observeReplayPlan(
+	ctx context.Context,
+	startedAt time.Time,
+	plan ReplayPlan,
+	err error,
+) {
+	observation := Observation{
+		Kind:            ObservationReplayPlan,
+		StartedAt:       startedAt,
+		Duration:        time.Since(startedAt),
+		ClientID:        reader.clientID,
+		PartitionCount:  len(reader.ranges),
+		ReplayRemaining: plan.TotalRemaining,
+		Succeeded:       err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	reader.dispatchObservation(ctx, observation)
+}
+
+func (reader *ReplayReader) observeReplayRun(
+	ctx context.Context,
+	startedAt time.Time,
+	result ReplayResult,
+	err error,
+) {
+	observation := Observation{
+		Kind:            ObservationReplayRun,
+		StartedAt:       startedAt,
+		Duration:        time.Since(startedAt),
+		ClientID:        reader.clientID,
+		PartitionCount:  len(reader.ranges),
+		ReplayProcessed: result.Processed,
+		ReplaySkipped:   result.Skipped,
+		ReplayFailed:    result.Failed,
+		ReplayRemaining: replayResultRemaining(result),
+		Succeeded:       err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	reader.dispatchObservation(ctx, observation)
+}
+
+func replayResultRemaining(result ReplayResult) int64 {
+	var remaining int64
+	for _, replayRange := range result.Ranges {
+		remaining += replayRange.EndOffset - replayRange.NextOffset
+	}
+
+	return remaining
 }
 
 func (reader *ReplayReader) initialReplayProgressDeadlines(
@@ -756,6 +861,9 @@ func (reader *ReplayReader) beginPlan() error {
 	reader.mu.Lock()
 	defer reader.mu.Unlock()
 
+	if reader.observerCallbacks != 0 {
+		return ErrObserverReentry
+	}
 	if reader.closed {
 		return ErrReplayClosed
 	}
@@ -775,6 +883,9 @@ func (reader *ReplayReader) beginRun() error {
 	reader.mu.Lock()
 	defer reader.mu.Unlock()
 
+	if reader.observerCallbacks != 0 {
+		return ErrObserverReentry
+	}
 	if reader.closed {
 		return ErrReplayClosed
 	}
@@ -806,12 +917,22 @@ func (reader *ReplayReader) endRun() {
 // Shutdown fences new replay work, waits for the active replay, and closes the
 // direct Kafka client. An incomplete shutdown remains fenced and can be
 // retried. Concurrent shutdown calls fail with ErrReplayShutdownActive.
-func (reader *ReplayReader) Shutdown(ctx context.Context) error {
+func (reader *ReplayReader) Shutdown(
+	ctx context.Context,
+) (resultErr error) {
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 
 	reader.mu.Lock()
+	if reader.observerCallbacks != 0 {
+		reader.mu.Unlock()
+
+		return ErrObserverReentry
+	}
 	if reader.closed {
 		reader.mu.Unlock()
 
@@ -826,6 +947,13 @@ func (reader *ReplayReader) Shutdown(ctx context.Context) error {
 	reader.closing = true
 	done := reader.runDone
 	reader.mu.Unlock()
+	var startedAt time.Time
+	if reader.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			reader.observeReplayShutdown(ctx, startedAt, resultErr)
+		}()
+	}
 
 	complete := false
 	defer func() {
@@ -856,8 +984,56 @@ func (reader *ReplayReader) Shutdown(ctx context.Context) error {
 
 // Close performs bounded shutdown using the configured shutdown timeout.
 func (reader *ReplayReader) Close() error {
+	reader.mu.Lock()
+	if reader.observerCallbacks != 0 {
+		reader.mu.Unlock()
+
+		return ErrObserverReentry
+	}
+	reader.mu.Unlock()
+
 	ctx, cancel := context.WithTimeout(context.Background(), reader.shutdownTimeout)
 	defer cancel()
 
 	return reader.Shutdown(ctx)
+}
+
+func (reader *ReplayReader) observeReplayShutdown(
+	ctx context.Context,
+	startedAt time.Time,
+	err error,
+) {
+	observation := Observation{
+		Kind:      ObservationReplayShutdown,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  reader.clientID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = classifyError(err)
+	}
+	reader.dispatchObservation(ctx, observation)
+}
+
+func (reader *ReplayReader) dispatchObservation(
+	ctx context.Context,
+	observation Observation,
+) {
+	reader.beginObservation()
+	defer reader.finishObservation()
+
+	reader.observers.observe(ctx, observation)
+}
+
+func (reader *ReplayReader) beginObservation() {
+	reader.mu.Lock()
+	reader.observerCallbacks++
+	reader.mu.Unlock()
+}
+
+func (reader *ReplayReader) finishObservation() {
+	reader.mu.Lock()
+	reader.observerCallbacks--
+	reader.mu.Unlock()
 }

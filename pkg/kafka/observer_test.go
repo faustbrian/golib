@@ -720,6 +720,10 @@ func TestObservationKindString(t *testing.T) {
 		ObservationTransactionBegin:  "transaction.begin",
 		ObservationTransactionCommit: "transaction.commit",
 		ObservationTransactionAbort:  "transaction.abort",
+		ObservationReplayPlan:        "replay.plan",
+		ObservationReplayRecord:      "replay.record",
+		ObservationReplayRun:         "replay.run",
+		ObservationReplayShutdown:    "replay.shutdown",
 		ObservationBrokerConnect:     "broker.connect",
 		ObservationBrokerRequest:     "broker.request",
 		ObservationBrokerThrottle:    "broker.throttle",
@@ -755,6 +759,10 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 		ObservationTransactionBegin:  17,
 		ObservationTransactionCommit: 18,
 		ObservationTransactionAbort:  19,
+		ObservationReplayPlan:        20,
+		ObservationReplayRecord:      21,
+		ObservationReplayRun:         22,
+		ObservationReplayShutdown:    23,
 	} {
 		if kind != want {
 			t.Fatalf("ObservationKind value = %d, want %d", kind, want)
@@ -787,6 +795,10 @@ func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 		func(value *Observation) { value.ProcessedCount = -1 },
 		func(value *Observation) { value.CommittedCount = -1 },
 		func(value *Observation) { value.RecordBytes = -1 },
+		func(value *Observation) { value.ReplayProcessed = -1 },
+		func(value *Observation) { value.ReplaySkipped = -1 },
+		func(value *Observation) { value.ReplayFailed = -1 },
+		func(value *Observation) { value.ReplayRemaining = -1 },
 		func(value *Observation) { value.RequestBytes = -1 },
 		func(value *Observation) { value.ResponseBytes = -1 },
 		func(value *Observation) { value.QueueDuration = -1 },
@@ -896,6 +908,243 @@ func TestObservationValidationEnforcesEventRecordCardinality(t *testing.T) {
 	poll.Kind = ObservationConsumePoll
 	if err := poll.Validate(); err != nil {
 		t.Fatalf("empty poll observation error = %v", err)
+	}
+}
+
+func TestObservationValidationEnforcesReplayProgress(t *testing.T) {
+	t.Parallel()
+
+	base := Observation{
+		StartedAt: time.Unix(1, 0),
+		Duration:  time.Millisecond,
+		Succeeded: true,
+	}
+	valid := []Observation{
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ReplayRemaining = 4
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ProcessedCount = 1
+			value.ReplayProcessed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplaySkipped = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplayFailed = 1
+			value.Succeeded = false
+			value.Category = ErrorPermanent
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 2
+			value.ReplayProcessed = 2
+			value.ReplaySkipped = 1
+			value.ReplayFailed = 1
+			value.ReplayRemaining = 3
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayShutdown
+
+			return value
+		}(),
+	}
+	for index, observation := range valid {
+		if err := observation.Validate(); err != nil {
+			t.Fatalf("valid replay observation %d error = %v", index, err)
+		}
+	}
+
+	invalid := []Observation{
+		func() Observation {
+			value := base
+			value.Kind = ObservationProduceRecord
+			value.RecordCount = 1
+			value.ReplayProcessed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ProcessedCount = 1
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ReplayProcessed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ReplaySkipped = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ReplayFailed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplayProcessed = 1
+			value.ReplaySkipped = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplayProcessed = 1
+			value.ReplayRemaining = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplayProcessed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.ProcessedCount = 1
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.CommittedCount = 1
+			value.ProcessedCount = 1
+			value.RecordCount = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.RecordBytes = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayShutdown
+			value.ReplayProcessed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayShutdown
+			value.ReplaySkipped = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayShutdown
+			value.ReplayFailed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayShutdown
+			value.ReplayRemaining = 1
+
+			return value
+		}(),
+	}
+	for index, observation := range invalid {
+		if err := observation.Validate(); !errors.Is(
+			err,
+			ErrInvalidObservation,
+		) {
+			t.Fatalf("invalid replay observation %d error = %v", index, err)
+		}
 	}
 }
 

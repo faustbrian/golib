@@ -4,16 +4,17 @@ The root module exposes a vendor-neutral `ObserverPolicy`. The current surface
 reports producer delivery plus consumer poll, record-handler, batch-handler,
 offset-commit, assignment, revocation, ownership-loss, blocked-rebalance, group
 management error, Kafka transaction begin/commit/abort, broker connection,
-broker request, broker throttle, and broker disconnect completion. The
-franz-go hook bridge is private;
+broker request, broker throttle, broker disconnect, and replay plan, record,
+run, and shutdown completion. The franz-go hook bridge is private;
 observations do not expose franz-go hooks, records, requests, responses,
 clients, network connections, broker endpoints, or raw group errors.
 
 ## Configuration and execution
 
-`ProducerConfig.Observers`, `ConsumerConfig.Observers`, and
-`TransactionProcessorConfig.Observers` accept 1 to 16 ordered `ObserverFunc`
-callbacks. The callback slice is copied during client construction. A
+`ProducerConfig.Observers`, `ConsumerConfig.Observers`,
+`TransactionProcessorConfig.Observers`, and `ReplayConfig.Observers` accept
+1 to 16 ordered `ObserverFunc` callbacks. The callback slice is copied during
+client construction. A
 non-empty policy requires an explicit
 `ObservationFailureFunc`; observation failures never change producer delivery,
 handler, commit, or poll results.
@@ -30,6 +31,9 @@ callbacks may run after configuration validation but before `NewConsumer`
 returns. They must not depend on assignment of the constructor result.
 The transaction processor uses the same private broker hook and can emit broker
 events before `NewTransactionProcessor` returns.
+Replay partition workers can invoke record observers concurrently across
+independent partitions, while broker events can overlap planning, execution,
+and shutdown. Records within one replay partition remain sequential.
 
 When an observer fails, its failure handler runs immediately before the next
 registered observer.
@@ -83,6 +87,14 @@ Every callback context is callback-scoped and must not be retained.
 - `ObservationTransactionBegin` after a transaction begin attempt;
 - `ObservationTransactionCommit` after a transaction commit attempt;
 - `ObservationTransactionAbort` after transaction cleanup attempts an abort;
+- `ObservationReplayPlan` after `PlanAgainstBroker` validates or rejects the
+  complete explicit range set;
+- `ObservationReplayRecord` after one requested record is processed, skipped,
+  or failed;
+- `ObservationReplayRun` after one single-use replay execution completes or
+  fails with its exact resumable progress;
+- `ObservationReplayShutdown` after an admitted bounded shutdown completes or
+  remains incomplete;
 - `ObservationBrokerConnect` after a connection initialization attempt,
   including API-version negotiation and configured SASL;
 - `ObservationBrokerRequest` after one Kafka protocol request fails during
@@ -113,6 +125,10 @@ exporting a public observation rather than reimplementing these invariants.
 | Consume blocked | Reports only a signal received while a bounded poll owns franz-go's rebalance gate; it does not claim that a broker rebalance completed |
 | Consume group error | Reports only the stable redacted category for the error that ended the group-management session |
 | Transaction begin/commit/abort | Reports one completed local phase with no record or payload counts; producer events contain no group ID, while consume-transform-produce events contain its copied source group ID |
+| Replay plan | `PartitionCount` is the configured range count and `ReplayRemaining` is the exact validated remaining offset count; a broker-bound failure reports a zero returned plan and stable category |
+| Replay record | `RecordCount=1`; exactly one of `ReplayProcessed`, `ReplaySkipped`, or `ReplayFailed` is one; processed records set `ProcessedCount=1`; validated source topic, partition, offset, timestamp, and conservative bytes are present |
+| Replay run | `PartitionCount` is the configured range count; `ReplayProcessed`, `ReplaySkipped`, `ReplayFailed`, and `ReplayRemaining` exactly match the returned result and its resumable ranges |
+| Replay shutdown | Reports bounded reader shutdown without record coordinates or progress counts |
 | Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
 | Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay |
@@ -138,6 +154,13 @@ call and exclude observer execution. A known abort-required commit failure is
 categories; an unknown commit or abort outcome is `ErrorAmbiguous`. Application
 callback failure is not copied into the abort observation and a successful
 abort remains a successful lifecycle event.
+Replay plan duration covers broker start/end-offset validation. Record duration
+covers validation and the bounded handler call but excludes observer execution.
+Run duration covers broker validation, polling, handlers, and progress failure
+through the returned result. Shutdown duration covers waiting for an active
+replay and closing the direct client. Replay handler errors preserve a valid
+application-provided `Category`; invalid or panicking category methods are
+contained as `ErrorPermanent`.
 
 `RecordBytes` is a conservative policy-size estimate rather than Kafka's
 encoded wire size. Topic is copied only for validated single-topic metadata;
@@ -170,10 +193,10 @@ and represented only by `ErrObserverPanic`. A panic in the failure handler is
 contained and discarded because recursively reporting reporter failure would
 be unbounded.
 
-Observers must not call the client that invoked them. Producer, consumer, and
-transaction-processor operations using the callback context fail with
-`ErrObserverReentry`. Their `Close` methods, plus context-free mutating consumer
-operations, also fail with that error while a callback is active. This
+Observers must not call the client that invoked them. Producer, consumer,
+transaction-processor, and replay operations using the callback context fail
+with `ErrObserverReentry`. Their `Close` methods, plus context-free mutating
+consumer operations, also fail with that error while a callback is active. This
 conservative fence can reject a concurrent context-free call from another
 goroutine while an observer is running. Replacing the callback context to
 bypass the fence violates the contract and can deadlock lifecycle work. The
@@ -183,10 +206,11 @@ package holds no client lifecycle lock while application observer code runs.
 
 The root observer model currently covers producer delivery, nontransactional
 consumer processing, commits, group lifecycle, producer and
-consume-transform-produce transaction lifecycle, and producer, consumer, and
-transaction-processor broker activity. Standalone authentication, retry,
-complete broker rebalance timing, replay, inspection, health, and shutdown
-events remain unimplemented.
+consume-transform-produce transaction lifecycle, replay planning, record
+outcomes, aggregate progress and shutdown, plus producer, consumer,
+transaction-processor, and replay broker activity. Standalone authentication,
+retry, complete broker rebalance timing, inspection, health, and non-replay
+shutdown events remain unimplemented.
 
 The standard-library [`kafka/adapters/golog`](../adapters/golog) package
 translates every current stable root observation into one fixed `log/slog`

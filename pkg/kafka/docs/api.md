@@ -227,6 +227,13 @@ stable first-seen partition order. Cancellation reaches every active callback
 and prevents a queued partition from invoking a new callback. A backend result
 above `MaxPollRecords` fails with `ErrTooManyFetchedRecords` before grouping or
 handler admission.
+`ReplayConfig.Validate` applies the constructor's complete normalization and
+validation without allocating a client. `ReplayConfig.Observers` adds copied,
+ordered plan, per-record, aggregate-run, shutdown, and broker observations.
+Aggregate observations preserve exact signed-64-bit processed, skipped, failed,
+and remaining counts; record observations expose validated Kafka coordinates
+without record data. Same-reader observer reentry fails with
+`ErrObserverReentry`.
 `ReplayResult.Checkpoint` returns owned next offsets for a new reader. A reader
 permits one execution; concurrent and repeated calls have distinct lifecycle
 errors. `Shutdown` fences new work and is

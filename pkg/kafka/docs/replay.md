@@ -60,6 +60,15 @@ configured ranges; unknown, duplicate, before-start, and after-end positions
 are rejected before a Kafka client is allocated. This package does not store,
 commit, reset, or delete replay or consumer-group offsets.
 
+Optional `ReplayConfig.Observers` report broker-validated plan completion,
+each processed, skipped, or failed record, the exact returned aggregate
+progress, bounded shutdown, and replay-client broker activity. Record events
+contain only validated Kafka coordinates and conservative byte counts, never
+keys, values, or headers. Parallel partition handlers can invoke the same
+observer concurrently. `ReplayConfig.Validate` checks and copies the observer
+policy without constructing a client. Replay operations and `Close` fail with
+`ErrObserverReentry` while a same-reader callback is active.
+
 ## Partition concurrency
 
 Replay is sequential by default. `MaxConcurrentFetches` bounds franz-go broker

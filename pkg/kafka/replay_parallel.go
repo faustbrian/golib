@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,9 +168,22 @@ func (reader *ReplayReader) processReplayPartition(
 ) replayPartitionResult {
 	result := replayPartitionResult{progress: progress, deadline: deadline}
 	for _, record := range batch.records {
+		var startedAt time.Time
+		if reader.observers.enabled() {
+			startedAt = time.Now()
+		}
 		if result.progress.Complete {
 			result.progress.Skipped++
 			result.skipped++
+			reader.observeReplayRecord(
+				ctx,
+				startedAt,
+				record,
+				0,
+				1,
+				0,
+				nil,
+			)
 
 			continue
 		}
@@ -187,12 +201,30 @@ func (reader *ReplayReader) processReplayPartition(
 			result.progress.Failed++
 			result.failed++
 			result.err = ErrReplayOffsetGap
+			reader.observeReplayRecord(
+				ctx,
+				startedAt,
+				record,
+				0,
+				0,
+				1,
+				result.err,
+			)
 
 			return result
 		}
 		if record.Offset < result.progress.NextOffset {
 			result.progress.Skipped++
 			result.skipped++
+			reader.observeReplayRecord(
+				ctx,
+				startedAt,
+				record,
+				0,
+				1,
+				0,
+				nil,
+			)
 
 			continue
 		}
@@ -201,6 +233,15 @@ func (reader *ReplayReader) processReplayPartition(
 			result.progress.Failed++
 			result.failed++
 			result.err = ErrReplayOffsetGap
+			reader.observeReplayRecord(
+				ctx,
+				startedAt,
+				record,
+				0,
+				0,
+				1,
+				result.err,
+			)
 
 			return result
 		}
@@ -218,6 +259,15 @@ func (reader *ReplayReader) processReplayPartition(
 			result.progress.Failed++
 			result.failed++
 			result.err = err
+			reader.observeReplayRecord(
+				ctx,
+				startedAt,
+				record,
+				0,
+				0,
+				1,
+				err,
+			)
 
 			return result
 		}
@@ -225,6 +275,15 @@ func (reader *ReplayReader) processReplayPartition(
 		result.progress.Processed++
 		result.processed++
 		result.progress.NextOffset++
+		reader.observeReplayRecord(
+			ctx,
+			startedAt,
+			record,
+			1,
+			0,
+			0,
+			nil,
+		)
 		result.deadline = reader.now().Add(reader.progressTimeout)
 		result.progressed = true
 		if result.progress.NextOffset == result.progress.EndOffset {
@@ -234,6 +293,49 @@ func (reader *ReplayReader) processReplayPartition(
 	}
 
 	return result
+}
+
+func (reader *ReplayReader) observeReplayRecord(
+	ctx context.Context,
+	startedAt time.Time,
+	record *kgo.Record,
+	processed int64,
+	skipped int64,
+	failed int64,
+	err error,
+) {
+	if !reader.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:            ObservationReplayRecord,
+		StartedAt:       startedAt,
+		Duration:        time.Since(startedAt),
+		ClientID:        reader.clientID,
+		RecordCount:     1,
+		ProcessedCount:  int(processed),
+		ReplayProcessed: processed,
+		ReplaySkipped:   skipped,
+		ReplayFailed:    failed,
+		Succeeded:       err == nil,
+	}
+	if _, validationErr := consumedMessageWithinLimits(
+		record,
+		reader.limits,
+	); validationErr == nil {
+		observation.Topic = strings.Clone(record.Topic)
+		observation.Partition = record.Partition
+		observation.PartitionKnown = true
+		observation.PartitionCount = 1
+		observation.Offset = record.Offset
+		observation.OffsetKnown = true
+		observation.Timestamp = record.Timestamp
+		observation.RecordBytes = consumedRecordSize(record)
+	}
+	if err != nil {
+		observation.Category = classifyConsumerObservationError(err)
+	}
+	reader.dispatchObservation(ctx, observation)
 }
 
 func (reader *ReplayReader) applyReplayPartitionResult(
