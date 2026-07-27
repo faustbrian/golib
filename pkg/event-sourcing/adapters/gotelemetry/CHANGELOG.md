@@ -17,6 +17,9 @@ and this project adheres to
 
 ### Added
 
+- Add context-aware payload codec and upcaster instrumentation that preserves
+  pure implementations, caller context, outputs, failures, and panics without
+  recording event identities, payloads, metadata, or diagnostics.
 - Add projection-runner spans for bounded replay progress, poison skips,
   durable checkpoint position, and terminal empty batches while preserving
   partial results, cancellation, errors, panic values, and context.

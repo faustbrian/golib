@@ -170,6 +170,14 @@ records the static manager name, delivery mode, bounded outcome, duration, and
 successful command count. It preserves the exact result, error, panic, context,
 and delivery while neither executing nor inspecting planned commands.
 
+`WrapPayloadCodec` implements `eventsourcing.ContextPayloadCodec`. It observes
+payload encode and decode calls while preserving the pure two-method codec
+contract. Repository calls propagate their operation context to a wrapped
+context-aware codec; direct `Encode` and `Decode` calls use a background
+context. `WrapUpcaster` provides the equivalent `eventsourcing.ContextUpcaster`
+boundary and records only the successful output count. Neither wrapper
+validates, copies, retries, or inspects application event data.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -191,6 +199,9 @@ The adapter emits:
 | span | `event_sourcing.projection.control.reset` | static projection name, expected checkpoint, and resulting state |
 | span | `event_sourcing.projection.handle` | static projection name and delivery mode |
 | span | `event_sourcing.process_manager.plan` | static process-manager name, delivery mode, and successful command count |
+| span | `event_sourcing.codec.encode` | no event attributes |
+| span | `event_sourcing.codec.decode` | no event attributes |
+| span | `event_sourcing.upcast` | successful output count |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
@@ -204,7 +215,8 @@ Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `projection_control_status`, `projection_control_pause`,
 `projection_control_resume`, and `projection_control_reset`; projection
 handling uses `projection_handle`, and process-manager planning uses
-`process_manager_plan`.
+`process_manager_plan`; serialization operations use `codec_encode`,
+`codec_decode`, and `upcast`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
@@ -256,6 +268,11 @@ Process-manager instrumentation records only its bounded static name, delivery
 mode, and successful command count. It records no message identity, event data,
 planned command data, process state, errors, or panic values. Applications must
 not derive manager names from tenants or customers.
+Payload codec instrumentation records no event identity, schema version,
+content type, encoded payload, decoded value, error, or panic value. Upcaster
+instrumentation records only a successful output count and never event
+identity, schema version, payload, metadata, transformed values, errors, or
+panic values.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use

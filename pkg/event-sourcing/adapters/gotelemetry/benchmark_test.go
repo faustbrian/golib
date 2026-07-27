@@ -279,6 +279,69 @@ func BenchmarkProcessManager(b *testing.B) {
 	}
 }
 
+func BenchmarkPayloadCodec(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	decoded, encoded := telemetrySerializationEvents(b)
+	codec, err := instrumentation.WrapPayloadCodec(
+		&legacyTelemetryPayloadCodec{
+			decoded: decoded,
+			encoded: encoded,
+		},
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := codec.EncodeContext(ctx, decoded); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUpcaster(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	_, encoded := telemetrySerializationEvents(b)
+	input, err := eventsourcing.NewUpcastEvent(encoded, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	upcaster, err := instrumentation.WrapUpcaster(
+		legacyTelemetryUpcaster(func(
+			event eventsourcing.UpcastEvent,
+		) ([]eventsourcing.UpcastEvent, error) {
+			return []eventsourcing.UpcastEvent{event}, nil
+		}),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := upcaster.UpcastContext(ctx, input); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type discardDispatcher struct{}
 
 func (discardDispatcher) Dispatch(

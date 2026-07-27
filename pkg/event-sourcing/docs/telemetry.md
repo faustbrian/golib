@@ -13,7 +13,10 @@ lifetimes for bounded stream and global reads. Snapshot-store wrappers observe
 explicit load, refresh, and deletion with bounded hit, miss, stale, error, and
 panic outcomes. Projection-runner wrappers observe bounded batch progress,
 poison skips, durable checkpoint position, terminal empty reads, and bounded
-throughput counters. The adapter never records
+throughput counters. Payload-codec and upcaster wrappers propagate repository
+operation context through serialization and evolution while recording only
+fixed operation names, bounded outcomes, duration, and successful upcast output
+counts. The adapter never records
 aggregate, message, correlation, causation, tenant, partition, event, payload,
 metadata, error, panic, topic, event-store read position, database, or
 credential data. Projection spans deliberately record the configured static
@@ -52,6 +55,12 @@ payload, read-model state, errors, or panic values.
 Process-manager wrappers observe pure planning with a static bounded name,
 delivery mode, and successful command count. They preserve typed results and
 never inspect commands, execute effects, or record event or command data.
+Payload-codec wrappers preserve both ordinary codecs and the optional
+context-aware codec extension. Upcaster wrappers preserve the equivalent pure
+and context-aware contracts. Direct pure calls use a background context;
+repository operations supply their caller context. Neither boundary records
+event identity, schema, content type, payload, metadata, decoded values,
+transformed output, or failure diagnostics.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development
