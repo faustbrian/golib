@@ -173,6 +173,7 @@ func TestPublicAPIDocumentationUsesCurrentContracts(t *testing.T) {
 		"ReadGlobal(context.Context, ReadGlobalOptions) (MessageIterator, error)",
 		"ErrDuplicateMessageID",
 		"ErrMalformedEvent",
+		"ErrIncompatibleVersion",
 		"ErrSnapshotIncompatible",
 		"ErrUnsupportedCapability",
 		"AppendCommitOutcome",
@@ -186,7 +187,6 @@ func TestPublicAPIDocumentationUsesCurrentContracts(t *testing.T) {
 		"ReadAllOptions",
 		"ErrDuplicateMessage ",
 		"ErrCommitUnknown ",
-		"ErrIncompatibleVersion ",
 		"ErrUnsupported ",
 	} {
 		if strings.Contains(documentation, stale) {

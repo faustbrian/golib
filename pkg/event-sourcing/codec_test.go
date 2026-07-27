@@ -110,6 +110,10 @@ func TestJSONCodecUsesExplicitAliasesWithoutChangingStoredHistory(t *testing.T) 
 	if stored.Name().String() != "customer.signed-up" {
 		t.Fatalf("stored event identity changed to %s", stored.Name())
 	}
+	aliasValue := lifecycleEvent(t, "customer.signed-up", 2)
+	if _, err := codec.Encode(aliasValue); !errors.Is(err, eventsourcing.ErrUnknownEvent) {
+		t.Fatalf("Encode(alias) error = %v, want ErrUnknownEvent", err)
+	}
 }
 
 func TestJSONCodecRejectsUnknownTypeAndRegistrationConflicts(t *testing.T) {
@@ -130,6 +134,15 @@ func TestJSONCodecRejectsUnknownTypeAndRegistrationConflicts(t *testing.T) {
 	unknown := lifecycleEvent(t, "customer.deleted", 1)
 	if _, err := codec.Encode(unknown); !errors.Is(err, eventsourcing.ErrUnknownEvent) {
 		t.Fatalf("Encode() error = %v, want ErrUnknownEvent", err)
+	}
+	incompatible := lifecycleEvent(t, "customer.registered", 3)
+	if _, err := codec.Encode(incompatible); !errors.Is(
+		err,
+		eventsourcing.ErrIncompatibleVersion,
+	) {
+		t.Fatalf("Encode() error = %v, want ErrIncompatibleVersion", err)
+	} else if errors.Is(err, eventsourcing.ErrUnknownEvent) {
+		t.Fatalf("Encode() error = %v, must not report ErrUnknownEvent", err)
 	}
 	wrongType, err := eventsourcing.NewDecodedEvent(eventsourcing.DecodedEventInput{
 		Name:    "customer.registered",
@@ -307,6 +320,12 @@ func TestJSONCodecDecodeRejectsUnknownIdentityAndContentType(t *testing.T) {
 
 	codec, err := eventsourcing.NewJSONCodec(
 		eventsourcing.JSONEvent[customerRegistered]("customer.registered", 2),
+		eventsourcing.JSONAlias(
+			"customer.signed-up",
+			2,
+			"customer.registered",
+			2,
+		),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -323,11 +342,17 @@ func TestJSONCodecDecodeRejectsUnknownIdentityAndContentType(t *testing.T) {
 			contentType: eventsourcing.JSONContentType,
 			want:        eventsourcing.ErrUnknownEvent,
 		},
-		"unknown schema version": {
+		"unsupported canonical schema version": {
 			name:        "customer.registered",
 			version:     3,
 			contentType: eventsourcing.JSONContentType,
-			want:        eventsourcing.ErrUnknownEvent,
+			want:        eventsourcing.ErrIncompatibleVersion,
+		},
+		"unsupported alias schema version": {
+			name:        "customer.signed-up",
+			version:     3,
+			contentType: eventsourcing.JSONContentType,
+			want:        eventsourcing.ErrIncompatibleVersion,
 		},
 		"wrong content type": {
 			name:        "customer.registered",
@@ -352,6 +377,9 @@ func TestJSONCodecDecodeRejectsUnknownIdentityAndContentType(t *testing.T) {
 			}
 			if _, decodeErr := codec.Decode(encoded); !errors.Is(decodeErr, test.want) {
 				t.Fatalf("Decode() error = %v, want %v", decodeErr, test.want)
+			} else if errors.Is(test.want, eventsourcing.ErrIncompatibleVersion) &&
+				errors.Is(decodeErr, eventsourcing.ErrUnknownEvent) {
+				t.Fatalf("Decode() error = %v, must not report ErrUnknownEvent", decodeErr)
 			}
 		})
 	}

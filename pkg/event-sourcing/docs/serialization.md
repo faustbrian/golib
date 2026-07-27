@@ -38,8 +38,10 @@ metadata, event name, or schema version must change.
 
 Encoding uses `encoding/json` for the exact registered Go type and emits
 canonical content type `application/json`. A value of another type fails with
-`ErrEventTypeMismatch`; unknown name/version pairs fail with
-`ErrUnknownEvent`.
+`ErrEventTypeMismatch`. An unregistered event name fails with
+`ErrUnknownEvent`; a registered encode name with an unsupported schema version
+fails with `ErrIncompatibleVersion`. Decode-only aliases remain unavailable to
+encoding.
 
 Decoding validates before constructing the Go value:
 
@@ -49,7 +51,10 @@ Decoding validates before constructing the Go value:
 - nesting is limited to `MaxJSONDepth`;
 - each object or array is limited to `MaxJSONContainerEntries`;
 - numbers are parsed with `json.Number` before assignment;
-- an unsupported content type fails explicitly; and
+- an unsupported content type fails explicitly;
+- an unknown event name fails with `ErrUnknownEvent`, while a known canonical
+  or alias name at an unsupported version fails with
+  `ErrIncompatibleVersion`; and
 - strict mode rejects fields absent from the registered Go type.
 
 Use integer Go fields for integer domain data. Avoid decoding important numbers

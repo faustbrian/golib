@@ -145,9 +145,11 @@ func WithJSONStrictDecoding() JSONCodecOption {
 
 // JSONCodec is an immutable explicit JSON event registry.
 type JSONCodec struct {
-	events  map[eventKey]jsonEventRegistration
-	aliases map[eventKey]eventKey
-	strict  bool
+	events      map[eventKey]jsonEventRegistration
+	aliases     map[eventKey]eventKey
+	encodeNames map[string]struct{}
+	decodeNames map[string]struct{}
+	strict      bool
 }
 
 type jsonCodecBuilder struct {
@@ -160,8 +162,10 @@ type jsonCodecBuilder struct {
 func NewJSONCodec(options ...JSONCodecOption) (*JSONCodec, error) {
 	builder := jsonCodecBuilder{
 		codec: &JSONCodec{
-			events:  make(map[eventKey]jsonEventRegistration),
-			aliases: make(map[eventKey]eventKey),
+			events:      make(map[eventKey]jsonEventRegistration),
+			aliases:     make(map[eventKey]eventKey),
+			encodeNames: make(map[string]struct{}),
+			decodeNames: make(map[string]struct{}),
 		},
 		claimed: make(map[eventKey]struct{}, len(options)),
 	}
@@ -201,12 +205,7 @@ func (codec *JSONCodec) Encode(event DecodedEvent) (EncodedEvent, error) {
 	key := eventKey{name: event.name.value, version: event.version}
 	registration, exists := codec.events[key]
 	if !exists {
-		return EncodedEvent{}, fmt.Errorf(
-			"%w: %s@%d",
-			ErrUnknownEvent,
-			key.name,
-			key.version,
-		)
+		return EncodedEvent{}, eventIdentityError(key, codec.encodeNames)
 	}
 
 	payload, err := registration.encode(event.value)
@@ -246,11 +245,9 @@ func (codec *JSONCodec) Decode(event EncodedEvent) (DecodedEvent, error) {
 	}
 	registration, exists := codec.events[key]
 	if !exists {
-		return DecodedEvent{}, fmt.Errorf(
-			"%w: %s@%d",
-			ErrUnknownEvent,
-			event.name.value,
-			event.version,
+		return DecodedEvent{}, eventIdentityError(
+			eventKey{name: event.name.value, version: event.version},
+			codec.decodeNames,
 		)
 	}
 
@@ -319,6 +316,8 @@ func (codec *JSONCodec) addEvent(
 
 	claimed[registration.key] = struct{}{}
 	codec.events[registration.key] = registration
+	codec.encodeNames[registration.key.name] = struct{}{}
+	codec.decodeNames[registration.key.name] = struct{}{}
 
 	return nil
 }
@@ -377,8 +376,18 @@ func (codec *JSONCodec) addAlias(
 
 	claimed[registration.key] = struct{}{}
 	codec.aliases[registration.key] = registration.target
+	codec.decodeNames[registration.key.name] = struct{}{}
 
 	return nil
+}
+
+func eventIdentityError(key eventKey, knownNames map[string]struct{}) error {
+	identityError := ErrUnknownEvent
+	if _, known := knownNames[key.name]; known {
+		identityError = ErrIncompatibleVersion
+	}
+
+	return fmt.Errorf("%w: %s@%d", identityError, key.name, key.version)
 }
 
 func validateEventKey(key eventKey) error {

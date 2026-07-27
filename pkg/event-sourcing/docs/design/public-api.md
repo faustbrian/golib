@@ -636,6 +636,7 @@ var (
     ErrDuplicateMessageID    = errors.New("duplicate event message identifier")
     ErrCorruptHistory        = errors.New("corrupt event history")
     ErrUnknownEvent          = errors.New("unknown event")
+    ErrIncompatibleVersion   = errors.New("incompatible event schema version")
     ErrMalformedEvent        = errors.New("malformed event data")
     ErrSnapshotIncompatible  = errors.New("aggregate snapshot is incompatible")
     ErrUnsupportedCapability = errors.New("unsupported event-store capability")

@@ -30,6 +30,9 @@ var (
 	// ErrUnknownEvent reports an event identity absent from an explicit codec
 	// registration.
 	ErrUnknownEvent = errors.New("unknown event")
+	// ErrIncompatibleVersion reports a known event name whose schema version
+	// has no registered codec path.
+	ErrIncompatibleVersion = errors.New("incompatible event schema version")
 	// ErrDuplicateRegistration reports an event or alias identity registered
 	// more than once.
 	ErrDuplicateRegistration = errors.New("duplicate event registration")
