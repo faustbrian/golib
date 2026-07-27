@@ -188,7 +188,7 @@ duplicate target records. Use `TransactionProcessor` for Kafka-transactional
 source-offset and output settlement.
 `ReplayReader.Plan` returns an owned local dry-run plan after applying
 `ReplayCheckpoint`. `PlanAgainstBroker` additionally validates effective starts
-and exclusive ends against broker log-start and log-end offsets under
+and exclusive ends against broker log-start and high-watermark offsets under
 `PlanningTimeout`. It polls no records, invokes no handler, changes no group
 offset, and does not consume the reader's single replay execution. Planning is
 fenced by replay and shutdown lifecycle state. An error returns a zero plan so

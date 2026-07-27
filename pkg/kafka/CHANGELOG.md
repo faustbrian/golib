@@ -78,7 +78,7 @@ All notable changes to this module are documented here.
   deadline, and bounded retriable shutdown
 - real-broker evidence that a broker-validated plan remains executable,
   interrupted replay resumes from its external checkpoint, and a range beyond
-  the log end is rejected before a handler runs
+  the high watermark is rejected before a handler runs
 - bounded read-only cluster identity, controller, broker, topic durability,
   replica, beginning/end offset, and consumer-group lag inspection; inspector
   operations now apply an owned request deadline even when callers omit one

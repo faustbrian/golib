@@ -217,7 +217,7 @@ for eager compatibility. Optional `InstanceID` enables static membership and
 without joining or changing a consumer group. `Plan` applies an owned external
 checkpoint without contacting a broker. `PlanAgainstBroker` performs the same
 dry run while confirming effective starts and exclusive ends against bounded
-broker log-start and log-end lookups; it does not consume the reader.
+broker log-start and high-watermark lookups; it does not consume the reader.
 Any validation error returns no plan.
 Handler execution requires explicit `ReplaySideEffectsAllowed`, enforces
 record limits and handler deadlines, and returns exact per-range next offsets

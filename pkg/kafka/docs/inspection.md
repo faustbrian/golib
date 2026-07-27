@@ -25,7 +25,7 @@ combines:
 - leader and leader epoch;
 - replica preference order;
 - sorted ISR and offline-replica node IDs;
-- log-start and exclusive log-end offsets; and
+- log-start and exclusive high-watermark offsets; and
 - effective topic configuration, including broker defaults, for
   `min.insync.replicas`, `cleanup.policy`, `retention.ms`, `retention.bytes`,
   `delete.retention.ms`, `min.compaction.lag.ms`,

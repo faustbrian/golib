@@ -230,7 +230,7 @@ Inspection uses the shared connection policy plus these owned bounds:
 | `Readiness.RecoveryThreshold` | 2 | 1 through 100 consecutive successful dependency probes before initial or recovered readiness. |
 
 Topic and group operations separately require 1 to 64 unique explicit targets.
-Topic inspection lists metadata, log-start and log-end offsets, and
+Topic inspection lists metadata, log-start and high-watermark offsets, and
 effective durability, cleanup, retention, compaction, segment, and
 unclean-election configuration. It accepts at most 1,024 returned configuration
 entries per topic and at most 64 bytes for each selected value. It fails closed

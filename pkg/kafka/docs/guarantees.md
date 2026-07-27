@@ -173,7 +173,7 @@ after every outcome; progress advances only after a successful handler call.
 Readers are single-use so an advanced direct-consumer cursor cannot be mistaken
 for a fresh replay.
 Execution validates effective starts and exclusive ends against current broker
-log-start and log-end offsets before invoking a handler. Exact
+log-start and high-watermark offsets before invoking a handler. Exact
 assignments then disable franz-go offset reset, so broker out-of-range errors,
 missing offsets, handler timeout, cancellation, panic, and record-limit
 failures stop with an incomplete range rather than silently moving forward.

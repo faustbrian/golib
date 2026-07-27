@@ -10,9 +10,9 @@ not read or alter committed group offsets.
 offset, and the exact aggregate remaining offset span after applying
 `ReplayConfig.Checkpoint`. It performs no broker request, so it does not prove
 that retention still contains the range. `PlanAgainstBroker` returns the same
-owned plan after listing current broker log-start and log-end offsets
+owned plan after listing current broker log-start and high-watermark offsets
 under `PlanningTimeout`. It rejects an effective next offset before the log
-start or an exclusive end after the log end without polling records,
+start or an exclusive end after the high watermark without polling records,
 invoking a handler, changing group offsets, or consuming the reader's single
 replay execution. Any error returns a zero plan; use `Plan` explicitly when an
 unvalidated local plan is wanted. Broker planning participates in the reader
@@ -59,7 +59,7 @@ removed every record available from the effective next offset.
 
 Retention may move after the boundary lookup. The no-reset fetch policy catches
 an out-of-range start that changes before or during consumption. An increase in
-the log end does not make an already validated exclusive end unsafe: newly
+the high watermark does not make an already validated exclusive end unsafe: newly
 appended records are outside the requested end and are skipped. Truncation
 below the requested range still fails through bounds, no-reset, or gap
 detection.
@@ -109,4 +109,4 @@ global order across partitions or exactly-once application side effects.
   no-reset behavior after assignment, bounded polling, and local partition
   pause behavior.
 - [franz-go kadm v1.18.0](https://pkg.go.dev/github.com/twmb/franz-go/pkg/kadm@v1.18.0)
-  defines log-start and log-end offset inspection.
+  defines log-start and high-watermark offset inspection.

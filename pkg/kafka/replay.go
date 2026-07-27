@@ -508,7 +508,7 @@ func (reader *ReplayReader) Plan() ReplayPlan {
 
 // PlanAgainstBroker returns an owned dry-run plan after confirming that every
 // effective start remains retained and every exclusive end is at or before the
-// current broker log end. It does not poll records, invoke handlers,
+// current broker high watermark. It does not poll records, invoke handlers,
 // mutate group offsets, or consume the reader's single execution. Any error
 // returns a zero plan so an unvalidated local plan cannot be mistaken for a
 // broker-validated result.

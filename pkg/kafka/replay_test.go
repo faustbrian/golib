@@ -232,7 +232,7 @@ func TestReplayPlanAgainstBrokerFailsClosedWithoutConsumingReader(t *testing.T) 
 			want: ErrReplayOffsetOutOfRange,
 		},
 		{
-			name: "end beyond log end",
+			name: "end beyond high watermark",
 			change: func(
 				_ *ReplayReader,
 				bounds *recordingReplayBoundsBackend,
