@@ -61,6 +61,9 @@ All notable changes to this module are documented here.
   publication leaves the source offset for redelivery
 - bounded transactional producer with fenced callback lifetime and explicit
   abortable, authorization, fenced, fatal, and unknown-outcome classification
+- payload-free producer and consume-transform-produce begin, commit, and abort
+  observations with stable unknown-outcome classification, bounded callbacks,
+  broker activity, and same-client lifecycle reentrancy fencing
 - real-broker evidence that committed transaction records are visible to
   read-committed consumers while aborted records remain visible only to
   read-uncommitted consumers

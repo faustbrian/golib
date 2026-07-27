@@ -98,6 +98,23 @@ scheduler-dependent; a handler that requires output order must make
 synchronous calls in the required order. Ordering remains per output
 topic-partition, never global.
 
+## Lifecycle observation
+
+`ProducerConfig.Observers` reports begin and commit on a successful producer
+transaction, or begin and abort when callback failure or panic requires
+cleanup. `TransactionProcessorConfig.Observers` reports the same phases for
+each non-empty source poll and also enables payload-free broker and
+group-management-error events for its combined client.
+
+Lifecycle events contain copied client identity and local phase duration.
+Processor events additionally contain the copied source group identity. They
+do not contain transactional IDs, source coordinates, output counts, keys,
+values, headers, broker endpoints, or application error text. A known
+abort-required commit failure is retryable; an unknown commit or abort outcome
+is ambiguous. Observer error, panic, or cooperative timeout is reported only
+through the observer failure handler and never changes the transaction result.
+Observers cannot re-enter the invoking producer or transaction processor.
+
 Caller cancellation requests a clean stop but does not cancel transaction
 cleanup. `Run` returns nil only after the active transaction aborts
 successfully; an abort timeout or failure is returned and fences the processor.

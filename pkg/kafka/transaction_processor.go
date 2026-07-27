@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,6 +104,7 @@ type TransactionProcessorConfig struct {
 	Group           TransactionGroupConfig
 	Output          TransactionOutputConfig
 	Limits          MessageLimits
+	Observers       ObserverPolicy
 	ShutdownTimeout time.Duration
 }
 
@@ -211,6 +213,8 @@ func (backend *franzTransactionProcessorBackend) Close() {
 // producer. One Run or RunOnce call may be active at a time.
 type TransactionProcessor struct {
 	client             transactionProcessorBackend
+	clientID           string
+	groupID            string
 	limits             MessageLimits
 	maxPollRecords     int
 	processingTimeout  time.Duration
@@ -222,13 +226,15 @@ type TransactionProcessor struct {
 	maxOutputBytes     int64
 	staticMembership   bool
 
-	lifecycleMu    sync.Mutex
-	running        bool
-	runDone        chan struct{}
-	closing        bool
-	closed         bool
-	shutdownActive bool
-	fatalErr       error
+	lifecycleMu       sync.Mutex
+	running           bool
+	runDone           chan struct{}
+	closing           bool
+	closed            bool
+	shutdownActive    bool
+	fatalErr          error
+	observerCallbacks int
+	observers         observerDispatcher
 }
 
 // NewTransactionProcessor constructs a Kafka-only consume-transform-produce
@@ -296,17 +302,14 @@ func newTransactionProcessor(
 	options = append(options, clientProtocolOptions(config.Connection.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Connection.Security)...)
 
-	client, err := factory(options...)
-	if err != nil {
-		return nil, err
-	}
+	dispatcher := newObserverDispatcher(config.Observers)
 	allowedTopics := make(map[string]struct{}, len(config.Output.AllowedTopics))
 	for _, topic := range config.Output.AllowedTopics {
 		allowedTopics[topic] = struct{}{}
 	}
-
-	return &TransactionProcessor{
-		client:             client,
+	processor := &TransactionProcessor{
+		clientID:           strings.Clone(config.Connection.ClientID),
+		groupID:            strings.Clone(config.Group.GroupID),
 		limits:             config.Limits,
 		maxPollRecords:     config.Group.MaxPollRecords,
 		processingTimeout:  config.Group.ProcessingTimeout,
@@ -317,12 +320,39 @@ func newTransactionProcessor(
 		maxOutputRecords:   config.Output.MaxOutputRecords,
 		maxOutputBytes:     config.Output.MaxOutputBytes,
 		staticMembership:   config.Group.InstanceID != "",
-	}, nil
+		observers:          dispatcher,
+	}
+	if dispatcher.enabled() {
+		observerHook := newFranzObserverHook(
+			config.Connection.ClientID,
+			config.Group.GroupID,
+			dispatcher,
+		)
+		observerHook.before = processor.beginObservation
+		observerHook.after = processor.finishObservation
+		options = append(options, kgo.WithHooks(observerHook))
+	}
+
+	client, err := factory(options...)
+	if err != nil {
+		return nil, err
+	}
+	processor.client = client
+
+	return processor, nil
 }
 
 func normalizeTransactionProcessorConfig(
 	config TransactionProcessorConfig,
 ) (TransactionProcessorConfig, error) {
+	observers, err := normalizeObserverPolicy(config.Observers)
+	if err != nil {
+		return TransactionProcessorConfig{}, errors.Join(
+			ErrInvalidTransactionProcessorConfig,
+			err,
+		)
+	}
+	config.Observers = observers
 	if config.Connection.Protocol.MinimumVersion == "" {
 		config.Connection.Protocol.MinimumVersion = "2.5"
 	}
@@ -467,6 +497,7 @@ func normalizeTransactionProcessorConfig(
 		TransactionEndTimeout: producer.TransactionEndTimeout,
 	}
 	config.Limits = producer.Limits
+	config.Observers = observers
 	config.ShutdownTimeout = consumer.ShutdownTimeout
 
 	return config, nil
@@ -481,6 +512,9 @@ func (processor *TransactionProcessor) RunOnce(
 ) (TransactionPollResult, error) {
 	if ctx == nil {
 		return TransactionPollResult{}, ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return TransactionPollResult{}, ErrObserverReentry
 	}
 	if handler == nil {
 		return TransactionPollResult{}, ErrTransactionHandlerRequired
@@ -504,18 +538,12 @@ func (processor *TransactionProcessor) runOnce(
 		if len(records) == 0 {
 			return TransactionPollResult{}, err
 		}
-		if beginErr := processor.client.Begin(); beginErr != nil {
-			transactionErr := newTransactionError(
-				TransactionOperationBegin,
-				beginErr,
-				false,
-				true,
-			)
+		if transactionErr := processor.beginTransaction(ctx); transactionErr != nil {
 			processor.fence(transactionErr)
 
 			return result, errors.Join(err, transactionErr)
 		}
-		abortErr := processor.endTransaction(ctx, kgo.TryAbort)
+		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
 			processor.fence(abortErr)
 		}
@@ -525,13 +553,7 @@ func (processor *TransactionProcessor) runOnce(
 	if len(records) == 0 {
 		return TransactionPollResult{}, nil
 	}
-	if err := processor.client.Begin(); err != nil {
-		transactionErr := newTransactionError(
-			TransactionOperationBegin,
-			err,
-			false,
-			true,
-		)
+	if transactionErr := processor.beginTransaction(ctx); transactionErr != nil {
 		processor.fence(transactionErr)
 
 		return result, transactionErr
@@ -575,7 +597,7 @@ func (processor *TransactionProcessor) runOnce(
 	cancelWork()
 	result.Published = publisher.publishedCount()
 	if processingErr != nil {
-		abortErr := processor.endTransaction(ctx, kgo.TryAbort)
+		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
 			processor.fence(abortErr)
 		}
@@ -583,26 +605,13 @@ func (processor *TransactionProcessor) runOnce(
 		return result, errors.Join(processingErr, abortErr)
 	}
 
-	endCtx, cancelEnd := processor.transactionEndContext(ctx)
-	committed, err := processor.client.End(endCtx, kgo.TryCommit)
-	cancelEnd()
+	_, err := processor.commitTransaction(ctx)
 	if err != nil {
-		transactionErr := transactionProcessorEndError(
-			TransactionOperationCommit,
-			err,
-		)
-		processor.fence(transactionErr)
+		if !errors.Is(err, ErrTransactionNotCommitted) {
+			processor.fence(err)
+		}
 
-		return result, transactionErr
-	}
-	if !committed {
-		return result, newTransactionErrorWithCategory(
-			TransactionOperationCommit,
-			ErrTransactionNotCommitted,
-			ErrorRetryable,
-			true,
-			true,
-		)
+		return result, err
 	}
 	result.Committed = true
 
@@ -727,26 +736,88 @@ func (publisher *processorTransactionPublisher) publishedCount() int {
 	return publisher.published
 }
 
-func (processor *TransactionProcessor) endTransaction(
-	ctx context.Context,
-	try kgo.TransactionEndTry,
-) error {
-	endCtx, cancel := processor.transactionEndContext(ctx)
-	committed, err := processor.client.End(endCtx, try)
-	cancel()
-	if err != nil {
-		return transactionProcessorEndError(TransactionOperationAbort, err)
+func (processor *TransactionProcessor) beginTransaction(ctx context.Context) error {
+	var startedAt time.Time
+	if processor.observers.enabled() {
+		startedAt = time.Now()
 	}
-	if committed {
-		return newTransactionError(
+	err := newTransactionError(
+		TransactionOperationBegin,
+		processor.client.Begin(),
+		false,
+		true,
+	)
+	processor.observeTransaction(
+		ctx,
+		ObservationTransactionBegin,
+		startedAt,
+		err,
+	)
+
+	return err
+}
+
+func (processor *TransactionProcessor) commitTransaction(
+	ctx context.Context,
+) (bool, error) {
+	var startedAt time.Time
+	if processor.observers.enabled() {
+		startedAt = time.Now()
+	}
+	endCtx, cancel := processor.transactionEndContext(ctx)
+	committed, endErr := processor.client.End(endCtx, kgo.TryCommit)
+	cancel()
+
+	var err error
+	if endErr != nil {
+		err = transactionProcessorEndError(TransactionOperationCommit, endErr)
+	} else if !committed {
+		err = newTransactionErrorWithCategory(
+			TransactionOperationCommit,
+			ErrTransactionNotCommitted,
+			ErrorRetryable,
+			true,
+			true,
+		)
+	}
+	processor.observeTransaction(
+		ctx,
+		ObservationTransactionCommit,
+		startedAt,
+		err,
+	)
+
+	return committed, err
+}
+
+func (processor *TransactionProcessor) abortTransaction(ctx context.Context) error {
+	var startedAt time.Time
+	if processor.observers.enabled() {
+		startedAt = time.Now()
+	}
+	endCtx, cancel := processor.transactionEndContext(ctx)
+	committed, endErr := processor.client.End(endCtx, kgo.TryAbort)
+	cancel()
+
+	var err error
+	if endErr != nil {
+		err = transactionProcessorEndError(TransactionOperationAbort, endErr)
+	} else if committed {
+		err = newTransactionError(
 			TransactionOperationAbort,
 			ErrTransactionOutcomeUnknown,
 			false,
 			false,
 		)
 	}
+	processor.observeTransaction(
+		ctx,
+		ObservationTransactionAbort,
+		startedAt,
+		err,
+	)
 
-	return nil
+	return err
 }
 
 func transactionProcessorEndError(
@@ -791,6 +862,9 @@ func (processor *TransactionProcessor) Run(
 ) error {
 	if ctx == nil {
 		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
 	}
 	if handler == nil {
 		return ErrTransactionHandlerRequired
@@ -864,6 +938,9 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 	processor.lifecycleMu.Lock()
 	if processor.closed {
 		processor.lifecycleMu.Unlock()
@@ -916,6 +993,14 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 
 // Close performs a bounded graceful shutdown using the configured timeout.
 func (processor *TransactionProcessor) Close() error {
+	processor.lifecycleMu.Lock()
+	if processor.observerCallbacks != 0 {
+		processor.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
+	processor.lifecycleMu.Unlock()
+
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		processor.shutdownTimeout,
@@ -923,4 +1008,49 @@ func (processor *TransactionProcessor) Close() error {
 	defer cancel()
 
 	return processor.Shutdown(ctx)
+}
+
+func (processor *TransactionProcessor) observeTransaction(
+	ctx context.Context,
+	kind ObservationKind,
+	startedAt time.Time,
+	err error,
+) {
+	if !processor.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:      kind,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  processor.clientID,
+		GroupID:   processor.groupID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = transactionObservationCategory(err)
+	}
+	processor.dispatchObservation(ctx, observation)
+}
+
+func (processor *TransactionProcessor) dispatchObservation(
+	ctx context.Context,
+	observation Observation,
+) {
+	processor.beginObservation()
+	defer processor.finishObservation()
+
+	processor.observers.observe(ctx, observation)
+}
+
+func (processor *TransactionProcessor) beginObservation() {
+	processor.lifecycleMu.Lock()
+	processor.observerCallbacks++
+	processor.lifecycleMu.Unlock()
+}
+
+func (processor *TransactionProcessor) finishObservation() {
+	processor.lifecycleMu.Lock()
+	processor.observerCallbacks--
+	processor.lifecycleMu.Unlock()
 }

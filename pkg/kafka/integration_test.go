@@ -821,6 +821,10 @@ func proveConsumeTransformProduce(
 	}
 
 	const groupID = "golib-compatibility-transaction-processor"
+	var transactionBegins atomic.Int32
+	var transactionCommits atomic.Int32
+	var transactionAborts atomic.Int32
+	var transactionBrokerRequest atomic.Bool
 	processor, err := kafka.NewTransactionProcessor(
 		kafka.TransactionProcessorConfig{
 			Connection: kafka.TransactionConnectionConfig{
@@ -837,6 +841,43 @@ func proveConsumeTransformProduce(
 			Output: kafka.TransactionOutputConfig{
 				AllowedTopics:   []string{outputTopic},
 				TransactionalID: "golib-compatibility-transaction-processor",
+			},
+			Observers: kafka.ObserverPolicy{
+				Observers: []kafka.ObserverFunc{
+					func(
+						_ context.Context,
+						observation kafka.Observation,
+					) error {
+						if observation.ClientID !=
+							"golib-compatibility-transaction-processor" ||
+							observation.GroupID != groupID {
+							return nil
+						}
+						switch observation.Kind {
+						case kafka.ObservationTransactionBegin:
+							if observation.Succeeded {
+								transactionBegins.Add(1)
+							}
+						case kafka.ObservationTransactionCommit:
+							if observation.Succeeded {
+								transactionCommits.Add(1)
+							}
+						case kafka.ObservationTransactionAbort:
+							if observation.Succeeded {
+								transactionAborts.Add(1)
+							}
+						case kafka.ObservationBrokerRequest:
+							transactionBrokerRequest.Store(true)
+						}
+
+						return nil
+					},
+				},
+				FailureHandler: func(
+					context.Context,
+					kafka.ObservationFailure,
+				) {
+				},
 			},
 		},
 	)
@@ -990,6 +1031,18 @@ func proveConsumeTransformProduce(
 	) {
 		t.Fatalf("retried committed transaction outputs = %q", values)
 	}
+	if transactionBegins.Load() != 3 ||
+		transactionCommits.Load() != 2 ||
+		transactionAborts.Load() != 1 ||
+		!transactionBrokerRequest.Load() {
+		t.Fatalf(
+			"transaction processor observations = begin:%d commit:%d abort:%d broker:%t",
+			transactionBegins.Load(),
+			transactionCommits.Load(),
+			transactionAborts.Load(),
+			transactionBrokerRequest.Load(),
+		)
+	}
 }
 
 func proveProducerTransactionVisibility(
@@ -1000,12 +1053,37 @@ func proveProducerTransactionVisibility(
 ) {
 	t.Helper()
 
+	var transactionBegins atomic.Int32
+	var transactionCommits atomic.Int32
+	var transactionAborts atomic.Int32
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:         brokers,
 		ClientID:        "golib-compatibility-transaction-producer",
 		AllowedTopics:   []string{topic},
 		TransactionalID: "golib-compatibility-transaction-producer",
 		Security:        kafka.DevelopmentPlaintextSecurity(),
+		Observers: kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{
+				func(_ context.Context, observation kafka.Observation) error {
+					if observation.ClientID !=
+						"golib-compatibility-transaction-producer" ||
+						!observation.Succeeded {
+						return nil
+					}
+					switch observation.Kind {
+					case kafka.ObservationTransactionBegin:
+						transactionBegins.Add(1)
+					case kafka.ObservationTransactionCommit:
+						transactionCommits.Add(1)
+					case kafka.ObservationTransactionAbort:
+						transactionAborts.Add(1)
+					}
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
 	})
 	if err != nil {
 		t.Fatalf("construct transactional producer: %v", err)
@@ -1068,6 +1146,16 @@ func proveProducerTransactionVisibility(
 	)
 	if !slices.Equal(uncommitted, []string{"committed", "aborted"}) {
 		t.Fatalf("read-uncommitted values = %q", uncommitted)
+	}
+	if transactionBegins.Load() != 2 ||
+		transactionCommits.Load() != 1 ||
+		transactionAborts.Load() != 1 {
+		t.Fatalf(
+			"producer transaction observations = begin:%d commit:%d abort:%d",
+			transactionBegins.Load(),
+			transactionCommits.Load(),
+			transactionAborts.Load(),
+		)
 	}
 }
 

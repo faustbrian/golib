@@ -1220,13 +1220,8 @@ func (producer *Producer) RunTransaction(
 	}
 	defer producer.finishTransaction()
 
-	if err := producer.client.BeginTransaction(); err != nil {
-		return newTransactionError(
-			TransactionOperationBegin,
-			err,
-			false,
-			true,
-		)
+	if err := producer.beginTransaction(ctx); err != nil {
+		return err
 	}
 
 	session := &transactionSession{publisher: producer}
@@ -1236,44 +1231,89 @@ func (producer *Producer) RunTransaction(
 		return errors.Join(callbackErr, producer.abortTransaction(ctx))
 	}
 
-	endCtx, cancel := producer.transactionEndContext(ctx)
-	defer cancel()
-
-	commitErr := producer.client.EndTransaction(endCtx, kgo.TryCommit)
+	commitErr := producer.commitTransaction(ctx)
 	if commitErr == nil {
 		return nil
 	}
-	if errors.Is(commitErr, kerr.OperationNotAttempted) ||
-		errors.Is(commitErr, kerr.TransactionAbortable) {
+	var transactionErr *TransactionError
+	if errors.As(commitErr, &transactionErr) && transactionErr.Abortable() {
 		abortErr := producer.abortTransaction(ctx)
-		return errors.Join(
-			abortErr,
-			newTransactionError(
-				TransactionOperationCommit,
-				commitErr,
-				true,
-				true,
-			),
-		)
-	}
-	category := classifyError(commitErr)
-	if category == ErrorAuthorization ||
-		category == ErrorFenced ||
-		category == ErrorFatal {
-		return newTransactionError(
-			TransactionOperationCommit,
-			commitErr,
-			false,
-			true,
-		)
+
+		return errors.Join(abortErr, commitErr)
 	}
 
-	return newTransactionError(
-		TransactionOperationCommit,
-		errors.Join(ErrTransactionOutcomeUnknown, commitErr),
+	return commitErr
+}
+
+func (producer *Producer) beginTransaction(ctx context.Context) error {
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+	}
+	err := newTransactionError(
+		TransactionOperationBegin,
+		producer.client.BeginTransaction(),
 		false,
-		false,
+		true,
 	)
+	producer.observeTransaction(
+		ctx,
+		ObservationTransactionBegin,
+		startedAt,
+		err,
+	)
+
+	return err
+}
+
+func (producer *Producer) commitTransaction(ctx context.Context) error {
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+	}
+	endCtx, cancel := producer.transactionEndContext(ctx)
+	commitErr := producer.client.EndTransaction(endCtx, kgo.TryCommit)
+	cancel()
+
+	var err error
+	switch {
+	case commitErr == nil:
+	case errors.Is(commitErr, kerr.OperationNotAttempted),
+		errors.Is(commitErr, kerr.TransactionAbortable):
+		err = newTransactionError(
+			TransactionOperationCommit,
+			commitErr,
+			true,
+			true,
+		)
+	default:
+		category := classifyError(commitErr)
+		if category == ErrorAuthorization ||
+			category == ErrorFenced ||
+			category == ErrorFatal {
+			err = newTransactionError(
+				TransactionOperationCommit,
+				commitErr,
+				false,
+				true,
+			)
+		} else {
+			err = newTransactionError(
+				TransactionOperationCommit,
+				errors.Join(ErrTransactionOutcomeUnknown, commitErr),
+				false,
+				false,
+			)
+		}
+	}
+	producer.observeTransaction(
+		ctx,
+		ObservationTransactionCommit,
+		startedAt,
+		err,
+	)
+
+	return err
 }
 
 type transactionSession struct {
@@ -1324,7 +1364,19 @@ func callTransaction(
 	return callback(transaction)
 }
 
-func (producer *Producer) abortTransaction(ctx context.Context) error {
+func (producer *Producer) abortTransaction(ctx context.Context) (resultErr error) {
+	var startedAt time.Time
+	if producer.observers.enabled() {
+		startedAt = time.Now()
+		defer func() {
+			producer.observeTransaction(
+				ctx,
+				ObservationTransactionAbort,
+				startedAt,
+				resultErr,
+			)
+		}()
+	}
 	abortCtx, cancelAbort := producer.transactionEndContext(ctx)
 	abortErr := producer.client.AbortBufferedRecords(abortCtx)
 	cancelAbort()
@@ -1344,7 +1396,7 @@ func (producer *Producer) abortTransaction(ctx context.Context) error {
 		)
 	}
 
-	return errors.Join(
+	resultErr = errors.Join(
 		bufferedErr,
 		newTransactionError(
 			TransactionOperationAbort,
@@ -1353,6 +1405,42 @@ func (producer *Producer) abortTransaction(ctx context.Context) error {
 			transactionAbortOutcomeKnown(endErr),
 		),
 	)
+
+	return resultErr
+}
+
+func (producer *Producer) observeTransaction(
+	ctx context.Context,
+	kind ObservationKind,
+	startedAt time.Time,
+	err error,
+) {
+	if !producer.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:      kind,
+		StartedAt: startedAt,
+		Duration:  time.Since(startedAt),
+		ClientID:  producer.clientID,
+		Succeeded: err == nil,
+	}
+	if err != nil {
+		observation.Category = transactionObservationCategory(err)
+	}
+	producer.dispatchObservation(ctx, observation)
+}
+
+func transactionObservationCategory(err error) ErrorCategory {
+	if errors.Is(err, ErrTransactionOutcomeUnknown) {
+		return ErrorAmbiguous
+	}
+	var transactionErr *TransactionError
+	if errors.As(err, &transactionErr) {
+		return transactionErr.Category()
+	}
+
+	return classifyError(err)
 }
 
 func transactionAbortOutcomeKnown(err error) bool {

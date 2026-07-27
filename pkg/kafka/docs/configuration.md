@@ -94,9 +94,10 @@ reentrancy rules.
 ## Consume-transform-produce
 
 `TransactionProcessorConfig` separates the connection, source group, output,
-record limits, and lifecycle timeout. It reuses the same validation bounds as
-the producer and consumer policies. The processor always selects
-`read_committed` and disables automatic commits; neither is caller-configurable.
+record limits, observer policy, and lifecycle timeout. It reuses the same
+validation bounds as the producer and consumer policies. The processor always
+selects `read_committed` and disables automatic commits; neither is
+caller-configurable.
 
 | Concern and field | Default | Validation and meaning |
 | --- | ---: | --- |
@@ -131,6 +132,7 @@ the producer and consumer policies. The processor always selects
 | `Output.TransactionalID` | none | Required, unique to one live processor, valid and at most 255 bytes. |
 | `Output.TransactionTimeout` | 60 seconds | 1 second to 15 minutes; must exceed processing plus end time. |
 | `Output.TransactionEndTimeout` | 10 seconds | 1 second to 2 minutes; combined heartbeat, processing, and end time must fit inside rebalance time. |
+| `Observers` | disabled | Same copied 1 to 16 transaction-lifecycle and broker callback policy and shared 1 millisecond to 5 second cooperative timeout as the producer. |
 | `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
 
 ## Consumer group

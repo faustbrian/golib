@@ -717,6 +717,9 @@ func TestObservationKindString(t *testing.T) {
 		ObservationConsumeLost:       "consumer.lost",
 		ObservationConsumeBlocked:    "consumer.rebalance_blocked",
 		ObservationConsumeGroupError: "consumer.group_error",
+		ObservationTransactionBegin:  "transaction.begin",
+		ObservationTransactionCommit: "transaction.commit",
+		ObservationTransactionAbort:  "transaction.abort",
 		ObservationBrokerConnect:     "broker.connect",
 		ObservationBrokerRequest:     "broker.request",
 		ObservationBrokerThrottle:    "broker.throttle",
@@ -749,6 +752,9 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 		ObservationConsumeLost:       14,
 		ObservationConsumeBlocked:    15,
 		ObservationConsumeGroupError: 16,
+		ObservationTransactionBegin:  17,
+		ObservationTransactionCommit: 18,
+		ObservationTransactionAbort:  19,
 	} {
 		if kind != want {
 			t.Fatalf("ObservationKind value = %d, want %d", kind, want)

@@ -97,7 +97,8 @@ Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic
 production. Transaction lifecycle failures are redacted `TransactionError`
 values with an operation, stable category, abortability, and explicit outcome
 knowledge. An unknown commit outcome requires reconciliation rather than a
-blind retry.
+blind retry. Producer observers report payload-free begin, commit, and abort
+outcomes without changing the transaction result.
 
 Use `TransactionProcessor` when source offsets and Kafka output records must be
 committed atomically. It always reads with `read_committed`, disables automatic
@@ -107,7 +108,9 @@ aborts all poll outputs and leaves every source offset for redelivery.
 `TransactionalID` must be unique to one live processor instance. This guarantee
 ends at the Kafka read-process-write boundary and never includes databases,
 HTTP calls, object storage, email, or other external effects. See the
-[transaction guide](docs/transactions.md).
+[transaction guide](docs/transactions.md). Processor observers report the same
+transaction lifecycle plus broker activity with copied client and group
+identity.
 
 Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
 material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's

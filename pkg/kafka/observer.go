@@ -69,6 +69,15 @@ const (
 	// ObservationConsumeGroupError reports an error that ended a consumer-group
 	// management session.
 	ObservationConsumeGroupError
+	// ObservationTransactionBegin reports a completed Kafka transaction begin
+	// attempt.
+	ObservationTransactionBegin
+	// ObservationTransactionCommit reports a completed Kafka transaction commit
+	// attempt.
+	ObservationTransactionCommit
+	// ObservationTransactionAbort reports a completed Kafka transaction abort
+	// attempt.
+	ObservationTransactionAbort
 )
 
 // String returns the stable low-cardinality observation name.
@@ -98,6 +107,12 @@ func (kind ObservationKind) String() string {
 		return "consumer.rebalance_blocked"
 	case ObservationConsumeGroupError:
 		return "consumer.group_error"
+	case ObservationTransactionBegin:
+		return "transaction.begin"
+	case ObservationTransactionCommit:
+		return "transaction.commit"
+	case ObservationTransactionAbort:
+		return "transaction.abort"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
