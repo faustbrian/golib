@@ -292,7 +292,8 @@ func validReplayObservationProgress(observation Observation) bool {
 			observation.ProcessedCount == 0 &&
 			observation.ReplayProcessed == 0 &&
 			observation.ReplaySkipped == 0 &&
-			observation.ReplayFailed == 0
+			observation.ReplayFailed == 0 &&
+			(observation.Succeeded || observation.ReplayRemaining == 0)
 	case ObservationReplayRecord:
 		outcomes := observation.ReplayProcessed +
 			observation.ReplaySkipped +
@@ -300,13 +301,17 @@ func validReplayObservationProgress(observation Observation) bool {
 
 		return outcomes == 1 &&
 			observation.ReplayRemaining == 0 &&
-			int64(observation.ProcessedCount) == observation.ReplayProcessed
+			int64(observation.ProcessedCount) == observation.ReplayProcessed &&
+			observation.Succeeded == (observation.ReplayFailed == 0)
 	case ObservationReplayRun:
 		return observation.PartitionCount > 0 &&
 			observation.RecordCount == 0 &&
 			observation.ProcessedCount == 0 &&
 			observation.CommittedCount == 0 &&
-			observation.RecordBytes == 0
+			observation.RecordBytes == 0 &&
+			(!observation.Succeeded ||
+				(observation.ReplayFailed == 0 &&
+					observation.ReplayRemaining == 0))
 	case ObservationReplayShutdown:
 		return observation.ReplayProcessed == 0 &&
 			observation.ReplaySkipped == 0 &&

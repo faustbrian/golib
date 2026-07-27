@@ -220,11 +220,7 @@ func TestReplayWiresBrokerObserversAndObservesFailures(t *testing.T) {
 	config := validReplayConfig()
 	config.Observers = ObserverPolicy{
 		Observers: []ObserverFunc{
-			func(_ context.Context, observation Observation) error {
-				observations = append(observations, observation)
-
-				return nil
-			},
+			func(context.Context, Observation) error { return nil },
 		},
 		FailureHandler: func(context.Context, ObservationFailure) {},
 	}

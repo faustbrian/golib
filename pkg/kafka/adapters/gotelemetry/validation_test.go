@@ -52,7 +52,7 @@ func TestMessagingOperationRejectsUnknownKind(t *testing.T) {
 	t.Parallel()
 
 	if descriptor := messagingOperation(
-		kafka.ObservationKind(255),
+		kafka.Observation{Kind: kafka.ObservationKind(255)},
 	); descriptor != (operationDescriptor{}) {
 		t.Fatalf("unknown operation descriptor = %#v", descriptor)
 	}

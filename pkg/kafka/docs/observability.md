@@ -126,8 +126,8 @@ exporting a public observation rather than reimplementing these invariants.
 | Consume group error | Reports only the stable redacted category for the error that ended the group-management session |
 | Transaction begin/commit/abort | Reports one completed local phase with no record or payload counts; producer events contain no group ID, while consume-transform-produce events contain its copied source group ID |
 | Replay plan | `PartitionCount` is the configured range count and `ReplayRemaining` is the exact validated remaining offset count; a broker-bound failure reports a zero returned plan and stable category |
-| Replay record | `RecordCount=1`; exactly one of `ReplayProcessed`, `ReplaySkipped`, or `ReplayFailed` is one; processed records set `ProcessedCount=1`; validated source topic, partition, offset, timestamp, and conservative bytes are present |
-| Replay run | `PartitionCount` is the configured range count; `ReplayProcessed`, `ReplaySkipped`, `ReplayFailed`, and `ReplayRemaining` exactly match the returned result and its resumable ranges |
+| Replay record | `RecordCount=1`; exactly one of `ReplayProcessed`, `ReplaySkipped`, or `ReplayFailed` is one; processed and skipped outcomes succeed, failed outcomes fail, processed records set `ProcessedCount=1`, and validated source topic, partition, offset, timestamp, and conservative bytes are present |
+| Replay run | `PartitionCount` is the configured range count; `ReplayProcessed`, `ReplaySkipped`, `ReplayFailed`, and `ReplayRemaining` exactly match the returned result and its resumable ranges; success requires zero failed and remaining records |
 | Replay shutdown | Reports bounded reader shutdown without record coordinates or progress counts |
 | Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |

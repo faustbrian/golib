@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- reject replay observations whose success state contradicts their exact
+  failed or remaining progress
+
 ### Added
 
 - replay plan, per-record outcome, exact aggregate progress, shutdown, and

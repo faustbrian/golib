@@ -75,7 +75,8 @@ website content.
 | consume poll | `poll [topic]`, `CLIENT` | `messaging.client.operation.duration`, `messaging.client.consumed.messages` |
 | consume record or batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
-| replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration`, `messaging.client.consumed.messages` |
+| successfully processed replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
+| skipped or failed replay record | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
 | replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
 
 The optional `[topic]` suffix is present only for an allowlisted topic. Failed
@@ -96,6 +97,9 @@ Replay plan, record, and run spans also carry fixed
 `kafka.replay.processed`, `kafka.replay.skipped`, `kafka.replay.failed`, and
 `kafka.replay.remaining` signed-64-bit attributes. Source topic is exported
 only when explicitly allowlisted; partition and offset remain span-only.
+The adapter does not emit `messaging.client.consumed.messages` from replay
+outcomes because replay currently has no separate observation that proves
+delivery to the application exactly once.
 
 ## Trace timing and propagation boundary
 

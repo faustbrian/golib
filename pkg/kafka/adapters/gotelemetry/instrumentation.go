@@ -402,7 +402,7 @@ func (instrumentation *Instrumentation) observe(
 		return ErrInvalidObservation
 	}
 
-	operation := messagingOperation(observation.Kind)
+	operation := messagingOperation(observation)
 	metricAttributes := instrumentation.messagingAttributes(
 		observation,
 		operation.name,
@@ -885,8 +885,8 @@ type operationDescriptor struct {
 	batch            bool
 }
 
-func messagingOperation(kind kafka.ObservationKind) operationDescriptor {
-	switch kind {
+func messagingOperation(observation kafka.Observation) operationDescriptor {
+	switch observation.Kind {
 	case kafka.ObservationProduceRecord, kafka.ObservationProduceAsync:
 		return operationDescriptor{
 			spanName:       "send",
@@ -1014,14 +1014,20 @@ func messagingOperation(kind kafka.ObservationKind) operationDescriptor {
 			spanKind: trace.SpanKindClient,
 		}
 	case kafka.ObservationReplayRecord:
+		if observation.ReplayProcessed == 0 {
+			return operationDescriptor{
+				spanName: "kafka replay.record",
+				spanKind: trace.SpanKindClient,
+			}
+		}
+
 		return operationDescriptor{
-			spanName:         "process",
-			name:             "process",
-			operationType:    "process",
-			spanKind:         trace.SpanKindConsumer,
-			messaging:        true,
-			processDuration:  true,
-			consumedMessages: true,
+			spanName:        "process",
+			name:            "process",
+			operationType:   "process",
+			spanKind:        trace.SpanKindConsumer,
+			messaging:       true,
+			processDuration: true,
 		}
 	case kafka.ObservationReplayRun:
 		return operationDescriptor{

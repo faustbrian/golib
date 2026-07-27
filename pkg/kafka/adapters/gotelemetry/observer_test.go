@@ -371,12 +371,15 @@ func TestObserverEmitsReplayMessagingAndExactProgress(t *testing.T) {
 	t.Parallel()
 
 	spans := tracetest.NewSpanRecorder()
+	reader := sdkmetric.NewManualReader()
 	instrumentation, err := New(Config{
 		Runtime: testRuntime{
 			tracerProvider: sdktrace.NewTracerProvider(
 				sdktrace.WithSpanProcessor(spans),
 			),
-			meterProvider: metricnoop.NewMeterProvider(),
+			meterProvider: sdkmetric.NewMeterProvider(
+				sdkmetric.WithReader(reader),
+			),
 		},
 		Attributes: AttributePolicy{AllowedTopics: []string{"events"}},
 	})
@@ -444,6 +447,100 @@ func TestObserverEmitsReplayMessagingAndExactProgress(t *testing.T) {
 		"kafka.replay.remaining": int64(8),
 		"error.type":             "permanent",
 	})
+
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	assertFloatHistogram(
+		t,
+		metrics,
+		"messaging.process.duration",
+		0.001,
+		map[string]any{
+			"messaging.system":         "kafka",
+			"messaging.operation.name": "process",
+		},
+	)
+	assertMetricAbsent(t, metrics, "messaging.client.consumed.messages")
+}
+
+func TestObserverKeepsUnprocessedReplayOutcomesOutsideMessagingSemantics(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	spans := tracetest.NewSpanRecorder()
+	reader := sdkmetric.NewManualReader()
+	instrumentation, err := New(Config{
+		Runtime: testRuntime{
+			tracerProvider: sdktrace.NewTracerProvider(
+				sdktrace.WithSpanProcessor(spans),
+			),
+			meterProvider: sdkmetric.NewMeterProvider(
+				sdkmetric.WithReader(reader),
+			),
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observer := instrumentation.Observer()
+	observations := []kafka.Observation{
+		{
+			Kind:          kafka.ObservationReplayRecord,
+			StartedAt:     time.Unix(1, 0),
+			Duration:      time.Millisecond,
+			RecordCount:   1,
+			ReplaySkipped: 1,
+			Succeeded:     true,
+		},
+		{
+			Kind:         kafka.ObservationReplayRecord,
+			StartedAt:    time.Unix(2, 0),
+			Duration:     time.Millisecond,
+			RecordCount:  1,
+			ReplayFailed: 1,
+			Succeeded:    false,
+			Category:     kafka.ErrorPermanent,
+		},
+	}
+	for index, observation := range observations {
+		if err := observer(context.Background(), observation); err != nil {
+			t.Fatalf("observe replay outcome %d: %v", index, err)
+		}
+	}
+
+	ended := spans.Ended()
+	if len(ended) != 2 {
+		t.Fatalf("ended spans = %d, want 2", len(ended))
+	}
+	for index, span := range ended {
+		if span.Name() != "kafka replay.record" ||
+			span.SpanKind() != trace.SpanKindClient {
+			t.Fatalf(
+				"replay outcome %d span = %q/%s",
+				index,
+				span.Name(),
+				span.SpanKind(),
+			)
+		}
+		attributes := attributeMap(span.Attributes())
+		if _, exists := attributes["messaging.system"]; exists {
+			t.Fatalf(
+				"replay outcome %d has messaging attributes: %#v",
+				index,
+				attributes,
+			)
+		}
+	}
+
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	assertMetricAbsent(t, metrics, "messaging.process.duration")
+	assertMetricAbsent(t, metrics, "messaging.client.consumed.messages")
 }
 
 func TestObserverReportsBoundedBrokerDiagnosticsWithoutEndpoints(t *testing.T) {
@@ -752,6 +849,22 @@ func assertIntHistogram(
 		}
 	}
 	t.Fatalf("metric %q not found", name)
+}
+
+func assertMetricAbsent(
+	t *testing.T,
+	metrics metricdata.ResourceMetrics,
+	name string,
+) {
+	t.Helper()
+
+	for _, scope := range metrics.ScopeMetrics {
+		for _, current := range scope.Metrics {
+			if current.Name == name {
+				t.Fatalf("unexpected metric %q: %#v", name, current.Data)
+			}
+		}
+	}
 }
 
 func attributesContain(got attribute.Set, want map[string]any) bool {

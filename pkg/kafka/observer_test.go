@@ -963,6 +963,8 @@ func TestObservationValidationEnforcesReplayProgress(t *testing.T) {
 			value.ReplaySkipped = 1
 			value.ReplayFailed = 1
 			value.ReplayRemaining = 3
+			value.Succeeded = false
+			value.Category = ErrorPermanent
 
 			return value
 		}(),
@@ -1144,6 +1146,74 @@ func TestObservationValidationEnforcesReplayProgress(t *testing.T) {
 			ErrInvalidObservation,
 		) {
 			t.Fatalf("invalid replay observation %d error = %v", index, err)
+		}
+	}
+}
+
+func TestObservationValidationRejectsContradictoryReplayOutcomes(t *testing.T) {
+	t.Parallel()
+
+	base := Observation{
+		StartedAt: time.Unix(1, 0),
+		Duration:  time.Millisecond,
+		Succeeded: true,
+	}
+	tests := []Observation{
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayPlan
+			value.PartitionCount = 1
+			value.ReplayRemaining = 1
+			value.Succeeded = false
+			value.Category = ErrorPermanent
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplayFailed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRecord
+			value.RecordCount = 1
+			value.ReplaySkipped = 1
+			value.Succeeded = false
+			value.Category = ErrorPermanent
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.ReplayFailed = 1
+
+			return value
+		}(),
+		func() Observation {
+			value := base
+			value.Kind = ObservationReplayRun
+			value.PartitionCount = 1
+			value.ReplayRemaining = 1
+
+			return value
+		}(),
+	}
+	for index, observation := range tests {
+		if err := observation.Validate(); !errors.Is(
+			err,
+			ErrInvalidObservation,
+		) {
+			t.Fatalf(
+				"contradictory replay observation %d error = %v",
+				index,
+				err,
+			)
 		}
 	}
 }

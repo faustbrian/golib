@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- keep skipped and pre-handler replay failures out of OpenTelemetry application
+  processing and delivery telemetry
+
 ### Added
 
 - replay plan, record-processing, exact aggregate progress, and shutdown spans
