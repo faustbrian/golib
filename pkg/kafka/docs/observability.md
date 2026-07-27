@@ -2,8 +2,10 @@
 
 The root module exposes a vendor-neutral `ObserverPolicy`. The current surface
 reports producer delivery plus consumer poll, record-handler, batch-handler,
-and offset-commit completion. It does not expose franz-go hooks, records,
-requests, responses, or clients.
+offset-commit, broker connection, broker request, broker throttle, and broker
+disconnect completion. The franz-go hook bridge is private; observations do
+not expose franz-go hooks, records, requests, responses, clients, network
+connections, or broker endpoints.
 
 ## Configuration and execution
 
@@ -18,6 +20,11 @@ The default callback budget is 100 milliseconds. Explicit values must be from
 event execute synchronously in registration order and share that single
 budget. Producer operations and consumer partition workers can invoke the same
 observer concurrently, so callbacks must be concurrency-safe.
+Broker events execute on franz-go's internal connection and request goroutines
+and can therefore overlap every producer or consumer operation. A consumer can
+start topic-metadata work inside franz-go client construction, so broker
+callbacks may run after configuration validation but before `NewConsumer`
+returns. They must not depend on assignment of the constructor result.
 
 When an observer fails, its failure handler runs immediately before the next
 registered observer.
@@ -33,10 +40,13 @@ consumer observer therefore extends poll processing and can delay a rebalance.
 Observers must perform only bounded in-process work and hand off to their own
 explicitly bounded infrastructure when export cannot complete immediately.
 
-The callback context retains caller values for correlation but is detached
-from caller cancellation and receives the observer-policy deadline. This lets
-an asynchronous final outcome remain observable after the caller stops
-waiting. The context is callback-scoped and must not be retained.
+Policy-operation callback contexts retain caller values for correlation but are
+detached from caller cancellation and receive the observer-policy deadline.
+This lets an asynchronous final outcome remain observable after the caller
+stops waiting. Broker callbacks derive from a background context because a
+connection can serve many operations and outlive their contexts; they therefore
+carry no caller values. Every callback context is callback-scoped and must not
+be retained.
 
 ## Event contract
 
@@ -50,7 +60,13 @@ waiting. The context is callback-scoped and must not be retained.
 - `ObservationConsumeBatch` after one partition-batch processing attempt;
 - `ObservationConsumeCommit` after one contiguous offset-commit attempt; or
 - `ObservationConsumePoll` after the complete bounded poll cycle and before
-  its rebalance gate is released.
+  its rebalance gate is released;
+- `ObservationBrokerConnect` after a connection initialization attempt,
+  including API-version negotiation and configured SASL;
+- `ObservationBrokerRequest` after one Kafka protocol request fails during
+  write or completes its response read;
+- `ObservationBrokerThrottle` when a broker reports a throttle interval; or
+- `ObservationBrokerDisconnect` when a broker connection closes.
 
 Every observation contains its copied client ID, start time, elapsed duration,
 success flag, and stable failure category. Consumer events also contain the
@@ -65,6 +81,19 @@ category applies.
 | Consume batch | `RecordCount` is the partition-batch size; `ProcessedCount` equals it only after handler success; offset is the batch's last source offset |
 | Consume commit | `RecordCount` and `ProcessedCount` are the contiguous records represented by the commit; `PartitionCount` is the number of submitted partition offsets; `CommittedCount` is zero on commit failure |
 | Consume poll | `RecordCount`, `ProcessedCount`, and `CommittedCount` match the returned `PollResult` while within policy bounds; `PartitionCount` counts validated fetched topic-partitions |
+| Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
+| Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
+| Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay |
+| Broker disconnect | Reports the connection close without inventing a cause because franz-go does not supply one to this hook |
+
+`BrokerID` is present only when franz-go supplies a non-negative Kafka node ID.
+Seed connections can be reported with `BrokerKnown=false`. Invalid negative
+byte counts and durations are clipped to zero; duration overflow saturates;
+all such cases set `Truncated`. Connection errors and request failures use only
+the package's stable redacted `ErrorCategory`. A successful broker connection
+proves that configured SASL initialization completed, but franz-go does not
+provide a separate successful-authentication hook, so the package does not
+invent an authentication event or distinct authentication latency.
 
 `RecordBytes` is a conservative policy-size estimate rather than Kafka's
 encoded wire size. Topic is copied only for validated single-topic metadata;
@@ -108,11 +137,12 @@ producer or consumer lifecycle lock while application observer code runs.
 
 ## Current boundary
 
-The root observer model currently covers producer delivery and nontransactional
-consumer processing and commits. Broker connection, authentication, request,
-throttle, retry, rebalance, transaction-lifecycle, replay, inspection, health,
-and shutdown events remain unimplemented. Transaction-processor consumer
-events are also not yet emitted. The planned
+The root observer model currently covers producer delivery, nontransactional
+consumer processing and commits, and producer/consumer broker connection,
+request, throttle, and disconnect activity. Standalone authentication, retry,
+rebalance, transaction-lifecycle, replay, inspection, health, and shutdown
+events remain unimplemented. Transaction-processor consumer and broker events
+are also not yet emitted. The planned
 `kafka/adapters/gotelemetry` nested module must translate only stable root
 observations and pin a reviewed OpenTelemetry messaging semantic-convention
 version; OpenTelemetry will not become a root dependency.

@@ -391,14 +391,19 @@ func (consumer *Consumer) dispatchObservation(
 	ctx context.Context,
 	observation Observation,
 ) {
+	consumer.beginObservation()
+	defer consumer.finishObservation()
+	consumer.observers.observe(ctx, observation)
+}
+
+func (consumer *Consumer) beginObservation() {
 	consumer.lifecycleMu.Lock()
 	consumer.observerCallbacks++
 	consumer.lifecycleMu.Unlock()
-	defer func() {
-		consumer.lifecycleMu.Lock()
-		consumer.observerCallbacks--
-		consumer.lifecycleMu.Unlock()
-	}()
+}
 
-	consumer.observers.observe(ctx, observation)
+func (consumer *Consumer) finishObservation() {
+	consumer.lifecycleMu.Lock()
+	consumer.observerCallbacks--
+	consumer.lifecycleMu.Unlock()
 }

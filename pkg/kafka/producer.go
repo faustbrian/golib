@@ -363,19 +363,12 @@ func newProducer(
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
-
-	client, err := factory(options...)
-	if err != nil {
-		return nil, err
-	}
-
+	dispatcher := newObserverDispatcher(config.Observers)
 	allowedTopics := make(map[string]struct{}, len(config.AllowedTopics))
 	for _, topic := range config.AllowedTopics {
 		allowedTopics[topic] = struct{}{}
 	}
-
-	return &Producer{
-		client:                client,
+	producer := &Producer{
 		clientID:              strings.Clone(config.ClientID),
 		limits:                config.Limits,
 		keyRequired:           config.KeyPolicy == KeyRequired,
@@ -385,8 +378,22 @@ func newProducer(
 		transactionEndTimeout: config.TransactionEndTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		allowedTopics:         allowedTopics,
-		observers:             newObserverDispatcher(config.Observers),
-	}, nil
+		observers:             dispatcher,
+	}
+	if dispatcher.enabled() {
+		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook.before = producer.beginObservation
+		observerHook.after = producer.finishObservation
+		options = append(options, kgo.WithHooks(observerHook))
+	}
+
+	client, err := factory(options...)
+	if err != nil {
+		return nil, err
+	}
+	producer.client = client
+
+	return producer, nil
 }
 
 func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {

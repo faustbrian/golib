@@ -80,7 +80,7 @@ separate and necessary bound.
 | `TransactionalID` | empty | Enables transactions when set; valid UTF-8, no padding/control characters, at most 255 bytes. |
 | `TransactionTimeout` | 30 seconds when transactional | 1 second to 15 minutes. Must be zero without a transactional ID. |
 | `TransactionEndTimeout` | 30 seconds when transactional | 1 second to 2 minutes. Must be zero without a transactional ID. |
-| `Observers` | disabled | Optional 1 to 16 ordered synchronous callbacks, a required failure handler, and one shared 1 millisecond to 5 second cooperative timeout. The default timeout is 100 milliseconds. |
+| `Observers` | disabled | Optional 1 to 16 ordered synchronous delivery and broker callbacks, a required failure handler, and one shared 1 millisecond to 5 second cooperative timeout. The default timeout is 100 milliseconds. |
 
 Idempotence, all-ISR acknowledgements, ordering-preserving production, and
 data-loss detection are mandatory package policy rather than configurable
@@ -159,7 +159,7 @@ the producer and consumer policies. The processor always selects
 | `CommitTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 | `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
-| `Observers` | disabled | Same copied 1 to 16 callback policy and shared 1 millisecond to 5 second cooperative timeout as the producer. Consumer partition workers can invoke callbacks concurrently. |
+| `Observers` | disabled | Same copied 1 to 16 delivery and broker callback policy and shared 1 millisecond to 5 second cooperative timeout as the producer. Consumer partition workers and franz-go broker goroutines can invoke callbacks concurrently. |
 
 `HeartbeatInterval + HandlerTimeout + CommitTimeout` must be strictly less
 than `RebalanceTimeout`. Handler cancellation and deadlines remain cooperative;

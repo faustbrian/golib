@@ -65,6 +65,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	deadLetterSourceTopic := topic + "-dead-letter-source"
 	deadLetterTopic := topic + "-dead-letter-v3"
 	replayTopic := topic + "-replay"
+	var brokerConnectObserved atomic.Bool
+	var brokerRequestObserved atomic.Bool
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:  brokers,
 		ClientID: "golib-compatibility-producer",
@@ -77,6 +79,29 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		},
 		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionZstd},
 		Security:               kafka.DevelopmentPlaintextSecurity(),
+		Observers: kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{
+				func(_ context.Context, observation kafka.Observation) error {
+					switch observation.Kind {
+					case kafka.ObservationBrokerConnect:
+						if observation.ClientID == "golib-compatibility-producer" &&
+							observation.Duration >= 0 {
+							brokerConnectObserved.Store(true)
+						}
+					case kafka.ObservationBrokerRequest:
+						if observation.ClientID == "golib-compatibility-producer" &&
+							observation.APIKeyKnown &&
+							observation.RequestBytes > 0 &&
+							observation.Duration >= observation.QueueDuration {
+							brokerRequestObserved.Store(true)
+						}
+					}
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
 	})
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
@@ -122,6 +147,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	assertInspectionState(t, ctx, brokers, explicitTopic)
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
+	}
+	if !brokerConnectObserved.Load() || !brokerRequestObserved.Load() {
+		t.Fatalf(
+			"broker observations connect/request = %t/%t",
+			brokerConnectObserved.Load(),
+			brokerRequestObserved.Load(),
+		)
 	}
 	explicitResult := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     explicitTopic,

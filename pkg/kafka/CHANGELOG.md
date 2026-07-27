@@ -109,6 +109,10 @@ All notable changes to this module are documented here.
 - ordered synchronous producer delivery observers with copied payload-free
   metadata, bounded callback count and cooperative deadline, contained and
   explicitly reported failures, and same-producer reentrancy fencing
+- copied producer and consumer broker connection, Kafka request, throttle, and
+  disconnect observations with redacted categories, bounded numeric metadata,
+  no broker endpoints, real-broker emission evidence, and lifecycle reentrancy
+  fencing across franz-go callback goroutines
 - pre-construction consumer configuration validation and ordered payload-free
   record, partition-batch, commit, and poll observations with exact processing
   and settlement counts, bounded diagnostic metadata, and same-consumer

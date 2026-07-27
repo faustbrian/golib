@@ -307,19 +307,12 @@ func newConsumer(
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
-
-	client, err := factory(options...)
-	if err != nil {
-		return nil, err
-	}
-
+	dispatcher := newObserverDispatcher(config.Observers)
 	subscribedTopics := make(map[string]struct{}, len(config.Topics))
 	for _, topic := range config.Topics {
 		subscribedTopics[topic] = struct{}{}
 	}
-
-	return &Consumer{
-		client:                client,
+	consumer := &Consumer{
 		clientID:              strings.Clone(config.ClientID),
 		groupID:               strings.Clone(config.GroupID),
 		limits:                config.Limits,
@@ -332,10 +325,28 @@ func newConsumer(
 		commitTimeout:         config.CommitTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		staticMembership:      config.InstanceID != "",
-		observers:             newObserverDispatcher(config.Observers),
+		observers:             dispatcher,
 		subscribedTopics:      subscribedTopics,
 		pausedPartitions:      make(map[TopicPartition]struct{}),
-	}, nil
+	}
+	if dispatcher.enabled() {
+		observerHook := newFranzObserverHook(
+			config.ClientID,
+			config.GroupID,
+			dispatcher,
+		)
+		observerHook.before = consumer.beginObservation
+		observerHook.after = consumer.finishObservation
+		options = append(options, kgo.WithHooks(observerHook))
+	}
+
+	client, err := factory(options...)
+	if err != nil {
+		return nil, err
+	}
+	consumer.client = client
+
+	return consumer, nil
 }
 
 func consumerGroupBalancers(policy GroupBalancePolicy) []kgo.GroupBalancer {

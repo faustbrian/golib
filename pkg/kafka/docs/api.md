@@ -65,12 +65,14 @@ data loss; a fatal delivery requires producer replacement or an explicit
 application recovery decision.
 
 `ProducerConfig.Observers` configures ordered synchronous completion events for
-single, batch, and asynchronous production without exposing franz-go hooks.
-`Observation` contains copied payload-free metadata and a stable failure
+single, batch, and asynchronous production plus broker connection, Kafka
+request, throttle, and disconnect activity without exposing franz-go hooks.
+`Observation` contains copied payload-free metadata, numeric Kafka broker and
+API-key coordinates, bounded duration/byte metadata, and a stable failure
 category. Observer errors and panics are contained and reported through the
 required `ObservationFailureFunc`; they never replace the delivery result.
 Callbacks share one cooperative deadline, can run concurrently across producer
-operations, and cannot re-enter the invoking producer. See the
+and franz-go broker operations, and cannot re-enter the invoking producer. See the
 [observability guide](observability.md).
 
 `Producer.RunTransaction` returns redacted `TransactionError` values for Kafka
@@ -159,7 +161,8 @@ for use after the handler returns.
 
 `ConsumerConfig.Observers` uses the same copied, ordered `ObserverPolicy` as
 the producer. Consumer events report each record or partition-batch processing
-attempt, each offset-commit attempt, and the final bounded poll result.
+attempt, each offset-commit attempt, the final bounded poll result, and broker
+connection, Kafka request, throttle, and disconnect activity.
 Validated single-topic metadata can include source coordinates and conservative
 record bytes; mixed-topic or invalid metadata is omitted. Observer failures do
 not change handler, commit, or poll outcomes. Consumer observers run before the

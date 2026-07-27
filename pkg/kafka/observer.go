@@ -45,6 +45,15 @@ const (
 	ObservationConsumeCommit
 	// ObservationConsumePoll reports one completed bounded consumer poll cycle.
 	ObservationConsumePoll
+	// ObservationBrokerConnect reports one completed broker connection
+	// initialization, including protocol negotiation and configured SASL.
+	ObservationBrokerConnect
+	// ObservationBrokerRequest reports one completed Kafka protocol request.
+	ObservationBrokerRequest
+	// ObservationBrokerThrottle reports broker-imposed request throttling.
+	ObservationBrokerThrottle
+	// ObservationBrokerDisconnect reports a broker connection closing.
+	ObservationBrokerDisconnect
 )
 
 // String returns the stable low-cardinality observation name.
@@ -64,6 +73,14 @@ func (kind ObservationKind) String() string {
 		return "consumer.commit"
 	case ObservationConsumePoll:
 		return "consumer.poll"
+	case ObservationBrokerConnect:
+		return "broker.connect"
+	case ObservationBrokerRequest:
+		return "broker.request"
+	case ObservationBrokerThrottle:
+		return "broker.throttle"
+	case ObservationBrokerDisconnect:
+		return "broker.disconnect"
 	default:
 		return "unknown"
 	}
@@ -83,6 +100,27 @@ type Observation struct {
 	ClientID string
 	// GroupID is the copied configured consumer-group identity when applicable.
 	GroupID string
+	// BrokerID is the Kafka node ID when BrokerKnown is true. Broker endpoints
+	// are never copied into observations.
+	BrokerID int32
+	// BrokerKnown reports whether BrokerID is authoritative.
+	BrokerKnown bool
+	// APIKey is the Kafka protocol request key when APIKeyKnown is true.
+	APIKey int16
+	// APIKeyKnown reports whether APIKey is authoritative.
+	APIKeyKnown bool
+	// RequestBytes is the request size written below TLS framing.
+	RequestBytes int64
+	// ResponseBytes is the response size read below TLS framing.
+	ResponseBytes int64
+	// QueueDuration is time the request waited inside franz-go before its
+	// network write, including client-side throttle waiting.
+	QueueDuration time.Duration
+	// ThrottleDuration is the broker-imposed throttle interval.
+	ThrottleDuration time.Duration
+	// ThrottledAfterResponse reports that franz-go applies the throttle after
+	// the broker response rather than the broker delaying its response.
+	ThrottledAfterResponse bool
 	// Topic is present only when validated metadata has one common topic.
 	Topic string
 	// Partition is the delivered partition when PartitionKnown is true.

@@ -86,10 +86,12 @@ retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
 configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
 Optional `ProducerConfig.Observers` receive ordered synchronous completion
-events for record, batch, and asynchronous delivery. Events contain copied
-payload-free metadata; callback errors and panics cannot replace the delivery
-result. Callbacks are cooperatively deadline-bound and must not re-enter the
-producer. See the [observability guide](docs/observability.md).
+events for record, batch, and asynchronous delivery plus broker connections,
+Kafka protocol requests, throttling, and disconnects. Events contain copied
+payload-free metadata and never broker endpoints; callback errors and panics
+cannot replace the delivery result. Callbacks are cooperatively deadline-bound
+and must not re-enter the producer. See the
+[observability guide](docs/observability.md).
 
 Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic
 production. Transaction lifecycle failures are redacted `TransactionError`
@@ -151,11 +153,13 @@ tolerate duplicates. Retain copies if bytes are needed after the handler
 returns.
 
 Optional `ConsumerConfig.Observers` report copied, payload-free record,
-partition-batch, commit, and complete poll outcomes. Commit failures report
-zero committed records even when handlers succeeded. Consumer callbacks can
-run concurrently across partition workers, execute before the rebalance gate
-is released, and cannot re-enter mutating or lifecycle operations on the
-consumer. See the [observability guide](docs/observability.md).
+partition-batch, commit, complete poll, broker connection, Kafka request,
+throttle, and disconnect outcomes. Commit failures report zero committed
+records even when handlers succeeded. Consumer callbacks can run concurrently
+across partition workers and franz-go broker goroutines, execute before the
+rebalance gate is released, and cannot re-enter mutating or lifecycle
+operations on the consumer. See the
+[observability guide](docs/observability.md).
 
 `NewFailureHandler` composes explicit stop, bounded in-process retry,
 versioned retry-topic, versioned dead-letter, or application-delegated policy
