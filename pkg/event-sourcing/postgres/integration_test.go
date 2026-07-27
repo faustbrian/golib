@@ -339,6 +339,340 @@ func TestPostgreSQLLockTimeoutIsNotCommittedAndCanBeRetried(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLSerializableFailureIsNotCommittedAndCanBeRetried(
+	t *testing.T,
+) {
+	ctx, pool := newDerivedIntegrationPool(t)
+	firstTx, err := pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = firstTx.Rollback(cleanupCtx)
+	})
+	secondTx, err := pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.Serializable,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = secondTx.Rollback(cleanupCtx)
+	})
+	var secondPID uint32
+	if err := secondTx.QueryRow(
+		ctx,
+		"SELECT pg_backend_pid()",
+	).Scan(&secondPID); err != nil {
+		t.Fatal(err)
+	}
+	firstWriter, err := eventpostgres.NewTx(
+		firstTx,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondWriter, err := eventpostgres.NewTx(
+		secondTx,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstStream := mustStream(t, "account", "serializable-first")
+	if _, err := firstWriter.Stage(
+		ctx,
+		firstStream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{
+			mustPending(t, firstStream, "serializable-first-message", 1),
+		},
+	); err != nil {
+		t.Fatalf("stage first serializable transaction: %v", err)
+	}
+	secondStream := mustStream(t, "account", "serializable-second")
+	secondPending := mustPending(
+		t,
+		secondStream,
+		"serializable-second-message",
+		2,
+	)
+	secondResult := make(chan error, 1)
+	go func() {
+		_, stageErr := secondWriter.Stage(
+			ctx,
+			secondStream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{secondPending},
+		)
+		secondResult <- stageErr
+	}()
+	waitForPostgreSQLLock(t, ctx, pool, secondPID)
+	if err := firstTx.Commit(ctx); err != nil {
+		t.Fatalf("commit first serializable transaction: %v", err)
+	}
+	stageErr := <-secondResult
+	var postgresError *pgconn.PgError
+	if !errors.As(stageErr, &postgresError) ||
+		postgresError.Code != "40001" ||
+		eventsourcing.AppendCommitOutcome(stageErr) !=
+			eventsourcing.CommitNotCommitted {
+		t.Fatalf("serializable stage error = %v", stageErr)
+	}
+	if err := secondTx.Rollback(ctx); err != nil &&
+		!errors.Is(err, pgx.ErrTxClosed) {
+		t.Fatal(err)
+	}
+
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried, err := store.Append(
+		ctx,
+		secondStream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{
+			mustPending(t, secondStream, "serializable-retry", 3),
+		},
+	)
+	if err != nil {
+		t.Fatalf("retry after serializable failure: %v", err)
+	}
+	if len(retried) != 1 {
+		t.Fatalf("retried serializable messages = %#v", retried)
+	}
+	position, exists := retried[0].GlobalPosition()
+	if retried[0].StreamVersion() != 1 ||
+		!exists ||
+		position != 2 {
+		t.Fatalf("retried serializable messages = %#v", retried)
+	}
+}
+
+func TestPostgreSQLDeadlockFailureIsNotCommittedAndCanBeRetried(
+	t *testing.T,
+) {
+	ctx, pool := newDerivedIntegrationPool(t)
+	store, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstStream := mustStream(t, "account", "deadlock-first")
+	secondStream := mustStream(t, "account", "deadlock-second")
+	for index, stream := range []eventsourcing.StreamID{
+		firstStream,
+		secondStream,
+	} {
+		if _, err := store.Append(
+			ctx,
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{
+				mustPending(
+					t,
+					stream,
+					fmt.Sprintf("deadlock-initial-%d", index),
+					index+1,
+				),
+			},
+		); err != nil {
+			t.Fatalf("create deadlock fixture stream: %v", err)
+		}
+	}
+	firstTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = firstTx.Rollback(cleanupCtx)
+	})
+	secondTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = secondTx.Rollback(cleanupCtx)
+	})
+	lockStream := func(tx pgx.Tx, stream eventsourcing.StreamID) {
+		t.Helper()
+		var version int64
+		if err := tx.QueryRow(
+			ctx,
+			`SELECT current_version
+FROM event_sourcing.streams
+WHERE aggregate_type = $1 AND aggregate_id = $2
+FOR UPDATE`,
+			stream.AggregateType(),
+			stream.AggregateID(),
+		).Scan(&version); err != nil {
+			t.Fatal(err)
+		}
+		if version != 1 {
+			t.Fatalf("locked stream version = %d", version)
+		}
+	}
+	lockStream(firstTx, firstStream)
+	lockStream(secondTx, secondStream)
+	var firstPID uint32
+	if err := firstTx.QueryRow(
+		ctx,
+		"SELECT pg_backend_pid()",
+	).Scan(&firstPID); err != nil {
+		t.Fatal(err)
+	}
+	firstWriter, err := eventpostgres.NewTx(
+		firstTx,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondWriter, err := eventpostgres.NewTx(
+		secondTx,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type stageResult struct {
+		transaction int
+		err         error
+	}
+	results := make(chan stageResult, 2)
+	firstPending := mustPending(
+		t,
+		secondStream,
+		"deadlock-first-writer",
+		3,
+	)
+	go func() {
+		_, stageErr := firstWriter.Stage(
+			ctx,
+			secondStream,
+			eventsourcing.ExpectExactVersion(1),
+			[]eventsourcing.PendingMessage{firstPending},
+		)
+		results <- stageResult{transaction: 1, err: stageErr}
+	}()
+	waitForPostgreSQLLock(t, ctx, pool, firstPID)
+	secondPending := mustPending(
+		t,
+		firstStream,
+		"deadlock-second-writer",
+		4,
+	)
+	go func() {
+		_, stageErr := secondWriter.Stage(
+			ctx,
+			firstStream,
+			eventsourcing.ExpectExactVersion(1),
+			[]eventsourcing.PendingMessage{secondPending},
+		)
+		results <- stageResult{transaction: 2, err: stageErr}
+	}()
+
+	deadlocked := <-results
+	var postgresError *pgconn.PgError
+	if !errors.As(deadlocked.err, &postgresError) ||
+		postgresError.Code != "40P01" ||
+		eventsourcing.AppendCommitOutcome(deadlocked.err) !=
+			eventsourcing.CommitNotCommitted {
+		t.Fatalf("deadlock stage result = %#v", deadlocked)
+	}
+	deadlockedTx := firstTx
+	survivingTx := secondTx
+	if deadlocked.transaction == 2 {
+		deadlockedTx = secondTx
+		survivingTx = firstTx
+	}
+	if err := deadlockedTx.Rollback(ctx); err != nil &&
+		!errors.Is(err, pgx.ErrTxClosed) {
+		t.Fatal(err)
+	}
+	survived := <-results
+	if survived.err != nil ||
+		survived.transaction == deadlocked.transaction {
+		t.Fatalf("surviving deadlock stage result = %#v", survived)
+	}
+	if err := survivingTx.Rollback(ctx); err != nil &&
+		!errors.Is(err, pgx.ErrTxClosed) {
+		t.Fatal(err)
+	}
+	for _, stream := range []eventsourcing.StreamID{
+		firstStream,
+		secondStream,
+	} {
+		var version int64
+		var messages int
+		if err := pool.QueryRow(
+			ctx,
+			`SELECT current_version, (
+	SELECT count(*)
+	FROM event_sourcing.messages
+	WHERE aggregate_type = $1 AND aggregate_id = $2
+)
+FROM event_sourcing.streams
+WHERE aggregate_type = $1 AND aggregate_id = $2`,
+			stream.AggregateType(),
+			stream.AggregateID(),
+		).Scan(&version, &messages); err != nil {
+			t.Fatal(err)
+		}
+		if version != 1 || messages != 1 {
+			t.Fatalf(
+				"stream after deadlock rollback = %d/%d",
+				version,
+				messages,
+			)
+		}
+	}
+
+	retried, err := store.Append(
+		ctx,
+		firstStream,
+		eventsourcing.ExpectExactVersion(1),
+		[]eventsourcing.PendingMessage{
+			mustPending(t, firstStream, "deadlock-retry", 5),
+		},
+	)
+	if err != nil {
+		t.Fatalf("retry after deadlock: %v", err)
+	}
+	if len(retried) != 1 {
+		t.Fatalf("retried deadlock messages = %#v", retried)
+	}
+	position, exists := retried[0].GlobalPosition()
+	if retried[0].StreamVersion() != 2 ||
+		!exists ||
+		position != 3 {
+		t.Fatalf("retried deadlock messages = %#v", retried)
+	}
+}
+
 func TestPostgreSQLStoreRecoversAfterBackendTermination(t *testing.T) {
 	ctx, pool := newDerivedIntegrationPool(t)
 	store, err := eventpostgres.New(pool, eventpostgres.Config{})
@@ -1405,6 +1739,43 @@ func waitForPostgreSQL(
 				"wait for PostgreSQL recovery: %v: %v",
 				ctx.Err(),
 				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForPostgreSQLLock(
+	t testing.TB,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	pid uint32,
+) {
+	t.Helper()
+
+	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var waiting bool
+		err := pool.QueryRow(
+			deadline,
+			`SELECT wait_event_type = 'Lock'
+FROM pg_stat_activity
+WHERE pid = $1`,
+			pid,
+		).Scan(&waiting)
+		if err == nil && waiting {
+			return
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatalf(
+				"wait for PostgreSQL backend %d lock: %v: %v",
+				pid,
+				deadline.Err(),
+				err,
 			)
 		case <-ticker.C:
 		}

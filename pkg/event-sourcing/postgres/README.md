@@ -241,6 +241,19 @@ Timeout errors before commit are safe to retry under the normal optimistic
 version contract. A commit error remains ambiguous and must be reconciled
 before retry.
 
+The caller-owned transaction suite also proves PostgreSQL serialization
+failure `40001` and deadlock detection `40P01`. Both failures occur before
+commit, preserve their `pgconn.PgError` cause, and report
+`CommitNotCommitted`. The caller must roll back the entire failed transaction,
+discard its staged result, reconstruct any application state read inside that
+transaction, and retry under the original optimistic-version contract. The
+adapter does not retry transactions because it cannot safely repeat
+application reads, writes, callbacks, or side effects. The deadlock scenario
+locks two streams in opposite application-defined order; ordinary adapter
+appends acquire their own stream and global-position locks in one consistent
+order, but a larger caller-owned transaction can introduce additional lock
+ordering.
+
 The backend-recovery suite durably appends history, terminates the pool's
 PostgreSQL backend, and proves the existing pool can establish a replacement
 connection, read unchanged history, and append the next stream and global

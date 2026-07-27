@@ -22,6 +22,12 @@ All notable changes to this module are documented here.
   independent-stream success, unique positions, and gap-free global read order
 - real PostgreSQL lock-timeout evidence proving a blocked append is not
   committed and can be retried after the locking transaction rolls back
+- real PostgreSQL serializable-transaction evidence preserving SQLSTATE
+  `40001`, classifying the stage as not committed, and succeeding after a full
+  rollback and retry
+- real PostgreSQL deadlock evidence preserving SQLSTATE `40P01`, classifying
+  the victim stage as not committed, and proving both transactions leave no
+  staged event writes after rollback
 - real PostgreSQL backend-termination evidence proving the existing pool can
   replace a lost connection and resume reads and ordered appends without
   losing durable history
