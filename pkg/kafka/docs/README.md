@@ -12,6 +12,6 @@
 - [Transactions](transactions.md)
 - [Replay](replay.md)
 - [Inspection and dependency health](inspection.md)
-- [Observability hooks](observability.md)
+- [Observability hooks and OpenTelemetry adapter](observability.md)
 - [Operations](operations.md)
 - [Security](security.md)

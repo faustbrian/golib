@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-07-27",
+  "sources": [
+    {
+      "name": "OpenTelemetry Semantic Conventions",
+      "repository": "https://github.com/open-telemetry/semantic-conventions",
+      "version": "v1.43.0",
+      "revision": "89aae438b3b3b0a8dd33003c9d70592baf7dbd0d",
+      "license": "Apache-2.0",
+      "status": "Development",
+      "documents": [
+        "docs/messaging/kafka.md",
+        "docs/messaging/messaging-metrics.md",
+        "docs/messaging/messaging-spans.md"
+      ]
+    },
+    {
+      "name": "OpenTelemetry Go",
+      "repository": "https://github.com/open-telemetry/opentelemetry-go",
+      "version": "v1.44.0",
+      "tag_revision": "7318f81507f41cce02ada9406ea62e0d8b13958a",
+      "revision": "b62d92831b2dd142f5a0cc89c828270274196877",
+      "license": "Apache-2.0",
+      "use": "trace and metric API plus SDK verification"
+    }
+  ]
+}

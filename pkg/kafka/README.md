@@ -162,7 +162,11 @@ records even when handlers succeeded. Consumer callbacks can run concurrently
 across partition workers and franz-go broker goroutines, execute before the
 rebalance gate is released, and cannot re-enter mutating or lifecycle
 operations on the consumer. See the
-[observability guide](docs/observability.md).
+[observability guide](docs/observability.md). The independently versioned
+[`adapters/gotelemetry`](adapters/gotelemetry) module maps these stable events
+to OpenTelemetry with deny-by-default topic, group, and client attributes; it
+does not add OpenTelemetry to the root module or claim record-header context
+propagation.
 
 `NewFailureHandler` composes explicit stop, bounded in-process retry,
 versioned retry-topic, versioned dead-letter, or application-delegated policy

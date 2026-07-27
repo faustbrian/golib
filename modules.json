@@ -7775,6 +7775,7 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
       ],
       "external_runtime_dependencies": [
@@ -7875,6 +7876,67 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/kafka/adapters/gotelemetry",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/kafka/adapters/gotelemetry",
+          "directory": ".",
+          "name": "gotelemetry",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`gotelemetry` is the independently versioned OpenTelemetry adapter for [`github.com/faustbrian/golib/pkg/kafka`](../..). The root Kafka module remains vendor-neutral and does not import OpenTelemetry.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/kafka/adapters/gotelemetry/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/kafka"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/metric",
+        "go.opentelemetry.io/otel/sdk",
+        "go.opentelemetry.io/otel/sdk/metric",
+        "go.opentelemetry.io/otel/trace"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [
+        "pkg/kafka/adapters/gotelemetry/specification/manifest.json"
+      ],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,

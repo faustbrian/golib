@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- independently versioned OpenTelemetry adapter for stable producer, consumer,
+  group, transaction, and broker observations with explicit identity
+  allowlists and messaging semantic-convention 1.43.0 mapping
 - verified TLS as the zero-value transport policy, explicit development-only
   plaintext, and bounded rotating mTLS, PLAIN, SCRAM, and OAUTHBEARER providers
 - owned Kafka request-version negotiation policy with an optional validated

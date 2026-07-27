@@ -181,7 +181,14 @@ consumer processing, commits, group lifecycle, producer and
 consume-transform-produce transaction lifecycle, and producer, consumer, and
 transaction-processor broker activity. Standalone authentication, retry,
 complete broker rebalance timing, replay, inspection, health, and shutdown
-events remain unimplemented. The planned `kafka/adapters/gotelemetry` nested
-module must translate only stable root observations and pin a reviewed
-OpenTelemetry messaging semantic-convention version; OpenTelemetry will not
-become a root dependency.
+events remain unimplemented.
+
+The independently versioned
+[`kafka/adapters/gotelemetry`](../adapters/gotelemetry) module translates every
+current stable root observation. It emits the reviewed OpenTelemetry messaging
+semantic conventions 1.43.0 for send, poll, process, and commit operations plus
+adapter-owned Kafka lifecycle, broker request, queue, and throttle metrics.
+Client IDs, topics, and consumer groups are denied as attributes unless they
+are exactly present in copied bounded allowlists. The adapter does not inject
+or extract record headers and therefore does not claim cross-message context
+propagation. OpenTelemetry remains absent from the root module.

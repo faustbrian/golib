@@ -3125,6 +3125,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/kafka/adapters/gotelemetry",
+      "directory": ".",
+      "name": "gotelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/keyphrase",
       "directory": ".",
       "name": "keyphrase",
