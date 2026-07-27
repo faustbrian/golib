@@ -15,6 +15,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Pin unpublished Money and owned transitive modules to exact resolvable
+  revisions so clean consumers do not depend on missing `v0.1.0` tags.
 - Refresh owned-module checksums against the final consolidated archives.
 - Refresh the parent Knapsack checksum used by clean consumer builds.
 - Normalized standalone module metadata against the canonical owned dependency
