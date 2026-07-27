@@ -11,6 +11,137 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+func TestConsumerObserversReportRebalanceLifecycle(t *testing.T) {
+	t.Parallel()
+
+	var observations []Observation
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				observations = append(observations, observation)
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Second,
+		time.Second,
+	)
+	consumer.clientID = "projection"
+	consumer.groupID = "projection-v1"
+	consumer.observers = newObserverDispatcher(policy)
+
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0, 1}})
+	consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
+	consumer.onRebalanceBlocked()
+	consumer.rebalance.beginPoll()
+	consumer.onRebalanceBlocked()
+	consumer.rebalance.endPoll()
+	consumer.onPartitionsLost(map[string][]int32{"events": {1}})
+
+	if len(observations) != 4 {
+		t.Fatalf("rebalance observations = %#v", observations)
+	}
+	for index, want := range []struct {
+		kind       ObservationKind
+		partitions int
+		succeeded  bool
+		category   ErrorCategory
+	}{
+		{ObservationConsumeAssigned, 2, true, ErrorUnknown},
+		{ObservationConsumeRevoked, 1, true, ErrorUnknown},
+		{ObservationConsumeBlocked, 0, true, ErrorUnknown},
+		{ObservationConsumeLost, 1, false, ErrorFenced},
+	} {
+		got := observations[index]
+		if got.Kind != want.kind ||
+			got.ClientID != "projection" ||
+			got.GroupID != "projection-v1" ||
+			got.PartitionCount != want.partitions ||
+			got.Succeeded != want.succeeded ||
+			got.Category != want.category ||
+			got.StartedAt.IsZero() ||
+			got.Duration < 0 ||
+			got.Truncated {
+			t.Fatalf("rebalance observation %d = %#v", index, got)
+		}
+	}
+}
+
+func TestConsumerObserversBoundInvalidRebalanceMetadata(t *testing.T) {
+	t.Parallel()
+
+	var observations []Observation
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				observations = append(observations, observation)
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Second,
+		time.Second,
+	)
+	consumer.assignment.maximum = 1
+	consumer.observers = newObserverDispatcher(policy)
+
+	consumer.onPartitionsAssigned(map[string][]int32{"events": {0, 1}})
+	consumer.onPartitionsLost(map[string][]int32{
+		"events":   {},
+		"commands": {},
+	})
+	consumer.onPartitionsLost(map[string][]int32{"events": {0, 1}})
+	consumer.onPartitionsAssigned(map[string][]int32{"commands": {0}})
+
+	if len(observations) != 4 {
+		t.Fatalf("rebalance observations = %#v", observations)
+	}
+	if got := observations[0]; got.Kind != ObservationConsumeAssigned ||
+		got.PartitionCount != 1 ||
+		got.Succeeded ||
+		got.Category != ErrorPermanent ||
+		!got.Truncated {
+		t.Fatalf("oversized assignment observation = %#v", got)
+	}
+	if got := observations[1]; got.Kind != ObservationConsumeLost ||
+		got.PartitionCount != 0 ||
+		got.Succeeded ||
+		got.Category != ErrorFenced ||
+		!got.Truncated {
+		t.Fatalf("oversized loss observation = %#v", got)
+	}
+	if got := observations[2]; got.Kind != ObservationConsumeLost ||
+		got.PartitionCount != 1 ||
+		got.Succeeded ||
+		got.Category != ErrorFenced ||
+		!got.Truncated {
+		t.Fatalf("oversized partition-list observation = %#v", got)
+	}
+	if got := observations[3]; got.Kind != ObservationConsumeAssigned ||
+		got.PartitionCount != 0 ||
+		got.Succeeded ||
+		got.Category != ErrorPermanent ||
+		got.Truncated {
+		t.Fatalf("invalid assignment observation = %#v", got)
+	}
+}
+
 func TestConsumerObserversReportRecordCommitAndPollOutcomes(t *testing.T) {
 	t.Parallel()
 
@@ -380,6 +511,52 @@ func TestConsumerConfigValidatesObserverPolicyWithoutAllocatingClient(t *testing
 	}
 	if factoryCalled {
 		t.Fatal("consumer factory called for invalid observer policy")
+	}
+}
+
+func TestConsumerWiresRebalanceCallbacksToObservers(t *testing.T) {
+	t.Parallel()
+
+	var observations []Observation
+	config := validConsumerConfig()
+	config.Observers = ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				observations = append(observations, observation)
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	}
+	var franzClient *kgo.Client
+	consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
+		client, clientErr := kgo.NewClient(options...)
+		franzClient = client
+
+		return client, clientErr
+	})
+	if err != nil {
+		t.Fatalf("newConsumer() error = %v", err)
+	}
+	defer closeConsumerForTest(t, consumer)
+	onAssigned, ok := franzClient.OptValue(kgo.OnPartitionsAssigned).(func(
+		context.Context,
+		*kgo.Client,
+		map[string][]int32,
+	))
+	if !ok {
+		t.Fatal("OnPartitionsAssigned option is not configured")
+	}
+
+	onAssigned(context.Background(), franzClient, map[string][]int32{
+		"track.tracking-event.v1": {0},
+	})
+
+	if len(observations) != 1 ||
+		observations[0].Kind != ObservationConsumeAssigned ||
+		observations[0].PartitionCount != 1 {
+		t.Fatalf("assignment observations = %#v", observations)
 	}
 }
 

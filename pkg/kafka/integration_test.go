@@ -1500,6 +1500,7 @@ func consumeMembershipValues(
 ) []string {
 	t.Helper()
 
+	var assignmentObserved atomic.Bool
 	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
 		Brokers:           brokers,
 		ClientID:          groupID,
@@ -1517,6 +1518,22 @@ func consumeMembershipValues(
 		CommitTimeout:     2 * time.Second,
 		DialTimeout:       10 * time.Second,
 		Security:          kafka.DevelopmentPlaintextSecurity(),
+		Observers: kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{
+				func(_ context.Context, observation kafka.Observation) error {
+					if observation.Kind == kafka.ObservationConsumeAssigned &&
+						observation.ClientID == groupID &&
+						observation.GroupID == groupID &&
+						observation.PartitionCount > 0 &&
+						observation.Succeeded {
+						assignmentObserved.Store(true)
+					}
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
 	})
 	if err != nil {
 		t.Fatalf("construct membership consumer: %v", err)
@@ -1556,6 +1573,9 @@ func consumeMembershipValues(
 		"static-member-01",
 		assignment.Partitions,
 	)
+	if !assignmentObserved.Load() {
+		t.Fatal("consumer assignment was not observed")
+	}
 
 	return values
 }

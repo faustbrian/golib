@@ -38,12 +38,12 @@ func (state *consumerRebalanceState) endPoll() {
 	clear(state.handlerCancels)
 }
 
-func (state *consumerRebalanceState) blocked() {
+func (state *consumerRebalanceState) blocked() bool {
 	state.mu.Lock()
 	if !state.active {
 		state.mu.Unlock()
 
-		return
+		return false
 	}
 	state.pending = true
 	cancels := make([]context.CancelCauseFunc, 0, len(state.handlerCancels))
@@ -57,6 +57,8 @@ func (state *consumerRebalanceState) blocked() {
 	for _, cancel := range cancels {
 		cancel(ErrConsumerRebalance)
 	}
+
+	return true
 }
 
 func (state *consumerRebalanceState) handlerContext(

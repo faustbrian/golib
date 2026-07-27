@@ -51,10 +51,14 @@ The package rejects a backend poll above `MaxPollRecords` with
 also configured with that limit.
 `ConsumerConfig.Validate` applies the same defaults and checks without
 allocating a client. Optional `ConsumerConfig.Observers` report payload-free
-record, partition-batch, commit, and complete poll outcomes. They execute
-synchronously before the poll releases its rebalance gate, can run
-concurrently across partition workers, and cannot re-enter consumer mutation
-or lifecycle operations. See the [observability guide](observability.md).
+record, partition-batch, commit, complete poll, assignment, revocation,
+ownership-loss, blocked-rebalance, and group-management-error outcomes. They
+execute synchronously, can run concurrently across partition workers and
+franz-go callback goroutines, and cannot re-enter consumer mutation or
+lifecycle operations. Processing observers run before the poll releases its
+rebalance gate; lifecycle observers run only after package assignment or
+rebalance state locks are released. See the
+[observability guide](observability.md).
 The heartbeat, handler, and commit deadlines together must be strictly less
 than the rebalance timeout. This preserves time for franz-go to detect the
 rebalance, finish or cancel all active handlers, attempt the contiguous

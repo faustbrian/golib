@@ -158,6 +158,34 @@ func TestBrokerObserverReportsThrottleAndDisconnect(t *testing.T) {
 	}
 }
 
+func TestConsumerGroupObserverReportsRedactedManagementError(t *testing.T) {
+	t.Parallel()
+
+	var got Observation
+	hook := newTestFranzObserverHook(
+		t,
+		"consumer-client",
+		"projection-group",
+		&got,
+	)
+	observedAt := time.Unix(1_700_000_250, 0)
+	hook.now = func() time.Time {
+		return observedAt
+	}
+
+	hook.OnGroupManageError(kerr.GroupAuthorizationFailed)
+
+	if got.Kind != ObservationConsumeGroupError ||
+		got.ClientID != "consumer-client" ||
+		got.GroupID != "projection-group" ||
+		!got.StartedAt.Equal(observedAt) ||
+		got.Duration != 0 ||
+		got.Succeeded ||
+		got.Category != ErrorAuthorization {
+		t.Fatalf("group management observation = %#v", got)
+	}
+}
+
 func TestBrokerObserverClipsInvalidHookMetadata(t *testing.T) {
 	t.Parallel()
 

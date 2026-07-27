@@ -117,6 +117,9 @@ All notable changes to this module are documented here.
   record, partition-batch, commit, and poll observations with exact processing
   and settlement counts, bounded diagnostic metadata, and same-consumer
   reentrancy fencing
+- bounded consumer assignment, revocation, ownership-loss, blocked-rebalance,
+  and group-management-error observations with validated partition counts,
+  redacted categories, and post-lock callback execution
 - fail-closed enforcement when a consumer backend returns more records than
   `MaxPollRecords`, with clipped and explicitly marked observation metadata
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,

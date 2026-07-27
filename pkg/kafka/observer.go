@@ -54,6 +54,21 @@ const (
 	ObservationBrokerThrottle
 	// ObservationBrokerDisconnect reports a broker connection closing.
 	ObservationBrokerDisconnect
+	// ObservationConsumeAssigned reports a completed consumer-group partition
+	// assignment callback.
+	ObservationConsumeAssigned
+	// ObservationConsumeRevoked reports a completed consumer-group partition
+	// revocation callback.
+	ObservationConsumeRevoked
+	// ObservationConsumeLost reports fatal consumer-group partition ownership
+	// loss.
+	ObservationConsumeLost
+	// ObservationConsumeBlocked reports that a rebalance callback is waiting
+	// for the current bounded poll to release its rebalance gate.
+	ObservationConsumeBlocked
+	// ObservationConsumeGroupError reports an error that ended a consumer-group
+	// management session.
+	ObservationConsumeGroupError
 )
 
 // String returns the stable low-cardinality observation name.
@@ -73,6 +88,16 @@ func (kind ObservationKind) String() string {
 		return "consumer.commit"
 	case ObservationConsumePoll:
 		return "consumer.poll"
+	case ObservationConsumeAssigned:
+		return "consumer.assigned"
+	case ObservationConsumeRevoked:
+		return "consumer.revoked"
+	case ObservationConsumeLost:
+		return "consumer.lost"
+	case ObservationConsumeBlocked:
+		return "consumer.rebalance_blocked"
+	case ObservationConsumeGroupError:
+		return "consumer.group_error"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:

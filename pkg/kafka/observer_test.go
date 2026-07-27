@@ -705,21 +705,53 @@ func TestObservationKindString(t *testing.T) {
 	t.Parallel()
 
 	for kind, want := range map[ObservationKind]string{
-		ObservationProduceRecord:    "producer.record",
-		ObservationProduceBatch:     "producer.batch",
-		ObservationProduceAsync:     "producer.async",
-		ObservationConsumeRecord:    "consumer.record",
-		ObservationConsumeBatch:     "consumer.batch",
-		ObservationConsumeCommit:    "consumer.commit",
-		ObservationConsumePoll:      "consumer.poll",
-		ObservationBrokerConnect:    "broker.connect",
-		ObservationBrokerRequest:    "broker.request",
-		ObservationBrokerThrottle:   "broker.throttle",
-		ObservationBrokerDisconnect: "broker.disconnect",
-		ObservationKind(255):        "unknown",
+		ObservationProduceRecord:     "producer.record",
+		ObservationProduceBatch:      "producer.batch",
+		ObservationProduceAsync:      "producer.async",
+		ObservationConsumeRecord:     "consumer.record",
+		ObservationConsumeBatch:      "consumer.batch",
+		ObservationConsumeCommit:     "consumer.commit",
+		ObservationConsumePoll:       "consumer.poll",
+		ObservationConsumeAssigned:   "consumer.assigned",
+		ObservationConsumeRevoked:    "consumer.revoked",
+		ObservationConsumeLost:       "consumer.lost",
+		ObservationConsumeBlocked:    "consumer.rebalance_blocked",
+		ObservationConsumeGroupError: "consumer.group_error",
+		ObservationBrokerConnect:     "broker.connect",
+		ObservationBrokerRequest:     "broker.request",
+		ObservationBrokerThrottle:    "broker.throttle",
+		ObservationBrokerDisconnect:  "broker.disconnect",
+		ObservationKind(255):         "unknown",
 	} {
 		if got := kind.String(); got != want {
 			t.Fatalf("ObservationKind(%d).String() = %q, want %q", kind, got, want)
+		}
+	}
+}
+
+func TestObservationKindValuesRemainStable(t *testing.T) {
+	t.Parallel()
+
+	for kind, want := range map[ObservationKind]ObservationKind{
+		ObservationProduceRecord:     1,
+		ObservationProduceBatch:      2,
+		ObservationProduceAsync:      3,
+		ObservationConsumeRecord:     4,
+		ObservationConsumeBatch:      5,
+		ObservationConsumeCommit:     6,
+		ObservationConsumePoll:       7,
+		ObservationBrokerConnect:     8,
+		ObservationBrokerRequest:     9,
+		ObservationBrokerThrottle:    10,
+		ObservationBrokerDisconnect:  11,
+		ObservationConsumeAssigned:   12,
+		ObservationConsumeRevoked:    13,
+		ObservationConsumeLost:       14,
+		ObservationConsumeBlocked:    15,
+		ObservationConsumeGroupError: 16,
+	} {
+		if kind != want {
+			t.Fatalf("ObservationKind value = %d, want %d", kind, want)
 		}
 	}
 }

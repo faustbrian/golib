@@ -23,6 +23,7 @@ var (
 	_ kgo.HookBrokerDisconnect = (*franzObserverHook)(nil)
 	_ kgo.HookBrokerE2E        = (*franzObserverHook)(nil)
 	_ kgo.HookBrokerThrottle   = (*franzObserverHook)(nil)
+	_ kgo.HookGroupManageError = (*franzObserverHook)(nil)
 )
 
 func newFranzObserverHook(
@@ -98,6 +99,17 @@ func (hook *franzObserverHook) OnBrokerDisconnect(
 		BrokerID:    brokerID,
 		BrokerKnown: brokerKnown,
 		Succeeded:   true,
+	})
+}
+
+func (hook *franzObserverHook) OnGroupManageError(err error) {
+	hook.observe(Observation{
+		Kind:      ObservationConsumeGroupError,
+		StartedAt: hook.now(),
+		ClientID:  hook.clientID,
+		GroupID:   hook.groupID,
+		Succeeded: false,
+		Category:  classifyError(err),
 	})
 }
 

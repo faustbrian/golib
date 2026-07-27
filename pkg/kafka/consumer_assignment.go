@@ -10,6 +10,13 @@ type consumerAssignmentToken struct {
 	observed bool
 }
 
+type consumerAssignmentTransition struct {
+	partitionCount int
+	truncated      bool
+	err            error
+	category       ErrorCategory
+}
+
 type consumerAssignmentState struct {
 	mu            sync.RWMutex
 	epoch         uint64
@@ -39,44 +46,48 @@ func newConsumerAssignmentState(
 
 func (state *consumerAssignmentState) assigned(
 	assigned map[string][]int32,
-) {
+) consumerAssignmentTransition {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
 	state.advance(false)
 	if state.err != nil {
-		return
+		return consumerAssignmentTransition{err: state.err}
 	}
 	additions, err := state.validated(assigned, true)
 	if err != nil {
 		state.fail(err)
 
-		return
+		return state.failedTransition(err)
 	}
 	for _, partition := range additions {
 		state.partitions[partition] = struct{}{}
 	}
+
+	return consumerAssignmentTransition{partitionCount: len(additions)}
 }
 
 func (state *consumerAssignmentState) revoked(
 	revoked map[string][]int32,
-) {
+) consumerAssignmentTransition {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
 	state.advance(false)
 	if state.err != nil {
-		return
+		return consumerAssignmentTransition{err: state.err}
 	}
 	partitions, err := state.validated(revoked, false)
 	if err != nil {
 		state.fail(err)
 
-		return
+		return state.failedTransition(err)
 	}
 	for _, partition := range partitions {
 		delete(state.partitions, partition)
 	}
+
+	return consumerAssignmentTransition{partitionCount: len(partitions)}
 }
 
 func (state *consumerAssignmentState) lost() {
@@ -138,6 +149,20 @@ func (state *consumerAssignmentState) validated(
 func (state *consumerAssignmentState) fail(err error) {
 	state.err = err
 	clear(state.partitions)
+}
+
+func (state *consumerAssignmentState) failedTransition(
+	err error,
+) consumerAssignmentTransition {
+	if err == ErrTooManyAssignedPartitions {
+		return consumerAssignmentTransition{
+			partitionCount: state.maximum,
+			truncated:      true,
+			err:            err,
+		}
+	}
+
+	return consumerAssignmentTransition{err: err}
 }
 
 func (state *consumerAssignmentState) token() (consumerAssignmentToken, error) {

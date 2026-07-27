@@ -161,13 +161,15 @@ for use after the handler returns.
 
 `ConsumerConfig.Observers` uses the same copied, ordered `ObserverPolicy` as
 the producer. Consumer events report each record or partition-batch processing
-attempt, each offset-commit attempt, the final bounded poll result, and broker
-connection, Kafka request, throttle, and disconnect activity.
+attempt, each offset-commit attempt, the final bounded poll result, assignment,
+revocation, ownership loss, blocked rebalances, group-management errors, and
+broker connection, Kafka request, throttle, and disconnect activity.
 Validated single-topic metadata can include source coordinates and conservative
 record bytes; mixed-topic or invalid metadata is omitted. Observer failures do
 not change handler, commit, or poll outcomes. Consumer observers run before the
-poll releases its rebalance gate and cannot re-enter mutating or lifecycle
-operations on that consumer.
+poll releases its rebalance gate when they report processing; lifecycle
+observers run after package assignment and rebalance locks are released. They
+cannot re-enter mutating or lifecycle operations on that consumer.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
 changing `Consumer` or exposing franz-go. `FailureRetryPolicy` bounds selected

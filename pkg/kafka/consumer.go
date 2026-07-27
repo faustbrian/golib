@@ -256,6 +256,7 @@ func newConsumer(
 		config.Topics,
 	)
 	rebalance := newConsumerRebalanceState(config.RebalanceHandler)
+	var consumer *Consumer
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
@@ -266,28 +267,28 @@ func newConsumer(
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
 		kgo.OnPartitionsCallbackBlocked(func(context.Context, *kgo.Client) {
-			rebalance.blocked()
+			consumer.onRebalanceBlocked()
 		}),
 		kgo.OnPartitionsAssigned(func(
 			_ context.Context,
 			_ *kgo.Client,
 			partitions map[string][]int32,
 		) {
-			assignment.assigned(partitions)
+			consumer.onPartitionsAssigned(partitions)
 		}),
 		kgo.OnPartitionsRevoked(func(
 			_ context.Context,
 			_ *kgo.Client,
 			partitions map[string][]int32,
 		) {
-			assignment.revoked(partitions)
+			consumer.onPartitionsRevoked(partitions)
 		}),
 		kgo.OnPartitionsLost(func(
 			_ context.Context,
 			_ *kgo.Client,
-			_ map[string][]int32,
+			partitions map[string][]int32,
 		) {
-			assignment.lost()
+			consumer.onPartitionsLost(partitions)
 		}),
 		kgo.Balancers(consumerGroupBalancers(config.BalancePolicy)...),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
@@ -312,7 +313,7 @@ func newConsumer(
 	for _, topic := range config.Topics {
 		subscribedTopics[topic] = struct{}{}
 	}
-	consumer := &Consumer{
+	consumer = &Consumer{
 		clientID:              strings.Clone(config.ClientID),
 		groupID:               strings.Clone(config.GroupID),
 		limits:                config.Limits,
@@ -657,19 +658,99 @@ func (consumer *Consumer) Assignment() (ConsumerAssignment, error) {
 }
 
 func (consumer *Consumer) onPartitionsAssigned(partitions map[string][]int32) {
-	consumer.assignment.assigned(partitions)
+	startedAt := time.Now()
+	transition := consumer.assignment.assigned(partitions)
+	consumer.observeConsumerRebalance(
+		ObservationConsumeAssigned,
+		startedAt,
+		transition,
+	)
 }
 
 func (consumer *Consumer) onPartitionsRevoked(partitions map[string][]int32) {
-	consumer.assignment.revoked(partitions)
+	startedAt := time.Now()
+	transition := consumer.assignment.revoked(partitions)
+	consumer.observeConsumerRebalance(
+		ObservationConsumeRevoked,
+		startedAt,
+		transition,
+	)
 }
 
-func (consumer *Consumer) onPartitionsLost(map[string][]int32) {
+func (consumer *Consumer) onPartitionsLost(partitions map[string][]int32) {
+	startedAt := time.Now()
+	partitionCount, truncated := boundedCallbackPartitionCount(
+		partitions,
+		consumer.assignment.maximum,
+	)
 	consumer.assignment.lost()
+	consumer.observeConsumerRebalance(
+		ObservationConsumeLost,
+		startedAt,
+		consumerAssignmentTransition{
+			partitionCount: partitionCount,
+			truncated:      truncated,
+			err:            ErrConsumerOwnershipLost,
+			category:       ErrorFenced,
+		},
+	)
 }
 
 func (consumer *Consumer) onRebalanceBlocked() {
-	consumer.rebalance.blocked()
+	startedAt := time.Now()
+	if !consumer.rebalance.blocked() {
+		return
+	}
+	consumer.observeConsumerRebalance(
+		ObservationConsumeBlocked,
+		startedAt,
+		consumerAssignmentTransition{},
+	)
+}
+
+func (consumer *Consumer) observeConsumerRebalance(
+	kind ObservationKind,
+	startedAt time.Time,
+	transition consumerAssignmentTransition,
+) {
+	if !consumer.observers.enabled() {
+		return
+	}
+	observation := Observation{
+		Kind:           kind,
+		StartedAt:      startedAt,
+		Duration:       time.Since(startedAt),
+		ClientID:       consumer.clientID,
+		GroupID:        consumer.groupID,
+		PartitionCount: transition.partitionCount,
+		Succeeded:      transition.err == nil,
+		Truncated:      transition.truncated,
+	}
+	if transition.err != nil {
+		observation.Category = transition.category
+		if observation.Category == ErrorUnknown {
+			observation.Category = classifyError(transition.err)
+		}
+	}
+	consumer.dispatchObservation(context.Background(), observation)
+}
+
+func boundedCallbackPartitionCount(
+	partitions map[string][]int32,
+	maximum int,
+) (int, bool) {
+	if len(partitions) > maximum {
+		return 0, true
+	}
+	count := 0
+	for _, topicPartitions := range partitions {
+		if len(topicPartitions) > maximum-count {
+			return maximum, true
+		}
+		count += len(topicPartitions)
+	}
+
+	return count, false
 }
 
 // Run continuously executes bounded poll cycles until cancellation or the
