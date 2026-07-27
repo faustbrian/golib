@@ -24,7 +24,10 @@ equivalent record-and-apply behavior and public aggregate reconstruction at 1,
 Hallgren Eventsourcing, and TheFabric Eventsourcing. It documents
 implementation-required decoding, iteration, and state-copying costs instead of
 normalizing them away, and it does not put those dependencies in the core
-module graph.
+module graph. The
+[published reconstitution evidence](../benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/README.md)
+retains 20 raw samples per workload, pinned statistical summaries, stable input
+fingerprints, checksums, and environment provenance.
 
 The PostgreSQL adapter's
 [`BenchmarkPostgreSQLAppendEquivalentWork`](../postgres/append_benchmark_integration_test.go)

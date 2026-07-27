@@ -6,6 +6,7 @@ do not enter the core dependency graph.
 
 ## Published results
 
+- [2026-07-27 M4 Max competitor reconstitution evidence](results/2026-07-27-m4-max-competitor-reconstitution/README.md)
 - [2026-07-26 final M4 Max and PostgreSQL 18 evidence](results/2026-07-26-m4-max-postgres-18-final/README.md)
 - [2026-07-26 complete M4 Max and PostgreSQL 18 evidence](results/2026-07-26-m4-max-postgres-18-complete/README.md)
 - [2026-07-26 M4 Max and PostgreSQL 18](results/2026-07-26-m4-max-postgres-18/README.md)
