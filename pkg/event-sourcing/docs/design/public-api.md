@@ -439,6 +439,12 @@ type PayloadCodec interface {
     Decode(EncodedEvent) (DecodedEvent, error)
 }
 
+type ContextPayloadCodec interface {
+    PayloadCodec
+    EncodeContext(context.Context, DecodedEvent) (EncodedEvent, error)
+    DecodeContext(context.Context, EncodedEvent) (DecodedEvent, error)
+}
+
 type MessageCodec interface {
     Encode(Message) ([]byte, error)
     Decode([]byte) (Message, error)
@@ -483,6 +489,15 @@ Upcasters operate on encoded stored messages before payload decoding:
 ```go
 type UpcasterFunc func(UpcastEvent) ([]UpcastEvent, error)
 
+type Upcaster interface {
+    Upcast(UpcastEvent) ([]UpcastEvent, error)
+}
+
+type ContextUpcaster interface {
+    Upcaster
+    UpcastContext(context.Context, UpcastEvent) ([]UpcastEvent, error)
+}
+
 func NewUpcastEvent(EncodedEvent, map[string]string) (UpcastEvent, error)
 func NewUpcastRule(
     string,
@@ -492,6 +507,10 @@ func NewUpcastRule(
 ) (UpcastRule, error)
 func NewUpcasterChain(...UpcastRule) (*UpcasterChain, error)
 func (c *UpcasterChain) Upcast(UpcastEvent) ([]UpcastEvent, error)
+func (c *UpcasterChain) UpcastContext(
+    context.Context,
+    UpcastEvent,
+) ([]UpcastEvent, error)
 ```
 
 Rules match one exact event name and schema version. Each callback receives

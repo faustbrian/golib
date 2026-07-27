@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Propagate repository operation context through optional context-aware payload
+  codec and upcaster contracts while preserving existing pure implementations.
 - Expose process-manager plan command counts without copying application-owned
   command values.
 - Extend the optional telemetry boundary with projection-runner progress,

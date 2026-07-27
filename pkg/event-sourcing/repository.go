@@ -64,7 +64,7 @@ type RepositoryConfig[ID, Aggregate any] struct {
 	Apply          AggregateApply[Aggregate]
 	Store          EventStore
 	Codec          PayloadCodec
-	Upcasters      *UpcasterChain
+	Upcasters      Upcaster
 	Clock          Clock
 	MessageIDs     MessageIDGenerator
 	Decorators     *MessageDecoratorChain
@@ -364,6 +364,7 @@ func (repository *AggregateRepository[ID, Aggregate]) loadPage(
 			break
 		}
 		if err := repository.reconstituteMessage(
+			ctx,
 			aggregate,
 			lifecycle,
 			message,
@@ -379,11 +380,12 @@ func (repository *AggregateRepository[ID, Aggregate]) loadPage(
 }
 
 func (repository *AggregateRepository[ID, Aggregate]) reconstituteMessage(
+	ctx context.Context,
 	aggregate Aggregate,
 	lifecycle *Lifecycle,
 	message Message,
 ) error {
-	logical, err := repository.decoder.Decode(message)
+	logical, err := repository.decoder.DecodeContext(ctx, message)
 	if err != nil {
 		return err
 	}
@@ -648,7 +650,7 @@ func (repository *AggregateRepository[ID, Aggregate]) prepareMessages(
 	events := changes.Events()
 	messages := make([]PendingMessage, len(events))
 	for index, event := range events {
-		encoded, err := repository.codec.Encode(event)
+		encoded, err := encodePayload(ctx, repository.codec, event)
 		if err != nil {
 			return nil, err
 		}

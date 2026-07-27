@@ -1,6 +1,9 @@
 package eventsourcing
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // LogicalEvent is one decoded event produced from a persisted source message.
 // Segment coordinates make split upcasts observable without inventing stored
@@ -51,13 +54,13 @@ func (event LogicalEvent) IsZero() bool {
 // upcasting. It is immutable after construction and starts no work.
 type EventDecoder struct {
 	codec     PayloadCodec
-	upcasters *UpcasterChain
+	upcasters Upcaster
 }
 
 // NewEventDecoder validates one reusable event read boundary.
 func NewEventDecoder(
 	codec PayloadCodec,
-	upcasters *UpcasterChain,
+	upcasters Upcaster,
 ) (*EventDecoder, error) {
 	if codec == nil || upcasters == nil {
 		return nil, invalid("event_decoder", "dependencies must be assigned")
@@ -70,20 +73,29 @@ func NewEventDecoder(
 // message. Upcasting never modifies the stored message. A reviewed drop
 // returns an empty slice.
 func (decoder *EventDecoder) Decode(message Message) ([]LogicalEvent, error) {
-	if decoder == nil || message.ID().IsZero() {
+	return decoder.DecodeContext(context.Background(), message)
+}
+
+// DecodeContext returns ordered logical events while propagating caller
+// cancellation and context to optional codec and upcaster extensions.
+func (decoder *EventDecoder) DecodeContext(
+	ctx context.Context,
+	message Message,
+) ([]LogicalEvent, error) {
+	if ctx == nil || decoder == nil || message.ID().IsZero() {
 		return nil, ErrInvalidArgument
 	}
 	input := UpcastEvent{
 		event:    cloneEvent(message.pending.event),
 		metadata: cloneMetadata(message.pending.metadata),
 	}
-	upcasted, err := decoder.upcasters.Upcast(input)
+	upcasted, err := upcastWithContext(ctx, decoder.upcasters, input)
 	if err != nil {
 		return nil, err
 	}
 	logical := make([]LogicalEvent, len(upcasted))
 	for index, encoded := range upcasted {
-		decoded, err := decoder.codec.Decode(encoded.Event())
+		decoded, err := decodePayload(ctx, decoder.codec, encoded.Event())
 		if err != nil {
 			return nil, err
 		}

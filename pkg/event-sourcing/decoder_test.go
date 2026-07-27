@@ -1,6 +1,7 @@
 package eventsourcing_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -121,9 +122,35 @@ func TestEventDecoderValidatesCompositionAndStoredInput(t *testing.T) {
 		!errors.Is(err, eventsourcing.ErrInvalidArgument) {
 		t.Fatalf("Decode(zero) = %#v, %v", logical, err)
 	}
+	if logical, err := decoder.DecodeContext(
+		decoderNilContext(),
+		eventsourcing.Message{},
+	); logical != nil || !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("DecodeContext(nil) = %#v, %v", logical, err)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	stream, err := eventsourcing.NewStreamID("account", "cancelled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if logical, err := decoder.DecodeContext(
+		cancelled,
+		persistedRepositoryMessage(
+			t,
+			stream,
+			mustEncodedEvent(t, "account.opened", 1, []byte(`{}`)),
+		),
+	); logical != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("DecodeContext(cancelled) = %#v, %v", logical, err)
+	}
 	if !(eventsourcing.LogicalEvent{}).IsZero() {
 		t.Fatal("zero LogicalEvent is assigned")
 	}
+}
+
+func decoderNilContext() context.Context {
+	return nil
 }
 
 func TestEventDecoderPreservesDecodeFailuresAndReviewedDrops(t *testing.T) {

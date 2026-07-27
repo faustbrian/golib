@@ -2,6 +2,7 @@ package eventsourcing
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"maps"
 	"strings"
@@ -54,6 +55,24 @@ func (event UpcastEvent) IsZero() bool {
 
 // UpcasterFunc transforms one encoded event into zero, one, or many events.
 type UpcasterFunc func(UpcastEvent) ([]UpcastEvent, error)
+
+// Upcaster transforms one encoded event into ordered logical events.
+//
+// Implementations must be deterministic, bounded, safe for concurrent use,
+// return independently owned events, and report stored input failures without
+// panicking. UpcasterChain is the reference implementation.
+type Upcaster interface {
+	Upcast(UpcastEvent) ([]UpcastEvent, error)
+}
+
+// ContextUpcaster optionally exposes caller context to an upcaster.
+//
+// Repository operations prefer this extension when implemented. Upcasters
+// must not retain the context or use it to make evolution nondeterministic.
+type ContextUpcaster interface {
+	Upcaster
+	UpcastContext(context.Context, UpcastEvent) ([]UpcastEvent, error)
+}
 
 // ReviewedDropPolicy records explicit human review for removing one obsolete
 // logical event during reads. Stored history remains unchanged.
@@ -221,6 +240,36 @@ func (chain *UpcasterChain) Upcast(
 	}
 
 	return cloneUpcastEvents(output), nil
+}
+
+// UpcastContext applies the deterministic chain after checking cancellation.
+func (chain *UpcasterChain) UpcastContext(
+	ctx context.Context,
+	event UpcastEvent,
+) ([]UpcastEvent, error) {
+	if ctx == nil {
+		return nil, ErrInvalidArgument
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	return chain.Upcast(event)
+}
+
+func upcastWithContext(
+	ctx context.Context,
+	upcaster Upcaster,
+	event UpcastEvent,
+) ([]UpcastEvent, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if contextual, ok := upcaster.(ContextUpcaster); ok {
+		return contextual.UpcastContext(ctx, event)
+	}
+
+	return upcaster.Upcast(event)
 }
 
 func (chain *UpcasterChain) upcastOne(

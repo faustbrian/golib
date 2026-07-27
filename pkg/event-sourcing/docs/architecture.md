@@ -129,8 +129,8 @@ module graph and transaction ownership rules.
 | Aggregate traits | Application struct plus optional `Lifecycle` bookkeeping value |
 | Class-name inflection | Explicit stable event registration and aliases |
 | Message serializer | Adapter-specific message codec, separate from payload persistence |
-| Payload serializer | Explicit `PayloadCodec` registrations |
-| Serializer decoration for upcasting | Ordered bounded `UpcasterChain` at the read boundary |
+| Payload serializer | Explicit `PayloadCodec` registrations with optional context propagation |
+| Serializer decoration for upcasting | Small `Upcaster` contract and ordered bounded `UpcasterChain` at the read boundary |
 | Clock replacement | Injected `Clock`, including fixed test clocks |
 | Framework bootstrap | Ordinary constructors and explicit dependency composition |
 

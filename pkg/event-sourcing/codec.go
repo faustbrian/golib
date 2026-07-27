@@ -2,6 +2,7 @@ package eventsourcing
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +24,16 @@ const (
 type PayloadCodec interface {
 	Encode(DecodedEvent) (EncodedEvent, error)
 	Decode(EncodedEvent) (DecodedEvent, error)
+}
+
+// ContextPayloadCodec optionally exposes caller context to a payload codec.
+//
+// Repository operations prefer this extension when implemented. Codecs must
+// not retain the context or use it to make serialization nondeterministic.
+type ContextPayloadCodec interface {
+	PayloadCodec
+	EncodeContext(context.Context, DecodedEvent) (EncodedEvent, error)
+	DecodeContext(context.Context, EncodedEvent) (DecodedEvent, error)
 }
 
 // MessageCodec encodes and decodes complete persisted message envelopes.
@@ -258,6 +269,36 @@ func (codec *JSONCodec) Decode(event EncodedEvent) (DecodedEvent, error) {
 		version: key.version,
 		value:   value,
 	}, nil
+}
+
+func encodePayload(
+	ctx context.Context,
+	codec PayloadCodec,
+	event DecodedEvent,
+) (EncodedEvent, error) {
+	if err := ctx.Err(); err != nil {
+		return EncodedEvent{}, err
+	}
+	if contextual, ok := codec.(ContextPayloadCodec); ok {
+		return contextual.EncodeContext(ctx, event)
+	}
+
+	return codec.Encode(event)
+}
+
+func decodePayload(
+	ctx context.Context,
+	codec PayloadCodec,
+	event EncodedEvent,
+) (DecodedEvent, error) {
+	if err := ctx.Err(); err != nil {
+		return DecodedEvent{}, err
+	}
+	if contextual, ok := codec.(ContextPayloadCodec); ok {
+		return contextual.DecodeContext(ctx, event)
+	}
+
+	return codec.Decode(event)
 }
 
 func (codec *JSONCodec) addEvent(

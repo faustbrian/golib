@@ -81,6 +81,13 @@ changes. Persisting multiple formats in one store is possible because content
 type is part of each encoded event, but the selected application codec must
 know how to decode every retained history.
 
+Codecs may additionally implement `ContextPayloadCodec`. Aggregate repositories
+prefer its `EncodeContext` and `DecodeContext` methods so cancellation, tracing,
+and other operation-scoped signals reach decorators without changing encoded
+data. Implementations must not retain the context or use context values to make
+serialization output nondeterministic. Existing two-method codecs remain fully
+supported.
+
 ## Upcasting
 
 Upcasters transform encoded historical events at the repository read boundary.
@@ -100,12 +107,23 @@ different outputs with `ErrNonDeterministicUpcast`. Panics are contained and
 reported without exposing payload, metadata, or panic values.
 
 `EventDecoder` is the reusable read-boundary composition of a `PayloadCodec`
-and `UpcasterChain`. It returns ordered `LogicalEvent` values for one persisted
+and the small `Upcaster` contract implemented by `UpcasterChain`. It returns
+ordered `LogicalEvent` values for one persisted
 source message. Each value exposes the decoded event, transformed metadata,
 source message, and split segment coordinates. A reviewed drop returns no
 logical events. Aggregate repositories use this same decoder internally;
 projection and controlled-replay handlers can use it directly without
 reimplementing evolution rules.
+
+`DecodeContext` propagates cancellation and operation context through optional
+`ContextPayloadCodec` and `ContextUpcaster` extensions. The original `Decode`
+method remains available and uses a background context. `UpcasterChain`
+implements both upcaster contracts and checks cancellation before deterministic
+transformation.
+
+Custom `Upcaster` implementations own the same safety contract as the chain:
+deterministic ordered output, bounded work and output, independent ownership,
+concurrency safety, and errors rather than panics for hostile stored input.
 
 For a split during projection replay, process every returned logical event
 inside one projection handler call. The runner checkpoints the persisted source

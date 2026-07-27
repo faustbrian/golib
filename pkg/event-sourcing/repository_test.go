@@ -30,6 +30,114 @@ type repositoryEmailChanged struct {
 	Email string `json:"email"`
 }
 
+type repositoryContextKey struct{}
+
+type contextAwareRepositoryCodec struct {
+	next          eventsourcing.PayloadCodec
+	encodeContext any
+	decodeContext any
+}
+
+func (codec *contextAwareRepositoryCodec) Encode(
+	event eventsourcing.DecodedEvent,
+) (eventsourcing.EncodedEvent, error) {
+	return codec.next.Encode(event)
+}
+
+func (codec *contextAwareRepositoryCodec) Decode(
+	event eventsourcing.EncodedEvent,
+) (eventsourcing.DecodedEvent, error) {
+	return codec.next.Decode(event)
+}
+
+func (codec *contextAwareRepositoryCodec) EncodeContext(
+	ctx context.Context,
+	event eventsourcing.DecodedEvent,
+) (eventsourcing.EncodedEvent, error) {
+	codec.encodeContext = ctx.Value(repositoryContextKey{})
+
+	return codec.next.Encode(event)
+}
+
+func (codec *contextAwareRepositoryCodec) DecodeContext(
+	ctx context.Context,
+	event eventsourcing.EncodedEvent,
+) (eventsourcing.DecodedEvent, error) {
+	codec.decodeContext = ctx.Value(repositoryContextKey{})
+
+	return codec.next.Decode(event)
+}
+
+type contextAwareRepositoryUpcaster struct {
+	next    *eventsourcing.UpcasterChain
+	context any
+}
+
+func (upcaster *contextAwareRepositoryUpcaster) Upcast(
+	event eventsourcing.UpcastEvent,
+) ([]eventsourcing.UpcastEvent, error) {
+	return upcaster.next.Upcast(event)
+}
+
+func (upcaster *contextAwareRepositoryUpcaster) UpcastContext(
+	ctx context.Context,
+	event eventsourcing.UpcastEvent,
+) ([]eventsourcing.UpcastEvent, error) {
+	upcaster.context = ctx.Value(repositoryContextKey{})
+
+	return upcaster.next.Upcast(event)
+}
+
+func TestAggregateRepositoryPropagatesContextToSerializationAndUpcasting(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	store := memory.NewStore()
+	codec := &contextAwareRepositoryCodec{next: repositoryCodec(t)}
+	chain, err := eventsourcing.NewUpcasterChain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	upcaster := &contextAwareRepositoryUpcaster{next: chain}
+	repository := newAccountRepository(
+		t,
+		store,
+		codec,
+		upcaster,
+		nil,
+		nil,
+	)
+	account := &repositoryAccount{id: "account-context"}
+	if err := account.lifecycle.Record(
+		repositoryOpenedEvent(t),
+		account.apply,
+	); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.WithValue(
+		context.Background(),
+		repositoryContextKey{},
+		"caller-context",
+	)
+	if _, err := repository.Save(ctx, account); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Load(ctx, "account-context"); err != nil {
+		t.Fatal(err)
+	}
+	if codec.encodeContext != "caller-context" ||
+		codec.decodeContext != "caller-context" ||
+		upcaster.context != "caller-context" {
+		t.Fatalf(
+			"context values = encode %#v, decode %#v, upcast %#v",
+			codec.encodeContext,
+			codec.decodeContext,
+			upcaster.context,
+		)
+	}
+}
+
 func TestAggregateRepositoryLoadsUpcastHistoryIncrementally(t *testing.T) {
 	t.Parallel()
 
@@ -655,7 +763,7 @@ func newAccountRepository(
 	t *testing.T,
 	store eventsourcing.EventStore,
 	codec eventsourcing.PayloadCodec,
-	upcasters *eventsourcing.UpcasterChain,
+	upcasters eventsourcing.Upcaster,
 	decorators *eventsourcing.MessageDecoratorChain,
 	dispatcher eventsourcing.Dispatcher,
 ) *eventsourcing.AggregateRepository[string, *repositoryAccount] {
@@ -706,7 +814,7 @@ func newAccountRepository(
 func accountRepositoryConfig(
 	store eventsourcing.EventStore,
 	codec eventsourcing.PayloadCodec,
-	upcasters *eventsourcing.UpcasterChain,
+	upcasters eventsourcing.Upcaster,
 	decorators *eventsourcing.MessageDecoratorChain,
 	dispatcher eventsourcing.Dispatcher,
 	clock eventsourcing.Clock,
