@@ -24,6 +24,8 @@ and this project adheres to
   observations with no hidden store reads or unsigned-to-signed truncation.
 - Add checkpoint status and save spans that preserve exact global positions,
   downstream failures, panics, and operation context.
+- Add statically named projection-controller spans for status, pause, resume,
+  and checkpoint reset with exact unsigned checkpoint attributes.
 - Add snapshot-store load, refresh, and deletion spans with bounded hit, miss,
   stale, error, and panic outcomes while preserving downstream errors, panic
   values, context propagation, and aggregate-state privacy.

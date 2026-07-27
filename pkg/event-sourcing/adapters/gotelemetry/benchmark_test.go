@@ -167,6 +167,38 @@ func BenchmarkProjectionCheckpointStore(b *testing.B) {
 	}
 }
 
+func BenchmarkProjectionController(b *testing.B) {
+	instrumentation, err := New(testRuntime{
+		tracer:     tracenoop.NewTracerProvider(),
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	status, err := projection.NewStatus(projection.StatusInput{
+		State: projection.StatePaused,
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	controller, err := instrumentation.WrapProjectionController(
+		"benchmark-summary",
+		&telemetryProjectionController{pause: status},
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := controller.Pause(ctx); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type discardDispatcher struct{}
 
 func (discardDispatcher) Dispatch(

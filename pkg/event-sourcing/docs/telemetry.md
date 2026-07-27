@@ -43,6 +43,9 @@ reversed or unrepresentable distances rather than truncating them.
 Checkpoint-store wrappers observe status and optimistic saves without changing
 conflict or pause semantics. Exact unsigned positions are recorded as strings;
 invalid projection names are redacted instead of entering telemetry.
+Projection-controller wrappers bind one canonical static name and observe
+status, pause, resume, and checkpoint reset without starting runner work,
+draining handlers, or resetting application read models.
 
 See the [adapter guide](../adapters/gotelemetry/README.md) for the quick start,
 API, signal names, privacy contract, ownership rules, FAQ, and development

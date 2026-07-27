@@ -140,6 +140,14 @@ pause, error, or panic behavior. A failed status call records no returned state,
 and checkpoint fields on a failed save describe the requested transition rather
 than committed progress.
 
+`WrapProjectionController` accepts the consumer-owned `ProjectionController`
+interface implemented by `*projection.Controller`. It binds one canonical
+static projection name and observes status, pause, resume, and checkpoint reset
+calls. Returned state and checkpoint attributes are emitted only for successful
+calls. Reset expectations are exact strings and describe the requested
+transition. The wrapper neither starts runner work nor drains in-flight work;
+those remain caller responsibilities.
+
 The adapter emits:
 
 | Signal | Name | Bounded attributes |
@@ -155,6 +163,10 @@ The adapter emits:
 | span | `event_sourcing.projection.run_batch` | static projection name, bounded counts, checkpoint, and replay termination |
 | span | `event_sourcing.projection.checkpoint.status` | canonical projection name, run state, and optional checkpoint |
 | span | `event_sourcing.projection.checkpoint.save` | canonical projection name, expected checkpoint, and next checkpoint |
+| span | `event_sourcing.projection.control.status` | static projection name, run state, and optional checkpoint |
+| span | `event_sourcing.projection.control.pause` | static projection name, resulting state, and optional checkpoint |
+| span | `event_sourcing.projection.control.resume` | static projection name, resulting state, and optional checkpoint |
+| span | `event_sourcing.projection.control.reset` | static projection name, expected checkpoint, and resulting state |
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
@@ -164,7 +176,9 @@ The adapter emits:
 Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`,
 `projection_run_batch`, `projection_checkpoint_status`, or
-`projection_checkpoint_save`.
+`projection_checkpoint_save`; projection-control operations are
+`projection_control_status`, `projection_control_pause`,
+`projection_control_resume`, and `projection_control_reset`.
 Outcomes are the bounded values `success`, `error`, `panic`, `hit`, `miss`, or
 `stale`; the snapshot operations use only the applicable subset. Delivery
 modes are `live`, `replay`, or `unknown` in delivery counters; dispatch spans
@@ -206,6 +220,9 @@ poison-policy diagnostics, or read-model state.
 Checkpoint-store instrumentation records canonical projection names plus exact
 expected and resulting positions. Applications must keep the set of projection
 names bounded and must not derive them from tenants or customers.
+Projection-controller instrumentation records the same bounded static name,
+operation, resulting state, and relevant checkpoint positions. It records no
+read-model state, reset callback, drain status, or failure diagnostics.
 
 Kafka propagation is limited to the explicit fields declared by the supplied
 propagator. Declared fields must be lowercase Kafka-safe names and cannot use
