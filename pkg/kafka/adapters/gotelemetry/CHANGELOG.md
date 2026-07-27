@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- replay plan, record-processing, exact aggregate progress, and shutdown spans
+  plus fixed replay progress attributes
 - independently versioned OpenTelemetry adapter for every stable root Kafka
   observation
 - OpenTelemetry messaging semantic-convention 1.43.0 spans and metrics for

@@ -40,9 +40,9 @@ producer, err := kafka.NewProducer(kafka.ProducerConfig{
 })
 ```
 
-The same policy can be supplied to `ConsumerConfig` and
-`TransactionProcessorConfig`. One `Instrumentation` is concurrency-safe and
-starts no goroutines.
+The same policy can be supplied to `ConsumerConfig`,
+`TransactionProcessorConfig`, and `ReplayConfig`. One `Instrumentation` is
+concurrency-safe and starts no goroutines.
 
 ## Cardinality and data policy
 
@@ -75,6 +75,8 @@ website content.
 | consume poll | `poll [topic]`, `CLIENT` | `messaging.client.operation.duration`, `messaging.client.consumed.messages` |
 | consume record or batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
+| replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration`, `messaging.client.consumed.messages` |
+| replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
 
 The optional `[topic]` suffix is present only for an allowlisted topic. Failed
 operations set a generic error span status and the root package's stable,
@@ -90,6 +92,10 @@ Every root observation also emits:
 
 These `kafka.*` metrics are adapter-owned policy metrics, not OpenTelemetry
 messaging semantic conventions.
+Replay plan, record, and run spans also carry fixed
+`kafka.replay.processed`, `kafka.replay.skipped`, `kafka.replay.failed`, and
+`kafka.replay.remaining` signed-64-bit attributes. Source topic is exported
+only when explicitly allowlisted; partition and offset remain span-only.
 
 ## Trace timing and propagation boundary
 

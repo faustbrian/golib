@@ -661,6 +661,24 @@ func appendObservationDiagnostics(
 			attribute.Int64("kafka.record.size", observation.RecordBytes),
 		)
 	}
+	switch observation.Kind {
+	case kafka.ObservationReplayPlan,
+		kafka.ObservationReplayRecord,
+		kafka.ObservationReplayRun:
+		attributes = append(
+			attributes,
+			attribute.Int64(
+				"kafka.replay.processed",
+				observation.ReplayProcessed,
+			),
+			attribute.Int64("kafka.replay.skipped", observation.ReplaySkipped),
+			attribute.Int64("kafka.replay.failed", observation.ReplayFailed),
+			attribute.Int64(
+				"kafka.replay.remaining",
+				observation.ReplayRemaining,
+			),
+		)
+	}
 	if observation.Truncated {
 		attributes = append(
 			attributes,
@@ -988,6 +1006,31 @@ func messagingOperation(kind kafka.ObservationKind) operationDescriptor {
 	case kafka.ObservationTransactionAbort:
 		return operationDescriptor{
 			spanName: "kafka transaction.abort",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationReplayPlan:
+		return operationDescriptor{
+			spanName: "kafka replay.plan",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationReplayRecord:
+		return operationDescriptor{
+			spanName:         "process",
+			name:             "process",
+			operationType:    "process",
+			spanKind:         trace.SpanKindConsumer,
+			messaging:        true,
+			processDuration:  true,
+			consumedMessages: true,
+		}
+	case kafka.ObservationReplayRun:
+		return operationDescriptor{
+			spanName: "kafka replay.run",
+			spanKind: trace.SpanKindClient,
+		}
+	case kafka.ObservationReplayShutdown:
+		return operationDescriptor{
+			spanName: "kafka replay.shutdown",
 			spanKind: trace.SpanKindClient,
 		}
 	default:

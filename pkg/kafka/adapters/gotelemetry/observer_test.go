@@ -306,6 +306,10 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 		kafka.ObservationTransactionBegin,
 		kafka.ObservationTransactionCommit,
 		kafka.ObservationTransactionAbort,
+		kafka.ObservationReplayPlan,
+		kafka.ObservationReplayRecord,
+		kafka.ObservationReplayRun,
+		kafka.ObservationReplayShutdown,
 	}
 	observer := instrumentation.Observer()
 	for index, kind := range kinds {
@@ -314,13 +318,23 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 			kind <= kafka.ObservationConsumePoll {
 			recordCount = 1
 		}
-		if err := observer(context.Background(), kafka.Observation{
+		observation := kafka.Observation{
 			Kind:        kind,
 			StartedAt:   time.Unix(int64(index+1), 0),
 			Duration:    time.Duration(index+1) * time.Millisecond,
 			RecordCount: recordCount,
 			Succeeded:   true,
-		}); err != nil {
+		}
+		switch kind {
+		case kafka.ObservationReplayPlan,
+			kafka.ObservationReplayRun:
+			observation.PartitionCount = 1
+		case kafka.ObservationReplayRecord:
+			observation.RecordCount = 1
+			observation.ProcessedCount = 1
+			observation.ReplayProcessed = 1
+		}
+		if err := observer(context.Background(), observation); err != nil {
 			t.Fatalf("observe %s: %v", kind, err)
 		}
 	}
@@ -351,6 +365,85 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 			map[string]any{"kafka.operation": kind.String()},
 		)
 	}
+}
+
+func TestObserverEmitsReplayMessagingAndExactProgress(t *testing.T) {
+	t.Parallel()
+
+	spans := tracetest.NewSpanRecorder()
+	instrumentation, err := New(Config{
+		Runtime: testRuntime{
+			tracerProvider: sdktrace.NewTracerProvider(
+				sdktrace.WithSpanProcessor(spans),
+			),
+			meterProvider: metricnoop.NewMeterProvider(),
+		},
+		Attributes: AttributePolicy{AllowedTopics: []string{"events"}},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observer := instrumentation.Observer()
+	if err := observer(context.Background(), kafka.Observation{
+		Kind:            kafka.ObservationReplayRecord,
+		StartedAt:       time.Unix(1, 0),
+		Duration:        time.Millisecond,
+		Topic:           "events",
+		Partition:       2,
+		PartitionKnown:  true,
+		Offset:          9,
+		OffsetKnown:     true,
+		RecordCount:     1,
+		ProcessedCount:  1,
+		ReplayProcessed: 1,
+		Succeeded:       true,
+	}); err != nil {
+		t.Fatalf("observe replay record: %v", err)
+	}
+	if err := observer(context.Background(), kafka.Observation{
+		Kind:            kafka.ObservationReplayRun,
+		StartedAt:       time.Unix(2, 0),
+		Duration:        2 * time.Millisecond,
+		PartitionCount:  2,
+		ReplayProcessed: 5,
+		ReplaySkipped:   3,
+		ReplayFailed:    1,
+		ReplayRemaining: 8,
+		Succeeded:       false,
+		Category:        kafka.ErrorPermanent,
+	}); err != nil {
+		t.Fatalf("observe replay run: %v", err)
+	}
+
+	ended := spans.Ended()
+	if len(ended) != 2 {
+		t.Fatalf("ended spans = %d, want 2", len(ended))
+	}
+	if ended[0].Name() != "process events" ||
+		ended[0].SpanKind() != trace.SpanKindConsumer {
+		t.Fatalf(
+			"replay record span = %q/%s",
+			ended[0].Name(),
+			ended[0].SpanKind(),
+		)
+	}
+	assertSpanAttributes(t, ended[0].Attributes(), map[string]any{
+		"messaging.system":         "kafka",
+		"messaging.operation.name": "process",
+		"messaging.operation.type": "process",
+		"kafka.replay.processed":   int64(1),
+		"kafka.replay.skipped":     int64(0),
+		"kafka.replay.failed":      int64(0),
+		"kafka.replay.remaining":   int64(0),
+	})
+	assertSpanAttributes(t, ended[1].Attributes(), map[string]any{
+		"kafka.operation":        "replay.run",
+		"kafka.replay.processed": int64(5),
+		"kafka.replay.skipped":   int64(3),
+		"kafka.replay.failed":    int64(1),
+		"kafka.replay.remaining": int64(8),
+		"error.type":             "permanent",
+	})
 }
 
 func TestObserverReportsBoundedBrokerDiagnosticsWithoutEndpoints(t *testing.T) {
