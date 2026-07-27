@@ -33,7 +33,7 @@ github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/faustbrian/golib/pkg/clock v0.1.0 h1:bKt+UVGZJHTl/ICjdLguHB+H7gT/5CxvEJ80Gf+m6KA=
 github.com/faustbrian/golib/pkg/clock v0.1.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
-github.com/faustbrian/golib/pkg/idempotency v0.1.0 h1:IfAI1dzuW+1O+ON6vUBeOYL12lEQZ4LBPyV/ciyt5V0=
+github.com/faustbrian/golib/pkg/idempotency v0.1.0 h1:AaVhs6PMAe3v7dKkCwzZMK/nitmHi7ymCvMdktJBtNw=
 github.com/faustbrian/golib/pkg/idempotency v0.1.0/go.mod h1:Hf7tQ/MggNVR3IjGjYiZtKpc/D5DlD9SZBmTNC7VMYM=
 github.com/faustbrian/golib/pkg/log v0.1.0 h1:TRa4AQOwO2CSbmsj8p7baDClBGP3o8jY/rhpjkF8Uk0=
 github.com/faustbrian/golib/pkg/log v0.1.0/go.mod h1:IFYZXpkmwQNbFyD2e4MtK3ZNXxT+taCqfFyZDWBP96I=
@@ -41,10 +41,10 @@ github.com/faustbrian/golib/pkg/migrations v0.1.0 h1:CilIxiA7U4zIo3HTUVIfQhIGmwS
 github.com/faustbrian/golib/pkg/migrations v0.1.0/go.mod h1:YKnaYAlvNxJJn8z6DSbUf4tetex5Uh/kQiqZlGFsItI=
 github.com/faustbrian/golib/pkg/outbox v0.1.0 h1:RbCtaPqn75IWWxjBwYOxDeQc2eEHI0mXfvSK/Nh4Its=
 github.com/faustbrian/golib/pkg/outbox v0.1.0/go.mod h1:qDvNTz8uelQJ5ROQT1Uabl2GPj6OE2anIUyd6w1qkNE=
-github.com/faustbrian/golib/pkg/queue v0.1.0 h1:RArTO0LYelNHW8Ry7tL0Ifv4IjYtGpLjvUEd+LUMDc4=
+github.com/faustbrian/golib/pkg/queue v0.1.0 h1:/YSnqlqbh47gLQCSw4eJ0aBDSCNIe1bf2i7xQ9Ja63Y=
 github.com/faustbrian/golib/pkg/queue v0.1.0/go.mod h1:CdMowu2Yx1ryjZcFKq6+Frr9ic0mJNkSEUkDMWOWDhw=
-github.com/faustbrian/golib/pkg/telemetry v0.1.0 h1:NyRUNsEBFAfXmeI5Izq99Xw4Q3a8VNj5ma6rFfTAnWE=
-github.com/faustbrian/golib/pkg/telemetry v0.1.0/go.mod h1:klJymrMXQ1gU+naOiUALvq2lASxFmu52NRCy+mr6lew=
+github.com/faustbrian/golib/pkg/telemetry v0.1.0 h1:qWIYkTwCiT40+hybw/OvEZigF7MH56mcylAKpxneXdI=
+github.com/faustbrian/golib/pkg/telemetry v0.1.0/go.mod h1:nFiFGQeJUwxdQ+U1iLj1iq8hFQHVqGd8lhYmrBs6xjo=
 github.com/faustbrian/golib/pkg/webhook v0.1.0 h1:cIqgHTVulPm8ckB0KJWErNkLTVPouB5SOwbCnvADatI=
 github.com/faustbrian/golib/pkg/webhook v0.1.0/go.mod h1:ROQEeoOvGXkIf6X6adAh3BW3IO0XAd69yY4TGMmHeAk=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
@@ -169,8 +169,8 @@ google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa h1:
 google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:q4lMZS6kskjT5HvCPrnnypcDPVJqT/f4nfxmkE7gryY=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa h1:mZHHdPZl0dbGHCflZgAq/Q468DWVFcU2whhB2KAo8fk=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
-google.golang.org/grpc v1.81.1 h1:VnnIIZ88UzOOKLukQi+ImGz8O1Wdp8nAGGnvOfEIWQQ=
-google.golang.org/grpc v1.81.1/go.mod h1:xGH9GfzOyMTGIOXBJmXt+BX/V0kcdQbdcuwQ/zNw42I=
+google.golang.org/grpc v1.82.1 h1:NnAxzGRA0677vCa4BUkOAnO5+FfQqVl9iUXeD0IqcGE=
+google.golang.org/grpc v1.82.1/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

@@ -13,6 +13,8 @@ public API reaches its first stable version.
 
 ### Changed
 
+- Refresh the ecosystem compatibility dependency graph for the patched gRPC
+  release selected by telemetry.
 - Pinned unpublished owned `clock` and `migrations` dependencies to resolvable
   main-branch pseudo-versions so external consumers can install this module.
 - Refresh owned-module checksums against the final consolidated archives.
