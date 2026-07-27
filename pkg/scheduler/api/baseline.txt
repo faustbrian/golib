@@ -628,6 +628,10 @@ type Migration struct {
 func SchemaMigration() Migration
     SchemaMigration returns the PostgreSQL lease-table migration.
 
+func SchemaMigrationFor(schema string) (Migration, error)
+    SchemaMigrationFor returns the lease-table migration for a caller-owned
+    schema. The schema itself must already exist.
+
 type Store struct {
 	// Has unexported fields.
 }
@@ -635,6 +639,13 @@ type Store struct {
 
 func New(pool *pgxpool.Pool) (*Store, error)
     New constructs a PostgreSQL lease store from a connection pool.
+
+func NewWithSchema(
+	pool *pgxpool.Pool,
+	schema string,
+) (*Store, error)
+    NewWithSchema constructs a PostgreSQL lease store in a caller-owned schema.
+    Schema must be a lower-case PostgreSQL identifier no longer than 63 bytes.
 
 func (store *Store) Acquire(
 	ctx context.Context,

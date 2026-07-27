@@ -51,6 +51,12 @@ and `Capabilities`. Every successful takeover receives a larger fencing token.
 Completion-sensitive downstream writes must reject tokens lower than the
 largest token already observed.
 
+`postgres.New` and `postgres.SchemaMigration` retain the default
+`public.scheduler_leases` table. Services that own a dedicated PostgreSQL
+schema use `postgres.NewWithSchema` and `postgres.SchemaMigrationFor`; the
+schema must already exist and its lower-case identifier is validated before
+SQL is generated or a store is constructed.
+
 Overlap leases are renewed every third of their TTL while execution is active.
 The runner rejects overlap schedules when the store does not advertise
 heartbeat support. A heartbeat failure cancels the execution context and is

@@ -4,6 +4,9 @@ Startup must compile the full registry, check backend safety, apply or verify
 the PostgreSQL migration, and expose readiness only afterward. Monitor failure,
 overlap, skipped, and completed event counts plus execution duration, lease
 latency, callback timeouts, execution-capacity failures, and drain deadlines.
+When the application owns a dedicated database schema, apply
+`postgres.SchemaMigrationFor` to that schema and use the same schema with
+`postgres.NewWithSchema`; mismatched schema configuration fails at query time.
 
 The HTTP and CLI surfaces provide list, next, due, validation, testing, and
 fenced recovery. Protect them with application authentication and network

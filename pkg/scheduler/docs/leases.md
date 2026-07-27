@@ -5,7 +5,10 @@ tests and single-replica tools only.
 
 The PostgreSQL adapter uses an owned table and `clock_timestamp()`. Rows become
 inactive on release so their monotonic fencing token is retained. Apply
-`postgres.SchemaMigration` before startup.
+`postgres.SchemaMigration` before startup for the default public schema.
+Services with a caller-owned schema apply `postgres.SchemaMigrationFor` and
+construct the store with `postgres.NewWithSchema`. The schema itself must
+already exist.
 
 The Valkey adapter uses native `valkey-go` and atomic Lua scripts. `Open`
 requires Valkey 9 or later and `maxmemory-policy noeviction`. A TTL-bound lease

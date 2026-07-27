@@ -13,6 +13,8 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- PostgreSQL lease stores and migrations can target an explicit caller-owned
+  schema while preserving the public-schema default.
 - code-defined versioned schedules with deterministic timezone-aware timing
 - fenced memory, PostgreSQL, and Valkey 9 lease adapters
 - bounded missed-run and overlap decisions

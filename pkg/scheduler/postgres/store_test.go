@@ -130,3 +130,30 @@ func TestSchemaMigrationPreservesFencingTokens(t *testing.T) {
 		}
 	}
 }
+
+func TestSchemaMigrationForQualifiesCallerOwnedSchema(t *testing.T) {
+	t.Parallel()
+
+	migration, err := SchemaMigrationFor("location_runtime")
+	if err != nil {
+		t.Fatalf("SchemaMigrationFor() error = %v", err)
+	}
+	for _, required := range []string{
+		`CREATE TABLE "location_runtime"."scheduler_leases"`,
+		`CREATE INDEX "scheduler_leases_active_expiry_idx"`,
+		`ON "location_runtime"."scheduler_leases"`,
+		`DROP TABLE "location_runtime"."scheduler_leases"`,
+	} {
+		if !strings.Contains(migration.Up+migration.Down, required) {
+			t.Fatalf("schema migration missing %q", required)
+		}
+	}
+	for _, schema := range []string{"", "unsafe-name", "UPPER", strings.Repeat("a", 64)} {
+		if _, err := SchemaMigrationFor(schema); !errors.Is(
+			err,
+			lease.ErrInvalid,
+		) {
+			t.Fatalf("SchemaMigrationFor(%q) error = %v", schema, err)
+		}
+	}
+}

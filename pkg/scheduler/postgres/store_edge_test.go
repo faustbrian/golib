@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,52 @@ func TestNewAcceptsPoolAndCapabilities(t *testing.T) {
 	}
 	if _, err := New(nil); !errors.Is(err, lease.ErrInvalid) {
 		t.Fatalf("New(nil) error = %v", err)
+	}
+}
+
+func TestNewWithSchemaQualifiesEveryLeaseOperation(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.New(
+		context.Background(),
+		"postgres://localhost/unused?connect_timeout=1",
+	)
+	if err != nil {
+		t.Fatalf("pgxpool.New() error = %v", err)
+	}
+	t.Cleanup(pool.Close)
+	store, err := NewWithSchema(pool, "location_runtime")
+	if err != nil {
+		t.Fatalf("NewWithSchema() error = %v", err)
+	}
+	for name, query := range map[string]string{
+		"acquire":   store.queries.acquire,
+		"heartbeat": store.queries.heartbeat,
+		"inspect":   store.queries.inspect,
+		"release":   store.queries.release,
+		"recover":   store.queries.recover,
+		"state":     store.queries.state,
+	} {
+		if !strings.Contains(
+			query,
+			`"location_runtime"."scheduler_leases"`,
+		) {
+			t.Fatalf("%s query was not schema-qualified: %s", name, query)
+		}
+	}
+	if _, err := NewWithSchema(nil, "location_runtime"); !errors.Is(
+		err,
+		lease.ErrInvalid,
+	) {
+		t.Fatalf("NewWithSchema(nil) error = %v", err)
+	}
+	for _, schema := range []string{"", "unsafe-name", "UPPER", strings.Repeat("a", 64)} {
+		if _, err := NewWithSchema(pool, schema); !errors.Is(
+			err,
+			lease.ErrInvalid,
+		) {
+			t.Fatalf("NewWithSchema(%q) error = %v", schema, err)
+		}
 	}
 }
 

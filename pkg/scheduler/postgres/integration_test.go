@@ -52,6 +52,120 @@ func TestPostgresConformance(t *testing.T) {
 	})
 }
 
+func TestPostgresCallerOwnedSchema(t *testing.T) {
+	databaseURL := os.Getenv("POSTGRES_URL")
+	if databaseURL == "" {
+		t.Skip("POSTGRES_URL is not set")
+	}
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatalf("pgxpool.New() error = %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	const schema = "scheduler_integration"
+	if _, err := pool.Exec(
+		t.Context(),
+		"CREATE SCHEMA IF NOT EXISTS "+schema,
+	); err != nil {
+		t.Fatalf("create schema error = %v", err)
+	}
+	migration, err := schedulerpostgres.SchemaMigrationFor(schema)
+	if err != nil {
+		t.Fatalf("SchemaMigrationFor() error = %v", err)
+	}
+	if _, err := pool.Exec(
+		t.Context(),
+		"DROP TABLE IF EXISTS "+schema+".scheduler_leases",
+	); err != nil {
+		t.Fatalf("drop existing table error = %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), migration.Up); err != nil {
+		t.Fatalf("apply migration error = %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), migration.Down)
+		_, _ = pool.Exec(
+			context.Background(),
+			"DROP SCHEMA IF EXISTS "+schema,
+		)
+	})
+	store, err := schedulerpostgres.NewWithSchema(pool, schema)
+	if err != nil {
+		t.Fatalf("postgres.NewWithSchema() error = %v", err)
+	}
+
+	owned, err := store.Acquire(
+		t.Context(),
+		"schema:acquire",
+		"replica-a",
+		time.Minute,
+		time.Time{},
+	)
+	if err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+	if owned.FencingToken != 1 {
+		t.Fatalf("Acquire() fencing token = %d, want 1", owned.FencingToken)
+	}
+	owned, err = store.Heartbeat(t.Context(), owned, time.Minute, time.Time{})
+	if err != nil {
+		t.Fatalf("Heartbeat() error = %v", err)
+	}
+	inspected, err := store.Inspect(t.Context(), owned.Key)
+	if err != nil {
+		t.Fatalf("Inspect() error = %v", err)
+	}
+	if inspected.FencingToken != owned.FencingToken {
+		t.Fatalf(
+			"Inspect() fencing token = %d, want %d",
+			inspected.FencingToken,
+			owned.FencingToken,
+		)
+	}
+	if err := store.Release(t.Context(), owned); err != nil {
+		t.Fatalf("Release() error = %v", err)
+	}
+	if _, err := store.Heartbeat(
+		t.Context(),
+		owned,
+		time.Minute,
+		time.Time{},
+	); !errors.Is(err, schedulerlease.ErrNotFound) {
+		t.Fatalf("Heartbeat(released) error = %v, want ErrNotFound", err)
+	}
+	owned, err = store.Acquire(
+		t.Context(),
+		owned.Key,
+		"replica-b",
+		time.Minute,
+		time.Time{},
+	)
+	if err != nil {
+		t.Fatalf("Acquire(takeover) error = %v", err)
+	}
+	if owned.FencingToken != 2 {
+		t.Fatalf("Acquire(takeover) fencing token = %d, want 2", owned.FencingToken)
+	}
+	if err := store.Recover(
+		t.Context(),
+		owned.Key,
+		owned.FencingToken,
+	); err != nil {
+		t.Fatalf("Recover() error = %v", err)
+	}
+
+	var publicTableExists bool
+	if err := pool.QueryRow(t.Context(), `
+SELECT to_regclass('public.scheduler_leases') IS NOT NULL
+`).Scan(&publicTableExists); err != nil {
+		t.Fatalf("inspect public table error = %v", err)
+	}
+	if publicTableExists {
+		t.Fatal("caller-owned schema migration created public.scheduler_leases")
+	}
+}
+
 func TestPostgresFaultRecovery(t *testing.T) {
 	databaseURL := os.Getenv("POSTGRES_URL")
 	if databaseURL == "" {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/scheduler/lease"
@@ -12,7 +14,7 @@ import (
 )
 
 const acquireSQL = `
-INSERT INTO scheduler_leases (
+INSERT INTO scheduler_leases AS leases (
     lease_key, owner, fencing_token, acquired_at, expires_at, active
 ) VALUES (
     $1, $2, 1, clock_timestamp(),
@@ -20,12 +22,12 @@ INSERT INTO scheduler_leases (
 )
 ON CONFLICT (lease_key) DO UPDATE SET
     owner = EXCLUDED.owner,
-    fencing_token = scheduler_leases.fencing_token + 1,
+    fencing_token = leases.fencing_token + 1,
     acquired_at = clock_timestamp(),
     expires_at = clock_timestamp() + ($3 * interval '1 millisecond'),
     active = true
-WHERE NOT scheduler_leases.active
-   OR scheduler_leases.expires_at <= clock_timestamp()
+WHERE NOT leases.active
+   OR leases.expires_at <= clock_timestamp()
 RETURNING lease_key, owner, fencing_token, acquired_at, expires_at`
 
 const heartbeatSQL = `
@@ -76,9 +78,30 @@ type database interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
+type querySet struct {
+	acquire   string
+	heartbeat string
+	inspect   string
+	release   string
+	recover   string
+	state     string
+}
+
+var schemaPattern = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+
+var defaultQueries = querySet{
+	acquire:   acquireSQL,
+	heartbeat: heartbeatSQL,
+	inspect:   inspectSQL,
+	release:   releaseSQL,
+	recover:   recoverSQL,
+	state:     stateSQL,
+}
+
 // Store persists fenced leases in PostgreSQL server time.
 type Store struct {
 	database database
+	queries  querySet
 }
 
 // New constructs a PostgreSQL lease store from a connection pool.
@@ -89,11 +112,47 @@ func New(pool *pgxpool.Pool) (*Store, error) {
 	return newStore(pool)
 }
 
+// NewWithSchema constructs a PostgreSQL lease store in a caller-owned schema.
+// Schema must be a lower-case PostgreSQL identifier no longer than 63 bytes.
+func NewWithSchema(
+	pool *pgxpool.Pool,
+	schema string,
+) (*Store, error) {
+	if pool == nil || !schemaPattern.MatchString(schema) {
+		return nil, lease.ErrInvalid
+	}
+
+	return newStoreWithQueries(pool, queriesForSchema(schema))
+}
+
 func newStore(db database) (*Store, error) {
+	return newStoreWithQueries(db, defaultQueries)
+}
+
+func newStoreWithQueries(
+	db database,
+	queries querySet,
+) (*Store, error) {
 	if db == nil {
 		return nil, lease.ErrInvalid
 	}
-	return &Store{database: db}, nil
+	return &Store{database: db, queries: queries}, nil
+}
+
+func queriesForSchema(schema string) querySet {
+	table := pgx.Identifier{schema, "scheduler_leases"}.Sanitize()
+	qualify := func(query string) string {
+		return strings.ReplaceAll(query, "scheduler_leases", table)
+	}
+
+	return querySet{
+		acquire:   qualify(acquireSQL),
+		heartbeat: qualify(heartbeatSQL),
+		inspect:   qualify(inspectSQL),
+		release:   qualify(releaseSQL),
+		recover:   qualify(recoverSQL),
+		state:     qualify(stateSQL),
+	}
 }
 
 // Acquire creates or takes over an inactive or expired lease.
@@ -107,7 +166,13 @@ func (store *Store) Acquire(
 	if err := validate(ctx, key, owner, ttl); err != nil {
 		return lease.Lease{}, err
 	}
-	owned, err := scanLease(store.database.QueryRow(ctx, acquireSQL, key, owner, ttl.Milliseconds()))
+	owned, err := scanLease(store.database.QueryRow(
+		ctx,
+		store.queries.acquire,
+		key,
+		owner,
+		ttl.Milliseconds(),
+	))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return lease.Lease{}, fmt.Errorf("%w: %s", lease.ErrHeld, key)
 	}
@@ -128,7 +193,12 @@ func (store *Store) Heartbeat(
 		return lease.Lease{}, lease.ErrInvalid
 	}
 	current, err := scanLease(store.database.QueryRow(
-		ctx, heartbeatSQL, owned.Key, owned.Owner, owned.FencingToken, ttl.Milliseconds(),
+		ctx,
+		store.queries.heartbeat,
+		owned.Key,
+		owned.Owner,
+		owned.FencingToken,
+		ttl.Milliseconds(),
 	))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return lease.Lease{}, store.stateError(ctx, owned.Key)
@@ -141,7 +211,11 @@ func (store *Store) Inspect(ctx context.Context, key string) (lease.Lease, error
 	if err := validateIdentity(ctx, key, "owner"); err != nil {
 		return lease.Lease{}, err
 	}
-	owned, err := scanLease(store.database.QueryRow(ctx, inspectSQL, key))
+	owned, err := scanLease(store.database.QueryRow(
+		ctx,
+		store.queries.inspect,
+		key,
+	))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return lease.Lease{}, fmt.Errorf("%w: %s", lease.ErrNotFound, key)
 	}
@@ -157,7 +231,11 @@ func (store *Store) Release(ctx context.Context, owned lease.Lease) error {
 		return lease.ErrInvalid
 	}
 	return scanMutation(store.database.QueryRow(
-		ctx, releaseSQL, owned.Key, owned.Owner, owned.FencingToken,
+		ctx,
+		store.queries.release,
+		owned.Key,
+		owned.Owner,
+		owned.FencingToken,
 	))
 }
 
@@ -169,7 +247,12 @@ func (store *Store) Recover(ctx context.Context, key string, fencingToken uint64
 		}
 		return lease.ErrInvalid
 	}
-	return scanMutation(store.database.QueryRow(ctx, recoverSQL, key, fencingToken))
+	return scanMutation(store.database.QueryRow(
+		ctx,
+		store.queries.recover,
+		key,
+		fencingToken,
+	))
 }
 
 // Capabilities reports the PostgreSQL store's safety properties.
@@ -185,7 +268,11 @@ func (*Store) Capabilities() lease.Capabilities {
 
 func (store *Store) stateError(ctx context.Context, key string) error {
 	var state string
-	if err := store.database.QueryRow(ctx, stateSQL, key).Scan(&state); err != nil {
+	if err := store.database.QueryRow(
+		ctx,
+		store.queries.state,
+		key,
+	).Scan(&state); err != nil {
 		return err
 	}
 	return mutationError(state)
