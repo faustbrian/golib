@@ -88,6 +88,20 @@ integrity and replay verification.
 
 ## Integrity and recovery
 
+`MessageVerifier` is the storage-independent hook for application-selected
+history authentication. Compose `VerifyingEventStore` for aggregate stream
+reads and `VerifyingGlobalReader` for projection or replay reads. A rejection,
+panic, cancellation, or structurally corrupt message terminates the iterator
+before that message is exposed. Verification errors preserve inspectable causes
+without printing application diagnostics.
+
+The verifier does not sign writes, choose algorithms, own keys, or add hidden
+metadata. Applications must define one canonical signed representation and add
+its bounded key identifier and authenticator through the explicit write
+pipeline. The read verifier may include store-assigned versions or positions,
+which is why append remains unchanged. Hashes without an authenticated trust
+root detect accidental corruption but do not prove who wrote an event.
+
 Restrict direct writes to event, stream-head, global-position, snapshot,
 checkpoint, and outbox tables. Prefer compensating events for domain correction
 and rebuilding derived state for projection defects. If authoritative repair is

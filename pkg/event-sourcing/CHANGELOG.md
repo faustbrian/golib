@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add storage-independent event-store and global-reader decorators that verify
+  every stored message before exposure, contain verifier panics, preserve
+  inspectable causes, and fail closed with redacted diagnostics.
 - Add runnable event-evolution and process-manager planning examples that
   exercise the public contracts without hidden execution.
 - Add runnable synchronous-dispatch, snapshot-restoration, and aggregate

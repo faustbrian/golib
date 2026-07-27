@@ -147,6 +147,12 @@ Positions must be present and strictly increasing; the generic profile does
 not require them to be gap-free because stores may reserve or omit positions
 under their documented transaction policy.
 
+The same profiles run against `VerifyingEventStore` and
+`VerifyingGlobalReader`. This proves that adding an application integrity
+boundary preserves append, range, ownership, cancellation, closure, and global
+ordering semantics. Focused verifier tests additionally require rejection,
+panic, cancellation, and corrupt messages to remain unexposed.
+
 ## Snapshot equivalence
 
 `CheckSnapshotEquivalence` runs authoritative full-history loading and an

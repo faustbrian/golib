@@ -118,6 +118,15 @@ upcaster, decorator, and adapter errors preserve inspectable causes while their
 public diagnostics must not expose payloads, metadata, credentials, tenant
 data, or panic values.
 
+`MessageVerifier` is the application hook for authenticating or otherwise
+checking complete stored envelopes. `VerifyingEventStore` and
+`VerifyingGlobalReader` invoke it before a stream or global iterator exposes a
+message. Verification failures and panics are redacted and terminal for that
+iterator. The stream decorator deliberately does not invoke the read verifier
+during append: applications own signing or integrity metadata through their
+explicit write pipeline, and verification can depend on store-assigned
+positions.
+
 Identifiers and event names may still be sensitive in a particular domain.
 Applications must review their logging and telemetry policy and may need to
 hash or omit them at external diagnostic boundaries. The optional telemetry

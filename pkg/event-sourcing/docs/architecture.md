@@ -77,6 +77,12 @@ rewrite stored history. Anti-corruption translators operate on deliveries
 outside aggregate reconstitution so integration mapping cannot change domain
 history implicitly.
 
+Applications that authenticate history compose `VerifyingEventStore` around
+stream reads and `VerifyingGlobalReader` around projections or replay. Both use
+one application-supplied `MessageVerifier` and fail before an untrusted message
+is exposed. The core provides the hook and panic containment but deliberately
+does not select signatures, hashes, keys, or integrity metadata.
+
 ## Dispatch and asynchronous boundaries
 
 The core synchronous dispatcher has explicit ordering, filtering, cancellation,

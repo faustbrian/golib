@@ -194,6 +194,27 @@ type GlobalReader interface {
 }
 ```
 
+Applications that authenticate stored history can compose the same verifier
+across both read capabilities:
+
+```go
+type MessageVerifier interface {
+    VerifyMessage(context.Context, Message) error
+}
+
+verifiedStreams, err := NewVerifyingEventStore(store, verifier)
+verifiedGlobal, err := NewVerifyingGlobalReader(global, verifier)
+```
+
+The stream decorator delegates append unchanged and verifies every message
+returned by `ReadStream`. The global decorator applies the same boundary to
+`ReadGlobal`. Verification happens synchronously before `Message` exposes the
+current item; failure, panic, or callback cancellation terminates the iterator.
+`MessageVerificationError` preserves stable categories and causes through
+`errors.Is` and `errors.As` while omitting verifier diagnostics. The caller
+still owns iterator closure. The core does not choose cryptography, key
+management, or persisted integrity fields.
+
 Deletion and archive are not part of the minimum append/read contract. Stores
 that support them expose separately documented interfaces so unsupported
 behavior cannot silently look like a missing stream.
