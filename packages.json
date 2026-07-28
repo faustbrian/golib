@@ -1937,6 +1937,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/external-sort",
+      "directory": ".",
+      "name": "externalsort",
+      "import_path": "github.com/faustbrian/golib/pkg/external-sort",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/feature-flags",
       "directory": ".",
       "name": "featureflags",
