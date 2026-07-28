@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Allow retry policy to own an exact immutable delay sequence when provider
+  contracts do not use exponential backoff.
 - Add a context-aware cache for caller-owned OAuth2 token sources with
   coordinated refresh, independent token copies, client-bounded cancellation,
   and exact observed-token invalidation for provider-directed refreshes.

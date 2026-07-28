@@ -78,11 +78,15 @@ func (function RetryPolicyFunc) ShouldRetry(attempt RetryAttempt) bool {
 
 // RetryOptions configures bounded operation retry middleware.
 type RetryOptions struct {
-	Name                       string
-	Layer                      MiddlewareLayer
-	Priority                   int
-	MaximumAttempts            int
-	MaximumElapsed             time.Duration
+	Name            string
+	Layer           MiddlewareLayer
+	Priority        int
+	MaximumAttempts int
+	MaximumElapsed  time.Duration
+	// Delays selects one explicit delay after each failed attempt. When set,
+	// it must contain MaximumAttempts minus one positive entries and cannot be
+	// combined with BaseDelay or MaximumDelay.
+	Delays                     []time.Duration
 	BaseDelay                  time.Duration
 	MaximumDelay               time.Duration
 	MaximumRetryAfter          time.Duration
@@ -119,6 +123,7 @@ func (err *RetryExhaustedError) Unwrap() []error {
 type resolvedRetryOptions struct {
 	maximumAttempts   int
 	maximumElapsed    time.Duration
+	delays            []time.Duration
 	baseDelay         time.Duration
 	maximumDelay      time.Duration
 	maximumRetryAfter time.Duration
@@ -147,13 +152,26 @@ func resolveRetryOptions(options RetryOptions) (resolvedRetryOptions, error) {
 	if options.MaximumAttempts < 2 || options.MaximumAttempts > maximumRetryAttempts {
 		return resolvedRetryOptions{}, fmt.Errorf("%w: maximum attempts must be between 2 and 100", ErrInvalidRetryPolicy)
 	}
+	var delays []time.Duration
 	baseDelay := options.BaseDelay
-	if baseDelay == 0 {
-		baseDelay = defaultRetryBaseDelay
-	}
 	maximumDelay := options.MaximumDelay
-	if maximumDelay == 0 {
-		maximumDelay = defaultRetryMaximumDelay
+	if len(options.Delays) > 0 {
+		if len(options.Delays) != options.MaximumAttempts-1 || baseDelay != 0 || maximumDelay != 0 {
+			return resolvedRetryOptions{}, fmt.Errorf("%w: explicit delays must match attempts and cannot use exponential bounds", ErrInvalidRetryPolicy)
+		}
+		delays = append([]time.Duration(nil), options.Delays...)
+		for _, delay := range delays {
+			if delay <= 0 {
+				return resolvedRetryOptions{}, fmt.Errorf("%w: explicit delays must be positive", ErrInvalidRetryPolicy)
+			}
+		}
+	} else {
+		if baseDelay == 0 {
+			baseDelay = defaultRetryBaseDelay
+		}
+		if maximumDelay == 0 {
+			maximumDelay = defaultRetryMaximumDelay
+		}
 	}
 	maximumElapsed := options.MaximumElapsed
 	if maximumElapsed == 0 {
@@ -187,6 +205,7 @@ func resolveRetryOptions(options RetryOptions) (resolvedRetryOptions, error) {
 
 	return resolvedRetryOptions{
 		maximumAttempts: options.MaximumAttempts, maximumElapsed: maximumElapsed,
+		delays:    append([]time.Duration(nil), delays...),
 		baseDelay: baseDelay, maximumDelay: maximumDelay,
 		maximumRetryAfter: maximumRetryAfter,
 		clock:             clock, jitter: jitter, policy: policy,
@@ -331,6 +350,14 @@ func retryDelay(response *http.Response, attempt int, options resolvedRetryOptio
 
 			return delay
 		}
+	}
+	if len(options.delays) > 0 {
+		delay := options.delays[attempt-1]
+		jittered := options.jitter.Apply(delay)
+		if jittered < 0 || jittered > delay {
+			return delay
+		}
+		return jittered
 	}
 	delay := options.baseDelay
 	for index := 1; index < attempt && delay < options.maximumDelay; index++ {

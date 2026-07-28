@@ -22,6 +22,20 @@ must be between 2 and 100. Zero duration fields select the finite defaults in
 the example. The client-wide total timeout and caller deadline remain outer
 bounds.
 
+Provider contracts with a non-exponential schedule can set `Delays` instead:
+
+```go
+retry, err := httpclient.NewRetryMiddleware(httpclient.RetryOptions{
+	Name:            "provider-retry",
+	MaximumAttempts: 3,
+	Delays:          []time.Duration{250 * time.Millisecond, time.Second},
+})
+```
+
+`Delays` is copied during construction, must contain exactly one positive
+duration for every possible retry, and cannot be combined with `BaseDelay` or
+`MaximumDelay`.
+
 ## Executable safety rules
 
 The default policy retries only when the request body is absent or has a
@@ -50,10 +64,10 @@ consequences of returning true.
 
 ## Delay and `Retry-After`
 
-Absent usable server direction, delay grows exponentially from `BaseDelay` to
-`MaximumDelay`. Cryptographic full jitter selects a value from zero through the
-current bound to spread concurrent clients. `RetryJitter` is injectable for
-deterministic tests.
+Absent usable server direction, delay uses the configured explicit sequence or
+grows exponentially from `BaseDelay` to `MaximumDelay`. Cryptographic full
+jitter selects a value from zero through the current bound to spread concurrent
+clients. `RetryJitter` is injectable for deterministic tests.
 
 `Retry-After` accepts delta seconds and HTTP dates. A valid value replaces
 local backoff but is clamped to `MaximumRetryAfter`. Malformed values fall back

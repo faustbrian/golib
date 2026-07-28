@@ -61,6 +61,50 @@ func TestRetryReplaysSafeRequestsWithDeterministicBackoff(t *testing.T) {
 	}
 }
 
+func TestRetryUsesExplicitOwnedDelaySequence(t *testing.T) {
+	t.Parallel()
+
+	clock := &retryTestClock{now: time.Unix(1_700_000_000, 0)}
+	delays := []time.Duration{250 * time.Millisecond, time.Second}
+	retry, err := NewRetryMiddleware(RetryOptions{
+		Name: "provider-retry", MaximumAttempts: 3, Delays: delays,
+		Clock: clock,
+		Jitter: RetryJitterFunc(func(delay time.Duration) time.Duration {
+			return delay
+		}),
+	})
+	if err != nil {
+		t.Fatalf("construct retry middleware: %v", err)
+	}
+	delays[0] = 10 * time.Second
+	attempts := 0
+	client, err := New(Config{
+		Middleware: []Middleware{retry},
+		Transport: TransportFunc(func(*http.Request) (*http.Response, error) {
+			attempts++
+			if attempts < 3 {
+				return nil, errors.New("temporary")
+			}
+			return &http.Response{StatusCode: http.StatusNoContent}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("construct client: %v", err)
+	}
+	defer closeTestClient(t, client)
+	request, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("execute request: %v", err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatalf("close response: %v", err)
+	}
+	if got := clock.Delays(); len(got) != 2 || got[0] != 250*time.Millisecond || got[1] != time.Second {
+		t.Fatalf("explicit delays = %v", got)
+	}
+}
+
 func TestRetryRequiresReplayableBodyAndExplicitUnsafeOptIn(t *testing.T) {
 	t.Parallel()
 
@@ -319,6 +363,9 @@ func TestRetryRejectsInvalidConfiguration(t *testing.T) {
 		{Name: "retry", MaximumAttempts: 1},
 		{Name: "retry", MaximumAttempts: maximumRetryAttempts + 1},
 		{Name: "retry", MaximumAttempts: 2, BaseDelay: -1},
+		{Name: "retry", MaximumAttempts: 2, Delays: []time.Duration{time.Second}, BaseDelay: time.Second},
+		{Name: "retry", MaximumAttempts: 3, Delays: []time.Duration{time.Second}},
+		{Name: "retry", MaximumAttempts: 2, Delays: []time.Duration{0}},
 		{Name: "retry", MaximumAttempts: 2, BaseDelay: time.Second, MaximumDelay: time.Millisecond},
 		{Name: "retry", MaximumAttempts: 2, BaseDelay: time.Second, MaximumDelay: time.Second, MaximumElapsed: -1},
 		{Name: "retry", MaximumAttempts: 2, BaseDelay: time.Second, MaximumDelay: time.Second, MaximumRetryAfter: -1},
@@ -387,6 +434,11 @@ func TestRetryPolicyAndDelayBoundaryHelpers(t *testing.T) {
 	if got := retryDelay(nil, 3, options); got != 5*time.Second {
 		t.Fatalf("bounded exponential delay = %v", got)
 	}
+	options.delays = []time.Duration{250 * time.Millisecond}
+	if got := retryDelay(nil, 1, options); got != 250*time.Millisecond {
+		t.Fatalf("invalid explicit jitter fallback = %v", got)
+	}
+	options.delays = nil
 	options.baseDelay = 10 * time.Second
 	options.maximumDelay = 5 * time.Second
 	if got := retryDelay(nil, 1, options); got != 5*time.Second {
