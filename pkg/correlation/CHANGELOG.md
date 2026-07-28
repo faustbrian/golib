@@ -5,6 +5,11 @@ versioning once released.
 
 ## Unreleased
 
+### Fixed
+
+- Return fresh correlation and request identifiers on explicitly rejected
+  malformed HTTP metadata without invoking application handlers.
+
 ### Changed
 
 - Normalized standalone module metadata against the canonical owned dependency

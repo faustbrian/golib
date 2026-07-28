@@ -1,6 +1,7 @@
 package httpcorrelation_test
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,7 +64,10 @@ func TestMiddlewareTrustsOnlyDeclaredProxyAndCreatesRequestHop(t *testing.T) {
 
 func TestMiddlewareRejectsConflictingHeadersWhenConfigured(t *testing.T) {
 	factory, _ := correlation.NewFactory(correlation.FactoryOptions{
-		Generator: &generator{values: []string{"unused"}},
+		Generator: &generator{values: []string{
+			"rejected-flow",
+			"rejected-request",
+		}},
 	})
 	middleware, err := httpcorrelation.New(factory, httpcorrelation.Options{Invalid: httpcorrelation.RejectInvalid})
 	if err != nil {
@@ -77,6 +81,39 @@ func TestMiddlewareRejectsConflictingHeadersWhenConfigured(t *testing.T) {
 	})).ServeHTTP(response, request)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d", response.Code)
+	}
+	if got := response.Header().Get(httpcorrelation.CorrelationHeader); got != "rejected-flow" {
+		t.Fatalf("correlation header = %q", got)
+	}
+	if got := response.Header().Get(httpcorrelation.RequestHeader); got != "rejected-request" {
+		t.Fatalf("request header = %q", got)
+	}
+}
+
+func TestMiddlewareRejectFailureHandlesIdentifierGenerationError(t *testing.T) {
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{
+		Generator: correlation.GeneratorFunc(func() (string, error) {
+			return "", errors.New("random source unavailable")
+		}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	middleware, err := httpcorrelation.New(
+		factory,
+		httpcorrelation.Options{Invalid: httpcorrelation.RejectInvalid},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header[httpcorrelation.CorrelationHeader] = []string{"one", "two"}
+	response := httptest.NewRecorder()
+	middleware.Wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("invalid request reached handler")
+	})).ServeHTTP(response, request)
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
 	}
 }
 

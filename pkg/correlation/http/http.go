@@ -75,6 +75,13 @@ func (middleware *Middleware) Wrap(next http.Handler) http.Handler {
 		}
 		inbound, err := middleware.codec.Extract(headerCarrier{request.Header})
 		if err != nil && middleware.options.Invalid == RejectInvalid {
+			values, generationErr := middleware.factory.Start()
+			if generationErr != nil {
+				http.Error(writer, "internal server error", http.StatusInternalServerError)
+				return
+			}
+			setHeaders(request.Header, values)
+			setHeaders(writer.Header(), values)
 			http.Error(writer, "invalid correlation metadata", http.StatusBadRequest)
 			return
 		}
