@@ -6235,6 +6235,166 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/chi",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/chi",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/cohesive",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/cohesive",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/echo",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/echo",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/fiber",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/fiber",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/gin",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/gin",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/lowlevel",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/lowlevel",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/measure",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/measure",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "cmd/plain",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/cmd/plain",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": [
+        "benchmark_disabled",
+        "benchmark_logging",
+        "benchmark_tracing"
+      ]
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "internal/measure",
+      "name": "measure",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/internal/measure",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "internal/processcore",
+      "name": "processcore",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/internal/processcore",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/service/benchmarks/platform",
+      "directory": "internal/workload",
+      "name": "workload",
+      "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform/internal/workload",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/service",
       "directory": "examples/http-api",
       "name": "main",
@@ -6251,6 +6411,18 @@
       "directory": "examples/ingester",
       "name": "main",
       "import_path": "github.com/faustbrian/golib/pkg/service/examples/ingester",
+      "kind": "example",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/service",
+      "directory": "examples/migration",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/examples/migration",
       "kind": "example",
       "production": false,
       "executable": true,
