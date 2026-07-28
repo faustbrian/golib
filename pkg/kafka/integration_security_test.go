@@ -488,6 +488,115 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 	)
 }
 
+func TestApacheKafkaReplayCompactionGapCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaMutualTLS)
+	broker.assertRuntimeVersions(t, ctx)
+	topic := fmt.Sprintf("golib-replay-compaction-%d", time.Now().UnixNano())
+	createSecureKafkaTopicWithConfigs(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.staticMutualTLSConfig(),
+		nil,
+		topic,
+		map[string]*string{
+			"cleanup.policy":            kadm.StringPtr("compact"),
+			"segment.bytes":             kadm.StringPtr("1048576"),
+			"segment.ms":                kadm.StringPtr("100"),
+			"min.cleanable.dirty.ratio": kadm.StringPtr("0.01"),
+			"min.compaction.lag.ms":     kadm.StringPtr("0"),
+			"max.compaction.lag.ms":     kadm.StringPtr("1000"),
+		},
+	)
+
+	security := kafka.ClientSecurity{
+		TLS: broker.serverTLSConfig(),
+		ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
+			context.Context,
+			kafka.ClientCertificateRequest,
+		) (tls.Certificate, error) {
+			return broker.pki.clientIdentity, nil
+		}),
+		CredentialTimeout: time.Second,
+	}
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:                []string{broker.endpoint},
+		ClientID:               "golib-replay-compaction-producer",
+		AllowedTopics:          []string{topic},
+		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionNone},
+		Security:               security,
+	})
+	if err != nil {
+		t.Fatalf("construct compacted replay producer: %v", err)
+	}
+	for index := range 8 {
+		key := fmt.Sprintf("unique-%d", index)
+		if index == 0 || index == 2 {
+			key = "replaced-key"
+		}
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte(key),
+			Value: []byte(strings.Repeat(fmt.Sprintf("%d", index), 600<<10)),
+		})
+		if result.Err != nil || result.Partition != 0 || result.Offset != int64(index) {
+			_ = producer.Close()
+			t.Fatalf("publish compacted replay record %d: %#v", index, result)
+		}
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close compacted replay producer: %v", err)
+	}
+
+	firstRetained := waitForSecureKafkaCompaction(
+		t,
+		ctx,
+		broker,
+		topic,
+		0,
+	)
+	if firstRetained != 1 {
+		t.Fatalf("first retained compacted offset = %d, want 1", firstRetained)
+	}
+
+	reader, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  []string{broker.endpoint},
+		ClientID: "golib-replay-compaction-reader",
+		Ranges: []kafka.ReplayRange{{
+			Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 1,
+		}},
+		SideEffects:     kafka.ReplaySideEffectsAllowed,
+		FetchMaxWait:    100 * time.Millisecond,
+		ProgressTimeout: 5 * time.Second,
+		Security:        security,
+	})
+	if err != nil {
+		t.Fatalf("construct compacted replay reader: %v", err)
+	}
+	result, replayErr := reader.Replay(ctx, kafka.ReplayHandlerFunc(func(
+		context.Context,
+		kafka.ReplayRecord,
+	) error {
+		t.Fatal("compacted replay invoked handler")
+
+		return nil
+	}))
+	if closeErr := reader.Close(); closeErr != nil {
+		t.Fatalf("close compacted replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, kafka.ErrReplayOffsetGap) ||
+		result.Processed != 0 ||
+		result.Failed != 1 ||
+		result.IncompleteRanges != 1 ||
+		len(result.Ranges) != 1 ||
+		result.Ranges[0].NextOffset != 0 {
+		t.Fatalf("compacted replay result/error = %#v/%v", result, replayErr)
+	}
+}
+
 func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -821,6 +930,7 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"share.coordinator.state.topic.replication.factor=1\n"+
 			"share.coordinator.state.topic.min.isr=1\n"+
 			"group.initial.rebalance.delay.ms=0\n"+
+			"log.cleaner.backoff.ms=100\n"+
 			"auto.create.topics.enable=false\n"+
 			"config.providers=file\n"+
 			"config.providers.file.class="+
@@ -1294,6 +1404,27 @@ func createSecureKafkaTopic(
 	topic string,
 ) {
 	t.Helper()
+	createSecureKafkaTopicWithConfigs(
+		t,
+		ctx,
+		broker,
+		tlsConfig,
+		mechanism,
+		topic,
+		nil,
+	)
+}
+
+func createSecureKafkaTopicWithConfigs(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	tlsConfig *tls.Config,
+	mechanism sasl.Mechanism,
+	topic string,
+	configs map[string]*string,
+) {
+	t.Helper()
 
 	options := []kgo.Opt{
 		kgo.SeedBrokers(broker),
@@ -1308,7 +1439,7 @@ func createSecureKafkaTopic(
 		t.Fatalf("construct secured Kafka administrator: %v", err)
 	}
 	defer client.Close()
-	responses, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, nil, topic)
+	responses, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, configs, topic)
 	if err != nil {
 		t.Fatalf("create secured Kafka topic: %v", err)
 	}
@@ -1318,6 +1449,64 @@ func createSecureKafkaTopic(
 	}
 	if response.Err != nil {
 		t.Fatalf("create secured Kafka topic %q: %v", topic, response.Err)
+	}
+}
+
+func waitForSecureKafkaCompaction(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	topic string,
+	missingOffset int64,
+) int64 {
+	t.Helper()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		client, err := kgo.NewClient(
+			kgo.SeedBrokers(broker.endpoint),
+			kgo.ClientID("golib-secure-compaction-observer"),
+			kgo.DialTLSConfig(broker.staticMutualTLSConfig()),
+			kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
+				topic: {0: kgo.NewOffset().At(missingOffset)},
+			}),
+			kgo.FetchMaxWait(100*time.Millisecond),
+		)
+		if err != nil {
+			t.Fatalf("construct secured Kafka compaction observer: %v", err)
+		}
+		pollCtx, cancelPoll := context.WithTimeout(waitCtx, time.Second)
+		fetches := client.PollRecords(pollCtx, 100)
+		cancelPoll()
+		starts, startErr := kadm.NewClient(client).ListStartOffsets(waitCtx, topic)
+		client.Close()
+		if fetchErr := fetches.Err(); fetchErr != nil {
+			t.Fatalf("fetch secured Kafka compacted offsets: %v", fetchErr)
+		}
+		start, exists := starts.Lookup(topic, 0)
+		if startErr != nil || !exists || start.Err != nil {
+			t.Fatalf("list compacted topic start offset: %#v/%v", start, startErr)
+		}
+		if start.Offset != missingOffset {
+			t.Fatalf(
+				"compacted topic start offset = %d, want %d",
+				start.Offset,
+				missingOffset,
+			)
+		}
+		records := fetches.Records()
+		if len(records) > 0 && records[0].Offset > missingOffset {
+			return records[0].Offset
+		}
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf("wait for secured Kafka compaction: %v", context.Cause(waitCtx))
+		case <-ticker.C:
+		}
 	}
 }
 

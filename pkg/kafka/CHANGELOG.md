@@ -89,6 +89,9 @@ All notable changes to this module are documented here.
   post-shutdown fencing
 - real-broker replay evidence for cancellation after handler admission and
   fail-closed rejection after Kafka advances a partition log-start offset
+- pinned Apache Kafka 4.3.1 compaction evidence proving replay fails closed as
+  `ErrReplayOffsetGap` without handler admission or checkpoint advancement when
+  the requested offset is removed while the broker log start remains unchanged
 - replay execution now accepts `ReplayHandler` instead of the consumer-group
   `Handler` and supplies each `ReplayRecord` with its complete requested range
   and checkpoint-derived effective start; callers must migrate

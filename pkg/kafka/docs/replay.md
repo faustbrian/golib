@@ -131,6 +131,14 @@ range before polling or invoking a handler. It also cancels a real
 broker-delivered handler and proves that the current offset remains unsettled
 and resumable.
 
+A separate pinned Apache Kafka 4.3.1 fixture creates a compact-only topic,
+keeps its broker-reported log start at offset 0, and observably waits until the
+cleaner removes offset 0 after a later record replaces its key. Replaying the
+still-in-bounds range `[0,1)` returns `ErrReplayOffsetGap`, reports no processed
+records, preserves next offset 0 as incomplete, and never invokes the handler.
+This proves the gap category against compaction without inferring the deletion
+cause from a fetch response.
+
 Already-buffered offsets before an explicit resume position are counted as
 skipped. Records beyond a completed end can also be observed from the final
 bounded fetch and are counted as skipped; the partition is then paused while
