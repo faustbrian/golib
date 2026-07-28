@@ -86,8 +86,9 @@ returns `ErrClientResponseTooLarge`. Change this with
 allocating and returning the response bytes.
 
 Direct `Dispatcher` use has its own four-MiB payload limit and a default limit
-of 1,024 batch members. Configure these with `WithMaxDispatchBytes` and
-`WithMaxBatchItems`. A violation returns the implementation-defined `-32000`
+of 1,024 batch members and 10,000 nested JSON arrays or objects. Configure
+these with `WithMaxDispatchBytes`, `WithMaxBatchItems`, and
+`WithMaxNestingDepth`. A violation returns the implementation-defined `-32000`
 `Request limit exceeded` response with a null ID before any member executes.
 If `WithMaxRequestBytes` raises the HTTP limit, raise the dispatcher byte limit
 separately when the larger payload is intentional.

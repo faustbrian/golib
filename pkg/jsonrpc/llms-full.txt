@@ -384,7 +384,8 @@ exported as `CodeRequestLimitExceeded`, `CodeParseError`, `CodeInvalidRequest`,
 - `Dispatcher` is created with `NewDispatcher`. `Dispatch` processes a single
   request or batch and returns bytes plus a boolean indicating whether a reply
   exists. Direct payloads default to four MiB and batches to 1,024 members;
-  `WithMaxDispatchBytes` and `WithMaxBatchItems` can raise or lower the bounds.
+  `WithMaxDispatchBytes`, `WithMaxBatchItems`, and `WithMaxNestingDepth` can
+  raise or lower the byte, batch-member, and JSON nesting bounds.
 - `Middleware` wraps a `Handler`. `WithMiddleware` installs middleware in the
   listed order, with the first item outermost.
 - `ErrorMapper` converts ordinary application errors to safe RPC errors.
@@ -841,8 +842,9 @@ returns `ErrClientResponseTooLarge`. Change this with
 allocating and returning the response bytes.
 
 Direct `Dispatcher` use has its own four-MiB payload limit and a default limit
-of 1,024 batch members. Configure these with `WithMaxDispatchBytes` and
-`WithMaxBatchItems`. A violation returns the implementation-defined `-32000`
+of 1,024 batch members and 10,000 nested JSON arrays or objects. Configure
+these with `WithMaxDispatchBytes`, `WithMaxBatchItems`, and
+`WithMaxNestingDepth`. A violation returns the implementation-defined `-32000`
 `Request limit exceeded` response with a null ID before any member executes.
 If `WithMaxRequestBytes` raises the HTTP limit, raise the dispatcher byte limit
 separately when the larger payload is intentional.
@@ -1417,6 +1419,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- A configurable dispatcher JSON nesting-depth limit that rejects excessive
+  arrays and objects before protocol decoding or handler execution.
 - `Registry.RegisterSystem` for trusted protocol integrations such as
   OpenRPC's reserved `rpc.discover` method.
 - A standardized OSS repository skeleton covering policy, documentation,

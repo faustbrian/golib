@@ -44,10 +44,13 @@ func FuzzDispatcher(f *testing.F) {
 	f.Add([]byte(`{"jsonrpc":"2.0","method":"deep","params":` + strings.Repeat("[", 128) + `0` + strings.Repeat("]", 128) + `}`))
 	f.Add(notificationBatch(128))
 	dispatcher := NewDispatcher(NewRegistry())
+	depthLimited := NewDispatcher(NewRegistry(), WithMaxNestingDepth(32))
 	f.Fuzz(func(t *testing.T, payload []byte) {
-		response, ok := dispatcher.Dispatch(context.Background(), payload)
-		if ok && !json.Valid(response) {
-			t.Fatalf("Dispatch() returned invalid JSON: %q", response)
+		for _, candidate := range []*Dispatcher{dispatcher, depthLimited} {
+			response, ok := candidate.Dispatch(context.Background(), payload)
+			if ok && !json.Valid(response) {
+				t.Fatalf("Dispatch() returned invalid JSON: %q", response)
+			}
 		}
 	})
 }

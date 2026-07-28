@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- A configurable dispatcher JSON nesting-depth limit that rejects excessive
+  arrays and objects before protocol decoding or handler execution.
 - `Registry.RegisterSystem` for trusted protocol integrations such as
   OpenRPC's reserved `rpc.discover` method.
 - A standardized OSS repository skeleton covering policy, documentation,

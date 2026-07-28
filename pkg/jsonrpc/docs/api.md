@@ -55,7 +55,8 @@ exported as `CodeRequestLimitExceeded`, `CodeParseError`, `CodeInvalidRequest`,
 - `Dispatcher` is created with `NewDispatcher`. `Dispatch` processes a single
   request or batch and returns bytes plus a boolean indicating whether a reply
   exists. Direct payloads default to four MiB and batches to 1,024 members;
-  `WithMaxDispatchBytes` and `WithMaxBatchItems` can raise or lower the bounds.
+  `WithMaxDispatchBytes`, `WithMaxBatchItems`, and `WithMaxNestingDepth` can
+  raise or lower the byte, batch-member, and JSON nesting bounds.
 - `Middleware` wraps a `Handler`. `WithMiddleware` installs middleware in the
   listed order, with the first item outermost.
 - `ErrorMapper` converts ordinary application errors to safe RPC errors.

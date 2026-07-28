@@ -307,6 +307,20 @@ func TestDispatcherRejectsResourceLimitViolationsBeforeDispatch(t *testing.T) {
 	assertJSONEqual(t, response, []byte(`[{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":1}]`))
 	response, _ = batchLimited.Dispatch(context.Background(), []byte(`[{"jsonrpc":"2.0","method":"missing","id":1},{"jsonrpc":"2.0","method":"missing","id":2}]`))
 	assertJSONEqual(t, response, []byte(`{"jsonrpc":"2.0","error":{"code":-32000,"message":"Request limit exceeded"},"id":null}`))
+
+	depthLimited := NewDispatcher(nil, WithMaxNestingDepth(3), WithMaxNestingDepth(0))
+	response, _ = depthLimited.Dispatch(context.Background(), []byte(`{"jsonrpc":"2.0","method":"missing","params":[[[]]],"id":1}`))
+	assertJSONEqual(t, response, []byte(`{"jsonrpc":"2.0","error":{"code":-32000,"message":"Request limit exceeded"},"id":null}`))
+	response, _ = depthLimited.Dispatch(context.Background(), []byte(`{"jsonrpc":"2.0","method":"missing","params":[],"id":1}`))
+	assertJSONEqual(t, response, []byte(`{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":1}`))
+}
+
+func TestNestingDepthIgnoresEscapedStringDelimiters(t *testing.T) {
+	t.Parallel()
+
+	if exceedsNestingDepth([]byte(`{"value":"[\\\"]"}`), 1) {
+		t.Fatal("escaped string delimiters counted as nesting")
+	}
 }
 
 func TestDispatcherErrorMappingPanicRecoveryAndMiddleware(t *testing.T) {

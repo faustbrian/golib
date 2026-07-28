@@ -26,6 +26,7 @@ var (
 const (
 	defaultMaxDispatchBytes int64 = 4 << 20
 	defaultMaxBatchItems          = 1024
+	defaultMaxNestingDepth        = 10_000
 )
 
 // Handler implements one JSON-RPC method.
@@ -151,6 +152,17 @@ func WithMaxBatchItems(limit int) DispatcherOption {
 	}
 }
 
+// WithMaxNestingDepth changes the maximum number of nested JSON arrays and
+// objects accepted before dispatch. The default matches encoding/json's
+// built-in maximum depth of 10,000.
+func WithMaxNestingDepth(limit int) DispatcherOption {
+	return func(dispatcher *Dispatcher) {
+		if limit > 0 {
+			dispatcher.maxNestingDepth = limit
+		}
+	}
+}
+
 // Dispatcher validates and executes JSON-RPC requests and batches. Its
 // configuration is immutable after construction; its Registry may be updated
 // concurrently.
@@ -161,6 +173,7 @@ type Dispatcher struct {
 	hooks            Hooks
 	maxDispatchBytes int64
 	maxBatchItems    int
+	maxNestingDepth  int
 }
 
 // NewDispatcher constructs a bounded dispatcher. A nil registry is replaced
@@ -173,6 +186,7 @@ func NewDispatcher(registry *Registry, options ...DispatcherOption) *Dispatcher 
 		registry:         registry,
 		maxDispatchBytes: defaultMaxDispatchBytes,
 		maxBatchItems:    defaultMaxBatchItems,
+		maxNestingDepth:  defaultMaxNestingDepth,
 		errorMapper: func(err error) *Error {
 			return InternalError().WithCause(err)
 		},
@@ -197,7 +211,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, payload []byte) ([]byte, bool
 		return d.failure(ctx, RequestLimitExceeded())
 	}
 	trimmed := bytes.TrimSpace(payload)
-	if len(trimmed) == 0 || !utf8.Valid(trimmed) || !json.Valid(trimmed) {
+	if len(trimmed) == 0 || !utf8.Valid(trimmed) {
+		return d.failure(ctx, ParseError())
+	}
+	if exceedsNestingDepth(trimmed, d.maxNestingDepth) {
+		return d.failure(ctx, RequestLimitExceeded())
+	}
+	if !json.Valid(trimmed) {
 		return d.failure(ctx, ParseError())
 	}
 	if trimmed[0] == '[' {
@@ -214,6 +234,40 @@ func (d *Dispatcher) Dispatch(ctx context.Context, payload []byte) ([]byte, bool
 		return nil, false
 	}
 	return marshalResponse(response), true
+}
+
+func exceedsNestingDepth(payload []byte, limit int) bool {
+	depth := 0
+	inString := false
+	escaped := false
+	for _, character := range payload {
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case character == '\\':
+				escaped = true
+			case character == '"':
+				inString = false
+			}
+			continue
+		}
+		if character == '"' {
+			inString = true
+			continue
+		}
+		if character == '{' || character == '[' {
+			depth++
+			if depth > limit {
+				return true
+			}
+			continue
+		}
+		if character == '}' || character == ']' {
+			depth--
+		}
+	}
+	return false
 }
 
 func batchExceedsLimit(payload []byte, limit int) bool {
