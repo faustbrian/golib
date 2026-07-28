@@ -20,6 +20,8 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Configurable overlap-lease heartbeat intervals with construction-time TTL
+  safety validation.
 - `schedulerservice` lifecycle composition that stops scheduling, drains active
   executions before owned facilities close, and applies the existing schedule
   correlation semantics to every occurrence.

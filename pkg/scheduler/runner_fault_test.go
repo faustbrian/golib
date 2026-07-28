@@ -317,6 +317,46 @@ func TestRunnerRenewsTaskLeaseDuringExecution(t *testing.T) {
 	}
 }
 
+func TestRunnerUsesConfiguredTaskLeaseHeartbeatInterval(t *testing.T) {
+	t.Parallel()
+
+	schedule := faultSchedule(
+		t,
+		scheduler.WithoutOverlap(scheduler.OverlapSkip, time.Second),
+		scheduler.WithRunTimeout(time.Second),
+	)
+	registry, _ := scheduler.Compile(schedule)
+	heartbeatDone := make(chan struct{})
+	acquiredAt := time.Now()
+	store := &scriptedLeases{
+		acquireLeases: []lease.Lease{{
+			Key: "task:" + schedule.CoordinationID, Owner: "owner", FencingToken: 7,
+			AcquiredAt: acquiredAt, ExpiresAt: acquiredAt.Add(time.Second),
+		}},
+		heartbeatDone: heartbeatDone,
+	}
+	runner, err := scheduler.NewRunner(
+		registry,
+		store,
+		executorFunc(func(context.Context, scheduler.Context) error {
+			<-heartbeatDone
+			return nil
+		}),
+		scheduler.WithOwner("owner"),
+		scheduler.WithHeartbeatInterval(10*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	after, through := tickRange()
+	if err := runner.Tick(context.Background(), after, through); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	if store.heartbeats != 1 {
+		t.Fatalf("Heartbeat() calls = %d, want 1", store.heartbeats)
+	}
+}
+
 func TestRunnerOverlapReplacementPaths(t *testing.T) {
 	t.Parallel()
 
@@ -384,6 +424,23 @@ func TestRunnerRejectsOverlapStoreWithoutHeartbeat(t *testing.T) {
 	}
 }
 
+func TestRunnerRejectsHeartbeatIntervalAtOrBeyondLeaseTTL(t *testing.T) {
+	t.Parallel()
+
+	schedule := faultSchedule(t, scheduler.WithoutOverlap(scheduler.OverlapSkip, time.Minute))
+	registry, _ := scheduler.Compile(schedule)
+	_, err := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(context.Context, scheduler.Context) error { return nil }),
+		scheduler.WithOwner("owner"),
+		scheduler.WithHeartbeatInterval(time.Minute),
+	)
+	if !errors.Is(err, scheduler.ErrInvalidRunner) {
+		t.Fatalf("NewRunner() error = %v, want ErrInvalidRunner", err)
+	}
+}
+
 func TestRunnerOptionsEmptyLoopAndInvalidTick(t *testing.T) {
 	t.Parallel()
 
@@ -403,6 +460,9 @@ func TestRunnerOptionsEmptyLoopAndInvalidTick(t *testing.T) {
 	}
 	if _, err := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"), scheduler.WithLeaseOperationTimeout(0)); !errors.Is(err, scheduler.ErrInvalidRunner) {
 		t.Fatalf("NewRunner(lease timeout) error = %v", err)
+	}
+	if _, err := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"), scheduler.WithHeartbeatInterval(0)); !errors.Is(err, scheduler.ErrInvalidRunner) {
+		t.Fatalf("NewRunner(heartbeat interval) error = %v", err)
 	}
 	if _, err := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"), scheduler.WithCallbackTimeout(0)); !errors.Is(err, scheduler.ErrInvalidRunner) {
 		t.Fatalf("NewRunner(callback timeout) error = %v", err)

@@ -356,6 +356,9 @@ func WithClock(clock Clock) RunnerOption
 func WithEnvironment(environment string) RunnerOption
     WithEnvironment selects schedules allowed in an application environment.
 
+func WithHeartbeatInterval(interval time.Duration) RunnerOption
+    WithHeartbeatInterval sets the renewal cadence for active task leases.
+
 func WithLeaseOperationTimeout(timeout time.Duration) RunnerOption
     WithLeaseOperationTimeout bounds individual lease backend operations.
 

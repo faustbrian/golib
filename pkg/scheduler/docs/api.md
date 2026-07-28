@@ -71,7 +71,9 @@ schema use `postgres.NewWithSchema` and `postgres.SchemaMigrationFor`; the
 schema must already exist and its lower-case identifier is validated before
 SQL is generated or a store is constructed.
 
-Overlap leases are renewed every third of their TTL while execution is active.
+Overlap leases are renewed every third of their TTL by default while execution
+is active. `WithHeartbeatInterval` selects an explicit positive cadence and
+runner construction rejects an interval at or beyond any overlap lease TTL.
 The runner rejects overlap schedules when the store does not advertise
 heartbeat support. A heartbeat failure cancels the execution context and is
 reported as an execution failure.

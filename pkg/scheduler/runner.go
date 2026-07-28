@@ -153,20 +153,21 @@ type RunnerOption func(*Runner) error
 
 // Runner calculates due occurrences and coordinates their fenced execution.
 type Runner struct {
-	registry        *Registry
-	leases          lease.Store
-	executor        Executor
-	owner           string
-	environment     string
-	maintenance     bool
-	observers       []Observer
-	clock           Clock
-	maxExecutions   int
-	executionSlots  chan struct{}
-	leaseTimeout    time.Duration
-	callbackTimeout time.Duration
-	maxCallbacks    int
-	callbackSlots   chan struct{}
+	registry          *Registry
+	leases            lease.Store
+	executor          Executor
+	owner             string
+	environment       string
+	maintenance       bool
+	observers         []Observer
+	clock             Clock
+	maxExecutions     int
+	executionSlots    chan struct{}
+	leaseTimeout      time.Duration
+	callbackTimeout   time.Duration
+	maxCallbacks      int
+	callbackSlots     chan struct{}
+	heartbeatInterval time.Duration
 
 	stateMu    sync.Mutex
 	draining   bool
@@ -227,6 +228,13 @@ func NewRunner(registry *Registry, leases lease.Store, executor Executor, option
 		if schedule.WithoutOverlapping && !capabilities.Heartbeat {
 			return nil, fmt.Errorf("%w: schedule %q", ErrUnsupportedHeartbeat, name)
 		}
+		if schedule.WithoutOverlapping && runner.heartbeatInterval >= schedule.LeaseTTL {
+			return nil, fmt.Errorf(
+				"%w: schedule %q heartbeat interval must be shorter than its lease TTL",
+				ErrInvalidRunner,
+				name,
+			)
+		}
 		if schedule.OverlapPolicy == OverlapReplace && !replacementSupported {
 			return nil, fmt.Errorf("%w: schedule %q", ErrUnsupportedOverlap, name)
 		}
@@ -263,6 +271,17 @@ func WithLeaseOperationTimeout(timeout time.Duration) RunnerOption {
 			return fmt.Errorf("%w: lease timeout must be positive", ErrInvalidRunner)
 		}
 		runner.leaseTimeout = timeout
+		return nil
+	}
+}
+
+// WithHeartbeatInterval sets the renewal cadence for active task leases.
+func WithHeartbeatInterval(interval time.Duration) RunnerOption {
+	return func(runner *Runner) error {
+		if interval <= 0 {
+			return fmt.Errorf("%w: heartbeat interval must be positive", ErrInvalidRunner)
+		}
+		runner.heartbeatInterval = interval
 		return nil
 	}
 }
@@ -613,7 +632,10 @@ func (runner *Runner) heartbeatTaskLease(
 	monitor *heartbeatMonitor,
 ) {
 	defer close(monitor.done)
-	interval := max(ttl/3, time.Nanosecond)
+	interval := runner.heartbeatInterval
+	if interval == 0 {
+		interval = max(ttl/3, time.Nanosecond)
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	started := time.Now()
