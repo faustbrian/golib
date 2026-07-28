@@ -12,6 +12,8 @@ and Semantic Versioning.
 
 ### Changed
 
+- Upgrade gRPC to 1.82.1 to remove the `GO-2026-6061` vulnerabilities and
+  align the isolated module graph.
 - Refresh owned-module checksums against the final consolidated archives.
 - Normalized standalone module metadata against the canonical owned dependency
   graph, including complete checksums for clean consumer resolution.

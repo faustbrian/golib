@@ -7,6 +7,8 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Upgrade gRPC to 1.82.1 to remove the reachable `GO-2026-6061`
+  vulnerabilities.
 - Pin unpublished owned modules to exact resolvable `main` revisions so clean
   scheduler consumers no longer require nonexistent `v0.1.0` tags.
 - Refresh owned-module checksums against the final consolidated archives.
