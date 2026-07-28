@@ -33,7 +33,7 @@ github.com/faustbrian/golib/pkg/openapi v0.0.0 h1:iEapq+XLUsECR9T09kK+/J9/PRWUED
 github.com/faustbrian/golib/pkg/openapi v0.0.0/go.mod h1:YUD9k9dQ+suU0nXl61vzE3R1WonohE4bcv1wG1TmtA4=
 github.com/faustbrian/golib/pkg/router v0.0.0 h1:bL6Xz3+fFOnGEhrkGqmVMhwS+1qLPW0o1vwWgUD65Yo=
 github.com/faustbrian/golib/pkg/router v0.0.0/go.mod h1:8GMr8KoMNIgZ7IJ440vqA9W2X7L+/mGPKyaFd2aPXlg=
-github.com/faustbrian/golib/pkg/service v0.0.0 h1:2BtBm7m1RMNe2O1BSjU5HQLhkGeo/zOLsdPsAsXqU8Y=
+github.com/faustbrian/golib/pkg/service v0.0.0 h1:0Nq49swK1a5f3wwEFjHw2gdsI6reD9aWZOL1peykDJ4=
 github.com/faustbrian/golib/pkg/service v0.0.0/go.mod h1:81lRr4BzZUe4NjcpPtzgbuU3YKVmtVUTk0IllDvBR60=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=

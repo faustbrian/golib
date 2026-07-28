@@ -8,7 +8,7 @@ github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6N
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/faustbrian/golib/pkg/cli v0.0.0 h1:PnV9xoc0J7+Wg9tmlpl82EKyVSdMK5QY7dH9b321WtM=
+github.com/faustbrian/golib/pkg/cli v0.0.0 h1:anzJU1YYnzfmsWYyjSiytxQ22nbva+zeDFWVptRipl0=
 github.com/faustbrian/golib/pkg/cli v0.0.0/go.mod h1:1Q6/mhVCj3RKhMNbRaIkvtup6WNwCLvvDmpdIvb9xNA=
 github.com/faustbrian/golib/pkg/clock v0.0.0 h1:LxXCj/gJyWJY7kmmXVpNMPb/A/W5VXeRTwaRNAL1JFQ=
 github.com/faustbrian/golib/pkg/clock v0.0.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
@@ -20,7 +20,7 @@ github.com/faustbrian/golib/pkg/identifier v0.0.0 h1:MmNPl/G3R0CL+eveT1ecmbwPyyn
 github.com/faustbrian/golib/pkg/identifier v0.0.0/go.mod h1:MgEu9PtjFwf/1X5txqpBtgtCxcFOoggzoW0qqN6uqAM=
 github.com/faustbrian/golib/pkg/queue v0.0.0 h1:rVPrFdgcMUYSu5G3CXkpRUaRrnQcGDuy945Z5dA7y2k=
 github.com/faustbrian/golib/pkg/queue v0.0.0/go.mod h1:+xzoeH1hLgOTmmsv+41EqZyOFSnq/mxthAlUmLfd/zA=
-github.com/faustbrian/golib/pkg/service v0.0.0 h1:ol4UYMZ+uE/QyLcDt12/XLTDxUJiLrLUBa1S0yckHMM=
+github.com/faustbrian/golib/pkg/service v0.0.0 h1:0Nq49swK1a5f3wwEFjHw2gdsI6reD9aWZOL1peykDJ4=
 github.com/faustbrian/golib/pkg/service v0.0.0/go.mod h1:81lRr4BzZUe4NjcpPtzgbuU3YKVmtVUTk0IllDvBR60=
 github.com/faustbrian/golib/pkg/telemetry v0.0.0 h1:hjEM1+bIzBNTq/6AmcvHpwbRz0KaV013G5fqcdGGdnk=
 github.com/faustbrian/golib/pkg/telemetry v0.0.0/go.mod h1:AIY+tySvDDHrY82UL/T4MIUWyQYCE2glPV9nHYEQ5Dg=
