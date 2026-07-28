@@ -3942,6 +3942,18 @@
     },
     {
       "module_directory": "pkg/migrations",
+      "directory": "migrationsservice",
+      "name": "migrationsservice",
+      "import_path": "github.com/faustbrian/golib/pkg/migrations/migrationsservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/migrations",
       "directory": "postgres",
       "name": "postgres",
       "import_path": "github.com/faustbrian/golib/pkg/migrations/postgres",
