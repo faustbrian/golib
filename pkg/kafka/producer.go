@@ -61,6 +61,7 @@ var (
 	ErrBatchDeliveryFailed   = errors.New("kafka: one or more batch records failed delivery")
 	ErrContextRequired       = errors.New("kafka: context is required")
 	ErrProducerClosed        = errors.New("kafka: producer is closed")
+	ErrProducerFatal         = errors.New("kafka: producer entered a fatal state")
 	ErrProducerBusy          = errors.New("kafka: producer has in-flight operations")
 	ErrTransactionInProgress = errors.New("kafka: producer transaction is in progress")
 	ErrDrainIncomplete       = errors.New("kafka: producer drain is incomplete")
@@ -321,6 +322,8 @@ type Producer struct {
 	admissionsDone        chan struct{}
 	closeOnce             sync.Once
 	observers             observerDispatcher
+	cancelClient          context.CancelFunc
+	fatalErr              error
 }
 
 // NewProducer constructs a producer without dialing brokers. Connectivity is
@@ -338,7 +341,9 @@ func newProducer(
 		return nil, err
 	}
 
+	clientCtx, cancelClient := context.WithCancel(context.Background())
 	options := []kgo.Opt{
+		kgo.WithContext(clientCtx),
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
 		kgo.RecordPartitioner(newPolicyPartitioner(
@@ -391,6 +396,7 @@ func newProducer(
 		shutdownTimeout:       config.ShutdownTimeout,
 		allowedTopics:         allowedTopics,
 		observers:             dispatcher,
+		cancelClient:          cancelClient,
 	}
 	if dispatcher.enabled() {
 		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
@@ -401,6 +407,8 @@ func newProducer(
 
 	client, err := factory(options...)
 	if err != nil {
+		cancelClient()
+
 		return nil, err
 	}
 	producer.client = client
@@ -772,7 +780,86 @@ func (producer *Producer) observeProducerRecord(
 }
 
 func (producer *Producer) publish(ctx context.Context, message Message) error {
-	return producer.publishRecord(ctx, message).Err
+	result, expired := producer.publishTransactionalRecord(ctx, message)
+	if expired {
+		fatalErr := errors.Join(ErrProducerFatal, result.Err)
+		producer.terminate(fatalErr)
+
+		return fatalErr
+	}
+	if fatalErr := producer.fatalError(); fatalErr != nil {
+		return errors.Join(result.Err, fatalErr)
+	}
+
+	return result.Err
+}
+
+func (producer *Producer) publishTransactionalRecord(
+	ctx context.Context,
+	record ProducerRecord,
+) (DeliveryResult, bool) {
+	result := DeliveryResult{Topic: record.Topic}
+	if err := producer.validateRecord(record); err != nil {
+		result.Err = err
+
+		return result, false
+	}
+	if err := ctx.Err(); err != nil {
+		result.Err = newDeliveryError(errors.Join(err, context.Cause(ctx)))
+
+		return result, false
+	}
+	deliveries, cause := transactionalProduceSync(
+		ctx,
+		producer.deliveryWaitTimeout,
+		producer.interruptClient,
+		producer.client,
+		franzRecord(record.owned()),
+	)
+	if cause != nil {
+		result.Err = newDeliveryError(cause)
+
+		return result, true
+	}
+	if len(deliveries) != 1 || deliveries[0].Record == nil {
+		result.Err = newDeliveryError(ErrDeliveryResultMissing)
+
+		return result, false
+	}
+
+	return deliveryResult(deliveries[0]), false
+}
+
+type synchronousRecordProducer interface {
+	ProduceSync(context.Context, ...*kgo.Record) kgo.ProduceResults
+}
+
+func transactionalProduceSync(
+	ctx context.Context,
+	waitTimeout time.Duration,
+	interruptClient func(),
+	client synchronousRecordProducer,
+	record *kgo.Record,
+) (kgo.ProduceResults, error) {
+	deliveryCtx := ctx
+	cancelDelivery := func() {}
+	if waitTimeout > 0 {
+		deliveryCtx, cancelDelivery = context.WithTimeout(ctx, waitTimeout)
+	}
+	onCancellation := interruptClient
+	if onCancellation == nil {
+		onCancellation = func() {}
+	}
+	stopCancellation := context.AfterFunc(deliveryCtx, onCancellation)
+	deliveries := client.ProduceSync(deliveryCtx, record)
+	expired := !stopCancellation()
+	cause := errors.Join(deliveryCtx.Err(), context.Cause(deliveryCtx))
+	cancelDelivery()
+	if expired && cause != nil {
+		return deliveries, cause
+	}
+
+	return deliveries, nil
 }
 
 func (producer *Producer) publishRecord(
@@ -780,18 +867,8 @@ func (producer *Producer) publishRecord(
 	record ProducerRecord,
 ) DeliveryResult {
 	result := DeliveryResult{Topic: record.Topic}
-	if err := record.validate(producer.limits); err != nil {
+	if err := producer.validateRecord(record); err != nil {
 		result.Err = err
-
-		return result
-	}
-	if !producer.topicAllowed(record.Topic) {
-		result.Err = ErrTopicNotAllowed
-
-		return result
-	}
-	if producer.keyRequired && len(record.Key) == 0 {
-		result.Err = ErrKeyRequired
 
 		return result
 	}
@@ -807,6 +884,20 @@ func (producer *Producer) publishRecord(
 		return result
 	}
 	return deliveryResult(deliveries[0])
+}
+
+func (producer *Producer) validateRecord(record ProducerRecord) error {
+	if err := record.validate(producer.limits); err != nil {
+		return err
+	}
+	if !producer.topicAllowed(record.Topic) {
+		return ErrTopicNotAllowed
+	}
+	if producer.keyRequired && len(record.Key) == 0 {
+		return ErrKeyRequired
+	}
+
+	return nil
 }
 
 // PublishBatch validates and owns an entire bounded batch before producing any
@@ -1283,6 +1374,9 @@ func (producer *Producer) Shutdown(ctx context.Context) (resultErr error) {
 
 		return err
 	}
+	if producer.cancelClient != nil {
+		producer.cancelClient()
+	}
 	producer.closeOnce.Do(producer.client.Close)
 	producer.finishMaintenance(true)
 
@@ -1315,6 +1409,9 @@ type Transaction struct {
 }
 
 // Publish synchronously publishes one message inside the active transaction.
+// If its context or the configured delivery bound expires after admission,
+// the outcome is ambiguous and the owning producer enters ErrProducerFatal;
+// callers must close and replace it rather than retrying on the same client.
 func (transaction Transaction) Publish(ctx context.Context, message Message) error {
 	if transaction.session == nil {
 		return ErrTransactionClosed
@@ -1325,7 +1422,9 @@ func (transaction Transaction) Publish(ctx context.Context, message Message) err
 
 // RunTransaction serializes one producer transaction. The transaction is
 // committed only when callback returns nil; callback failure or panic triggers
-// a bounded abort whose completion ignores caller cancellation.
+// a bounded abort whose completion ignores caller cancellation. An ambiguous
+// transactional publish deadline closes and permanently fences the producer,
+// so RunTransaction returns without attempting commit or abort on that client.
 func (producer *Producer) RunTransaction(
 	ctx context.Context,
 	callback func(Transaction) error,
@@ -1355,6 +1454,9 @@ func (producer *Producer) RunTransaction(
 	session := &transactionSession{publisher: producer}
 	callbackErr := callTransaction(callback, Transaction{session: session})
 	session.closeAndWait()
+	if fatalErr := producer.fatalError(); fatalErr != nil {
+		return errors.Join(callbackErr, fatalErr)
+	}
 	if callbackErr != nil {
 		return errors.Join(callbackErr, producer.abortTransaction(ctx))
 	}
@@ -1704,6 +1806,9 @@ func (producer *Producer) startOperation() error {
 	producer.stateMu.Lock()
 	defer producer.stateMu.Unlock()
 
+	if producer.fatalErr != nil {
+		return producer.fatalErr
+	}
 	if producer.closed {
 		return ErrProducerClosed
 	}
@@ -1742,6 +1847,9 @@ func (producer *Producer) startTransaction() error {
 	producer.stateMu.Lock()
 	defer producer.stateMu.Unlock()
 
+	if producer.fatalErr != nil {
+		return producer.fatalErr
+	}
 	if producer.closed {
 		return ErrProducerClosed
 	}
@@ -1769,6 +1877,9 @@ func (producer *Producer) startMaintenance(allowClosed bool) (<-chan struct{}, e
 	producer.stateMu.Lock()
 	defer producer.stateMu.Unlock()
 
+	if producer.fatalErr != nil {
+		return nil, producer.fatalErr
+	}
 	if producer.shutdownComplete || (producer.closed && !allowClosed) {
 		return nil, ErrProducerClosed
 	}
@@ -1778,6 +1889,34 @@ func (producer *Producer) startMaintenance(allowClosed bool) (<-chan struct{}, e
 	producer.maintenanceActive = true
 
 	return producer.admissionsDone, nil
+}
+
+func (producer *Producer) fatalError() error {
+	producer.stateMu.Lock()
+	defer producer.stateMu.Unlock()
+
+	return producer.fatalErr
+}
+
+func (producer *Producer) terminate(err error) {
+	producer.stateMu.Lock()
+	if producer.fatalErr == nil {
+		producer.fatalErr = err
+	}
+	producer.closed = true
+	producer.stateMu.Unlock()
+	producer.interruptClient()
+	producer.stateMu.Lock()
+	producer.shutdownComplete = true
+	producer.stateMu.Unlock()
+}
+
+func (producer *Producer) interruptClient() {
+	cancelClient := producer.cancelClient
+	if cancelClient != nil {
+		cancelClient()
+	}
+	producer.closeOnce.Do(producer.client.Close)
 }
 
 func (producer *Producer) finishMaintenance(shutdownComplete bool) {

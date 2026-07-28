@@ -808,6 +808,178 @@ func TestTransactionProcessorClassifiesEndFailures(t *testing.T) {
 	}
 }
 
+func TestTransactionProcessorTerminatesAfterAmbiguousPublishDeadline(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	clientCtx, cancelClient := context.WithCancel(context.Background())
+	release := make(chan struct{})
+	releaseTimer := time.AfterFunc(250*time.Millisecond, func() { close(release) })
+	defer releaseTimer.Stop()
+	backend := &recordingTransactionProcessorBackend{
+		fetches: []kgo.Fetches{transactionFetches(&kgo.Record{
+			Topic: "source-events",
+			Key:   []byte("source-key"),
+			Value: []byte("source-value"),
+		})},
+		produceSync: func(
+			_ context.Context,
+			records ...*kgo.Record,
+		) kgo.ProduceResults {
+			select {
+			case <-clientCtx.Done():
+				return kgo.ProduceResults{{
+					Record: records[0],
+					Err:    kgo.ErrClientClosed,
+				}}
+			case <-release:
+				return kgo.ProduceResults{{Record: records[0]}}
+			}
+		},
+	}
+	processor := transactionProcessorForTest(t, backend)
+	processor.deliveryWaitTimeout = 20 * time.Millisecond
+	processor.cancelClient = cancelClient
+
+	result, err := processor.RunOnce(
+		context.Background(),
+		TransactionHandlerFunc(func(
+			_ context.Context,
+			_ ConsumedRecord,
+			transaction Transaction,
+		) error {
+			return transaction.Publish(context.Background(), ProducerRecord{
+				Topic: "derived-events",
+				Key:   []byte("derived-key"),
+				Value: []byte("derived-value"),
+			})
+		}),
+	)
+	var deliveryErr *DeliveryError
+	if result.Polled != 1 || result.Processed != 0 ||
+		result.Published != 0 || result.Committed ||
+		!errors.Is(err, ErrTransactionProcessorFatal) ||
+		!errors.Is(err, context.DeadlineExceeded) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		len(backend.endTries) != 0 || !backend.closed {
+		t.Fatalf("RunOnce() result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+	if _, err := processor.RunOnce(
+		context.Background(),
+		TransactionHandlerFunc(func(context.Context, ConsumedRecord, Transaction) error {
+			return nil
+		}),
+	); !errors.Is(err, ErrTransactionProcessorFatal) {
+		t.Fatalf("RunOnce() after fatal delivery = %v", err)
+	}
+	if err := processor.Close(); err != nil {
+		t.Fatalf("Close() after fatal delivery = %v", err)
+	}
+}
+
+func TestTransactionProcessorRetainsTerminalPublishAfterIgnoredFailure(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	clientCtx, cancelClient := context.WithCancel(context.Background())
+	backend := &recordingTransactionProcessorBackend{
+		fetches: []kgo.Fetches{transactionFetches(transactionSourceRecord(0, "source"))},
+		produceSync: func(
+			_ context.Context,
+			records ...*kgo.Record,
+		) kgo.ProduceResults {
+			<-clientCtx.Done()
+
+			return kgo.ProduceResults{{
+				Record: records[0],
+				Err:    kgo.ErrClientClosed,
+			}}
+		},
+	}
+	processor := transactionProcessorForTest(t, backend)
+	processor.deliveryWaitTimeout = 20 * time.Millisecond
+	processor.cancelClient = cancelClient
+
+	result, err := processor.RunOnce(
+		context.Background(),
+		TransactionHandlerFunc(func(
+			_ context.Context,
+			_ ConsumedRecord,
+			transaction Transaction,
+		) error {
+			_ = transaction.Publish(context.Background(), ProducerRecord{
+				Topic: "not-allowed",
+				Key:   []byte("key"),
+			})
+			_ = transaction.Publish(context.Background(), ProducerRecord{
+				Topic: "derived-events",
+				Key:   []byte("key"),
+			})
+
+			return nil
+		}),
+	)
+	var deliveryErr *DeliveryError
+	if result != (TransactionPollResult{Polled: 1}) ||
+		!errors.Is(err, ErrTopicNotAllowed) ||
+		!errors.Is(err, ErrTransactionProcessorFatal) ||
+		!errors.Is(err, context.DeadlineExceeded) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		len(backend.endTries) != 0 || !backend.closed {
+		t.Fatalf("RunOnce() result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+}
+
+func TestTransactionProcessorPublisherBoundsRetainedTerminalFailures(t *testing.T) {
+	t.Parallel()
+
+	ordinaryErr := errors.New("ordinary failure")
+	firstTerminalErr := errors.New("first terminal failure")
+	secondTerminalErr := errors.New("second terminal failure")
+	publisher := &processorTransactionPublisher{}
+	publisher.recordFailure(ordinaryErr)
+	publisher.recordTerminalFailure(firstTerminalErr)
+	publisher.recordTerminalFailure(secondTerminalErr)
+
+	err := publisher.failure()
+	if !errors.Is(err, ordinaryErr) || !errors.Is(err, firstTerminalErr) ||
+		errors.Is(err, secondTerminalErr) || !publisher.terminalFailure() {
+		t.Fatalf("bounded retained failure = %v", err)
+	}
+}
+
+func TestTransactionProcessorRejectsCanceledOutputBeforeAdmission(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingTransactionProcessorBackend{}
+	publisher := &processorTransactionPublisher{
+		client:         backend,
+		limits:         DefaultMessageLimits(),
+		allowedTopics:  map[string]struct{}{"derived-events": {}},
+		maxOutputCount: 1,
+		maxOutputBytes: 1 << 20,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := publisher.publish(ctx, ProducerRecord{
+		Topic: "derived-events",
+		Key:   []byte("key"),
+		Value: []byte("value"),
+	})
+	var deliveryErr *DeliveryError
+	if !errors.Is(err, context.Canceled) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		publisher.terminalFailure() || len(backend.produced) != 0 {
+		t.Fatalf("canceled processor output = %v/%#v", err, backend)
+	}
+}
+
 func TestTransactionProcessorRunLifecycle(t *testing.T) {
 	t.Parallel()
 
@@ -1189,6 +1361,7 @@ type recordingTransactionProcessorBackend struct {
 	beginCalls     int
 	leaveCalls     int
 	closed         bool
+	produceSync    func(context.Context, ...*kgo.Record) kgo.ProduceResults
 }
 
 func (backend *recordingTransactionProcessorBackend) PollRecords(
@@ -1220,10 +1393,13 @@ func (backend *recordingTransactionProcessorBackend) Begin() error {
 }
 
 func (backend *recordingTransactionProcessorBackend) ProduceSync(
-	_ context.Context,
+	ctx context.Context,
 	records ...*kgo.Record,
 ) kgo.ProduceResults {
 	backend.produced = append(backend.produced, records...)
+	if backend.produceSync != nil {
+		return backend.produceSync(ctx, records...)
+	}
 	if len(backend.produceResults) != 0 {
 		results := backend.produceResults[0]
 		backend.produceResults = backend.produceResults[1:]

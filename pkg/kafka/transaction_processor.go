@@ -212,21 +212,23 @@ func (backend *franzTransactionProcessorBackend) Close() {
 }
 
 // TransactionProcessor owns one read-committed group member and transactional
-// producer. One Run or RunOnce call may be active at a time.
+// producer. One Run or RunOnce call may be active at a time. An ambiguous
+// transactional output deadline closes and permanently fences the processor.
 type TransactionProcessor struct {
-	client             transactionProcessorBackend
-	clientID           string
-	groupID            string
-	limits             MessageLimits
-	maxPollRecords     int
-	processingTimeout  time.Duration
-	transactionEndTime time.Duration
-	shutdownTimeout    time.Duration
-	keyRequired        bool
-	allowedTopics      map[string]struct{}
-	maxOutputRecords   int
-	maxOutputBytes     int64
-	staticMembership   bool
+	client              transactionProcessorBackend
+	clientID            string
+	groupID             string
+	limits              MessageLimits
+	maxPollRecords      int
+	processingTimeout   time.Duration
+	transactionEndTime  time.Duration
+	shutdownTimeout     time.Duration
+	deliveryWaitTimeout time.Duration
+	keyRequired         bool
+	allowedTopics       map[string]struct{}
+	maxOutputRecords    int
+	maxOutputBytes      int64
+	staticMembership    bool
 
 	lifecycleMu       sync.Mutex
 	running           bool
@@ -235,8 +237,11 @@ type TransactionProcessor struct {
 	closed            bool
 	shutdownActive    bool
 	fatalErr          error
+	clientTerminated  bool
 	observerCallbacks int
 	observers         observerDispatcher
+	cancelClient      context.CancelFunc
+	closeOnce         sync.Once
 }
 
 // NewTransactionProcessor constructs a Kafka-only consume-transform-produce
@@ -260,7 +265,9 @@ func newTransactionProcessor(
 	if config.Group.ResetOffset == OffsetLatest {
 		resetOffset = kgo.NewOffset().AtEnd()
 	}
+	clientCtx, cancelClient := context.WithCancel(context.Background())
 	options := []kgo.Opt{
+		kgo.WithContext(clientCtx),
 		kgo.SeedBrokers(config.Connection.Brokers...),
 		kgo.ClientID(config.Connection.ClientID),
 		kgo.ConsumerGroup(config.Group.GroupID),
@@ -325,12 +332,15 @@ func newTransactionProcessor(
 		processingTimeout:  config.Group.ProcessingTimeout,
 		transactionEndTime: config.Output.TransactionEndTimeout,
 		shutdownTimeout:    config.ShutdownTimeout,
-		keyRequired:        config.Output.KeyPolicy == KeyRequired,
-		allowedTopics:      allowedTopics,
-		maxOutputRecords:   config.Output.MaxOutputRecords,
-		maxOutputBytes:     config.Output.MaxOutputBytes,
-		staticMembership:   config.Group.InstanceID != "",
-		observers:          dispatcher,
+		deliveryWaitTimeout: config.Output.DeliveryTimeout +
+			config.Output.RetryBackoffMax,
+		keyRequired:      config.Output.KeyPolicy == KeyRequired,
+		allowedTopics:    allowedTopics,
+		maxOutputRecords: config.Output.MaxOutputRecords,
+		maxOutputBytes:   config.Output.MaxOutputBytes,
+		staticMembership: config.Group.InstanceID != "",
+		observers:        dispatcher,
+		cancelClient:     cancelClient,
 	}
 	if dispatcher.enabled() {
 		observerHook := newFranzObserverHook(
@@ -345,6 +355,8 @@ func newTransactionProcessor(
 
 	client, err := factory(options...)
 	if err != nil {
+		cancelClient()
+
 		return nil, err
 	}
 	processor.client = client
@@ -574,12 +586,14 @@ func (processor *TransactionProcessor) runOnce(
 	}
 
 	publisher := &processorTransactionPublisher{
-		client:         processor.client,
-		limits:         processor.limits,
-		keyRequired:    processor.keyRequired,
-		allowedTopics:  processor.allowedTopics,
-		maxOutputCount: processor.maxOutputRecords,
-		maxOutputBytes: processor.maxOutputBytes,
+		client:          processor.client,
+		interruptClient: processor.interruptClient,
+		waitTimeout:     processor.deliveryWaitTimeout,
+		limits:          processor.limits,
+		keyRequired:     processor.keyRequired,
+		allowedTopics:   processor.allowedTopics,
+		maxOutputCount:  processor.maxOutputRecords,
+		maxOutputBytes:  processor.maxOutputBytes,
 	}
 	workCtx, cancelWork := context.WithTimeout(ctx, processor.processingTimeout)
 	var processingErr error
@@ -611,6 +625,11 @@ func (processor *TransactionProcessor) runOnce(
 	cancelWork()
 	result.Published = publisher.publishedCount()
 	if processingErr != nil {
+		if publisher.terminalFailure() {
+			processor.terminate(processingErr)
+
+			return result, errors.Join(processingErr, processor.fatalError())
+		}
 		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
 			processor.fence(abortErr)
@@ -648,17 +667,21 @@ func callTransactionHandler(
 }
 
 type processorTransactionPublisher struct {
-	client         transactionProcessorBackend
-	limits         MessageLimits
-	keyRequired    bool
-	allowedTopics  map[string]struct{}
-	maxOutputCount int
-	maxOutputBytes int64
-	mu             sync.Mutex
-	published      int
-	reservedCount  int
-	reservedBytes  int64
-	err            error
+	client          transactionProcessorBackend
+	interruptClient func()
+	waitTimeout     time.Duration
+	limits          MessageLimits
+	keyRequired     bool
+	allowedTopics   map[string]struct{}
+	maxOutputCount  int
+	maxOutputBytes  int64
+	mu              sync.Mutex
+	published       int
+	reservedCount   int
+	reservedBytes   int64
+	err             error
+	terminalErr     error
+	terminal        bool
 }
 
 func (publisher *processorTransactionPublisher) publish(
@@ -680,10 +703,28 @@ func (publisher *processorTransactionPublisher) publish(
 
 		return ErrKeyRequired
 	}
+	if err := ctx.Err(); err != nil {
+		deliveryErr := newDeliveryError(errors.Join(err, context.Cause(ctx)))
+		publisher.recordFailure(deliveryErr)
+
+		return deliveryErr
+	}
 	if err := publisher.reserve(record); err != nil {
 		return err
 	}
-	deliveries := publisher.client.ProduceSync(ctx, franzRecord(record.owned()))
+	deliveries, cause := transactionalProduceSync(
+		ctx,
+		publisher.waitTimeout,
+		publisher.interruptClient,
+		publisher.client,
+		franzRecord(record.owned()),
+	)
+	if cause != nil {
+		err := newDeliveryError(cause)
+		publisher.recordTerminalFailure(err)
+
+		return err
+	}
 	if len(deliveries) != 1 || deliveries[0].Record == nil {
 		err := newDeliveryError(ErrDeliveryResultMissing)
 		publisher.recordFailure(err)
@@ -736,11 +777,34 @@ func (publisher *processorTransactionPublisher) recordFailure(err error) {
 	publisher.mu.Unlock()
 }
 
+func (publisher *processorTransactionPublisher) recordTerminalFailure(err error) {
+	publisher.mu.Lock()
+	if publisher.terminalErr == nil {
+		publisher.terminalErr = err
+	}
+	publisher.terminal = true
+	publisher.mu.Unlock()
+}
+
+func (publisher *processorTransactionPublisher) terminalFailure() bool {
+	publisher.mu.Lock()
+	defer publisher.mu.Unlock()
+
+	return publisher.terminal
+}
+
 func (publisher *processorTransactionPublisher) failure() error {
 	publisher.mu.Lock()
 	defer publisher.mu.Unlock()
 
-	return publisher.err
+	if publisher.err == nil {
+		return publisher.terminalErr
+	}
+	if publisher.terminalErr == nil {
+		return publisher.err
+	}
+
+	return errors.Join(publisher.err, publisher.terminalErr)
 }
 
 func (publisher *processorTransactionPublisher) publishedCount() int {
@@ -937,6 +1001,31 @@ func (processor *TransactionProcessor) fence(err error) {
 	processor.lifecycleMu.Unlock()
 }
 
+func (processor *TransactionProcessor) fatalError() error {
+	processor.lifecycleMu.Lock()
+	defer processor.lifecycleMu.Unlock()
+
+	return processor.fatalErr
+}
+
+func (processor *TransactionProcessor) terminate(err error) {
+	processor.lifecycleMu.Lock()
+	if processor.fatalErr == nil {
+		processor.fatalErr = errors.Join(ErrTransactionProcessorFatal, err)
+	}
+	processor.clientTerminated = true
+	processor.lifecycleMu.Unlock()
+	processor.interruptClient()
+}
+
+func (processor *TransactionProcessor) interruptClient() {
+	cancelClient := processor.cancelClient
+	if cancelClient != nil {
+		cancelClient()
+	}
+	processor.closeOnce.Do(processor.client.Close)
+}
+
 func (processor *TransactionProcessor) endRun() {
 	processor.lifecycleMu.Lock()
 	done := processor.runDone
@@ -1003,6 +1092,14 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 			)
 		}
 	}
+	processor.lifecycleMu.Lock()
+	clientTerminated := processor.clientTerminated
+	processor.lifecycleMu.Unlock()
+	if clientTerminated {
+		complete = true
+
+		return nil
+	}
 	if !staticMembership {
 		if leaveErr := processor.client.LeaveGroupContext(ctx); leaveErr != nil {
 			return errors.Join(
@@ -1011,7 +1108,10 @@ func (processor *TransactionProcessor) Shutdown(ctx context.Context) (err error)
 			)
 		}
 	}
-	processor.client.Close()
+	if processor.cancelClient != nil {
+		processor.cancelClient()
+	}
+	processor.closeOnce.Do(processor.client.Close)
 	complete = true
 
 	return nil

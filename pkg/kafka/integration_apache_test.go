@@ -266,6 +266,12 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	warmTransactionTopic := topic + "-transaction-warm"
 	responseLossProducerTopic := topic + "-producer-response-loss"
 	responseLossTransactionTopic := topic + "-transaction-response-loss"
+	responseLossTransactionProduceTopic :=
+		topic + "-transaction-produce-response-loss"
+	responseLossProcessorSourceTopic :=
+		topic + "-transaction-processor-response-loss-source"
+	responseLossProcessorOutputTopic :=
+		topic + "-transaction-processor-response-loss-output"
 	recoveredTransactionTopic := topic + "-transaction-recovered"
 	processorSourceTopic := topic + "-processor-source"
 	processorOutputTopic := topic + "-processor-output"
@@ -279,6 +285,9 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, responseLossProducerTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, responseLossTransactionTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, responseLossTransactionProduceTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, responseLossProcessorSourceTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, responseLossProcessorOutputTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorSourceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorOutputTopic, 1)
@@ -348,6 +357,19 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		brokers,
 		inspector,
 		responseLossProducerTopic,
+	)
+	proveTransactionalProducerResponseLoss(
+		t,
+		ctx,
+		brokers,
+		responseLossTransactionProduceTopic,
+	)
+	proveTransactionProcessorProduceResponseLoss(
+		t,
+		ctx,
+		brokers,
+		responseLossProcessorSourceTopic,
+		responseLossProcessorOutputTopic,
 	)
 	proveProducerFencing(t, ctx, brokers, fencingTransactionTopic)
 	proveTransactionProcessorTerminationRecovery(
@@ -564,8 +586,9 @@ type kafkaResponseDropper struct {
 	dialer net.Dialer
 	apiKey uint16
 
-	mu      sync.Mutex
-	dropped int
+	mu       sync.Mutex
+	dropped  int
+	disabled bool
 }
 
 func (dropper *kafkaResponseDropper) DialContext(
@@ -586,9 +609,20 @@ func (dropper *kafkaResponseDropper) DialContext(
 	}, nil
 }
 
-func (dropper *kafkaResponseDropper) recordDrop() {
+func (dropper *kafkaResponseDropper) recordDrop() bool {
 	dropper.mu.Lock()
+	defer dropper.mu.Unlock()
+	if dropper.disabled {
+		return false
+	}
 	dropper.dropped++
+
+	return true
+}
+
+func (dropper *kafkaResponseDropper) disable() {
+	dropper.mu.Lock()
+	dropper.disabled = true
 	dropper.mu.Unlock()
 }
 
@@ -687,8 +721,8 @@ func (connection *kafkaResponseDroppingConn) Read(data []byte) (int, error) {
 			return 0, err
 		}
 		correlation := int32(binary.BigEndian.Uint32(frame[4:8]))
-		if connection.dropResponse(correlation) {
-			connection.dropper.recordDrop()
+		if connection.dropResponse(correlation) &&
+			connection.dropper.recordDrop() {
 			_ = connection.Conn.Close()
 
 			return 0, io.EOF
@@ -854,6 +888,232 @@ func proveProducerResponseLoss(
 		states[0].Partitions[0].BeginningOffset != 0 ||
 		states[0].Partitions[0].EndOffset != 1 {
 		t.Fatalf("produce-response-loss topic state = %#v", states)
+	}
+}
+
+func proveTransactionalProducerResponseLoss(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	dropper := &kafkaResponseDropper{apiKey: kafkaProduceAPIKey}
+	producer, err := kafka.NewProducerWithDialerForTest(
+		kafka.ProducerConfig{
+			Brokers:               brokers,
+			ClientID:              "golib-apache-transaction-produce-response-loss",
+			AllowedTopics:         []string{topic},
+			DeliveryTimeout:       time.Second,
+			RequestTimeout:        100 * time.Millisecond,
+			ShutdownTimeout:       2 * time.Second,
+			TransactionalID:       "golib-apache-transaction-produce-response-loss",
+			TransactionTimeout:    10 * time.Second,
+			TransactionEndTimeout: time.Second,
+			Security:              kafka.DevelopmentPlaintextSecurity(),
+		},
+		dropper.DialContext,
+	)
+	if err != nil {
+		t.Fatalf("construct transaction-produce-response-loss producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("close transaction-produce-response-loss producer: %v", err)
+		}
+	}()
+
+	publishCtx, cancelPublish := context.WithTimeout(ctx, 2*time.Second)
+	droppingStopped := make(chan struct{})
+	go func() {
+		<-publishCtx.Done()
+		dropper.disable()
+		close(droppingStopped)
+	}()
+	startedAt := time.Now()
+	err = producer.RunTransaction(ctx, func(transaction kafka.Transaction) error {
+		return transaction.Publish(publishCtx, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("transaction-produce-response-loss"),
+			Value:     []byte("transaction-produce-response-loss"),
+		})
+	})
+	duration := time.Since(startedAt)
+	cancelPublish()
+	<-droppingStopped
+
+	var deliveryErr *kafka.DeliveryError
+	if !errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != kafka.ErrorAmbiguous ||
+		!errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf(
+			"transaction-produce-response-loss error = %T %v",
+			err,
+			err,
+		)
+	}
+	if duration > 3*time.Second {
+		t.Errorf(
+			"transaction-produce-response-loss duration = %s drops=%d",
+			duration,
+			dropper.droppedResponses(),
+		)
+	}
+	if dropper.droppedResponses() == 0 {
+		t.Error("transaction producer did not drop a Produce response")
+	}
+	if retryErr := producer.RunTransaction(
+		ctx,
+		func(kafka.Transaction) error { return nil },
+	); !errors.Is(retryErr, kafka.ErrProducerFatal) {
+		t.Errorf("transaction producer after response loss = %v", retryErr)
+	}
+	assertNoApacheKafkaTransactionValues(t, brokers, topic, kgo.ReadCommitted())
+	values := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadUncommitted(),
+		1,
+	)
+	if len(values) != 1 || values[0] != "transaction-produce-response-loss" {
+		t.Fatalf("transaction-produce-response-loss values = %q", values)
+	}
+}
+
+func proveTransactionProcessorProduceResponseLoss(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+) {
+	t.Helper()
+
+	const groupID = "golib-apache-processor-produce-response-loss"
+	sourceProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-processor-response-loss-source",
+		AllowedTopics: []string{sourceTopic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct processor response-loss source producer: %v", err)
+	}
+	if err := sourceProducer.Publish(ctx, kafka.ProducerRecord{
+		Topic: sourceTopic,
+		Key:   []byte("processor-response-loss"),
+		Value: []byte("processor-response-loss"),
+	}); err != nil {
+		t.Fatalf("publish processor response-loss source: %v", err)
+	}
+	if err := sourceProducer.Close(); err != nil {
+		t.Fatalf("close processor response-loss source producer: %v", err)
+	}
+
+	dropper := &kafkaResponseDropper{apiKey: kafkaProduceAPIKey}
+	processor, err := kafka.NewTransactionProcessorWithDialerForTest(
+		kafka.TransactionProcessorConfig{
+			Connection: kafka.TransactionConnectionConfig{
+				Brokers:  brokers,
+				ClientID: "golib-apache-processor-produce-response-loss",
+				Security: kafka.DevelopmentPlaintextSecurity(),
+			},
+			Group: kafka.TransactionGroupConfig{
+				GroupID:           groupID,
+				Topics:            []string{sourceTopic},
+				ResetOffset:       kafka.OffsetEarliest,
+				MaxPollRecords:    1,
+				ProcessingTimeout: 4 * time.Second,
+			},
+			Output: kafka.TransactionOutputConfig{
+				AllowedTopics:         []string{outputTopic},
+				TransactionalID:       groupID,
+				DeliveryTimeout:       time.Second,
+				RequestTimeout:        100 * time.Millisecond,
+				RetryBackoffMin:       100 * time.Millisecond,
+				RetryBackoffMax:       100 * time.Millisecond,
+				TransactionTimeout:    10 * time.Second,
+				TransactionEndTimeout: time.Second,
+			},
+			ShutdownTimeout: 2 * time.Second,
+		},
+		dropper.DialContext,
+	)
+	if err != nil {
+		t.Fatalf("construct processor response-loss client: %v", err)
+	}
+
+	startedAt := time.Now()
+	result, err := processor.RunOnce(
+		ctx,
+		kafka.TransactionHandlerFunc(func(
+			handlerCtx context.Context,
+			_ kafka.ConsumedRecord,
+			transaction kafka.Transaction,
+		) error {
+			return transaction.Publish(handlerCtx, kafka.ProducerRecord{
+				Topic: outputTopic,
+				Key:   []byte("processor-response-loss"),
+				Value: []byte("processor-response-loss"),
+			})
+		}),
+	)
+	duration := time.Since(startedAt)
+	var deliveryErr *kafka.DeliveryError
+	if result.Polled != 1 || result.Processed != 0 ||
+		result.Published != 0 || result.Committed ||
+		!errors.Is(err, kafka.ErrTransactionProcessorFatal) ||
+		!errors.Is(err, context.DeadlineExceeded) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != kafka.ErrorAmbiguous {
+		t.Errorf("processor response-loss result/error = %#v/%v", result, err)
+	}
+	if duration > 3*time.Second {
+		t.Errorf("processor response-loss duration = %s", duration)
+	}
+	if dropper.droppedResponses() == 0 {
+		t.Error("transaction processor did not drop a Produce response")
+	}
+	if _, retryErr := processor.RunOnce(
+		ctx,
+		kafka.TransactionHandlerFunc(func(
+			context.Context,
+			kafka.ConsumedRecord,
+			kafka.Transaction,
+		) error {
+			return nil
+		}),
+	); !errors.Is(retryErr, kafka.ErrTransactionProcessorFatal) {
+		t.Errorf("transaction processor after response loss = %v", retryErr)
+	}
+	if err := processor.Close(); err != nil {
+		t.Fatalf("close processor response-loss client: %v", err)
+	}
+	assertApacheKafkaGroupCommits(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		map[kafka.TopicPartition]int64{{Topic: sourceTopic, Partition: 0}: -1},
+	)
+	assertNoApacheKafkaTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+	)
+	values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadUncommitted(),
+		1,
+	)
+	if len(values) != 1 || values[0] != "processor-response-loss" {
+		t.Fatalf("processor response-loss output values = %q", values)
 	}
 }
 

@@ -120,8 +120,13 @@ Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic
 production. Transaction lifecycle failures are redacted `TransactionError`
 values with an operation, stable category, abortability, and explicit outcome
 knowledge. An unknown commit outcome requires reconciliation rather than a
-blind retry. Producer observers report payload-free begin, commit, and abort
-outcomes without changing the transaction result.
+blind retry. If an admitted transactional publish loses every response and its
+delivery context expires, the producer closes its franz-go client, returns an
+ambiguous delivery joined with `ErrProducerFatal`, and rejects reuse. The open
+broker transaction is never committed by that client; replace the producer
+with the same reviewed transactional identity to fence and recover it.
+Producer observers report payload-free begin, commit, and abort outcomes
+without changing the transaction result.
 
 Use `TransactionProcessor` when source offsets and Kafka output records must be
 committed atomically. It always reads with `read_committed`, disables automatic
@@ -129,6 +134,9 @@ commits, and treats one bounded poll as one transaction. Every fetched record
 must succeed; any validation, handler, panic, timeout, or delivery failure
 aborts all poll outputs and leaves every source offset for redelivery.
 `TransactionalID` must be unique to one live processor instance. This guarantee
+also applies when an admitted output loses every response: the processor closes
+and returns `ErrTransactionProcessorFatal`, no source offset is committed, and
+the application must construct a replacement before retrying. This guarantee
 ends at the Kafka read-process-write boundary and never includes databases,
 HTTP calls, object storage, email, or other external effects. See the
 [transaction guide](docs/transactions.md). Processor observers report the same

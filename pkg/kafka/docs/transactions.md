@@ -12,6 +12,17 @@ callback. It waits for every publish started through the callback capability
 and closes that capability before commit. Callback failure or panic triggers a
 bounded safe buffer abort and transaction abort.
 
+Transactional records cannot use franz-go's per-record idempotent cancellation
+because it is incompatible with transactional IDs. The package instead bounds
+each `Transaction.Publish` by the earlier caller deadline or configured
+delivery timeout plus maximum retry backoff. If that bound expires after the
+record may have been sent, the package cancels and closes the entire client,
+returns an ambiguous `DeliveryError` joined with `ErrProducerFatal`, and skips
+commit and abort on that closed client. The producer cannot be reused. Kafka
+cannot expose the record to `read_committed` without a commit; constructing a
+replacement with the same transactional ID fences and recovers the open
+transaction. A blind application resubmission before that recovery is unsafe.
+
 Commit and abort completion use a bounded context derived without caller
 cancellation because canceling `EndTransaction` can make the broker outcome
 unknowable. Kafka lifecycle failures return a redacted `TransactionError`.
@@ -91,6 +102,11 @@ delivery failure, handler error, panic, processing timeout, or cancellation
 aborts all outputs and leaves all source offsets for redelivery. The package
 detects a delivery
 failure even if a handler ignores the error returned by `Transaction.Publish`.
+An ambiguous output deadline is terminal rather than an ordinary handler
+failure: the processor closes its combined client, returns
+`ErrTransactionProcessorFatal`, leaves every source offset unsettled, and
+rejects later runs before polling. The application must replace the processor;
+normal in-process abort is not attempted on the closed client.
 Producer record bytes are copied before franz-go retains them. Concurrent
 publishes through one callback capability are safe, and transaction completion
 waits for calls admitted before the callback returns. Their admission order is
@@ -170,6 +186,14 @@ that unwraps to `ErrTransactionOutcomeUnknown`, is not abortable, and reports
 that the outcome is unknown. This proves the loss window where Kafka committed
 but the producer cannot independently know that result. Older-broker behavior
 is not yet support evidence.
+
+The fixture separately forwards transactional `Produce` requests while
+dropping every matching response. Both standalone production and
+consume-transform-produce return within the delivery bound, classify the
+record outcome as ambiguous, close and fatally fence the client, and reject
+reuse. Separate consumers prove the output exists only at `read_uncommitted`;
+the processor's source offset remains `-1`, so no Kafka read-process-write
+commit occurred.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store

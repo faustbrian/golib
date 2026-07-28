@@ -19,3 +19,20 @@ func NewProducerWithDialerForTest(
 		return kgo.NewClient(options...)
 	})
 }
+
+// NewTransactionProcessorWithDialerForTest constructs the production
+// consume-transform-produce policy with a test-owned network dialer for broker
+// fault injection.
+func NewTransactionProcessorWithDialerForTest(
+	config TransactionProcessorConfig,
+	dialer func(context.Context, string, string) (net.Conn, error),
+) (*TransactionProcessor, error) {
+	return newTransactionProcessor(
+		config,
+		func(options ...kgo.Opt) (transactionProcessorBackend, error) {
+			options = append(options, kgo.Dialer(dialer))
+
+			return newFranzTransactionProcessorBackend(options...)
+		},
+	)
+}

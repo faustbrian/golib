@@ -110,6 +110,14 @@ and ambiguous outcome. `Abortable` means Kafka definitively rejected the
 commit and required an abort; `OutcomeKnown` is false when reconciliation is
 required before reuse. `errors.Is` and `errors.As` preserve the safe
 programmatic cause chain without rendering it.
+`Transaction.Publish` is additionally bounded by the earlier of its context
+and `DeliveryTimeout + RetryBackoffMax`. If that bound expires after franz-go
+may have sent the record, the package cannot safely cancel only the record
+without invalidating its transactional sequence state. It instead cancels and
+closes the owned client, returns an `ErrorAmbiguous` `DeliveryError` joined with
+`ErrProducerFatal`, skips commit and abort on the closed client, and rejects all
+later operations. A replacement using the same transactional ID fences and
+recovers the broker-side open transaction.
 
 `TransactionProcessor` is the Kafka-only consume-transform-produce surface.
 `TransactionProcessorConfig` separates connection, consumer-group, output,
@@ -126,6 +134,9 @@ transaction; they are durable to `read_committed` consumers only when
 Begin, end, or abort failures fence further runs with
 `ErrTransactionProcessorFatal`; the application must close the processor,
 reconcile ambiguous outcomes where reported, and construct a new instance.
+An admitted output whose delivery bound expires follows the same terminal
+client-close rule: the current poll is not settled or committed, the output is
+not visible at `read_committed`, and later runs fail before polling.
 Each handler receives a callback-lifetime `Transaction`; retaining it does not
 extend its lifetime. `Run` and `RunOnce` are mutually exclusive. `Shutdown`
 fences new runs, waits within the caller context, preserves static membership,

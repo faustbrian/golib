@@ -74,7 +74,7 @@ separate and necessary bound.
 | `RecordRetries` | 10 | 1 to 1,000 franz-go production tries; no application retry is added. |
 | `RetryBackoffMin` | 250 milliseconds | 1 millisecond or more. Failed-partition metadata refresh uses at least 250 milliseconds even when this is lower. |
 | `RetryBackoffMax` | 1 second | At least the minimum, no more than 5 seconds, and no longer than delivery timeout. Backoff is exponential with bounded per-client jitter. |
-| `DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. |
+| `DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. Transactional publish waits are bounded by this plus `RetryBackoffMax`; expiry after admission closes and fatally fences the producer. |
 | `ShutdownTimeout` | delivery timeout plus maximum retry backoff | At least that combined bound, at most 15 minutes. |
 | `RequestTimeout` | 10 seconds | 100 milliseconds to 2 minutes and no longer than delivery timeout. |
 | `Linger` | 5 milliseconds | 0 to 1 second. |
@@ -129,7 +129,7 @@ caller-configurable.
 | `Output.RecordRetries` | 10 | 1 to 1,000 idempotent franz-go attempts. |
 | `Output.RetryBackoffMin` | 250 milliseconds | Same bounded producer minimum and separate 250-millisecond metadata-refresh floor. |
 | `Output.RetryBackoffMax` | 1 second | Same exponential, jittered, delivery-bounded maximum. |
-| `Output.DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. |
+| `Output.DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. The output wait adds `RetryBackoffMax`; ambiguous expiry closes and fatally fences the processor without committing source offsets. |
 | `Output.RequestTimeout` | 10 seconds | 100 milliseconds to 2 minutes and no longer than delivery. |
 | `Output.Linger` | 5 milliseconds | 0 to 1 second. |
 | `Output.CompressionPreferences` | Snappy, then none | Same ordered producer compression policy. |

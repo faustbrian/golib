@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- terminate and close standalone and consume-transform-produce transactional
+  clients when an admitted `Produce` response is lost beyond the delivery
+  bound, return an ambiguous fatal result, prevent a later false-success
+  commit, preserve source offsets, and reject unsafe client reuse
 - clamp failed-partition metadata refresh to a separate 250-millisecond floor
   so the documented one-millisecond retry policy constructs successfully
   without permitting sub-policy metadata polling

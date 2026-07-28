@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1475,7 +1476,207 @@ func transactionalProducer(backend producerBackend) *Producer {
 		client:                backend,
 		limits:                DefaultMessageLimits(),
 		transactionsEnabled:   true,
+		deliveryWaitTimeout:   time.Second,
 		transactionEndTimeout: time.Second,
+	}
+}
+
+func TestRunTransactionTerminatesAfterAmbiguousPublishDeadline(t *testing.T) {
+	t.Parallel()
+
+	clientCtx, cancelClient := context.WithCancel(context.Background())
+	release := make(chan struct{})
+	releaseTimer := time.AfterFunc(250*time.Millisecond, func() { close(release) })
+	defer releaseTimer.Stop()
+	backend := &recordingProducerBackend{
+		produceSync: func(
+			_ context.Context,
+			records ...*kgo.Record,
+		) kgo.ProduceResults {
+			select {
+			case <-clientCtx.Done():
+				return kgo.ProduceResults{{
+					Record: records[0],
+					Err:    kgo.ErrClientClosed,
+				}}
+			case <-release:
+				return kgo.ProduceResults{{Record: records[0]}}
+			}
+		},
+	}
+	producer := transactionalProducer(backend)
+	producer.deliveryWaitTimeout = 20 * time.Millisecond
+	producer.cancelClient = cancelClient
+
+	err := producer.RunTransaction(
+		context.Background(),
+		func(transaction Transaction) error {
+			return transaction.Publish(context.Background(), ProducerRecord{
+				Topic: "events",
+				Key:   []byte("key"),
+				Value: []byte("value"),
+			})
+		},
+	)
+	var deliveryErr *DeliveryError
+	if !errors.Is(err, ErrProducerFatal) ||
+		!errors.Is(err, context.DeadlineExceeded) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		backend.aborts != 0 || len(backend.endTries) != 0 || backend.closes != 1 {
+		t.Fatalf("RunTransaction() error/backend = %v/%#v", err, backend)
+	}
+	if err := producer.RunTransaction(
+		context.Background(),
+		func(Transaction) error { return nil },
+	); !errors.Is(err, ErrProducerFatal) {
+		t.Fatalf("RunTransaction() after fatal delivery = %v", err)
+	}
+	if err := producer.Publish(context.Background(), ProducerRecord{
+		Topic: "events",
+		Key:   []byte("key"),
+		Value: []byte("value"),
+	}); !errors.Is(err, ErrProducerFatal) {
+		t.Fatalf("Publish() after fatal delivery = %v", err)
+	}
+	if err := producer.Abort(context.Background()); !errors.Is(err, ErrProducerFatal) {
+		t.Fatalf("Abort() after fatal delivery = %v", err)
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("Close() after fatal delivery = %v", err)
+	}
+}
+
+func TestProducerCloseDoesNotReportSuccessWhileTerminalCloseIsRunning(t *testing.T) {
+	t.Parallel()
+
+	clientCtx, cancelClient := context.WithCancel(context.Background())
+	closeStarted := make(chan struct{})
+	closeRelease := make(chan struct{})
+	backend := &recordingProducerBackend{
+		closeStarted: closeStarted,
+		closeRelease: closeRelease,
+		produceSync: func(
+			_ context.Context,
+			records ...*kgo.Record,
+		) kgo.ProduceResults {
+			<-clientCtx.Done()
+
+			return kgo.ProduceResults{{
+				Record: records[0],
+				Err:    kgo.ErrClientClosed,
+			}}
+		},
+	}
+	producer := transactionalProducer(backend)
+	producer.deliveryWaitTimeout = 20 * time.Millisecond
+	producer.cancelClient = cancelClient
+	transactionDone := make(chan error, 1)
+	go func() {
+		transactionDone <- producer.RunTransaction(
+			context.Background(),
+			func(transaction Transaction) error {
+				return transaction.Publish(context.Background(), ProducerRecord{
+					Topic: "events",
+					Key:   []byte("key"),
+					Value: []byte("value"),
+				})
+			},
+		)
+	}()
+	<-closeStarted
+	deadline := time.Now().Add(time.Second)
+	for producer.fatalError() == nil {
+		if time.Now().After(deadline) {
+			close(closeRelease)
+			t.Fatal("producer did not publish terminal state")
+		}
+		runtime.Gosched()
+	}
+
+	if err := producer.Close(); !errors.Is(err, ErrProducerBusy) {
+		t.Fatalf("Close() during terminal close = %v, want %v", err, ErrProducerBusy)
+	}
+	close(closeRelease)
+	if err := <-transactionDone; !errors.Is(err, ErrProducerFatal) {
+		t.Fatalf("RunTransaction() error = %v", err)
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("Close() after terminal close = %v", err)
+	}
+}
+
+func TestTransactionalPublishPreservesExistingFatalState(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	producer := transactionalProducer(backend)
+	producer.allowedTopics = map[string]struct{}{"events": {}}
+	producer.fatalErr = errors.Join(ErrProducerFatal, context.DeadlineExceeded)
+
+	err := producer.publish(context.Background(), ProducerRecord{
+		Topic: "events",
+		Key:   []byte("key"),
+		Value: []byte("value"),
+	})
+	if !errors.Is(err, ErrProducerFatal) ||
+		!errors.Is(err, context.DeadlineExceeded) || len(backend.records) != 1 {
+		t.Fatalf("publish() with existing fatal state = %v/%#v", err, backend)
+	}
+}
+
+func TestTransactionalPublishRejectsCanceledContextBeforeAdmission(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	producer := transactionalProducer(backend)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := producer.RunTransaction(
+		context.Background(),
+		func(transaction Transaction) error {
+			return transaction.Publish(ctx, ProducerRecord{
+				Topic: "events",
+				Key:   []byte("key"),
+				Value: []byte("value"),
+			})
+		},
+	)
+	var deliveryErr *DeliveryError
+	if !errors.Is(err, context.Canceled) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		errors.Is(err, ErrProducerFatal) || len(backend.records) != 0 ||
+		backend.aborts != 1 || len(backend.endTries) != 1 ||
+		backend.endTries[0] != kgo.TryAbort {
+		t.Fatalf("canceled transaction publish = %v/%#v", err, backend)
+	}
+}
+
+func TestTransactionalPublishRejectsMissingDeliveryResult(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{omitDeliveries: true}
+	producer := transactionalProducer(backend)
+
+	err := producer.RunTransaction(
+		context.Background(),
+		func(transaction Transaction) error {
+			return transaction.Publish(context.Background(), ProducerRecord{
+				Topic: "events",
+				Key:   []byte("key"),
+				Value: []byte("value"),
+			})
+		},
+	)
+	var deliveryErr *DeliveryError
+	if !errors.Is(err, ErrDeliveryResultMissing) ||
+		!errors.As(err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		errors.Is(err, ErrProducerFatal) || backend.aborts != 1 ||
+		len(backend.endTries) != 1 || backend.endTries[0] != kgo.TryAbort {
+		t.Fatalf("missing transaction delivery = %v/%#v", err, backend)
 	}
 }
 
@@ -1702,7 +1903,11 @@ type recordingProducerBackend struct {
 	flushSignalOnce         sync.Once
 	flushCompletesAsync     bool
 	closeCompletesAsync     bool
+	closeStarted            chan struct{}
+	closeRelease            chan struct{}
+	closeSignalOnce         sync.Once
 	omitDeliveries          bool
+	produceSync             func(context.Context, ...*kgo.Record) kgo.ProduceResults
 }
 
 func (backend *recordingProducerBackend) ProduceSync(
@@ -1711,6 +1916,9 @@ func (backend *recordingProducerBackend) ProduceSync(
 ) kgo.ProduceResults {
 	backend.syncContexts = append(backend.syncContexts, ctx)
 	backend.records = append(backend.records, records...)
+	if backend.produceSync != nil {
+		return backend.produceSync(ctx, records...)
+	}
 	if backend.produceStarted != nil {
 		close(backend.produceStarted)
 		<-backend.produceRelease
@@ -1813,6 +2021,10 @@ func (backend *recordingProducerBackend) EndTransaction(
 
 func (backend *recordingProducerBackend) Close() {
 	backend.closes++
+	if backend.closeStarted != nil {
+		backend.closeSignalOnce.Do(func() { close(backend.closeStarted) })
+		<-backend.closeRelease
+	}
 	if backend.closeCompletesAsync {
 		backend.completePendingAsync(kgo.ErrClientClosed)
 	}
