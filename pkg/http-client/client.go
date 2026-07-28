@@ -46,6 +46,18 @@ const (
 	TransportOwned
 )
 
+// ProxyMode selects whether the owned standard transport inherits proxy
+// configuration from the process environment.
+type ProxyMode uint8
+
+const (
+	// ProxyFromEnvironment preserves the standard library environment proxy
+	// behavior.
+	ProxyFromEnvironment ProxyMode = iota
+	// ProxyDisabled forces direct connections through the owned transport.
+	ProxyDisabled
+)
+
 // Config configures a Client. A zero Config selects finite production-safe
 // defaults and an internally owned standard transport.
 type Config struct {
@@ -60,6 +72,12 @@ type Config struct {
 	// ConnectTimeout bounds establishing a network connection on the standard
 	// transport. Zero selects the production-safe 10-second default.
 	ConnectTimeout time.Duration
+	// ResponseHeaderTimeout bounds waiting for response headers on the standard
+	// transport. Zero selects the production-safe 15-second default.
+	ResponseHeaderTimeout time.Duration
+	// ProxyMode controls environment proxy inheritance for the internally owned
+	// standard transport. Zero preserves ProxyFromEnvironment.
+	ProxyMode ProxyMode
 	// Transport replaces the default transport. It is borrowed unless
 	// TransportOwnership is TransportOwned.
 	Transport http.RoundTripper
@@ -118,6 +136,21 @@ func New(config Config) (*Client, error) {
 			ErrInvalidConfig,
 		)
 	}
+	if config.ResponseHeaderTimeout < 0 {
+		return nil, fmt.Errorf(
+			"%w: response header timeout must not be negative",
+			ErrInvalidConfig,
+		)
+	}
+	if config.ResponseHeaderTimeout != 0 && config.Transport != nil {
+		return nil, fmt.Errorf("%w: response header timeout requires the standard transport", ErrInvalidConfig)
+	}
+	if config.ProxyMode > ProxyDisabled {
+		return nil, fmt.Errorf("%w: unknown proxy mode %d", ErrInvalidConfig, config.ProxyMode)
+	}
+	if config.ProxyMode != ProxyFromEnvironment && config.Transport != nil {
+		return nil, fmt.Errorf("%w: proxy mode requires the standard transport", ErrInvalidConfig)
+	}
 	if config.TransportOwnership > TransportOwned {
 		return nil, fmt.Errorf("%w: unknown transport ownership %d", ErrInvalidConfig, config.TransportOwnership)
 	}
@@ -171,11 +204,17 @@ func New(config Config) (*Client, error) {
 		if connectTimeout == 0 {
 			connectTimeout = defaultConnectTimeout
 		}
+		responseHeaderTimeout := config.ResponseHeaderTimeout
+		if responseHeaderTimeout == 0 {
+			responseHeaderTimeout = defaultResponseHeaderTimeout
+		}
 		transport = defaultTransportWithPolicy(
 			resolvedPolicy.Values(),
 			config.Egress,
 			config.TLS,
 			connectTimeout,
+			responseHeaderTimeout,
+			config.ProxyMode,
 		)
 		ownedTransport = true
 	}
@@ -476,6 +515,8 @@ func defaultTransportWithEgress(policy *EgressPolicy) *http.Transport {
 		policy,
 		nil,
 		defaultConnectTimeout,
+		defaultResponseHeaderTimeout,
+		ProxyFromEnvironment,
 	)
 }
 
@@ -484,6 +525,8 @@ func defaultTransportWithPolicy(
 	egress *EgressPolicy,
 	tlsPolicy *TLSPolicy,
 	connectTimeout time.Duration,
+	responseHeaderTimeout time.Duration,
+	proxyMode ProxyMode,
 ) *http.Transport {
 	dialer := newTransportDialer(connectTimeout)
 
@@ -497,8 +540,12 @@ func defaultTransportWithPolicy(
 	}
 
 	maximumIdlePerHost := min(defaultMaxIdleConnsPerHost, values.TransportMaximumConnections)
+	var proxy func(*http.Request) (*url.URL, error)
+	if proxyMode == ProxyFromEnvironment {
+		proxy = http.ProxyFromEnvironment
+	}
 	return &http.Transport{
-		Proxy:                  http.ProxyFromEnvironment,
+		Proxy:                  proxy,
 		DisableCompression:     true,
 		DialContext:            dialContext,
 		ForceAttemptHTTP2:      true,
@@ -507,7 +554,7 @@ func defaultTransportWithPolicy(
 		MaxConnsPerHost:        values.TransportMaximumConnections,
 		IdleConnTimeout:        defaultIdleConnTimeout,
 		TLSHandshakeTimeout:    defaultTLSHandshakeTimeout,
-		ResponseHeaderTimeout:  defaultResponseHeaderTimeout,
+		ResponseHeaderTimeout:  responseHeaderTimeout,
 		ExpectContinueTimeout:  defaultExpectContinueTimeout,
 		MaxResponseHeaderBytes: defaultMaxResponseHeaderSize,
 		TLSClientConfig:        tlsConfig,

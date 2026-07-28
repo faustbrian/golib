@@ -5,7 +5,9 @@ interactive profile bounds the logical operation at 30 seconds. Its owned
 `http.Transport` uses a 10-second connect timeout, 30-second TCP keepalive,
 10-second TLS handshake timeout, 15-second response-header timeout, one-second
 expect-continue timeout, 90-second idle timeout, finite connection pools, a
-1 MiB response-header limit, TLS 1.2 minimum, and HTTP/2 negotiation.
+1 MiB response-header limit, TLS 1.2 minimum, and HTTP/2 negotiation. Set
+`Config.ConnectTimeout` or `Config.ResponseHeaderTimeout` when a dependency
+contract requires different finite connection or response-header bounds.
 
 Use `PolicyProfileBatchV1`, `PolicyProfileStreamingV1`, or
 `PolicyProfileWebhookDeliveryV1` for another documented workload baseline.
@@ -28,12 +30,16 @@ limits govern sockets per host.
 
 ## Proxy and DNS behavior
 
-The default standard transport honors `ProxyFromEnvironment`. With egress
-policy enabled, proxy targets and their resolved addresses are checked by the
-same scheme, host, port, CIDR, and address-class rules as direct targets. DNS
-answers are validated before dialing numeric addresses. A custom transport is
-incompatible with `Config.Egress` and `Config.TLS` because these guarantees
-cannot be proven across an opaque dial path.
+The default standard transport honors `ProxyFromEnvironment`. Set
+`Config.ProxyMode` to `ProxyDisabled` when a dependency contract requires
+direct connections without inheriting process environment proxy settings.
+Non-default proxy modes require the owned standard transport.
+
+With egress policy enabled, proxy targets and their resolved addresses are
+checked by the same scheme, host, port, CIDR, and address-class rules as direct
+targets. DNS answers are validated before dialing numeric addresses. A custom
+transport is incompatible with `Config.Egress` and `Config.TLS` because these
+guarantees cannot be proven across an opaque dial path.
 
 ## Redirects
 

@@ -85,6 +85,66 @@ func TestNewClientAppliesAndValidatesConnectTimeout(t *testing.T) {
 	}
 }
 
+func TestNewClientAppliesAndValidatesResponseHeaderTimeout(t *testing.T) {
+	t.Parallel()
+
+	client, err := New(Config{ResponseHeaderTimeout: 7 * time.Second})
+	if err != nil {
+		t.Fatalf("construct client: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	transport := client.HTTPClient().Transport.(*http.Transport)
+	if transport.ResponseHeaderTimeout != 7*time.Second {
+		t.Fatalf("response header timeout = %v", transport.ResponseHeaderTimeout)
+	}
+
+	if _, err := New(Config{
+		ResponseHeaderTimeout: -time.Second,
+	}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("negative response header timeout error = %v", err)
+	}
+	if _, err := New(Config{
+		ResponseHeaderTimeout: time.Second,
+		Transport:             http.DefaultTransport,
+	}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("custom transport response header timeout error = %v", err)
+	}
+}
+
+func TestNewClientConfiguresProxyMode(t *testing.T) {
+	t.Parallel()
+
+	defaultClient, err := New(Config{})
+	if err != nil {
+		t.Fatalf("construct default client: %v", err)
+	}
+	t.Cleanup(func() { _ = defaultClient.Close() })
+	defaultTransport := defaultClient.HTTPClient().Transport.(*http.Transport)
+	if defaultTransport.Proxy == nil {
+		t.Fatal("default proxy function is nil")
+	}
+
+	directClient, err := New(Config{ProxyMode: ProxyDisabled})
+	if err != nil {
+		t.Fatalf("construct direct client: %v", err)
+	}
+	t.Cleanup(func() { _ = directClient.Close() })
+	directTransport := directClient.HTTPClient().Transport.(*http.Transport)
+	if directTransport.Proxy != nil {
+		t.Fatal("disabled proxy function is not nil")
+	}
+
+	if _, err := New(Config{ProxyMode: ProxyMode(255)}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("unknown proxy mode error = %v", err)
+	}
+	if _, err := New(Config{
+		ProxyMode: ProxyDisabled,
+		Transport: http.DefaultTransport,
+	}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("custom transport proxy mode error = %v", err)
+	}
+}
+
 func TestNewClientRejectsUnknownTransportOwnership(t *testing.T) {
 	t.Parallel()
 

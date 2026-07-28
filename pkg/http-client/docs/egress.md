@@ -40,7 +40,8 @@ a second resolver lookup between validation and connection.
 Proxy connections pass through the same dialer, so the proxy host, port, and
 resolved addresses must also satisfy the policy. A host allowlist therefore
 needs to include an explicitly trusted proxy when environment proxy settings
-are in use.
+are in use. Set `Config.ProxyMode` to `ProxyDisabled` for direct-only egress
+contracts that must not inherit environment proxy settings.
 
 `Config.Egress` cannot be combined with a caller-supplied `RoundTripper`: the
 package cannot prove that a custom transport validates DNS, proxy, Unix-socket,
