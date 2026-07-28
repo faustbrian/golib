@@ -366,6 +366,128 @@ func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
 	}
 }
 
+func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker.assertRuntimeVersions(t, ctx)
+	topic := fmt.Sprintf("golib-scram-rotation-%d", time.Now().UnixNano())
+	adminMechanism := franzplain.Auth{
+		User: "plain-user",
+		Pass: broker.plainPassword,
+	}.AsMechanism()
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		adminMechanism,
+		topic,
+	)
+
+	var currentPassword atomic.Value
+	currentPassword.Store(broker.scram256Password)
+	var providerCalls atomic.Int64
+	security := kafka.ClientSecurity{
+		TLS: broker.serverTLSConfig(),
+		Authentication: kafka.NewSCRAMSHA256Authentication(
+			kafka.UsernamePasswordProviderFunc(func(
+				context.Context,
+			) (kafka.UsernamePassword, error) {
+				providerCalls.Add(1)
+				return kafka.UsernamePassword{
+					Username: "scram256-user",
+					Password: []byte(currentPassword.Load().(string)),
+				}, nil
+			}),
+		),
+		CredentialTimeout: time.Second,
+	}
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:         []string{broker.endpoint},
+		ClientID:        "golib-scram-rotation-producer",
+		AllowedTopics:   []string{topic},
+		DeliveryTimeout: 3 * time.Second,
+		RequestTimeout:  2 * time.Second,
+		ShutdownTimeout: 4 * time.Second,
+		Security:        security,
+	})
+	if err != nil {
+		t.Fatalf("construct rotating SCRAM producer: %v", err)
+	}
+	initial := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte("before-rotation"),
+		Value: []byte("before-rotation"),
+	})
+	if initial.Err != nil {
+		_ = producer.Close()
+		t.Fatalf("initial SCRAM delivery: %v", initial.Err)
+	}
+	baselineCalls := providerCalls.Load()
+	if baselineCalls == 0 {
+		_ = producer.Close()
+		t.Fatal("initial SCRAM credential provider was not used")
+	}
+
+	oldPassword := broker.scram256Password
+	newPassword := randomSecureKafkaCredential(t)
+	alterSecureKafkaSCRAMCredential(
+		t,
+		ctx,
+		broker,
+		adminMechanism,
+		"scram256-user",
+		newPassword,
+	)
+	currentPassword.Store(newPassword)
+
+	rotationCtx, cancelRotation := context.WithTimeout(ctx, 12*time.Second)
+	defer cancelRotation()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for attempt := 1; ; attempt++ {
+		select {
+		case <-rotationCtx.Done():
+			_ = producer.Close()
+			t.Fatalf(
+				"SCRAM provider was not refreshed after %d calls: %v",
+				providerCalls.Load(),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+		result := producer.PublishRecord(rotationCtx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte(fmt.Sprintf("after-rotation-%d", attempt)),
+			Value: []byte("after-rotation"),
+		})
+		lastErr = result.Err
+		if providerCalls.Load() > baselineCalls && result.Err == nil {
+			break
+		}
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close rotating SCRAM producer: %v", err)
+	}
+
+	retiredSecurity, _ := usernamePasswordSecurity(
+		broker,
+		"scram256-user",
+		oldPassword,
+		kafka.NewSCRAMSHA256Authentication,
+	)
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		retiredSecurity,
+		[]string{oldPassword},
+	)
+}
+
 func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -730,6 +852,8 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"super.users=User:ANONYMOUS;User:plain-user;" +
 			"User:scram256-user;User:scram512-user\n" +
 			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n" +
+			"listener.name.sasl_ssl.scram-sha-256." +
+			"connections.max.reauth.ms=3000\n" +
 			"listener.name.sasl_ssl.plain.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.plain.PlainLoginModule required " +
 			"user_plain-user=\"${file:/tmp/plain.properties:password}\" " +
@@ -1194,6 +1318,48 @@ func createSecureKafkaTopic(
 	}
 	if response.Err != nil {
 		t.Fatalf("create secured Kafka topic %q: %v", topic, response.Err)
+	}
+}
+
+func alterSecureKafkaSCRAMCredential(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	adminMechanism sasl.Mechanism,
+	username string,
+	password string,
+) {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(broker.endpoint),
+		kgo.ClientID("golib-secure-credential-administrator"),
+		kgo.DialTLSConfig(broker.serverTLSConfig()),
+		kgo.SASL(adminMechanism),
+	)
+	if err != nil {
+		t.Fatalf("construct secured Kafka credential administrator: %v", err)
+	}
+	defer client.Close()
+	responses, err := kadm.NewClient(client).AlterUserSCRAMs(
+		ctx,
+		nil,
+		[]kadm.UpsertSCRAM{{
+			User:       username,
+			Mechanism:  kadm.ScramSha256,
+			Iterations: 4096,
+			Password:   password,
+		}},
+	)
+	if err != nil {
+		t.Fatalf("alter secured Kafka SCRAM credential: %v", err)
+	}
+	response, exists := responses[username]
+	if !exists {
+		t.Fatalf("secured Kafka SCRAM response omitted %q", username)
+	}
+	if response.Err != nil {
+		t.Fatalf("alter secured Kafka SCRAM credential for %q: %v", username, response.Err)
 	}
 }
 

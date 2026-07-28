@@ -44,7 +44,9 @@ All notable changes to this module are documented here.
   inspector roles plus bounded certificate, credential, issuer, audience, and
   hostname failure cases without emitting generated test credentials; an
   authenticated ACL-denied principal additionally proves producer and
-  inspector authorization errors preserve their broker identity
+  inspector authorization errors preserve their broker identity, while a live
+  SCRAM-SHA-256 producer refreshes its provider after broker-enforced
+  reauthentication and rejects the retired credential
 - explicit bounded producer and transactional-output retry-backoff ranges with
   per-client jitter, plus three-broker evidence that drops every matching
   `Produce` response and returns within the reviewed delivery bound

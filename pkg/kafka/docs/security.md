@@ -91,15 +91,20 @@ The fixtures prove:
 - KRaft `StandardAuthorizer` denial for an authenticated PLAIN principal with
   no matching ACL, including `ErrorAuthorization` producer classification and
   unchanged inspector `TopicAuthorizationFailed` identity without password
-  disclosure.
+  disclosure; and
+- live SCRAM-SHA-256 credential replacement: one producer crosses Kafka's
+  three-second broker-enforced reauthentication lifetime, invokes the package
+  provider again, delivers with the replacement credential, and rejects the
+  retired credential on a new connection.
 
-This proves interoperability only with the pinned Apache fixture. Repeated
-same-client credential expiry, JWKS refresh and signing-key rollover, TLS
-certificate rotation during live traffic, consumer-group and transactional-ID
-authorization failures, ACL changes during live traffic, and managed-service
-authentication remain separate required evidence. The fixture
-does not use Kafka's non-production unsecured OAUTHBEARER implementation and
-does not claim compatibility with a particular OAuth identity provider.
+This proves interoperability only with the pinned Apache fixture. Prolonged
+multi-client credential-rotation stress, PLAIN and SCRAM-SHA-512 replacement,
+JWKS refresh and signing-key rollover, TLS certificate rotation during live
+traffic, consumer-group and transactional-ID authorization failures, ACL
+changes during live traffic, and managed-service authentication remain
+separate required evidence. The fixture does not use Kafka's non-production
+unsecured OAUTHBEARER implementation and does not claim compatibility with a
+particular OAuth identity provider.
 
 MSK IAM authentication and OpenTelemetry remain absent from the root module.
 The independently versioned [`adapters/mskiam`](../adapters/mskiam) module uses
