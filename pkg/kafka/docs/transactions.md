@@ -160,8 +160,16 @@ transaction-state API rather than sleeping. The coordinator reports
 while read-uncommitted consumers do. The producer's later commit receives
 `INVALID_TXN_STATE`, which the package correctly reports with
 `ErrTransactionOutcomeUnknown` because that response alone cannot establish
-the broker's final outcome. A response-loss commit scenario and older-broker
-behavior are not yet support evidence.
+the broker's final outcome.
+
+The same three-broker fixture forwards a real `EndTxn` commit to Kafka, reads
+and drops every matching broker response, and then closes that connection.
+Kafka makes the record visible to a separate read-committed consumer while
+`RunTransaction` returns a commit-phase `ErrorAmbiguous` `TransactionError`
+that unwraps to `ErrTransactionOutcomeUnknown`, is not abortable, and reports
+that the outcome is unknown. This proves the loss window where Kafka committed
+but the producer cannot independently know that result. Older-broker behavior
+is not yet support evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store

@@ -22,6 +22,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker response-loss evidence that forwards a real `EndTxn` commit,
+  drops every matching broker response, observes the record through a separate
+  read-committed consumer, and returns a non-abortable unknown commit outcome
+  to the producer
 - allocation-free `ProducerRecord.Validate` checks for composition layers that
   must reject invalid or oversized records before copying caller-owned bytes
 - three-broker transaction-timeout evidence proving coordinator-driven abort,
