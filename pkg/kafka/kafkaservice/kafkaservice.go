@@ -222,6 +222,7 @@ type Producer[R any] struct {
 	stopping         bool
 	inflight         int
 	drained          chan struct{}
+	startupAttempt   *startupAttempt
 	shutdownAttempt  *shutdownAttempt
 	shutdownComplete bool
 }
@@ -239,8 +240,15 @@ type Consumer[R any] struct {
 	mu               sync.RWMutex
 	active           bool
 	stopping         bool
+	inflight         int
+	drained          chan struct{}
+	startupAttempt   *startupAttempt
 	shutdownAttempt  *shutdownAttempt
 	shutdownComplete bool
+}
+
+type startupAttempt struct {
+	done chan struct{}
 }
 
 type shutdownAttempt struct {
@@ -346,12 +354,10 @@ func (producer *Producer[R]) Readiness() (service.ReadinessCheck, bool) {
 	return service.ReadinessCheck{
 		Name: producer.name,
 		Run: func(ctx context.Context) error {
-			producer.mu.Lock()
-			active := producer.active && !producer.stopping
-			producer.mu.Unlock()
-			if !active {
+			if !producer.beginUse() {
 				return ErrUnavailable
 			}
+			defer producer.finishUse()
 
 			return invokeCallback(CallbackReadiness, func() error {
 				return producer.readiness(ctx, producer.resource)
@@ -398,15 +404,10 @@ func (producer *Producer[R]) Publish(
 	delivery kafka.DeliveryResult,
 	err error,
 ) {
-	producer.mu.Lock()
-	if !producer.active || producer.stopping {
-		producer.mu.Unlock()
-
+	if !producer.beginUse() {
 		return correlation.Values{}, kafka.DeliveryResult{}, ErrUnavailable
 	}
-	producer.inflight++
-	producer.mu.Unlock()
-	defer producer.finishPublish()
+	defer producer.finishUse()
 	defer func() {
 		if recover() != nil {
 			delivery = kafka.DeliveryResult{}
@@ -500,18 +501,38 @@ func NewHandler(options HandlerOptions) (kafka.Handler, error) {
 }
 
 func (consumer *Consumer[R]) start(ctx context.Context) error {
-	consumer.mu.RLock()
-	stopping := consumer.stopping
-	consumer.mu.RUnlock()
-	if stopping {
+	consumer.mu.Lock()
+	if consumer.stopping {
+		consumer.mu.Unlock()
+
 		return ErrUnavailable
 	}
+	if consumer.active {
+		consumer.mu.Unlock()
+
+		return nil
+	}
+	if consumer.startupAttempt != nil {
+		consumer.mu.Unlock()
+
+		return ErrUnavailable
+	}
+	var attempt *startupAttempt
+	if consumer.startup != nil {
+		attempt = &startupAttempt{done: make(chan struct{})}
+		consumer.startupAttempt = attempt
+	}
+	consumer.mu.Unlock()
 	if consumer.startup != nil {
 		if err := invokeCallback(CallbackStartup, func() error {
 			return consumer.startup(ctx, consumer.resource)
 		}); err != nil {
 			consumer.mu.Lock()
 			consumer.stopping = true
+			consumer.startupAttempt = nil
+			if attempt != nil {
+				close(attempt.done)
+			}
 			consumer.mu.Unlock()
 
 			return &StartupError{
@@ -522,6 +543,10 @@ func (consumer *Consumer[R]) start(ctx context.Context) error {
 	}
 	consumer.mu.Lock()
 	defer consumer.mu.Unlock()
+	if attempt != nil {
+		consumer.startupAttempt = nil
+		close(attempt.done)
+	}
 	if consumer.stopping {
 		return ErrUnavailable
 	}
@@ -531,12 +556,10 @@ func (consumer *Consumer[R]) start(ctx context.Context) error {
 }
 
 func (consumer *Consumer[R]) runTask(ctx context.Context) error {
-	consumer.mu.RLock()
-	active := consumer.active && !consumer.stopping
-	consumer.mu.RUnlock()
-	if !active {
+	if !consumer.beginUse() {
 		return ErrUnavailable
 	}
+	defer consumer.finishUse()
 
 	return invokeCallback(CallbackRun, func() error {
 		return consumer.run(ctx, consumer.resource, consumer.handler)
@@ -544,12 +567,10 @@ func (consumer *Consumer[R]) runTask(ctx context.Context) error {
 }
 
 func (consumer *Consumer[R]) checkReadiness(ctx context.Context) error {
-	consumer.mu.RLock()
-	active := consumer.active && !consumer.stopping
-	consumer.mu.RUnlock()
-	if !active {
+	if !consumer.beginUse() {
 		return ErrUnavailable
 	}
+	defer consumer.finishUse()
 
 	return invokeCallback(CallbackReadiness, func() error {
 		return consumer.readiness(ctx, consumer.resource)
@@ -560,7 +581,27 @@ func (consumer *Consumer[R]) stop(ctx context.Context) error {
 	consumer.mu.Lock()
 	consumer.active = false
 	consumer.stopping = true
+	startup := consumer.startupAttempt
+	if consumer.drained == nil {
+		consumer.drained = make(chan struct{})
+		if consumer.inflight == 0 {
+			close(consumer.drained)
+		}
+	}
+	drained := consumer.drained
 	consumer.mu.Unlock()
+	if startup != nil {
+		select {
+		case <-startup.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	select {
+	case <-drained:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	return consumer.shutdownResource(ctx)
 }
@@ -607,6 +648,21 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 
 		return ErrUnavailable
 	}
+	if producer.active {
+		producer.mu.Unlock()
+
+		return nil
+	}
+	if producer.startupAttempt != nil {
+		producer.mu.Unlock()
+
+		return ErrUnavailable
+	}
+	var attempt *startupAttempt
+	if producer.startup != nil {
+		attempt = &startupAttempt{done: make(chan struct{})}
+		producer.startupAttempt = attempt
+	}
 	producer.mu.Unlock()
 	if producer.startup != nil {
 		if err := invokeCallback(CallbackStartup, func() error {
@@ -615,6 +671,10 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 			if producer.shutdown != nil {
 				producer.mu.Lock()
 				producer.stopping = true
+				producer.startupAttempt = nil
+				if attempt != nil {
+					close(attempt.done)
+				}
 				producer.mu.Unlock()
 
 				return &StartupError{
@@ -623,11 +683,22 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 				}
 			}
 
+			producer.mu.Lock()
+			producer.startupAttempt = nil
+			if attempt != nil {
+				close(attempt.done)
+			}
+			producer.mu.Unlock()
+
 			return &StartupError{Validation: err}
 		}
 	}
 	producer.mu.Lock()
 	defer producer.mu.Unlock()
+	if attempt != nil {
+		producer.startupAttempt = nil
+		close(attempt.done)
+	}
 	if producer.stopping {
 		return ErrUnavailable
 	}
@@ -636,7 +707,18 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 	return nil
 }
 
-func (producer *Producer[R]) finishPublish() {
+func (producer *Producer[R]) beginUse() bool {
+	producer.mu.Lock()
+	defer producer.mu.Unlock()
+	if !producer.active || producer.stopping {
+		return false
+	}
+	producer.inflight++
+
+	return true
+}
+
+func (producer *Producer[R]) finishUse() {
 	producer.mu.Lock()
 	defer producer.mu.Unlock()
 	producer.inflight--
@@ -646,10 +728,32 @@ func (producer *Producer[R]) finishPublish() {
 	}
 }
 
+func (consumer *Consumer[R]) beginUse() bool {
+	consumer.mu.Lock()
+	defer consumer.mu.Unlock()
+	if !consumer.active || consumer.stopping {
+		return false
+	}
+	consumer.inflight++
+
+	return true
+}
+
+func (consumer *Consumer[R]) finishUse() {
+	consumer.mu.Lock()
+	defer consumer.mu.Unlock()
+	consumer.inflight--
+	if consumer.stopping && consumer.inflight == 0 && consumer.drained != nil {
+		close(consumer.drained)
+		consumer.drained = nil
+	}
+}
+
 func (producer *Producer[R]) stop(ctx context.Context) error {
 	producer.mu.Lock()
 	producer.active = false
 	producer.stopping = true
+	startup := producer.startupAttempt
 	if producer.drained == nil {
 		producer.drained = make(chan struct{})
 		if producer.inflight == 0 {
@@ -659,6 +763,13 @@ func (producer *Producer[R]) stop(ctx context.Context) error {
 	drained := producer.drained
 	producer.mu.Unlock()
 
+	if startup != nil {
+		select {
+		case <-startup.done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	select {
 	case <-drained:
 	case <-ctx.Done():

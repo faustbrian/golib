@@ -8,6 +8,8 @@ All notable changes to this module are documented here.
 
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
+- Serialize startup, readiness, publishing, and consumer run callbacks with
+  resource shutdown so concurrent stop cannot close a resource still in use.
 
 ### Added
 

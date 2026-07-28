@@ -47,10 +47,16 @@ if err != nil {
 component := adapter.Component()
 ```
 
-The producer component rejects new work during stop, joins admitted publish
-callbacks, then invokes the transferred shutdown callback. Concurrent shutdown
-callers share one attempt; a failed attempt can be retried, and the first
-successful attempt makes later calls idempotent.
+The producer component rejects new work during stop, joins admitted publish and
+readiness callbacks, then invokes the transferred shutdown callback. Concurrent
+shutdown callers share one attempt; a failed attempt can be retried, and the
+first successful attempt makes later calls idempotent.
+
+Startup is serialized with shutdown. A stop requested during a startup callback
+marks the adapter unavailable but does not invoke shutdown until that callback
+returns. The stop context bounds this wait; if it expires, a later stop must
+resume cleanup. Concurrent start calls are rejected with `ErrUnavailable`, and
+a repeated start after successful admission is idempotent.
 
 Application callback panics are recovered at startup, readiness, publish,
 handler, run, and shutdown boundaries and returned as secret-safe
@@ -60,7 +66,9 @@ panic completes the failed attempt so a later bounded stop can retry.
 
 `NewConsumer` returns a plan containing one component, one supervised task,
 and an optional readiness check. Service task cancellation stops intake and
-joins handlers before reverse component shutdown closes the consumer.
+joins handlers before reverse component shutdown closes the consumer. Component
+stop also joins any admitted run or readiness callback, so direct concurrent
+stop cannot close a resource still used by those callbacks.
 
 See the root module's
 [service integration guide](../docs/service-integration.md) for ownership,

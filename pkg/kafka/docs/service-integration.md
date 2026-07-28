@@ -19,8 +19,9 @@ through `Resource`.
 - providing `Shutdown` transfers flush and close ownership after successful
   startup.
 
-During service stop, the producer rejects new adapter publishes, waits for
-every admitted publish callback, then invokes the owned shutdown callback.
+During service stop, the producer rejects new adapter publishes and readiness
+checks, waits for every admitted callback, then invokes the owned shutdown
+callback.
 If the service context expires while draining, the transport remains open and
 a later stop may resume cleanup. Shutdown attempts are serialized. Concurrent
 callers observe the same attempt, a failed attempt can be retried, and the
@@ -28,6 +29,13 @@ first successful attempt makes later calls idempotent. Startup failure begins
 owned-resource cleanup and returns a secret-safe `StartupError` that preserves
 both causes through `errors.Is` and `errors.As`; incomplete cleanup remains
 retryable.
+
+Startup and shutdown never use the transferred resource concurrently. A stop
+requested during startup marks the adapter unavailable, waits for the startup
+callback to return, and only then begins shutdown. The stop context bounds that
+wait; expiry leaves cleanup for a later stop call. Concurrent starts are
+rejected with `ErrUnavailable`, while a repeated start after successful
+admission is idempotent. The same lifecycle rule applies to consumer startup.
 
 All application callbacks are panic-contained. Startup, readiness, publish,
 handler, run, and shutdown panics return `CallbackPanicError`, whose
@@ -122,7 +130,10 @@ optional readiness check into the application plan. The service first cancels
 the consumer task. `Consumer.Run` stops polling and joins admitted handlers.
 Only after the task returns does reverse component shutdown call
 `Consumer.Shutdown`, which leaves the group and closes the client within the
-service shutdown context.
+service shutdown context. Component stop independently waits for admitted run
+and readiness callbacks, so a direct concurrent stop cannot close the consumer
+resource while either callback is still using it. The stop context bounds that
+join and incomplete cleanup remains retryable.
 
 Every delivery creates a distinct request ID. Set `TrustedMetadata` only after
 authenticating the immediate Kafka boundary through deployment ACLs and the

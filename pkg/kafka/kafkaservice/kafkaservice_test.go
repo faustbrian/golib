@@ -3,6 +3,7 @@ package kafkaservice_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -1201,9 +1202,13 @@ func TestConcurrentConsumerStopsObserveOneShutdownResult(t *testing.T) {
 	waiter := make(chan error, 1)
 	go func() { waiter <- component.Stop(waiterContext) }()
 	<-observed
-	waitContext, cancel := context.WithCancel(context.Background())
-	cancel()
-	if err = component.Stop(waitContext); !errors.Is(err, context.Canceled) {
+	canceled := make(chan struct{})
+	close(canceled)
+	cancelContext := &producerShutdownCanceledContext{
+		Context: context.Background(),
+		done:    canceled,
+	}
+	if err = component.Stop(cancelContext); !errors.Is(err, context.Canceled) {
 		t.Fatalf("concurrent Stop(canceled) error = %v", err)
 	}
 	close(release)
@@ -1321,6 +1326,144 @@ func TestConcurrentStartAndStopLeaveAdaptersUnavailable(t *testing.T) {
 	t.Run("producer", func(t *testing.T) {
 		started := make(chan struct{})
 		release := make(chan struct{})
+		released := false
+		defer func() {
+			if !released {
+				close(release)
+			}
+		}()
+		shutdownStarted := make(chan struct{})
+		producer, err := kafkaservice.NewProducer(
+			kafkaservice.ProducerOptions[*producerResource]{
+				Name: "producer", Resource: &producerResource{},
+				Correlation: mustFactory(t, "unused"),
+				Startup: func(context.Context, *producerResource) error {
+					close(started)
+					<-release
+
+					return nil
+				},
+				Publish: func(
+					context.Context,
+					*producerResource,
+					kafka.ProducerRecord,
+				) (kafka.DeliveryResult, error) {
+					return kafka.DeliveryResult{}, nil
+				},
+				Shutdown: func(context.Context, *producerResource) error {
+					close(shutdownStarted)
+
+					return nil
+				},
+			},
+		)
+		if err != nil {
+			t.Fatalf("NewProducer() error = %v", err)
+		}
+		component := producer.Component()
+		result := make(chan error, 1)
+		go func() { result <- component.Start(context.Background()) }()
+		<-started
+		stopContext, cancel := context.WithCancel(context.Background())
+		observed := make(chan struct{})
+		stopResult := make(chan error, 1)
+		go func() {
+			stopResult <- component.Stop(&observingContext{
+				Context: stopContext, observed: observed, wantCalls: 1,
+			})
+		}()
+		<-observed
+		cancel()
+		if err = <-stopResult; !errors.Is(err, context.Canceled) {
+			t.Fatalf("Stop() during startup error = %v", err)
+		}
+		select {
+		case <-shutdownStarted:
+			t.Fatal("Shutdown ran before Startup returned")
+		default:
+		}
+		close(release)
+		released = true
+		if err = <-result; !errors.Is(err, kafkaservice.ErrUnavailable) {
+			t.Fatalf("concurrent Start() error = %v", err)
+		}
+		if err = component.Stop(context.Background()); err != nil {
+			t.Fatalf("retry Stop() error = %v", err)
+		}
+	})
+
+	t.Run("consumer", func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+		released := false
+		defer func() {
+			if !released {
+				close(release)
+			}
+		}()
+		shutdownStarted := make(chan struct{})
+		consumer, err := kafkaservice.NewConsumer(
+			kafkaservice.ConsumerOptions[*consumerResource]{
+				Name: "consumer", Resource: &consumerResource{},
+				Correlation: mustFactory(t, "unused"),
+				Handler: kafka.HandlerFunc(func(context.Context, kafka.ConsumedMessage) error {
+					return nil
+				}),
+				Startup: func(context.Context, *consumerResource) error {
+					close(started)
+					<-release
+
+					return nil
+				},
+				Run: func(context.Context, *consumerResource, kafka.Handler) error {
+					return nil
+				},
+				Shutdown: func(context.Context, *consumerResource) error {
+					close(shutdownStarted)
+
+					return nil
+				},
+			},
+		)
+		if err != nil {
+			t.Fatalf("NewConsumer() error = %v", err)
+		}
+		plan := consumer.Plan()
+		result := make(chan error, 1)
+		go func() { result <- plan.Components[0].Start(context.Background()) }()
+		<-started
+		stopContext, cancel := context.WithCancel(context.Background())
+		observed := make(chan struct{})
+		stopResult := make(chan error, 1)
+		go func() {
+			stopResult <- plan.Components[0].Stop(&observingContext{
+				Context: stopContext, observed: observed, wantCalls: 1,
+			})
+		}()
+		select {
+		case <-observed:
+		case <-shutdownStarted:
+			t.Fatal("Shutdown ran before Startup returned")
+		}
+		cancel()
+		if err = <-stopResult; !errors.Is(err, context.Canceled) {
+			t.Fatalf("Stop() during startup error = %v", err)
+		}
+		close(release)
+		released = true
+		if err = <-result; !errors.Is(err, kafkaservice.ErrUnavailable) {
+			t.Fatalf("concurrent Start() error = %v", err)
+		}
+		if err = plan.Components[0].Stop(context.Background()); err != nil {
+			t.Fatalf("retry Stop() error = %v", err)
+		}
+	})
+}
+
+func TestConcurrentAndRepeatedStartsDoNotReenterStartup(t *testing.T) {
+	t.Run("producer", func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
 		producer, err := kafkaservice.NewProducer(
 			kafkaservice.ProducerOptions[*producerResource]{
 				Name: "producer", Resource: &producerResource{},
@@ -1344,15 +1487,21 @@ func TestConcurrentStartAndStopLeaveAdaptersUnavailable(t *testing.T) {
 			t.Fatalf("NewProducer() error = %v", err)
 		}
 		component := producer.Component()
-		result := make(chan error, 1)
-		go func() { result <- component.Start(context.Background()) }()
+		first := make(chan error, 1)
+		go func() { first <- component.Start(context.Background()) }()
 		<-started
-		if err = component.Stop(context.Background()); err != nil {
-			t.Fatalf("Stop() error = %v", err)
+		if err = component.Start(context.Background()); !errors.Is(
+			err,
+			kafkaservice.ErrUnavailable,
+		) {
+			t.Fatalf("concurrent Start() error = %v", err)
 		}
 		close(release)
-		if err = <-result; !errors.Is(err, kafkaservice.ErrUnavailable) {
-			t.Fatalf("concurrent Start() error = %v", err)
+		if err = <-first; err != nil {
+			t.Fatalf("first Start() error = %v", err)
+		}
+		if err = component.Start(context.Background()); err != nil {
+			t.Fatalf("repeated Start() error = %v", err)
 		}
 	})
 
@@ -1363,7 +1512,10 @@ func TestConcurrentStartAndStopLeaveAdaptersUnavailable(t *testing.T) {
 			kafkaservice.ConsumerOptions[*consumerResource]{
 				Name: "consumer", Resource: &consumerResource{},
 				Correlation: mustFactory(t, "unused"),
-				Handler: kafka.HandlerFunc(func(context.Context, kafka.ConsumedMessage) error {
+				Handler: kafka.HandlerFunc(func(
+					context.Context,
+					kafka.ConsumedMessage,
+				) error {
 					return nil
 				}),
 				Startup: func(context.Context, *consumerResource) error {
@@ -1372,7 +1524,11 @@ func TestConcurrentStartAndStopLeaveAdaptersUnavailable(t *testing.T) {
 
 					return nil
 				},
-				Run: func(context.Context, *consumerResource, kafka.Handler) error {
+				Run: func(
+					context.Context,
+					*consumerResource,
+					kafka.Handler,
+				) error {
 					return nil
 				},
 				Shutdown: func(context.Context, *consumerResource) error {
@@ -1383,16 +1539,174 @@ func TestConcurrentStartAndStopLeaveAdaptersUnavailable(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewConsumer() error = %v", err)
 		}
-		plan := consumer.Plan()
-		result := make(chan error, 1)
-		go func() { result <- plan.Components[0].Start(context.Background()) }()
+		component := consumer.Plan().Components[0]
+		first := make(chan error, 1)
+		go func() { first <- component.Start(context.Background()) }()
 		<-started
-		if err = plan.Components[0].Stop(context.Background()); err != nil {
-			t.Fatalf("Stop() error = %v", err)
+		if err = component.Start(context.Background()); !errors.Is(
+			err,
+			kafkaservice.ErrUnavailable,
+		) {
+			t.Fatalf("concurrent Start() error = %v", err)
 		}
 		close(release)
-		if err = <-result; !errors.Is(err, kafkaservice.ErrUnavailable) {
-			t.Fatalf("concurrent Start() error = %v", err)
+		if err = <-first; err != nil {
+			t.Fatalf("first Start() error = %v", err)
+		}
+		if err = component.Start(context.Background()); err != nil {
+			t.Fatalf("repeated Start() error = %v", err)
+		}
+	})
+}
+
+func TestStopDoesNotShutdownResourcesUsedByActiveCallbacks(t *testing.T) {
+	t.Run("producer readiness", func(t *testing.T) {
+		callbackStarted := make(chan struct{})
+		releaseCallback := make(chan struct{})
+		released := false
+		defer func() {
+			if !released {
+				close(releaseCallback)
+			}
+		}()
+		shutdownStarted := make(chan struct{})
+		producer, err := kafkaservice.NewProducer(
+			kafkaservice.ProducerOptions[*producerResource]{
+				Name: "producer", Resource: &producerResource{},
+				Correlation: mustFactory(t, "unused"),
+				Readiness: func(context.Context, *producerResource) error {
+					close(callbackStarted)
+					<-releaseCallback
+
+					return nil
+				},
+				Publish: func(
+					context.Context,
+					*producerResource,
+					kafka.ProducerRecord,
+				) (kafka.DeliveryResult, error) {
+					return kafka.DeliveryResult{}, nil
+				},
+				Shutdown: func(context.Context, *producerResource) error {
+					close(shutdownStarted)
+
+					return nil
+				},
+			},
+		)
+		if err != nil {
+			t.Fatalf("NewProducer() error = %v", err)
+		}
+		component := producer.Component()
+		if err = component.Start(context.Background()); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		readiness, ok := producer.Readiness()
+		if !ok {
+			t.Fatal("Readiness() missing configured check")
+		}
+		callbackResult := make(chan error, 1)
+		go func() { callbackResult <- readiness.Run(context.Background()) }()
+		<-callbackStarted
+		stopContext, cancel := context.WithCancel(context.Background())
+		observed := make(chan struct{})
+		stopResult := make(chan error, 1)
+		go func() {
+			stopResult <- component.Stop(&observingContext{
+				Context: stopContext, observed: observed, wantCalls: 1,
+			})
+		}()
+		<-observed
+		cancel()
+		if err = <-stopResult; !errors.Is(err, context.Canceled) {
+			t.Fatalf("Stop() during readiness error = %v", err)
+		}
+		select {
+		case <-shutdownStarted:
+			t.Fatal("Shutdown ran before Readiness returned")
+		default:
+		}
+		close(releaseCallback)
+		released = true
+		if err = <-callbackResult; err != nil {
+			t.Fatalf("Readiness() error = %v", err)
+		}
+		if err = component.Stop(context.Background()); err != nil {
+			t.Fatalf("retry Stop() error = %v", err)
+		}
+	})
+
+	t.Run("consumer run", func(t *testing.T) {
+		callbackStarted := make(chan struct{})
+		releaseCallback := make(chan struct{})
+		released := false
+		defer func() {
+			if !released {
+				close(releaseCallback)
+			}
+		}()
+		shutdownStarted := make(chan struct{})
+		consumer, err := kafkaservice.NewConsumer(
+			kafkaservice.ConsumerOptions[*consumerResource]{
+				Name: "consumer", Resource: &consumerResource{},
+				Correlation: mustFactory(t, "unused"),
+				Handler: kafka.HandlerFunc(func(
+					context.Context,
+					kafka.ConsumedMessage,
+				) error {
+					return nil
+				}),
+				Run: func(
+					context.Context,
+					*consumerResource,
+					kafka.Handler,
+				) error {
+					close(callbackStarted)
+					<-releaseCallback
+
+					return nil
+				},
+				Shutdown: func(context.Context, *consumerResource) error {
+					close(shutdownStarted)
+
+					return nil
+				},
+			},
+		)
+		if err != nil {
+			t.Fatalf("NewConsumer() error = %v", err)
+		}
+		plan := consumer.Plan()
+		if err = plan.Components[0].Start(context.Background()); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		callbackResult := make(chan error, 1)
+		go func() { callbackResult <- plan.Tasks[0].Run(context.Background()) }()
+		<-callbackStarted
+		stopContext, cancel := context.WithCancel(context.Background())
+		observed := make(chan struct{})
+		stopResult := make(chan error, 1)
+		go func() {
+			stopResult <- plan.Components[0].Stop(&observingContext{
+				Context: stopContext, observed: observed, wantCalls: 1,
+			})
+		}()
+		select {
+		case <-observed:
+		case <-shutdownStarted:
+			t.Fatal("Shutdown ran before Run returned")
+		}
+		cancel()
+		if err = <-stopResult; !errors.Is(err, context.Canceled) {
+			t.Fatalf("Stop() during run error = %v", err)
+		}
+		close(releaseCallback)
+		released = true
+		if err = <-callbackResult; err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
+		if err = plan.Components[0].Stop(context.Background()); err != nil {
+			t.Fatalf("retry Stop() error = %v", err)
 		}
 	})
 }
@@ -1605,6 +1919,19 @@ func TestCallbackPanicsAreContainedAndShutdownRemainsRetryable(t *testing.T) {
 			kafkaservice.CallbackHandler,
 		)
 	})
+}
+
+func TestStartupErrorFormattingDoesNotExposeCauses(t *testing.T) {
+	startupErr := &kafkaservice.StartupError{
+		Validation: errors.New("validation secret"),
+		Cleanup:    errors.New("cleanup secret"),
+	}
+	for _, format := range []string{"%v", "%+v", "%#v"} {
+		formatted := fmt.Sprintf(format, startupErr)
+		if strings.Contains(formatted, "secret") {
+			t.Fatalf("format %q exposed cause: %q", format, formatted)
+		}
+	}
 }
 
 func mustFactory(t *testing.T, values ...string) *correlation.Factory {
