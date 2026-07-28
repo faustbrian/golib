@@ -22,6 +22,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker eager-rebalance evidence across two operating-system processes,
+  proving that a transaction interrupted after output acknowledgement aborts,
+  leaves its source offset unsettled and output read-committed invisible, and
+  is safely reprocessed after the group stabilizes
 - three-broker process-termination evidence proving that a replacement
   consume-transform-produce processor fences an interrupted transaction,
   reprocesses the unsettled source record, commits one replacement output, and

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,12 +45,59 @@ const (
 	apacheKafkaProcessorGroup     = "GOLIB_KAFKA_PROCESSOR_GROUP"
 	apacheKafkaProcessorTxnID     = "GOLIB_KAFKA_PROCESSOR_TRANSACTIONAL_ID"
 	apacheKafkaProcessorReady     = "golib-kafka-processor-output-acknowledged"
+	apacheKafkaProcessorAborted   = "golib-kafka-processor-rebalance-aborted"
+
+	apacheKafkaProcessorModeTermination = "termination"
+	apacheKafkaProcessorModeRebalance   = "rebalance"
+	apacheKafkaProcessorDiagnosticLimit = 32 << 10
 )
 
-func TestApacheKafkaTransactionProcessorTerminationChild(t *testing.T) {
-	if os.Getenv(apacheKafkaProcessorChildMode) != "1" {
-		t.Skip("subprocess helper")
+type apacheKafkaProcessorDiagnostic struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (diagnostic *apacheKafkaProcessorDiagnostic) Write(
+	value []byte,
+) (int, error) {
+	length := len(value)
+	diagnostic.mu.Lock()
+	defer diagnostic.mu.Unlock()
+
+	remaining := apacheKafkaProcessorDiagnosticLimit - diagnostic.buffer.Len()
+	if remaining <= 0 {
+		return length, nil
 	}
+	if len(value) > remaining {
+		value = value[:remaining]
+	}
+	_, _ = diagnostic.buffer.Write(value)
+
+	return length, nil
+}
+
+func (diagnostic *apacheKafkaProcessorDiagnostic) String() string {
+	diagnostic.mu.Lock()
+	defer diagnostic.mu.Unlock()
+
+	return diagnostic.buffer.String()
+}
+
+func TestApacheKafkaTransactionProcessorChild(t *testing.T) {
+	switch os.Getenv(apacheKafkaProcessorChildMode) {
+	case "":
+		t.Skip("subprocess helper")
+	case apacheKafkaProcessorModeTermination:
+		runApacheKafkaTerminationChild(t)
+	case apacheKafkaProcessorModeRebalance:
+		runApacheKafkaRebalanceChild(t)
+	default:
+		t.Fatal("unknown transaction processor subprocess mode")
+	}
+}
+
+func runApacheKafkaTerminationChild(t *testing.T) {
+	t.Helper()
 
 	processor := newApacheKafkaTerminationProcessor(
 		t,
@@ -88,6 +136,69 @@ func TestApacheKafkaTransactionProcessorTerminationChild(t *testing.T) {
 	t.Fatalf("transaction processor child unexpectedly returned: %v", err)
 }
 
+func runApacheKafkaRebalanceChild(t *testing.T) {
+	t.Helper()
+
+	processor := newApacheKafkaRebalanceProcessor(
+		t,
+		strings.Split(os.Getenv(apacheKafkaProcessorBrokers), ","),
+		os.Getenv(apacheKafkaProcessorSource),
+		os.Getenv(apacheKafkaProcessorOutput),
+		os.Getenv(apacheKafkaProcessorGroup),
+		os.Getenv(apacheKafkaProcessorTxnID),
+		"golib-apache-rebalance-child",
+	)
+	defer func() {
+		if err := processor.Close(); err != nil {
+			t.Errorf("close rebalance child processor: %v", err)
+		}
+	}()
+
+	childCtx, cancelChild := context.WithTimeout(
+		context.Background(),
+		45*time.Second,
+	)
+	defer cancelChild()
+	result, err := processor.RunOnce(
+		childCtx,
+		kafka.TransactionHandlerFunc(func(
+			ctx context.Context,
+			record kafka.ConsumedRecord,
+			transaction kafka.Transaction,
+		) error {
+			if err := transaction.Publish(ctx, kafka.ProducerRecord{
+				Topic: os.Getenv(apacheKafkaProcessorOutput),
+				Key:   record.Key,
+				Value: append([]byte("rebalanced-"), record.Value...),
+			}); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintln(
+				os.Stdout,
+				apacheKafkaProcessorReady,
+			); err != nil {
+				return err
+			}
+
+			release := []byte{0}
+			if _, err := io.ReadFull(os.Stdin, release); err != nil {
+				return err
+			}
+
+			return nil
+		}),
+	)
+	if !errors.Is(err, kafka.ErrTransactionNotCommitted) ||
+		result != (kafka.TransactionPollResult{
+			Polled: 1, Processed: 1, Published: 1,
+		}) {
+		t.Fatalf("rebalance child result = (%#v, %v)", result, err)
+	}
+	if _, err := fmt.Fprintln(os.Stdout, apacheKafkaProcessorAborted); err != nil {
+		t.Fatalf("report rebalance child abort: %v", err)
+	}
+}
+
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
@@ -106,6 +217,9 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	processorOutputTopic := topic + "-processor-output"
 	terminationSourceTopic := topic + "-termination-source"
 	terminationOutputTopic := topic + "-termination-output"
+	rebalanceSourceTopic := topic + "-rebalance-source"
+	rebalanceOutputTopic := topic + "-rebalance-output"
+	rebalanceTriggerTopic := topic + "-rebalance-trigger"
 	createApacheKafkaTopic(t, ctx, brokers, topic, 3)
 	createApacheKafkaTopic(t, ctx, brokers, fencingTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
@@ -114,6 +228,9 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	createApacheKafkaTopic(t, ctx, brokers, processorOutputTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, terminationSourceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, terminationOutputTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, rebalanceSourceTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, rebalanceOutputTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, rebalanceTriggerTopic, 1)
 
 	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
 		Brokers:  brokers,
@@ -165,6 +282,14 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		brokers,
 		terminationSourceTopic,
 		terminationOutputTopic,
+	)
+	proveTransactionProcessorRebalance(
+		t,
+		ctx,
+		brokers,
+		rebalanceSourceTopic,
+		rebalanceOutputTopic,
+		rebalanceTriggerTopic,
 	)
 
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
@@ -420,11 +545,12 @@ func proveTransactionProcessorTerminationRecovery(
 	command := exec.CommandContext(
 		recoveryCtx,
 		os.Args[0],
-		"-test.run=^TestApacheKafkaTransactionProcessorTerminationChild$",
+		"-test.run=^TestApacheKafkaTransactionProcessorChild$",
 	)
 	command.Env = append(
 		os.Environ(),
-		apacheKafkaProcessorChildMode+"=1",
+		apacheKafkaProcessorChildMode+"="+
+			apacheKafkaProcessorModeTermination,
 		apacheKafkaProcessorBrokers+"="+strings.Join(brokers, ","),
 		apacheKafkaProcessorSource+"="+sourceTopic,
 		apacheKafkaProcessorOutput+"="+outputTopic,
@@ -435,7 +561,7 @@ func proveTransactionProcessorTerminationRecovery(
 	if err != nil {
 		t.Fatalf("open transaction processor child stdout: %v", err)
 	}
-	var stderr bytes.Buffer
+	var stderr apacheKafkaProcessorDiagnostic
 	command.Stderr = &stderr
 	if err := command.Start(); err != nil {
 		t.Fatalf("start transaction processor child: %v", err)
@@ -549,6 +675,413 @@ func proveTransactionProcessorTerminationRecovery(
 	}
 }
 
+func proveTransactionProcessorRebalance(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+	triggerTopic string,
+) {
+	t.Helper()
+
+	const (
+		groupID    = "golib-apache-rebalance-processor"
+		childID    = "golib-apache-rebalance-child"
+		triggerID  = "golib-apache-rebalance-trigger"
+		recoveryID = "golib-apache-rebalance-recovery"
+	)
+	rebalanceCtx, cancelRebalance := context.WithTimeout(ctx, 45*time.Second)
+	defer cancelRebalance()
+
+	sourceProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-rebalance-source",
+		AllowedTopics: []string{sourceTopic, triggerTopic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rebalance source producer: %v", err)
+	}
+	sourceProducerClosed := false
+	defer func() {
+		if !sourceProducerClosed {
+			_ = sourceProducer.Close()
+		}
+	}()
+	if err := sourceProducer.Publish(rebalanceCtx, kafka.ProducerRecord{
+		Topic: sourceTopic,
+		Key:   []byte("rebalance"),
+		Value: []byte("rebalance"),
+	}); err != nil {
+		t.Fatalf("publish rebalance source: %v", err)
+	}
+	if err := sourceProducer.Publish(rebalanceCtx, kafka.ProducerRecord{
+		Topic: triggerTopic,
+		Key:   []byte("trigger"),
+		Value: []byte("trigger"),
+	}); err != nil {
+		t.Fatalf("publish rebalance trigger: %v", err)
+	}
+	if err := sourceProducer.Close(); err != nil {
+		t.Fatalf("close rebalance source producer: %v", err)
+	}
+	sourceProducerClosed = true
+
+	command := exec.CommandContext(
+		rebalanceCtx,
+		os.Args[0],
+		"-test.run=^TestApacheKafkaTransactionProcessorChild$",
+	)
+	command.Env = append(
+		os.Environ(),
+		apacheKafkaProcessorChildMode+"="+apacheKafkaProcessorModeRebalance,
+		apacheKafkaProcessorBrokers+"="+strings.Join(brokers, ","),
+		apacheKafkaProcessorSource+"="+sourceTopic,
+		apacheKafkaProcessorOutput+"="+outputTopic,
+		apacheKafkaProcessorGroup+"="+groupID,
+		apacheKafkaProcessorTxnID+"="+childID,
+	)
+	stdin, err := command.StdinPipe()
+	if err != nil {
+		t.Fatalf("open rebalance child stdin: %v", err)
+	}
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		t.Fatalf("open rebalance child stdout: %v", err)
+	}
+	var stderr apacheKafkaProcessorDiagnostic
+	command.Stderr = &stderr
+	if err := command.Start(); err != nil {
+		t.Fatalf("start rebalance child: %v", err)
+	}
+	childExited := false
+	defer func() {
+		_ = stdin.Close()
+		if childExited {
+			return
+		}
+		_ = command.Process.Kill()
+		_ = command.Wait()
+	}()
+
+	scanner := bufio.NewScanner(stdout)
+	waitForApacheKafkaProcessorMarker(
+		t,
+		scanner,
+		apacheKafkaProcessorReady,
+		&stderr,
+	)
+
+	trigger := newApacheKafkaRebalanceProcessor(
+		t,
+		brokers,
+		triggerTopic,
+		outputTopic,
+		groupID,
+		triggerID,
+		"golib-apache-rebalance-trigger",
+	)
+	triggerClosed := false
+	defer func() {
+		if !triggerClosed {
+			_ = trigger.Close()
+		}
+	}()
+
+	type runResult struct {
+		result kafka.TransactionPollResult
+		err    error
+	}
+	triggerResult := make(chan runResult, 1)
+	go func() {
+		result, err := trigger.RunOnce(
+			rebalanceCtx,
+			kafka.TransactionHandlerFunc(func(
+				context.Context,
+				kafka.ConsumedRecord,
+				kafka.Transaction,
+			) error {
+				return nil
+			}),
+		)
+		triggerResult <- runResult{result: result, err: err}
+	}()
+
+	waitForApacheKafkaGroupMembers(
+		t,
+		rebalanceCtx,
+		brokers,
+		groupID,
+		2,
+	)
+	var triggerRun runResult
+	select {
+	case triggerRun = <-triggerResult:
+	case <-rebalanceCtx.Done():
+		t.Fatalf(
+			"wait for rebalance trigger: %v",
+			context.Cause(rebalanceCtx),
+		)
+	}
+	if triggerRun.err != nil ||
+		triggerRun.result != (kafka.TransactionPollResult{
+			Polled: 1, Processed: 1, Committed: true,
+		}) {
+		t.Fatalf(
+			"rebalance trigger result = (%#v, %v)",
+			triggerRun.result,
+			triggerRun.err,
+		)
+	}
+
+	if _, err := stdin.Write([]byte{1}); err != nil {
+		t.Fatalf("release rebalance child: %v", err)
+	}
+	if err := stdin.Close(); err != nil {
+		t.Fatalf("close rebalance child stdin: %v", err)
+	}
+	waitForApacheKafkaProcessorMarker(
+		t,
+		scanner,
+		apacheKafkaProcessorAborted,
+		&stderr,
+	)
+	if err := command.Wait(); err != nil {
+		t.Fatalf(
+			"wait for rebalance child: %v: %s",
+			err,
+			strings.TrimSpace(stderr.String()),
+		)
+	}
+	childExited = true
+
+	if err := trigger.Close(); err != nil {
+		t.Fatalf("close rebalance trigger: %v", err)
+	}
+	triggerClosed = true
+	waitForApacheKafkaGroupMembers(
+		t,
+		rebalanceCtx,
+		brokers,
+		groupID,
+		0,
+	)
+
+	recovery := newApacheKafkaRebalanceProcessor(
+		t,
+		brokers,
+		sourceTopic,
+		outputTopic,
+		groupID,
+		recoveryID,
+		"golib-apache-rebalance-recovery",
+	)
+	defer func() {
+		if err := recovery.Close(); err != nil {
+			t.Errorf("close rebalance recovery: %v", err)
+		}
+	}()
+	var recoveryRun runResult
+	for recoveryRun.result.Polled == 0 &&
+		recoveryRun.err == nil &&
+		context.Cause(rebalanceCtx) == nil {
+		recoveryRun.result, recoveryRun.err = recovery.RunOnce(
+			rebalanceCtx,
+			kafka.TransactionHandlerFunc(func(
+				ctx context.Context,
+				record kafka.ConsumedRecord,
+				transaction kafka.Transaction,
+			) error {
+				return transaction.Publish(ctx, kafka.ProducerRecord{
+					Topic: outputTopic,
+					Key:   record.Key,
+					Value: append([]byte("committed-"), record.Value...),
+				})
+			}),
+		)
+	}
+	if recoveryRun.err != nil ||
+		recoveryRun.result != (kafka.TransactionPollResult{
+			Polled: 1, Processed: 1, Published: 1, Committed: true,
+		}) {
+		t.Fatalf(
+			"rebalance recovery result = (%#v, %v)",
+			recoveryRun.result,
+			recoveryRun.err,
+		)
+	}
+
+	assertApacheKafkaGroupCommits(
+		t,
+		rebalanceCtx,
+		brokers,
+		groupID,
+		map[kafka.TopicPartition]int64{
+			{Topic: sourceTopic, Partition: 0}:  1,
+			{Topic: triggerTopic, Partition: 0}: 1,
+		},
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+		1,
+	); len(values) != 1 || values[0] != "committed-rebalance" {
+		t.Fatalf("read-committed rebalance values = %q", values)
+	}
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadUncommitted(),
+		2,
+	); len(values) != 2 ||
+		values[0] != "rebalanced-rebalance" ||
+		values[1] != "committed-rebalance" {
+		t.Fatalf("read-uncommitted rebalance values = %q", values)
+	}
+}
+
+func waitForApacheKafkaProcessorMarker(
+	t *testing.T,
+	scanner *bufio.Scanner,
+	marker string,
+	stderr *apacheKafkaProcessorDiagnostic,
+) {
+	t.Helper()
+
+	for scanner.Scan() {
+		if scanner.Text() == marker {
+			return
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read transaction processor child stdout: %v", err)
+	}
+	t.Fatalf(
+		"transaction processor child exited before %q: %s",
+		marker,
+		strings.TrimSpace(stderr.String()),
+	)
+}
+
+func waitForApacheKafkaGroupMembers(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	groupID string,
+	count int,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-rebalance-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rebalance inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastGroups []kafka.ConsumerGroupState
+	var lastErr error
+	for {
+		groups, err := inspector.ConsumerGroupLag(ctx, groupID)
+		stateMatches := len(groups) == 1 &&
+			(groups[0].State == "Stable" ||
+				(count == 0 && groups[0].State == "Empty"))
+		if err == nil &&
+			stateMatches &&
+			len(groups[0].Members) == count {
+			return
+		}
+		lastGroups = groups
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for %d rebalance members: %v; state = %#v; "+
+					"last error = %v",
+				count,
+				context.Cause(ctx),
+				lastGroups,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func assertApacheKafkaGroupCommits(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	groupID string,
+	want map[kafka.TopicPartition]int64,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-rebalance-commit-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rebalance commit inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastGroups []kafka.ConsumerGroupState
+	var lastErr error
+	for {
+		groups, err := inspector.ConsumerGroupLag(ctx, groupID)
+		if err == nil && apacheKafkaGroupCommitsMatch(groups, want) {
+			return
+		}
+		lastGroups = groups
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for rebalance commits: %v; state = %#v; "+
+					"last error = %v",
+				context.Cause(ctx),
+				lastGroups,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func apacheKafkaGroupCommitsMatch(
+	groups []kafka.ConsumerGroupState,
+	want map[kafka.TopicPartition]int64,
+) bool {
+	if len(groups) != 1 || len(groups[0].Partitions) != len(want) {
+		return false
+	}
+	for _, partition := range groups[0].Partitions {
+		offset, exists := want[kafka.TopicPartition{
+			Topic: partition.Topic, Partition: partition.Partition,
+		}]
+		if !exists || partition.CommittedOffset != offset {
+			return false
+		}
+	}
+
+	return true
+}
+
 func newApacheKafkaTerminationProcessor(
 	t *testing.T,
 	brokers []string,
@@ -571,6 +1104,49 @@ func newApacheKafkaTerminationProcessor(
 				GroupID:           groupID,
 				Topics:            []string{sourceTopic},
 				ResetOffset:       kafka.OffsetEarliest,
+				MaxPollRecords:    1,
+				SessionTimeout:    6 * time.Second,
+				HeartbeatInterval: 2 * time.Second,
+				ProcessingTimeout: 30 * time.Second,
+			},
+			Output: kafka.TransactionOutputConfig{
+				AllowedTopics:         []string{outputTopic},
+				TransactionalID:       transactionalID,
+				TransactionTimeout:    45 * time.Second,
+				TransactionEndTimeout: 2 * time.Second,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct %s: %v", clientID, err)
+	}
+
+	return processor
+}
+
+func newApacheKafkaRebalanceProcessor(
+	t *testing.T,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+	groupID string,
+	transactionalID string,
+	clientID string,
+) *kafka.TransactionProcessor {
+	t.Helper()
+
+	processor, err := kafka.NewTransactionProcessor(
+		kafka.TransactionProcessorConfig{
+			Connection: kafka.TransactionConnectionConfig{
+				Brokers:  brokers,
+				ClientID: clientID,
+				Security: kafka.DevelopmentPlaintextSecurity(),
+			},
+			Group: kafka.TransactionGroupConfig{
+				GroupID:           groupID,
+				Topics:            []string{sourceTopic},
+				ResetOffset:       kafka.OffsetEarliest,
+				BalancePolicy:     kafka.BalanceEagerSticky,
 				MaxPollRecords:    1,
 				SessionTimeout:    6 * time.Second,
 				HeartbeatInterval: 2 * time.Second,

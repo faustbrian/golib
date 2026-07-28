@@ -142,9 +142,13 @@ topics remain at ISR two. The fixture also terminates a real child process
 after its transactional output is acknowledged but before commit. A replacement
 with the same transactional ID reprocesses the unsettled source record, commits
 one replacement output and the source offset, and leaves the interrupted output
-visible only at read-uncommitted isolation. Multi-process group rebalance,
-timeout, unknown-outcome, and older-broker behavior are not yet support
-evidence.
+visible only at read-uncommitted isolation. A second scenario keeps that child
+transaction open after output acknowledgement while another operating-system
+process joins the eager group. The child observes `ErrTransactionNotCommitted`,
+its source remains unsettled, its output remains read-committed invisible, and
+a later stable member reprocesses and commits the source. Cooperative
+multi-process rebalance, timeout, unknown-outcome, and older-broker behavior
+are not yet support evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store
