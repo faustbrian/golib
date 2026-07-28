@@ -22,6 +22,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- allocation-free `ProducerRecord.Validate` checks for composition layers that
+  must reject invalid or oversized records before copying caller-owned bytes
 - three-broker transaction-timeout evidence proving coordinator-driven abort,
   read-committed invisibility, read-uncommitted retention, and an ambiguous
   `INVALID_TXN_STATE` commit result when the producer cannot independently

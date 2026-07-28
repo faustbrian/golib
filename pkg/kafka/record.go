@@ -63,6 +63,17 @@ type ProducerRecord struct {
 // Message is retained as the pre-v1 name for ProducerRecord.
 type Message = ProducerRecord
 
+// Validate reports whether the record can be owned under limits without
+// allocating or transferring its byte slices. It validates limits before
+// inspecting record fields.
+func (record ProducerRecord) Validate(limits MessageLimits) error {
+	if err := limits.Validate(); err != nil {
+		return err
+	}
+
+	return record.validate(limits)
+}
+
 // ConsumedRecord is one borrowed Kafka record. Key, value, header values, and
 // the header slice remain valid only for the synchronous handler call unless
 // Retain is used.

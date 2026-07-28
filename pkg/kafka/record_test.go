@@ -778,6 +778,33 @@ func TestProducerBatchAndAsyncValidateEveryRecordPolicy(t *testing.T) {
 	}
 }
 
+func TestProducerRecordValidationIsAvailableBeforeOwnershipTransfer(t *testing.T) {
+	t.Parallel()
+
+	record := ProducerRecord{
+		Topic:   "events",
+		Key:     []byte("key"),
+		Value:   []byte("value"),
+		Headers: []Header{{Key: "kind", Value: []byte("created")}},
+	}
+	if err := record.Validate(DefaultMessageLimits()); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	if err := record.Validate(MessageLimits{}); !errors.Is(
+		err,
+		ErrInvalidMessageLimits,
+	) {
+		t.Fatalf("Validate() invalid limits error = %v", err)
+	}
+	record.Value = make([]byte, DefaultMessageLimits().MaxValueBytes+1)
+	if err := record.Validate(DefaultMessageLimits()); !errors.Is(
+		err,
+		ErrValueTooLarge,
+	) {
+		t.Fatalf("Validate() oversized value error = %v", err)
+	}
+}
+
 func TestProducerRejectsOperationsAcrossTransactionAndMaintenanceBoundaries(t *testing.T) {
 	t.Parallel()
 

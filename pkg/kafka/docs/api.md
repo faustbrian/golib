@@ -40,6 +40,9 @@ input-ordered results including partial failures; and `PublishAsync` returns a
 buffered one-result channel after bounded admission. `ProducerRecord` input
 bytes are copied before admission. `ConsumedRecord.Retain` makes an owned copy
 of borrowed fetch bytes for retention beyond a handler call.
+`ProducerRecord.Validate` applies an explicit validated `MessageLimits` policy
+without allocating or transferring caller-owned bytes, allowing adapters and
+composition roots to fail before ownership changes.
 
 `ProducerConfig.KeyPolicy` defaults to `KeyRequired`; callers must select
 `UnkeyedAllowed` explicitly when unkeyed partition selection is intended.
