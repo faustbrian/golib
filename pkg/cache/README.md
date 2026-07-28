@@ -114,6 +114,19 @@ See [policy decisions](docs/decisions.md) and
 - [OpenTelemetry and slog](docs/observability.md)
 - [Shared backend conformance suite](docs/api.md#backend-conformance)
 
+## Service lifecycle
+
+`cacheservice.New` adapts an explicit concrete cache, Redis, or Valkey resource
+to `service.Component`. Startup validation and readiness are opt-in callbacks
+that receive the service context and the concrete resource. Callers add the
+readiness check to `service.Plan` only when cache availability is required to
+accept new work.
+
+Omitting `Shutdown` keeps the resource shared and guarantees the adapter never
+closes it. Providing `Shutdown` explicitly transfers close ownership. The
+adapter performs no retries, closes a transferred resource once after draining
+later-declared components, and preserves startup and partial-cleanup failures.
+
 ## Documentation
 
 - [API reference](docs/api.md)

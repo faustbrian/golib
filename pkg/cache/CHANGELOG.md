@@ -7,6 +7,8 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
+- OpenTelemetry API and metric SDK dependencies now use 1.44.x consistently
+  after adding the service lifecycle adapter.
 - Wait for Redis and Valkey readiness logs as well as listening sockets before
   running backend conformance tests.
 
@@ -17,6 +19,9 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Added
 
+- A `cacheservice` lifecycle adapter for explicit cache and Valkey resources,
+  opt-in startup validation and readiness, and shared or transferred shutdown
+  ownership.
 - Atomic Valkey `SetIfOwned` publication guarded by an active lease owner and
   fencing token, with fail-closed ownership errors and typed cache support.
 - Atomic `SetNegativeIfOwned` publication for authoritative absence under the

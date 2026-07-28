@@ -131,3 +131,17 @@ writes, and deletes. The outage hook runs last. Backends may expose additional
 native operations outside the semantic API. The optional `OwnershipBackend`
 contract is adapter-specific and is verified separately because ordinary cache
 backends are not required to provide distributed ownership.
+
+## Service lifecycle adapter
+
+`cacheservice.New[R]` retains the exact concrete cache or Valkey resource while
+adapting explicit startup, readiness, and shutdown callbacks to `service`.
+Readiness is opt-in and re-evaluates the resource on every probe, allowing
+recovery after transient failures.
+
+A nil `Shutdown` means the resource is shared and is never closed by the
+adapter. A configured `Shutdown` transfers ownership, runs after
+later-declared components drain, cleans up failed startup, and executes once
+across repeated shutdown calls. Callers and service contexts bound operations;
+the adapter adds no retry or cache policy and preserves existing error
+classification.
