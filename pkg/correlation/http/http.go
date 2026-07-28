@@ -118,9 +118,23 @@ func (middleware *Middleware) Inject(request *http.Request, parent correlation.V
 type headerCarrier struct{ header http.Header }
 
 func (carrier headerCarrier) Values(key string) []string {
-	values := make([]string, 0, maxHeaderValues+1)
+	var values []string
+	borrowed := false
 	for name, entries := range carrier.header {
 		if strings.EqualFold(name, key) {
+			if len(values) == 0 && len(entries) > 0 {
+				values = entries
+				borrowed = true
+				if len(values) > maxHeaderValues {
+					return values[:maxHeaderValues+1]
+				}
+
+				continue
+			}
+			if borrowed {
+				values = append([]string(nil), values...)
+				borrowed = false
+			}
 			for _, entry := range entries {
 				values = append(values, entry)
 				if len(values) > maxHeaderValues {

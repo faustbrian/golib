@@ -108,4 +108,23 @@ func TestHeaderCarrierBoundsDuplicateCollectionBeforeCodecParsing(t *testing.T) 
 	if len(values) != 9 {
 		t.Fatalf("collected %d values, want bounded rejection sentinel", len(values))
 	}
+
+	if values := (headerCarrier{header: http.Header{}}).Values(CorrelationHeader); values != nil {
+		t.Fatalf("absent values = %v, want nil", values)
+	}
+	duplicates := http.Header{
+		CorrelationHeader:         {"one"},
+		"x-correlation-id":        {"two"},
+		"X-Unrelated-Header-Name": {"ignored"},
+	}
+	if values := (headerCarrier{header: duplicates}).Values(CorrelationHeader); len(values) != 2 {
+		t.Fatalf("duplicate values = %v, want two", values)
+	}
+	boundedDuplicates := http.Header{
+		CorrelationHeader:  {"one", "two", "three", "four", "five", "six", "seven", "eight"},
+		"x-correlation-id": {"nine"},
+	}
+	if values := (headerCarrier{header: boundedDuplicates}).Values(CorrelationHeader); len(values) != 9 {
+		t.Fatalf("bounded duplicate values = %v, want nine", values)
+	}
 }

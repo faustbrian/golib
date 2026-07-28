@@ -9,6 +9,8 @@ versioning once released.
 
 - Return fresh correlation and request identifiers on explicitly rejected
   malformed HTTP metadata without invoking application handlers.
+- Avoid allocating header-value storage when optional inbound correlation
+  metadata is absent and reuse canonical header storage when it is safe.
 
 ### Changed
 
