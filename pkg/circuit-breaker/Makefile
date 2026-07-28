@@ -4,6 +4,7 @@ FUZZ_TIME ?= 1s
 BENCH_TIME ?= 100ms
 RACE_COUNT ?= 3
 PROFILE_DIR ?= profiles
+APIDIFF_VERSION ?= v0.0.0-20260718201538-764159d718ef
 
 .PHONY: benchmark check compatibility coverage docs fmt fuzz integration leak lint profile race safety test tools vet
 
@@ -66,10 +67,10 @@ safety:
 	gitleaks dir --redact --no-banner .
 
 compatibility:
-	./scripts/check-compatibility.sh
+	APIDIFF_VERSION=$(APIDIFF_VERSION) ./scripts/check-compatibility.sh
 
 tools:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 	go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	go install github.com/zricethezav/gitleaks/v8@v8.30.0
-	go install golang.org/x/exp/cmd/apidiff@v0.0.0-20260709172345-9ea1abe57597
+	go install golang.org/x/exp/cmd/apidiff@$(APIDIFF_VERSION)

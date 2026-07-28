@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace the no-release compatibility bypass with a pinned exported API
+  baseline checked on every complete module run.
+
 ### Added
 
 - Classifier completions include the ephemeral caller context so adapters can

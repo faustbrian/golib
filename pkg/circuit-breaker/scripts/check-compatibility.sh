@@ -1,25 +1,32 @@
 #!/bin/sh
 set -eu
 
-module=$(go list -m -f '{{.Path}}')
-head=$(git rev-parse HEAD)
-baseline=""
-for tag in $(git tag --list 'v[0-9]*' --sort=-v:refname); do
-	if [ "$(git rev-list -n 1 "$tag")" != "$head" ]; then
-		baseline=$tag
-		break
-	fi
-done
+: "${APIDIFF_VERSION:?APIDIFF_VERSION is required}"
 
-if [ -z "$baseline" ]; then
-	echo "API compatibility: no released baseline; current API establishes v1"
-	exit 0
-fi
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+baseline="$root/api/baseline.txt"
+current=$(mktemp "${TMPDIR:-/tmp}/circuit-breaker-api.XXXXXX")
+report=$(mktemp "${TMPDIR:-/tmp}/circuit-breaker-api-report.XXXXXX")
+trap 'rm -f "$current" "$report"' EXIT HUP INT TERM
 
-if ! command -v apidiff >/dev/null 2>&1; then
-	echo "apidiff is required when a release baseline exists" >&2
-	echo "run 'make tools' to install the pinned apidiff version" >&2
+if [ ! -s "$baseline" ]; then
+	echo "API compatibility baseline is missing: $baseline" >&2
 	exit 1
 fi
 
-apidiff -m "$module@$baseline" "$module"
+run_apidiff() {
+	if [ -n "${GOLIB_APIDIFF:-}" ]; then
+		go exec-tool "$GOLIB_APIDIFF" "$@"
+	else
+		go run "golang.org/x/exp/cmd/apidiff@${APIDIFF_VERSION}" "$@"
+	fi
+}
+
+cd "$root"
+GOWORK=off run_apidiff -m -w "$current" \
+	github.com/faustbrian/golib/pkg/circuit-breaker
+GOWORK=off run_apidiff -m -incompatible "$baseline" "$current" >"$report"
+test ! -s "$report" || {
+	cat "$report" >&2
+	exit 1
+}
