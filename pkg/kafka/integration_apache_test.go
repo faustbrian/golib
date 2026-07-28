@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -272,6 +273,8 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		topic + "-transaction-processor-response-loss-source"
 	responseLossProcessorOutputTopic :=
 		topic + "-transaction-processor-response-loss-output"
+	partialBatchAcceptedTopic := topic + "-batch-partial-accepted"
+	partialBatchRejectedTopic := topic + "-batch-partial-rejected"
 	recoveredTransactionTopic := topic + "-transaction-recovered"
 	processorSourceTopic := topic + "-processor-source"
 	processorOutputTopic := topic + "-processor-output"
@@ -288,6 +291,15 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	createApacheKafkaTopic(t, ctx, brokers, responseLossTransactionProduceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, responseLossProcessorSourceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, responseLossProcessorOutputTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, partialBatchAcceptedTopic, 1)
+	createApacheKafkaTopicWithConfigs(
+		t,
+		ctx,
+		brokers,
+		partialBatchRejectedTopic,
+		1,
+		map[string]*string{"max.message.bytes": kadm.StringPtr("512")},
+	)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorSourceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorOutputTopic, 1)
@@ -328,6 +340,13 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		state.UncleanLeaderElectionEnabled {
 		t.Fatalf("initial Apache Kafka topic state = %#v", state)
 	}
+	proveProducerBatchPartialDelivery(
+		t,
+		ctx,
+		brokers,
+		partialBatchAcceptedTopic,
+		partialBatchRejectedTopic,
+	)
 
 	proveProducerTransactionVisibility(
 		t,
@@ -2774,6 +2793,73 @@ func assertApacheKafkaDelivery(
 	}
 }
 
+func proveProducerBatchPartialDelivery(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	acceptedTopic string,
+	rejectedTopic string,
+) {
+	t.Helper()
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:                brokers,
+		ClientID:               "golib-apache-partial-batch-producer",
+		AllowedTopics:          []string{acceptedTopic, rejectedTopic},
+		CompressionPreferences: []kafka.CompressionCodec{kafka.CompressionNone},
+		Security:               kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct partial-batch producer: %v", err)
+	}
+	defer func() {
+		if closeErr := producer.Close(); closeErr != nil {
+			t.Errorf("close partial-batch producer: %v", closeErr)
+		}
+	}()
+
+	results, err := producer.PublishBatch(ctx, []kafka.ProducerRecord{
+		{
+			Topic:     acceptedTopic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("accepted"),
+			Value:     []byte("accepted"),
+		},
+		{
+			Topic:     rejectedTopic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("rejected"),
+			Value:     bytes.Repeat([]byte{0xa5}, 2<<10),
+		},
+	})
+	var deliveryErr *kafka.DeliveryError
+	if !errors.Is(err, kafka.ErrBatchDeliveryFailed) ||
+		!errors.Is(err, kerr.MessageTooLarge) || len(results) != 2 ||
+		results[0].Topic != acceptedTopic || results[0].Partition != 0 ||
+		results[0].Offset != 0 || results[0].Timestamp.IsZero() ||
+		results[0].Err != nil || results[1].Topic != rejectedTopic ||
+		results[1].Partition != 0 ||
+		!errors.As(results[1].Err, &deliveryErr) ||
+		deliveryErr.Category() != kafka.ErrorOversized {
+		t.Fatalf("partial batch results/error = %#v/%v", results, err)
+	}
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		acceptedTopic,
+		kgo.ReadUncommitted(),
+		1,
+	); !slices.Equal(values, []string{"accepted"}) {
+		t.Fatalf("partial batch accepted values = %#v", values)
+	}
+	assertNoApacheKafkaTransactionValues(
+		t,
+		brokers,
+		rejectedTopic,
+		kgo.ReadUncommitted(),
+	)
+}
+
 func createApacheKafkaTopic(
 	t *testing.T,
 	ctx context.Context,
@@ -2782,6 +2868,26 @@ func createApacheKafkaTopic(
 	partitions int32,
 ) {
 	t.Helper()
+	createApacheKafkaTopicWithConfigs(t, ctx, brokers, topic, partitions, nil)
+}
+
+func createApacheKafkaTopicWithConfigs(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partitions int32,
+	additional map[string]*string,
+) {
+	t.Helper()
+
+	configs := map[string]*string{
+		"min.insync.replicas":            kadm.StringPtr("2"),
+		"unclean.leader.election.enable": kadm.StringPtr("false"),
+	}
+	for key, value := range additional {
+		configs[key] = value
+	}
 
 	createIntegrationTopicWithReplication(
 		t,
@@ -2790,9 +2896,6 @@ func createApacheKafkaTopic(
 		topic,
 		partitions,
 		3,
-		map[string]*string{
-			"min.insync.replicas":            kadm.StringPtr("2"),
-			"unclean.leader.election.enable": kadm.StringPtr("false"),
-		},
+		configs,
 	)
 }

@@ -55,6 +55,7 @@ var (
 		"kafka: transaction commit outcome is unknown",
 	)
 	ErrDeliveryResultMissing = errors.New("kafka: producer omitted a delivery result")
+	ErrDeliveryResultInvalid = errors.New("kafka: producer returned inconsistent delivery results")
 	ErrRecordsRequired       = errors.New("kafka: at least one producer record is required")
 	ErrTooManyBatchRecords   = errors.New("kafka: producer batch record count exceeds configured limit")
 	ErrBatchTooLarge         = errors.New("kafka: producer batch exceeds configured byte limit")
@@ -960,10 +961,43 @@ func (producer *Producer) PublishBatch(
 	deliveryCtx, cancelDelivery := producer.deliveryContext(ctx)
 	deliveries := producer.client.ProduceSync(deliveryCtx, franzRecords...)
 	cancelDelivery()
+	inputIndexes := make(map[*kgo.Record]int, len(franzRecords))
+	for index, record := range franzRecords {
+		inputIndexes[record] = index
+	}
 	results = make([]DeliveryResult, len(records))
+	delivered := make([]bool, len(records))
+	duplicated := make([]bool, len(records))
+	unexpected := false
+	for _, delivery := range deliveries {
+		if delivery.Record == nil {
+			unexpected = true
+
+			continue
+		}
+		index, expected := inputIndexes[delivery.Record]
+		if !expected {
+			unexpected = true
+
+			continue
+		}
+		if delivered[index] {
+			duplicated[index] = true
+
+			continue
+		}
+		delivered[index] = true
+		results[index] = deliveryResult(delivery)
+	}
 	var deliveryErrors []error
+	if unexpected {
+		deliveryErrors = append(
+			deliveryErrors,
+			newDeliveryError(ErrDeliveryResultInvalid),
+		)
+	}
 	for index := range records {
-		if index >= len(deliveries) || deliveries[index].Record == nil {
+		if !delivered[index] {
 			results[index] = DeliveryResult{
 				Topic: records[index].Topic,
 				Err:   newDeliveryError(ErrDeliveryResultMissing),
@@ -972,7 +1006,12 @@ func (producer *Producer) PublishBatch(
 
 			continue
 		}
-		results[index] = deliveryResult(deliveries[index])
+		if duplicated[index] {
+			results[index] = DeliveryResult{
+				Topic: records[index].Topic,
+				Err:   newDeliveryError(ErrDeliveryResultInvalid),
+			}
+		}
 		if results[index].Err != nil {
 			deliveryErrors = append(deliveryErrors, results[index].Err)
 		}

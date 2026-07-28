@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- restore `PublishBatch` results to caller input order by owned record identity
+  instead of trusting franz-go callback-completion order, preserving exact
+  successful and failed record attribution across topics and partitions, and
+  fail closed on duplicate, nil, or unknown backend delivery results
 - terminate and close standalone and consume-transform-produce transactional
   clients when an admitted `Produce` response is lost beyond the delivery
   bound, return an ambiguous fatal result, prevent a later false-success

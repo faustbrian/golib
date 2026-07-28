@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Stop retaining obsolete Cobra command-line dependencies after the CLI module
+  replaced its Cobra implementation.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 - Serialize startup, readiness, publishing, and consumer run callbacks with

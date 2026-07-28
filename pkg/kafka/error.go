@@ -263,7 +263,8 @@ func classifyError(err error) ErrorCategory {
 	}
 
 	switch {
-	case errors.Is(err, ErrDeliveryResultMissing):
+	case errors.Is(err, ErrDeliveryResultMissing),
+		errors.Is(err, ErrDeliveryResultInvalid):
 		return ErrorAmbiguous
 	case errors.Is(err, kgo.ErrClientClosed), errors.Is(err, kgo.ErrAborting):
 		return ErrorShutdown

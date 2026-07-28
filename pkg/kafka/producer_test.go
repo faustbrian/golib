@@ -1116,6 +1116,126 @@ func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing
 	}
 }
 
+func TestProducerBatchResultsRetainInputOrderAcrossDeliveryCompletion(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{
+		produceSync: func(
+			_ context.Context,
+			records ...*kgo.Record,
+		) kgo.ProduceResults {
+			records[0].Partition = 0
+			records[0].Offset = 41
+			records[1].Partition = 1
+
+			return kgo.ProduceResults{
+				{Record: records[1], Err: kerr.MessageTooLarge},
+				{Record: records[0]},
+			}
+		},
+	}
+	producer := &Producer{
+		client:              backend,
+		limits:              DefaultMessageLimits(),
+		maxBatchRecords:     2,
+		maxBatchBytes:       1 << 20,
+		deliveryWaitTimeout: time.Minute,
+	}
+
+	results, err := producer.PublishBatch(context.Background(), []ProducerRecord{
+		{Topic: "accepted", Key: []byte("accepted")},
+		{Topic: "rejected", Key: []byte("rejected")},
+	})
+	var deliveryErr *DeliveryError
+	if !errors.Is(err, ErrBatchDeliveryFailed) ||
+		!errors.Is(err, kerr.MessageTooLarge) || len(results) != 2 ||
+		results[0].Topic != "accepted" || results[0].Partition != 0 ||
+		results[0].Offset != 41 || results[0].Err != nil ||
+		results[1].Topic != "rejected" || results[1].Partition != 1 ||
+		!errors.As(results[1].Err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorOversized {
+		t.Fatalf("PublishBatch() results/error = %#v/%v", results, err)
+	}
+}
+
+func TestProducerBatchRejectsInconsistentDeliveryResults(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		produceSync   func(...*kgo.Record) kgo.ProduceResults
+		wantFirstFail bool
+	}{
+		"contradictory duplicate": {
+			produceSync: func(records ...*kgo.Record) kgo.ProduceResults {
+				return kgo.ProduceResults{
+					{Record: records[0]},
+					{Record: records[0], Err: kerr.MessageTooLarge},
+					{Record: records[1]},
+				}
+			},
+			wantFirstFail: true,
+		},
+		"nil extra": {
+			produceSync: func(records ...*kgo.Record) kgo.ProduceResults {
+				return kgo.ProduceResults{
+					{Record: records[0]},
+					{Record: records[1]},
+					{},
+				}
+			},
+		},
+		"unknown extra": {
+			produceSync: func(records ...*kgo.Record) kgo.ProduceResults {
+				return kgo.ProduceResults{
+					{Record: records[0]},
+					{Record: records[1]},
+					{Record: &kgo.Record{Topic: "unknown"}},
+				}
+			},
+		},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			backend := &recordingProducerBackend{
+				produceSync: func(
+					_ context.Context,
+					records ...*kgo.Record,
+				) kgo.ProduceResults {
+					return test.produceSync(records...)
+				},
+			}
+			producer := &Producer{
+				client:              backend,
+				limits:              DefaultMessageLimits(),
+				maxBatchRecords:     2,
+				maxBatchBytes:       1 << 20,
+				deliveryWaitTimeout: time.Minute,
+			}
+
+			results, err := producer.PublishBatch(
+				context.Background(),
+				[]ProducerRecord{
+					{Topic: "first", Key: []byte("first")},
+					{Topic: "second", Key: []byte("second")},
+				},
+			)
+			var deliveryErr *DeliveryError
+			if !errors.Is(err, ErrBatchDeliveryFailed) ||
+				!errors.Is(err, ErrDeliveryResultInvalid) ||
+				!errors.As(err, &deliveryErr) ||
+				deliveryErr.Category() != ErrorAmbiguous ||
+				len(results) != 2 || results[0].Topic != "first" ||
+				results[1].Topic != "second" || results[1].Err != nil ||
+				(test.wantFirstFail != (results[0].Err != nil)) {
+				t.Fatalf("PublishBatch() results/error = %#v/%v", results, err)
+			}
+		})
+	}
+}
+
 func TestProducerAsyncCancellationDuringAdmissionRemainsAuthoritative(t *testing.T) {
 	t.Parallel()
 

@@ -11,7 +11,12 @@ the configured all-ISR acknowledgement policy. It does not prove a downstream
 consumer completed and does not make a database/Kafka dual write atomic.
 
 Producer input bytes are copied before they enter franz-go. Synchronous batch
-results preserve input order and report every known per-record failure.
+results preserve input order and report every known per-record failure. Since
+franz-go completes records by partition independently, the package restores
+results by the identity of each owned backend record rather than assuming
+callback completion order is caller order. Missing, duplicate, nil, or unknown
+backend results fail closed as ambiguous delivery evidence instead of being
+silently assigned or discarded.
 `PublishAsync` uses caller cancellation while admission is blocked, then
 detaches the admitted record from later caller cancellation; its eventual
 buffered result remains authoritative. A synchronous caller context remains
@@ -72,8 +77,11 @@ record before closing and fences later production. A broker-enforced
 client-ID byte-rate quota also proves that delivery can succeed while the
 observer reports Kafka's positive post-response throttle interval. The
 throttle is request-level metadata because a produce request can contain many
-records; it is not attributed to an individual delivery result. Ambiguous
-delivery outcomes still lack broker fault evidence.
+records; it is not attributed to an individual delivery result. The
+three-broker Apache fixture additionally proves exact input attribution when
+one topic accepts its batch record and another rejects an oversized batch, and
+proves ambiguous non-transactional and transactional outcomes after matching
+broker responses are lost.
 
 Producer transaction begin, commit, and abort failures use redacted
 `TransactionError` values. Fencing, authorization denial, and fatal producer

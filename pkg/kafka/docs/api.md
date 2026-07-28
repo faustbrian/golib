@@ -36,10 +36,15 @@ consumer-group policy.
 
 `Producer.Publish` is the compatibility synchronous error-only method.
 `Producer.PublishRecord` returns one `DeliveryResult`; `PublishBatch` returns
-input-ordered results including partial failures; and `PublishAsync` returns a
-buffered one-result channel after bounded admission. `ProducerRecord` input
-bytes are copied before admission. `ConsumedRecord.Retain` makes an owned copy
-of borrowed fetch bytes for retention beyond a handler call.
+input-ordered results including partial failures, normalizing franz-go's
+cross-partition callback-completion order by the owned record identity; and
+`PublishAsync` returns a buffered one-result channel after bounded admission.
+Missing results retain `ErrDeliveryResultMissing`; duplicate, nil, or unknown
+results retain `ErrDeliveryResultInvalid`. Both are ambiguous because the
+backend did not provide one trustworthy result for every admitted input.
+`ProducerRecord` input bytes are copied before admission.
+`ConsumedRecord.Retain` makes an owned copy of borrowed fetch bytes for
+retention beyond a handler call.
 `ProducerRecord.Validate` applies an explicit validated `MessageLimits` policy
 without allocating or transferring caller-owned bytes, allowing adapters and
 composition roots to fail before ownership changes.

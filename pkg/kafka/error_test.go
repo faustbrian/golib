@@ -56,6 +56,7 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 		{name: "fatal producer ID", cause: kerr.UnknownProducerID, category: ErrorFatal},
 		{name: "fatal producer mapping", cause: kerr.InvalidProducerIDMapping, category: ErrorFatal},
 		{name: "ambiguous result", cause: ErrDeliveryResultMissing, category: ErrorAmbiguous},
+		{name: "invalid result", cause: ErrDeliveryResultInvalid, category: ErrorAmbiguous},
 		{name: "cancelled", cause: context.Canceled, category: ErrorAmbiguous},
 		{name: "shutdown", cause: kgo.ErrClientClosed, category: ErrorShutdown},
 		{name: "aborted", cause: kgo.ErrAborting, category: ErrorShutdown},
