@@ -146,9 +146,15 @@ visible only at read-uncommitted isolation. A second scenario keeps that child
 transaction open after output acknowledgement while another operating-system
 process joins the eager group. The child observes `ErrTransactionNotCommitted`,
 its source remains unsettled, its output remains read-committed invisible, and
-a later stable member reprocesses and commits the source. Cooperative
-multi-process rebalance, timeout, unknown-outcome, and older-broker behavior
-are not yet support evidence.
+a later stable member reprocesses and commits the source. A cooperative
+two-process scenario begins with two source partitions owned by the child,
+then adds another live member. Incremental revocation aborts the child's open
+transaction while the other member atomically commits its assigned partition;
+after both leave, a recovery member commits the remaining unsettled source.
+Read-committed consumers observe only the reassigned and recovered outputs,
+while read-uncommitted inspection also sees the aborted child output.
+Transaction timeout, unknown-outcome, and older-broker behavior are not yet
+support evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store

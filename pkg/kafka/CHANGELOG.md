@@ -22,6 +22,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker cooperative-rebalance evidence across two operating-system
+  processes, proving incremental revocation aborts acknowledged transactional
+  output, preserves atomic progress on the reassigned partition, and permits
+  exact recovery of the remaining unsettled source
 - three-broker eager-rebalance evidence across two operating-system processes,
   proving that a transaction interrupted after output acknowledgement aborts,
   leaves its source offset unsettled and output read-committed invisible, and
