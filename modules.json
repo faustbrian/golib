@@ -4946,6 +4946,97 @@
       }
     },
     {
+      "directory": "pkg/external-sort",
+      "module_path": "github.com/faustbrian/golib/pkg/external-sort",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/external-sort",
+          "directory": ".",
+          "name": "externalsort",
+          "import_path": "github.com/faustbrian/golib/pkg/external-sort",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`external-sort` performs bounded external sorting of fixed-size opaque records while encrypting every temporary record with AES-256-GCM. It is intended for large reconciliation and migration datasets that cannot safely be retained in memory or written to plaintext temporary files.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/external-sort/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/external-sort/.ai/GOAL.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/external-sort/.ai/GOAL.md",
+          "requirements_sha256": "c67bd6bb233cb76c96e31400f955b3fa95f4e4ded32d9e8790bc610ef98597b9",
+          "implementation_evidence": [
+            "pkg/external-sort/CHANGELOG.md",
+            "pkg/external-sort/README.md",
+            "pkg/external-sort/docs/api.md",
+            "pkg/external-sort/docs/architecture.md",
+            "pkg/external-sort/docs/compatibility.md",
+            "pkg/external-sort/docs/performance.md",
+            "pkg/external-sort/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/feature-flags",
       "module_path": "github.com/faustbrian/golib/pkg/feature-flags",
       "go_version": "1.26.5",
