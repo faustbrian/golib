@@ -62,6 +62,40 @@ redacted. Provider errors preserve `errors.Is` identity through wrapping but do
 not render the provider's possibly sensitive message. Applications must apply
 the same rule to errors they unwrap and to their own provider diagnostics.
 
+## Executed broker evidence
+
+The pinned Apache Kafka 4.3.1 integration fixtures generate a short-lived CA,
+broker identity, client identity, usernames, passwords, signing key, JWKS, and
+JWTs for each isolated run without writing generated material to the host
+filesystem. Only broker-required material is copied into the ephemeral
+container; the OAuth private signing key remains in the test process. Bootstrap
+assigns credential files mode `0600` to the image's UID 1000, and both Kafka
+storage formatting and the broker run as that unprivileged identity. Startup
+diagnostics are bounded and redact every generated broker password before test
+output.
+
+The fixtures prove:
+
+- exact TLS 1.2 and TLS 1.3 negotiation with normal root and hostname
+  verification, plus rejection of an unknown root and wrong hostname;
+- mTLS producer delivery, consumer settlement, and inspector health through a
+  bounded `ClientCertificateProvider`, plus rejection when the client
+  certificate is absent;
+- PLAIN, SCRAM-SHA-256, and SCRAM-SHA-512 only over `SASL_SSL`, with successful
+  provider-backed production, SCRAM consumption, inspection, and rejection of
+  incorrect credentials; and
+- OAUTHBEARER over `SASL_SSL` using RS256-signed JWTs, a broker-loaded JWKS,
+  exact issuer and audience validation, provider-backed production and
+  consumption, rejection of signed tokens for the wrong issuer or audience,
+  and no token disclosure through the returned authentication error.
+
+This proves interoperability only with the pinned Apache fixture. Repeated
+same-client credential expiry, JWKS refresh and signing-key rollover, TLS
+certificate rotation during live traffic, authorization/ACL failures, and
+managed-service authentication remain separate required evidence. The fixture
+does not use Kafka's non-production unsecured OAUTHBEARER implementation and
+does not claim compatibility with a particular OAuth identity provider.
+
 MSK IAM authentication and OpenTelemetry remain absent from the root module.
 The independently versioned [`adapters/mskiam`](../adapters/mskiam) module uses
 AWS's supported Go signer and either the refreshing SDK v2 default credential

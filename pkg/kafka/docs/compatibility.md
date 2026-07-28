@@ -1,7 +1,7 @@
 # Compatibility and execution matrix
 
 This matrix separates pinned implementation inputs from support claims. It was
-recorded on 2026-07-28. Upstream protocol support is not package evidence.
+recorded through 2026-07-29. Upstream protocol support is not package evidence.
 
 The independently versioned `kafkaservice` module is additive and pre-v1.
 Existing direct producer and consumer construction remains supported. The
@@ -20,7 +20,7 @@ contracts and does not change their wire or settlement semantics.
 | testcontainers-go core and Kafka module | v0.43.0 | Go module proxy |
 | Testcontainers resource reaper | `testcontainers/ryuk:0.14.0`, locally resolved digest `sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0` | Runtime log and local Docker image metadata; testcontainers invokes the tag, so an immutable source-level pin remains a release blocker |
 | Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; actual runtime version still needs assertion |
-| Current Apache Kafka fixture | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Source-pinned three-node combined KRaft fixture; runtime reports exactly `4.3.1`; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
+| Current Apache Kafka fixture | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Source-pinned three-node combined KRaft and isolated secured single-node fixtures; every fixture reports exactly `4.3.1`; the secured fixtures report OpenSSL 3.5.7 and run the broker as image UID 1000; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
 | Mutation tool | patched Gremlins v0.6.0 | The current-tree module gate requires and records exact 100% efficacy and mutator coverage for the root package and bundled slog adapter; transient mutant counts remain in its attributable evidence artifact rather than this version matrix |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
 | Security/release tools | govulncheck v1.6.0, Gitleaks v8.30.1, go-licenses v2.0.1, CycloneDX v1.10.0 | Repository tool pins |
@@ -30,8 +30,9 @@ contracts and does not change their wire or settlement semantics.
 Apache Kafka 4.3.1 was the latest supported Apache release found at execution
 time. The executed three-node fixture establishes compatibility only for the
 explicit plaintext KRaft producer, inspection, and producer-transaction
-scenario below; it does not establish a minimum broker version or the complete
-support matrix.
+scenario below. Separate single-node fixtures establish only the listed TLS,
+mTLS, PLAIN, SCRAM, and signed-JWT OAUTHBEARER paths. Neither establishes a
+minimum broker version or the complete support matrix.
 The zero `ProtocolPolicy` negotiates request versions with each connection.
 `MinimumVersion` is only a request downgrade floor recognized by franz-go; it
 does not prove or constrain the broker release and does not change this matrix.
@@ -44,15 +45,15 @@ floor still does not establish operational support for an untested broker.
 | Dimension | Planned matrix | Current status |
 | --- | --- | --- |
 | Go | Minimum and current repository-supported releases | Only Go 1.26.5 on Darwin arm64 executed locally |
-| Apache Kafka | Minimum reviewed release and current 4.3.1, KRaft, three brokers | Current 4.3.1 executes as three combined KRaft broker/controller nodes with exact runtime assertion. RF=3, `min.insync.replicas=2`, clean leader election, continued acks-all delivery at ISR=2, endpoint and ISR recovery, bounded ambiguous non-transactional delivery after every matching `Produce` response is lost, committed/aborted producer transactions before and after broker-process recovery, same-transactional-ID producer fencing, broker-enforced transaction expiry, a committed transaction whose matching `EndTxn` responses are lost to the producer, consume-transform-produce recovery after terminating a real child process between output acknowledgement and commit, and two-process eager plus cooperative rebalance abort and redelivery pass locally. Minimum-version, separated-role, secured, broader fault, and managed-service evidence remains unverified. |
+| Apache Kafka | Minimum reviewed release and current 4.3.1, KRaft, three brokers | Current 4.3.1 executes as three combined KRaft broker/controller nodes with exact runtime assertion. RF=3, `min.insync.replicas=2`, clean leader election, continued acks-all delivery at ISR=2, endpoint and ISR recovery, bounded ambiguous non-transactional delivery after every matching `Produce` response is lost, committed/aborted producer transactions before and after broker-process recovery, same-transactional-ID producer fencing, broker-enforced transaction expiry, a committed transaction whose matching `EndTxn` responses are lost to the producer, consume-transform-produce recovery after terminating a real child process between output acknowledgement and commit, and two-process eager plus cooperative rebalance abort and redelivery pass locally. Isolated combined-mode nodes additionally prove the secured client-listener paths listed below. Minimum-version, separated-role, broader fault, live rotation, and managed-service evidence remains unverified. |
 | Confluent Platform/Local | Only explicitly exercised versions | One single-node 7.5.0 compatibility test; not a production support claim |
 | Amazon MSK Provisioned | Selected Kafka versions, TLS/mTLS/SCRAM/IAM | Unverified |
 | Amazon MSK Serverless | TLS and IAM with documented service limits | Unverified |
 | Redpanda, Confluent Cloud, Event Hubs, other compatible services | Add only after direct testing | Unverified and unsupported |
-| TLS and mTLS | TLS 1.2/1.3, hostname/root failures, rotation | Policy, cloning, rotation, and local TLS-handshake tests exist; no secured broker evidence |
-| SASL/PLAIN | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
-| SCRAM-SHA-256/512 | Verified TLS only | Policy and rotating-provider tests exist; broker compatibility unverified |
-| OAUTHBEARER | Refreshing provider over verified TLS | Bounded expiring-provider policy tests exist; broker compatibility unverified |
+| TLS and mTLS | TLS 1.2/1.3, hostname/root failures, rotation | The pinned Apache 4.3.1 broker negotiates exact TLS 1.2 and 1.3, rejects an unknown root and wrong hostname, and requires a client certificate. Provider-backed mTLS producer delivery, consumer settlement, and inspector health pass; the same broker rejects a client without a certificate. Live certificate rollover remains unverified. |
+| SASL/PLAIN | Verified TLS only | The pinned Apache 4.3.1 `SASL_SSL` listener accepts provider-backed production and rejects an incorrect password. Reauthentication during credential rollover remains unverified. |
+| SCRAM-SHA-256/512 | Verified TLS only | The pinned Apache 4.3.1 KRaft metadata log is initialized with independently generated SHA-256 and SHA-512 credentials. Provider-backed production succeeds for each mechanism over `SASL_SSL`, incorrect credentials fail, SCRAM-SHA-512 consumption settles the full record set, and SCRAM-SHA-256 inspection succeeds. Live credential replacement remains unverified. |
+| OAUTHBEARER | Refreshing provider over verified TLS | The pinned Apache 4.3.1 `SASL_SSL` listener uses its production JWT validator with an RS256 JWKS plus exact issuer and audience checks. Provider-backed production and consumption succeed; correctly signed tokens for the wrong issuer or audience fail without appearing in the returned error. HTTP token acquisition, HTTPS JWKS refresh, signing-key rollover, and specific identity providers remain unverified. |
 | MSK IAM | Optional AWS signer adapter | The independently versioned adapter uses the supported Go signer, refreshing SDK v2 default chain or explicit provider, bounded cancellation and refresh, effective expiry capped by signing credentials, and redacted failures. Local contract, race, fuzz, and allocation evidence exists; no Provisioned or Serverless broker has been exercised, so operational compatibility remains unverified. |
 | Producer | Single, batch, async, ordering, failure, shutdown | Policy APIs and deterministic tests exist. The pinned single-broker fixture proves ordered batch and asynchronous delivery metadata, exact broker-visible values, graceful shutdown draining an admitted asynchronous record, rejection after shutdown, and successful delivery under a 1 KiB/s client-ID quota with a positive post-response throttle event. Throttling remains request-level because Kafka produce responses can cover many records. The Apache fixture proves a two-topic batch whose first input is acknowledged and persisted while the second is rejected by a topic-level `max.message.bytes` policy; results remain in input order with an `ErrorOversized` delivery only on the rejected record. It also proves explicit-partition synchronous delivery before failure, after clean leader failover at ISR=2, after ISR=3 recovery, and after a fault forwards the record while dropping every matching `Produce` response. The response-loss case returns within the configured delivery plus retry-backoff bound, reports an ambiguous timeout, and a separate consumer observes exactly one broker record. |
 | Consumer group | Classic cooperative/eager and reviewed next-generation protocol | Explicit cooperative-sticky, eager-sticky, migration, static-membership, rack, bounded cross-partition handling, partition pause/resume, and per-record failure policy exists; the single-node fixture proves eager membership, same-ID static restart, duplicate-live-instance fencing into a terminal package state, pause/resume, concurrent independent-partition handling with sequential partition order, retry/dead-letter publication followed by source settlement, and redelivery after failed dead-letter publication, while multiprocess rolling migration, cooperative overlap, rack locality, and batch failure policy remain unverified |
@@ -76,6 +77,11 @@ Design and implementation are checked against:
   [consumer rebalance protocol](https://kafka.apache.org/43/operations/consumer-rebalance-protocol/),
   [transaction protocol](https://kafka.apache.org/43/operations/transaction-protocol/),
   and [client quota operations](https://kafka.apache.org/43/operations/basic-kafka-operations/#setting-quotas);
+- [Apache Kafka TLS](https://kafka.apache.org/43/security/encryption-and-authentication-using-ssl/),
+  [SASL authentication](https://kafka.apache.org/43/security/authentication-using-sasl/),
+  [listener configuration](https://kafka.apache.org/43/security/listener-configuration/),
+  and the OAUTHBEARER
+  [URL allowlist system property](https://kafka.apache.org/43/configuration/system-properties/);
 - [KIP-98](https://cwiki.apache.org/confluence/display/KAFKA/KIP-98%2B-%2BExactly%2BOnce%2BDelivery%2Band%2BTransactional%2BMessaging)
   defines the single-active-producer guarantee for one transactional ID and
   fencing of an older generation when its replacement starts;
@@ -90,7 +96,8 @@ Design and implementation are checked against:
 - [Amazon MSK documentation](https://docs.aws.amazon.com/msk/), including
   [IAM client configuration](https://docs.aws.amazon.com/msk/latest/developerguide/configure-clients-for-iam-access-control.html);
 - [OpenTelemetry Kafka semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/kafka/);
-  and
+- [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) for JWKS and
+  [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519) for signed JWT claims; and
 - [Go 1.26 release documentation](https://go.dev/doc/go1.26), the Go memory
   model, `context`, `crypto/tls`, fuzzing, race detector, and module docs.
 

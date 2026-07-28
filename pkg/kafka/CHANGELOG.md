@@ -38,6 +38,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- pinned Apache Kafka 4.3.1 secured-broker evidence for exact TLS 1.2 and
+  TLS 1.3 negotiation, mutual TLS, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and
+  signed-JWT OAUTHBEARER, including provider-backed producer, consumer, and
+  inspector roles plus bounded certificate, credential, issuer, audience, and
+  hostname failure cases without emitting generated test credentials
 - explicit bounded producer and transactional-output retry-backoff ranges with
   per-client jitter, plus three-broker evidence that drops every matching
   `Produce` response and returns within the reviewed delivery bound

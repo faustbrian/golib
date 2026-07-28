@@ -342,10 +342,14 @@ See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibilit
 
 Run `make check`. With Docker available, `make integration` exercises the
 package against one pinned Confluent Local 7.5.0 broker and three pinned Apache
-Kafka 4.3.1 combined KRaft broker/controller nodes. The Apache fixture asserts
-the runtime version and proves one bounded leader/ISR failure and recovery
-scenario; it is not the complete auth, compatibility, or chaos matrix. Exact
-inputs and remaining evidence gaps are recorded in the
+Kafka 4.3.1 combined KRaft broker/controller nodes. Separate pinned Apache
+Kafka 4.3.1 fixtures prove verified TLS 1.2 and 1.3, mutual TLS, PLAIN,
+SCRAM-SHA-256, SCRAM-SHA-512, and signed-JWT OAUTHBEARER through the package's
+producer, consumer, inspector, and provider-backed authentication policies.
+The Apache fixtures assert the runtime version; the failure fixture proves one
+bounded leader/ISR failure and recovery scenario. They are not the complete
+managed service, rotation-stress, compatibility, or chaos matrix. Exact inputs
+and remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
 [SECURITY.md](SECURITY.md). The module is licensed under the [MIT
 License](LICENSE).

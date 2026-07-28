@@ -1,0 +1,1257 @@
+//go:build integration
+
+package kafka_test
+
+import (
+	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"math/big"
+	"net"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/faustbrian/golib/pkg/kafka"
+	"github.com/testcontainers/testcontainers-go"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl"
+	franzoauth "github.com/twmb/franz-go/pkg/sasl/oauth"
+	franzplain "github.com/twmb/franz-go/pkg/sasl/plain"
+)
+
+const (
+	secureKafkaClientPort      = "9094/tcp"
+	secureKafkaInternalPort    = 19092
+	secureKafkaControllerPort  = 29093
+	secureKafkaDiagnosticBytes = 32 << 10
+	secureKafkaIssuer          = "https://issuer.golib.test"
+	secureKafkaAudience        = "golib-kafka"
+)
+
+type secureKafkaMode uint8
+
+const (
+	secureKafkaMutualTLS secureKafkaMode = iota + 1
+	secureKafkaSASL
+	secureKafkaOAuth
+)
+
+type secureKafkaBroker struct {
+	container testcontainers.Container
+	endpoint  string
+	pki       secureKafkaPKI
+
+	plainPassword    string
+	scram256Password string
+	scram512Password string
+	oauthKey         *rsa.PrivateKey
+}
+
+type secureKafkaPKI struct {
+	caPEM          []byte
+	serverPEM      []byte
+	serverKeyPEM   []byte
+	clientPEM      []byte
+	clientKeyPEM   []byte
+	clientIdentity tls.Certificate
+	roots          *x509.CertPool
+}
+
+func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaMutualTLS)
+	broker.assertRuntimeVersions(t, ctx)
+	broker.assertTLSVersion(t, tls.VersionTLS12)
+	broker.assertTLSVersion(t, tls.VersionTLS13)
+
+	topic := fmt.Sprintf("golib-mtls-%d", time.Now().UnixNano())
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.staticMutualTLSConfig(),
+		nil,
+		topic,
+	)
+
+	var certificateCalls atomic.Int64
+	security := kafka.ClientSecurity{
+		TLS: broker.serverTLSConfig(),
+		ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
+			context.Context,
+			kafka.ClientCertificateRequest,
+		) (tls.Certificate, error) {
+			certificateCalls.Add(1)
+			return broker.pki.clientIdentity, nil
+		}),
+		CredentialTimeout: time.Second,
+	}
+	publishSecureRecord(t, ctx, broker.endpoint, topic, "mtls", security)
+	values := consumeSecureRecords(
+		t,
+		ctx,
+		broker.endpoint,
+		topic,
+		"golib-mtls-group",
+		1,
+		security,
+	)
+	if len(values) != 1 || values[0] != "mtls" {
+		t.Fatalf("mTLS values = %q", values)
+	}
+	if certificateCalls.Load() < 2 {
+		t.Fatalf("mTLS certificate provider calls = %d, want at least 2", certificateCalls.Load())
+	}
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  []string{broker.endpoint},
+		ClientID: "golib-mtls-inspector",
+		Security: security,
+	})
+	if err != nil {
+		t.Fatalf("construct mTLS inspector: %v", err)
+	}
+	if err := inspector.DependencyHealth(ctx); err != nil {
+		_ = inspector.Close()
+		t.Fatalf("mTLS inspector health: %v", err)
+	}
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("close mTLS inspector: %v", err)
+	}
+
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		kafka.ClientSecurity{TLS: broker.serverTLSConfig()},
+		nil,
+	)
+	wrongRoots := broker.staticMutualTLSConfig()
+	wrongRoots.RootCAs = x509.NewCertPool()
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		kafka.ClientSecurity{TLS: wrongRoots},
+		nil,
+	)
+	wrongHostname := broker.staticMutualTLSConfig()
+	wrongHostname.ServerName = "not-localhost.invalid"
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		kafka.ClientSecurity{TLS: wrongHostname},
+		nil,
+	)
+}
+
+func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker.assertRuntimeVersions(t, ctx)
+	topic := fmt.Sprintf("golib-sasl-%d", time.Now().UnixNano())
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		franzplain.Auth{
+			User: "plain-user",
+			Pass: broker.plainPassword,
+		}.AsMechanism(),
+		topic,
+	)
+
+	tests := []struct {
+		name     string
+		username string
+		password string
+		build    func(kafka.UsernamePasswordProvider) kafka.Authentication
+	}{
+		{
+			name: "plain", username: "plain-user",
+			password: broker.plainPassword,
+			build:    kafka.NewPlainAuthentication,
+		},
+		{
+			name: "scram-sha-256", username: "scram256-user",
+			password: broker.scram256Password,
+			build:    kafka.NewSCRAMSHA256Authentication,
+		},
+		{
+			name: "scram-sha-512", username: "scram512-user",
+			password: broker.scram512Password,
+			build:    kafka.NewSCRAMSHA512Authentication,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			security, calls := usernamePasswordSecurity(
+				broker,
+				test.username,
+				test.password,
+				test.build,
+			)
+			publishSecureRecord(
+				t,
+				ctx,
+				broker.endpoint,
+				topic,
+				test.name,
+				security,
+			)
+			if calls.Load() == 0 {
+				t.Fatalf("%s credential provider was not used", test.name)
+			}
+
+			badSecurity, _ := usernamePasswordSecurity(
+				broker,
+				test.username,
+				"invalid-"+test.password,
+				test.build,
+			)
+			assertSecureKafkaHealthFailure(
+				t,
+				ctx,
+				broker.endpoint,
+				badSecurity,
+				[]string{test.password},
+			)
+		})
+	}
+	if t.Failed() {
+		return
+	}
+
+	consumerSecurity, consumerCalls := usernamePasswordSecurity(
+		broker,
+		"scram512-user",
+		broker.scram512Password,
+		kafka.NewSCRAMSHA512Authentication,
+	)
+	values := consumeSecureRecords(
+		t,
+		ctx,
+		broker.endpoint,
+		topic,
+		"golib-sasl-group",
+		len(tests),
+		consumerSecurity,
+	)
+	if len(values) != len(tests) {
+		t.Fatalf("SASL values = %q", values)
+	}
+	if consumerCalls.Load() == 0 {
+		t.Fatal("SCRAM-SHA-512 consumer credential provider was not used")
+	}
+
+	inspectorSecurity, _ := usernamePasswordSecurity(
+		broker,
+		"scram256-user",
+		broker.scram256Password,
+		kafka.NewSCRAMSHA256Authentication,
+	)
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  []string{broker.endpoint},
+		ClientID: "golib-sasl-inspector",
+		Security: inspectorSecurity,
+	})
+	if err != nil {
+		t.Fatalf("construct SASL inspector: %v", err)
+	}
+	if err := inspector.DependencyHealth(ctx); err != nil {
+		_ = inspector.Close()
+		t.Fatalf("SASL inspector health: %v", err)
+	}
+	if err := inspector.Close(); err != nil {
+		t.Fatalf("close SASL inspector: %v", err)
+	}
+}
+
+func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaOAuth)
+	broker.assertRuntimeVersions(t, ctx)
+	topic := fmt.Sprintf("golib-oauth-%d", time.Now().UnixNano())
+	adminToken, _ := broker.issueOAuthToken(t, secureKafkaAudience, 2*time.Minute)
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		franzoauth.Auth{Token: string(adminToken)}.AsMechanism(),
+		topic,
+	)
+
+	var providerCalls atomic.Int64
+	providerToken, providerExpiry := broker.issueOAuthToken(
+		t,
+		secureKafkaAudience,
+		2*time.Minute,
+	)
+	provider := kafka.OAuthBearerProviderFunc(func(
+		context.Context,
+	) (kafka.OAuthBearerToken, error) {
+		providerCalls.Add(1)
+		return kafka.OAuthBearerToken{
+			Token:     append([]byte(nil), providerToken...),
+			ExpiresAt: providerExpiry,
+		}, nil
+	})
+	security := kafka.ClientSecurity{
+		TLS:               broker.serverTLSConfig(),
+		Authentication:    kafka.NewOAuthBearerAuthentication(provider),
+		CredentialTimeout: time.Second,
+	}
+	publishSecureRecord(t, ctx, broker.endpoint, topic, "oauth", security)
+	values := consumeSecureRecords(
+		t,
+		ctx,
+		broker.endpoint,
+		topic,
+		"golib-oauth-group",
+		1,
+		security,
+	)
+	if len(values) != 1 || values[0] != "oauth" {
+		t.Fatalf("OAUTHBEARER values = %q", values)
+	}
+	if providerCalls.Load() < 2 {
+		t.Fatalf("OAUTHBEARER provider calls = %d, want at least 2", providerCalls.Load())
+	}
+
+	wrongAudienceToken, wrongAudienceExpiry := broker.issueOAuthToken(
+		t,
+		"not-golib-kafka",
+		2*time.Minute,
+	)
+	wrongAudience := kafka.ClientSecurity{
+		TLS: broker.serverTLSConfig(),
+		Authentication: kafka.NewOAuthBearerAuthentication(
+			kafka.OAuthBearerProviderFunc(func(
+				context.Context,
+			) (kafka.OAuthBearerToken, error) {
+				return kafka.OAuthBearerToken{
+					Token:     wrongAudienceToken,
+					ExpiresAt: wrongAudienceExpiry,
+				}, nil
+			}),
+		),
+		CredentialTimeout: time.Second,
+	}
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		wrongAudience,
+		[]string{string(wrongAudienceToken)},
+	)
+
+	wrongIssuerToken, wrongIssuerExpiry := broker.issueOAuthTokenForIssuer(
+		t,
+		"https://not-issuer.golib.test",
+		secureKafkaAudience,
+		2*time.Minute,
+	)
+	wrongIssuer := kafka.ClientSecurity{
+		TLS: broker.serverTLSConfig(),
+		Authentication: kafka.NewOAuthBearerAuthentication(
+			kafka.OAuthBearerProviderFunc(func(
+				context.Context,
+			) (kafka.OAuthBearerToken, error) {
+				return kafka.OAuthBearerToken{
+					Token:     wrongIssuerToken,
+					ExpiresAt: wrongIssuerExpiry,
+				}, nil
+			}),
+		),
+		CredentialTimeout: time.Second,
+	}
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		wrongIssuer,
+		[]string{string(wrongIssuerToken)},
+	)
+}
+
+func startSecureKafkaBroker(
+	t *testing.T,
+	ctx context.Context,
+	mode secureKafkaMode,
+) *secureKafkaBroker {
+	t.Helper()
+
+	request := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        apacheKafkaImage,
+			User:         "0",
+			ExposedPorts: []string{secureKafkaClientPort},
+			Entrypoint:   []string{"sh"},
+			Cmd: []string{
+				"-c",
+				"while [ ! -f /tmp/golib-kafka-secure-start.sh ]; do " +
+					"sleep 0.05; done; exec /bin/bash " +
+					"/tmp/golib-kafka-secure-start.sh",
+			},
+		},
+	}
+	container, err := testcontainers.GenericContainer(ctx, request)
+	if container != nil {
+		testcontainers.CleanupContainer(t, container)
+	}
+	if err != nil {
+		t.Fatalf("create secured Apache Kafka broker: %v", err)
+	}
+	if err := container.Start(ctx); err != nil {
+		t.Fatalf("start secured Apache Kafka container: %v", err)
+	}
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		stateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		state, stateErr := container.State(stateCtx)
+		if stateErr != nil {
+			t.Logf("inspect failed secured Apache Kafka broker: %v", stateErr)
+			return
+		}
+		t.Logf(
+			"failed secured Apache Kafka broker running=%t status=%s exit=%d",
+			state.Running,
+			state.Status,
+			state.ExitCode,
+		)
+	})
+
+	endpoint, err := container.PortEndpoint(ctx, secureKafkaClientPort, "")
+	if err != nil {
+		t.Fatalf("resolve secured Apache Kafka endpoint: %v", err)
+	}
+	host, _, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		t.Fatalf("parse secured Apache Kafka endpoint: %v", err)
+	}
+	pki := newSecureKafkaPKI(t, host)
+	broker := &secureKafkaBroker{
+		container:        container,
+		endpoint:         endpoint,
+		pki:              pki,
+		plainPassword:    randomSecureKafkaCredential(t),
+		scram256Password: randomSecureKafkaCredential(t),
+		scram512Password: randomSecureKafkaCredential(t),
+	}
+	storePassword := randomSecureKafkaCredential(t)
+	copySecureKafkaFile(t, ctx, container, "/tmp/ca.pem", pki.caPEM, 0o644)
+	copySecureKafkaFile(t, ctx, container, "/tmp/server.pem", pki.serverPEM, 0o644)
+	copySecureKafkaFile(t, ctx, container, "/tmp/server-key.pem", pki.serverKeyPEM, 0o600)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		container,
+		"/tmp/store-password",
+		[]byte(storePassword),
+		0o600,
+	)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		container,
+		"/tmp/store.properties",
+		[]byte("password="+storePassword+"\n"),
+		0o600,
+	)
+
+	switch mode {
+	case secureKafkaMutualTLS:
+	case secureKafkaSASL:
+		copySecureKafkaFile(
+			t,
+			ctx,
+			container,
+			"/tmp/plain.properties",
+			[]byte("password="+broker.plainPassword+"\n"),
+			0o600,
+		)
+		copySecureKafkaFile(
+			t,
+			ctx,
+			container,
+			"/tmp/scram256-password",
+			[]byte(broker.scram256Password),
+			0o600,
+		)
+		copySecureKafkaFile(
+			t,
+			ctx,
+			container,
+			"/tmp/scram512-password",
+			[]byte(broker.scram512Password),
+			0o600,
+		)
+	case secureKafkaOAuth:
+		broker.oauthKey = newSecureKafkaRSAKey(t)
+		copySecureKafkaFile(
+			t,
+			ctx,
+			container,
+			"/tmp/jwks.json",
+			secureKafkaJWKS(t, &broker.oauthKey.PublicKey),
+			0o644,
+		)
+	default:
+		t.Fatalf("unknown secured Apache Kafka mode %d", mode)
+	}
+
+	copySecureKafkaFile(
+		t,
+		ctx,
+		container,
+		"/tmp/server.properties",
+		[]byte(secureKafkaServerProperties(mode, endpoint)),
+		0o644,
+	)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		container,
+		"/tmp/golib-kafka-secure-start.sh",
+		[]byte(secureKafkaStartScript(mode)),
+		0o755,
+	)
+
+	if err := wait.ForLog("Transition from STARTING to STARTED").
+		WithStartupTimeout(90*time.Second).
+		WithPollInterval(100*time.Millisecond).
+		WaitUntilReady(ctx, container); err != nil {
+		diagnostic, diagnosticErr := secureKafkaStartupDiagnostic(
+			ctx,
+			container,
+			[]string{
+				storePassword,
+				broker.plainPassword,
+				broker.scram256Password,
+				broker.scram512Password,
+			},
+		)
+		if diagnosticErr != nil {
+			t.Logf("read secured Apache Kafka startup diagnostic: %v", diagnosticErr)
+		} else if diagnostic != "" {
+			t.Logf("secured Apache Kafka startup diagnostic:\n%s", diagnostic)
+		}
+		t.Fatalf("wait for secured Apache Kafka broker: %v", err)
+	}
+
+	return broker
+}
+
+func secureKafkaStartupDiagnostic(
+	ctx context.Context,
+	container testcontainers.Container,
+	secrets []string,
+) (string, error) {
+	logs, err := container.Logs(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer logs.Close()
+	data, err := io.ReadAll(io.LimitReader(logs, secureKafkaDiagnosticBytes))
+	if err != nil {
+		return "", err
+	}
+	diagnostic := string(data)
+	for _, secret := range secrets {
+		if secret != "" {
+			diagnostic = strings.ReplaceAll(diagnostic, secret, "[redacted]")
+		}
+	}
+
+	return diagnostic, nil
+}
+
+func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
+	listener := "SSL"
+	if mode != secureKafkaMutualTLS {
+		listener = "SASL_SSL"
+	}
+	properties := fmt.Sprintf(
+		"process.roles=broker,controller\n"+
+			"node.id=1\n"+
+			"controller.quorum.voters=1@localhost:%d\n"+
+			"controller.listener.names=CONTROLLER\n"+
+			"listeners=%s://:9094,INTERNAL://:%d,CONTROLLER://:%d\n"+
+			"advertised.listeners=%s://%s,INTERNAL://localhost:%d\n"+
+			"listener.security.protocol.map=SSL:SSL,SASL_SSL:SASL_SSL,"+
+			"INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT\n"+
+			"inter.broker.listener.name=INTERNAL\n"+
+			"log.dirs=/tmp/golib-kafka-secure-data\n"+
+			"num.partitions=1\n"+
+			"offsets.topic.replication.factor=1\n"+
+			"transaction.state.log.replication.factor=1\n"+
+			"transaction.state.log.min.isr=1\n"+
+			"share.coordinator.state.topic.replication.factor=1\n"+
+			"share.coordinator.state.topic.min.isr=1\n"+
+			"group.initial.rebalance.delay.ms=0\n"+
+			"auto.create.topics.enable=false\n"+
+			"config.providers=file\n"+
+			"config.providers.file.class="+
+			"org.apache.kafka.common.config.provider.FileConfigProvider\n"+
+			"ssl.keystore.location=/tmp/server.p12\n"+
+			"ssl.keystore.type=PKCS12\n"+
+			"ssl.keystore.password=${file:/tmp/store.properties:password}\n"+
+			"ssl.key.password=${file:/tmp/store.properties:password}\n"+
+			"ssl.enabled.protocols=TLSv1.2,TLSv1.3\n",
+		secureKafkaControllerPort,
+		listener,
+		secureKafkaInternalPort,
+		secureKafkaControllerPort,
+		listener,
+		endpoint,
+		secureKafkaInternalPort,
+	)
+
+	switch mode {
+	case secureKafkaMutualTLS:
+		properties += "ssl.truststore.location=/tmp/ca.pem\n" +
+			"ssl.truststore.type=PEM\n" +
+			"ssl.client.auth=required\n"
+	case secureKafkaSASL:
+		properties += "ssl.client.auth=none\n" +
+			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n" +
+			"listener.name.sasl_ssl.plain.sasl.jaas.config=" +
+			"org.apache.kafka.common.security.plain.PlainLoginModule required " +
+			"user_plain-user=\"${file:/tmp/plain.properties:password}\";\n" +
+			"listener.name.sasl_ssl.scram-sha-256.sasl.jaas.config=" +
+			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n" +
+			"listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config=" +
+			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n"
+	case secureKafkaOAuth:
+		properties += "ssl.client.auth=none\n" +
+			"sasl.enabled.mechanisms=OAUTHBEARER\n" +
+			"listener.name.sasl_ssl.oauthbearer.sasl.jaas.config=" +
+			"org.apache.kafka.common.security.oauthbearer." +
+			"OAuthBearerLoginModule required;\n" +
+			"listener.name.sasl_ssl.oauthbearer." +
+			"sasl.oauthbearer.expected.audience=" + secureKafkaAudience + "\n" +
+			"listener.name.sasl_ssl.oauthbearer." +
+			"sasl.oauthbearer.expected.issuer=" + secureKafkaIssuer + "\n" +
+			"listener.name.sasl_ssl.oauthbearer." +
+			"sasl.oauthbearer.jwks.endpoint.url=file:///tmp/jwks.json\n" +
+			"listener.name.sasl_ssl.oauthbearer." +
+			"sasl.server.callback.handler.class=" +
+			"org.apache.kafka.common.security.oauthbearer." +
+			"OAuthBearerValidatorCallbackHandler\n"
+	}
+
+	return properties
+}
+
+func secureKafkaStartScript(mode secureKafkaMode) string {
+	format := "/opt/kafka/bin/kafka-storage.sh format --ignore-formatted " +
+		"--cluster-id " + apacheKafkaClusterID + " " +
+		"--config /tmp/server.properties"
+	preparation := ""
+	if mode == secureKafkaSASL {
+		preparation = "scram256_password=\"$(cat /tmp/scram256-password)\"\n" +
+			"scram512_password=\"$(cat /tmp/scram512-password)\"\n"
+		format += " --add-scram \"SCRAM-SHA-256=" +
+			"[name=scram256-user,password=$scram256_password]\"" +
+			" --add-scram \"SCRAM-SHA-512=" +
+			"[name=scram512-user,password=$scram512_password]\""
+	}
+	if mode == secureKafkaOAuth {
+		preparation += "export KAFKA_OPTS=" +
+			"\"-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=" +
+			"file:///tmp/jwks.json\"\n"
+	}
+
+	return "#!/bin/bash\n" +
+		"set -euo pipefail\n" +
+		"if [ \"$(id -u)\" -eq 0 ]; then\n" +
+		"  for secret in /tmp/server-key.pem /tmp/store-password " +
+		"/tmp/store.properties /tmp/plain.properties " +
+		"/tmp/scram256-password /tmp/scram512-password; do\n" +
+		"    if [ -e \"$secret\" ]; then\n" +
+		"      chown 1000:1000 \"$secret\"\n" +
+		"      chmod 0600 \"$secret\"\n" +
+		"    fi\n" +
+		"  done\n" +
+		"  exec su appuser -s /bin/bash -c " +
+		"'exec /bin/bash /tmp/golib-kafka-secure-start.sh'\n" +
+		"fi\n" +
+		"umask 077\n" +
+		"openssl pkcs12 -export -name broker " +
+		"-inkey /tmp/server-key.pem -in /tmp/server.pem " +
+		"-certfile /tmp/ca.pem -out /tmp/server.p12 " +
+		"-passout file:/tmp/store-password >/dev/null 2>&1\n" +
+		preparation +
+		format + " >/dev/null\n" +
+		"unset scram256_password scram512_password 2>/dev/null || true\n" +
+		"exec /opt/kafka/bin/kafka-server-start.sh /tmp/server.properties\n"
+}
+
+func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
+	t.Helper()
+
+	now := time.Now()
+	caKey := newSecureKafkaRSAKey(t)
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "golib-kafka-test-ca"},
+		NotBefore:             now.Add(-time.Minute),
+		NotAfter:              now.Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	caDER, err := x509.CreateCertificate(
+		rand.Reader,
+		caTemplate,
+		caTemplate,
+		&caKey.PublicKey,
+		caKey,
+	)
+	if err != nil {
+		t.Fatalf("create secured Kafka CA: %v", err)
+	}
+
+	serverKey := newSecureKafkaRSAKey(t)
+	serverTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "golib-kafka-broker"},
+		NotBefore:    now.Add(-time.Minute),
+		NotAfter:     now.Add(time.Hour),
+		KeyUsage: x509.KeyUsageDigitalSignature |
+			x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+			x509.ExtKeyUsageClientAuth,
+		},
+		DNSNames:    []string{"localhost"},
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	if endpointIP := net.ParseIP(endpointHost); endpointIP != nil {
+		serverTemplate.IPAddresses = append(serverTemplate.IPAddresses, endpointIP)
+	} else if endpointHost != "" && endpointHost != "localhost" {
+		serverTemplate.DNSNames = append(serverTemplate.DNSNames, endpointHost)
+	}
+	serverDER, err := x509.CreateCertificate(
+		rand.Reader,
+		serverTemplate,
+		caTemplate,
+		&serverKey.PublicKey,
+		caKey,
+	)
+	if err != nil {
+		t.Fatalf("create secured Kafka server certificate: %v", err)
+	}
+
+	clientKey := newSecureKafkaRSAKey(t)
+	clientTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(3),
+		Subject:      pkix.Name{CommonName: "golib-kafka-client"},
+		NotBefore:    now.Add(-time.Minute),
+		NotAfter:     now.Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	clientDER, err := x509.CreateCertificate(
+		rand.Reader,
+		clientTemplate,
+		caTemplate,
+		&clientKey.PublicKey,
+		caKey,
+	)
+	if err != nil {
+		t.Fatalf("create secured Kafka client certificate: %v", err)
+	}
+
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
+	serverPEM := pem.EncodeToMemory(&pem.Block{
+		Type: "CERTIFICATE", Bytes: serverDER,
+	})
+	serverKeyPEM := secureKafkaPrivateKeyPEM(t, serverKey)
+	clientPEM := pem.EncodeToMemory(&pem.Block{
+		Type: "CERTIFICATE", Bytes: clientDER,
+	})
+	clientKeyPEM := secureKafkaPrivateKeyPEM(t, clientKey)
+	clientIdentity, err := tls.X509KeyPair(clientPEM, clientKeyPEM)
+	if err != nil {
+		t.Fatalf("parse secured Kafka client identity: %v", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(caPEM) {
+		t.Fatal("append secured Kafka CA")
+	}
+
+	return secureKafkaPKI{
+		caPEM:          caPEM,
+		serverPEM:      serverPEM,
+		serverKeyPEM:   serverKeyPEM,
+		clientPEM:      clientPEM,
+		clientKeyPEM:   clientKeyPEM,
+		clientIdentity: clientIdentity,
+		roots:          roots,
+	}
+}
+
+func newSecureKafkaRSAKey(t *testing.T) *rsa.PrivateKey {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate secured Kafka RSA key: %v", err)
+	}
+
+	return key
+}
+
+func secureKafkaPrivateKeyPEM(
+	t *testing.T,
+	key *rsa.PrivateKey,
+) []byte {
+	t.Helper()
+
+	encoded, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal secured Kafka private key: %v", err)
+	}
+
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded})
+}
+
+func secureKafkaJWKS(t *testing.T, key *rsa.PublicKey) []byte {
+	t.Helper()
+
+	encoded, err := json.Marshal(map[string]any{
+		"keys": []map[string]string{{
+			"kty": "RSA",
+			"kid": "golib-test-key",
+			"use": "sig",
+			"alg": "RS256",
+			"n":   base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
+			"e": base64.RawURLEncoding.EncodeToString(
+				big.NewInt(int64(key.E)).Bytes(),
+			),
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal secured Kafka JWKS: %v", err)
+	}
+
+	return encoded
+}
+
+func (broker *secureKafkaBroker) issueOAuthToken(
+	t *testing.T,
+	audience string,
+	lifetime time.Duration,
+) ([]byte, time.Time) {
+	t.Helper()
+
+	return broker.issueOAuthTokenForIssuer(
+		t,
+		secureKafkaIssuer,
+		audience,
+		lifetime,
+	)
+}
+
+func (broker *secureKafkaBroker) issueOAuthTokenForIssuer(
+	t *testing.T,
+	issuer string,
+	audience string,
+	lifetime time.Duration,
+) ([]byte, time.Time) {
+	t.Helper()
+
+	now := time.Now()
+	expiresAt := now.Add(lifetime)
+	header, err := json.Marshal(map[string]string{
+		"alg": "RS256", "typ": "JWT", "kid": "golib-test-key",
+	})
+	if err != nil {
+		t.Fatalf("marshal secured Kafka JWT header: %v", err)
+	}
+	claims, err := json.Marshal(map[string]any{
+		"iss": issuer,
+		"aud": audience,
+		"sub": "golib-client",
+		"iat": now.Add(-time.Second).Unix(),
+		"exp": expiresAt.Unix(),
+		"jti": randomSecureKafkaCredential(t),
+	})
+	if err != nil {
+		t.Fatalf("marshal secured Kafka JWT claims: %v", err)
+	}
+	encoder := base64.RawURLEncoding
+	signed := encoder.EncodeToString(header) + "." + encoder.EncodeToString(claims)
+	digest := sha256.Sum256([]byte(signed))
+	signature, err := rsa.SignPKCS1v15(
+		rand.Reader,
+		broker.oauthKey,
+		crypto.SHA256,
+		digest[:],
+	)
+	if err != nil {
+		t.Fatalf("sign secured Kafka JWT: %v", err)
+	}
+
+	return []byte(signed + "." + encoder.EncodeToString(signature)), expiresAt
+}
+
+func randomSecureKafkaCredential(t *testing.T) string {
+	t.Helper()
+
+	value := make([]byte, 24)
+	if _, err := rand.Read(value); err != nil {
+		t.Fatalf("generate secured Kafka credential: %v", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(value)
+}
+
+func copySecureKafkaFile(
+	t *testing.T,
+	ctx context.Context,
+	container testcontainers.Container,
+	path string,
+	data []byte,
+	mode int64,
+) {
+	t.Helper()
+
+	if err := container.CopyToContainer(ctx, data, path, mode); err != nil {
+		t.Fatalf("copy secured Kafka fixture %s: %v", path, err)
+	}
+}
+
+func (broker *secureKafkaBroker) serverTLSConfig() *tls.Config {
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    broker.pki.roots.Clone(),
+	}
+}
+
+func (broker *secureKafkaBroker) staticMutualTLSConfig() *tls.Config {
+	config := broker.serverTLSConfig()
+	config.Certificates = []tls.Certificate{broker.pki.clientIdentity}
+
+	return config
+}
+
+func (broker *secureKafkaBroker) assertTLSVersion(
+	t *testing.T,
+	version uint16,
+) {
+	t.Helper()
+
+	config := broker.staticMutualTLSConfig()
+	config.MinVersion = version
+	config.MaxVersion = version
+	dialer := &net.Dialer{Timeout: 3 * time.Second}
+	connection, err := tls.DialWithDialer(dialer, "tcp", broker.endpoint, config)
+	if err != nil {
+		t.Fatalf("dial secured Kafka with TLS %x: %v", version, err)
+	}
+	defer connection.Close()
+	if connection.ConnectionState().Version != version {
+		t.Fatalf(
+			"secured Kafka TLS version = %x, want %x",
+			connection.ConnectionState().Version,
+			version,
+		)
+	}
+}
+
+func (broker *secureKafkaBroker) assertRuntimeVersions(
+	t *testing.T,
+	ctx context.Context,
+) {
+	t.Helper()
+
+	assertSecureKafkaCommandOutput(
+		t,
+		ctx,
+		broker.container,
+		[]string{"/opt/kafka/bin/kafka-topics.sh", "--version"},
+		"4.3.1",
+	)
+	assertSecureKafkaCommandPrefix(
+		t,
+		ctx,
+		broker.container,
+		[]string{"openssl", "version"},
+		"OpenSSL 3.5.7 ",
+	)
+	assertSecureKafkaCommandOutput(
+		t,
+		ctx,
+		broker.container,
+		[]string{"sh", "-c", "awk '/^Uid:/{print $2}' /proc/1/status"},
+		"1000",
+	)
+}
+
+func assertSecureKafkaCommandOutput(
+	t *testing.T,
+	ctx context.Context,
+	container testcontainers.Container,
+	command []string,
+	want string,
+) {
+	t.Helper()
+
+	exitCode, output, err := container.Exec(ctx, command, tcexec.Multiplexed())
+	if err != nil {
+		t.Fatalf("execute secured Kafka version command: %v", err)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(output, 256))
+	if readErr != nil {
+		t.Fatalf("read secured Kafka version command: %v", readErr)
+	}
+	if exitCode != 0 || strings.TrimSpace(string(data)) != want {
+		t.Fatalf(
+			"secured Kafka version output = %q, exit %d; want %q",
+			strings.TrimSpace(string(data)),
+			exitCode,
+			want,
+		)
+	}
+}
+
+func assertSecureKafkaCommandPrefix(
+	t *testing.T,
+	ctx context.Context,
+	container testcontainers.Container,
+	command []string,
+	wantPrefix string,
+) {
+	t.Helper()
+
+	exitCode, output, err := container.Exec(ctx, command, tcexec.Multiplexed())
+	if err != nil {
+		t.Fatalf("execute secured Kafka tool command: %v", err)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(output, 256))
+	if readErr != nil {
+		t.Fatalf("read secured Kafka tool command: %v", readErr)
+	}
+	if exitCode != 0 || !strings.HasPrefix(strings.TrimSpace(string(data)), wantPrefix) {
+		t.Fatalf(
+			"secured Kafka tool output = %q, exit %d; want prefix %q",
+			strings.TrimSpace(string(data)),
+			exitCode,
+			wantPrefix,
+		)
+	}
+}
+
+func createSecureKafkaTopic(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	tlsConfig *tls.Config,
+	mechanism sasl.Mechanism,
+	topic string,
+) {
+	t.Helper()
+
+	options := []kgo.Opt{
+		kgo.SeedBrokers(broker),
+		kgo.ClientID("golib-secure-admin"),
+		kgo.DialTLSConfig(tlsConfig),
+	}
+	if mechanism != nil {
+		options = append(options, kgo.SASL(mechanism))
+	}
+	client, err := kgo.NewClient(options...)
+	if err != nil {
+		t.Fatalf("construct secured Kafka administrator: %v", err)
+	}
+	defer client.Close()
+	responses, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, nil, topic)
+	if err != nil {
+		t.Fatalf("create secured Kafka topic: %v", err)
+	}
+	response, exists := responses[topic]
+	if !exists {
+		t.Fatalf("secured Kafka topic response omitted %q", topic)
+	}
+	if response.Err != nil {
+		t.Fatalf("create secured Kafka topic %q: %v", topic, response.Err)
+	}
+}
+
+func publishSecureRecord(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	topic string,
+	value string,
+	security kafka.ClientSecurity,
+) {
+	t.Helper()
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       []string{broker},
+		ClientID:      "golib-secure-producer-" + value,
+		AllowedTopics: []string{topic},
+		Security:      security,
+	})
+	if err != nil {
+		t.Fatalf("construct secured Kafka producer: %v", err)
+	}
+	result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte(value),
+		Value: []byte(value),
+	})
+	if result.Err != nil || result.Topic != topic || result.Timestamp.IsZero() {
+		_ = producer.Close()
+		t.Fatalf("secured Kafka delivery = %#v", result)
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close secured Kafka producer: %v", err)
+	}
+}
+
+func consumeSecureRecords(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	topic string,
+	groupID string,
+	want int,
+	security kafka.ClientSecurity,
+) []string {
+	t.Helper()
+
+	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+		Brokers:           []string{broker},
+		ClientID:          groupID,
+		GroupID:           groupID,
+		Topics:            []string{topic},
+		ResetOffset:       kafka.OffsetEarliest,
+		MaxPollRecords:    want,
+		FetchMaxWait:      100 * time.Millisecond,
+		SessionTimeout:    10 * time.Second,
+		RebalanceTimeout:  10 * time.Second,
+		HeartbeatInterval: time.Second,
+		HandlerTimeout:    3 * time.Second,
+		CommitTimeout:     2 * time.Second,
+		DialTimeout:       10 * time.Second,
+		Security:          security,
+	})
+	if err != nil {
+		t.Fatalf("construct secured Kafka consumer: %v", err)
+	}
+	values := make([]string, 0, want)
+	for len(values) < want {
+		result, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			message kafka.ConsumedMessage,
+		) error {
+			values = append(values, string(message.Value))
+			return nil
+		}))
+		if runErr != nil {
+			_ = consumer.Close()
+			t.Fatalf("consume secured Kafka records: %v", runErr)
+		}
+		if result.Polled == 0 && ctx.Err() != nil {
+			_ = consumer.Close()
+			t.Fatalf("consume secured Kafka records: %v", ctx.Err())
+		}
+	}
+	if err := consumer.Close(); err != nil {
+		t.Fatalf("close secured Kafka consumer: %v", err)
+	}
+
+	return values
+}
+
+func usernamePasswordSecurity(
+	broker *secureKafkaBroker,
+	username string,
+	password string,
+	build func(kafka.UsernamePasswordProvider) kafka.Authentication,
+) (kafka.ClientSecurity, *atomic.Int64) {
+	var calls atomic.Int64
+	provider := kafka.UsernamePasswordProviderFunc(func(
+		context.Context,
+	) (kafka.UsernamePassword, error) {
+		calls.Add(1)
+		return kafka.UsernamePassword{
+			Username: username,
+			Password: []byte(password),
+		}, nil
+	})
+
+	return kafka.ClientSecurity{
+		TLS:               broker.serverTLSConfig(),
+		Authentication:    build(provider),
+		CredentialTimeout: time.Second,
+	}, &calls
+}
+
+func assertSecureKafkaHealthFailure(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	security kafka.ClientSecurity,
+	forbidden []string,
+) {
+	t.Helper()
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       []string{broker},
+		ClientID:      "golib-secure-rejected-producer",
+		AllowedTopics: []string{"golib-secure-rejected"},
+		DialTimeout:   2 * time.Second,
+		Security:      security,
+	})
+	if err != nil {
+		t.Fatalf("construct rejected secured Kafka producer: %v", err)
+	}
+	healthCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	healthErr := producer.Health(healthCtx)
+	if healthErr == nil {
+		_ = producer.Close()
+		t.Fatal("secured Kafka broker accepted invalid authentication")
+	}
+	for _, secret := range forbidden {
+		if secret != "" && strings.Contains(healthErr.Error(), secret) {
+			_ = producer.Close()
+			t.Fatal("secured Kafka authentication failure disclosed a credential")
+		}
+	}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close rejected secured Kafka producer: %v", err)
+	}
+}
