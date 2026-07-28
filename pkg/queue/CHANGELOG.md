@@ -7,6 +7,11 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- `Queue.ReleaseContext` now provides a bounded graceful worker path that
+  rejects new admission, waits for accepted publishes and active handlers, and
+  closes the concrete worker only after the drain. Legacy `Release` retains
+  its force-compatible behavior. Graceful withdrawal also releases a reserved
+  management admission before the scheduler exits.
 - Handler backoff now retries only retryable failures. Permanent, malformed,
   canceled, and infrastructure outcomes reach backend settlement after the
   first handler execution instead of repeating a known terminal or uncertain
@@ -83,6 +88,14 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- `queueservice` producer and worker lifecycle adapters with explicit concrete
+  resource ownership, publisher draining, service-context shutdown bounds, and
+  correlation- and trace-aware publish and delivery helpers.
+- Bounded correlation and W3C trace-context carriers in `job.Metadata`; every
+  trusted delivery uses the existing correlation queue adapter to preserve its
+  workflow while creating a distinct request ID and causation link. Optional
+  trace propagation uses an explicit caller-owned OpenTelemetry propagator
+  without global provider state.
 - Additive `core.DeliveryValidator` support lets a worker validate one decoded
   delivery exactly once before the root queue starts handler timeout and retry
   execution. Classified validation failures proceed directly to settlement.

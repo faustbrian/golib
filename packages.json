@@ -5492,6 +5492,18 @@
     },
     {
       "module_directory": "pkg/queue",
+      "directory": "queueservice",
+      "name": "queueservice",
+      "import_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/queue",
       "directory": "rabbitmq",
       "name": "rabbitmq",
       "import_path": "github.com/faustbrian/golib/pkg/queue/rabbitmq",

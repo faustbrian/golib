@@ -11,6 +11,20 @@ const (
 	MaxMetadataValueBytes = 256
 	// MaxMetadataTags bounds user-supplied metadata dimensions.
 	MaxMetadataTags = 32
+	// MaxCorrelationFields bounds the transport-neutral correlation carrier.
+	MaxCorrelationFields = 3
+	// MaxCorrelationFieldBytes matches correlation codec field-name bounds.
+	MaxCorrelationFieldBytes = 64
+	// MaxCorrelationValueBytes matches the largest supported correlation ID.
+	MaxCorrelationValueBytes = 1024
+	// MaxTraceContextFields bounds caller-owned telemetry propagation carriers.
+	MaxTraceContextFields = 16
+	// MaxTraceContextFieldBytes bounds telemetry propagation field names.
+	MaxTraceContextFieldBytes = 64
+	// MaxTraceContextValueBytes bounds one telemetry propagation field value.
+	MaxTraceContextValueBytes = 8192
+	// MaxTraceContextBytes bounds the complete telemetry propagation carrier.
+	MaxTraceContextBytes = 8192
 )
 
 // Metadata carries optional, backend-neutral job identity into failure and
@@ -27,6 +41,8 @@ type Metadata struct {
 	TraceID              string            `json:"trace_id,omitempty" msgpack:"trace_id,omitempty"`
 	TenantID             string            `json:"tenant_id,omitempty" msgpack:"tenant_id,omitempty"`
 	ProducerVersion      string            `json:"producer_version,omitempty" msgpack:"producer_version,omitempty"`
+	Correlation          map[string]string `json:"correlation,omitempty" msgpack:"correlation,omitempty"`
+	TraceContext         map[string]string `json:"trace_context,omitempty" msgpack:"trace_context,omitempty"`
 }
 
 // Validate rejects unbounded identity, tag, and time metadata.
@@ -58,6 +74,41 @@ func (m Metadata) Validate() error {
 			return fmt.Errorf("%w: metadata tag keys and values must be bounded", ErrInvalidMessage)
 		}
 	}
+	if len(m.Correlation) > MaxCorrelationFields {
+		return fmt.Errorf(
+			"%w: metadata correlation fields exceed the field limit",
+			ErrInvalidMessage,
+		)
+	}
+	for key, value := range m.Correlation {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" ||
+			len(key) > MaxCorrelationFieldBytes ||
+			len(value) > MaxCorrelationValueBytes {
+			return fmt.Errorf(
+				"%w: metadata correlation keys and values must be bounded",
+				ErrInvalidMessage,
+			)
+		}
+	}
+	if len(m.TraceContext) > MaxTraceContextFields {
+		return fmt.Errorf(
+			"%w: metadata trace context fields exceed the field limit",
+			ErrInvalidMessage,
+		)
+	}
+	traceContextBytes := 0
+	for key, value := range m.TraceContext {
+		traceContextBytes += len(key) + len(value)
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" ||
+			len(key) > MaxTraceContextFieldBytes ||
+			len(value) > MaxTraceContextValueBytes ||
+			traceContextBytes > MaxTraceContextBytes {
+			return fmt.Errorf(
+				"%w: metadata trace context keys and values must be bounded",
+				ErrInvalidMessage,
+			)
+		}
+	}
 
 	return nil
 }
@@ -76,6 +127,18 @@ func cloneMetadata(metadata *Metadata) *Metadata {
 		clone.Tags = make(map[string]string, len(metadata.Tags))
 		for key, value := range metadata.Tags {
 			clone.Tags[key] = value
+		}
+	}
+	if metadata.Correlation != nil {
+		clone.Correlation = make(map[string]string, len(metadata.Correlation))
+		for key, value := range metadata.Correlation {
+			clone.Correlation[key] = value
+		}
+	}
+	if metadata.TraceContext != nil {
+		clone.TraceContext = make(map[string]string, len(metadata.TraceContext))
+		for key, value := range metadata.TraceContext {
+			clone.TraceContext[key] = value
 		}
 	}
 

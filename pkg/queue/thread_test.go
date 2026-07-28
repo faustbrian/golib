@@ -1,6 +1,8 @@
 package queue
 
 import (
+	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 )
@@ -38,4 +40,23 @@ func TestRoutineGroupRun(t *testing.T) {
 			t.Errorf("expected counter to be %d, got %d", numRoutines, counter)
 		}
 	})
+}
+
+func TestRoutineGroupWaitContextCanBeCanceledWithoutLeakingAWaiter(t *testing.T) {
+	group := newRoutineGroup()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	group.Run(func() {
+		close(started)
+		<-release
+	})
+	<-started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := group.WaitContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("WaitContext() error = %v, want context cancellation", err)
+	}
+	close(release)
+	group.Wait()
 }

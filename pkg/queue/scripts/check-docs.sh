@@ -43,6 +43,7 @@ required=(
   docs/failure-model.md
   docs/integration-evidence.md
   docs/lifecycle.md
+  docs/service-integration.md
 )
 
 for file in "${required[@]}"; do

@@ -55,18 +55,28 @@ func (s *Ring) Run(ctx context.Context, task core.TaskMessage) error {
 // It waits for all tasks to be processed before completing the shutdown.
 func (s *Ring) Shutdown() error {
 	// Attempt to set the stopFlag from 0 to 1. If it fails, the queue is already shut down.
-	if !atomic.CompareAndSwapInt32(&s.stopFlag, 0, 1) {
+	if !s.stopIntake() {
 		return ErrQueueShutdown
 	}
 
+	<-s.exit
+
+	return nil
+}
+
+// stopIntake rejects new in-memory work without waiting for already queued
+// tasks. Queue uses this split phase to drain those tasks before final release.
+func (s *Ring) stopIntake() bool {
+	if !atomic.CompareAndSwapInt32(&s.stopFlag, 0, 1) {
+		return false
+	}
 	s.Lock()
 	if s.count == 0 {
 		s.signalExit()
 	}
 	s.Unlock()
-	<-s.exit
 
-	return nil
+	return true
 }
 
 // Queue adds a task to the ring buffer.

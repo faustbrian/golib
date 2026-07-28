@@ -26,6 +26,15 @@ differences.
   queue identity without importing backend packages into the coordinator.
 - `core.DeliveryValidator` optionally validates one decoded delivery before the
   coordinator enters handler timeout and retry execution.
+- `queueservice` adapts concrete producers and `*Queue` workers to the public
+  service lifecycle. It imports `service`; the root queue package does not.
+- Correlation-aware producers store a bounded carrier in `job.Metadata`.
+  `queueservice.NewHandler` applies the existing correlation queue receive
+  semantics at the application-handler boundary.
+- Trace-aware producers store a separate bounded W3C carrier in `job.Metadata`.
+  The adapter uses only the caller-provided OpenTelemetry propagator; it does
+  not read or mutate global telemetry state. Correlation and tracing remain
+  distinct contracts.
 - Retry and settlement failure events carry stable classification and safe-code
   fields so exporters do not need to parse or label arbitrary error text.
 
@@ -46,9 +55,11 @@ producer -> Publisher.Queue -> Valkey Stream
 ## Lifecycle
 
 `Start` launches the scheduling loop. The loop requests work only when a worker
-slot is available. Each handler runs with a timeout context. `Shutdown` prevents
-new work, asks the backend worker to stop, and signals the scheduler. `Release`
-also waits for owned goroutines.
+slot is available. Each handler runs with a timeout context. `Shutdown`
+prevents new work, asks the backend worker to stop, and signals the scheduler.
+`Release` also waits for owned goroutines. `ReleaseContext` is the bounded
+service path: it withdraws intake, joins admitted handlers, then releases the
+worker.
 
 The complete ownership and transition contract is in
 [lifecycle and state ownership](lifecycle.md).

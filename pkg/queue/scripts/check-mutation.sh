@@ -22,7 +22,11 @@ run_scope() {
 run_scope ./management \
   '^(control|desired|errors|lifecycle|protocol|reader|records|status)\.go$'
 run_scope . \
-  '^(cmd|examples|internal|job|management|managementhttp|nats|nsq|rabbitmq|redisdb|redisstream|valkeystream)/|^(errors|logger|management_lifecycle|metric|observer|options|pool|recovery|ring|thread)\.go$'
+  '^(cmd|examples|internal|job|management|managementhttp|nats|nsq|queueservice|rabbitmq|redisdb|redisstream|valkeystream)/|^(errors|logger|management_lifecycle|metric|observer|options|pool|recovery)\.go$'
+run_scope ./job \
+  '^(job|option)\.go$'
+run_scope ./queueservice \
+  '^$'
 run_scope ./redisstream \
   '^(api_compat|benchmark|constructor|control|options|redis|settlement|status)\.go$'
 run_scope ./redisstream \
