@@ -6319,6 +6319,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/service/integration/adoption",
+      "directory": ".",
+      "name": "adoption",
+      "import_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/service",
       "directory": "scripts",
       "name": "main",

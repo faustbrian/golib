@@ -2569,7 +2569,8 @@
         "github.com/faustbrian/golib/pkg/service"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/authorization"
+        "github.com/faustbrian/golib/pkg/authorization",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
         "github.com/moby/moby/client",
@@ -3240,6 +3241,7 @@
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -3816,6 +3818,7 @@
         "github.com/faustbrian/golib/pkg/localized",
         "github.com/faustbrian/golib/pkg/opening-hours",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/temporal"
       ],
       "external_runtime_dependencies": [
@@ -4092,6 +4095,7 @@
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -6723,6 +6727,7 @@
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -7878,7 +7883,8 @@
         "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
         "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
-        "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
+        "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
         "github.com/moby/moby/api",
@@ -8143,7 +8149,9 @@
         "github.com/faustbrian/golib/pkg/kafka",
         "github.com/faustbrian/golib/pkg/service"
       ],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+      ],
       "external_runtime_dependencies": [
         "go.opentelemetry.io/otel",
         "go.opentelemetry.io/otel/trace"
@@ -9979,7 +9987,8 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
-        "github.com/faustbrian/golib/pkg/rate-limit"
+        "github.com/faustbrian/golib/pkg/rate-limit",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
         "github.com/DATA-DOG/go-sqlmock",
@@ -12155,7 +12164,8 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
-        "github.com/faustbrian/golib/pkg/queue-control-plane"
+        "github.com/faustbrian/golib/pkg/queue-control-plane",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
@@ -12892,6 +12902,7 @@
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
@@ -14698,7 +14709,8 @@
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/service/compatibility"
+        "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
@@ -15316,6 +15328,7 @@
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [],
@@ -15422,6 +15435,7 @@
             "pkg/service/docs/hardening.md",
             "pkg/service/docs/performance.md",
             "pkg/service/docs/platform/adoption-budgets.md",
+            "pkg/service/docs/platform/adoption-evidence.md",
             "pkg/service/docs/platform/compatibility.md",
             "pkg/service/docs/platform/consumer-matrix.md",
             "pkg/service/docs/platform/contracts.md",
@@ -15527,6 +15541,70 @@
         "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/identifier",
         "github.com/faustbrian/golib/pkg/log",
+        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/scheduler",
+        "github.com/faustbrian/golib/pkg/service",
+        "github.com/faustbrian/golib/pkg/telemetry"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/service/integration/adoption",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/service/integration/adoption",
+          "directory": ".",
+          "name": "adoption",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This integration module validates that Track, Postal, and Location can replace their generic bootstrap with the public `service` construction model while keeping application dependencies and business behavior explicit.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cache",
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/config",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/kafka",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
+        "github.com/faustbrian/golib/pkg/migrations",
+        "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
@@ -16305,6 +16383,7 @@
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
