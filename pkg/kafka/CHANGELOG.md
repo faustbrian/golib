@@ -38,6 +38,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- clean-consumer release evidence that installs the committed Kafka module from
+  the repository's local source proxy into a fresh `GOWORK=off` module and
+  resolves its public package without relying on the monorepo workspace
 - pinned Apache Kafka 4.3.1 secured-broker evidence for exact TLS 1.2 and
   TLS 1.3 negotiation, mutual TLS, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and
   signed-JWT OAUTHBEARER, including provider-backed producer, consumer, and

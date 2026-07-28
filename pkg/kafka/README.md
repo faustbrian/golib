@@ -358,3 +358,7 @@ and remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
 [SECURITY.md](SECURITY.md). The module is licensed under the [MIT
 License](LICENSE).
+
+From the repository root, `make release-dry-run MODULES=pkg/kafka` verifies the
+committed module through a fresh `GOWORK=off` consumer and local source proxy.
+That local proof does not replace published-tag and public-proxy verification.

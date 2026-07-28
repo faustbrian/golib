@@ -63,6 +63,16 @@ floor still does not establish operational support for an untested broker.
 | Observability | Producer, consumer, rebalance, transaction, replay, inspection, and lifecycle events plus optional adapters | Root payload-free producer delivery, nontransactional consumer record/batch/commit/poll and group lifecycle, producer and consume-transform-produce transaction lifecycle, producer/consumer/transaction-processor/replay/inspector shutdown, inspector cluster/topic/group/dependency/readiness, and every client role's broker events are deterministically tested. The single-broker fixture proves producer and consume-transform-produce begin/commit/abort events plus transaction-processor broker requests. The standard-library slog adapter emits fixed bounded scalar fields, denies every Kafka identity by default, contains handler panics, and has exact local statement, fuzz, race, concurrency, and allocation evidence. The independently versioned OpenTelemetry adapter maps every current event, pins development-status messaging semantic conventions 1.43.0, defaults every identity attribute off, and has exact local statement, fuzz, race, concurrency, and allocation evidence. Standalone authentication, complete rebalance timing, and cross-message propagation remain unimplemented. |
 | Operating systems/architectures | Linux amd64/arm64 plus repository-supported developer platforms | Local Darwin arm64 only; CI matrix not yet established |
 
+## Release evidence
+
+On 2026-07-29, commit `2dc6459` passed the repository release dry-run for
+`pkg/kafka`. After module-local tidy, test, and API-compatibility gates, the
+release tool created a fresh temporary module with `GOWORK=off`, resolved
+`github.com/faustbrian/golib/pkg/kafka@v0.0.0` through the local source proxy,
+and listed the public package successfully. This proves the committed module is
+independently consumable from the repository's release artifact. It does not
+prove a published tag or public Go module proxy resolution.
+
 ## Primary sources
 
 Design and implementation are checked against:
