@@ -9,7 +9,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
 	github.com/creack/pty v1.1.24
-	github.com/faustbrian/golib/pkg/prompts v0.1.0
+	github.com/faustbrian/golib/pkg/prompts v0.0.0
 	github.com/hinshun/vt10x v0.0.0-20220119200601-820417d04eec
 	github.com/manifoldco/promptui v0.9.0
 )

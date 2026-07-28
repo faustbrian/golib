@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/outbox/adapters/gokafka
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/kafka v0.0.0-20260728101015-892ced8a73c9
-	github.com/faustbrian/golib/pkg/outbox v0.0.0-20260728101015-892ced8a73c9
+	github.com/faustbrian/golib/pkg/kafka v0.0.0
+	github.com/faustbrian/golib/pkg/outbox v0.0.0
 )
 
 require (

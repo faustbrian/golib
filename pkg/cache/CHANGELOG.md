@@ -7,6 +7,9 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - OpenTelemetry API and metric SDK dependencies now use 1.44.x consistently
   after adding the service lifecycle adapter.
 - Wait for Redis and Valkey readiness logs as well as listening sockets before

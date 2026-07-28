@@ -12,6 +12,9 @@ this project follows Semantic Versioning.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Add explicit pipe-compatible bearer extraction for legacy opaque-token
   contracts while retaining strict RFC 6750 syntax by default.
 - Preserve `apikey.Static` comparability while retaining per-authenticator

@@ -7,6 +7,9 @@ Versioning after v1.0.0.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Refresh owned-module checksums against the final consolidated archives.
 - Refreshed the generated API baseline with the current Go documentation
   formatter without changing exported declarations.

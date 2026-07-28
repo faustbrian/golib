@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Execute API compatibility tooling against isolated historical and current
   module graphs so owned dependency source changes cannot conflict with release
   checksums.

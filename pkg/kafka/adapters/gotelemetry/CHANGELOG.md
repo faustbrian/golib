@@ -32,5 +32,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - validate public observations through the root Kafka contract so adapters do
   not define divergent settlement or cardinality rules

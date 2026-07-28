@@ -3,9 +3,9 @@ module github.com/faustbrian/golib/pkg/authorization
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/cache v0.1.0
-	github.com/faustbrian/golib/pkg/jsonrpc v0.1.0
-	github.com/faustbrian/golib/pkg/migrations v0.1.0
+	github.com/faustbrian/golib/pkg/cache v0.0.0
+	github.com/faustbrian/golib/pkg/jsonrpc v0.0.0
+	github.com/faustbrian/golib/pkg/migrations v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/valkey-io/valkey-go v1.0.76
 	github.com/valkey-io/valkey-go/mock v1.0.76

@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/telemetry
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/service v0.0.0-20260728075932-dc2a284537a1
+	github.com/faustbrian/golib/pkg/service v0.0.0
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/jackc/pgx/v5 v5.10.0
 	go.opentelemetry.io/otel v1.44.0
@@ -23,9 +23,9 @@ require (
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/faustbrian/golib/pkg/cli v0.0.0-20260728074024-c7e45b1fae59 // indirect
-	github.com/faustbrian/golib/pkg/correlation v0.0.0-20260728074024-c7e45b1fae59 // indirect
-	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260728074024-c7e45b1fae59 // indirect
+	github.com/faustbrian/golib/pkg/cli v0.0.0 // indirect
+	github.com/faustbrian/golib/pkg/correlation v0.0.0 // indirect
+	github.com/faustbrian/golib/pkg/identifier v0.0.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -42,10 +42,4 @@ require (
 	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-)
-
-exclude (
-	github.com/faustbrian/golib/pkg/cli v0.1.0
-	github.com/faustbrian/golib/pkg/correlation v0.1.0
-	github.com/faustbrian/golib/pkg/identifier v0.1.0
 )

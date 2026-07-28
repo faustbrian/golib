@@ -10,6 +10,9 @@ and this project adheres to
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Keep real-broker consumer fixtures within Kafka's bounded rebalance handling
   relationship; adapter settlement semantics are unchanged.
 - Keep the real-broker adapter fixture compatible with Kafka's required

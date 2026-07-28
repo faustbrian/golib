@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Upgrade gRPC to 1.82.1 to remove the reachable `GO-2026-6061`
   vulnerabilities.
 - Pin unpublished owned modules to exact resolvable `main` revisions so clean

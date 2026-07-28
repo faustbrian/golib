@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 ### Added
 
 - independently versioned service lifecycle adapter for explicit Kafka

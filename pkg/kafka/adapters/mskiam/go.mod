@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.4
 	github.com/aws/aws-sdk-go-v2 v1.43.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.31
-	github.com/faustbrian/golib/pkg/kafka v0.1.0
+	github.com/faustbrian/golib/pkg/kafka v0.0.0
 )
 
 require (

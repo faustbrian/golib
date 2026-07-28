@@ -15,6 +15,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Pin unpublished Money and owned transitive modules to exact resolvable
   revisions so clean consumers do not depend on missing `v0.1.0` tags.
 - Refresh owned-module checksums against the final consolidated archives.

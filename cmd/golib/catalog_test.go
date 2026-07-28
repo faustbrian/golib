@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -396,6 +397,51 @@ func TestDependencyOrderedDirectories(t *testing.T) {
 	want := []string{"independent", "leaf", "middle", "consumer"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("dependencyOrderedDirectories() = %v, want %v", got, want)
+	}
+}
+
+func TestValidateOwnedDependencyVersion(t *testing.T) {
+	t.Parallel()
+
+	if err := validateOwnedDependencyVersion(
+		"pkg/consumer",
+		"github.com/faustbrian/golib/pkg/dependency",
+		"v0.0.0",
+	); err != nil {
+		t.Fatalf("validateOwnedDependencyVersion(v0.0.0) error = %v", err)
+	}
+	for _, version := range []string{
+		"v0.0.0-20260728110331-b7c4c77520dd",
+		"v0.1.0",
+		"v1.0.0",
+		"latest",
+		"",
+	} {
+		if err := validateOwnedDependencyVersion(
+			"pkg/consumer",
+			"github.com/faustbrian/golib/pkg/dependency",
+			version,
+		); err == nil {
+			t.Fatalf("validateOwnedDependencyVersion(%q) error = nil", version)
+		}
+	}
+}
+
+func TestValidateWorkspaceContentRequiresLocalZeroVersionReplacements(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{{
+		Directory: "pkg/dependency",
+		Path:      "github.com/faustbrian/golib/pkg/dependency",
+	}}}
+	valid := "use (\n\t./pkg/dependency\n)\n\n" +
+		"replace github.com/faustbrian/golib/pkg/dependency v0.0.0 => ./pkg/dependency\n"
+	if err := validateWorkspaceContent(valid, current); err != nil {
+		t.Fatalf("validateWorkspaceContent(valid) error = %v", err)
+	}
+	invalid := strings.Replace(valid, "v0.0.0", "v0.1.0", 1)
+	if err := validateWorkspaceContent(invalid, current); err == nil {
+		t.Fatal("validateWorkspaceContent(v0.1.0) error = nil")
 	}
 }
 

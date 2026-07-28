@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/authentication/jwt
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/authentication v0.1.0
-	github.com/faustbrian/golib/pkg/clock v0.1.0
+	github.com/faustbrian/golib/pkg/authentication v0.0.0
+	github.com/faustbrian/golib/pkg/clock v0.0.0
 	github.com/lestrrat-go/httprc/v3 v3.0.5
 	github.com/lestrrat-go/jwx/v3 v3.1.1
 )

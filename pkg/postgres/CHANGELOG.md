@@ -17,6 +17,9 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Run the pinned exported API compatibility check as part of the complete
   module gate.
 - API compatibility tooling now runs against the isolated module graph so owned

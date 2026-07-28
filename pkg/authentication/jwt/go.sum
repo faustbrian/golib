@@ -3,10 +3,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 h1:5RVFMOWjMyRy8cARdy79nAmgYw3hK/4HUq48LQ6Wwqo=
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1/go.mod h1:ZXNYxsqcloTdSy/rNShjYzMhyjf0LaoftYK0p+A3h40=
-github.com/faustbrian/golib/pkg/authentication v0.1.0 h1:srHXIhxmVjlqr8V4qKBVvGZiIg4KMGNRClEalggcVwc=
-github.com/faustbrian/golib/pkg/authentication v0.1.0/go.mod h1:Zi+WAp4KkN2R7Omw6w3kNJ4mzMdWUbbiHL/essYcuu8=
-github.com/faustbrian/golib/pkg/clock v0.1.0 h1:bKt+UVGZJHTl/ICjdLguHB+H7gT/5CxvEJ80Gf+m6KA=
-github.com/faustbrian/golib/pkg/clock v0.1.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
+github.com/faustbrian/golib/pkg/authentication v0.0.0 h1:KFLckrtE3UcI6JA62y024Rw2orGfyc8Dk+X0JPLj4R8=
+github.com/faustbrian/golib/pkg/authentication v0.0.0/go.mod h1:UW+qybetDpokZ8wQiTMSQxxdwkbFfDXoe+qzevZWZLE=
+github.com/faustbrian/golib/pkg/clock v0.0.0 h1:LxXCj/gJyWJY7kmmXVpNMPb/A/W5VXeRTwaRNAL1JFQ=
+github.com/faustbrian/golib/pkg/clock v0.0.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
 github.com/goccy/go-json v0.10.6 h1:p8HrPJzOakx/mn/bQtjgNjdTcN+/S6FcG2CTtQOrHVU=
 github.com/goccy/go-json v0.10.6/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
 github.com/lestrrat-go/blackmagic v1.0.4 h1:IwQibdnf8l2KoO+qC3uT4OaTWsW7tuRQXy9TRN9QanA=

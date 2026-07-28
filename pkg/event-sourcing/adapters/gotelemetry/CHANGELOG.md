@@ -10,6 +10,9 @@ and this project adheres to
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Remain source-compatible with Kafka's error-returning bounded producer close;
   the propagation publisher contract does not expose close.
 - Remain source-compatible with Kafka's expanded stable producer failure

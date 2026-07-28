@@ -1,9 +1,9 @@
 github.com/coreos/go-oidc/v3 v3.20.0 h1:EtE0WIBHk03N+DqGkY4+UONzzZHk7amKt6IyNd7OsZE=
 github.com/coreos/go-oidc/v3 v3.20.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
-github.com/faustbrian/golib/pkg/authentication v0.1.0 h1:srHXIhxmVjlqr8V4qKBVvGZiIg4KMGNRClEalggcVwc=
-github.com/faustbrian/golib/pkg/authentication v0.1.0/go.mod h1:Zi+WAp4KkN2R7Omw6w3kNJ4mzMdWUbbiHL/essYcuu8=
-github.com/faustbrian/golib/pkg/clock v0.1.0 h1:bKt+UVGZJHTl/ICjdLguHB+H7gT/5CxvEJ80Gf+m6KA=
-github.com/faustbrian/golib/pkg/clock v0.1.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
+github.com/faustbrian/golib/pkg/authentication v0.0.0 h1:KFLckrtE3UcI6JA62y024Rw2orGfyc8Dk+X0JPLj4R8=
+github.com/faustbrian/golib/pkg/authentication v0.0.0/go.mod h1:UW+qybetDpokZ8wQiTMSQxxdwkbFfDXoe+qzevZWZLE=
+github.com/faustbrian/golib/pkg/clock v0.0.0 h1:LxXCj/gJyWJY7kmmXVpNMPb/A/W5VXeRTwaRNAL1JFQ=
+github.com/faustbrian/golib/pkg/clock v0.0.0/go.mod h1:iIVOjXnoiQBzk1Ey+hNiTldtrZ736j9Mmb+/m3rK1SM=
 github.com/go-jose/go-jose/v4 v4.1.4 h1:moDMcTHmvE6Groj34emNPLs/qtYXRVcd6S7NHbHz3kA=
 github.com/go-jose/go-jose/v4 v4.1.4/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 golang.org/x/oauth2 v0.36.0 h1:peZ/1z27fi9hUOFCAZaHyrpWG5lwe0RJEEEeH0ThlIs=

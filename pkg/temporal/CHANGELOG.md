@@ -15,6 +15,9 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Validate unsigned rounding modes with their meaningful upper bound only.
 - Refresh owned-module checksums against the final consolidated archives.
 - Use deterministic execution counts for default fuzz smoke campaigns while

@@ -1,6 +1,6 @@
-github.com/faustbrian/golib/pkg/calendar v0.1.0 h1:SL7cJPHGSwzqqIL8/GuyuYFJWWKLFOkOjcifHGyZwF4=
-github.com/faustbrian/golib/pkg/calendar v0.1.0/go.mod h1:ZNZKzCgoXvgMOOP/fzmTIkVMG+tAXPKd4IMgSPWrIfY=
-github.com/faustbrian/golib/pkg/rule-engine v0.1.0 h1:SxAfG4iSOgIo43P5Sk095X5C5+xg669jvF6gwxuYouw=
-github.com/faustbrian/golib/pkg/rule-engine v0.1.0/go.mod h1:Dl+t/9xLwd7UU7ks8WPh9SHL3J9rphkqtEWyIDf/PRM=
-github.com/faustbrian/golib/pkg/temporal v0.1.0 h1:82ve8l7i5pvZgScI1HFP6U68++RcEhSfBMGWIiqWV5w=
-github.com/faustbrian/golib/pkg/temporal v0.1.0/go.mod h1:EQKyKpW2yyraWzF1SD6B1+EkvvGUBvUfYYbJepAxSi4=
+github.com/faustbrian/golib/pkg/calendar v0.0.0 h1:KRxgamqxP27wNdcYcPLH+NgWm9BB7p3Bj9M2Clef/0o=
+github.com/faustbrian/golib/pkg/calendar v0.0.0/go.mod h1:ZNZKzCgoXvgMOOP/fzmTIkVMG+tAXPKd4IMgSPWrIfY=
+github.com/faustbrian/golib/pkg/rule-engine v0.0.0 h1:q/lUxkMizonrnCq5+Yxi+RveGhu1O6n+hhaOPGHvwrk=
+github.com/faustbrian/golib/pkg/rule-engine v0.0.0/go.mod h1:Dl+t/9xLwd7UU7ks8WPh9SHL3J9rphkqtEWyIDf/PRM=
+github.com/faustbrian/golib/pkg/temporal v0.0.0 h1:JXWZGBnEtXbPmZmpZQNd/M23ffQ0JW64wI3t7BvML8A=
+github.com/faustbrian/golib/pkg/temporal v0.0.0/go.mod h1:dwPlZoQ9SeRu730y90fU89JY7B+WfoJ8ceq0QWxPqpM=

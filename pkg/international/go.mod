@@ -3,9 +3,9 @@ module github.com/faustbrian/golib/pkg/international
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/config v0.0.0-20260726073655-a21275ce5b48
-	github.com/faustbrian/golib/pkg/validation v0.0.0-20260726073655-a21275ce5b48
-	github.com/faustbrian/golib/pkg/wire v0.0.0-20260726073655-a21275ce5b48
+	github.com/faustbrian/golib/pkg/config v0.0.0
+	github.com/faustbrian/golib/pkg/validation v0.0.0
+	github.com/faustbrian/golib/pkg/wire v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	golang.org/x/text v0.40.0

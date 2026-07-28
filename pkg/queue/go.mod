@@ -5,8 +5,8 @@ go 1.26.5
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/appleboy/com v1.2.0
-	github.com/faustbrian/golib/pkg/correlation v0.1.0
-	github.com/faustbrian/golib/pkg/service v0.1.0
+	github.com/faustbrian/golib/pkg/correlation v0.0.0
+	github.com/faustbrian/golib/pkg/service v0.0.0
 	github.com/jpillora/backoff v1.0.0
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.0
@@ -41,8 +41,8 @@ require (
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
-	github.com/faustbrian/golib/pkg/cli v0.1.0 // indirect
-	github.com/faustbrian/golib/pkg/identifier v0.1.0 // indirect
+	github.com/faustbrian/golib/pkg/cli v0.0.0 // indirect
+	github.com/faustbrian/golib/pkg/identifier v0.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

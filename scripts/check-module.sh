@@ -57,7 +57,7 @@ enable_local_proxy() {
         GOLIB_LOCAL_PROXY="$(mktemp -d "${TMPDIR:-/tmp}/golib-proxy.XXXXXX")"
         local_proxy_owned=1
         "${root}/scripts/build-local-proxy.sh" \
-            "${GOLIB_LOCAL_PROXY}" v0.1.0 "${module}"
+            "${GOLIB_LOCAL_PROXY}" v0.0.0 "${module}"
     fi
     export GOLIB_LOCAL_PROXY
 

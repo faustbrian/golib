@@ -90,6 +90,7 @@ type modFile struct {
 	Go      string
 	Require []struct {
 		Path     string
+		Version  string
 		Indirect bool
 	}
 	Replace []json.RawMessage
@@ -389,6 +390,13 @@ func discover(root string) (catalog, error) {
 		external := make([]string, 0)
 		for _, requirement := range parsed.Require {
 			if strings.HasPrefix(requirement.Path, canonicalRoot+"/") {
+				if versionErr := validateOwnedDependencyVersion(
+					directory,
+					requirement.Path,
+					requirement.Version,
+				); versionErr != nil {
+					return catalog{}, versionErr
+				}
 				owned = append(owned, requirement.Path)
 			} else if !requirement.Indirect {
 				external = append(external, requirement.Path)
@@ -478,6 +486,19 @@ func discover(root string) (catalog, error) {
 	}
 
 	return result, nil
+}
+
+func validateOwnedDependencyVersion(directory, path, version string) error {
+	if version == "v0.0.0" {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"module %s requires owned dependency %s at %s; repository manifests must use local v0.0.0",
+		directory,
+		path,
+		version,
+	)
 }
 
 func conformanceRequired(kind string, specifications, corpora []string) bool {
@@ -1265,7 +1286,12 @@ func validateWorkspace(root string, current catalog) {
 	if err != nil {
 		fatal("read go.work: %v", err)
 	}
-	text := string(data)
+	if validationErr := validateWorkspaceContent(string(data), current); validationErr != nil {
+		fatal("%v", validationErr)
+	}
+}
+
+func validateWorkspaceContent(text string, current catalog) error {
 	for _, item := range current.Modules {
 		if item.Kind == "fixture" {
 			continue
@@ -1275,9 +1301,25 @@ func validateWorkspace(root string, current catalog) {
 			entry = "\t.\n"
 		}
 		if !strings.Contains(text, entry) {
-			fatal("go.work omits active module %s", item.Directory)
+			return fmt.Errorf("go.work omits active module %s", item.Directory)
+		}
+		if item.Directory == "." {
+			continue
+		}
+		replacement := fmt.Sprintf(
+			"replace %s v0.0.0 => ./%s\n",
+			item.Path,
+			strings.TrimPrefix(item.Directory, "./"),
+		)
+		if !strings.Contains(text, replacement) {
+			return fmt.Errorf(
+				"go.work must replace active module %s at local v0.0.0",
+				item.Directory,
+			)
 		}
 	}
+
+	return nil
 }
 
 func validatePaths(root string) {

@@ -9,7 +9,7 @@ fi
 
 root="$(git rev-parse --show-toplevel)"
 output="$1"
-version="${2:-v0.1.0}"
+version="${2:-v0.0.0}"
 selected="${3:-}"
 
 if [[ ! "${version}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
@@ -34,6 +34,12 @@ cleanup() {
     rm -rf "${temporary}"
 }
 trap cleanup EXIT HUP INT TERM
+
+rewrite_owned_dependencies() {
+    perl -pi -e \
+        's#(github\.com/faustbrian/golib/pkg/[a-z0-9/-]+) v0\.0\.0(?:-[0-9]{14}-[0-9a-f]{12})?#$1 v0.0.0#g' \
+        "$1"
+}
 
 selection_file="${temporary}/selected-modules"
 jq -r --arg selected "${selected}" '
@@ -106,6 +112,7 @@ while IFS=$'\t' read -r module_path module_directory; do
 
     cp "${root}/${module_directory}/go.mod" \
         "${proxy_directory}/${version}.mod"
+    rewrite_owned_dependencies "${proxy_directory}/${version}.mod"
     printf '{"Version":"%s","Time":"2000-01-01T00:00:00Z"}\n' \
         "${version}" >"${proxy_directory}/${version}.info"
     printf '%s\n' "${version}" >"${proxy_directory}/list"
@@ -133,6 +140,7 @@ while IFS=$'\t' read -r module_path module_directory; do
         git -C "${root}" ls-files -z --cached --others --exclude-standard \
             -- "${module_directory}"
     )
+    rewrite_owned_dependencies "${archive_root}/go.mod"
 
     find "${archive_directory}" -exec touch -t 200001010000 {} +
     (

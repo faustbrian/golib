@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Unsigned typed defaults and environment or dotenv values within the signed
   integer range now use the same canonical numeric representation as JSON,
   YAML, and TOML sources, allowing equivalent higher-precedence values to

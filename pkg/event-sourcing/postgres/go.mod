@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/event-sourcing/postgres
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/event-sourcing v0.1.0
+	github.com/faustbrian/golib/pkg/event-sourcing v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/moby/moby/api v1.54.2
 	github.com/testcontainers/testcontainers-go v0.43.0

@@ -13,6 +13,9 @@ Versioning.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Upgraded the resolved gRPC dependency to 1.82.1 and refreshed owned-module
   checksums after the shared telemetry dependency update.
 - Align indirect dependency metadata with the resolved graph so clean

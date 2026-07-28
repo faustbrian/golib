@@ -164,7 +164,7 @@ esac
 if [[ "${needs_proxy}" -eq 1 ]]; then
     selected_modules="$(printf '%s\n' "${selection}" | paste -sd, -)"
     "${root}/scripts/build-local-proxy.sh" \
-        "${local_proxy}" v0.1.0 "${selected_modules}"
+        "${local_proxy}" v0.0.0 "${selected_modules}"
     export GOLIB_LOCAL_PROXY="${local_proxy}"
     upstream="${GOLIB_UPSTREAM_GOPROXY:-$(go env GOPROXY)}"
     no_sum_db="$(go env GONOSUMDB)"

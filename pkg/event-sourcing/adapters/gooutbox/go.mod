@@ -3,9 +3,9 @@ module github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/event-sourcing v0.1.0
-	github.com/faustbrian/golib/pkg/event-sourcing/postgres v0.1.0
-	github.com/faustbrian/golib/pkg/outbox v0.1.0
+	github.com/faustbrian/golib/pkg/event-sourcing v0.0.0
+	github.com/faustbrian/golib/pkg/event-sourcing/postgres v0.0.0
+	github.com/faustbrian/golib/pkg/outbox v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 )

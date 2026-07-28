@@ -7,6 +7,11 @@ documented in each module's changelog.
 
 ### Changed
 
+- Require every repository-owned sibling module at local `v0.0.0`, reject
+  other versions from the inventory, and leave clean consumers to pin exact
+  `v0.0.0` main pseudo-versions.
+- Use `v0.0.0` for isolated local-proxy verification and resolve public
+  clean-consumer checks from `main`.
 - Restrict releasable-module gate fingerprints to their files and declared
   owned-dependency closure, excluding independently versioned nested modules so
   adapter changes do not invalidate parent-module evidence.

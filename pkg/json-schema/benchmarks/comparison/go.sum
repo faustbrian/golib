@@ -4,8 +4,8 @@ github.com/dlclark/regexp2 v1.11.0 h1:G/nrcoOa7ZXlpoa/91N3X7mM3r8eIlMBBJZvsz/mxK
 github.com/dlclark/regexp2 v1.11.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dlclark/regexp2/v2 v2.5.1 h1:E5Ug7Dh264W1ymdySmiHNcDG7fmsR307APCE5R07a20=
 github.com/dlclark/regexp2/v2 v2.5.1/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0 h1:wYYvl9q5N94nlEqrkSZuegatVba4Lk7twKSKTnX0LjY=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0 h1:Gy+URP/Krnx7Rptir0IzUKxjZSeSIULmOglPIDv909Q=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
 github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68 h1:KZaTBSyshWX3MP5jukJcNSuXDQTO+rNpt0J564dX/eg=
 github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68/go.mod h1:tphK2c80bpPhMOI4v6bIc2xWywPfbqi1Z06+RcrMkDg=
 github.com/goccy/go-yaml v1.19.2 h1:PmFC1S6h8ljIz6gMRBopkjP1TVT7xuwrButHID66PoM=

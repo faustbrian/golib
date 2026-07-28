@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/event-sourcing v0.1.0
-	github.com/faustbrian/golib/pkg/kafka v0.1.0
+	github.com/faustbrian/golib/pkg/event-sourcing v0.0.0
+	github.com/faustbrian/golib/pkg/kafka v0.0.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.43.0
 	github.com/twmb/franz-go v1.21.5
 	github.com/twmb/franz-go/pkg/kadm v1.18.0

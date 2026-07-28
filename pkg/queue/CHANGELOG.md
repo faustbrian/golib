@@ -7,6 +7,9 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - `Queue.ReleaseContext` now provides a bounded graceful worker path that
   rejects new admission, waits for accepted publishes and active handlers, and
   closes the concrete worker only after the drain. Legacy `Release` retains

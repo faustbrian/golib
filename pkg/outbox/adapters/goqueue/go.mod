@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/outbox/adapters/goqueue
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/outbox v0.1.0
-	github.com/faustbrian/golib/pkg/queue v0.1.0
+	github.com/faustbrian/golib/pkg/outbox v0.0.0
+	github.com/faustbrian/golib/pkg/queue v0.0.0
 )
 
 require (

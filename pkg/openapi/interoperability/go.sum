@@ -8,10 +8,10 @@ github.com/dlclark/regexp2 v1.11.0 h1:G/nrcoOa7ZXlpoa/91N3X7mM3r8eIlMBBJZvsz/mxK
 github.com/dlclark/regexp2 v1.11.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dlclark/regexp2/v2 v2.5.1 h1:E5Ug7Dh264W1ymdySmiHNcDG7fmsR307APCE5R07a20=
 github.com/dlclark/regexp2/v2 v2.5.1/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0 h1:wYYvl9q5N94nlEqrkSZuegatVba4Lk7twKSKTnX0LjY=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
-github.com/faustbrian/golib/pkg/openapi v0.1.0 h1:26G5ojuqxfZhfJ55tqi1CBN+G0wpflO9E7uotFOPigc=
-github.com/faustbrian/golib/pkg/openapi v0.1.0/go.mod h1:dk6trvwVnACTPglKvsYZKxzVBrYWwYWdytMm6dla2n4=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0 h1:Gy+URP/Krnx7Rptir0IzUKxjZSeSIULmOglPIDv909Q=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
+github.com/faustbrian/golib/pkg/openapi v0.0.0 h1:iEapq+XLUsECR9T09kK+/J9/PRWUEDOoM4pgt7BFX84=
+github.com/faustbrian/golib/pkg/openapi v0.0.0/go.mod h1:YUD9k9dQ+suU0nXl61vzE3R1WonohE4bcv1wG1TmtA4=
 github.com/getkin/kin-openapi v0.143.0 h1:mIrOpir9J5x2m1vdree2rhuJ/GYGwbTVBp1kuSCJ62Y=
 github.com/getkin/kin-openapi v0.143.0/go.mod h1:3BH9M9XDe/y9M5DSvEocVYAYq1w0qrhJHjC/vZi0AaY=
 github.com/go-openapi/analysis v0.25.5 h1:xPYEvTb90o1y0epuiOPAoG4QqahjP3cdp5xNlHeKJRI=

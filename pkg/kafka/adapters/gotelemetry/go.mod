@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/kafka v0.1.0
+	github.com/faustbrian/golib/pkg/kafka v0.0.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0

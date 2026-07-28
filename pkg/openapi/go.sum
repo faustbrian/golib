@@ -1,7 +1,7 @@
 github.com/dlclark/regexp2/v2 v2.5.1 h1:E5Ug7Dh264W1ymdySmiHNcDG7fmsR307APCE5R07a20=
 github.com/dlclark/regexp2/v2 v2.5.1/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0 h1:wYYvl9q5N94nlEqrkSZuegatVba4Lk7twKSKTnX0LjY=
-github.com/faustbrian/golib/pkg/json-schema v0.1.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0 h1:Gy+URP/Krnx7Rptir0IzUKxjZSeSIULmOglPIDv909Q=
+github.com/faustbrian/golib/pkg/json-schema v0.0.0/go.mod h1:PqtuZ6UbKP+nfaCStw0R/FbNmgIsnwPxNq6g+VUdN9U=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=

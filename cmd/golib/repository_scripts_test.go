@@ -177,7 +177,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 		command := exec.Command(
 			script,
 			output,
-			"v0.1.0",
+			"v0.0.0",
 			"pkg/authentication/authotel",
 		)
 		command.Dir = root
@@ -192,7 +192,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 		"github.com/faustbrian/golib/pkg/clock",
 	}
 	for _, modulePath := range expected {
-		relative := filepath.FromSlash(modulePath + "/@v/v0.1.0.zip")
+		relative := filepath.FromSlash(modulePath + "/@v/v0.0.0.zip")
 		firstArchive, err := os.ReadFile(filepath.Join(first, relative))
 		if err != nil {
 			t.Fatalf("read first %s archive: %v", modulePath, err)
@@ -205,10 +205,28 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 			t.Fatalf("local proxy archive for %s is not deterministic", modulePath)
 		}
 	}
+	authotelManifest, err := os.ReadFile(filepath.Join(
+		first,
+		filepath.FromSlash(
+			"github.com/faustbrian/golib/pkg/authentication/authotel/@v/v0.0.0.mod",
+		),
+	))
+	if err != nil {
+		t.Fatalf("read authotel local manifest: %v", err)
+	}
+	if strings.Contains(string(authotelManifest), "v0.0.0-") {
+		t.Fatalf("local proxy manifest retained remote pseudo-version:\n%s", authotelManifest)
+	}
+	if !strings.Contains(
+		string(authotelManifest),
+		"github.com/faustbrian/golib/pkg/authentication v0.0.0",
+	) {
+		t.Fatalf("local proxy manifest does not use local v0.0.0:\n%s", authotelManifest)
+	}
 	unselected := filepath.Join(
 		first,
 		filepath.FromSlash(
-			"github.com/faustbrian/golib/pkg/authentication/jwt/@v/v0.1.0.mod",
+			"github.com/faustbrian/golib/pkg/authentication/jwt/@v/v0.0.0.mod",
 		),
 	)
 	if _, err := os.Stat(unselected); !os.IsNotExist(err) {
@@ -219,7 +237,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	command := exec.Command(
 		script,
 		parentSelection,
-		"v0.1.0",
+		"v0.0.0",
 		"pkg/authentication",
 	)
 	command.Dir = root
@@ -233,7 +251,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	} {
 		moduleFile := filepath.Join(
 			parentSelection,
-			filepath.FromSlash(modulePath+"/@v/v0.1.0.mod"),
+			filepath.FromSlash(modulePath+"/@v/v0.0.0.mod"),
 		)
 		if _, err := os.Stat(moduleFile); err != nil {
 			t.Fatalf("parent proxy omitted nested module %s: %v", modulePath, err)
@@ -241,7 +259,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	}
 
 	rootSelection := t.TempDir()
-	command = exec.Command(script, rootSelection, "v0.1.0", ".")
+	command = exec.Command(script, rootSelection, "v0.0.0", ".")
 	command.Dir = root
 	if result, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build root module proxy: %v\n%s", err, result)
@@ -252,7 +270,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	} {
 		moduleFile := filepath.Join(
 			rootSelection,
-			filepath.FromSlash(modulePath+"/@v/v0.1.0.mod"),
+			filepath.FromSlash(modulePath+"/@v/v0.0.0.mod"),
 		)
 		if _, err := os.Stat(moduleFile); err != nil {
 			t.Fatalf("root proxy omitted releasable module %s: %v", modulePath, err)
@@ -262,7 +280,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	command = exec.Command(
 		script,
 		t.TempDir(),
-		"v0.1.0",
+		"v0.0.0",
 		"pkg/not-cataloged",
 	)
 	command.Dir = root
@@ -273,7 +291,7 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	parentArchive := filepath.Join(
 		first,
 		filepath.FromSlash(
-			"github.com/faustbrian/golib/pkg/authentication/@v/v0.1.0.zip",
+			"github.com/faustbrian/golib/pkg/authentication/@v/v0.0.0.zip",
 		),
 	)
 	archive, err := zip.OpenReader(parentArchive)
@@ -299,10 +317,10 @@ func TestIsolatedGoUsesTemporarySumsForOwnedModules(t *testing.T) {
 
 go 1.26.5
 
-require github.com/faustbrian/golib/pkg/dependency v0.1.0
+require github.com/faustbrian/golib/pkg/dependency v0.0.0
 `)
 	sourceSum := filepath.Join(module, "go.sum")
-	const staleSum = "github.com/faustbrian/golib/pkg/dependency v0.1.0 h1:stale=\n"
+	const staleSum = "github.com/faustbrian/golib/pkg/dependency v0.0.0 h1:stale=\n"
 	writeTestFile(t, sourceSum, staleSum)
 
 	fakeGo := filepath.Join(t.TempDir(), "go")
@@ -340,7 +358,7 @@ if [ "${1:-}" = mod ] && [ "${2:-}" = download ]; then
 fi
 if [ "${1:-}" = mod ] && [ "${2:-}" = tidy ]; then
 	printf '%s\n' \
-		'github.com/faustbrian/golib/pkg/dependency v0.1.0 h1:current=' \
+		'github.com/faustbrian/golib/pkg/dependency v0.0.0 h1:current=' \
 		>>"$sum"
 	exit 0
 fi

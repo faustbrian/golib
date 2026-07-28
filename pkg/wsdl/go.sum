@@ -1,9 +1,9 @@
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/faustbrian/golib/pkg/wire v0.1.0 h1:IVnAlUZTitoa04n+ZGaqCEQ4fHGB1FoVzy+2IUUMSNw=
-github.com/faustbrian/golib/pkg/wire v0.1.0/go.mod h1:pdGMQ42SDItOUOQZZih9cFy4+R15uw0WB3hRzl3AxEY=
-github.com/faustbrian/golib/pkg/xsd v0.1.0 h1:+uFulJqO1M+f9YGRZ6YoA9lGcgNonQCn+wM8XVBzqgs=
-github.com/faustbrian/golib/pkg/xsd v0.1.0/go.mod h1:xNcax5O/qrgQ6ie43lxpHM3aGGNlINZt+tcx/l1Z9j4=
+github.com/faustbrian/golib/pkg/wire v0.0.0 h1:0dwRDRQHay7fMiCYSr6o6Vl28R9SJfjWngn4ihWr4J4=
+github.com/faustbrian/golib/pkg/wire v0.0.0/go.mod h1:pdGMQ42SDItOUOQZZih9cFy4+R15uw0WB3hRzl3AxEY=
+github.com/faustbrian/golib/pkg/xsd v0.0.0 h1:frESVCp2rB5Ktrj+hd0y7/yv7a9SKwbhIrsJPM7dG1c=
+github.com/faustbrian/golib/pkg/xsd v0.0.0/go.mod h1:xNcax5O/qrgQ6ie43lxpHM3aGGNlINZt+tcx/l1Z9j4=
 github.com/fxamacker/cbor/v2 v2.9.2 h1:X4Ksno9+x3cz0TZv69ec1hxP/+tymuR8PXQJyDwfh78=
 github.com/fxamacker/cbor/v2 v2.9.2/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IUPn0Bjt8=

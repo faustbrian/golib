@@ -3,8 +3,8 @@ module github.com/faustbrian/golib/pkg/openapi/interoperability
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/json-schema v0.1.0
-	github.com/faustbrian/golib/pkg/openapi v0.1.0
+	github.com/faustbrian/golib/pkg/json-schema v0.0.0
+	github.com/faustbrian/golib/pkg/openapi v0.0.0
 	github.com/getkin/kin-openapi v0.143.0
 	github.com/go-openapi/loads v0.25.0
 	github.com/pb33f/libopenapi v0.38.7

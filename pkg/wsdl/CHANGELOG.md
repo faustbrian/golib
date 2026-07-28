@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

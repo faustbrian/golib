@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/alecthomas/kong v1.16.0
-	github.com/faustbrian/golib/pkg/cli v0.1.0
+	github.com/faustbrian/golib/pkg/cli v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/urfave/cli/v3 v3.10.1
 )

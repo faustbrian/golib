@@ -3,10 +3,10 @@ module github.com/faustbrian/golib/pkg/temporal
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/calendar v0.1.0
-	github.com/faustbrian/golib/pkg/config v0.1.0
-	github.com/faustbrian/golib/pkg/validation v0.1.0
-	github.com/faustbrian/golib/pkg/wire v0.1.0
+	github.com/faustbrian/golib/pkg/calendar v0.0.0
+	github.com/faustbrian/golib/pkg/config v0.0.0
+	github.com/faustbrian/golib/pkg/validation v0.0.0
+	github.com/faustbrian/golib/pkg/wire v0.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 )
 

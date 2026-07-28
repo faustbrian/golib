@@ -20,6 +20,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Require owned sibling modules at local `v0.0.0`; clean external consumers
+  pin each module to an exact main pseudo-version.
+
 - Refresh aggregate release evidence after pinning the Go Money objective's
   resolvable owned-module revisions.
 - Restrict evidence discovery to tracked and non-ignored source inputs so

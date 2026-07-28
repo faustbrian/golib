@@ -47,24 +47,24 @@ package_path="$(jq -r '.packages[0].import_path // empty' <<<"${entry}")"
         env -u GOLIB_LOCAL_PROXY \
             GOPROXY="${GOLIB_UPSTREAM_GOPROXY:-https://proxy.golang.org,direct}" \
             GONOSUMDB= \
-            GOWORK=off go get "${module_path}@v0.1.0"
+            GOWORK=off go get "${module_path}@main"
         env -u GOLIB_LOCAL_PROXY \
             GOPROXY="${GOLIB_UPSTREAM_GOPROXY:-https://proxy.golang.org,direct}" \
             GONOSUMDB= \
             GOWORK=off go list "${package_path}"
     else
-        GOWORK=off go get "${module_path}@v0.1.0"
+        GOWORK=off go get "${module_path}@v0.0.0"
         GOWORK=off go list "${package_path}"
     fi
 )
 
 if [[ "${dry_run}" -eq 1 ]]; then
     if [[ "${public}" -eq 1 ]]; then
-        printf 'public release verification passed for %s at %s0.1.0\n' \
-            "${module}" "${tag_prefix}"
+        printf 'public release verification passed for %s from main\n' \
+            "${module}"
     else
-        printf 'release dry-run passed for %s from the local source proxy; proposed tag %s0.1.0\n' \
-            "${module}" "${tag_prefix}"
+        printf 'release dry-run passed for %s from the local source proxy at v0.0.0\n' \
+            "${module}"
     fi
     exit 0
 fi
