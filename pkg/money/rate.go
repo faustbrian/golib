@@ -19,6 +19,29 @@ type Rate struct {
 
 // ParseRate parses either exact decimal text or a numerator/denominator pair.
 func ParseRate(input string) (Rate, error) {
+	return ParseRateWithMaximum(input, fmt.Sprint(MaxRateMagnitude))
+}
+
+// ParseRateWithMaximum parses a rate while applying an explicit inclusive
+// caller-defined maximum. The maximum accepts the same exact decimal or
+// numerator/denominator syntax as input and must be positive.
+func ParseRateWithMaximum(input, maximum string) (Rate, error) {
+	value, err := parseRateValue(input)
+	if err != nil {
+		return Rate{}, fmt.Errorf("%w: %v", ErrInvalidRate, err)
+	}
+	bound, err := parseRateValue(maximum)
+	if err != nil || bound.Sign() <= 0 {
+		return Rate{}, ErrInvalidRate
+	}
+	if value.Sign() < 0 || value.Cmp(bound) > 0 {
+		return Rate{}, ErrInvalidRate
+	}
+
+	return Rate{value: value, valid: true}, nil
+}
+
+func parseRateValue(input string) (rational.Rational, error) {
 	limits := arithmeticLimits()
 	var value rational.Rational
 	var err error
@@ -33,14 +56,10 @@ func ParseRate(input string) (Rate, error) {
 		}
 	}
 	if err != nil {
-		return Rate{}, fmt.Errorf("%w: %v", ErrInvalidRate, err)
-	}
-	maximum, _ := rational.New(MaxRateMagnitude, 1)
-	if value.Sign() < 0 || value.Cmp(maximum) > 0 {
-		return Rate{}, ErrInvalidRate
+		return rational.Rational{}, err
 	}
 
-	return Rate{value: value, valid: true}, nil
+	return value, nil
 }
 
 // Rational returns the immutable exact math value.

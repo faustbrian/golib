@@ -4,8 +4,12 @@
 
 `Parse` accepts strict exact decimal text, a validated currency code, and an
 explicit context. `FromMinorUnits` accepts an arbitrary-precision `math`
-integer. `ParseAmount`, `ParseRate`, `ParseTaxRate`, and `ParseDiscountRate`
+integer. `ParseAmount`, `ParseRate`, `ParseRateWithMaximum`, `ParseTaxRate`, and `ParseDiscountRate`
 apply their domain bounds without float conversion.
+
+`ParseRateWithMaximum` accepts an exact positive decimal or fraction as an
+inclusive caller-owned rate bound. `ParseRate` retains the generic
+`MaxRateMagnitude` limit.
 
 ## Fixed money
 

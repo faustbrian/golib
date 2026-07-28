@@ -238,6 +238,26 @@ func TestResourceAndIdentityBoundariesRejectHostileInputs(t *testing.T) {
 	}
 }
 
+func TestParseRateWithMaximumSupportsCallerDefinedMagnitude(t *testing.T) {
+	t.Parallel()
+
+	const maximum = "99999999999999999999.999999999999999999"
+
+	rate, err := ParseRateWithMaximum(maximum, maximum)
+	if err != nil {
+		t.Fatalf("ParseRateWithMaximum(maximum) error = %v", err)
+	}
+	if rate.String() != "99999999999999999999999999999999999999/1000000000000000000" {
+		t.Fatalf("ParseRateWithMaximum(maximum) = %q", rate)
+	}
+	if _, err := ParseRateWithMaximum("100000000000000000000", maximum); !errors.Is(err, ErrInvalidRate) {
+		t.Fatalf("ParseRateWithMaximum(over maximum) error = %v, want invalid rate", err)
+	}
+	if _, err := ParseRateWithMaximum("1", "invalid"); !errors.Is(err, ErrInvalidRate) {
+		t.Fatalf("ParseRateWithMaximum(invalid maximum) error = %v, want invalid rate", err)
+	}
+}
+
 func assertAllocationEquals(t *testing.T, allocation AllocationResult, total Money) {
 	t.Helper()
 	sum, err := allocation.Sum()

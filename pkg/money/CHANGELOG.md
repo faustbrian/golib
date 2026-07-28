@@ -24,6 +24,8 @@ semantic versioning after the first tagged release.
 
 ### Added
 
+- Caller-defined exact maximum magnitudes for rates while preserving the
+  generic one-million default.
 - Immutable exact `Money`, `Amount`, `RationalMoney`, `MoneyBag`, rate, ratio,
   context, allocation, tax, discount, conversion, and result values.
 - ISO default, custom, cash, and safe automatic precision contexts.
