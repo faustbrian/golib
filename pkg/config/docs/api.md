@@ -69,6 +69,13 @@ recursive object merge, replacement, null, delete, and conflict semantics.
 fixtures, plans, snapshots, origin assertions, and `DiffSecrets` for redacted
 secret comparisons in test failures.
 
+`configservice.New[T]` constructs a command-scoped `service` loader from the
+default precedence model. `Options.Local` must explicitly permit a
+filesystem-backed `Dotenv` source. A non-nil `Environment` adds the process
+environment after dotenv and before caller overrides. The loader returns a
+validated value before service component construction, owns no resource,
+performs no retries, and retains source and validation errors for inspection.
+
 Typed conversion and parser errors expose safe metadata and preserve sentinel
 identity through `errors.Is`. Arbitrary underlying error text and concrete
 types are deliberately unavailable through `Unwrap` and `errors.As` because

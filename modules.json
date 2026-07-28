@@ -3210,6 +3210,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cli/benchmarks",
+        "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/service"
       ],
       "external_runtime_dependencies": [
@@ -3541,6 +3542,18 @@
         },
         {
           "module_directory": "pkg/config",
+          "directory": "configservice",
+          "name": "configservice",
+          "import_path": "github.com/faustbrian/golib/pkg/config/configservice",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/config",
           "directory": "configtest",
           "name": "configtest",
           "import_path": "github.com/faustbrian/golib/pkg/config/configtest",
@@ -3762,7 +3775,12 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/config/v",
-      "owned_dependencies": [],
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/service"
+      ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/international",
         "github.com/faustbrian/golib/pkg/localized",
@@ -4032,6 +4050,7 @@
         "github.com/faustbrian/golib/pkg/identifier"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/service"
@@ -6641,6 +6660,7 @@
       "tag_prefix": "pkg/identifier/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/service"
@@ -15089,6 +15109,7 @@
         "github.com/faustbrian/golib/pkg/identifier"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/service/compatibility"

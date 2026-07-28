@@ -70,6 +70,42 @@ All constructors return errors; production code should handle them. The
 omitted checks above keep the precedence example compact. A complete version is
 in [examples/quickstart](examples/quickstart/main.go).
 
+## Service command loading
+
+`configservice.New` adapts a typed plan to `service.CommandSpec.Load`. It loads
+only after command selection and before component construction. Local dotenv
+files require the explicit `Local` option; process environment and caller
+overrides retain the standard precedence.
+
+```go
+loader, err := configservice.New(configservice.Options[Settings]{
+    Local: true,
+    Dotenv: &configservice.Dotenv{
+        FS: os.DirFS("."),
+        Path: ".env",
+        Options: dotenv.Options{Name: "local-dotenv", Prefix: "APP_"},
+    },
+    Environment: &environment.Options{
+        Name: "process-environment",
+        Prefix: "APP_",
+    },
+})
+if err != nil {
+    return err
+}
+
+command := service.CommandFor(service.CommandSpec[Settings]{
+    Name: "serve",
+    Kind: service.CommandKindLongRunning,
+    Load: loader,
+    Build: build,
+})
+```
+
+The adapter owns no resource, performs no retries, and does not reload
+configuration. The caller owns every source and decides whether repeated loads
+are safe.
+
 ## What is included
 
 - Strict JSON, YAML, TOML, dotenv, environment, map, byte, reader, `fs.FS`, and
@@ -84,6 +120,8 @@ in [examples/quickstart](examples/quickstart/main.go).
   validators, and deterministic error aggregation.
 - Immutable typed snapshots and field-level provenance that never stores field
   values.
+- A typed `configservice` adapter for command-scoped service configuration,
+  explicit local dotenv loading, and process-environment orchestration.
 
 ## Documentation
 

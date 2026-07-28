@@ -18,6 +18,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- A `configservice` adapter that supplies typed, validated configuration to a
+  selected service command before component construction, with explicit local
+  dotenv and process-environment precedence.
 - Typed immutable configuration plans and snapshots with safe provenance.
 - Strict JSON, YAML, TOML, dotenv, environment, filesystem, defaults, and
   programmatic sources.

@@ -1422,6 +1422,18 @@
     },
     {
       "module_directory": "pkg/config",
+      "directory": "configservice",
+      "name": "configservice",
+      "import_path": "github.com/faustbrian/golib/pkg/config/configservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/config",
       "directory": "configtest",
       "name": "configtest",
       "import_path": "github.com/faustbrian/golib/pkg/config/configtest",
