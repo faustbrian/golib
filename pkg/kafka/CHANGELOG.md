@@ -18,6 +18,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker Apache Kafka evidence that a replacement producer using the
+  same transactional ID fences the older producer, aborts its pending record,
+  and leaves only the replacement transaction visible to read-committed
+  consumers
 - real-broker producer-quota evidence that successful delivery emits a
   positive request-level post-response throttle observation without unsafe
   per-record attribution

@@ -4,6 +4,7 @@ package kafka_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -18,6 +19,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -43,9 +45,11 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	waitForApacheBrokerEndpoints(t, ctx, brokers)
 
 	topic := fmt.Sprintf("golib-apache-compatibility-%d", time.Now().UnixNano())
+	fencingTransactionTopic := topic + "-transaction-fencing"
 	warmTransactionTopic := topic + "-transaction-warm"
 	recoveredTransactionTopic := topic + "-transaction-recovered"
 	createApacheKafkaTopic(t, ctx, brokers, topic, 3)
+	createApacheKafkaTopic(t, ctx, brokers, fencingTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
 
@@ -92,6 +96,7 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	) bool {
 		return len(state.Partitions) > 0 && allPartitionsMatch(state, 3, 3)
 	})
+	proveProducerFencing(t, ctx, brokers, fencingTransactionTopic)
 
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:       brokers,
@@ -152,6 +157,120 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		brokers,
 		recoveredTransactionTopic,
 	)
+}
+
+func proveProducerFencing(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	const transactionalID = "golib-apache-transaction-fencing"
+	newProducer := func(clientID string) *kafka.Producer {
+		producer, err := kafka.NewProducer(kafka.ProducerConfig{
+			Brokers:         brokers,
+			ClientID:        clientID,
+			AllowedTopics:   []string{topic},
+			TransactionalID: transactionalID,
+			Security:        kafka.DevelopmentPlaintextSecurity(),
+		})
+		if err != nil {
+			t.Fatalf("construct %s: %v", clientID, err)
+		}
+		t.Cleanup(func() {
+			if err := producer.Close(); err != nil {
+				t.Errorf("close %s: %v", clientID, err)
+			}
+		})
+
+		return producer
+	}
+
+	original := newProducer("golib-apache-fenced-producer")
+	replacement := newProducer("golib-apache-replacement-producer")
+	originalStarted := make(chan struct{})
+	releaseOriginal := make(chan struct{})
+	originalResult := make(chan error, 1)
+	released := false
+	defer func() {
+		if !released {
+			close(releaseOriginal)
+		}
+	}()
+
+	go func() {
+		originalResult <- original.RunTransaction(
+			ctx,
+			func(transaction kafka.Transaction) error {
+				if err := transaction.Publish(ctx, kafka.ProducerRecord{
+					Topic: topic,
+					Key:   []byte("original"),
+					Value: []byte("original"),
+				}); err != nil {
+					return err
+				}
+				close(originalStarted)
+				select {
+				case <-releaseOriginal:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			},
+		)
+	}()
+
+	select {
+	case <-originalStarted:
+	case <-ctx.Done():
+		t.Fatalf("wait for original transaction: %v", ctx.Err())
+	}
+
+	if err := replacement.RunTransaction(
+		ctx,
+		func(transaction kafka.Transaction) error {
+			return transaction.Publish(ctx, kafka.ProducerRecord{
+				Topic: topic,
+				Key:   []byte("replacement"),
+				Value: []byte("replacement"),
+			})
+		},
+	); err != nil {
+		t.Fatalf("replacement transaction: %v", err)
+	}
+
+	close(releaseOriginal)
+	released = true
+	var originalErr error
+	select {
+	case originalErr = <-originalResult:
+	case <-ctx.Done():
+		t.Fatalf("wait for fenced transaction: %v", ctx.Err())
+	}
+
+	var transactionErr *kafka.TransactionError
+	if !errors.As(originalErr, &transactionErr) ||
+		transactionErr.Operation() != kafka.TransactionOperationCommit ||
+		transactionErr.Category() != kafka.ErrorFenced ||
+		transactionErr.Abortable() ||
+		!transactionErr.OutcomeKnown() ||
+		(!errors.Is(originalErr, kerr.ProducerFenced) &&
+			!errors.Is(originalErr, kerr.InvalidProducerEpoch)) {
+		t.Fatalf("original transaction error = %v", originalErr)
+	}
+
+	values := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadCommitted(),
+		1,
+	)
+	if len(values) != 1 || values[0] != "replacement" {
+		t.Fatalf("read-committed fenced values = %q", values)
+	}
 }
 
 type apacheKafkaCluster struct {
