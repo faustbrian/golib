@@ -5,11 +5,16 @@ documented in each module's changelog.
 
 ## Unreleased
 
+### Fixed
+
+- Permit releasable source manifests to pin immutable main pseudo-versions
+  while isolated verification continues to use the generated local `v0.0.0`
+  proxy, restoring clean installation without weakening local source checks.
+
 ### Changed
 
-- Require every repository-owned sibling module at local `v0.0.0`, reject
-  other versions from the inventory, and leave clean consumers to pin exact
-  `v0.0.0` main pseudo-versions.
+- Use local `v0.0.0` requirements by default while allowing releasable source
+  manifests to pin exact main pseudo-versions for clean consumers.
 - Use `v0.0.0` for isolated local-proxy verification and resolve public
   clean-consumer checks from `main`.
 - Restrict releasable-module gate fingerprints to their files and declared

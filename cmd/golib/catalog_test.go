@@ -403,15 +403,23 @@ func TestDependencyOrderedDirectories(t *testing.T) {
 func TestValidateOwnedDependencyVersion(t *testing.T) {
 	t.Parallel()
 
-	if err := validateOwnedDependencyVersion(
-		"pkg/consumer",
-		"github.com/faustbrian/golib/pkg/dependency",
+	for _, version := range []string{
 		"v0.0.0",
-	); err != nil {
-		t.Fatalf("validateOwnedDependencyVersion(v0.0.0) error = %v", err)
+		"v0.0.0-20260728110331-b7c4c77520dd",
+	} {
+		if err := validateOwnedDependencyVersion(
+			"pkg/consumer",
+			"github.com/faustbrian/golib/pkg/dependency",
+			version,
+		); err != nil {
+			t.Fatalf(
+				"validateOwnedDependencyVersion(%q) error = %v",
+				version,
+				err,
+			)
+		}
 	}
 	for _, version := range []string{
-		"v0.0.0-20260728110331-b7c4c77520dd",
 		"v0.1.0",
 		"v1.0.0",
 		"latest",
