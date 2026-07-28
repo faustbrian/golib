@@ -73,6 +73,8 @@ the server when `InsecureSkipVerify` is enabled.
 
 - root: configuration, pool lifecycle, transactions, health, classification,
   bounded observations, and safe `slog` integration
+- `postgresservice`: service lifecycle, optional startup validation and
+  readiness, and explicit shared or transferred pool ownership
 - `otelpostgres`: optional standard OpenTelemetry metrics adapter
 - `postgrestest`: optional Testcontainers lifecycle and always-rollback
   transaction helpers for real PostgreSQL
@@ -81,6 +83,18 @@ Query tracing is provided by
 [`telemetry/instrumentation/gopostgres`](https://github.com/faustbrian/golib/pkg/telemetry/tree/main/instrumentation/gopostgres)
 through the native `pgx.ConnConfig.Tracer` hook. It records allow-listed query
 names and never SQL or arguments.
+
+## Service lifecycle
+
+`postgresservice.New` accepts either an existing pool or a constructor. A
+constructor transfers ownership after successful startup. Existing pools remain
+shared unless `TransferOwnership` is explicit. `StartupPing` is opt-in, and
+callers opt into runtime readiness by adding `adapter.Readiness()` to the
+selected `service.Plan`.
+
+The adapter performs no retries. It closes an owned pool once, never closes a
+shared pool, and uses the service lifecycle context together with the pool's
+configured ping and shutdown bounds.
 
 ## Documentation
 
@@ -260,6 +274,19 @@ stability and behavior of each public surface.
   rollback. A cleanup panic cannot replace a returned callback error or a
   terminal callback path; after a successful callback it propagates rather
   than falsely reporting successful isolation.
+
+## Service lifecycle adapter
+
+`postgresservice.New` adapts either a constructor-created or existing pool to a
+`service.Component`. Constructor results are adapter-owned. Existing resources
+remain shared unless ownership is explicitly transferred. Startup ping is
+optional, readiness is opt-in through `Adapter.Readiness`, partial startup
+failure closes only owned resources, and repeated shutdown closes an owned
+resource once.
+
+The adapter adds no retry policy and does not change PostgreSQL error
+classification. Caller and service contexts remain observable, while the
+resource retains its own ping and shutdown bounds.
 
 ## Source: docs/architecture.md
 
@@ -1145,6 +1172,9 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Added
 
+- A `postgresservice` lifecycle adapter for constructor-created or existing
+  pools, optional startup validation and readiness, and explicit close
+  ownership.
 - `postgrestest.RunIsolated` for bounded always-rollback integration tests
   that preserve callback errors and panic values
 - pinned fail-closed API compatibility checks against a committed stable v1

@@ -4952,6 +4952,18 @@
     },
     {
       "module_directory": "pkg/postgres",
+      "directory": "postgresservice",
+      "name": "postgresservice",
+      "import_path": "github.com/faustbrian/golib/pkg/postgres/postgresservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/postgres",
       "directory": "postgrestest",
       "name": "postgrestest",
       "import_path": "github.com/faustbrian/golib/pkg/postgres/postgrestest",

@@ -7,6 +7,9 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Added
 
+- A `postgresservice` lifecycle adapter for constructor-created or existing
+  pools, optional startup validation and readiness, and explicit close
+  ownership.
 - `postgrestest.RunIsolated` for bounded always-rollback integration tests
   that preserve callback errors and panic values
 - pinned fail-closed API compatibility checks against a committed stable v1

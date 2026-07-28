@@ -69,6 +69,8 @@ the server when `InsecureSkipVerify` is enabled.
 
 - root: configuration, pool lifecycle, transactions, health, classification,
   bounded observations, and safe `slog` integration
+- `postgresservice`: service lifecycle, optional startup validation and
+  readiness, and explicit shared or transferred pool ownership
 - `otelpostgres`: optional standard OpenTelemetry metrics adapter
 - `postgrestest`: optional Testcontainers lifecycle and always-rollback
   transaction helpers for real PostgreSQL
@@ -77,6 +79,18 @@ Query tracing is provided by
 [`telemetry/instrumentation/gopostgres`](https://github.com/faustbrian/golib/pkg/telemetry/tree/main/instrumentation/gopostgres)
 through the native `pgx.ConnConfig.Tracer` hook. It records allow-listed query
 names and never SQL or arguments.
+
+## Service lifecycle
+
+`postgresservice.New` accepts either an existing pool or a constructor. A
+constructor transfers ownership after successful startup. Existing pools remain
+shared unless `TransferOwnership` is explicit. `StartupPing` is opt-in, and
+callers opt into runtime readiness by adding `adapter.Readiness()` to the
+selected `service.Plan`.
+
+The adapter performs no retries. It closes an owned pool once, never closes a
+shared pool, and uses the service lifecycle context together with the pool's
+configured ping and shutdown bounds.
 
 ## Documentation
 

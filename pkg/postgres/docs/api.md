@@ -73,3 +73,16 @@ stability and behavior of each public surface.
   rollback. A cleanup panic cannot replace a returned callback error or a
   terminal callback path; after a successful callback it propagates rather
   than falsely reporting successful isolation.
+
+## Service lifecycle adapter
+
+`postgresservice.New` adapts either a constructor-created or existing pool to a
+`service.Component`. Constructor results are adapter-owned. Existing resources
+remain shared unless ownership is explicitly transferred. Startup ping is
+optional, readiness is opt-in through `Adapter.Readiness`, partial startup
+failure closes only owned resources, and repeated shutdown closes an owned
+resource once.
+
+The adapter adds no retry policy and does not change PostgreSQL error
+classification. Caller and service contexts remain observable, while the
+resource retains its own ping and shutdown bounds.
