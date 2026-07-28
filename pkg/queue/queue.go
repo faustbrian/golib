@@ -28,24 +28,31 @@ type (
 	// Queue represents a message queue with worker management, job scheduling,
 	// retry logic, and graceful shutdown capabilities.
 	Queue struct {
-		sync.Mutex                  // Mutex to protect concurrent access to queue state
-		metric        Metric        // Metrics collector for tracking queue and worker stats
-		logger        Logger        // Logger for queue events and errors
-		workerCount   int64         // Number of worker goroutines to process jobs
-		routineGroup  *routineGroup // Group to manage and wait for goroutines
-		quit          chan struct{} // Channel to signal shutdown to all goroutines
-		ready         chan struct{} // Channel to signal worker readiness
-		notify        chan struct{} // Channel to notify workers of new jobs
-		worker        core.Worker   // The worker implementation that processes jobs
-		startOnce     sync.Once     // Ensures the scheduler starts only once
-		stopOnce      sync.Once     // Ensures shutdown is only performed once
-		activeWorkers int64         // Authoritative internal worker count
-		started       int32         // Atomic flag indicating the scheduler has started
-		stopFlag      int32         // Atomic flag indicating if shutdown has started
-		afterFn       func()        // Optional callback after each job execution
-		observer      Observer      // Queue lifecycle observer
-		retryInterval time.Duration // Interval for retrying job requests
-		lifecycle     *management.WorkerLifecycle
+		sync.Mutex                   // Mutex to protect concurrent access to queue state
+		metric         Metric        // Metrics collector for tracking queue and worker stats
+		logger         Logger        // Logger for queue events and errors
+		workerCount    int64         // Number of worker goroutines to process jobs
+		routineGroup   *routineGroup // Group to manage and wait for goroutines
+		quit           chan struct{} // Channel to signal shutdown to all goroutines
+		drain          chan struct{} // Channel to signal graceful intake withdrawal
+		ready          chan struct{} // Channel to signal worker readiness
+		notify         chan struct{} // Channel to notify workers of new jobs
+		worker         core.Worker   // The worker implementation that processes jobs
+		startOnce      sync.Once     // Ensures the scheduler starts only once
+		stopOnce       sync.Once     // Ensures shutdown is only performed once
+		drainOnce      sync.Once     // Ensures graceful intake stops only once
+		admissionMu    sync.Mutex    // Serializes admission state and counters
+		admissions     int           // Active accepted enqueue operations
+		admissionsDone chan struct{} // Closed after graceful admission drains
+		activeWorkers  int64         // Authoritative internal worker count
+		started        int32         // Atomic flag indicating the scheduler has started
+		stopFlag       int32         // Atomic flag indicating if shutdown has started
+		drainFlag      int32         // Atomic flag indicating graceful drain
+		shutdownErr    error         // Concrete worker shutdown failure
+		afterFn        func()        // Optional callback after each job execution
+		observer       Observer      // Queue lifecycle observer
+		retryInterval  time.Duration // Interval for retrying job requests
+		lifecycle      *management.WorkerLifecycle
 	}
 )
 
@@ -61,6 +68,7 @@ func NewQueue(opts ...Option) (*Queue, error) {
 	q := &Queue{
 		routineGroup:  newRoutineGroup(),      // Manages all goroutines spawned by the queue
 		quit:          make(chan struct{}),    // Signals shutdown to all goroutines
+		drain:         make(chan struct{}),    // Signals graceful intake withdrawal
 		ready:         make(chan struct{}, 1), // Signals when a worker is ready to process a job
 		notify:        make(chan struct{}, 1), // Notifies workers of new jobs
 		workerCount:   o.workerCount,          // Number of worker goroutines
@@ -113,18 +121,21 @@ func (q *Queue) Start() {
 // It signals all goroutines to stop, shuts down the worker, and closes the quit channel.
 // Shutdown is idempotent and safe to call multiple times.
 func (q *Queue) Shutdown() {
-	if !atomic.CompareAndSwapInt32(&q.stopFlag, 0, 1) {
-		return
-	}
-
 	q.stopOnce.Do(func() {
+		q.admissionMu.Lock()
+		atomic.StoreInt32(&q.stopFlag, 1)
+		q.admissionMu.Unlock()
 		q.observe(Event{Kind: EventShutdownStarted})
 		if busy := q.BusyWorkers(); busy > 0 {
 			q.safeLogInfof("shutdown all tasks: %d workers", busy)
 		}
 
-		if err := q.worker.Shutdown(); err != nil {
-			q.safeLogError(err)
+		if _, inMemory := q.worker.(*Ring); !inMemory ||
+			atomic.LoadInt32(&q.drainFlag) == 0 {
+			q.shutdownErr = q.worker.Shutdown()
+		}
+		if q.shutdownErr != nil {
+			q.safeLogError(q.shutdownErr)
 		}
 		close(q.quit)
 		q.observe(Event{Kind: EventShutdownCompleted})
@@ -133,11 +144,27 @@ func (q *Queue) Shutdown() {
 
 // Release performs a graceful shutdown and waits for all goroutines to finish.
 func (q *Queue) Release() {
-	if _, isRing := q.worker.(*Ring); isRing && atomic.LoadInt32(&q.started) == 0 {
+	if _, isRing := q.worker.(*Ring); isRing &&
+		atomic.LoadInt32(&q.started) == 0 {
 		q.Start()
 	}
 	q.Shutdown()
 	q.Wait()
+}
+
+// ReleaseContext stops admission, lets already admitted handlers finish, then
+// releases the concrete worker. If ctx expires, the worker remains open so a
+// later call can resume safe release.
+func (q *Queue) ReleaseContext(ctx context.Context) error {
+	if ctx == nil {
+		return context.Canceled
+	}
+	if err := q.drainContext(ctx); err != nil {
+		return err
+	}
+	q.Shutdown()
+
+	return errors.Join(q.shutdownErr, q.WaitContext(ctx))
 }
 
 // BusyWorkers returns the number of workers currently processing jobs.
@@ -170,6 +197,11 @@ func (q *Queue) Wait() {
 	q.routineGroup.Wait()
 }
 
+// WaitContext waits for all queue-owned routines within ctx.
+func (q *Queue) WaitContext(ctx context.Context) error {
+	return q.routineGroup.WaitContext(ctx)
+}
+
 // Queue enqueues a single job (core.QueuedMessage) into the queue.
 // Accepts job options for customization.
 func (q *Queue) Queue(message core.QueuedMessage, opts ...job.AllowOption) error {
@@ -188,9 +220,10 @@ func (q *Queue) QueueTask(task job.TaskFunc, opts ...job.AllowOption) error {
 // queue is an internal helper to enqueue a job.Message into the worker.
 // It increments the submitted task metric and notifies workers if possible.
 func (q *Queue) queue(m *job.Message) error {
-	if atomic.LoadInt32(&q.stopFlag) == 1 {
+	if !q.beginAdmission() {
 		return ErrQueueShutdown
 	}
+	defer q.endAdmission()
 	if err := m.Validate(); err != nil {
 		return err
 	}
@@ -521,6 +554,11 @@ func (q *Queue) UpdateWorkerCount(num int64) {
 func (q *Queue) schedule() {
 	q.Lock()
 	defer q.Unlock()
+	if atomic.LoadInt32(&q.drainFlag) == 1 {
+		if _, inMemory := q.worker.(*Ring); !inMemory {
+			return
+		}
+	}
 	if q.BusyWorkers() >= q.workerCount {
 		return
 	}
@@ -571,6 +609,14 @@ func (q *Queue) start() {
 
 		select {
 		case <-q.ready: // Wait for a worker slot to become available
+			if atomic.LoadInt32(&q.drainFlag) == 1 {
+				if _, inMemory := q.worker.(*Ring); !inMemory {
+					if q.lifecycle != nil {
+						_ = q.lifecycle.EndAdmission()
+					}
+					return
+				}
+			}
 			if !q.hasWorkerCapacity() {
 				if q.lifecycle != nil {
 					_ = q.lifecycle.EndAdmission()
@@ -578,6 +624,8 @@ func (q *Queue) start() {
 				continue
 			}
 		case <-q.quit: // Shutdown signal received
+			return
+		case <-q.drain:
 			return
 		}
 
@@ -594,18 +642,27 @@ func (q *Queue) start() {
 						tracked = true
 					}
 				}
-				if t == nil || err != nil {
-					if err != nil {
+				if t != nil {
+					if err != nil && atomic.LoadInt32(&q.drainFlag) == 0 {
 						select {
 						case <-q.quit:
 						case <-ticker.C:
 						case <-q.notify:
 						}
 					}
-				}
-				if t != nil {
 					tasks <- admittedTask{task: t, tracked: tracked}
 					return
+				}
+				if atomic.LoadInt32(&q.drainFlag) == 1 {
+					tasks <- admittedTask{}
+					return
+				}
+				if err != nil {
+					select {
+					case <-q.quit:
+					case <-ticker.C:
+					case <-q.notify:
+					}
 				}
 				if q.lifecycle != nil {
 					if q.lifecycle.Snapshot().State != management.WorkerRunning ||
@@ -631,6 +688,9 @@ func (q *Queue) start() {
 			return
 		}
 		if admitted.task == nil {
+			if atomic.LoadInt32(&q.drainFlag) == 1 {
+				return
+			}
 			continue
 		}
 
@@ -640,5 +700,76 @@ func (q *Queue) start() {
 		q.routineGroup.Run(func() {
 			q.workManaged(admitted.task, admitted.tracked)
 		})
+	}
+}
+
+func (q *Queue) drainContext(ctx context.Context) error {
+	ring, inMemory := q.worker.(*Ring)
+	if inMemory &&
+		atomic.LoadInt32(&q.started) == 0 {
+		q.Start()
+	}
+	q.drainOnce.Do(func() {
+		q.admissionMu.Lock()
+		atomic.StoreInt32(&q.drainFlag, 1)
+		q.admissionsDone = make(chan struct{})
+		if q.admissions == 0 {
+			close(q.admissionsDone)
+		}
+		q.admissionMu.Unlock()
+		if ring, inMemory := q.worker.(*Ring); inMemory {
+			_ = ring.stopIntake()
+		} else {
+			close(q.drain)
+			q.releaseReadyAdmission()
+		}
+	})
+	q.admissionMu.Lock()
+	admissionsDone := q.admissionsDone
+	q.admissionMu.Unlock()
+	select {
+	case <-admissionsDone:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	if inMemory {
+		select {
+		case <-ring.exit:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return q.WaitContext(ctx)
+}
+
+func (q *Queue) releaseReadyAdmission() {
+	select {
+	case <-q.ready:
+		if q.lifecycle != nil {
+			_ = q.lifecycle.EndAdmission()
+		}
+	default:
+	}
+}
+
+func (q *Queue) beginAdmission() bool {
+	q.admissionMu.Lock()
+	defer q.admissionMu.Unlock()
+	if atomic.LoadInt32(&q.stopFlag) == 1 ||
+		atomic.LoadInt32(&q.drainFlag) == 1 {
+		return false
+	}
+	q.admissions++
+
+	return true
+}
+
+func (q *Queue) endAdmission() {
+	q.admissionMu.Lock()
+	defer q.admissionMu.Unlock()
+	q.admissions--
+	if q.admissions == 0 && q.admissionsDone != nil {
+		close(q.admissionsDone)
 	}
 }

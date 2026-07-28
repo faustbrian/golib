@@ -144,6 +144,96 @@ func TestQueueManagementLifecycleReleasesStaleReadinessAdmission(t *testing.T) {
 	queue.Shutdown()
 }
 
+func TestReleaseContextReleasesReservedManagementAdmission(t *testing.T) {
+	t.Parallel()
+
+	worker := newManagedQueueWorker()
+	lifecycle := managedQueueLifecycle(t)
+	queue, err := NewQueue(
+		WithWorker(worker),
+		WithWorkerCount(1),
+		WithWorkerLifecycle(lifecycle),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	if !lifecycle.BeginAdmission() {
+		t.Fatal("lifecycle admission rejected")
+	}
+	queue.ready <- struct{}{}
+
+	if err = queue.ReleaseContext(context.Background()); err != nil {
+		t.Fatalf("ReleaseContext() error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = lifecycle.ApplyDesiredState(ctx, management.DesiredRecord{
+		Target: management.Target{
+			Kind: management.TargetWorker,
+			Name: "worker-1",
+		},
+		State:     management.DesiredDraining,
+		Revision:  1,
+		ChangedAt: time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC),
+		CommandID: "release-drain",
+	})
+	if err != nil {
+		t.Fatalf("management drain after ReleaseContext() error = %v", err)
+	}
+	if snapshot := lifecycle.Snapshot(); snapshot.DrainStatus != management.DrainCompleted {
+		t.Fatalf("lifecycle snapshot after release = %+v", snapshot)
+	}
+}
+
+func TestSchedulerDoesNotRequestAfterGracefulDrainWinsReadinessRace(t *testing.T) {
+	t.Parallel()
+
+	for _, managed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unmanaged", true: "managed"}[managed], func(t *testing.T) {
+			t.Parallel()
+			worker := newManagedQueueWorker()
+			var lifecycle *management.WorkerLifecycle
+			options := []Option{WithWorker(worker), WithWorkerCount(1)}
+			if managed {
+				lifecycle = managedQueueLifecycle(t)
+				if !lifecycle.BeginAdmission() {
+					t.Fatal("lifecycle admission rejected")
+				}
+				options = append(options, WithWorkerLifecycle(lifecycle))
+			}
+			queue, err := NewQueue(options...)
+			if err != nil {
+				t.Fatalf("NewQueue() error = %v", err)
+			}
+			atomic.StoreInt32(&queue.drainFlag, 1)
+			queue.ready <- struct{}{}
+
+			queue.start()
+			if calls := worker.requestCalls.Load(); calls != 0 {
+				t.Fatalf("worker request calls = %d, want 0", calls)
+			}
+			if lifecycle == nil {
+				return
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			err = lifecycle.ApplyDesiredState(ctx, management.DesiredRecord{
+				Target: management.Target{
+					Kind: management.TargetWorker,
+					Name: "worker-1",
+				},
+				State:     management.DesiredDraining,
+				Revision:  1,
+				ChangedAt: time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC),
+				CommandID: "readiness-race",
+			})
+			if err != nil {
+				t.Fatalf("management drain after scheduler exit error = %v", err)
+			}
+		})
+	}
+}
+
 func TestQueueManagementLifecycleDrainsAndTerminatesAfterSettlement(t *testing.T) {
 	t.Parallel()
 

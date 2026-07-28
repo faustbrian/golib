@@ -18,6 +18,7 @@ Use this index to evaluate backend guarantees before deploying workers.
 - [Delivery semantics](delivery-semantics.md)
 - [Failure model](failure-model.md)
 - [Lifecycle](lifecycle.md)
+- [`service` integration](service-integration.md)
 - [Management protocol](management.md)
 - [Dead-letter data-plane architecture](dead-letter-architecture.md)
 - [Dead-letter operations and recovery](dead-letter-operations.md)

@@ -58,6 +58,13 @@ Scheduler and API processes that only submit Valkey work should use
 `valkeystream.NewPublisherE`; it appends jobs without joining a consumer group
 or starting worker loops.
 
+Services should compose concrete producers and workers through
+[`queueservice`](docs/service-integration.md). The adapter keeps concrete queue
+APIs visible, drains accepted publishers before closing an owned transport,
+uses the existing correlation queue boundary for every message and delivery
+attempt, and optionally propagates bounded W3C trace context through an
+explicit caller-owned OpenTelemetry propagator.
+
 External control planes should depend on the backend-neutral contracts in
 [`management`](docs/management.md). Incompatible workers remain visible, but
 management capabilities are enabled only when both peers report support.
@@ -98,7 +105,8 @@ clients.
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review the
 [backend matrix](docs/backend-support.md), [failure model](docs/failure-model.md),
-and [integration evidence](docs/integration-evidence.md) before production use.
+[`service` integration](docs/service-integration.md), and
+[integration evidence](docs/integration-evidence.md) before production use.
 Valkey adopters should use the [Valkey 9 Streams guide](docs/backends/valkey-streams.md)
 and [runnable example](examples/valkey).
 
@@ -150,6 +158,7 @@ Use this index to evaluate backend guarantees before deploying workers.
 - [Delivery semantics](delivery-semantics.md)
 - [Failure model](failure-model.md)
 - [Lifecycle](lifecycle.md)
+- [`service` integration](service-integration.md)
 - [Management protocol](management.md)
 - [Dead-letter data-plane architecture](dead-letter-architecture.md)
 - [Dead-letter operations and recovery](dead-letter-operations.md)
@@ -242,7 +251,10 @@ maps the stable concepts new adopters need.
 - `NewQueue(options...) (*Queue, error)` creates a coordinator around a worker.
 - `NewPool(size, options...) *Queue` creates an in-memory queue.
 - `NewRing(options...) *Ring` creates an in-memory worker.
-- `Queue.Start`, `Shutdown`, `Release`, and `Wait` control lifecycle.
+- `Queue.Start`, `Shutdown`, `Release`, and `Wait` control the compatibility
+  lifecycle. `ReleaseContext` and `WaitContext` add service-owned bounds;
+  `ReleaseContext` withdraws admission and drains handlers before transport
+  release.
 - `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
   functions.
 - `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,
@@ -265,10 +277,19 @@ maps the stable concepts new adopters need.
   operational metadata.
 - `job.Metadata` carries optional original job identity, payload schema and
   content type, enqueue time, retry-policy identity, handler and job type,
-  tags, trace, tenant, and producer version. Unknown fields remain empty.
+  tags, trace, tenant, producer version, and a bounded transport-neutral
+  correlation carrier plus a separately bounded trace-context carrier. Unknown
+  fields remain empty. `TraceID` is an operational identity field and is not a
+  replacement for the W3C trace carrier.
+- `Message.CorrelationMetadata` returns a copy of that carrier so delivery
+  middleware cannot mutate the wire envelope.
+- `Message.TraceContextMetadata` returns the same isolation for caller-owned
+  OpenTelemetry propagation metadata.
 - Metadata identities and tag keys/values are limited to 256 bytes, and each
-  message is limited to 32 tags. Constructors clone metadata so later caller
-  mutation cannot change the queued envelope.
+  message is limited to 32 tags. Correlation is limited to three fields.
+  Trace-context carriers are limited to 16 fields, 64-byte field names, and
+  eight kibibytes total. Constructors clone metadata so later caller mutation
+  cannot change the queued envelope.
 - `Metadata.Validate` lets adapters reject untrusted metadata before storing or
   exposing it.
 - `job.Int64`, `Float64`, `Time`, and `Bool` build pointer options.
@@ -317,6 +338,25 @@ exhaustion, logger, and handler. Infrastructure failures and unlisted
 cancellations remain pending.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
+
+## Service lifecycle adapter
+
+- `queueservice.NewProducer` retains an explicit concrete producer and accepts
+  caller-owned publish and optional shutdown callbacks.
+- `Producer.Publish` requires correlation values in its context, creates a
+  child message hop through `correlation/queue`, and preserves other job
+  options without mutating caller metadata. Its concrete publish callback
+  receives the child correlation in context. `TracePropagator`, when
+  configured, injects caller-owned OpenTelemetry context into a separate
+  bounded carrier.
+- `Producer.Component` rejects new publishes during service stop, waits for
+  accepted calls, and only then invokes an owned transport shutdown.
+- `queueservice.NewHandler` wraps the application handler at backend
+  construction time. Every delivery receives a new request ID; inbound
+  workflow and causation survive only when `TrustedMetadata` is explicit.
+  `TracePropagator` independently extracts W3C context before application code.
+- `queueservice.NewWorker` exposes the exact `*queue.Queue`; its component
+  starts the coordinator and uses `ReleaseContext` during service shutdown.
 
 `valkeystream.Worker.Stats(context.Context)` reports `Depth`, `Pending`, `Lag`,
 `LagKnown`, `OldestPendingAge`, and monotonic local `Enqueued`, `Delivered`,
@@ -405,6 +445,15 @@ differences.
   queue identity without importing backend packages into the coordinator.
 - `core.DeliveryValidator` optionally validates one decoded delivery before the
   coordinator enters handler timeout and retry execution.
+- `queueservice` adapts concrete producers and `*Queue` workers to the public
+  service lifecycle. It imports `service`; the root queue package does not.
+- Correlation-aware producers store a bounded carrier in `job.Metadata`.
+  `queueservice.NewHandler` applies the existing correlation queue receive
+  semantics at the application-handler boundary.
+- Trace-aware producers store a separate bounded W3C carrier in `job.Metadata`.
+  The adapter uses only the caller-provided OpenTelemetry propagator; it does
+  not read or mutate global telemetry state. Correlation and tracing remain
+  distinct contracts.
 - Retry and settlement failure events carry stable classification and safe-code
   fields so exporters do not need to parse or label arbitrary error text.
 
@@ -425,9 +474,11 @@ producer -> Publisher.Queue -> Valkey Stream
 ## Lifecycle
 
 `Start` launches the scheduling loop. The loop requests work only when a worker
-slot is available. Each handler runs with a timeout context. `Shutdown` prevents
-new work, asks the backend worker to stop, and signals the scheduler. `Release`
-also waits for owned goroutines.
+slot is available. Each handler runs with a timeout context. `Shutdown`
+prevents new work, asks the backend worker to stop, and signals the scheduler.
+`Release` also waits for owned goroutines. `ReleaseContext` is the bounded
+service path: it withdraws intake, joins admitted handlers, then releases the
+worker.
 
 The complete ownership and transition contract is in
 [lifecycle and state ownership](lifecycle.md).
@@ -720,6 +771,13 @@ The project uses semantic versioning.
   replace Redis.
 - Security bounds are contracts: encoded messages default to 1 MiB, retry count
   is at most 100, and the in-memory queue defaults to 10,000 pending jobs.
+- `ReleaseContext` and `queueservice` are additive pre-v1 APIs. Existing
+  `Shutdown` and `Release` retain their force-compatible signatures and
+  cancellation behavior.
+- `job.Metadata.TraceContext`, `Message.TraceContextMetadata`, and
+  `queueservice` caller-owned trace propagators are additive pre-v1 APIs.
+  `Metadata.TraceID` remains an operational field and is not interpreted as
+  W3C propagation state.
 
 Deprecated APIs remain for at least one minor release before removal. The
 compatibility `NewWorker` constructors are retained through v1; production code
@@ -1107,6 +1165,11 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- `Queue.ReleaseContext` now provides a bounded graceful worker path that
+  rejects new admission, waits for accepted publishes and active handlers, and
+  closes the concrete worker only after the drain. Legacy `Release` retains
+  its force-compatible behavior. Graceful withdrawal also releases a reserved
+  management admission before the scheduler exits.
 - Handler backoff now retries only retryable failures. Permanent, malformed,
   canceled, and infrastructure outcomes reach backend settlement after the
   first handler execution instead of repeating a known terminal or uncertain
@@ -1183,6 +1246,14 @@ versioning and Keep a Changelog structure.
 
 ### Added
 
+- `queueservice` producer and worker lifecycle adapters with explicit concrete
+  resource ownership, publisher draining, service-context shutdown bounds, and
+  correlation- and trace-aware publish and delivery helpers.
+- Bounded correlation and W3C trace-context carriers in `job.Metadata`; every
+  trusted delivery uses the existing correlation queue adapter to preserve its
+  workflow while creating a distinct request ID and causation link. Optional
+  trace propagation uses an explicit caller-owned OpenTelemetry propagator
+  without global provider state.
 - Additive `core.DeliveryValidator` support lets a worker validate one decoded
   delivery exactly once before the root queue starts handler timeout and retry
   execution. Classified validation failures proceed directly to settlement.
@@ -2761,6 +2832,17 @@ drain. Repeated `Start`, `Shutdown`, and `Release` do not create another
 scheduler or close a channel twice. The internal atomic active-worker count is
 authoritative; custom metric implementations cannot change concurrency.
 
+`ReleaseContext` is the service-owned graceful path. It first closes queue
+admission and waits for an already accepted publish to finish. It then stops
+the scheduler from requesting another backend delivery, joins admitted
+handlers without cancelling their contexts, and closes the concrete worker
+only after the drain completes. The supplied context bounds both waits. If it
+expires, the transport remains open and a later call may resume release.
+Backend `Request` operations retain their configured request bound so intake
+withdrawal cannot wait forever. If management lifecycle gating reserved the
+next backend request but the scheduler has not started it, graceful withdrawal
+releases that reservation before the scheduler exits.
+
 ## Delivery path
 
 1. `Queue` or `QueueTask` builds and validates a `job.Message`.
@@ -2775,7 +2857,9 @@ authoritative; custom metric implementations cannot change concurrency.
 
 ## Cancellation and shutdown ownership
 
-Contexts are owned by the coordinator and cancelled at timeout or shutdown.
+Handler contexts are owned by the coordinator and cancelled at timeout or
+force-compatible `Shutdown`/`Release`. `ReleaseContext` instead lets admitted
+handlers complete within its caller-owned drain budget.
 Go cannot forcibly stop application code. A handler that ignores cancellation
 can continue after `handle` returns and can retain its own resources. Production
 handlers MUST select on `ctx.Done()` and bound their own external calls.
@@ -3130,3 +3214,102 @@ Code, dependencies, fuzz targets, benchmark inputs, and domain-specific
 security guidance are expected to differ. Shared policy wording and automation
 structure must not drift without updating this contract across all affected
 repositories.
+
+## Source: docs/service-integration.md
+
+# Service integration
+
+`queueservice` connects concrete queue resources to
+`github.com/faustbrian/golib/pkg/service` without hiding backend APIs or moving
+retry, ordering, acknowledgement, dead-letter, or business-handler policy out
+of `queue`.
+
+## Producer ownership
+
+`NewProducer` accepts a concrete producer, a publish callback, and an optional
+shutdown callback. Omitting shutdown keeps the producer shared. Providing it
+transfers close ownership to the adapter.
+
+The producer component has no implicit startup network check. Construct and
+validate the concrete client before building the plan, or perform a bounded
+check in a separately declared component. During stop, the adapter:
+
+1. rejects new `Publish` calls;
+2. waits for calls already accepted by the adapter;
+3. invokes the owned shutdown callback only after those calls return.
+
+The service stop context bounds the drain and shutdown callback. A canceled
+drain does not close the transport underneath an active publish; a later stop
+call may resume cleanup. Publish and shutdown retry policy belongs to the
+concrete client and callbacks.
+
+`Publish` requires correlation values in its context. An application beginning
+independent work must call its `correlation.Factory.Start` and attach the
+result with `correlation.WithValues`. The adapter uses
+`correlation/queue.Send` to create the child message hop and stores its bounded
+carrier in cloned `job.Metadata`. The concrete publish callback receives that
+child correlation in its context, so transport logs describe the message hop
+rather than its parent request.
+
+Set `TracePropagator` to an explicitly constructed OpenTelemetry
+`propagation.TextMapPropagator` to inject the publish context into the separate
+bounded `job.Metadata.TraceContext` carrier. Nil disables trace propagation.
+The adapter never consults OpenTelemetry global state and replaces stale
+caller-supplied trace carrier fields with the context selected for this
+publish. The propagator owns W3C parsing and baggage policy; use the bounded
+owned telemetry propagation policy when accepting baggage.
+
+## Worker ownership
+
+`NewWorker` accepts and exposes an exact `*queue.Queue`. Its component calls
+`Start` and transfers release ownership to the service plan. On stop,
+`Queue.ReleaseContext` withdraws queue admission, lets an accepted publish
+return, stops new delivery requests, joins active handlers, and only then
+releases the concrete worker.
+
+Backend request and transport operations retain their own configured timeout
+bounds. The service stop context bounds coordinator drain and join work.
+`ReleaseContext` returns a concrete worker shutdown failure without formatting
+its potentially sensitive text.
+
+Construct the backend handler with `NewHandler` before constructing its worker.
+The wrapper uses `correlation/queue.Receive` for every delivery attempt, places
+the resulting values in the handler context, and always creates a new request
+ID. Set `TrustedMetadata` only when the immediate queue boundary is
+authenticated; the default starts a new workflow and ignores inbound identity.
+When `TracePropagator` is configured, the wrapper separately validates and
+extracts the bounded trace carrier before application code. Correlation trust
+does not imply baggage trust; that policy remains explicit in the propagator.
+
+The worker has no generic readiness opinion because backend capabilities and
+role admission policy differ. Declare a separate bounded readiness check only
+when the concrete backend must be available before accepting new work.
+`Queue.Start` has no error result, so all fallible backend construction and
+validation must finish before the service plan starts. If a later component
+fails, normal reverse-order rollback calls the worker stop path safely.
+
+Adapter construction failures use `ErrInvalidOptions`. Correlation codec and
+job metadata validation preserve their owning package classifications.
+Concrete publish and shutdown failures pass through unchanged for
+`errors.Is`/`errors.As`; applications must render them through their safe error
+policy. Retry, acknowledgement, and shutdown transport retry remain owned by
+the concrete queue implementation.
+
+## Component order
+
+When a producer shares the worker's concrete queue, declare the worker
+component first and the producer component second:
+
+```text
+start: worker -> producer
+stop:  producer drain -> worker drain and release
+```
+
+This keeps the producer available only while the worker-owned queue transport
+is active. Independent producer and worker transports may instead use separate
+plans or facilities with their own ownership.
+
+Repeated stop calls are safe. Shared producer resources are never closed by
+the adapter, and an owned producer shutdown callback runs once. Worker
+ownership always transfers to the service component; the same `*queue.Queue`
+must not be released independently or shared across competing lifecycle plans.

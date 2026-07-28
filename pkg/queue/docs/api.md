@@ -8,7 +8,10 @@ maps the stable concepts new adopters need.
 - `NewQueue(options...) (*Queue, error)` creates a coordinator around a worker.
 - `NewPool(size, options...) *Queue` creates an in-memory queue.
 - `NewRing(options...) *Ring` creates an in-memory worker.
-- `Queue.Start`, `Shutdown`, `Release`, and `Wait` control lifecycle.
+- `Queue.Start`, `Shutdown`, `Release`, and `Wait` control the compatibility
+  lifecycle. `ReleaseContext` and `WaitContext` add service-owned bounds;
+  `ReleaseContext` withdraws admission and drains handlers before transport
+  release.
 - `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
   functions.
 - `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,
@@ -31,10 +34,19 @@ maps the stable concepts new adopters need.
   operational metadata.
 - `job.Metadata` carries optional original job identity, payload schema and
   content type, enqueue time, retry-policy identity, handler and job type,
-  tags, trace, tenant, and producer version. Unknown fields remain empty.
+  tags, trace, tenant, producer version, and a bounded transport-neutral
+  correlation carrier plus a separately bounded trace-context carrier. Unknown
+  fields remain empty. `TraceID` is an operational identity field and is not a
+  replacement for the W3C trace carrier.
+- `Message.CorrelationMetadata` returns a copy of that carrier so delivery
+  middleware cannot mutate the wire envelope.
+- `Message.TraceContextMetadata` returns the same isolation for caller-owned
+  OpenTelemetry propagation metadata.
 - Metadata identities and tag keys/values are limited to 256 bytes, and each
-  message is limited to 32 tags. Constructors clone metadata so later caller
-  mutation cannot change the queued envelope.
+  message is limited to 32 tags. Correlation is limited to three fields.
+  Trace-context carriers are limited to 16 fields, 64-byte field names, and
+  eight kibibytes total. Constructors clone metadata so later caller mutation
+  cannot change the queued envelope.
 - `Metadata.Validate` lets adapters reject untrusted metadata before storing or
   exposing it.
 - `job.Int64`, `Float64`, `Time`, and `Bool` build pointer options.
@@ -83,6 +95,25 @@ exhaustion, logger, and handler. Infrastructure failures and unlisted
 cancellations remain pending.
 No `valkey-go` request, response, option, error, or connection type appears in
 these signatures.
+
+## Service lifecycle adapter
+
+- `queueservice.NewProducer` retains an explicit concrete producer and accepts
+  caller-owned publish and optional shutdown callbacks.
+- `Producer.Publish` requires correlation values in its context, creates a
+  child message hop through `correlation/queue`, and preserves other job
+  options without mutating caller metadata. Its concrete publish callback
+  receives the child correlation in context. `TracePropagator`, when
+  configured, injects caller-owned OpenTelemetry context into a separate
+  bounded carrier.
+- `Producer.Component` rejects new publishes during service stop, waits for
+  accepted calls, and only then invokes an owned transport shutdown.
+- `queueservice.NewHandler` wraps the application handler at backend
+  construction time. Every delivery receives a new request ID; inbound
+  workflow and causation survive only when `TrustedMetadata` is explicit.
+  `TracePropagator` independently extracts W3C context before application code.
+- `queueservice.NewWorker` exposes the exact `*queue.Queue`; its component
+  starts the coordinator and uses `ReleaseContext` during service shutdown.
 
 `valkeystream.Worker.Stats(context.Context)` reports `Depth`, `Pending`, `Lag`,
 `LagKnown`, `OldestPendingAge`, and monotonic local `Enqueued`, `Delivered`,

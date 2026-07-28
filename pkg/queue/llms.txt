@@ -40,3 +40,4 @@
 - [Lifecycle and state ownership](docs/lifecycle.md)
 - [Management protocol](docs/management.md)
 - [Repository Standards](docs/repository-standards.md)
+- [Service integration](docs/service-integration.md)

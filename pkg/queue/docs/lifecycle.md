@@ -19,6 +19,17 @@ drain. Repeated `Start`, `Shutdown`, and `Release` do not create another
 scheduler or close a channel twice. The internal atomic active-worker count is
 authoritative; custom metric implementations cannot change concurrency.
 
+`ReleaseContext` is the service-owned graceful path. It first closes queue
+admission and waits for an already accepted publish to finish. It then stops
+the scheduler from requesting another backend delivery, joins admitted
+handlers without cancelling their contexts, and closes the concrete worker
+only after the drain completes. The supplied context bounds both waits. If it
+expires, the transport remains open and a later call may resume release.
+Backend `Request` operations retain their configured request bound so intake
+withdrawal cannot wait forever. If management lifecycle gating reserved the
+next backend request but the scheduler has not started it, graceful withdrawal
+releases that reservation before the scheduler exits.
+
 ## Delivery path
 
 1. `Queue` or `QueueTask` builds and validates a `job.Message`.
@@ -33,7 +44,9 @@ authoritative; custom metric implementations cannot change concurrency.
 
 ## Cancellation and shutdown ownership
 
-Contexts are owned by the coordinator and cancelled at timeout or shutdown.
+Handler contexts are owned by the coordinator and cancelled at timeout or
+force-compatible `Shutdown`/`Release`. `ReleaseContext` instead lets admitted
+handlers complete within its caller-owned drain budget.
 Go cannot forcibly stop application code. A handler that ignores cancellation
 can continue after `handle` returns and can retain its own resources. Production
 handlers MUST select on `ctx.Done()` and bound their own external calls.

@@ -3231,6 +3231,7 @@
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -4078,6 +4079,7 @@
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -6693,6 +6695,7 @@
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -12717,6 +12720,18 @@
         },
         {
           "module_directory": "pkg/queue",
+          "directory": "queueservice",
+          "name": "queueservice",
+          "import_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/queue",
           "directory": "rabbitmq",
           "name": "rabbitmq",
           "import_path": "github.com/faustbrian/golib/pkg/queue/rabbitmq",
@@ -12770,7 +12785,12 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/queue/v",
-      "owned_dependencies": [],
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/service"
+      ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
@@ -12795,6 +12815,8 @@
         "github.com/stretchr/testify",
         "github.com/testcontainers/testcontainers-go",
         "github.com/valkey-io/valkey-go",
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/trace",
         "go.uber.org/goleak",
         "go.uber.org/mock"
       ],
@@ -15197,6 +15219,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/telemetry"

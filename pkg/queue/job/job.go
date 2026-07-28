@@ -173,6 +173,34 @@ func (m *Message) Payload() []byte {
 	return m.Body
 }
 
+// CorrelationMetadata returns a copy of the transport-neutral carrier attached
+// by a correlation-aware producer.
+func (m *Message) CorrelationMetadata() map[string]string {
+	if m == nil || m.Metadata == nil || m.Metadata.Correlation == nil {
+		return nil
+	}
+	metadata := make(map[string]string, len(m.Metadata.Correlation))
+	for key, value := range m.Metadata.Correlation {
+		metadata[key] = value
+	}
+
+	return metadata
+}
+
+// TraceContextMetadata returns a copy of the transport-neutral telemetry
+// carrier attached by a trace-aware producer.
+func (m *Message) TraceContextMetadata() map[string]string {
+	if m == nil || m.Metadata == nil || m.Metadata.TraceContext == nil {
+		return nil
+	}
+	metadata := make(map[string]string, len(m.Metadata.TraceContext))
+	for key, value := range m.Metadata.TraceContext {
+		metadata[key] = value
+	}
+
+	return metadata
+}
+
 // Bytes returns the byte slice of the Message struct.
 // If the marshalling process encounters an error, the function will panic.
 // It returns the marshalled byte slice.

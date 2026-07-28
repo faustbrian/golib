@@ -54,6 +54,13 @@ Scheduler and API processes that only submit Valkey work should use
 `valkeystream.NewPublisherE`; it appends jobs without joining a consumer group
 or starting worker loops.
 
+Services should compose concrete producers and workers through
+[`queueservice`](docs/service-integration.md). The adapter keeps concrete queue
+APIs visible, drains accepted publishers before closing an owned transport,
+uses the existing correlation queue boundary for every message and delivery
+attempt, and optionally propagates bounded W3C trace context through an
+explicit caller-owned OpenTelemetry propagator.
+
 External control planes should depend on the backend-neutral contracts in
 [`management`](docs/management.md). Incompatible workers remain visible, but
 management capabilities are enabled only when both peers report support.
@@ -94,7 +101,8 @@ clients.
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review the
 [backend matrix](docs/backend-support.md), [failure model](docs/failure-model.md),
-and [integration evidence](docs/integration-evidence.md) before production use.
+[`service` integration](docs/service-integration.md), and
+[integration evidence](docs/integration-evidence.md) before production use.
 Valkey adopters should use the [Valkey 9 Streams guide](docs/backends/valkey-streams.md)
 and [runnable example](examples/valkey).
 
