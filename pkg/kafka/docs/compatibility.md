@@ -3,6 +3,11 @@
 This matrix separates pinned implementation inputs from support claims. It was
 recorded on 2026-07-28. Upstream protocol support is not package evidence.
 
+The independently versioned `kafkaservice` module is additive and pre-v1.
+Existing direct producer and consumer construction remains supported. The
+adapter uses the public Kafka record, handler, health, run, and shutdown
+contracts and does not change their wire or settlement semantics.
+
 ## Pinned inputs
 
 | Input | Exact version or identity | Verification |

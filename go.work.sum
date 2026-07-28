@@ -126,7 +126,9 @@ github.com/envoyproxy/protoc-gen-validate v1.3.3/go.mod h1:TsndJ/ngyIdQRhMcVVGDD
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f/go.mod h1:vw97MGsxSvLiUE2X8qFplwetxpGLQrlU1Q9AUEIzCaM=
 github.com/faustbrian/golib/pkg/cli v0.0.0-20260727232519-b50b43c56631/go.mod h1:1Q6/mhVCj3RKhMNbRaIkvtup6WNwCLvvDmpdIvb9xNA=
 github.com/faustbrian/golib/pkg/correlation v0.0.0-20260727232519-b50b43c56631/go.mod h1:08gNw9VylAHynfExldwXo7kZAWk3nwXR+lAPzNi0r3o=
+github.com/faustbrian/golib/pkg/correlation v0.0.0-20260728013657-be7aa98b8bd0/go.mod h1:08gNw9VylAHynfExldwXo7kZAWk3nwXR+lAPzNi0r3o=
 github.com/faustbrian/golib/pkg/identifier v0.0.0-20260727232519-b50b43c56631/go.mod h1:MgEu9PtjFwf/1X5txqpBtgtCxcFOoggzoW0qqN6uqAM=
+github.com/faustbrian/golib/pkg/kafka v0.0.0-20260728100033-6606319d9376/go.mod h1:q/Px9JPp4rPjtuXn3UQkMnJTMop0U+Cq3vCQM8fnhNM=
 github.com/go-faster/city v1.0.1 h1:4WAxSZ3V2Ws4QRDrscLEDcibJY8uf41H6AhXDrNDcGw=
 github.com/go-faster/city v1.0.1/go.mod h1:jKcUJId49qdW3L1qKHH/3wPeUstCVpVSXTM6vO3VcTw=
 github.com/go-faster/errors v0.7.1 h1:MkJTnDoEdi9pDabt1dpWf7AA8/BaSYZqibYyhZ20AYg=

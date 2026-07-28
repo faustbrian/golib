@@ -61,6 +61,14 @@ Cancel consumer and replay contexts, wait for the foreground operation, then
 close those clients. A canceled consumer exits cleanly; replay cancellation is
 an incomplete operator action and must be recorded.
 
+When using `kafkaservice`, place the returned producer component after every
+facility it needs so reverse shutdown drains producer calls first. Add the
+consumer plan directly to a long-running service command: service task
+cancellation stops polling and joins admitted handlers before the consumer
+component invokes its transferred shutdown callback. Startup checks,
+readiness checks, and shutdown callbacks receive the platform's bounded
+contexts; they must not add unbounded retries.
+
 ## Recovery
 
 Consumers replay through normal at-least-once group behavior. Audited historical

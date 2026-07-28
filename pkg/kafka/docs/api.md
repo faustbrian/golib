@@ -298,6 +298,34 @@ inspector remains locally open, never Kafka availability. `Close` returns
 idempotently, makes liveness and readiness false immediately, and fences later
 operations with `ErrInspectorClosed`.
 
+`kafkaservice.NewProducer` retains an explicit concrete producer. Its optional
+startup and readiness callbacks use service-owned bounded contexts. A non-nil
+shutdown callback transfers flush and close ownership; an omitted callback
+keeps the resource shared. `Producer.Publish` requires correlation values in
+context, clones the record, creates a child hop, rejects application-supplied
+correlation fields, replaces configured trace fields, and gives the concrete
+publish callback the child context. Configured `MessageLimits`, defaulting to
+`DefaultMessageLimits`, are checked before the clone and after metadata
+injection. Stop rejects new publishes and joins admitted callbacks. Failed
+shutdown remains retryable; concurrent callers
+share one attempt, and the first successful attempt makes later shutdown
+idempotent. Startup, readiness, publish, handler, run, and shutdown callback
+panics become secret-safe `CallbackPanicError` values. Panic values are not
+retained, startup panic cleanup follows the normal transferred-resource path,
+and shutdown panics leave cleanup retryable.
+
+`kafkaservice.NewHandler` creates a fresh request ID for every record delivery.
+Trusted metadata preserves correlation and converts the producer request ID to
+causation; the default starts a new local workflow. Malformed correlation is
+replaced by default and can be rejected explicitly. A configured caller-owned
+OpenTelemetry propagator extracts trace headers independently of correlation
+trust from a deep copy, so propagator mutation cannot alter the borrowed
+application record. `kafkaservice.NewConsumer` composes that handler with an
+explicit run callback and returns a service plan whose task stops intake and
+joins handlers before its component closes the consumer. Kafka retry,
+settlement, topic, partition, and dead-letter policy remains in this package
+and the application.
+
 `ProducerConfig.CompressionPreferences` is an ordered, constructor-copied list
 of `CompressionCodec` values. An empty list defaults to Snappy followed by no
 compression. Duplicate codecs and ineffective orders are rejected, and

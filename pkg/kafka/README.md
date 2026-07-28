@@ -85,6 +85,18 @@ drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
 configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
 
+Services should compose concrete producers and consumers through
+the independently versioned
+[`kafkaservice`](kafkaservice) module; see the
+[service integration guide](docs/service-integration.md). The adapter retains
+the exact Kafka client, keeps startup and readiness policy explicit, drains
+accepted publishes before closing an owned producer, supervises consumer
+intake through the service task lifecycle, and creates correlation-owned
+record and delivery hops. Optional W3C trace propagation uses a caller-owned
+OpenTelemetry propagator without installing global providers. These
+adapter dependencies do not enter the root Kafka production package or its
+direct requirements.
+
 Optional `ProducerConfig.Observers` receive ordered synchronous completion
 events for record, batch, and asynchronous delivery plus broker connections,
 Kafka protocol requests, throttling, disconnects, and shutdown attempts. Events contain copied
@@ -169,8 +181,10 @@ operations on the consumer. See the
 [observability guide](docs/observability.md). The independently versioned
 [`adapters/gotelemetry`](adapters/gotelemetry) module maps these stable events
 to OpenTelemetry with deny-by-default topic, group, and client attributes; it
-does not add OpenTelemetry to the root module or claim record-header context
-propagation. The standard-library
+does not install providers or own record-header context propagation.
+The independently versioned `kafkaservice` module separately accepts only the
+OpenTelemetry propagation contract for explicit record headers. The
+standard-library
 [`adapters/golog`](adapters/golog) package maps the same observations to fixed
 `log/slog` records. It also denies client, topic, and group identities unless
 they are present in copied bounded allowlists. Adapter-generated fields never

@@ -3,6 +3,15 @@
 The module owns client-side Kafka policy, not domain schemas or cluster
 infrastructure.
 
+The independently versioned nested `kafkaservice` module is the integration
+boundary for `github.com/faustbrian/golib/pkg/service`. It imports the root
+Kafka, service, correlation, and optional OpenTelemetry propagation contracts.
+None of those adapter-only dependencies enter this root module, and the
+service module never imports Kafka. The adapter keeps concrete producer and
+consumer APIs visible and adds only lifecycle, readiness, correlation, and
+optional trace propagation. This direction prevents a dependency cycle and
+keeps retry, settlement, and topic policy in Kafka.
+
 - `Producer` validates bounded records and waits for broker delivery.
 - `Consumer` uses a group, disables automatic commits, blocks rebalancing while
   a bounded poll is processed, runs a fixed-size worker set across independent

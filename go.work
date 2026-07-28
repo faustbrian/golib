@@ -46,6 +46,7 @@ use (
 	./pkg/kafka
 	./pkg/kafka/adapters/gotelemetry
 	./pkg/kafka/adapters/mskiam
+	./pkg/kafka/kafkaservice
 	./pkg/keyphrase
 	./pkg/knapsack
 	./pkg/knapsack/integration/references

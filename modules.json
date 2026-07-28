@@ -1372,6 +1372,7 @@
         "github.com/faustbrian/golib/pkg/authentication/jwt",
         "github.com/faustbrian/golib/pkg/authentication/oidc",
         "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/service/compatibility"
       ],
@@ -1913,6 +1914,7 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/service/compatibility"
       ],
@@ -3229,6 +3231,7 @@
         "github.com/faustbrian/golib/pkg/cache",
         "github.com/faustbrian/golib/pkg/cli/benchmarks",
         "github.com/faustbrian/golib/pkg/config",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
@@ -4077,6 +4080,7 @@
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
@@ -5721,6 +5725,7 @@
         "github.com/faustbrian/golib/pkg/circuit-breaker"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/localized"
       ],
       "external_runtime_dependencies": [
@@ -6199,8 +6204,15 @@
       "releasable": false,
       "version": "unreleased",
       "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/authentication",
+        "github.com/faustbrian/golib/pkg/authorization",
         "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/http-client",
         "github.com/faustbrian/golib/pkg/http-middleware",
+        "github.com/faustbrian/golib/pkg/jsonapi",
+        "github.com/faustbrian/golib/pkg/jsonrpc",
+        "github.com/faustbrian/golib/pkg/log",
+        "github.com/faustbrian/golib/pkg/openapi",
         "github.com/faustbrian/golib/pkg/router",
         "github.com/faustbrian/golib/pkg/service"
       ],
@@ -6693,6 +6705,7 @@
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
@@ -7413,7 +7426,8 @@
       "tag_prefix": "pkg/jsonapi/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/api-query"
+        "github.com/faustbrian/golib/pkg/api-query",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings"
       ],
       "external_runtime_dependencies": [
         "golang.org/x/text"
@@ -7657,7 +7671,8 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/authorization",
-        "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers"
+        "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -7850,6 +7865,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
       ],
       "external_runtime_dependencies": [
@@ -8067,6 +8083,66 @@
       "provenance": [
         "pkg/kafka/adapters/mskiam/specification/manifest.json"
       ],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/kafka/kafkaservice",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/kafka/kafkaservice",
+          "directory": ".",
+          "name": "kafkaservice",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`kafkaservice` is the independently versioned integration between [`github.com/faustbrian/golib/pkg/kafka`](..) and `github.com/faustbrian/golib/pkg/service`. The root Kafka production package does not import service, correlation, or OpenTelemetry APIs.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/kafka/kafkaservice/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/kafka",
+        "github.com/faustbrian/golib/pkg/service"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/trace"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
       "goal_files": [],
       "goal_status": "not-applicable",
       "goal_evidence": [],
@@ -9290,6 +9366,7 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/webhook"
@@ -10596,6 +10673,7 @@
         "github.com/faustbrian/golib/pkg/json-schema"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/openapi/interoperability"
       ],
       "external_runtime_dependencies": [
@@ -15216,6 +15294,7 @@
         "github.com/faustbrian/golib/pkg/cache",
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
+        "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",

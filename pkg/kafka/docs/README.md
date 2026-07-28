@@ -8,6 +8,7 @@
 - [Configuration reference](configuration.md)
 - [Guarantees and failure model](guarantees.md)
 - [Consumer groups and rebalances](consumer.md)
+- [Service lifecycle and propagation integration](service-integration.md)
 - [Consumer retry and dead-letter policy](retry-dead-letter.md)
 - [Transactions](transactions.md)
 - [Replay](replay.md)
