@@ -3209,7 +3209,8 @@
       "tag_prefix": "pkg/cli/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/cli/benchmarks"
+        "github.com/faustbrian/golib/pkg/cli/benchmarks",
+        "github.com/faustbrian/golib/pkg/service"
       ],
       "external_runtime_dependencies": [
         "github.com/spf13/cobra",
@@ -4031,7 +4032,9 @@
         "github.com/faustbrian/golib/pkg/identifier"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/correlation/integration/siblings"
+        "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+        "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
+        "github.com/faustbrian/golib/pkg/service"
       ],
       "external_runtime_dependencies": [
         "go.opentelemetry.io/otel",
@@ -6148,6 +6151,7 @@
       "releasable": false,
       "version": "unreleased",
       "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/http-middleware",
         "github.com/faustbrian/golib/pkg/router",
         "github.com/faustbrian/golib/pkg/service"
@@ -6638,7 +6642,8 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/correlation",
-        "github.com/faustbrian/golib/pkg/correlation/integration/siblings"
+        "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+        "github.com/faustbrian/golib/pkg/service"
       ],
       "external_runtime_dependencies": [
         "github.com/google/uuid",
@@ -14930,12 +14935,12 @@
         {
           "module_directory": "pkg/service",
           "directory": ".",
-          "name": "goservice",
+          "name": "service",
           "import_path": "github.com/faustbrian/golib/pkg/service",
           "kind": "public",
           "production": true,
-          "executable": false,
-          "coverage_required": false,
+          "executable": true,
+          "coverage_required": true,
           "build_required": true,
           "build_tags": []
         },
@@ -15061,18 +15066,6 @@
         },
         {
           "module_directory": "pkg/service",
-          "directory": "service",
-          "name": "service",
-          "import_path": "github.com/faustbrian/golib/pkg/service/service",
-          "kind": "public",
-          "production": true,
-          "executable": true,
-          "coverage_required": true,
-          "build_required": true,
-          "build_tags": []
-        },
-        {
-          "module_directory": "pkg/service",
           "directory": "servicetest",
           "name": "servicetest",
           "import_path": "github.com/faustbrian/golib/pkg/service/servicetest",
@@ -15090,7 +15083,11 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/service/v",
-      "owned_dependencies": [],
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier"
+      ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/lease",

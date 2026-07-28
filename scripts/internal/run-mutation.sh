@@ -9,6 +9,10 @@ fi
 root="$(git rev-parse --show-toplevel)"
 mode="$1"
 module="$2"
+if [[ -n "${GOLIB_REAL_GO:-}" ]]; then
+    PATH="$(dirname "${GOLIB_REAL_GO}"):${PATH}"
+    export PATH
+fi
 if [[ "${mode}" != "enforce" && "${mode}" != "discover" ]]; then
     printf 'mutation mode must be enforce or discover\n' >&2
     exit 2

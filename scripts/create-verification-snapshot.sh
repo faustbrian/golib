@@ -30,6 +30,8 @@ git -C "${source_repository}" diff --binary --full-index HEAD -- >"${patch}"
 if [[ -s "${patch}" ]]; then
     git -C "${snapshot_directory}" apply --binary "${patch}"
 fi
+git -C "${snapshot_directory}" ls-files --deleted -z |
+    git -C "${snapshot_directory}" update-index --remove -z --stdin
 
 while IFS= read -r -d '' path; do
     mkdir -p "${snapshot_directory}/$(dirname "${path}")"

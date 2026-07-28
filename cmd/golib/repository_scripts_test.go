@@ -854,6 +854,7 @@ func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) 
 		`mutation-coverage.sh`,
 		`GOLIB_GREMLINS_COVERAGE_PROFILE`,
 		`GOLIB_GREMLINS_COVERAGE_ELAPSED`,
+		`PATH="$(dirname "${GOLIB_REAL_GO}"):${PATH}"`,
 		`GOFLAGS="-modfile=${modfile} -mod=mod"`,
 		`go mod edit -modfile="${modfile}"`,
 		`.module_path, .directory`,
@@ -1840,6 +1841,14 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 		if _, err := os.Stat(filepath.Join(snapshot, path)); !os.IsNotExist(err) {
 			t.Fatalf("snapshot unexpectedly contains %s: %v", path, err)
 		}
+	}
+	index := exec.Command("git", "-C", snapshot, "ls-files", "--cached")
+	indexOutput, err := index.Output()
+	if err != nil {
+		t.Fatalf("read snapshot index: %v", err)
+	}
+	if strings.Contains(string(indexOutput), "removed.txt") {
+		t.Fatalf("snapshot index retained removed path:\n%s", indexOutput)
 	}
 
 	writeFile(t, filepath.Join(snapshot, "tracked.txt"), "snapshot only\n")

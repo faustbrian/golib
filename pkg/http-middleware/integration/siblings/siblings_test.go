@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/faustbrian/golib/pkg/correlation"
+	httpcorrelation "github.com/faustbrian/golib/pkg/correlation/http"
 	middleware "github.com/faustbrian/golib/pkg/http-middleware"
 	"github.com/faustbrian/golib/pkg/http-middleware/adapter"
 	"github.com/faustbrian/golib/pkg/http-middleware/observe"
@@ -60,7 +62,11 @@ func TestGoRouterProvidesBoundedObservationMetadata(t *testing.T) {
 
 func TestGoServiceCoreOwnershipCannotBeInstalledTwice(t *testing.T) {
 	t.Parallel()
-	requestIDs, err := serverhttp.RequestIDs(serverhttp.RequestIDConfig{})
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestIdentity, err := httpcorrelation.New(factory, httpcorrelation.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +79,7 @@ func TestGoServiceCoreOwnershipCannotBeInstalledTwice(t *testing.T) {
 		item    func(http.Handler) http.Handler
 	}{
 		{adapter.Recovery, serverhttp.Recover()},
-		{adapter.RequestID, requestIDs},
+		{adapter.RequestID, requestIdentity.Wrap},
 		{adapter.BodyLimit, bodyLimit},
 	} {
 		descriptor, describeErr := adapter.Named(tc.concern, tc.item)
