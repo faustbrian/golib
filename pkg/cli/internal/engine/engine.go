@@ -1,20 +1,16 @@
-// Package engine contains the replaceable Cobra parsing adapter.
+// Package engine contains the dependency-free argv parsing boundary.
 package engine
 
 import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-// Command is the engine-neutral subset required for token parsing.
+// Command is the parser-neutral subset required for token parsing.
 type Command struct {
 	ID       int
 	Name     string
@@ -25,7 +21,7 @@ type Command struct {
 	Children []Command
 }
 
-// Completion generates a deterministic Cobra completion script.
+// Completion generates a deterministic completion script.
 func Completion(root Command, shell string) (string, error) {
 	var output bytes.Buffer
 	if err := generateCompletion(root, shell, &output); err != nil {
@@ -209,7 +205,8 @@ const (
 	FailureMissingValue
 )
 
-// ParseError insulates public classification from Cobra error strings.
+// ParseError insulates public classification from parser implementation
+// details.
 type ParseError struct {
 	Kind FailureKind
 }
@@ -229,209 +226,218 @@ func (err *ParseError) Error() string {
 	}
 }
 
-// Parse builds fresh mutable Cobra state and parses one invocation.
+// Parse evaluates one immutable command tree without global parser state.
 func Parse(ctx context.Context, root Command, argv []string) (Result, error) {
-	if hasDigitShorthand(root) {
-		result, err := parse(ctx, root, argv)
-		if err == nil || !shouldRetryNegativePositionals(err, argv) {
-			return result, err
-		}
+	if ctx == nil {
+		return Result{}, &ParseError{Kind: FailureUsage}
 	}
-
-	return parse(ctx, root, encodeNegativePositionals(root, argv))
-}
-
-func parse(ctx context.Context, root Command, argv []string) (Result, error) {
-	result := Result{CommandID: -1, Options: make(map[int][]string)}
-	values := make(map[int]*rawValue)
-	command := build(root, values, &result)
-	if root.Version != "" {
-		version := &rawValue{boolean: true}
-		values[-1] = version
-		command.PersistentFlags().Var(version, "version", "")
-		command.PersistentFlags().Lookup("version").NoOptDefVal = "true"
-	}
-	if root.Version != "" && len(root.Children) > 0 &&
-		len(argv) > 0 && argv[0] == "version" {
-		argv = append([]string(nil), argv...)
-		argv[0] = "--version"
-	}
-	command.SetArgs(argv)
-	command.SetIn(nil)
-	command.SetOut(io.Discard)
-	command.SetErr(io.Discard)
-	command.SilenceErrors = true
-	command.SilenceUsage = true
-	command.CompletionOptions.DisableDefaultCmd = true
-	command.SetHelpCommand(&cobra.Command{Hidden: true})
-
-	if err := command.ExecuteContext(ctx); err != nil {
-		return Result{}, classifyFailure(err)
-	}
-	if version := values[-1]; version != nil && len(version.values) > 0 {
-		result.Action = ActionVersion
-		result.CommandID = root.ID
-	}
-	for key, value := range values {
-		if key >= 0 && len(value.values) > 0 {
-			result.Options[key] = append([]string(nil), value.values...)
-		}
-	}
-
-	return result, nil
-}
-
-func hasDigitShorthand(command Command) bool {
-	for _, option := range command.Options {
-		if option.Short >= '0' && option.Short <= '9' {
-			return true
-		}
-	}
-	for _, child := range command.Children {
-		if hasDigitShorthand(child) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func shouldRetryNegativePositionals(err error, argv []string) bool {
-	var parseErr *ParseError
-	if !errors.As(err, &parseErr) || parseErr.Kind != FailureUnknownOption {
-		return false
-	}
-	for _, token := range argv {
-		if looksNegativeValue(token) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func build(definition Command, values map[int]*rawValue, result *Result) *cobra.Command {
-	command := &cobra.Command{
-		Use:                definition.Name,
-		Short:              definition.Summary,
-		Aliases:            append([]string(nil), definition.Aliases...),
-		DisableSuggestions: true,
-		Args:               cobra.ArbitraryArgs,
-		RunE: func(_ *cobra.Command, args []string) error {
-			result.CommandID = definition.ID
-			result.Arguments = decodeNegativePositionals(args)
-			return nil
+	parser := invocationParser{
+		current: &root,
+		result: Result{
+			CommandID: root.ID,
+			Action:    ActionRun,
+			Options:   make(map[int][]string),
 		},
 	}
-	command.SetHelpFunc(func(*cobra.Command, []string) {
-		result.Action = ActionHelp
-		result.CommandID = definition.ID
-	})
-	for _, option := range definition.Options {
-		value := &rawValue{boolean: option.Boolean}
-		values[option.Key] = value
-		set := command.Flags()
-		if option.Persistent {
-			set = command.PersistentFlags()
+
+	return parser.parse(argv)
+}
+
+type invocationParser struct {
+	root       *Command
+	current    *Command
+	inherited  []Option
+	result     Result
+	positional bool
+}
+
+func (parser *invocationParser) parse(argv []string) (Result, error) {
+	parser.root = parser.current
+	for index := 0; index < len(argv); index++ {
+		token := argv[index]
+		if parser.positional {
+			parser.result.Arguments = append(parser.result.Arguments, token)
+			continue
 		}
-		short := ""
-		if option.Short != 0 {
-			short = string(option.Short)
+		if token == "--" {
+			parser.positional = true
+			continue
 		}
-		set.VarP(value, option.Name, short, "")
+		if token == "--help" || token == "-h" {
+			parser.result.Action = ActionHelp
+			parser.result.CommandID = parser.current.ID
+
+			return parser.result, nil
+		}
+		if parser.root.Version != "" && parser.current == parser.root &&
+			(token == "--version" ||
+				(token == "version" && len(parser.root.Children) > 0)) {
+			parser.result.Action = ActionVersion
+			parser.result.CommandID = parser.root.ID
+
+			return parser.result, nil
+		}
+		if strings.HasPrefix(token, "--") {
+			consumed, err := parser.longOption(token, argv[index+1:])
+			if err != nil {
+				return Result{}, err
+			}
+			index += consumed
+			continue
+		}
+		if len(token) > 1 && token[0] == '-' &&
+			(!looksNegativeValue(token) ||
+				parser.optionByShort(rune(token[1])) != nil) {
+			consumed, err := parser.shortOptions(token[1:], argv[index+1:])
+			if err != nil {
+				return Result{}, err
+			}
+			index += consumed
+			continue
+		}
+		if child := commandChild(parser.current, token); child != nil {
+			if err := parser.inheritPersistent(); err != nil {
+				return Result{}, err
+			}
+			parser.current = child
+			parser.result.CommandID = child.ID
+			continue
+		}
+		parser.result.Arguments = append(parser.result.Arguments, token)
+		if len(parser.current.Children) > 0 {
+			return parser.result, nil
+		}
+	}
+
+	return parser.result, nil
+}
+
+func (parser *invocationParser) longOption(
+	token string,
+	remaining []string,
+) (int, error) {
+	nameValue := strings.TrimPrefix(token, "--")
+	name, raw, assigned := strings.Cut(nameValue, "=")
+	option := parser.optionByLong(name)
+	if option == nil {
+		return 0, &ParseError{Kind: FailureUnknownOption}
+	}
+	if option.Boolean {
+		if !assigned {
+			raw = "true"
+		}
+
+		parser.addOption(option.Key, raw)
+
+		return 0, nil
+	}
+	if !assigned {
+		if len(remaining) == 0 {
+			return 0, &ParseError{Kind: FailureMissingValue}
+		}
+		raw = remaining[0]
+	}
+	parser.addOption(option.Key, raw)
+
+	if assigned {
+		return 0, nil
+	}
+
+	return 1, nil
+}
+
+func (parser *invocationParser) shortOptions(
+	cluster string,
+	remaining []string,
+) (int, error) {
+	runes := []rune(cluster)
+	for index, short := range runes {
+		option := parser.optionByShort(short)
+		if option == nil {
+			return 0, &ParseError{Kind: FailureUnknownOption}
+		}
 		if option.Boolean {
-			set.Lookup(option.Name).NoOptDefVal = "true"
+			parser.addOption(option.Key, "true")
+			continue
+		}
+		if index+1 < len(runes) {
+			parser.addOption(option.Key, string(runes[index+1:]))
+
+			return 0, nil
+		}
+		if len(remaining) == 0 {
+			return 0, &ParseError{Kind: FailureMissingValue}
+		}
+		parser.addOption(option.Key, remaining[0])
+
+		return 1, nil
+	}
+
+	return 0, nil
+}
+
+func (parser *invocationParser) optionByLong(name string) *Option {
+	for index := range parser.current.Options {
+		if parser.current.Options[index].Name == name {
+			return &parser.current.Options[index]
 		}
 	}
-	for _, child := range definition.Children {
-		command.AddCommand(build(child, values, result))
+	for index := range parser.inherited {
+		if parser.inherited[index].Name == name {
+			return &parser.inherited[index]
+		}
 	}
-
-	return command
-}
-
-type rawValue struct {
-	boolean bool
-	values  []string
-}
-
-func (value *rawValue) Set(raw string) error {
-	value.values = append(value.values, raw)
 
 	return nil
 }
 
-func (value *rawValue) String() string { return "" }
-
-func (value *rawValue) Type() string { return "value" }
-
-func (value *rawValue) IsBoolFlag() bool { return value.boolean }
-
-var _ pflag.Value = (*rawValue)(nil)
-
-func classifyFailure(err error) error {
-	message := err.Error()
-	kind := FailureUsage
-	switch {
-	case strings.HasPrefix(message, "unknown command"):
-		kind = FailureUnknownCommand
-	case strings.Contains(message, "unknown flag"), strings.Contains(message, "unknown shorthand"):
-		kind = FailureUnknownOption
-	case strings.Contains(message, "needs an argument"):
-		kind = FailureMissingValue
+func (parser *invocationParser) optionByShort(short rune) *Option {
+	for index := range parser.current.Options {
+		if parser.current.Options[index].Short == short {
+			return &parser.current.Options[index]
+		}
+	}
+	for index := range parser.inherited {
+		if parser.inherited[index].Short == short {
+			return &parser.inherited[index]
+		}
 	}
 
-	return &ParseError{Kind: kind}
+	return nil
 }
 
-const negativePrefix = "\x00cli-negative:"
+func (parser *invocationParser) inheritPersistent() error {
+	for _, option := range parser.current.Options {
+		if option.Persistent {
+			parser.inherited = append(parser.inherited, option)
+			continue
+		}
+		if len(parser.result.Options[option.Key]) > 0 {
+			return &ParseError{Kind: FailureUnknownOption}
+		}
+	}
 
-func encodeNegativePositionals(root Command, argv []string) []string {
-	nonBooleanLong := make(map[string]struct{})
-	nonBooleanShort := make(map[string]struct{})
-	collectValueOptions(root, nonBooleanLong, nonBooleanShort)
-	encoded := append([]string(nil), argv...)
-	previousConsumesValue := false
-	for index, token := range encoded {
-		if previousConsumesValue {
-			previousConsumesValue = false
-			continue
+	return nil
+}
+
+func (parser *invocationParser) addOption(key int, value string) {
+	parser.result.Options[key] = append(parser.result.Options[key], value)
+}
+
+func commandChild(command *Command, token string) *Command {
+	for index := range command.Children {
+		child := &command.Children[index]
+		if child.Name == token {
+			return child
 		}
-		if strings.HasPrefix(token, "--") && !strings.Contains(token, "=") {
-			_, previousConsumesValue = nonBooleanLong[strings.TrimPrefix(token, "--")]
-			continue
-		}
-		if len(token) == 2 && token[0] == '-' {
-			if _, consumesValue := nonBooleanShort[token[1:]]; consumesValue {
-				previousConsumesValue = true
-				continue
+		for _, alias := range child.Aliases {
+			if alias == token {
+				return child
 			}
 		}
-		if looksNegativeValue(token) {
-			encoded[index] = negativePrefix + token
-		}
 	}
 
-	return encoded
-}
-
-func collectValueOptions(
-	command Command,
-	long map[string]struct{},
-	short map[string]struct{},
-) {
-	for _, option := range command.Options {
-		if option.Boolean {
-			continue
-		}
-		long[option.Name] = struct{}{}
-		if option.Short != 0 {
-			short[string(option.Short)] = struct{}{}
-		}
-	}
-	for _, child := range command.Children {
-		collectValueOptions(child, long, short)
-	}
+	return nil
 }
 
 func looksNegativeValue(token string) bool {
@@ -443,13 +449,4 @@ func looksNegativeValue(token string) bool {
 	}
 
 	return len(token) > 2 && token[1] == '.' && token[2] >= '0' && token[2] <= '9'
-}
-
-func decodeNegativePositionals(values []string) []string {
-	decoded := make([]string, len(values))
-	for index, value := range values {
-		decoded[index] = strings.TrimPrefix(value, negativePrefix)
-	}
-
-	return decoded
 }

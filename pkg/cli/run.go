@@ -63,6 +63,22 @@ type Result struct {
 // Run parses and executes one invocation without changing process-global state.
 func (application *Application) Run(ctx context.Context, request Request) Result {
 	result := application.run(ctx, request)
+	return application.withExitCode(result)
+}
+
+// RunCommand parses and executes a normal command invocation without
+// recognizing the hidden shell-completion protocol. Help and version requests
+// remain available. Service processes that do not publish shell completion can
+// use this narrower runtime surface.
+func (application *Application) RunCommand(
+	ctx context.Context,
+	request Request,
+) Result {
+	result := application.runCommand(ctx, request)
+	return application.withExitCode(result)
+}
+
+func (application *Application) withExitCode(result Result) Result {
 	exitCodes := defaultExitCodePolicy()
 	if application != nil {
 		exitCodes = application.exitCodes
@@ -101,6 +117,58 @@ func (application *Application) run(ctx context.Context, request Request) Result
 		)
 	}
 
+	return application.runParsed(ctx, request, streams, output)
+}
+
+func (application *Application) runCommand(
+	ctx context.Context,
+	request Request,
+) Result {
+	streams := normalizeIO(request)
+	output := &Output{}
+	if application == nil || application.root == nil {
+		return finalize(
+			streams,
+			request.Output,
+			nil,
+			output,
+			newInternalError("run a nil application", nil),
+		)
+	}
+	if ctx == nil {
+		return finalize(
+			streams,
+			request.Output,
+			nil,
+			output,
+			newInternalError("run with a nil context", nil),
+		)
+	}
+	if request.Output.Mode > OutputQuiet {
+		return finalize(
+			streams,
+			OutputPolicy{},
+			nil,
+			output,
+			newInternalError("invalid output mode", nil),
+		)
+	}
+	if err := contextError(ctx); err != nil {
+		return finalize(streams, request.Output, nil, output, err)
+	}
+	if err := validateArgv(request.Args, application.limits); err != nil {
+		return finalize(streams, request.Output, nil, output, err)
+	}
+
+	return application.runParsed(ctx, request, streams, output)
+}
+
+func (application *Application) runParsed(
+	ctx context.Context,
+	request Request,
+	streams IO,
+	output *Output,
+) Result {
 	parsed, err := engine.Parse(ctx, engineCommand(application.root), request.Args)
 	if err != nil {
 		if contextErr := contextError(ctx); contextErr != nil {
@@ -191,8 +259,8 @@ func invocationIO(streams IO, policy OutputPolicy) IO {
 }
 
 func classifyParseFailure(err error) ErrorKind {
-	var parseErr *engine.ParseError
-	if !errors.As(err, &parseErr) {
+	parseErr, ok := errors.AsType[*engine.ParseError](err)
+	if !ok {
 		return ErrorKindUsage
 	}
 	switch parseErr.Kind {
@@ -311,8 +379,7 @@ func executeLifecycle(
 			err := middleware(nextContext, metadata, continuation.next)
 			continuation.closeAndWait()
 			if err != nil {
-				var classified *Error
-				if errors.As(err, &classified) {
+				if _, ok := errors.AsType[*Error](err); ok {
 					return err
 				}
 
@@ -416,8 +483,7 @@ func classifyPhaseError(ctx context.Context, message string, err error) error {
 	if contextErr := classifyPhaseContextError(ctx, err); contextErr != nil {
 		return contextErr
 	}
-	var classified *Error
-	if errors.As(err, &classified) {
+	if _, ok := errors.AsType[*Error](err); ok {
 		return err
 	}
 
@@ -754,8 +820,8 @@ func exitCode(err error) int {
 }
 
 func (policy ExitCodePolicy) code(err error) int {
-	var classified *Error
-	if !errors.As(err, &classified) {
+	classified, ok := errors.AsType[*Error](err)
+	if !ok {
 		return policy.Command
 	}
 	switch classified.Kind() {

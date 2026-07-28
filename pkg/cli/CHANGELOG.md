@@ -9,6 +9,14 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- Replace the internal Cobra/PFlag adapter with a dependency-free,
+  invocation-local parser while preserving the documented argv contract and
+  reducing service binary overhead.
+- Add `RunCommand` for processes that need normal command, help, and version
+  behavior without publishing the hidden shell-completion protocol.
+- Add a bounded `CommandSet` compilation path for service processes that need
+  direct commands, help, version, stable errors, and bounded output without
+  linking unsupported generic CLI features.
 - Run the local competitor benchmark harness through the repository workspace
   so it can measure the unreleased canonical CLI module before initial tags.
 

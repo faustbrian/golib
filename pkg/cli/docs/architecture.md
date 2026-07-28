@@ -3,8 +3,16 @@
 The application composition root creates mutable `Command` definitions and
 calls `Compile` once. Compilation validates names, aliases, layouts, groups,
 inheritance, cycles, reused nodes and bindings, and configured resource limits.
-It publishes an immutable graph. Every `Run` builds fresh Cobra state below
-`internal/engine`; no parser state is shared between invocations.
+It publishes an immutable graph. Every `Run` evaluates argv against
+invocation-local state below `internal/engine`; no parser state is shared
+between invocations.
+
+`CompileCommandSet` is a separate bounded compilation path for a root plus
+direct executable children. It owns the same request validation, error, exit,
+help, version, output, context, and handler contracts without exposing options,
+arguments, aliases, nesting, lifecycle hooks, completion, or generated
+references. Its distinct immutable application type prevents those unsupported
+features from becoming accidental binary dependencies.
 
 Handlers receive caller-owned `context.Context`, invocation-local typed
 `Input`, explicit `IO`, and bounded `Output`. Dependencies are supplied through

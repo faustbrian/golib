@@ -5,10 +5,10 @@
 normalizes paths, or invokes a shell.
 
 Supported option forms are `--name=value`, `--name value`, `-n value`, attached
-short values accepted by pinned `pflag`, and combined boolean shorthands such
-as `-qv`. `--` terminates option parsing. Options may appear before or after
-positionals. Repeated scalar options use the last occurrence; slices append.
-An assigned empty value is explicit.
+short values, and combined boolean shorthands such as `-qv`. `--` terminates
+option parsing. Options may appear before or after positionals. Repeated scalar
+options use the last occurrence; slices append. An assigned empty value is
+explicit.
 
 Negative numeric positional tokens are protected from shorthand parsing and
 restored byte-for-byte before typed conversion. Negative option values are

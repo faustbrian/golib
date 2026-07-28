@@ -56,6 +56,28 @@ func main() {
 }
 ```
 
+Service processes that deliberately do not publish shell completion may call
+`RunCommand` instead. It preserves normal command, help, version, typed input,
+lifecycle, output, and exit behavior while treating the hidden completion
+protocol as an ordinary command token.
+
+One-binary services that need only direct commands, help, version, stable
+errors, and bounded output can use `CompileCommandSet`. This avoids linking
+option, argument, nested-command, lifecycle-hook, completion, and reference
+generation machinery that the process does not expose:
+
+```go
+application, err := cli.CompileCommandSet(cli.CommandSet{
+	Name:    "postal",
+	Version: "1.2.3",
+	Commands: []cli.CommandSpec{{
+		Name:    "serve",
+		Summary: "serve Postal requests",
+		Handler: serve,
+	}},
+})
+```
+
 `os.Exit` stays in `main`; handlers and library code return errors. Dependencies
 are ordinary constructor parameters or captured closures:
 
@@ -90,7 +112,7 @@ command := cli.NewCommand("import",
 
 `State` distinguishes omitted, defaulted, and explicit values, including
 explicit empty strings, zero, and false. Custom domain types use `TypedOption`
-or `TypedArgument`; Cobra types never cross the public boundary.
+or `TypedArgument`; parser implementation types never cross the public boundary.
 
 ## Execution modes
 

@@ -9,10 +9,10 @@ The minimum supported toolchain is Go 1.25. CI also tests the current stable Go
 release. Releases run with `GOWORK=off`; local workspaces must not hide missing
 module dependencies. The exported API is compared with its checked-in baseline.
 
-Cobra is pinned behind `internal/engine`. An upgrade requires differential argv
-tests, help and completion drift review, vulnerability and license review,
-benchmarks, and a changelog entry. Cobra errors and types are not public
-contracts.
+The parser is owned behind `internal/engine` and has no runtime module
+dependencies. Parser changes require differential argv tests, help and
+completion drift review, benchmarks, and a changelog entry. Internal parser
+errors and types are not public contracts.
 
 Every user-visible addition, compatibility decision, security fix, deprecation,
 and breaking change enters `CHANGELOG.md` under Unreleased before release.

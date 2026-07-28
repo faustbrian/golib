@@ -40,6 +40,8 @@ func (application *Application) ManifestJSON() ([]byte, error)
 func (application *Application) Markdown() (string, error)
 func (application *Application) Root() CommandMetadata
 func (application *Application) Run(ctx context.Context, request Request) Result
+func (application *Application) RunCommand( 	ctx context.Context, 	request Request, ) Result
+func (application *CommandSetApplication) RunCommand( 	ctx context.Context, 	request Request, ) Result
 func (argument *Argument[T]) Completion(provider CompletionProvider) *Argument[T]
 func (argument *Argument[T]) Description(description string) *Argument[T]
 func (argument *Argument[T]) Get(input Input) T
@@ -92,6 +94,7 @@ func (output *Output) Info(message string) error
 func (output *Output) SetData(value any) error
 func BoolOption(name string) *Option[bool]
 func Compile(root *Command, options ...CompileOption) (*Application, error)
+func CompileCommandSet( 	set CommandSet, 	options ...CompileOption, ) (*CommandSetApplication, error)
 func DurationArgument(name string) *Argument[time.Duration]
 func DurationOption(name string) *Option[time.Duration]
 func EnumArgument(name string, values ...string) *Argument[string]
@@ -144,6 +147,9 @@ type Argument[T any] struct { }
 type Command struct { }
 type CommandMetadata struct { }
 type CommandOption func(*Command)
+type CommandSet struct { 	Name string  	Version string  	Commands []CommandSpec }
+type CommandSetApplication struct { }
+type CommandSpec struct { 	Name string  	Summary string  	Handler Handler }
 type CompileOption func(*compileConfiguration) error
 type CompletionCandidate struct { 	Value       string 	Description string }
 type CompletionProvider func(context.Context, CompletionRequest) ([]CompletionCandidate, error)

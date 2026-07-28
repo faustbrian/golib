@@ -37,8 +37,10 @@ func TestArchitectureKeepsEngineAndRuntimeDetailsInternal(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			if strings.HasPrefix(name, "github.com/spf13/") && !strings.HasPrefix(path, "internal/engine/") {
-				t.Errorf("%s exposes the replaceable Cobra engine boundary", path)
+			if strings.HasPrefix(name, "github.com/spf13/") ||
+				strings.HasPrefix(name, "github.com/urfave/cli") ||
+				strings.HasPrefix(name, "github.com/alecthomas/kong") {
+				t.Errorf("%s imports an external parser framework", path)
 			}
 			if name == "unsafe" || name == "C" || name == "os/exec" || name == "reflect" {
 				t.Errorf("%s imports forbidden runtime facility %q", path, name)
