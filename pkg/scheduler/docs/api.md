@@ -25,6 +25,9 @@ overlap, and idempotency keys.
 
 `NewRunner` requires a registry, `lease.Store`, `Executor`, and owner name.
 `Run` sleeps until the exact next occurrence through an injectable `Clock`.
+`RunFrom` first applies each schedule's bounded missed-run policy strictly
+after a caller-supplied non-zero cursor, then continues the same schedule loop
+without a startup gap.
 `Tick` exposes deterministic range processing. `Drain` rejects new ticks and
 waits for in-flight decisions, managed executions, and callbacks until its
 context ends.

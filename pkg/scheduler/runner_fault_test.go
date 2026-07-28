@@ -482,6 +482,9 @@ func TestRunnerOptionsEmptyLoopAndInvalidTick(t *testing.T) {
 	if err := disabledRunner.Run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run(disabled) error = %v", err)
 	}
+	if err := disabledRunner.RunFrom(context.Background(), time.Time{}); !errors.Is(err, scheduler.ErrInvalidRunner) {
+		t.Fatalf("RunFrom(zero) error = %v", err)
+	}
 
 	invalid := faultSchedule(t)
 	invalid.MissedRunPolicy = scheduler.MissedRunPolicy(255)
@@ -498,6 +501,62 @@ func TestRunnerOptionsEmptyLoopAndInvalidTick(t *testing.T) {
 	)
 	if err := runInvalid.Run(context.Background()); !errors.Is(err, scheduler.ErrInvalidMissedRuns) {
 		t.Fatalf("Run(invalid) error = %v", err)
+	}
+}
+
+func TestRunnerRunFromReplaysBoundedStartupWindowWithoutGap(t *testing.T) {
+	t.Parallel()
+
+	after := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
+	schedule, err := scheduler.NewSchedule(
+		"startup-catch-up",
+		"sync",
+		scheduler.EveryMinute(),
+		scheduler.WithMissedRuns(scheduler.MissedRunCatchUp, 2),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule() error = %v", err)
+	}
+	registry, _ := scheduler.Compile(schedule)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	var due []time.Time
+	runner, err := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(_ context.Context, scheduled scheduler.Context) error {
+			due = append(due, scheduled.Due)
+			if len(due) == 3 {
+				cancel()
+			}
+			return nil
+		}),
+		scheduler.WithOwner("owner"),
+		scheduler.WithClock(&sequenceClock{times: []time.Time{
+			after.Add(3 * time.Minute),
+			after.Add(3 * time.Minute),
+			after.Add(3 * time.Minute),
+			after.Add(4 * time.Minute),
+		}}),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	if err := runner.RunFrom(ctx, after); !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunFrom() error = %v, want cancellation", err)
+	}
+	want := []time.Time{
+		after.Add(2 * time.Minute),
+		after.Add(3 * time.Minute),
+		after.Add(4 * time.Minute),
+	}
+	if len(due) != len(want) {
+		t.Fatalf("RunFrom() due = %v, want %v", due, want)
+	}
+	for index := range want {
+		if !due[index].Equal(want[index]) {
+			t.Fatalf("RunFrom() due[%d] = %v, want %v", index, due[index], want[index])
+		}
 	}
 }
 

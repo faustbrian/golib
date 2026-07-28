@@ -20,6 +20,8 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- `Runner.RunFrom` for bounded startup catch-up that transitions into the
+  continuous schedule loop without losing an occurrence between both phases.
 - Configurable overlap-lease heartbeat intervals with construction-time TTL
   safety validation.
 - `schedulerservice` lifecycle composition that stops scheduling, drains active

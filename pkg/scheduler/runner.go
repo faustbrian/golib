@@ -347,7 +347,16 @@ func WithClock(clock Clock) RunnerOption {
 
 // Run waits for exact schedule boundaries and processes due occurrences.
 func (runner *Runner) Run(ctx context.Context) error {
-	cursor := runner.clock.Now()
+	return runner.RunFrom(ctx, runner.clock.Now())
+}
+
+// RunFrom processes the bounded missed-run window strictly after cursor, then
+// continues waiting for exact schedule boundaries without leaving a startup
+// gap. A zero cursor is rejected because it could request an unbounded scan.
+func (runner *Runner) RunFrom(ctx context.Context, cursor time.Time) error {
+	if cursor.IsZero() {
+		return ErrInvalidRunner
+	}
 	for {
 		next, ok := runner.next(cursor)
 		if !ok {

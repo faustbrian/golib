@@ -341,6 +341,11 @@ func (runner *Runner) Drain(ctx context.Context) error
 func (runner *Runner) Run(ctx context.Context) error
     Run waits for exact schedule boundaries and processes due occurrences.
 
+func (runner *Runner) RunFrom(ctx context.Context, cursor time.Time) error
+    RunFrom processes the bounded missed-run window strictly after cursor, then
+    continues waiting for exact schedule boundaries without leaving a startup
+    gap. A zero cursor is rejected because it could request an unbounded scan.
+
 func (runner *Runner) Tick(ctx context.Context, after, through time.Time) error
     Tick processes every bounded decision in an explicit instant range.
 
