@@ -4,6 +4,14 @@ All notable changes use [Keep a Changelog](https://keepachangelog.com/) style.
 
 ## [Unreleased]
 
+### Fixed
+
+- PostgreSQL retry classification now recognizes pgx-safe, closed-connection,
+  timeout, truncated-response, and network failures as transient while
+  preserving caller cancellation and deadlines as permanent.
+- The module actionlint gate now validates the repository-owned CI workflow
+  instead of requiring a forbidden package-local workflow.
+
 ### Added
 
 - Explicit bounded retry policies and generic value execution.

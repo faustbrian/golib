@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -26,6 +27,10 @@ import (
 const (
 	canonicalRoot = "github.com/faustbrian/golib"
 	requiredGo    = "1.26.5"
+)
+
+var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
+	`^v0\.0\.0-[0-9]{14}-[0-9a-f]{12}$`,
 )
 
 type catalog struct {
@@ -489,12 +494,13 @@ func discover(root string) (catalog, error) {
 }
 
 func validateOwnedDependencyVersion(directory, path, version string) error {
-	if version == "v0.0.0" {
+	if version == "v0.0.0" ||
+		ownedDependencyPseudoVersionPattern.MatchString(version) {
 		return nil
 	}
 
 	return fmt.Errorf(
-		"module %s requires owned dependency %s at %s; repository manifests must use local v0.0.0",
+		"module %s requires owned dependency %s at %s; repository manifests must use local v0.0.0 or an immutable main pseudo-version",
 		directory,
 		path,
 		version,
