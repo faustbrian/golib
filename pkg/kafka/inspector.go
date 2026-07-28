@@ -306,7 +306,7 @@ func (backend *franzInspectorBackend) Lag(
 	ctx context.Context,
 	groups ...string,
 ) (inspectorGroupLags, error) {
-	lags, err := backend.groupLags.Lag(ctx, groups...)
+	lags, err := backend.groupLags.Lag(kadm.RequireStable(ctx), groups...)
 	translated, translateErr := translateDescribedGroupLags(
 		lags,
 		backend.maxGroupMembers,
@@ -1036,8 +1036,10 @@ func validateInspectionTopics(topics []string) error {
 	return nil
 }
 
-// ConsumerGroupLag returns sorted committed and end offsets for an explicit
-// bounded consumer-group set.
+// ConsumerGroupLag requests sorted stable committed and end offsets for an
+// explicit bounded consumer-group set. On KIP-447 brokers, pending
+// transactional offset commits resolve within the configured request deadline
+// before offsets are returned.
 func (inspector *Inspector) ConsumerGroupLag(
 	ctx context.Context,
 	groups ...string,

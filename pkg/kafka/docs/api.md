@@ -269,8 +269,10 @@ retention limits preserve the `-1` unlimited sentinel and retention bytes are
 per partition. `Inspector.ConsumerGroupLag` returns bounded classic-group
 coordinator, state, protocol, member identity, copied assignment,
 committed-offset, and lag inspection. Members are sorted by member ID and their
-assignments by topic and partition. Topic and group methods require explicit
-target lists, and every operation derives `InspectorConfig.RequestTimeout`.
+assignments by topic and partition. It requests KIP-447 stable committed
+offsets so pending transactional commits resolve within the request deadline
+on supported brokers. Topic and group methods require explicit target lists,
+and every operation derives `InspectorConfig.RequestTimeout`.
 `InspectorConfig.Observers` reports inspection, dependency, readiness,
 shutdown, and broker activity through the shared stable observation contract.
 

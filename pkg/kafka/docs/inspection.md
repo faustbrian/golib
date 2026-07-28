@@ -89,6 +89,14 @@ members sorted by member ID, member and optional static-instance identity,
 client identity and host, assignments sorted by topic and partition, committed
 offsets, log bounds, and lag.
 
+Committed-offset fetches request stable Kafka offsets. On KIP-447 brokers, if a
+transaction has published a pending source-offset commit, the broker holds the
+offset response until that transaction commits or aborts, bounded by
+`InspectorConfig.RequestTimeout` and any earlier caller deadline. This prevents
+the inspector from reporting the pre-transaction offset as current while Kafka
+is still resolving transaction markers. Brokers older than Kafka 2.5 ignore
+this request field; the compatibility matrix does not claim support for them.
+
 `MaxGroupMembers` bounds members copied across the call.
 `MaxMetadataPartitions` bounds combined lag partitions plus assignment topic
 and partition entries copied from broker-controlled state. Duplicate member or
@@ -155,6 +163,11 @@ outages out of liveness-triggered restart loops.
   distinguishes group state, members, assignments, committed offsets, and lag.
 - [Apache Kafka 4.3 consumer rebalance protocol](https://kafka.apache.org/43/operations/consumer-rebalance-protocol/)
   distinguishes classic and KIP-848 consumer-protocol groups.
+- [Apache Kafka 4.3 protocol](https://kafka.apache.org/43/design/protocol/)
+  defines the `OffsetFetch` `require_stable` flag used to wait for pending
+  transactional offset commits.
+- [KIP-447](https://cwiki.apache.org/confluence/display/KAFKA/KIP-447%3A%2BProducer%2Bscalability%2Bfor%2Bexactly%2Bonce%2Bsemantics)
+  defines stable offset-fetch behavior for transactional consumer progress.
 - [franz-go kadm v1.18.0](https://pkg.go.dev/github.com/twmb/franz-go/pkg/kadm@v1.18.0)
   supplies the pinned metadata, offset-listing, configuration-description, and
   lag protocol implementation behind these owned models.

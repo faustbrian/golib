@@ -226,7 +226,9 @@ protocol type and assignor, member identity, and current assignments alongside
 committed-offset lag. Member IDs and assignments are sorted. Duplicate member
 or instance IDs, overlapping partition ownership, non-consumer assignment
 encodings, invalid parsed metadata, and excessive members or assignment entries
-fail closed.
+fail closed. Committed-offset requests require stable offsets, so KIP-447
+brokers resolve pending transactional commits within the configured request
+deadline rather than returning the pre-transaction offset.
 The current implementation uses the classic `DescribeGroups` path and does not
 claim KIP-848 consumer-protocol group inspection.
 

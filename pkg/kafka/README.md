@@ -271,6 +271,8 @@ effective `min.insync.replicas`, cleanup, retention, compaction, segment, and
 unclean-election policy, plus classic consumer-group lag, member identity, and
 assignments. Every operation derives `RequestTimeout`; response copying is
 capped by explicit broker, group-member, partition, and configuration limits.
+Consumer-group inspection requests KIP-447 stable offsets so pending
+transactional commits resolve within that deadline on supported brokers.
 Inspection never mutates Kafka infrastructure. Retention and segment durations
 remain raw Kafka milliseconds because valid broker values can exceed Go's
 `time.Duration`.

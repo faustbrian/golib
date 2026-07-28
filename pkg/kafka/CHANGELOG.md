@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- require stable Kafka offset fetches for consumer-group lag inspection, so
+  pending transactional source-offset commits resolve within the configured
+  request deadline instead of being reported as stale offsets
 - correct the audit and compatibility matrix to reflect existing byte-bounded
   producer buffering and current replay, mutation, franz-go, and kadm evidence
 - reject broker topic metadata that contradicts Kafka by returning a requested
