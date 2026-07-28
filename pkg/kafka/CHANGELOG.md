@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- treat duplicate static consumer-instance fencing as a terminal lifecycle
+  state, adding a stable `ErrConsumerInstanceFenced` classification, preserving
+  the broker cause, and rejecting later runners before polling instead of
+  automatically contending with the replacement member
 - require stable Kafka offset fetches for consumer-group lag inspection, so
   pending transactional source-offset commits resolve within the configured
   request deadline instead of being reported as stale offsets

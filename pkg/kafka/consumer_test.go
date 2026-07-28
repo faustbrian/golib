@@ -10,6 +10,7 @@ import (
 
 	"context"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -1472,6 +1473,130 @@ func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 		len(combinedBackend.committed) != 1 ||
 		combinedBackend.committed[0].Offset != 1 {
 		t.Fatalf("combined result/error/backend = %#v/%v/%#v", result, err, combinedBackend)
+	}
+}
+
+func TestConsumerStaticMembershipFencingIsTerminal(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	hook := consumerGroupManageErrorHook{consumer: consumer}
+	recoverableErr := errors.New("recoverable group error")
+	hook.OnGroupManageError(recoverableErr)
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("empty fetch invoked handler")
+
+		return nil
+	}))
+	if err != nil || result != (PollResult{}) || backend.pollCalls != 1 {
+		t.Fatalf("recoverable result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+
+	firstMarker := errors.New("first fenced generation")
+	firstFencedErr := errors.Join(kerr.FencedInstanceID, firstMarker)
+	hook.OnGroupManageError(firstFencedErr)
+	secondMarker := errors.New("second fenced generation")
+	hook.OnGroupManageError(errors.Join(kerr.FencedInstanceID, secondMarker))
+
+	for attempt := 0; attempt < 2; attempt++ {
+		result, err = consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			t.Fatal("terminal consumer invoked handler")
+
+			return nil
+		}))
+		if !errors.Is(err, ErrConsumerFatal) ||
+			!errors.Is(err, ErrConsumerInstanceFenced) ||
+			!errors.Is(err, kerr.FencedInstanceID) ||
+			!errors.Is(err, firstMarker) ||
+			errors.Is(err, secondMarker) ||
+			result != (PollResult{}) ||
+			backend.pollCalls != 1 {
+			t.Fatalf(
+				"terminal attempt %d result/error/backend = %#v/%v/%#v",
+				attempt,
+				result,
+				err,
+				backend,
+			)
+		}
+	}
+}
+
+func TestConsumerCommitFencingEntersTerminalState(t *testing.T) {
+	t.Parallel()
+
+	record := &kgo.Record{Topic: "events", Offset: 1}
+	backend := &recordingConsumerBackend{
+		fetches:   recordFetches(record),
+		commitErr: kerr.FencedInstanceID,
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		return nil
+	}))
+	if !errors.Is(err, ErrConsumerFatal) ||
+		!errors.Is(err, ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) ||
+		result != (PollResult{Polled: 1, Processed: 1}) ||
+		len(backend.committed) != 1 ||
+		backend.committed[0] != record {
+		t.Fatalf("fenced commit result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+
+	result, err = consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		t.Fatal("terminal consumer invoked handler")
+
+		return nil
+	}))
+	if !errors.Is(err, ErrConsumerFatal) ||
+		!errors.Is(err, ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) ||
+		result != (PollResult{}) ||
+		backend.pollCalls != 1 {
+		t.Fatalf("terminal result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+}
+
+func TestConsumerFencingDuringHandlerJoinsActiveFailure(t *testing.T) {
+	t.Parallel()
+
+	handlerErr := errors.New("handler failed during fencing")
+	backend := &recordingConsumerBackend{
+		fetches: recordFetches(&kgo.Record{Topic: "events", Offset: 1}),
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	hook := consumerGroupManageErrorHook{consumer: consumer}
+
+	result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+		context.Context,
+		ConsumedMessage,
+	) error {
+		hook.OnGroupManageError(kerr.FencedInstanceID)
+
+		return handlerErr
+	}))
+	if !errors.Is(err, ErrConsumerFatal) ||
+		!errors.Is(err, ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) ||
+		!errors.Is(err, handlerErr) ||
+		result != (PollResult{Polled: 1}) ||
+		len(backend.committed) != 0 {
+		t.Fatalf("fenced handler result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
 }
 

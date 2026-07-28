@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -31,6 +32,10 @@ var (
 	ErrConsumerBusy           = errors.New("kafka: consumer runner is already active")
 	ErrConsumerClosing        = errors.New("kafka: consumer is shutting down")
 	ErrConsumerClosed         = errors.New("kafka: consumer is closed")
+	ErrConsumerFatal          = errors.New("kafka: consumer entered a fatal state")
+	ErrConsumerInstanceFenced = errors.New(
+		"kafka: consumer static instance was fenced",
+	)
 	ErrConsumerShutdownActive = errors.New(
 		"kafka: consumer shutdown is already active",
 	)
@@ -203,7 +208,9 @@ type consumerClientFactory func(...kgo.Opt) (*kgo.Client, error)
 // Consumer processes records with explicit post-handler offset commits. One
 // Run, RunOnce, or RunBatchOnce call may be active at a time. Handler callbacks
 // can overlap only across independent partitions when MaxConcurrentHandlers is
-// greater than one. Its methods are safe for concurrent lifecycle coordination.
+// greater than one. Duplicate static-instance fencing permanently rejects new
+// runners with ErrConsumerFatal and ErrConsumerInstanceFenced.
+// Its methods are safe for concurrent lifecycle coordination.
 type Consumer struct {
 	client                consumerBackend
 	clientID              string
@@ -226,6 +233,7 @@ type Consumer struct {
 	closing           bool
 	closed            bool
 	shutdownActive    bool
+	fatalErr          error
 	subscribedTopics  map[string]struct{}
 	pausedPartitions  map[TopicPartition]struct{}
 	observerCallbacks int
@@ -340,6 +348,9 @@ func newConsumer(
 		observerHook.after = consumer.finishObservation
 		options = append(options, kgo.WithHooks(observerHook))
 	}
+	options = append(options, kgo.WithHooks(
+		consumerGroupManageErrorHook{consumer: consumer},
+	))
 
 	client, err := factory(options...)
 	if err != nil {
@@ -522,7 +533,8 @@ func validOptionalConsumerIdentity(value string) bool {
 // from that partition and independent partitions are committed before the
 // first handler error in stable poll-partition order is returned. It returns
 // ErrContextRequired for a nil context, ErrConsumerBusy when another runner
-// owns the consumer, and a lifecycle error once shutdown begins.
+// owns the consumer, ErrConsumerFatal and ErrConsumerInstanceFenced after
+// static-membership fencing, and a lifecycle error once shutdown begins.
 func (consumer *Consumer) RunOnce(ctx context.Context, handler Handler) (PollResult, error) {
 	if ctx == nil {
 		return PollResult{}, ErrContextRequired
@@ -567,12 +579,15 @@ func (consumer *Consumer) runOnce(
 			)
 		}()
 	}
+	defer func() {
+		resultErr = consumer.groupError(resultErr)
+	}()
 	result = PollResult{Polled: len(records)}
 	if len(records) > consumer.maxPollRecords {
 		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
 	}
 	if err := fetches.Err(); err != nil {
-		return PollResult{}, err
+		return PollResult{}, consumer.groupError(err)
 	}
 	token, err := consumer.assignment.token()
 	if err != nil {
@@ -756,7 +771,8 @@ func boundedCallbackPartitionCount(
 // Run continuously executes bounded poll cycles until cancellation or the
 // first processing failure. Context cancellation is a clean runner stop. It
 // returns ErrContextRequired for a nil context, ErrConsumerBusy when another
-// runner owns the consumer, and a lifecycle error once shutdown begins.
+// runner owns the consumer, ErrConsumerFatal and ErrConsumerInstanceFenced
+// after static-membership fencing, and a lifecycle error once shutdown begins.
 func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 	if ctx == nil {
 		return ErrContextRequired
@@ -782,7 +798,7 @@ func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 		}
 	}
 
-	return nil
+	return consumer.groupError(nil)
 }
 
 func (consumer *Consumer) beginRun() error {
@@ -808,8 +824,45 @@ func (consumer *Consumer) lifecycleErrorLocked() error {
 	if consumer.closing {
 		return ErrConsumerClosing
 	}
+	if consumer.fatalErr != nil {
+		return errors.Join(ErrConsumerFatal, consumer.fatalErr)
+	}
 
 	return nil
+}
+
+type consumerGroupManageErrorHook struct {
+	consumer *Consumer
+}
+
+func (hook consumerGroupManageErrorHook) OnGroupManageError(err error) {
+	hook.consumer.recordFatalGroupError(err)
+}
+
+func (consumer *Consumer) recordFatalGroupError(err error) {
+	if !errors.Is(err, kerr.FencedInstanceID) {
+		return
+	}
+	consumer.lifecycleMu.Lock()
+	if consumer.fatalErr == nil {
+		consumer.fatalErr = errors.Join(ErrConsumerInstanceFenced, err)
+	}
+	consumer.lifecycleMu.Unlock()
+}
+
+func (consumer *Consumer) groupError(err error) error {
+	consumer.recordFatalGroupError(err)
+	consumer.lifecycleMu.Lock()
+	fatalErr := consumer.fatalErr
+	consumer.lifecycleMu.Unlock()
+	if fatalErr == nil {
+		return err
+	}
+	if errors.Is(err, ErrConsumerFatal) {
+		return err
+	}
+
+	return errors.Join(ErrConsumerFatal, fatalErr, err)
 }
 
 func (consumer *Consumer) endRun() {

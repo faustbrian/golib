@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -302,6 +303,47 @@ func TestConsumerRunBatchOnceReportsFetchAndCommitErrors(t *testing.T) {
 		result != (PollResult{Polled: 2, Processed: 1}) ||
 		len(commitBackend.committed) != 1 {
 		t.Fatalf("commit result/error/backend = %#v/%v/%#v", result, err, commitBackend)
+	}
+}
+
+func TestConsumerRunBatchOnceTreatsFetchFencingAsTerminal(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingConsumerBackend{
+		fetches: kgo.NewErrFetch(kerr.FencedInstanceID),
+	}
+	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+
+	result, err := consumer.RunBatchOnce(
+		context.Background(),
+		BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			t.Fatal("fenced fetch invoked handler")
+
+			return nil
+		}),
+	)
+	if !errors.Is(err, ErrConsumerFatal) ||
+		!errors.Is(err, ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) ||
+		result != (PollResult{}) ||
+		backend.pollCalls != 1 {
+		t.Fatalf("fenced fetch result/error/backend = %#v/%v/%#v", result, err, backend)
+	}
+
+	result, err = consumer.RunBatchOnce(
+		context.Background(),
+		BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			t.Fatal("terminal consumer invoked handler")
+
+			return nil
+		}),
+	)
+	if !errors.Is(err, ErrConsumerFatal) ||
+		!errors.Is(err, ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) ||
+		result != (PollResult{}) ||
+		backend.pollCalls != 1 {
+		t.Fatalf("terminal result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
 }
 

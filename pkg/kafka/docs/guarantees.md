@@ -174,8 +174,13 @@ rolling deployment with `BalanceEagerToCooperative`, followed by a second with
 is safe. When `InstanceID` is set, franz-go static-membership close semantics do
 not send an ordinary leave-group request, allowing a bounded restart window but
 leaving removal to an explicit Kafka administrative action. Instance identity
-must be unique within the group or the broker may fence a member. `Rack` only
-requests preferred-replica fetching; broker topology determines the result.
+must be unique within the group. A duplicate live identity causes Kafka to
+fence the older member. The package converts the observed fence into a
+permanent lifecycle state returning `ErrConsumerFatal` and
+`ErrConsumerInstanceFenced`, retains the broker cause without requiring callers
+to import franz-go, and rejects every later runner before polling. It does not
+automatically rejoin and fight the replacement. `Rack` only requests
+preferred-replica fetching; broker topology determines the result.
 
 Explicit partition pauses are bounded by `MaxPausedPartitions` and persist
 until resumed. They affect future fetches, not records already buffered or
@@ -260,6 +265,7 @@ publication, acknowledged retry-topic and dead-letter metadata followed by
 source settlement, concurrent record and batch handling across independent
 partitions with sequential order inside each partition, eager group membership,
 partition pause/resume, a static member restart using the same instance ID, and
+duplicate-live-instance fencing into a terminal package lifecycle state,
 committed-versus-aborted transaction visibility, plus replay interruption,
 external-checkpoint resume, out-of-range rejection, cluster/controller
 visibility, and topic durability/offset inspection against Confluent Local

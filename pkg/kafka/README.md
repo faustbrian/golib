@@ -196,6 +196,11 @@ later records. Handlers must honor their context. Select
 `RebalanceDrainHandler` only when all active handlers can finish within the
 validated rebalance deadline relationship.
 
+Static `InstanceID` values must be unique within a group. If Kafka fences an
+older duplicate member, its consumer permanently rejects new runners with
+`ErrConsumerFatal` and `ErrConsumerInstanceFenced` while retaining the broker
+cause; shut it down and construct a new consumer with a corrected identity.
+
 Consumer fetches default to at most four concurrent broker requests, 50 MiB per
 request, and 1 MiB per partition. All three limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a

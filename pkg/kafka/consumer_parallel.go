@@ -265,6 +265,7 @@ func (consumer *Consumer) settlePartitionResults(
 	}
 	err := consumer.client.CommitRecords(commitCtx, committable...)
 	cancel()
+	err = consumer.groupError(err)
 	consumer.observeConsumerCommit(
 		ctx,
 		startedAt,

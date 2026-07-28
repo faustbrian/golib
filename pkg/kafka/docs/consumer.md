@@ -103,7 +103,15 @@ Setting `InstanceID` opts into Kafka static membership. A normal client close
 does not explicitly leave that static member, so a restart using the same ID
 can rejoin within the session timeout without forcing an immediate rebalance.
 Removing a static member is an explicit Kafka administrative operation. A
-duplicate live ID can be fenced by the broker.
+duplicate live ID fences the older member. Once the package observes
+`FENCED_INSTANCE_ID`, the consumer enters a terminal state: the active call
+returns both `ErrConsumerFatal` and the stable
+`ErrConsumerInstanceFenced` policy sentinel while retaining the broker cause,
+and every later `Run`, `RunOnce`, or `RunBatchOnce` call fails before polling
+or invoking a handler. Callers do not need franz-go error types to classify
+this state. Automatic rejoin would contend with the replacement and is
+therefore not attempted. Shut the fenced consumer down, correct the
+deployment-unique instance identity, and construct a new consumer.
 See [KIP-345](https://cwiki.apache.org/confluence/display/KAFKA/KIP-345%3A%2BIntroduce%2Bstatic%2Bmembership%2Bprotocol%2Bto%2Breduce%2Bconsumer%2Brebalances)
 for the broker protocol and administrative model.
 

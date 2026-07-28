@@ -55,6 +55,8 @@ func (handler BatchHandlerFunc) HandleBatch(
 // partitions. A successful batch commits its last record; a failed batch
 // commits no record from that partition. Independent successful partition
 // batches remain committable. A nil context returns ErrContextRequired.
+// Static-membership fencing returns ErrConsumerFatal and
+// ErrConsumerInstanceFenced, then permanently rejects later runner calls.
 func (consumer *Consumer) RunBatchOnce(
 	ctx context.Context,
 	handler BatchHandler,
@@ -107,12 +109,15 @@ func (consumer *Consumer) runBatchOnce(
 			)
 		}()
 	}
+	defer func() {
+		resultErr = consumer.groupError(resultErr)
+	}()
 	result = PollResult{Polled: len(records)}
 	if len(records) > consumer.maxPollRecords {
 		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
 	}
 	if err := fetches.Err(); err != nil {
-		return PollResult{}, err
+		return PollResult{}, consumer.groupError(err)
 	}
 	token, err := consumer.assignment.token()
 	if err != nil {

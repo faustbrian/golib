@@ -151,6 +151,13 @@ handler.
 ordered eager-to-cooperative migration pair without exposing franz-go
 balancers. Optional validated `InstanceID` and `Rack` values select static
 membership and rack-aware fetching respectively.
+If Kafka fences a duplicate static `InstanceID`, the affected consumer enters a
+terminal state. The operation observing the fence and all later runner calls
+return both `ErrConsumerFatal` and `ErrConsumerInstanceFenced`; the stable
+package sentinel avoids a franz-go dependency while the underlying broker
+cause remains available in the error chain. Later calls fail before polling.
+Shutdown remains available, but recovery requires a new consumer with a
+corrected deployment-unique identity.
 `ConsumerConfig.RebalanceHandler` defaults to `RebalanceCancelHandler`. A
 blocked rebalance cancels every active handler with `ErrConsumerRebalance` and
 stops every worker from admitting another callback from that poll. The explicit

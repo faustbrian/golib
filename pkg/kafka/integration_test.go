@@ -54,6 +54,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	explicitTopic := topic + "-explicit"
 	settlementTopic := topic + "-settlement"
 	membershipTopic := topic + "-membership"
+	staticFencingTopic := topic + "-static-fencing"
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
@@ -74,7 +75,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
-			rebalanceTopic, batchTopic, producerModesTopic,
+			staticFencingTopic, rebalanceTopic, batchTopic, producerModesTopic,
 			transactionSourceTopic,
 			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
 			replayTopic,
@@ -135,6 +136,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	)
 	createIntegrationTopic(t, ctx, brokers, settlementTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, staticFencingTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
@@ -253,6 +255,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 
 	provePartitionSettlement(t, ctx, brokers, producer, settlementTopic)
 	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
+	proveStaticMemberFencing(t, ctx, brokers, producer, staticFencingTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
 	proveBatchPolicy(t, ctx, brokers, producer, batchTopic)
@@ -2034,6 +2037,161 @@ func consumeMembershipValues(
 	}
 
 	return values
+}
+
+func proveStaticMemberFencing(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	const (
+		groupID    = "golib-compatibility-static-fencing"
+		instanceID = "static-fencing-member-01"
+	)
+	newStaticConsumer := func(clientID string) *kafka.Consumer {
+		consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+			Brokers:           brokers,
+			ClientID:          clientID,
+			GroupID:           groupID,
+			InstanceID:        instanceID,
+			Topics:            []string{topic},
+			ResetOffset:       kafka.OffsetEarliest,
+			BalancePolicy:     kafka.BalanceEagerSticky,
+			MaxPollRecords:    1,
+			SessionTimeout:    10 * time.Second,
+			RebalanceTimeout:  10 * time.Second,
+			HeartbeatInterval: 200 * time.Millisecond,
+			HandlerTimeout:    3 * time.Second,
+			CommitTimeout:     2 * time.Second,
+			DialTimeout:       10 * time.Second,
+			Security:          kafka.DevelopmentPlaintextSecurity(),
+		})
+		if err != nil {
+			t.Fatalf("construct %s: %v", clientID, err)
+		}
+		t.Cleanup(func() {
+			if err := consumer.Close(); err != nil {
+				t.Errorf("close %s: %v", clientID, err)
+			}
+		})
+
+		return consumer
+	}
+	publish := func(value string) {
+		t.Helper()
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte("static-fencing"),
+			Value: []byte(value),
+		})
+		if result.Err != nil {
+			t.Fatalf("publish static-fencing record: %v", result.Err)
+		}
+	}
+	runOne := func(
+		consumer *kafka.Consumer,
+		want string,
+	) kafka.PollResult {
+		t.Helper()
+		for {
+			result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+				_ context.Context,
+				record kafka.ConsumedMessage,
+			) error {
+				if string(record.Value) != want {
+					t.Fatalf(
+						"static-fencing value = %q, want %q",
+						record.Value,
+						want,
+					)
+				}
+
+				return nil
+			}))
+			if err != nil {
+				t.Fatalf("consume static-fencing record: %v", err)
+			}
+			if result.Polled == 0 {
+				continue
+			}
+
+			return result
+		}
+	}
+
+	original := newStaticConsumer("golib-static-fencing-original")
+	publish("original")
+	if result := runOne(original, "original"); result != (kafka.PollResult{
+		Polled: 1, Processed: 1, Committed: 1,
+	}) {
+		t.Fatalf("original static-fencing result = %#v", result)
+	}
+
+	replacement := newStaticConsumer("golib-static-fencing-replacement")
+	publish("replacement")
+	if result := runOne(replacement, "replacement"); result != (kafka.PollResult{
+		Polled: 1, Processed: 1, Committed: 1,
+	}) {
+		t.Fatalf("replacement static-fencing result = %#v", result)
+	}
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	var assignment kafka.ConsumerAssignment
+	for !assignment.Lost {
+		var err error
+		assignment, err = original.Assignment()
+		if err != nil {
+			t.Fatalf("inspect static-fencing assignment: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for static fencing: %v", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+	_, originalErr := original.RunOnce(
+		ctx,
+		kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedMessage,
+		) error {
+			t.Fatal("fenced static consumer invoked handler")
+
+			return nil
+		}),
+	)
+	if !errors.Is(originalErr, kafka.ErrConsumerFatal) ||
+		!errors.Is(originalErr, kafka.ErrConsumerInstanceFenced) ||
+		!errors.Is(originalErr, kerr.FencedInstanceID) {
+		t.Fatalf("fenced static consumer error = %v", originalErr)
+	}
+	assignment, assignmentErr := original.Assignment()
+	if assignmentErr != nil ||
+		!assignment.Lost ||
+		len(assignment.Partitions) != 0 {
+		t.Fatalf(
+			"fenced static assignment/error = %#v/%v",
+			assignment,
+			assignmentErr,
+		)
+	}
+	if _, err := original.RunOnce(
+		ctx,
+		kafka.HandlerFunc(func(context.Context, kafka.ConsumedMessage) error {
+			t.Fatal("terminal static consumer invoked handler")
+
+			return nil
+		}),
+	); !errors.Is(err, kafka.ErrConsumerFatal) ||
+		!errors.Is(err, kafka.ErrConsumerInstanceFenced) ||
+		!errors.Is(err, kerr.FencedInstanceID) {
+		t.Fatalf("terminal static consumer error = %v", err)
+	}
 }
 
 func assertActiveGroupAssignment(
