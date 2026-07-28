@@ -3231,6 +3231,7 @@
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
@@ -4077,6 +4078,7 @@
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
@@ -6691,6 +6693,7 @@
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
@@ -14516,6 +14519,18 @@
         },
         {
           "module_directory": "pkg/scheduler",
+          "directory": "schedulerservice",
+          "name": "schedulerservice",
+          "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulerservice",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/scheduler",
           "directory": "schedulertest",
           "name": "schedulertest",
           "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulertest",
@@ -14558,9 +14573,13 @@
       "version": "unreleased",
       "tag_prefix": "pkg/scheduler/v",
       "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
         "github.com/faustbrian/golib/pkg/clock",
+        "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/idempotency",
+        "github.com/faustbrian/golib/pkg/identifier",
         "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "reverse_owned_dependencies": [
@@ -15178,6 +15197,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],

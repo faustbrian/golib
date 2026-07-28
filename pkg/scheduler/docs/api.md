@@ -44,6 +44,20 @@ default deadline and share 128 managed slots. Configure these with
 capacity failure fails the occurrence. Lifecycle hooks and observers are
 best-effort once callback capacity is exhausted.
 
+## Service lifecycle
+
+`schedulerservice.New` constructs a concrete correlation-aware runner from a
+caller-owned registry, lease store, executor, and runner options. `Plan`
+returns one long-running task plus a final drain component. Under `service`,
+task cancellation stops new scheduling, `Runner.Drain` joins retained
+executions, and supplied facility components close afterward.
+
+Every occurrence starts a new workflow through `correlation/schedule` by
+default. `CorrelationTrustedMetadata` explicitly continues trusted correlation
+fields embedded in application-owned schedule metadata. See
+[service lifecycle integration](service-integration.md) for ownership,
+readiness, failure, and repeated-shutdown semantics.
+
 ## Ownership
 
 `lease.Store` defines `Acquire`, `Heartbeat`, `Release`, `Inspect`, `Recover`,

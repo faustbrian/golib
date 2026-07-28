@@ -62,6 +62,8 @@ shutdown, cancel `Run` and call `Drain` with a deadline.
 - `queue`: `queue` occurrence envelopes
 - `idempotency`: optional `idempotency` dispatch guard
 - `schedulerhttp`, `schedulercli`: inspection and fenced recovery controls
+- `schedulerservice`: `service` lifecycle, drain ordering, and scheduled-work
+  correlation composition
 - `history`: bounded operational event history
 - `telemetry`: `log` compatible structured logging and `telemetry`
 - `schedulertest`: deterministic fake clock

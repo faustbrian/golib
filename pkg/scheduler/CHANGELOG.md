@@ -17,6 +17,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- `schedulerservice` lifecycle composition that stops scheduling, drains active
+  executions before owned facilities close, and applies the existing schedule
+  correlation semantics to every occurrence.
 - PostgreSQL lease stores and migrations can target an explicit caller-owned
   schema while preserving the public-schema default.
 - code-defined versioned schedules with deterministic timezone-aware timing

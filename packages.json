@@ -5984,6 +5984,18 @@
     },
     {
       "module_directory": "pkg/scheduler",
+      "directory": "schedulerservice",
+      "name": "schedulerservice",
+      "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulerservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/scheduler",
       "directory": "schedulertest",
       "name": "schedulertest",
       "import_path": "github.com/faustbrian/golib/pkg/scheduler/schedulertest",

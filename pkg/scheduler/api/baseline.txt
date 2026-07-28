@@ -779,6 +779,94 @@ type Schedule struct {
 }
     Schedule is the bounded public inspection view of a schedule.
 
+PACKAGE github.com/faustbrian/golib/pkg/scheduler/schedulerservice
+package schedulerservice // import "github.com/faustbrian/golib/pkg/scheduler/schedulerservice"
+
+Package schedulerservice composes a scheduler.Runner with the service lifecycle
+and correlation schedule semantics.
+
+Callers construct schedules, lease stores, executors, and facility components.
+The adapter constructs and exposes the concrete runner, but it does not close
+facilities itself. Facilities listed in Options start before scheduling and
+stop only after service has canceled the runner task and the runner has joined
+active executions. Facility components therefore transfer exactly the ownership
+expressed by their own lifecycle contracts.
+
+Every occurrence starts an independent correlation workflow by default.
+CorrelationTrustedMetadata must be selected explicitly to continue trusted
+correlation metadata embedded in an application-owned schedule. Retry, schedule,
+lease, readiness, and business-command policy remain caller owned.
+
+VARIABLES
+
+var ErrInvalidOptions = errors.New("invalid scheduler service options")
+    ErrInvalidOptions identifies invalid adapter construction.
+
+
+TYPES
+
+type Adapter struct {
+	// Has unexported fields.
+}
+    Adapter retains the concrete runner and immutable service composition.
+
+func New(options Options) (*Adapter, error)
+    New validates options and constructs a correlation-aware scheduler runner.
+
+func (adapter *Adapter) Plan() service.Plan
+    Plan returns an isolated long-running service plan. Facilities retain their
+    declaration order; the final drain component therefore stops before them.
+
+func (adapter *Adapter) Runner() *scheduler.Runner
+    Runner returns the concrete scheduler runner constructed by New.
+
+type CorrelationMode uint8
+    CorrelationMode selects the existing schedule correlation boundary used for
+    each occurrence.
+
+const (
+	// CorrelationIndependent starts a new workflow for every occurrence.
+	CorrelationIndependent CorrelationMode = iota
+	// CorrelationTrustedMetadata continues correlation fields deliberately
+	// embedded in application-owned schedule metadata.
+	CorrelationTrustedMetadata
+)
+type Options struct {
+	// Name is the secret-safe task and lifecycle prefix.
+	Name string
+	// Registry is the caller-compiled immutable schedule registry.
+	Registry *scheduler.Registry
+	// Leases is the caller-constructed scheduler lease facility.
+	Leases lease.Store
+	// Executor performs or dispatches application-owned scheduled work.
+	Executor scheduler.Executor
+	// Correlation creates per-occurrence correlation identifiers.
+	Correlation *correlation.Factory
+	// CorrelationOptions configure the existing schedule propagation adapter.
+	CorrelationOptions schedulecorrelation.Options
+	// CorrelationMode defaults to independent workflows.
+	CorrelationMode CorrelationMode
+	// RunnerOptions are applied while constructing the concrete runner.
+	RunnerOptions []scheduler.RunnerOption
+	// Facilities start before scheduling and stop after the runner drains.
+	Facilities []service.Component
+}
+    Options configure one scheduler lifecycle adapter.
+
+type OptionsError struct {
+	// Field identifies the rejected option.
+	Field string
+	// Reason describes the safe failure category.
+	Reason string
+}
+    OptionsError identifies one rejected option.
+
+func (err *OptionsError) Error() string
+    Error returns a secret-safe construction diagnostic.
+
+func (err *OptionsError) Unwrap() error
+    Unwrap exposes the stable option classification.
+
 PACKAGE github.com/faustbrian/golib/pkg/scheduler/schedulertest
 package schedulertest // import "github.com/faustbrian/golib/pkg/scheduler/schedulertest"
 
