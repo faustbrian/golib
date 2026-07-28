@@ -1971,6 +1971,125 @@ printf 'gate passed\n'
 	}
 }
 
+func TestGateEvidencePreservesEachInputDigestAcrossSharedArtifacts(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, script := range []string{
+		"audit-goals.sh",
+		"verify-gate-evidence.sh",
+	} {
+		contents, err := os.ReadFile(filepath.Join(root, "scripts", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(repository, "scripts", script)
+		writeFile(t, path, string(contents))
+		if err := os.Chmod(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "input-digest"), "input-a\n")
+	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+cat "$root/input-digest"
+`)
+	writeFile(t, filepath.Join(repository, "scripts", "check-module.sh"), `#!/bin/sh
+set -eu
+printf 'gate passed\n'
+`)
+	writeFile(t, filepath.Join(repository, "scripts", "check-gates.txt"), "test\n")
+	writeFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": ".",
+    "module_path": "example.test/evidence",
+    "goal_status": "implementation-evidence-inventoried",
+    "goal_evidence": [{
+      "file": ".ai/GOAL.md",
+      "requirements_sha256": "goal-digest",
+      "implementation_evidence": ["go.mod"],
+      "verification_gates": ["test"],
+      "implementation_status": "implemented-requires-fresh-verification"
+    }]
+  }]
+}`)
+	for _, path := range []string{
+		"scripts/gate-input-digest.sh",
+		"scripts/check-module.sh",
+	} {
+		if err := os.Chmod(filepath.Join(repository, path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runGit := func(arguments ...string) {
+		t.Helper()
+		command := exec.Command("git", arguments...)
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(arguments, " "), err, output)
+		}
+	}
+	runGit("init", "--initial-branch=main")
+	runGit("config", "user.email", "golib@example.test")
+	runGit("config", "user.name", "golib")
+	runGit("add", "go.mod", "input-digest", "modules.json", "scripts")
+	runGit("commit", "-m", "initial")
+
+	evidenceRunner := filepath.Join(root, "scripts", "run-gate-with-evidence.sh")
+	runEvidence := func() {
+		t.Helper()
+		command := exec.Command(evidenceRunner, ".", "test")
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("run evidence: %v\n%s", err, output)
+		}
+	}
+	runEvidence()
+	writeFile(t, filepath.Join(repository, "input-digest"), "input-b\n")
+	runEvidence()
+	writeFile(t, filepath.Join(repository, "input-digest"), "input-a\n")
+
+	verify := exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		".",
+		"test",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err != nil {
+		t.Fatalf("verify first input after shared alias advanced: %v\n%s", err, output)
+	}
+
+	audit := exec.Command(
+		filepath.Join(repository, "scripts", "audit-goals.sh"),
+		".",
+	)
+	audit.Dir = repository
+	if output, err := audit.CombinedOutput(); err != nil {
+		t.Fatalf("audit first input after shared alias advanced: %v\n%s", err, output)
+	}
+	var report struct {
+		GateEvidence []struct {
+			InputDigest string `json:"input_digest"`
+		} `json:"gate_evidence"`
+	}
+	decodeJSONFile(
+		t,
+		filepath.Join(repository, ".artifacts", "goal-traceability.json"),
+		&report,
+	)
+	if len(report.GateEvidence) != 1 ||
+		report.GateEvidence[0].InputDigest != "input-a" {
+		t.Fatalf("goal audit gate evidence = %+v, want input-a", report.GateEvidence)
+	}
+}
+
 func TestGolibGremlinsExecutesDeclarationMutants(t *testing.T) {
 	root := testRepositoryRoot(t)
 	module := standaloneModule(t, `package fixture

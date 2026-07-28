@@ -10,19 +10,27 @@ root="$(git rev-parse --show-toplevel)"
 module="$1"
 gate="$2"
 artifact="${root}/.artifacts/${module}/evidence"
-evidence="${artifact}/${gate}.json"
-log="${artifact}/${gate}.log"
+legacy_evidence="${artifact}/${gate}.json"
+legacy_log="${artifact}/${gate}.log"
 lock_root="${artifact}/.locks"
 lock="${lock_root}/${gate}.lock"
-temporary_evidence="${evidence}.tmp.$$"
-temporary_log="${log}.tmp.$$"
+temporary_evidence=""
+temporary_log=""
+temporary_legacy_evidence="${legacy_evidence}.tmp.$$"
+temporary_legacy_log="${legacy_log}.tmp.$$"
 started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 execution_revision="$(git rev-parse HEAD)"
 lock_acquired=0
 
 # shellcheck disable=SC2329 # Invoked by the signal and exit trap.
 cleanup() {
-    rm -f "${temporary_evidence}" "${temporary_log}"
+    if [[ -n "${temporary_evidence}" ]]; then
+        rm -f "${temporary_evidence}"
+    fi
+    if [[ -n "${temporary_log}" ]]; then
+        rm -f "${temporary_log}"
+    fi
+    rm -f "${temporary_legacy_evidence}" "${temporary_legacy_log}"
     if [[ "${lock_acquired}" -eq 1 ]]; then
         rm -f "${lock}/owner"
         rmdir "${lock}" 2>/dev/null || true
@@ -47,11 +55,23 @@ printf '%s\n' "$$" >"${lock}/owner"
 lock_acquired=1
 
 input_digest="$("${root}/scripts/gate-input-digest.sh" "${gate}" "${module}")"
+digest_artifact="${artifact}/by-input/${gate}"
+evidence="${digest_artifact}/${input_digest}.json"
+log="${digest_artifact}/${input_digest}.log"
+temporary_evidence="${evidence}.tmp.$$"
+temporary_log="${log}.tmp.$$"
+mkdir -p "${digest_artifact}"
 rm -f "${temporary_evidence}" "${temporary_log}"
 
-if [[ -f "${evidence}" && -f "${log}" ]]; then
-    recorded_log_sha256="$(jq -er '.log_sha256' "${evidence}" 2>/dev/null || true)"
-    current_log_sha256="$(shasum -a 256 "${log}" | awk '{print $1}')"
+source_evidence="${evidence}"
+source_log="${log}"
+if [[ ! -f "${source_evidence}" || ! -f "${source_log}" ]]; then
+    source_evidence="${legacy_evidence}"
+    source_log="${legacy_log}"
+fi
+if [[ -f "${source_evidence}" && -f "${source_log}" ]]; then
+    recorded_log_sha256="$(jq -er '.log_sha256' "${source_evidence}" 2>/dev/null || true)"
+    current_log_sha256="$(shasum -a 256 "${source_log}" | awk '{print $1}')"
     if jq -e \
         --arg module "${module}" \
         --arg gate "${gate}" \
@@ -66,7 +86,7 @@ if [[ -f "${evidence}" && -f "${log}" ]]; then
             .input_digest == $input_digest and
             .completed_input_digest == $input_digest and
             .log_sha256 == $log_sha256
-        ' "${evidence}" >/dev/null 2>&1 &&
+        ' "${source_evidence}" >/dev/null 2>&1 &&
         [[ "${recorded_log_sha256}" == "${current_log_sha256}" ]]; then
         revalidated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         jq \
@@ -76,8 +96,14 @@ if [[ -f "${evidence}" && -f "${log}" ]]; then
                 .revalidated_revision = $revalidated_revision |
                 .revalidated_at = $revalidated_at |
                 .reuse_count = ((.reuse_count // 0) + 1)
-            ' "${evidence}" >"${temporary_evidence}"
+            ' "${source_evidence}" >"${temporary_evidence}"
+        cp "${source_log}" "${temporary_log}"
+        mv "${temporary_log}" "${log}"
         mv "${temporary_evidence}" "${evidence}"
+        cp "${log}" "${temporary_legacy_log}"
+        cp "${evidence}" "${temporary_legacy_evidence}"
+        mv "${temporary_legacy_log}" "${legacy_log}"
+        mv "${temporary_legacy_evidence}" "${legacy_evidence}"
         printf '[%s] %s evidence: reused\n' "${module}" "${gate}"
         exit 0
     fi
@@ -138,5 +164,9 @@ jq -n \
 
 mv "${temporary_log}" "${log}"
 mv "${temporary_evidence}" "${evidence}"
+cp "${log}" "${temporary_legacy_log}"
+cp "${evidence}" "${temporary_legacy_evidence}"
+mv "${temporary_legacy_log}" "${legacy_log}"
+mv "${temporary_legacy_evidence}" "${legacy_evidence}"
 printf '[%s] %s evidence: %s\n' "${module}" "${gate}" "${result}"
 exit "${command_status}"

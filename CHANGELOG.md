@@ -45,6 +45,9 @@ documented in each module's changelog.
 - Isolate verification runs in dirty-tree-preserving source snapshots, support
   bounded parallel jobs, and serialize duplicate evidence writers so concurrent
   checks cannot invalidate or overwrite one another.
+- Preserve gate checkpoints by complete input fingerprint so a concurrent
+  snapshot for different inputs cannot overwrite proof needed by an active
+  aggregate verification run.
 - Isolate root digest fixtures from the repository Go wrapper so the
   CI-equivalent clean module environment exercises fixture-local modules.
 - Refresh all stale owned-module checksums against the final consolidated

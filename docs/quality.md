@@ -54,8 +54,11 @@ atomically before another gate begins.
 `scripts/check-gates.txt` is the canonical ordered contract used by both the
 aggregate module check and the repository runner. Each verification gate is
 executed through `scripts/run-gate-with-evidence.sh`, which writes the complete
-log before atomically publishing its JSON checkpoint. Failed and invalidated
-results are persisted just as promptly as successful results.
+log before atomically publishing its JSON checkpoint under the complete input
+fingerprint. The gate-level JSON and log paths remain compatibility aliases for
+the most recently published checkpoint; verification and goal audits resolve
+the fingerprint-addressed record. Failed and invalidated results are
+persisted just as promptly as successful results.
 
 Each checkpoint records the original execution revision, input fingerprint,
 timestamps, environment identity, exit status, and log checksum. A commit hash

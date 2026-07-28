@@ -10,8 +10,17 @@ root="$(git rev-parse --show-toplevel)"
 module="$1"
 gate="$2"
 artifact="${root}/.artifacts/${module}/evidence"
-evidence="${artifact}/${gate}.json"
-log="${artifact}/${gate}.log"
+input_digest="$("${root}/scripts/gate-input-digest.sh" "${gate}" "${module}")"
+digest_artifact="${artifact}/by-input/${gate}"
+evidence="${digest_artifact}/${input_digest}.json"
+log="${digest_artifact}/${input_digest}.log"
+legacy_evidence="${artifact}/${gate}.json"
+legacy_log="${artifact}/${gate}.log"
+
+if [[ ! -f "${evidence}" || ! -f "${log}" ]]; then
+    evidence="${legacy_evidence}"
+    log="${legacy_log}"
+fi
 
 [[ -f "${evidence}" ]] || {
     printf '[%s] missing %s evidence\n' "${module}" "${gate}" >&2
@@ -22,7 +31,6 @@ log="${artifact}/${gate}.log"
     exit 1
 }
 
-input_digest="$("${root}/scripts/gate-input-digest.sh" "${gate}" "${module}")"
 log_sha256="$(shasum -a 256 "${log}" | awk '{print $1}')"
 jq -e \
     --arg module "${module}" \

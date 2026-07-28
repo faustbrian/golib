@@ -32,7 +32,13 @@ if [[ "${goal_count}" -gt 0 ]]; then
     while IFS= read -r gate; do
         [[ -n "${gate}" ]] || continue
         "${root}/scripts/verify-gate-evidence.sh" "${module}" "${gate}"
-        evidence="${artifact}/evidence/${gate}.json"
+        input_digest="$(
+            "${root}/scripts/gate-input-digest.sh" "${gate}" "${module}"
+        )"
+        evidence="${artifact}/evidence/by-input/${gate}/${input_digest}.json"
+        if [[ ! -f "${evidence}" ]]; then
+            evidence="${artifact}/evidence/${gate}.json"
+        fi
         jq -c '{
             gate,
             result,
