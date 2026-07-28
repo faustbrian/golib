@@ -532,7 +532,8 @@ source.
 
 - `DefaultMaxBytes` is 1 MiB.
 - `ErrPayloadTooLarge` identifies a configured byte-limit violation.
-- `DecodeOptions` contains `MaxBytes` and `DisallowUnknownFields`.
+- `DecodeOptions` contains `MaxBytes`, `DisallowUnknownFields`, and
+  `DisallowDuplicateNames`.
 - `EncodeOptions` contains `MaxBytes`, `Indent`, and `DisableHTMLEscaping`.
 - `NormalizeOptions` contains `MaxBytes`.
 - `Decode([]byte, any, DecodeOptions) error` decodes exactly one value into a
@@ -1041,7 +1042,8 @@ Use this only when an upstream contract is intentionally closed:
 
 ```go
 err := jsonwire.Decode(payload, &target, jsonwire.DecodeOptions{
-	DisallowUnknownFields: true,
+	DisallowUnknownFields:  true,
+	DisallowDuplicateNames: true,
 })
 ```
 
@@ -2184,6 +2186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Opt-in recursive duplicate-name rejection for bounded JSON decoding before
+  the destination value can be mutated.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - CI resolves the latest supported Go 1.25 patch while `go.mod` declares the

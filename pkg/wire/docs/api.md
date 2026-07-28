@@ -36,7 +36,8 @@ source.
 
 - `DefaultMaxBytes` is 1 MiB.
 - `ErrPayloadTooLarge` identifies a configured byte-limit violation.
-- `DecodeOptions` contains `MaxBytes` and `DisallowUnknownFields`.
+- `DecodeOptions` contains `MaxBytes`, `DisallowUnknownFields`, and
+  `DisallowDuplicateNames`.
 - `EncodeOptions` contains `MaxBytes`, `Indent`, and `DisableHTMLEscaping`.
 - `NormalizeOptions` contains `MaxBytes`.
 - `Decode([]byte, any, DecodeOptions) error` decodes exactly one value into a

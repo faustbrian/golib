@@ -55,6 +55,55 @@ func TestDecodeRejectsMalformedAndTrailingValues(t *testing.T) {
 	}
 }
 
+func TestDecodeCanRejectDuplicateObjectNamesBeforeMutation(t *testing.T) {
+	t.Parallel()
+
+	target := map[string]any{"unchanged": true}
+	err := jsonwire.Decode(
+		[]byte(`{"outer":{"token":"first","token":"second"}}`),
+		&target,
+		jsonwire.DecodeOptions{DisallowDuplicateNames: true},
+	)
+	assertKind(t, err, wire.ErrValidation)
+	if len(target) != 1 || target["unchanged"] != true {
+		t.Fatalf("Decode() mutated target = %#v", target)
+	}
+
+	if err := jsonwire.Decode(
+		[]byte(`{"token":"first","token":"second"}`),
+		&target,
+		jsonwire.DecodeOptions{},
+	); err != nil {
+		t.Fatalf("Decode(default duplicate policy) error = %v", err)
+	}
+}
+
+func TestDuplicateNameValidationDefinesEveryJSONShape(t *testing.T) {
+	t.Parallel()
+
+	for _, payload := range []string{
+		`1`,
+		`[1,{"name":"value"}]`,
+	} {
+		var target any
+		if err := jsonwire.Decode([]byte(payload), &target, jsonwire.DecodeOptions{DisallowDuplicateNames: true}); err != nil {
+			t.Errorf("Decode(%s) error = %v", payload, err)
+		}
+	}
+
+	for _, payload := range []string{
+		``,
+		`{"`,
+		`{"name":1`,
+		`[1`,
+		`[{"name":}]`,
+		`{}[]`,
+	} {
+		var target any
+		assertKind(t, jsonwire.Decode([]byte(payload), &target, jsonwire.DecodeOptions{DisallowDuplicateNames: true}), wire.ErrParse)
+	}
+}
+
 func TestDecodeRejectsInvalidUTF8InsteadOfReplacingIt(t *testing.T) {
 	t.Parallel()
 
@@ -223,6 +272,10 @@ func FuzzDecode(f *testing.F) {
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		var target any
 		_ = jsonwire.Decode(payload, &target, jsonwire.DecodeOptions{MaxBytes: 64 << 10})
+		_ = jsonwire.Decode(payload, &target, jsonwire.DecodeOptions{
+			MaxBytes:               64 << 10,
+			DisallowDuplicateNames: true,
+		})
 	})
 }
 

@@ -23,8 +23,9 @@ var ErrPayloadTooLarge = errors.New("payload exceeds size limit")
 
 // DecodeOptions controls JSON decoding behavior.
 type DecodeOptions struct {
-	MaxBytes              int64
-	DisallowUnknownFields bool
+	MaxBytes               int64
+	DisallowUnknownFields  bool
+	DisallowDuplicateNames bool
 }
 
 // EncodeOptions controls JSON encoding behavior.
@@ -57,6 +58,11 @@ func DecodeReader(reader io.Reader, target any, options DecodeOptions) error {
 	if !utf8.Valid(payload) {
 		return parseError("decode", errors.New("JSON text is not valid UTF-8"))
 	}
+	if options.DisallowDuplicateNames {
+		if err := validateUniqueNames(payload); err != nil {
+			return err
+		}
+	}
 
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	if options.DisallowUnknownFields {
@@ -69,6 +75,60 @@ func DecodeReader(reader io.Reader, target any, options DecodeOptions) error {
 		return err
 	}
 
+	return nil
+}
+
+func validateUniqueNames(payload []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	if err := validateUniqueValue(decoder); err != nil {
+		return err
+	}
+	return requireEOF(decoder)
+}
+
+func validateUniqueValue(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return decodeError(err)
+	}
+	delimiter, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		names := make(map[string]struct{})
+		for decoder.More() {
+			token, err := decoder.Token()
+			if err != nil {
+				return decodeError(err)
+			}
+			name := token.(string) // encoding/json guarantees object names are strings.
+			if _, exists := names[name]; exists {
+				return validationError("decode", errors.New("duplicate JSON object name"))
+			}
+			names[name] = struct{}{}
+			if err := validateUniqueValue(decoder); err != nil {
+				return err
+			}
+		}
+		_, err = decoder.Token()
+		if err != nil {
+			return decodeError(err)
+		}
+		return nil
+	}
+	// A delimiter returned at the beginning of a JSON value can only be '[' or
+	// '{'; the object case is handled above.
+	for decoder.More() {
+		if err := validateUniqueValue(decoder); err != nil {
+			return err
+		}
+	}
+	_, err = decoder.Token()
+	if err != nil {
+		return decodeError(err)
+	}
 	return nil
 }
 

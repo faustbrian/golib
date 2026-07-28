@@ -6,7 +6,8 @@ Use this only when an upstream contract is intentionally closed:
 
 ```go
 err := jsonwire.Decode(payload, &target, jsonwire.DecodeOptions{
-	DisallowUnknownFields: true,
+	DisallowUnknownFields:  true,
+	DisallowDuplicateNames: true,
 })
 ```
 
