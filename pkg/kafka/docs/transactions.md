@@ -131,13 +131,16 @@ Definitive authorization, fencing, and fatal errors are classified; ambiguous
 end results preserve `ErrTransactionOutcomeUnknown`. Close and replace the
 processor after reconciliation instead of blindly continuing.
 
-The broker fixture proves that a successful poll advances the source-group
-offset with read-committed outputs and does not pass an aborted transactional
-source record to the handler. An aborted processing poll leaves the source
-offset unchanged, hides its output at read-committed isolation, and redelivers
-the source record. This remains single-broker evidence. Multi-broker
-rebalance, producer fencing, timeout, crash recovery, and older-broker behavior
-are not yet support evidence.
+The single-broker fixture proves that a successful poll advances the
+source-group offset with read-committed outputs and does not pass an aborted
+transactional source record to the handler. An aborted processing poll leaves
+the source offset unchanged, hides its output at read-committed isolation, and
+redelivers the source record. The pinned three-broker Apache fixture proves the
+same commit, abort, redelivery, and retry boundary while one broker process is
+unavailable and the replicated source, output, offsets, and transaction-state
+topics remain at ISR two. Multi-process group rebalance, producer fencing,
+timeout, processor crash recovery, and older-broker behavior are not yet
+support evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store

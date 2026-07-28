@@ -2545,23 +2545,53 @@ func assertPartitionCommits(
 		t.Fatalf("construct partition settlement inspector: %v", err)
 	}
 	defer inspector.Close()
-	groups, err := inspector.ConsumerGroupLag(ctx, groupID)
-	if err != nil {
-		t.Fatalf("inspect partition settlement offsets: %v", err)
+
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastGroups []kafka.ConsumerGroupState
+	var lastErr error
+	for {
+		groups, err := inspector.ConsumerGroupLag(waitCtx, groupID)
+		if err == nil && partitionCommitsMatch(groups, topic, want) {
+			return
+		}
+		lastGroups = groups
+		lastErr = err
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf(
+				"wait for partition settlement offsets: %v; state = %#v; "+
+					"last error = %v",
+				context.Cause(waitCtx),
+				lastGroups,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
 	}
+}
+
+func partitionCommitsMatch(
+	groups []kafka.ConsumerGroupState,
+	topic string,
+	want map[int32]int64,
+) bool {
 	if len(groups) != 1 || len(groups[0].Partitions) != len(want) {
-		t.Fatalf("partition settlement group state = %#v", groups)
+		return false
 	}
 	for _, partition := range groups[0].Partitions {
-		if partition.Topic != topic ||
-			partition.CommittedOffset != want[partition.Partition] {
-			t.Fatalf("partition settlement group state = %#v", groups[0])
+		offset, exists := want[partition.Partition]
+		if !exists ||
+			partition.Topic != topic ||
+			partition.CommittedOffset != offset {
+			return false
 		}
-		delete(want, partition.Partition)
 	}
-	if len(want) != 0 {
-		t.Fatalf("partition settlement missing offsets = %#v", want)
-	}
+
+	return true
 }
 
 func createIntegrationTopic(

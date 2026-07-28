@@ -48,10 +48,14 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	fencingTransactionTopic := topic + "-transaction-fencing"
 	warmTransactionTopic := topic + "-transaction-warm"
 	recoveredTransactionTopic := topic + "-transaction-recovered"
+	processorSourceTopic := topic + "-processor-source"
+	processorOutputTopic := topic + "-processor-output"
 	createApacheKafkaTopic(t, ctx, brokers, topic, 3)
 	createApacheKafkaTopic(t, ctx, brokers, fencingTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, processorSourceTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, processorOutputTopic, 1)
 
 	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
 		Brokers:  brokers,
@@ -101,7 +105,7 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:       brokers,
 		ClientID:      "golib-apache-failure-producer",
-		AllowedTopics: []string{topic},
+		AllowedTopics: []string{topic, processorSourceTopic},
 		Security:      kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
@@ -126,6 +130,38 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 			state.Partitions[0].Leader != stoppedNode
 	})
 	assertApacheKafkaDelivery(t, ctx, producer, topic, 0, "during-stop")
+	waitForApacheTopicState(t, ctx, inspector, processorSourceTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			allPartitionsMatch(state, 3, 2)
+	})
+	waitForApacheTopicState(t, ctx, inspector, processorOutputTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			allPartitionsMatch(state, 3, 2)
+	})
+	waitForApacheTopicState(t, ctx, inspector, "__transaction_state", func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) > 0 &&
+			allPartitionsMatch(state, 3, 2)
+	})
+	proveConsumeTransformProduce(
+		t,
+		ctx,
+		brokers,
+		producer,
+		processorSourceTopic,
+		processorOutputTopic,
+	)
+	waitForApacheTopicState(t, ctx, inspector, "__consumer_offsets", func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) > 0 &&
+			allPartitionsMatch(state, 3, 2)
+	})
 
 	cluster.startNode(t, ctx, stoppedNode)
 	recoveredBrokers := cluster.brokers(t, ctx)

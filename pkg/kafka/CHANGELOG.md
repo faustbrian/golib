@@ -22,6 +22,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker consume-transform-produce evidence that committed output and
+  source offsets remain atomic, failed processing redelivers without visible
+  output, and a later retry succeeds while one broker process is unavailable
+  at ISR two
 - three-broker Apache Kafka evidence that a replacement producer using the
   same transactional ID fences the older producer, aborts its pending record,
   and leaves only the replacement transaction visible to read-committed
