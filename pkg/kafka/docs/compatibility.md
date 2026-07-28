@@ -51,7 +51,7 @@ floor still does not establish operational support for an untested broker.
 | Amazon MSK Serverless | TLS and IAM with documented service limits | Unverified |
 | Redpanda, Confluent Cloud, Event Hubs, other compatible services | Add only after direct testing | Unverified and unsupported |
 | TLS and mTLS | TLS 1.2/1.3, hostname/root failures, rotation | The pinned Apache 4.3.1 broker negotiates exact TLS 1.2 and 1.3, rejects an unknown root and wrong hostname, and requires a client certificate. Provider-backed mTLS producer delivery, consumer settlement, and inspector health pass; the same broker rejects a client without a certificate. Live certificate rollover remains unverified. |
-| SASL/PLAIN | Verified TLS only | The pinned Apache 4.3.1 `SASL_SSL` listener accepts provider-backed production and rejects an incorrect password. Reauthentication during credential rollover remains unverified. |
+| SASL/PLAIN | Verified TLS only | The pinned Apache 4.3.1 `SASL_SSL` listener accepts provider-backed production and rejects an incorrect password. With KRaft `StandardAuthorizer` enabled, a separately authenticated principal with no matching ACL receives a classifiable topic-authorization delivery failure and unchanged inspector authorization identity without password disclosure. Reauthentication during credential rollover remains unverified. |
 | SCRAM-SHA-256/512 | Verified TLS only | The pinned Apache 4.3.1 KRaft metadata log is initialized with independently generated SHA-256 and SHA-512 credentials. Provider-backed production succeeds for each mechanism over `SASL_SSL`, incorrect credentials fail, SCRAM-SHA-512 consumption settles the full record set, and SCRAM-SHA-256 inspection succeeds. Live credential replacement remains unverified. |
 | OAUTHBEARER | Refreshing provider over verified TLS | The pinned Apache 4.3.1 `SASL_SSL` listener uses its production JWT validator with an RS256 JWKS plus exact issuer and audience checks. Provider-backed production and consumption succeed; correctly signed tokens for the wrong issuer or audience fail without appearing in the returned error. HTTP token acquisition, HTTPS JWKS refresh, signing-key rollover, and specific identity providers remain unverified. |
 | MSK IAM | Optional AWS signer adapter | The independently versioned adapter uses the supported Go signer, refreshing SDK v2 default chain or explicit provider, bounded cancellation and refresh, effective expiry capped by signing credentials, and redacted failures. Local contract, race, fuzz, and allocation evidence exists; no Provisioned or Serverless broker has been exercised, so operational compatibility remains unverified. |
@@ -79,6 +79,7 @@ Design and implementation are checked against:
   and [client quota operations](https://kafka.apache.org/43/operations/basic-kafka-operations/#setting-quotas);
 - [Apache Kafka TLS](https://kafka.apache.org/43/security/encryption-and-authentication-using-ssl/),
   [SASL authentication](https://kafka.apache.org/43/security/authentication-using-sasl/),
+  [authorization and ACLs](https://kafka.apache.org/43/security/authorization-and-acls/),
   [listener configuration](https://kafka.apache.org/43/security/listener-configuration/),
   and the OAUTHBEARER
   [URL allowlist system property](https://kafka.apache.org/43/configuration/system-properties/);

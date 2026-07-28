@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -28,6 +29,7 @@ import (
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 	franzoauth "github.com/twmb/franz-go/pkg/sasl/oauth"
@@ -57,6 +59,7 @@ type secureKafkaBroker struct {
 	pki       secureKafkaPKI
 
 	plainPassword    string
+	limitedPassword  string
 	scram256Password string
 	scram512Password string
 	oauthKey         *rsa.PrivateKey
@@ -288,6 +291,81 @@ func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
 	}
 }
 
+func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker.assertRuntimeVersions(t, ctx)
+	topic := fmt.Sprintf("golib-authorization-%d", time.Now().UnixNano())
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		franzplain.Auth{
+			User: "plain-user",
+			Pass: broker.plainPassword,
+		}.AsMechanism(),
+		topic,
+	)
+
+	limitedSecurity, calls := usernamePasswordSecurity(
+		broker,
+		"limited-user",
+		broker.limitedPassword,
+		kafka.NewPlainAuthentication,
+	)
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       []string{broker.endpoint},
+		ClientID:      "golib-authorization-producer",
+		AllowedTopics: []string{topic},
+		Security:      limitedSecurity,
+	})
+	if err != nil {
+		t.Fatalf("construct ACL-denied Kafka producer: %v", err)
+	}
+	result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte("denied"),
+		Value: []byte("denied"),
+	})
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close ACL-denied Kafka producer: %v", err)
+	}
+	if calls.Load() == 0 {
+		t.Fatal("ACL-denied credential provider was not used")
+	}
+	var deliveryErr *kafka.DeliveryError
+	if !errors.As(result.Err, &deliveryErr) ||
+		deliveryErr.Category() != kafka.ErrorAuthorization ||
+		!errors.Is(result.Err, kerr.TopicAuthorizationFailed) {
+		t.Fatalf("ACL-denied delivery error = %#v", result.Err)
+	}
+	if strings.Contains(result.Err.Error(), broker.limitedPassword) {
+		t.Fatal("ACL-denied delivery error disclosed a credential")
+	}
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  []string{broker.endpoint},
+		ClientID: "golib-authorization-inspector",
+		Security: limitedSecurity,
+	})
+	if err != nil {
+		t.Fatalf("construct ACL-denied Kafka inspector: %v", err)
+	}
+	_, inspectionErr := inspector.Topics(ctx, topic)
+	if closeErr := inspector.Close(); closeErr != nil {
+		t.Fatalf("close ACL-denied Kafka inspector: %v", closeErr)
+	}
+	if !errors.Is(inspectionErr, kerr.TopicAuthorizationFailed) {
+		t.Fatalf("ACL-denied inspection error = %v", inspectionErr)
+	}
+	if strings.Contains(inspectionErr.Error(), broker.limitedPassword) {
+		t.Fatal("ACL-denied inspection error disclosed a credential")
+	}
+}
+
 func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -462,6 +540,7 @@ func startSecureKafkaBroker(
 		endpoint:         endpoint,
 		pki:              pki,
 		plainPassword:    randomSecureKafkaCredential(t),
+		limitedPassword:  randomSecureKafkaCredential(t),
 		scram256Password: randomSecureKafkaCredential(t),
 		scram512Password: randomSecureKafkaCredential(t),
 	}
@@ -494,7 +573,10 @@ func startSecureKafkaBroker(
 			ctx,
 			container,
 			"/tmp/plain.properties",
-			[]byte("password="+broker.plainPassword+"\n"),
+			[]byte(
+				"password="+broker.plainPassword+"\n"+
+					"limited-password="+broker.limitedPassword+"\n",
+			),
 			0o600,
 		)
 		copySecureKafkaFile(
@@ -554,6 +636,7 @@ func startSecureKafkaBroker(
 			[]string{
 				storePassword,
 				broker.plainPassword,
+				broker.limitedPassword,
 				broker.scram256Password,
 				broker.scram512Password,
 			},
@@ -641,10 +724,17 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"ssl.client.auth=required\n"
 	case secureKafkaSASL:
 		properties += "ssl.client.auth=none\n" +
+			"authorizer.class.name=" +
+			"org.apache.kafka.metadata.authorizer.StandardAuthorizer\n" +
+			"allow.everyone.if.no.acl.found=false\n" +
+			"super.users=User:ANONYMOUS;User:plain-user;" +
+			"User:scram256-user;User:scram512-user\n" +
 			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n" +
 			"listener.name.sasl_ssl.plain.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.plain.PlainLoginModule required " +
-			"user_plain-user=\"${file:/tmp/plain.properties:password}\";\n" +
+			"user_plain-user=\"${file:/tmp/plain.properties:password}\" " +
+			"user_limited-user=" +
+			"\"${file:/tmp/plain.properties:limited-password}\";\n" +
 			"listener.name.sasl_ssl.scram-sha-256.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n" +
 			"listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config=" +

@@ -83,16 +83,21 @@ The fixtures prove:
   certificate is absent;
 - PLAIN, SCRAM-SHA-256, and SCRAM-SHA-512 only over `SASL_SSL`, with successful
   provider-backed production, SCRAM consumption, inspection, and rejection of
-  incorrect credentials; and
+  incorrect credentials;
 - OAUTHBEARER over `SASL_SSL` using RS256-signed JWTs, a broker-loaded JWKS,
   exact issuer and audience validation, provider-backed production and
   consumption, rejection of signed tokens for the wrong issuer or audience,
-  and no token disclosure through the returned authentication error.
+  and no token disclosure through the returned authentication error; and
+- KRaft `StandardAuthorizer` denial for an authenticated PLAIN principal with
+  no matching ACL, including `ErrorAuthorization` producer classification and
+  unchanged inspector `TopicAuthorizationFailed` identity without password
+  disclosure.
 
 This proves interoperability only with the pinned Apache fixture. Repeated
 same-client credential expiry, JWKS refresh and signing-key rollover, TLS
-certificate rotation during live traffic, authorization/ACL failures, and
-managed-service authentication remain separate required evidence. The fixture
+certificate rotation during live traffic, consumer-group and transactional-ID
+authorization failures, ACL changes during live traffic, and managed-service
+authentication remain separate required evidence. The fixture
 does not use Kafka's non-production unsecured OAUTHBEARER implementation and
 does not claim compatibility with a particular OAuth identity provider.
 
