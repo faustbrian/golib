@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Validate cached and client-credential OAuth2 tokens with the same injected
+  clock used by their source instead of rechecking them against ambient wall
+  time in the request editor.
+
 ### Compatibility
 
 - Pin the circuit-breaker module to its published source revision so clean

@@ -84,6 +84,59 @@ func TestContextOAuth2AuthUsesRequestContext(t *testing.T) {
 	}
 }
 
+func TestContextOAuth2AuthUsesTheCachedSourceClockForValidation(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	now := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	client, err := New(Config{})
+	if err != nil {
+		t.Fatalf("construct client: %v", err)
+	}
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close client: %v", err)
+		}
+	}()
+	source, err := NewCachedTokenSource(TokenCacheOptions{
+		Client: client,
+		Now:    func() time.Time { return now },
+		Source: ContextTokenSourceFunc(
+			func(context.Context) (*oauth2.Token, error) {
+				return &oauth2.Token{
+					AccessToken: "fixed-clock-token",
+					TokenType:   "Bearer",
+					Expiry:      now.Add(time.Hour),
+				}, nil
+			},
+		),
+	})
+	if err != nil {
+		t.Fatalf("construct cached token source: %v", err)
+	}
+	editor, err := NewContextOAuth2Auth(source)
+	if err != nil {
+		t.Fatalf("construct OAuth2 editor: %v", err)
+	}
+	request, err := http.NewRequest(
+		http.MethodGet,
+		"https://api.example.test",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("construct request: %v", err)
+	}
+
+	if err := editor.EditRequest(request); err != nil {
+		t.Fatalf("edit request with fixed-clock token: %v", err)
+	}
+	if got := request.Header.Get("Authorization"); got !=
+		"Bearer fixed-clock-token" {
+		t.Fatalf("authorization = %q", got)
+	}
+}
+
 func TestOAuth2AuthErrorsAreTypedAndSecretSafe(t *testing.T) {
 	t.Parallel()
 

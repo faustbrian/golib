@@ -51,6 +51,14 @@ type CachedTokenSource struct {
 	refreshed  chan struct{}
 }
 
+func (source *CachedTokenSource) validToken(token *oauth2.Token) bool {
+	return validClientCredentialsToken(
+		token,
+		source.now(),
+		source.earlyExpiry,
+	)
+}
+
 // NewCachedTokenSource wraps a context-aware caller-owned token source with a
 // client-bounded, concurrency-safe cache and explicit invalidation.
 func NewCachedTokenSource(options TokenCacheOptions) (*CachedTokenSource, error) {

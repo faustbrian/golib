@@ -26,6 +26,10 @@ type ContextTokenSource interface {
 	Token(context.Context) (*oauth2.Token, error)
 }
 
+type contextTokenValidator interface {
+	validToken(*oauth2.Token) bool
+}
+
 // ContextTokenSourceFunc adapts a function to ContextTokenSource.
 type ContextTokenSourceFunc func(context.Context) (*oauth2.Token, error)
 
@@ -140,6 +144,16 @@ type ClientCredentialsTokenSource struct {
 // observed by a rejected provider request.
 func (source *ClientCredentialsTokenSource) Invalidate(accessToken string) bool {
 	return invalidateToken(&source.mu, &source.token, accessToken)
+}
+
+func (source *ClientCredentialsTokenSource) validToken(
+	token *oauth2.Token,
+) bool {
+	return validClientCredentialsToken(
+		token,
+		source.now(),
+		source.earlyExpiry,
+	)
 }
 
 // Token returns an independent token copy or refreshes it using ctx.
@@ -351,7 +365,7 @@ func (editor oauth2AuthEditor) EditRequest(request *http.Request) error {
 	if err := request.Context().Err(); err != nil {
 		return err
 	}
-	if token == nil || !token.Valid() {
+	if !validContextOAuth2Token(editor.source, token) {
 		return &OAuth2TokenError{Cause: ErrInvalidOAuth2Token}
 	}
 	authorization := token.Type() + " " + token.AccessToken
@@ -361,4 +375,18 @@ func (editor oauth2AuthEditor) EditRequest(request *http.Request) error {
 	request.Header.Set("Authorization", authorization)
 
 	return nil
+}
+
+func validContextOAuth2Token(
+	source ContextTokenSource,
+	token *oauth2.Token,
+) bool {
+	if token == nil {
+		return false
+	}
+	if validator, ok := source.(contextTokenValidator); ok {
+		return validator.validToken(token)
+	}
+
+	return token.Valid()
 }
