@@ -22,6 +22,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker transaction-timeout evidence proving coordinator-driven abort,
+  read-committed invisibility, read-uncommitted retention, and an ambiguous
+  `INVALID_TXN_STATE` commit result when the producer cannot independently
+  establish the broker's final outcome
 - three-broker cooperative-rebalance evidence across two operating-system
   processes, proving incremental revocation aborts acknowledged transactional
   output, preserves atomic progress on the reassigned partition, and permits

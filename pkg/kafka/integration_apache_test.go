@@ -435,6 +435,100 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	)
 }
 
+func TestApacheKafkaTransactionTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf(
+		"golib-apache-transaction-timeout-%d",
+		time.Now().UnixNano(),
+	)
+	createApacheKafkaTopic(t, ctx, brokers, topic, 1)
+
+	adminClient, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-apache-timeout-inspector"),
+	)
+	if err != nil {
+		t.Fatalf("construct timeout inspector backend: %v", err)
+	}
+	defer adminClient.Close()
+	admin := kadm.NewClient(adminClient)
+
+	transactionalID := fmt.Sprintf(
+		"golib-apache-transaction-timeout-%d",
+		time.Now().UnixNano(),
+	)
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:               brokers,
+		ClientID:              "golib-apache-timeout-producer",
+		AllowedTopics:         []string{topic},
+		TransactionalID:       transactionalID,
+		TransactionTimeout:    time.Second,
+		TransactionEndTimeout: 3 * time.Second,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct timeout producer: %v", err)
+	}
+	defer func() {
+		if closeErr := producer.Close(); closeErr != nil {
+			t.Errorf("close timeout producer: %v", closeErr)
+		}
+	}()
+
+	err = producer.RunTransaction(ctx, func(
+		transaction kafka.Transaction,
+	) error {
+		if publishErr := transaction.Publish(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte("expired"),
+			Value: []byte("expired"),
+		}); publishErr != nil {
+			return publishErr
+		}
+		return waitForApacheTransactionState(
+			ctx,
+			admin,
+			transactionalID,
+			"CompleteAbort",
+		)
+	})
+
+	var transactionErr *kafka.TransactionError
+	if !errors.As(err, &transactionErr) ||
+		transactionErr.Operation() != kafka.TransactionOperationCommit ||
+		transactionErr.Category() != kafka.ErrorAmbiguous ||
+		transactionErr.Abortable() ||
+		transactionErr.OutcomeKnown() ||
+		!errors.Is(err, kafka.ErrTransactionOutcomeUnknown) ||
+		!errors.Is(err, kerr.InvalidTxnState) {
+		t.Fatalf("expired transaction error = %v", err)
+	}
+
+	assertNoApacheKafkaTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadCommitted(),
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadUncommitted(),
+		1,
+	); len(values) != 1 || values[0] != "expired" {
+		t.Fatalf("read-uncommitted expired values = %q", values)
+	}
+}
+
 func proveProducerFencing(
 	t *testing.T,
 	ctx context.Context,
@@ -1472,6 +1566,78 @@ func apacheKafkaGroupCommitsMatch(
 	}
 
 	return true
+}
+
+func waitForApacheTransactionState(
+	ctx context.Context,
+	admin *kadm.Client,
+	transactionalID string,
+	want string,
+) error {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	var last kadm.DescribedTransaction
+	var lastErr error
+	for {
+		described, err := admin.DescribeTransactions(ctx, transactionalID)
+		if err == nil {
+			last, err = described.On(transactionalID, nil)
+		}
+		if err == nil && last.State == want {
+			return nil
+		}
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf(
+				"wait for transaction %q state %q: %v; "+
+					"last state = %q; last error = %v",
+				transactionalID,
+				want,
+				context.Cause(ctx),
+				last.State,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func assertNoApacheKafkaTransactionValues(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	isolation kgo.IsolationLevel,
+) {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-apache-transaction-empty-reader"),
+		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
+			topic: {0: kgo.NewOffset().AtStart()},
+		}),
+		kgo.FetchIsolationLevel(isolation),
+		kgo.DialTimeout(10*time.Second),
+	)
+	if err != nil {
+		t.Fatalf("construct empty transaction reader: %v", err)
+	}
+	defer client.Close()
+
+	readCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	fetches := client.PollRecords(readCtx, 1)
+	if records := fetches.Records(); len(records) != 0 {
+		t.Fatalf("unexpected transaction records = %#v", records)
+	}
+	for _, fetchErr := range fetches.Errors() {
+		if !errors.Is(fetchErr.Err, context.DeadlineExceeded) &&
+			!errors.Is(fetchErr.Err, context.Canceled) {
+			t.Fatalf("read empty transaction records: %v", fetchErr.Err)
+		}
+	}
 }
 
 func newApacheKafkaTerminationProcessor(

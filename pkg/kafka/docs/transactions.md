@@ -153,8 +153,15 @@ transaction while the other member atomically commits its assigned partition;
 after both leave, a recovery member commits the remaining unsettled source.
 Read-committed consumers observe only the reassigned and recovered outputs,
 while read-uncommitted inspection also sees the aborted child output.
-Transaction timeout, unknown-outcome, and older-broker behavior are not yet
-support evidence.
+A separate Apache Kafka 4.3.1 scenario holds a broker-acknowledged transaction
+open beyond its configured one-second transaction timeout and waits on Kafka's
+transaction-state API rather than sleeping. The coordinator reports
+`CompleteAbort`; read-committed consumers do not observe the expired record,
+while read-uncommitted consumers do. The producer's later commit receives
+`INVALID_TXN_STATE`, which the package correctly reports with
+`ErrTransactionOutcomeUnknown` because that response alone cannot establish
+the broker's final outcome. A response-loss commit scenario and older-broker
+behavior are not yet support evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store
