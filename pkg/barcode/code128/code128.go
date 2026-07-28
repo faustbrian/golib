@@ -39,8 +39,12 @@ const (
 
 // Options controls logical Code 128 encoding in module units.
 type Options struct {
-	CodeSet   CodeSet
-	GS1       bool
+	CodeSet CodeSet
+	GS1     bool
+	// RawFNC1 prepends a leading FNC1 without validating the payload as a GS1
+	// element string. It exists only for compatibility with legacy symbols;
+	// new GS1-128 integrations should use GS1 or EncodeGS1.
+	RawFNC1   bool
 	QuietZone int
 	Height    int
 }
@@ -50,6 +54,7 @@ type Options struct {
 // smaller.
 func Encode(payload []byte, options Options) (barcode.Symbol, error) {
 	if len(payload) == 0 || len(payload) > maxPayload || options.CodeSet > CodeSetC ||
+		options.GS1 && options.RawFNC1 ||
 		options.QuietZone < 0 || options.Height < 0 {
 		return barcode.Symbol{}, ErrInvalidInput
 	}
@@ -80,7 +85,7 @@ func Encode(payload []byte, options Options) (barcode.Symbol, error) {
 	}
 
 	contents := string(payload)
-	if options.GS1 {
+	if options.GS1 || options.RawFNC1 {
 		contents = "\u00f1" + contents
 	}
 	hints := map[gozxing.EncodeHintType]interface{}{
@@ -104,7 +109,7 @@ func Encode(payload []byte, options Options) (barcode.Symbol, error) {
 	runs := matrixRuns(matrix)
 	bars, _ := barcode.NewBars(height, runs)
 	format := barcode.Code128
-	if options.GS1 {
+	if options.GS1 || options.RawFNC1 {
 		format = barcode.GS1128
 	}
 

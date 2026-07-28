@@ -9,7 +9,8 @@ Each encoder has a focused package and typed options:
 
 - `qr`: mode, version, mask, ECI, FNC1, structured append, correction, and
   quiet zone;
-- `code128`: automatic or forced code sets and GS1-128;
+- `code128`: automatic or forced code sets, validated GS1-128, and an explicit
+  raw-FNC1 compatibility mode for legacy symbols;
 - `code39` and `code93`: full-ASCII/checksum behavior supported by the format;
 - `ean` and `upc`: check digits and two- or five-digit supplements;
 - `itf`: ITF and ITF-14 dimension/bearer controls;

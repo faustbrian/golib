@@ -25,6 +25,8 @@ listed in `README.md` and exposed through `barcode.CapabilityFor`.
 
 ### Compatibility
 
+- Added an explicit raw-FNC1 Code 128 compatibility mode for legacy payloads
+  that are not valid GS1 element strings.
 - Added a pinned module export baseline so incompatible public API changes
   fail the canonical repository gate.
 

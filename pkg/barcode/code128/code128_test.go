@@ -99,6 +99,33 @@ func TestEncodeGS1AddsFNC1AndReportsGS1Format(t *testing.T) {
 	}
 }
 
+func TestEncodeRawFNC1SupportsLegacyPayloadsWithoutGS1Validation(t *testing.T) {
+	payload := []byte("164300809500035859")
+
+	symbol, err := code128.Encode(payload, code128.Options{
+		CodeSet: code128.CodeSetC,
+		RawFNC1: true,
+	})
+	if err != nil {
+		t.Fatalf("Encode(RawFNC1) error = %v", err)
+	}
+	if symbol.Format() != barcode.GS1128 {
+		t.Fatalf("Format() = %q, want %q", symbol.Format(), barcode.GS1128)
+	}
+	if !bytes.Equal(symbol.Payload(), payload) {
+		t.Fatalf("Payload() = %q, want %q", symbol.Payload(), payload)
+	}
+	plain, err := code128.Encode(payload, code128.Options{CodeSet: code128.CodeSetC})
+	if err != nil {
+		t.Fatalf("Encode(plain) error = %v", err)
+	}
+	fnc1Bars, _ := symbol.Bars()
+	plainBars, _ := plain.Bars()
+	if reflect.DeepEqual(fnc1Bars.Runs(), plainBars.Runs()) {
+		t.Fatal("RawFNC1 symbol does not contain the leading FNC1 codeword")
+	}
+}
+
 func TestEncodeGS1AcceptsValidatedStructuredElements(t *testing.T) {
 	elements, err := gs1.ParseBracketed("(01)09501101530003(10)ABC", gs1.ParseLimits{})
 	if err != nil {
@@ -130,6 +157,7 @@ func TestEncodeRejectsUnsafeOptionsAndPayloads(t *testing.T) {
 		{name: "invalid code set", payload: []byte("A"), options: code128.Options{CodeSet: 99}},
 		{name: "payload too long", payload: []byte(strings.Repeat("A", 81))},
 		{name: "odd forced code C", payload: []byte("123"), options: code128.Options{CodeSet: code128.CodeSetC}},
+		{name: "conflicting FNC1 modes", payload: []byte("0109501101530003"), options: code128.Options{GS1: true, RawFNC1: true}},
 	}
 
 	for _, tt := range tests {

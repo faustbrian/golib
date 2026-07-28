@@ -13,6 +13,11 @@ if err != nil {
 symbol, err := code128.EncodeGS1(elements, code128.Options{})
 ```
 
+Legacy integrations that encoded a leading FNC1 without a valid GS1 element
+string can use `code128.Options{RawFNC1: true}`. This compatibility mode does
+not validate or reinterpret the payload. Prefer `GS1` or `EncodeGS1` for new
+integrations, and do not enable `RawFNC1` and `GS1` together.
+
 `ElementString.Raw()` emits scanner data with ASCII group separators where a
 variable-length element is followed by another element. `Bracketed()` emits a
 human-readable representation. The embedded application-identifier dictionary
