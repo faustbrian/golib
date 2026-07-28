@@ -135,6 +135,30 @@ func TestContextOAuth2AuthUsesTheCachedSourceClockForValidation(
 		"Bearer fixed-clock-token" {
 		t.Fatalf("authorization = %q", got)
 	}
+
+	credentialSource, err := NewClientCredentialsTokenSource(ClientCredentialsOptions{
+		Client: client, TokenURL: "http://tokens.example.test/token",
+		ClientID: "client", ClientSecret: "secret", AllowInsecureURL: true,
+		Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("construct client-credentials source: %v", err)
+	}
+	credentialSource.token = &oauth2.Token{
+		AccessToken: "credential-clock-token", TokenType: "Bearer",
+		Expiry: now.Add(time.Hour),
+	}
+	credentialEditor, err := NewContextOAuth2Auth(credentialSource)
+	if err != nil {
+		t.Fatalf("construct client-credentials editor: %v", err)
+	}
+	credentialRequest, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	if err := credentialEditor.EditRequest(credentialRequest); err != nil {
+		t.Fatalf("edit request with client-credentials clock: %v", err)
+	}
+	if got := credentialRequest.Header.Get("Authorization"); got != "Bearer credential-clock-token" {
+		t.Fatalf("client-credentials authorization = %q", got)
+	}
 }
 
 func TestOAuth2AuthErrorsAreTypedAndSecretSafe(t *testing.T) {
