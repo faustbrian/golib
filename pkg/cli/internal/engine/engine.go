@@ -251,6 +251,11 @@ func parse(ctx context.Context, root Command, argv []string) (Result, error) {
 		command.PersistentFlags().Var(version, "version", "")
 		command.PersistentFlags().Lookup("version").NoOptDefVal = "true"
 	}
+	if root.Version != "" && len(root.Children) > 0 &&
+		len(argv) > 0 && argv[0] == "version" {
+		argv = append([]string(nil), argv...)
+		argv[0] = "--version"
+	}
 	command.SetArgs(argv)
 	command.SetIn(nil)
 	command.SetOut(io.Discard)

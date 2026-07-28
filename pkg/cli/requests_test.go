@@ -36,6 +36,17 @@ func TestHelpAndVersionRequestsAreSuccessfulTypedResults(t *testing.T) {
 	if got, want := stdout.String(), "tool 1.2.3\n"; got != want {
 		t.Fatalf("version stdout = %q, want %q", got, want)
 	}
+
+	stdout.Reset()
+	version = application.Run(context.Background(), cli.Request{
+		Args: []string{"version"}, Stdout: stdout, Stderr: stderr,
+	})
+	if !errors.Is(version.Err, cli.ErrVersion) || version.ExitCode != 0 {
+		t.Fatalf("version command result = (%v, %d)", version.Err, version.ExitCode)
+	}
+	if got, want := stdout.String(), "tool 1.2.3\n"; got != want {
+		t.Fatalf("version command stdout = %q, want %q", got, want)
+	}
 }
 
 func TestParserFailuresHaveStableSpecificClassifications(t *testing.T) {

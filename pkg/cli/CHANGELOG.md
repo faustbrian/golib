@@ -72,6 +72,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Accept `version` as the command form of the framework-owned root version
+  request for command-oriented service binaries.
 - Established the module, supported Go range, and internal Cobra engine
   boundary.
 - Recorded the initial parser-engine architecture decision and comparison
