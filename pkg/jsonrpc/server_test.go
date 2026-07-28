@@ -184,6 +184,32 @@ func TestDispatcherProtocolErrors(t *testing.T) {
 	}
 }
 
+func TestDispatcherClassifiesNestedParameterDuplicatesAsInvalidParams(t *testing.T) {
+	t.Parallel()
+
+	type input struct {
+		Data struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	registry := NewRegistry()
+	if err := registry.Register("decode", func(_ context.Context, params json.RawMessage) (any, error) {
+		_, rpcErr := DecodeParams[input](params)
+		return nil, rpcErr
+	}); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	response, hasReply := NewDispatcher(registry).Dispatch(context.Background(), []byte(
+		`{"jsonrpc":"2.0","method":"decode","params":{"data":{"name":"first","name":"second"}},"id":1}`,
+	))
+	if !hasReply {
+		t.Fatal("Dispatch() unexpectedly omitted invalid params response")
+	}
+	assertJSONEqual(t, response, []byte(
+		`{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"},"id":1}`,
+	))
+}
+
 func TestDispatcherBatch(t *testing.T) {
 	t.Parallel()
 

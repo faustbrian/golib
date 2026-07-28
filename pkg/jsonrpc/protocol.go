@@ -498,8 +498,10 @@ func rejectDuplicateMembers(data []byte, reservedNames ...string) error {
 				}
 			}
 		}
-		if _, duplicate := current.seen[name]; duplicate {
-			return fmt.Errorf("jsonrpc: duplicate object member %q", name)
+		if len(reservedNames) == 0 || len(frames) == 1 {
+			if _, duplicate := current.seen[name]; duplicate {
+				return fmt.Errorf("jsonrpc: duplicate object member %q", name)
+			}
 		}
 		current.seen[name] = struct{}{}
 		current.expectsName = false
