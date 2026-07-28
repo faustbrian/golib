@@ -48,7 +48,7 @@ fuzz:
 
 benchmark:
 	GOWORK=off $(GO) test . -run '^$$' -bench Benchmark -benchmem -benchtime="$(BENCH_TIME)"
-	cd benchmarks && $(GO) test ./... -run '^$$' \
+	cd benchmarks && $(GO) test ./... \
 		-bench 'BenchmarkEquivalent(Construction|Dispatch)$$' \
 		-benchmem -benchtime="$(BENCH_TIME)"
 

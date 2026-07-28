@@ -15,10 +15,16 @@ and contains no prompt dependency. Rich tables, animation, progress bars, and
 terminal forms remain outside core; small deterministic output envelopes are
 the owned boundary.
 
-Cobra is the initial internal parser. Its mutable objects are rebuilt for each
-invocation and are not a consumer extension point. Applications requiring an
-unsupported parser syntax should propose an owned public semantic rather than
-accepting a Cobra object.
+The initial Cobra adapter was replaced before `v1.0.0` by an owned,
+dependency-free parser. Internal parser state is invocation-local and is not a
+consumer extension point. Applications requiring unsupported syntax should
+propose an owned public semantic rather than accepting an external parser
+object.
+
+`CommandSet` deliberately supports only one root and direct executable
+children. Applications needing typed input, aliases, nested commands,
+lifecycle hooks, completion, or generated references must use `Command` and
+`Compile`.
 
 JSON and quiet modes isolate handler stdout and stderr, but the framework
 cannot redact human-mode application direct IO, logs, telemetry attributes,

@@ -169,8 +169,7 @@ func renderFailure(stdout, stderr io.Writer, policy OutputPolicy, failure error)
 }
 
 func classifiedError(err error) *Error {
-	var classified *Error
-	if errors.As(err, &classified) {
+	if classified, ok := errors.AsType[*Error](err); ok {
 		return classified
 	}
 

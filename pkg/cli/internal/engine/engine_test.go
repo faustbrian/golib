@@ -54,7 +54,13 @@ func TestParseBuildsFreshTreesAndClassifiesTerminalActions(t *testing.T) {
 		options   map[int][]string
 	}{
 		{"root", []string{"--count", "2", "-v", "-1"}, 1, ActionRun, []string{"-1"}, map[int][]string{1: {"2"}, 2: {"true"}}},
+		{"long boolean", []string{"--verbose"}, 1, ActionRun, nil, map[int][]string{2: {"true"}}},
+		{"assigned long boolean", []string{"--verbose=false"}, 1, ActionRun, nil, map[int][]string{2: {"false"}}},
 		{"child", []string{"child", "-n", "value", "-.5"}, 2, ActionRun, []string{"-.5"}, map[int][]string{3: {"value"}}},
+		{"attached short value", []string{"child", "-nvalue"}, 2, ActionRun, nil, map[int][]string{3: {"value"}}},
+		{"inherited long", []string{"child", "--verbose"}, 2, ActionRun, nil, map[int][]string{2: {"true"}}},
+		{"inherited short", []string{"child", "-v"}, 2, ActionRun, nil, map[int][]string{2: {"true"}}},
+		{"alias", []string{"alias"}, 2, ActionRun, nil, map[int][]string{}},
 		{"help", []string{"child", "--help"}, 2, ActionHelp, nil, map[int][]string{}},
 		{"version", []string{"--version"}, 1, ActionVersion, nil, map[int][]string{}},
 	}
@@ -77,7 +83,9 @@ func TestParseBuildsFreshTreesAndClassifiesTerminalActions(t *testing.T) {
 		})
 	}
 
-	for _, argv := range [][]string{{"--unknown"}, {"-x"}, {"--count"}} {
+	for _, argv := range [][]string{
+		{"--unknown"}, {"-x"}, {"--count"}, {"child", "-n"},
+	} {
 		if _, err := Parse(context.Background(), root, argv); err == nil {
 			t.Fatalf("Parse(%q) succeeded", argv)
 		} else {
@@ -87,32 +95,15 @@ func TestParseBuildsFreshTreesAndClassifiesTerminalActions(t *testing.T) {
 			}
 		}
 	}
+	var nilContext context.Context
+	if _, err := Parse(nilContext, root, nil); err == nil {
+		t.Fatal("Parse(nil context) succeeded")
+	}
 }
 
-func TestRawValuesAndFailureClassificationRemainEngineLocal(t *testing.T) {
+func TestParseErrorMessagesRemainEngineLocal(t *testing.T) {
 	t.Parallel()
 
-	value := &rawValue{boolean: true}
-	if err := value.Set("one"); err != nil || value.String() != "" || value.Type() != "value" || !value.IsBoolFlag() {
-		t.Fatalf("raw value = %#v, error = %v", value, err)
-	}
-
-	cases := []struct {
-		message string
-		kind    FailureKind
-	}{
-		{"unknown command thing", FailureUnknownCommand},
-		{"unknown flag: --thing", FailureUnknownOption},
-		{"unknown shorthand flag: 'x'", FailureUnknownOption},
-		{"flag needs an argument: --thing", FailureMissingValue},
-		{"ordinary usage", FailureUsage},
-	}
-	for _, test := range cases {
-		var parseError *ParseError
-		if !errors.As(classifyFailure(errors.New(test.message)), &parseError) || parseError.Kind != test.kind {
-			t.Fatalf("%q classified as %#v", test.message, parseError)
-		}
-	}
 	for kind, expected := range map[FailureKind]string{
 		FailureUsage: "invalid arguments", FailureUnknownCommand: "unknown command",
 		FailureUnknownOption: "unknown option", FailureMissingValue: "option requires a value",
@@ -124,26 +115,9 @@ func TestRawValuesAndFailureClassificationRemainEngineLocal(t *testing.T) {
 	}
 }
 
-func TestNegativePositionalEncodingRespectsValueTakingOptions(t *testing.T) {
+func TestNegativeValueRecognition(t *testing.T) {
 	t.Parallel()
 
-	root := testCommand()
-	argv := []string{
-		"--count", "-2", "--count=-3", "-n", "-4", "-v", "-5",
-		"plain", "-.6", "--other", "-7",
-	}
-	encoded := encodeNegativePositionals(root, argv)
-	if strings.HasPrefix(encoded[1], negativePrefix) || strings.HasPrefix(encoded[4], negativePrefix) {
-		t.Fatal("option values were encoded as positionals")
-	}
-	for _, index := range []int{6, 8, 10} {
-		if !strings.HasPrefix(encoded[index], negativePrefix) {
-			t.Fatalf("token %q was not encoded", argv[index])
-		}
-	}
-	if !equalStrings(decodeNegativePositionals(encoded), argv) {
-		t.Fatalf("decoded argv = %q", decodeNegativePositionals(encoded))
-	}
 	for token, expected := range map[string]bool{"": false, "x": false, "-": false, "-x": false, "-1": true, "-.5": true, "-.x": false} {
 		if actual := looksNegativeValue(token); actual != expected {
 			t.Fatalf("looksNegativeValue(%q) = %v", token, actual)
@@ -176,9 +150,6 @@ func TestDigitShorthandParsingRetriesOnlyNegativePositionals(t *testing.T) {
 	}
 	if _, err = Parse(context.Background(), root, []string{"number", "--bad", "-1"}); err == nil {
 		t.Fatal("unknown option with negative positional succeeded after retry")
-	}
-	if shouldRetryNegativePositionals(errors.New("ordinary"), []string{"-1"}) {
-		t.Fatal("ordinary error requested a parser retry")
 	}
 }
 

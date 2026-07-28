@@ -4094,6 +4094,7 @@
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
+        "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -6817,6 +6818,7 @@
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
+        "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -15418,6 +15420,7 @@
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/scheduler",
+        "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/telemetry"
@@ -15609,6 +15612,65 @@
         "lint": true,
         "mutation": true,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/service/benchmarks/platform",
+      "module_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/service/benchmarks/platform",
+          "directory": ".",
+          "name": "platform",
+          "import_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This non-releasable benchmark module compares equivalent request behavior across:",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/service"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/gin-gonic/gin",
+        "github.com/go-chi/chi/v5",
+        "github.com/gofiber/fiber/v3",
+        "github.com/labstack/echo/v4"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }

@@ -49,6 +49,58 @@ func TestHelpAndVersionRequestsAreSuccessfulTypedResults(t *testing.T) {
 	}
 }
 
+func TestRunCommandPreservesCommandsButDoesNotPublishCompletionProtocol(t *testing.T) {
+	t.Parallel()
+
+	application := generationApplication(t)
+	help := application.RunCommand(context.Background(), cli.Request{
+		Args: []string{"deploy", "--help"},
+	})
+	if !errors.Is(help.Err, cli.ErrHelp) || help.ExitCode != 0 {
+		t.Fatalf("RunCommand() help = (%v, %d)", help.Err, help.ExitCode)
+	}
+	completion := application.RunCommand(context.Background(), cli.Request{
+		Args: []string{"__complete", "de"},
+	})
+	if !errors.Is(completion.Err, cli.ErrUnknownCommand) ||
+		completion.ExitCode != 2 {
+		t.Fatalf(
+			"RunCommand() completion token = (%v, %d)",
+			completion.Err,
+			completion.ExitCode,
+		)
+	}
+}
+
+func TestRunCommandPreservesInvocationValidation(t *testing.T) {
+	t.Parallel()
+
+	application := generationApplication(t)
+	var nilApplication *cli.Application
+	if result := nilApplication.RunCommand(t.Context(), cli.Request{}); !errors.Is(result.Err, cli.ErrInternal) {
+		t.Fatalf("nil application result = %#v", result)
+	}
+	var nilContext context.Context
+	if result := application.RunCommand(nilContext, cli.Request{}); !errors.Is(result.Err, cli.ErrInternal) {
+		t.Fatalf("nil context result = %#v", result)
+	}
+	if result := application.RunCommand(t.Context(), cli.Request{
+		Output: cli.OutputPolicy{Mode: cli.OutputMode(255)},
+	}); !errors.Is(result.Err, cli.ErrInternal) {
+		t.Fatalf("invalid output result = %#v", result)
+	}
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	if result := application.RunCommand(canceled, cli.Request{}); !errors.Is(result.Err, cli.ErrCanceled) {
+		t.Fatalf("canceled context result = %#v", result)
+	}
+	if result := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"bad\x00argument"},
+	}); !errors.Is(result.Err, cli.ErrUsage) {
+		t.Fatalf("invalid argv result = %#v", result)
+	}
+}
+
 func TestParserFailuresHaveStableSpecificClassifications(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +140,55 @@ func TestParserFailuresHaveStableSpecificClassifications(t *testing.T) {
 				t.Fatalf("Run() error = %q, want owned diagnostic %q", result.Err, test.want)
 			}
 		})
+	}
+}
+
+func TestParserStopsAtTheFirstUnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	application, err := cli.Compile(cli.NewCommand(
+		"tool",
+		cli.WithSubcommands(cli.NewCommand("deploy")),
+	))
+	if err != nil {
+		t.Fatalf("compile command: %v", err)
+	}
+
+	result := application.Run(context.Background(), cli.Request{
+		Args: []string{"deply", "deploy"},
+	})
+	if !errors.Is(result.Err, cli.ErrUnknownCommand) ||
+		result.Err.Error() != `unknown command "deply"; did you mean "deploy"?` {
+		t.Fatalf("Run() error = %v, want first-token unknown command", result.Err)
+	}
+}
+
+func TestParserRejectsParentLocalOptionsBeforeAChild(t *testing.T) {
+	t.Parallel()
+
+	local := cli.StringOption("local")
+	childCalled := false
+	application, err := cli.Compile(cli.NewCommand(
+		"tool",
+		cli.WithOptions(local),
+		cli.WithSubcommands(cli.NewCommand(
+			"deploy",
+			cli.WithHandler(func(context.Context, cli.Invocation) error {
+				childCalled = true
+
+				return nil
+			}),
+		)),
+	))
+	if err != nil {
+		t.Fatalf("compile command: %v", err)
+	}
+
+	result := application.Run(context.Background(), cli.Request{
+		Args: []string{"--local", "value", "deploy"},
+	})
+	if !errors.Is(result.Err, cli.ErrUnknownOption) || childCalled {
+		t.Fatalf("Run() = (%v, called %t), want rejected parent option", result.Err, childCalled)
 	}
 }
 

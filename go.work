@@ -86,6 +86,7 @@ use (
 	./pkg/secret-envelope
 	./pkg/sequencer
 	./pkg/service
+	./pkg/service/benchmarks/platform
 	./pkg/service/compatibility
 	./pkg/service/integration/adoption
 	./pkg/settings
@@ -269,6 +270,8 @@ replace github.com/faustbrian/golib/pkg/sequencer v0.0.0 => ./pkg/sequencer
 replace github.com/faustbrian/golib/pkg/service/compatibility v0.0.0 => ./pkg/service/compatibility
 
 replace github.com/faustbrian/golib/pkg/service v0.0.0 => ./pkg/service
+
+replace github.com/faustbrian/golib/pkg/service/benchmarks/platform v0.0.0 => ./pkg/service/benchmarks/platform
 
 replace github.com/faustbrian/golib/pkg/service/integration/adoption v0.0.0 => ./pkg/service/integration/adoption
 

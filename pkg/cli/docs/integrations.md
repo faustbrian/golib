@@ -1,7 +1,7 @@
 # Optional ecosystem composition
 
 Integrations remain application-owned or dependency-isolated nested modules.
-Core imports only Cobra and its small parsing dependency boundary.
+Core has no runtime module dependencies.
 
 - `config`: load and validate configuration before `Run`, then capture typed
   configuration or services in command constructors. Environment variables do

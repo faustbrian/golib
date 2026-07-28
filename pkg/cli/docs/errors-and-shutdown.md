@@ -7,7 +7,7 @@ command, completion, cancellation, deadline, cleanup, output, and internal
 framework failures.
 
 Parser failures retain only an owned adapter cause with a stable normalized
-message. Cobra errors and mutable parser objects never enter the public error
+message. Internal parser errors and mutable parser objects never enter the public error
 chain; application validation, handler, cleanup, and completion causes remain
 available to `errors.Is` and `errors.As`.
 

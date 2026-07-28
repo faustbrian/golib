@@ -28,7 +28,7 @@ command-substitution injection regression.
 
 Generated scripts use the hidden `__complete` boundary. That boundary calls
 `Complete`, never a command handler, writes tab-delimited candidates followed
-by a bounded Cobra directive, and preserves a syntactically valid response when
+by a bounded owned directive, and preserves a syntactically valid response when
 a provider fails. Candidate controls are stripped before protocol rendering.
 
 Static completion includes visible child command names, aliases, and option
