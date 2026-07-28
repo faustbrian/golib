@@ -443,35 +443,65 @@ func rejectDuplicateMembers(data []byte, reservedNames ...string) error {
 		return errors.New("jsonrpc: invalid UTF-8")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	token, err := decoder.Token()
-	if err != nil {
-		return err
+	type frame struct {
+		object      bool
+		expectsName bool
+		seen        map[string]struct{}
 	}
-	delimiter, object := token.(json.Delim)
-	if !object || delimiter != '{' {
-		return nil
+	frames := make([]frame, 0, 8)
+	sawToken := false
+	completeValue := func() {
+		if len(frames) > 0 && frames[len(frames)-1].object {
+			frames[len(frames)-1].expectsName = true
+		}
 	}
-	seen := make(map[string]struct{})
-	for decoder.More() {
-		token, err = decoder.Token()
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			if !sawToken {
+				return io.EOF
+			}
+			if len(frames) != 0 {
+				return io.ErrUnexpectedEOF
+			}
+			return nil
+		}
 		if err != nil {
 			return err
 		}
+		sawToken = true
+		if delimiter, ok := token.(json.Delim); ok {
+			switch delimiter {
+			case '{':
+				frames = append(frames, frame{object: true, expectsName: true, seen: make(map[string]struct{})})
+			case '[':
+				frames = append(frames, frame{})
+			case '}', ']':
+				frames = frames[:len(frames)-1]
+				completeValue()
+			}
+			continue
+		}
+		if len(frames) == 0 {
+			continue
+		}
+		current := &frames[len(frames)-1]
+		if !current.object || !current.expectsName {
+			completeValue()
+			continue
+		}
 		name := token.(string)
-		for _, reservedName := range reservedNames {
-			if name != reservedName && strings.EqualFold(name, reservedName) {
-				return fmt.Errorf("jsonrpc: protocol member %q is case-sensitive", reservedName)
+		if len(frames) == 1 {
+			for _, reservedName := range reservedNames {
+				if name != reservedName && strings.EqualFold(name, reservedName) {
+					return fmt.Errorf("jsonrpc: protocol member %q is case-sensitive", reservedName)
+				}
 			}
 		}
-		if _, duplicate := seen[name]; duplicate {
+		if _, duplicate := current.seen[name]; duplicate {
 			return fmt.Errorf("jsonrpc: duplicate object member %q", name)
 		}
-		seen[name] = struct{}{}
-		var value json.RawMessage
-		if err := decoder.Decode(&value); err != nil {
-			return err
-		}
+		current.seen[name] = struct{}{}
+		current.expectsName = false
 	}
-	_, err = decoder.Token()
-	return err
 }

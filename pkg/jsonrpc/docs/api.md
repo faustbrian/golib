@@ -25,8 +25,8 @@ are also available through `go doc github.com/faustbrian/golib/pkg/jsonrpc`.
 - `IDKind` values are `IDMissing`, `IDString`, `IDNumber`, and `IDNull`.
 - `NewRequest` and `NewNotification` validate method names and require params to
   encode as an object or array when present.
-- `DecodeParams[T]` strictly decodes params and maps malformed, duplicate, or
-  unknown fields to `InvalidParams`.
+- `DecodeParams[T]` strictly decodes params and maps malformed, duplicate at
+  any object depth, or unknown fields to `InvalidParams`.
 
 ### Errors
 

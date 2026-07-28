@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Reject duplicate members at every nested object depth during strict
+  parameter decoding instead of accepting last-member-wins ambiguity.
 - Expose JSON-RPC specification verification as an explicit conformance gate.
 - Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
   benchmark standard with an executable `make safety` gate.

@@ -397,6 +397,14 @@ func TestDecodeParams(t *testing.T) {
 	if _, rpcErr = DecodeParams[input](json.RawMessage(`{"name":"first","name":"second"}`)); rpcErr == nil || rpcErr.Code != CodeInvalidParams {
 		t.Errorf("DecodeParams(duplicate name) = %v", rpcErr)
 	}
+	type nestedInput struct {
+		Data struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if _, rpcErr = DecodeParams[nestedInput](json.RawMessage(`{"data":{"name":"first","name":"second"}}`)); rpcErr == nil || rpcErr.Code != CodeInvalidParams {
+		t.Errorf("DecodeParams(nested duplicate name) = %v", rpcErr)
+	}
 	if values, rpcErr := DecodeParams[map[string]string](json.RawMessage(`{"arbitrary":"value"}`)); rpcErr != nil || values["arbitrary"] != "value" {
 		t.Errorf("DecodeParams(map) = (%v, %v)", values, rpcErr)
 	}
