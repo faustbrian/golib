@@ -30,6 +30,8 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Fixed
 
+- Resolve the unreleased service platform and its sibling modules from their
+  main-branch pseudo-versions so clean consumers can install telemetry.
 - Select each independently versioned OpenTelemetry module explicitly in the
   compatibility matrix instead of resolving nested modules as root packages.
 - Run compatibility dependency updates against writable isolated module files
