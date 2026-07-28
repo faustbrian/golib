@@ -611,6 +611,22 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	}
 }
 
+func TestNewProducerAcceptsMinimumRetryBackoff(t *testing.T) {
+	t.Parallel()
+
+	producer, err := NewProducer(ProducerConfig{
+		Brokers:         []string{"broker.internal:9092"},
+		ClientID:        "track",
+		AllowedTopics:   []string{"events"},
+		RetryBackoffMin: time.Millisecond,
+		RetryBackoffMax: time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("NewProducer() error = %v", err)
+	}
+	defer closeProducerForTest(t, producer)
+}
+
 func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
 	t.Parallel()
 
@@ -662,6 +678,17 @@ func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
 	)
 	if got < 800*time.Millisecond || got > maximum {
 		t.Fatalf("non-power-of-two retry backoff = %s, want [800ms, 1s]", got)
+	}
+}
+
+func TestProducerMetadataMinAgeHasIndependentSafeFloor(t *testing.T) {
+	t.Parallel()
+
+	if got := producerMetadataMinAge(time.Millisecond); got != 250*time.Millisecond {
+		t.Fatalf("producerMetadataMinAge(1ms) = %s, want 250ms", got)
+	}
+	if got := producerMetadataMinAge(time.Second); got != time.Second {
+		t.Fatalf("producerMetadataMinAge(1s) = %s, want 1s", got)
 	}
 }
 

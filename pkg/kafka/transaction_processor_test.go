@@ -134,6 +134,17 @@ func TestTransactionProcessorPublicConstructor(t *testing.T) {
 		t.Fatalf("Close() error = %v", err)
 	}
 
+	config = validTransactionProcessorConfig()
+	config.Output.RetryBackoffMin = time.Millisecond
+	config.Output.RetryBackoffMax = time.Millisecond
+	processor, err = NewTransactionProcessor(config)
+	if err != nil {
+		t.Fatalf("minimum retry backoff constructor error = %v", err)
+	}
+	if err := processor.Close(); err != nil {
+		t.Fatalf("minimum retry backoff Close() error = %v", err)
+	}
+
 	if backend, err := newFranzTransactionProcessorBackend(
 		kgo.SeedBrokers("127.0.0.1:1"),
 		kgo.TransactionalID("transaction-worker-0"),

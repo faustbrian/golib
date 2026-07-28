@@ -290,7 +290,9 @@ func newTransactionProcessor(
 			config.Output.RetryBackoffMin,
 			config.Output.RetryBackoffMax,
 		)),
-		kgo.MetadataMinAge(config.Output.RetryBackoffMin),
+		kgo.MetadataMinAge(producerMetadataMinAge(
+			config.Output.RetryBackoffMin,
+		)),
 		kgo.RecordDeliveryTimeout(config.Output.DeliveryTimeout),
 		kgo.ProduceRequestTimeout(config.Output.RequestTimeout),
 		kgo.ProducerLinger(config.Output.Linger),

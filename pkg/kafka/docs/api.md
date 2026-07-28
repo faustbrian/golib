@@ -55,8 +55,9 @@ Producer admission is bounded independently by record count and total buffered
 bytes; a Kafka batch also has its own smaller byte and record limits.
 `Producer.Drain` preserves admitted records, `Abort` explicitly discards
 buffered records, and `Shutdown` performs a bounded drain before close.
-`RetryBackoffMin` and `RetryBackoffMax` bound exponential per-client jitter and
-failed-partition metadata refresh. `ProducerConfig.ShutdownTimeout` defaults to
+`RetryBackoffMin` and `RetryBackoffMax` bound exponential per-client retry
+jitter. Failed-partition metadata refresh uses the larger of the retry minimum
+and a 250-millisecond safety floor. `ProducerConfig.ShutdownTimeout` defaults to
 `DeliveryTimeout + RetryBackoffMax`, cannot be shorter than that combined
 bound, and bounds the error-returning `Close` convenience method. Shutdown
 first fences new work and waits for already-started calls to finish backend

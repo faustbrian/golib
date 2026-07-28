@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- clamp failed-partition metadata refresh to a separate 250-millisecond floor
+  so the documented one-millisecond retry policy constructs successfully
+  without permitting sub-policy metadata polling
 - bound non-transactional idempotent production after an in-flight response is
   lost, classify delivery timeout or retry exhaustion as an ambiguous durable
   outcome, detach successfully admitted asynchronous records from later caller

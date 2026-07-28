@@ -355,7 +355,7 @@ func newProducer(
 			config.RetryBackoffMin,
 			config.RetryBackoffMax,
 		)),
-		kgo.MetadataMinAge(config.RetryBackoffMin),
+		kgo.MetadataMinAge(producerMetadataMinAge(config.RetryBackoffMin)),
 		kgo.RecordDeliveryTimeout(config.DeliveryTimeout),
 		kgo.ProduceRequestTimeout(config.RequestTimeout),
 		kgo.DialTimeout(config.DialTimeout),
@@ -600,6 +600,10 @@ func producerRetryBackoffDuration(
 	spread := uint64(upper-lower) + 1
 
 	return lower + time.Duration(mixed%spread)
+}
+
+func producerMetadataMinAge(retryBackoffMin time.Duration) time.Duration {
+	return max(250*time.Millisecond, retryBackoffMin)
 }
 
 func maximumRecordPolicyBytes(limits MessageLimits) int64 {

@@ -816,12 +816,13 @@ func proveProducerResponseLoss(
 	if !errors.As(result.Err, &deliveryErr) {
 		t.Fatalf("produce-response-loss error type = %T", result.Err)
 	}
-	if deliveryErr.Category() != kafka.ErrorAmbiguous ||
-		!errors.Is(result.Err, kgo.ErrRecordTimeout) {
+	timedOut := errors.Is(result.Err, kgo.ErrRecordTimeout) ||
+		errors.Is(result.Err, context.DeadlineExceeded)
+	if deliveryErr.Category() != kafka.ErrorAmbiguous || !timedOut {
 		t.Fatalf(
-			"produce-response-loss category=%s record-timeout=%t",
+			"produce-response-loss category=%s timeout=%t",
 			deliveryErr.Category(),
-			errors.Is(result.Err, kgo.ErrRecordTimeout),
+			timedOut,
 		)
 	}
 	if duration > 3*time.Second {

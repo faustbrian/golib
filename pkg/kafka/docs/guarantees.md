@@ -38,9 +38,10 @@ producer-ID state stops the producer instead of allowing franz-go's default
 continue-after-data-loss behavior.
 
 Retry backoff uses a 250 millisecond to 1 second default range,
-exponential growth, and bounded per-client jitter. The minimum also limits
-failed-partition metadata refresh frequency. `DeliveryTimeout` is a rough
-franz-go record bound evaluated around requests. The package also gives every
+exponential growth, and bounded per-client jitter. Failed-partition metadata
+refresh uses the larger of the configured retry minimum and a reviewed 250
+millisecond floor. `DeliveryTimeout` is a rough franz-go record bound evaluated
+around requests. The package also gives every
 non-transactional delivery a context deadline of `DeliveryTimeout +
 RetryBackoffMax`, which is the policy-level maximum wait. `ShutdownTimeout`
 must cover that combined interval.
