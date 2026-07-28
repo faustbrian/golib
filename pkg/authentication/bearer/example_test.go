@@ -27,3 +27,17 @@ func ExampleNew() {
 	fmt.Println(err, authenticated, principal.Subject())
 	// Output: <nil> true service
 }
+
+func ExampleNewStatic() {
+	authenticator, _ := bearer.NewStatic([]bearer.Entry{
+		{Token: "current", Principal: authentication.PrincipalSpec{Subject: "service"}},
+		{Token: "previous", Principal: authentication.PrincipalSpec{Subject: "service"}},
+	})
+	result, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewBearerCredential("previous"),
+	)
+	principal, authenticated := result.Principal()
+	fmt.Println(err, authenticated, principal.Subject())
+	// Output: <nil> true service
+}

@@ -7,7 +7,8 @@ checked in CI. Use `go doc` for signatures and contracts.
   `Challenge`, `Authenticator`, `Composite`, context helpers, and
   instrumentation.
 - `basic`: immutable static Basic entries and authenticator.
-- `bearer`: opaque-token validator interface, function adapter, and bounds.
+- `bearer`: opaque-token validator interface, function adapter, bounds, and an
+  atomically replaceable constant-work static token authenticator.
 - `apikey`: callback validator, atomically replaceable static entries, and
   bounds.
 - `authhttp`: explicit sources, bearer compatibility options, extractor,

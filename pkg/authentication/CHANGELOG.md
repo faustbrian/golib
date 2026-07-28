@@ -26,6 +26,8 @@ this project follows Semantic Versioning.
 
 ### Added
 
+- Constant-work static bearer authentication with bounded overlapping tokens
+  and atomic whole-set replacement for credential rotation and revocation.
 - Immutable bounded principals, typed redacted credentials, explicit anonymous
   results, stable failures, challenges, context helpers, and deterministic
   authenticator composition.
