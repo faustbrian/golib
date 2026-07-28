@@ -22,6 +22,20 @@ The runtime applies the shorter of the caller deadline and
 `Config.ShutdownTimeout`. Repeated and concurrent calls execute shutdown once
 and return the same result.
 
+## Service lifecycle adapter
+
+`telemetryservice` initializes the runtime during component startup and always
+owns a successfully constructed runtime. It calls `Runtime.Shutdown` once after
+business components declared later in the service plan have drained. That
+operation force-flushes and closes providers using both the service shutdown
+context and `Config.ShutdownTimeout`.
+
+The caller explicitly selects required or best-effort initialization. A
+required failure prevents startup; a best-effort failure starts without a
+runtime and remains observable through `Adapter.InitializationError`. The
+adapter does not retry initialization and does not contribute a readiness
+check. `Config.RegisterGlobal` remains the caller-owned global provider policy.
+
 ## Globals
 
 When `RegisterGlobal` is true, shutdown restores previous tracer, meter, and

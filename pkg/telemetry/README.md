@@ -84,11 +84,26 @@ authenticated cluster-local insecure connection.
 - `instrumentation/gopostgres`: pgx query tracer for `postgres`
 - `instrumentation/gocache`: dependency-neutral `cache` observations
 - `instrumentation/goqueue`: dependency-neutral `queue` handler wrapper
+- `telemetryservice`: explicit `service` lifecycle initialization and shutdown
 - `testtelemetry`: deterministic in-memory providers and snapshots
 
 Instrumentation never records raw URL paths, queries, hosts, headers, client
 addresses, SQL, query arguments, database error text, cache keys or values,
 queue messages, raw handler errors, or panic values by default.
+
+## Service lifecycle
+
+`telemetryservice.New` constructs and owns a runtime as a
+`service.Component`. Callers explicitly choose required or best-effort
+initialization and retain control of `Config.RegisterGlobal`, exporters,
+sampling, and propagation. The adapter exposes the concrete runtime, performs
+no retries, and delegates bounded flush, shutdown, and global restoration to
+`Runtime.Shutdown`.
+
+Required initialization failures stop service startup. Best-effort failures
+permit startup and remain available through `InitializationError`; no
+readiness check is added because telemetry availability does not determine
+whether the service can accept business work.
 
 ## Documentation
 

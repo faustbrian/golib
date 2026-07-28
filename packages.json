@@ -6632,6 +6632,18 @@
     },
     {
       "module_directory": "pkg/telemetry",
+      "directory": "telemetryservice",
+      "name": "telemetryservice",
+      "import_path": "github.com/faustbrian/golib/pkg/telemetry/telemetryservice",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/telemetry",
       "directory": "testtelemetry",
       "name": "testtelemetry",
       "import_path": "github.com/faustbrian/golib/pkg/telemetry/testtelemetry",

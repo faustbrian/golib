@@ -7,6 +7,9 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 ### Added
 
+- A `telemetryservice` lifecycle adapter for explicit required or best-effort
+  runtime initialization, caller-selected global provider registration, and
+  bounded single flush and shutdown.
 - Explicit trace and metric runtime lifecycle with standard OpenTelemetry APIs.
 - OTLP/gRPC and OTLP/HTTP exporters with endpoints, TLS, mTLS, headers, gzip,
   retry, timeout, batching, and bounded queues.
