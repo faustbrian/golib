@@ -22,6 +22,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker process-termination evidence proving that a replacement
+  consume-transform-produce processor fences an interrupted transaction,
+  reprocesses the unsettled source record, commits one replacement output, and
+  leaves the terminated process output visible only at read-uncommitted
+  isolation
 - three-broker consume-transform-produce evidence that committed output and
   source offsets remain atomic, failed processing redelivers without visible
   output, and a later retry succeeds while one broker process is unavailable

@@ -3,11 +3,15 @@
 package kafka_test
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +36,57 @@ const (
 	apacheKafkaPIDFile    = "/tmp/golib-kafka.pid"
 	apacheKafkaStopFile   = "/tmp/golib-kafka.stop"
 	apacheKafkaSubnetPool = 4_096
+
+	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
+	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
+	apacheKafkaProcessorSource    = "GOLIB_KAFKA_PROCESSOR_SOURCE"
+	apacheKafkaProcessorOutput    = "GOLIB_KAFKA_PROCESSOR_OUTPUT"
+	apacheKafkaProcessorGroup     = "GOLIB_KAFKA_PROCESSOR_GROUP"
+	apacheKafkaProcessorTxnID     = "GOLIB_KAFKA_PROCESSOR_TRANSACTIONAL_ID"
+	apacheKafkaProcessorReady     = "golib-kafka-processor-output-acknowledged"
 )
+
+func TestApacheKafkaTransactionProcessorTerminationChild(t *testing.T) {
+	if os.Getenv(apacheKafkaProcessorChildMode) != "1" {
+		t.Skip("subprocess helper")
+	}
+
+	processor := newApacheKafkaTerminationProcessor(
+		t,
+		strings.Split(os.Getenv(apacheKafkaProcessorBrokers), ","),
+		os.Getenv(apacheKafkaProcessorSource),
+		os.Getenv(apacheKafkaProcessorOutput),
+		os.Getenv(apacheKafkaProcessorGroup),
+		os.Getenv(apacheKafkaProcessorTxnID),
+		"golib-apache-termination-child",
+	)
+	err := processor.Run(context.Background(), kafka.TransactionHandlerFunc(
+		func(
+			ctx context.Context,
+			record kafka.ConsumedRecord,
+			transaction kafka.Transaction,
+		) error {
+			if err := transaction.Publish(ctx, kafka.ProducerRecord{
+				Topic: os.Getenv(apacheKafkaProcessorOutput),
+				Key:   record.Key,
+				Value: append([]byte("crashed-"), record.Value...),
+			}); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintln(
+				os.Stdout,
+				apacheKafkaProcessorReady,
+			); err != nil {
+				return err
+			}
+
+			<-ctx.Done()
+
+			return context.Cause(ctx)
+		},
+	))
+	t.Fatalf("transaction processor child unexpectedly returned: %v", err)
+}
 
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
@@ -50,12 +104,16 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	recoveredTransactionTopic := topic + "-transaction-recovered"
 	processorSourceTopic := topic + "-processor-source"
 	processorOutputTopic := topic + "-processor-output"
+	terminationSourceTopic := topic + "-termination-source"
+	terminationOutputTopic := topic + "-termination-output"
 	createApacheKafkaTopic(t, ctx, brokers, topic, 3)
 	createApacheKafkaTopic(t, ctx, brokers, fencingTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorSourceTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorOutputTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, terminationSourceTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, terminationOutputTopic, 1)
 
 	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
 		Brokers:  brokers,
@@ -101,6 +159,13 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		return len(state.Partitions) > 0 && allPartitionsMatch(state, 3, 3)
 	})
 	proveProducerFencing(t, ctx, brokers, fencingTransactionTopic)
+	proveTransactionProcessorTerminationRecovery(
+		t,
+		ctx,
+		brokers,
+		terminationSourceTopic,
+		terminationOutputTopic,
+	)
 
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:       brokers,
@@ -307,6 +372,223 @@ func proveProducerFencing(
 	if len(values) != 1 || values[0] != "replacement" {
 		t.Fatalf("read-committed fenced values = %q", values)
 	}
+}
+
+func proveTransactionProcessorTerminationRecovery(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+) {
+	t.Helper()
+
+	const (
+		groupID         = "golib-apache-termination-processor"
+		transactionalID = "golib-apache-termination-processor"
+	)
+	recoveryCtx, cancelRecovery := context.WithTimeout(ctx, 45*time.Second)
+	defer cancelRecovery()
+
+	sourceProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-termination-source",
+		AllowedTopics: []string{sourceTopic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct termination source producer: %v", err)
+	}
+	sourceProducerClosed := false
+	defer func() {
+		if !sourceProducerClosed {
+			_ = sourceProducer.Close()
+		}
+	}()
+	if err := sourceProducer.Publish(recoveryCtx, kafka.ProducerRecord{
+		Topic: sourceTopic,
+		Key:   []byte("terminated"),
+		Value: []byte("terminated"),
+	}); err != nil {
+		t.Fatalf("publish termination source: %v", err)
+	}
+	if err := sourceProducer.Close(); err != nil {
+		t.Fatalf("close termination source producer: %v", err)
+	}
+	sourceProducerClosed = true
+
+	command := exec.CommandContext(
+		recoveryCtx,
+		os.Args[0],
+		"-test.run=^TestApacheKafkaTransactionProcessorTerminationChild$",
+	)
+	command.Env = append(
+		os.Environ(),
+		apacheKafkaProcessorChildMode+"=1",
+		apacheKafkaProcessorBrokers+"="+strings.Join(brokers, ","),
+		apacheKafkaProcessorSource+"="+sourceTopic,
+		apacheKafkaProcessorOutput+"="+outputTopic,
+		apacheKafkaProcessorGroup+"="+groupID,
+		apacheKafkaProcessorTxnID+"="+transactionalID,
+	)
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		t.Fatalf("open transaction processor child stdout: %v", err)
+	}
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	if err := command.Start(); err != nil {
+		t.Fatalf("start transaction processor child: %v", err)
+	}
+	childExited := false
+	defer func() {
+		if childExited {
+			return
+		}
+		_ = command.Process.Kill()
+		_ = command.Wait()
+	}()
+
+	ready := false
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		if scanner.Text() == apacheKafkaProcessorReady {
+			ready = true
+
+			break
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read transaction processor child stdout: %v", err)
+	}
+	if !ready {
+		t.Fatalf(
+			"transaction processor child exited before output acknowledgement: %s",
+			strings.TrimSpace(stderr.String()),
+		)
+	}
+	if err := command.Process.Kill(); err != nil {
+		t.Fatalf("terminate transaction processor child: %v", err)
+	}
+	if err := command.Wait(); err == nil {
+		t.Fatal("terminated transaction processor child exited successfully")
+	}
+	childExited = true
+
+	processor := newApacheKafkaTerminationProcessor(
+		t,
+		brokers,
+		sourceTopic,
+		outputTopic,
+		groupID,
+		transactionalID,
+		"golib-apache-termination-replacement",
+	)
+	defer func() {
+		if err := processor.Close(); err != nil {
+			t.Errorf("close replacement transaction processor: %v", err)
+		}
+	}()
+
+	var result kafka.TransactionPollResult
+	for result.Polled == 0 {
+		result, err = processor.RunOnce(
+			recoveryCtx,
+			kafka.TransactionHandlerFunc(func(
+				ctx context.Context,
+				record kafka.ConsumedRecord,
+				transaction kafka.Transaction,
+			) error {
+				return transaction.Publish(ctx, kafka.ProducerRecord{
+					Topic: outputTopic,
+					Key:   record.Key,
+					Value: append([]byte("recovered-"), record.Value...),
+				})
+			}),
+		)
+		if err != nil {
+			t.Fatalf("replacement transaction processor: %v", err)
+		}
+		if cause := context.Cause(recoveryCtx); cause != nil {
+			t.Fatalf("wait for replacement source record: %v", cause)
+		}
+	}
+	if result != (kafka.TransactionPollResult{
+		Polled: 1, Processed: 1, Published: 1, Committed: true,
+	}) {
+		t.Fatalf("replacement transaction result = %#v", result)
+	}
+
+	assertPartitionCommits(
+		t,
+		recoveryCtx,
+		brokers,
+		sourceTopic,
+		groupID,
+		map[int32]int64{0: 1},
+	)
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+		1,
+	); len(values) != 1 || values[0] != "recovered-terminated" {
+		t.Fatalf("read-committed termination values = %q", values)
+	}
+	if values := consumeTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadUncommitted(),
+		2,
+	); len(values) != 2 ||
+		values[0] != "crashed-terminated" ||
+		values[1] != "recovered-terminated" {
+		t.Fatalf("read-uncommitted termination values = %q", values)
+	}
+}
+
+func newApacheKafkaTerminationProcessor(
+	t *testing.T,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+	groupID string,
+	transactionalID string,
+	clientID string,
+) *kafka.TransactionProcessor {
+	t.Helper()
+
+	processor, err := kafka.NewTransactionProcessor(
+		kafka.TransactionProcessorConfig{
+			Connection: kafka.TransactionConnectionConfig{
+				Brokers:  brokers,
+				ClientID: clientID,
+				Security: kafka.DevelopmentPlaintextSecurity(),
+			},
+			Group: kafka.TransactionGroupConfig{
+				GroupID:           groupID,
+				Topics:            []string{sourceTopic},
+				ResetOffset:       kafka.OffsetEarliest,
+				MaxPollRecords:    1,
+				SessionTimeout:    6 * time.Second,
+				HeartbeatInterval: 2 * time.Second,
+				ProcessingTimeout: 30 * time.Second,
+			},
+			Output: kafka.TransactionOutputConfig{
+				AllowedTopics:         []string{outputTopic},
+				TransactionalID:       transactionalID,
+				TransactionTimeout:    45 * time.Second,
+				TransactionEndTimeout: 2 * time.Second,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct %s: %v", clientID, err)
+	}
+
+	return processor
 }
 
 type apacheKafkaCluster struct {

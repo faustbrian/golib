@@ -138,9 +138,13 @@ the source offset unchanged, hides its output at read-committed isolation, and
 redelivers the source record. The pinned three-broker Apache fixture proves the
 same commit, abort, redelivery, and retry boundary while one broker process is
 unavailable and the replicated source, output, offsets, and transaction-state
-topics remain at ISR two. Multi-process group rebalance, producer fencing,
-timeout, processor crash recovery, and older-broker behavior are not yet
-support evidence.
+topics remain at ISR two. The fixture also terminates a real child process
+after its transactional output is acknowledged but before commit. A replacement
+with the same transactional ID reprocesses the unsettled source record, commits
+one replacement output and the source offset, and leaves the interrupted output
+visible only at read-uncommitted isolation. Multi-process group rebalance,
+timeout, unknown-outcome, and older-broker behavior are not yet support
+evidence.
 
 Kafka exactly-once language is limited to this Kafka read-process-write
 boundary. A handler that performs a database write, HTTP request, object-store
