@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- pin the Kafka and outbox dependencies to immutable main pseudo-versions so
+  the adapter resolves outside the repository workspace before module tags are
+  published; no adapter API migration is required
 - refresh dependency checksums for Kafka's transactional-processing test graph;
   no adapter API migration is required
 - remain source-compatible with Kafka's error-returning bounded producer close;
