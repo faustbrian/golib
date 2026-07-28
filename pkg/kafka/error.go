@@ -246,10 +246,22 @@ func newDeliveryError(cause error) *DeliveryError {
 		return nil
 	}
 
+	if errors.Is(cause, kgo.ErrRecordTimeout) ||
+		errors.Is(cause, kgo.ErrRecordRetries) ||
+		errors.Is(cause, context.DeadlineExceeded) ||
+		errors.Is(cause, context.Canceled) {
+		return &DeliveryError{category: ErrorAmbiguous, cause: cause}
+	}
+
 	return &DeliveryError{category: classifyError(cause), cause: cause}
 }
 
 func classifyError(err error) ErrorCategory {
+	var deliveryErr *DeliveryError
+	if errors.As(err, &deliveryErr) {
+		return deliveryErr.Category()
+	}
+
 	switch {
 	case errors.Is(err, ErrDeliveryResultMissing):
 		return ErrorAmbiguous

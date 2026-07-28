@@ -127,6 +127,8 @@ type ProducerConfig struct {
 	MaxBatchRecords        int
 	MaxBatchBytes          int32
 	RecordRetries          int
+	RetryBackoffMin        time.Duration
+	RetryBackoffMax        time.Duration
 	DeliveryTimeout        time.Duration
 	ShutdownTimeout        time.Duration
 	RequestTimeout         time.Duration
@@ -303,6 +305,7 @@ type Producer struct {
 	keyRequired           bool
 	maxBatchRecords       int
 	maxBatchBytes         int64
+	deliveryWaitTimeout   time.Duration
 	transactionsEnabled   bool
 	transactionEndTimeout time.Duration
 	shutdownTimeout       time.Duration
@@ -347,6 +350,12 @@ func newProducer(
 		kgo.MaxBufferedBytes(config.MaxBufferedBytes),
 		kgo.ProducerBatchMaxBytes(config.MaxBatchBytes),
 		kgo.RecordRetries(config.RecordRetries),
+		kgo.RetryBackoffFn(newProducerRetryBackoff(
+			config.ClientID,
+			config.RetryBackoffMin,
+			config.RetryBackoffMax,
+		)),
+		kgo.MetadataMinAge(config.RetryBackoffMin),
 		kgo.RecordDeliveryTimeout(config.DeliveryTimeout),
 		kgo.ProduceRequestTimeout(config.RequestTimeout),
 		kgo.DialTimeout(config.DialTimeout),
@@ -360,6 +369,8 @@ func newProducer(
 			kgo.TransactionalID(config.TransactionalID),
 			kgo.TransactionTimeout(config.TransactionTimeout),
 		)
+	} else {
+		options = append(options, kgo.AllowIdempotentProduceCancellation())
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
 	options = append(options, clientSecurityOptions(config.Security)...)
@@ -374,6 +385,7 @@ func newProducer(
 		keyRequired:           config.KeyPolicy == KeyRequired,
 		maxBatchRecords:       config.MaxBatchRecords,
 		maxBatchBytes:         int64(config.MaxBatchBytes),
+		deliveryWaitTimeout:   config.DeliveryTimeout + config.RetryBackoffMax,
 		transactionsEnabled:   config.TransactionalID != "",
 		transactionEndTimeout: config.TransactionEndTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
@@ -437,11 +449,18 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	if config.RecordRetries == 0 {
 		config.RecordRetries = 10
 	}
+	if config.RetryBackoffMin == 0 {
+		config.RetryBackoffMin = 250 * time.Millisecond
+	}
+	if config.RetryBackoffMax == 0 {
+		config.RetryBackoffMax = time.Second
+	}
 	if config.DeliveryTimeout == 0 {
 		config.DeliveryTimeout = 30 * time.Second
 	}
 	if config.ShutdownTimeout == 0 {
-		config.ShutdownTimeout = config.DeliveryTimeout
+		config.ShutdownTimeout = config.DeliveryTimeout +
+			config.RetryBackoffMax
 	}
 	if config.RequestTimeout == 0 {
 		config.RequestTimeout = 10 * time.Second
@@ -494,9 +513,14 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 		config.MaxBatchBytes > 100<<20 ||
 		config.RecordRetries < 1 ||
 		config.RecordRetries > 1_000 ||
+		config.RetryBackoffMin < time.Millisecond ||
+		config.RetryBackoffMax < config.RetryBackoffMin ||
+		config.RetryBackoffMax > 5*time.Second ||
 		config.DeliveryTimeout < time.Second ||
 		config.DeliveryTimeout > 10*time.Minute ||
-		config.ShutdownTimeout < config.DeliveryTimeout ||
+		config.RetryBackoffMax > config.DeliveryTimeout ||
+		config.ShutdownTimeout <
+			config.DeliveryTimeout+config.RetryBackoffMax ||
 		config.ShutdownTimeout > 15*time.Minute ||
 		config.RequestTimeout < 100*time.Millisecond ||
 		config.RequestTimeout > 2*time.Minute ||
@@ -535,6 +559,47 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 	config.AllowedTopics = append([]string(nil), config.AllowedTopics...)
 
 	return config, nil
+}
+
+func newProducerRetryBackoff(
+	clientID string,
+	minimum time.Duration,
+	maximum time.Duration,
+) func(int) time.Duration {
+	seed := uint64(time.Now().UnixNano())
+	for index := range len(clientID) {
+		seed ^= uint64(clientID[index])
+		seed *= 1099511628211
+	}
+
+	return func(attempt int) time.Duration {
+		return producerRetryBackoffDuration(minimum, maximum, attempt, seed)
+	}
+}
+
+func producerRetryBackoffDuration(
+	minimum time.Duration,
+	maximum time.Duration,
+	attempt int,
+	seed uint64,
+) time.Duration {
+	upper := minimum
+	for retry := 1; retry < attempt && upper < maximum; retry++ {
+		if upper > maximum/2 {
+			upper = maximum
+
+			break
+		}
+		upper *= 2
+	}
+	lower := upper - upper/5
+	mixed := seed + uint64(max(attempt, 0))*0x9e3779b97f4a7c15
+	mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9
+	mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111eb
+	mixed ^= mixed >> 31
+	spread := uint64(upper-lower) + 1
+
+	return lower + time.Duration(mixed%spread)
 }
 
 func maximumRecordPolicyBytes(limits MessageLimits) int64 {
@@ -635,7 +700,8 @@ func (producer *Producer) Publish(ctx context.Context, message Message) error {
 
 // PublishRecord synchronously publishes one record and returns its individual
 // broker delivery metadata. The producer owns copies of all input bytes before
-// passing the record to franz-go.
+// passing the record to franz-go. Caller cancellation can stop an admitted
+// non-transactional record and is reported as an ambiguous delivery.
 func (producer *Producer) PublishRecord(
 	ctx context.Context,
 	record ProducerRecord,
@@ -725,7 +791,12 @@ func (producer *Producer) publishRecord(
 
 		return result
 	}
-	deliveries := producer.client.ProduceSync(ctx, franzRecord(record.owned()))
+	deliveryCtx, cancelDelivery := producer.deliveryContext(ctx)
+	deliveries := producer.client.ProduceSync(
+		deliveryCtx,
+		franzRecord(record.owned()),
+	)
+	cancelDelivery()
 	if len(deliveries) != 1 || deliveries[0].Record == nil {
 		result.Err = newDeliveryError(ErrDeliveryResultMissing)
 
@@ -791,7 +862,9 @@ func (producer *Producer) PublishBatch(
 		franzRecords[index] = franzRecord(record.owned())
 	}
 
-	deliveries := producer.client.ProduceSync(ctx, franzRecords...)
+	deliveryCtx, cancelDelivery := producer.deliveryContext(ctx)
+	deliveries := producer.client.ProduceSync(deliveryCtx, franzRecords...)
+	cancelDelivery()
 	results = make([]DeliveryResult, len(records))
 	var deliveryErrors []error
 	for index := range records {
@@ -869,8 +942,9 @@ func (producer *Producer) batchObservationMetadata(
 
 // PublishAsync admits one owned record to the bounded franz-go producer and
 // returns a one-result buffered channel. The caller may stop waiting without
-// cancelling a record already sent to Kafka; franz-go's idempotent producer
-// continues resolving that record and publishes the eventual result.
+// cancelling a record after this method returns; the package delivery deadline
+// continues resolving that record and publishes the eventual result. Caller
+// cancellation while admission is still blocked remains authoritative.
 func (producer *Producer) PublishAsync(
 	ctx context.Context,
 	record ProducerRecord,
@@ -935,10 +1009,13 @@ func (producer *Producer) PublishAsync(
 	delivery := make(chan DeliveryResult, 1)
 	topic := record.Topic
 	owned := record.owned()
-	producer.client.Produce(ctx, franzRecord(owned), func(
+	deliveryCtx, cancelDelivery, stopCallerCancellation :=
+		producer.asyncDeliveryContext(ctx)
+	producer.client.Produce(deliveryCtx, franzRecord(owned), func(
 		record *kgo.Record,
 		err error,
 	) {
+		cancelDelivery()
 		if producer.observers.enabled() {
 			producer.beginObservation()
 			defer producer.finishObservation()
@@ -958,8 +1035,43 @@ func (producer *Producer) PublishAsync(
 		delivery <- result
 		close(delivery)
 	})
+	if ctx.Err() != nil {
+		cancelDelivery()
+	}
+	stopCallerCancellation()
 
 	return delivery, nil
+}
+
+func (producer *Producer) deliveryContext(
+	ctx context.Context,
+) (context.Context, context.CancelFunc) {
+	if producer.deliveryWaitTimeout <= 0 {
+		return ctx, func() {}
+	}
+
+	return context.WithTimeout(ctx, producer.deliveryWaitTimeout)
+}
+
+func (producer *Producer) asyncDeliveryContext(
+	ctx context.Context,
+) (context.Context, context.CancelFunc, func() bool) {
+	base := context.WithoutCancel(ctx)
+	var (
+		deliveryCtx context.Context
+		cancel      context.CancelFunc
+	)
+	if producer.deliveryWaitTimeout <= 0 {
+		deliveryCtx, cancel = context.WithCancel(base)
+	} else {
+		deliveryCtx, cancel = context.WithTimeout(
+			base,
+			producer.deliveryWaitTimeout,
+		)
+	}
+	stopCallerCancellation := context.AfterFunc(ctx, cancel)
+
+	return deliveryCtx, cancel, stopCallerCancellation
 }
 
 func (producer *Producer) observeProducerAsync(

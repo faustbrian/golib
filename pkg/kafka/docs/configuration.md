@@ -72,8 +72,10 @@ separate and necessary bound.
 | `MaxBatchRecords` | 100 | 1 to 10,000. |
 | `MaxBatchBytes` | 1 MiB | 512 bytes to 100 MiB and large enough for one maximum policy record. |
 | `RecordRetries` | 10 | 1 to 1,000 franz-go production tries; no application retry is added. |
+| `RetryBackoffMin` | 250 milliseconds | 1 millisecond or more. Also bounds how frequently failed partition metadata can refresh. |
+| `RetryBackoffMax` | 1 second | At least the minimum, no more than 5 seconds, and no longer than delivery timeout. Backoff is exponential with bounded per-client jitter. |
 | `DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. |
-| `ShutdownTimeout` | delivery timeout | At least delivery timeout, at most 15 minutes. |
+| `ShutdownTimeout` | delivery timeout plus maximum retry backoff | At least that combined bound, at most 15 minutes. |
 | `RequestTimeout` | 10 seconds | 100 milliseconds to 2 minutes and no longer than delivery timeout. |
 | `Linger` | 5 milliseconds | 0 to 1 second. |
 | `CompressionPreferences` | Snappy, then none | 1 to 5 unique codecs; `CompressionNone` may appear only last. |
@@ -125,6 +127,8 @@ caller-configurable.
 | `Output.MaxOutputRecords` | 1,000 | 1 to 100,000 records acknowledged or attempted inside one source-poll transaction. |
 | `Output.MaxOutputBytes` | 10 MiB | At least one maximum policy record and at most 1 GiB per source-poll transaction. |
 | `Output.RecordRetries` | 10 | 1 to 1,000 idempotent franz-go attempts. |
+| `Output.RetryBackoffMin` | 250 milliseconds | Same bounded producer minimum and metadata-refresh floor. |
+| `Output.RetryBackoffMax` | 1 second | Same exponential, jittered, delivery-bounded maximum. |
 | `Output.DeliveryTimeout` | 30 seconds | 1 second to 10 minutes. |
 | `Output.RequestTimeout` | 10 seconds | 100 milliseconds to 2 minutes and no longer than delivery. |
 | `Output.Linger` | 5 milliseconds | 0 to 1 second. |

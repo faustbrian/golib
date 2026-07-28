@@ -27,9 +27,9 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 		{name: "authorization", cause: kerr.TopicAuthorizationFailed, category: ErrorAuthorization},
 		{name: "fenced", cause: kerr.ProducerFenced, category: ErrorFenced},
 		{name: "oversized", cause: kerr.MessageTooLarge, category: ErrorOversized},
-		{name: "timeout", cause: context.DeadlineExceeded, category: ErrorTimeout},
-		{name: "record timeout", cause: kgo.ErrRecordTimeout, category: ErrorTimeout},
-		{name: "retries exhausted", cause: kgo.ErrRecordRetries, category: ErrorRetryable, retry: true},
+		{name: "timeout", cause: context.DeadlineExceeded, category: ErrorAmbiguous},
+		{name: "record timeout", cause: kgo.ErrRecordTimeout, category: ErrorAmbiguous},
+		{name: "retries exhausted", cause: kgo.ErrRecordRetries, category: ErrorAmbiguous},
 		{
 			name:     "transport",
 			cause:    &net.OpError{Op: "read", Err: os.NewSyscallError("read", syscall.ECONNRESET)},
@@ -56,7 +56,7 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 		{name: "fatal producer ID", cause: kerr.UnknownProducerID, category: ErrorFatal},
 		{name: "fatal producer mapping", cause: kerr.InvalidProducerIDMapping, category: ErrorFatal},
 		{name: "ambiguous result", cause: ErrDeliveryResultMissing, category: ErrorAmbiguous},
-		{name: "cancelled", cause: context.Canceled, category: ErrorCanceled},
+		{name: "cancelled", cause: context.Canceled, category: ErrorAmbiguous},
 		{name: "shutdown", cause: kgo.ErrClientClosed, category: ErrorShutdown},
 		{name: "aborted", cause: kgo.ErrAborting, category: ErrorShutdown},
 		{name: "permanent", cause: secretCause, category: ErrorPermanent},
@@ -117,11 +117,20 @@ func TestDeliveryErrorSupportsAllStableCategoriesAndNilReceiver(t *testing.T) {
 	if got := ErrorFatal.String(); got != "fatal" {
 		t.Fatalf("ErrorFatal.String() = %q", got)
 	}
+	if got := ErrorTimeout.String(); got != "timeout" {
+		t.Fatalf("ErrorTimeout.String() = %q", got)
+	}
+	if got := ErrorCanceled.String(); got != "canceled" {
+		t.Fatalf("ErrorCanceled.String() = %q", got)
+	}
 	if got := ErrorCategory(255).String(); got != "unknown" {
 		t.Fatalf("unknown ErrorCategory.String() = %q", got)
 	}
 	if err := newDeliveryError(nil); err != nil {
 		t.Fatalf("newDeliveryError(nil) = %v", err)
+	}
+	if category := classifyError(newDeliveryError(context.Canceled)); category != ErrorAmbiguous {
+		t.Fatalf("classifyError(DeliveryError) = %v, want %v", category, ErrorAmbiguous)
 	}
 
 	var err *DeliveryError

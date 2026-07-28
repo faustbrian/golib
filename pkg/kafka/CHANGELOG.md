@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- bound non-transactional idempotent production after an in-flight response is
+  lost, classify delivery timeout or retry exhaustion as an ambiguous durable
+  outcome, detach successfully admitted asynchronous records from later caller
+  cancellation, and preserve the Kafka record exactly once in the exercised
+  broker log without adding an application retry
 - treat duplicate static consumer-instance fencing as a terminal lifecycle
   state, adding a stable `ErrConsumerInstanceFenced` classification, preserving
   the broker cause, and rejecting later runners before polling instead of
@@ -22,6 +27,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- explicit bounded producer and transactional-output retry-backoff ranges with
+  per-client jitter, plus three-broker evidence that drops every matching
+  `Produce` response and returns within the reviewed delivery bound
 - three-broker response-loss evidence that forwards a real `EndTxn` commit,
   drops every matching broker response, observes the record through a separate
   read-committed consumer, and returns a non-abortable unknown commit outcome

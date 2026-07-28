@@ -80,6 +80,17 @@ default is Snappy with an uncompressed fallback. `CompressionNone` is valid
 only as the final preference; use it alone to disable compression. Confirm
 broker and consumer compatibility before selecting Zstandard.
 
+Production retries use bounded exponential per-client jitter. The default
+range is 250 milliseconds through 1 second and is configurable through
+`RetryBackoffMin` and `RetryBackoffMax`. Non-transactional delivery remains
+bounded when a broker response is lost; the resulting timeout is classified
+as ambiguous because Kafka may already contain the record. Do not resubmit
+that record without reconciliation and an explicit duplicate policy.
+Synchronous caller cancellation can stop an admitted record and is ambiguous
+for the same reason. Asynchronous caller cancellation applies while admission
+is blocked; after `PublishAsync` returns, the producer-owned record continues
+under the configured delivery bound and reports its eventual buffered result.
+
 Call `Shutdown` with a bounded context for graceful drain and close. A failed
 drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the

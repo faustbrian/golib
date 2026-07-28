@@ -567,11 +567,24 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	if config.RecordRetries != 10 {
 		t.Fatalf("RecordRetries = %d, want 10", config.RecordRetries)
 	}
+	if config.RetryBackoffMin != 250*time.Millisecond ||
+		config.RetryBackoffMax != time.Second {
+		t.Fatalf(
+			"RetryBackoffMin/Max = %s/%s, want 250ms/1s",
+			config.RetryBackoffMin,
+			config.RetryBackoffMax,
+		)
+	}
 	if config.DeliveryTimeout != 30*time.Second {
 		t.Fatalf("DeliveryTimeout = %s, want 30s", config.DeliveryTimeout)
 	}
-	if config.ShutdownTimeout != config.DeliveryTimeout {
-		t.Fatalf("ShutdownTimeout = %s, want %s", config.ShutdownTimeout, config.DeliveryTimeout)
+	if config.ShutdownTimeout !=
+		config.DeliveryTimeout+config.RetryBackoffMax {
+		t.Fatalf(
+			"ShutdownTimeout = %s, want %s",
+			config.ShutdownTimeout,
+			config.DeliveryTimeout+config.RetryBackoffMax,
+		)
 	}
 	if config.RequestTimeout != 10*time.Second {
 		t.Fatalf("RequestTimeout = %s, want 10s", config.RequestTimeout)
@@ -595,6 +608,60 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	if transactionalConfig.TransactionTimeout != 30*time.Second ||
 		transactionalConfig.TransactionEndTimeout != 30*time.Second {
 		t.Fatalf("transactional defaults = %#v", transactionalConfig)
+	}
+}
+
+func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
+	t.Parallel()
+
+	const (
+		minimum = 250 * time.Millisecond
+		maximum = time.Second
+		seed    = 1
+	)
+	tests := []struct {
+		attempt int
+		want    time.Duration
+	}{
+		{attempt: -1, want: 229126326 * time.Nanosecond},
+		{attempt: 0, want: 229126326 * time.Nanosecond},
+		{attempt: 1, want: 226499062 * time.Nanosecond},
+		{attempt: 2, want: 493977785 * time.Nanosecond},
+		{attempt: 3, want: 923694587 * time.Nanosecond},
+		{attempt: 10, want: 813376416 * time.Nanosecond},
+	}
+	for _, test := range tests {
+		got := producerRetryBackoffDuration(
+			minimum,
+			maximum,
+			test.attempt,
+			seed,
+		)
+		if got != test.want {
+			t.Fatalf(
+				"producerRetryBackoffDuration(%d) = %s, want %s",
+				test.attempt,
+				got,
+				test.want,
+			)
+		}
+		if got < minimum-minimum/5 || got > maximum {
+			t.Fatalf(
+				"producerRetryBackoffDuration(%d) = %s outside bounds",
+				test.attempt,
+				got,
+			)
+		}
+	}
+
+	got := producerRetryBackoffDuration(
+		400*time.Millisecond,
+		maximum,
+		3,
+		seed,
+	)
+	if got < 800*time.Millisecond || got > maximum {
+		t.Fatalf("non-power-of-two retry backoff = %s, want [800ms, 1s]", got)
 	}
 }
 
@@ -684,6 +751,32 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 			},
 		},
 		{
+			name: "negative minimum retry backoff",
+			change: func(config *ProducerConfig) {
+				config.RetryBackoffMin = -time.Second
+			},
+		},
+		{
+			name: "maximum retry backoff below minimum",
+			change: func(config *ProducerConfig) {
+				config.RetryBackoffMin = time.Second
+				config.RetryBackoffMax = time.Millisecond
+			},
+		},
+		{
+			name: "excessive maximum retry backoff",
+			change: func(config *ProducerConfig) {
+				config.RetryBackoffMax = 5*time.Second + time.Nanosecond
+			},
+		},
+		{
+			name: "retry backoff exceeds delivery timeout",
+			change: func(config *ProducerConfig) {
+				config.DeliveryTimeout = time.Second
+				config.RetryBackoffMax = 2 * time.Second
+			},
+		},
+		{
 			name: "negative delivery timeout",
 			change: func(config *ProducerConfig) {
 				config.DeliveryTimeout = -time.Second
@@ -696,9 +789,9 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 			},
 		},
 		{
-			name: "shutdown shorter than delivery timeout",
+			name: "shutdown shorter than delivery and retry bound",
 			change: func(config *ProducerConfig) {
-				config.ShutdownTimeout = time.Second
+				config.ShutdownTimeout = 30 * time.Second
 			},
 		},
 		{
@@ -881,7 +974,7 @@ func TestNewProducerPreservesClientConstructionFailure(t *testing.T) {
 	}
 }
 
-func TestNewProducerStopsAfterDetectedDataLoss(t *testing.T) {
+func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
 	t.Parallel()
 
 	var franzClient *kgo.Client
@@ -905,6 +998,141 @@ func TestNewProducerStopsAfterDetectedDataLoss(t *testing.T) {
 
 	if got := franzClient.OptValue(kgo.StopProducerOnDataLossDetected); got != true {
 		t.Fatalf("StopProducerOnDataLossDetected = %v, want true", got)
+	}
+	if got := franzClient.OptValue(kgo.AllowIdempotentProduceCancellation); got != true {
+		t.Fatalf("AllowIdempotentProduceCancellation = %v, want true", got)
+	}
+	if got := franzClient.OptValue(kgo.MetadataMinAge); got != 250*time.Millisecond {
+		t.Fatalf("MetadataMinAge = %v, want 250ms", got)
+	}
+	retryBackoff, ok := franzClient.OptValue(kgo.RetryBackoffFn).(func(int) time.Duration)
+	if !ok {
+		t.Fatalf("RetryBackoffFn = %T, want func(int) time.Duration", franzClient.OptValue(kgo.RetryBackoffFn))
+	}
+	if got := retryBackoff(10); got < 800*time.Millisecond || got > time.Second {
+		t.Fatalf("RetryBackoffFn(10) = %s, want [800ms, 1s]", got)
+	}
+
+	var transactionalClient *kgo.Client
+	transactional, err := newProducer(
+		ProducerConfig{
+			Brokers:         []string{"broker.internal:9092"},
+			ClientID:        "track-transaction",
+			AllowedTopics:   []string{"events"},
+			TransactionalID: "track-transaction-0",
+		},
+		func(options ...kgo.Opt) (*kgo.Client, error) {
+			client, clientErr := kgo.NewClient(options...)
+			transactionalClient = client
+
+			return client, clientErr
+		},
+	)
+	if err != nil {
+		t.Fatalf("newProducer() transactional error = %v", err)
+	}
+	defer closeProducerForTest(t, transactional)
+	if got := transactionalClient.OptValue(kgo.AllowIdempotentProduceCancellation); got != false {
+		t.Fatalf("transactional AllowIdempotentProduceCancellation = %v, want false", got)
+	}
+}
+
+func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing.T) {
+	t.Parallel()
+
+	const deliveryWaitTimeout = time.Minute
+	backend := &recordingProducerBackend{}
+	producer := &Producer{
+		client:              backend,
+		limits:              DefaultMessageLimits(),
+		maxBatchRecords:     1,
+		maxBatchBytes:       1 << 20,
+		deliveryWaitTimeout: deliveryWaitTimeout,
+	}
+	record := ProducerRecord{Topic: "events", Key: []byte("key")}
+	assertDeliveryDeadline := func(ctx context.Context) {
+		t.Helper()
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			t.Fatal("delivery context has no deadline")
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 59*time.Second || remaining > deliveryWaitTimeout {
+			t.Fatalf("delivery deadline remaining = %s, want (59s, 1m]", remaining)
+		}
+	}
+
+	if result := producer.PublishRecord(context.Background(), record); result.Err != nil {
+		t.Fatalf("PublishRecord() error = %v", result.Err)
+	}
+	assertDeliveryDeadline(backend.syncContexts[0])
+
+	if _, err := producer.PublishBatch(context.Background(), []ProducerRecord{record}); err != nil {
+		t.Fatalf("PublishBatch() error = %v", err)
+	}
+	assertDeliveryDeadline(backend.syncContexts[1])
+
+	callerCtx, cancelCaller := context.WithCancel(context.Background())
+	delivery, err := producer.PublishAsync(callerCtx, record)
+	if err != nil {
+		t.Fatalf("PublishAsync() error = %v", err)
+	}
+	cancelCaller()
+	if err := backend.asyncContexts[0].Err(); err != nil {
+		t.Fatalf("admitted async context error = %v, want nil", err)
+	}
+	assertDeliveryDeadline(backend.asyncContexts[0])
+	backend.completeAsync(0, 0, 1, nil)
+	if result := <-delivery; result.Err != nil {
+		t.Fatalf("PublishAsync() delivery error = %v", result.Err)
+	}
+}
+
+func TestProducerAsyncCancellationDuringAdmissionRemainsAuthoritative(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{
+		produceAdmissionStarted: make(chan struct{}),
+		produceAdmissionRelease: make(chan struct{}),
+	}
+	producer := &Producer{
+		client:              backend,
+		limits:              DefaultMessageLimits(),
+		deliveryWaitTimeout: time.Minute,
+	}
+	callerCtx, cancelCaller := context.WithCancel(context.Background())
+	published := make(chan struct {
+		delivery <-chan DeliveryResult
+		err      error
+	}, 1)
+	go func() {
+		delivery, err := producer.PublishAsync(callerCtx, ProducerRecord{
+			Topic: "events",
+			Key:   []byte("key"),
+		})
+		published <- struct {
+			delivery <-chan DeliveryResult
+			err      error
+		}{delivery: delivery, err: err}
+	}()
+	<-backend.produceAdmissionStarted
+	cancelCaller()
+	close(backend.produceAdmissionRelease)
+
+	result := <-published
+	if result.err != nil {
+		t.Fatalf("PublishAsync() error = %v", result.err)
+	}
+	if err := backend.asyncContexts[0].Err(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("admission context error = %v, want context.Canceled", err)
+	}
+	backend.completeAsync(0, 0, 0, backend.asyncContexts[0].Err())
+	delivery := <-result.delivery
+	var deliveryErr *DeliveryError
+	if !errors.As(delivery.Err, &deliveryErr) ||
+		deliveryErr.Category() != ErrorAmbiguous ||
+		!errors.Is(delivery.Err, context.Canceled) {
+		t.Fatalf("delivery error = %T %v, want ambiguous cancellation", delivery.Err, delivery.Err)
 	}
 }
 
@@ -1420,6 +1648,8 @@ func closeProducerForTest(t *testing.T, producer *Producer) {
 
 type recordingProducerBackend struct {
 	records                 []*kgo.Record
+	syncContexts            []context.Context
+	asyncContexts           []context.Context
 	deliveryErr             error
 	deliveryErrors          []error
 	healthErr               error
@@ -1449,9 +1679,10 @@ type recordingProducerBackend struct {
 }
 
 func (backend *recordingProducerBackend) ProduceSync(
-	_ context.Context,
+	ctx context.Context,
 	records ...*kgo.Record,
 ) kgo.ProduceResults {
+	backend.syncContexts = append(backend.syncContexts, ctx)
 	backend.records = append(backend.records, records...)
 	if backend.produceStarted != nil {
 		close(backend.produceStarted)
@@ -1477,7 +1708,7 @@ func (backend *recordingProducerBackend) ProduceSync(
 }
 
 func (backend *recordingProducerBackend) Produce(
-	_ context.Context,
+	ctx context.Context,
 	record *kgo.Record,
 	promise func(*kgo.Record, error),
 ) {
@@ -1485,6 +1716,7 @@ func (backend *recordingProducerBackend) Produce(
 		close(backend.produceAdmissionStarted)
 		<-backend.produceAdmissionRelease
 	}
+	backend.asyncContexts = append(backend.asyncContexts, ctx)
 	backend.records = append(backend.records, record)
 	backend.asyncRecords = append(backend.asyncRecords, record)
 	backend.asyncPromises = append(backend.asyncPromises, promise)

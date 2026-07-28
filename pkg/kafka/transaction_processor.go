@@ -88,6 +88,8 @@ type TransactionOutputConfig struct {
 	MaxOutputRecords       int
 	MaxOutputBytes         int64
 	RecordRetries          int
+	RetryBackoffMin        time.Duration
+	RetryBackoffMax        time.Duration
 	DeliveryTimeout        time.Duration
 	RequestTimeout         time.Duration
 	Linger                 time.Duration
@@ -283,6 +285,12 @@ func newTransactionProcessor(
 		kgo.MaxBufferedBytes(config.Output.MaxBufferedBytes),
 		kgo.ProducerBatchMaxBytes(config.Output.MaxBatchBytes),
 		kgo.RecordRetries(config.Output.RecordRetries),
+		kgo.RetryBackoffFn(newProducerRetryBackoff(
+			config.Connection.ClientID,
+			config.Output.RetryBackoffMin,
+			config.Output.RetryBackoffMax,
+		)),
+		kgo.MetadataMinAge(config.Output.RetryBackoffMin),
 		kgo.RecordDeliveryTimeout(config.Output.DeliveryTimeout),
 		kgo.ProduceRequestTimeout(config.Output.RequestTimeout),
 		kgo.ProducerLinger(config.Output.Linger),
@@ -374,6 +382,8 @@ func normalizeTransactionProcessorConfig(
 		MaxBufferedBytes:       config.Output.MaxBufferedBytes,
 		MaxBatchBytes:          config.Output.MaxBatchBytes,
 		RecordRetries:          config.Output.RecordRetries,
+		RetryBackoffMin:        config.Output.RetryBackoffMin,
+		RetryBackoffMax:        config.Output.RetryBackoffMax,
 		DeliveryTimeout:        config.Output.DeliveryTimeout,
 		RequestTimeout:         config.Output.RequestTimeout,
 		DialTimeout:            config.Connection.DialTimeout,
@@ -485,6 +495,8 @@ func normalizeTransactionProcessorConfig(
 		MaxOutputRecords:   maxOutputRecords,
 		MaxOutputBytes:     maxOutputBytes,
 		RecordRetries:      producer.RecordRetries,
+		RetryBackoffMin:    producer.RetryBackoffMin,
+		RetryBackoffMax:    producer.RetryBackoffMax,
 		DeliveryTimeout:    producer.DeliveryTimeout,
 		RequestTimeout:     producer.RequestTimeout,
 		Linger:             producer.Linger,

@@ -56,6 +56,8 @@ func TestTransactionProcessorConfigNormalizesAndOwnsPolicy(t *testing.T) {
 		normalized.Connection.Protocol.MinimumVersion != "2.5" ||
 		normalized.Output.MaxOutputRecords != 1_000 ||
 		normalized.Output.MaxOutputBytes != 10<<20 ||
+		normalized.Output.RetryBackoffMin != 250*time.Millisecond ||
+		normalized.Output.RetryBackoffMax != time.Second ||
 		normalized.Output.TransactionTimeout != 60*time.Second ||
 		normalized.Output.TransactionEndTimeout != 10*time.Second ||
 		normalized.ShutdownTimeout != 30*time.Second {
@@ -86,8 +88,15 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 				client.OptValue(kgo.DisableAutoCommit) != true ||
 				client.OptValue(kgo.TransactionalID) != "transaction-worker-0" ||
 				client.OptValue(kgo.StopProducerOnDataLossDetected) != true ||
+				client.OptValue(kgo.AllowIdempotentProduceCancellation) != false ||
+				client.OptValue(kgo.MetadataMinAge) != 250*time.Millisecond ||
 				!ok || !minimum.Equal(kversion.FromString("2.5")) {
 				t.Fatalf("unsafe transaction processor options")
+			}
+			retryBackoff, ok := client.OptValue(kgo.RetryBackoffFn).(func(int) time.Duration)
+			if !ok || retryBackoff(10) < 800*time.Millisecond ||
+				retryBackoff(10) > time.Second {
+				t.Fatalf("unsafe transaction processor retry backoff")
 			}
 
 			return &recordingTransactionProcessorBackend{}, nil

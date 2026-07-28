@@ -264,6 +264,7 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	topic := fmt.Sprintf("golib-apache-compatibility-%d", time.Now().UnixNano())
 	fencingTransactionTopic := topic + "-transaction-fencing"
 	warmTransactionTopic := topic + "-transaction-warm"
+	responseLossProducerTopic := topic + "-producer-response-loss"
 	responseLossTransactionTopic := topic + "-transaction-response-loss"
 	recoveredTransactionTopic := topic + "-transaction-recovered"
 	processorSourceTopic := topic + "-processor-source"
@@ -276,6 +277,7 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	createApacheKafkaTopic(t, ctx, brokers, topic, 3)
 	createApacheKafkaTopic(t, ctx, brokers, fencingTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, warmTransactionTopic, 1)
+	createApacheKafkaTopic(t, ctx, brokers, responseLossProducerTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, responseLossTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, recoveredTransactionTopic, 1)
 	createApacheKafkaTopic(t, ctx, brokers, processorSourceTopic, 1)
@@ -329,11 +331,23 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 	) bool {
 		return len(state.Partitions) > 0 && allPartitionsMatch(state, 3, 3)
 	})
+	waitForApacheTopicState(t, ctx, inspector, responseLossProducerTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 && allPartitionsMatch(state, 3, 3)
+	})
 	proveProducerCommitResponseLoss(
 		t,
 		ctx,
 		brokers,
 		responseLossTransactionTopic,
+	)
+	proveProducerResponseLoss(
+		t,
+		ctx,
+		brokers,
+		inspector,
+		responseLossProducerTopic,
 	)
 	proveProducerFencing(t, ctx, brokers, fencingTransactionTopic)
 	proveTransactionProcessorTerminationRecovery(
@@ -540,19 +554,21 @@ func TestApacheKafkaTransactionTimeout(t *testing.T) {
 }
 
 const (
+	kafkaProduceAPIKey      = 0
 	kafkaEndTxnAPIKey       = 26
 	maxKafkaTestFrameBytes  = 100 << 20
 	kafkaRequestHeaderBytes = 8
 )
 
-type endTxnResponseDropper struct {
+type kafkaResponseDropper struct {
 	dialer net.Dialer
+	apiKey uint16
 
 	mu      sync.Mutex
 	dropped int
 }
 
-func (dropper *endTxnResponseDropper) DialContext(
+func (dropper *kafkaResponseDropper) DialContext(
 	ctx context.Context,
 	network string,
 	address string,
@@ -562,7 +578,7 @@ func (dropper *endTxnResponseDropper) DialContext(
 		return nil, err
 	}
 
-	return &endTxnDroppingConn{
+	return &kafkaResponseDroppingConn{
 		Conn:          connection,
 		dropper:       dropper,
 		correlations:  make(map[int32]struct{}),
@@ -570,22 +586,22 @@ func (dropper *endTxnResponseDropper) DialContext(
 	}, nil
 }
 
-func (dropper *endTxnResponseDropper) recordDrop() {
+func (dropper *kafkaResponseDropper) recordDrop() {
 	dropper.mu.Lock()
 	dropper.dropped++
 	dropper.mu.Unlock()
 }
 
-func (dropper *endTxnResponseDropper) droppedResponses() int {
+func (dropper *kafkaResponseDropper) droppedResponses() int {
 	dropper.mu.Lock()
 	defer dropper.mu.Unlock()
 
 	return dropper.dropped
 }
 
-type endTxnDroppingConn struct {
+type kafkaResponseDroppingConn struct {
 	net.Conn
-	dropper *endTxnResponseDropper
+	dropper *kafkaResponseDropper
 
 	writeMu       sync.Mutex
 	requestBuffer []byte
@@ -597,7 +613,7 @@ type endTxnDroppingConn struct {
 	responseData []byte
 }
 
-func (connection *endTxnDroppingConn) Write(data []byte) (int, error) {
+func (connection *kafkaResponseDroppingConn) Write(data []byte) (int, error) {
 	connection.writeMu.Lock()
 	defer connection.writeMu.Unlock()
 
@@ -619,7 +635,7 @@ func (connection *endTxnDroppingConn) Write(data []byte) (int, error) {
 	return written, nil
 }
 
-func (connection *endTxnDroppingConn) trackRequests(data []byte) error {
+func (connection *kafkaResponseDroppingConn) trackRequests(data []byte) error {
 	if len(connection.requestBuffer)+len(data) > maxKafkaTestFrameBytes+4 {
 		return errors.New("kafka test request framing exceeded its bound")
 	}
@@ -637,7 +653,7 @@ func (connection *endTxnDroppingConn) trackRequests(data []byte) error {
 			return nil
 		}
 		frame := connection.requestBuffer[:totalBytes]
-		if binary.BigEndian.Uint16(frame[4:6]) == kafkaEndTxnAPIKey {
+		if binary.BigEndian.Uint16(frame[4:6]) == connection.dropper.apiKey {
 			correlation := int32(binary.BigEndian.Uint32(frame[8:12]))
 			connection.correlationMu.Lock()
 			connection.correlations[correlation] = struct{}{}
@@ -649,7 +665,7 @@ func (connection *endTxnDroppingConn) trackRequests(data []byte) error {
 	return nil
 }
 
-func (connection *endTxnDroppingConn) Read(data []byte) (int, error) {
+func (connection *kafkaResponseDroppingConn) Read(data []byte) (int, error) {
 	connection.readMu.Lock()
 	defer connection.readMu.Unlock()
 
@@ -685,7 +701,7 @@ func (connection *endTxnDroppingConn) Read(data []byte) (int, error) {
 	return count, nil
 }
 
-func (connection *endTxnDroppingConn) dropResponse(correlation int32) bool {
+func (connection *kafkaResponseDroppingConn) dropResponse(correlation int32) bool {
 	connection.correlationMu.Lock()
 	defer connection.correlationMu.Unlock()
 
@@ -705,7 +721,7 @@ func proveProducerCommitResponseLoss(
 ) {
 	t.Helper()
 
-	dropper := &endTxnResponseDropper{}
+	dropper := &kafkaResponseDropper{apiKey: kafkaEndTxnAPIKey}
 	producer, err := kafka.NewProducerWithDialerForTest(
 		kafka.ProducerConfig{
 			Brokers:               brokers,
@@ -754,6 +770,89 @@ func proveProducerCommitResponseLoss(
 	)
 	if len(values) != 1 || values[0] != "response-loss" {
 		t.Fatalf("response-loss committed values = %q", values)
+	}
+}
+
+func proveProducerResponseLoss(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	inspector *kafka.Inspector,
+	topic string,
+) {
+	t.Helper()
+
+	dropper := &kafkaResponseDropper{apiKey: kafkaProduceAPIKey}
+	producer, err := kafka.NewProducerWithDialerForTest(
+		kafka.ProducerConfig{
+			Brokers:         brokers,
+			ClientID:        "golib-apache-produce-response-loss",
+			AllowedTopics:   []string{topic},
+			DeliveryTimeout: time.Second,
+			RequestTimeout:  100 * time.Millisecond,
+			ShutdownTimeout: 2 * time.Second,
+			Security:        kafka.DevelopmentPlaintextSecurity(),
+		},
+		dropper.DialContext,
+	)
+	if err != nil {
+		t.Fatalf("construct produce-response-loss producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("close produce-response-loss producer: %v", err)
+		}
+	}()
+
+	startedAt := time.Now()
+	result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic:     topic,
+		Partition: kafka.ExplicitPartition(0),
+		Key:       []byte("produce-response-loss"),
+		Value:     []byte("produce-response-loss"),
+	})
+	duration := time.Since(startedAt)
+	var deliveryErr *kafka.DeliveryError
+	if !errors.As(result.Err, &deliveryErr) {
+		t.Fatalf("produce-response-loss error type = %T", result.Err)
+	}
+	if deliveryErr.Category() != kafka.ErrorAmbiguous ||
+		!errors.Is(result.Err, kgo.ErrRecordTimeout) {
+		t.Fatalf(
+			"produce-response-loss category=%s record-timeout=%t",
+			deliveryErr.Category(),
+			errors.Is(result.Err, kgo.ErrRecordTimeout),
+		)
+	}
+	if duration > 3*time.Second {
+		t.Fatalf(
+			"produce-response-loss duration = %s drops=%d",
+			duration,
+			dropper.droppedResponses(),
+		)
+	}
+	if dropper.droppedResponses() == 0 {
+		t.Fatal("produce-response-loss producer did not drop a Produce response")
+	}
+	values := consumeTransactionValues(
+		t,
+		brokers,
+		topic,
+		kgo.ReadCommitted(),
+		1,
+	)
+	if len(values) != 1 || values[0] != "produce-response-loss" {
+		t.Fatalf("produce-response-loss values = %q", values)
+	}
+	states, err := inspector.Topics(ctx, topic)
+	if err != nil {
+		t.Fatalf("inspect produce-response-loss offsets: %v", err)
+	}
+	if len(states) != 1 ||
+		len(states[0].Partitions) != 1 ||
+		states[0].Partitions[0].BeginningOffset != 0 ||
+		states[0].Partitions[0].EndOffset != 1 {
+		t.Fatalf("produce-response-loss topic state = %#v", states)
 	}
 }
 

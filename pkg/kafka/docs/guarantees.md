@@ -11,28 +11,39 @@ the configured all-ISR acknowledgement policy. It does not prove a downstream
 consumer completed and does not make a database/Kafka dual write atomic.
 
 Producer input bytes are copied before they enter franz-go. Synchronous batch
-results preserve input order and report every known per-record failure. A
-caller canceling its wait cannot retract a record already admitted to the
-idempotent producer; the eventual result remains authoritative. Delivery
-errors use stable, redacted operational categories while preserving error
-identity for programmatic inspection.
+results preserve input order and report every known per-record failure.
+`PublishAsync` uses caller cancellation while admission is blocked, then
+detaches the admitted record from later caller cancellation; its eventual
+buffered result remains authoritative. A synchronous caller context remains
+authoritative throughout delivery. Delivery errors use stable, redacted
+operational categories while preserving error identity for programmatic
+inspection.
 
 Construction copies a required bounded topic allowlist. Every publish mode,
 including transaction callbacks, rejects records outside that immutable set
 before franz-go admission.
 
-A delivery timeout or exhausted franz-go retry budget is classified by the
-condition that ended the attempt; neither classification automatically retries
-the application operation. With the required idempotent producer, franz-go
-only returns its record-delivery timeout when failing the record is safe. A
-bounded dial failure caused by a broker refusing a connection during restart
-is a retryable transport failure; the package still does not retry the
-application operation after franz-go returns that final delivery result. A
-missing delivery result is different: the package classifies it as ambiguous
+Non-transactional producers permit bounded cancellation of an in-flight
+idempotent record. This preserves the package delivery bound after a broker
+writes a record but its response is lost; franz-go's internal retries remain
+idempotent, but a new application submission cannot reuse the canceled
+producer sequence. Record delivery timeout and retry exhaustion are therefore
+`ErrorAmbiguous`; delivery cancellation and deadline expiry are classified the
+same way because the package cannot prove that Kafka rejected an admitted
+record. These errors retain their underlying identity and must not be retried
+blindly. A bounded dial failure before a request reaches Kafka remains a
+retryable transport failure. A missing delivery result is also ambiguous
 because no authoritative per-record outcome was supplied. Fatal sequence or
 producer-ID state stops the producer instead of allowing franz-go's default
-continue-after-data-loss behavior. Callers must replace or explicitly recover
-the producer rather than retrying blindly.
+continue-after-data-loss behavior.
+
+Retry backoff uses a 250 millisecond to 1 second default range,
+exponential growth, and bounded per-client jitter. The minimum also limits
+failed-partition metadata refresh frequency. `DeliveryTimeout` is a rough
+franz-go record bound evaluated around requests. The package also gives every
+non-transactional delivery a context deadline of `DeliveryTimeout +
+RetryBackoffMax`, which is the policy-level maximum wait. `ShutdownTimeout`
+must cover that combined interval.
 
 Keyed production is the default ordering policy. Unkeyed records are accepted
 only when configured explicitly; their partition is selected by the configured

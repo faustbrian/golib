@@ -55,15 +55,26 @@ Producer admission is bounded independently by record count and total buffered
 bytes; a Kafka batch also has its own smaller byte and record limits.
 `Producer.Drain` preserves admitted records, `Abort` explicitly discards
 buffered records, and `Shutdown` performs a bounded drain before close.
-`ProducerConfig.ShutdownTimeout` defaults to `DeliveryTimeout`, cannot be
-shorter than delivery, and bounds the error-returning `Close` convenience
-method. Shutdown first fences new work and waits for already-started calls to
-finish backend admission so a concurrent flush cannot miss them.
+`RetryBackoffMin` and `RetryBackoffMax` bound exponential per-client jitter and
+failed-partition metadata refresh. `ProducerConfig.ShutdownTimeout` defaults to
+`DeliveryTimeout + RetryBackoffMax`, cannot be shorter than that combined
+bound, and bounds the error-returning `Close` convenience method. Shutdown
+first fences new work and waits for already-started calls to finish backend
+admission so a concurrent flush cannot miss them.
 Every broker delivery failure is a redacted `DeliveryError`. Its stable
 category distinguishes retryable, authorization, fenced, oversized, timeout,
 canceled, shutdown, fatal producer-state, permanent, and ambiguous outcomes.
 `errors.Is` and `errors.As` retain the underlying identity for deliberate
 inspection; application retry is a separate policy decision.
+Non-transactional production permits franz-go to stop an in-flight idempotent
+record when a synchronous caller or the package delivery bound expires.
+Cancellation, delivery timeout, or retry exhaustion after admission is
+conservatively `ErrorAmbiguous`: the broker may have accepted the record even
+though the acknowledgement was lost. `PublishAsync` uses caller cancellation
+only while admission is blocked; after it returns, the owned record is detached
+from later caller cancellation and continues under the package delivery bound.
+The producer performs no application retry, and callers must reconcile before
+submitting the record again because a new submission can duplicate it.
 The franz-go backend is configured to stop after detecting idempotent-producer
 data loss; a fatal delivery requires producer replacement or an explicit
 application recovery decision.
