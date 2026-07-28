@@ -3,8 +3,9 @@ GOLANGCI_LINT ?= golangci-lint
 POSTGRES_VERSION ?= 18
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
+APIDIFF_VERSION ?= v0.0.0-20260718201538-764159d718ef
 
-.PHONY: benchmark check coverage docs format format-check fuzz integration \
+.PHONY: api benchmark check coverage docs format format-check fuzz integration \
 	lint race safety test vet vuln
 
 format:
@@ -52,4 +53,7 @@ safety:
 	$(GO) test -race ./...
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"
 
-check: format-check safety coverage benchmark docs vuln
+api:
+	APIDIFF_VERSION=$(APIDIFF_VERSION) ./scripts/check-api.sh
+
+check: format-check safety coverage benchmark docs api vuln

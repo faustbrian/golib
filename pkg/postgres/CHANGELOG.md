@@ -17,6 +17,8 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Changed
 
+- Run the pinned exported API compatibility check as part of the complete
+  module gate.
 - API compatibility tooling now runs against the isolated module graph so owned
   dependency source changes cannot conflict with release checksums.
 - hardening documentation now records the exact hosted `v1.0.0` release proof
