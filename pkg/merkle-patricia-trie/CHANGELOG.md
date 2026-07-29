@@ -22,6 +22,10 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   for safe migration between stores.
 - Added bounded immutable missing-node recovery overlays that validate fetched
   nodes, resume every traversal surface, and atomically repair the source store.
+- Added bounded canonical reachability audits plus explicit historical-root
+  leases and atomic mark-and-sweep pruning in the concurrent memory store.
+- Rejected non-canonical hashed references to child encodings shorter than 32
+  bytes across stored traversal, proofs, rebuilds, and reachability audits.
 - Added bounded Ethereum-style membership and non-membership proof generation
   and verification with strict root, key, value, profile, ordering, and surplus
   node binding.

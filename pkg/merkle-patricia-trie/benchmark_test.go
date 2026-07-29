@@ -13,6 +13,7 @@ var (
 	benchmarkBytes []byte
 	benchmarkRoot  mpt.Root
 	benchmarkTrie  mpt.RawTrie
+	benchmarkPrune mpt.PruneResult
 )
 
 func BenchmarkGetEmpty(b *testing.B) {
@@ -283,6 +284,38 @@ func BenchmarkMissingNodeRecovery(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		benchmarkTrie, err = loaded.RecoverNode(ctx, root, encoded)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPrune(b *testing.B) {
+	ctx := context.Background()
+	for b.Loop() {
+		b.StopTimer()
+		store := memory.New()
+		trie := benchmarkPopulatedTrie(b, 256)
+		var err error
+		trie, err = trie.Commit(ctx, store)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for index := range 32 {
+			trie, err = trie.Update(
+				ctx, benchmarkKey(index), benchmarkValue(index+1024),
+			)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		if _, err = trie.Commit(ctx, store); err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
+		benchmarkPrune, err = store.Prune(
+			ctx, mpt.DefaultReachabilityLimits(),
+		)
 		if err != nil {
 			b.Fatal(err)
 		}

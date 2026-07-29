@@ -280,12 +280,13 @@ func (store *Store) Prune(
 	for _, stored := range reachable {
 		next[stored.Hash()] = stored.Encoded()
 	}
-	before, removedBytes := 0, 0
+	before := 0
+	var removedBytes uint64
 	if base != nil {
 		before = len(base.nodes)
 		for hash, encoded := range base.nodes {
 			if _, retained := next[hash]; !retained {
-				removedBytes += len(encoded)
+				removedBytes += uint64(len(encoded))
 			}
 		}
 	}

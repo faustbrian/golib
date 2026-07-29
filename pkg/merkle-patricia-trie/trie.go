@@ -502,7 +502,13 @@ func getNode(
 		}
 		return getNode(current.children[path[0]], path[1:], depth+1, state)
 	case hashNode:
-		resolved, err := state.resolve(Root(current))
+		var resolved node
+		var err error
+		if depth == 0 {
+			resolved, err = state.resolve(Root(current))
+		} else {
+			resolved, err = state.resolveChild(Root(current))
+		}
 		if err != nil {
 			return nil, false, err
 		}
@@ -547,7 +553,13 @@ func insertNode(
 		}
 		return newBranch(children, branchValue)
 	case hashNode:
-		resolved, err := state.resolve(Root(current))
+		var resolved node
+		var err error
+		if depth == 0 {
+			resolved, err = state.resolve(Root(current))
+		} else {
+			resolved, err = state.resolveChild(Root(current))
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -704,7 +716,13 @@ func deleteNode(
 		compacted, err := compactBranch(children, branchValue)
 		return compacted, true, err
 	case hashNode:
-		resolved, err := state.resolve(Root(current))
+		var resolved node
+		var err error
+		if depth == 0 {
+			resolved, err = state.resolve(Root(current))
+		} else {
+			resolved, err = state.resolveChild(Root(current))
+		}
 		if err != nil {
 			return nil, false, err
 		}
@@ -850,6 +868,30 @@ func (state *traversalState) resolve(hash Root) (node, error) {
 	return resolved, err
 }
 
+func (state *traversalState) resolveChild(hash Root) (node, error) {
+	resolved, _, err := state.resolveEncodedChild(hash)
+	return resolved, err
+}
+
+func (state *traversalState) resolveEncodedChild(
+	hash Root,
+) (node, []byte, error) {
+	resolved, encoded, err := state.resolveEncoded(hash)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(encoded) < RootBytes {
+		return nil, nil, &CorruptNodeError{
+			Hash: hash,
+			Cause: fmt.Errorf(
+				"%w: embedded-size child referenced by hash",
+				ErrMalformedNode,
+			),
+		}
+	}
+	return resolved, encoded, nil
+}
+
 func (state *traversalState) resolveEncoded(
 	hash Root,
 ) (node, []byte, error) {
@@ -897,7 +939,7 @@ func (state *traversalState) extensionChild(child node) (node, error) {
 		return child, nil
 	case hashNode:
 		hash := Root(child)
-		resolved, err := state.resolve(hash)
+		resolved, err := state.resolveChild(hash)
 		if err != nil {
 			return nil, err
 		}

@@ -56,6 +56,32 @@ snapshots commit only to their source store; use `Rebuild` before migrating a
 root to another store. The `memory` package provides a concurrent atomic
 adapter.
 
+Stores may implement `RootRetainer` and `NodePruner`. The memory adapter keeps
+the published root implicitly retained. Call `RetainRoot` before publishing a
+new root when an older snapshot must remain loadable, keep the returned
+`RootRetention`, and call `Release` only when every user of that root is done.
+`Prune` validates the complete canonical graph for the published and retained
+roots, then atomically removes all other stored nodes:
+
+```go
+lease, err := store.RetainRoot(ctx, historicalRoot, reachabilityLimits)
+if err != nil {
+    return err
+}
+
+// After every historical-root user is finished:
+if err := lease.Release(releaseCtx); err != nil {
+    return err
+}
+result, err := store.Prune(ctx, reachabilityLimits)
+```
+
+Retention is explicit and process-local for the memory adapter. A lost lease
+is not crash-recovery evidence. Persistent adapters must durably define lease,
+publication, pruning, and recovery semantics before presenting the same
+guarantee. `CollectReachableNodes` is the bounded integrity-checked mark
+primitive available to adapter authors.
+
 Missing reads return `MissingNodeError` with only the exact unavailable hash.
 After retrieving that encoded node from a peer or archive, call
 `RecoverNode` to produce a new immutable overlay snapshot. The old snapshot

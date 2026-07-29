@@ -117,12 +117,36 @@ func FuzzRecoveredNodeRejectsHostileInput(f *testing.F) {
 		}
 		limits := mpt.DefaultLimits()
 		limits.MaxRecoveryBytes = 4096
-		trie, err := mpt.NewRawTrie(limits)
+		trie, err := mpt.LoadRawTrie(
+			mpt.EmptyRoot(), newTestNodeStore(), limits,
+		)
 		if err != nil {
-			t.Fatalf("NewRawTrie() error = %v", err)
+			t.Fatalf("LoadRawTrie() error = %v", err)
 		}
 		_, _ = trie.RecoverNode(
 			context.Background(), testKeccakRoot(encoded), encoded,
+		)
+	})
+}
+
+func FuzzCollectReachableNodeRejectsHostileInput(f *testing.F) {
+	f.Add([]byte{0xc0})
+	f.Add([]byte{0xc2, 0x20, 0x01})
+
+	f.Fuzz(func(t *testing.T, encoded []byte) {
+		if len(encoded) == 0 || len(encoded) > 4096 {
+			return
+		}
+		root := testKeccakRoot(encoded)
+		store := newTestNodeStore()
+		store.nodes[root] = append([]byte(nil), encoded...)
+		limits := mpt.DefaultReachabilityLimits()
+		limits.MaxBytes = 4096
+		limits.MaxNodes = 64
+		limits.MaxNodeReads = 64
+		limits.MaxHashOperations = 64
+		_, _ = mpt.CollectReachableNodes(
+			context.Background(), []mpt.Root{root}, store, limits,
 		)
 	})
 }

@@ -138,7 +138,13 @@ func (state *iterationState) walk(current node, prefix []byte, depth int) error 
 	case nil:
 		return nil
 	case hashNode:
-		resolved, err := state.traversal.resolve(Root(current))
+		var resolved node
+		var err error
+		if depth == 0 {
+			resolved, err = state.traversal.resolve(Root(current))
+		} else {
+			resolved, err = state.traversal.resolveChild(Root(current))
+		}
 		if err != nil {
 			return err
 		}

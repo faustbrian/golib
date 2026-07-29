@@ -23,7 +23,7 @@ type ReachabilityLimits struct {
 // pruning.
 func DefaultReachabilityLimits() ReachabilityLimits {
 	return ReachabilityLimits{
-		MaxRoots:          1024,
+		MaxRoots:          1025,
 		MaxRetentions:     1024,
 		MaxNodes:          1 << 20,
 		MaxBytes:          256 << 20,
@@ -58,7 +58,7 @@ type NodePruner interface {
 type PruneResult struct {
 	storedBefore int
 	storedAfter  int
-	removedBytes int
+	removedBytes uint64
 }
 
 // StoredBefore returns the node count before pruning.
@@ -77,12 +77,15 @@ func (result PruneResult) RemovedNodes() int {
 }
 
 // RemovedBytes returns the encoded bytes deleted.
-func (result PruneResult) RemovedBytes() int {
+func (result PruneResult) RemovedBytes() uint64 {
 	return result.removedBytes
 }
 
 // NewPruneResult constructs an immutable store pruning result.
-func NewPruneResult(storedBefore, storedAfter, removedBytes int) PruneResult {
+func NewPruneResult(
+	storedBefore, storedAfter int,
+	removedBytes uint64,
+) PruneResult {
 	return PruneResult{
 		storedBefore: storedBefore,
 		storedAfter:  storedAfter,
@@ -111,6 +114,7 @@ func CollectReachableNodes(
 	if len(roots) > limits.MaxRoots {
 		return nil, fmt.Errorf("%w: retained root bound exceeded", ErrResourceLimit)
 	}
+	roots = append([]Root(nil), roots...)
 	state := reachabilityState{
 		ctx:        ctx,
 		reader:     reader,
@@ -169,7 +173,7 @@ func (state *reachabilityState) collectHash(hash Root, depth int) (node, error) 
 	if decoded, visited := state.decoded[hash]; visited {
 		return decoded, nil
 	}
-	if err := state.visit(depth); err != nil {
+	if err := state.checkTraversal(depth); err != nil {
 		return nil, err
 	}
 	if state.readsLeft == 0 {
@@ -220,14 +224,21 @@ func (state *reachabilityState) collectNode(current node, depth int) error {
 		return err
 	}
 	switch current := current.(type) {
-	case nil, *leafNode:
+	case nil:
 		return nil
 	case hashNode:
-		_, err := state.collectHash(Root(current), depth+1)
+		_, err := state.collectChildHash(Root(current), depth)
 		return err
+	}
+	if err := state.visit(depth); err != nil {
+		return err
+	}
+	switch current := current.(type) {
+	case *leafNode:
+		return nil
 	case *extensionNode:
 		if childHash, hashed := current.child.(hashNode); hashed {
-			child, err := state.collectHash(Root(childHash), depth+1)
+			child, err := state.collectChildHash(Root(childHash), depth+1)
 			if err != nil {
 				return err
 			}
@@ -258,14 +269,41 @@ func (state *reachabilityState) collectNode(current node, depth int) error {
 	}
 }
 
+func (state *reachabilityState) collectChildHash(
+	hash Root,
+	depth int,
+) (node, error) {
+	child, err := state.collectHash(hash, depth)
+	if err != nil {
+		return nil, err
+	}
+	if len(state.nodes[hash]) < RootBytes {
+		return nil, &CorruptNodeError{
+			Hash: hash,
+			Cause: fmt.Errorf(
+				"%w: embedded-size child referenced by hash",
+				ErrMalformedNode,
+			),
+		}
+	}
+	return child, nil
+}
+
 func (state *reachabilityState) visit(depth int) error {
+	if err := state.checkTraversal(depth); err != nil {
+		return err
+	}
+	state.nodesLeft--
+	return nil
+}
+
+func (state *reachabilityState) checkTraversal(depth int) error {
 	if err := checkContext(state.ctx); err != nil {
 		return err
 	}
 	if depth > state.limits.MaxDepth || state.nodesLeft == 0 {
 		return fmt.Errorf("%w: reachable node bound exceeded", ErrResourceLimit)
 	}
-	state.nodesLeft--
 	return nil
 }
 

@@ -89,7 +89,11 @@ func proveSnapshot(
 			return Proof{}, err
 		}
 		if hashed, ok := current.(hashNode); ok {
-			current, err = state.resolve(Root(hashed))
+			if rootNode {
+				current, err = state.resolve(Root(hashed))
+			} else {
+				current, err = state.resolveChild(Root(hashed))
+			}
 			if err != nil {
 				return Proof{}, err
 			}
@@ -315,6 +319,12 @@ func proofNode(
 		return nil, ErrIncompleteProof
 	}
 	encoded := proof.nodes[*index]
+	if !root && len(encoded) < RootBytes {
+		return nil, fmt.Errorf(
+			"%w: embedded-size child referenced by hash",
+			ErrMalformedProof,
+		)
+	}
 	actual, err := budget.hash(encoded)
 	if err != nil {
 		return nil, err

@@ -43,6 +43,18 @@ mutation, proofs, iteration, and rebuild can resume without changing the old
 snapshot. A same-root commit durably repairs recovered nodes using the store's
 atomic compare-and-swap contract.
 
+Pruning is an optional storage capability and never changes trie commitments.
+`RootRetention` is an explicit historical-root lease; the published root is
+always an implicit retention root. `CollectReachableNodes` performs a bounded
+mark traversal, verifies every hash and canonical encoding, validates
+extension transitions, and returns only independently stored hashed nodes.
+The memory adapter snapshots its immutable node map and lease set, performs
+marking without holding its lock, and swaps in the retained node map only when
+neither publication nor retention changed. Cancellation, corruption, missing
+nodes, resource exhaustion, and compare-and-swap conflicts leave the prior
+node set intact. Releasing the final lease makes a historical root eligible,
+not immediately deleted; deletion occurs on the next successful `Prune`.
+
 `Rebuild` streams the source snapshot in trie order into a fresh materialized
 snapshot and compares the reconstructed commitment with the source root. Only
 that independent result may be committed to another store.

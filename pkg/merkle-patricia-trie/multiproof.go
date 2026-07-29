@@ -151,7 +151,7 @@ func (builder *multiProofBuilder) prepareRoot() error {
 	}
 	rootHash := builder.snapshot.hash
 	if encoded, exists := builder.pending[rootHash]; exists {
-		decoded, err := builder.decodePending(rootHash, encoded)
+		decoded, err := builder.decodePending(rootHash, encoded, true)
 		if err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ func (builder *multiProofBuilder) load(hash Root) (node, error) {
 		return decoded, nil
 	}
 	if encoded, exists := builder.pending[hash]; exists {
-		decoded, err := builder.decodePending(hash, encoded)
+		decoded, err := builder.decodePending(hash, encoded, false)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +262,7 @@ func (builder *multiProofBuilder) load(hash Root) (node, error) {
 		}
 		return decoded, nil
 	}
-	decoded, encoded, err := builder.state.resolveEncoded(hash)
+	decoded, encoded, err := builder.state.resolveEncodedChild(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -276,6 +276,7 @@ func (builder *multiProofBuilder) load(hash Root) (node, error) {
 func (builder *multiProofBuilder) decodePending(
 	hash Root,
 	encoded []byte,
+	root bool,
 ) (node, error) {
 	actual, err := builder.state.budget.hash(encoded)
 	if err != nil {
@@ -283,6 +284,15 @@ func (builder *multiProofBuilder) decodePending(
 	}
 	if actual != hash {
 		return nil, fmt.Errorf("%w: pending node hash mismatch", ErrMalformedNode)
+	}
+	if !root && len(encoded) < RootBytes {
+		return nil, &CorruptNodeError{
+			Hash: hash,
+			Cause: fmt.Errorf(
+				"%w: embedded-size child referenced by hash",
+				ErrMalformedNode,
+			),
+		}
 	}
 	decoded, err := decodeNode(encoded)
 	if err != nil || decoded == nil {
@@ -337,6 +347,7 @@ func VerifySecureMultiProof(
 
 type multiProofNode struct {
 	decoded node
+	size    int
 }
 
 type multiProofLookup struct {
@@ -443,7 +454,10 @@ func newMultiProofLookup(
 		if err != nil || decoded == nil {
 			return nil, fmt.Errorf("%w: invalid canonical node", ErrMalformedProof)
 		}
-		lookup.nodes[hash] = multiProofNode{decoded: decoded}
+		lookup.nodes[hash] = multiProofNode{
+			decoded: decoded,
+			size:    len(encoded),
+		}
 		lookup.order = append(lookup.order, hash)
 	}
 	return lookup, nil
@@ -459,6 +473,12 @@ func (lookup *multiProofLookup) resolve(
 			return nil, ErrWrongRoot
 		}
 		return nil, ErrIncompleteProof
+	}
+	if !root && stored.size < RootBytes {
+		return nil, fmt.Errorf(
+			"%w: embedded-size child referenced by hash",
+			ErrMalformedProof,
+		)
 	}
 	if _, used := lookup.used[expected]; !used {
 		if lookup.next >= len(lookup.order) ||

@@ -112,7 +112,7 @@ func TestMultiProofBuilderRejectsInvalidHashedChildren(t *testing.T) {
 
 	limits := DefaultLimits()
 	leafEncoded, _, err := encodeNode(
-		&leafNode{path: nil, value: []byte("value")},
+		&leafNode{path: nil, value: make([]byte, RootBytes)},
 	)
 	if err != nil {
 		t.Fatalf("encodeNode() error = %v", err)
@@ -201,13 +201,20 @@ func TestMultiProofBuilderLoadAndDeduplicationBounds(t *testing.T) {
 
 	nodeLimited := limits
 	nodeLimited.MaxProofNodes = 0
+	longEncoded, _, err := encodeNode(
+		&leafNode{path: nil, value: make([]byte, RootBytes)},
+	)
+	if err != nil {
+		t.Fatalf("encodeNode(long) error = %v", err)
+	}
+	longHash := keccakRoot(longEncoded)
 	pendingLimited := newMultiProofBuilder(
 		context.Background(),
 		&trieSnapshot{
-			limits: nodeLimited, pending: map[Root][]byte{hash: encoded},
+			limits: nodeLimited, pending: map[Root][]byte{longHash: longEncoded},
 		},
 	)
-	if _, err := pendingLimited.load(hash); !errors.Is(err, ErrResourceLimit) {
+	if _, err := pendingLimited.load(longHash); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("load(pending node limit) error = %v", err)
 	}
 
@@ -224,10 +231,10 @@ func TestMultiProofBuilderLoadAndDeduplicationBounds(t *testing.T) {
 	readLimited := newMultiProofBuilder(context.Background(), &trieSnapshot{
 		limits: nodeLimited,
 		reader: nodeReaderFunc(func(context.Context, Root) ([]byte, error) {
-			return encoded, nil
+			return longEncoded, nil
 		}),
 	})
-	if _, err := readLimited.load(hash); !errors.Is(err, ErrResourceLimit) {
+	if _, err := readLimited.load(longHash); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("load(reader node limit) error = %v", err)
 	}
 }
@@ -249,7 +256,7 @@ func TestMultiProofBuilderRejectsInvalidPendingNodes(t *testing.T) {
 	})
 	builder.state.budget.hashesLeft = 0
 	if _, err := builder.decodePending(
-		hash, encoded,
+		hash, encoded, false,
 	); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("decodePending(hash limit) error = %v", err)
 	}
@@ -258,14 +265,14 @@ func TestMultiProofBuilderRejectsInvalidPendingNodes(t *testing.T) {
 		limits: limits,
 	})
 	if _, err := builder.decodePending(
-		Root{4}, encoded,
+		Root{4}, encoded, false,
 	); !errors.Is(err, ErrMalformedNode) {
 		t.Fatalf("decodePending(hash mismatch) error = %v", err)
 	}
 
 	malformed := []byte{0xff}
 	if _, err := builder.decodePending(
-		keccakRoot(malformed), malformed,
+		keccakRoot(malformed), malformed, false,
 	); !errors.Is(err, ErrMalformedNode) {
 		t.Fatalf("decodePending(malformed node) error = %v", err)
 	}
@@ -524,6 +531,7 @@ func TestMultiProofClaimTraversalRejectsHostileInternalNodes(t *testing.T) {
 	})
 	hashed.nodes[childHash] = multiProofNode{
 		decoded: &leafNode{value: []byte("invalid")},
+		size:    RootBytes,
 	}
 	hashed.order = append(hashed.order, childHash)
 	if err := verifyMultiClaim(
@@ -668,7 +676,7 @@ func TestMultiProofDecodersRejectCanonicalNullNode(t *testing.T) {
 		limits: DefaultLimits(),
 	})
 	if _, err := builder.decodePending(
-		hash, encodedNull,
+		hash, encodedNull, true,
 	); !errors.Is(err, ErrMalformedNode) {
 		t.Fatalf("decodePending(null node) error = %v", err)
 	}

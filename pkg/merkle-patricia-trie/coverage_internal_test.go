@@ -832,6 +832,23 @@ func TestInternalLoadedProofAndResolveFailures(t *testing.T) {
 	); !errors.Is(err, ErrMissingNode) {
 		t.Fatalf("extensionChild(resolve failure) error = %v", err)
 	}
+	compactEncoding, _, err := encodeNode(
+		&leafNode{path: nil, value: make([]byte, RootBytes)},
+	)
+	if err != nil {
+		t.Fatalf("encode compact child: %v", err)
+	}
+	compactRoot := keccakRoot(compactEncoding)
+	state.reader = nodeReaderFunc(func(context.Context, Root) ([]byte, error) {
+		return compactEncoding, nil
+	})
+	state.readsLeft = 1
+	state.budget.hashesLeft = 1
+	if _, err := state.extensionChild(
+		hashNode(compactRoot),
+	); !errors.Is(err, ErrCorruptNode) {
+		t.Fatalf("extensionChild(compact child) error = %v", err)
+	}
 }
 
 func TestInternalProofGenerationTerminalPaths(t *testing.T) {
