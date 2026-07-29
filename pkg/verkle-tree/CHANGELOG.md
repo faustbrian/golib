@@ -21,6 +21,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   methodology and raw local samples.
 - Add revision-pinned Rust differential fixtures for the accepted canonical
   scalar and Banderwagon commitment encoding seam.
+- Record ordered 256-point generator-set agreement between the pinned Go and
+  Rust references for `eth_verkle_oct_2021`.
 
 ### Dependencies
 

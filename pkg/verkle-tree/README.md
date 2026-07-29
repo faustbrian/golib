@@ -39,6 +39,10 @@ An independently generated fixture from the pinned `rust-verkle` revision
 proves that the accepted scalar and commitment bytes round-trip identically
 across the Rust and Go encoding boundaries. This remains an encoding-only
 research result, not tree or proof compatibility.
+The same harness independently derives the ordered 256-point generator set for
+`eth_verkle_oct_2021`; its canonical-encoding digest agrees with the pinned Go
+reference. This establishes generator-set agreement under SHA-256 collision
+resistance only for those exact revisions, width, seed, and encodings.
 
 ## Development rule
 

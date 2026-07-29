@@ -91,14 +91,14 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f74db8eaa61b5aebe963607a1c73867e0336a3f5deffc9b5ee6b4c2369f5981c",
+        "source_sha256": "71d2ebce845d360935b9b1f4603be538512f09c9f40b7a84e7fc9755d5b6391f",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
-        "manifest_sha256": "bf048ea4d807ca674d14556c97b54cc61068f91ac78b3ed4765bb6d764547576",
+        "manifest_sha256": "61d4ae70367e46931278a9fb8a416b8b0e0ecb4cf0bd018f4459ab923b964058",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
-        "lock_sha256": "dcd1f1ec5837f6704acbf7a8e859d325f3616122ffe6d9940c5473de283e20d6",
+        "lock_sha256": "93168e0c4df1cd42b4ced363ce7d2713ad29c124ac99fdbd31c6b4f17b9a0f30",
         "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
         "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
-        "command": "cargo run --locked --quiet"
+        "command": "cargo run --locked --quiet -- encodings"
       },
       "dependency_review": {
         "reviewed_on": "2026-07-29",
@@ -115,10 +115,44 @@
           "Unicode-3.0"
         ],
         "banderwagon_manifest_license": "missing; repository root is pinned and independently verified as MIT OR Apache-2.0",
+        "ipa_multipoint_manifest_license": "missing; repository root is pinned and independently verified as MIT OR Apache-2.0",
         "production_status": "rejected-research-generator-only"
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness multiplies the canonical prime-subgroup generator by the ordered scalars 1, 2, 3, 255, and 65535, then emits canonical scalar and commitment bytes.",
       "review_procedure": "Compare the generated TSV byte-for-byte, decode every scalar and commitment through the checked Go boundary, verify canonical round trips, and verify each scalar's little-endian integer value and ordering.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-generator-set",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_path": "ipa-multipoint/src/crs.rs",
+      "source_sha256": "2e65ca470354985d435acf7b8863e02142e81e0eea8d8a962c70fe266239fcc2",
+      "source_lines": [
+        6,
+        115
+      ],
+      "fixture_path": "internal/backend/testdata/rust-verkle-generators.tsv",
+      "fixture_sha256": "785a835380de05ec7eb5d0368b57dbf1256b48be49d0a854bdfe151ab9450813",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "width": 256,
+        "seed": "eth_verkle_oct_2021",
+        "point_encoding": "canonical compressed Banderwagon",
+        "digest": "SHA-256 over the ordered concatenation of 256 32-byte commitments"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "71d2ebce845d360935b9b1f4603be538512f09c9f40b7a84e7fc9755d5b6391f",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "61d4ae70367e46931278a9fb8a416b8b0e0ecb4cf0bd018f4459ab923b964058",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "93168e0c4df1cd42b4ced363ce7d2713ad29c124ac99fdbd31c6b4f17b9a0f30",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- generators"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust CRS implementation derives 256 ordered Banderwagon points from eth_verkle_oct_2021, canonically compresses them, and emits the SHA-256 digest of their concatenation.",
+      "review_procedure": "Derive the same ordered 256-point set through the pinned Go implementation, canonically encode every point, hash the concatenation, and compare the width, seed, and digest with the independently generated Rust fixture.",
       "reproducible": true
     }
   ],

@@ -3,9 +3,11 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 harness="$root/interoperability/rust-verkle"
-fixture="$root/internal/backend/testdata/rust-verkle-encoding.tsv"
+encoding_fixture="$root/internal/backend/testdata/rust-verkle-encoding.tsv"
+generator_fixture="$root/internal/backend/testdata/rust-verkle-generators.tsv"
 sources="$root/specification/sources.json"
-fixture_id=rust-verkle-banderwagon-encoding-vectors
+encoding_fixture_id=rust-verkle-banderwagon-encoding-vectors
+generator_fixture_id=rust-verkle-generator-set
 
 for tool in cargo diff git jq rustc shasum; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -20,7 +22,7 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 verify_generator_file() {
     field=$1
     path=$2
-    expected=$(jq -er --arg id "$fixture_id" --arg field "$field" '
+    expected=$(jq -er --arg id "$encoding_fixture_id" --arg field "$field" '
         .test_fixtures[]
         | select(.id == $id)
         | .generator[$field]
@@ -37,16 +39,23 @@ verify_generator_file manifest_sha256 "$harness/Cargo.toml"
 verify_generator_file lock_sha256 "$harness/Cargo.lock"
 verify_generator_file toolchain_sha256 "$harness/rust-toolchain.toml"
 
-expected_fixture=$(jq -er --arg id "$fixture_id" '
-    .test_fixtures[]
-    | select(.id == $id)
-    | .fixture_sha256
-' "$sources")
-actual_fixture=$(shasum -a 256 "$fixture" | awk '{print $1}')
-if [ "$actual_fixture" != "$expected_fixture" ]; then
-    printf '%s\n' "$fixture checksum $actual_fixture does not match $expected_fixture" >&2
-    exit 1
-fi
+verify_fixture() {
+    id=$1
+    path=$2
+    expected=$(jq -er --arg id "$id" '
+        .test_fixtures[]
+        | select(.id == $id)
+        | .fixture_sha256
+    ' "$sources")
+    actual=$(shasum -a 256 "$path" | awk '{print $1}')
+    if [ "$actual" != "$expected" ]; then
+        printf '%s\n' "$path checksum $actual does not match $expected" >&2
+        exit 1
+    fi
+}
+
+verify_fixture "$encoding_fixture_id" "$encoding_fixture"
+verify_fixture "$generator_fixture_id" "$generator_fixture"
 
 expected_toolchain=$(sed -n 's/^channel = "\(.*\)"$/\1/p' "$harness/rust-toolchain.toml")
 actual_toolchain=$(
@@ -78,16 +87,6 @@ expected_tree=$(jq -er '
     | select(.id == "crate-crypto-rust-verkle")
     | .tree
 ' "$sources")
-expected_source_path=$(jq -er --arg id "$fixture_id" '
-    .test_fixtures[]
-    | select(.id == $id)
-    | .source_path
-' "$sources")
-expected_source_sha256=$(jq -er --arg id "$fixture_id" '
-    .test_fixtures[]
-    | select(.id == $id)
-    | .source_sha256
-' "$sources")
 actual_revision=$(git -C "$checkout_root" rev-parse HEAD)
 actual_tree=$(git -C "$checkout_root" rev-parse HEAD^{tree})
 if [ "$actual_revision" != "$expected_revision" ] || [ "$actual_tree" != "$expected_tree" ]; then
@@ -95,16 +94,38 @@ if [ "$actual_revision" != "$expected_revision" ] || [ "$actual_tree" != "$expec
         "rust-verkle source $actual_revision/$actual_tree does not match $expected_revision/$expected_tree" >&2
     exit 1
 fi
-actual_source_sha256=$(shasum -a 256 "$checkout_root/$expected_source_path" | awk '{print $1}')
-if [ "$actual_source_sha256" != "$expected_source_sha256" ]; then
-    printf '%s\n' \
-        "$expected_source_path checksum $actual_source_sha256 does not match $expected_source_sha256" >&2
-    exit 1
-fi
+
+verify_source_file() {
+    id=$1
+    expected_path=$(jq -er --arg id "$id" '
+        .test_fixtures[]
+        | select(.id == $id)
+        | .source_path
+    ' "$sources")
+    expected_sha256=$(jq -er --arg id "$id" '
+        .test_fixtures[]
+        | select(.id == $id)
+        | .source_sha256
+    ' "$sources")
+    actual_sha256=$(shasum -a 256 "$checkout_root/$expected_path" | awk '{print $1}')
+    if [ "$actual_sha256" != "$expected_sha256" ]; then
+        printf '%s\n' \
+            "$expected_path checksum $actual_sha256 does not match $expected_sha256" >&2
+        exit 1
+    fi
+}
+
+verify_source_file "$encoding_fixture_id"
+verify_source_file "$generator_fixture_id"
 
 (
     cd "$harness"
-    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet
-) >"$temporary/generated.tsv"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- encodings
+) >"$temporary/generated-encodings.tsv"
+diff -u "$encoding_fixture" "$temporary/generated-encodings.tsv"
 
-diff -u "$fixture" "$temporary/generated.tsv"
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- generators
+) >"$temporary/generated-generators.tsv"
+diff -u "$generator_fixture" "$temporary/generated-generators.tsv"

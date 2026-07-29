@@ -2,12 +2,15 @@ package backend
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/crate-crypto/go-ipa/ipa"
 )
 
 func TestRustVerkleEncodingVectors(t *testing.T) {
@@ -71,6 +74,51 @@ func TestRustVerkleEncodingVectors(t *testing.T) {
 		if !bytes.Equal(encodedCommitment[:], commitmentBytes) {
 			t.Fatalf("fixture row %d commitment round trip changed bytes", index+2)
 		}
+	}
+}
+
+func TestRustVerkleGeneratorSet(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("testdata/rust-verkle-generators.tsv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("fixture rows = %d, want 2", len(lines))
+	}
+	if lines[0] != "width\tseed\tcommitments_sha256" {
+		t.Fatalf("fixture header = %q", lines[0])
+	}
+
+	fields := strings.Split(lines[1], "\t")
+	if len(fields) != 3 {
+		t.Fatalf("fixture fields = %d, want 3", len(fields))
+	}
+	width, err := strconv.ParseUint(fields[0], 10, 16)
+	if err != nil {
+		t.Fatalf("fixture width: %v", err)
+	}
+	if width != 256 {
+		t.Fatalf("fixture width = %d, want 256", width)
+	}
+	if fields[1] != "eth_verkle_oct_2021" {
+		t.Fatalf("fixture seed = %q", fields[1])
+	}
+	fixtureDigest := decodeInteropHex(t, 2, "generator digest", fields[2])
+	if len(fixtureDigest) != sha256.Size {
+		t.Fatalf("fixture digest bytes = %d, want %d", len(fixtureDigest), sha256.Size)
+	}
+
+	generators := ipa.GenerateRandomPoints(width)
+	digest := sha256.New()
+	for _, generator := range generators {
+		encoded := encodeCommitment(commitment{element: generator})
+		_, _ = digest.Write(encoded[:])
+	}
+	if !bytes.Equal(digest.Sum(nil), fixtureDigest) {
+		t.Fatal("generator set differs across Go and Rust")
 	}
 }
 
