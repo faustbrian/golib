@@ -13,8 +13,9 @@ versioning and Keep a Changelog structure.
   the source delivery pending and return a stable redacted error.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
-- Pin owned sibling modules to immutable source revisions so the queue module
-  resolves from a clean external consumer without relying on `go.work`.
+- Move the optional service and correlation lifecycle adapter into the
+  independently versioned `queueservice` module. Core queue consumers no
+  longer inherit unrelated service runtime dependencies.
 
 - `Queue.ReleaseContext` now provides a bounded graceful worker path that
   rejects new admission, waits for accepted publishes and active handlers, and
