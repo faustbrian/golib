@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "captured_on": "2026-07-29",
+  "profile_status": "not-frozen",
+  "imports": [],
+  "sources": [
+    {
+      "id": "kuszmaul-verkle-trees",
+      "kind": "paper",
+      "role": "construction-background",
+      "url": "https://math.mit.edu/research/highschool/primes/materials/2018/Kuszmaul.pdf",
+      "revision": "unversioned-2018-publication",
+      "sha256": "4707c41e7f23ad8bd56d2fc0b08419dc33f43d9301aa89c0b4ccd599b49de774",
+      "license": "not-stated-in-document",
+      "reproducible": false,
+      "review_status": "background-only"
+    },
+    {
+      "id": "ethereum-verkle-structure-blog",
+      "kind": "web-page",
+      "role": "ethereum-layout-background",
+      "url": "https://blog.ethereum.org/2021/12/02/verkle-tree-structure",
+      "revision": "retrieved-2026-07-29",
+      "sha256": "8e81b9b93d6ad2096df7a0682bff78d01e92deaacf6fab605059f7f74c97db89",
+      "license": "not-recorded",
+      "reproducible": false,
+      "review_status": "background-only"
+    },
+    {
+      "id": "ethereum-verkle-roadmap",
+      "kind": "web-page",
+      "role": "moving-roadmap",
+      "url": "https://ethereum.org/roadmap/verkle-trees/",
+      "revision": "retrieved-2026-07-29",
+      "sha256": "b83eba1d55ef8522df7113c2cfe3d3381bd1310ed3064f6c2a1bc4e25dd60d60",
+      "license": "not-recorded",
+      "reproducible": false,
+      "review_status": "non-authoritative-moving-context"
+    },
+    {
+      "id": "ethereum-eips",
+      "kind": "git-repository",
+      "role": "protocol-proposals",
+      "url": "https://github.com/ethereum/EIPs",
+      "revision": "c55786f4242e5324afd14c6bca890a369a771d7f",
+      "license": "CC0-1.0",
+      "reproducible": true,
+      "review_status": "statuses-and-text-pinned",
+      "files": [
+        {
+          "path": "EIPS/eip-4762.md",
+          "status": "Draft",
+          "sha256": "667d54203f68be7cf66709e2179642f0e8938ea2d4a8080b95438890354b74f3"
+        },
+        {
+          "path": "EIPS/eip-6800.md",
+          "status": "Stagnant",
+          "sha256": "41dc40c62e4e2034d95a5762d0ed40339356bba4757efb123ff124279767aab9"
+        },
+        {
+          "path": "EIPS/eip-7612.md",
+          "status": "Stagnant",
+          "sha256": "8afb0c5802da3a1b5d2d3474804aa9b0ac2ea7c0834d9255a0f8238b4735384d"
+        },
+        {
+          "path": "EIPS/eip-7748.md",
+          "status": "Draft",
+          "sha256": "23dfbf7b6b96857fe99cf924bb82fbc0b761774ee33ff71ee2913cb84921531d"
+        },
+        {
+          "path": "EIPS/eip-7864.md",
+          "status": "Draft",
+          "sha256": "5c94205af77e617525595865ef62aa35c903b917fc0a0321fe2c148cc2439e5d"
+        }
+      ]
+    },
+    {
+      "id": "ethereum-go-verkle",
+      "kind": "git-repository",
+      "role": "primary-go-differential-reference",
+      "url": "https://github.com/ethereum/go-verkle",
+      "revision": "aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+      "tree": "5fc1f0c0f69847c41412f750cc4cbea0f63298a0",
+      "license": "CC0-1.0",
+      "license_sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
+      "reproducible": true,
+      "review_status": "research-only-no-longer-used"
+    },
+    {
+      "id": "go-ethereum-v1.17.0-release",
+      "kind": "release-notes",
+      "role": "current-client-direction",
+      "url": "https://github.com/ethereum/go-ethereum/releases/tag/v1.17.0",
+      "revision": "0cf3d3ba4f7062fd2bbf2bda10972d528974e876",
+      "sha256": "50856f046cf3b7d550c0435e7aff7e7fa8a6090a8c8d4fab7f6491070284392a",
+      "license": "repository-mixed-GPL-3.0-and-LGPL-3.0",
+      "license_files": {
+        "GPL-3.0-only": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "LGPL-3.0-only": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+      },
+      "reproducible": false,
+      "review_status": "release-notes-state-binary-tree-work-replaces-verkle-implementation"
+    },
+    {
+      "id": "crate-crypto-go-ipa-candidate",
+      "kind": "git-repository",
+      "role": "candidate-commitment-backend",
+      "url": "https://github.com/crate-crypto/go-ipa",
+      "revision": "b1e8a79f509c5dd26b44d64c5f4aff67d7e69ed0",
+      "tree": "0a8b415845cd8c5cdca40dacd492ae1ff337e1ae",
+      "go_mod_sha256": "60c3d2fc3819fe38ca5712b01610e5c74e5a73e20629b4349fd2554730fef306",
+      "license": "MIT OR Apache-2.0",
+      "license_files": {
+        "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
+        "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "reproducible": true,
+      "review_status": "candidate-not-approved"
+    },
+    {
+      "id": "crate-crypto-rust-verkle",
+      "kind": "git-repository",
+      "role": "independent-differential-reference",
+      "url": "https://github.com/crate-crypto/rust-verkle",
+      "revision": "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+      "tree": "2e5a8ef853403337b3a675840ea34ad4e6be2fc0",
+      "license": "MIT OR Apache-2.0",
+      "license_files": {
+        "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
+        "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "reproducible": true,
+      "review_status": "research-only-upstream-warns-unsafe"
+    },
+    {
+      "id": "crate-crypto-verkle-trie-ref",
+      "kind": "git-repository",
+      "role": "shared-python-reference",
+      "url": "https://github.com/crate-crypto/verkle-trie-ref",
+      "revision": "483f40c737f27bc8f059870f862cf6c244159cd4",
+      "tree": "ab8596d7d57114f8e8cb3fbe516ee0839c2d161d",
+      "license": "not-found-at-repository-root",
+      "reproducible": true,
+      "review_status": "research-only-wip"
+    },
+    {
+      "id": "ethereum-research",
+      "kind": "git-repository",
+      "role": "historical-reference-code",
+      "url": "https://github.com/ethereum/research",
+      "revision": "c003fe1c1a785797e7b53e3cbf9569b989be6e93",
+      "license": "MIT",
+      "license_sha256": "2d430a48448bd04e3703b62ec60cb540ff1f9f0ffc3d25fdcad03228101f63b7",
+      "reproducible": true,
+      "review_status": "historical-background-only"
+    }
+  ]
+}
