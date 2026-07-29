@@ -170,10 +170,13 @@ func TestServiceComposesHTTPClientLoggingAuthenticationAuthorizationAndJSONAPI(
 	if err != nil {
 		t.Fatalf("httpclient.Do() error = %v", err)
 	}
-	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Fatalf("io.ReadAll() error = %v", err)
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil {
+		t.Fatalf("io.ReadAll() error = %v", readErr)
+	}
+	if closeErr != nil {
+		t.Fatalf("response.Body.Close() error = %v", closeErr)
 	}
 	if response.StatusCode != http.StatusOK ||
 		response.Header.Get("Content-Type") != jsonapi.MediaTypeJSONAPI ||
