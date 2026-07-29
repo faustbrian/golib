@@ -1,5 +1,10 @@
 use banderwagon::{CanonicalSerialize, Element, Fr};
-use ipa_multipoint::crs::CRS;
+use ipa_multipoint::{
+    crs::CRS,
+    lagrange_basis::{LagrangeBasis, PrecomputedWeights},
+    multiproof::{MultiPoint, ProverQuery},
+    transcript::Transcript,
+};
 use sha2::{Digest, Sha256};
 
 fn encode_hex(bytes: &[u8]) -> String {
@@ -43,10 +48,45 @@ fn print_generators() {
     );
 }
 
+fn print_multiproof() {
+    let crs = CRS::new(256, b"eth_verkle_oct_2021");
+    let precomputed_weights = PrecomputedWeights::new(256);
+    let points = [3_usize, 3, 200];
+    let polynomials = [
+        (0_u128..256).map(|index| Fr::from(index + 1)).collect(),
+        (0_u128..256)
+            .map(|index| Fr::from((index + 1) * (index + 1)))
+            .collect(),
+        (0_u128..256).map(|index| Fr::from(3 * index + 7)).collect(),
+    ];
+    let queries = polynomials
+        .into_iter()
+        .zip(points)
+        .map(|(values, point)| {
+            let poly = LagrangeBasis::new(values);
+            ProverQuery {
+                commitment: crs.commit_lagrange_poly(&poly),
+                result: poly.evaluate_in_domain(point),
+                poly,
+                point,
+            }
+        })
+        .collect();
+    let mut transcript = Transcript::new(b"verkle");
+    let proof = MultiPoint::open(crs, &precomputed_weights, &mut transcript, queries);
+
+    println!("corpus\ttranscript\tproof");
+    println!(
+        "three-openings-v1\tverkle\t{}",
+        encode_hex(&proof.to_bytes().expect("multiproof serialization failed"))
+    );
+}
+
 fn main() {
     match std::env::args().nth(1).as_deref() {
         Some("encodings") => print_encodings(),
         Some("generators") => print_generators(),
-        _ => panic!("usage: verkle-tree-rust-encoding-vectors <encodings|generators>"),
+        Some("multiproof") => print_multiproof(),
+        _ => panic!("usage: verkle-tree-rust-encoding-vectors <encodings|generators|multiproof>"),
     }
 }

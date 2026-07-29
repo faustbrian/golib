@@ -27,12 +27,14 @@ The exact evidence and consequences are recorded in
 accepted seam and release blockers are in
 [`docs/backend-audit.md`](docs/backend-audit.md).
 
-The pinned `go-ipa` dependency is imported only behind an internal canonical
-point/scalar encoding boundary. Its setup, generator table, commitment, and
-proof operations are not used. The encoding tests include two pinned upstream
-point fixtures and the documented scalar-field modulus; their provenance is
-recorded in [`specification/sources.json`](specification/sources.json). No
-setup material, generator table, or generated constant has been imported.
+Production code imports the pinned `go-ipa` dependency only behind an internal
+canonical point/scalar encoding boundary. Test-only differential evidence also
+exercises its deterministic setup, vector commitment, aggregate opening,
+transcript, serialization, and verification operations. The encoding tests
+include two pinned upstream point fixtures and the documented scalar-field
+modulus; their provenance is recorded in
+[`specification/sources.json`](specification/sources.json). No setup material,
+generator table, or generated constant has been imported.
 The preliminary encoding-only benchmark scope, method, and raw samples are in
 [`docs/benchmarks.md`](docs/benchmarks.md).
 An independently generated fixture from the pinned `rust-verkle` revision
@@ -43,6 +45,10 @@ The same harness independently derives the ordered 256-point generator set for
 `eth_verkle_oct_2021`; its canonical-encoding digest agrees with the pinned Go
 reference. This establishes generator-set agreement under SHA-256 collision
 resistance only for those exact revisions, width, seed, and encodings.
+For one pinned three-opening corpus, both references also produce the same
+canonical 576-byte aggregate proof, and the Go verifier accepts the Rust proof.
+This narrow research result does not establish a stable transcript, hostile
+proof-decoding safety, or tree compatibility.
 
 ## Development rule
 

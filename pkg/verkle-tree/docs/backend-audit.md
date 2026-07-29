@@ -17,8 +17,9 @@ or provide a tagged release.
 
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
-This composition is accepted only for the encoding seam exercised here. It is
-not evidence that the uncalled setup, commitment, or proof APIs remain
+This composition is accepted for the production encoding seam and the pinned
+test-only positive commitment/proof corpus exercised here. It is not evidence
+that untested setup, commitment, proof, or hostile-input behavior remains
 compatible.
 
 ## Evidence
@@ -35,6 +36,11 @@ At the pinned revision:
 - the ordered 256-point generator sets independently derived by the pinned Go
   and Rust implementations from `eth_verkle_oct_2021` have the same
   canonical-encoding digest;
+- one deterministic three-opening corpus produces the same canonical 576-byte
+  aggregate proof through both implementations, and the Go verifier accepts
+  the Rust proof;
+- the Go verifier rejects one-bit mutations in every serialized proof element,
+  a wrong transcript label, and a wrong opened value for that corpus;
 - point decoding checks canonical base-field encoding, curve membership, and
   the Banderwagon subgroup condition;
 - scalar decoding provides a canonical little-endian field decoder;
@@ -50,8 +56,9 @@ The module-local dependency review also found:
 - the secret scan reports no findings; and
 - `govulncheck` reports no vulnerabilities in the resolved module graph.
 
-These results establish useful research behavior. They do not establish
-production suitability, constant-time behavior, transcript soundness, or the
+These results establish useful research behavior for one positive proof
+corpus. They do not establish production suitability, constant-time behavior,
+transcript soundness, comprehensive negative-proof behavior, or the
 package-level hostile-input contract.
 
 The pinned Rust generator graph has no known vulnerability reported by

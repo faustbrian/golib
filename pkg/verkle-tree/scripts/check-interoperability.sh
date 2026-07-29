@@ -5,9 +5,11 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 harness="$root/interoperability/rust-verkle"
 encoding_fixture="$root/internal/backend/testdata/rust-verkle-encoding.tsv"
 generator_fixture="$root/internal/backend/testdata/rust-verkle-generators.tsv"
+multiproof_fixture="$root/internal/backend/testdata/rust-verkle-multiproof.tsv"
 sources="$root/specification/sources.json"
 encoding_fixture_id=rust-verkle-banderwagon-encoding-vectors
 generator_fixture_id=rust-verkle-generator-set
+multiproof_fixture_id=rust-verkle-multiproof
 
 for tool in cargo diff git jq rustc shasum; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -56,6 +58,7 @@ verify_fixture() {
 
 verify_fixture "$encoding_fixture_id" "$encoding_fixture"
 verify_fixture "$generator_fixture_id" "$generator_fixture"
+verify_fixture "$multiproof_fixture_id" "$multiproof_fixture"
 
 expected_toolchain=$(sed -n 's/^channel = "\(.*\)"$/\1/p' "$harness/rust-toolchain.toml")
 actual_toolchain=$(
@@ -118,6 +121,28 @@ verify_source_file() {
 verify_source_file "$encoding_fixture_id"
 verify_source_file "$generator_fixture_id"
 
+verify_source_files() {
+    id=$1
+    source_manifest="$temporary/source-files.tsv"
+    jq -er --arg id "$id" '
+        .test_fixtures[]
+        | select(.id == $id)
+        | .source_files[]
+        | [.path, .sha256]
+        | @tsv
+    ' "$sources" >"$source_manifest"
+    while IFS="$(printf '\t')" read -r expected_path expected_sha256; do
+        actual_sha256=$(shasum -a 256 "$checkout_root/$expected_path" | awk '{print $1}')
+        if [ "$actual_sha256" != "$expected_sha256" ]; then
+            printf '%s\n' \
+                "$expected_path checksum $actual_sha256 does not match $expected_sha256" >&2
+            exit 1
+        fi
+    done <"$source_manifest"
+}
+
+verify_source_files "$multiproof_fixture_id"
+
 (
     cd "$harness"
     CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- encodings
@@ -129,3 +154,9 @@ diff -u "$encoding_fixture" "$temporary/generated-encodings.tsv"
     CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- generators
 ) >"$temporary/generated-generators.tsv"
 diff -u "$generator_fixture" "$temporary/generated-generators.tsv"
+
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- multiproof
+) >"$temporary/generated-multiproof.tsv"
+diff -u "$multiproof_fixture" "$temporary/generated-multiproof.tsv"

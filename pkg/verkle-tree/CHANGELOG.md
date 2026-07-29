@@ -23,6 +23,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   scalar and Banderwagon commitment encoding seam.
 - Record ordered 256-point generator-set agreement between the pinned Go and
   Rust references for `eth_verkle_oct_2021`.
+- Add a pinned three-opening aggregate-proof corpus whose canonical bytes and
+  verification result agree across the Go and Rust references.
 
 ### Dependencies
 

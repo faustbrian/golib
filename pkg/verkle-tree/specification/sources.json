@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "71d2ebce845d360935b9b1f4603be538512f09c9f40b7a84e7fc9755d5b6391f",
+        "source_sha256": "5183c539726ef24c6565602d23f98c1c5ef47b5c1d120c95bf95077af465ff1e",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "61d4ae70367e46931278a9fb8a416b8b0e0ecb4cf0bd018f4459ab923b964058",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -142,7 +142,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "71d2ebce845d360935b9b1f4603be538512f09c9f40b7a84e7fc9755d5b6391f",
+        "source_sha256": "5183c539726ef24c6565602d23f98c1c5ef47b5c1d120c95bf95077af465ff1e",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "61d4ae70367e46931278a9fb8a416b8b0e0ecb4cf0bd018f4459ab923b964058",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -153,6 +153,66 @@
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust CRS implementation derives 256 ordered Banderwagon points from eth_verkle_oct_2021, canonically compresses them, and emits the SHA-256 digest of their concatenation.",
       "review_procedure": "Derive the same ordered 256-point set through the pinned Go implementation, canonically encode every point, hash the concatenation, and compare the width, seed, and digest with the independently generated Rust fixture.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-multiproof",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "ipa-multipoint/src/multiproof.rs",
+          "sha256": "d9948f452872d755f42a4d8653bef7b6eeb2e77ed0b3aa39c56dc0e202fdbd57"
+        },
+        {
+          "path": "ipa-multipoint/src/ipa.rs",
+          "sha256": "97d0f11b86cc99b91c84016d39981f1ab2bdcfb684e730d4204d817ae64547c7"
+        },
+        {
+          "path": "ipa-multipoint/src/transcript.rs",
+          "sha256": "6e006650b2c7efb14ceee8aabe7f24f343480ee5c471953a2b7533689b2e114d"
+        },
+        {
+          "path": "ipa-multipoint/src/crs.rs",
+          "sha256": "2e65ca470354985d435acf7b8863e02142e81e0eea8d8a962c70fe266239fcc2"
+        },
+        {
+          "path": "ipa-multipoint/src/lagrange_basis.rs",
+          "sha256": "ac16e6bf97d1f2e2ee922c72c5ede18295c227e5256ae4fd4055715819bfae5a"
+        }
+      ],
+      "fixture_path": "internal/backend/testdata/rust-verkle-multiproof.tsv",
+      "fixture_sha256": "8a17d05bb61d756cafa735764bc9dc46de9a0aa24aed6f84bd3e869379679395",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "width": 256,
+        "generator_seed": "eth_verkle_oct_2021",
+        "transcript": "verkle",
+        "corpus": "three-openings-v1: f0(i)=i+1 at 3; f1(i)=(i+1)^2 at 3; f2(i)=3i+7 at 200",
+        "proof_encoding": "D followed by eight L points, eight R points, and one little-endian scalar; all elements are 32 bytes"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "5183c539726ef24c6565602d23f98c1c5ef47b5c1d120c95bf95077af465ff1e",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "61d4ae70367e46931278a9fb8a416b8b0e0ecb4cf0bd018f4459ab923b964058",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "93168e0c4df1cd42b4ced363ce7d2713ad29c124ac99fdbd31c6b4f17b9a0f30",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- multiproof"
+      },
+      "dependency_review": {
+        "reviewed_on": "2026-07-29",
+        "cargo_audit_version": "0.22.2",
+        "known_vulnerabilities": 0,
+        "unmaintained_advisories": [
+          "RUSTSEC-2024-0388",
+          "RUSTSEC-2024-0436"
+        ],
+        "production_status": "rejected-research-generator-only"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness commits to three deterministic 256-element evaluation vectors, opens two positions with one duplicated index, constructs the aggregated proof with transcript label verkle, and emits the canonical 576-byte proof.",
+      "review_procedure": "Reconstruct the same vectors, commitments, openings, ordering, generator set, and transcript through the pinned Go implementation; require exact proof bytes; decode the Rust proof through the Go parser; require Go verification of every opening; and reject a one-bit mutation in every serialized proof element, a wrong transcript label, and a wrong opened value.",
       "reproducible": true
     }
   ],
