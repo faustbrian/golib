@@ -1,7 +1,9 @@
 package calendar
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -69,7 +71,9 @@ func (y Year) LastDate() Date {
 }
 
 // Contains reports whether d belongs to y.
-func (y Year) Contains(d Date) bool { return y.IsValid() && d.IsValid() && d.Year() == y.Value() }
+func (y Year) Contains(d Date) bool {
+	return allTrue(y.IsValid(), d.IsValid(), d.Year() == y.Value())
+}
 
 // Add returns a year offset from y.
 func (y Year) Add(years int) (Year, error) {
@@ -165,7 +169,7 @@ func (ym YearMonth) LastDate() Date {
 
 // Contains reports whether d belongs to ym.
 func (ym YearMonth) Contains(d Date) bool {
-	return ym.IsValid() && d.IsValid() && d.Year() == ym.Year() && d.Month() == ym.Month()
+	return allTrue(ym.IsValid(), d.IsValid(), d.Year() == ym.Year(), d.Month() == ym.Month())
 }
 
 // AddMonths navigates by whole calendar months.
@@ -221,7 +225,7 @@ func (q Quarter) Number() int { return int(q.quarter) }
 
 // IsValid reports whether q is supported.
 func (q Quarter) IsValid() bool {
-	return q.Year() >= MinYear && q.Year() <= MaxYear && q.Number() >= 1 && q.Number() <= 4
+	return allTrue(validIntegerRange(q.Year(), MinYear, MaxYear), validIntegerRange(q.Number(), 1, 4))
 }
 
 // String returns YYYY-QN, or an empty string when invalid.
@@ -253,7 +257,7 @@ func (q Quarter) Length() int { return q.FirstDate().DaysUntil(q.LastDate()) + b
 
 // Contains reports whether d belongs to q.
 func (q Quarter) Contains(d Date) bool {
-	return q.IsValid() && d.IsValid() && d.Year() == q.Year() && (int(d.Month())-1)/3+1 == q.Number()
+	return allTrue(q.IsValid(), d.IsValid(), d.Year() == q.Year(), quarterOfMonth(d.Month()) == q.Number())
 }
 
 // Add navigates by whole quarters.
@@ -265,15 +269,15 @@ func (q Quarter) Add(quarters int) (Quarter, error) {
 	if err != nil {
 		return Quarter{}, err
 	}
-	return NewQuarter(date.Year(), (int(date.Month())-1)/3+1)
+	return NewQuarter(date.Year(), quarterOfMonth(date.Month()))
 }
 
 // Compare returns -1, 0, or 1 according to chronological ordering.
 func (q Quarter) Compare(other Quarter) (int, error) {
-	if !q.IsValid() || !other.IsValid() {
+	if !allTrue(q.IsValid(), other.IsValid()) {
 		return 0, ErrInvalidDate
 	}
-	return compareInts((q.Year()-1)*4+q.Number(), (other.Year()-1)*4+other.Number()), nil
+	return q.FirstDate().Compare(other.FirstDate())
 }
 
 // Semester is an immutable half-year.
@@ -307,7 +311,7 @@ func (s Semester) Number() int { return int(s.semester) }
 
 // IsValid reports whether s is supported.
 func (s Semester) IsValid() bool {
-	return s.Year() >= MinYear && s.Year() <= MaxYear && s.Number() >= 1 && s.Number() <= 2
+	return allTrue(validIntegerRange(s.Year(), MinYear, MaxYear), validIntegerRange(s.Number(), 1, 2))
 }
 
 // String returns YYYY-HN, or an empty string when invalid.
@@ -340,7 +344,7 @@ func (s Semester) Length() int { return s.FirstDate().DaysUntil(s.LastDate()) + 
 
 // Contains reports whether d belongs to s.
 func (s Semester) Contains(d Date) bool {
-	return s.IsValid() && d.IsValid() && d.Year() == s.Year() && (int(d.Month())-1)/6+1 == s.Number()
+	return allTrue(s.IsValid(), d.IsValid(), d.Year() == s.Year(), semesterOfMonth(d.Month()) == s.Number())
 }
 
 // Add navigates by whole semesters.
@@ -352,15 +356,15 @@ func (s Semester) Add(semesters int) (Semester, error) {
 	if err != nil {
 		return Semester{}, err
 	}
-	return NewSemester(date.Year(), (int(date.Month())-1)/6+1)
+	return NewSemester(date.Year(), semesterOfMonth(date.Month()))
 }
 
 // Compare returns -1, 0, or 1 according to chronological ordering.
 func (s Semester) Compare(other Semester) (int, error) {
-	if !s.IsValid() || !other.IsValid() {
+	if !allTrue(s.IsValid(), other.IsValid()) {
 		return 0, ErrInvalidDate
 	}
-	return compareInts((s.Year()-1)*2+s.Number(), (other.Year()-1)*2+other.Number()), nil
+	return s.FirstDate().Compare(other.FirstDate())
 }
 
 // ISOWeek is an immutable ISO 8601 week-year and week.
@@ -425,7 +429,7 @@ func (w ISOWeek) LastDate() Date {
 // Contains reports whether d belongs to w.
 func (w ISOWeek) Contains(d Date) bool {
 	year, week := d.ISOWeek()
-	return w.IsValid() && year == w.Year() && week == w.Week()
+	return allTrue(w.IsValid(), year == w.Year(), week == w.Week())
 }
 
 // AddWeeks navigates by whole ISO weeks.
@@ -443,7 +447,7 @@ func (w ISOWeek) AddWeeks(weeks int) (ISOWeek, error) {
 
 // Compare returns -1, 0, or 1 according to first-date ordering.
 func (w ISOWeek) Compare(other ISOWeek) (int, error) {
-	if !w.IsValid() || !other.IsValid() {
+	if !allTrue(w.IsValid(), other.IsValid()) {
 		return 0, ErrInvalidDate
 	}
 	return w.FirstDate().Compare(other.FirstDate())
@@ -481,4 +485,38 @@ func compareInts(left, right int) int {
 		return 1
 	}
 	return 0
+}
+
+func allTrue(values ...bool) bool {
+	return !slices.Contains(values, false)
+}
+
+func validIntegerRange(value, minimum, maximum int) bool {
+	return allTrue(cmp.Compare(value, minimum) != -1, cmp.Compare(value, maximum) != 1)
+}
+
+func quarterOfMonth(month time.Month) int {
+	switch month {
+	case time.January, time.February, time.March:
+		return 1
+	case time.April, time.May, time.June:
+		return 2
+	case time.July, time.August, time.September:
+		return 3
+	case time.October, time.November, time.December:
+		return 4
+	default:
+		return 0
+	}
+}
+
+func semesterOfMonth(month time.Month) int {
+	switch month {
+	case time.January, time.February, time.March, time.April, time.May, time.June:
+		return 1
+	case time.July, time.August, time.September, time.October, time.November, time.December:
+		return 2
+	default:
+		return 0
+	}
 }

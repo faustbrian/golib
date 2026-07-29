@@ -2,7 +2,9 @@
 package calendarwire
 
 import (
+	"cmp"
 	"errors"
+	"slices"
 
 	calendar "github.com/faustbrian/golib/pkg/calendar"
 )
@@ -27,10 +29,13 @@ func EncodeDate(date calendar.Date) ([]byte, error) {
 
 // DecodeDate decodes exactly one bounded canonical JSON date string.
 func DecodeDate(payload []byte) (calendar.Date, error) {
-	if len(payload) > MaxBytes {
+	if cmp.Compare(len(payload), MaxBytes) == 1 {
 		return calendar.Date{}, ErrSizeLimit
 	}
-	if len(payload) != calendar.MaxParseBytes+2 || payload[0] != '"' || payload[len(payload)-1] != '"' {
+	if len(payload) != calendar.MaxParseBytes+2 {
+		return calendar.Date{}, calendar.ErrInvalidFormat
+	}
+	if slices.Contains([]bool{payload[0] == '"', payload[len(payload)-1] == '"'}, false) {
 		return calendar.Date{}, calendar.ErrInvalidFormat
 	}
 	return calendar.ParseDate(string(payload[1 : len(payload)-1]))

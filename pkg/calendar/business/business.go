@@ -3,8 +3,10 @@
 package business
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -116,14 +118,14 @@ type Calendar struct {
 
 // NewCalendar validates and deeply copies config.
 func NewCalendar(config Config) (Calendar, error) {
-	if config.Revision == "" || len(config.Revision) > maxRevisionBytes || !utf8.ValidString(config.Revision) {
+	if !allTrue(config.Revision != "", cmp.Compare(len(config.Revision), maxRevisionBytes) != 1, utf8.ValidString(config.Revision)) {
 		return Calendar{}, ErrInvalidCalendar
 	}
-	if len(config.Holidays) > MaxHolidays {
+	if cmp.Compare(len(config.Holidays), MaxHolidays) == 1 {
 		return Calendar{}, ErrResourceLimit
 	}
 	for _, field := range []string{config.Provenance.Provider, config.Provenance.Source, config.Provenance.License, config.Provenance.EffectiveVersion, config.Provenance.Checksum} {
-		if len(field) > MaxProvenanceFieldBytes {
+		if cmp.Compare(len(field), MaxProvenanceFieldBytes) == 1 {
 			return Calendar{}, ErrResourceLimit
 		}
 		if !utf8.ValidString(field) {
@@ -157,19 +159,19 @@ func NewCalendar(config Config) (Calendar, error) {
 func (c Calendar) Revision() string { return c.revision }
 
 // IsValid reports whether c was constructed by NewCalendar.
-func (c Calendar) IsValid() bool { return c.revision != "" && c.holidays != nil }
+func (c Calendar) IsValid() bool { return allTrue(c.revision != "", c.holidays != nil) }
 
 // Provenance returns the dataset provenance value.
 func (c Calendar) Provenance() Provenance { return c.provenance }
 
 // IsWeekend reports whether d's weekday is configured as a weekend.
 func (c Calendar) IsWeekend(d calendar.Date) bool {
-	return c.IsValid() && d.IsValid() && c.weekends[d.Weekday()]
+	return allTrue(c.IsValid(), d.IsValid(), c.weekends[d.Weekday()])
 }
 
 // IsHoliday reports whether one or more holidays occur on d.
 func (c Calendar) IsHoliday(d calendar.Date) bool {
-	return c.IsValid() && d.IsValid() && len(c.holidays[d]) != 0
+	return allTrue(c.IsValid(), d.IsValid(), len(c.holidays[d]) != 0)
 }
 
 // IsBusinessDay reports whether d is valid and is neither weekend nor holiday.
@@ -204,14 +206,15 @@ func (c Calendar) AddBusinessDays(d calendar.Date, count, searchLimit int) (cale
 	if !d.IsValid() {
 		return calendar.Date{}, calendar.ErrInvalidDate
 	}
-	if searchLimit <= 0 {
+	if cmp.Compare(searchLimit, 0) != 1 {
 		return calendar.Date{}, ErrSearchLimit
 	}
 	if count == 0 {
 		return d, nil
 	}
 	direction := 1
-	if count < 0 {
+	switch cmp.Compare(count, 0) {
+	case -1:
 		if count == -int(^uint(0)>>1)-1 {
 			return calendar.Date{}, ErrSearchLimit
 		}
@@ -243,14 +246,15 @@ func (c Calendar) CountBusinessDays(start, end calendar.Date, searchLimit int) (
 	if !start.IsValid() || !end.IsValid() {
 		return 0, calendar.ErrInvalidDate
 	}
-	if searchLimit <= 0 {
+	if cmp.Compare(searchLimit, 0) != 1 {
 		return 0, ErrSearchLimit
 	}
 	if start == end {
 		return 0, nil
 	}
 	direction := 1
-	if start.DaysUntil(end) < 0 {
+	switch cmp.Compare(start.DaysUntil(end), 0) {
+	case -1:
 		direction = -1
 		start, end = end, start
 	}
@@ -260,20 +264,25 @@ func (c Calendar) CountBusinessDays(start, end calendar.Date, searchLimit int) (
 	}
 	count := 0
 	current := start
-	for i := 0; i < span; i++ {
+	for range span {
 		if c.IsBusinessDay(current) {
 			count++
 		}
 		current, _ = current.AddDays(1)
 	}
-	return count * direction, nil
+	switch direction {
+	case -1:
+		return -count, nil
+	default:
+		return count, nil
+	}
 }
 
 func (c Calendar) search(d calendar.Date, direction, searchLimit int) (calendar.Date, error) {
 	if !d.IsValid() {
 		return calendar.Date{}, calendar.ErrInvalidDate
 	}
-	if searchLimit <= 0 {
+	if cmp.Compare(searchLimit, 0) != 1 {
 		return calendar.Date{}, ErrSearchLimit
 	}
 	current := d
@@ -304,13 +313,13 @@ const (
 
 // Observe returns source holidays plus separately marked observed entries.
 func Observe(source []Holiday, policy Observance) ([]Holiday, error) {
-	if len(source) > MaxHolidays {
+	if cmp.Compare(len(source), MaxHolidays) == 1 {
 		return nil, ErrResourceLimit
 	}
 	if policy < NoObservance || policy > NearestWeekday {
 		return nil, ErrInvalidCalendar
 	}
-	result := make([]Holiday, 0, len(source)*2)
+	result := make([]Holiday, 0, len(source))
 	for _, holiday := range source {
 		copyHoliday, err := NewHoliday(holiday.date, holiday.name, holiday.metadata)
 		if err != nil {
@@ -322,16 +331,22 @@ func Observe(source []Holiday, policy Observance) ([]Holiday, error) {
 		case NoObservance:
 			// Source dates remain unchanged.
 		case NextWeekday:
-			if holiday.date.Weekday() == time.Saturday {
+			switch holiday.date.Weekday() {
+			case time.Saturday:
 				observedDate, _ = holiday.date.AddDays(2)
-			} else if holiday.date.Weekday() == time.Sunday {
+			case time.Sunday:
 				observedDate, _ = holiday.date.AddDays(1)
+			case time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday:
+				// Weekday source dates do not require observation.
 			}
 		case NearestWeekday:
-			if holiday.date.Weekday() == time.Saturday {
-				observedDate, _ = holiday.date.AddDays(-1)
-			} else if holiday.date.Weekday() == time.Sunday {
+			switch holiday.date.Weekday() {
+			case time.Saturday:
+				observedDate, _ = holiday.date.SubDays(1)
+			case time.Sunday:
 				observedDate, _ = holiday.date.AddDays(1)
+			case time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday:
+				// Weekday source dates do not require observation.
 			}
 		}
 		if observedDate != holiday.date {
@@ -344,22 +359,32 @@ func Observe(source []Holiday, policy Observance) ([]Holiday, error) {
 			result = append(result, observed)
 		}
 	}
-	if len(result) > MaxHolidays {
+	if cmp.Compare(len(result), MaxHolidays) == 1 {
 		return nil, fmt.Errorf("%w: observed holidays", ErrResourceLimit)
 	}
 	return result, nil
 }
 
 func cloneMetadata(metadata map[string]string) (map[string]string, error) {
-	if len(metadata) > MaxMetadataEntries {
+	if cmp.Compare(len(metadata), MaxMetadataEntries) == 1 {
 		return nil, ErrResourceLimit
 	}
 	result := make(map[string]string, len(metadata))
 	for key, value := range metadata {
-		if key == "" || len(key) > maxMetadataKey || len(value) > maxMetadataValue || !utf8.ValidString(key) || !utf8.ValidString(value) {
+		if !allTrue(
+			key != "",
+			cmp.Compare(len(key), maxMetadataKey) != 1,
+			cmp.Compare(len(value), maxMetadataValue) != 1,
+			utf8.ValidString(key),
+			utf8.ValidString(value),
+		) {
 			return nil, ErrInvalidHoliday
 		}
 		result[key] = value
 	}
 	return result, nil
+}
+
+func allTrue(values ...bool) bool {
+	return !slices.Contains(values, false)
 }

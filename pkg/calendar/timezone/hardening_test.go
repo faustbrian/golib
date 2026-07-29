@@ -8,6 +8,10 @@ import (
 	calendar "github.com/faustbrian/golib/pkg/calendar"
 )
 
+type unknownResolution struct{}
+
+func (unknownResolution) resolution() {}
+
 func TestResolutionFailureContracts(t *testing.T) {
 	local := MustLocalDateTime(calendar.MustDate(2024, time.January, 1), 12, 0, 0, 0)
 	if _, err := Resolve(LocalDateTime{}, time.UTC, Reject); !errors.Is(err, ErrInvalidLocalTime) {
@@ -16,6 +20,9 @@ func TestResolutionFailureContracts(t *testing.T) {
 	var nilPolicy Resolution
 	if _, err := Resolve(local, time.UTC, nilPolicy); !errors.Is(err, ErrInvalidLocalTime) {
 		t.Fatalf("nil policy error = %v", err)
+	}
+	if _, err := Resolve(local, time.UTC, unknownResolution{}); !errors.Is(err, ErrInvalidLocalTime) {
+		t.Fatalf("unknown resolution type error = %v", err)
 	}
 	if _, err := Resolve(local, time.UTC, Choice(99)); !errors.Is(err, ErrInvalidLocalTime) {
 		t.Fatalf("unknown policy error = %v", err)

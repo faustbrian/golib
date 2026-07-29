@@ -31,6 +31,7 @@ func TestDateWireRejectsNullTrailingAndOversizedInput(t *testing.T) {
 
 	for _, payload := range [][]byte{
 		[]byte("null"),
+		[]byte("x2024-01-01x"),
 		[]byte(`"2024-01-01" true`),
 		[]byte(`"2024\u002d01-01"`),
 		make([]byte, calendarwire.MaxBytes+1),

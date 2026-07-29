@@ -31,6 +31,19 @@ func TestDateValidatorsComposeWithGoValidation(t *testing.T) {
 	if err := validator(calendar.MustDate(2024, time.June, 1)); err != nil {
 		t.Fatalf("in-range error = %v", err)
 	}
+	if err := validator(minimum); err != nil {
+		t.Fatalf("minimum boundary error = %v", err)
+	}
+	if err := validator(maximum); err != nil {
+		t.Fatalf("maximum boundary error = %v", err)
+	}
+	single, err := calendarvalidation.DateRange(minimum, minimum)
+	if err != nil {
+		t.Fatalf("single-date range error = %v", err)
+	}
+	if err := single(minimum); err != nil {
+		t.Fatalf("single-date boundary error = %v", err)
+	}
 	if err := validator(calendar.Date{}); !errors.Is(err, calendarvalidation.ErrInvalidDate) {
 		t.Fatalf("zero range error = %v", err)
 	}

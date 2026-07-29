@@ -3,8 +3,10 @@
 package timezone
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -58,11 +60,17 @@ func MatchOffset(offsetSeconds int) Resolution { return offsetMatch{seconds: off
 // LoadLocation validates a bounded IANA name before delegating transition
 // calculation to the standard library's authoritative timezone loader.
 func LoadLocation(name string) (*time.Location, error) {
-	if name == "" || len(name) > MaxZoneNameBytes || !utf8.ValidString(name) || strings.HasPrefix(name, "/") || strings.Contains(name, "\\") {
+	if !allTrue(
+		name != "",
+		cmp.Compare(len(name), MaxZoneNameBytes) != 1,
+		utf8.ValidString(name),
+		!strings.HasPrefix(name, "/"),
+		!strings.Contains(name, "\\"),
+	) {
 		return nil, ErrInvalidZone
 	}
 	for _, segment := range strings.Split(name, "/") {
-		if segment == "" || segment == "." || segment == ".." {
+		if slices.Contains([]string{"", ".", ".."}, segment) {
 			return nil, ErrInvalidZone
 		}
 	}
@@ -85,9 +93,16 @@ type LocalDateTime struct {
 
 // NewLocalDateTime validates and constructs a LocalDateTime.
 func NewLocalDateTime(date calendar.Date, hour, minute, second, nanosecond int) (LocalDateTime, error) {
-	if !date.IsValid() || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 || nanosecond < 0 || nanosecond >= int(time.Second) {
+	if !allTrue(
+		date.IsValid(),
+		validIntegerRange(hour, 0, 23),
+		validIntegerRange(minute, 0, 59),
+		validIntegerRange(second, 0, 59),
+		validIntegerRange(nanosecond, 0, 999_999_999),
+	) {
 		return LocalDateTime{}, ErrInvalidLocalTime
 	}
+	// #nosec G115 -- validation above bounds all converted values to their target widths.
 	return LocalDateTime{date: date, hour: uint8(hour), minute: uint8(minute), second: uint8(second), nanosecond: uint32(nanosecond)}, nil
 }
 
@@ -149,7 +164,10 @@ func Resolve(local LocalDateTime, loc *time.Location, policy Resolution) (time.T
 		return time.Time{}, ErrOffsetMismatch
 	}
 	choice, ok := policy.(Choice)
-	if !ok || choice < Reject || choice > Later {
+	if !ok {
+		return time.Time{}, fmt.Errorf("%w: unknown resolution policy", ErrInvalidLocalTime)
+	}
+	if !validIntegerRange(int(choice), int(Reject), int(Later)) {
 		return time.Time{}, fmt.Errorf("%w: unknown resolution policy", ErrInvalidLocalTime)
 	}
 	if len(candidates) == 1 {
@@ -201,9 +219,11 @@ func DayRange(date calendar.Date, loc *time.Location, policy Resolution) (start,
 func occurrences(local LocalDateTime, loc *time.Location) []time.Time {
 	wall := time.Date(local.Date().Year(), local.Date().Month(), local.Date().Day(), local.Hour(), local.Minute(), local.Second(), local.Nanosecond(), time.UTC)
 	offsets := make(map[int]struct{}, 4)
-	for hour := -72; hour <= 72; hour++ {
-		_, offset := wall.Add(time.Duration(hour) * time.Hour).In(loc).Zone()
+	probe := wall.Add(-72 * time.Hour)
+	for range 145 {
+		_, offset := probe.In(loc).Zone()
 		offsets[offset] = struct{}{}
+		probe = probe.Add(time.Hour)
 	}
 	candidates := make([]time.Time, 0, len(offsets))
 	for offset := range offsets {
@@ -219,6 +239,21 @@ func occurrences(local LocalDateTime, loc *time.Location) []time.Time {
 
 func sameWall(instant time.Time, local LocalDateTime) bool {
 	year, month, day := instant.Date()
-	return year == local.Date().Year() && month == local.Date().Month() && day == local.Date().Day() &&
-		instant.Hour() == local.Hour() && instant.Minute() == local.Minute() && instant.Second() == local.Second() && instant.Nanosecond() == local.Nanosecond()
+	return allTrue(
+		year == local.Date().Year(),
+		month == local.Date().Month(),
+		day == local.Date().Day(),
+		instant.Hour() == local.Hour(),
+		instant.Minute() == local.Minute(),
+		instant.Second() == local.Second(),
+		instant.Nanosecond() == local.Nanosecond(),
+	)
+}
+
+func allTrue(values ...bool) bool {
+	return !slices.Contains(values, false)
+}
+
+func validIntegerRange(value, minimum, maximum int) bool {
+	return allTrue(cmp.Compare(value, minimum) != -1, cmp.Compare(value, maximum) != 1)
 }

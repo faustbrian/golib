@@ -48,6 +48,9 @@ func TestDateSequenceIsBoundedAndCivil(t *testing.T) {
 	if _, err := calendartemporal.Sequence(dates[0], dates[2], 2); err == nil {
 		t.Fatal("undersized sequence limit unexpectedly accepted")
 	}
+	if _, err := calendartemporal.Sequence(dates[0], dates[0], 0); !errors.Is(err, calendartemporal.ErrRangeLimit) {
+		t.Fatalf("zero sequence limit error = %v", err)
+	}
 	if _, err := calendartemporal.Sequence(dates[2], dates[0], 3); !errors.Is(err, calendartemporal.ErrReversed) {
 		t.Fatalf("reversed sequence error = %v", err)
 	}

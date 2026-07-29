@@ -3,6 +3,7 @@
 package calendartemporal
 
 import (
+	"cmp"
 	"errors"
 	"time"
 
@@ -38,7 +39,7 @@ func InclusiveDates(first, last calendar.Date, location *time.Location, policy c
 	if err != nil {
 		return InstantRange{}, err
 	}
-	if comparison > 0 {
+	if cmp.Compare(comparison, 0) == 1 {
 		return InstantRange{}, ErrReversed
 	}
 	afterLast, err := last.AddDays(1)
@@ -62,11 +63,14 @@ func Sequence(first, last calendar.Date, limit int) ([]calendar.Date, error) {
 	if err != nil {
 		return nil, err
 	}
-	if comparison > 0 {
+	if cmp.Compare(comparison, 0) == 1 {
 		return nil, ErrReversed
 	}
 	length := first.DaysUntil(last) + 1
-	if limit <= 0 || length > limit {
+	if cmp.Compare(limit, 0) != 1 {
+		return nil, ErrRangeLimit
+	}
+	if cmp.Compare(length, limit) == 1 {
 		return nil, ErrRangeLimit
 	}
 	result := make([]calendar.Date, length)

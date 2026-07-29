@@ -3,6 +3,7 @@
 package calendar
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,13 +83,8 @@ func ParseDate(input string) (Date, error) {
 	if len(input) != MaxParseBytes || !utf8.ValidString(input) || input[4] != '-' || input[7] != '-' {
 		return Date{}, fmt.Errorf("%w: expected YYYY-MM-DD", ErrInvalidFormat)
 	}
-	for i := range len(input) {
-		if i == 4 || i == 7 {
-			continue
-		}
-		if input[i] < '0' || input[i] > '9' {
-			return Date{}, fmt.Errorf("%w: expected ASCII digits", ErrInvalidFormat)
-		}
+	if !asciiDigits(input[:4], 4) || !asciiDigits(input[5:7], 2) || !asciiDigits(input[8:], 2) {
+		return Date{}, fmt.Errorf("%w: expected ASCII digits", ErrInvalidFormat)
 	}
 	year := decimal(input[0:4])
 	month := decimal(input[5:7])
@@ -150,13 +146,7 @@ func (d Date) Compare(other Date) (int, error) {
 	if !d.IsValid() || !other.IsValid() {
 		return 0, ErrInvalidDate
 	}
-	if d == other {
-		return 0, nil
-	}
-	if d.year < other.year || d.year == other.year && (d.month < other.month || d.month == other.month && d.day < other.day) {
-		return -1, nil
-	}
-	return 1, nil
+	return cmp.Compare(dayOrdinal(d), dayOrdinal(other)), nil
 }
 
 // IsLeapYear reports whether d's Gregorian year contains February 29.
@@ -334,13 +324,16 @@ func (d Date) ComponentsUntil(other Date, policy ArithmeticPolicy) (ComponentDif
 	if comparison == 0 {
 		return ComponentDifference{}, nil
 	}
-	if comparison > 0 {
+	switch comparison {
+	case 1:
 		years := other.Year() - d.Year()
 		cursor, err := d.AddYears(years, policy)
 		if err != nil {
 			return ComponentDifference{}, err
 		}
-		if order, _ := cursor.Compare(other); order < 0 {
+		order, _ := cursor.Compare(other)
+		switch order {
+		case -1:
 			years++
 			cursor, err = d.AddYears(years, policy)
 			if err != nil {
@@ -352,7 +345,9 @@ func (d Date) ComponentsUntil(other Date, policy ArithmeticPolicy) (ComponentDif
 		if err != nil {
 			return ComponentDifference{}, err
 		}
-		if order, _ := candidate.Compare(other); order < 0 {
+		order, _ = candidate.Compare(other)
+		switch order {
+		case -1:
 			months++
 			candidate, err = cursor.AddMonths(months, policy)
 			if err != nil {
@@ -366,7 +361,9 @@ func (d Date) ComponentsUntil(other Date, policy ArithmeticPolicy) (ComponentDif
 	if err != nil {
 		return ComponentDifference{}, err
 	}
-	if order, _ := cursor.Compare(other); order > 0 {
+	order, _ := cursor.Compare(other)
+	switch order {
+	case 1:
 		years--
 		cursor, err = d.AddYears(years, policy)
 		if err != nil {
@@ -378,7 +375,9 @@ func (d Date) ComponentsUntil(other Date, policy ArithmeticPolicy) (ComponentDif
 	if err != nil {
 		return ComponentDifference{}, err
 	}
-	if order, _ := candidate.Compare(other); order > 0 {
+	order, _ = candidate.Compare(other)
+	switch order {
+	case 1:
 		months--
 		candidate, err = cursor.AddMonths(months, policy)
 		if err != nil {
