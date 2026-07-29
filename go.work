@@ -57,6 +57,7 @@ use (
 	./pkg/log
 	./pkg/math
 	./pkg/measurement
+	./pkg/merkle-patricia-trie
 	./pkg/merkle-tree
 	./pkg/migrations
 	./pkg/money
@@ -96,6 +97,7 @@ use (
 	./pkg/telemetry
 	./pkg/temporal
 	./pkg/validation
+	./pkg/verkle-tree
 	./pkg/webhook
 	./pkg/wire
 	./pkg/wsdl
@@ -295,3 +297,9 @@ replace github.com/faustbrian/golib/pkg/wire v0.0.0 => ./pkg/wire
 replace github.com/faustbrian/golib/pkg/wsdl v0.0.0 => ./pkg/wsdl
 
 replace github.com/faustbrian/golib/pkg/xsd v0.0.0 => ./pkg/xsd
+
+replace github.com/faustbrian/golib/pkg/merkle-patricia-trie v0.0.0 => ./pkg/merkle-patricia-trie
+
+replace github.com/faustbrian/golib/pkg/merkle-tree v0.0.0 => ./pkg/merkle-tree
+
+replace github.com/faustbrian/golib/pkg/verkle-tree v0.0.0 => ./pkg/verkle-tree
