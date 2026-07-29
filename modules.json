@@ -3397,6 +3397,7 @@
       "external_runtime_dependencies": [
         "github.com/alecthomas/kong",
         "github.com/spf13/cobra",
+        "github.com/spf13/pflag",
         "github.com/urfave/cli/v3"
       ],
       "required_services": [],

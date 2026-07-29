@@ -9,6 +9,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- Record PFlag as a direct dependency of the competitor benchmark harness and
+  remove its redundant indirect declaration.
 - Replace the internal Cobra/PFlag adapter with a dependency-free,
   invocation-local parser while preserving the documented argv contract and
   reducing service binary overhead.

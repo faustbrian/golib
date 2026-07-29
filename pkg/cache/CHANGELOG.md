@@ -7,6 +7,8 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
+- Remove unused CLI-related indirect dependencies from canonical module
+  metadata.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 
