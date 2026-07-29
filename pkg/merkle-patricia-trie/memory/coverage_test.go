@@ -212,12 +212,6 @@ func TestStoreRetentionAndPruningValidateLifecycleAndBounds(t *testing.T) {
 	); !errors.Is(err, mpt.ErrInvalidContext) {
 		t.Fatalf("Prune(nil context) error = %v", err)
 	}
-	var retention mpt.RootRetention = (*nilRetention)(nil)
-	if retention.Root() != (mpt.Root{}) ||
-		!errors.Is(retention.Release(ctx), mpt.ErrReleasedRetention) {
-		t.Fatal("nil retention did not reject use")
-	}
-
 	limits := mpt.DefaultReachabilityLimits()
 	limits.MaxRetentions = 1
 	first, err := store.RetainRoot(ctx, mpt.EmptyRoot(), limits)
@@ -289,16 +283,33 @@ func TestStorePruneIsAtomicAcrossRetentionAndPublicationRaces(t *testing.T) {
 	if after := countStoreNodes(t, store); after != before {
 		t.Fatalf("canceled Prune() changed node count from %d to %d", before, after)
 	}
-}
 
-type nilRetention struct{}
-
-func (*nilRetention) Root() mpt.Root {
-	return mpt.Root{}
-}
-
-func (*nilRetention) Release(context.Context) error {
-	return mpt.ErrReleasedRetention
+	updated, err := trie.Update(ctx, []byte("gamma"), []byte("published"))
+	if err != nil {
+		t.Fatalf("Update(gamma) error = %v", err)
+	}
+	var published mpt.RawTrie
+	publicationContext := &stepContext{
+		hookAt: 3,
+		hook: func() {
+			published, err = updated.Commit(ctx, store)
+			if err != nil {
+				t.Errorf("racing Commit() error = %v", err)
+			}
+		},
+	}
+	if _, pruneErr := store.Prune(
+		publicationContext, mpt.DefaultReachabilityLimits(),
+	); !errors.Is(pruneErr, mpt.ErrStaleRoot) {
+		t.Fatalf("Prune(publication race) error = %v", pruneErr)
+	}
+	publishedRoot, err := published.Root()
+	if err != nil {
+		t.Fatalf("published Root() error = %v", err)
+	}
+	if store.Root() != publishedRoot {
+		t.Fatalf("raced Prune() replaced published root %x", publishedRoot)
+	}
 }
 
 type captureStore struct {

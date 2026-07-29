@@ -14,16 +14,18 @@ import (
 // Store retains immutable encoded nodes and publishes one root at a time.
 // Concurrent reads are safe. Commits use compare-and-swap root semantics.
 type Store struct {
-	mutex               sync.RWMutex
-	state               *storeState
-	retentions          map[uint64]mpt.Root
-	nextRetention       uint64
-	retentionGeneration uint64
+	mutex    sync.RWMutex
+	state    *storeState
+	retained *retainedRoots
 }
 
 type storeState struct {
 	root  mpt.Root
 	nodes map[mpt.Root][]byte
+}
+
+type retainedRoots struct {
+	leases map[*rootRetention]mpt.Root
 }
 
 // New constructs an empty store whose published root is the canonical empty
@@ -34,7 +36,7 @@ func New() *Store {
 			root:  mpt.EmptyRoot(),
 			nodes: make(map[mpt.Root][]byte),
 		},
-		retentions: make(map[uint64]mpt.Root),
+		retained: &retainedRoots{leases: make(map[*rootRetention]mpt.Root)},
 	}
 }
 
@@ -218,17 +220,21 @@ func (store *Store) RetainRoot(
 	if store.state != base {
 		return nil, mpt.ErrStaleRoot
 	}
-	if len(store.retentions) == limits.MaxRetentions {
+	retained := store.retained
+	if retained == nil {
+		retained = &retainedRoots{leases: make(map[*rootRetention]mpt.Root)}
+	}
+	if len(retained.leases) == limits.MaxRetentions {
 		return nil, fmt.Errorf("%w: retained root bound exceeded", mpt.ErrResourceLimit)
 	}
-	if store.retentions == nil {
-		store.retentions = make(map[uint64]mpt.Root)
+	lease := &rootRetention{store: store, root: root}
+	leases := make(map[*rootRetention]mpt.Root, len(retained.leases)+1)
+	for existing, retainedRoot := range retained.leases {
+		leases[existing] = retainedRoot
 	}
-	store.nextRetention++
-	id := store.nextRetention
-	store.retentions[id] = root
-	store.retentionGeneration++
-	return &rootRetention{store: store, id: id, root: root}, nil
+	leases[lease] = root
+	store.retained = &retainedRoots{leases: leases}
+	return lease, nil
 }
 
 // Prune atomically removes nodes unreachable from the published root and all
@@ -245,15 +251,21 @@ func (store *Store) Prune(
 	}
 	store.mutex.RLock()
 	base := store.state
-	generation := store.retentionGeneration
-	roots := make([]mpt.Root, 0, len(store.retentions)+1)
+	retained := store.retained
+	retentionCount := 0
+	if retained != nil {
+		retentionCount = len(retained.leases)
+	}
+	roots := make([]mpt.Root, 0, retentionCount+1)
 	if base == nil {
 		roots = append(roots, mpt.EmptyRoot())
 	} else {
 		roots = append(roots, base.root)
 	}
-	for _, root := range store.retentions {
-		roots = append(roots, root)
+	if retained != nil {
+		for _, root := range retained.leases {
+			roots = append(roots, root)
+		}
 	}
 	store.mutex.RUnlock()
 	roots = uniqueRoots(roots)
@@ -286,7 +298,7 @@ func (store *Store) Prune(
 	if err := checkContext(ctx); err != nil {
 		return mpt.PruneResult{}, err
 	}
-	if store.state != base || store.retentionGeneration != generation {
+	if store.state != base || store.retained != retained {
 		return mpt.PruneResult{}, mpt.ErrStaleRoot
 	}
 	root := mpt.EmptyRoot()
@@ -330,11 +342,8 @@ func (reader stateReader) GetNode(
 }
 
 type rootRetention struct {
-	mutex    sync.Mutex
-	store    *Store
-	id       uint64
-	root     mpt.Root
-	released bool
+	store *Store
+	root  mpt.Root
 }
 
 func (retention *rootRetention) Root() mpt.Root {
@@ -351,22 +360,25 @@ func (retention *rootRetention) Release(ctx context.Context) error {
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	retention.mutex.Lock()
-	defer retention.mutex.Unlock()
-	if retention.released {
-		return mpt.ErrReleasedRetention
-	}
 	retention.store.mutex.Lock()
 	defer retention.store.mutex.Unlock()
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	if _, exists := retention.store.retentions[retention.id]; !exists {
+	retained := retention.store.retained
+	if retained == nil {
 		return mpt.ErrReleasedRetention
 	}
-	delete(retention.store.retentions, retention.id)
-	retention.store.retentionGeneration++
-	retention.released = true
+	if _, exists := retained.leases[retention]; !exists {
+		return mpt.ErrReleasedRetention
+	}
+	leases := make(map[*rootRetention]mpt.Root, len(retained.leases)-1)
+	for existing, root := range retained.leases {
+		if existing != retention {
+			leases[existing] = root
+		}
+	}
+	retention.store.retained = &retainedRoots{leases: leases}
 	return nil
 }
 

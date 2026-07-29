@@ -395,6 +395,66 @@ func TestStorePrunesOnlyReleasedHistoricalRoots(t *testing.T) {
 	}
 }
 
+func TestStoreRequiresEveryLeaseReleaseAndValidHistoricalRoot(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := memory.New()
+	trie := mustMemoryTrie(t, map[string]string{
+		"alpha": "a long value that creates a persisted alpha child",
+		"beta":  "a long value that creates a persisted beta child",
+	})
+	trie, err := trie.Commit(ctx, store)
+	if err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+	root, err := trie.Root()
+	if err != nil {
+		t.Fatalf("Root() error = %v", err)
+	}
+	first, err := store.RetainRoot(
+		ctx, root, mpt.DefaultReachabilityLimits(),
+	)
+	if err != nil {
+		t.Fatalf("RetainRoot(first) error = %v", err)
+	}
+	second, err := store.RetainRoot(
+		ctx, root, mpt.DefaultReachabilityLimits(),
+	)
+	if err != nil {
+		t.Fatalf("RetainRoot(second) error = %v", err)
+	}
+	if err := first.Release(ctx); err != nil {
+		t.Fatalf("Release(first) error = %v", err)
+	}
+	if _, err := store.Prune(
+		ctx, mpt.DefaultReachabilityLimits(),
+	); err != nil {
+		t.Fatalf("Prune(one lease) error = %v", err)
+	}
+	if _, err := store.GetNode(ctx, root); err != nil {
+		t.Fatalf("GetNode(one lease) error = %v", err)
+	}
+	if err := second.Release(ctx); err != nil {
+		t.Fatalf("Release(second) error = %v", err)
+	}
+
+	var unknown mpt.Root
+	unknown[0] = 1
+	if _, err := store.RetainRoot(
+		ctx, unknown, mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrMissingNode) {
+		t.Fatalf("RetainRoot(missing) error = %v", err)
+	}
+	corrupt := mpt.DefaultReachabilityLimits()
+	corrupt.MaxHashOperations = 0
+	if _, err := store.RetainRoot(
+		ctx, root, corrupt,
+	); !errors.Is(err, mpt.ErrResourceLimit) {
+		t.Fatalf("RetainRoot(invalid limits) error = %v", err)
+	}
+}
+
 func mustMemoryTrie(t *testing.T, values map[string]string) mpt.RawTrie {
 	t.Helper()
 	trie, err := mpt.NewRawTrie(mpt.DefaultLimits())
