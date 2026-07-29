@@ -331,6 +331,10 @@ func (w *Worker) decode(delivery streamqueue.Delivery) (core.TaskMessage, error)
 		w.metrics.deadLettered.Add(1)
 		return nil, err
 	}
+	maximumDeliveryAttempts, err := w.resolveDeliveryAttemptLimit(message)
+	if err != nil {
+		return nil, err
+	}
 	var once sync.Once
 	var settlementErr error
 	settle := func(action func() error) error {
@@ -368,7 +372,7 @@ func (w *Worker) decode(delivery streamqueue.Delivery) (core.TaskMessage, error)
 				if !terminalFailure(
 					handlerErr,
 					delivery.Attempts,
-					w.opts.maxDeliveryAttempts,
+					maximumDeliveryAttempts,
 					w.opts.canceledDeadLetterCodes,
 				) {
 					return nil
@@ -387,6 +391,27 @@ func (w *Worker) decode(delivery streamqueue.Delivery) (core.TaskMessage, error)
 		},
 	)
 	return message, nil
+}
+
+func (w *Worker) resolveDeliveryAttemptLimit(
+	message core.TaskMessage,
+) (limit int64, err error) {
+	limit = w.opts.maxDeliveryAttempts
+	if w.opts.deliveryAttemptLimit == nil {
+		return limit, nil
+	}
+	defer func() {
+		if recover() != nil {
+			limit = 0
+			err = ErrInvalidDeliveryAttemptLimit
+		}
+	}()
+	limit = w.opts.deliveryAttemptLimit(message)
+	if limit < 2 || limit > maxResolvedDeliveryAttempts {
+		return 0, ErrInvalidDeliveryAttemptLimit
+	}
+
+	return limit, nil
 }
 
 func terminalFailure(

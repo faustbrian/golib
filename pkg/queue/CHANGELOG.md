@@ -7,6 +7,10 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Valkey Streams workers can now select a bounded terminal broker-delivery
+  ceiling per decoded message with `WithDeliveryAttemptLimitResolver`.
+  `WithDeadLetter` remains the default; unsafe resolver results or panics leave
+  the source delivery pending and return a stable redacted error.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

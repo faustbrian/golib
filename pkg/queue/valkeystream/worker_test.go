@@ -228,6 +228,99 @@ func TestConfiguredCanceledFailureDeadLettersAtAttemptLimit(t *testing.T) {
 	assert.Equal(t, "deadline_exceeded", transport.deadLetterFailure.Code)
 }
 
+func TestDeliveryAttemptLimitResolverAppliesPerMessagePolicy(t *testing.T) {
+	t.Parallel()
+
+	opts, err := newOptions(
+		WithAddress("127.0.0.1:6379"),
+		WithFailureStream("jobs-failures"),
+		WithDeadLetter("jobs-dead", 5),
+		WithDeliveryAttemptLimitResolver(func(task core.TaskMessage) int64 {
+			message, ok := task.(*job.Message)
+			if !ok || message.Metadata == nil {
+				return 0
+			}
+			if message.Metadata.RetryPolicy == "dataset-control-v1" {
+				return 8
+			}
+			return 5
+		}),
+	)
+	require.NoError(t, err)
+	handlerErr := management.NewFailure(
+		management.ClassificationRetryable,
+		"temporary",
+		errors.New("temporary"),
+	)
+
+	tests := map[string]struct {
+		policy          string
+		attempts        int64
+		wantDeadLetters int
+	}{
+		"provider at five": {"provider-import-v1", 5, 1},
+		"dataset at five":  {"dataset-control-v1", 5, 0},
+		"dataset at eight": {"dataset-control-v1", 8, 1},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			transport := &recordTransportStub{}
+			worker := &Worker{opts: opts, transport: transport}
+			message := job.NewMessage(
+				rawMessage(name),
+				job.AllowOption{Metadata: &job.Metadata{RetryPolicy: test.policy}},
+			)
+			delivery, decodeErr := worker.decode(streamqueue.Delivery{
+				ID:       "1-0",
+				Body:     message.Bytes(),
+				Attempts: test.attempts,
+			})
+			require.NoError(t, decodeErr)
+
+			require.NoError(
+				t,
+				delivery.(*job.Message).NackFailure(handlerErr),
+			)
+			assert.Equal(t, 1, transport.failureCalls)
+			assert.Equal(t, test.wantDeadLetters, transport.deadLetterCalls)
+		})
+	}
+}
+
+func TestDeliveryAttemptLimitResolverRejectsUnsafeRuntimeLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]DeliveryAttemptLimitResolver{
+		"below minimum": func(core.TaskMessage) int64 { return 1 },
+		"above maximum": func(core.TaskMessage) int64 { return 101 },
+		"panic": func(core.TaskMessage) int64 {
+			panic("secret resolver failure")
+		},
+	}
+	for name, resolver := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			opts, err := newOptions(
+				WithAddress("127.0.0.1:6379"),
+				WithDeliveryAttemptLimitResolver(resolver),
+			)
+			require.NoError(t, err)
+			worker := &Worker{opts: opts, transport: &recordTransportStub{}}
+			message := job.NewMessage(rawMessage("unsafe-limit"))
+
+			_, err = worker.decode(streamqueue.Delivery{
+				ID: "1-0", Body: message.Bytes(), Attempts: 1,
+			})
+
+			assert.ErrorIs(t, err, ErrInvalidDeliveryAttemptLimit)
+			assert.NotContains(t, err.Error(), "secret")
+		})
+	}
+}
+
 func TestWorkerStatsReportsOutstandingWorkAndLifecycleCounters(t *testing.T) {
 	server := miniredis.RunT(t)
 	now := time.Now().UTC().Truncate(time.Millisecond)

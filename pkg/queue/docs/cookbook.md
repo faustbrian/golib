@@ -28,6 +28,10 @@ Valkey Streams provides a bounded built-in terminal policy through
 the terminal attempt appends to the dead-letter stream before acknowledging
 the source. Deduplicate dead letters by `original_id` because an ambiguous
 source acknowledgement can repeat the append.
+When one stream carries message classes with different terminal ceilings, add
+`WithDeliveryAttemptLimitResolver` and derive the limit from bounded immutable
+job metadata. Invalid results and resolver panics leave the delivery pending
+instead of silently applying the wrong policy.
 
 ## Valkey crash recovery
 

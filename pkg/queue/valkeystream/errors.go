@@ -9,6 +9,12 @@ import (
 // ErrInvalidConfiguration identifies unsafe Valkey Streams configuration.
 var ErrInvalidConfiguration = errors.New("valkeystream: invalid configuration")
 
+// ErrInvalidDeliveryAttemptLimit reports a resolver that returned an unsafe
+// per-message broker-delivery limit or panicked. The delivery remains pending.
+var ErrInvalidDeliveryAttemptLimit = errors.New(
+	"valkeystream: invalid delivery attempt limit",
+)
+
 // ConfigurationError identifies the invalid configuration field without
 // exposing its potentially sensitive value.
 type ConfigurationError struct {

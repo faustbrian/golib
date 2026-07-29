@@ -94,6 +94,7 @@ closes producer-owned connections.
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
 | `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
+| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 2 through 100 |
 | `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
@@ -121,6 +122,16 @@ retention deadline.
 Workers advertise `retention_count` only when this option is enabled and always
 advertise `purge` when management is configured. They do not advertise
 `retention_time` or `retention_bytes`.
+
+When messages sharing one stream require different broker-delivery ceilings,
+configure `WithDeliveryAttemptLimitResolver`. The resolver runs exactly once
+after bounded job decoding and before settlement callbacks are attached.
+It must inspect only immutable decoded message metadata, return a value from
+two through 100, and remain deterministic, side-effect-free, and non-blocking.
+`WithDeadLetter` supplies the fallback for workers without a resolver. An
+unsafe result or resolver panic returns `ErrInvalidDeliveryAttemptLimit`
+without acknowledging or dead-lettering the source delivery, so operators can
+correct configuration and reclaim it safely.
 
 ## Authentication and TLS
 
