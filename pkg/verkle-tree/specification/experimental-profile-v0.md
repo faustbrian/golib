@@ -14,11 +14,11 @@ shown here.
 profile. It is not stable, audited, production-ready, or Ethereum-compatible.
 Its definition MAY change incompatibly before v1.
 
-Only the profile identity and structural metadata are currently exported. An
-internal research boundary implements the fixed leaf field inputs below but
-does not construct commitments. Tree, root, node, proof, witness, snapshot, and
-persistence APIs remain unimplemented. This document MUST NOT be read as a
-claim that those surfaces already exist.
+Only the profile identity and structural metadata are currently exported.
+Internal research boundaries implement the fixed topology and leaf field
+inputs below but do not construct a complete committed tree. Tree, root, node,
+proof, witness, snapshot, and persistence APIs remain unimplemented. This
+document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
 
@@ -53,8 +53,7 @@ inconsistent representation before cryptographic work.
 
 The following parts of the profile are deliberately not frozen:
 
-- node kinds, path traversal, extension-node behavior, and serialized
-  empty-subtree representation;
+- serialized empty-subtree representation and persisted node materialization;
 - canonical root, node, proof, witness, snapshot, and storage encodings;
 - canonical point, scalar, and proof-container rejection rules beyond the
   internal research seam already tested;
@@ -70,6 +69,64 @@ until the corresponding definition is normative, canonical, bounded, and
 covered by positive and hostile-input tests. Any future incompatible choice
 MUST use a different profile name or version; it MUST NOT silently reinterpret
 already encoded objects.
+
+## Fixed Tree Topology
+
+The logical tree MUST be a canonical width-256 radix over the 31-byte stem. Its
+root MUST always be an internal node at depth zero, including for an empty
+tree. At internal depth `d`, where `0 <= d <= 30`, the child index MUST be stem
+byte `d`.
+
+For the complete current set of distinct stems:
+
+- a selected child containing exactly one remaining stem MUST be a stem node
+  attached at depth `d + 1`;
+- a selected child containing more than one remaining stem MUST be an internal
+  node at depth `d + 1`;
+- an internal node MUST NOT exist at depth 31;
+- an absent child MUST be represented by the absence of an edge, not by a
+  logical empty node; and
+- edges MUST be ordered by their unsigned byte index.
+
+Consequently, one stem is attached directly beneath the root at depth one. Two
+stems that share their first `p` bytes and differ at byte `p` require internal
+nodes at depths zero through `p`, with both stems attached at depth `p + 1`.
+The deepest valid collision shares bytes zero through 29 and differs at byte
+30; it has 31 internal nodes, two stem nodes, 32 edges, and stem depth 31.
+
+The only logical committed node kinds are internal and stem. Empty is an absent
+edge. Hashed, unknown, unloaded, or storage-reference states MAY exist inside a
+future persistence implementation, but they MUST NOT define additional logical
+node kinds or change a commitment.
+
+A stem lookup MUST terminate with exactly one of:
+
+- **present stem**: the selected stem node contains the queried stem;
+- **missing child**: the selected internal edge is absent; or
+- **different stem**: the selected edge contains a stem node with another
+  stem.
+
+The result depth MUST identify the selected missing edge or attached stem and
+MUST be between one and 31. A present stem does not imply that the queried
+suffix is present; suffix absence remains a separate leaf-value result.
+
+Topology MUST depend only on the complete current stem set, not insertion or
+deletion history. Insertion and deletion MUST produce new immutable layouts.
+Deleting one side of a collision MUST collapse the now-unary path to the
+minimal topology. This canonical normalization deliberately differs from any
+reference implementation that preserves obsolete unary internal nodes after an
+incremental deletion; compatibility MUST NOT be claimed for that transition.
+
+Before copying stems or allocating node and edge arenas, implementations MUST
+enforce positive limits for stems, nodes, edges, and deterministic construction
+bytes. They MUST reject duplicate stems, cancellation, exhausted limits, and
+invalid internal topology atomically. Sorting and traversal MUST remain
+bounded and cancellation-aware.
+
+The pinned Rust topology fixture independently confirms present-stem,
+missing-child, and different-stem path hints at depths one, two, and 31 for
+freshly constructed trees. It does not prove canonical deletion collapse,
+serialized nodes, commitments, or general Rust compatibility.
 
 ## Fixed Leaf Commitment Inputs
 

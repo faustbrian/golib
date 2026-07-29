@@ -82,10 +82,10 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: tree node semantics, canonical container
-encodings, proof and witness semantics, commitment-level deletion, storage
-publication, and complete cryptographic resource accounting are not yet frozen
-or exported. The exact boundary is recorded in
+The profile remains incomplete: canonical container encodings, proof and
+witness semantics, commitment-level deletion, storage publication, and
+complete cryptographic resource accounting are not yet frozen or exported.
+The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
 An internal slow reference model now fixes bounded immutable state transitions:
@@ -93,6 +93,12 @@ raw fixed-length keys and values, present-zero semantics, explicit deletion,
 duplicate rejection, canonical batch ordering, cancellation, and atomic
 failure. It deliberately computes no root or hash substitute; later
 vector-committed tree behavior must agree with this independent oracle.
+
+An internal immutable topology model fixes the canonical 256-way radix over
+31-byte stems, including bounded construction, depths one through 31, distinct
+missing-child and different-stem outcomes, and deletion-time collision-path
+collapse. Its fresh-tree path results agree with a pinned independent Rust
+fixture. It still computes no commitment and exposes no public tree operation.
 
 ## Development rule
 

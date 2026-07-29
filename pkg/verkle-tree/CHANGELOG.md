@@ -20,6 +20,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add a bounded immutable reference model for deterministic set, delete,
   present-zero, duplicate, cancellation, and atomic batch semantics without
   claiming a committed tree root.
+- Add a bounded immutable canonical stem-topology model with distinct
+  missing-child and different-stem outcomes, maximum-depth coverage,
+  deletion-time path collapse, and pinned Rust path-hint agreement.
 - Fix the experimental profile's dependency-free leaf field inputs, including
   present-zero marking, absence, suffix-half placement, local indices, stem
   encoding, and stem-vector positions, with pinned Rust differential vectors.

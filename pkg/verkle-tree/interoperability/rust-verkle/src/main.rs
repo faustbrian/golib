@@ -219,6 +219,112 @@ fn print_tree_proof() {
     );
 }
 
+fn topology_key(stem: [u8; 31]) -> [u8; 32] {
+    let mut key = [0_u8; 32];
+    key[..31].copy_from_slice(&stem);
+    key
+}
+
+fn print_topology_case(case: &str, stems: Vec<[u8; 31]>, query: [u8; 31]) {
+    let mut trie = Trie::new(VerkleConfig::new(MemoryDb::new()));
+    trie.insert(
+        stems
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, stem)| (topology_key(stem), tree_value(index as u8 + 1))),
+    );
+
+    let query_key = topology_key(query);
+    let proof = trie
+        .create_verkle_proof(std::iter::once(query_key))
+        .expect("topology proof creation failed");
+    assert_eq!(proof.verification_hint.depths.len(), 1);
+    assert_eq!(proof.verification_hint.extension_present.len(), 1);
+    let depth = proof.verification_hint.depths[0];
+    let status = proof.verification_hint.extension_present[0];
+    let existing = match status {
+        verkle_trie::proof::ExtPresent::None => "-".to_owned(),
+        verkle_trie::proof::ExtPresent::Present => encode_hex(&query),
+        verkle_trie::proof::ExtPresent::DifferentStem => {
+            assert_eq!(proof.verification_hint.diff_stem_no_proof.len(), 1);
+            encode_hex(
+                proof
+                    .verification_hint
+                    .diff_stem_no_proof
+                    .first()
+                    .expect("missing encountered stem"),
+            )
+        }
+    };
+    let inserted = if stems.is_empty() {
+        "-".to_owned()
+    } else {
+        stems
+            .iter()
+            .map(|stem| encode_hex(stem))
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+
+    println!(
+        "{case}\t{inserted}\t{}\t{depth}\t{status:?}\t{existing}",
+        encode_hex(&query),
+    );
+}
+
+fn print_topology() {
+    let single = [0x10_u8; 31];
+    let mut different = single;
+    different[1] = 0x11;
+    let mut missing_root = single;
+    missing_root[0] = 0x12;
+
+    let mut collision_a = [0_u8; 31];
+    collision_a[0] = 0x20;
+    collision_a[1] = 0x30;
+    let mut collision_b = collision_a;
+    collision_b[1] = 0x40;
+    let mut collision_missing = collision_a;
+    collision_missing[1] = 0x35;
+    let mut collision_different = collision_a;
+    collision_different[2] = 0x01;
+
+    let mut deepest_a = [0_u8; 31];
+    deepest_a[30] = 0x01;
+    let mut deepest_b = [0_u8; 31];
+    deepest_b[30] = 0x02;
+    let mut deepest_missing = [0_u8; 31];
+    deepest_missing[30] = 0x03;
+
+    println!("case\tinserted_stems\tquery_stem\tdepth\tstatus\texisting_stem");
+    print_topology_case("empty", vec![], [0_u8; 31]);
+    print_topology_case("single-present", vec![single], single);
+    print_topology_case("single-different", vec![single], different);
+    print_topology_case("single-missing-root", vec![single], missing_root);
+    print_topology_case(
+        "collision-present",
+        vec![collision_a, collision_b],
+        collision_a,
+    );
+    print_topology_case(
+        "collision-missing",
+        vec![collision_a, collision_b],
+        collision_missing,
+    );
+    print_topology_case(
+        "collision-different",
+        vec![collision_a, collision_b],
+        collision_different,
+    );
+    print_topology_case("deepest-present", vec![deepest_a, deepest_b], deepest_a);
+    print_topology_case(
+        "deepest-missing",
+        vec![deepest_a, deepest_b],
+        deepest_missing,
+    );
+}
+
 fn verify_go_witness(path: &str, root_hex: &str) {
     let witness = std::fs::read_to_string(path).expect("read Go execution witness");
     let proof = VerkleProofGo::from_json_str(&witness);
@@ -260,6 +366,7 @@ fn main() {
         Some("generators") => print_generators(),
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
+        Some("topology") => print_topology(),
         Some("verify-go-witness") => verify_go_witness(
             &arguments.next().expect("missing Go execution witness path"),
             &arguments.next().expect("missing Go root"),
@@ -271,6 +378,7 @@ fn main() {
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
              <encodings|commitment-hashes|leaf-vectors|generators|multiproof|tree-proof|\
+             topology|\
              verify-go-witness|\
              update-go-witness>"
         ),

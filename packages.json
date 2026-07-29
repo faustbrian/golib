@@ -7271,6 +7271,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/verkle-tree",
+      "directory": "internal/treelayout",
+      "name": "treelayout",
+      "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/treelayout",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/webhook",
       "directory": ".",
       "name": "webhook",

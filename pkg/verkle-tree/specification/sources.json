@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -154,7 +154,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -218,7 +218,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -260,7 +260,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -310,7 +310,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -466,7 +466,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -500,6 +500,54 @@
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust trie independently inserts the exact Go corpus, computes its root, aggregates the same four membership and non-membership openings under transcript vt, verifies the proof, emits the root plus the go-verkle-compatible 576-byte proof, parses and verifies the complete Go execution-witness proof container, and applies its bounded stateless update.",
       "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; require the Rust verifier to accept both its native proof and the Go proof container; compare the root commitment and every proof byte after the documented scalar conversion; require the independently calculated Rust post-state root to match Go; and reject a different valid pre-state root and changed authenticated old value.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-stem-topology",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "verkle-trie/src/trie.rs",
+          "sha256": "b8bb6195d81f84832ce34e82494bac5cf5ed5123aa0701f84e3145ae8d106e28"
+        },
+        {
+          "path": "verkle-trie/src/proof.rs",
+          "sha256": "2055cb78f4f9d87932709e73e276ea6239c90369a304cf98b02e2c292bdb53d0"
+        },
+        {
+          "path": "verkle-trie/src/proof/key_path_finder.rs",
+          "sha256": "6692686c9693f98db097b2239942bc13d699272ae903df2e614608a191a0d418"
+        },
+        {
+          "path": "verkle-trie/src/proof/opening_data.rs",
+          "sha256": "58369066e6050237b2da6cdf39b1d5e4e6727e5d21e22a3b5df86197b5366edb"
+        }
+      ],
+      "fixture_path": "internal/treelayout/testdata/rust-verkle-topology.tsv",
+      "fixture_sha256": "42cf68705c6bea1aa088d148b3785e2a450431b8745310b983fd5d0c0c3f76ae",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "width": 256,
+        "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
+        "root": "an internal node at depth zero",
+        "path": "one stem byte selects each internal child",
+        "depth": "one through 31, identifying the stem attachment or missing child opening",
+        "outcomes": "Present, DifferentStem, and None map to present stem, different stem, and missing child",
+        "corpus": "empty, single-stem, byte-one collision, and maximum byte-30 collision paths"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- topology"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. For every row, the pinned Rust trie inserts the recorded stems, creates one proof for the query stem, and emits the proof verification hint's depth, extension status, and encountered different stem.",
+      "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; regenerate all rows; then require the independent Go topology model to reproduce every depth, absence class, and encountered stem.",
       "reproducible": true
     }
   ],
