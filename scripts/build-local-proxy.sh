@@ -118,6 +118,9 @@ while IFS=$'\t' read -r module_path module_directory; do
     printf '%s\n' "${version}" >"${proxy_directory}/list"
 
     while IFS= read -r -d '' source; do
+        if [[ ! -e "${root}/${source}" ]]; then
+            continue
+        fi
         relative="${source#"${module_directory}/"}"
         nested=0
         while IFS= read -r nested_module; do

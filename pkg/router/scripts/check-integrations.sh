@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root="$(pwd)"
+repository_root="$(git rev-parse --show-toplevel)"
 temporary="$(mktemp -d)"
 trap 'rm -rf "$temporary"' EXIT
 
@@ -42,6 +43,41 @@ replace github.com/faustbrian/golib/pkg/service => $temporary/service
 replace github.com/faustbrian/golib/pkg/http-middleware => $temporary/http-middleware
 replace github.com/faustbrian/golib/pkg/jsonrpc => $temporary/jsonrpc
 EOF
+if [[ "${ROUTER_INTEGRATION_REMOTE_ONLY:-0}" != 1 ]]; then
+  jq -r '
+    . as $catalog
+    | def closure($directories):
+        ([
+          $catalog.modules[]
+          | select(.directory as $directory | $directories | index($directory))
+          | .owned_dependencies[]
+        ] | unique) as $dependencies
+        | ([
+          $catalog.modules[]
+          | select(.module_path as $path | $dependencies | index($path))
+          | .directory
+        ] + $directories | unique) as $next
+        | if $next == $directories then $next else closure($next) end;
+    closure(["pkg/http-middleware", "pkg/jsonrpc", "pkg/service"])
+    | .[] as $directory
+    | $catalog.modules[]
+    | select(.directory == $directory)
+    | [.module_path, .directory]
+    | @tsv
+  ' "$repository_root/modules.json" |
+    while IFS=$'\t' read -r module_path module_directory; do
+      case "$module_path" in
+        github.com/faustbrian/golib/pkg/http-middleware | \
+          github.com/faustbrian/golib/pkg/jsonrpc | \
+          github.com/faustbrian/golib/pkg/service)
+          continue
+          ;;
+      esac
+      printf 'replace %s => %s/%s\n' \
+        "$module_path" "$repository_root" "$module_directory" \
+        >>"$temporary/integration/go.mod"
+    done
+fi
 cat >"$temporary/integration/integration_test.go" <<'EOF'
 package integration_test
 
