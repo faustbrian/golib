@@ -72,9 +72,19 @@ type Config struct {
 	// ConnectTimeout bounds establishing a network connection on the standard
 	// transport. Zero selects the production-safe 10-second default.
 	ConnectTimeout time.Duration
+	// TLSHandshakeTimeout bounds the TLS handshake on the standard transport.
+	// Zero selects the production-safe 10-second default.
+	TLSHandshakeTimeout time.Duration
 	// ResponseHeaderTimeout bounds waiting for response headers on the standard
 	// transport. Zero selects the production-safe 15-second default.
 	ResponseHeaderTimeout time.Duration
+	// IdleConnectionTimeout bounds how long an idle pooled connection remains
+	// available on the standard transport. Zero selects the production-safe
+	// 90-second default.
+	IdleConnectionTimeout time.Duration
+	// ExpectContinueTimeout bounds waiting for a 100-continue response on the
+	// standard transport. Zero selects the production-safe one-second default.
+	ExpectContinueTimeout time.Duration
 	// ProxyMode controls environment proxy inheritance for the internally owned
 	// standard transport. Zero preserves ProxyFromEnvironment.
 	ProxyMode ProxyMode
@@ -136,14 +146,40 @@ func New(config Config) (*Client, error) {
 			ErrInvalidConfig,
 		)
 	}
+	if config.TLSHandshakeTimeout < 0 {
+		return nil, fmt.Errorf(
+			"%w: TLS handshake timeout must not be negative",
+			ErrInvalidConfig,
+		)
+	}
 	if config.ResponseHeaderTimeout < 0 {
 		return nil, fmt.Errorf(
 			"%w: response header timeout must not be negative",
 			ErrInvalidConfig,
 		)
 	}
-	if config.ResponseHeaderTimeout != 0 && config.Transport != nil {
-		return nil, fmt.Errorf("%w: response header timeout requires the standard transport", ErrInvalidConfig)
+	if config.IdleConnectionTimeout < 0 {
+		return nil, fmt.Errorf(
+			"%w: idle connection timeout must not be negative",
+			ErrInvalidConfig,
+		)
+	}
+	if config.ExpectContinueTimeout < 0 {
+		return nil, fmt.Errorf(
+			"%w: expect continue timeout must not be negative",
+			ErrInvalidConfig,
+		)
+	}
+	if config.Transport != nil &&
+		(config.ConnectTimeout != 0 ||
+			config.TLSHandshakeTimeout != 0 ||
+			config.ResponseHeaderTimeout != 0 ||
+			config.IdleConnectionTimeout != 0 ||
+			config.ExpectContinueTimeout != 0) {
+		return nil, fmt.Errorf(
+			"%w: standard transport timeouts require the standard transport",
+			ErrInvalidConfig,
+		)
 	}
 	if config.ProxyMode > ProxyDisabled {
 		return nil, fmt.Errorf("%w: unknown proxy mode %d", ErrInvalidConfig, config.ProxyMode)
@@ -208,12 +244,27 @@ func New(config Config) (*Client, error) {
 		if responseHeaderTimeout == 0 {
 			responseHeaderTimeout = defaultResponseHeaderTimeout
 		}
+		tlsHandshakeTimeout := config.TLSHandshakeTimeout
+		if tlsHandshakeTimeout == 0 {
+			tlsHandshakeTimeout = defaultTLSHandshakeTimeout
+		}
+		idleConnectionTimeout := config.IdleConnectionTimeout
+		if idleConnectionTimeout == 0 {
+			idleConnectionTimeout = defaultIdleConnTimeout
+		}
+		expectContinueTimeout := config.ExpectContinueTimeout
+		if expectContinueTimeout == 0 {
+			expectContinueTimeout = defaultExpectContinueTimeout
+		}
 		transport = defaultTransportWithPolicy(
 			resolvedPolicy.Values(),
 			config.Egress,
 			config.TLS,
 			connectTimeout,
+			tlsHandshakeTimeout,
 			responseHeaderTimeout,
+			idleConnectionTimeout,
+			expectContinueTimeout,
 			config.ProxyMode,
 		)
 		ownedTransport = true
@@ -515,7 +566,10 @@ func defaultTransportWithEgress(policy *EgressPolicy) *http.Transport {
 		policy,
 		nil,
 		defaultConnectTimeout,
+		defaultTLSHandshakeTimeout,
 		defaultResponseHeaderTimeout,
+		defaultIdleConnTimeout,
+		defaultExpectContinueTimeout,
 		ProxyFromEnvironment,
 	)
 }
@@ -525,7 +579,10 @@ func defaultTransportWithPolicy(
 	egress *EgressPolicy,
 	tlsPolicy *TLSPolicy,
 	connectTimeout time.Duration,
+	tlsHandshakeTimeout time.Duration,
 	responseHeaderTimeout time.Duration,
+	idleConnectionTimeout time.Duration,
+	expectContinueTimeout time.Duration,
 	proxyMode ProxyMode,
 ) *http.Transport {
 	dialer := newTransportDialer(connectTimeout)
@@ -552,10 +609,10 @@ func defaultTransportWithPolicy(
 		MaxIdleConns:           values.TransportMaximumConnections,
 		MaxIdleConnsPerHost:    maximumIdlePerHost,
 		MaxConnsPerHost:        values.TransportMaximumConnections,
-		IdleConnTimeout:        defaultIdleConnTimeout,
-		TLSHandshakeTimeout:    defaultTLSHandshakeTimeout,
+		IdleConnTimeout:        idleConnectionTimeout,
+		TLSHandshakeTimeout:    tlsHandshakeTimeout,
 		ResponseHeaderTimeout:  responseHeaderTimeout,
-		ExpectContinueTimeout:  defaultExpectContinueTimeout,
+		ExpectContinueTimeout:  expectContinueTimeout,
 		MaxResponseHeaderBytes: defaultMaxResponseHeaderSize,
 		TLSClientConfig:        tlsConfig,
 	}

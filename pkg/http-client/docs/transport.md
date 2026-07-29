@@ -6,8 +6,11 @@ interactive profile bounds the logical operation at 30 seconds. Its owned
 10-second TLS handshake timeout, 15-second response-header timeout, one-second
 expect-continue timeout, 90-second idle timeout, finite connection pools, a
 1 MiB response-header limit, TLS 1.2 minimum, and HTTP/2 negotiation. Set
-`Config.ConnectTimeout` or `Config.ResponseHeaderTimeout` when a dependency
-contract requires different finite connection or response-header bounds.
+`Config.ConnectTimeout`, `Config.TLSHandshakeTimeout`,
+`Config.ResponseHeaderTimeout`, `Config.IdleConnectionTimeout`, or
+`Config.ExpectContinueTimeout` when a dependency contract requires different
+finite transport bounds. These controls require the package-owned standard
+transport; opaque caller-provided transports retain their own policy.
 
 Use `PolicyProfileBatchV1`, `PolicyProfileStreamingV1`, or
 `PolicyProfileWebhookDeliveryV1` for another documented workload baseline.

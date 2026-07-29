@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow owned standard transports to configure the response-header timeout and
   disable environment proxy inheritance for direct-only egress contracts.
+- Allow owned standard transports to configure TLS-handshake,
+  idle-connection, and expect-continue timeouts for provider-specific
+  connection-pool contracts.
+- Reject standard-transport timeout controls when a caller-provided transport
+  would otherwise silently ignore them.
 - Allow retry policy to own an exact immutable delay sequence when provider
   contracts do not use exponential backoff.
 - Add a context-aware cache for caller-owned OAuth2 token sources with

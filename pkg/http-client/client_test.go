@@ -111,6 +111,77 @@ func TestNewClientAppliesAndValidatesResponseHeaderTimeout(t *testing.T) {
 	}
 }
 
+func TestNewClientAppliesAndValidatesOwnedTransportTimeouts(t *testing.T) {
+	t.Parallel()
+
+	client, err := New(Config{
+		TLSHandshakeTimeout:   5 * time.Second,
+		IdleConnectionTimeout: 30 * time.Second,
+		ExpectContinueTimeout: 2 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("construct client: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	transport := client.HTTPClient().Transport.(*http.Transport)
+	if transport.TLSHandshakeTimeout != 5*time.Second {
+		t.Fatalf(
+			"TLS handshake timeout = %v, want 5s",
+			transport.TLSHandshakeTimeout,
+		)
+	}
+	if transport.IdleConnTimeout != 30*time.Second {
+		t.Fatalf(
+			"idle connection timeout = %v, want 30s",
+			transport.IdleConnTimeout,
+		)
+	}
+	if transport.ExpectContinueTimeout != 2*time.Second {
+		t.Fatalf(
+			"expect continue timeout = %v, want 2s",
+			transport.ExpectContinueTimeout,
+		)
+	}
+
+	for name, mutate := range map[string]func(*Config){
+		"negative TLS handshake timeout": func(config *Config) {
+			config.TLSHandshakeTimeout = -time.Second
+		},
+		"negative idle connection timeout": func(config *Config) {
+			config.IdleConnectionTimeout = -time.Second
+		},
+		"negative expect continue timeout": func(config *Config) {
+			config.ExpectContinueTimeout = -time.Second
+		},
+		"custom transport with TLS handshake timeout": func(config *Config) {
+			config.TLSHandshakeTimeout = time.Second
+			config.Transport = http.DefaultTransport
+		},
+		"custom transport with connect timeout": func(config *Config) {
+			config.ConnectTimeout = time.Second
+			config.Transport = http.DefaultTransport
+		},
+		"custom transport with idle connection timeout": func(config *Config) {
+			config.IdleConnectionTimeout = time.Second
+			config.Transport = http.DefaultTransport
+		},
+		"custom transport with expect continue timeout": func(config *Config) {
+			config.ExpectContinueTimeout = time.Second
+			config.Transport = http.DefaultTransport
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			config := Config{}
+			mutate(&config)
+			if _, err := New(config); !errors.Is(err, ErrInvalidConfig) {
+				t.Fatalf("New() error = %v, want ErrInvalidConfig", err)
+			}
+		})
+	}
+}
+
 func TestNewClientConfiguresProxyMode(t *testing.T) {
 	t.Parallel()
 
