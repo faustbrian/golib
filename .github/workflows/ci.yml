@@ -154,7 +154,7 @@ jobs:
           go run ./cmd/golib select --all | while IFS= read -r module; do
             [[ -n "${module}" ]] || continue
             if [[ "$(jq -r --arg directory "${module}" '.modules[] | select(.directory == $directory) | (.packages | length)' modules.json)" -gt 0 ]]; then
-              tags="$(jq -r --arg directory "${module}" '.modules[] | select(.directory == $directory) | .build_tags | join(",")' modules.json)"
+              tags="$(jq -r --arg directory "${module}" '.modules[] | select(.directory == $directory) | .build_tags[]?' modules.json)"
               expected="$(jq -r --arg directory "${module}" '.modules[] | select(.directory == $directory) | .packages[] | select(.build_required == true) | .import_path' modules.json | LC_ALL=C sort)"
               [[ -n "${expected}" ]] || {
                 echo "no build-required packages cataloged for ${module}" >&2
@@ -164,11 +164,15 @@ jobs:
               [[ "${slug}" != "." ]] || slug=root
               output="${RUNNER_TEMP}/codeql-build/${slug}"
               mkdir -p "${output}"
-              if [[ -n "${tags}" ]]; then
-                resolved="$(cd "${module}" && GOWORK="${workspace}" go list -tags="${tags}" -f '{{if or .GoFiles .CgoFiles}}{{.ImportPath}}{{end}}' ./... | sed '/^$/d' | LC_ALL=C sort)"
-              else
-                resolved="$(cd "${module}" && GOWORK="${workspace}" go list -f '{{if or .GoFiles .CgoFiles}}{{.ImportPath}}{{end}}' ./... | sed '/^$/d' | LC_ALL=C sort)"
-              fi
+              resolved="$(
+                {
+                  (cd "${module}" && GOWORK="${workspace}" go list -f '{{if or .GoFiles .CgoFiles}}{{.ImportPath}}{{end}}' ./...)
+                  while IFS= read -r tag; do
+                    [[ -n "${tag}" ]] || continue
+                    (cd "${module}" && GOWORK="${workspace}" go list -tags="${tag}" -f '{{if or .GoFiles .CgoFiles}}{{.ImportPath}}{{end}}' ./...)
+                  done <<<"${tags}"
+                } | sed '/^$/d' | LC_ALL=C sort -u
+              )"
               if [[ "${resolved}" != "${expected}" ]]; then
                 printf 'CodeQL package mismatch for %s\nexpected:\n%s\nresolved:\n%s\n' \
                   "${module}" "${expected}" "${resolved}" >&2
@@ -177,10 +181,17 @@ jobs:
               package_index=0
               while IFS= read -r package; do
                 [[ -n "${package}" ]] || continue
-                target="${output}/package-${package_index}"
-                if [[ -n "${tags}" ]]; then
-                  (cd "${module}" && GOWORK="${workspace}" go build -tags="${tags}" -o "${target}" "${package}")
+                package_tags="$(jq -r --arg directory "${module}" --arg package "${package}" '.modules[] | select(.directory == $directory) | .packages[] | select(.import_path == $package) | .build_tags[]?' modules.json)"
+                if [[ -n "${package_tags}" ]]; then
+                  variant_index=0
+                  while IFS= read -r tag; do
+                    [[ -n "${tag}" ]] || continue
+                    target="${output}/package-${package_index}-variant-${variant_index}"
+                    (cd "${module}" && GOWORK="${workspace}" go build -tags="${tag}" -o "${target}" "${package}")
+                    variant_index=$((variant_index + 1))
+                  done <<<"${package_tags}"
                 else
+                  target="${output}/package-${package_index}-default"
                   (cd "${module}" && GOWORK="${workspace}" go build -o "${target}" "${package}")
                 fi
                 package_index=$((package_index + 1))
