@@ -126,15 +126,42 @@ objects or hex/quantity conventions.
 
 ## Transaction and receipt roots
 
-`LegacyTrieValue` accepts only a canonical RLP list. `TypedTrieValue` preserves
-an explicit EIP-2718 type byte and opaque non-empty payload. `TransactionRoot`
-and `ReceiptRoot` insert those values into a raw trie under `RLPIndexKey(0)`,
-`RLPIndexKey(1)`, and so on.
+Transaction and receipt values use distinct types, so they cannot be passed to
+the wrong root helper. `LegacyTransactionValue` and `LegacyReceiptValue` accept
+only canonical RLP lists. `TypedTransactionValue` and `TypedReceiptValue`
+require a `ForkProfile`, validate that the type is active for that fork, require
+the known type-1 through type-4 payload framing to be a canonical RLP list, and
+preserve the exact `type || payload` bytes.
 
-These constructors validate trie framing and canonical legacy RLP only. They do
-not validate transaction or receipt fields, signatures, type activation, or
-fork rules; callers must supply values already validated under their explicit
-protocol profile.
+`TransactionRoot` inserts transaction values into a raw trie under
+`RLPIndexKey(0)`, `RLPIndexKey(1)`, and so on. `ReceiptRoot` additionally takes
+the matching transaction sequence and rejects a receipt whose legacy/typed
+kind, type, or fork profile differs from its transaction. The supported profile
+matrix is Berlin type 1; London, Paris, and Shanghai types 1-2; Cancun types
+1-3; and Prague and Osaka types 1-4.
+
+```go
+transaction, err := mpt.TypedTransactionValue(
+    mpt.CancunProfile, 3, transactionPayloadRLP, limits,
+)
+receipt, err := mpt.TypedReceiptValue(
+    mpt.CancunProfile, 3, receiptPayloadRLP, limits,
+)
+transactionRoot, err := mpt.TransactionRoot(ctx, []mpt.EncodedTransactionValue{
+    transaction,
+}, limits)
+receiptRoot, err := mpt.ReceiptRoot(
+    ctx,
+    []mpt.EncodedTransactionValue{transaction},
+    []mpt.EncodedReceiptValue{receipt},
+    limits,
+)
+```
+
+These constructors validate trie framing, canonical RLP, fork activation, and
+the EIP-2718 transaction/receipt type relationship. They do not validate
+transaction fields, signatures, receipt fields, or state-transition semantics;
+callers remain responsible for those protocol rules.
 
 For already sorted raw key/value streams, `SortedBuilder` calculates the same
 root without retaining the completed trie. Keys must be strictly increasing,

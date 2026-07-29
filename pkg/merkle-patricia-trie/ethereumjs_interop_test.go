@@ -47,6 +47,111 @@ type ethereumJSRangeResult struct {
 	EdgeNodesMatched bool `json:"edgeNodesMatched"`
 }
 
+func TestEthereumJSTransactionAndReceiptRoots(t *testing.T) {
+	t.Parallel()
+
+	limits := mpt.DefaultLimits()
+	legacyTransaction, err := mpt.LegacyTransactionValue([]byte{0xc1, 0x01}, limits)
+	if err != nil {
+		t.Fatalf("LegacyTransactionValue() error = %v", err)
+	}
+	legacyReceipt, err := mpt.LegacyReceiptValue([]byte{0xc1, 0x11}, limits)
+	if err != nil {
+		t.Fatalf("LegacyReceiptValue() error = %v", err)
+	}
+	transactions := []mpt.EncodedTransactionValue{legacyTransaction}
+	receipts := []mpt.EncodedReceiptValue{legacyReceipt}
+	for envelopeType := byte(1); envelopeType <= 4; envelopeType++ {
+		transaction, transactionErr := mpt.TypedTransactionValue(
+			mpt.OsakaProfile,
+			envelopeType,
+			[]byte{0xc1, 0x20 + envelopeType},
+			limits,
+		)
+		if transactionErr != nil {
+			t.Fatalf("TypedTransactionValue(%d) error = %v", envelopeType, transactionErr)
+		}
+		receipt, receiptErr := mpt.TypedReceiptValue(
+			mpt.OsakaProfile,
+			envelopeType,
+			[]byte{0xc1, 0x30 + envelopeType},
+			limits,
+		)
+		if receiptErr != nil {
+			t.Fatalf("TypedReceiptValue(%d) error = %v", envelopeType, receiptErr)
+		}
+		transactions = append(transactions, transaction)
+		receipts = append(receipts, receipt)
+	}
+
+	transactionRoot, err := mpt.TransactionRoot(
+		context.Background(), transactions, limits,
+	)
+	if err != nil {
+		t.Fatalf("TransactionRoot() error = %v", err)
+	}
+	transactionValues := make([][]byte, len(transactions))
+	for index, value := range transactions {
+		transactionValues[index] = value.Bytes()
+	}
+	if want := ethereumJSIndexedRoot(t, transactionValues); transactionRoot != want {
+		t.Fatalf("transaction root = %x, ethereumjs = %x", transactionRoot, want)
+	}
+
+	receiptRoot, err := mpt.ReceiptRoot(
+		context.Background(), transactions, receipts, limits,
+	)
+	if err != nil {
+		t.Fatalf("ReceiptRoot() error = %v", err)
+	}
+	receiptValues := make([][]byte, len(receipts))
+	for index, value := range receipts {
+		receiptValues[index] = value.Bytes()
+	}
+	if want := ethereumJSIndexedRoot(t, receiptValues); receiptRoot != want {
+		t.Fatalf("receipt root = %x, ethereumjs = %x", receiptRoot, want)
+	}
+}
+
+func ethereumJSIndexedRoot(t *testing.T, values [][]byte) mpt.Root {
+	t.Helper()
+
+	operations := make([]ethereumJSOperation, len(values))
+	for index, value := range values {
+		operations[index] = ethereumJSOperation{
+			Kind:  "put",
+			Key:   hex.EncodeToString(mpt.RLPIndexKey(uint64(index))),
+			Value: hex.EncodeToString(value),
+		}
+	}
+	request, err := json.Marshal(ethereumJSRequest{Operations: operations})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	command := exec.CommandContext(
+		context.Background(), "node", "scripts/ethereumjs-oracle.mjs",
+	)
+	command.Stdin = bytes.NewReader(request)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ethereumjs oracle error = %v: %s", err, output)
+	}
+	var results []ethereumJSResult
+	if err := json.Unmarshal(output, &results); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v: %s", err, output)
+	}
+	if len(results) != len(values) {
+		t.Fatalf("ethereumjs result count = %d, want %d", len(results), len(values))
+	}
+	encoded, err := hex.DecodeString(results[len(results)-1].Root)
+	if err != nil || len(encoded) != mpt.RootBytes {
+		t.Fatalf("ethereumjs root = %q, decode error = %v", results[len(results)-1].Root, err)
+	}
+	var root mpt.Root
+	copy(root[:], encoded)
+	return root
+}
+
 func TestEthereumJSDifferentialMutationTrace(t *testing.T) {
 	t.Parallel()
 

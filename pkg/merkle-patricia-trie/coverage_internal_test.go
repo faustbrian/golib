@@ -193,35 +193,35 @@ func TestInternalBatchAndEnvelopeFailureContracts(t *testing.T) {
 
 	invalid := DefaultLimits()
 	invalid.MaxProofBytes = 0
-	if _, err := LegacyTrieValue([]byte{0xc0}, invalid); !errors.Is(err, ErrResourceLimit) {
-		t.Fatalf("LegacyTrieValue(invalid limits) error = %v", err)
+	if _, err := LegacyTransactionValue([]byte{0xc0}, invalid); !errors.Is(err, ErrResourceLimit) {
+		t.Fatalf("LegacyTransactionValue(invalid limits) error = %v", err)
 	}
-	if _, err := TypedTrieValue(1, []byte{1}, invalid); !errors.Is(err, ErrResourceLimit) {
-		t.Fatalf("TypedTrieValue(invalid limits) error = %v", err)
+	if _, err := TypedReceiptValue(BerlinProfile, 1, []byte{0xc0}, invalid); !errors.Is(err, ErrResourceLimit) {
+		t.Fatalf("TypedReceiptValue(invalid limits) error = %v", err)
 	}
 	small := DefaultLimits()
 	small.MaxValueBytes = 1
-	if _, err := LegacyTrieValue(nil, small); !errors.Is(err, ErrInvalidEnvelope) {
-		t.Fatalf("LegacyTrieValue(empty) error = %v", err)
+	if _, err := LegacyReceiptValue(nil, small); !errors.Is(err, ErrInvalidEnvelope) {
+		t.Fatalf("LegacyReceiptValue(empty) error = %v", err)
 	}
-	valid, err := TypedTrieValue(1, []byte{1}, DefaultLimits())
+	valid, err := typedEnvelopeValue(BerlinProfile, 1, []byte{0xc0}, DefaultLimits())
 	if err != nil {
-		t.Fatalf("TypedTrieValue() error = %v", err)
+		t.Fatalf("typedEnvelopeValue() error = %v", err)
 	}
 	valid.encoded = make([]byte, DefaultLimits().MaxValueBytes+1)
 	if _, err := indexedTrieRoot(
 		context.Background(),
-		[]EncodedTrieValue{valid},
+		[]encodedTrieValue{valid},
 		DefaultLimits(),
 	); !errors.Is(err, ErrInvalidEnvelope) {
 		t.Fatalf("indexedTrieRoot(oversized encoded) error = %v", err)
 	}
 	limited := DefaultLimits()
 	limited.MaxTraversalNodes = 1
-	first, _ := TypedTrieValue(1, []byte{1}, limited)
+	first, _ := typedEnvelopeValue(BerlinProfile, 1, []byte{0xc0}, limited)
 	if _, err := indexedTrieRoot(
 		context.Background(),
-		[]EncodedTrieValue{first, first},
+		[]encodedTrieValue{first, first},
 		limited,
 	); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("indexedTrieRoot(operation limit) error = %v", err)
@@ -230,6 +230,11 @@ func TestInternalBatchAndEnvelopeFailureContracts(t *testing.T) {
 		context.Background(), nil, invalid,
 	); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("indexedTrieRoot(invalid limits) error = %v", err)
+	}
+	if err := validateEnvelopeSequence([]encodedTrieValue{{
+		kind: legacyTrieEnvelope,
+	}}); !errors.Is(err, ErrInvalidEnvelope) {
+		t.Fatalf("validateEnvelopeSequence(empty encoding) error = %v", err)
 	}
 }
 

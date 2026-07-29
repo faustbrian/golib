@@ -45,9 +45,18 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   proof verification, mutation sequences, and ordered iteration.
 - Added transport-independent EIP-1186 account membership, account absence,
   canonical account decoding, and storage-slot proof verification helpers.
-- Added explicit validated legacy-RLP and EIP-2718 typed trie values plus
-  canonical transaction and receipt root construction from RLP indexes.
+- Added separate validated transaction and receipt value types, explicit
+  Berlin-through-Osaka EIP-2718 activation profiles, matching receipt-type
+  enforcement, and canonical root construction from RLP indexes, with pinned
+  Geth and EthereumJS interoperability.
 - Added deterministic mutation-trace differential tests against pinned Geth
   and EthereumJS implementations for raw and secure trie profiles.
 - Added a bounded sorted-input raw-trie root builder with strict ordering,
   transactional rejection, single finalization, and ordinary-insertion parity.
+
+### Changed
+
+- Replaced the ambiguous shared `EncodedTrieValue`, `LegacyTrieValue`, and
+  `TypedTrieValue` pre-v1 API with profile-bound transaction and receipt types.
+  Receipt-root callers must now provide the corresponding transaction values so
+  EIP-2718 type equality is enforced.

@@ -9,6 +9,9 @@ dependency. Optional persistent adapters belong in additive nested modules.
 
 Raw, secure, state, storage, transaction, and receipt profiles use distinct
 constructors or types. No boolean selects key hashing or value encoding.
+Transaction and receipt envelope values are separate public types. Typed values
+carry an explicit fork profile, and receipt-root construction binds each receipt
+type to its corresponding transaction type.
 
 ## Ownership
 

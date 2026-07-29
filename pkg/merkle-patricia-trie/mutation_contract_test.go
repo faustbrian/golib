@@ -639,26 +639,26 @@ func TestEnvelopeSizeAndBatchBoundsAreInclusive(t *testing.T) {
 
 	legacyLimits := DefaultLimits()
 	legacyLimits.MaxValueBytes = 1
-	legacy, err := LegacyTrieValue([]byte{0xc0}, legacyLimits)
+	legacy, err := legacyEnvelopeValue([]byte{0xc0}, legacyLimits)
 	if err != nil {
-		t.Fatalf("LegacyTrieValue(exact limit) error = %v", err)
+		t.Fatalf("legacyEnvelopeValue(exact limit) error = %v", err)
 	}
-	if _, err := LegacyTrieValue(
+	if _, err := legacyEnvelopeValue(
 		[]byte{0xc1, 0x80}, legacyLimits,
 	); !errors.Is(err, ErrInvalidEnvelope) {
-		t.Fatalf("LegacyTrieValue(over limit) error = %v", err)
+		t.Fatalf("legacyEnvelopeValue(over limit) error = %v", err)
 	}
 
 	typedLimits := DefaultLimits()
 	typedLimits.MaxValueBytes = 2
-	typed, err := TypedTrieValue(0x7f, []byte{1}, typedLimits)
+	typed, err := typedEnvelopeValue(PragueProfile, 4, []byte{0xc0}, typedLimits)
 	if err != nil {
-		t.Fatalf("TypedTrieValue(exact limit) error = %v", err)
+		t.Fatalf("typedEnvelopeValue(exact limit) error = %v", err)
 	}
-	if _, err := TypedTrieValue(
-		1, []byte{1, 2}, typedLimits,
+	if _, err := typedEnvelopeValue(
+		PragueProfile, 4, []byte{0xc1, 0x80}, typedLimits,
 	); !errors.Is(err, ErrInvalidEnvelope) {
-		t.Fatalf("TypedTrieValue(over limit) error = %v", err)
+		t.Fatalf("typedEnvelopeValue(over limit) error = %v", err)
 	}
 
 	batchLimits := DefaultLimits()
@@ -666,14 +666,14 @@ func TestEnvelopeSizeAndBatchBoundsAreInclusive(t *testing.T) {
 	batchLimits.MaxValueBytes = 2
 	if _, err := indexedTrieRoot(
 		context.Background(),
-		[]EncodedTrieValue{legacy, typed},
+		[]encodedTrieValue{legacy, typed},
 		batchLimits,
 	); err != nil {
 		t.Fatalf("indexedTrieRoot(exact batch limit) error = %v", err)
 	}
 	if _, err := indexedTrieRoot(
 		context.Background(),
-		[]EncodedTrieValue{legacy, typed, typed},
+		[]encodedTrieValue{legacy, typed, typed},
 		batchLimits,
 	); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("indexedTrieRoot(over batch limit) error = %v", err)

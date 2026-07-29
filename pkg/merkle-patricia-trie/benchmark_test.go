@@ -115,6 +115,62 @@ func BenchmarkRoot(b *testing.B) {
 	}
 }
 
+func BenchmarkTransactionRoot(b *testing.B) {
+	limits := mpt.DefaultLimits()
+	values := make([]mpt.EncodedTransactionValue, 256)
+	for index := range values {
+		var err error
+		values[index], err = mpt.TypedTransactionValue(
+			mpt.LondonProfile, 2, []byte{0xc1, byte(index%0x7f + 1)}, limits,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		var err error
+		benchmarkRoot, err = mpt.TransactionRoot(ctx, values, limits)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkReceiptRoot(b *testing.B) {
+	limits := mpt.DefaultLimits()
+	transactions := make([]mpt.EncodedTransactionValue, 256)
+	receipts := make([]mpt.EncodedReceiptValue, len(transactions))
+	for index := range transactions {
+		payload := []byte{0xc1, byte(index%0x7f + 1)}
+		var err error
+		transactions[index], err = mpt.TypedTransactionValue(
+			mpt.LondonProfile, 2, payload, limits,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+		receipts[index], err = mpt.TypedReceiptValue(
+			mpt.LondonProfile, 2, payload, limits,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		var err error
+		benchmarkRoot, err = mpt.ReceiptRoot(
+			ctx, transactions, receipts, limits,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkCommit(b *testing.B) {
 	trie := benchmarkPopulatedTrie(b, 1024)
 	ctx := context.Background()

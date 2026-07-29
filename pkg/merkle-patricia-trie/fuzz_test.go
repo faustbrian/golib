@@ -33,6 +33,58 @@ func FuzzCompactPathCanonicalRoundTrip(f *testing.F) {
 	})
 }
 
+func FuzzEnvelopeValueValidation(f *testing.F) {
+	f.Add(byte(mpt.BerlinProfile), byte(1), []byte{0xc0})
+	f.Add(byte(mpt.OsakaProfile), byte(4), []byte{0xc1, 0x01})
+	f.Add(byte(0), byte(0), []byte{0xff})
+
+	f.Fuzz(func(t *testing.T, profileByte, envelopeType byte, encoded []byte) {
+		if len(encoded) > 4096 {
+			return
+		}
+		limits := mpt.DefaultLimits()
+		limits.MaxValueBytes = 4097
+		profile := mpt.ForkProfile(profileByte)
+
+		transaction, transactionErr := mpt.TypedTransactionValue(
+			profile, envelopeType, encoded, limits,
+		)
+		receipt, receiptErr := mpt.TypedReceiptValue(
+			profile, envelopeType, encoded, limits,
+		)
+		if (transactionErr == nil) != (receiptErr == nil) {
+			t.Fatalf(
+				"typed validation differs: transaction=%v receipt=%v",
+				transactionErr,
+				receiptErr,
+			)
+		}
+		if transactionErr == nil {
+			if !bytes.Equal(transaction.Bytes(), receipt.Bytes()) ||
+				!bytes.Equal(transaction.Bytes()[1:], encoded) {
+				t.Fatal("typed envelope bytes were not preserved")
+			}
+		}
+
+		legacyTransaction, legacyTransactionErr := mpt.LegacyTransactionValue(
+			encoded, limits,
+		)
+		legacyReceipt, legacyReceiptErr := mpt.LegacyReceiptValue(encoded, limits)
+		if (legacyTransactionErr == nil) != (legacyReceiptErr == nil) {
+			t.Fatalf(
+				"legacy validation differs: transaction=%v receipt=%v",
+				legacyTransactionErr,
+				legacyReceiptErr,
+			)
+		}
+		if legacyTransactionErr == nil &&
+			(!bytes.Equal(legacyTransaction.Bytes(), encoded) ||
+				!bytes.Equal(legacyReceipt.Bytes(), encoded)) {
+			t.Fatal("legacy envelope bytes were not preserved")
+		}
+	})
+}
+
 func FuzzProofVerificationRejectsHostileInput(f *testing.F) {
 	f.Add(
 		make([]byte, mpt.RootBytes),

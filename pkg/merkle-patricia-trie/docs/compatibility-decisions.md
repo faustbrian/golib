@@ -45,6 +45,37 @@ bytes, truncation, non-minimal string forms, non-minimal length-of-length,
 leading-zero length forms, and lengths above configured limits before
 allocation.
 
+## Typed transaction and receipt envelopes
+
+EIP-2718 commits typed transactions and receipts as `TransactionType ||
+TransactionPayload` under canonical RLP integer indexes, and requires a receipt
+type to match its transaction type. The public API therefore uses distinct
+transaction and receipt value types and requires the transaction sequence when
+calculating a receipt root. This prevents a structurally valid receipt from
+being committed under a mismatched transaction type.
+
+The pinned execution specifications activate the following envelope types:
+
+| Profile | Accepted typed envelopes |
+| --- | --- |
+| Berlin | 1 |
+| London, Paris, Shanghai | 1-2 |
+| Cancun | 1-3 |
+| Prague, Osaka | 1-4 |
+
+For these known types, the pinned specifications encode the payload as a
+canonical RLP list. The helpers validate that framing but deliberately leave
+transaction fields, signatures, receipt fields, and state-transition semantics
+to higher-level protocol code.
+
+EIP-2718 bounds the first byte to `0x00..0x7f` while also describing the type as
+a positive number. The pinned execution specifications define only types 1-4,
+and Geth v1.17.3 treats byte zero as the legacy envelope rather than a typed
+transaction. The package consequently rejects typed envelope zero and every
+type not activated by the selected profile. Geth v1.17.3 independently agrees
+on exact type-1 through type-4 transaction and receipt bytes and derived roots;
+EthereumJS MPT v10.1.2 independently agrees on the resulting indexed trie roots.
+
 ## Range-proof contract
 
 Range proofs use an explicit inclusive start and exclusive end over raw trie

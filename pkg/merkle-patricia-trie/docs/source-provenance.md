@@ -28,6 +28,13 @@ interoperability gate from the exact package lock, whose archive integrity is
 `sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g==`.
 Neither client is used by the production package.
 
+The fork-profile envelope table is derived from the pinned execution-specs
+`berlin`, `london`, `paris`, `shanghai`, `cancun`, `prague`, and `osaka`
+transaction and receipt encoders. The type framing and receipt-type binding are
+derived from EIP-2718. Interoperability tests use Geth's concrete type-1 through
+type-4 transaction and receipt encoders and `DeriveSha`, then compare the same
+indexed roots with EthereumJS MPT.
+
 ## Updating
 
 1. Resolve and record the exact upstream commit.

@@ -86,4 +86,7 @@ var (
 	// ErrInvalidEnvelope identifies a malformed, non-canonical, or ambiguous
 	// pre-encoded transaction or receipt trie value.
 	ErrInvalidEnvelope = errors.New("mpt: invalid encoded envelope")
+	// ErrUnsupportedProtocolProfile identifies an unknown execution fork used
+	// for a fork-sensitive helper.
+	ErrUnsupportedProtocolProfile = errors.New("mpt: unsupported protocol profile")
 )

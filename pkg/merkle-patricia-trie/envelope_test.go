@@ -20,24 +20,43 @@ func TestTransactionAndReceiptRootsUseRLPIndexesAndExactEnvelopes(t *testing.T) 
 	if err != nil {
 		t.Fatalf("encode legacy value: %v", err)
 	}
-	legacy, err := mpt.LegacyTrieValue(legacyEncoding, mpt.DefaultLimits())
+	legacyTransaction, err := mpt.LegacyTransactionValue(
+		legacyEncoding, mpt.DefaultLimits(),
+	)
 	if err != nil {
-		t.Fatalf("LegacyTrieValue() error = %v", err)
+		t.Fatalf("LegacyTransactionValue() error = %v", err)
 	}
-	typed, err := mpt.TypedTrieValue(2, []byte{0xc1, 0x03}, mpt.DefaultLimits())
+	typedTransaction, err := mpt.TypedTransactionValue(
+		mpt.LondonProfile, 2, []byte{0xc1, 0x03}, mpt.DefaultLimits(),
+	)
 	if err != nil {
-		t.Fatalf("TypedTrieValue() error = %v", err)
+		t.Fatalf("TypedTransactionValue() error = %v", err)
 	}
-	values := []mpt.EncodedTrieValue{legacy, typed}
+	legacyReceipt, err := mpt.LegacyReceiptValue(
+		legacyEncoding, mpt.DefaultLimits(),
+	)
+	if err != nil {
+		t.Fatalf("LegacyReceiptValue() error = %v", err)
+	}
+	typedReceipt, err := mpt.TypedReceiptValue(
+		mpt.LondonProfile, 2, []byte{0xc1, 0x03}, mpt.DefaultLimits(),
+	)
+	if err != nil {
+		t.Fatalf("TypedReceiptValue() error = %v", err)
+	}
+	transactions := []mpt.EncodedTransactionValue{
+		legacyTransaction, typedTransaction,
+	}
+	receipts := []mpt.EncodedReceiptValue{legacyReceipt, typedReceipt}
 
 	transactionRoot, err := mpt.TransactionRoot(
-		context.Background(), values, mpt.DefaultLimits(),
+		context.Background(), transactions, mpt.DefaultLimits(),
 	)
 	if err != nil {
 		t.Fatalf("TransactionRoot() error = %v", err)
 	}
 	receiptRoot, err := mpt.ReceiptRoot(
-		context.Background(), values, mpt.DefaultLimits(),
+		context.Background(), transactions, receipts, mpt.DefaultLimits(),
 	)
 	if err != nil {
 		t.Fatalf("ReceiptRoot() error = %v", err)
@@ -67,27 +86,33 @@ func TestTransactionAndReceiptRootsUseRLPIndexesAndExactEnvelopes(t *testing.T) 
 	}
 }
 
-func TestEncodedTrieValuesValidateAndOwnBytes(t *testing.T) {
+func TestEncodedEnvelopeValuesValidateAndOwnBytes(t *testing.T) {
 	t.Parallel()
 
 	limits := mpt.DefaultLimits()
-	if _, err := mpt.LegacyTrieValue([]byte{0x80}, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
-		t.Fatalf("LegacyTrieValue(string) error = %v", err)
+	if _, err := mpt.LegacyTransactionValue([]byte{0x80}, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
+		t.Fatalf("LegacyTransactionValue(string) error = %v", err)
 	}
-	if _, err := mpt.LegacyTrieValue([]byte{0xf8, 0x00}, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
-		t.Fatalf("LegacyTrieValue(non-canonical) error = %v", err)
+	if _, err := mpt.LegacyReceiptValue([]byte{0xf8, 0x00}, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
+		t.Fatalf("LegacyReceiptValue(non-canonical) error = %v", err)
 	}
-	if _, err := mpt.TypedTrieValue(0x80, []byte{1}, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
-		t.Fatalf("TypedTrieValue(type) error = %v", err)
+	if _, err := mpt.TypedTransactionValue(
+		mpt.OsakaProfile, 5, []byte{0xc0}, limits,
+	); !errors.Is(err, mpt.ErrInvalidEnvelope) {
+		t.Fatalf("TypedTransactionValue(type) error = %v", err)
 	}
-	if _, err := mpt.TypedTrieValue(1, nil, limits); !errors.Is(err, mpt.ErrInvalidEnvelope) {
-		t.Fatalf("TypedTrieValue(empty payload) error = %v", err)
+	if _, err := mpt.TypedReceiptValue(
+		mpt.BerlinProfile, 1, nil, limits,
+	); !errors.Is(err, mpt.ErrInvalidEnvelope) {
+		t.Fatalf("TypedReceiptValue(empty payload) error = %v", err)
 	}
 
 	payload := []byte{0xc1, 0x01}
-	value, err := mpt.TypedTrieValue(1, payload, limits)
+	value, err := mpt.TypedTransactionValue(
+		mpt.BerlinProfile, 1, payload, limits,
+	)
 	if err != nil {
-		t.Fatalf("TypedTrieValue() error = %v", err)
+		t.Fatalf("TypedTransactionValue() error = %v", err)
 	}
 	payload[0] = 0
 	first := value.Bytes()
@@ -96,7 +121,18 @@ func TestEncodedTrieValuesValidateAndOwnBytes(t *testing.T) {
 	}
 	first[0] = 9
 	if slices.Equal(first, value.Bytes()) {
-		t.Fatal("EncodedTrieValue.Bytes() returned aliased bytes")
+		t.Fatal("EncodedTransactionValue.Bytes() returned aliased bytes")
+	}
+	receipt, err := mpt.TypedReceiptValue(
+		mpt.BerlinProfile, 1, []byte{0xc0}, limits,
+	)
+	if err != nil {
+		t.Fatalf("TypedReceiptValue() error = %v", err)
+	}
+	receiptBytes := receipt.Bytes()
+	receiptBytes[0] = 9
+	if slices.Equal(receiptBytes, receipt.Bytes()) {
+		t.Fatal("EncodedReceiptValue.Bytes() returned aliased bytes")
 	}
 }
 
@@ -108,29 +144,50 @@ func TestIndexedRootHelpersValidateLimitsContextAndValues(t *testing.T) {
 	); err != nil || root != mpt.EmptyRoot() {
 		t.Fatalf("TransactionRoot(empty) = (%x, %v)", root, err)
 	}
-	var zero mpt.EncodedTrieValue
+	if root, err := mpt.ReceiptRoot(
+		context.Background(), nil, nil, mpt.DefaultLimits(),
+	); err != nil || root != mpt.EmptyRoot() {
+		t.Fatalf("ReceiptRoot(empty) = (%x, %v)", root, err)
+	}
+	var zero mpt.EncodedTransactionValue
 	if _, err := mpt.TransactionRoot(
-		context.Background(), []mpt.EncodedTrieValue{zero}, mpt.DefaultLimits(),
+		context.Background(), []mpt.EncodedTransactionValue{zero}, mpt.DefaultLimits(),
 	); !errors.Is(err, mpt.ErrInvalidEnvelope) {
 		t.Fatalf("TransactionRoot(zero value) error = %v", err)
 	}
 	limits := mpt.DefaultLimits()
 	limits.MaxBatchOperations = 1
-	value, err := mpt.TypedTrieValue(1, []byte{0xc0}, limits)
+	transaction, err := mpt.TypedTransactionValue(
+		mpt.BerlinProfile, 1, []byte{0xc0}, limits,
+	)
 	if err != nil {
-		t.Fatalf("TypedTrieValue() error = %v", err)
+		t.Fatalf("TypedTransactionValue() error = %v", err)
+	}
+	receipt, err := mpt.TypedReceiptValue(
+		mpt.BerlinProfile, 1, []byte{0xc0}, limits,
+	)
+	if err != nil {
+		t.Fatalf("TypedReceiptValue() error = %v", err)
 	}
 	if _, err := mpt.ReceiptRoot(
 		context.Background(),
-		[]mpt.EncodedTrieValue{value, value},
+		[]mpt.EncodedTransactionValue{transaction, transaction},
+		[]mpt.EncodedReceiptValue{receipt, receipt},
 		limits,
 	); !errors.Is(err, mpt.ErrResourceLimit) {
 		t.Fatalf("ReceiptRoot(oversized) error = %v", err)
 	}
+	zeroTransactions := make([]mpt.EncodedTransactionValue, 2)
+	if _, err := mpt.TransactionRoot(
+		context.Background(), zeroTransactions, limits,
+	); !errors.Is(err, mpt.ErrResourceLimit) ||
+		errors.Is(err, mpt.ErrInvalidEnvelope) {
+		t.Fatalf("TransactionRoot(bound precedence) error = %v", err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := mpt.TransactionRoot(
-		ctx, []mpt.EncodedTrieValue{value}, limits,
+		ctx, []mpt.EncodedTransactionValue{transaction}, limits,
 	); !errors.Is(err, mpt.ErrCanceled) {
 		t.Fatalf("TransactionRoot(canceled) error = %v", err)
 	}

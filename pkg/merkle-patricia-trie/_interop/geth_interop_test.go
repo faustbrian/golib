@@ -4,6 +4,7 @@ package interop_test
 
 import (
 	"context"
+	"math/big"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -15,9 +16,122 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
+	"github.com/holiman/uint256"
 
 	mpt "github.com/faustbrian/golib/pkg/merkle-patricia-trie"
 )
+
+func TestGethTransactionAndReceiptRoots(t *testing.T) {
+	t.Parallel()
+
+	address := common.HexToAddress("0x1234")
+	transactions := types.Transactions{
+		types.NewTx(&types.LegacyTx{
+			Nonce: 1, GasPrice: big.NewInt(2), Gas: 21_000, To: &address,
+			Value: big.NewInt(3), V: big.NewInt(27), R: big.NewInt(1),
+			S: big.NewInt(2),
+		}),
+		types.NewTx(&types.AccessListTx{
+			ChainID: big.NewInt(1), Nonce: 2, GasPrice: big.NewInt(3),
+			Gas: 22_000, To: &address, Value: big.NewInt(4),
+			AccessList: types.AccessList{}, V: big.NewInt(0), R: big.NewInt(2),
+			S: big.NewInt(3),
+		}),
+		types.NewTx(&types.DynamicFeeTx{
+			ChainID: big.NewInt(1), Nonce: 3, GasTipCap: big.NewInt(2),
+			GasFeeCap: big.NewInt(5), Gas: 23_000, To: &address,
+			Value: big.NewInt(5), AccessList: types.AccessList{},
+			V: big.NewInt(1), R: big.NewInt(3), S: big.NewInt(4),
+		}),
+		types.NewTx(&types.BlobTx{
+			ChainID: uint256.NewInt(1), Nonce: 4,
+			GasTipCap: uint256.NewInt(2), GasFeeCap: uint256.NewInt(6),
+			Gas: 24_000, To: address, Value: uint256.NewInt(6),
+			AccessList: types.AccessList{}, BlobFeeCap: uint256.NewInt(7),
+			BlobHashes: []common.Hash{{1}}, V: uint256.NewInt(1),
+			R: uint256.NewInt(4), S: uint256.NewInt(5),
+		}),
+		types.NewTx(&types.SetCodeTx{
+			ChainID: uint256.NewInt(1), Nonce: 5,
+			GasTipCap: uint256.NewInt(2), GasFeeCap: uint256.NewInt(7),
+			Gas: 25_000, To: address, Value: uint256.NewInt(7),
+			AccessList: types.AccessList{}, AuthList: []types.SetCodeAuthorization{},
+			V: uint256.NewInt(0), R: uint256.NewInt(5), S: uint256.NewInt(6),
+		}),
+	}
+	receipts := make(types.Receipts, len(transactions))
+	localTransactions := make([]mpt.EncodedTransactionValue, len(transactions))
+	localReceipts := make([]mpt.EncodedReceiptValue, len(transactions))
+	for index, transaction := range transactions {
+		encoded, err := transaction.MarshalBinary()
+		if err != nil {
+			t.Fatalf("transaction %d MarshalBinary() error = %v", index, err)
+		}
+		if transaction.Type() == types.LegacyTxType {
+			localTransactions[index], err = mpt.LegacyTransactionValue(
+				encoded, mpt.DefaultLimits(),
+			)
+		} else {
+			localTransactions[index], err = mpt.TypedTransactionValue(
+				mpt.OsakaProfile, transaction.Type(), encoded[1:], mpt.DefaultLimits(),
+			)
+		}
+		if err != nil {
+			t.Fatalf("transaction %d local encoding error = %v", index, err)
+		}
+		if !slices.Equal(localTransactions[index].Bytes(), encoded) {
+			t.Fatalf("transaction %d bytes differ from geth", index)
+		}
+
+		receipt := &types.Receipt{
+			Type: transaction.Type(), Status: types.ReceiptStatusSuccessful,
+			CumulativeGasUsed: uint64(index+1) * 21_000, Logs: []*types.Log{},
+		}
+		receipts[index] = receipt
+		encoded, err = receipt.MarshalBinary()
+		if err != nil {
+			t.Fatalf("receipt %d MarshalBinary() error = %v", index, err)
+		}
+		if receipt.Type == types.LegacyTxType {
+			localReceipts[index], err = mpt.LegacyReceiptValue(
+				encoded, mpt.DefaultLimits(),
+			)
+		} else {
+			localReceipts[index], err = mpt.TypedReceiptValue(
+				mpt.OsakaProfile, receipt.Type, encoded[1:], mpt.DefaultLimits(),
+			)
+		}
+		if err != nil {
+			t.Fatalf("receipt %d local encoding error = %v", index, err)
+		}
+		if !slices.Equal(localReceipts[index].Bytes(), encoded) {
+			t.Fatalf("receipt %d bytes differ from geth", index)
+		}
+	}
+
+	transactionRoot, err := mpt.TransactionRoot(
+		context.Background(), localTransactions, mpt.DefaultLimits(),
+	)
+	if err != nil {
+		t.Fatalf("TransactionRoot() error = %v", err)
+	}
+	if want := types.DeriveSha(
+		transactions, gethtrie.NewStackTrie(nil),
+	); common.Hash(transactionRoot) != want {
+		t.Fatalf("transaction root = %x, geth = %x", transactionRoot, want)
+	}
+	receiptRoot, err := mpt.ReceiptRoot(
+		context.Background(), localTransactions, localReceipts, mpt.DefaultLimits(),
+	)
+	if err != nil {
+		t.Fatalf("ReceiptRoot() error = %v", err)
+	}
+	if want := types.DeriveSha(
+		receipts, gethtrie.NewStackTrie(nil),
+	); common.Hash(receiptRoot) != want {
+		t.Fatalf("receipt root = %x, geth = %x", receiptRoot, want)
+	}
+}
 
 func TestGethRawTrieDifferentialMutationTrace(t *testing.T) {
 	t.Parallel()
