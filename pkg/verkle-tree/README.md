@@ -35,7 +35,7 @@ Test-only differential evidence additionally exercises aggregate opening,
 transcript, serialization, and verification operations. The encoding tests
 include two pinned upstream point fixtures and the documented scalar-field
 modulus; their provenance is recorded in
-[`specification/sources.json`](specification/sources.json). No setup material,
+[`specification/sources.json`](specification/sources.json). No setup material
 or generator table has been imported. The compiled generator-set digest and
 its complete provenance are recorded in the same source manifest.
 The preliminary backend microbenchmark scope, method, and raw samples are in
@@ -110,8 +110,19 @@ fixture. It still computes no commitment and exposes no public tree operation.
 An internal commitment engine now derives and validates the pinned generator
 set explicitly and commits canonical fixed-width scalar vectors without
 backend-managed worker pools. It exposes only opaque commitments and retains
-the identity solely in memory. It is the construction seam for later committed
-nodes, not a public tree or an approved production cryptographic backend.
+the identity solely in memory. It is the construction seam used by internal
+committed nodes, not a public tree or an approved production cryptographic
+backend.
+
+An internal immutable committed-tree builder now combines the fixed leaf
+inputs, vector engine, and canonical collision topology into complete
+mathematical roots. It defensively copies and cancellation-aware sorts entries,
+preflights entry, stem, node, edge, commitment, field-mapping, aggregate-term,
+and scratch budgets, retains the canonical child edges, and supports concurrent
+builds through one immutable engine. Six independently generated Rust states
+agree on the empty identity and every non-empty root byte. This is not a public
+tree, canonical root encoding, incremental update path, proof system, storage
+implementation, or production-backend approval.
 
 ## Development rule
 

@@ -6,9 +6,9 @@ The bounded research agreements below apply only to their exact corpora.
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
 | Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
-| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Structural metadata plus internal canonical topology, state, and bounded vector-commitment models; no public tree, proof, witness, storage, wire, production, or Ethereum compatibility |
+| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Structural metadata plus internal canonical topology, state, bounded vector commitments, and complete mathematical root construction; no public tree, proof, witness, storage, wire, production, or Ethereum compatibility |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
-| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, raw three-opening proof, stem path hints, one tree root/proof corpus, and its bounded stateless update agree with Go; no general tree, API, wire, or production compatibility |
+| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening proof, stem path hints, one tree root/proof corpus, and its bounded stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
 | EIP-6800 | Stagnant at EIPs commit `c55786f4242e5324afd14c6bca890a369a771d7f` | Historical Ethereum Verkle layout | Not implemented |
 | EIP-7612 | Stagnant at the same EIPs commit | Historical overlay transition | Out of generic package scope |
@@ -73,6 +73,15 @@ topology model independently reproduces every emitted path depth, extension
 status, and encountered different stem. This establishes fresh-tree path
 agreement only. Canonical deletion collapse is package-owned behavior and is
 not claimed to match the incremental Rust or Go references.
+
+A separate six-state Rust corpus independently commits the empty tree, a
+present-zero value, a patterned singleton, both suffix halves under one stem,
+separate root branches, and a collision at stem byte 30. The internal Go
+builder reproduces the empty identity and every non-empty canonical commitment
+byte after independently constructing all suffix, stem, and internal vectors.
+This fixes only those mathematical roots; it does not establish a root wire
+container, persistence format, incremental updates, proof compatibility, or
+production safety.
 
 Protocol activation, client database migration, gas accounting, block
 execution, and network witness distribution remain outside the generic package.

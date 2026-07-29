@@ -15,10 +15,11 @@ profile. It is not stable, audited, production-ready, or Ethereum-compatible.
 Its definition MAY change incompatibly before v1.
 
 Only the profile identity and structural metadata are currently exported.
-Internal research boundaries implement the fixed topology and leaf field
-inputs below but do not construct a complete committed tree. Tree, root, node,
-proof, witness, snapshot, and persistence APIs remain unimplemented. This
-document MUST NOT be read as a claim that those surfaces already exist.
+Internal research boundaries implement the fixed topology, leaf field inputs,
+vector commitments, and complete mathematical root construction below. Public
+tree, root, node, proof, witness, snapshot, and persistence APIs remain
+unimplemented. This document MUST NOT be read as a claim that those surfaces
+already exist.
 
 ## Fixed Identity
 
@@ -247,6 +248,47 @@ and dense incrementing vector commitments plus their commitment-to-field
 images. Agreement with that corpus proves only this bounded construction seam.
 It MUST NOT be interpreted as proof-opening, proof-verification, side-channel,
 or production-backend evidence.
+
+## Committed Tree Construction
+
+The internal committed-tree builder MUST accept fixed 32-byte keys and values,
+defensively copy every entry, and order entries by ascending raw key bytes with
+a cancellation-aware deterministic merge sort. Duplicate complete keys MUST
+fail the operation. A present all-zero value MUST remain distinct from an
+absent key.
+
+Entries MUST be grouped by their first 31 key bytes. For each group, the
+builder MUST construct C1 and C2 from all present suffix values, commit both
+vectors, map those commitments to the scalar field, and construct the stem
+vector defined above. It MUST then construct the minimal canonical internal
+topology bottom-up. Each internal child input MUST be the mapped commitment of
+the exact child selected by the stem byte at that depth. The root MUST always
+be an internal node at depth zero; the empty tree's in-memory root MUST be the
+identity.
+
+The builder MUST retain an immutable arena containing every logical stem and
+internal node. It MUST retain no logical empty nodes. A successfully
+constructed builder MUST be immutable and safe for concurrent root builds;
+each build result MUST own its node arena. Caller entry mutation after return
+MUST NOT change a tree or root.
+
+Before commitment-engine construction or node allocation, a one-shot build
+MUST enforce positive bounds for entries, distinct stems, logical nodes,
+retained child edges, vector commitments, commitment-to-field mappings, a
+conservative aggregate bound on non-zero commitment terms, and deterministic
+temporary bytes. The temporary-byte budget MUST cover the owned entry copy,
+merge-sort scratch, stem groups, retained nodes and edges, and maximum live
+construction vectors. Limits and counts MUST be checked before integer
+conversion or allocation. Sorting,
+grouping, topology counting, leaf construction, and internal construction MUST
+check cancellation; failure MUST publish no partial tree.
+
+The independently generated Rust corpus fixes roots for empty, present-zero,
+single-value, suffix-half boundary, separate-root-branch, and maximum-depth
+collision states. Agreement proves only deterministic mathematical root
+construction for those exact states. It does not define a canonical root
+container, persisted node encoding, incremental update algorithm, proof,
+witness, production backend, or general Rust compatibility.
 
 ## State Transition Reference Model
 

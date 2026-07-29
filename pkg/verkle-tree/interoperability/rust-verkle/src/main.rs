@@ -253,6 +253,62 @@ fn print_tree_proof() {
     );
 }
 
+fn print_tree_root_row(case: &str, entries: Vec<([u8; 32], [u8; 32])>) {
+    let encoded_entries = if entries.is_empty() {
+        "-".to_owned()
+    } else {
+        entries
+            .iter()
+            .map(|(key, value)| format!("{}:{}", encode_hex(key), encode_hex(value)))
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    let mut trie = Trie::new(VerkleConfig::new(MemoryDb::new()));
+    trie.insert(entries.into_iter());
+    println!(
+        "{case}\t{encoded_entries}\t{}",
+        encode_hex(&trie.root_commitment().to_bytes()),
+    );
+}
+
+fn print_tree_roots() {
+    println!("case\tentries\troot_commitment_be");
+    print_tree_root_row("empty", vec![]);
+    print_tree_root_row("present-zero", vec![(tree_key(0, 0), [0_u8; 32])]);
+    print_tree_root_row(
+        "single-patterned",
+        vec![(tree_key(0x10, 0x7f), tree_value(0x11))],
+    );
+    print_tree_root_row(
+        "same-stem-boundaries",
+        vec![
+            (tree_key(0x20, 0x00), tree_value(0x22)),
+            (tree_key(0x20, 0xff), tree_value(0x33)),
+        ],
+    );
+    print_tree_root_row(
+        "separate-root-branches",
+        vec![
+            (tree_key(0x00, 0x00), tree_value(0x11)),
+            (tree_key(0x00, 0x01), tree_value(0x22)),
+            (tree_key(0x01, 0xff), tree_value(0x33)),
+            (tree_key(0x01, 0x7f), tree_value(0x44)),
+        ],
+    );
+
+    let mut deepest_left = [0_u8; 32];
+    deepest_left[30] = 1;
+    let mut deepest_right = [0_u8; 32];
+    deepest_right[30] = 2;
+    print_tree_root_row(
+        "deepest-collision",
+        vec![
+            (deepest_left, tree_value(0x55)),
+            (deepest_right, tree_value(0x66)),
+        ],
+    );
+}
+
 fn topology_key(stem: [u8; 31]) -> [u8; 32] {
     let mut key = [0_u8; 32];
     key[..31].copy_from_slice(&stem);
@@ -401,6 +457,7 @@ fn main() {
         Some("vector-commitments") => print_vector_commitments(),
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
+        Some("tree-roots") => print_tree_roots(),
         Some("topology") => print_topology(),
         Some("verify-go-witness") => verify_go_witness(
             &arguments.next().expect("missing Go execution witness path"),
@@ -413,7 +470,7 @@ fn main() {
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
              <encodings|commitment-hashes|leaf-vectors|generators|vector-commitments|\
-             multiproof|tree-proof|\
+             multiproof|tree-proof|tree-roots|\
              topology|\
              verify-go-witness|\
              update-go-witness>"

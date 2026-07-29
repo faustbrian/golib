@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -154,7 +154,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -218,7 +218,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -269,7 +269,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -316,7 +316,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -366,7 +366,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -522,7 +522,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -593,7 +593,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -604,6 +604,73 @@
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. For every row, the pinned Rust trie inserts the recorded stems, creates one proof for the query stem, and emits the proof verification hint's depth, extension status, and encountered different stem.",
       "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; regenerate all rows; then require the independent Go topology model to reproduce every depth, absence class, and encountered stem.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-tree-roots",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "verkle-trie/src/lib.rs",
+          "sha256": "19a6c648b0dd9816edfa92cd5ece7a989164567a878d1c6855edb6d095cb95b8"
+        },
+        {
+          "path": "verkle-trie/src/config.rs",
+          "sha256": "699b08fd1a79e869d49afdbc8efdefe248d294a88defece3e5096b0eefcf1807"
+        },
+        {
+          "path": "verkle-trie/src/constants.rs",
+          "sha256": "3e1faa3ab8a4cc139ca4e145fa808f3f0af9f9ea0d53c60e61095eaba2f5acd6"
+        },
+        {
+          "path": "verkle-trie/src/database.rs",
+          "sha256": "75ef01ee28333f8dfeca5c44ea126bd3ee57635d67f61d2395bc6c560a1ac1a1"
+        },
+        {
+          "path": "verkle-trie/src/database/memory_db.rs",
+          "sha256": "1c25e5bcff903fe1944b87add4e0928c2ad1722d6f32f3591155f02cd3d2f413"
+        },
+        {
+          "path": "verkle-trie/src/trie.rs",
+          "sha256": "b8bb6195d81f84832ce34e82494bac5cf5ed5123aa0701f84e3145ae8d106e28"
+        },
+        {
+          "path": "ipa-multipoint/src/committer.rs",
+          "sha256": "9e91200ab5e5a0b06fb8527dba21a81b3b9debf7b18ce63c390f287644951b48"
+        },
+        {
+          "path": "ipa-multipoint/src/crs.rs",
+          "sha256": "2e65ca470354985d435acf7b8863e02142e81e0eea8d8a962c70fe266239fcc2"
+        },
+        {
+          "path": "banderwagon/src/element.rs",
+          "sha256": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442"
+        }
+      ],
+      "fixture_path": "internal/committedtree/testdata/rust-verkle-tree-roots.tsv",
+      "fixture_sha256": "38611bc7b89bd84830b8ab2f8b97fe7a8dcace2b27b537349cc63919e45662db",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "width": 256,
+        "generator_seed": "eth_verkle_oct_2021",
+        "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
+        "value_layout": "fixed 32-byte values with an explicit present marker in the low half",
+        "topology": "a depth-zero internal root with compressed stems and canonical collision paths",
+        "corpus": "empty, present-zero, single patterned value, suffix-half boundaries, separate root branches, and a maximum-depth stem collision"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- tree-roots"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust trie inserts each recorded ordered key/value corpus and emits its canonical root commitment, including the identity for the empty tree.",
+      "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; regenerate every row; then require the bounded Go committed-tree builder to reproduce every identity decision and non-identity root byte.",
       "reproducible": true
     }
   ],

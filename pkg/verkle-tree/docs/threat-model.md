@@ -9,9 +9,9 @@ partially durable state.
 
 This document defines the complete audit scope. Current internal controls cover
 canonical point and scalar decoding, fixed generator-set validation, bounded
-serial vector commitment, immutable state transitions, and canonical stem
-topology. Proof, witness, storage, publication, and complete side-channel
-controls remain unimplemented.
+serial vector commitment, immutable state transitions, canonical stem topology,
+and bounded deterministic full-root construction. Proof, witness, storage,
+publication, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 

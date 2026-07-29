@@ -67,6 +67,12 @@ identity handling, and commitment-to-field mapping. It deliberately exposes no
 public tree surface and does not yet provide commitment updates, openings, or
 verification.
 
+The current internal committed-tree builder binds that engine to the fixed key,
+value, leaf, and topology rules. Its immutable builder may be reused
+concurrently; each result owns a complete immutable logical-node arena and an
+opaque root commitment. It deliberately exposes no root package API, wire
+container, persistence contract, proof operation, or incremental update seam.
+
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or
 encoding from another.

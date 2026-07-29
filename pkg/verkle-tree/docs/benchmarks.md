@@ -8,6 +8,12 @@ commitment-to-field map and serial fixed-width vector commitment. They do not
 measure a Verkle tree, proof, witness, storage adapter, or an equivalent
 end-to-end workload, and they support no comparative performance claim.
 
+One additional component benchmark measures rebuilding the implemented
+immutable committed-node arena and mathematical root for the pinned four-entry,
+two-stem corpus. It excludes builder and generator initialization, proof work,
+serialization, persistence, and incremental updates. It is not an end-to-end
+tree benchmark or a comparison with either reference implementation.
+
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
 including typed error construction. Every benchmark reports processed bytes,
@@ -21,6 +27,9 @@ Command:
 GOWORK=off go test ./internal/backend -run '^$' \
   -bench '^(BenchmarkDecode|BenchmarkEncode|BenchmarkCommitmentToScalar|BenchmarkCommitVector)' \
   -benchmem -count=5
+
+GOWORK=off go test ./internal/committedtree -run '^$' \
+  -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
 ```
 
 Environment:
@@ -55,6 +64,7 @@ nanoseconds per operation.
 | Encode scalar | 13.64, 23.18, 10.80, 11.81, 19.64 | 0 | 0 |
 | Commit sparse five-term vector | 108785, 69867, 64012, 231937, 70566 | 1321 | 20 |
 | Commit dense 256-term vector | 4835446, 16280795, 15844953, 2671274, 2909500 | 67632-67655 | 1024 |
+| Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

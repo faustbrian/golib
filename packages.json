@@ -7248,6 +7248,18 @@
     },
     {
       "module_directory": "pkg/verkle-tree",
+      "directory": "internal/committedtree",
+      "name": "committedtree",
+      "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/verkle-tree",
       "directory": "internal/leafvector",
       "name": "leafvector",
       "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector",
