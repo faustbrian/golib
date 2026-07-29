@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -37,8 +38,14 @@ func (r Record) Clone() Record {
 
 // Validate checks deadline portability and negative-record invariants.
 func (r Record) Validate() error {
-	if r.ExpiresAt.IsZero() || r.StaleAt.IsZero() || r.StaleAt.Before(r.ExpiresAt) ||
-		!portableTime(r.ExpiresAt) || !portableTime(r.StaleAt) || r.Negative && len(r.Payload) != 0 {
+	if slices.Contains([]bool{
+		r.ExpiresAt.IsZero(),
+		r.StaleAt.IsZero(),
+		r.StaleAt.Before(r.ExpiresAt),
+		!portableTime(r.ExpiresAt),
+		!portableTime(r.StaleAt),
+		r.Negative && len(r.Payload) != 0,
+	}, true) {
 		return fmt.Errorf("%w: deadlines or negative payload", ErrInvalidRecord)
 	}
 	return nil

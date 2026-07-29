@@ -1,10 +1,12 @@
 package cache
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"sync"
 	"time"
 )
@@ -113,19 +115,26 @@ func New[K, V any](config Config[K, V]) (*Cache[K, V], error) {
 	if config.Load.StaleWhileRevalidate && config.Load.StaleIfError {
 		return nil, &Error{Kind: PolicyError, Operation: OperationLoad, Cause: ErrInvalidPolicy}
 	}
-	if config.Load.RefreshJitter >= config.TTL.TTL && config.Load.RefreshJitter > 0 {
-		return nil, &Error{Kind: PolicyError, Operation: OperationLoad, Cause: ErrInvalidPolicy}
+	switch cmp.Compare(config.Load.RefreshJitter, 0) {
+	case 1:
+		if cmp.Compare(config.Load.RefreshJitter, config.TTL.TTL) != -1 {
+			return nil, &Error{Kind: PolicyError, Operation: OperationLoad, Cause: ErrInvalidPolicy}
+		}
+		switch config.Jitter {
+		case nil:
+			config.Jitter = RandomJitter{}
+		}
 	}
-	if config.Load.RefreshJitter > 0 && config.Jitter == nil {
-		config.Jitter = RandomJitter{}
-	}
-	if config.Load.MaxConcurrent == 0 {
+	switch cmp.Compare(config.Load.MaxConcurrent, 0) {
+	case 0:
 		config.Load.MaxConcurrent = defaultMaxConcurrentLoaders
 	}
-	if config.Load.MaxWaitersPerKey == 0 {
+	switch cmp.Compare(config.Load.MaxWaitersPerKey, 0) {
+	case 0:
 		config.Load.MaxWaitersPerKey = defaultMaxWaitersPerKey
 	}
-	if config.MaxBatch == 0 {
+	switch cmp.Compare(config.MaxBatch, 0) {
+	case 0:
 		config.MaxBatch = defaultMaxBatch
 	}
 	// Close retains and invokes cancel after preventing new flights.
@@ -161,18 +170,24 @@ func (c *Cache[K, V]) Get(ctx context.Context, logical K) (result Result[V], err
 		})
 	}()
 	var zero Result[V]
-	if err := ctx.Err(); err != nil {
+	switch err := ctx.Err(); err {
+	case nil:
+	default:
 		return zero, err
 	}
 	if c.isClosed() {
 		return zero, ErrClosed
 	}
 	key, err := c.keys.Key(logical)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return zero, &Error{Kind: InvalidKeyError, Operation: OperationGet, Cause: err}
 	}
 	record, found, err := c.backend.Get(ctx, key)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return zero, operationError(OperationGet, err)
 	}
 	if !found {
@@ -193,7 +208,7 @@ func (c *Cache[K, V]) Get(ctx context.Context, logical K) (result Result[V], err
 	if record.Negative {
 		return Result[V]{State: Miss, Negative: true}, nil
 	}
-	if len(record.Payload) > c.maxValue {
+	if cmp.Compare(len(record.Payload), c.maxValue) == 1 {
 		return zero, &Error{Kind: LimitError, Operation: OperationGet, Cause: ErrValueTooLarge}
 	}
 	value, err := c.codec.Decode(record.Payload)
@@ -223,25 +238,49 @@ func (c *Cache[K, V]) Get(ctx context.Context, logical K) (result Result[V], err
 
 // GetOrLoad returns a cached value or coalesces a bounded source load.
 func (c *Cache[K, V]) GetOrLoad(ctx context.Context, logical K, loader Loader[K, V]) (Result[V], error) {
-	if active, ok := ctx.Value(loadContextKey{}).(activeLoadContext); ok && active.owner == c {
-		return Result[V]{}, &Error{Kind: LoaderError, Operation: OperationLoad, Cause: ErrRecursiveLoad}
+	active, ok := ctx.Value(loadContextKey{}).(activeLoadContext)
+	switch ok {
+	case true:
+		switch active.owner {
+		case c:
+			return Result[V]{}, &Error{Kind: LoaderError, Operation: OperationLoad, Cause: ErrRecursiveLoad}
+		}
 	}
 	result, err := c.Get(ctx, logical)
-	if err != nil || result.State == Hit || result.Negative {
+	switch err {
+	case nil:
+	default:
 		return result, err
 	}
-	if loader == nil {
+	switch result.State {
+	case Hit:
+		return result, nil
+	case Miss, Stale:
+	}
+	switch result.Negative {
+	case true:
+		return result, nil
+	}
+	switch loader {
+	case nil:
 		return Result[V]{}, &Error{Kind: LoaderError, Operation: OperationLoad, Cause: errors.New("nil loader")}
 	}
 	key, err := c.keys.Key(logical)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return Result[V]{}, &Error{Kind: InvalidKeyError, Operation: OperationLoad, Cause: err}
 	}
-	if result.State == Stale && c.load.StaleWhileRevalidate {
-		if err := c.startBackgroundLoad(key, logical, loader); err != nil {
-			return result, err
+	switch result.State {
+	case Stale:
+		switch c.load.StaleWhileRevalidate {
+		case true:
+			if err := c.startBackgroundLoad(key, logical, loader); err != nil {
+				return result, err
+			}
+			return result, nil
 		}
-		return result, nil
+	case Hit, Miss:
 	}
 
 	c.loadMu.Lock()
@@ -251,7 +290,8 @@ func (c *Cache[K, V]) GetOrLoad(ctx context.Context, logical K, loader Loader[K,
 	}
 	flight, found := c.flights[key]
 	if found {
-		if flight.waiters >= c.load.MaxWaitersPerKey {
+		switch cmp.Compare(flight.waiters, c.load.MaxWaitersPerKey) {
+		case 0, 1:
 			c.loadMu.Unlock()
 			return Result[V]{}, ErrWaiterLimit
 		}
@@ -323,11 +363,20 @@ func (c *Cache[K, V]) runLoad(key string, logical K, loader Loader[K, V], flight
 	}()
 
 	current, err := c.Get(c.loadCtx, logical)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		flight.err = err
 		return
 	}
-	if current.State == Hit || current.Negative {
+	switch current.State {
+	case Hit:
+		flight.result = current
+		return
+	case Miss, Stale:
+	}
+	switch current.Negative {
+	case true:
 		flight.result = current
 		return
 	}
@@ -360,7 +409,7 @@ func (c *Cache[K, V]) runLoad(key string, logical K, loader Loader[K, V], flight
 	if !loaded.Found {
 		loadOutcome = OutcomeNegative
 		flight.result = Result[V]{State: Miss, Negative: true}
-		if c.load.NegativeTTL > 0 {
+		if cmp.Compare(c.load.NegativeTTL, 0) == 1 {
 			now := c.clock.Now().Round(0)
 			record := Record{
 				ExpiresAt: now.Add(c.load.NegativeTTL),
@@ -430,7 +479,7 @@ func (c *Cache[K, V]) SetIfOwned(
 		if err != nil {
 			return Record{}, 0, err
 		}
-		if len(payload) > c.maxValue {
+		if cmp.Compare(len(payload), c.maxValue) == 1 {
 			return Record{}, 0, &Error{
 				Kind:      LimitError,
 				Operation: OperationSet,
@@ -481,7 +530,9 @@ func (c *Cache[K, V]) setIfOwned(
 	size := 0
 	defer func() {
 		outcome := OutcomeSuccess
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			outcome = OutcomeError
 		}
 		notify(ctx, c.observer, Event{
@@ -497,10 +548,11 @@ func (c *Cache[K, V]) setIfOwned(
 	if c.isClosed() {
 		return ErrClosed
 	}
-	if guard == nil ||
-		guard.StorageKey() == "" ||
-		guard.Owner() == "" ||
-		guard.Token() == "" {
+	switch guard {
+	case nil:
+		return &Error{Kind: PolicyError, Operation: OperationSet, Cause: ErrInvalidPolicy}
+	}
+	if slices.Contains([]string{guard.StorageKey(), guard.Owner(), guard.Token()}, "") {
 		return &Error{Kind: PolicyError, Operation: OperationSet, Cause: ErrInvalidPolicy}
 	}
 	backend, supported := c.backend.(OwnershipBackend)
@@ -545,7 +597,11 @@ func (c *Cache[K, V]) setLoaded(ctx context.Context, logical K, value V) error {
 	ttl := c.ttl.TTL
 	if c.load.RefreshJitter > 0 {
 		jitter := c.jitter.Duration(c.load.RefreshJitter)
-		if jitter < 0 || jitter > c.load.RefreshJitter || jitter >= ttl {
+		if slices.Contains([]bool{
+			cmp.Compare(jitter, 0) == -1,
+			cmp.Compare(jitter, c.load.RefreshJitter) == 1,
+			cmp.Compare(jitter, ttl) != -1,
+		}, true) {
 			return &Error{Kind: PolicyError, Operation: OperationLoad, Cause: ErrInvalidPolicy}
 		}
 		ttl -= jitter
@@ -596,7 +652,7 @@ func (c *Cache[K, V]) set(
 	if err != nil {
 		return false, err
 	}
-	if len(payload) > c.maxValue {
+	if cmp.Compare(len(payload), c.maxValue) == 1 {
 		return false, &Error{Kind: LimitError, Operation: OperationSet, Cause: ErrValueTooLarge}
 	}
 	size = len(payload)
@@ -624,7 +680,9 @@ func (c *Cache[K, V]) Delete(ctx context.Context, logical K) (err error) {
 	start := c.clock.Now()
 	defer func() {
 		outcome := OutcomeSuccess
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			outcome = OutcomeError
 		}
 		notify(ctx, c.observer, Event{

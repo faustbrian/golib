@@ -48,6 +48,23 @@ func TestRecordEnvelopeRejectsLimitsVersionsAndMalformedData(t *testing.T) {
 	t.Parallel()
 
 	record := cache.Record{Payload: []byte("value"), ExpiresAt: time.Now(), StaleAt: time.Now()}
+	exactSize := 21 + len(record.Payload)
+	exact, err := wire.Encode(record, exactSize)
+	if err != nil {
+		t.Fatalf("exact-size encode returned %v", err)
+	}
+	if len(exact) != exactSize {
+		t.Fatalf("encoded length = %d, want %d", len(exact), exactSize)
+	}
+	if _, err := wire.Decode(exact, exactSize); err != nil {
+		t.Fatalf("exact-size decode returned %v", err)
+	}
+	if _, err := wire.Encode(record, 0); !errors.Is(err, cache.ErrValueTooLarge) {
+		t.Fatalf("zero encode limit returned %v", err)
+	}
+	if _, err := wire.Decode(exact, 0); !errors.Is(err, cache.ErrValueTooLarge) {
+		t.Fatalf("zero decode limit returned %v", err)
+	}
 	if _, err := wire.Encode(record, 4); !errors.Is(err, cache.ErrValueTooLarge) {
 		t.Fatalf("expected encode limit error, got %v", err)
 	}

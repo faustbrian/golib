@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ func (c JSONCodec[V]) Encode(value V) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %w", ErrDecode, err)
 	}
 	limit := c.sizeLimit()
-	if len(payload) >= limit {
+	if cmp.Compare(len(payload), limit) != -1 {
 		return nil, fmt.Errorf(
 			"%w: payload length %d leaves no room within encoded limit %d",
 			ErrValueTooLarge,
@@ -49,7 +50,7 @@ func (c JSONCodec[V]) Encode(value V) ([]byte, error) {
 // Decode validates size and schema version before strict JSON decoding.
 func (c JSONCodec[V]) Decode(encoded []byte) (V, error) {
 	var zero V
-	if len(encoded) > c.sizeLimit() {
+	if cmp.Compare(len(encoded), c.sizeLimit()) == 1 {
 		return zero, fmt.Errorf("%w: encoded length %d exceeds %d", ErrValueTooLarge, len(encoded), c.sizeLimit())
 	}
 	if len(encoded) == 0 || encoded[0] != c.Version {

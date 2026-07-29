@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -48,28 +49,36 @@ func NewKeySpace[K any](
 // Key returns a deterministic backend key without exposing logical key bytes.
 func (s KeySpace[K]) Key(logical K) (string, error) {
 	encoded, err := s.encoder.EncodeKey(logical)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return "", fmt.Errorf("%w: %w", ErrInvalidKey, err)
 	}
 	digest := sha256.Sum256(encoded)
 	key := s.prefix + base64.RawURLEncoding.EncodeToString(digest[:])
-	if len(key) > s.maxKeySize {
+	switch cmp.Compare(len(key), s.maxKeySize) {
+	case 1:
 		return "", fmt.Errorf("%w: encoded length %d exceeds %d", ErrKeyTooLarge, len(key), s.maxKeySize)
 	}
 	return key, nil
 }
 
 func validKeyPart(value string) bool {
-	if value == "" || len(value) > 64 || strings.Contains(value, ":") {
+	switch value {
+	case "":
+		return false
+	}
+	if cmp.Compare(len(value), 64) == 1 {
+		return false
+	}
+	switch strings.Contains(value, ":") {
+	case true:
 		return false
 	}
 	for _, r := range value {
-		if r < 'a' || r > 'z' {
-			if r < '0' || r > '9' {
-				if r != '-' && r != '_' {
-					return false
-				}
-			}
+		switch strings.ContainsRune("abcdefghijklmnopqrstuvwxyz0123456789-_", r) {
+		case false:
+			return false
 		}
 	}
 	return true

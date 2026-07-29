@@ -55,6 +55,31 @@ func TestKeySpaceRejectsInvalidConfigurationAndOversizedKeys(t *testing.T) {
 	}
 }
 
+func TestKeySpaceAcceptsExactMaximumKeySize(t *testing.T) {
+	t.Parallel()
+
+	const exactSize = 50
+	space, err := cache.NewKeySpace("a", "b", 1, cache.StringKeyEncoder{}, exactSize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := space.Key("logical")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(key) != exactSize {
+		t.Fatalf("key length = %d, want %d", len(key), exactSize)
+	}
+
+	tooSmall, err := cache.NewKeySpace("a", "b", 1, cache.StringKeyEncoder{}, exactSize-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tooSmall.Key("logical"); !errors.Is(err, cache.ErrKeyTooLarge) {
+		t.Fatalf("oversized key returned %v, want ErrKeyTooLarge", err)
+	}
+}
+
 func TestKeySpaceRejectsEveryInvalidComponent(t *testing.T) {
 	t.Parallel()
 

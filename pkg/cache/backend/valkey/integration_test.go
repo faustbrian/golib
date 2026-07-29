@@ -170,6 +170,11 @@ func runAdapterEdgeCases(
 		if written, err := precise.Set(ctx, "edge:submillisecond", record, cache.Unconditional); err != nil || !written {
 			t.Fatalf("submillisecond Set: written=%t err=%v", written, err)
 		}
+		record.ExpiresAt = now
+		record.StaleAt = now
+		if written, err := precise.Set(ctx, "edge:zero-ttl", record, cache.Unconditional); written || !errors.Is(err, cache.ErrInvalidTTL) {
+			t.Fatalf("zero-TTL Set: written=%t err=%v", written, err)
+		}
 	})
 	t.Run("protected publish rejects stale and missing ownership", func(t *testing.T) {
 		leaseKey := "lease:{catalog}:lease"

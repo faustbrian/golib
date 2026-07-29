@@ -153,6 +153,12 @@ func TestSetIfOwnedRejectsInvalidCallsBeforePublishing(t *testing.T) {
 	if err := store.SetIfOwned(ctx, "catalog", "fresh", guard); !errors.Is(err, context.Canceled) {
 		t.Fatalf("SetIfOwned(canceled) error = %v", err)
 	}
+	if err := store.SetIfOwned(t.Context(), "catalog", "fresh", nil); !errors.Is(
+		err,
+		cache.ErrInvalidPolicy,
+	) {
+		t.Fatalf("SetIfOwned(nil guard) error = %v", err)
+	}
 	if err := store.SetIfOwned(t.Context(), "catalog", "fresh", ownershipGuard{}); !errors.Is(
 		err,
 		cache.ErrInvalidPolicy,

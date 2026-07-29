@@ -55,6 +55,47 @@ func TestBackendIsBoundedAndEvictsLeastRecentlyUsed(t *testing.T) {
 	}
 }
 
+func TestBackendRetainsEntriesAtExactByteCapacity(t *testing.T) {
+	t.Parallel()
+
+	clock := &fakeClock{now: time.Now()}
+	backend, err := memory.New(memory.Config{MaxEntries: 3, MaxBytes: 6, Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"a", "b", "c"} {
+		set(t.Context(), t, backend, key, key, clock.now)
+	}
+	if stats := backend.Stats(); stats.Entries != 3 || stats.Bytes != 6 || stats.Evictions != 0 {
+		t.Fatalf("exact-capacity stats = %#v, want 3 entries, 6 bytes, no evictions", stats)
+	}
+}
+
+func TestBackendEvictsEnoughEntriesToMeetByteCapacity(t *testing.T) {
+	t.Parallel()
+
+	clock := &fakeClock{now: time.Now()}
+	backend, err := memory.New(memory.Config{MaxEntries: 4, MaxBytes: 5, Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	set(t.Context(), t, backend, "a", "1", clock.now)
+	set(t.Context(), t, backend, "bb", "2", clock.now)
+	set(t.Context(), t, backend, "c", "3", clock.now)
+
+	if _, found, err := backend.Get(t.Context(), "a"); err != nil || found {
+		t.Fatalf("oldest entry remained after byte eviction: found=%t err=%v", found, err)
+	}
+	if stats := backend.Stats(); stats.Entries != 2 || stats.Bytes != 5 || stats.Evictions != 1 {
+		t.Fatalf("byte-bounded stats = %#v, want 2 entries, 5 bytes, 1 eviction", stats)
+	}
+
+	set(t.Context(), t, backend, "dddd", "4", clock.now)
+	if stats := backend.Stats(); stats.Entries != 1 || stats.Bytes != 5 || stats.Evictions != 3 {
+		t.Fatalf("multi-eviction stats = %#v, want 1 entry, 5 bytes, 3 evictions", stats)
+	}
+}
+
 func TestBackendCopiesPayloadsAndAppliesAtomicConditions(t *testing.T) {
 	t.Parallel()
 

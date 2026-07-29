@@ -60,6 +60,13 @@ func TestObserverRecordsRedactedLowCardinalityMetrics(t *testing.T) {
 	if !ok || len(duration.DataPoints) == 0 || duration.DataPoints[0].Count == 0 {
 		t.Fatalf("duration histogram missing: %#v", metrics["cache.operation.duration"])
 	}
+	durationSum := 0.0
+	for _, point := range duration.DataPoints {
+		durationSum += point.Sum
+	}
+	if durationSum != 1.5 {
+		t.Fatalf("duration histogram sum = %v ms, want 1.5 ms", durationSum)
+	}
 	valueSize, ok := metrics["cache.value.size"].(metricdata.Histogram[int64])
 	if !ok || len(valueSize.DataPoints) != 1 || valueSize.DataPoints[0].Sum != 42 {
 		t.Fatalf("value size histogram mismatch: %#v", metrics["cache.value.size"])

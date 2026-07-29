@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -18,7 +19,12 @@ func Encode(record cache.Record, maxSize int) ([]byte, error) {
 		return nil, err
 	}
 	size := headerSize + len(record.Payload)
-	if maxSize <= 0 || size > maxSize {
+	switch cmp.Compare(maxSize, 0) {
+	case -1, 0:
+		return nil, fmt.Errorf("%w: encoded record length %d exceeds %d", cache.ErrValueTooLarge, size, maxSize)
+	}
+	switch cmp.Compare(size, maxSize) {
+	case 1:
 		return nil, fmt.Errorf("%w: encoded record length %d exceeds %d", cache.ErrValueTooLarge, size, maxSize)
 	}
 	encoded := make([]byte, size)
@@ -34,7 +40,12 @@ func Encode(record cache.Record, maxSize int) ([]byte, error) {
 
 // Decode validates and deserializes one bounded record envelope.
 func Decode(encoded []byte, maxSize int) (cache.Record, error) {
-	if maxSize <= 0 || len(encoded) > maxSize {
+	switch cmp.Compare(maxSize, 0) {
+	case -1, 0:
+		return cache.Record{}, fmt.Errorf("%w: encoded record length %d exceeds %d", cache.ErrValueTooLarge, len(encoded), maxSize)
+	}
+	switch cmp.Compare(len(encoded), maxSize) {
+	case 1:
 		return cache.Record{}, fmt.Errorf("%w: encoded record length %d exceeds %d", cache.ErrValueTooLarge, len(encoded), maxSize)
 	}
 	if len(encoded) < headerSize {

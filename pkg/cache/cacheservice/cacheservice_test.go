@@ -190,6 +190,18 @@ func TestNewRejectsNilInterfaceAndAcceptsValueResource(t *testing.T) {
 	}); !errors.Is(err, cacheservice.ErrInvalidOptions) {
 		t.Fatalf("New(nil) error = %v, want ErrInvalidOptions", err)
 	}
+	var nilChannel chan int
+	if _, err := cacheservice.New(cacheservice.Options[chan int]{
+		Name: "cache", Resource: nilChannel,
+	}); !errors.Is(err, cacheservice.ErrInvalidOptions) {
+		t.Fatalf("New(nil channel) error = %v, want ErrInvalidOptions", err)
+	}
+	var nilSlice []int
+	if _, err := cacheservice.New(cacheservice.Options[[]int]{
+		Name: "cache", Resource: nilSlice,
+	}); !errors.Is(err, cacheservice.ErrInvalidOptions) {
+		t.Fatalf("New(nil slice) error = %v, want ErrInvalidOptions", err)
+	}
 	adapter, err := cacheservice.New(cacheservice.Options[int]{
 		Name: "cache", Resource: 42,
 	})

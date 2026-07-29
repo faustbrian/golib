@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"strings"
@@ -87,10 +88,12 @@ func (b *Backend) Set(
 		return false, err
 	}
 	ttl := record.StaleAt.Round(0).Sub(b.clock.Now().Round(0))
-	if ttl <= 0 {
+	switch cmp.Compare(ttl, 0) {
+	case -1, 0:
 		return false, cache.ErrInvalidTTL
 	}
-	if ttl < time.Millisecond {
+	switch cmp.Compare(ttl, time.Millisecond) {
+	case -1:
 		ttl = time.Millisecond
 	}
 	encoded, err := wire.Encode(record, b.maxRecordSize)

@@ -53,11 +53,7 @@ func notify(ctx context.Context, observer Observer, event Event) {
 }
 
 func elapsed(start, end time.Time) time.Duration {
-	duration := end.Sub(start)
-	if duration < 0 {
-		return 0
-	}
-	return duration
+	return max(end.Sub(start), 0)
 }
 
 func resultOutcome[V any](result Result[V], err error) Outcome {
