@@ -10202,7 +10202,12 @@
       "tag_prefix": "pkg/merkle-tree/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/cbergoon/merkletree",
+        "github.com/transparency-dev/merkle",
+        "github.com/txaty/go-merkletree",
+        "github.com/wealdtech/go-merkletree/v2"
+      ],
       "required_services": [],
       "build_tags": [],
       "test_tags": [],

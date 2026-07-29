@@ -54,7 +54,7 @@ benchmark:
 
 conformance:
 	$(GO) test -run \
-		'^(TestComputeRootMatchesRFC9162TreeHash|TestRFC9162InclusionProofMatchesIndependentAuditPaths|TestConsistencyProofMatchesRFC9162Examples)$$' \
+		'^(TestComputeRootMatchesRFC9162TreeHash|TestRFC9162InclusionProofMatchesIndependentAuditPaths|TestConsistencyProofMatchesRFC9162Examples|TestRFC9162PinnedReferenceFixture|TestRFC9162MatchesTransparencyDevMerkle)$$' \
 		-count=1 .
 
 docs:

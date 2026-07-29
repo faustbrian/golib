@@ -253,8 +253,10 @@ Batch and streaming root construction, atomic append and batch append,
 immutable snapshots, and inclusion, multi-inclusion, and consistency proofs
 and their versioned canonical binary encodings are implemented. Validated
 snapshot persistence and builder resumption are storage-independent and leave
-durability and atomic publication to the caller. External differential
-fixtures and comparative benchmarks remain under development.
+durability and atomic publication to the caller. Pinned RFC reference fixtures
+and differential tests cover roots, inclusion proofs, and consistency proofs.
+Comparative benchmark tracks document semantic differences and make no
+cross-profile speed claim.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or
 consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle
@@ -274,9 +276,13 @@ SUBPROOF, and consistency-verification definitions. RFC 9162's initial hash
 registry assigns SHA-256 value `0x00`; the package does not accept an
 unspecified or caller-invented algorithm as RFC-compatible.
 
-See [profile and ownership semantics](docs/architecture.md) and
-[compatibility boundaries](docs/compatibility.md), and
-[canonical binary encoding](docs/encoding.md).
+See [profile and ownership semantics](docs/architecture.md),
+[compatibility boundaries](docs/compatibility.md),
+[canonical binary encoding](docs/encoding.md),
+[adoption and migration](docs/adoption.md),
+[errors and recovery](docs/errors-and-recovery.md),
+[structure selection](docs/structures.md), and
+[benchmark methodology](docs/benchmarks.md).
 
 ## License
 

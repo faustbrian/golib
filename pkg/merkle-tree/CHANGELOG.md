@@ -30,3 +30,9 @@
 - Canonical persisted snapshots with complete node-integrity validation,
   cumulative byte accounting, explicit hostile-input limits, and independent
   mutable builder resumption.
+- Pinned RFC 9162 reference fixtures and differential root, inclusion, and
+  consistency evidence against `transparency-dev/merkle`.
+- Reproducible native benchmark tracks for required ecosystem packages, with
+  explicit semantic and ownership boundaries that prevent unlike speed claims.
+- Adoption, migration, error recovery, hostile-input, structure-selection, and
+  security guidance for the complete pre-v1 API.

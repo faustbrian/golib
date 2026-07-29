@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "profile": "rfc9162-sha256-v1",
+  "reference": {
+    "specification": "RFC 9162 sections 2.1.1, 2.1.3.1, and 2.1.4.1",
+    "module": "github.com/transparency-dev/merkle",
+    "version": "v0.0.2",
+    "revision": "036047b5d2f7faf3b1ee643d391e60fe5b1defcf"
+  },
+  "leaves_base64": [
+    "",
+    "YQ==",
+    "Yg==",
+    "YWJj",
+    "AP8=",
+    "ZmlmdGggbGVhZg==",
+    "gA==",
+    "bGFzdA=="
+  ],
+  "roots_hex": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+    "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6",
+    "652297b9504045a600942bcdf9ae5c2400be42d51139c7fb63ab3ee439ff110d",
+    "bd30ac3a4351d2a540aca9e45f909ad40e7d65012e1cf93caa95488d61ba9328",
+    "f2e9ad04db88fb9cd3117d4c143c8df5bad96405da9a369ae7afdea734497879",
+    "7645c3ed53c9761227a3b3a5917085a4b214e332a2955dae1a58a7257492725a",
+    "b63a3c822084b119e8e275a12f87627b7ad856f50febb545fcea83ed6430fcd2",
+    "095f3d01d75a9004b5d941bd3c947ae3f3b46a812852feb40c8867f0194ac729"
+  ],
+  "inclusion": [
+    {
+      "tree_size": 1,
+      "index": 0,
+      "siblings_hex": []
+    },
+    {
+      "tree_size": 3,
+      "index": 0,
+      "siblings_hex": [
+        "022a6979e6dab7aa5ae4c3e5e45f7e977112a7e63593820dbec1ec738a24f93c",
+        "57eb35615d47f34ec714cacdf5fd74608a5e8e102724e80b24b287c0c27b6a31"
+      ]
+    },
+    {
+      "tree_size": 3,
+      "index": 2,
+      "siblings_hex": [
+        "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6"
+      ]
+    },
+    {
+      "tree_size": 5,
+      "index": 4,
+      "siblings_hex": [
+        "bd30ac3a4351d2a540aca9e45f909ad40e7d65012e1cf93caa95488d61ba9328"
+      ]
+    },
+    {
+      "tree_size": 8,
+      "index": 3,
+      "siblings_hex": [
+        "57eb35615d47f34ec714cacdf5fd74608a5e8e102724e80b24b287c0c27b6a31",
+        "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6",
+        "444ac494f71ed29bc326c2ee18a03d27bb9cffc375d356bb0ea05464bf7d0ebd"
+      ]
+    },
+    {
+      "tree_size": 8,
+      "index": 7,
+      "siblings_hex": [
+        "085edad400785fca7e7e90b1fac4beb776fc2beee5aa24352d5f39b5d57efcad",
+        "49ba7fd7ac05b788a9c13cb93bbcdbea13c77fea049518228bf6cf18ac28bb2e",
+        "bd30ac3a4351d2a540aca9e45f909ad40e7d65012e1cf93caa95488d61ba9328"
+      ]
+    }
+  ],
+  "consistency": [
+    {
+      "older_tree_size": 1,
+      "newer_tree_size": 2,
+      "nodes_hex": [
+        "022a6979e6dab7aa5ae4c3e5e45f7e977112a7e63593820dbec1ec738a24f93c"
+      ]
+    },
+    {
+      "older_tree_size": 1,
+      "newer_tree_size": 8,
+      "nodes_hex": [
+        "022a6979e6dab7aa5ae4c3e5e45f7e977112a7e63593820dbec1ec738a24f93c",
+        "80c12c3f50925bd57ff4c1963098f04357cf2aaec96001dbc3a3ab61a296e79b",
+        "444ac494f71ed29bc326c2ee18a03d27bb9cffc375d356bb0ea05464bf7d0ebd"
+      ]
+    },
+    {
+      "older_tree_size": 3,
+      "newer_tree_size": 5,
+      "nodes_hex": [
+        "57eb35615d47f34ec714cacdf5fd74608a5e8e102724e80b24b287c0c27b6a31",
+        "609f6e36d2405585188d5cfd761f407c7cc46a7d3f314c88270469dde315fcd1",
+        "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6",
+        "ae974d4a74c2371d8cfe842b7aa4f6698de8570526eeb3db1941b0b72311d470"
+      ]
+    },
+    {
+      "older_tree_size": 3,
+      "newer_tree_size": 8,
+      "nodes_hex": [
+        "57eb35615d47f34ec714cacdf5fd74608a5e8e102724e80b24b287c0c27b6a31",
+        "609f6e36d2405585188d5cfd761f407c7cc46a7d3f314c88270469dde315fcd1",
+        "688dc6244b041199e7ab4990df6340ce3dc14caa5cd5a0e1131addaa1209e1a6",
+        "444ac494f71ed29bc326c2ee18a03d27bb9cffc375d356bb0ea05464bf7d0ebd"
+      ]
+    },
+    {
+      "older_tree_size": 5,
+      "newer_tree_size": 8,
+      "nodes_hex": [
+        "ae974d4a74c2371d8cfe842b7aa4f6698de8570526eeb3db1941b0b72311d470",
+        "2baaa5d0c4be90beafc31505daf6ec17e2599873f53bd1e70804a1932b7fa1e2",
+        "524e79bf5cf3b9ca8fc573577663789f0f3ebce876b52c0652f2d9117d14fef7",
+        "bd30ac3a4351d2a540aca9e45f909ad40e7d65012e1cf93caa95488d61ba9328"
+      ]
+    },
+    {
+      "older_tree_size": 7,
+      "newer_tree_size": 8,
+      "nodes_hex": [
+        "085edad400785fca7e7e90b1fac4beb776fc2beee5aa24352d5f39b5d57efcad",
+        "7754aca9aa1cccd4461fb2477e8e7cb82558d34115a7e22b70b79dcca1395a13",
+        "49ba7fd7ac05b788a9c13cb93bbcdbea13c77fea049518228bf6cf18ac28bb2e",
+        "bd30ac3a4351d2a540aca9e45f909ad40e7d65012e1cf93caa95488d61ba9328"
+      ]
+    },
+    {
+      "older_tree_size": 8,
+      "newer_tree_size": 8,
+      "nodes_hex": []
+    }
+  ]
+}

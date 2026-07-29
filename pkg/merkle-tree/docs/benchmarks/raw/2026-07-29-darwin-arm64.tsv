@@ -1,0 +1,68 @@
+# date	2026-07-29
+# go	go1.26.5 darwin/arm64
+# os	macOS 27.0 build 26A5388g
+# cpu	Apple M4 Max
+# gomaxprocs	2
+# source_revision	6c3f07b8c6c38aa39378ff0afb65cfbf0826fb32
+# harness_sha256	b0433c5ee3ac9b5b23fdf5e10336f35ce2fb9ac1f305d42cb475389eec81cd88
+# statistical_method	5 independently calibrated Go benchmark samples at 50ms; no aggregation or cross-track comparison because semantics differ and shared-machine contention was severe
+# command	GOMAXPROCS=2 GOWORK=off go test -run ^$ -bench ^BenchmarkNativeConstruction$ -benchmem -benchtime=50ms -count=5
+# columns	leaves	track	sample	iterations	ns_per_op	mb_per_s	bytes_per_op	allocs_per_op
+256	merkle-tree-rfc9162	1	896	69264	118.27	8512	258
+256	merkle-tree-rfc9162	2	828	106541	76.89	8512	258
+256	merkle-tree-rfc9162	3	1088	76210	107.49	8512	258
+256	merkle-tree-rfc9162	4	754	77361	105.89	8512	258
+256	merkle-tree-rfc9162	5	811	71189	115.07	8512	258
+256	transparency-dev-rfc6962	1	454	312476	26.22	132865	1584
+256	transparency-dev-rfc6962	2	164	335857	24.39	132864	1584
+256	transparency-dev-rfc6962	3	420	757656	10.81	132877	1584
+256	transparency-dev-rfc6962	4	230	601734	13.61	132864	1584
+256	transparency-dev-rfc6962	5	100	552619	14.82	132864	1584
+256	cbergoon-native	1	554	520961	15.72	114504	1557
+256	cbergoon-native	2	422	119307	68.66	114504	1557
+256	cbergoon-native	3	100	1927734	4.25	114504	1557
+256	cbergoon-native	4	466	204396	40.08	114504	1557
+256	cbergoon-native	5	519	245426	33.38	114504	1557
+256	txaty-native-sequential	1	357	209058	39.19	88121	1050
+256	txaty-native-sequential	2	315	264588	30.96	88119	1050
+256	txaty-native-sequential	3	464	169642	48.29	88112	1050
+256	txaty-native-sequential	4	325	422474	19.39	88125	1050
+256	txaty-native-sequential	5	154	389495	21.03	88121	1050
+256	wealdtech-native	1	380	150537	54.42	48540	1028
+256	wealdtech-native	2	320	292673	27.99	48540	1028
+256	wealdtech-native	3	279	180202	45.46	48540	1028
+256	wealdtech-native	4	625	220088	37.22	48540	1028
+256	wealdtech-native	5	1035	117314	69.83	48540	1028
+16384	merkle-tree-rfc9162	1	8	12439854	42.15	524800	16386
+16384	merkle-tree-rfc9162	2	14	4333292	120.99	524800	16386
+16384	merkle-tree-rfc9162	3	19	2994833	175.06	524800	16386
+16384	merkle-tree-rfc9162	4	20	3839706	136.54	524800	16386
+16384	merkle-tree-rfc9162	5	15	4146769	126.43	524800	16386
+16384	transparency-dev-rfc6962	1	8	6526792	80.33	9657096	98438
+16384	transparency-dev-rfc6962	2	9	5898593	88.88	9657091	98438
+16384	transparency-dev-rfc6962	3	12	4722618	111.02	9657090	98438
+16384	transparency-dev-rfc6962	4	12	4585715	114.33	9657096	98438
+16384	transparency-dev-rfc6962	5	12	4929326	106.36	9657096	98438
+16384	cbergoon-native	1	12	4825622	108.65	7858376	98395
+16384	cbergoon-native	2	12	6027309	86.99	7858376	98395
+16384	cbergoon-native	3	10	5546271	94.53	7858376	98395
+16384	cbergoon-native	4	10	6149100	85.26	7858376	98395
+16384	cbergoon-native	5	10	5433425	96.49	7858376	98395
+16384	txaty-native-sequential	1	12	4489201	116.79	5553788	65699
+16384	txaty-native-sequential	2	14	6697220	78.28	5553772	65699
+16384	txaty-native-sequential	3	10	20010254	26.20	5553696	65699
+16384	txaty-native-sequential	4	7	24920982	21.04	5553696	65699
+16384	txaty-native-sequential	5	8	7475562	70.13	5553696	65699
+16384	wealdtech-native	1	6	11042104	47.48	3014816	65540
+16384	wealdtech-native	2	10	11358742	46.16	3014819	65540
+16384	wealdtech-native	3	12	5461170	96.00	3014821	65540
+16384	wealdtech-native	4	9	6528968	80.30	3014818	65540
+16384	wealdtech-native	5	9	5723829	91.60	3014818	65540
+16384	txaty-native-parallel-2	1	12	4528139	115.78	5556933	65771
+16384	txaty-native-parallel-2	2	14	9241684	56.73	5556736	65771
+16384	txaty-native-parallel-2	3	12	37184663	14.10	5556726	65771
+16384	txaty-native-parallel-2	4	1	103742375	5.05	5556736	65771
+16384	txaty-native-parallel-2	5	1	73614833	7.12	5556736	65771
+# rss_command	GOMAXPROCS=2 /usr/bin/time -l env GOWORK=off go test -run ^$ -bench ^BenchmarkNativeConstruction$ -benchmem -benchtime=1x -count=1
+# whole_process_maximum_resident_bytes	120733696
+# whole_process_peak_memory_footprint_bytes	20447976
