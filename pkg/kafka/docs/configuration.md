@@ -159,9 +159,9 @@ caller-configurable.
 | `FetchMaxPartitionBytes` | 1 MiB | At least 1 MiB and no greater than `FetchMaxBytes`. Kafka may return one larger record batch to make progress. |
 | `FetchMaxWait` | 500 milliseconds | 1 millisecond to 30 seconds. |
 | `SessionTimeout` | 45 seconds | 1 second to 6 minutes. |
-| `RebalanceTimeout` | 60 seconds | 1 second to 10 minutes. |
+| `RebalanceTimeout` | 60 seconds | At most 10 minutes and strictly greater than the heartbeat, handler, and commit timeout sum below. |
 | `HeartbeatInterval` | 3 seconds | 100 milliseconds or more and strictly less than session timeout. |
-| `HandlerTimeout` | 30 seconds | 1 second to 30 minutes. |
+| `HandlerTimeout` | 30 seconds | At least 1 second; its effective upper bound is imposed by the timeout sum and the 10-minute rebalance maximum. |
 | `CommitTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 | `ShutdownTimeout` | 30 seconds | 100 milliseconds to 15 minutes. |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |

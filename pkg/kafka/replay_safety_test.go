@@ -1009,17 +1009,18 @@ func replayReaderWithSafety(
 	}
 
 	return &ReplayReader{
-		client:          backend,
-		bounds:          &recordingReplayBoundsBackend{bounds: exactBounds},
-		ranges:          append([]ReplayRange(nil), ranges...),
-		checkpoint:      checkpoint.Retain(),
-		limits:          DefaultMessageLimits(),
-		maxPollRecords:  10,
-		planningTimeout: time.Second,
-		progressTimeout: time.Second,
-		handlerTimeout:  time.Second,
-		shutdownTimeout: time.Second,
-		sideEffects:     ReplaySideEffectsAllowed,
-		now:             time.Now,
+		client:                backend,
+		bounds:                &recordingReplayBoundsBackend{bounds: exactBounds},
+		ranges:                append([]ReplayRange(nil), ranges...),
+		checkpoint:            checkpoint.Retain(),
+		limits:                DefaultMessageLimits(),
+		maxPollRecords:        10,
+		maxConcurrentHandlers: 1,
+		planningTimeout:       time.Second,
+		progressTimeout:       time.Second,
+		handlerTimeout:        time.Second,
+		shutdownTimeout:       time.Second,
+		sideEffects:           ReplaySideEffectsAllowed,
+		now:                   time.Now,
 	}
 }

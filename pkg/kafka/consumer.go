@@ -1,9 +1,10 @@
 package kafka
 
 import (
+	"cmp"
 	"context"
 	"errors"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -502,12 +503,10 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.FetchMaxWait > 30*time.Second ||
 		config.SessionTimeout < time.Second ||
 		config.SessionTimeout > 6*time.Minute ||
-		config.RebalanceTimeout < time.Second ||
 		config.RebalanceTimeout > 10*time.Minute ||
 		config.HeartbeatInterval < 100*time.Millisecond ||
 		config.HeartbeatInterval >= config.SessionTimeout ||
 		config.HandlerTimeout < time.Second ||
-		config.HandlerTimeout > 30*time.Minute ||
 		config.CommitTimeout < 100*time.Millisecond ||
 		config.CommitTimeout > 2*time.Minute ||
 		config.ShutdownTimeout < 100*time.Millisecond ||
@@ -948,12 +947,12 @@ func (consumer *Consumer) PausedPartitions() []TopicPartition {
 	for partition := range consumer.pausedPartitions {
 		paused = append(paused, partition)
 	}
-	sort.Slice(paused, func(left, right int) bool {
-		if paused[left].Topic == paused[right].Topic {
-			return paused[left].Partition < paused[right].Partition
+	slices.SortFunc(paused, func(left, right TopicPartition) int {
+		if topicOrder := cmp.Compare(left.Topic, right.Topic); topicOrder != 0 {
+			return topicOrder
 		}
 
-		return paused[left].Topic < paused[right].Topic
+		return cmp.Compare(left.Partition, right.Partition)
 	})
 
 	return paused

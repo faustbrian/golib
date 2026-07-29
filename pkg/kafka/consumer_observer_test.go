@@ -258,6 +258,45 @@ func TestConsumerObserversReportRecordCommitAndPollOutcomes(t *testing.T) {
 	}
 }
 
+func TestConsumerPollObservationDoesNotTruncateExactRecordLimit(t *testing.T) {
+	t.Parallel()
+
+	var got Observation
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				got = observation
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	consumer := &Consumer{
+		limits:         DefaultMessageLimits(),
+		maxPollRecords: 2,
+		observers:      newObserverDispatcher(policy),
+	}
+	records := []*kgo.Record{
+		{Topic: "events", Partition: 0},
+		{Topic: "events", Partition: 1},
+	}
+	consumer.observeConsumerPoll(
+		context.Background(),
+		time.Now(),
+		records,
+		PollResult{Polled: 2},
+		nil,
+	)
+	if got.Kind != ObservationConsumePoll || got.RecordCount != 2 ||
+		got.PartitionCount != 2 || got.Truncated || !got.Succeeded {
+		t.Fatalf("exact-limit poll observation = %#v", got)
+	}
+}
+
 func TestConsumerObserversReportCommitFailureWithoutClaimingSettlement(t *testing.T) {
 	t.Parallel()
 

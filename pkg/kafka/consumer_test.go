@@ -217,6 +217,7 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	config.MaxConcurrentFetches = 3
 	config.MaxConcurrentHandlers = 3
 	config.FetchMaxPartitionBytes = 2 << 20
+	config.ResetOffset = OffsetLatest
 	var franzClient *kgo.Client
 	consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
 		client, clientErr := kgo.NewClient(options...)
@@ -239,6 +240,13 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 			"consumer MaxConcurrentHandlers = %d",
 			consumer.maxConcurrentHandlers,
 		)
+	}
+	if !consumer.staticMembership {
+		t.Fatal("consumer did not retain configured static membership")
+	}
+	startOffset, ok := franzClient.OptValue(kgo.ConsumeStartOffset).(kgo.Offset)
+	if !ok || startOffset.EpochOffset().Offset != -1 {
+		t.Fatalf("ConsumeStartOffset option = %#v, want end offset", startOffset)
 	}
 	if got := franzClient.OptValue(kgo.InstanceID); got != "track-processor-01" {
 		t.Fatalf("InstanceID option = %#v", got)
@@ -346,6 +354,25 @@ func TestConsumerTracksAssignmentLifecycle(t *testing.T) {
 		Partitions: []TopicPartition{{Topic: "events", Partition: 3}},
 	}) {
 		t.Fatalf("Assignment() after recovery = %#v, %v", got, err)
+	}
+}
+
+func TestBoundedCallbackPartitionCountAcceptsExactLimitAndRejectsAggregateOverflow(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	if count, truncated := boundedCallbackPartitionCount(
+		map[string][]int32{"events": {0}, "commands": {0}},
+		2,
+	); count != 2 || truncated {
+		t.Fatalf("exact callback partition count = %d/%t, want 2/false", count, truncated)
+	}
+	if count, truncated := boundedCallbackPartitionCount(
+		map[string][]int32{"events": {0}, "commands": {0, 1}},
+		2,
+	); count != 2 || !truncated {
+		t.Fatalf("oversized callback partition count = %d/%t, want 2/true", count, truncated)
 	}
 }
 
@@ -1098,6 +1125,63 @@ func TestConsumerRunOnceRejectsFetchedRecordOutsideLimits(t *testing.T) {
 	}
 }
 
+func TestConsumedMessageLimitsAcceptEveryExactMaterialBoundary(t *testing.T) {
+	t.Parallel()
+
+	limits := MessageLimits{
+		MaxTopicBytes:       1,
+		MaxKeyBytes:         1,
+		MaxValueBytes:       1,
+		MaxHeaders:          1,
+		MaxHeaderKeyBytes:   1,
+		MaxHeaderValueBytes: 1,
+		MaxHeaderBytes:      2,
+	}
+	message, err := consumedMessageWithinLimits(&kgo.Record{
+		Topic: "e",
+		Key:   []byte("k"),
+		Value: []byte("v"),
+		Headers: []kgo.RecordHeader{{
+			Key:   "h",
+			Value: []byte("x"),
+		}},
+	}, limits)
+	if err != nil {
+		t.Fatalf("exact-limit consumedMessageWithinLimits() error = %v", err)
+	}
+	if message.Topic != "e" || string(message.Key) != "k" ||
+		string(message.Value) != "v" || len(message.Headers) != 1 {
+		t.Fatalf("exact-limit consumed message = %#v", message)
+	}
+}
+
+func TestConsumedObservationMetadataAcceptsExactRecordLimit(t *testing.T) {
+	t.Parallel()
+
+	consumer := &Consumer{
+		limits:         DefaultMessageLimits(),
+		maxPollRecords: 2,
+	}
+	records := []*kgo.Record{
+		{Topic: "events", Partition: 0, Key: []byte("one")},
+		{Topic: "events", Partition: 1, Key: []byte("two")},
+	}
+	topic, partitions, bytes := consumer.consumedObservationMetadata(records)
+	if topic != "events" || partitions != 2 || bytes <= 0 {
+		t.Fatalf(
+			"exact-limit consumed metadata = %q/%d/%d",
+			topic,
+			partitions,
+			bytes,
+		)
+	}
+	records = append(records, &kgo.Record{Topic: "events", Partition: 2})
+	if topic, partitions, bytes = consumer.consumedObservationMetadata(records); topic != "" ||
+		partitions != 0 || bytes != 0 {
+		t.Fatalf("oversized consumed metadata = %q/%d/%d", topic, partitions, bytes)
+	}
+}
+
 func TestConsumerRunOnceRejectsFetchedBytesBeforeHandler(t *testing.T) {
 	t.Parallel()
 
@@ -1184,6 +1268,23 @@ func TestConsumerPauseResumePartitions(t *testing.T) {
 		"events": {1},
 	}}) {
 		t.Fatalf("resume calls = %#v", backend.resumeCalls)
+	}
+}
+
+func TestConsumerPausedPartitionsSortsWithinTopic(t *testing.T) {
+	t.Parallel()
+
+	consumer := &Consumer{pausedPartitions: map[TopicPartition]struct{}{
+		{Topic: "events", Partition: 2}:   {},
+		{Topic: "events", Partition: 0}:   {},
+		{Topic: "commands", Partition: 1}: {},
+	}}
+	if got := consumer.PausedPartitions(); !reflect.DeepEqual(got, []TopicPartition{
+		{Topic: "commands", Partition: 1},
+		{Topic: "events", Partition: 0},
+		{Topic: "events", Partition: 2},
+	}) {
+		t.Fatalf("PausedPartitions() = %#v", got)
 	}
 }
 

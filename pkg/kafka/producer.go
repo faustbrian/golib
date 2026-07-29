@@ -593,13 +593,8 @@ func producerRetryBackoffDuration(
 	seed uint64,
 ) time.Duration {
 	upper := minimum
-	for retry := 1; retry < attempt && upper < maximum; retry++ {
-		if upper > maximum/2 {
-			upper = maximum
-
-			break
-		}
-		upper *= 2
+	for retry := 1; retry < attempt && upper != maximum; retry++ {
+		upper = min(upper*2, maximum)
 	}
 	lower := upper - upper/5
 	mixed := seed + uint64(max(attempt, 0))*0x9e3779b97f4a7c15
@@ -1769,14 +1764,11 @@ func (message ProducerRecord) validate(limits MessageLimits) error {
 		if len(header.Value) > limits.MaxHeaderValueBytes {
 			return ErrHeaderValueTooLarge
 		}
-		if len(header.Key) > limits.MaxHeaderBytes-headerBytes {
+		headerSize := len(header.Key) + len(header.Value)
+		if headerSize > limits.MaxHeaderBytes-headerBytes {
 			return ErrHeadersTooLarge
 		}
-		headerBytes += len(header.Key)
-		if len(header.Value) > limits.MaxHeaderBytes-headerBytes {
-			return ErrHeadersTooLarge
-		}
-		headerBytes += len(header.Value)
+		headerBytes += headerSize
 	}
 
 	return nil

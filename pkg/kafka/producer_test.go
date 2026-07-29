@@ -764,6 +764,24 @@ func TestProducerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	if _, err := normalizeProducerConfig(maximumBrokers); err != nil {
 		t.Fatalf("maximum broker seed list config error = %v", err)
 	}
+
+	maximumClientID := producerBoundaryConfig(true)
+	maximumClientID.ClientID = strings.Repeat("c", 255)
+	if _, err := normalizeProducerConfig(maximumClientID); err != nil {
+		t.Fatalf("maximum client ID config error = %v", err)
+	}
+
+	maximumCompressionPreferences := producerBoundaryConfig(true)
+	maximumCompressionPreferences.CompressionPreferences = []CompressionCodec{
+		CompressionZstd,
+		CompressionLz4,
+		CompressionSnappy,
+		CompressionGzip,
+		CompressionNone,
+	}
+	if _, err := normalizeProducerConfig(maximumCompressionPreferences); err != nil {
+		t.Fatalf("maximum compression preference config error = %v", err)
+	}
 }
 
 func TestProducerConfigRejectsExclusivePolicyBoundaries(t *testing.T) {
@@ -1406,6 +1424,23 @@ func TestProducerBatchAcceptsExactByteLimitAndBoundsObservationMetadata(t *testi
 	if topic, observedBytes = producer.batchObservationMetadata(records); topic != "" ||
 		observedBytes != 0 {
 		t.Fatalf("oversized observation metadata = %q/%d, want empty/0", topic, observedBytes)
+	}
+}
+
+func TestProducerRecordSizeIncludesEveryHeaderFramingComponent(t *testing.T) {
+	t.Parallel()
+
+	record := ProducerRecord{
+		Topic: "events",
+		Key:   []byte("first"),
+		Value: []byte("one"),
+		Headers: []Header{{
+			Key:   "h",
+			Value: []byte("vv"),
+		}},
+	}
+	if got := recordSize(record); got != 57 {
+		t.Fatalf("recordSize() = %d, want 57", got)
 	}
 }
 
@@ -2301,6 +2336,71 @@ func TestProducerRejectsAggregateHeaderValueOverflow(t *testing.T) {
 	}
 	if len(backend.records) != 0 {
 		t.Fatalf("Publish() records = %d, want 0", len(backend.records))
+	}
+}
+
+func TestProducerRecordValidationAcceptsEveryExactMaterialLimit(t *testing.T) {
+	t.Parallel()
+
+	limits := MessageLimits{
+		MaxTopicBytes:       1,
+		MaxKeyBytes:         1,
+		MaxValueBytes:       1,
+		MaxHeaders:          1,
+		MaxHeaderKeyBytes:   1,
+		MaxHeaderValueBytes: 1,
+		MaxHeaderBytes:      2,
+	}
+	record := ProducerRecord{
+		Topic: "e",
+		Key:   []byte("k"),
+		Value: []byte("v"),
+		Headers: []Header{{
+			Key:   "h",
+			Value: []byte("x"),
+		}},
+		Partition: ExplicitPartition(0),
+	}
+	if err := record.validate(limits); err != nil {
+		t.Fatalf("exact-limit ProducerRecord.validate() error = %v", err)
+	}
+}
+
+func TestProducerOperationAccountingTracksAdmissionAndCompletion(t *testing.T) {
+	t.Parallel()
+
+	producer := &Producer{}
+	if err := producer.startOperation(); err != nil {
+		t.Fatalf("first startOperation() error = %v", err)
+	}
+	if err := producer.startOperation(); err != nil {
+		t.Fatalf("second startOperation() error = %v", err)
+	}
+	if producer.admitting != 2 || producer.inflight != 2 {
+		t.Fatalf(
+			"started operation counts = admitting:%d inflight:%d, want 2/2",
+			producer.admitting,
+			producer.inflight,
+		)
+	}
+
+	producer.finishAdmission()
+	producer.finishOperation()
+	if producer.admitting != 1 || producer.inflight != 1 {
+		t.Fatalf(
+			"partial operation counts = admitting:%d inflight:%d, want 1/1",
+			producer.admitting,
+			producer.inflight,
+		)
+	}
+	producer.finishAdmission()
+	producer.finishOperation()
+	if producer.admitting != 0 || producer.inflight != 0 {
+		t.Fatalf(
+			"finished operation counts = admitting:%d inflight:%d, want 0/0",
+			producer.admitting,
+			producer.inflight,
+		)
 	}
 }
 

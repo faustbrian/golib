@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -89,6 +90,13 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 		t.Fatalf("maximum replay ranges error = %v", err)
 	}
 
+	equalProgressAndFetchWait := minimum
+	equalProgressAndFetchWait.FetchMaxWait = 100 * time.Millisecond
+	equalProgressAndFetchWait.ProgressTimeout = 100 * time.Millisecond
+	if _, err := normalizeReplayConfig(equalProgressAndFetchWait); err != nil {
+		t.Fatalf("equal progress/fetch wait timeout error = %v", err)
+	}
+
 	for name, nextOffset := range map[string]int64{
 		"range start": 0,
 		"range end":   1,
@@ -100,6 +108,39 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 		if _, err := normalizeReplayConfig(withCheckpoint); err != nil {
 			t.Fatalf("%s checkpoint error = %v", name, err)
 		}
+	}
+}
+
+func TestReplayConfigRejectsExactProgressTimeoutLowerBoundary(t *testing.T) {
+	t.Parallel()
+
+	config := validReplayConfig()
+	config.ProgressTimeout = 100*time.Millisecond - time.Nanosecond
+	if _, err := normalizeReplayConfig(config); !errors.Is(err, ErrInvalidReplayConfig) {
+		t.Fatalf("progress timeout lower-bound error = %v", err)
+	}
+}
+
+func TestReplayRemainingOverflowAccountsForCheckpointAndExactMaximum(t *testing.T) {
+	t.Parallel()
+
+	exactMaximum := []ReplayRange{
+		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: math.MaxInt64 - 1},
+		{Topic: "events", Partition: 1, StartOffset: 0, EndOffset: 1},
+	}
+	if replayRemainingOverflows(exactMaximum, ReplayCheckpoint{}) {
+		t.Fatal("exact maximum replay remainder reported overflow")
+	}
+
+	checkpointedOverflow := []ReplayRange{
+		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: math.MaxInt64},
+		{Topic: "events", Partition: 1, StartOffset: 0, EndOffset: 2},
+	}
+	checkpoint := ReplayCheckpoint{Positions: []ReplayPosition{{
+		Topic: "events", Partition: 0, NextOffset: 1,
+	}}}
+	if !replayRemainingOverflows(checkpointedOverflow, checkpoint) {
+		t.Fatal("checkpointed replay remainder overflow was accepted")
 	}
 }
 
@@ -229,6 +270,32 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 		len(offsets) != 2 || offsets[0] != 1 || offsets[1] != 2 ||
 		backend.pollCalls != 2 {
 		t.Fatalf("result/offsets/backend = %#v/%v/%#v", result, offsets, backend)
+	}
+}
+
+func TestReplayAcceptsExactlyMaxPollRecordsAndOneSerialHandler(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingReplayBackend{fetches: []kgo.Fetches{
+		recordFetches(&kgo.Record{Topic: "events", Partition: 0, Offset: 0}),
+	}}
+	reader := replayReaderWithBackend(backend, []ReplayRange{{
+		Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1,
+	}})
+	reader.maxPollRecords = 1
+	reader.maxConcurrentHandlers = 1
+	handled := 0
+	result, err := reader.Replay(
+		context.Background(),
+		ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
+			handled++
+
+			return nil
+		}),
+	)
+	if err != nil || handled != 1 || result.Processed != 1 ||
+		result.CompletedRanges != 1 || result.IncompleteRanges != 0 {
+		t.Fatalf("exact poll/handler replay = %#v/%d/%v", result, handled, err)
 	}
 }
 
@@ -677,17 +744,18 @@ func replayReaderWithBackend(backend replayBackend, ranges []ReplayRange) *Repla
 	}
 
 	return &ReplayReader{
-		client:          backend,
-		bounds:          &recordingReplayBoundsBackend{bounds: exactBounds},
-		ranges:          append([]ReplayRange(nil), ranges...),
-		sideEffects:     ReplaySideEffectsAllowed,
-		limits:          DefaultMessageLimits(),
-		maxPollRecords:  100,
-		planningTimeout: time.Second,
-		progressTimeout: time.Second,
-		handlerTimeout:  time.Second,
-		shutdownTimeout: time.Second,
-		now:             time.Now,
+		client:                backend,
+		bounds:                &recordingReplayBoundsBackend{bounds: exactBounds},
+		ranges:                append([]ReplayRange(nil), ranges...),
+		sideEffects:           ReplaySideEffectsAllowed,
+		limits:                DefaultMessageLimits(),
+		maxPollRecords:        100,
+		maxConcurrentHandlers: 1,
+		planningTimeout:       time.Second,
+		progressTimeout:       time.Second,
+		handlerTimeout:        time.Second,
+		shutdownTimeout:       time.Second,
+		now:                   time.Now,
 	}
 }
 

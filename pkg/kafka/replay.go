@@ -717,7 +717,7 @@ func (reader *ReplayReader) Replay(
 		if len(records) > reader.maxPollRecords {
 			return result, ErrTooManyFetchedRecords
 		}
-		if reader.maxConcurrentHandlers <= 1 {
+		if reader.maxConcurrentHandlers == 1 {
 			if err := reader.processReplayRecordsSerial(
 				ctx,
 				handler,
