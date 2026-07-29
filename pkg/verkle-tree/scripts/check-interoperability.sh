@@ -200,6 +200,59 @@ diff -u \
     "$temporary/expected-rust-tree-proof.tsv" \
     "$temporary/generated-rust-tree-proof.tsv"
 
+jq '{stateDiff, verkleProof: .proof}' \
+    "$go_verkle_fixture" >"$temporary/go-verkle-execution-witness.json"
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- \
+        verify-go-witness \
+        "$temporary/go-verkle-execution-witness.json" \
+        "$(jq -er '.root' "$go_verkle_fixture")"
+) >"$temporary/rust-go-witness-verification.txt"
+printf '%s\n' verified >"$temporary/expected-rust-go-witness-verification.txt"
+diff -u \
+    "$temporary/expected-rust-go-witness-verification.txt" \
+    "$temporary/rust-go-witness-verification.txt"
+
+rust_verify_go_witness() {
+    witness=$1
+    root_commitment=$2
+    (
+        cd "$harness"
+        CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- \
+            verify-go-witness "$witness" "$root_commitment"
+    )
+}
+
+valid_other_commitment=$(awk -F '	' 'NR == 2 {print $3}' "$encoding_fixture")
+if rust_verify_go_witness \
+    "$temporary/go-verkle-execution-witness.json" \
+    "$valid_other_commitment" >/dev/null 2>&1; then
+    printf '%s\n' "Rust verifier accepted the Go witness against a different valid root" >&2
+    exit 1
+fi
+
+jq --arg commitment "$valid_other_commitment" \
+    '.verkleProof.commitmentsByPath[0] = ("0x" + $commitment)' \
+    "$temporary/go-verkle-execution-witness.json" \
+    >"$temporary/go-verkle-wrong-commitment.json"
+if rust_verify_go_witness \
+    "$temporary/go-verkle-wrong-commitment.json" \
+    "$(jq -er '.root' "$go_verkle_fixture")" >/dev/null 2>&1; then
+    printf '%s\n' "Rust verifier accepted a replaced Go witness commitment" >&2
+    exit 1
+fi
+
+jq '.stateDiff[0].suffixDiffs[0].currentValue |= sub("^0x11"; "0x10")' \
+    "$temporary/go-verkle-execution-witness.json" \
+    >"$temporary/go-verkle-wrong-value.json"
+if rust_verify_go_witness \
+    "$temporary/go-verkle-wrong-value.json" \
+    "$(jq -er '.root' "$go_verkle_fixture")" >/dev/null 2>&1; then
+    printf '%s\n' "Rust verifier accepted a changed Go witness value" >&2
+    exit 1
+fi
+
 go_harness_run="$temporary/go-verkle"
 mkdir "$go_harness_run"
 cp "$go_verkle_harness/go.mod.template" "$go_harness_run/go.mod"

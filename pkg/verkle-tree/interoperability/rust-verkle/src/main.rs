@@ -6,7 +6,11 @@ use ipa_multipoint::{
     transcript::Transcript,
 };
 use sha2::{Digest, Sha256};
-use verkle_trie::{database::memory_db::MemoryDb, Trie, TrieTrait, VerkleConfig};
+use verkle_trie::{
+    database::memory_db::MemoryDb,
+    proof::golang_proof_format::{bytes32_to_element, hex_to_bytes32, VerkleProofGo},
+    Trie, TrieTrait, VerkleConfig,
+};
 
 fn encode_hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
@@ -136,15 +140,32 @@ fn print_tree_proof() {
     );
 }
 
+fn verify_go_witness(path: &str, root_hex: &str) {
+    let witness = std::fs::read_to_string(path).expect("read Go execution witness");
+    let proof = VerkleProofGo::from_json_str(&witness);
+    let (proof, keys_values) = proof
+        .from_verkle_proof_go_to_verkle_proof()
+        .expect("decode Go execution witness");
+    let root = bytes32_to_element(hex_to_bytes32(root_hex)).expect("decode Go root");
+    let (verified, _) = proof.check(keys_values.keys, keys_values.current_values, root);
+    assert!(verified, "Rust verifier rejected Go execution witness");
+    println!("verified");
+}
+
 fn main() {
-    match std::env::args().nth(1).as_deref() {
+    let mut arguments = std::env::args().skip(1);
+    match arguments.next().as_deref() {
         Some("encodings") => print_encodings(),
         Some("generators") => print_generators(),
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
+        Some("verify-go-witness") => verify_go_witness(
+            &arguments.next().expect("missing Go execution witness path"),
+            &arguments.next().expect("missing Go root"),
+        ),
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
-             <encodings|generators|multiproof|tree-proof>"
+             <encodings|generators|multiproof|tree-proof|verify-go-witness>"
         ),
     }
 }

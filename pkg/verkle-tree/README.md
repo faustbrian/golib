@@ -59,8 +59,11 @@ a production dependency. The pinned Rust trie now reproduces the same root
 commitment and every aggregate-proof element for that exact corpus, after the
 documented conversion of Rust's final scalar encoding to the little-endian Go
 JSON convention. Both reference verifiers accept their proof. This is
-independent one-corpus tree evidence, not general compatibility, hostile-decoder
-evidence, or a stable profile.
+independent one-corpus tree evidence. The Rust reference also parses and accepts
+the complete Go proof container for that corpus and rejects a different valid
+root, a replaced valid path commitment, and a changed claimed value. These
+selected negative checks are not general compatibility, hostile-decoder
+evidence, canonical JSON evidence, or a stable profile.
 
 ## Development rule
 

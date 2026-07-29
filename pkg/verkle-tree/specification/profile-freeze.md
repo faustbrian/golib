@@ -69,10 +69,13 @@ accepts the artifact and rejects a mutated proof commitment and a different
 valid root. The pinned Rust trie independently produces the same root and every
 proof element for that corpus, after the explicit final-scalar byte-order
 conversion between the Rust and Go serialization conventions, and its verifier
-also accepts the proof. This establishes one exact tree-layout differential
-corpus. It does not cover updates, deletion, full proof containers, witnesses,
-hostile decoding, resource bounds, storage, or general state corpora and
-therefore does not change the no-go decision.
+also accepts the proof. The Rust reference independently parses and accepts the
+complete Go proof container and rejects a different valid root, a replaced
+valid path commitment, and a changed claimed value. This establishes one exact
+tree-layout differential corpus with selected negative verification cases. It
+does not cover updates, deletion, canonical container encoding, stateless
+witness application, hostile decoding, resource bounds, storage, or general
+state corpora and therefore does not change the no-go decision.
 
 ## Stable Profile Freeze Conditions
 

@@ -31,6 +31,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Establish exact root-commitment and aggregate-proof agreement with the pinned
   independent Rust trie for that tree corpus, including the explicit
   final-scalar byte-order conversion between reference encodings.
+- Require the independent Rust verifier to parse and accept the complete Go
+  proof container for that corpus, while rejecting a different valid root, a
+  replaced valid commitment, and a changed claimed value.
 
 ### Dependencies
 

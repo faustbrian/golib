@@ -48,9 +48,13 @@ present and absent keys, and accepts the proof with its verifier. The native
 Rust multiproof serialization writes the final scalar in canonical big-endian
 form; the comparison reverses only those final 32 bytes to match the
 little-endian scalar convention used by `go-verkle` JSON. All point bytes and
-the resulting 576-byte Go-compatible proof agree exactly. This one-corpus
-result does not establish alternate layouts, updates, deletion, complete proof
-containers, stateless witnesses, malformed-input parity, or production safety.
+the resulting 576-byte Go-compatible proof agree exactly. The Rust reference
+also parses the Go `stateDiff` and proof metadata as one execution-witness
+container and accepts it against the pinned root. It rejects the same container
+against a different valid root, with one path commitment replaced by another
+valid commitment, or with one claimed current value changed. This one-corpus
+result does not establish alternate layouts, updates, deletion, canonical JSON,
+stateless witness application, malformed-input parity, or production safety.
 
 Protocol activation, client database migration, gas accounting, block
 execution, and network witness distribution remain outside the generic package.
