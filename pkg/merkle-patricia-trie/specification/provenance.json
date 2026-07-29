@@ -25,8 +25,14 @@
     {
       "name": "@ethereumjs/mpt",
       "version": "10.1.2",
-      "revision": "28d6a165971964f239b77004196c6c0e87697835",
+      "revision": "3adf102baf8991f82feda860e0d3a3ec644d0802",
       "integrity": "sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g=="
+    },
+    {
+      "name": "@ethereumjs/rlp",
+      "version": "10.1.2",
+      "revision": "3adf102baf8991f82feda860e0d3a3ec644d0802",
+      "integrity": "sha512-T5Zt6C2pd02Wd88Q9A5/UX+He1Q2Y1LntHxz/038tfbUMiqby4fYSSTLEDx+TEfJqw1BsJSBY/TSu6goUzlk+w=="
     }
   ]
 }

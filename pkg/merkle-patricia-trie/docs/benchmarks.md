@@ -154,7 +154,7 @@ The execution-time implementation inventory was:
 | Erigon | `7efe658854c9db74dd28fce76dfc9803d0fbdb4d` | Go candidate; no ranked track until ownership and storage behavior are equivalent |
 | Nethermind | `f55671d78768eb55cec891697b1a2652be03f1c7` | Interoperability and algorithm review only |
 | Hyperledger Besu | `15f0783bf1e4b0e6676359d73e543a69879bfb07` | Interoperability and algorithm review only |
-| ethereumjs | `3fa006c51b21877d160960e2d87dc3da6c58a71c` | Pinned MPT v10.1.2 interoperability oracle; no cross-runtime ranking |
+| ethereumjs | `3adf102baf8991f82feda860e0d3a3ec644d0802` | Pinned MPT v10.1.2 interoperability oracle; no cross-runtime ranking |
 
 Mutable versus immutable updates, commit ownership, proof strictness, cache
 state, and persistence differ across clients. Those surfaces remain separate

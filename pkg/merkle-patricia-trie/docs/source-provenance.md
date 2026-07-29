@@ -13,10 +13,11 @@ and local-coverage record beside the corpus.
 | execution-spec-tests stable fixtures | `v5.4.0` (`88e9fb8f10ed89805aa3110d0a2cd5dcadc19689`) | Official stable blockchain fixture release |
 | ethereum/tests | `c67e485ff8b5be9abc8ad15345ec21aa22e290d9` | Legacy trie fixtures not yet superseded |
 | go-ethereum v1.17.3 | `117e067f0f0bae1a17082321f224dedb6765b10f` | Pinned Go differential oracle |
-| Erigon | `aa82d55f3917439cd33cb1cbdca52f582d9bad11` | Independent Go differential oracle |
-| Hyperledger Besu | `bf2a94134cd3a05fa5b1458e2dc199ae76bf23b2` | Independent interoperability oracle |
-| Nethermind | `3261082a9e3b8cd833cdafe2b042bb29f8286044` | Independent interoperability oracle |
-| @ethereumjs/mpt v10.1.2 | `28d6a165971964f239b77004196c6c0e87697835` | Independent interoperability oracle |
+| Erigon | `aa82d55f3917439cd33cb1cbdca52f582d9bad11` | Pinned comparison source; no executable gate |
+| Hyperledger Besu | `bf2a94134cd3a05fa5b1458e2dc199ae76bf23b2` | Pinned comparison source; no executable gate |
+| Nethermind | `3261082a9e3b8cd833cdafe2b042bb29f8286044` | Pinned comparison source; no executable gate |
+| @ethereumjs/mpt v10.1.2 | `3adf102baf8991f82feda860e0d3a3ec644d0802` | Independent interoperability oracle |
+| @ethereumjs/rlp v10.1.2 | `3adf102baf8991f82feda860e0d3a3ec644d0802` | Independent canonical RLP oracle |
 
 Normative web sources are the current Ethereum Yellow Paper, execution
 specifications, execution specification tests, legacy Ethereum tests,
@@ -27,6 +28,8 @@ Geth is isolated in the alternate `go.interop.mod` test graph and is absent
 from the production module graph. EthereumJS is installed only for the
 interoperability gate from the exact package lock, whose archive integrity is
 `sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g==`.
+The independently pinned RLP archive integrity is
+`sha512-T5Zt6C2pd02Wd88Q9A5/UX+He1Q2Y1LntHxz/038tfbUMiqby4fYSSTLEDx+TEfJqw1BsJSBY/TSu6goUzlk+w==`.
 Neither client is used by the production package.
 
 State-account fields and storage-zero deletion are derived from the pinned
@@ -34,6 +37,9 @@ execution-specs `state.py`, `state_mpt.py`, and fork `fork_types.py` account
 encoder. Account RLP, minimally represented storage values, secure address and
 slot paths, and roots are compared with Geth v1.17.3. Secure paths and roots
 are also compared with the independently implemented EthereumJS MPT v10.1.2.
+Canonical strings and lists at the short/long and length-of-length boundaries,
+nested lists, and malformed or non-minimal encodings are compared directly
+with Geth v1.17.3 and EthereumJS RLP v10.1.2.
 
 The execution-spec-tests v5.4.0 `fixtures_stable.tar.gz` release asset is pinned
 by its published SHA-256 digest and imported through a checksum-verifying

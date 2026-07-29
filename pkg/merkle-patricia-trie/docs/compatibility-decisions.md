@@ -45,6 +45,13 @@ bytes, truncation, non-minimal string forms, non-minimal length-of-length,
 leading-zero length forms, and lengths above configured limits before
 allocation.
 
+An empty byte slice is not an encoded RLP value. The Yellow Paper's recursive
+definition requires one string or list item, and Geth v1.17.3 rejects empty
+encoded input. EthereumJS RLP v10.1.2 instead decodes an empty input as an
+empty byte string. The package follows the specification and Geth here,
+requires `0x80` for the empty string, and locks the client inventory in the
+direct RLP interoperability test.
+
 ## Typed transaction and receipt envelopes
 
 EIP-2718 commits typed transactions and receipts as `TransactionType ||

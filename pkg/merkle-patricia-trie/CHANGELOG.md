@@ -70,6 +70,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   Geth and EthereumJS interoperability.
 - Added deterministic mutation-trace differential tests against pinned Geth
   and EthereumJS implementations for raw and secure trie profiles.
+- Added direct canonical RLP encoding and hostile-decoding differential
+  coverage against pinned Geth and EthereumJS implementations.
 - Added a bounded sorted-input raw-trie root builder with strict ordering,
   transactional rejection, single finalization, and ordinary-insertion parity.
 - Added a dependency-free durable filesystem node store with bounded reads and
