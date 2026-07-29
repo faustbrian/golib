@@ -78,6 +78,20 @@ bytes. Impossible claims are rejected before scanning sibling elements or
 allocating derived proof storage. Cancellation is checked throughout path
 generation and verification.
 
+## Incremental construction
+
+`Builder` owns mutable incremental construction state: the retained node arena,
+the roots of completed power-of-two subtrees, the exact tree size, and the
+accepted raw-byte count. It does not retain raw leaf bytes. A builder is not
+safe for concurrent use; callers own synchronization and mutation ordering.
+
+`AppendBatch` validates the complete batch and its resulting tree before
+committing any state. Hashing and merges occur in temporary builder state, so
+cancellation or failure cannot publish a partial prefix. `Append` has the same
+atomic contract for one leaf. Snapshot creation copies the retained nodes and
+folds the current frontier according to the RFC 9162 split rule. Later builder
+mutations therefore cannot change an earlier snapshot.
+
 ## Security assumptions
 
 Security depends on SHA-256 collision and second-preimage resistance and on

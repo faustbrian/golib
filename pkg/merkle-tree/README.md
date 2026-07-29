@@ -2,9 +2,10 @@
 
 `merkle-tree` is a storage-independent cryptographic data-structure library
 for explicitly profiled, ordered Merkle trees. The current pre-v1 surface
-constructs bounded immutable roots and snapshots, generates inclusion proofs,
-and independently verifies them for the package canonical binary profile and
-the RFC 9162 Certificate Transparency profile.
+constructs bounded roots, incrementally appends leaves, creates immutable
+snapshots, generates inclusion proofs, and independently verifies them for the
+package canonical binary profile and the RFC 9162 Certificate Transparency
+profile.
 
 ## Quick start
 
@@ -75,6 +76,33 @@ Inclusion proofs bind the profile, version, hash algorithm, root, tree size,
 leaf index, leaf digest, and leaf-to-root sibling path. Returned sibling
 slices do not alias proof state.
 
+To append leaves incrementally, use a caller-owned `Builder`:
+
+```go
+builder, err := merkletree.NewBuilder(
+    profile,
+    merkletree.DefaultSnapshotLimits(),
+)
+if err != nil {
+    return err
+}
+if err := builder.Append(ctx, leaves[0]); err != nil {
+    return err
+}
+if err := builder.AppendBatch(ctx, leaves[1:]); err != nil {
+    return err
+}
+snapshot, err := builder.Snapshot(ctx)
+if err != nil {
+    return err
+}
+```
+
+Builders are mutable and caller-synchronized. Batch append is atomic: a
+validation, resource, or cancellation failure leaves the builder unchanged.
+Each returned snapshot owns an immutable copy of its retained nodes and remains
+valid after subsequent appends.
+
 ## Implemented profiles
 
 | Property | Canonical binary v1 | RFC 9162 v1 |
@@ -95,10 +123,11 @@ Merkle Tree Hash behavior implemented and tested here.
 
 ## Current pre-v1 boundary
 
-Root construction, immutable snapshots, and inclusion proofs are implemented.
-Append, persistence, multi-inclusion proofs, consistency proofs, proof
-encodings, external differential fixtures, and comparative benchmarks remain
-under development and are not claimed by the current API.
+Root construction, atomic append and batch append, immutable snapshots, and
+inclusion proofs are implemented. Persistence, multi-inclusion proofs,
+consistency proofs, proof encodings, external differential fixtures, and
+comparative benchmarks remain under development and are not claimed by the
+current API.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or
 consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle

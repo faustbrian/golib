@@ -63,3 +63,40 @@ func ExampleSnapshot_InclusionProof() {
 	// Output:
 	// 3 1 <nil>
 }
+
+func ExampleBuilder() {
+	builder, err := merkletree.NewBuilder(
+		merkletree.CanonicalProfile(),
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	if err := builder.Append(
+		context.Background(),
+		merkletree.NewRawLeaf([]byte("first")),
+	); err != nil {
+		panic(err)
+	}
+	if err := builder.AppendBatch(
+		context.Background(),
+		[]merkletree.RawLeaf{
+			merkletree.NewRawLeaf([]byte("second")),
+			merkletree.NewRawLeaf([]byte("third")),
+		},
+	); err != nil {
+		panic(err)
+	}
+	snapshot, err := builder.Snapshot(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	root, err := snapshot.Root()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%d %x\n", root.TreeSize(), root.Digest().Bytes())
+	// Output:
+	// 3 c3651e541714c53d648ecc7baeca7fe2c36ef4fa65bcce24b1d71286437de566
+}

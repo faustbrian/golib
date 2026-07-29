@@ -95,6 +95,55 @@ func BenchmarkVerifyInclusion(b *testing.B) {
 	}
 }
 
+func BenchmarkBuilderAppend(b *testing.B) {
+	leaf := merkletree.NewRawLeaf(make([]byte, 32))
+	limits := merkletree.DefaultSnapshotLimits()
+	limits.Construction.MaxLeaves = uint64(b.N)
+	limits.MaxRetainedNodes = 2*uint64(b.N) + 1
+	builder, err := merkletree.NewBuilder(
+		merkletree.CanonicalProfile(),
+		limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(32)
+	b.ResetTimer()
+	for range b.N {
+		if err := builder.Append(context.Background(), leaf); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBuilderAppendBatch(b *testing.B) {
+	leaves := benchmarkLeaves(256)
+	limits := merkletree.DefaultSnapshotLimits()
+	limits.Construction.MaxLeaves = uint64(b.N * len(leaves))
+	limits.MaxRetainedNodes = 2*limits.Construction.MaxLeaves + 1
+	builder, err := merkletree.NewBuilder(
+		merkletree.CanonicalProfile(),
+		limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(leaves) * 32))
+	b.ResetTimer()
+	for range b.N {
+		if err := builder.AppendBatch(
+			context.Background(),
+			leaves,
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func benchmarkLeaves(size int) []merkletree.RawLeaf {
 	leaves := make([]merkletree.RawLeaf, size)
 	for index := range leaves {

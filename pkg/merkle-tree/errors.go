@@ -27,6 +27,10 @@ var (
 	// immutable snapshot.
 	ErrInvalidSnapshot = errors.New("invalid Merkle snapshot")
 
+	// ErrInvalidBuilder identifies an uninitialized or internally invalid
+	// mutable builder.
+	ErrInvalidBuilder = errors.New("invalid Merkle builder")
+
 	// ErrIndexOutOfRange identifies a leaf index outside a snapshot or proof.
 	ErrIndexOutOfRange = errors.New("merkle leaf index out of range")
 

@@ -16,3 +16,5 @@
 - Independently verifiable inclusion proofs binding the complete operation
   identity, with typed malformed, unsupported, resource, and authentication
   failures.
+- Caller-owned incremental builders with atomic append and batch-append
+  operations whose immutable snapshots remain stable after later mutations.
