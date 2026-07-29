@@ -223,6 +223,16 @@ or ambiguous commit can duplicate the target record. Use
 be one Kafka transaction. See the
 [retry and dead-letter guide](docs/retry-dead-letter.md).
 
+`NewBatchFailureHandler` applies the same explicit strategies to the complete
+partition batch accepted by `RunBatchOnce`. Retries repeat the whole batch.
+Retry-topic and dead-letter modes submit every source record through one
+bounded publication call with input-ordered results and permit source
+settlement only when every delivery is definitely successful. Partial target
+delivery leaves the entire
+source batch unsettled and is exposed through
+`FailureHandlingError.DeliveryResults`; a later redelivery can therefore
+duplicate target records that already succeeded.
+
 When a rebalance waits on an active poll, the default policy requests handler
 cancellation for every active partition and stops every worker from admitting
 later records. Handlers must honor their context. Select
@@ -248,6 +258,7 @@ the runner context first, then call `Shutdown` with a bounded context or handle
 the error returned by `Close`. Each admitted shutdown attempt emits one
 payload-free observation, so an incomplete attempt and its successful retry
 remain distinct.
+
 `PausePartitions` and `ResumePartitions` control future fetches for explicit
 subscribed topic-partitions. Pausing does not retract records already buffered
 or returned by the current poll; `MaxPausedPartitions` bounds both each request
@@ -262,6 +273,10 @@ records returned for a single partition. Batch success settles the whole
 partition batch; an error settles none of it while independent successful
 partition batches can still advance. It does not provide cross-partition
 atomicity.
+Wrap a `BatchHandler` with `NewBatchFailureHandler` when failure handling must
+remain whole-batch. It validates and owns the complete batch before retrying or
+rerouting it; it never guesses which records an application handler may have
+processed.
 
 New groups default to cooperative-sticky balancing. Existing eager groups must
 use `BalanceEagerToCooperative` for one complete rolling deployment before all

@@ -170,6 +170,24 @@ The `ConsumedBatch.Records` slice is owned for the handler call, while record
 bytes have the same borrowed lifetime as per-record handling. `Retain` returns
 an owned slice with deeply copied record bytes.
 
+`NewBatchFailureHandler` keeps failure decisions at this same settlement unit.
+It validates and retains the complete source batch before the first handler
+attempt, gives each bounded retry an isolated copy, and never interprets an
+application error as a partial success. Stop, exhausted retry, failed delegate,
+or failed publication leaves the entire partition batch unsettled. A nil
+delegate result or a definite successful publication of every target record
+resolves the complete batch and allows normal settlement at its final offset.
+
+Retry-topic and dead-letter modes use one bounded target publication call with
+input-ordered results and source metadata on every record. Target keys can
+place those records on different partitions and franz-go can use multiple
+Kafka requests; the call is not atomic. If only some target records are
+acknowledged,
+`FailureHandlingError.DeliveryResults` exposes those outcomes while the source
+batch remains unsettled. Retrying after redelivery can duplicate acknowledged
+target records. This explicit duplicate window is preferable to committing a
+source prefix the application never identified as durably successful.
+
 Handlers must be idempotent and honor cancellation and their context deadline.
 When `MaxConcurrentHandlers` exceeds one, the same handler value can be called
 concurrently and must synchronize its own shared state.
@@ -199,8 +217,10 @@ source-offset and output transaction. Complete configuration, metadata, and
 failure-window guidance is in the
 [retry and dead-letter guide](retry-dead-letter.md).
 
-The decorator does not apply to `RunBatchOnce`; a failed partition batch does
-not identify a safe individual record to settle or reroute.
+`NewFailureHandler` does not apply to `RunBatchOnce`; a failed partition batch
+does not identify a safe individual record to settle or reroute. Use
+`NewBatchFailureHandler` only when retrying, rerouting, or delegating the
+complete batch is the intended settlement decision.
 
 ### Pause and resume
 

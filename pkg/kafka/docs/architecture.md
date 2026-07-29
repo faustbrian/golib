@@ -21,6 +21,10 @@ keeps retry, settlement, and topic policy in Kafka.
   retry-topic, dead-letter, or delegated decisions without owning group
   offsets. Non-transactional target publication completes before the normal
   consumer submits its separate source commit.
+- `NewBatchFailureHandler` applies the same explicit decisions to one complete
+  partition batch. It retries or reroutes the whole batch and resolves it only
+  after every target delivery is definitely successful; it never infers a
+  successful prefix from an application batch error.
 - `Transaction` serializes a configured transactional producer and prevents a
   retained callback capability from publishing after completion.
 - `TransactionProcessor` owns one read-committed group member and transactional

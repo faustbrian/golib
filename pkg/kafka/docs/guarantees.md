@@ -187,6 +187,18 @@ batch unsettled. Independent successful partition batches may commit in the
 same cycle. Application work performed before a failed batch return can be
 repeated.
 
+`BatchFailureHandler` preserves that whole-partition-batch settlement unit.
+In-process retries repeat every record and can repeat partial application side
+effects from a failed attempt. Retry-topic and dead-letter actions submit every
+preserved source record through one bounded publication call with input-ordered
+results. The call can span target partitions and Kafka requests and is not
+atomic. Only an
+exact set of definite successful delivery results resolves the source batch.
+Any publisher error, missing or inconsistent result, or per-record delivery
+failure leaves all source offsets unsettled. Available partial results remain
+programmatically inspectable, and successful target records can be duplicated
+when the source batch is redelivered.
+
 New groups default to cooperative-sticky balancing. `BalanceEagerSticky` keeps
 an eager group eager. Migrating an existing eager group requires one complete
 rolling deployment with `BalanceEagerToCooperative`, followed by a second with

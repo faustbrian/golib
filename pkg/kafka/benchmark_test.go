@@ -65,6 +65,51 @@ func BenchmarkFailureHandlerSuccess(b *testing.B) {
 	})
 }
 
+func BenchmarkBatchFailureHandlerSuccess(b *testing.B) {
+	ctx := context.Background()
+	batch := ConsumedBatch{
+		Topic: "track.tracking-event.v1", Partition: 0,
+		Records: make([]ConsumedRecord, 10),
+	}
+	for index := range batch.Records {
+		batch.Records[index] = ConsumedRecord{
+			Topic: batch.Topic, Partition: batch.Partition, Offset: int64(index),
+			Key:   []byte("tracked-item-1"),
+			Value: []byte(`{"event_id":"event-1","schema_version":1}`),
+			Headers: []Header{
+				{Key: "content-type", Value: []byte("application/json")},
+				{Key: "schema-version", Value: []byte("1")},
+			},
+		}
+	}
+	direct := BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+		return nil
+	})
+	decorated, err := NewBatchFailureHandler(BatchFailureHandlerConfig{
+		Handler: direct,
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("direct-handler", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := direct.HandleBatch(ctx, batch); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("failure-policy", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := decorated.HandleBatch(ctx, batch); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 func BenchmarkConsumerPartitionWorkers(b *testing.B) {
 	batches := make([]consumerPartitionBatch, 8)
 	process := func(consumerPartitionBatch) consumerPartitionResult {

@@ -218,6 +218,23 @@ error settles none of it. Successful independent partition batches remain
 committable. `ConsumedBatch.Retain` copies the batch slice and every record byte
 for use after the handler returns.
 
+`NewBatchFailureHandler` decorates that whole-batch contract. The constructor
+validates copied bounds and callback compatibility without allocating a Kafka
+client. `HandleBatch` validates one non-empty, ordered, single-partition batch
+before retaining any bytes and gives every retry an isolated copy. Stop and
+failed delegate outcomes leave the complete batch unsettled. A nil delegate
+result resolves the complete batch.
+
+Retry-topic and dead-letter modes preserve each source record and append its
+source coordinates, attempt, category, target version, batch index, and batch
+count. `BatchFailurePublisher` returns exactly one input-ordered
+`DeliveryResult` per record; `Producer` implements the interface. The decorator
+returns success only when the publisher returns no error and every result is a
+definite success. Missing, extra, mismatched, failed, or ambiguous results
+return `ErrFailurePublish`. `FailureHandlingError.DeliveryResults` returns an
+owned copy of the available outcomes for reconciliation without exposing
+record payloads through the error string.
+
 `ConsumerConfig.Observers` uses the same copied, ordered `ObserverPolicy` as
 the producer. Consumer events report each record or partition-batch processing
 attempt, each offset-commit attempt, the final bounded poll result, assignment,

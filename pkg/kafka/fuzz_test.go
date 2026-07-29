@@ -109,6 +109,84 @@ func FuzzFailureHandlerConfig(f *testing.F) {
 	})
 }
 
+func FuzzBatchFailureHandlerConfig(f *testing.F) {
+	f.Add(
+		"events.retry.v1",
+		uint8(FailureModeRetryTopic),
+		uint8(3),
+		uint16(1),
+		uint16(10),
+		uint8(ErrorRetryable),
+		uint16(1),
+		uint16(100),
+		uint32(16<<20),
+	)
+	f.Add(
+		"",
+		uint8(255),
+		uint8(0),
+		uint16(0),
+		uint16(0),
+		uint8(0),
+		uint16(0),
+		uint16(0),
+		uint32(0),
+	)
+
+	f.Fuzz(func(
+		t *testing.T,
+		topic string,
+		mode uint8,
+		attempts uint8,
+		initialBackoffMilliseconds uint16,
+		maxBackoffMilliseconds uint16,
+		category uint8,
+		version uint16,
+		maxBatchRecords uint16,
+		maxBatchBytes uint32,
+	) {
+		config := BatchFailureHandlerConfig{
+			Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+				return nil
+			}),
+			Mode: FailureMode(mode),
+			Retry: FailureRetryPolicy{
+				MaxAttempts: int(attempts),
+				InitialBackoff: time.Duration(initialBackoffMilliseconds) *
+					time.Millisecond,
+				MaxBackoff: time.Duration(maxBackoffMilliseconds) *
+					time.Millisecond,
+				Categories: []ErrorCategory{ErrorCategory(category)},
+			},
+			Target:          FailureTarget{Topic: topic, Version: version},
+			MaxBatchRecords: int(maxBatchRecords),
+			MaxBatchBytes:   int64(maxBatchBytes),
+		}
+		switch config.Mode {
+		case FailureModeRetryTopic, FailureModeDeadLetter:
+			config.Publisher = BatchFailurePublisherFunc(func(
+				context.Context,
+				[]ProducerRecord,
+			) ([]DeliveryResult, error) {
+				return nil, nil
+			})
+			config.PublishTimeout = time.Second
+		case FailureModeDelegate:
+			config.Target = FailureTarget{}
+			config.Delegate = BatchFailureDelegateFunc(func(
+				context.Context,
+				BatchFailure,
+			) error {
+				return nil
+			})
+		default:
+			config.Target = FailureTarget{}
+		}
+
+		_ = config.Validate()
+	})
+}
+
 func FuzzMessageValidation(f *testing.F) {
 	f.Add("events", uint16(8), uint16(16), uint8(2))
 	f.Add("", uint16(0), uint16(0), uint8(0))

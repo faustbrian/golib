@@ -58,6 +58,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
 	batchTopic := topic + "-batch"
+	batchFailureTopic := topic + "-batch-failure-v1"
 	producerModesTopic := topic + "-producer-modes"
 	producerThrottleTopic := topic + "-producer-throttle"
 	transactionTopic := topic + "-transaction"
@@ -76,6 +77,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
 			staticFencingTopic, rebalanceTopic, batchTopic, producerModesTopic,
+			batchFailureTopic,
 			transactionSourceTopic,
 			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
 			replayTopic,
@@ -140,6 +142,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, batchFailureTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, producerModesTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, producerThrottleTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, transactionTopic, 1)
@@ -258,7 +261,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	proveStaticMemberFencing(t, ctx, brokers, producer, staticFencingTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
-	proveBatchPolicy(t, ctx, brokers, producer, batchTopic)
+	proveBatchPolicy(t, ctx, brokers, producer, batchTopic, batchFailureTopic)
 	proveProducerTransactionVisibility(t, ctx, brokers, transactionTopic)
 	proveConsumeTransformProduce(
 		t,
@@ -1623,6 +1626,7 @@ func proveBatchPolicy(
 	brokers []string,
 	producer *kafka.Producer,
 	topic string,
+	failureTopic string,
 ) {
 	t.Helper()
 
@@ -1694,6 +1698,118 @@ func proveBatchPolicy(
 		t.Fatalf("consumed batches = %#v", batches)
 	}
 	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 2, 1: 2})
+
+	const failureGroupID = "golib-compatibility-batch-failure"
+	failureConsumer := newIntegrationConsumer(
+		t,
+		brokers,
+		topic,
+		failureGroupID,
+	)
+	defer closeIntegrationConsumer(t, failureConsumer)
+	failureHandler, err := kafka.NewBatchFailureHandler(
+		kafka.BatchFailureHandlerConfig{
+			Handler: kafka.BatchHandlerFunc(func(
+				context.Context,
+				kafka.ConsumedBatch,
+			) error {
+				return errors.New("injected batch processing failure")
+			}),
+			Mode: kafka.FailureModeRetryTopic,
+			Target: kafka.FailureTarget{
+				Topic: failureTopic, Version: 1,
+			},
+			Publisher: producer,
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct batch failure handler: %v", err)
+	}
+	for {
+		result, runErr := failureConsumer.RunBatchOnce(ctx, failureHandler)
+		if result.Polled == 0 && runErr == nil {
+			continue
+		}
+		if runErr != nil || result != (kafka.PollResult{
+			Polled: 4, Processed: 4, Committed: 4,
+		}) {
+			t.Fatalf("batch failure result/error = %#v/%v", result, runErr)
+		}
+
+		break
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		topic,
+		failureGroupID,
+		map[int32]int64{0: 2, 1: 2},
+	)
+	assertBatchFailureTopicRecords(t, ctx, brokers, failureTopic, topic)
+}
+
+func assertBatchFailureTopicRecords(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	sourceTopic string,
+) {
+	t.Helper()
+
+	consumer := newIntegrationConsumer(
+		t,
+		brokers,
+		topic,
+		"golib-compatibility-batch-failure-target",
+	)
+	defer closeIntegrationConsumer(t, consumer)
+	records := make([]kafka.ConsumedRecord, 0, 4)
+	for len(records) < 4 {
+		result, err := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			record kafka.ConsumedMessage,
+		) error {
+			records = append(records, record.Retain())
+
+			return nil
+		}))
+		if err != nil {
+			t.Fatalf("consume batch failure target: %v", err)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+	}
+
+	want := map[string]string{
+		"0/0": "0/2/p0-1",
+		"0/1": "1/2/p0-2",
+		"1/0": "0/2/p1-1",
+		"1/1": "1/2/p1-2",
+	}
+	for _, record := range records {
+		headers := make(map[string]string, len(record.Headers))
+		for _, header := range record.Headers {
+			headers[header.Key] = string(header.Value)
+		}
+		coordinate := headers["golib.kafka.failure.source-partition"] + "/" +
+			headers["golib.kafka.failure.source-offset"]
+		got := headers["golib.kafka.failure.batch-index"] + "/" +
+			headers["golib.kafka.failure.batch-count"] + "/" +
+			string(record.Value)
+		if headers["golib.kafka.failure.source-topic"] != sourceTopic ||
+			headers["golib.kafka.failure.kind"] != "retry" ||
+			headers["golib.kafka.failure.target-version"] != "1" ||
+			want[coordinate] != got {
+			t.Fatalf("batch failure target record = %#v/%#v", record, headers)
+		}
+		delete(want, coordinate)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing batch failure source coordinates = %#v", want)
+	}
 }
 
 func proveBlockedRebalancePolicy(

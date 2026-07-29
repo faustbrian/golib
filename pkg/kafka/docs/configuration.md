@@ -204,6 +204,24 @@ Incompatible publisher, delegate, target, and timeout fields are rejected
 instead of ignored. See the
 [retry and dead-letter guide](retry-dead-letter.md).
 
+`BatchFailureHandlerConfig` uses the same classifier, retry, mode, target,
+limits, and publish-timeout rules with these batch-specific fields:
+
+| Field | Default | Allowed policy |
+| --- | ---: | --- |
+| `Handler` | none | Required whole-partition `BatchHandler`. |
+| `Publisher` | none | Publish modes require an input-ordered `BatchFailurePublisher`; `Producer` satisfies it. |
+| `Delegate` | none | Delegated mode requires one synchronous whole-batch `BatchFailureDelegate`. |
+| `MaxBatchRecords` | 100 | 1 to 1,000 retained, retried, or published records. |
+| `MaxBatchBytes` | 16 MiB | 1 byte to 100 MiB, using the package's conservative record-size accounting before every retained or target batch. |
+
+The source batch must be non-empty, contain one valid topic partition, and
+have strictly ascending non-negative offsets. Every record and the aggregate
+batch must fit before bytes are retained. Target failure metadata must fit the
+same per-record and aggregate bounds. `Validate` performs configuration checks
+without allocating resources; runtime batch coordinates and sizes are checked
+by `HandleBatch` before the wrapped handler runs.
+
 ## Replay and inspection
 
 Replay requires 1 to 1,024 unique topic-partition ranges. Start offsets are

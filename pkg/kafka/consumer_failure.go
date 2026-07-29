@@ -235,6 +235,7 @@ type FailureHandlingError struct {
 	category ErrorCategory
 	attempt  int
 	causes   []error
+	delivery []DeliveryResult
 }
 
 // Error returns a stable diagnostic that excludes topics, keys, payloads,
@@ -282,6 +283,17 @@ func (err *FailureHandlingError) Attempt() int {
 	}
 
 	return err.attempt
+}
+
+// DeliveryResults returns owned input-ordered retry-topic or dead-letter
+// delivery outcomes when a whole-batch publication failed. Other failure
+// outcomes return nil.
+func (err *FailureHandlingError) DeliveryResults() []DeliveryResult {
+	if err == nil || err.delivery == nil {
+		return nil
+	}
+
+	return append([]DeliveryResult(nil), err.delivery...)
 }
 
 type failureWait func(context.Context, time.Duration) error
@@ -368,42 +380,10 @@ func normalizeFailureHandlerConfig(
 	if err := config.Limits.Validate(); err != nil {
 		return FailureHandlerConfig{}, err
 	}
-	if config.Retry.MaxAttempts == 0 {
-		config.Retry.MaxAttempts = 1
-	}
-	if config.Retry.MaxAttempts < 1 ||
-		config.Retry.MaxAttempts > maximumFailureAttempts {
-		return FailureHandlerConfig{}, ErrInvalidFailurePolicy
-	}
-	if config.Retry.MaxAttempts == 1 {
-		if config.Retry.InitialBackoff != 0 ||
-			config.Retry.MaxBackoff != 0 ||
-			len(config.Retry.Categories) != 0 {
-			return FailureHandlerConfig{}, ErrInvalidFailurePolicy
-		}
-	} else {
-		if config.Retry.InitialBackoff < time.Millisecond ||
-			config.Retry.MaxBackoff < config.Retry.InitialBackoff ||
-			config.Retry.MaxBackoff > maximumFailureBackoff {
-			return FailureHandlerConfig{}, ErrInvalidFailurePolicy
-		}
-		if len(config.Retry.Categories) == 0 {
-			config.Retry.Categories = []ErrorCategory{ErrorRetryable}
-		}
-		seen := make(map[ErrorCategory]struct{}, len(config.Retry.Categories))
-		for _, category := range config.Retry.Categories {
-			if !validErrorCategory(category) {
-				return FailureHandlerConfig{}, ErrInvalidFailurePolicy
-			}
-			if _, duplicate := seen[category]; duplicate {
-				return FailureHandlerConfig{}, ErrInvalidFailurePolicy
-			}
-			seen[category] = struct{}{}
-		}
-		config.Retry.Categories = append(
-			[]ErrorCategory(nil),
-			config.Retry.Categories...,
-		)
+	var err error
+	config.Retry, err = normalizeFailureRetryPolicy(config.Retry)
+	if err != nil {
+		return FailureHandlerConfig{}, err
 	}
 
 	switch config.Mode {
@@ -447,6 +427,46 @@ func normalizeFailureHandlerConfig(
 	}
 
 	return config, nil
+}
+
+func normalizeFailureRetryPolicy(
+	policy FailureRetryPolicy,
+) (FailureRetryPolicy, error) {
+	if policy.MaxAttempts == 0 {
+		policy.MaxAttempts = 1
+	}
+	if policy.MaxAttempts < 1 || policy.MaxAttempts > maximumFailureAttempts {
+		return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+	}
+	if policy.MaxAttempts == 1 {
+		if policy.InitialBackoff != 0 || policy.MaxBackoff != 0 ||
+			len(policy.Categories) != 0 {
+			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+		}
+
+		return policy, nil
+	}
+	if policy.InitialBackoff < time.Millisecond ||
+		policy.MaxBackoff < policy.InitialBackoff ||
+		policy.MaxBackoff > maximumFailureBackoff {
+		return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+	}
+	if len(policy.Categories) == 0 {
+		policy.Categories = []ErrorCategory{ErrorRetryable}
+	}
+	seen := make(map[ErrorCategory]struct{}, len(policy.Categories))
+	for _, category := range policy.Categories {
+		if !validErrorCategory(category) {
+			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+		}
+		if _, duplicate := seen[category]; duplicate {
+			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+		}
+		seen[category] = struct{}{}
+	}
+	policy.Categories = append([]ErrorCategory(nil), policy.Categories...)
+
+	return policy, nil
 }
 
 func validErrorCategory(category ErrorCategory) bool {
@@ -684,8 +704,16 @@ func (handler *failureHandler) publish(
 func (handler *failureHandler) failureRecord(
 	failure HandlerFailure,
 ) ProducerRecord {
+	return failureProducerRecord(handler.mode, handler.target, failure)
+}
+
+func failureProducerRecord(
+	mode FailureMode,
+	target FailureTarget,
+	failure HandlerFailure,
+) ProducerRecord {
 	kind := "retry"
-	if handler.mode == FailureModeDeadLetter {
+	if mode == FailureModeDeadLetter {
 		kind = "dead-letter"
 	}
 	source := failure.Record
@@ -694,7 +722,7 @@ func (handler *failureHandler) failureRecord(
 		failureHeader("schema-version", "1"),
 		failureHeader("kind", kind),
 		failureHeader("target-version", strconv.FormatUint(
-			uint64(handler.target.Version),
+			uint64(target.Version),
 			10,
 		)),
 		failureHeader("source-topic", source.Topic),
@@ -720,7 +748,7 @@ func (handler *failureHandler) failureRecord(
 	)
 
 	return ProducerRecord{
-		Topic:     handler.target.Topic,
+		Topic:     target.Topic,
 		Key:       cloneBytes(source.Key),
 		Value:     cloneBytes(source.Value),
 		Headers:   headers,
@@ -793,4 +821,17 @@ func newFailureHandlingError(
 		attempt:  attempt,
 		causes:   filtered,
 	}
+}
+
+func newFailureHandlingErrorWithDeliveries(
+	stage FailureStage,
+	category ErrorCategory,
+	attempt int,
+	deliveries []DeliveryResult,
+	causes ...error,
+) *FailureHandlingError {
+	err := newFailureHandlingError(stage, category, attempt, causes...)
+	err.delivery = append([]DeliveryResult(nil), deliveries...)
+
+	return err
 }

@@ -961,7 +961,9 @@ func TestFailureHelpersCoverStableDiagnosticsAndTiming(t *testing.T) {
 		nilErr.Unwrap() != nil ||
 		nilErr.Stage() != 0 ||
 		nilErr.Category() != 0 ||
-		nilErr.Attempt() != 0 {
+		nilErr.Attempt() != 0 ||
+		nilErr.DeliveryResults() != nil ||
+		(newFailureHandlingError(FailureStageStop, ErrorPermanent, 1)).DeliveryResults() != nil {
 		t.Fatalf("nil FailureHandlingError methods are inconsistent")
 	}
 

@@ -38,6 +38,12 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- bounded whole-partition-batch stop, retry, retry-topic, dead-letter, and
+  delegated failure policy that preserves all-or-nothing source settlement,
+  publishes every source record through one bounded call with exact
+  input-ordered results without claiming target-side atomicity,
+  and exposes partial target delivery results while leaving the source batch
+  eligible for redelivery
 - three-broker, three-process consumer rolling-deployment evidence proving the
   eager-to-cooperative migration negotiates `sticky` while an eager-only member
   remains, switches to `cooperative-sticky` with a cooperative-only member,

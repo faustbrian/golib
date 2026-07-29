@@ -9,8 +9,9 @@ actions explicit and preserves partition settlement rules described by
 
 ## Available strategies
 
-`NewFailureHandler` decorates a per-record `Handler`. Its zero terminal mode is
-`FailureModeStop`.
+`NewFailureHandler` decorates a per-record `Handler`.
+`NewBatchFailureHandler` decorates the whole-partition `BatchHandler` contract.
+Both use `FailureModeStop` as the zero terminal mode.
 
 | Strategy | Package behavior | Source settlement |
 | --- | --- | --- |
@@ -19,6 +20,12 @@ actions explicit and preserves partition settlement rules described by
 | versioned retry topic | Publish an owned source copy plus bounded failure metadata to one explicit `FailureTarget`. | The normal consumer commit occurs after a definite publish success. |
 | versioned dead-letter topic | Publish the same owned failure record after the application selects a terminal decision. | The normal consumer commit occurs after a definite publish success. |
 | application delegate | Invoke one synchronous `FailureDelegate`. | A nil delegate result explicitly resolves the record; an error leaves it unsettled. |
+
+For a batch decorator, every row applies to the complete source partition
+batch. Retry repeats the complete handler call. Publishing reroutes every
+record through one bounded call with input-ordered results; target partitioning
+can make that call multiple non-atomic Kafka requests. Delegation receives one
+`BatchFailure`; it cannot settle a guessed prefix.
 
 Retries, publishing, and delegates run inside the consumer's existing handler
 context. Rebalance cancellation or any other context cancellation stops the
@@ -107,6 +114,14 @@ an isolated copy; mutation by one attempt cannot change later attempts or the
 published failure record. `HandlerFailure` remains borrowed during delegate
 calls; call `Retain` before storing it.
 
+Batch publication appends two more headers to every record:
+`golib.kafka.failure.batch-index` is the zero-based position in the source
+partition batch and `golib.kafka.failure.batch-count` is its complete size.
+`BatchFailureHandlerConfig.MaxBatchRecords` and `MaxBatchBytes` bound both the
+retained source and encoded target batches. Each target record must still fit
+`Limits`. `BatchFailure` remains borrowed during delegate calls; `Retain`
+deeply copies the complete batch.
+
 ## Non-transactional failure window
 
 Retry-topic and dead-letter publication through `FailureHandler` is
@@ -122,6 +137,15 @@ This is an at-least-once target publication window: duplicates are possible,
 while a definite target publish failure does not advance the source offset.
 Target consumers must deduplicate with the preserved source coordinates or an
 application identifier.
+
+Whole-batch publication has an additional partial-delivery window. The
+publisher returns one input-ordered `DeliveryResult` per source record. The
+decorator resolves the source batch only when all results are definite
+successes. A partial or ambiguous target result leaves every source offset
+unsettled and is available through
+`FailureHandlingError.DeliveryResults`. Redelivery can republish target records
+that previously succeeded; target consumers must deduplicate by source topic,
+partition, and offset.
 
 If target publication and source settlement must be one Kafka effect, use
 `TransactionProcessor` with a `read_committed` target consumer. That guarantee
@@ -160,6 +184,6 @@ source position, so later source records may advance. Retry topics establish a
 new Kafka log and do not preserve ordering relative to later records remaining
 on the source topic.
 
-`FailureHandler` decorates the per-record contract only. `RunBatchOnce` retains
-its all-or-nothing partition-batch settlement and does not infer which record
-inside a failed batch should be retried or dead-lettered.
+`FailureHandler` remains per-record. `NewBatchFailureHandler` is the explicit
+whole-batch alternative for `RunBatchOnce`; it retries or reroutes every record
+and never infers which record inside a failed application batch succeeded.
