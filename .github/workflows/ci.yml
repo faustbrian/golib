@@ -182,6 +182,12 @@ jobs:
               while IFS= read -r package; do
                 [[ -n "${package}" ]] || continue
                 package_tags="$(jq -r --arg directory "${module}" --arg package "${package}" '.modules[] | select(.directory == $directory) | .packages[] | select(.import_path == $package) | .build_tags[]?' modules.json)"
+                if [[ "${module}" == "pkg/service/benchmarks/platform" && -n "${package_tags}" ]]; then
+                  # These tags select mutually exclusive process entry points for
+                  # one import path. Trace one canonical entry point; the shared
+                  # workload containing every benchmark mode is compiled with it.
+                  package_tags="benchmark_disabled"
+                fi
                 if [[ -n "${package_tags}" ]]; then
                   variant_index=0
                   while IFS= read -r tag; do
