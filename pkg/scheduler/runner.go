@@ -585,22 +585,25 @@ func (runner *Runner) startExecution(
 	}
 	done := make(chan error, 1)
 	go func() {
-		defer func() {
-			<-runner.executionSlots
-			runner.executions.Done()
+		err := func() error {
+			defer func() {
+				<-runner.executionSlots
+				runner.executions.Done()
+			}()
+			err := runExecutor(runCtx, runner.executor, scheduled)
+			cancelLease()
+			if monitor != nil {
+				<-monitor.done
+				taskLease = monitor.result.owned
+				err = errors.Join(err, monitor.result.err)
+			}
+			if taskLease.Key != "" {
+				releaseCtx, cancelRelease := runner.leaseContext(context.WithoutCancel(ctx))
+				err = errors.Join(err, runner.leases.Release(releaseCtx, taskLease))
+				cancelRelease()
+			}
+			return err
 		}()
-		err := runExecutor(runCtx, runner.executor, scheduled)
-		cancelLease()
-		if monitor != nil {
-			<-monitor.done
-			taskLease = monitor.result.owned
-			err = errors.Join(err, monitor.result.err)
-		}
-		if taskLease.Key != "" {
-			releaseCtx, cancelRelease := runner.leaseContext(context.WithoutCancel(ctx))
-			err = errors.Join(err, runner.leases.Release(releaseCtx, taskLease))
-			cancelRelease()
-		}
 		done <- err
 	}()
 	return managedExecution{done: done, heartbeat: monitor}, nil
