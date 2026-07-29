@@ -28,3 +28,38 @@ func ExampleComputeRoot() {
 	// Output:
 	// 3 c3651e541714c53d648ecc7baeca7fe2c36ef4fa65bcce24b1d71286437de566
 }
+
+func ExampleSnapshot_InclusionProof() {
+	leaves := []merkletree.RawLeaf{
+		merkletree.NewRawLeaf([]byte("first")),
+		merkletree.NewRawLeaf([]byte("second")),
+		merkletree.NewRawLeaf([]byte("third")),
+	}
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	proof, err := snapshot.InclusionProof(
+		context.Background(),
+		1,
+		merkletree.DefaultProofLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	err = merkletree.VerifyInclusion(
+		context.Background(),
+		proof,
+		leaves[1],
+		merkletree.DefaultProofLimits(),
+	)
+
+	fmt.Printf("%d %d %v\n", proof.TreeSize(), proof.LeafIndex(), err)
+	// Output:
+	// 3 1 <nil>
+}

@@ -22,6 +22,20 @@ var (
 
 	// ErrInvalidContext identifies a nil context.
 	ErrInvalidContext = errors.New("invalid nil context")
+
+	// ErrInvalidSnapshot identifies an uninitialized or internally invalid
+	// immutable snapshot.
+	ErrInvalidSnapshot = errors.New("invalid Merkle snapshot")
+
+	// ErrIndexOutOfRange identifies a leaf index outside a snapshot or proof.
+	ErrIndexOutOfRange = errors.New("merkle leaf index out of range")
+
+	// ErrMalformedProof identifies a structurally invalid inclusion proof.
+	ErrMalformedProof = errors.New("malformed Merkle proof")
+
+	// ErrVerificationFailed identifies a well-formed proof that does not
+	// authenticate the supplied leaf under its bound root.
+	ErrVerificationFailed = errors.New("merkle proof verification failed")
 )
 
 // ResourceKind identifies the bounded resource that was exceeded.
@@ -36,6 +50,17 @@ const (
 
 	// ResourceTotalBytes is the combined byte length of all raw leaves.
 	ResourceTotalBytes
+
+	// ResourceProofElements is the number of sibling digests in a proof.
+	ResourceProofElements
+
+	// ResourceTraversalDepth is the number of levels traversed by an
+	// operation.
+	ResourceTraversalDepth
+
+	// ResourceRetainedNodes is the number of immutable nodes retained by a
+	// snapshot.
+	ResourceRetainedNodes
 )
 
 // ResourceError reports a configured bound and the rejected value. It never

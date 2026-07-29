@@ -31,13 +31,17 @@ coverage:
 fuzz:
 	$(GO) test -run '^$$' -fuzz '^FuzzComputeRoot$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzVerifyInclusion$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
-	$(GO) test -run '^$$' -bench '^BenchmarkComputeRoot$$' \
+	$(GO) test -run '^$$' -bench '^Benchmark' \
 		-benchmem -benchtime="$(BENCH_TIME)"
 
 conformance:
-	$(GO) test -run '^TestComputeRootMatchesRFC9162TreeHash$$' -count=1 .
+	$(GO) test -run \
+		'^(TestComputeRootMatchesRFC9162TreeHash|TestRFC9162InclusionProofMatchesIndependentAuditPaths)$$' \
+		-count=1 .
 
 docs:
 	$(GO) test -run '^Example' -count=1 ./...

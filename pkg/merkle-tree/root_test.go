@@ -237,6 +237,72 @@ func TestComputeRootRejectsInvalidConfigurationAndResourceClaims(t *testing.T) {
 	}
 }
 
+func TestLimitsValidateEachFieldAndAllowExactByteBounds(t *testing.T) {
+	t.Parallel()
+
+	valid := merkletree.Limits{
+		MaxLeaves:     1,
+		MaxLeafBytes:  4,
+		MaxTotalBytes: 4,
+	}
+	for name, mutate := range map[string]func(*merkletree.Limits){
+		"leaves": func(limits *merkletree.Limits) {
+			limits.MaxLeaves = 0
+		},
+		"leaf bytes": func(limits *merkletree.Limits) {
+			limits.MaxLeafBytes = 0
+		},
+		"total bytes": func(limits *merkletree.Limits) {
+			limits.MaxTotalBytes = 0
+		},
+	} {
+		limits := valid
+		mutate(&limits)
+		if _, err := merkletree.ComputeRoot(
+			context.Background(),
+			merkletree.CanonicalProfile(),
+			nil,
+			limits,
+		); !errors.Is(err, merkletree.ErrInvalidLimits) {
+			t.Fatalf("%s zero error = %v", name, err)
+		}
+	}
+
+	if _, err := merkletree.ComputeRoot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		[]merkletree.RawLeaf{merkletree.NewRawLeaf([]byte("four"))},
+		valid,
+	); err != nil {
+		t.Fatalf("exact byte bounds: %v", err)
+	}
+
+	accumulation := merkletree.Limits{
+		MaxLeaves:     3,
+		MaxLeafBytes:  2,
+		MaxTotalBytes: 5,
+	}
+	_, err := merkletree.ComputeRoot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		[]merkletree.RawLeaf{
+			merkletree.NewRawLeaf([]byte("aa")),
+			merkletree.NewRawLeaf([]byte("bb")),
+			merkletree.NewRawLeaf([]byte("cc")),
+		},
+		accumulation,
+	)
+	if !resourceErrorKind(err, merkletree.ResourceTotalBytes) {
+		t.Fatalf("accumulated byte error = %v", err)
+	}
+}
+
+func resourceErrorKind(err error, kind merkletree.ResourceKind) bool {
+	var resourceError *merkletree.ResourceError
+
+	return errors.As(err, &resourceError) && resourceError.Kind == kind
+}
+
 func TestComputeRootHonorsCancellation(t *testing.T) {
 	t.Parallel()
 

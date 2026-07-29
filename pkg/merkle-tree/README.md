@@ -2,8 +2,9 @@
 
 `merkle-tree` is a storage-independent cryptographic data-structure library
 for explicitly profiled, ordered Merkle trees. The current pre-v1 surface
-constructs bounded immutable roots for the package canonical binary profile
-and the RFC 9162 Certificate Transparency profile.
+constructs bounded immutable roots and snapshots, generates inclusion proofs,
+and independently verifies them for the package canonical binary profile and
+the RFC 9162 Certificate Transparency profile.
 
 ## Quick start
 
@@ -37,6 +38,43 @@ fmt.Printf(
 processing untrusted input should create leaves with `NewRawLeafWithLimit` and
 replace `DefaultLimits` with tighter application-specific limits.
 
+To retain proof-generation state, construct a `Snapshot` instead:
+
+```go
+snapshot, err := merkletree.NewSnapshot(
+    ctx,
+    profile,
+    leaves,
+    merkletree.DefaultSnapshotLimits(),
+)
+if err != nil {
+    return err
+}
+proof, err := snapshot.InclusionProof(
+    ctx,
+    1,
+    merkletree.DefaultProofLimits(),
+)
+if err != nil {
+    return err
+}
+if err := merkletree.VerifyInclusion(
+    ctx,
+    proof,
+    leaves[1],
+    merkletree.DefaultProofLimits(),
+); err != nil {
+    return err
+}
+```
+
+Snapshots retain a compact immutable tree of domain-separated node digests,
+not raw leaf bytes, so proof generation traverses only the selected path.
+`SnapshotLimits` separately bounds raw-leaf construction and retained nodes.
+Inclusion proofs bind the profile, version, hash algorithm, root, tree size,
+leaf index, leaf digest, and leaf-to-root sibling path. Returned sibling
+slices do not alias proof state.
+
 ## Implemented profiles
 
 | Property | Canonical binary v1 | RFC 9162 v1 |
@@ -57,11 +95,10 @@ Merkle Tree Hash behavior implemented and tested here.
 
 ## Current pre-v1 boundary
 
-Root construction is implemented. Append, snapshots, persistence, inclusion
-proofs, multi-inclusion proofs, consistency proofs, proof encodings, fuzz
-campaigns for those unfinished surfaces, external differential fixtures, and
-comparative benchmarks remain under development and are not claimed by the
-current API.
+Root construction, immutable snapshots, and inclusion proofs are implemented.
+Append, persistence, multi-inclusion proofs, consistency proofs, proof
+encodings, external differential fixtures, and comparative benchmarks remain
+under development and are not claimed by the current API.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or
 consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle
@@ -76,9 +113,10 @@ semantic validity.
 
 The implemented RFC profile follows
 [RFC 9162 section 2.1](https://www.rfc-editor.org/rfc/rfc9162#section-2.1):
-the empty, leaf, branch, and recursive split definitions. RFC 9162's initial
-hash registry assigns SHA-256 value `0x00`; the package does not accept an
-unspecified or caller-invented algorithm as RFC-compatible.
+the empty, leaf, branch, recursive split, audit-path generation, and
+inclusion-verification definitions. RFC 9162's initial hash registry assigns
+SHA-256 value `0x00`; the package does not accept an unspecified or
+caller-invented algorithm as RFC-compatible.
 
 See [profile and ownership semantics](docs/architecture.md) and
 [compatibility boundaries](docs/compatibility.md).

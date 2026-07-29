@@ -12,10 +12,10 @@ duplicates, sorts, promotes, or pads an odd node.
 
 ## Claim boundary
 
-RFC 9162 compatibility currently covers only root construction from the
-Merkle Tree Hash definition in section 2.1.1. No inclusion-proof,
-consistency-proof, wire-format, log-protocol, or Certificate Transparency
-artifact compatibility is claimed yet.
+RFC 9162 compatibility currently covers root construction from section 2.1.1
+and inclusion audit-path generation and verification from sections 2.1.3.1
+and 2.1.3.2. No consistency-proof, wire-format, log-protocol, or Certificate
+Transparency artifact compatibility is claimed yet.
 
 The package does not implement or claim compatibility with:
 

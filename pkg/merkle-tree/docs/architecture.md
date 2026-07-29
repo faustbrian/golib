@@ -49,6 +49,35 @@ Its working memory is logarithmic in the leaf count. Validation bounds leaf
 count, each leaf's bytes, and aggregate leaf bytes before the digest stack is
 allocated. Cancellation is observed before hashing and between node merges.
 
+## Snapshots and inclusion proofs
+
+`Snapshot` retains a compact immutable binary tree of domain-separated node
+digests and an immutable root identity. It never retains raw leaf bytes. A
+snapshot is bound to one exact tree size, cannot be mutated, and is safe for
+concurrent read-only root and proof generation. Snapshot construction uses
+linear retained memory; proof generation traverses and allocates only the
+logarithmic audit path. `SnapshotLimits` bounds retained node count before
+allocation independently from the raw-leaf construction limits.
+
+Inclusion paths follow RFC 9162 section 2.1.3.1 and are ordered from the leaf
+toward the root. `InclusionProof` binds:
+
+```text
+(operation, profile ID, profile version, hash algorithm, root,
+ tree size, leaf index, leaf digest, ordered siblings)
+```
+
+`VerifyInclusion` depends only on the proof, caller-supplied raw leaf, and
+resource limits. It checks structural identity before hashing and compares
+digests in constant time. Missing or surplus nodes are malformed proofs.
+Changed leaves, roots, or sibling values are well-formed proofs that fail
+authentication.
+
+`ProofLimits` bounds sibling count, traversal depth, and caller-supplied leaf
+bytes. Impossible claims are rejected before scanning sibling elements or
+allocating derived proof storage. Cancellation is checked throughout path
+generation and verification.
+
 ## Security assumptions
 
 Security depends on SHA-256 collision and second-preimage resistance and on

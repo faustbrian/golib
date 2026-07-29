@@ -11,3 +11,8 @@
 - Pre-copy raw-leaf byte limits for untrusted leaf ingestion.
 - Immutable root identities that bind the profile, version, algorithm, digest,
   and exact tree size without aliasing caller memory.
+- Immutable snapshots that retain node digests for deterministic logarithmic
+  RFC 9162 inclusion-path generation without retaining raw leaf bytes.
+- Independently verifiable inclusion proofs binding the complete operation
+  identity, with typed malformed, unsupported, resource, and authentication
+  failures.

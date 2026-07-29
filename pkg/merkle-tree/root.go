@@ -3,7 +3,6 @@ package merkletree
 import (
 	"context"
 	"crypto/sha256"
-	"math"
 	"math/bits"
 )
 
@@ -182,9 +181,10 @@ func newRoot(
 }
 
 func saturatedAdd(left, right uint64) uint64 {
-	if math.MaxUint64-left < right {
-		return math.MaxUint64
+	sum, carry := bits.Add64(left, right, 0)
+	if carry != 0 {
+		return ^uint64(0)
 	}
 
-	return left + right
+	return sum
 }
