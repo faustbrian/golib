@@ -1372,6 +1372,43 @@ func TestProducerZeroDeliveryWaitPreservesLiveContexts(t *testing.T) {
 	}
 }
 
+func TestProducerBatchAcceptsExactByteLimitAndBoundsObservationMetadata(t *testing.T) {
+	t.Parallel()
+
+	records := []ProducerRecord{
+		{Topic: "events", Key: []byte("first"), Value: []byte("one")},
+		{Topic: "events", Key: []byte("second"), Value: []byte("two")},
+	}
+	exactBytes := recordSize(records[0]) + recordSize(records[1])
+	backend := &recordingProducerBackend{}
+	producer := &Producer{
+		client:          backend,
+		limits:          DefaultMessageLimits(),
+		maxBatchRecords: len(records),
+		maxBatchBytes:   exactBytes,
+	}
+
+	results, err := producer.PublishBatch(context.Background(), records)
+	if err != nil || len(results) != len(records) {
+		t.Fatalf("exact-byte PublishBatch() = %#v/%v", results, err)
+	}
+	topic, observedBytes := producer.batchObservationMetadata(records)
+	if topic != "events" || observedBytes != exactBytes {
+		t.Fatalf(
+			"exact-byte observation metadata = %q/%d, want events/%d",
+			topic,
+			observedBytes,
+			exactBytes,
+		)
+	}
+
+	producer.maxBatchBytes = exactBytes - 1
+	if topic, observedBytes = producer.batchObservationMetadata(records); topic != "" ||
+		observedBytes != 0 {
+		t.Fatalf("oversized observation metadata = %q/%d, want empty/0", topic, observedBytes)
+	}
+}
+
 func TestProducerBatchResultsRetainInputOrderAcrossDeliveryCompletion(t *testing.T) {
 	t.Parallel()
 
@@ -2233,6 +2270,30 @@ func TestProducerRejectsAggregateHeaderKeyOverflow(t *testing.T) {
 			{Key: "key", Value: []byte("12")},
 			{Key: "x"},
 		},
+	})
+
+	if !errors.Is(err, ErrHeadersTooLarge) {
+		t.Fatalf("Publish() error = %v, want %v", err, ErrHeadersTooLarge)
+	}
+	if len(backend.records) != 0 {
+		t.Fatalf("Publish() records = %d, want 0", len(backend.records))
+	}
+}
+
+func TestProducerRejectsAggregateHeaderValueOverflow(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingProducerBackend{}
+	limits := DefaultMessageLimits()
+	limits.MaxHeaderBytes = 5
+	producer := &Producer{client: backend, limits: limits}
+
+	err := producer.Publish(context.Background(), Message{
+		Topic: "events",
+		Headers: []Header{{
+			Key:   "key",
+			Value: []byte("123"),
+		}},
 	})
 
 	if !errors.Is(err, ErrHeadersTooLarge) {

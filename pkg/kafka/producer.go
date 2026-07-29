@@ -536,7 +536,7 @@ func normalizeProducerConfig(config ProducerConfig) (ProducerConfig, error) {
 		config.RequestTimeout > config.DeliveryTimeout ||
 		config.DialTimeout < 100*time.Millisecond ||
 		config.DialTimeout > 2*time.Minute ||
-		config.Linger < 0 ||
+		config.Linger < time.Nanosecond ||
 		config.Linger > time.Second ||
 		(config.TransactionalID != "" &&
 			(config.TransactionTimeout < time.Second ||
