@@ -389,7 +389,7 @@
         },
         {
           "file": ".ai/GOAL_QUEUE_WORKER_BALANCING.md",
-          "requirements_sha256": "a6939631dbbda720e462f16dd525b9591f949a6ed0273557650fa8e4d3ef437d",
+          "requirements_sha256": "faa5a8202d65b2ac2aba850d9ee1c47a2688d43f9224e1e6fd6407709f452540",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",

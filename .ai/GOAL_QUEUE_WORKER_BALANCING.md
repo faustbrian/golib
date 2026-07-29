@@ -65,16 +65,18 @@ tested HPA/KEDA resources.
 
 This gap matters because jobs and queues are not interchangeable units. Traffic,
 latency objectives, job duration, memory use, downstream API quotas, retry cost,
-and business importance differ. A worker model that treats all pending jobs as
-equal cannot preserve a service contract such as "Posti may use up to 100
-concurrent executions while UPS may use up to 10, and urgent webhook work must
-retain capacity even during a Posti backlog."
+and business importance differ. A representative application has 30--40
+logical queues with different minimums, maximums, demand curves, scaling
+thresholds, and service importance. It is not operationally reasonable to
+require one Kubernetes Deployment or one autoscaler per queue merely to preserve
+those differences.
 
-## Current Track Baseline To Re-Verify
+## Representative Application Baseline To Re-Verify
 
-Use `/Users/brian/Developer/track` as the primary migration and acceptance
-fixture, but do not modify Track as part of this goal unless a later request
-explicitly adds that repository to implementation scope.
+Use applications with 30--40 logical queues as the primary sizing, migration,
+and acceptance fixture. Use `/Users/brian/Developer/track` as one concrete
+source example, but do not modify Track as part of this goal unless a later
+request explicitly adds that repository to implementation scope.
 
 The initial source audit found:
 
@@ -95,7 +97,8 @@ Re-inspect the live Track branch and deployment configuration before using these
 facts in a migration claim. Production topology is not established by local
 configuration alone.
 
-The required acceptance scenario is intentionally clearer than that baseline:
+The carrier names and values below are intentionally simplified examples of a
+much wider policy set, not the design center:
 
 - a `posti` queue requests 100 execution slots;
 - a `ups` queue requests 10 execution slots;
@@ -109,7 +112,14 @@ The required acceptance scenario is intentionally clearer than that baseline:
 - every displayed desired, allocated, busy, borrowed, throttled, and unavailable
   value MUST identify whether it is local or fleet-wide.
 
-The numbers 100 and 10 are an acceptance fixture, not universal defaults.
+The numbers 100 and 10 are illustrative queue policies, not universal defaults
+and not evidence that each queue needs a separate workload.
+
+The required design MUST support at least 40 logical queues while keeping the
+number of Kubernetes workloads proportional to materially different resource,
+failure-isolation, backend, or scaling profiles rather than to queue count.
+Queues that can safely share a process MUST be able to share a worker group
+while retaining distinct allocation and demand policies.
 
 ## Required Product Outcomes
 
@@ -141,6 +151,14 @@ Existing single-queue construction MUST remain supported. Applications that do
 not opt into worker groups MUST retain their current behavior and performance
 within documented tolerances.
 
+Worker groups are the unit of process deployment and horizontal scaling. A
+typical application with 30--40 queues SHOULD use a small reviewed set of groups
+such as latency-critical, general throughput, resource-heavy, and
+downstream-constrained work. The exact grouping MUST follow measured behavior;
+these names are examples, not required built-ins. One workload per queue remains
+available when a queue genuinely requires hard resource or failure isolation,
+but MUST NOT be the default architecture.
+
 ### 2. Queue Allocation Policy
 
 Define a validated policy for every logical queue containing at least:
@@ -153,13 +171,21 @@ Define a validated policy for every logical queue containing at least:
   non-borrowable minimum or defeat the documented starvation bound;
 - `borrow`: whether unused reservation may be lent to peers;
 - `preemptible_borrow`: whether future admissions may withdraw borrowed slots;
-- `cost`: positive slot units consumed by one admitted job when known; and
+- `cost`: positive slot units consumed by one admitted job when known;
+- `scale_minimum`: minimum slot demand contributed to the worker-group
+  autoscaler while the queue is active;
+- `scale_maximum`: maximum slot demand that this queue may contribute to the
+  worker-group autoscaler; and
+- `demand_target`: a bounded backlog, lag, or throughput target used to convert
+  that queue's observed demand into requested slot capacity;
 - optional ramp-up and ramp-down bounds that limit allocation churn.
 
 Names MAY change during design if the resulting semantics remain exact. The
 public contract MUST distinguish:
 
 - a hard safety cap from a scaling target;
+- a local reservation from an autoscaling minimum;
+- a local concurrency ceiling from a maximum autoscaling contribution;
 - guaranteed reservation from best-effort weight;
 - priority from FIFO ordering;
 - a configured value from an observed or inferred value;
@@ -172,6 +198,7 @@ Validation MUST reject at least:
 - zero or negative group budgets;
 - negative limits, weights, priorities, or costs;
 - `minimum > maximum`;
+- `scale_minimum > scale_maximum`;
 - total non-borrowable minimum greater than the group budget;
 - a queue maximum greater than a documented implementation bound;
 - arithmetic overflow when costs, limits, queue counts, or replicas combine;
@@ -381,15 +408,39 @@ This goal MUST NOT quietly add a distributed semaphore to `queue`. If one is
 needed, specify its lease, fencing, partition, renewal, expiry, fairness, and
 side-effect semantics as a separate public contract and goal.
 
+For a shared worker group, define and export one bounded group demand signal
+derived from the independently evaluated member queues. The calculation MUST:
+
+- convert each supported queue signal into requested slot units using that
+  queue's demand target;
+- apply the queue's scale minimum, scale maximum, cost, and eligibility policy;
+- combine requests without allowing one high-volume queue to hide another
+  queue's unmet demand;
+- cap the result at the group's configured maximum scalable capacity rather
+  than its current replica capacity;
+- retain per-queue demand and limiting reasons for diagnosis; and
+- identify stale or unsupported inputs instead of treating them as zero.
+
+HPA/KEDA MAY consume the aggregate group signal to choose replicas. They MUST
+NOT need one trigger, ScaledObject, or Deployment for every logical queue.
+The reference calculation MUST derive desired replicas from requested group
+slots divided by the measured safe slot capacity per pod, then leave replica
+reconciliation and stabilization to the autoscaler.
+
 ### 10. HPA And KEDA Integration
 
 Keep pod scaling outside the control plane while making it usable.
 
+Use HPA directly for resource or supported custom metrics, or use KEDA to adapt
+event-source metrics and manage the resulting HPA. Exactly one reconciliation
+owner MUST control a workload's replica count.
+
 Export bounded, low-cardinality metrics sufficient for HPA or KEDA to scale a
-dedicated queue workload, including where supported:
+shared worker group or dedicated queue workload, including where supported:
 
 - pending work;
 - oldest work age or lag;
+- aggregate requested group slots;
 - allocated slots;
 - busy slots;
 - reservation utilization;
@@ -406,9 +457,11 @@ that avoid uncontrolled cardinality.
 
 Provide reviewed HPA and KEDA examples for:
 
-1. one dedicated workload per carrier queue;
-2. one shared worker group with local weighted balancing; and
-3. a hybrid model with reserved critical queues and an elastic shared pool.
+1. 30--40 logical queues consolidated into a small number of worker groups;
+2. one shared worker group with local weighted balancing and an aggregate
+   demand metric;
+3. a hybrid model with reserved critical queues and an elastic shared pool; and
+4. one dedicated workload for a queue that requires genuine hard isolation.
 
 Examples MUST show stable scale-up and scale-down windows, minimum and maximum
 replicas, backlog and age thresholds, disruption behavior, and the resulting
@@ -459,7 +512,8 @@ Worker-group status MUST include:
 - group identity and enforcement scope;
 - policy and applied revisions;
 - group budget;
-- per-queue minimum, maximum, weight, priority, cost, and borrow policy;
+- per-queue concurrency minimum and maximum, scaling minimum and maximum,
+  demand target, weight, priority, cost, and borrow policy;
 - desired allocation;
 - current admitted and busy work;
 - borrowed and lent slots;
@@ -535,7 +589,34 @@ network IO, channel send/receive that may block, or unbounded allocation pass.
 
 ## Required Acceptance Scenarios
 
-### Scenario A: Track-Like Static Isolation
+### Scenario A: Forty-Queue Application
+
+Configure at least 40 logical queues across at least three worker groups. The
+fixture MUST include:
+
+- latency-critical queues with non-zero reservations;
+- high-volume queues with large but different maxima;
+- low-volume queues with zero or small minima;
+- CPU- or memory-heavy queues with costs greater than one slot;
+- queues constrained by independent downstream limits;
+- both borrowable and non-borrowable capacity; and
+- inactive, saturated, stale, unavailable, paused, and recovering members.
+
+Prove:
+
+- the application does not require one Deployment or autoscaler per queue;
+- every queue retains its own concurrency minimum and maximum, scaling minimum
+  and maximum, priority, weight, cost, and demand target;
+- a high-volume queue cannot consume another queue's non-borrowable
+  reservation;
+- low-volume queues are not starved by continuously busy queues;
+- aggregate group demand preserves independently unmet queue demand;
+- each group scales without changing another group's local allocation policy;
+- the number of policy members and metric series remains within declared
+  bounds; and
+- allocation and scaling decisions remain explainable per queue and group.
+
+### Scenario B: Simplified Unequal Queue Limits
 
 Given a local group budget of at least 112 slots:
 
@@ -556,7 +637,7 @@ Prove:
 If the group budget cannot simultaneously satisfy the desired maxima, status
 must show the shortfall and the deterministic allocation reason.
 
-### Scenario B: Priority Under Flood
+### Scenario C: Priority Under Flood
 
 Hold a continuously replenished low-priority queue above its maximum useful
 backlog while periodically enqueueing critical jobs. Prove a bounded critical
@@ -566,7 +647,7 @@ Do not claim a latency service level from queue scheduling alone. Measure and
 state the contribution of poll interval, handler occupancy, scale-up delay,
 broker delivery, and downstream latency.
 
-### Scenario C: Safe Downscale
+### Scenario D: Safe Downscale
 
 Start work at the old maximum, author a lower maximum, and prove that:
 
@@ -577,19 +658,19 @@ Start work at the old maximum, author a lower maximum, and prove that:
 - cancellation of the operator request yields an inconclusive command result
   without rolling back work already enforced.
 
-### Scenario D: Fleet Multiplication
+### Scenario E: Fleet Multiplication
 
 Run at least two worker replicas with a per-process UPS maximum of 10. Prove
 that fleet status reports the possible aggregate as 20, not 10, and that a pod
 scale event updates the aggregate without changing the local policy revision.
 
-### Scenario E: Rolling Compatibility
+### Scenario F: Rolling Compatibility
 
 Run old, current, and newer protocol workers together. Prove that only
 compatible workers receive allocation policy, all remain visible, and aggregate
 capacity excludes unsupported enforcement from guaranteed-capacity claims.
 
-### Scenario F: Backend Outage
+### Scenario G: Backend Outage
 
 Remove one durable backend while another queue continues. Prove bounded error
 handling, no hot spin, no capacity fabrication, no leaked receive operation,
@@ -604,6 +685,7 @@ Use deterministic table, property, and state-machine tests for:
 - policy validation;
 - allocation conservation;
 - minimum and maximum enforcement;
+- scaling minimum, scaling maximum, and demand-target conversion;
 - weighted distribution;
 - priority and starvation bounds;
 - deterministic tie-breaking;
@@ -694,14 +776,16 @@ allocator inputs with bounded corpora. Every discovered failure MUST receive a
 deterministic regression case.
 
 Mutation testing MUST kill viable changes to maxima, minima, priorities,
-weights, borrowing, revision comparisons, scope checks, confirmation checks,
-capability negotiation, and status support flags.
+scaling bounds, demand targets, weights, borrowing, revision comparisons, scope
+checks, confirmation checks, capability negotiation, and status support flags.
 
 ## Performance Requirements
 
 Publish reproducible benchmarks for:
 
 - allocation decisions at 2, 10, 100, and the maximum supported queue count;
+- aggregate demand calculation for 1, 10, 40, 100, and the maximum supported
+  queue count;
 - status snapshots at maximum queue and worker counts;
 - idle and saturated admission;
 - rapid but bounded policy changes;
@@ -782,7 +866,8 @@ memory, handler latency, downstream limits, and failure behavior.
 
 Include a Track-specific worked example showing how the acceptance policy could
 represent Posti, UPS, and critical webhook workloads, while clearly labeling it
-as a proposed Go deployment rather than current Track production state.
+as a simplified subset of a proposed Go deployment rather than current Track
+production state or the general architecture.
 
 ## Rollout Requirements
 
@@ -856,8 +941,9 @@ autoscaling, or a successful Track migration.
 
 This goal is complete only when:
 
-- applications can declare materially different queue minima, maxima,
-  priorities, weights, borrowing, and job costs;
+- applications can declare materially different queue concurrency minima and
+  maxima, scaling minima and maxima, demand targets, priorities, weights,
+  borrowing, and job costs;
 - the queue data plane enforces those policies at safe admission boundaries;
 - hard local caps and the group budget are never exceeded;
 - lowering capacity drains naturally without killing or abandoning work;
@@ -871,8 +957,9 @@ This goal is complete only when:
 - local, pod, workload, and fleet scopes are never conflated;
 - HPA/KEDA examples and metrics are deployable and do not create competing
   reconciliation ownership;
-- the Track-like Posti 100 / UPS 10 / critical webhook acceptance scenarios
-  pass with honest scope labels;
+- the 40-queue multi-group acceptance scenario passes without requiring a
+  workload or autoscaler per queue;
+- the simplified unequal-limit scenario passes with honest scope labels;
 - all affected public documentation, API baselines, changelogs, manifests, and
   release notes are current;
 - the complete final diff has no unresolved review finding; and

@@ -13,6 +13,9 @@ documented in each module's changelog.
 
 ### Changed
 
+- Generalize the worker-balancing goal for applications with 30--40 queues,
+  bounded per-queue scaling demand, and a small number of autoscaled worker
+  groups instead of one Kubernetes workload per queue.
 - Define the cross-module worker-balancing goal for priority-aware per-queue
   reservations, limits, borrowing, runtime convergence, and HPA/KEDA ownership.
 - Use local `v0.0.0` requirements by default while allowing releasable source
