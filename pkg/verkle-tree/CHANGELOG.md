@@ -16,3 +16,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 - Establish the `verkletree` root package and an internal fail-closed boundary
   for canonical Banderwagon commitment and scalar encodings.
+
+### Dependencies
+
+- Override the pinned backend's stale transitive cryptography and Go support
+  modules with reviewed current releases that preserve the accepted encoding
+  seam and remove known vulnerability findings from the resolved module graph.

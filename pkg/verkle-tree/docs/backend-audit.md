@@ -10,12 +10,25 @@ The imported module version is
 `v0.0.0-20240223125850-b1e8a79f509c`, corresponding to commit
 `b1e8a79f509c5dd26b44d64c5f4aff67d7e69ed0`.
 
+The upstream branch was refreshed on 2026-07-29 at
+`53bbb0ceb27adb011950fd0fce885ad6d4516f84`. Its only later commit updates
+transitive module versions; it does not resolve the production blockers below
+or provide a tagged release.
+
+The resolved graph deliberately overrides that module's stale requirements
+with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
+This composition is accepted only for the encoding seam exercised here. It is
+not evidence that the uncalled setup, commitment, or proof APIs remain
+compatible.
+
 ## Evidence
 
 At the pinned revision:
 
 - the upstream unit suite and race suite pass;
 - `go vet ./...` passes;
+- the complete upstream unit, race, and vet suites also pass when selected
+  through this module's dependency overrides;
 - point decoding checks canonical base-field encoding, curve membership, and
   the Banderwagon subgroup condition;
 - scalar decoding provides a canonical little-endian field decoder;
@@ -29,7 +42,7 @@ The module-local dependency review also found:
 - all resolved dependency licenses are Apache-2.0, BSD-3-Clause, MIT, or the
   package's recorded dual-license choice;
 - the secret scan reports no findings; and
-- `govulncheck` reports no reachable vulnerable symbols.
+- `govulncheck` reports no vulnerabilities in the resolved module graph.
 
 These results establish useful research behavior. They do not establish
 production suitability, constant-time behavior, transcript soundness, or the
@@ -78,14 +91,13 @@ selected pseudo-version is untagged, and the upstream repository has not
 published the maintenance, audit, vulnerability, or release evidence required
 for a production cryptographic dependency.
 
-### Vulnerable dependency versions
+### Override compatibility scope
 
-The pinned dependency graph contains `github.com/consensys/gnark-crypto`
-`v0.12.1`, affected by `GO-2025-4087`, and `golang.org/x/sys` `v0.9.0`,
-affected by the Windows-only `GO-2026-5024`. The module does not currently call
-the reported vulnerable symbols, but a production cryptographic backend cannot
-ship with these stale versions without a compatible upgrade and complete
-revalidation.
+Upstream `go-ipa` has not tested or released the dependency combination used by
+this module. The module's unit, race, fuzz, and mutation evidence covers the
+canonical point and scalar encoding seam only. Production reconsideration must
+revalidate all setup, arithmetic, commitment, opening, and verification
+operations against the final dependency graph.
 
 ## Accepted Internal Boundary
 

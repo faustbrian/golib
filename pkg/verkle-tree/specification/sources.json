@@ -9,6 +9,32 @@
       "purpose": "internal canonical commitment and scalar encoding research",
       "scope": "internal/backend",
       "status": "pre-v1-research-only-production-rejected",
+      "dependency_overrides": [
+        {
+          "module": "github.com/consensys/gnark-crypto",
+          "version": "v0.20.1",
+          "revision": "49879afc0859220afd5165bc6cafc1ee0a6e987a",
+          "sum": "h1:PXDUBvk8AzhvWowHLWBEAfUQcV1/aZgWIqD6eMpXmDg=",
+          "license": "Apache-2.0",
+          "compatibility_scope": "internal canonical point and scalar encodings"
+        },
+        {
+          "module": "golang.org/x/sync",
+          "version": "v0.22.0",
+          "revision": "1eb64d4bc0cde6da1bb8ebc7f178bb577508e5d0",
+          "sum": "h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=",
+          "license": "BSD-3-Clause",
+          "compatibility_scope": "transitive backend support"
+        },
+        {
+          "module": "golang.org/x/sys",
+          "version": "v0.47.0",
+          "revision": "9e7e939dcafac07e8ab4cffa6e5fc74908413f00",
+          "sum": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+          "license": "BSD-3-Clause",
+          "compatibility_scope": "transitive backend CPU feature detection"
+        }
+      ],
       "license_review": {
         "tool": "go-licenses",
         "result": "pass-with-uninspectable-assembly-warning",
@@ -21,12 +47,8 @@
       "vulnerability_review": {
         "tool": "govulncheck",
         "reachable_symbol_findings": 0,
-        "imported_package_findings": [
-          "GO-2025-4087"
-        ],
-        "required_module_findings": [
-          "GO-2026-5024"
-        ]
+        "imported_package_findings": [],
+        "required_module_findings": []
       }
     }
   ],
@@ -161,6 +183,10 @@
       "url": "https://github.com/crate-crypto/go-ipa",
       "revision": "b1e8a79f509c5dd26b44d64c5f4aff67d7e69ed0",
       "tree": "0a8b415845cd8c5cdca40dacd492ae1ff337e1ae",
+      "latest_reviewed_revision": "53bbb0ceb27adb011950fd0fce885ad6d4516f84",
+      "latest_reviewed_tree": "71b2a455a9c8178baa2b05076ec3b44f347bb0b7",
+      "latest_reviewed_on": "2026-07-29",
+      "latest_delta": "one transitive dependency update; production blockers unchanged",
       "go_mod_sha256": "60c3d2fc3819fe38ca5712b01610e5c74e5a73e20629b4349fd2554730fef306",
       "license": "MIT OR Apache-2.0",
       "license_files": {
