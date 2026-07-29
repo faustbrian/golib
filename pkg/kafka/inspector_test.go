@@ -338,6 +338,43 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 	}
 }
 
+func TestInspectorConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for name, config := range map[string]InspectorConfig{
+		"minimum": {
+			Brokers:               []string{"broker.internal:9092"},
+			ClientID:              "boundary-inspector",
+			DialTimeout:           100 * time.Millisecond,
+			RequestTimeout:        100 * time.Millisecond,
+			MaxMetadataBrokers:    1,
+			MaxMetadataPartitions: 1,
+			MaxGroupMembers:       1,
+			Readiness: ReadinessPolicy{
+				FailureThreshold:  1,
+				RecoveryThreshold: 1,
+			},
+		},
+		"maximum": {
+			Brokers:               []string{"broker.internal:9092"},
+			ClientID:              "boundary-inspector",
+			DialTimeout:           2 * time.Minute,
+			RequestTimeout:        2 * time.Minute,
+			MaxMetadataBrokers:    10_000,
+			MaxMetadataPartitions: 1_000_000,
+			MaxGroupMembers:       100_000,
+			Readiness: ReadinessPolicy{
+				FailureThreshold:  100,
+				RecoveryThreshold: 100,
+			},
+		},
+	} {
+		if _, err := normalizeInspectorConfig(config); err != nil {
+			t.Fatalf("%s normalizeInspectorConfig() error = %v", name, err)
+		}
+	}
+}
+
 type recordingInspectorBackend struct {
 	topics     kadm.TopicDetails
 	lags       kadm.DescribedGroupLags

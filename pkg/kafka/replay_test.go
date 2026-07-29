@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,73 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 		config.Limits != DefaultMessageLimits() ||
 		config.DialTimeout != 10*time.Second {
 		t.Fatalf("replay defaults = %#v", config)
+	}
+}
+
+func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	minimum := validReplayConfig()
+	minimum.Ranges = []ReplayRange{{
+		Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1,
+	}}
+	minimum.MaxPollRecords = 1
+	minimum.MaxConcurrentFetches = 1
+	minimum.MaxConcurrentHandlers = 1
+	minimum.FetchMaxBytes = 1 << 20
+	minimum.FetchMaxPartitionBytes = 1 << 20
+	minimum.FetchMaxWait = time.Millisecond
+	minimum.PlanningTimeout = 100 * time.Millisecond
+	minimum.ProgressTimeout = 100 * time.Millisecond
+	minimum.HandlerTimeout = time.Second
+	minimum.ShutdownTimeout = time.Second
+	minimum.DialTimeout = 100 * time.Millisecond
+	if _, err := normalizeReplayConfig(minimum); err != nil {
+		t.Fatalf("minimum normalizeReplayConfig() error = %v", err)
+	}
+
+	maximum := validReplayConfig()
+	maximum.MaxPollRecords = 1_000
+	maximum.MaxConcurrentFetches = 64
+	maximum.MaxConcurrentHandlers = 64
+	maximum.FetchMaxBytes = 100 << 20
+	maximum.FetchMaxPartitionBytes = 100 << 20
+	maximum.FetchMaxWait = 30 * time.Second
+	maximum.PlanningTimeout = 2 * time.Minute
+	maximum.ProgressTimeout = 30 * time.Minute
+	maximum.HandlerTimeout = 30 * time.Minute
+	maximum.ShutdownTimeout = 10 * time.Minute
+	maximum.DialTimeout = 2 * time.Minute
+	if _, err := normalizeReplayConfig(maximum); err != nil {
+		t.Fatalf("maximum normalizeReplayConfig() error = %v", err)
+	}
+
+	ranges := make([]ReplayRange, 1_024)
+	for index := range ranges {
+		ranges[index] = ReplayRange{
+			Topic:       fmt.Sprintf("events-%d", index),
+			Partition:   0,
+			StartOffset: 0,
+			EndOffset:   1,
+		}
+	}
+	maximumRanges := validReplayConfig()
+	maximumRanges.Ranges = ranges
+	if _, err := normalizeReplayConfig(maximumRanges); err != nil {
+		t.Fatalf("maximum replay ranges error = %v", err)
+	}
+
+	for name, nextOffset := range map[string]int64{
+		"range start": 0,
+		"range end":   1,
+	} {
+		withCheckpoint := minimum
+		withCheckpoint.Checkpoint = ReplayCheckpoint{Positions: []ReplayPosition{{
+			Topic: "events", Partition: 0, NextOffset: nextOffset,
+		}}}
+		if _, err := normalizeReplayConfig(withCheckpoint); err != nil {
+			t.Fatalf("%s checkpoint error = %v", name, err)
+		}
 	}
 }
 

@@ -37,12 +37,13 @@ import (
 )
 
 const (
-	secureKafkaClientPort      = "9094/tcp"
-	secureKafkaInternalPort    = 19092
-	secureKafkaControllerPort  = 29093
-	secureKafkaDiagnosticBytes = 32 << 10
-	secureKafkaIssuer          = "https://issuer.golib.test"
-	secureKafkaAudience        = "golib-kafka"
+	secureKafkaClientPort       = "9094/tcp"
+	secureKafkaInternalPort     = 19092
+	secureKafkaControllerPort   = 29093
+	secureKafkaDiagnosticBytes  = 32 << 10
+	secureKafkaTransientRetries = 8
+	secureKafkaIssuer           = "https://issuer.golib.test"
+	secureKafkaAudience         = "golib-kafka"
 )
 
 type secureKafkaMode uint8
@@ -1616,6 +1617,7 @@ func consumeSecureRecords(
 		t.Fatalf("construct secured Kafka consumer: %v", err)
 	}
 	values := make([]string, 0, want)
+	transientFailures := 0
 	for len(values) < want {
 		result, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
 			_ context.Context,
@@ -1625,9 +1627,18 @@ func consumeSecureRecords(
 			return nil
 		}))
 		if runErr != nil {
+			var consumerErr *kafka.ConsumerError
+			if errors.As(runErr, &consumerErr) &&
+				consumerErr.Retryable() &&
+				transientFailures < secureKafkaTransientRetries &&
+				ctx.Err() == nil {
+				transientFailures++
+				continue
+			}
 			_ = consumer.Close()
 			t.Fatalf("consume secured Kafka records: %v", runErr)
 		}
+		transientFailures = 0
 		if result.Polled == 0 && ctx.Err() != nil {
 			_ = consumer.Close()
 			t.Fatalf("consume secured Kafka records: %v", ctx.Err())

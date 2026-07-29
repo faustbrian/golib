@@ -168,6 +168,16 @@ submitted for commit. `Consumer.Run` exits cleanly when its context is canceled.
 A canceled runner admits no new callback from buffered fetch results, and a
 context cause observed after a callback prevents settlement even if it returns
 nil.
+Consumer-group poll, offset-commit, and dynamic-member leave failures return a
+redacted `ConsumerError`. `Operation` distinguishes poll, commit, and leave;
+`Category` provides the stable package classification; and `Retryable` reports
+whether a later bounded attempt may succeed without changing input or
+configuration. The original cause remains available through `errors.Is` and
+`errors.As`, but its potentially sensitive text is not rendered. `RunOnce` and
+`RunBatchOnce` return a retryable poll error to the caller rather than hiding an
+unbounded retry loop. `Run` returns the first such exhausted internal retry
+cycle. Handler errors remain application errors and are not converted to
+`ConsumerError`.
 `ConsumerConfig.MaxConcurrentFetches`, `FetchMaxBytes`, and
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may

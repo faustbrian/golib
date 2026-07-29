@@ -114,10 +114,15 @@ func (consumer *Consumer) runBatchOnce(
 	}()
 	result = PollResult{Polled: len(records)}
 	if len(records) > consumer.maxPollRecords {
-		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
+		return result, errors.Join(
+			ErrTooManyFetchedRecords,
+			newConsumerError(ConsumerOperationPoll, fetches.Err()),
+		)
 	}
 	if err := fetches.Err(); err != nil {
-		return PollResult{}, consumer.groupError(err)
+		return PollResult{}, consumer.groupError(
+			newConsumerError(ConsumerOperationPoll, err),
+		)
 	}
 	token, err := consumer.assignment.token()
 	if err != nil {

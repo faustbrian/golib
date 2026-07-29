@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"crypto"
 	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
@@ -297,11 +298,11 @@ func TestAuthenticationRejectsInvalidExpiredAndPanickingProviderResults(t *testi
 			want: ErrInvalidCredentials,
 		},
 		{
-			name: "NUL password",
+			name: "leading NUL password",
 			authentication: NewSCRAMSHA512Authentication(UsernamePasswordProviderFunc(func(
 				context.Context,
 			) (UsernamePassword, error) {
-				return UsernamePassword{Username: "service", Password: []byte{'a', 0}}, nil
+				return UsernamePassword{Username: "service", Password: []byte{0, 'a'}}, nil
 			})),
 			want: ErrInvalidCredentials,
 		},
@@ -557,6 +558,413 @@ func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
 	}
 }
 
+func TestClientSecurityAcceptsInclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	provider := UsernamePasswordProviderFunc(func(
+		context.Context,
+	) (UsernamePassword, error) {
+		return UsernamePassword{
+			Username: "service",
+			Password: []byte("password"),
+		}, nil
+	})
+	for _, timeout := range []time.Duration{100 * time.Millisecond, time.Minute} {
+		timeout := timeout
+		t.Run(timeout.String(), func(t *testing.T) {
+			t.Parallel()
+
+			security, err := normalizeClientSecurity(ClientSecurity{
+				TLS: &tls.Config{
+					MinVersion: tls.VersionTLS12,
+					MaxVersion: tls.VersionTLS12,
+				},
+				Authentication:    NewPlainAuthentication(provider),
+				CredentialTimeout: timeout,
+			})
+			if err != nil {
+				t.Fatalf("normalize inclusive boundary: %v", err)
+			}
+			if security.CredentialTimeout != timeout ||
+				security.TLS.MinVersion != tls.VersionTLS12 ||
+				security.TLS.MaxVersion != tls.VersionTLS12 {
+				t.Fatalf("normalized security = %#v", security)
+			}
+		})
+	}
+}
+
+func TestClientSecurityAcceptsTLSMaterialLimits(t *testing.T) {
+	t.Parallel()
+
+	certificate := newTestTLSCertificate(t)
+	certificates := make([]tls.Certificate, 16)
+	for index := range certificates {
+		certificates[index] = certificate
+	}
+	nextProtocols := make([]string, 16)
+	nextProtocols[0] = strings.Repeat("a", 255)
+	for index := 1; index < len(nextProtocols); index++ {
+		nextProtocols[index] = string(rune('a' + index))
+	}
+	cipherSuites := make([]uint16, 0, len(tls.CipherSuites()))
+	for _, suite := range tls.CipherSuites() {
+		for _, version := range suite.SupportedVersions {
+			if version == tls.VersionTLS12 {
+				cipherSuites = append(cipherSuites, suite.ID)
+				break
+			}
+		}
+	}
+	curves := []tls.CurveID{
+		tls.CurveP256,
+		tls.CurveP384,
+		tls.CurveP521,
+		tls.X25519,
+		tls.X25519MLKEM768,
+		tls.SecP256r1MLKEM768,
+		tls.SecP384r1MLKEM1024,
+	}
+	security, err := normalizeClientSecurity(ClientSecurity{TLS: &tls.Config{
+		MinVersion:       tls.VersionTLS12,
+		MaxVersion:       tls.VersionTLS12,
+		Certificates:     certificates,
+		NextProtos:       nextProtocols,
+		CipherSuites:     cipherSuites,
+		CurvePreferences: curves,
+	}})
+	if err != nil {
+		t.Fatalf("normalize inclusive TLS material limits: %v", err)
+	}
+	if len(security.TLS.Certificates) != len(certificates) ||
+		len(security.TLS.NextProtos) != len(nextProtocols) ||
+		len(security.TLS.CipherSuites) != len(cipherSuites) ||
+		len(security.TLS.CurvePreferences) != len(curves) {
+		t.Fatalf("normalized TLS material = %#v", security.TLS)
+	}
+}
+
+func TestCredentialProvidersAcceptInclusiveMaterialLimits(t *testing.T) {
+	t.Parallel()
+
+	credentials, err := callUsernamePasswordProvider(
+		context.Background(),
+		time.Second,
+		UsernamePasswordProviderFunc(func(context.Context) (UsernamePassword, error) {
+			return UsernamePassword{
+				Username:        strings.Repeat("u", 8<<10),
+				Password:        []byte(strings.Repeat("p", 8<<10)),
+				AuthorizationID: strings.Repeat("a", 8<<10),
+			}, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("call username-password provider at limits: %v", err)
+	}
+	if len(credentials.Username) != 8<<10 ||
+		len(credentials.Password) != 8<<10 ||
+		len(credentials.AuthorizationID) != 8<<10 {
+		t.Fatalf("credentials lengths = %d, %d, %d",
+			len(credentials.Username),
+			len(credentials.Password),
+			len(credentials.AuthorizationID),
+		)
+	}
+
+	extensions := make(map[string]string, 32)
+	extensions[strings.Repeat("k", 128)] = strings.Repeat("v", 8<<10)
+	for length := 1; len(extensions) < 32; length++ {
+		extensions[strings.Repeat("e", length)] = "value"
+	}
+	token, err := callOAuthBearerProvider(
+		context.Background(),
+		time.Second,
+		OAuthBearerProviderFunc(func(context.Context) (OAuthBearerToken, error) {
+			return OAuthBearerToken{
+				Token:           []byte(strings.Repeat("t", 1<<20)),
+				AuthorizationID: strings.Repeat("a", 8<<10),
+				Extensions:      extensions,
+				ExpiresAt:       time.Now().Add(time.Minute),
+			}, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("call OAuth bearer provider at limits: %v", err)
+	}
+	if len(token.Token) != 1<<20 ||
+		len(token.AuthorizationID) != 8<<10 ||
+		len(token.Extensions) != 32 ||
+		len(token.Extensions[strings.Repeat("k", 128)]) != 8<<10 {
+		t.Fatalf("OAuth token limits = %d, %d, %d, %d",
+			len(token.Token),
+			len(token.AuthorizationID),
+			len(token.Extensions),
+			len(token.Extensions[strings.Repeat("k", 128)]),
+		)
+	}
+}
+
+func TestClientCertificateProviderAcceptsInclusiveRequestLimits(t *testing.T) {
+	t.Parallel()
+
+	acceptableCAs := make([][]byte, 64)
+	signatureSchemes := make([]tls.SignatureScheme, 64)
+	for index := range acceptableCAs {
+		acceptableCAs[index] = make([]byte, 1<<10)
+		signatureSchemes[index] = tls.SignatureScheme(index + 1)
+	}
+	certificate := newTestTLSCertificate(t)
+	security, err := normalizeClientSecurity(ClientSecurity{
+		ClientCertificateProvider: ClientCertificateProviderFunc(func(
+			_ context.Context,
+			request ClientCertificateRequest,
+		) (tls.Certificate, error) {
+			totalBytes := 0
+			for _, acceptableCA := range request.AcceptableCAs {
+				totalBytes += len(acceptableCA)
+			}
+			if len(request.AcceptableCAs) != 64 ||
+				totalBytes != 64<<10 ||
+				len(request.SignatureSchemes) != 64 {
+				t.Fatalf("owned certificate request limits = %d, %d, %d",
+					len(request.AcceptableCAs),
+					totalBytes,
+					len(request.SignatureSchemes),
+				)
+			}
+
+			return certificate, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("normalize mTLS request limits: %v", err)
+	}
+	if _, err = security.TLS.GetClientCertificate(&tls.CertificateRequestInfo{
+		AcceptableCAs:    acceptableCAs,
+		SignatureSchemes: signatureSchemes,
+		Version:          tls.VersionTLS13,
+	}); err != nil {
+		t.Fatalf("GetClientCertificate() at request limits: %v", err)
+	}
+}
+
+func TestClientCertificateProviderAcceptsInclusiveMaterialLimits(t *testing.T) {
+	t.Parallel()
+
+	base := newTestTLSCertificate(t)
+	signatureAlgorithms := make([]tls.SignatureScheme, 32)
+	for index := range signatureAlgorithms {
+		signatureAlgorithms[index] = tls.SignatureScheme(index + 1)
+	}
+	tests := []struct {
+		name        string
+		certificate func() tls.Certificate
+	}{
+		{
+			name: "chain count and aggregate bytes",
+			certificate: func() tls.Certificate {
+				certificate := base
+				certificate.Certificate = make([][]byte, 16)
+				totalCertificateBytes := 0
+				for index := range certificate.Certificate {
+					certificate.Certificate[index] = append(
+						[]byte(nil),
+						base.Certificate[0]...,
+					)
+					totalCertificateBytes += len(certificate.Certificate[index])
+				}
+				certificate.OCSPStaple = make(
+					[]byte,
+					(1<<20)-totalCertificateBytes,
+				)
+				certificate.SupportedSignatureAlgorithms = signatureAlgorithms
+
+				return certificate
+			},
+		},
+		{
+			name: "signed timestamp aggregate bytes",
+			certificate: func() tls.Certificate {
+				certificate := base
+				certificate.SignedCertificateTimestamps = [][]byte{
+					make([]byte, (1<<20)-len(certificate.Certificate[0])),
+				}
+
+				return certificate
+			},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			provided := test.certificate()
+			security, err := normalizeClientSecurity(ClientSecurity{
+				ClientCertificateProvider: ClientCertificateProviderFunc(func(
+					context.Context,
+					ClientCertificateRequest,
+				) (tls.Certificate, error) {
+					return provided, nil
+				}),
+			})
+			if err != nil {
+				t.Fatalf("normalize mTLS material limits: %v", err)
+			}
+			if _, err = security.TLS.GetClientCertificate(
+				&tls.CertificateRequestInfo{},
+			); err != nil {
+				t.Fatalf("GetClientCertificate() at material limits: %v", err)
+			}
+		})
+	}
+}
+
+func TestClientCertificateValidationIsolatesEveryMaterialInvariant(t *testing.T) {
+	t.Parallel()
+
+	base := newTestTLSCertificate(t)
+	if !validClientCertificate(base) {
+		t.Fatal("validClientCertificate(base) = false")
+	}
+
+	chain := make([][]byte, 17)
+	for index := range chain {
+		chain[index] = append([]byte(nil), base.Certificate[0]...)
+	}
+	signatureAlgorithms := make([]tls.SignatureScheme, 33)
+	for index := range signatureAlgorithms {
+		signatureAlgorithms[index] = tls.SignatureScheme(index + 1)
+	}
+	remaining := (1 << 20) - len(base.Certificate[0])
+	tests := map[string]func() tls.Certificate{
+		"empty chain": func() tls.Certificate {
+			certificate := base
+			certificate.Certificate = nil
+
+			return certificate
+		},
+		"too many certificates": func() tls.Certificate {
+			certificate := base
+			certificate.Certificate = chain
+
+			return certificate
+		},
+		"missing private key": func() tls.Certificate {
+			certificate := base
+			certificate.PrivateKey = nil
+
+			return certificate
+		},
+		"too many signature algorithms": func() tls.Certificate {
+			certificate := base
+			certificate.SupportedSignatureAlgorithms = signatureAlgorithms
+
+			return certificate
+		},
+		"duplicate signature algorithms": func() tls.Certificate {
+			certificate := base
+			certificate.SupportedSignatureAlgorithms = []tls.SignatureScheme{
+				tls.Ed25519,
+				tls.Ed25519,
+			}
+
+			return certificate
+		},
+		"empty encoded certificate": func() tls.Certificate {
+			certificate := base
+			certificate.Certificate = [][]byte{{}}
+
+			return certificate
+		},
+		"OCSP plus certificate exceeds aggregate": func() tls.Certificate {
+			certificate := base
+			certificate.OCSPStaple = make([]byte, remaining+1)
+
+			return certificate
+		},
+		"certificate chain cumulatively exceeds aggregate": func() tls.Certificate {
+			certificate := base
+			certificate.OCSPStaple = make([]byte, remaining)
+			certificate.Certificate = [][]byte{
+				append([]byte(nil), base.Certificate[0]...),
+				append([]byte(nil), base.Certificate[0]...),
+			}
+
+			return certificate
+		},
+		"certificate plus timestamp exceeds aggregate": func() tls.Certificate {
+			certificate := base
+			certificate.SignedCertificateTimestamps = [][]byte{
+				make([]byte, remaining+1),
+			}
+
+			return certificate
+		},
+		"timestamps cumulatively exceed aggregate": func() tls.Certificate {
+			certificate := base
+			certificate.SignedCertificateTimestamps = [][]byte{
+				{1},
+				make([]byte, remaining),
+			}
+
+			return certificate
+		},
+	}
+	for name, build := range tests {
+		if validClientCertificate(build()) {
+			t.Fatalf("%s validClientCertificate() = true", name)
+		}
+	}
+}
+
+func TestClientCertificateRequestAggregatesEveryCA(t *testing.T) {
+	t.Parallel()
+
+	if !validClientCertificateRequest(&tls.CertificateRequestInfo{
+		AcceptableCAs: [][]byte{{1}, make([]byte, (64<<10)-1)},
+	}) {
+		t.Fatal("exact aggregate certificate request rejected")
+	}
+	if validClientCertificateRequest(&tls.CertificateRequestInfo{
+		AcceptableCAs: [][]byte{{1}, make([]byte, 64<<10)},
+	}) {
+		t.Fatal("oversized cumulative certificate request accepted")
+	}
+	if validClientCertificateRequest(&tls.CertificateRequestInfo{
+		AcceptableCAs: [][]byte{
+			make([]byte, 32<<10),
+			make([]byte, 32<<10),
+			{1},
+		},
+	}) {
+		t.Fatal("three-part oversized cumulative certificate request accepted")
+	}
+}
+
+func TestMatchingPublicKeysRequiresBothEncodingsAndEquality(t *testing.T) {
+	t.Parallel()
+
+	first := newTestTLSCertificate(t)
+	signer := first.PrivateKey.(crypto.Signer)
+	if !matchingPublicKeys(signer.Public(), signer.Public()) {
+		t.Fatal("matchingPublicKeys(equal) = false")
+	}
+	_, secondPrivateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("generate second private key: %v", err)
+	}
+	if matchingPublicKeys(signer.Public(), secondPrivateKey.Public()) {
+		t.Fatal("matchingPublicKeys(different) = true")
+	}
+	if matchingPublicKeys(struct{}{}, signer.Public()) {
+		t.Fatal("matchingPublicKeys(invalid first) = true")
+	}
+	if matchingPublicKeys(signer.Public(), struct{}{}) {
+		t.Fatal("matchingPublicKeys(invalid second) = true")
+	}
+}
+
 func TestClientSecurityRejectsUnboundedOrBypassingTLSMaterial(t *testing.T) {
 	t.Parallel()
 	firstCertificate := newTestTLSCertificate(t)
@@ -752,6 +1160,128 @@ func TestClientCertificateProviderReceivesTLSHandshakeContext(t *testing.T) {
 	}
 	if !providerCalled.Load() {
 		t.Fatal("client certificate provider was not called")
+	}
+}
+
+func TestClientCertificateProviderAcceptsNilTLSRequest(t *testing.T) {
+	t.Parallel()
+
+	provided := newTestTLSCertificate(t)
+	certificate, err := callClientCertificateProvider(
+		nil,
+		time.Second,
+		ClientCertificateProviderFunc(func(
+			ctx context.Context,
+			request ClientCertificateRequest,
+		) (tls.Certificate, error) {
+			if ctx == nil {
+				t.Fatal("client certificate provider context is nil")
+			}
+			if _, exists := ctx.Deadline(); !exists {
+				t.Fatal("client certificate provider context is unbounded")
+			}
+			if len(request.AcceptableCAs) != 0 ||
+				len(request.SignatureSchemes) != 0 ||
+				request.Version != 0 {
+				t.Fatalf("nil TLS request metadata = %#v", request)
+			}
+
+			return provided, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("callClientCertificateProvider(nil) error = %v", err)
+	}
+	if certificate == nil || len(certificate.Certificate) == 0 {
+		t.Fatalf("callClientCertificateProvider(nil) certificate = %#v", certificate)
+	}
+}
+
+func TestAuthenticationCharacterPoliciesCoverExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tokenCharacters := map[byte]bool{
+		'a': true, 'z': true,
+		'A': true, 'Z': true,
+		'0': true, '9': true,
+		'-': true, '.': true, '_': true, '~': true,
+		'+': true, '/': true,
+		'@': false, '[': false, '`': false, '{': false,
+		':': false, 0: false,
+	}
+	for character, want := range tokenCharacters {
+		if got := validOAuthBearerTokenCharacter(character); got != want {
+			t.Fatalf(
+				"validOAuthBearerTokenCharacter(%#x) = %t, want %t",
+				character,
+				got,
+				want,
+			)
+		}
+	}
+
+	extensionKeyCharacters := map[rune]bool{
+		'a': true, 'z': true,
+		'A': true, 'Z': true,
+		'@': false, '[': false, '`': false, '{': false,
+		'0': false,
+	}
+	for character, want := range extensionKeyCharacters {
+		if got := validOAuthExtensionKeyCharacter(character); got != want {
+			t.Fatalf(
+				"validOAuthExtensionKeyCharacter(%#x) = %t, want %t",
+				character,
+				got,
+				want,
+			)
+		}
+	}
+
+	extensionValueCharacters := map[byte]bool{
+		0x21: true,
+		0x7e: true,
+		' ':  true,
+		'\t': true,
+		'\r': true,
+		'\n': true,
+		0x00: false,
+		0x1f: false,
+		0x7f: false,
+	}
+	for character, want := range extensionValueCharacters {
+		if got := validOAuthExtensionValueCharacter(character); got != want {
+			t.Fatalf(
+				"validOAuthExtensionValueCharacter(%#x) = %t, want %t",
+				character,
+				got,
+				want,
+			)
+		}
+	}
+}
+
+func TestCredentialTextPolicyIsolatedRules(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		value    string
+		required bool
+		want     bool
+	}{
+		{name: "required empty", required: true},
+		{name: "optional empty", required: false, want: true},
+		{name: "maximum", value: strings.Repeat("a", 8<<10), required: true, want: true},
+		{name: "oversized", value: strings.Repeat("a", (8<<10)+1), required: true},
+		{name: "invalid UTF-8", value: string([]byte{0xff}), required: true},
+		{name: "NUL", value: "a\x00b", required: true},
+		{name: "whitespace", value: " \t", required: true},
+		{name: "valid", value: " service ", required: true, want: true},
+	}
+	for _, test := range tests {
+		if got := validCredentialText(test.value, test.required); got != test.want {
+			t.Fatalf("%s validCredentialText() = %t, want %t", test.name, got, test.want)
+		}
 	}
 }
 

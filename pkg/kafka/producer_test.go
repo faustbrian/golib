@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -225,6 +226,28 @@ func TestProducerPartitionerCombinesAutomaticAndExplicitSelection(t *testing.T) 
 	batch.OnNewBatch()
 	if automatic.batchCalls != 1 {
 		t.Fatalf("explicit selection delegated %d batch calls", automatic.batchCalls)
+	}
+
+	zeroPartitionRecord := &kgo.Record{Partition: 0}
+	if !partitioner.RequiresConsistency(zeroPartitionRecord) {
+		t.Fatal("explicit partition zero does not require consistency")
+	}
+	if got := partitioner.Partition(zeroPartitionRecord, 4); got != 0 {
+		t.Fatalf("direct explicit partition zero = %d, want 0", got)
+	}
+	if got := backup.PartitionByBackup(
+		zeroPartitionRecord,
+		4,
+		&recordingBackupIter{remaining: 4},
+	); got != 0 {
+		t.Fatalf("backup explicit partition zero = %d, want 0", got)
+	}
+	if automatic.partitionCalls != 0 || automatic.backupCalls != 1 {
+		t.Fatalf(
+			"explicit partition zero delegated calls = partition:%d backup:%d",
+			automatic.partitionCalls,
+			automatic.backupCalls,
+		)
 	}
 }
 
@@ -545,6 +568,15 @@ func TestNewProducerUsesBoundedMessageDefaults(t *testing.T) {
 	if producer.limits != DefaultMessageLimits() {
 		t.Fatalf("NewProducer() limits = %#v, want %#v", producer.limits, DefaultMessageLimits())
 	}
+	if producer.deliveryWaitTimeout != 31*time.Second {
+		t.Fatalf(
+			"NewProducer() delivery wait timeout = %s, want 31s",
+			producer.deliveryWaitTimeout,
+		)
+	}
+	if producer.transactionsEnabled {
+		t.Fatal("NewProducer() enabled transactions without a transactional ID")
+	}
 }
 
 func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
@@ -609,6 +641,199 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 	if transactionalConfig.TransactionTimeout != 30*time.Second ||
 		transactionalConfig.TransactionEndTimeout != 30*time.Second {
 		t.Fatalf("transactional defaults = %#v", transactionalConfig)
+	}
+}
+
+func TestMessageLimitsEnforceEveryExactPolicyBoundary(t *testing.T) {
+	t.Parallel()
+
+	maximum := MessageLimits{
+		MaxTopicBytes:       249,
+		MaxKeyBytes:         16 << 20,
+		MaxValueBytes:       100 << 20,
+		MaxHeaders:          10_000,
+		MaxHeaderKeyBytes:   64 << 10,
+		MaxHeaderValueBytes: 100 << 20,
+		MaxHeaderBytes:      100 << 20,
+	}
+	if err := maximum.Validate(); err != nil {
+		t.Fatalf("maximum MessageLimits.Validate() error = %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		change func(*MessageLimits)
+	}{
+		{name: "topic", change: func(limits *MessageLimits) { limits.MaxTopicBytes = 0 }},
+		{name: "key", change: func(limits *MessageLimits) { limits.MaxKeyBytes = 0 }},
+		{name: "value", change: func(limits *MessageLimits) { limits.MaxValueBytes = 0 }},
+		{name: "headers", change: func(limits *MessageLimits) { limits.MaxHeaders = 0 }},
+		{name: "header key", change: func(limits *MessageLimits) { limits.MaxHeaderKeyBytes = 0 }},
+		{name: "header value", change: func(limits *MessageLimits) { limits.MaxHeaderValueBytes = 0 }},
+		{name: "aggregate headers", change: func(limits *MessageLimits) { limits.MaxHeaderBytes = 0 }},
+	}
+	for _, test := range tests {
+		limits := DefaultMessageLimits()
+		test.change(&limits)
+		if err := limits.Validate(); !errors.Is(err, ErrInvalidMessageLimits) {
+			t.Fatalf("%s zero boundary error = %v", test.name, err)
+		}
+	}
+}
+
+func TestProducerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for name, config := range map[string]ProducerConfig{
+		"minimum": producerBoundaryConfig(false),
+		"maximum": producerBoundaryConfig(true),
+	} {
+		if _, err := normalizeProducerConfig(config); err != nil {
+			t.Fatalf("%s normalizeProducerConfig() error = %v", name, err)
+		}
+	}
+
+	minimumTransactional := producerBoundaryConfig(false)
+	minimumTransactional.TransactionalID = "transaction-minimum"
+	minimumTransactional.TransactionTimeout = time.Second
+	minimumTransactional.TransactionEndTimeout = time.Second
+	if _, err := normalizeProducerConfig(minimumTransactional); err != nil {
+		t.Fatalf("minimum transactional config error = %v", err)
+	}
+
+	maximumTransactional := producerBoundaryConfig(true)
+	maximumTransactional.TransactionalID = "transaction-maximum"
+	maximumTransactional.TransactionTimeout = 15 * time.Minute
+	maximumTransactional.TransactionEndTimeout = 2 * time.Minute
+	if _, err := normalizeProducerConfig(maximumTransactional); err != nil {
+		t.Fatalf("maximum transactional config error = %v", err)
+	}
+
+	equalRequestDelivery := producerBoundaryConfig(false)
+	equalRequestDelivery.RequestTimeout = equalRequestDelivery.DeliveryTimeout
+	if _, err := normalizeProducerConfig(equalRequestDelivery); err != nil {
+		t.Fatalf("equal request/delivery timeout config error = %v", err)
+	}
+
+	equalRetryDelivery := producerBoundaryConfig(false)
+	equalRetryDelivery.RetryBackoffMax = equalRetryDelivery.DeliveryTimeout
+	equalRetryDelivery.ShutdownTimeout =
+		equalRetryDelivery.DeliveryTimeout + equalRetryDelivery.RetryBackoffMax
+	if _, err := normalizeProducerConfig(equalRetryDelivery); err != nil {
+		t.Fatalf("equal retry/delivery timeout config error = %v", err)
+	}
+
+	unkeyed := producerBoundaryConfig(false)
+	unkeyed.KeyPolicy = UnkeyedAllowed
+	if _, err := normalizeProducerConfig(unkeyed); err != nil {
+		t.Fatalf("explicit unkeyed policy config error = %v", err)
+	}
+
+	minimumLinger := producerBoundaryConfig(false)
+	minimumLinger.Linger = time.Nanosecond
+	if _, err := normalizeProducerConfig(minimumLinger); err != nil {
+		t.Fatalf("minimum linger config error = %v", err)
+	}
+
+	exactRecordBudget := producerBoundaryConfig(false)
+	exactRecordBudget.Limits.MaxValueBytes = 469
+	exactRecordBudget.MaxBatchBytes = int32(
+		maximumRecordPolicyBytes(exactRecordBudget.Limits),
+	)
+	exactRecordBudget.MaxBufferedBytes = int(exactRecordBudget.MaxBatchBytes)
+	if _, err := normalizeProducerConfig(exactRecordBudget); err != nil {
+		t.Fatalf("exact record-budget config error = %v", err)
+	}
+
+	topics := make([]string, 64)
+	for index := range topics {
+		topics[index] = fmt.Sprintf("events-%d", index)
+	}
+	maximumTopics := producerBoundaryConfig(true)
+	maximumTopics.AllowedTopics = topics
+	if _, err := normalizeProducerConfig(maximumTopics); err != nil {
+		t.Fatalf("maximum topic allowlist config error = %v", err)
+	}
+
+	brokers := make([]string, 32)
+	for index := range brokers {
+		brokers[index] = fmt.Sprintf("broker-%d.internal:9092", index)
+	}
+	maximumBrokers := producerBoundaryConfig(true)
+	maximumBrokers.Brokers = brokers
+	if _, err := normalizeProducerConfig(maximumBrokers); err != nil {
+		t.Fatalf("maximum broker seed list config error = %v", err)
+	}
+}
+
+func TestProducerConfigRejectsExclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for name, change := range map[string]func(*ProducerConfig){
+		"request timeout": func(config *ProducerConfig) {
+			config.RequestTimeout = 100*time.Millisecond - time.Nanosecond
+		},
+		"dial timeout": func(config *ProducerConfig) {
+			config.DialTimeout = 100*time.Millisecond - time.Nanosecond
+		},
+	} {
+		config := producerBoundaryConfig(false)
+		change(&config)
+		if _, err := normalizeProducerConfig(config); !errors.Is(
+			err,
+			ErrInvalidProducerConfig,
+		) {
+			t.Fatalf("%s boundary error = %v", name, err)
+		}
+	}
+}
+
+func producerBoundaryConfig(maximum bool) ProducerConfig {
+	if maximum {
+		return ProducerConfig{
+			Brokers:            []string{"broker.internal:9092"},
+			ClientID:           "boundary-producer",
+			AllowedTopics:      []string{"events"},
+			Limits:             DefaultMessageLimits(),
+			MaxBufferedRecords: 100_000,
+			MaxBufferedBytes:   1 << 30,
+			MaxBatchRecords:    10_000,
+			MaxBatchBytes:      100 << 20,
+			RecordRetries:      1_000,
+			RetryBackoffMin:    time.Millisecond,
+			RetryBackoffMax:    5 * time.Second,
+			DeliveryTimeout:    10 * time.Minute,
+			ShutdownTimeout:    15 * time.Minute,
+			RequestTimeout:     2 * time.Minute,
+			DialTimeout:        2 * time.Minute,
+			Linger:             time.Second,
+		}
+	}
+
+	return ProducerConfig{
+		Brokers:       []string{"broker.internal:9092"},
+		ClientID:      "boundary-producer",
+		AllowedTopics: []string{"e"},
+		Limits: MessageLimits{
+			MaxTopicBytes:       1,
+			MaxKeyBytes:         1,
+			MaxValueBytes:       1,
+			MaxHeaders:          1,
+			MaxHeaderKeyBytes:   1,
+			MaxHeaderValueBytes: 1,
+			MaxHeaderBytes:      1,
+		},
+		MaxBufferedRecords: 1,
+		MaxBufferedBytes:   512,
+		MaxBatchRecords:    1,
+		MaxBatchBytes:      512,
+		RecordRetries:      1,
+		RetryBackoffMin:    time.Millisecond,
+		RetryBackoffMax:    time.Millisecond,
+		DeliveryTimeout:    time.Second,
+		ShutdownTimeout:    time.Second + time.Millisecond,
+		RequestTimeout:     100 * time.Millisecond,
+		DialTimeout:        100 * time.Millisecond,
 	}
 }
 
@@ -679,6 +904,10 @@ func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
 	)
 	if got < 800*time.Millisecond || got > maximum {
 		t.Fatalf("non-power-of-two retry backoff = %s, want [800ms, 1s]", got)
+	}
+
+	if got := producerRetryBackoffDuration(4, 9, 2, seed); got != 8 {
+		t.Fatalf("odd-maximum retry backoff = %s, want 8ns", got)
 	}
 }
 
@@ -1063,6 +1292,9 @@ func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
 	if got := transactionalClient.OptValue(kgo.AllowIdempotentProduceCancellation); got != false {
 		t.Fatalf("transactional AllowIdempotentProduceCancellation = %v, want false", got)
 	}
+	if !transactional.transactionsEnabled {
+		t.Fatal("transactional producer did not retain transaction capability")
+	}
 }
 
 func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing.T) {
@@ -1113,6 +1345,30 @@ func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing
 	backend.completeAsync(0, 0, 1, nil)
 	if result := <-delivery; result.Err != nil {
 		t.Fatalf("PublishAsync() delivery error = %v", result.Err)
+	}
+}
+
+func TestProducerZeroDeliveryWaitPreservesLiveContexts(t *testing.T) {
+	t.Parallel()
+
+	producer := &Producer{}
+	callerCtx := context.Background()
+	deliveryCtx, cancelDelivery := producer.deliveryContext(callerCtx)
+	defer cancelDelivery()
+	if deliveryCtx != callerCtx || deliveryCtx.Err() != nil {
+		t.Fatalf("zero synchronous delivery context = %#v/%v", deliveryCtx, deliveryCtx.Err())
+	}
+
+	asyncCtx, cancelAsync, stopCallerCancellation := producer.asyncDeliveryContext(
+		callerCtx,
+	)
+	defer cancelAsync()
+	defer stopCallerCancellation()
+	if asyncCtx.Err() != nil {
+		t.Fatalf("zero asynchronous delivery context error = %v", asyncCtx.Err())
+	}
+	if _, ok := asyncCtx.Deadline(); ok {
+		t.Fatal("zero asynchronous delivery context unexpectedly has a deadline")
 	}
 }
 

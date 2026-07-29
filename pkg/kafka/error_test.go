@@ -140,3 +140,76 @@ func TestDeliveryErrorSupportsAllStableCategoriesAndNilReceiver(t *testing.T) {
 		t.Fatalf("nil DeliveryError methods returned an unsafe result")
 	}
 }
+
+func TestConsumerErrorClassifiesAndRedactsGroupFailures(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.Join(
+		kerr.NotCoordinator,
+		errors.New("group user:password@broker.internal"),
+	)
+	err := newConsumerError(ConsumerOperationPoll, cause)
+	var consumerErr *ConsumerError
+	if !errors.As(err, &consumerErr) ||
+		!errors.Is(err, kerr.NotCoordinator) ||
+		consumerErr.Error() != "kafka: consumer poll retryable failure" ||
+		consumerErr.Operation() != ConsumerOperationPoll ||
+		consumerErr.Category() != ErrorRetryable ||
+		!consumerErr.Retryable() ||
+		classifyError(err) != ErrorRetryable ||
+		strings.Contains(consumerErr.Error(), "password") ||
+		strings.Contains(consumerErr.Error(), "broker.internal") {
+		t.Fatalf("consumer error = %#v / %q", consumerErr, err)
+	}
+	if got := newConsumerError(ConsumerOperationPoll, err); got != err {
+		t.Fatalf("same-operation newConsumerError() = %#v, want original", got)
+	}
+	joined := errors.Join(err, errors.New("joined password secret"))
+	rewrapped := newConsumerError(ConsumerOperationPoll, joined)
+	if rewrapped == joined ||
+		!errors.Is(rewrapped, joined) ||
+		strings.Contains(rewrapped.Error(), "password") {
+		t.Fatalf("joined same-operation consumer error = %v", rewrapped)
+	}
+
+	wrapped := newConsumerError(ConsumerOperationCommit, err)
+	if !errors.As(wrapped, &consumerErr) ||
+		consumerErr.Operation() != ConsumerOperationCommit ||
+		consumerErr.Category() != ErrorRetryable ||
+		!errors.Is(wrapped, cause) {
+		t.Fatalf("cross-operation consumer error = %#v / %v", consumerErr, wrapped)
+	}
+
+	permanent := newConsumerError(
+		ConsumerOperationLeave,
+		errors.New("leave failed"),
+	)
+	if !errors.As(permanent, &consumerErr) ||
+		consumerErr.Category() != ErrorPermanent ||
+		consumerErr.Retryable() {
+		t.Fatalf("permanent consumer error = %#v / %v", consumerErr, permanent)
+	}
+}
+
+func TestConsumerErrorSupportsAllOperationsAndNilReceiver(t *testing.T) {
+	t.Parallel()
+
+	if ConsumerOperationPoll.String() != "poll" ||
+		ConsumerOperationCommit.String() != "commit" ||
+		ConsumerOperationLeave.String() != "leave" ||
+		ConsumerOperation(255).String() != "unknown" {
+		t.Fatal("consumer operation strings are unstable")
+	}
+	if err := newConsumerError(ConsumerOperationPoll, nil); err != nil {
+		t.Fatalf("newConsumerError(nil) = %v", err)
+	}
+
+	var err *ConsumerError
+	if err.Error() != "kafka: consumer failed" ||
+		err.Unwrap() != nil ||
+		err.Operation() != 0 ||
+		err.Category() != 0 ||
+		err.Retryable() {
+		t.Fatal("nil ConsumerError methods returned an unsafe result")
+	}
+}

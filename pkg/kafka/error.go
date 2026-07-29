@@ -70,6 +70,100 @@ func (category ErrorCategory) String() string {
 	}
 }
 
+// ConsumerOperation identifies the consumer-group phase that failed.
+type ConsumerOperation uint8
+
+const (
+	// ConsumerOperationPoll identifies a group poll or join-session failure.
+	ConsumerOperationPoll ConsumerOperation = iota + 1
+	// ConsumerOperationCommit identifies a source-offset commit failure.
+	ConsumerOperationCommit
+	// ConsumerOperationLeave identifies a graceful group-leave failure.
+	ConsumerOperationLeave
+)
+
+// String returns a stable low-cardinality consumer operation name.
+func (operation ConsumerOperation) String() string {
+	switch operation {
+	case ConsumerOperationPoll:
+		return "poll"
+	case ConsumerOperationCommit:
+		return "commit"
+	case ConsumerOperationLeave:
+		return "leave"
+	default:
+		return "unknown"
+	}
+}
+
+// ConsumerError classifies a consumer-group infrastructure failure without
+// rendering its potentially sensitive cause. Handler errors are application
+// failures and are not converted to ConsumerError values.
+type ConsumerError struct {
+	operation ConsumerOperation
+	category  ErrorCategory
+	cause     error
+}
+
+// Error implements error with a stable redacted diagnostic.
+func (err *ConsumerError) Error() string {
+	if err == nil {
+		return "kafka: consumer failed"
+	}
+
+	return "kafka: consumer " + err.operation.String() + " " +
+		err.category.String() + " failure"
+}
+
+// Unwrap returns the original failure for errors.Is and errors.As.
+func (err *ConsumerError) Unwrap() error {
+	if err == nil {
+		return nil
+	}
+
+	return err.cause
+}
+
+// Operation returns the consumer-group phase that failed.
+func (err *ConsumerError) Operation() ConsumerOperation {
+	if err == nil {
+		return 0
+	}
+
+	return err.operation
+}
+
+// Category returns the stable operational category.
+func (err *ConsumerError) Category() ErrorCategory {
+	if err == nil {
+		return 0
+	}
+
+	return err.category
+}
+
+// Retryable reports whether a later bounded poll, commit, or shutdown attempt
+// may succeed without changing application input or consumer configuration.
+func (err *ConsumerError) Retryable() bool {
+	return err != nil && err.category == ErrorRetryable
+}
+
+func newConsumerError(operation ConsumerOperation, cause error) error {
+	if cause == nil {
+		return nil
+	}
+	if consumerErr, ok := cause.(*ConsumerError); ok &&
+		consumerErr.Operation() == operation {
+		return consumerErr
+	}
+
+	return &ConsumerError{
+		operation: operation,
+		category:  classifyError(cause),
+		cause:     cause,
+	}
+}
+
 // TransactionOperation identifies the Kafka transaction phase that failed.
 type TransactionOperation uint8
 
@@ -260,6 +354,10 @@ func classifyError(err error) ErrorCategory {
 	var deliveryErr *DeliveryError
 	if errors.As(err, &deliveryErr) {
 		return deliveryErr.Category()
+	}
+	var consumerErr *ConsumerError
+	if errors.As(err, &consumerErr) {
+		return consumerErr.Category()
 	}
 
 	switch {

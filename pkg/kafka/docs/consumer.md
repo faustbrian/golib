@@ -68,6 +68,25 @@ topic bound, and each fetched record must fit every key, value, header count,
 header key, individual header value, and aggregate header bound before the
 package copies header metadata or runs a handler.
 
+## Consumer infrastructure failures
+
+Poll or group-session, offset-commit, and dynamic-member leave failures are
+returned as redacted `ConsumerError` values. `Operation` identifies `poll`,
+`commit`, or `leave`; `Category` distinguishes retryable, authorization,
+fencing, timeout, cancellation, shutdown, and permanent failures; and
+`Retryable` permits an explicit later bounded attempt. The original cause is
+retained for deliberate `errors.Is` and `errors.As` checks but is never included
+in `ConsumerError.Error`.
+
+`RunOnce` and `RunBatchOnce` return a retryable failure after franz-go exhausts
+one internal retry cycle. The application chooses whether and how often to call
+again within its own context; the package does not hide an infinite loop.
+`Run` returns that failure instead of silently restarting the group forever.
+Handler failures remain unchanged application errors so retry and dead-letter
+decorators can preserve their identity. A static-member fence additionally
+returns `ErrConsumerFatal` and `ErrConsumerInstanceFenced` and permanently
+fences the consumer instance.
+
 Client and group IDs must be valid UTF-8 without whitespace padding or control
 characters and are limited to 255 bytes. `ShutdownTimeout` defaults to 30
 seconds and is bounded from 100 milliseconds through 15 minutes.
@@ -129,6 +148,13 @@ for the broker protocol and administrative model.
 Setting `Rack` asks compatible brokers to prefer an eligible replica in that
 rack. It does not create rack metadata, place replicas, or guarantee a local
 replica. Infrastructure owns broker rack configuration and replica placement.
+The pinned three-broker Apache Kafka 4.3.1 fixture assigns one rack per broker
+and enables Kafka's rack-aware replica selector. A separate consumer process
+first establishes routing to a non-leader replica in its rack on an empty
+topic, permits only one fetch in flight, and then handles and commits a source
+record after that fetch completes on the exact follower. This proves locality
+only for the exercised replicated topic and healthy in-sync follower; Kafka
+can fall back when no eligible local replica is available.
 See [KIP-392](https://cwiki.apache.org/confluence/display/KAFKA/KIP-392%3A%20Allow%20consumers%20to%20fetch%20from%20closest%20replica).
 
 ## Processing, settlement, and redelivery

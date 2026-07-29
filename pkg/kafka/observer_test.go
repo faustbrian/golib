@@ -865,6 +865,68 @@ func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 	}
 }
 
+func TestObservationValidationAcceptsInclusiveMetadataBoundaries(t *testing.T) {
+	t.Parallel()
+
+	startedAt := time.Unix(1, 0)
+	tests := map[string]Observation{
+		"known zero coordinates": {
+			Kind:           ObservationProduceRecord,
+			StartedAt:      startedAt,
+			RecordCount:    1,
+			PartitionKnown: true,
+			Partition:      0,
+			OffsetKnown:    true,
+			Offset:         0,
+			BrokerKnown:    true,
+			BrokerID:       0,
+			APIKeyKnown:    true,
+			APIKey:         0,
+			Succeeded:      true,
+		},
+		"cluster broker maximum": {
+			Kind:        ObservationInspectorCluster,
+			StartedAt:   startedAt,
+			BrokerCount: 10_000,
+			Succeeded:   true,
+		},
+		"topic and partition maximum": {
+			Kind:           ObservationInspectorTopics,
+			StartedAt:      startedAt,
+			TopicCount:     64,
+			PartitionCount: 1_000_000,
+			Succeeded:      true,
+		},
+		"group metadata maximum": {
+			Kind:             ObservationInspectorConsumerGroups,
+			StartedAt:        startedAt,
+			GroupCount:       64,
+			GroupMemberCount: 100_000,
+			PartitionCount:   1_000_000,
+			Succeeded:        true,
+		},
+		"readiness success maximum": {
+			Kind:                 ObservationReadiness,
+			StartedAt:            startedAt,
+			DependencyHealthy:    true,
+			Ready:                true,
+			ConsecutiveSuccesses: 100,
+			Succeeded:            true,
+		},
+		"readiness failure maximum": {
+			Kind:                ObservationReadiness,
+			StartedAt:           startedAt,
+			ConsecutiveFailures: 100,
+			Category:            ErrorRetryable,
+		},
+	}
+	for name, observation := range tests {
+		if err := observation.Validate(); err != nil {
+			t.Fatalf("%s observation error = %v", name, err)
+		}
+	}
+}
+
 func TestObservationValidationEnforcesEventRecordCardinality(t *testing.T) {
 	t.Parallel()
 

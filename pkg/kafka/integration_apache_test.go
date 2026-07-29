@@ -30,6 +30,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 const (
@@ -65,10 +66,15 @@ const (
 	apacheKafkaConsumerGroup          = "GOLIB_KAFKA_CONSUMER_GROUP"
 	apacheKafkaConsumerClient         = "GOLIB_KAFKA_CONSUMER_CLIENT"
 	apacheKafkaConsumerBalance        = "GOLIB_KAFKA_CONSUMER_BALANCE"
+	apacheKafkaConsumerRack           = "GOLIB_KAFKA_CONSUMER_RACK"
+	apacheKafkaConsumerFetchBroker    = "GOLIB_KAFKA_CONSUMER_FETCH_BROKER"
 	apacheKafkaConsumerBalanceEager   = "eager"
 	apacheKafkaConsumerBalanceMigrate = "eager-to-cooperative"
 	apacheKafkaConsumerBalanceCoop    = "cooperative"
 	apacheKafkaConsumerReady          = "golib-kafka-consumer-assigned"
+	apacheKafkaConsumerRackFetch      = "golib-kafka-consumer-rack-fetch"
+	apacheKafkaConsumerRackArmed      = "golib-kafka-consumer-rack-armed"
+	apacheKafkaConsumerRackRecord     = "golib-kafka-consumer-rack-record"
 	apacheKafkaConsumerStopped        = "golib-kafka-consumer-stopped"
 )
 
@@ -138,10 +144,11 @@ func runApacheKafkaConsumerChild(t *testing.T) {
 	default:
 		t.Fatal("unknown consumer child balance policy")
 	}
-	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+	config := kafka.ConsumerConfig{
 		Brokers:               strings.Split(os.Getenv(apacheKafkaConsumerBrokers), ","),
 		ClientID:              os.Getenv(apacheKafkaConsumerClient),
 		GroupID:               os.Getenv(apacheKafkaConsumerGroup),
+		Rack:                  os.Getenv(apacheKafkaConsumerRack),
 		Topics:                []string{os.Getenv(apacheKafkaConsumerTopic)},
 		ResetOffset:           kafka.OffsetEarliest,
 		BalancePolicy:         balancePolicy,
@@ -155,7 +162,50 @@ func runApacheKafkaConsumerChild(t *testing.T) {
 		CommitTimeout:         time.Second,
 		ShutdownTimeout:       10 * time.Second,
 		Security:              kafka.DevelopmentPlaintextSecurity(),
-	})
+	}
+	expectedFetchBroker := int32(0)
+	rackFetch := make(chan struct{})
+	rackRecord := make(chan struct{})
+	var rackRecordOnce sync.Once
+	var rackState struct {
+		sync.Mutex
+		armed           bool
+		lastFetchBroker int32
+	}
+	if value := os.Getenv(apacheKafkaConsumerFetchBroker); value != "" {
+		parsed, parseErr := strconv.ParseInt(value, 10, 32)
+		if parseErr != nil || parsed < 1 || parsed > 3 || config.Rack == "" {
+			t.Fatal("invalid rack-local consumer child configuration")
+		}
+		expectedFetchBroker = int32(parsed)
+		expectedFetchAPIKey := new(kmsg.FetchRequest).Key()
+		config.MaxConcurrentFetches = 1
+		var observed sync.Once
+		config.Observers = kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{func(
+				_ context.Context,
+				observation kafka.Observation,
+			) error {
+				if observation.Kind == kafka.ObservationBrokerRequest &&
+					observation.APIKeyKnown &&
+					observation.APIKey == expectedFetchAPIKey &&
+					observation.BrokerKnown &&
+					observation.Succeeded {
+					rackState.Lock()
+					if rackState.armed {
+						rackState.lastFetchBroker = observation.BrokerID
+					} else if observation.BrokerID == expectedFetchBroker {
+						observed.Do(func() { close(rackFetch) })
+					}
+					rackState.Unlock()
+				}
+
+				return nil
+			}},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		}
+	}
+	consumer, err := kafka.NewConsumer(config)
 	if err != nil {
 		t.Fatalf("construct consumer child: %v", err)
 	}
@@ -173,12 +223,80 @@ func runApacheKafkaConsumerChild(t *testing.T) {
 			context.Context,
 			kafka.ConsumedRecord,
 		) error {
+			if expectedFetchBroker != 0 {
+				rackState.Lock()
+				armed := rackState.armed
+				fetchBroker := rackState.lastFetchBroker
+				rackState.Unlock()
+				if armed && fetchBroker != expectedFetchBroker {
+					return fmt.Errorf(
+						"record followed fetch from broker %d, want %d",
+						fetchBroker,
+						expectedFetchBroker,
+					)
+				}
+				if armed {
+					rackRecordOnce.Do(func() { close(rackRecord) })
+				}
+			}
+
 			return nil
 		}))
 	}()
 	waitForApacheKafkaConsumerAssignment(t, consumer, runResult)
+	if expectedFetchBroker != 0 {
+		select {
+		case <-rackFetch:
+			if _, err := fmt.Fprintf(
+				os.Stdout,
+				"%s:%d\n",
+				apacheKafkaConsumerRackFetch,
+				expectedFetchBroker,
+			); err != nil {
+				t.Fatalf("report consumer child rack fetch: %v", err)
+			}
+		case err := <-runResult:
+			t.Fatalf("consumer child stopped before rack fetch: %v", err)
+		case <-time.After(30 * time.Second):
+			t.Fatalf(
+				"consumer child did not fetch from rack-local broker %d",
+				expectedFetchBroker,
+			)
+		}
+		arm := []byte{0}
+		if _, err := io.ReadFull(os.Stdin, arm); err != nil {
+			t.Fatalf("arm consumer child rack proof: %v", err)
+		}
+		rackState.Lock()
+		rackState.armed = true
+		rackState.lastFetchBroker = 0
+		rackState.Unlock()
+		if _, err := fmt.Fprintln(os.Stdout, apacheKafkaConsumerRackArmed); err != nil {
+			t.Fatalf("report armed consumer child rack proof: %v", err)
+		}
+	}
 	if _, err := fmt.Fprintln(os.Stdout, apacheKafkaConsumerReady); err != nil {
 		t.Fatalf("report consumer child assignment: %v", err)
+	}
+	if expectedFetchBroker != 0 {
+		select {
+		case <-rackRecord:
+			if _, err := fmt.Fprintf(
+				os.Stdout,
+				"%s:%d\n",
+				apacheKafkaConsumerRackRecord,
+				expectedFetchBroker,
+			); err != nil {
+				t.Fatalf("report consumer child rack record: %v", err)
+			}
+		case err := <-runResult:
+			t.Fatalf("consumer child stopped before rack record: %v", err)
+		case <-time.After(30 * time.Second):
+			t.Fatalf(
+				"consumer child did not handle a record fetched from broker %d",
+				expectedFetchBroker,
+			)
+		}
 	}
 
 	release := []byte{0}
@@ -465,6 +583,52 @@ func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
 		[]string{cooperativeClient},
 	)
 	cooperative.releaseConsumerAndWait(t)
+}
+
+func TestApacheKafkaRackLocalConsumerCompatibility(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf("golib-apache-rack-local-%d", time.Now().UnixNano())
+	createApacheKafkaTopic(t, ctx, brokers, topic, 1)
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-rack-local-producer",
+		AllowedTopics: []string{topic},
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rack-local producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("close rack-local producer: %v", err)
+		}
+	}()
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-rack-local-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rack-local inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	proveApacheKafkaRackLocalFetch(
+		t,
+		ctx,
+		brokers,
+		producer,
+		inspector,
+		topic,
+	)
 }
 
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
@@ -1658,6 +1822,45 @@ func startApacheKafkaConsumerChild(
 	clientID string,
 	balance string,
 ) *apacheKafkaProcessorChildProcess {
+	return startApacheKafkaConsumerChildWithRack(
+		t, ctx, brokers, topic, groupID, clientID, balance, "", 0,
+	)
+}
+
+func startApacheKafkaRackConsumerChild(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	clientID string,
+	rack string,
+	fetchBroker int32,
+) *apacheKafkaProcessorChildProcess {
+	return startApacheKafkaConsumerChildWithRack(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		clientID,
+		apacheKafkaConsumerBalanceCoop,
+		rack,
+		fetchBroker,
+	)
+}
+
+func startApacheKafkaConsumerChildWithRack(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	clientID string,
+	balance string,
+	rack string,
+	fetchBroker int32,
+) *apacheKafkaProcessorChildProcess {
 	t.Helper()
 
 	command := exec.CommandContext(
@@ -1665,6 +1868,10 @@ func startApacheKafkaConsumerChild(
 		os.Args[0],
 		"-test.run=^TestApacheKafkaConsumerChild$",
 	)
+	fetchBrokerValue := ""
+	if fetchBroker != 0 {
+		fetchBrokerValue = strconv.FormatInt(int64(fetchBroker), 10)
+	}
 	command.Env = append(
 		os.Environ(),
 		apacheKafkaConsumerChildMode+"=1",
@@ -1673,7 +1880,17 @@ func startApacheKafkaConsumerChild(
 		apacheKafkaConsumerGroup+"="+groupID,
 		apacheKafkaConsumerClient+"="+clientID,
 		apacheKafkaConsumerBalance+"="+balance,
+		apacheKafkaConsumerRack+"="+rack,
+		apacheKafkaConsumerFetchBroker+"="+fetchBrokerValue,
 	)
+	readyMarker := apacheKafkaConsumerReady
+	if fetchBroker != 0 {
+		readyMarker = fmt.Sprintf(
+			"%s:%d",
+			apacheKafkaConsumerRackFetch,
+			fetchBroker,
+		)
+	}
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		t.Fatalf("open consumer child stdin: %v", err)
@@ -1697,9 +1914,20 @@ func startApacheKafkaConsumerChild(
 	waitForApacheKafkaProcessorMarker(
 		t,
 		child.scanner,
-		apacheKafkaConsumerReady,
+		readyMarker,
 		&child.stderr,
 	)
+	if fetchBroker != 0 {
+		if _, err := child.stdin.Write([]byte{1}); err != nil {
+			t.Fatalf("arm rack-local consumer child: %v", err)
+		}
+		waitForApacheKafkaProcessorMarker(
+			t,
+			child.scanner,
+			apacheKafkaConsumerRackArmed,
+			&child.stderr,
+		)
+	}
 
 	return child
 }
@@ -2908,6 +3136,8 @@ func newApacheKafkaNetwork(
 func apacheKafkaEnvironment(nodeID int32) map[string]string {
 	return map[string]string{
 		"KAFKA_NODE_ID":                                          fmt.Sprint(nodeID),
+		"KAFKA_BROKER_RACK":                                      fmt.Sprintf("rack-%d", nodeID),
+		"KAFKA_REPLICA_SELECTOR_CLASS":                           "org.apache.kafka.common.replica.RackAwareReplicaSelector",
 		"KAFKA_PROCESS_ROLES":                                    "broker,controller",
 		"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":                   "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT",
 		"KAFKA_CONTROLLER_QUORUM_VOTERS":                         "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093",
@@ -3162,6 +3392,63 @@ func allPartitionsMatch(
 	}
 
 	return true
+}
+
+func proveApacheKafkaRackLocalFetch(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	inspector *kafka.Inspector,
+	topic string,
+) {
+	t.Helper()
+
+	state := waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 && allPartitionsMatch(state, 3, 3)
+	})
+	partition := state.Partitions[0]
+	follower := int32(0)
+	for _, replica := range partition.Replicas {
+		if replica != partition.Leader {
+			follower = replica
+
+			break
+		}
+	}
+	if follower == 0 {
+		t.Fatalf("rack-local topic has no follower: %#v", partition)
+	}
+
+	groupID := fmt.Sprintf("golib-apache-rack-local-%d", time.Now().UnixNano())
+	child := startApacheKafkaRackConsumerChild(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		"golib-apache-rack-local-consumer",
+		fmt.Sprintf("rack-%d", follower),
+		follower,
+	)
+	assertApacheKafkaDelivery(t, ctx, producer, topic, 0, "rack-local")
+	waitForApacheKafkaProcessorMarker(
+		t,
+		child.scanner,
+		fmt.Sprintf("%s:%d", apacheKafkaConsumerRackRecord, follower),
+		&child.stderr,
+	)
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		map[int32]int64{0: 1},
+	)
+	child.releaseConsumerAndWait(t)
 }
 
 func assertApacheKafkaDelivery(

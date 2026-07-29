@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -444,8 +445,9 @@ func cloneTLSConfig(source *tls.Config) *tls.Config {
 
 func validTLSConfigMaterial(config *tls.Config) bool {
 	if config.GetClientCertificate != nil || len(config.Certificates) > 16 ||
-		len(config.NextProtos) > 16 || len(config.CipherSuites) > 64 ||
-		len(config.CurvePreferences) > 32 ||
+		len(config.NextProtos) > 16 ||
+		len(config.CipherSuites) > tls12CipherSuiteCount() ||
+		len(config.CurvePreferences) > 7 ||
 		len(config.EncryptedClientHelloConfigList) != 0 ||
 		config.KeyLogWriter != nil || config.Renegotiation != tls.RenegotiateNever ||
 		hasDuplicates(config.NextProtos) || hasDuplicates(config.CipherSuites) ||
@@ -467,6 +469,17 @@ func validTLSConfigMaterial(config *tls.Config) bool {
 	}
 
 	return true
+}
+
+func tls12CipherSuiteCount() int {
+	count := 0
+	for _, suite := range tls.CipherSuites() {
+		if slices.Contains(suite.SupportedVersions, tls.VersionTLS12) {
+			count++
+		}
+	}
+
+	return count
 }
 
 func hasServerTLSFields(config *tls.Config) bool {
@@ -494,12 +507,10 @@ func validCipherSuites(configured []uint16) bool {
 			if configuredID != safeSuite.ID {
 				continue
 			}
-			for _, version := range safeSuite.SupportedVersions {
-				if version == tls.VersionTLS12 {
-					found = true
-					break
-				}
-			}
+			found = slices.Contains(
+				safeSuite.SupportedVersions,
+				tls.VersionTLS12,
+			)
 		}
 		if !found {
 			return false
@@ -826,9 +837,6 @@ func validClientCertificate(certificate tls.Certificate) bool {
 		return false
 	}
 	totalBytes := len(certificate.OCSPStaple)
-	if totalBytes > 1<<20 {
-		return false
-	}
 	var leaf *x509.Certificate
 	for index, encoded := range certificate.Certificate {
 		if len(encoded) == 0 || len(encoded) > 1<<20-totalBytes {

@@ -51,8 +51,9 @@ deep-copied; callers own them for the client lifetime and must keep them
 immutable or concurrency-safe.
 
 A TLS configuration may contain at most 16 client identities, 16 ALPN values,
-64 safe TLS-1.2 cipher suites, and 32 known curve preferences. Each ALPN value
-is 1 to 255 bytes. Each certificate chain contains at most 16 certificates;
+every distinct safe TLS-1.2 cipher suite exposed by the selected Go toolchain,
+and all seven explicitly supported curve preferences. Each ALPN value is 1 to
+255 bytes. Each certificate chain contains at most 16 certificates;
 the chain, OCSP staple, and signed-certificate timestamps together are limited
 to 1 MiB. A broker client-certificate request exposed to a provider is limited
 to 64 acceptable CAs totaling 64 KiB and 64 signature schemes before copying.

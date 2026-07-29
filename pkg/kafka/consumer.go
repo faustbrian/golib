@@ -584,10 +584,15 @@ func (consumer *Consumer) runOnce(
 	}()
 	result = PollResult{Polled: len(records)}
 	if len(records) > consumer.maxPollRecords {
-		return result, errors.Join(ErrTooManyFetchedRecords, fetches.Err())
+		return result, errors.Join(
+			ErrTooManyFetchedRecords,
+			newConsumerError(ConsumerOperationPoll, fetches.Err()),
+		)
 	}
 	if err := fetches.Err(); err != nil {
-		return PollResult{}, consumer.groupError(err)
+		return PollResult{}, consumer.groupError(
+			newConsumerError(ConsumerOperationPoll, err),
+		)
 	}
 	token, err := consumer.assignment.token()
 	if err != nil {
@@ -1104,7 +1109,10 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 	}
 	if !staticMembership {
 		if leaveErr := consumer.client.LeaveGroupContext(ctx); leaveErr != nil {
-			return errors.Join(ErrConsumerShutdownIncomplete, leaveErr)
+			return errors.Join(
+				ErrConsumerShutdownIncomplete,
+				newConsumerError(ConsumerOperationLeave, leaveErr),
+			)
 		}
 	}
 	consumer.client.Close()

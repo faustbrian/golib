@@ -6,6 +6,13 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- classify consumer-group poll, offset-commit, and graceful-leave failures
+  through redacted `ConsumerError` values with stable operation, category, and
+  retryability metadata while preserving the original cause for deliberate
+  `errors.Is` and `errors.As` inspection
+- align TLS cipher-suite and curve-list allocation bounds with the stricter
+  admissible allowlists, and prove every inclusive credential, protocol,
+  certificate, cipher-suite, and curve boundary against realistic mutants
 - restore `PublishBatch` results to caller input order by owned record identity
   instead of trusting franz-go callback-completion order, preserving exact
   successful and failed record attribution across topics and partitions, and
@@ -38,6 +45,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker rack-local fetch evidence proving that a separate consumer
+  process configured for a non-leader replica's rack handles and commits a
+  source record after its single in-flight fetch completes on that follower
 - bounded whole-partition-batch stop, retry, retry-topic, dead-letter, and
   delegated failure policy that preserves all-or-nothing source settlement,
   publishes every source record through one bounded call with exact

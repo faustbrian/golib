@@ -1,14 +1,14 @@
 package kafka
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"context"
 
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -59,6 +59,94 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.ShutdownTimeout != 30*time.Second ||
 		config.DialTimeout != 10*time.Second {
 		t.Fatalf("unexpected defaults: %#v", config)
+	}
+}
+
+func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	minimum := validConsumerConfig()
+	minimum.MaxPollRecords = 1
+	minimum.MaxPausedPartitions = 1
+	minimum.MaxAssignedPartitions = 1
+	minimum.MaxConcurrentFetches = 1
+	minimum.MaxConcurrentHandlers = 1
+	minimum.FetchMaxBytes = 1 << 20
+	minimum.FetchMaxPartitionBytes = 1 << 20
+	minimum.FetchMaxWait = time.Millisecond
+	minimum.SessionTimeout = time.Second
+	minimum.RebalanceTimeout = 2 * time.Second
+	minimum.HeartbeatInterval = 100 * time.Millisecond
+	minimum.HandlerTimeout = time.Second
+	minimum.CommitTimeout = 100 * time.Millisecond
+	minimum.ShutdownTimeout = 100 * time.Millisecond
+	minimum.DialTimeout = 100 * time.Millisecond
+	if _, err := normalizeConsumerConfig(minimum); err != nil {
+		t.Fatalf("minimum normalizeConsumerConfig() error = %v", err)
+	}
+
+	maximum := validConsumerConfig()
+	maximum.GroupID = strings.Repeat("g", 255)
+	maximum.InstanceID = strings.Repeat("i", 255)
+	maximum.Rack = strings.Repeat("r", 255)
+	maximum.BalancePolicy = BalanceEagerToCooperative
+	maximum.RebalanceHandler = RebalanceDrainHandler
+	maximum.MaxPollRecords = 1_000
+	maximum.MaxPausedPartitions = 1_024
+	maximum.MaxAssignedPartitions = 65_536
+	maximum.MaxConcurrentFetches = 64
+	maximum.MaxConcurrentHandlers = 64
+	maximum.FetchMaxBytes = 100 << 20
+	maximum.FetchMaxPartitionBytes = 100 << 20
+	maximum.FetchMaxWait = 30 * time.Second
+	maximum.SessionTimeout = 6 * time.Minute
+	maximum.RebalanceTimeout = 10 * time.Minute
+	maximum.HeartbeatInterval = 5 * time.Minute
+	maximum.HandlerTimeout = time.Second
+	maximum.CommitTimeout = 2 * time.Minute
+	maximum.ShutdownTimeout = 15 * time.Minute
+	maximum.DialTimeout = 2 * time.Minute
+	if _, err := normalizeConsumerConfig(maximum); err != nil {
+		t.Fatalf("maximum normalizeConsumerConfig() error = %v", err)
+	}
+
+	topics := make([]string, 64)
+	for index := range topics {
+		topics[index] = fmt.Sprintf("events-%d", index)
+	}
+	maximumTopics := validConsumerConfig()
+	maximumTopics.Topics = topics
+	if _, err := normalizeConsumerConfig(maximumTopics); err != nil {
+		t.Fatalf("maximum topic subscription error = %v", err)
+	}
+}
+
+func TestConsumerConfigRejectsExactTimeoutRelationshipBoundaries(t *testing.T) {
+	t.Parallel()
+
+	heartbeatEqualsSession := validConsumerConfig()
+	heartbeatEqualsSession.SessionTimeout = time.Second
+	heartbeatEqualsSession.HeartbeatInterval = time.Second
+	heartbeatEqualsSession.RebalanceTimeout = 10 * time.Minute
+	heartbeatEqualsSession.HandlerTimeout = time.Second
+	heartbeatEqualsSession.CommitTimeout = 100 * time.Millisecond
+	if _, err := normalizeConsumerConfig(heartbeatEqualsSession); !errors.Is(
+		err,
+		ErrInvalidConsumerConfig,
+	) {
+		t.Fatalf("equal heartbeat/session timeout error = %v", err)
+	}
+
+	sumEqualsRebalance := validConsumerConfig()
+	sumEqualsRebalance.HeartbeatInterval = 100 * time.Millisecond
+	sumEqualsRebalance.HandlerTimeout = time.Second
+	sumEqualsRebalance.CommitTimeout = 100 * time.Millisecond
+	sumEqualsRebalance.RebalanceTimeout = 1_200 * time.Millisecond
+	if _, err := normalizeConsumerConfig(sumEqualsRebalance); !errors.Is(
+		err,
+		ErrInvalidConsumerConfig,
+	) {
+		t.Fatalf("equal lifecycle/rebalance timeout error = %v", err)
 	}
 }
 
@@ -1338,8 +1426,14 @@ func TestConsumerShutdownCanRetryLeaveFailure(t *testing.T) {
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
 
 	err := consumer.Shutdown(context.Background())
+	var consumerErr *ConsumerError
 	if !errors.Is(err, ErrConsumerShutdownIncomplete) ||
-		!errors.Is(err, leaveErr) || backend.leaveCalls != 1 || backend.closed != 0 {
+		!errors.Is(err, leaveErr) ||
+		!errors.As(err, &consumerErr) ||
+		consumerErr.Operation() != ConsumerOperationLeave ||
+		consumerErr.Category() != ErrorPermanent ||
+		backend.leaveCalls != 1 ||
+		backend.closed != 0 {
 		t.Fatalf("first Shutdown() error/backend = %v/%#v", err, backend)
 	}
 	backend.leaveErr = nil
@@ -1415,7 +1509,10 @@ func TestConsumerCloseUsesConfiguredShutdown(t *testing.T) {
 func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 	t.Parallel()
 
-	fetchErr := errors.New("fetch failed")
+	fetchErr := errors.Join(
+		kerr.NotCoordinator,
+		errors.New("fetch user:password@broker.internal"),
+	)
 	fetchBackend := &recordingConsumerBackend{fetches: kgo.NewErrFetch(fetchErr)}
 	fetchConsumer := consumerWithBackend(fetchBackend, 10, time.Second, time.Second)
 	result, err := fetchConsumer.RunOnce(context.Background(), HandlerFunc(func(
@@ -1426,7 +1523,17 @@ func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 
 		return nil
 	}))
-	if !errors.Is(err, fetchErr) || result != (PollResult{}) ||
+	var classified interface {
+		Category() ErrorCategory
+		Retryable() bool
+	}
+	if !errors.Is(err, fetchErr) ||
+		!errors.As(err, &classified) ||
+		classified.Category() != ErrorRetryable ||
+		!classified.Retryable() ||
+		strings.Contains(err.Error(), "password") ||
+		strings.Contains(err.Error(), "broker.internal") ||
+		result != (PollResult{}) ||
 		len(fetchBackend.committed) != 0 || fetchBackend.allowed != 1 {
 		t.Fatalf("fetch result/error/backend = %#v/%v/%#v", result, err, fetchBackend)
 	}
@@ -1443,7 +1550,12 @@ func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 	) error {
 		return nil
 	}))
-	if err != commitErr ||
+	var consumerErr *ConsumerError
+	if !errors.Is(err, commitErr) ||
+		!errors.As(err, &consumerErr) ||
+		consumerErr.Operation() != ConsumerOperationCommit ||
+		consumerErr.Category() != ErrorPermanent ||
+		consumerErr.Retryable() ||
 		result != (PollResult{Polled: 1, Processed: 1}) ||
 		commitBackend.allowed != 1 {
 		t.Fatalf("commit result/error/backend = %#v/%v/%#v", result, err, commitBackend)
