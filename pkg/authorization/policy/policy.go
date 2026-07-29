@@ -7,7 +7,6 @@ import (
 	"errors"
 	"maps"
 	"slices"
-	"sort"
 
 	authorization "github.com/faustbrian/golib/pkg/authorization"
 )
@@ -24,7 +23,10 @@ type SnapshotDiff struct {
 }
 
 func Diff(current, candidate *authorization.Snapshot) (SnapshotDiff, error) {
-	if current == nil || candidate == nil {
+	if current == nil {
+		return SnapshotDiff{}, ErrNilSnapshot
+	}
+	if candidate == nil {
 		return SnapshotDiff{}, ErrNilSnapshot
 	}
 
@@ -40,9 +42,7 @@ func Diff(current, candidate *authorization.Snapshot) (SnapshotDiff, error) {
 		candidatePolicy, exists := candidatePolicies[id]
 		if !exists {
 			diff.Removed = append(diff.Removed, id)
-			continue
-		}
-		if !policyInfoEqual(currentPolicy, candidatePolicy) {
+		} else if !policyInfoEqual(currentPolicy, candidatePolicy) {
 			diff.Changed = append(diff.Changed, id)
 		}
 	}
@@ -77,7 +77,10 @@ func DryRun(
 	candidate *authorization.Snapshot,
 	requests []authorization.Request,
 ) (DryRunReport, error) {
-	if current == nil || candidate == nil {
+	if current == nil {
+		return DryRunReport{}, ErrNilSnapshot
+	}
+	if candidate == nil {
 		return DryRunReport{}, ErrNilSnapshot
 	}
 
@@ -97,8 +100,7 @@ func DryRun(
 		ToRevision:   candidate.Revision(),
 	}
 	evaluationErr := errors.Join(currentErr, candidateErr)
-	if len(currentDecisions) != len(requests) ||
-		len(candidateDecisions) != len(requests) {
+	if len(currentDecisions) != len(requests) {
 		return report, evaluationErr
 	}
 	report.Decisions = make([]DecisionComparison, len(requests))
@@ -123,17 +125,24 @@ func indexPolicies(policies []authorization.PolicyInfo) map[authorization.Policy
 }
 
 func policyInfoEqual(left, right authorization.PolicyInfo) bool {
-	return left.ID == right.ID && left.Revision == right.Revision &&
+	return left.Revision == right.Revision &&
 		left.Priority == right.Priority && left.ActiveFrom.Equal(right.ActiveFrom) &&
 		left.ActiveUntil.Equal(right.ActiveUntil) && maps.Equal(left.Metadata, right.Metadata)
 }
 
 func decisionsDiffer(left, right authorization.Decision) bool {
-	return left.Outcome != right.Outcome || left.Reason != right.Reason ||
-		!slices.Equal(left.MatchedPolicyIDs, right.MatchedPolicyIDs) ||
-		left.MatchedPolicyIDsTruncated != right.MatchedPolicyIDsTruncated
+	if left.Outcome != right.Outcome {
+		return true
+	}
+	if left.Reason != right.Reason {
+		return true
+	}
+	if !slices.Equal(left.MatchedPolicyIDs, right.MatchedPolicyIDs) {
+		return true
+	}
+	return left.MatchedPolicyIDsTruncated != right.MatchedPolicyIDsTruncated
 }
 
 func sortPolicyIDs(ids []authorization.PolicyID) {
-	sort.Slice(ids, func(left, right int) bool { return ids[left] < ids[right] })
+	slices.Sort(ids)
 }

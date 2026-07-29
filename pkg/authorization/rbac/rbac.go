@@ -3,10 +3,11 @@
 package rbac
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	authorization "github.com/faustbrian/golib/pkg/authorization"
 )
@@ -178,9 +179,7 @@ func New(
 	}
 	permissionIDs := make(map[authorization.PolicyID]struct{}, len(permissions))
 	for index, permission := range permissions {
-		if permission.ID == "" || permission.RoleID == "" ||
-			permission.Action == "" || permission.ResourceType == "" ||
-			(permission.Effect != authorization.Allow && permission.Effect != authorization.Deny) {
+		if !validPermission(permission) {
 			return nil, fmt.Errorf("permission %d: %w", index, ErrInvalidPermission)
 		}
 		if _, exists := permissionIDs[permission.ID]; exists {
@@ -201,8 +200,7 @@ func New(
 	}
 	assignmentIDs := make(map[authorization.PolicyID]struct{}, len(assignments))
 	for index, assignment := range assignments {
-		if assignment.ID == "" || assignment.Subject.Kind == "" ||
-			assignment.Subject.ID == "" || assignment.RoleID == "" {
+		if !validAssignment(assignment) {
 			return nil, fmt.Errorf("assignment %d: %w", index, ErrInvalidAssignment)
 		}
 		if _, exists := assignmentIDs[assignment.ID]; exists {
@@ -239,9 +237,7 @@ func (evaluator *Evaluator) Evaluate(
 	}
 
 	for _, permission := range permissions {
-		if permission.Action != request.Action ||
-			permission.ResourceType != request.Resource.Type ||
-			(permission.ResourceID != "" && permission.ResourceID != request.Resource.ID) {
+		if !permissionMatchesRequest(permission, request) {
 			continue
 		}
 		if len(decision.MatchedPolicyIDs) >= evaluator.limits.MaxMatches {
@@ -298,15 +294,49 @@ func (evaluator *Evaluator) EffectivePermissions(
 	for roleID := range roleIDs {
 		permissions = append(permissions, evaluator.permissions[roleID]...)
 	}
-	sort.Slice(permissions, func(left, right int) bool {
-		if permissions[left].Priority == permissions[right].Priority {
-			return permissions[left].ID < permissions[right].ID
-		}
-
-		return permissions[left].Priority > permissions[right].Priority
+	slices.SortFunc(permissions, func(left, right Permission) int {
+		return cmp.Or(
+			cmp.Compare(right.Priority, left.Priority),
+			cmp.Compare(left.ID, right.ID),
+		)
 	})
 
 	return permissions, nil
+}
+
+func validPermission(permission Permission) bool {
+	if slices.Contains([]string{
+		string(permission.ID), string(permission.RoleID), string(permission.Action),
+		string(permission.ResourceType),
+	}, "") {
+		return false
+	}
+	switch permission.Effect {
+	case authorization.Allow, authorization.Deny:
+		return true
+	default:
+		return false
+	}
+}
+
+func validAssignment(assignment Assignment) bool {
+	return !slices.Contains([]string{
+		string(assignment.ID), string(assignment.Subject.Kind),
+		string(assignment.Subject.ID), string(assignment.RoleID),
+	}, "")
+}
+
+func permissionMatchesRequest(permission Permission, request authorization.Request) bool {
+	if permission.Action != request.Action {
+		return false
+	}
+	if permission.ResourceType != request.Resource.Type {
+		return false
+	}
+	if permission.ResourceID == "" {
+		return true
+	}
+	return permission.ResourceID == request.Resource.ID
 }
 
 func (evaluator *Evaluator) EvaluateBatch(

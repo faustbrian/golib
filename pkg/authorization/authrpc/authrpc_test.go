@@ -78,7 +78,7 @@ func TestMiddlewareMapsDenialsAndFailures(t *testing.T) {
 			authorizer: authorizerFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
 				return authorization.Decision{Outcome: authorization.Deny}, nil
 			}),
-			wantCode: CodeForbidden,
+			wantCode: -32001,
 		},
 		"not applicable": {
 			mapper: func(context.Context, json.RawMessage) (authorization.Request, error) {
@@ -87,7 +87,7 @@ func TestMiddlewareMapsDenialsAndFailures(t *testing.T) {
 			authorizer: authorizerFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
 				return authorization.Decision{Outcome: authorization.NotApplicable}, nil
 			}),
-			wantCode: CodeForbidden,
+			wantCode: -32001,
 		},
 		"invalid outcome": {
 			mapper: func(context.Context, json.RawMessage) (authorization.Request, error) {
@@ -146,6 +146,20 @@ func TestMiddlewareOptionsAndValidation(t *testing.T) {
 	var rpcError *jsonrpc.Error
 	if !errors.As(err, &rpcError) || rpcError.Code != -32042 {
 		t.Errorf("custom denied error = %v", err)
+	}
+	customFailure, err := NewMiddleware(
+		authorizerFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
+			return authorization.Decision{}, errors.New("failed")
+		}),
+		mapper,
+		WithErrorMapper(func(error) *jsonrpc.Error { return jsonrpc.NewError(-32043, "Failed") }),
+	)
+	if err != nil {
+		t.Fatalf("NewMiddleware(custom failure) error = %v", err)
+	}
+	_, err = customFailure(func(context.Context, json.RawMessage) (any, error) { return nil, nil })(context.Background(), nil)
+	if !errors.As(err, &rpcError) || rpcError.Code != -32043 {
+		t.Errorf("custom failure error = %v", err)
 	}
 	if _, ok := DecisionFromContext(context.Background()); ok {
 		t.Error("DecisionFromContext(empty) found decision")

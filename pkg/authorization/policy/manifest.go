@@ -133,7 +133,13 @@ func (model Model) valid() bool {
 
 func validDocument(document json.RawMessage) bool {
 	trimmed := bytes.TrimSpace(document)
-	return len(trimmed) >= 2 && trimmed[0] == '{' && json.Valid(trimmed)
+	if len(trimmed) < 2 {
+		return false
+	}
+	if trimmed[0] != '{' {
+		return false
+	}
+	return json.Valid(trimmed)
 }
 
 // Repository is the storage-neutral optimistic-concurrency contract for

@@ -1,10 +1,11 @@
 package authorization
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -109,12 +110,12 @@ func NewSnapshot(
 	}
 
 	if algorithm == PriorityOrder {
-		sort.Slice(policies, func(left, right int) bool {
-			if policies[left].priority == policies[right].priority {
-				return policies[left].id < policies[right].id
+		slices.SortFunc(policies, func(left, right policyEntry) int {
+			if priority := cmp.Compare(right.priority, left.priority); priority != 0 {
+				return priority
 			}
 
-			return policies[left].priority > policies[right].priority
+			return cmp.Compare(left.id, right.id)
 		})
 	}
 

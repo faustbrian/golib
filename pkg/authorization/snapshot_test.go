@@ -115,6 +115,27 @@ func TestNewSnapshotRejectsInvalidActivationWindow(t *testing.T) {
 	}
 }
 
+func TestNewSnapshotAcceptsOpenActivationWindows(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	evaluator := evaluatorFunc(func(context.Context, Request) (Decision, error) {
+		return Decision{Outcome: Allow}, nil
+	})
+	for name, definition := range map[string]PolicyDefinition{
+		"start only": {ID: "start", ActiveFrom: now, Evaluator: evaluator},
+		"end only":   {ID: "end", ActiveUntil: now, Evaluator: evaluator},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := NewSnapshot(1, DenyOverrides, definition); err != nil {
+				t.Errorf("NewSnapshot() error = %v, want open activation window accepted", err)
+			}
+		})
+	}
+}
+
 func TestNewSnapshotRejectsInvalidCombiningAlgorithm(t *testing.T) {
 	t.Parallel()
 

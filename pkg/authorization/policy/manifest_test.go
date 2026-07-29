@@ -117,6 +117,16 @@ func TestManifestValidationAndStrictDecode(t *testing.T) {
 	if !errors.Is(err, policy.ErrInvalidManifest) {
 		t.Errorf("invalid semantic policy.Decode() error = %v, want ErrInvalidManifest", err)
 	}
+	invalidDocument := valid
+	invalidDocument.Policies = append([]policy.Record(nil), valid.Policies...)
+	invalidDocument.Policies[0].Document = json.RawMessage(`{"incomplete"`)
+	if err := invalidDocument.Validate(); !errors.Is(err, policy.ErrInvalidManifest) {
+		t.Errorf("object-prefixed invalid document error = %v, want ErrInvalidManifest", err)
+	}
+	invalidDocument.Policies[0].Document = json.RawMessage(`[]`)
+	if err := invalidDocument.Validate(); !errors.Is(err, policy.ErrInvalidManifest) {
+		t.Errorf("non-object document error = %v, want ErrInvalidManifest", err)
+	}
 
 	if _, err := policy.Encode(policy.Manifest{}); !errors.Is(err, policy.ErrInvalidManifest) {
 		t.Errorf("invalid policy.Encode() error = %v, want ErrInvalidManifest", err)

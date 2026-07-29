@@ -251,6 +251,15 @@ func TestSynchronizerObserveVerifiesHintAgainstRepository(t *testing.T) {
 		t.Errorf("Observe(verified) error = %v", err)
 	}
 
+	exact := &repositoryStub{manifests: []Manifest{synchronizerManifest(2)}}
+	synchronizer, err = NewSynchronizer(exact, synchronizerCompiler(t), synchronizerEngine(t, 1))
+	if err != nil {
+		t.Fatalf("NewSynchronizer(exact) error = %v", err)
+	}
+	if err := synchronizer.Observe(context.Background(), 2); err != nil {
+		t.Errorf("Observe(exact verified revision) error = %v", err)
+	}
+
 	failed := &repositoryStub{err: errors.New("repository unavailable")}
 	synchronizer, err = NewSynchronizer(failed, synchronizerCompiler(t), synchronizerEngine(t, 1))
 	if err != nil {
@@ -377,6 +386,7 @@ func TestNewSynchronizerValidatesDependencies(t *testing.T) {
 		{compiler: compiler, engine: engine, want: ErrNilRepository},
 		{repository: repository, engine: engine, want: ErrNilCompiler},
 		{repository: repository, compiler: compiler, want: ErrNilEngine},
+		{repository: repository, compiler: compiler, engine: engine, options: []SynchronizerOption{WithSyncInterval(0)}, want: ErrInvalidSyncInterval},
 		{repository: repository, compiler: compiler, engine: engine, options: []SynchronizerOption{WithSyncInterval(-time.Second)}, want: ErrInvalidSyncInterval},
 		{repository: repository, compiler: compiler, engine: engine, options: []SynchronizerOption{WithMaxStaleness(0)}, want: ErrInvalidMaxStaleness},
 	}

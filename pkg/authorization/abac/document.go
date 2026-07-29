@@ -251,11 +251,10 @@ func (document Document) Build() (*Evaluator, error) {
 		}
 	}
 	for index := range document.Rules {
-		if document.Rules[index].Condition == nil {
-			continue
-		}
-		if err := validateConditionDocumentLimits(document.Rules[index].Condition, limits); err != nil {
-			return nil, fmt.Errorf("rule %d: %w", index, err)
+		if document.Rules[index].Condition != nil {
+			if err := validateConditionDocumentLimits(document.Rules[index].Condition, limits); err != nil {
+				return nil, fmt.Errorf("rule %d: %w", index, err)
+			}
 		}
 	}
 	named := make([]NamedCondition, len(document.NamedConditions))

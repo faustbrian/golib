@@ -78,14 +78,12 @@ func (instrumented *Instrumented) Decide(
 	next, finish := safeInstrumentationStart(instrumented.instrumenter, ctx)
 	decision, err := instrumented.authorizer.Decide(next, request)
 	finished := safeInstrumentationNow(instrumented.clock, started)
-	duration := finished.Sub(started)
-	if duration < 0 {
-		duration = 0
-	}
+	duration := max(finished.Sub(started), 0)
 	matched := decision.MatchedPolicyIDs
 	truncated := decision.MatchedPolicyIDsTruncated
-	if len(matched) > instrumented.maxPolicyIDs {
-		matched = matched[:instrumented.maxPolicyIDs]
+	matchedCount := min(len(matched), instrumented.maxPolicyIDs)
+	if matchedCount != len(matched) {
+		matched = matched[:matchedCount]
 		truncated = true
 	}
 	event := Event{

@@ -263,6 +263,43 @@ func TestEvaluatorOrderingIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestEvaluatorContinuesAfterNonMatchingRule(t *testing.T) {
+	t.Parallel()
+
+	request := attributedRequest()
+	rules := []abac.Rule{
+		{
+			ID: "non-match", Priority: 2, Tenant: request.Tenant,
+			Action: request.Action, ResourceType: request.Resource.Type,
+			Effect: authorization.Deny,
+			Condition: abac.Equal(
+				abac.Reference{Source: abac.Request, Name: "mfa"},
+				authorization.BoolValue(false),
+			),
+		},
+		{
+			ID: "match", Priority: 1, Tenant: request.Tenant,
+			Action: request.Action, ResourceType: request.Resource.Type,
+			Effect: authorization.Allow,
+			Condition: abac.Exists(
+				abac.Reference{Source: abac.Request, Name: "mfa"},
+			),
+		},
+	}
+	evaluator, err := abac.New(rules, nil)
+	if err != nil {
+		t.Fatalf("abac.New() error = %v", err)
+	}
+	decision, err := evaluator.Evaluate(context.Background(), request)
+	if err != nil {
+		t.Fatalf("Evaluator.Evaluate() error = %v", err)
+	}
+	if decision.Outcome != authorization.Allow ||
+		!slices.Equal(decision.MatchedPolicyIDs, []authorization.PolicyID{"match"}) {
+		t.Errorf("Evaluator.Evaluate() = %+v, want later matching allow rule", decision)
+	}
+}
+
 func TestEvaluatorFailsClosedOnLimitsAndCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -499,6 +536,7 @@ func TestConditionValidationRejectsInvalidOperands(t *testing.T) {
 	validRef := abac.Reference{Source: abac.Request, Name: "value"}
 	tests := map[string]abac.Condition{
 		"invalid source":             abac.Exists(abac.Reference{Source: abac.Source(255), Name: "value"}),
+		"invalid equality reference": abac.Equal(abac.Reference{Source: abac.Source(255), Name: "value"}, authorization.StringValue("value")),
 		"empty name":                 abac.IsNull(abac.Reference{Source: abac.Request}),
 		"missing equality literal":   abac.Equal(validRef, authorization.Value{}),
 		"invalid comparison literal": abac.GreaterThan(validRef, authorization.BoolValue(true)),
@@ -603,6 +641,70 @@ func TestOperatorNonMatchAndTypeSemantics(t *testing.T) {
 				t.Errorf("result = %+v, want non-match status %v", result, tt.status)
 			}
 		})
+	}
+}
+
+func TestConditionsTreatPresentMissingValuesAsMissing(t *testing.T) {
+	t.Parallel()
+
+	request := attributedRequest()
+	request.Attributes["missing-value"] = authorization.Value{}
+	reference := abac.Reference{Source: abac.Request, Name: "missing-value"}
+	tests := map[string]struct {
+		condition abac.Condition
+		status    abac.Status
+	}{
+		"exists": {condition: abac.Exists(reference), status: abac.StatusNoMatch},
+		"equal": {
+			condition: abac.Equal(reference, authorization.StringValue("value")),
+			status:    abac.StatusMissing,
+		},
+		"loaded comparison": {
+			condition: abac.LessThan(reference, authorization.IntValue(1)),
+			status:    abac.StatusMissing,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := abac.EvaluateCondition(
+				context.Background(), tt.condition, request, abac.Limits{},
+			)
+			if err != nil {
+				t.Fatalf("EvaluateCondition() error = %v", err)
+			}
+			if result.Matched || result.Status != tt.status {
+				t.Errorf("EvaluateCondition() = %+v, want status %v", result, tt.status)
+			}
+		})
+	}
+}
+
+func TestAnyPreservesFirstDiagnosticStatus(t *testing.T) {
+	t.Parallel()
+
+	request := attributedRequest()
+	result, err := abac.EvaluateCondition(
+		context.Background(),
+		abac.Any(
+			abac.Equal(
+				abac.Reference{Source: abac.Request, Name: "missing"},
+				authorization.StringValue("value"),
+			),
+			abac.Equal(
+				abac.Reference{Source: abac.Request, Name: "mfa"},
+				authorization.StringValue("wrong-type"),
+			),
+		),
+		request,
+		abac.Limits{},
+	)
+	if err != nil {
+		t.Fatalf("EvaluateCondition() error = %v", err)
+	}
+	if result.Matched || result.Status != abac.StatusMissing {
+		t.Errorf("EvaluateCondition() = %+v, want first missing status preserved", result)
 	}
 }
 

@@ -73,6 +73,25 @@ func TestSubjectMapsExplicitClaimsAndGroups(t *testing.T) {
 	}
 }
 
+func TestSubjectAcceptsGroupsAtExactLimit(t *testing.T) {
+	t.Parallel()
+
+	subject, err := Subject(
+		principalStub{subject: "user-1", claims: map[string]any{
+			"groups": []string{"reviewers", "operators"},
+		}},
+		Config{
+			Kind: authorization.SubjectUser, GroupsClaim: "groups", MaxGroups: 2,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Subject(at exact group limit) error = %v", err)
+	}
+	if len(subject.Groups) != 2 {
+		t.Errorf("len(Subject.Groups) = %d, want 2", len(subject.Groups))
+	}
+}
+
 func TestSubjectFailsClosed(t *testing.T) {
 	t.Parallel()
 
@@ -149,5 +168,12 @@ func TestClaimValueSupportsEveryBoundedScalar(t *testing.T) {
 	}
 	if _, err := claimValue(json.Number("invalid")); !errors.Is(err, ErrUnsupportedClaim) {
 		t.Errorf("claimValue(invalid number) error = %v, want ErrUnsupportedClaim", err)
+	}
+	value, err := claimValue(uint64(math.MaxInt64))
+	if err != nil {
+		t.Fatalf("claimValue(MaxInt64) error = %v", err)
+	}
+	if integer, ok := value.Int(); !ok || integer != math.MaxInt64 {
+		t.Errorf("claimValue(MaxInt64) = (%d, %v), want MaxInt64", integer, ok)
 	}
 }

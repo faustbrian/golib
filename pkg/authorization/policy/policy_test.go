@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	authorization "github.com/faustbrian/golib/pkg/authorization"
 	"github.com/faustbrian/golib/pkg/authorization/policy"
@@ -166,6 +167,12 @@ func TestDiffAndDryRunRejectNilAndBoundOversizedSnapshots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("authorization.NewSnapshot() error = %v", err)
 	}
+	if _, err := policy.Diff(small, nil); !errors.Is(err, policy.ErrNilSnapshot) {
+		t.Errorf("policy.Diff(nil candidate) error = %v, want ErrNilSnapshot", err)
+	}
+	if _, err := policy.DryRun(context.Background(), small, nil, nil); !errors.Is(err, policy.ErrNilSnapshot) {
+		t.Errorf("policy.DryRun(nil candidate) error = %v, want ErrNilSnapshot", err)
+	}
 	definitions := make([]authorization.PolicyDefinition, 1001)
 	for index := range definitions {
 		definitions[index] = authorization.PolicyDefinition{
@@ -215,6 +222,99 @@ func TestDiffSortsMultiplePolicyIDs(t *testing.T) {
 		t.Fatalf("policy.Diff() error = %v", err)
 	}
 	assertIDs(t, diff.Added, []authorization.PolicyID{"alpha", "zulu"})
+}
+
+func TestDiffDetectsEachInspectablePolicyChange(t *testing.T) {
+	t.Parallel()
+
+	noop := evaluatorFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
+		return authorization.Decision{Outcome: authorization.NotApplicable}, nil
+	})
+	activeFrom := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	base := authorization.PolicyDefinition{
+		ID: "policy", Revision: 1, Priority: 1,
+		ActiveFrom: activeFrom, ActiveUntil: activeFrom.Add(2 * time.Hour),
+		Metadata: map[string]string{"owner": "security"}, Evaluator: noop,
+	}
+	current, err := authorization.NewSnapshot(1, authorization.DenyOverrides, base)
+	if err != nil {
+		t.Fatalf("authorization.NewSnapshot(current) error = %v", err)
+	}
+	tests := map[string]func(*authorization.PolicyDefinition){
+		"revision":    func(definition *authorization.PolicyDefinition) { definition.Revision = 2 },
+		"priority":    func(definition *authorization.PolicyDefinition) { definition.Priority = 2 },
+		"active from": func(definition *authorization.PolicyDefinition) { definition.ActiveFrom = activeFrom.Add(time.Hour) },
+		"active until": func(definition *authorization.PolicyDefinition) {
+			definition.ActiveUntil = activeFrom.Add(3 * time.Hour)
+		},
+		"metadata": func(definition *authorization.PolicyDefinition) {
+			definition.Metadata = map[string]string{"owner": "platform"}
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			candidateDefinition := base
+			mutate(&candidateDefinition)
+			candidate, snapshotErr := authorization.NewSnapshot(
+				2, authorization.DenyOverrides, candidateDefinition,
+			)
+			if snapshotErr != nil {
+				t.Fatalf("authorization.NewSnapshot(candidate) error = %v", snapshotErr)
+			}
+			diff, diffErr := policy.Diff(current, candidate)
+			if diffErr != nil {
+				t.Fatalf("policy.Diff() error = %v", diffErr)
+			}
+			assertIDs(t, diff.Changed, []authorization.PolicyID{"policy"})
+		})
+	}
+}
+
+func TestDryRunDetectsEachDecisionDifference(t *testing.T) {
+	t.Parallel()
+
+	base := authorization.Decision{
+		Outcome: authorization.Allow, Reason: "same",
+		MatchedPolicyIDs: []authorization.PolicyID{"policy"},
+	}
+	tests := map[string]authorization.Decision{
+		"outcome":            {Outcome: authorization.Deny, Reason: "same", MatchedPolicyIDs: []authorization.PolicyID{"policy"}},
+		"reason":             {Outcome: authorization.Allow, Reason: "different", MatchedPolicyIDs: []authorization.PolicyID{"policy"}},
+		"matched policy ids": {Outcome: authorization.Allow, Reason: "same", MatchedPolicyIDs: []authorization.PolicyID{"other"}},
+	}
+	for name, candidateDecision := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			current, err := authorization.NewSnapshot(
+				1, authorization.DenyOverrides,
+				authorization.PolicyDefinition{ID: "policy", Evaluator: evaluatorFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
+					return base, nil
+				})},
+			)
+			if err != nil {
+				t.Fatalf("authorization.NewSnapshot(current) error = %v", err)
+			}
+			candidate, err := authorization.NewSnapshot(
+				2, authorization.DenyOverrides,
+				authorization.PolicyDefinition{ID: "policy", Evaluator: evaluatorFunc(func(context.Context, authorization.Request) (authorization.Decision, error) {
+					return candidateDecision, nil
+				})},
+			)
+			if err != nil {
+				t.Fatalf("authorization.NewSnapshot(candidate) error = %v", err)
+			}
+			report, err := policy.DryRun(context.Background(), current, candidate, []authorization.Request{validRequest()})
+			if err != nil {
+				t.Fatalf("policy.DryRun() error = %v", err)
+			}
+			if !report.Decisions[0].Changed {
+				t.Errorf("DecisionComparison.Changed = false for %s difference", name)
+			}
+		})
+	}
 }
 
 func validRequest() authorization.Request {

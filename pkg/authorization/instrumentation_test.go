@@ -107,6 +107,39 @@ func TestInstrumentedAuthorizerPreservesUpstreamDiagnosticTruncation(t *testing.
 	}
 }
 
+func TestInstrumentedAuthorizerPreservesExactInstrumentationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	instrumenter := &instrumenterStub{derivedKey: &struct{}{}}
+	now := time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)
+	authorizer, err := NewInstrumented(
+		authorizerFunc(func(context.Context, Request) (Decision, error) {
+			return Decision{
+				Outcome:          Allow,
+				MatchedPolicyIDs: []PolicyID{"one", "two"},
+			}, nil
+		}),
+		instrumenter,
+		InstrumentationConfig{
+			Clock:        func() time.Time { return now },
+			MaxPolicyIDs: 2,
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewInstrumented() error = %v", err)
+	}
+	if _, err := authorizer.Decide(context.Background(), Request{}); err != nil {
+		t.Fatalf("Decide() error = %v", err)
+	}
+	if instrumenter.event.Duration != 0 {
+		t.Errorf("zero elapsed duration = %v, want zero", instrumenter.event.Duration)
+	}
+	if len(instrumenter.event.MatchedPolicyIDs) != 2 ||
+		instrumenter.event.MatchedPolicyIDsTruncated {
+		t.Errorf("exact-limit event = %+v, want both policy IDs without truncation", instrumenter.event)
+	}
+}
+
 func TestInstrumentedAuthorizerPreservesFailuresAndIsolatesInstrumentation(t *testing.T) {
 	t.Parallel()
 

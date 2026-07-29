@@ -312,3 +312,32 @@ func TestDocumentBuildAppliesDepthBeforeNestedSemantics(t *testing.T) {
 		t.Errorf("Document.Build(condition at exact depth) error = %v", err)
 	}
 }
+
+func TestDocumentBuildValidatesInlineRulesAfterConditionReferences(t *testing.T) {
+	t.Parallel()
+
+	invalid := ConditionDocument{Operator: "invalid"}
+	document := Document{
+		Version: DocumentVersion,
+		Limits:  Limits{MaxDepth: 1},
+		Rules: []RuleDocument{
+			{
+				ID: "reference", Action: "read", ResourceType: "document",
+				Effect: EffectAllow, ConditionName: "named", ConditionVersion: 1,
+			},
+			{
+				ID: "deep", Action: "read", ResourceType: "document", Effect: EffectAllow,
+				Condition: &ConditionDocument{Operator: OperatorNot, Condition: &invalid},
+			},
+		},
+		NamedConditions: []NamedConditionDocument{{
+			Name: "named", Version: 1,
+			Condition: ConditionDocument{
+				Operator: OperatorExists, Source: SourceSubject, Attribute: "department",
+			},
+		}},
+	}
+	if _, err := document.Build(); !errors.Is(err, ErrDepthExceeded) {
+		t.Errorf("Document.Build() error = %v, want later inline depth error", err)
+	}
+}

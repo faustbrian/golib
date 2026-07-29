@@ -3,6 +3,7 @@
 package valkey
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"strconv"
@@ -58,10 +59,10 @@ func New(client native.Client, options Options) (*Invalidator, error) {
 	if strings.TrimSpace(options.Prefix) == "" {
 		return nil, ErrInvalidPrefix
 	}
-	if options.PollInterval == 0 {
+	switch cmp.Compare(options.PollInterval, time.Duration(0)) {
+	case 0:
 		options.PollInterval = DefaultPollInterval
-	}
-	if options.PollInterval < 0 {
+	case -1:
 		return nil, ErrInvalidPollInterval
 	}
 	return &Invalidator{
@@ -108,7 +109,9 @@ func (invalidator *Invalidator) Revision(
 	if native.IsValkeyNil(err) {
 		return 0, nil
 	}
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return 0, err
 	}
 	parsed, err := strconv.ParseUint(encoded, 10, 64)
@@ -159,19 +162,23 @@ func (invalidator *Invalidator) Watch(
 	defer ticker.Stop()
 	observe := func() error {
 		revision, err := invalidator.Revision(watchCtx)
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			return err
 		}
-		if revision <= after {
-			return nil
+		switch cmp.Compare(revision, after) {
+		case 1:
+			if err := handler(revision); err != nil {
+				return err
+			}
+			after = revision
 		}
-		if err := handler(revision); err != nil {
-			return err
-		}
-		after = revision
 		return nil
 	}
-	if err := observe(); err != nil {
+	switch err := observe(); err {
+	case nil:
+	default:
 		return err
 	}
 

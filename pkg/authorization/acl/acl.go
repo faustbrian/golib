@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	authorization "github.com/faustbrian/golib/pkg/authorization"
 )
@@ -182,27 +182,26 @@ func (evaluator *Evaluator) Evaluate(
 			action:       request.Action,
 			resourceType: request.Resource.Type,
 		}
-		if _, seen := seenPrincipals[key]; seen {
-			continue
-		}
-		seenPrincipals[key] = struct{}{}
+		if _, seen := seenPrincipals[key]; !seen {
+			seenPrincipals[key] = struct{}{}
 
-		for _, entry := range evaluator.entries[key] {
-			if !evaluator.matchesTenant(entry.Tenant, request.Tenant) ||
-				(entry.ResourceID != "" && entry.ResourceID != request.Resource.ID) {
-				continue
-			}
-			if len(decision.MatchedPolicyIDs) >= evaluator.limits.MaxMatches {
-				return limitDecision(), ErrMatchLimitExceeded
-			}
+			for _, entry := range evaluator.entries[key] {
+				if !evaluator.matchesTenant(entry.Tenant, request.Tenant) ||
+					(entry.ResourceID != "" && entry.ResourceID != request.Resource.ID) {
+					continue
+				}
+				if len(decision.MatchedPolicyIDs) >= evaluator.limits.MaxMatches {
+					return limitDecision(), ErrMatchLimitExceeded
+				}
 
-			decision.MatchedPolicyIDs = append(decision.MatchedPolicyIDs, entry.ID)
-			if entry.Effect == authorization.Deny {
-				decision.Outcome = authorization.Deny
-				decision.Reason = ReasonExplicitDeny
-			} else if decision.Outcome == authorization.NotApplicable {
-				decision.Outcome = authorization.Allow
-				decision.Reason = ReasonAllow
+				decision.MatchedPolicyIDs = append(decision.MatchedPolicyIDs, entry.ID)
+				if entry.Effect == authorization.Deny {
+					decision.Outcome = authorization.Deny
+					decision.Reason = ReasonExplicitDeny
+				} else if decision.Outcome == authorization.NotApplicable {
+					decision.Outcome = authorization.Allow
+					decision.Reason = ReasonAllow
+				}
 			}
 		}
 	}
@@ -258,25 +257,21 @@ func (evaluator *Evaluator) ListResourceIDs(
 		}
 
 		for _, entry := range evaluator.entries[key] {
-			if !evaluator.matchesTenant(entry.Tenant, tenant) {
-				continue
-			}
-			if matches >= evaluator.limits.MaxMatches {
-				return nil, ErrMatchLimitExceeded
-			}
-			matches++
-
-			if entry.ResourceID == "" {
-				if entry.Effect == authorization.Deny {
-					return []authorization.ResourceID{}, nil
+			if evaluator.matchesTenant(entry.Tenant, tenant) {
+				if matches >= evaluator.limits.MaxMatches {
+					return nil, ErrMatchLimitExceeded
 				}
-				typeWideAllow = true
-				continue
-			}
+				matches++
 
-			if entry.Effect == authorization.Deny ||
-				resourceEffects[entry.ResourceID] == authorization.NotApplicable {
-				resourceEffects[entry.ResourceID] = entry.Effect
+				if entry.ResourceID == "" {
+					if entry.Effect == authorization.Deny {
+						return []authorization.ResourceID{}, nil
+					}
+					typeWideAllow = true
+				} else if entry.Effect == authorization.Deny ||
+					resourceEffects[entry.ResourceID] == authorization.NotApplicable {
+					resourceEffects[entry.ResourceID] = entry.Effect
+				}
 			}
 		}
 	}
@@ -291,9 +286,7 @@ func (evaluator *Evaluator) ListResourceIDs(
 			resourceIDs = append(resourceIDs, resourceID)
 		}
 	}
-	sort.Slice(resourceIDs, func(left, right int) bool {
-		return resourceIDs[left] < resourceIDs[right]
-	})
+	slices.Sort(resourceIDs)
 
 	return resourceIDs, nil
 }
@@ -304,7 +297,7 @@ func principalKeys(
 	resourceType authorization.ResourceType,
 ) []entryKey {
 	keys := make([]entryKey, 0, len(subject.Groups)+1)
-	seen := make(map[entryKey]struct{}, len(subject.Groups)+1)
+	seen := make(map[entryKey]struct{})
 	principals := make([]authorization.Subject, 0, len(subject.Groups)+1)
 	principals = append(principals, subject)
 	for _, groupID := range subject.Groups {
@@ -321,11 +314,10 @@ func principalKeys(
 			action:       action,
 			resourceType: resourceType,
 		}
-		if _, exists := seen[key]; exists {
-			continue
+		if _, exists := seen[key]; !exists {
+			seen[key] = struct{}{}
+			keys = append(keys, key)
 		}
-		seen[key] = struct{}{}
-		keys = append(keys, key)
 	}
 
 	return keys
@@ -345,6 +337,11 @@ func (evaluator *Evaluator) matchesTenant(
 	if entryTenant == requestTenant {
 		return true
 	}
-
-	return requestTenant != "" && entryTenant == "" && evaluator.inheritGlobal
+	if requestTenant == "" {
+		return false
+	}
+	if entryTenant != "" {
+		return false
+	}
+	return evaluator.inheritGlobal
 }

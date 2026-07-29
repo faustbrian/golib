@@ -98,6 +98,35 @@ func TestEvaluatorCombinesAssignedRolePermissions(t *testing.T) {
 	}
 }
 
+func TestEvaluatorSkipsEveryMismatchedPermissionScope(t *testing.T) {
+	t.Parallel()
+
+	role := rbac.Role{ID: "reader", Tenant: "tenant-1"}
+	base := rbac.Permission{
+		RoleID: role.ID, Tenant: role.Tenant, Action: "document.read",
+		ResourceType: "document", Effect: authorization.Allow,
+	}
+	permissions := []rbac.Permission{
+		{ID: "action", RoleID: base.RoleID, Tenant: base.Tenant, Action: "document.write", ResourceType: base.ResourceType, Effect: base.Effect},
+		{ID: "type", RoleID: base.RoleID, Tenant: base.Tenant, Action: base.Action, ResourceType: "folder", Effect: base.Effect},
+		{ID: "instance", RoleID: base.RoleID, Tenant: base.Tenant, Action: base.Action, ResourceType: base.ResourceType, ResourceID: "document-2", Effect: base.Effect},
+		{ID: "match", RoleID: base.RoleID, Tenant: base.Tenant, Action: base.Action, ResourceType: base.ResourceType, ResourceID: "document-1", Effect: base.Effect},
+	}
+	assignment := rbac.Assignment{
+		ID: "alice-reader", RoleID: role.ID, Tenant: role.Tenant,
+		Subject: authorization.Subject{Kind: authorization.SubjectUser, ID: "alice"},
+	}
+	evaluator, err := rbac.New([]rbac.Role{role}, permissions, []rbac.Assignment{assignment})
+	if err != nil {
+		t.Fatalf("rbac.New() error = %v", err)
+	}
+	decision, err := evaluator.Evaluate(context.Background(), request("document-1", "tenant-1"))
+	if err != nil {
+		t.Fatalf("Evaluator.Evaluate() error = %v", err)
+	}
+	assertPolicyIDs(t, decision.MatchedPolicyIDs, []authorization.PolicyID{"match"})
+}
+
 func TestEvaluatorInheritsRolesAndCalculatesEffectivePermissions(t *testing.T) {
 	t.Parallel()
 
@@ -252,6 +281,14 @@ func TestNewValidatesRolesPermissionsAndAssignments(t *testing.T) {
 			roles:       []rbac.Role{role},
 			permissions: []rbac.Permission{{RoleID: role.ID}},
 			want:        rbac.ErrInvalidPermission,
+		},
+		"invalid permission effect": {
+			roles: []rbac.Role{role},
+			permissions: []rbac.Permission{{
+				ID: "invalid-effect", RoleID: role.ID, Tenant: role.Tenant,
+				Action: "document.read", ResourceType: "document",
+			}},
+			want: rbac.ErrInvalidPermission,
 		},
 		"permission references unknown role": {
 			permissions: []rbac.Permission{permission},

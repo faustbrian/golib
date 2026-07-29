@@ -39,6 +39,12 @@ func TestManifestCodecRoundTripsStrictPolicyFormat(t *testing.T) {
 	if _, err := codec.Decode([]byte(`{}`)); !errors.Is(err, policy.ErrInvalidManifest) {
 		t.Errorf("Decode(invalid) error = %v", err)
 	}
+	exact := ManifestCodec{MaxEncodedSize: len(encoded)}
+	if exactEncoded, err := exact.Encode(manifest); err != nil {
+		t.Errorf("Encode(at exact limit) error = %v", err)
+	} else if _, err := exact.Decode(exactEncoded); err != nil {
+		t.Errorf("Decode(at exact limit) error = %v", err)
+	}
 	if _, err := (ManifestCodec{}).Encode(manifest); err != nil {
 		t.Errorf("default ManifestCodec.Encode() error = %v", err)
 	}

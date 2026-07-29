@@ -99,15 +99,21 @@ func NewSynchronizer(
 func (synchronizer *Synchronizer) Reload(ctx context.Context) (bool, error) {
 	synchronizer.reloadMu.Lock()
 	defer synchronizer.reloadMu.Unlock()
-	if err := ctx.Err(); err != nil {
+	switch err := ctx.Err(); err {
+	case nil:
+	default:
 		return false, err
 	}
 	manifest, err := synchronizer.repository.Load(ctx)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return false, err
 	}
-	if err := manifest.Validate(); err != nil {
-		return false, err
+	switch validationErr := manifest.Validate(); validationErr {
+	case nil:
+	default:
+		return false, validationErr
 	}
 	current := synchronizer.engine.Revision()
 	if manifest.Revision < current {
@@ -181,7 +187,10 @@ func (synchronizer *Synchronizer) Observe(
 // Run performs an immediate repository check and then polls until cancellation
 // or the first reload error. Returning errors prevents silent stale operation.
 func (synchronizer *Synchronizer) Run(ctx context.Context) error {
-	if _, err := synchronizer.Reload(ctx); err != nil {
+	_, err := synchronizer.Reload(ctx)
+	switch err {
+	case nil:
+	default:
 		return err
 	}
 	ticker := time.NewTicker(synchronizer.interval)
@@ -191,8 +200,11 @@ func (synchronizer *Synchronizer) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if _, err := synchronizer.Reload(ctx); err != nil {
-				return err
+			_, reloadErr := synchronizer.Reload(ctx)
+			switch reloadErr {
+			case nil:
+			default:
+				return reloadErr
 			}
 		}
 	}

@@ -17,11 +17,13 @@ func (condition existsCondition) evaluate(state *evaluationState) (Result, error
 		return Result{}, err
 	}
 	value, exists := state.attribute(condition.reference)
-	matched := exists && value.Kind() != authorization.ValueMissing
-	if matched {
-		return Result{Matched: true, Status: StatusMatch}, nil
+	if !exists {
+		return Result{Status: StatusNoMatch}, nil
 	}
-	return Result{Status: StatusNoMatch}, nil
+	if value.Kind() == authorization.ValueMissing {
+		return Result{Status: StatusNoMatch}, nil
+	}
+	return Result{Matched: true, Status: StatusMatch}, nil
 }
 
 func (condition existsCondition) validate() error {
@@ -63,8 +65,10 @@ func (condition anyCondition) evaluate(state *evaluationState) (Result, error) {
 		if err != nil || result.Matched {
 			return result, err
 		}
-		if status == StatusNoMatch && result.Status != StatusNoMatch {
-			status = result.Status
+		if status == StatusNoMatch {
+			if result.Status != StatusNoMatch {
+				status = result.Status
+			}
 		}
 	}
 	return Result{Status: status}, nil
@@ -318,7 +322,7 @@ func loadValue(
 		return authorization.Value{}, StatusNoMatch, err
 	}
 	value, exists := state.attribute(reference)
-	if !exists || value.Kind() == authorization.ValueMissing {
+	if isMissingValue(value, exists) {
 		return authorization.Value{}, StatusMissing, nil
 	}
 	if err := state.validateValue(value); err != nil {
@@ -328,6 +332,13 @@ func loadValue(
 		return authorization.Value{}, StatusNull, nil
 	}
 	return value, StatusMatch, nil
+}
+
+func isMissingValue(value authorization.Value, exists bool) bool {
+	if !exists {
+		return true
+	}
+	return value.Kind() == authorization.ValueMissing
 }
 
 func validateReference(reference Reference) error {

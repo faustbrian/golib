@@ -109,7 +109,7 @@ func (compiler *Compiler) Compile(
 		if len(record.Document) > compiler.limits.MaxTotalDocumentBytes-totalDocumentBytes {
 			return nil, ErrTotalDocumentLimitExceeded
 		}
-		totalDocumentBytes += len(record.Document)
+		totalDocumentBytes = totalDocumentBytes + len(record.Document)
 		decoder, exists := compiler.decoders[record.Model]
 		if !exists {
 			return nil, fmt.Errorf("policy %q model %q: %w", record.ID, record.Model, ErrMissingDecoder)

@@ -3,10 +3,11 @@
 package abac
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	authorization "github.com/faustbrian/golib/pkg/authorization"
 )
@@ -203,11 +204,11 @@ func New(
 		}
 		ruleIDs[rule.ID] = struct{}{}
 	}
-	sort.Slice(evaluator.rules, func(left, right int) bool {
-		if evaluator.rules[left].Priority == evaluator.rules[right].Priority {
-			return evaluator.rules[left].ID < evaluator.rules[right].ID
+	slices.SortFunc(evaluator.rules, func(left, right Rule) int {
+		if priority := cmp.Compare(right.Priority, left.Priority); priority != 0 {
+			return priority
 		}
-		return evaluator.rules[left].Priority > evaluator.rules[right].Priority
+		return cmp.Compare(left.ID, right.ID)
 	})
 
 	return evaluator, nil
@@ -238,23 +239,22 @@ func (evaluator *Evaluator) Evaluate(
 			}
 			return authorization.Decision{Outcome: authorization.Deny, Reason: reason}, err
 		}
-		if !result.Matched {
-			continue
-		}
-		if len(decision.MatchedPolicyIDs) >= evaluator.limits.MaxMatches {
-			return authorization.Decision{
-				Outcome: authorization.Deny,
-				Reason:  ReasonLimitExceeded,
-			}, ErrMatchLimitExceeded
-		}
+		if result.Matched {
+			if len(decision.MatchedPolicyIDs) >= evaluator.limits.MaxMatches {
+				return authorization.Decision{
+					Outcome: authorization.Deny,
+					Reason:  ReasonLimitExceeded,
+				}, ErrMatchLimitExceeded
+			}
 
-		decision.MatchedPolicyIDs = append(decision.MatchedPolicyIDs, rule.ID)
-		if rule.Effect == authorization.Deny {
-			decision.Outcome = authorization.Deny
-			decision.Reason = ReasonExplicitDeny
-		} else if decision.Outcome == authorization.NotApplicable {
-			decision.Outcome = authorization.Allow
-			decision.Reason = ReasonAllow
+			decision.MatchedPolicyIDs = append(decision.MatchedPolicyIDs, rule.ID)
+			if rule.Effect == authorization.Deny {
+				decision.Outcome = authorization.Deny
+				decision.Reason = ReasonExplicitDeny
+			} else if decision.Outcome == authorization.NotApplicable {
+				decision.Outcome = authorization.Allow
+				decision.Reason = ReasonAllow
+			}
 		}
 	}
 
@@ -309,7 +309,7 @@ func validateConditionLimits(condition Condition, limits Limits) error {
 		if localCardinality > limits.MaxSetSize-cardinality {
 			return ErrSetLimitExceeded
 		}
-		cardinality += localCardinality
+		cardinality = cardinality + localCardinality
 	}
 	return nil
 }
@@ -429,7 +429,7 @@ func (condition equalCondition) evaluate(state *evaluationState) (Result, error)
 	}
 
 	got, exists := state.attribute(condition.reference)
-	if !exists || got.Kind() == authorization.ValueMissing {
+	if isMissingValue(got, exists) {
 		return Result{Status: StatusMissing}, nil
 	}
 	if err := state.validateValue(got); err != nil {
@@ -458,8 +458,10 @@ func (state *evaluationState) validateValue(value authorization.Value) error {
 }
 
 func (condition equalCondition) validate() error {
-	if condition.reference.Source > Environment || condition.reference.Name == "" ||
-		condition.want.Kind() == authorization.ValueMissing {
+	if err := validateReference(condition.reference); err != nil {
+		return err
+	}
+	if condition.want.Kind() == authorization.ValueMissing {
 		return ErrInvalidCondition
 	}
 	return nil

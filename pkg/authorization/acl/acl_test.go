@@ -196,6 +196,43 @@ func TestEvaluatorTenantAndGlobalScopes(t *testing.T) {
 	}
 }
 
+func TestDuplicateGroupsDoNotHideLaterPrincipals(t *testing.T) {
+	t.Parallel()
+
+	entry := acl.Entry{
+		ID: "auditor", Subject: authorization.Subject{
+			Kind: authorization.SubjectGroup, ID: "auditors",
+		},
+		Action: "document.read", ResourceType: "document",
+		ResourceID: "document-1", Effect: authorization.Allow,
+	}
+	evaluator, err := acl.New([]acl.Entry{entry})
+	if err != nil {
+		t.Fatalf("acl.New() error = %v", err)
+	}
+	subject := authorization.Subject{
+		Kind: authorization.SubjectUser, ID: "user-1",
+		Groups: []authorization.SubjectID{"editors", "editors", "auditors"},
+	}
+	evaluateRequest := request("document.read", "document-1", "")
+	evaluateRequest.Subject = subject
+	decision, err := evaluator.Evaluate(context.Background(), evaluateRequest)
+	if err != nil {
+		t.Fatalf("Evaluator.Evaluate() error = %v", err)
+	}
+	assertPolicyIDs(t, decision.MatchedPolicyIDs, []authorization.PolicyID{"auditor"})
+
+	resourceIDs, err := evaluator.ListResourceIDs(
+		context.Background(), subject, "document.read", "document", "",
+	)
+	if err != nil {
+		t.Fatalf("Evaluator.ListResourceIDs() error = %v", err)
+	}
+	if len(resourceIDs) != 1 || resourceIDs[0] != "document-1" {
+		t.Errorf("Evaluator.ListResourceIDs() = %v, want [document-1]", resourceIDs)
+	}
+}
+
 func TestNewRejectsInvalidEntries(t *testing.T) {
 	t.Parallel()
 
@@ -616,6 +653,48 @@ func TestListResourceIDsHonorsBoundsGroupsAndTypeDeny(t *testing.T) {
 	}
 	if len(resourceIDs) != 0 {
 		t.Errorf("denied ListResourceIDs() = %v, want empty", resourceIDs)
+	}
+}
+
+func TestListResourceIDsContinuesAfterNonMatchingAndTypeWideEntries(t *testing.T) {
+	t.Parallel()
+
+	subject := authorization.Subject{Kind: authorization.SubjectUser, ID: "user-1"}
+	base := acl.Entry{
+		Subject: subject, Action: "document.read", ResourceType: "document",
+		Effect: authorization.Allow,
+	}
+	evaluator, err := acl.New([]acl.Entry{
+		withTenant(withEntryIDAndResource(base, "a-foreign", "foreign"), "tenant-2"),
+		withTenant(withEntryIDAndResource(base, "b-local", "document-1"), "tenant-1"),
+	})
+	if err != nil {
+		t.Fatalf("acl.New() error = %v", err)
+	}
+	resourceIDs, err := evaluator.ListResourceIDs(
+		context.Background(), subject, "document.read", "document", "tenant-1",
+	)
+	if err != nil {
+		t.Fatalf("Evaluator.ListResourceIDs() error = %v", err)
+	}
+	if len(resourceIDs) != 1 || resourceIDs[0] != "document-1" {
+		t.Errorf("Evaluator.ListResourceIDs() = %v, want [document-1]", resourceIDs)
+	}
+
+	wideAllow := withEntryIDAndResource(base, "a-wide", "")
+	wideDeny := withEffect(withEntryIDAndResource(base, "z-deny", ""), authorization.Deny)
+	denied, err := acl.New([]acl.Entry{wideAllow, wideDeny})
+	if err != nil {
+		t.Fatalf("acl.New(type-wide) error = %v", err)
+	}
+	resourceIDs, err = denied.ListResourceIDs(
+		context.Background(), subject, "document.read", "document", "",
+	)
+	if err != nil {
+		t.Fatalf("Evaluator.ListResourceIDs(type-wide) error = %v", err)
+	}
+	if len(resourceIDs) != 0 {
+		t.Errorf("Evaluator.ListResourceIDs(type-wide) = %v, want empty deny result", resourceIDs)
 	}
 }
 
