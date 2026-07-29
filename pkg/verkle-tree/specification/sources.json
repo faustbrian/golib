@@ -214,6 +214,75 @@
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness commits to three deterministic 256-element evaluation vectors, opens two positions with one duplicated index, constructs the aggregated proof with transcript label verkle, and emits the canonical 576-byte proof.",
       "review_procedure": "Reconstruct the same vectors, commitments, openings, ordering, generator set, and transcript through the pinned Go implementation; require exact proof bytes; decode the Rust proof through the Go parser; require Go verification of every opening; and reject a one-bit mutation in every serialized proof element, a wrong transcript label, and a wrong opened value.",
       "reproducible": true
+    },
+    {
+      "id": "go-verkle-tree-proof",
+      "source_id": "ethereum-go-verkle",
+      "source_files": [
+        {
+          "path": "tree.go",
+          "sha256": "63d8074bfbeca80ee9cfc7a8db1628f8d5ca08f19a44c3ddfc1cd7d592d6956b"
+        },
+        {
+          "path": "proof_ipa.go",
+          "sha256": "4afd12b80c8eb25a72484e2352ce50e0529ea36fc70939590b5ba8304b356e9c"
+        },
+        {
+          "path": "proof_json.go",
+          "sha256": "10a9b5dba9057abea401b807ac779160b2d7babeca2090ecc7bd13492b1c9fd6"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e"
+        }
+      ],
+      "fixture_path": "internal/backend/testdata/go-verkle-tree-proof.json",
+      "fixture_sha256": "acf8c00302a90c1647504d91d5b1cbecb6121b056c3e7f4c129a29994947a382",
+      "license": "Unlicense",
+      "profile_assumptions": {
+        "width": 256,
+        "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
+        "value_layout": "fixed 32-byte values for this corpus",
+        "transcript": "vt",
+        "corpus": "four inserted values across two stems; prove two present keys, an absent suffix in an existing stem, and an absent stem",
+        "proof_encoding": "ethereum/go-verkle JSON representation of VerkleProof and StateDiff"
+      },
+      "generator": {
+        "source_path": "interoperability/go-verkle/main.go.template",
+        "source_sha256": "21bb9169b5e5cb168f8e6af0e6380b27963b918c8328e29c6267cdb66371e12f",
+        "manifest_path": "interoperability/go-verkle/go.mod.template",
+        "manifest_sha256": "f293addab607416fa98ba644fbd9faed0eab07b89600f7e03a301605f85ca087",
+        "lock_path": "interoperability/go-verkle/go.sum.template",
+        "lock_sha256": "0e43002f1da42d80a87e5fd3af2241a207a7f3eb86ed46daff45a73d3c7131ae",
+        "command": "scripts/check-interoperability.sh"
+      },
+      "dependency_review": {
+        "reviewed_on": "2026-07-29",
+        "module_version": "v0.2.3-0.20260102081149-aa0a270c0ed0",
+        "module_sum": "h1:yS3pFVddIh8sRXqgRuBu664vKUS1tosIKN9U0Uet+jM=",
+        "govulncheck_version": "v1.6.0",
+        "reachable_symbol_findings": 0,
+        "imported_package_findings": [],
+        "required_module_findings": [
+          "GO-2026-5024 in golang.org/x/sys v0.30.0; unreachable Windows-only symbol; fixed in v0.44.0"
+        ],
+        "license_review": {
+          "tool": "go-licenses",
+          "licenses": [
+            "Apache-2.0",
+            "BSD-3-Clause",
+            "Unlicense"
+          ],
+          "warnings": [
+            "assembly dependency inspection is incomplete"
+          ]
+        },
+        "upstream_status": "maintenance-mode-no-longer-used",
+        "production_status": "rejected-research-generator-only"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The isolated Go harness uses the exact pinned ethereum/go-verkle pseudo-version to build a deterministic tree, aggregate membership and non-membership openings, verify the proof through the reference verifier, and emit the root, ordered key set, proof, and state diff.",
+      "review_procedure": "Verify the harness source, module manifest, dependency lock, upstream source files, module revision, and fixture checksums; run with GOWORK disabled; require the reference verifier to accept the proof and reject a mutated proof commitment and a different valid tree root; and compare regenerated deterministic JSON byte-for-byte.",
+      "reproducible": true
     }
   ],
   "sources": [
@@ -294,7 +363,7 @@
       "url": "https://github.com/ethereum/go-verkle",
       "revision": "aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
       "tree": "5fc1f0c0f69847c41412f750cc4cbea0f63298a0",
-      "license": "CC0-1.0",
+      "license": "Unlicense",
       "license_sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
       "reproducible": true,
       "review_status": "research-only-no-longer-used"

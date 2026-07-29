@@ -64,6 +64,14 @@ tree proofs, or witnesses, and therefore does not change this no-go decision.
 Its locked dependency graph also retains two unmaintained RustSec dependencies,
 so it cannot satisfy the production dependency policy.
 
+The pinned Go tree harness additionally records one deterministic root and an
+aggregate proof spanning membership, absent-suffix, and absent-stem claims. Its
+own verifier accepts the artifact and rejects a mutated proof commitment and a
+different valid root. Because the artifact and verification decision come from
+the same maintenance-mode implementation, they establish a reproducible
+reference corpus rather than independent tree agreement and do not change the
+no-go decision.
+
 ## Stable Profile Freeze Conditions
 
 Before a stable profile is named or implemented, the following MUST be fixed

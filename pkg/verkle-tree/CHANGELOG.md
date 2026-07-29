@@ -25,6 +25,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   Rust references for `eth_verkle_oct_2021`.
 - Add a pinned three-opening aggregate-proof corpus whose canonical bytes and
   verification result agree across the Go and Rust references.
+- Add a revision-pinned `ethereum/go-verkle` research corpus covering a
+  deterministic tree root, aggregate membership and non-membership proof,
+  proof-commitment mutation rejection, and cross-root replay rejection.
 
 ### Dependencies
 

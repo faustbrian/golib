@@ -6,8 +6,8 @@ authenticated key/value trees backed by vector commitments.
 ## Status
 
 This module is **pre-v1 research only**. Its root package intentionally exposes
-no tree operations. It does not implement a tree or make proof/interoperability
-claims.
+no tree operations and it does not implement a production tree. Compatibility
+claims are limited to the exact research corpora described below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -49,6 +49,13 @@ For one pinned three-opening corpus, both references also produce the same
 canonical 576-byte aggregate proof, and the Go verifier accepts the Rust proof.
 This narrow research result does not establish a stable transcript, hostile
 proof-decoding safety, or tree compatibility.
+A separate isolated harness pins `ethereum/go-verkle` at
+`aa0a270c0ed03faa6c502e0d96bf26189d1d6542` and reproduces one deterministic
+256-wide tree root plus an aggregate proof covering membership, an absent
+suffix, and an absent stem. The reference verifier accepts the proof and
+rejects a mutated proof commitment and replay against a different valid root.
+This records reference behavior only; it is not independent tree agreement and
+does not make `go-verkle` a production dependency.
 
 ## Development rule
 

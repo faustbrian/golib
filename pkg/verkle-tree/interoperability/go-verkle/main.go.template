@@ -1,0 +1,131 @@
+// Command go-verkle-corpus reproduces a deterministic tree and aggregate proof
+// with the pinned ethereum/go-verkle research reference.
+package main
+
+import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+
+	verkle "github.com/ethereum/go-verkle"
+)
+
+type corpus struct {
+	Profile   string          `json:"profile"`
+	Root      string          `json:"root"`
+	Keys      []string        `json:"keys"`
+	Proof     json.RawMessage `json:"proof"`
+	StateDiff json.RawMessage `json:"stateDiff"`
+}
+
+func main() {
+	tree := verkle.New()
+	entries := []struct {
+		key   [32]byte
+		value [32]byte
+	}{
+		{key: key(0x00, 0x00), value: value(0x11)},
+		{key: key(0x00, 0x01), value: value(0x22)},
+		{key: key(0x01, 0xff), value: value(0x33)},
+		{key: key(0x01, 0x7f), value: value(0x44)},
+	}
+	for _, entry := range entries {
+		if err := tree.Insert(entry.key[:], entry.value[:], nil); err != nil {
+			fatalf("insert: %v", err)
+		}
+	}
+	root := tree.Commit().Bytes()
+
+	proofKeys := [][32]byte{
+		key(0x00, 0x00),
+		key(0x00, 0x02),
+		key(0x01, 0xff),
+		key(0x02, 0x00),
+	}
+	keys := make([][]byte, len(proofKeys))
+	for index := range proofKeys {
+		keys[index] = proofKeys[index][:]
+	}
+
+	proof, _, _, _, err := verkle.MakeVerkleMultiProof(tree, nil, keys, nil)
+	if err != nil {
+		fatalf("make multiproof: %v", err)
+	}
+	serializedProof, stateDiff, err := verkle.SerializeProof(proof)
+	if err != nil {
+		fatalf("serialize proof: %v", err)
+	}
+
+	if err := verkle.Verify(serializedProof, root[:], nil, stateDiff); err != nil {
+		fatalf("verify proof: %v", err)
+	}
+	mutatedProof := serializedProof.Copy()
+	mutatedProof.D[0] ^= 1
+	if err := verkle.Verify(mutatedProof, root[:], nil, stateDiff); err == nil {
+		fatalf("verify proof: accepted mutated D commitment")
+	}
+	wrongTree := verkle.New()
+	for index, entry := range entries {
+		wrongValue := entry.value
+		if index == 0 {
+			wrongValue[0] ^= 1
+		}
+		if err := wrongTree.Insert(entry.key[:], wrongValue[:], nil); err != nil {
+			fatalf("insert wrong-root corpus: %v", err)
+		}
+	}
+	wrongRoot := wrongTree.Commit().Bytes()
+	if err := verkle.Verify(serializedProof, wrongRoot[:], nil, stateDiff); err == nil {
+		fatalf("verify proof: accepted wrong root")
+	}
+
+	proofJSON, err := json.Marshal(serializedProof)
+	if err != nil {
+		fatalf("marshal proof: %v", err)
+	}
+	stateDiffJSON, err := json.Marshal(stateDiff)
+	if err != nil {
+		fatalf("marshal state diff: %v", err)
+	}
+
+	encodedKeys := make([]string, len(keys))
+	for index := range keys {
+		encodedKeys[index] = hex.EncodeToString(keys[index])
+	}
+	output, err := json.MarshalIndent(corpus{
+		Profile:   "ethereum-go-verkle-aa0a270c0ed0-research",
+		Root:      hex.EncodeToString(root[:]),
+		Keys:      encodedKeys,
+		Proof:     proofJSON,
+		StateDiff: stateDiffJSON,
+	}, "", "  ")
+	if err != nil {
+		fatalf("marshal corpus: %v", err)
+	}
+	if _, err := os.Stdout.Write(append(output, '\n')); err != nil {
+		fatalf("write corpus: %v", err)
+	}
+}
+
+func key(first, suffix byte) [32]byte {
+	var result [32]byte
+	result[0] = first
+	result[31] = suffix
+
+	return result
+}
+
+func value(seed byte) [32]byte {
+	var result [32]byte
+	for index := range result {
+		result[index] = seed + byte(index)
+	}
+
+	return result
+}
+
+func fatalf(format string, arguments ...any) {
+	_, _ = fmt.Fprintf(os.Stderr, format+"\n", arguments...)
+	os.Exit(1)
+}

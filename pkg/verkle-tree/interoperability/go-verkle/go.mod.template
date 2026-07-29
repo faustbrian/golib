@@ -1,0 +1,13 @@
+module github.com/faustbrian/golib/pkg/verkle-tree/interoperability/go-verkle
+
+go 1.26.5
+
+require github.com/ethereum/go-verkle v0.2.3-0.20260102081149-aa0a270c0ed0
+
+require (
+	github.com/bits-and-blooms/bitset v1.20.0 // indirect
+	github.com/consensys/gnark-crypto v0.18.1 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+)
