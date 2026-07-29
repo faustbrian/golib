@@ -18,3 +18,5 @@
   failures.
 - Caller-owned incremental builders with atomic append and batch-append
   operations whose immutable snapshots remain stable after later mutations.
+- RFC 9162 consistency proof generation and independent verification binding
+  both complete root identities, with bounded hostile-input traversal.

@@ -92,6 +92,25 @@ atomic contract for one leaf. Snapshot creation copies the retained nodes and
 folds the current frontier according to the RFC 9162 split rule. Later builder
 mutations therefore cannot change an earlier snapshot.
 
+## Consistency proofs
+
+`ConsistencyProof` binds the profile, version, hash algorithm, older root and
+size, newer root and size, and ordered RFC 9162 SUBPROOF nodes. Generation
+traverses only the newer immutable snapshot and independently recomputes the
+claimed prefix root before returning a proof. An unrelated older root therefore
+cannot be packaged into an apparently valid proof.
+
+`VerifyConsistency` requires no snapshot, builder, leaves, or storage backend.
+It implements the RFC 9162 `fn` and `sn` verification state machine, rejects
+missing and surplus nodes, and compares both reconstructed roots in constant
+time. Equal sizes require identical roots and an empty proof. RFC 9162 does not
+define a proof from size zero to a larger tree, so that operation returns
+`ErrInvalidTreeSize`.
+
+Consistency element and traversal limits are checked before derived work.
+Every verifier loop is bounded by the uint64 tree-size width, including for
+hostile metadata.
+
 ## Security assumptions
 
 Security depends on SHA-256 collision and second-preimage resistance and on

@@ -31,6 +31,14 @@ var (
 	// mutable builder.
 	ErrInvalidBuilder = errors.New("invalid Merkle builder")
 
+	// ErrInvalidTreeSize identifies an unsupported or impossible relationship
+	// between two tree sizes.
+	ErrInvalidTreeSize = errors.New("invalid Merkle tree size")
+
+	// ErrIncompatibleRoot identifies roots whose profile, version, or hash
+	// algorithm cannot participate in one operation.
+	ErrIncompatibleRoot = errors.New("incompatible Merkle root identity")
+
 	// ErrIndexOutOfRange identifies a leaf index outside a snapshot or proof.
 	ErrIndexOutOfRange = errors.New("merkle leaf index out of range")
 

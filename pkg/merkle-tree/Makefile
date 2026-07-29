@@ -33,6 +33,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test -run '^$$' -fuzz '^FuzzVerifyInclusion$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzVerifyConsistency$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
 	$(GO) test -run '^$$' -bench '^Benchmark' \
@@ -40,7 +42,7 @@ benchmark:
 
 conformance:
 	$(GO) test -run \
-		'^(TestComputeRootMatchesRFC9162TreeHash|TestRFC9162InclusionProofMatchesIndependentAuditPaths)$$' \
+		'^(TestComputeRootMatchesRFC9162TreeHash|TestRFC9162InclusionProofMatchesIndependentAuditPaths|TestConsistencyProofMatchesRFC9162Examples)$$' \
 		-count=1 .
 
 docs:

@@ -144,6 +144,85 @@ func BenchmarkBuilderAppendBatch(b *testing.B) {
 	}
 }
 
+func BenchmarkConsistencyProof(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	older, newer := benchmarkConsistencySnapshots(b, leaves, 8_191)
+	olderRoot, err := older.Root()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if _, err := newer.ConsistencyProof(
+			context.Background(),
+			olderRoot,
+			merkletree.DefaultConsistencyProofLimits(),
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVerifyConsistency(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	older, newer := benchmarkConsistencySnapshots(b, leaves, 8_191)
+	olderRoot, err := older.Root()
+	if err != nil {
+		b.Fatal(err)
+	}
+	proof, err := newer.ConsistencyProof(
+		context.Background(),
+		olderRoot,
+		merkletree.DefaultConsistencyProofLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if err := merkletree.VerifyConsistency(
+			context.Background(),
+			proof,
+			merkletree.DefaultConsistencyProofLimits(),
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchmarkConsistencySnapshots(
+	b *testing.B,
+	leaves []merkletree.RawLeaf,
+	olderSize int,
+) (merkletree.Snapshot, merkletree.Snapshot) {
+	b.Helper()
+
+	older, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves[:olderSize],
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	newer, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	return older, newer
+}
+
 func benchmarkLeaves(size int) []merkletree.RawLeaf {
 	leaves := make([]merkletree.RawLeaf, size)
 	for index := range leaves {

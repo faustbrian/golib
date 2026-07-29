@@ -12,10 +12,14 @@ duplicates, sorts, promotes, or pads an odd node.
 
 ## Claim boundary
 
-RFC 9162 compatibility currently covers root construction from section 2.1.1
-and inclusion audit-path generation and verification from sections 2.1.3.1
-and 2.1.3.2. No consistency-proof, wire-format, log-protocol, or Certificate
-Transparency artifact compatibility is claimed yet.
+RFC 9162 compatibility currently covers root construction from section 2.1.1,
+inclusion audit-path generation and verification from sections 2.1.3.1 and
+2.1.3.2, and consistency proof generation and verification from sections
+2.1.4.1 and 2.1.4.2. Equal-size roots use the empty proof described by the
+Certificate Transparency endpoint contract. Size-zero to nonzero consistency
+proofs are not defined by the RFC algorithm and are rejected. No wire-format,
+log-protocol, or other Certificate Transparency artifact compatibility is
+claimed yet.
 
 The package does not implement or claim compatibility with:
 

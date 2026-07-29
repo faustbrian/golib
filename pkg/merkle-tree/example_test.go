@@ -100,3 +100,56 @@ func ExampleBuilder() {
 	// Output:
 	// 3 c3651e541714c53d648ecc7baeca7fe2c36ef4fa65bcce24b1d71286437de566
 }
+
+func ExampleSnapshot_ConsistencyProof() {
+	leaves := []merkletree.RawLeaf{
+		merkletree.NewRawLeaf([]byte("first")),
+		merkletree.NewRawLeaf([]byte("second")),
+		merkletree.NewRawLeaf([]byte("third")),
+	}
+	older, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves[:2],
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	newer, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	olderRoot, err := older.Root()
+	if err != nil {
+		panic(err)
+	}
+	proof, err := newer.ConsistencyProof(
+		context.Background(),
+		olderRoot,
+		merkletree.DefaultConsistencyProofLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	err = merkletree.VerifyConsistency(
+		context.Background(),
+		proof,
+		merkletree.DefaultConsistencyProofLimits(),
+	)
+
+	fmt.Printf(
+		"%d %d %d %v\n",
+		proof.OlderTreeSize(),
+		proof.NewerTreeSize(),
+		len(proof.Nodes()),
+		err,
+	)
+	// Output:
+	// 2 3 1 <nil>
+}
