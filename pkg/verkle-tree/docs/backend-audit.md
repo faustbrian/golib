@@ -133,6 +133,11 @@ The current internal boundary may:
 It must not yet construct setup, commit vectors, open positions, verify proofs,
 or expose dependency values outside `internal/`.
 
+The separate `internal/leafvector` boundary performs dependency-free,
+fixed-size byte decomposition only. It produces canonical scalar bytes that are
+mathematically below the scalar modulus; it does not decode dependency values
+or broaden this backend approval.
+
 ## Reconsideration Gate
 
 Production selection requires either an upstream revision or a separately

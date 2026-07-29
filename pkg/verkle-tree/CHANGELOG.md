@@ -20,6 +20,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add a bounded immutable reference model for deterministic set, delete,
   present-zero, duplicate, cancellation, and atomic batch semantics without
   claiming a committed tree root.
+- Fix the experimental profile's dependency-free leaf field inputs, including
+  present-zero marking, absence, suffix-half placement, local indices, stem
+  encoding, and stem-vector positions, with pinned Rust differential vectors.
 - Establish the `verkletree` root package and an internal fail-closed boundary
   for canonical Banderwagon commitment and scalar encodings.
 - Add allocation-reporting microbenchmarks for accepted commitment and scalar

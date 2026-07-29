@@ -14,10 +14,11 @@ shown here.
 profile. It is not stable, audited, production-ready, or Ethereum-compatible.
 Its definition MAY change incompatibly before v1.
 
-Only the profile identity and structural metadata are currently exported.
-Tree, root, node, proof, witness, snapshot, and persistence APIs remain
-unimplemented. This document MUST NOT be read as a claim that those surfaces
-already exist.
+Only the profile identity and structural metadata are currently exported. An
+internal research boundary implements the fixed leaf field inputs below but
+does not construct commitments. Tree, root, node, proof, witness, snapshot, and
+persistence APIs remain unimplemented. This document MUST NOT be read as a
+claim that those surfaces already exist.
 
 ## Fixed Identity
 
@@ -54,8 +55,8 @@ The following parts of the profile are deliberately not frozen:
 
 - node kinds, path traversal, extension-node behavior, and empty-subtree
   commitments;
-- leaf decomposition and the commitment encoding of presence, absence, zero,
-  and deletion;
+- the complete leaf commitment because the commitment-to-field map for C1 and
+  C2 remains unfrozen;
 - canonical root, node, proof, witness, snapshot, and storage encodings;
 - canonical point, scalar, and proof-container rejection rules beyond the
   internal research seam already tested;
@@ -71,6 +72,54 @@ until the corresponding definition is normative, canonical, bounded, and
 covered by positive and hostile-input tests. Any future incompatible choice
 MUST use a different profile name or version; it MUST NOT silently reinterpret
 already encoded objects.
+
+## Fixed Leaf Commitment Inputs
+
+For a 32-byte key `K`, the stem is `K[0:31]` and the suffix `s` is `K[31]`.
+For a present 32-byte value `V`, implementations MUST derive:
+
+```
+low  = LE(V[0:16]) + 2^128
+high = LE(V[16:32])
+```
+
+`LE` interprets the bytes as a non-negative little-endian integer. These
+values, and the 31-byte little-endian stem, are strictly smaller than the
+profile scalar-field modulus and MUST be encoded as canonical 32-byte
+little-endian scalars without modular reduction.
+
+Suffix values MUST be divided between two width-256 vectors:
+
+- C1 contains suffixes 0 through 127;
+- C2 contains suffixes 128 through 255;
+- `low` MUST occupy index `2 * (s mod 128)`; and
+- `high` MUST occupy the immediately following index.
+
+An absent suffix MUST place scalar zero at both indices. A present all-zero
+value MUST place `2^128` at the low index and zero at the high index. Therefore
+absence, deletion, and a present all-zero value MUST NOT be conflated.
+Deleting the last present suffix under a stem MUST remove that stem rather
+than retain an extension marker for an empty leaf.
+
+The width-256 stem vector MUST reserve:
+
+| Index | Input |
+| --- | --- |
+| `0` | extension-presence marker `1` |
+| `1` | the 31-byte stem interpreted little-endian |
+| `2` | the profile's commitment-to-field image of C1 |
+| `3` | the profile's commitment-to-field image of C2 |
+| `4..255` | zero |
+
+The commitment-to-field function at indices 2 and 3 is not yet frozen.
+Consequently, this section fixes canonical pre-commitment inputs and positions
+only. It MUST NOT be used to claim a complete leaf commitment, root, proof, or
+wire-compatible tree.
+
+These formulas agree for the checked corpus with both pinned implementations:
+the Go reference constructs the same two suffix vectors and four stem-vector
+positions, while the independently pinned Rust trie generates the canonical
+fixture recorded in [`sources.json`](sources.json).
 
 ## State Transition Reference Model
 

@@ -1,4 +1,4 @@
-use banderwagon::{CanonicalSerialize, Element, Fr};
+use banderwagon::{CanonicalSerialize, Element, Fr, PrimeField};
 use ipa_multipoint::{
     committer::DefaultCommitter,
     crs::CRS,
@@ -42,6 +42,62 @@ fn print_encodings() {
             encode_hex(&commitment.to_bytes()),
         );
     }
+}
+
+fn scalar_bytes(value: Fr) -> [u8; 32] {
+    let mut encoded = [0_u8; 32];
+    value
+        .serialize_compressed(&mut encoded[..])
+        .expect("scalar serialization");
+    encoded
+}
+
+fn print_leaf_vector_row(case: &str, suffix: u8, value: Option<[u8; 32]>) {
+    let half = if suffix < 128 { "C1" } else { "C2" };
+    let low_index = 2 * (suffix % 128);
+    let high_index = low_index + 1;
+    let encoded_value = value
+        .map(|bytes| encode_hex(&bytes))
+        .unwrap_or_else(|| "-".to_owned());
+    let (low, high) = match value {
+        Some(value) => {
+            let mut low_bytes = [0_u8; 17];
+            low_bytes[..16].copy_from_slice(&value[..16]);
+            low_bytes[16] = 1;
+            (
+                Fr::from_le_bytes_mod_order(&low_bytes),
+                Fr::from_le_bytes_mod_order(&value[16..]),
+            )
+        }
+        None => (Fr::from(0_u64), Fr::from(0_u64)),
+    };
+
+    println!(
+        "{case}\t{suffix}\t{}\t{encoded_value}\t{half}\t{low_index}\t{high_index}\t{}\t{}",
+        value.is_some(),
+        encode_hex(&scalar_bytes(low)),
+        encode_hex(&scalar_bytes(high)),
+    );
+}
+
+fn print_leaf_vectors() {
+    let mut incrementing = [0_u8; 32];
+    for (index, byte) in incrementing.iter_mut().enumerate() {
+        *byte = index as u8;
+    }
+    let mut patterned = [0_u8; 32];
+    for (index, byte) in patterned.iter_mut().enumerate() {
+        *byte = 0x80_u8.wrapping_add(index as u8);
+    }
+
+    println!(
+        "case\tsuffix\tpresent\tvalue\thalf\tlow_index\thigh_index\tlow_scalar_le\thigh_scalar_le"
+    );
+    print_leaf_vector_row("present-zero-c1", 0, Some([0_u8; 32]));
+    print_leaf_vector_row("present-incrementing-c1", 127, Some(incrementing));
+    print_leaf_vector_row("present-ones-c2", 128, Some([0xff_u8; 32]));
+    print_leaf_vector_row("present-patterned-c2", 255, Some(patterned));
+    print_leaf_vector_row("absent-c1", 42, None);
 }
 
 fn print_generators() {
@@ -181,6 +237,7 @@ fn main() {
     let mut arguments = std::env::args().skip(1);
     match arguments.next().as_deref() {
         Some("encodings") => print_encodings(),
+        Some("leaf-vectors") => print_leaf_vectors(),
         Some("generators") => print_generators(),
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
@@ -194,7 +251,7 @@ fn main() {
         ),
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
-             <encodings|generators|multiproof|tree-proof|verify-go-witness|\
+             <encodings|leaf-vectors|generators|multiproof|tree-proof|verify-go-witness|\
              update-go-witness>"
         ),
     }

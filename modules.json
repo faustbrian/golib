@@ -17696,6 +17696,18 @@
         },
         {
           "module_directory": "pkg/verkle-tree",
+          "directory": "internal/leafvector",
+          "name": "leafvector",
+          "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/verkle-tree",
           "directory": "internal/statemodel",
           "name": "statemodel",
           "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/statemodel",

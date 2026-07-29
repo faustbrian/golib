@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
+        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -128,6 +128,70 @@
       "reproducible": true
     },
     {
+      "id": "rust-verkle-leaf-vectors",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "verkle-trie/src/trie.rs",
+          "sha256": "b8bb6195d81f84832ce34e82494bac5cf5ed5123aa0701f84e3145ae8d106e28"
+        },
+        {
+          "path": "verkle-trie/src/proof/verifier.rs",
+          "sha256": "48a0fd23171651a3289e719535b247fc858c44825290b2146136aa5a842343e0"
+        },
+        {
+          "path": "verkle-trie/src/proof/opening_data.rs",
+          "sha256": "58369066e6050237b2da6cdf39b1d5e4e6727e5d21e22a3b5df86197b5366edb"
+        },
+        {
+          "path": "verkle-trie/src/constants.rs",
+          "sha256": "3e1faa3ab8a4cc139ca4e145fa808f3f0af9f9ea0d53c60e61095eaba2f5acd6"
+        },
+        {
+          "path": "LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha256": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f"
+        }
+      ],
+      "fixture_path": "internal/leafvector/testdata/rust-verkle-leaf-vectors.tsv",
+      "fixture_sha256": "0ba1f4f9b391e5ffc5151a6f151a6085bd98f37e4ada8da0b25e3b5608f31935",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
+        "value_layout": "fixed 32-byte values",
+        "suffix_layout": "C1 contains suffixes 0 through 127 and C2 contains suffixes 128 through 255",
+        "value_decomposition": "low 16 bytes interpreted little-endian plus 2^128 for presence; high 16 bytes interpreted little-endian",
+        "absence": "both field inputs are zero",
+        "corpus": "present zero, incrementing, all-ones, and patterned values at suffix boundaries plus one absent suffix"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- leaf-vectors"
+      },
+      "dependency_review": {
+        "reviewed_on": "2026-07-29",
+        "known_vulnerabilities": 0,
+        "unmaintained_advisories": [
+          "RUSTSEC-2024-0388",
+          "RUSTSEC-2024-0436"
+        ],
+        "production_status": "rejected-research-generator-only"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness applies the pinned trie's fixed-value formulas to the deterministic corpus and emits canonical little-endian scalar bytes, suffix halves, and opening indices.",
+      "review_procedure": "Verify the pinned Rust revision, source files, licenses, harness, manifest, lock, toolchain, and fixture checksums; regenerate the fixture byte-for-byte; and require the package-owned implementation to reproduce every scalar, suffix half, and opening index.",
+      "reproducible": true
+    },
+    {
       "id": "rust-verkle-generator-set",
       "source_id": "crate-crypto-rust-verkle",
       "source_path": "ipa-multipoint/src/crs.rs",
@@ -147,7 +211,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
+        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -197,7 +261,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
+        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -353,7 +417,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
+        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
