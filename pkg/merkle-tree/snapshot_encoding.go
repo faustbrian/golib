@@ -350,7 +350,7 @@ func ResumeBuilder(
 			builder.frontier,
 			uint64(len(builder.nodes)-1),
 		)
-		completed++
+		completed = saturatedAdd(completed, 1)
 		for merged := completed; merged&1 == 0; merged >>= 1 {
 			right := builder.frontier[len(builder.frontier)-1]
 			left := builder.frontier[len(builder.frontier)-2]
