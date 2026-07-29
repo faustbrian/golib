@@ -22,7 +22,8 @@ propose an owned public semantic rather than accepting an external parser
 object.
 
 `CommandSet` deliberately supports only one root and direct executable
-children. Applications needing typed input, aliases, nested commands,
+children with command-local typed options. Applications needing positional
+arguments, persistent options, option groups, aliases, nested commands,
 lifecycle hooks, completion, or generated references must use `Command` and
 `Compile`.
 

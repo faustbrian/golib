@@ -3,12 +3,14 @@ package cli
 import (
 	"context"
 	"strings"
+
+	"github.com/faustbrian/golib/pkg/cli/internal/engine"
 )
 
 // CommandSet declares a bounded root command with direct executable children.
-// It is intended for one-binary service processes that do not expose options,
-// positional arguments, aliases, nested commands, lifecycle hooks, or shell
-// completion.
+// It is intended for one-binary service processes that expose only
+// command-local typed options and do not expose positional arguments, aliases,
+// nested commands, lifecycle hooks, or shell completion.
 type CommandSet struct {
 	// Name is the stable root command token.
 	Name string
@@ -24,6 +26,8 @@ type CommandSpec struct {
 	Name string
 	// Summary is the one-line help description.
 	Summary string
+	// Options are typed command-local named values.
+	Options []OptionDefinition
 	// Handler executes the selected command.
 	Handler Handler
 }
@@ -31,9 +35,10 @@ type CommandSpec struct {
 // CommandSetApplication is an immutable command set safe for concurrent
 // invocation.
 type CommandSetApplication struct {
-	root      *compiledCommand
-	limits    Limits
-	exitCodes ExitCodePolicy
+	root       *compiledCommand
+	limits     Limits
+	exitCodes  ExitCodePolicy
+	hasOptions bool
 }
 
 // CompileCommandSet validates and snapshots a bounded command set.
@@ -71,6 +76,12 @@ func CompileCommandSet(
 		version:  set.Version,
 		children: make([]*compiledCommand, 0, len(set.Commands)),
 	}
+	state := &compilationState{
+		bindings: make(map[any]string),
+		limits:   configuration.limits,
+		metadata: metadataBytes,
+	}
+	hasOptions := false
 	names := make(map[string]struct{}, len(set.Commands))
 	for index, spec := range set.Commands {
 		if err := validateName("command name", spec.Name); err != nil {
@@ -89,10 +100,29 @@ func CompileCommandSet(
 		if metadataBytes > configuration.limits.MaximumMetadataBytes {
 			return nil, newInternalError("command metadata exceeds maximum bytes", nil)
 		}
+		if len(spec.Options) > configuration.limits.MaximumOptionsPerCommand {
+			return nil, newInternalError("command exceeds maximum option count", nil)
+		}
+		state.metadata = metadataBytes
+		options, _, _, err := compileOptions(
+			spec.Options,
+			nil,
+			nil,
+			state,
+		)
+		if err != nil {
+			return nil, err
+		}
+		metadataBytes = state.metadata
+		if len(options) > 0 {
+			hasOptions = true
+		}
 		command := &compiledCommand{
 			id:          index + 1,
 			name:        spec.Name,
 			summary:     spec.Summary,
+			options:     options,
+			effective:   options,
 			handler:     spec.Handler,
 			interaction: InteractionForbidden,
 		}
@@ -101,9 +131,10 @@ func CompileCommandSet(
 	}
 
 	return &CommandSetApplication{
-		root:      root,
-		limits:    configuration.limits,
-		exitCodes: configuration.exitCodes,
+		root:       root,
+		limits:     configuration.limits,
+		exitCodes:  configuration.exitCodes,
+		hasOptions: hasOptions,
 	}, nil
 }
 
@@ -159,10 +190,67 @@ func (application *CommandSetApplication) RunCommand(
 			err,
 		))
 	}
+	if application.hasOptions {
+		return application.withExitCode(
+			application.runParsed(ctx, request, streams, output),
+		)
+	}
 
 	return application.withExitCode(
 		application.runCommand(ctx, request, streams, output),
 	)
+}
+
+func (application *CommandSetApplication) runParsed(
+	ctx context.Context,
+	request Request,
+	streams IO,
+	output *Output,
+) Result {
+	parsed, err := engine.Parse(ctx, engineCommand(application.root), request.Args)
+	if err != nil {
+		if contextErr := contextError(ctx); contextErr != nil {
+			return finalize(streams, request.Output, nil, output, contextErr)
+		}
+
+		return finalize(streams, request.Output, nil, output, newClassifiedError(
+			classifyParseFailure(err),
+			"invalid command invocation",
+			err,
+			true,
+		))
+	}
+	selected := commandSetCommand(application.root, parsed.CommandID)
+	if parsed.Action == engine.ActionHelp {
+		return application.help(request, streams, output, selected)
+	}
+	if parsed.Action == engine.ActionVersion {
+		if err := output.SetData(application.root.name + " " + application.root.version); err != nil {
+			return finalize(streams, request.Output, selected, output, err)
+		}
+
+		return finalizeSignal(
+			streams,
+			request.Output,
+			selected,
+			output,
+			ErrorKindVersion,
+		)
+	}
+	input, err := resolveInput(selected, parsed)
+	if err != nil {
+		return finalize(streams, request.Output, selected, output, err)
+	}
+
+	return executeCommandSetHandler(ctx, request, streams, output, selected, input)
+}
+
+func commandSetCommand(root *compiledCommand, id int) *compiledCommand {
+	if root.id == id {
+		return root
+	}
+
+	return root.children[id-1]
 }
 
 func (application *CommandSetApplication) withExitCode(result Result) Result {
@@ -185,7 +273,14 @@ func (application *CommandSetApplication) runCommand(
 ) Result {
 	selected := application.root
 	if len(request.Args) == 0 {
-		return executeCommandSetHandler(ctx, request, streams, output, selected)
+		return executeCommandSetHandler(
+			ctx,
+			request,
+			streams,
+			output,
+			selected,
+			Input{values: map[any]resolvedValue{}},
+		)
 	}
 
 	first := request.Args[0]
@@ -245,7 +340,14 @@ func (application *CommandSetApplication) runCommand(
 		}
 	}
 
-	return executeCommandSetHandler(ctx, request, streams, output, selected)
+	return executeCommandSetHandler(
+		ctx,
+		request,
+		streams,
+		output,
+		selected,
+		Input{values: map[any]resolvedValue{}},
+	)
 }
 
 func commandSetChild(root *compiledCommand, name string) *compiledCommand {
@@ -312,6 +414,24 @@ func commandSetHelpText(
 			output.WriteByte('\n')
 		}
 	}
+	if len(command.options) > 0 {
+		output.WriteString("\nOptions:\n")
+		for _, option := range command.options {
+			output.WriteString("  ")
+			if option.short != 0 {
+				output.WriteByte('-')
+				output.WriteRune(option.short)
+				output.WriteString(", ")
+			}
+			output.WriteString("--")
+			output.WriteString(option.name)
+			if option.description != "" {
+				output.WriteString("  ")
+				output.WriteString(sanitizeTerminal(option.description))
+			}
+			output.WriteByte('\n')
+		}
+	}
 
 	return wrapHelp(output.String(), width)
 }
@@ -338,12 +458,13 @@ func executeCommandSetHandler(
 	streams IO,
 	output *Output,
 	command *compiledCommand,
+	input Input,
 ) Result {
 	if err := contextError(ctx); err != nil {
 		return finalize(streams, request.Output, command, output, err)
 	}
 	invocation := Invocation{
-		input:       Input{values: map[any]resolvedValue{}},
+		input:       input,
 		io:          invocationIO(streams, request.Output),
 		interactive: false,
 		output:      output,

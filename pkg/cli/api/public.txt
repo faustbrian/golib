@@ -149,7 +149,7 @@ type CommandMetadata struct { }
 type CommandOption func(*Command)
 type CommandSet struct { 	Name string  	Version string  	Commands []CommandSpec }
 type CommandSetApplication struct { }
-type CommandSpec struct { 	Name string  	Summary string  	Handler Handler }
+type CommandSpec struct { 	Name string  	Summary string  	Options []OptionDefinition  	Handler Handler }
 type CompileOption func(*compileConfiguration) error
 type CompletionCandidate struct { 	Value       string 	Description string }
 type CompletionProvider func(context.Context, CompletionRequest) ([]CompletionCandidate, error)

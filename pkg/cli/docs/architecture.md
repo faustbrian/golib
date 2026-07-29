@@ -9,10 +9,11 @@ between invocations.
 
 `CompileCommandSet` is a separate bounded compilation path for a root plus
 direct executable children. It owns the same request validation, error, exit,
-help, version, output, context, and handler contracts without exposing options,
-arguments, aliases, nesting, lifecycle hooks, completion, or generated
-references. Its distinct immutable application type prevents those unsupported
-features from becoming accidental binary dependencies.
+help, version, typed command-local option, output, context, and handler
+contracts without exposing arguments, persistent options, option groups,
+aliases, nesting, lifecycle hooks, completion, or generated references. Its
+distinct immutable application type prevents those unsupported features from
+becoming accidental binary dependencies.
 
 Handlers receive caller-owned `context.Context`, invocation-local typed
 `Input`, explicit `IO`, and bounded `Output`. Dependencies are supplied through

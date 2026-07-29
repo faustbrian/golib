@@ -17,6 +17,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Add a bounded `CommandSet` compilation path for service processes that need
   direct commands, help, version, stable errors, and bounded output without
   linking unsupported generic CLI features.
+- Allow bounded `CommandSet` children to parse command-local typed options
+  without linking the complete generic command graph.
 - Run the local competitor benchmark harness through the repository workspace
   so it can measure the unreleased canonical CLI module before initial tags.
 

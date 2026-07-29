@@ -61,10 +61,11 @@ Service processes that deliberately do not publish shell completion may call
 lifecycle, output, and exit behavior while treating the hidden completion
 protocol as an ordinary command token.
 
-One-binary services that need only direct commands, help, version, stable
-errors, and bounded output can use `CompileCommandSet`. This avoids linking
-option, argument, nested-command, lifecycle-hook, completion, and reference
-generation machinery that the process does not expose:
+One-binary services that need only direct commands, command-local typed
+options, help, version, stable errors, and bounded output can use
+`CompileCommandSet`. This avoids linking argument, nested-command,
+lifecycle-hook, completion, and reference-generation machinery that the
+process does not expose:
 
 ```go
 application, err := cli.CompileCommandSet(cli.CommandSet{
@@ -77,6 +78,10 @@ application, err := cli.CompileCommandSet(cli.CommandSet{
 	}},
 })
 ```
+
+`CommandSpec.Options` uses the same typed option bindings and parser contract
+as `Command`, while deliberately excluding persistent options and option
+groups from the bounded service-process surface.
 
 `os.Exit` stays in `main`; handlers and library code return errors. Dependencies
 are ordinary constructor parameters or captured closures:

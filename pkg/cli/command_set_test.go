@@ -75,6 +75,134 @@ func TestCommandSetPreservesBoundedCommandHelpVersionAndErrors(t *testing.T) {
 	}
 }
 
+func TestCommandSetParsesTypedCommandOptions(t *testing.T) {
+	t.Parallel()
+
+	date := cli.StringOption("date").
+		Description("business date").
+		Required()
+	dryRun := cli.BoolOption("dry-run").Short('n')
+	var receivedDate string
+	var receivedDryRun bool
+	application, err := cli.CompileCommandSet(cli.CommandSet{
+		Name: "tool", Version: "1.2.3",
+		Commands: []cli.CommandSpec{{
+			Name:    "deploy",
+			Summary: "deploy the service",
+			Options: []cli.OptionDefinition{date, dryRun},
+			Handler: func(_ context.Context, invocation cli.Invocation) error {
+				receivedDate = date.Get(invocation.Input())
+				receivedDryRun = dryRun.Get(invocation.Input())
+
+				return nil
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CompileCommandSet() error = %v", err)
+	}
+
+	result := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"deploy", "--date=2026-07-29", "-n"},
+	})
+	if result.Err != nil || receivedDate != "2026-07-29" || !receivedDryRun {
+		t.Fatalf(
+			"RunCommand(options) = %#v, date = %q, dry-run = %v",
+			result,
+			receivedDate,
+			receivedDryRun,
+		)
+	}
+
+	missing := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"deploy"},
+	})
+	if !errors.Is(missing.Err, cli.ErrUsage) || missing.ExitCode != 2 {
+		t.Fatalf("RunCommand(missing required option) = %#v", missing)
+	}
+	unknown := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"deploy", "--unknown"},
+	})
+	if !errors.Is(unknown.Err, cli.ErrUnknownOption) || unknown.ExitCode != 2 {
+		t.Fatalf("RunCommand(unknown option) = %#v", unknown)
+	}
+	var versionOutput bytes.Buffer
+	version := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"--version"}, Stdout: &versionOutput,
+	})
+	if !errors.Is(version.Err, cli.ErrVersion) ||
+		versionOutput.String() != "tool 1.2.3\n" {
+		t.Fatalf("RunCommand(version) = %#v, stdout = %q", version, versionOutput.String())
+	}
+
+	var stdout bytes.Buffer
+	help := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"deploy", "--help"}, Stdout: &stdout,
+	})
+	if !errors.Is(help.Err, cli.ErrHelp) ||
+		!strings.Contains(stdout.String(), "--date") ||
+		!strings.Contains(stdout.String(), "-n, --dry-run") {
+		t.Fatalf("RunCommand(help) = %#v, stdout = %q", help, stdout.String())
+	}
+}
+
+func TestCommandSetOptionParsingPreservesCancellationAndBoundedVersionOutput(t *testing.T) {
+	t.Parallel()
+
+	application, err := cli.CompileCommandSet(cli.CommandSet{
+		Name: "tool",
+		Commands: []cli.CommandSpec{{
+			Name:    "deploy",
+			Options: []cli.OptionDefinition{cli.BoolOption("dry-run")},
+			Handler: commandSetNoop,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CompileCommandSet() error = %v", err)
+	}
+	if result := application.RunCommand(&commandSetChangingContext{
+		Context: context.Background(), cancelAfter: 1,
+	}, cli.Request{Args: []string{"--missing"}}); !errors.Is(result.Err, cli.ErrCanceled) {
+		t.Fatalf("parse-time cancellation result = %#v", result)
+	}
+
+	const maximumMetadataBytes = 1 << 20
+	largeVersion, err := cli.CompileCommandSet(cli.CommandSet{
+		Name:    "t",
+		Version: strings.Repeat("v", maximumMetadataBytes-1),
+		Commands: []cli.CommandSpec{{
+			Name:    "run",
+			Options: []cli.OptionDefinition{cli.BoolOption("verbose")},
+			Handler: commandSetNoop,
+		}},
+	}, cli.WithLimits(cli.Limits{MaximumMetadataBytes: 2 << 20}))
+	if err != nil {
+		t.Fatalf("CompileCommandSet(large version) error = %v", err)
+	}
+	if result := largeVersion.RunCommand(t.Context(), cli.Request{
+		Args: []string{"--version"},
+	}); !errors.Is(result.Err, cli.ErrOutput) {
+		t.Fatalf("large version result = %#v", result)
+	}
+
+	customExitCodes, err := cli.CompileCommandSet(cli.CommandSet{
+		Name: "tool",
+		Commands: []cli.CommandSpec{{
+			Name:    "deploy",
+			Options: []cli.OptionDefinition{cli.StringOption("date").Required()},
+			Handler: commandSetNoop,
+		}},
+	}, cli.WithExitCodePolicy(cli.ExitCodePolicy{Usage: 42}))
+	if err != nil {
+		t.Fatalf("CompileCommandSet(custom exit codes) error = %v", err)
+	}
+	if result := customExitCodes.RunCommand(t.Context(), cli.Request{
+		Args: []string{"deploy"},
+	}); result.ExitCode != 42 {
+		t.Fatalf("custom usage exit code = %d, want 42", result.ExitCode)
+	}
+}
+
 func TestCommandSetRejectsInvalidOrAmbiguousDefinitions(t *testing.T) {
 	t.Parallel()
 
@@ -99,6 +227,13 @@ func TestCommandSetRejectsInvalidOrAmbiguousDefinitions(t *testing.T) {
 			Name: "tool",
 			Commands: []cli.CommandSpec{{
 				Name: "", Handler: commandSetNoop,
+			}},
+		},
+		"nil command option": {
+			Name: "tool",
+			Commands: []cli.CommandSpec{{
+				Name: "deploy", Options: []cli.OptionDefinition{nil},
+				Handler: commandSetNoop,
 			}},
 		},
 	}
@@ -140,6 +275,22 @@ func TestCommandSetRejectsInvalidOrAmbiguousDefinitions(t *testing.T) {
 		cli.WithLimits(cli.Limits{MaximumMetadataBytes: 4}),
 	); !errors.Is(err, cli.ErrInternal) {
 		t.Fatalf("metadata limit error = %v", err)
+	}
+	if _, err := cli.CompileCommandSet(
+		cli.CommandSet{
+			Name: "tool",
+			Commands: []cli.CommandSpec{{
+				Name: "deploy",
+				Options: []cli.OptionDefinition{
+					cli.StringOption("first"),
+					cli.StringOption("second"),
+				},
+				Handler: commandSetNoop,
+			}},
+		},
+		cli.WithLimits(cli.Limits{MaximumOptionsPerCommand: 1}),
+	); !errors.Is(err, cli.ErrInternal) {
+		t.Fatalf("command option limit error = %v", err)
 	}
 	if _, err := cli.CompileCommandSet(
 		cli.CommandSet{Name: "tool", Version: "1.2.3"},
