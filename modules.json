@@ -393,7 +393,17 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/ci.md",
+            "docs/goal-traceability.md",
+            "docs/migration.md",
+            "docs/module-dependencies.md",
+            "docs/module-lifecycle.md",
+            "docs/package-catalog.md",
+            "docs/package-selection.md",
+            "docs/quality.md",
+            "docs/releases.md",
+            "docs/troubleshooting.md"
           ],
           "verification_gates": [
             "format-check",
@@ -3271,7 +3281,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
-        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
@@ -4124,7 +4134,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
-        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
@@ -6848,7 +6858,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
-        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
@@ -13241,18 +13251,6 @@
         },
         {
           "module_directory": "pkg/queue",
-          "directory": "queueservice",
-          "name": "queueservice",
-          "import_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
-          "kind": "public",
-          "production": true,
-          "executable": true,
-          "coverage_required": true,
-          "build_required": true,
-          "build_tags": []
-        },
-        {
-          "module_directory": "pkg/queue",
           "directory": "rabbitmq",
           "name": "rabbitmq",
           "import_path": "github.com/faustbrian/golib/pkg/queue/rabbitmq",
@@ -13306,18 +13304,14 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/queue/v",
-      "owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/cli",
-        "github.com/faustbrian/golib/pkg/correlation",
-        "github.com/faustbrian/golib/pkg/identifier",
-        "github.com/faustbrian/golib/pkg/service"
-      ],
+      "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
@@ -13337,8 +13331,6 @@
         "github.com/stretchr/testify",
         "github.com/testcontainers/testcontainers-go",
         "github.com/valkey-io/valkey-go",
-        "go.opentelemetry.io/otel",
-        "go.opentelemetry.io/otel/trace",
         "go.uber.org/goleak",
         "go.uber.org/mock"
       ],
@@ -13901,6 +13893,72 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/queue/queueservice",
+      "module_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/queue/queueservice",
+          "directory": ".",
+          "name": "queueservice",
+          "import_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "See the module README and goal files.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/queue/queueservice/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/service"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/trace"
+      ],
+      "required_services": [
+        "nats",
+        "nsq",
+        "rabbitmq",
+        "redis",
+        "valkey"
+      ],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15755,7 +15813,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
-        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",

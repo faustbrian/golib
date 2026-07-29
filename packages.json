@@ -5563,8 +5563,8 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/queue",
-      "directory": "queueservice",
+      "module_directory": "pkg/queue/queueservice",
+      "directory": ".",
       "name": "queueservice",
       "import_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
       "kind": "public",

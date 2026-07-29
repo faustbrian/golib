@@ -76,6 +76,7 @@ use (
 	./pkg/prompts/benchmarks/comparison
 	./pkg/queue
 	./pkg/queue-control-plane
+	./pkg/queue/queueservice
 	./pkg/rate-limit
 	./pkg/retry
 	./pkg/router
@@ -303,3 +304,5 @@ replace github.com/faustbrian/golib/pkg/merkle-patricia-trie v0.0.0 => ./pkg/mer
 replace github.com/faustbrian/golib/pkg/merkle-tree v0.0.0 => ./pkg/merkle-tree
 
 replace github.com/faustbrian/golib/pkg/verkle-tree v0.0.0 => ./pkg/verkle-tree
+
+replace github.com/faustbrian/golib/pkg/queue/queueservice v0.0.0 => ./pkg/queue/queueservice

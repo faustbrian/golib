@@ -13,8 +13,9 @@ versioning and Keep a Changelog structure.
   the source delivery pending and return a stable redacted error.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
-- Require owned sibling modules at local `v0.0.0`; clean external consumers
-  pin each module to an exact main pseudo-version.
+- Move the optional service and correlation lifecycle adapter into the
+  independently versioned `queueservice` module. Core queue consumers no
+  longer inherit unrelated service runtime dependencies.
 
 - `Queue.ReleaseContext` now provides a bounded graceful worker path that
   rejects new admission, waits for accepted publishes and active handlers, and
