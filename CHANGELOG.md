@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Pass Gremlins' integration-test CPU setting as distinct command arguments so
+  mutation workers execute every target package instead of silently testing
+  only the module root.
 - Permit releasable source manifests to pin immutable main pseudo-versions
   while isolated verification continues to use the generated local `v0.0.0`
   proxy, restoring clean installation without weakening local source checks.

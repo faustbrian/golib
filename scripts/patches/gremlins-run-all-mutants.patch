@@ -8,3 +8,9 @@ diff --git a/internal/engine/engine.go b/internal/engine/engine.go
 -		status = mutator.Runnable
 -	}
 +	status := mutator.Runnable
+diff --git a/internal/engine/executor.go b/internal/engine/executor.go
+--- a/internal/engine/executor.go
++++ b/internal/engine/executor.go
+@@ -228 +228 @@ func (m *mutantExecutor) getTestArgs(pkg string) []string {
+-		args = append(args, fmt.Sprintf("-cpu %d", m.testCPU))
++		args = append(args, "-cpu", fmt.Sprint(m.testCPU))
