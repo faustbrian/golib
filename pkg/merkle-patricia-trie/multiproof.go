@@ -414,7 +414,7 @@ func verifyMultiProof(
 	}
 
 	budget := workBudget{hashesLeft: limits.MaxHashOperations}
-	lookup, err := newMultiProofLookup(root, proof, &budget)
+	lookup, err := newMultiProofLookup(ctx, root, proof, &budget)
 	if err != nil {
 		return err
 	}
@@ -432,6 +432,7 @@ func verifyMultiProof(
 }
 
 func newMultiProofLookup(
+	ctx context.Context,
 	root Root,
 	proof MultiProof,
 	budget *workBudget,
@@ -443,6 +444,9 @@ func newMultiProofLookup(
 		root:  root, budget: budget,
 	}
 	for _, encoded := range proof.nodes {
+		if err := checkContext(ctx); err != nil {
+			return nil, err
+		}
 		hash, err := budget.hash(encoded)
 		if err != nil {
 			return nil, err

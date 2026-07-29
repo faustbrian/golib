@@ -31,6 +31,22 @@ type ethereumJSResult struct {
 	Value *string `json:"value"`
 }
 
+type ethereumJSRangeRequest struct {
+	Root        string   `json:"root"`
+	FirstKey    string   `json:"firstKey"`
+	LastKey     string   `json:"lastKey"`
+	Keys        []string `json:"keys"`
+	Values      []string `json:"values"`
+	Proof       []string `json:"proof"`
+	StateKeys   []string `json:"stateKeys"`
+	StateValues []string `json:"stateValues"`
+}
+
+type ethereumJSRangeResult struct {
+	HasMore          bool `json:"hasMore"`
+	EdgeNodesMatched bool `json:"edgeNodesMatched"`
+}
+
 func TestEthereumJSDifferentialMutationTrace(t *testing.T) {
 	t.Parallel()
 
@@ -40,6 +56,87 @@ func TestEthereumJSDifferentialMutationTrace(t *testing.T) {
 			t.Parallel()
 			runEthereumJSDifferentialTrace(t, secure)
 		})
+	}
+}
+
+func TestEthereumJSAcceptsGeneratedRawRangeProof(t *testing.T) {
+	t.Parallel()
+
+	trie, err := mpt.NewRawTrie(mpt.DefaultLimits())
+	if err != nil {
+		t.Fatalf("NewRawTrie() error = %v", err)
+	}
+	keys := make([][]byte, 5)
+	values := make([][]byte, len(keys))
+	for index, suffix := range []byte{0x10, 0x20, 0x30, 0x40, 0x50} {
+		keys[index] = make([]byte, mpt.RootBytes)
+		keys[index][mpt.RootBytes-1] = suffix
+		values[index] = []byte(fmt.Sprintf(
+			"a distinct long persisted range value %02x", suffix,
+		))
+		trie, err = trie.Update(
+			context.Background(),
+			keys[index],
+			values[index],
+		)
+		if err != nil {
+			t.Fatalf("Update(%x) error = %v", keys[index], err)
+		}
+	}
+	proof, items, err := trie.ProveRange(
+		context.Background(), keys[1], keys[4],
+	)
+	if err != nil {
+		t.Fatalf("ProveRange() error = %v", err)
+	}
+	root, err := trie.Root()
+	if err != nil {
+		t.Fatalf("Root() error = %v", err)
+	}
+	request := ethereumJSRangeRequest{
+		Root:        hex.EncodeToString(root[:]),
+		FirstKey:    hex.EncodeToString(items[0].Key()),
+		LastKey:     hex.EncodeToString(items[len(items)-1].Key()),
+		Keys:        make([]string, len(items)),
+		Values:      make([]string, len(items)),
+		Proof:       make([]string, len(proof.Nodes())),
+		StateKeys:   make([]string, len(keys)),
+		StateValues: make([]string, len(keys)),
+	}
+	for index, item := range items {
+		request.Keys[index] = hex.EncodeToString(item.Key())
+		request.Values[index] = hex.EncodeToString(item.Value())
+	}
+	for index, encoded := range proof.Nodes() {
+		request.Proof[index] = hex.EncodeToString(encoded)
+	}
+	for index, key := range keys {
+		request.StateKeys[index] = hex.EncodeToString(key)
+		request.StateValues[index] = hex.EncodeToString(values[index])
+	}
+	input, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	command := exec.CommandContext(
+		context.Background(),
+		"node",
+		"scripts/ethereumjs-range-oracle.mjs",
+	)
+	command.Stdin = bytes.NewReader(input)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ethereumjs range oracle error = %v: %s", err, output)
+	}
+	var result ethereumJSRangeResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v: %s", err, output)
+	}
+	if !result.HasMore {
+		t.Fatal("ethereumjs range proof did not find the leaf after the range")
+	}
+	if !result.EdgeNodesMatched {
+		t.Fatal("generated witness did not contain ethereumjs edge proof nodes")
 	}
 }
 

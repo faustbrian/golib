@@ -74,9 +74,14 @@ caller keys and carries each hashed node once. Embedded children remain inside
 their parent and are not duplicated. Verification supports raw and secure
 membership, non-membership, and mixed multi-key claims, rejecting wrong roots,
 claims, profiles, missing nodes, duplicate or reordered nodes, hash mismatches,
-and surplus material. EIP-1186 helpers bind account proofs to exact addresses
-and storage proofs to the storage root decoded from a proven canonical account.
-Range-proof completeness remains a later delivery phase.
+and surplus material. `RangeProof` walks only subtrees intersecting an explicit
+`[start,end)` interval. Every intersecting hashed node is required in
+deterministic trie order; hashed subtrees wholly outside the interval remain
+opaque commitments. This proves that the returned leaf sequence is complete
+without loading unrelated subtrees. Secure range endpoints are explicit
+already-transformed 32-byte paths. EIP-1186 helpers bind account proofs to
+exact addresses and storage proofs to the storage root decoded from a proven
+canonical account.
 
 ## Canonical representation
 

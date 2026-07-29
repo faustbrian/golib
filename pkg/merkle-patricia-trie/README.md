@@ -101,6 +101,16 @@ canonical nodes, path transitions, and resource limits. A valid proof says
 nothing about whether the supplied root is canonical-chain, finalized, recent,
 or authorized.
 
+`ProveRange` returns every raw leaf in an explicit `[start,end)` byte interval
+plus a deterministic ordered witness. An empty `end` means no upper bound.
+`VerifyRawRange` proves that the supplied leaf sequence is exact and
+consecutive: an omitted leaf, changed value, missing node, reordered node, or
+unused node is rejected. `ProveHashedRange` and
+`VerifySecureHashedRange` use already transformed 32-byte Keccak paths and do
+not hash their endpoints or items; this keeps raw keys and transformed secure
+paths unambiguous. `RangeProofFromNodes` is the transport boundary for decoded
+RLP proof-node bytes.
+
 ## EIP-1186 boundary
 
 `VerifyAccountProof` binds canonical account RLP to the secure path of an exact

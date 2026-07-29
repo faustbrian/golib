@@ -23,6 +23,6 @@ nodes, proofs, preimages, or credentials.
 
 ## Proof limitation
 
-A valid proof establishes a key/value or absence claim under the supplied root.
-It does not establish that the root is canonical, finalized, recent, or
-authorized.
+A valid proof establishes a key/value, absence, or exact range-completeness
+claim under the supplied root. It does not establish that the root is
+canonical, finalized, recent, or authorized.

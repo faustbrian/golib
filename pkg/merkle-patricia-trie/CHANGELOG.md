@@ -31,6 +31,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   node binding.
 - Added deterministic raw and secure multi-key proofs with shared-node
   deduplication and mixed membership/absence verification.
+- Added bounded raw and transformed secure-key range proofs for explicit
+  `[start,end)` intervals, with consecutive-leaf completeness, strict witness
+  ordering, and pinned Geth and EthereumJS verification interoperability.
+- Made multi-key and range witness indexing observe context cancellation
+  between proof nodes.
 - Imported the pinned legacy Ethereum raw and secure trie fixture corpus
   byte-for-byte with checksum, license, update, applicability, and local
   coverage records.

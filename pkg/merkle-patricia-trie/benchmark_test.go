@@ -215,6 +215,50 @@ func BenchmarkMultiProofVerification(b *testing.B) {
 	}
 }
 
+func BenchmarkRangeProofGeneration(b *testing.B) {
+	trie := benchmarkPopulatedTrie(b, 1024)
+	ctx := context.Background()
+	start := benchmarkKey(400)
+	end := benchmarkKey(432)
+	b.ResetTimer()
+	for b.Loop() {
+		proof, _, err := trie.ProveRange(ctx, start, end)
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchmarkBytes = proof.Nodes()[0]
+	}
+}
+
+func BenchmarkRangeProofVerification(b *testing.B) {
+	trie := benchmarkPopulatedTrie(b, 1024)
+	ctx := context.Background()
+	start := benchmarkKey(400)
+	end := benchmarkKey(432)
+	root, err := trie.Root()
+	if err != nil {
+		b.Fatal(err)
+	}
+	proof, items, err := trie.ProveRange(ctx, start, end)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for b.Loop() {
+		if err := mpt.VerifyRawRange(
+			ctx,
+			root,
+			start,
+			end,
+			items,
+			proof,
+			mpt.DefaultLimits(),
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkFullIteration(b *testing.B) {
 	trie := benchmarkPopulatedTrie(b, 1024)
 	ctx := context.Background()

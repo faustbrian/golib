@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 
@@ -105,6 +107,67 @@ func TestGethSecureTrieDifferentialMutationTrace(t *testing.T) {
 		},
 		oracle.Hash,
 	)
+}
+
+func TestGethAcceptsGeneratedRawRangeProof(t *testing.T) {
+	t.Parallel()
+
+	trie, err := mpt.NewRawTrie(mpt.DefaultLimits())
+	if err != nil {
+		t.Fatalf("NewRawTrie() error = %v", err)
+	}
+	for _, key := range []byte{0x10, 0x20, 0x30, 0x40, 0x50} {
+		trie, err = trie.Update(
+			context.Background(),
+			[]byte{key},
+			[]byte("a value long enough to persist range proof children"),
+		)
+		if err != nil {
+			t.Fatalf("Update(%x) error = %v", key, err)
+		}
+	}
+	proof, items, err := trie.ProveRange(
+		context.Background(), []byte{0x20}, []byte{0x50},
+	)
+	if err != nil {
+		t.Fatalf("ProveRange() error = %v", err)
+	}
+	keys := make([][]byte, len(items))
+	values := make([][]byte, len(items))
+	for index, item := range items {
+		keys[index] = item.Key()
+		values[index] = item.Value()
+	}
+	proofDatabase := memorydb.New()
+	for _, encoded := range proof.Nodes() {
+		if err := proofDatabase.Put(crypto.Keccak256(encoded), encoded); err != nil {
+			t.Fatalf("proof Put() error = %v", err)
+		}
+	}
+	root, err := trie.Root()
+	if err != nil {
+		t.Fatalf("Root() error = %v", err)
+	}
+	if err := mpt.VerifyRawRange(
+		context.Background(),
+		root,
+		[]byte{0x20},
+		[]byte{0x50},
+		items,
+		proof,
+		mpt.DefaultLimits(),
+	); err != nil {
+		t.Fatalf("VerifyRawRange(shared hashed leaves) error = %v", err)
+	}
+	hasMore, err := gethtrie.VerifyRangeProof(
+		common.Hash(root), []byte{0x20}, keys, values, proofDatabase,
+	)
+	if err != nil {
+		t.Fatalf("geth VerifyRangeProof() error = %v", err)
+	}
+	if !hasMore {
+		t.Fatal("geth VerifyRangeProof() did not find the leaf after the range")
+	}
 }
 
 func runGethDifferentialTrace(

@@ -45,6 +45,32 @@ bytes, truncation, non-minimal string forms, non-minimal length-of-length,
 leading-zero length forms, and lengths above configured limits before
 allocation.
 
+## Range-proof contract
+
+Range proofs use an explicit inclusive start and exclusive end over raw trie
+byte order. An empty end is unbounded. The witness contains the root and every
+hashed node in subtrees that intersect the interval, ordered by deterministic
+trie traversal; embedded children remain in their parent. Verification rejects
+unused witness nodes and requires the exact consecutive leaf sequence.
+
+Geth v1.17.3 reconstructs a range from two edge paths and accepts additional
+useful proof nodes. The local witness is intentionally stricter but remains
+interoperable: the pinned Geth `VerifyRangeProof` accepts generated raw range
+witnesses and reports leaves beyond the proven batch. The pinned independent
+EthereumJS MPT v10.1.2 implementation reproduces the same root, produces
+byte-identical edge nodes contained in the generated witness, and accepts the
+same leaf sequence with `verifyMerkleRangeProof`. Secure ranges expose
+already-transformed 32-byte Keccak paths, matching secure iteration and
+preventing an API from ambiguously hashing endpoints again.
+
+EthereumJS v10.1.2's range verifier rejects a valid trie when distinct branch
+indices reference byte-identical hashed leaf nodes: its fork search treats the
+equal child references as one path and reaches a leaf before the requested edge
+keys diverge. Geth accepts that structure, and the local verifier proves it
+directly. The EthereumJS interoperability corpus therefore uses distinct leaf
+encodings so that it tests the shared range-proof contract without treating
+this independent-oracle limitation as an Ethereum trie restriction.
+
 ## Ambiguity process
 
 An unresolved specification ambiguity blocks a compatibility claim. Its record

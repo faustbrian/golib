@@ -106,6 +106,41 @@ func FuzzMultiProofVerificationRejectsHostileInput(f *testing.F) {
 	})
 }
 
+func FuzzRangeProofVerificationRejectsHostileInput(f *testing.F) {
+	f.Add(
+		make([]byte, mpt.RootBytes),
+		[]byte("a"),
+		[]byte("b"),
+		[]byte("value"),
+		[]byte{0xc2, 0x20, 0x01},
+	)
+
+	f.Fuzz(func(t *testing.T, rootBytes, start, end, value, encoded []byte) {
+		if len(rootBytes) > 64 || len(start) > 64 || len(end) > 64 ||
+			len(value) > 256 || len(encoded) > 4096 {
+			return
+		}
+		var root mpt.Root
+		copy(root[:], rootBytes)
+		limits := mpt.DefaultLimits()
+		limits.MaxKeyBytes = 64
+		limits.MaxValueBytes = 256
+		limits.MaxProofBytes = 4096
+		var nodes [][]byte
+		if len(encoded) != 0 {
+			nodes = [][]byte{encoded}
+		}
+		proof, err := mpt.RangeProofFromNodes(nodes, limits)
+		if err != nil {
+			return
+		}
+		items := []mpt.RangeItem{mpt.NewRangeItem(start, value)}
+		_ = mpt.VerifyRawRange(
+			context.Background(), root, start, end, items, proof, limits,
+		)
+	})
+}
+
 func FuzzRecoveredNodeRejectsHostileInput(f *testing.F) {
 	f.Add([]byte{0xc2, 0x20, 0x01})
 	f.Add([]byte{0x80})

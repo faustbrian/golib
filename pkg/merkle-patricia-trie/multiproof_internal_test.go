@@ -443,13 +443,16 @@ func TestMultiProofLookupRejectsResourceAndCanonicalityFailures(t *testing.T) {
 	t.Parallel()
 
 	if _, err := newMultiProofLookup(
-		Root{}, MultiProof{nodes: [][]byte{{0x80}}},
+		context.Background(),
+		Root{},
+		MultiProof{nodes: [][]byte{{0x80}}},
 		&workBudget{},
 	); !errors.Is(err, ErrResourceLimit) {
 		t.Fatalf("newMultiProofLookup(hash limit) error = %v", err)
 	}
 	malformed := []byte{0xff}
 	if _, err := newMultiProofLookup(
+		context.Background(),
 		keccakRoot(malformed),
 		MultiProof{nodes: [][]byte{malformed}},
 		&workBudget{hashesLeft: 1},
@@ -684,9 +687,31 @@ func TestMultiProofDecodersRejectCanonicalNullNode(t *testing.T) {
 		t.Fatalf("decodePending(null node) error = %v", err)
 	}
 	if _, err := newMultiProofLookup(
-		hash, MultiProof{nodes: [][]byte{encodedNull}},
+		context.Background(),
+		hash,
+		MultiProof{nodes: [][]byte{encodedNull}},
 		&workBudget{hashesLeft: 1},
 	); !errors.Is(err, ErrMalformedProof) {
 		t.Fatalf("newMultiProofLookup(null node) error = %v", err)
+	}
+}
+
+func TestMultiProofVerificationCancelsWhileIndexingWitness(t *testing.T) {
+	t.Parallel()
+
+	leaf := &leafNode{value: []byte("value")}
+	encoded, _, err := encodeNode(leaf)
+	if err != nil {
+		t.Fatalf("encodeNode() error = %v", err)
+	}
+	err = VerifyRawMultiProof(
+		&nthErrorContext{at: 3},
+		keccakRoot(encoded),
+		[]ProofClaim{MembershipClaim(nil, []byte("value"))},
+		MultiProof{nodes: [][]byte{encoded, {0xff}}},
+		DefaultLimits(),
+	)
+	if !errors.Is(err, ErrCanceled) {
+		t.Fatalf("VerifyRawMultiProof(index cancellation) error = %v", err)
 	}
 }
