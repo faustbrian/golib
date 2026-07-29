@@ -3917,6 +3917,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/merkle-tree",
+      "directory": ".",
+      "name": "merkletree",
+      "import_path": "github.com/faustbrian/golib/pkg/merkle-tree",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/migrations",
       "directory": ".",
       "name": "migrations",

@@ -57,6 +57,7 @@ use (
 	./pkg/log
 	./pkg/math
 	./pkg/measurement
+	./pkg/merkle-tree
 	./pkg/migrations
 	./pkg/money
 	./pkg/openapi

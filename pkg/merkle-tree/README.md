@@ -1,0 +1,88 @@
+# merkle-tree
+
+`merkle-tree` is a storage-independent cryptographic data-structure library
+for explicitly profiled, ordered Merkle trees. The current pre-v1 surface
+constructs bounded immutable roots for the package canonical binary profile
+and the RFC 9162 Certificate Transparency profile.
+
+## Quick start
+
+```go
+profile := merkletree.CanonicalProfile()
+leaves := []merkletree.RawLeaf{
+    merkletree.NewRawLeaf([]byte("first")),
+    merkletree.NewRawLeaf([]byte("second")),
+    merkletree.NewRawLeaf([]byte("third")),
+}
+
+root, err := merkletree.ComputeRoot(
+    ctx,
+    profile,
+    leaves,
+    merkletree.DefaultLimits(),
+)
+if err != nil {
+    return err
+}
+
+fmt.Printf(
+    "%d leaves: %x\n",
+    root.TreeSize(),
+    root.Digest().Bytes(),
+)
+```
+
+`RawLeaf` copies its input and cannot be substituted with `Digest`.
+`ComputeRoot` also copies no mutable caller buffer into its result. Applications
+processing untrusted input should create leaves with `NewRawLeafWithLimit` and
+replace `DefaultLimits` with tighter application-specific limits.
+
+## Implemented profiles
+
+| Property | Canonical binary v1 | RFC 9162 v1 |
+|---|---|---|
+| Leaves | ordered raw bytes | ordered raw bytes |
+| Hash | SHA-256 | explicit SHA-256 registry algorithm |
+| Empty root | `SHA-256("")` | `HASH("")` |
+| Leaf encoding | `SHA-256(0x00 || leaf)` | `HASH(0x00 || leaf)` |
+| Branch encoding | `SHA-256(0x01 || left || right)` | `HASH(0x01 || left || right)` |
+| Split rule | largest power of two smaller than subtree size | same |
+| Odd-node behavior | recursive right subtree; never duplicate or pad | same |
+| Ordering | significant, zero-based | significant, zero-based |
+
+The two profiles currently produce the same digest for identical leaves, but
+they retain different stable identities. The canonical profile is
+package-owned. The RFC profile is an interoperability claim limited to the
+Merkle Tree Hash behavior implemented and tested here.
+
+## Current pre-v1 boundary
+
+Root construction is implemented. Append, snapshots, persistence, inclusion
+proofs, multi-inclusion proofs, consistency proofs, proof encodings, fuzz
+campaigns for those unfinished surfaces, external differential fixtures, and
+comparative benchmarks remain under development and are not claimed by the
+current API.
+
+This package does not implement Ethereum's modified Merkle Patricia trie or
+consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle
+trees, Bitcoin duplicate-last trees, sorted-pair trees, or implicit
+promote-last trees.
+
+A Merkle root or proof can establish inclusion under a trusted root and exact
+profile. It cannot establish a leaf's truth, freshness, authorization, or
+semantic validity.
+
+## Specification
+
+The implemented RFC profile follows
+[RFC 9162 section 2.1](https://www.rfc-editor.org/rfc/rfc9162#section-2.1):
+the empty, leaf, branch, and recursive split definitions. RFC 9162's initial
+hash registry assigns SHA-256 value `0x00`; the package does not accept an
+unspecified or caller-invented algorithm as RFC-compatible.
+
+See [profile and ownership semantics](docs/architecture.md) and
+[compatibility boundaries](docs/compatibility.md).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

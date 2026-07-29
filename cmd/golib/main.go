@@ -1070,6 +1070,8 @@ func specifications(directory string) []string {
 		return []string{"JSON:API 1.0 and 1.1", "JSON:API extensions and recommendations"}
 	case "jsonrpc":
 		return []string{"JSON-RPC 2.0"}
+	case "merkle-tree":
+		return []string{"RFC 9162"}
 	case "openapi":
 		return []string{"OpenAPI 2.0, 3.0, and 3.1"}
 	case "openrpc":

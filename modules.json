@@ -10016,6 +10016,131 @@
       }
     },
     {
+      "directory": "pkg/merkle-tree",
+      "module_path": "github.com/faustbrian/golib/pkg/merkle-tree",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/merkle-tree",
+          "directory": ".",
+          "name": "merkletree",
+          "import_path": "github.com/faustbrian/golib/pkg/merkle-tree",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`merkle-tree` is a storage-independent cryptographic data-structure library for explicitly profiled, ordered Merkle trees. The current pre-v1 surface constructs bounded immutable roots for the package canonical binary profile and the RFC 9162 Certificate Transparency profile.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/merkle-tree/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [
+        "RFC 9162"
+      ],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/merkle-tree/.ai/GOAL.md",
+        "pkg/merkle-tree/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/merkle-tree/.ai/GOAL.md",
+          "requirements_sha256": "fa1d41e56d8315c3b86729214ea07a20d1eb47dce01d0cc8bab38a07b9fa794c",
+          "implementation_evidence": [
+            "pkg/merkle-tree/CHANGELOG.md",
+            "pkg/merkle-tree/README.md",
+            "pkg/merkle-tree/docs/architecture.md",
+            "pkg/merkle-tree/docs/compatibility.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/merkle-tree/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "7927d2cdec49f0572d03fcaa931304eb6783d1256c274e82acae732362e3df42",
+          "implementation_evidence": [
+            "pkg/merkle-tree/CHANGELOG.md",
+            "pkg/merkle-tree/README.md",
+            "pkg/merkle-tree/docs/architecture.md",
+            "pkg/merkle-tree/docs/compatibility.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": true,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/migrations",
       "module_path": "github.com/faustbrian/golib/pkg/migrations",
       "go_version": "1.26.5",
