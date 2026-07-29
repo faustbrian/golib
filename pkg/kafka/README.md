@@ -350,11 +350,13 @@ An authenticated but ACL-denied principal also proves producer and inspector
 authorization failures. A live SCRAM-SHA-256 producer additionally refreshes
 its credential provider after broker-enforced reauthentication and rejects the
 retired secret. A compact-only Apache topic also proves replay fails closed on
-a missing requested offset while the broker log start remains unchanged. The
-Apache fixtures assert the runtime version; the failure fixture proves one
-bounded leader/ISR failure and recovery scenario. They are not the complete
-managed service, rotation-stress, compatibility, or chaos matrix. Exact inputs
-and remaining evidence gaps are recorded in the
+a missing requested offset while the broker log start remains unchanged. A
+three-process consumer fixture proves the documented eager-to-cooperative
+rolling protocol transition with exact partition ownership. The Apache
+fixtures assert the runtime version; the failure fixture proves one bounded
+leader/ISR failure and recovery scenario. They are not the complete managed
+service, rotation-stress, compatibility, or chaos matrix. Exact inputs and
+remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
 [SECURITY.md](SECURITY.md). The module is licensed under the [MIT
 License](LICENSE).

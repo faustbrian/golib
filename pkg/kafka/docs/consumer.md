@@ -97,6 +97,17 @@ group. Use two complete rolling deployments:
 requires full revocation. Reversing an established cooperative group to eager
 is not presented as a safe rolling operation.
 
+The pinned three-broker Apache Kafka 4.3.1 fixture executes this migration with
+three distinct operating-system child processes. An eager-only member and a
+mixed eager-to-cooperative member negotiate `sticky`; after the eager-only
+process shuts down, the migration member retains both partitions. Introducing
+a cooperative-only process then negotiates `cooperative-sticky`, and that
+process retains both partitions after the migration member shuts down. Every
+stable transition verifies the exact client identities and that partitions 0
+and 1 are each owned exactly once. This proves protocol negotiation and
+stable assignment results for the exercised rollout; it does not prove
+application handler behavior during every possible rebalance timing.
+
 ## Static membership and rack awareness
 
 Setting `InstanceID` opts into Kafka static membership. A normal client close

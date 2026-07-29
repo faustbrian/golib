@@ -38,6 +38,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- three-broker, three-process consumer rolling-deployment evidence proving the
+  eager-to-cooperative migration negotiates `sticky` while an eager-only member
+  remains, switches to `cooperative-sticky` with a cooperative-only member,
+  and preserves exact one-copy partition ownership at every stable transition
 - clean-consumer release evidence that installs the committed Kafka module from
   the repository's local source proxy into a fresh `GOWORK=off` module and
   resolves its public package without relying on the monorepo workspace

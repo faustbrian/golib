@@ -58,6 +58,18 @@ const (
 	apacheKafkaProcessorBalanceEager    = "eager"
 	apacheKafkaProcessorBalanceCoop     = "cooperative"
 	apacheKafkaProcessorDiagnosticLimit = 32 << 10
+
+	apacheKafkaConsumerChildMode      = "GOLIB_KAFKA_CONSUMER_CHILD"
+	apacheKafkaConsumerBrokers        = "GOLIB_KAFKA_CONSUMER_BROKERS"
+	apacheKafkaConsumerTopic          = "GOLIB_KAFKA_CONSUMER_TOPIC"
+	apacheKafkaConsumerGroup          = "GOLIB_KAFKA_CONSUMER_GROUP"
+	apacheKafkaConsumerClient         = "GOLIB_KAFKA_CONSUMER_CLIENT"
+	apacheKafkaConsumerBalance        = "GOLIB_KAFKA_CONSUMER_BALANCE"
+	apacheKafkaConsumerBalanceEager   = "eager"
+	apacheKafkaConsumerBalanceMigrate = "eager-to-cooperative"
+	apacheKafkaConsumerBalanceCoop    = "cooperative"
+	apacheKafkaConsumerReady          = "golib-kafka-consumer-assigned"
+	apacheKafkaConsumerStopped        = "golib-kafka-consumer-stopped"
 )
 
 type apacheKafkaProcessorDiagnostic struct {
@@ -101,6 +113,119 @@ func TestApacheKafkaTransactionProcessorChild(t *testing.T) {
 		runApacheKafkaRebalanceChild(t)
 	default:
 		t.Fatal("unknown transaction processor subprocess mode")
+	}
+}
+
+func TestApacheKafkaConsumerChild(t *testing.T) {
+	if os.Getenv(apacheKafkaConsumerChildMode) == "" {
+		t.Skip("subprocess helper")
+	}
+
+	runApacheKafkaConsumerChild(t)
+}
+
+func runApacheKafkaConsumerChild(t *testing.T) {
+	t.Helper()
+
+	var balancePolicy kafka.GroupBalancePolicy
+	switch os.Getenv(apacheKafkaConsumerBalance) {
+	case apacheKafkaConsumerBalanceEager:
+		balancePolicy = kafka.BalanceEagerSticky
+	case apacheKafkaConsumerBalanceMigrate:
+		balancePolicy = kafka.BalanceEagerToCooperative
+	case apacheKafkaConsumerBalanceCoop:
+		balancePolicy = kafka.BalanceCooperativeSticky
+	default:
+		t.Fatal("unknown consumer child balance policy")
+	}
+	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+		Brokers:               strings.Split(os.Getenv(apacheKafkaConsumerBrokers), ","),
+		ClientID:              os.Getenv(apacheKafkaConsumerClient),
+		GroupID:               os.Getenv(apacheKafkaConsumerGroup),
+		Topics:                []string{os.Getenv(apacheKafkaConsumerTopic)},
+		ResetOffset:           kafka.OffsetEarliest,
+		BalancePolicy:         balancePolicy,
+		MaxPollRecords:        1,
+		MaxAssignedPartitions: 2,
+		FetchMaxWait:          100 * time.Millisecond,
+		SessionTimeout:        6 * time.Second,
+		HeartbeatInterval:     2 * time.Second,
+		RebalanceTimeout:      15 * time.Second,
+		HandlerTimeout:        time.Second,
+		CommitTimeout:         time.Second,
+		ShutdownTimeout:       10 * time.Second,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct consumer child: %v", err)
+	}
+	defer func() {
+		if closeErr := consumer.Close(); closeErr != nil {
+			t.Errorf("close consumer child: %v", closeErr)
+		}
+	}()
+
+	runCtx, cancelRun := context.WithCancel(context.Background())
+	defer cancelRun()
+	runResult := make(chan error, 1)
+	go func() {
+		runResult <- consumer.Run(runCtx, kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedRecord,
+		) error {
+			return nil
+		}))
+	}()
+	waitForApacheKafkaConsumerAssignment(t, consumer, runResult)
+	if _, err := fmt.Fprintln(os.Stdout, apacheKafkaConsumerReady); err != nil {
+		t.Fatalf("report consumer child assignment: %v", err)
+	}
+
+	release := []byte{0}
+	if _, err := io.ReadFull(os.Stdin, release); err != nil {
+		t.Fatalf("wait for consumer child release: %v", err)
+	}
+	cancelRun()
+	if err := <-runResult; err != nil {
+		t.Fatalf("stop consumer child runner: %v", err)
+	}
+	shutdownCtx, cancelShutdown := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancelShutdown()
+	if err := consumer.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("shutdown consumer child: %v", err)
+	}
+	if _, err := fmt.Fprintln(os.Stdout, apacheKafkaConsumerStopped); err != nil {
+		t.Fatalf("report consumer child shutdown: %v", err)
+	}
+}
+
+func waitForApacheKafkaConsumerAssignment(
+	t *testing.T,
+	consumer *kafka.Consumer,
+	runResult <-chan error,
+) {
+	t.Helper()
+
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelWait()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		assignment, err := consumer.Assignment()
+		if err == nil && len(assignment.Partitions) > 0 {
+			return
+		}
+
+		select {
+		case runErr := <-runResult:
+			t.Fatalf("consumer child exited before assignment: %v", runErr)
+		case <-waitCtx.Done():
+			t.Fatalf("wait for consumer child assignment: %v", context.Cause(waitCtx))
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -250,6 +375,96 @@ func TestApacheKafkaCooperativeTransactionRebalance(t *testing.T) {
 		sourceTopic,
 		outputTopic,
 	)
+}
+
+func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
+	const (
+		eagerClient       = "golib-apache-consumer-eager"
+		migratingClient   = "golib-apache-consumer-migrating"
+		cooperativeClient = "golib-apache-consumer-cooperative"
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf(
+		"golib-apache-consumer-rolling-%d",
+		time.Now().UnixNano(),
+	)
+	groupID := topic + "-group"
+	createApacheKafkaTopic(t, ctx, brokers, topic, 2)
+
+	eager := startApacheKafkaConsumerChild(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		eagerClient,
+		apacheKafkaConsumerBalanceEager,
+	)
+	waitForApacheKafkaConsumerGroupState(
+		t, ctx, brokers, groupID, topic, "sticky", []string{eagerClient},
+	)
+
+	migrating := startApacheKafkaConsumerChild(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		migratingClient,
+		apacheKafkaConsumerBalanceMigrate,
+	)
+	waitForApacheKafkaConsumerGroupState(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		topic,
+		"sticky",
+		[]string{eagerClient, migratingClient},
+	)
+	eager.releaseConsumerAndWait(t)
+	waitForApacheKafkaConsumerGroupState(
+		t, ctx, brokers, groupID, topic, "sticky", []string{migratingClient},
+	)
+
+	cooperative := startApacheKafkaConsumerChild(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		cooperativeClient,
+		apacheKafkaConsumerBalanceCoop,
+	)
+	waitForApacheKafkaConsumerGroupState(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		topic,
+		"cooperative-sticky",
+		[]string{migratingClient, cooperativeClient},
+	)
+	migrating.releaseConsumerAndWait(t)
+	waitForApacheKafkaConsumerGroupState(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		topic,
+		"cooperative-sticky",
+		[]string{cooperativeClient},
+	)
+	cooperative.releaseConsumerAndWait(t)
 }
 
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
@@ -1434,6 +1649,88 @@ type apacheKafkaProcessorChildProcess struct {
 	exited  bool
 }
 
+func startApacheKafkaConsumerChild(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	clientID string,
+	balance string,
+) *apacheKafkaProcessorChildProcess {
+	t.Helper()
+
+	command := exec.CommandContext(
+		ctx,
+		os.Args[0],
+		"-test.run=^TestApacheKafkaConsumerChild$",
+	)
+	command.Env = append(
+		os.Environ(),
+		apacheKafkaConsumerChildMode+"=1",
+		apacheKafkaConsumerBrokers+"="+strings.Join(brokers, ","),
+		apacheKafkaConsumerTopic+"="+topic,
+		apacheKafkaConsumerGroup+"="+groupID,
+		apacheKafkaConsumerClient+"="+clientID,
+		apacheKafkaConsumerBalance+"="+balance,
+	)
+	stdin, err := command.StdinPipe()
+	if err != nil {
+		t.Fatalf("open consumer child stdin: %v", err)
+	}
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		t.Fatalf("open consumer child stdout: %v", err)
+	}
+	child := &apacheKafkaProcessorChildProcess{
+		command: command,
+		stdin:   stdin,
+		scanner: bufio.NewScanner(stdout),
+	}
+	command.Stderr = &child.stderr
+	if err := command.Start(); err != nil {
+		_ = stdin.Close()
+		t.Fatalf("start consumer child: %v", err)
+	}
+	t.Cleanup(child.stop)
+	waitForApacheKafkaProcessorMarker(
+		t,
+		child.scanner,
+		apacheKafkaConsumerReady,
+		&child.stderr,
+	)
+
+	return child
+}
+
+func (child *apacheKafkaProcessorChildProcess) releaseConsumerAndWait(
+	t *testing.T,
+) {
+	t.Helper()
+
+	if _, err := child.stdin.Write([]byte{1}); err != nil {
+		t.Fatalf("release consumer child: %v", err)
+	}
+	if err := child.stdin.Close(); err != nil {
+		t.Fatalf("close consumer child stdin: %v", err)
+	}
+	waitForApacheKafkaProcessorMarker(
+		t,
+		child.scanner,
+		apacheKafkaConsumerStopped,
+		&child.stderr,
+	)
+	if err := child.command.Wait(); err != nil {
+		t.Fatalf(
+			"wait for consumer child: %v: %s",
+			err,
+			strings.TrimSpace(child.stderr.String()),
+		)
+	}
+	child.exited = true
+}
+
 func startApacheKafkaRebalanceChild(
 	t *testing.T,
 	ctx context.Context,
@@ -2109,6 +2406,101 @@ func waitForApacheKafkaGroupMembers(
 		case <-ticker.C:
 		}
 	}
+}
+
+func waitForApacheKafkaConsumerGroupState(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	groupID string,
+	topic string,
+	protocol string,
+	clientIDs []string,
+) {
+	t.Helper()
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-consumer-rolling-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct consumer rolling inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastGroups []kafka.ConsumerGroupState
+	var lastErr error
+	for {
+		groups, err := inspector.ConsumerGroupLag(ctx, groupID)
+		if err == nil && len(groups) == 1 &&
+			apacheKafkaConsumerGroupStateMatches(
+				groups[0], topic, protocol, clientIDs,
+			) {
+			return
+		}
+		lastGroups = groups
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for consumer rolling group protocol %q with %d members: "+
+					"%v; state = %#v; last error = %v",
+				protocol,
+				len(clientIDs),
+				context.Cause(ctx),
+				lastGroups,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func apacheKafkaConsumerGroupStateMatches(
+	group kafka.ConsumerGroupState,
+	topic string,
+	protocol string,
+	clientIDs []string,
+) bool {
+	members := len(clientIDs)
+	if group.State != "Stable" ||
+		group.ProtocolType != "consumer" ||
+		group.Protocol != protocol ||
+		members < 1 ||
+		members > 2 ||
+		len(group.Members) != members ||
+		len(group.Partitions) != 2 {
+		return false
+	}
+	wantedClients := make(map[string]bool, members)
+	for _, clientID := range clientIDs {
+		if clientID == "" || wantedClients[clientID] {
+			return false
+		}
+		wantedClients[clientID] = true
+	}
+	assigned := map[int32]bool{}
+	for _, member := range group.Members {
+		if !wantedClients[member.ClientID] || len(member.Assignments) != 2/members {
+			return false
+		}
+		delete(wantedClients, member.ClientID)
+		for _, assignment := range member.Assignments {
+			if assignment.Topic != topic ||
+				assignment.Partition < 0 ||
+				assignment.Partition > 1 ||
+				assigned[assignment.Partition] {
+				return false
+			}
+			assigned[assignment.Partition] = true
+		}
+	}
+
+	return len(wantedClients) == 0 && assigned[0] && assigned[1]
 }
 
 func assertApacheKafkaGroupCommits(
