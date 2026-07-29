@@ -19,7 +19,8 @@
     {
       "name": "go-ethereum",
       "version": "v1.17.3",
-      "revision": "117e067f0f0bae1a17082321f224dedb6765b10f"
+      "revision": "117e067f0f0bae1a17082321f224dedb6765b10f",
+      "manifest": "testdata/go-ethereum/MANIFEST.md"
     },
     {
       "name": "@ethereumjs/mpt",

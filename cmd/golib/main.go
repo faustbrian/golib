@@ -1103,6 +1103,7 @@ func conformanceCorpora(directory string) []string {
 		return []string{
 			"ethereum/execution-spec-tests stable fixtures v5.4.0 at 88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",
 			"ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
+			"go-ethereum transition receipt fixtures at 117e067f0f0bae1a17082321f224dedb6765b10f",
 		}
 	case "xsd":
 		return []string{"W3C XML Schema Test Suite"}

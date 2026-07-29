@@ -48,7 +48,15 @@ The fork-profile envelope table is derived from the pinned execution-specs
 transaction and receipt encoders. The type framing and receipt-type binding are
 derived from EIP-2718. Interoperability tests use Geth's concrete type-1 through
 type-4 transaction and receipt encoders and `DeriveSha`, then compare the same
-indexed roots with EthereumJS MPT.
+indexed roots with EthereumJS MPT. Ordered account and storage proofs generated
+directly by Geth and EthereumJS are verified through the EIP-1186 helpers for
+membership and absence. EthereumJS independently verifies the package's
+generated account and storage proofs over the same secure paths.
+
+Selected Geth v1.17.3 transition-tool outputs are imported byte-for-byte with
+their LGPL-3.0 license and per-file checksums. Their exact receipt values
+reconstruct legacy, type-2, type-3, and type-4 receipt roots. Type-1 receipt
+roots remain covered dynamically by both pinned client oracles.
 
 ## Updating
 
@@ -69,3 +77,8 @@ imported byte-for-byte under `testdata/ethereum-tests`. Its manifest records
 per-file SHA-256 values, license, update procedure, applicability, and the
 tests covering raw roots, secure roots, ordered mutations, hex byte inputs,
 and neighbor iteration behavior.
+
+The selected Geth transition-tool corpus is imported byte-for-byte under
+`testdata/go-ethereum`. Its manifest records the pinned revision, LGPL-3.0
+license, per-file SHA-256 values, update procedure, fork applicability, exact
+receipt-root coverage, and the explicit official-fixture limitation.

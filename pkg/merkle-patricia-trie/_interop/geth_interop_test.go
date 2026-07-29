@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/trie/trienode"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/holiman/uint256"
 
@@ -117,6 +118,148 @@ func TestGethStateAndStorageTrieProfiles(t *testing.T) {
 	if got, err := gethStorage.GetStorage(address, slot[:]); err != nil ||
 		!slices.Equal(got, storageBytes) {
 		t.Fatalf("geth GetStorage() = (%x, %v), want %x", got, err, storageBytes)
+	}
+}
+
+func TestGethEIP1186AccountAndStorageProofs(t *testing.T) {
+	t.Parallel()
+
+	limits := mpt.DefaultLimits()
+	address := common.HexToAddress("0x1234567890abcdef1234567890abcdef12345678")
+	var slot [32]byte
+	slot[31] = 7
+	storageBytes := []byte{0x01, 0x80}
+
+	gethStorage, err := gethtrie.NewSecure(
+		common.Hash{}, common.Hash{}, types.EmptyRootHash,
+		triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil),
+	)
+	if err != nil {
+		t.Fatalf("geth NewSecure(storage) error = %v", err)
+	}
+	if err := gethStorage.UpdateStorage(address, slot[:], storageBytes); err != nil {
+		t.Fatalf("geth UpdateStorage() error = %v", err)
+	}
+	storageRoot := gethStorage.Hash()
+	codeHash := crypto.Keccak256Hash([]byte("proof contract code"))
+	gethAccount := &types.StateAccount{
+		Nonce:    3,
+		Balance:  uint256.NewInt(0x0180),
+		Root:     storageRoot,
+		CodeHash: codeHash.Bytes(),
+	}
+	gethState, err := gethtrie.NewSecure(
+		common.Hash{}, common.Hash{}, types.EmptyRootHash,
+		triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil),
+	)
+	if err != nil {
+		t.Fatalf("geth NewSecure(state) error = %v", err)
+	}
+	for _, decoy := range []common.Address{
+		common.HexToAddress("0x1000000000000000000000000000000000000001"),
+		common.HexToAddress("0x2000000000000000000000000000000000000002"),
+	} {
+		if err := gethState.UpdateAccount(
+			decoy,
+			&types.StateAccount{
+				Balance:  uint256.NewInt(1),
+				Root:     types.EmptyRootHash,
+				CodeHash: types.EmptyCodeHash.Bytes(),
+			},
+			0,
+		); err != nil {
+			t.Fatalf("geth UpdateAccount(decoy) error = %v", err)
+		}
+	}
+	if err := gethState.UpdateAccount(address, gethAccount, 0); err != nil {
+		t.Fatalf("geth UpdateAccount() error = %v", err)
+	}
+	accountEncoding, err := rlp.EncodeToBytes(gethAccount)
+	if err != nil {
+		t.Fatalf("geth account RLP error = %v", err)
+	}
+
+	var accountNodes trienode.ProofList
+	if err := gethState.Prove(crypto.Keccak256(address[:]), &accountNodes); err != nil {
+		t.Fatalf("geth account Prove() error = %v", err)
+	}
+	if len(accountNodes) < 2 {
+		t.Fatalf("geth account proof has %d nodes, want a traversed path", len(accountNodes))
+	}
+	accountProof := localProofFromGeth(t, accountNodes, limits)
+	account, err := mpt.VerifyAccountProof(
+		context.Background(),
+		mpt.Root(gethState.Hash()),
+		[20]byte(address),
+		accountEncoding,
+		accountProof,
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("VerifyAccountProof(geth proof) error = %v", err)
+	}
+	var wantBalance [32]byte
+	gethAccount.Balance.WriteToSlice(wantBalance[:])
+	if account.Nonce() != gethAccount.Nonce ||
+		account.Balance() != wantBalance ||
+		account.StorageRoot() != mpt.Root(storageRoot) ||
+		account.CodeHash() != [32]byte(codeHash) {
+		t.Fatalf("verified account does not match geth account")
+	}
+
+	var storageNodes trienode.ProofList
+	if err := gethStorage.Prove(crypto.Keccak256(slot[:]), &storageNodes); err != nil {
+		t.Fatalf("geth storage Prove() error = %v", err)
+	}
+	if err := mpt.VerifyStorageProof(
+		context.Background(),
+		account,
+		slot,
+		storageBytes,
+		localProofFromGeth(t, storageNodes, limits),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyStorageProof(geth membership proof) error = %v", err)
+	}
+
+	var absentSlot [32]byte
+	absentSlot[31] = 8
+	var absentStorageNodes trienode.ProofList
+	if err := gethStorage.Prove(
+		crypto.Keccak256(absentSlot[:]),
+		&absentStorageNodes,
+	); err != nil {
+		t.Fatalf("geth absent storage Prove() error = %v", err)
+	}
+	if err := mpt.VerifyStorageProof(
+		context.Background(),
+		account,
+		absentSlot,
+		nil,
+		localProofFromGeth(t, absentStorageNodes, limits),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyStorageProof(geth absence proof) error = %v", err)
+	}
+
+	absentAddress := common.HexToAddress(
+		"0x9999999999999999999999999999999999999999",
+	)
+	var absentAccountNodes trienode.ProofList
+	if err := gethState.Prove(
+		crypto.Keccak256(absentAddress[:]),
+		&absentAccountNodes,
+	); err != nil {
+		t.Fatalf("geth absent account Prove() error = %v", err)
+	}
+	if err := mpt.VerifyAccountAbsence(
+		context.Background(),
+		mpt.Root(gethState.Hash()),
+		[20]byte(absentAddress),
+		localProofFromGeth(t, absentAccountNodes, limits),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyAccountAbsence(geth proof) error = %v", err)
 	}
 }
 
@@ -230,6 +373,24 @@ func TestGethTransactionAndReceiptRoots(t *testing.T) {
 	); common.Hash(receiptRoot) != want {
 		t.Fatalf("receipt root = %x, geth = %x", receiptRoot, want)
 	}
+}
+
+func localProofFromGeth(
+	t *testing.T,
+	nodes trienode.ProofList,
+	limits mpt.Limits,
+) mpt.Proof {
+	t.Helper()
+
+	encoded := make([][]byte, len(nodes))
+	for index := range nodes {
+		encoded[index] = nodes[index]
+	}
+	proof, err := mpt.ProofFromNodes(encoded, limits)
+	if err != nil {
+		t.Fatalf("ProofFromNodes(geth proof) error = %v", err)
+	}
+	return proof
 }
 
 func TestGethRawTrieDifferentialMutationTrace(t *testing.T) {

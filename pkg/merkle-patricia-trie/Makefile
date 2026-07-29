@@ -10,7 +10,8 @@ benchmark:
 
 conformance:
 	GOWORK=off $(GO) test \
-		-run '^(TestLegacyEthereum|TestExecutionSpec)' -count=1 .
+		-run '^(TestLegacyEthereum|TestExecutionSpec|TestGethReceipt)' \
+		-count=1 .
 
 interoperability:
 	npm ci --ignore-scripts --no-audit --no-fund

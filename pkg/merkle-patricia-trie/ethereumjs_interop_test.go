@@ -47,6 +47,20 @@ type ethereumJSRangeResult struct {
 	EdgeNodesMatched bool `json:"edgeNodesMatched"`
 }
 
+type ethereumJSProofRequest struct {
+	Secure     bool                  `json:"secure"`
+	Operations []ethereumJSOperation `json:"operations"`
+	Key        string                `json:"key"`
+	Proof      []string              `json:"proof"`
+}
+
+type ethereumJSProofResult struct {
+	Root           string   `json:"root"`
+	Proof          []string `json:"proof"`
+	GeneratedValue *string  `json:"generatedValue"`
+	ProvidedValue  *string  `json:"providedValue"`
+}
+
 func TestEthereumJSTransactionAndReceiptRoots(t *testing.T) {
 	t.Parallel()
 
@@ -172,6 +186,331 @@ func TestEthereumJSStateAndStorageTrieRoots(t *testing.T) {
 	if storageRoot != wantStorageRoot {
 		t.Fatalf("storage root = %x, ethereumjs = %x", storageRoot, wantStorageRoot)
 	}
+}
+
+func TestEthereumJSEIP1186AccountAndStorageProofs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	limits := mpt.DefaultLimits()
+	var slot [32]byte
+	slot[31] = 7
+	var storageWord [32]byte
+	storageWord[30] = 1
+	storageWord[31] = 0x80
+	var decoySlot [32]byte
+	decoySlot[31] = 9
+	var decoyWord [32]byte
+	decoyWord[31] = 1
+
+	storage, err := mpt.NewStorageTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStorageTrie() error = %v", err)
+	}
+	storage, err = storage.UpdateSlot(ctx, slot, storageWord)
+	if err != nil {
+		t.Fatalf("UpdateSlot() error = %v", err)
+	}
+	storage, err = storage.UpdateSlot(ctx, decoySlot, decoyWord)
+	if err != nil {
+		t.Fatalf("UpdateSlot(decoy) error = %v", err)
+	}
+	storageRoot, err := storage.Root()
+	if err != nil {
+		t.Fatalf("StorageTrie.Root() error = %v", err)
+	}
+	storageOperations := []ethereumJSOperation{
+		{
+			Kind: "put", Key: hex.EncodeToString(slot[:]),
+			Value: hex.EncodeToString(mustRLPString(t, []byte{0x01, 0x80})),
+		},
+		{
+			Kind: "put", Key: hex.EncodeToString(decoySlot[:]),
+			Value: hex.EncodeToString(mustRLPString(t, []byte{0x01})),
+		},
+	}
+
+	var address [20]byte
+	address[19] = 0xaa
+	var balance [32]byte
+	balance[30] = 1
+	balance[31] = 0x80
+	accountValue, err := mpt.NewAccountValue(
+		3,
+		balance,
+		storageRoot,
+		mpt.EmptyCodeHash(),
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("NewAccountValue() error = %v", err)
+	}
+	var decoyAddress [20]byte
+	decoyAddress[0] = 0x10
+	decoyValue, err := mpt.NewAccountValue(
+		0,
+		[32]byte{},
+		mpt.EmptyRoot(),
+		mpt.EmptyCodeHash(),
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("NewAccountValue(decoy) error = %v", err)
+	}
+	state, err := mpt.NewStateTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStateTrie() error = %v", err)
+	}
+	state, err = state.UpdateAccount(ctx, address, accountValue)
+	if err != nil {
+		t.Fatalf("UpdateAccount() error = %v", err)
+	}
+	state, err = state.UpdateAccount(ctx, decoyAddress, decoyValue)
+	if err != nil {
+		t.Fatalf("UpdateAccount(decoy) error = %v", err)
+	}
+	stateRoot, err := state.Root()
+	if err != nil {
+		t.Fatalf("StateTrie.Root() error = %v", err)
+	}
+	stateOperations := []ethereumJSOperation{
+		{
+			Kind: "put", Key: hex.EncodeToString(address[:]),
+			Value: hex.EncodeToString(accountValue.Bytes()),
+		},
+		{
+			Kind: "put", Key: hex.EncodeToString(decoyAddress[:]),
+			Value: hex.EncodeToString(decoyValue.Bytes()),
+		},
+	}
+
+	accountProof, err := state.ProveAccount(ctx, address)
+	if err != nil {
+		t.Fatalf("ProveAccount() error = %v", err)
+	}
+	accountOracle := ethereumJSProofOracle(
+		t,
+		stateOperations,
+		address[:],
+		accountProof,
+	)
+	assertEthereumJSProofRoot(t, accountOracle, stateRoot)
+	assertEthereumJSProofValue(
+		t,
+		accountOracle.GeneratedValue,
+		accountValue.Bytes(),
+		"generated account",
+	)
+	assertEthereumJSProofValue(
+		t,
+		accountOracle.ProvidedValue,
+		accountValue.Bytes(),
+		"provided account",
+	)
+	account, err := mpt.VerifyAccountProof(
+		ctx,
+		stateRoot,
+		address,
+		accountValue.Bytes(),
+		proofFromEthereumJS(t, accountOracle.Proof),
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("VerifyAccountProof(ethereumjs proof) error = %v", err)
+	}
+
+	storageProof, err := storage.ProveSlot(ctx, slot)
+	if err != nil {
+		t.Fatalf("ProveSlot() error = %v", err)
+	}
+	storageOracle := ethereumJSProofOracle(
+		t,
+		storageOperations,
+		slot[:],
+		storageProof,
+	)
+	assertEthereumJSProofRoot(t, storageOracle, storageRoot)
+	assertEthereumJSProofValue(
+		t,
+		storageOracle.GeneratedValue,
+		mustRLPString(t, []byte{0x01, 0x80}),
+		"generated storage",
+	)
+	assertEthereumJSProofValue(
+		t,
+		storageOracle.ProvidedValue,
+		mustRLPString(t, []byte{0x01, 0x80}),
+		"provided storage",
+	)
+	if err := mpt.VerifyStorageProof(
+		ctx,
+		account,
+		slot,
+		[]byte{0x01, 0x80},
+		proofFromEthereumJS(t, storageOracle.Proof),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyStorageProof(ethereumjs proof) error = %v", err)
+	}
+
+	var absentAddress [20]byte
+	absentAddress[0] = 0x99
+	absentAccountProof, err := state.ProveAccount(ctx, absentAddress)
+	if err != nil {
+		t.Fatalf("ProveAccount(absent) error = %v", err)
+	}
+	absentAccountOracle := ethereumJSProofOracle(
+		t,
+		stateOperations,
+		absentAddress[:],
+		absentAccountProof,
+	)
+	assertEthereumJSProofRoot(t, absentAccountOracle, stateRoot)
+	assertEthereumJSProofValue(
+		t,
+		absentAccountOracle.GeneratedValue,
+		nil,
+		"generated absent account",
+	)
+	assertEthereumJSProofValue(
+		t,
+		absentAccountOracle.ProvidedValue,
+		nil,
+		"provided absent account",
+	)
+	if err := mpt.VerifyAccountAbsence(
+		ctx,
+		stateRoot,
+		absentAddress,
+		proofFromEthereumJS(t, absentAccountOracle.Proof),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyAccountAbsence(ethereumjs proof) error = %v", err)
+	}
+
+	var absentSlot [32]byte
+	absentSlot[31] = 8
+	absentStorageProof, err := storage.ProveSlot(ctx, absentSlot)
+	if err != nil {
+		t.Fatalf("ProveSlot(absent) error = %v", err)
+	}
+	absentStorageOracle := ethereumJSProofOracle(
+		t,
+		storageOperations,
+		absentSlot[:],
+		absentStorageProof,
+	)
+	assertEthereumJSProofRoot(t, absentStorageOracle, storageRoot)
+	assertEthereumJSProofValue(
+		t,
+		absentStorageOracle.GeneratedValue,
+		nil,
+		"generated absent storage",
+	)
+	assertEthereumJSProofValue(
+		t,
+		absentStorageOracle.ProvidedValue,
+		nil,
+		"provided absent storage",
+	)
+	if err := mpt.VerifyStorageProof(
+		ctx,
+		account,
+		absentSlot,
+		nil,
+		proofFromEthereumJS(t, absentStorageOracle.Proof),
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyStorageProof(ethereumjs absence proof) error = %v", err)
+	}
+}
+
+func ethereumJSProofOracle(
+	t *testing.T,
+	operations []ethereumJSOperation,
+	key []byte,
+	proof mpt.Proof,
+) ethereumJSProofResult {
+	t.Helper()
+
+	proofNodes := proof.Nodes()
+	requestProof := make([]string, len(proofNodes))
+	for index, node := range proofNodes {
+		requestProof[index] = hex.EncodeToString(node)
+	}
+	request, err := json.Marshal(ethereumJSProofRequest{
+		Secure:     true,
+		Operations: operations,
+		Key:        hex.EncodeToString(key),
+		Proof:      requestProof,
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal(proof request) error = %v", err)
+	}
+	command := exec.CommandContext(
+		context.Background(),
+		"node",
+		"scripts/ethereumjs-proof-oracle.mjs",
+	)
+	command.Stdin = bytes.NewReader(request)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ethereumjs proof oracle error = %v: %s", err, output)
+	}
+	var result ethereumJSProofResult
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatalf("json.Unmarshal(proof result) error = %v: %s", err, output)
+	}
+	return result
+}
+
+func assertEthereumJSProofRoot(
+	t *testing.T,
+	result ethereumJSProofResult,
+	want mpt.Root,
+) {
+	t.Helper()
+
+	if got := hex.EncodeToString(want[:]); result.Root != got {
+		t.Fatalf("ethereumjs proof root = %s, want %s", result.Root, got)
+	}
+}
+
+func assertEthereumJSProofValue(
+	t *testing.T,
+	got *string,
+	want []byte,
+	label string,
+) {
+	t.Helper()
+
+	if want == nil {
+		if got != nil {
+			t.Fatalf("%s value = %s, want absence", label, *got)
+		}
+		return
+	}
+	if got == nil || *got != hex.EncodeToString(want) {
+		t.Fatalf("%s value = %v, want %x", label, got, want)
+	}
+}
+
+func proofFromEthereumJS(t *testing.T, encoded []string) mpt.Proof {
+	t.Helper()
+
+	nodes := make([][]byte, len(encoded))
+	for index, node := range encoded {
+		decoded, err := hex.DecodeString(node)
+		if err != nil {
+			t.Fatalf("decode ethereumjs proof node %d: %v", index, err)
+		}
+		nodes[index] = decoded
+	}
+	proof, err := mpt.ProofFromNodes(nodes, mpt.DefaultLimits())
+	if err != nil {
+		t.Fatalf("ProofFromNodes(ethereumjs proof) error = %v", err)
+	}
+	return proof
 }
 
 func ethereumJSRoot(

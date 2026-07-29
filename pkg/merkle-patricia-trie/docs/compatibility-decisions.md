@@ -75,6 +75,10 @@ transaction. The package consequently rejects typed envelope zero and every
 type not activated by the selected profile. Geth v1.17.3 independently agrees
 on exact type-1 through type-4 transaction and receipt bytes and derived roots;
 EthereumJS MPT v10.1.2 independently agrees on the resulting indexed trie roots.
+Pinned Geth transition-tool fixtures additionally bind byte-level legacy,
+type-2, type-3, and type-4 receipt values to their published receipt roots.
+Type-1 receipt roots remain covered by the Geth and EthereumJS dynamic
+interoperability oracles.
 
 ## State accounts and storage words
 
@@ -98,6 +102,12 @@ from Frontier through Prague. Their canonical block RLP also binds raw
 transaction roots for legacy transactions and typed envelopes 1 through 4.
 Receipt commitments in those headers are not used as evidence because the
 fixture format omits the receipt values needed to reconstruct the trie.
+
+Geth- and EthereumJS-generated ordered EIP-1186 proofs independently bind
+account membership, account absence, storage membership, and storage absence
+to the package's transport-independent verification helpers. EthereumJS also
+verifies the package's generated proof nodes. The proof tests use exact secure
+address and 32-byte slot paths and do not rely on JSON-RPC serialization.
 
 ## Range-proof contract
 

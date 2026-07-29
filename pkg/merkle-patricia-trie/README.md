@@ -151,7 +151,10 @@ the Ethereum storage value, and binds verification to the proven account
 storage root. An empty expected storage value verifies absence.
 
 These helpers consume decoded proof-node bytes and do not depend on JSON-RPC
-objects or hex/quantity conventions.
+objects or hex/quantity conventions. Interoperability tests verify account
+membership, account absence, storage membership, and storage absence against
+proof nodes generated directly by Geth v1.17.3 and EthereumJS MPT v10.1.2;
+EthereumJS also verifies the package's generated proof nodes.
 
 ## Transaction and receipt roots
 
@@ -194,9 +197,10 @@ callers remain responsible for those protocol rules.
 
 The conformance corpus reconstructs official execution-spec-tests v5.4.0
 pre/post allocation roots and block transaction roots for legacy and type-1
-through type-4 transactions. Its receipt-root fields are not claimed as
-construction evidence because blockchain fixtures do not include receipt
-values.
+through type-4 transactions. Byte-identical Geth v1.17.3 transition fixtures
+add receipt values and expected roots for legacy and typed receipts. The
+execution-spec receipt-root fields are not claimed as construction evidence
+because those blockchain fixtures do not include receipt values.
 
 For already sorted raw key/value streams, `SortedBuilder` calculates the same
 root without retaining the completed trie. Keys must be strictly increasing,
