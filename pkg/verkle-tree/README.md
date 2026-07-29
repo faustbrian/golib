@@ -33,6 +33,8 @@ proof operations are not used. The encoding tests include two pinned upstream
 point fixtures and the documented scalar-field modulus; their provenance is
 recorded in [`specification/sources.json`](specification/sources.json). No
 setup material, generator table, or generated constant has been imported.
+The preliminary encoding-only benchmark scope, method, and raw samples are in
+[`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## Development rule
 
