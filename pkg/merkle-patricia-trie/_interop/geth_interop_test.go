@@ -14,12 +14,111 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/rlp"
 	gethtrie "github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/holiman/uint256"
 
 	mpt "github.com/faustbrian/golib/pkg/merkle-patricia-trie"
 )
+
+func TestGethStateAndStorageTrieProfiles(t *testing.T) {
+	t.Parallel()
+
+	limits := mpt.DefaultLimits()
+	address := common.HexToAddress("0x1234567890abcdef1234567890abcdef12345678")
+	storageRoot := mpt.EmptyRoot()
+	codeHash := crypto.Keccak256Hash([]byte("contract code"))
+	balance := uint256.NewInt(0x0180)
+	gethAccount := &types.StateAccount{
+		Nonce: 0x0102, Balance: balance, Root: common.Hash(storageRoot),
+		CodeHash: codeHash.Bytes(),
+	}
+	gethEncoding, err := rlp.EncodeToBytes(gethAccount)
+	if err != nil {
+		t.Fatalf("geth account RLP error = %v", err)
+	}
+	var balanceWord [32]byte
+	balance.WriteToSlice(balanceWord[:])
+	localValue, err := mpt.NewAccountValue(
+		gethAccount.Nonce,
+		balanceWord,
+		storageRoot,
+		[32]byte(codeHash),
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("NewAccountValue() error = %v", err)
+	}
+	if !slices.Equal(localValue.Bytes(), gethEncoding) {
+		t.Fatalf("account RLP = %x, geth = %x", localValue.Bytes(), gethEncoding)
+	}
+
+	database := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
+	gethState, err := gethtrie.NewSecure(
+		common.Hash{}, common.Hash{}, types.EmptyRootHash, database,
+	)
+	if err != nil {
+		t.Fatalf("geth NewSecure(state) error = %v", err)
+	}
+	if err := gethState.UpdateAccount(address, gethAccount, 0); err != nil {
+		t.Fatalf("geth UpdateAccount() error = %v", err)
+	}
+	localState, err := mpt.NewStateTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStateTrie() error = %v", err)
+	}
+	localState, err = localState.UpdateAccount(
+		context.Background(), [20]byte(address), localValue,
+	)
+	if err != nil {
+		t.Fatalf("UpdateAccount() error = %v", err)
+	}
+	localStateRoot, err := localState.Root()
+	if err != nil {
+		t.Fatalf("StateTrie.Root() error = %v", err)
+	}
+	if common.Hash(localStateRoot) != gethState.Hash() {
+		t.Fatalf("state root = %x, geth = %x", localStateRoot, gethState.Hash())
+	}
+
+	gethStorage, err := gethtrie.NewSecure(
+		common.Hash{}, common.Hash{}, types.EmptyRootHash,
+		triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil),
+	)
+	if err != nil {
+		t.Fatalf("geth NewSecure(storage) error = %v", err)
+	}
+	var slot [32]byte
+	slot[31] = 7
+	storageBytes := []byte{0x01, 0x80}
+	if err := gethStorage.UpdateStorage(address, slot[:], storageBytes); err != nil {
+		t.Fatalf("geth UpdateStorage() error = %v", err)
+	}
+	localStorage, err := mpt.NewStorageTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStorageTrie() error = %v", err)
+	}
+	var storageWord [32]byte
+	copy(storageWord[len(storageWord)-len(storageBytes):], storageBytes)
+	localStorage, err = localStorage.UpdateSlot(
+		context.Background(), slot, storageWord,
+	)
+	if err != nil {
+		t.Fatalf("UpdateSlot() error = %v", err)
+	}
+	localStorageRoot, err := localStorage.Root()
+	if err != nil {
+		t.Fatalf("StorageTrie.Root() error = %v", err)
+	}
+	if common.Hash(localStorageRoot) != gethStorage.Hash() {
+		t.Fatalf("storage root = %x, geth = %x", localStorageRoot, gethStorage.Hash())
+	}
+	if got, err := gethStorage.GetStorage(address, slot[:]); err != nil ||
+		!slices.Equal(got, storageBytes) {
+		t.Fatalf("geth GetStorage() = (%x, %v), want %x", got, err, storageBytes)
+	}
+}
 
 func TestGethTransactionAndReceiptRoots(t *testing.T) {
 	t.Parallel()

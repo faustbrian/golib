@@ -7,25 +7,24 @@ import (
 	"github.com/faustbrian/golib/pkg/merkle-patricia-trie/internal/rlp"
 )
 
-// Account is a canonically decoded Ethereum state-trie account proven under a
-// supplied state root. Its integer fields use minimal unsigned big-endian
-// bytes; empty bytes represent zero.
+// Account is a canonically decoded Ethereum state-trie account established by
+// a state-trie lookup or proof under a supplied root.
 type Account struct {
-	nonce       []byte
-	balance     []byte
+	nonce       uint64
+	balance     [RootBytes]byte
 	storageRoot Root
 	codeHash    [RootBytes]byte
 	verified    bool
 }
 
-// Nonce returns an owned minimal unsigned big-endian nonce.
-func (account Account) Nonce() []byte {
-	return append([]byte(nil), account.nonce...)
+// Nonce returns the account's unsigned 64-bit transaction nonce.
+func (account Account) Nonce() uint64 {
+	return account.nonce
 }
 
-// Balance returns an owned minimal unsigned big-endian balance.
-func (account Account) Balance() []byte {
-	return append([]byte(nil), account.balance...)
+// Balance returns the account's unsigned 256-bit balance as a big-endian word.
+func (account Account) Balance() [RootBytes]byte {
+	return account.balance
 }
 
 // StorageRoot returns the proven account's storage-trie root.
@@ -147,11 +146,18 @@ func decodeAccount(encoded []byte, limits Limits) (Account, error) {
 			return Account{}, fmt.Errorf("%w: account field is not bytes", ErrInvalidAccount)
 		}
 	}
-	nonce := fields[0].Bytes()
-	balance := fields[1].Bytes()
-	if !canonicalUint256(nonce) || !canonicalUint256(balance) {
+	nonceBytes := fields[0].Bytes()
+	balanceBytes := fields[1].Bytes()
+	if !canonicalUnsigned(nonceBytes, 8) ||
+		!canonicalUnsigned(balanceBytes, RootBytes) {
 		return Account{}, fmt.Errorf("%w: non-canonical account integer", ErrInvalidAccount)
 	}
+	var nonce uint64
+	for _, octet := range nonceBytes {
+		nonce = nonce<<8 | uint64(octet)
+	}
+	var balance [RootBytes]byte
+	copy(balance[RootBytes-len(balanceBytes):], balanceBytes)
 	storageRoot, err := RootFromBytes(fields[2].Bytes())
 	if err != nil {
 		return Account{}, fmt.Errorf("%w: storage root length", ErrInvalidAccount)
@@ -172,5 +178,9 @@ func decodeAccount(encoded []byte, limits Limits) (Account, error) {
 }
 
 func canonicalUint256(value []byte) bool {
-	return len(value) <= RootBytes && (len(value) == 0 || value[0] != 0)
+	return canonicalUnsigned(value, RootBytes)
+}
+
+func canonicalUnsigned(value []byte, maximum int) bool {
+	return len(value) <= maximum && (len(value) == 0 || value[0] != 0)
 }

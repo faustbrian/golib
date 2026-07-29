@@ -45,6 +45,10 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   proof verification, mutation sequences, and ordered iteration.
 - Added transport-independent EIP-1186 account membership, account absence,
   canonical account decoding, and storage-slot proof verification helpers.
+- Added immutable state and storage trie profiles with exact address and slot
+  types, canonical account construction, unsigned word handling, zero-slot
+  deletion, persistence, rebuild, recovery, proofs, and pinned Geth and
+  EthereumJS root interoperability.
 - Added separate validated transaction and receipt value types, explicit
   Berlin-through-Osaka EIP-2718 activation profiles, matching receipt-type
   enforcement, and canonical root construction from RLP indexes, with pinned
@@ -56,6 +60,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- State-account nonces now use `uint64`, and balances use exact 32-byte words,
+  matching the execution-spec account types instead of exposing ambiguous
+  minimally encoded integer bytes.
 - Replaced the ambiguous shared `EncodedTrieValue`, `LegacyTrieValue`, and
   `TypedTrieValue` pre-v1 API with profile-bound transaction and receipt types.
   Receipt-root callers must now provide the corresponding transaction values so

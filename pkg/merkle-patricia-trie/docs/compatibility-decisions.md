@@ -76,6 +76,22 @@ type not activated by the selected profile. Geth v1.17.3 independently agrees
 on exact type-1 through type-4 transaction and receipt bytes and derived roots;
 EthereumJS MPT v10.1.2 independently agrees on the resulting indexed trie roots.
 
+## State accounts and storage words
+
+The pinned execution specifications define an account as a `U64` nonce, `U256`
+balance, storage root, and code hash, encoded as one four-element RLP list.
+`NewAccountValue` therefore accepts fixed semantic integer types rather than
+pre-encoded bytes. `StateTrie` hashes the exact 20-byte address once and does
+not perform empty-account clearing, which remains a fork-sensitive state
+transition responsibility.
+
+The storage trie hashes the canonical 32-byte slot key once. Its value is the
+RLP string encoding of the minimally represented non-zero `U256`; a zero word
+deletes the slot. A stored empty, leading-zero, or oversized integer is rejected
+instead of being normalized. Geth v1.17.3 independently agrees on account
+bytes and state/storage roots, while EthereumJS MPT v10.1.2 independently
+agrees on the secure paths and resulting roots.
+
 ## Range-proof contract
 
 Range proofs use an explicit inclusive start and exclusive end over raw trie

@@ -3,7 +3,6 @@ package mpt_test
 import (
 	"context"
 	"errors"
-	"slices"
 	"testing"
 
 	mpt "github.com/faustbrian/golib/pkg/merkle-patricia-trie"
@@ -63,16 +62,13 @@ func TestEIP1186AccountAndStorageProofs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyAccountProof() error = %v", err)
 	}
-	if !slices.Equal(account.Nonce(), []byte{1}) ||
-		!slices.Equal(account.Balance(), []byte{2}) ||
+	var wantBalance [32]byte
+	wantBalance[31] = 2
+	if account.Nonce() != 1 ||
+		account.Balance() != wantBalance ||
 		account.StorageRoot() != storageRoot ||
 		account.CodeHash() != codeHash {
 		t.Fatalf("decoded account = %#v", account)
-	}
-	nonce := account.Nonce()
-	nonce[0] = 9
-	if slices.Equal(nonce, account.Nonce()) {
-		t.Fatal("Account.Nonce() returned aliased bytes")
 	}
 
 	storageProof, err := storageTrie.Prove(context.Background(), slot[:])

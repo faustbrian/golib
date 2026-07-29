@@ -31,3 +31,19 @@ func FuzzCanonicalNodeDecodeRoundTrip(f *testing.F) {
 		}
 	})
 }
+
+func FuzzEthereumStateAndStorageValueDecoding(f *testing.F) {
+	f.Add([]byte{0xf8, 0x44, 0x80, 0x80}, []byte{0x01})
+	f.Add([]byte{0xc0}, []byte{0x80})
+	f.Add([]byte{0xff}, []byte{0x81, 0x80})
+
+	f.Fuzz(func(t *testing.T, accountEncoding, storageEncoding []byte) {
+		if len(accountEncoding) > 4096 || len(storageEncoding) > 4096 {
+			return
+		}
+		limits := DefaultLimits()
+		limits.MaxValueBytes = 4096
+		_, _ = decodeAccount(accountEncoding, limits)
+		_, _ = decodeStorageWord(storageEncoding, limits)
+	})
+}

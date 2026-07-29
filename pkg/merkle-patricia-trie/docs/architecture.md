@@ -13,6 +13,13 @@ Transaction and receipt envelope values are separate public types. Typed values
 carry an explicit fork profile, and receipt-root construction binds each receipt
 type to its corresponding transaction type.
 
+`StateTrie` and `StorageTrie` are closed wrappers over secure snapshots rather
+than aliases. State updates require `EncodedAccountValue` constructed from a
+`uint64` nonce, 256-bit balance, storage root, and code hash. Storage updates
+require exact 32-byte slot keys and words; zero words delete. Neither profile
+exposes a pre-hashed update path, so address, slot, and generic secure-key
+transformations cannot be selected interchangeably.
+
 ## Ownership
 
 Caller input and returned bytes are copied. Immutable snapshots may be used

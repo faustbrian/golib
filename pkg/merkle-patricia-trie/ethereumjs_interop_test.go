@@ -113,6 +113,103 @@ func TestEthereumJSTransactionAndReceiptRoots(t *testing.T) {
 	}
 }
 
+func TestEthereumJSStateAndStorageTrieRoots(t *testing.T) {
+	t.Parallel()
+
+	limits := mpt.DefaultLimits()
+	var address [20]byte
+	address[19] = 0xaa
+	var balance [32]byte
+	balance[31] = 2
+	var codeHash [32]byte
+	codeHash[0] = 0xcc
+	accountValue, err := mpt.NewAccountValue(
+		1, balance, mpt.EmptyRoot(), codeHash, limits,
+	)
+	if err != nil {
+		t.Fatalf("NewAccountValue() error = %v", err)
+	}
+	state, err := mpt.NewStateTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStateTrie() error = %v", err)
+	}
+	state, err = state.UpdateAccount(context.Background(), address, accountValue)
+	if err != nil {
+		t.Fatalf("UpdateAccount() error = %v", err)
+	}
+	stateRoot, err := state.Root()
+	if err != nil {
+		t.Fatalf("StateTrie.Root() error = %v", err)
+	}
+	wantStateRoot := ethereumJSRoot(t, true, []ethereumJSOperation{{
+		Kind: "put", Key: hex.EncodeToString(address[:]),
+		Value: hex.EncodeToString(accountValue.Bytes()),
+	}})
+	if stateRoot != wantStateRoot {
+		t.Fatalf("state root = %x, ethereumjs = %x", stateRoot, wantStateRoot)
+	}
+
+	var slot [32]byte
+	slot[31] = 7
+	var word [32]byte
+	word[30] = 1
+	word[31] = 0x80
+	storage, err := mpt.NewStorageTrie(limits)
+	if err != nil {
+		t.Fatalf("NewStorageTrie() error = %v", err)
+	}
+	storage, err = storage.UpdateSlot(context.Background(), slot, word)
+	if err != nil {
+		t.Fatalf("UpdateSlot() error = %v", err)
+	}
+	storageRoot, err := storage.Root()
+	if err != nil {
+		t.Fatalf("StorageTrie.Root() error = %v", err)
+	}
+	wantStorageRoot := ethereumJSRoot(t, true, []ethereumJSOperation{{
+		Kind: "put", Key: hex.EncodeToString(slot[:]), Value: "820180",
+	}})
+	if storageRoot != wantStorageRoot {
+		t.Fatalf("storage root = %x, ethereumjs = %x", storageRoot, wantStorageRoot)
+	}
+}
+
+func ethereumJSRoot(
+	t *testing.T,
+	secure bool,
+	operations []ethereumJSOperation,
+) mpt.Root {
+	t.Helper()
+	request, err := json.Marshal(ethereumJSRequest{
+		Secure: secure, Operations: operations,
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	command := exec.CommandContext(
+		context.Background(), "node", "scripts/ethereumjs-oracle.mjs",
+	)
+	command.Stdin = bytes.NewReader(request)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("ethereumjs oracle error = %v: %s", err, output)
+	}
+	var results []ethereumJSResult
+	if err := json.Unmarshal(output, &results); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v: %s", err, output)
+	}
+	if len(results) != len(operations) || len(results) == 0 {
+		t.Fatalf("ethereumjs result count = %d, want %d", len(results), len(operations))
+	}
+	encoded, err := hex.DecodeString(results[len(results)-1].Root)
+	if err != nil || len(encoded) != mpt.RootBytes {
+		t.Fatalf("ethereumjs root = %q, decode error = %v", results[len(results)-1].Root, err)
+	}
+	var root mpt.Root
+	copy(root[:], encoded)
+	return root
+}
+
 func ethereumJSIndexedRoot(t *testing.T, values [][]byte) mpt.Root {
 	t.Helper()
 

@@ -10,10 +10,14 @@ import (
 )
 
 var (
-	benchmarkBytes []byte
-	benchmarkRoot  mpt.Root
-	benchmarkTrie  mpt.RawTrie
-	benchmarkPrune mpt.PruneResult
+	benchmarkBytes   []byte
+	benchmarkRoot    mpt.Root
+	benchmarkTrie    mpt.RawTrie
+	benchmarkPrune   mpt.PruneResult
+	benchmarkAccount mpt.Account
+	benchmarkWord    [32]byte
+	benchmarkState   mpt.StateTrie
+	benchmarkStorage mpt.StorageTrie
 )
 
 func BenchmarkGetEmpty(b *testing.B) {
@@ -165,6 +169,102 @@ func BenchmarkReceiptRoot(b *testing.B) {
 		benchmarkRoot, err = mpt.ReceiptRoot(
 			ctx, transactions, receipts, limits,
 		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStateAccountUpdate(b *testing.B) {
+	limits := mpt.DefaultLimits()
+	state, err := mpt.NewStateTrie(limits)
+	if err != nil {
+		b.Fatal(err)
+	}
+	var address [20]byte
+	address[19] = 1
+	var balance [32]byte
+	balance[31] = 1
+	value, err := mpt.NewAccountValue(
+		1, balance, mpt.EmptyRoot(), mpt.EmptyCodeHash(), limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkState, err = state.UpdateAccount(ctx, address, value)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStateAccountGet(b *testing.B) {
+	limits := mpt.DefaultLimits()
+	state, err := mpt.NewStateTrie(limits)
+	if err != nil {
+		b.Fatal(err)
+	}
+	var address [20]byte
+	address[19] = 1
+	value, err := mpt.NewAccountValue(
+		1, [32]byte{}, mpt.EmptyRoot(), mpt.EmptyCodeHash(), limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	state, err = state.UpdateAccount(context.Background(), address, value)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkAccount, err = state.GetAccount(ctx, address)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStorageSlotUpdate(b *testing.B) {
+	storage, err := mpt.NewStorageTrie(mpt.DefaultLimits())
+	if err != nil {
+		b.Fatal(err)
+	}
+	var slot [32]byte
+	slot[31] = 1
+	var word [32]byte
+	word[31] = 1
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkStorage, err = storage.UpdateSlot(ctx, slot, word)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkStorageSlotGet(b *testing.B) {
+	storage, err := mpt.NewStorageTrie(mpt.DefaultLimits())
+	if err != nil {
+		b.Fatal(err)
+	}
+	var slot [32]byte
+	slot[31] = 1
+	var word [32]byte
+	word[31] = 1
+	storage, err = storage.UpdateSlot(context.Background(), slot, word)
+	if err != nil {
+		b.Fatal(err)
+	}
+	ctx := context.Background()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkWord, err = storage.GetSlot(ctx, slot)
 		if err != nil {
 			b.Fatal(err)
 		}

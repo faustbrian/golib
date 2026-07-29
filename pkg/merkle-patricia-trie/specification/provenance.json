@@ -2,6 +2,10 @@
   "schema_version": 1,
   "sources": [
     {
+      "name": "ethereum/execution-specs",
+      "revision": "44d2b9cbd028b48f13e6ebf2635f977141cc397b"
+    },
+    {
       "name": "ethereum/tests TrieTests",
       "revision": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
       "manifest": "testdata/ethereum-tests/MANIFEST.md"

@@ -111,15 +111,44 @@ not hash their endpoints or items; this keeps raw keys and transformed secure
 paths unambiguous. `RangeProofFromNodes` is the transport boundary for decoded
 RLP proof-node bytes.
 
+## State and storage tries
+
+`StateTrie` accepts exact 20-byte addresses and `EncodedAccountValue` values.
+`NewAccountValue` encodes the execution-spec account tuple `[nonce, balance,
+storageRoot, codeHash]`, using a `uint64` nonce, a 32-byte unsigned balance,
+and exact 32-byte commitments. It deliberately retains canonically encoded
+empty accounts: fork-dependent account clearing belongs to state-transition
+code outside this package.
+
+`StorageTrie` accepts exact 32-byte slot keys and 32-byte unsigned words. It
+hashes each slot exactly once, trims leading zeroes before canonical RLP
+encoding, and treats an all-zero word as deletion. `GetSlot` returns
+`ErrAbsentKey` for a missing slot rather than manufacturing a present zero
+value. Both profiles provide immutable lookup, update, deletion, proof,
+commit, rebuild, and missing-node recovery operations.
+
+```go
+storage, err := mpt.NewStorageTrie(limits)
+storage, err = storage.UpdateSlot(ctx, slot, word)
+storageRoot, err := storage.Root()
+
+accountValue, err := mpt.NewAccountValue(
+    nonce, balance, storageRoot, mpt.EmptyCodeHash(), limits,
+)
+state, err := mpt.NewStateTrie(limits)
+state, err = state.UpdateAccount(ctx, address, accountValue)
+stateRoot, err := state.Root()
+```
+
 ## EIP-1186 boundary
 
 `VerifyAccountProof` binds canonical account RLP to the secure path of an exact
-20-byte address and returns owned nonce, balance, storage-root, and code-hash
-fields. `VerifyAccountAbsence` keeps absence distinct from malformed or failed
-proofs. `VerifyStorageProof` accepts an exact 32-byte slot key and a minimal
-unsigned big-endian value, derives the secure path, encodes the Ethereum
-storage value, and binds verification to the proven account storage root. An
-empty expected storage value verifies absence.
+20-byte address and returns a `uint64` nonce, 32-byte balance, storage root,
+and code hash. `VerifyAccountAbsence` keeps absence distinct from malformed or
+failed proofs. `VerifyStorageProof` accepts an exact 32-byte slot key and a
+minimal unsigned big-endian expected value, derives the secure path, encodes
+the Ethereum storage value, and binds verification to the proven account
+storage root. An empty expected storage value verifies absence.
 
 These helpers consume decoded proof-node bytes and do not depend on JSON-RPC
 objects or hex/quantity conventions.

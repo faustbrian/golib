@@ -24,6 +24,34 @@ func ExampleSecureTrie() {
 	// Output: account
 }
 
+func ExampleStateTrie() {
+	limits := mpt.DefaultLimits()
+	var address [20]byte
+	address[19] = 0xaa
+	var balance [32]byte
+	balance[31] = 42
+	value, _ := mpt.NewAccountValue(
+		1, balance, mpt.EmptyRoot(), mpt.EmptyCodeHash(), limits,
+	)
+	trie, _ := mpt.NewStateTrie(limits)
+	trie, _ = trie.UpdateAccount(context.Background(), address, value)
+	account, _ := trie.GetAccount(context.Background(), address)
+	fmt.Println(account.Nonce(), account.Balance()[31])
+	// Output: 1 42
+}
+
+func ExampleStorageTrie() {
+	var slot [32]byte
+	slot[31] = 7
+	var word [32]byte
+	word[31] = 42
+	trie, _ := mpt.NewStorageTrie(mpt.DefaultLimits())
+	trie, _ = trie.UpdateSlot(context.Background(), slot, word)
+	stored, _ := trie.GetSlot(context.Background(), slot)
+	fmt.Println(stored[31])
+	// Output: 42
+}
+
 func ExampleRawTrie_Prove() {
 	trie, _ := mpt.NewRawTrie(mpt.DefaultLimits())
 	trie, _ = trie.Update(context.Background(), []byte("dog"), []byte("puppy"))

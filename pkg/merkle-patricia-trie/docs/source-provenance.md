@@ -28,6 +28,12 @@ interoperability gate from the exact package lock, whose archive integrity is
 `sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g==`.
 Neither client is used by the production package.
 
+State-account fields and storage-zero deletion are derived from the pinned
+execution-specs `state.py`, `state_mpt.py`, and fork `fork_types.py` account
+encoder. Account RLP, minimally represented storage values, secure address and
+slot paths, and roots are compared with Geth v1.17.3. Secure paths and roots
+are also compared with the independently implemented EthereumJS MPT v10.1.2.
+
 The fork-profile envelope table is derived from the pinned execution-specs
 `berlin`, `london`, `paris`, `shanghai`, `cancun`, `prague`, and `osaka`
 transaction and receipt encoders. The type framing and receipt-type binding are
