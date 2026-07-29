@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/correlation
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/identifier v0.0.0
+	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
 )

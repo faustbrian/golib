@@ -14,8 +14,8 @@ versioning once released.
 
 ### Changed
 
-- Require owned sibling modules at local `v0.0.0`; clean external consumers
-  pin each module to an exact main pseudo-version.
+- Pin the owned identifier module to an immutable source revision so
+  correlation resolves from a clean external consumer without `go.work`.
 
 - Normalized standalone module metadata against the canonical owned dependency
   graph, including complete checksums for clean consumer resolution.
