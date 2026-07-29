@@ -17693,6 +17693,18 @@
           "coverage_required": true,
           "build_required": true,
           "build_tags": []
+        },
+        {
+          "module_directory": "pkg/verkle-tree",
+          "directory": "internal/statemodel",
+          "name": "statemodel",
+          "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/statemodel",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
         }
       ],
       "purpose": "`verkle-tree` is intended to become a storage-independent Go library for authenticated key/value trees backed by vector commitments.",

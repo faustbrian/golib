@@ -83,10 +83,16 @@ Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
 The profile remains incomplete: tree node semantics, canonical container
-encodings, proof and witness semantics, deletion, storage publication, and
-resource accounting are not yet frozen or exported. The exact boundary is
-recorded in
+encodings, proof and witness semantics, commitment-level deletion, storage
+publication, and complete cryptographic resource accounting are not yet frozen
+or exported. The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
+
+An internal slow reference model now fixes bounded immutable state transitions:
+raw fixed-length keys and values, present-zero semantics, explicit deletion,
+duplicate rejection, canonical batch ordering, cancellation, and atomic
+failure. It deliberately computes no root or hash substitute; later
+vector-committed tree behavior must agree with this independent oracle.
 
 ## Development rule
 

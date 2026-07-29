@@ -54,13 +54,14 @@ The following parts of the profile are deliberately not frozen:
 
 - node kinds, path traversal, extension-node behavior, and empty-subtree
   commitments;
-- leaf decomposition, present-zero representation, absence, and deletion;
+- leaf decomposition and the commitment encoding of presence, absence, zero,
+  and deletion;
 - canonical root, node, proof, witness, snapshot, and storage encodings;
 - canonical point, scalar, and proof-container rejection rules beyond the
   internal research seam already tested;
 - aggregate-proof and batch-verification failure semantics;
-- update ordering, duplicate and conflict handling, stateless witness
-  completeness, and post-state calculation;
+- commitment and witness update ordering, conflicting old-value claims,
+  stateless witness completeness, and post-state calculation;
 - snapshot identity, storage atomicity, publication, recovery, and pruning;
   and
 - operation budgets, cancellation checkpoints, and resource accounting.
@@ -70,6 +71,31 @@ until the corresponding definition is normative, canonical, bounded, and
 covered by positive and hostile-input tests. Any future incompatible choice
 MUST use a different profile name or version; it MUST NOT silently reinterpret
 already encoded objects.
+
+## State Transition Reference Model
+
+The package's independent slow reference model fixes state behavior before
+commitment construction:
+
+- a key is exactly 32 uninterpreted bytes;
+- a value is exactly 32 uninterpreted bytes;
+- the all-zero value is present and MUST NOT represent absence;
+- a set operation inserts or replaces one value;
+- a delete operation is distinct from setting the all-zero value;
+- deleting an absent key is a deterministic no-op;
+- one batch MUST reject duplicate keys before publishing a result;
+- accepted operations are applied in ascending bytewise key order, regardless
+  of caller order;
+- the complete batch MUST fail atomically on an invalid operation,
+  cancellation, or exhausted resource budget;
+- a successful batch produces a new immutable ordered snapshot and MUST NOT
+  mutate its input snapshot; and
+- every allocation-amplifying operation MUST have positive batch-entry,
+  retained-entry, and deterministic temporary-byte bounds.
+
+The reference model produces no commitment, root, proof, or witness. It MUST
+NOT hash entries and present that hash as a Verkle root. Its purpose is to be an
+independent transition oracle for later vector-committed tree code.
 
 ## Compatibility Boundary
 
