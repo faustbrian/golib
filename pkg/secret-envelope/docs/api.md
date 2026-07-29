@@ -12,6 +12,10 @@ requires the exact expected context.
 3. bounded key-reference, wrapped-key, nonce, and ciphertext lengths; and
 4. the corresponding bytes.
 
+Plaintext is limited to 4 MiB. The encoded-envelope limit derives from that
+bound plus the versioned header, key reference, wrapped key, nonce, and GCM
+authentication tag.
+
 The key reference is duplicated in the database as an operator-visible field
 when applications require rotation and IAM audits. The encoded envelope keeps
 its own copy so moving ciphertext without its exact wrapping key is rejected.

@@ -7,10 +7,10 @@ best-effort zeroized after each local operation.
 
 ## Boundary
 
-Use this module for dynamic encrypted database payloads that must remain
-transactionally coupled to application state. Use AWS Secrets Manager for
-deployment and static service credentials. The module does not manage secret
-rotation workflows, authorization, database rows, IAM policies, or logging.
+Use this module for bounded application payloads persisted in databases or
+object storage. Use AWS Secrets Manager for deployment and static service
+credentials. The module does not manage secret rotation workflows,
+authorization, persistence records, IAM policies, or logging.
 
 Encryption context is mandatory and authenticated by both AES-GCM and the key
 provider. Context values are non-secret because AWS KMS can expose them in
@@ -61,7 +61,8 @@ chain. Static credentials are not required by this module.
 - Stable, bounded, versioned binary persistence format.
 - Immutable contexts and envelopes with caller-owned byte copies.
 - Redacted text, JSON, and `slog` representations.
-- Bounded plaintext, wrapped-key, context, and envelope sizes.
+- Plaintext payloads bounded to 4 MiB, with bounded wrapped keys, contexts, and
+  envelopes.
 - Redacted errors that retain `errors.Is` cause traversal.
 
 ## Documentation

@@ -12,7 +12,7 @@ import (
 const (
 	DataKeySize                  = 32
 	NonceSize                    = 12
-	MaxPlaintextSize             = 1 << 20
+	MaxPlaintextSize             = 4 << 20
 	maxKeyReferenceSize          = 2048
 	maxEncryptedDataKeySize      = 64 << 10
 	envelopeHeaderSize           = 17

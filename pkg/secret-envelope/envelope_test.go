@@ -77,6 +77,56 @@ func TestServiceEncryptsAndDecryptsAnAuthenticatedEnvelope(t *testing.T) {
 	}
 }
 
+func TestServiceRoundTripsFourMiBPayload(t *testing.T) {
+	t.Parallel()
+
+	provider := &recordingProvider{
+		plaintextKey: bytes.Repeat([]byte{0x42}, DataKeySize),
+		encryptedKey: []byte("wrapped-data-key"),
+		resolvedKey:  "alias/postal-reconciliation",
+	}
+	service, err := NewService(
+		provider,
+		WithNonceReader(bytes.NewReader(bytes.Repeat([]byte{0x24}, NonceSize))),
+	)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	encryptionContext, err := NewContext(map[string]string{
+		"service": "postal",
+		"record":  "reconciliation-report",
+	})
+	if err != nil {
+		t.Fatalf("NewContext() error = %v", err)
+	}
+	plaintext := bytes.Repeat([]byte{0x42}, 4<<20)
+
+	envelope, err := service.Encrypt(context.Background(), EncryptRequest{
+		Plaintext: plaintext, KeyReference: provider.resolvedKey,
+		Context: encryptionContext,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt() error = %v", err)
+	}
+	encoded, err := envelope.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary() error = %v", err)
+	}
+	parsed, err := ParseEnvelope(encoded)
+	if err != nil {
+		t.Fatalf("ParseEnvelope() error = %v", err)
+	}
+	actual, err := service.Decrypt(context.Background(), DecryptRequest{
+		Envelope: parsed, Context: encryptionContext,
+	})
+	if err != nil {
+		t.Fatalf("Decrypt() error = %v", err)
+	}
+	if !bytes.Equal(actual, plaintext) {
+		t.Fatal("Decrypt() changed maximum-sized plaintext")
+	}
+}
+
 func TestServiceRejectsAContextSwap(t *testing.T) {
 	t.Parallel()
 

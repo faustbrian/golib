@@ -13,4 +13,9 @@ All notable changes follow Keep a Changelog and semantic versioning.
 - Exact statement coverage, race, fuzz, API, security, vulnerability, and
   documentation gates.
 
+### Changed
+
+- Increased the authenticated plaintext bound to 4 MiB for bounded encrypted
+  evidence and object-storage payloads.
+
 No release has been published.
