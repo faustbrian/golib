@@ -1,7 +1,10 @@
 # Proposed API Boundaries
 
-This document records ownership boundaries for profile research. It does not
-freeze exported Go identifiers.
+This document records ownership boundaries for profile research. The exported
+`Profile`, `ProfileID`, `ProfileBandersnatchIPA256V0`,
+`ExperimentalBandersnatchIPA256V0`, and `ErrUnsupportedProfile` identifiers
+form the first experimental public contract. Other identifiers described here
+remain proposed.
 
 ## Public concepts
 
@@ -19,6 +22,11 @@ A future public API is expected to expose opaque, profile-bound forms of:
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
+
+The current `Profile` value is immutable and comparable. Its zero value is
+invalid, and `Validate` rejects both zero and internally inconsistent values
+before cryptographic work. Its stable identity denotes the complete convention;
+its metadata fields are not runtime composition options.
 
 ## Ownership
 

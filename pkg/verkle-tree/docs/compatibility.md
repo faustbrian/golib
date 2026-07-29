@@ -6,6 +6,7 @@ The bounded research agreements below apply only to their exact corpora.
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
 | Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
+| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Structural metadata only; no tree, proof, witness, storage, wire, production, or Ethereum compatibility |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
 | `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, raw three-opening proof, one tree root/proof corpus, and its bounded stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |

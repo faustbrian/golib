@@ -12,13 +12,29 @@ shown here.
 
 No stable `verkle-tree` profile is frozen.
 
-The module MUST remain pre-v1 and MUST NOT expose production tree, proof,
-witness, root, node, or serialization APIs until every freeze condition below
-has objective evidence.
+The module MUST remain pre-v1 and MUST NOT describe any tree, proof, witness,
+root, node, or serialization API as stable or production-ready until every
+freeze condition below has objective evidence.
 
 This is a deliberate no-go decision for a stable profile, not a decision to
 replace vector commitments with hashes or to treat a moving Ethereum proposal
 as a generic standard.
+
+## Experimental Profile Approval
+
+On 2026-07-29 the maintainer approved incremental implementation under the
+package-owned name `verkletree-bandersnatch-ipa-256-v0`. The exported
+`Profile` identity is immutable and callers cannot compose its width, curve,
+generator set, transcript, or encodings at runtime.
+
+This approval changes implementation sequencing, not the stable-profile
+decision. The profile currently fixes only the structural and cryptographic
+identity recorded in
+[`experimental-profile-v0.md`](experimental-profile-v0.md). The remaining
+freeze conditions MUST be specified and proven before their corresponding
+tree, proof, witness, storage, or serialization APIs are exported. Stable v1,
+production-readiness, audit, and Ethereum-compatibility claims remain
+prohibited.
 
 ## Evidence Date
 

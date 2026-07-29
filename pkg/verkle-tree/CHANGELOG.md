@@ -14,6 +14,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add the immutable `verkletree-bandersnatch-ipa-256-v0` experimental profile
+  identity and structural metadata without exposing runtime cryptographic
+  composition or tree operations.
 - Establish the `verkletree` root package and an internal fail-closed boundary
   for canonical Banderwagon commitment and scalar encodings.
 - Add allocation-reporting microbenchmarks for accepted commitment and scalar

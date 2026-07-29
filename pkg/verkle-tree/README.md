@@ -5,9 +5,11 @@ authenticated key/value trees backed by vector commitments.
 
 ## Status
 
-This module is **pre-v1 research only**. Its root package intentionally exposes
-no tree operations and it does not implement a production tree. Compatibility
-claims are limited to the exact research corpora described below.
+This module is **pre-v1 research only**. Its root package exposes the immutable
+identity and structural metadata of the package-owned
+`verkletree-bandersnatch-ipa-256-v0` experimental profile, but no tree
+operations. It does not implement a production tree. Compatibility claims are
+limited to the exact research corpora described below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -72,11 +74,26 @@ because the pinned Rust updater reaches an unhandled `ExtPresent::None` path and
 panics. Deletion, conflicting updates, ordering variants, and hostile update
 witnesses remain unproven.
 
+## Experimental profile
+
+`ExperimentalBandersnatchIPA256V0` is the only constructible profile. Its
+identity fixes a 256-wide layout, 32-byte keys split into a 31-byte stem and
+one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
+Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
+the `verkle` transcript.
+
+The profile remains incomplete: tree node semantics, canonical container
+encodings, proof and witness semantics, deletion, storage publication, and
+resource accounting are not yet frozen or exported. The exact boundary is
+recorded in
+[`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
+
 ## Development rule
 
-Production implementation must not begin until the profile-freeze blockers are
-resolved or a deliberately experimental profile is approved with a name,
-version, complete transcript, canonical encoding, backend provenance, and
-bounded compatibility claims.
+Implementation MAY proceed incrementally behind the named experimental
+profile. Each tree, proof, witness, storage, or encoding surface MUST remain
+absent until its corresponding semantics are fixed and tested. The module MUST
+remain pre-v1 and MUST NOT claim production readiness, stable compatibility, or
+Ethereum compatibility while the profile-freeze blockers remain unresolved.
 
 The complete product requirements remain in [`.ai/GOAL.md`](.ai/GOAL.md).

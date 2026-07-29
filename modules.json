@@ -17674,8 +17674,8 @@
           "import_path": "github.com/faustbrian/golib/pkg/verkle-tree",
           "kind": "public",
           "production": true,
-          "executable": false,
-          "coverage_required": false,
+          "executable": true,
+          "coverage_required": true,
           "build_required": true,
           "build_tags": []
         },
