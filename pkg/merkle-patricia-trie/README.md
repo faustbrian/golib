@@ -27,6 +27,7 @@ binary Merkle tree, SSZ merkleization, or Verkle tree.
 - [Encoding and commitment contract](docs/encoding.md)
 - [Ethereum profiles and proof verification](docs/profiles-and-proofs.md)
 - [Operations, storage, recovery, and pruning](docs/operations.md)
+- [Durable filesystem store](docs/filesystem-store.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Compatibility decisions](docs/compatibility-decisions.md)
 - [Security assumptions](docs/security.md)
@@ -65,8 +66,9 @@ indexes.
 to a caller-owned `NodeStore`. `LoadRawTrie` and `LoadSecureTrie` resolve nodes
 lazily and verify the hash and canonical encoding of every read. Loaded
 snapshots commit only to their source store; use `Rebuild` before migrating a
-root to another store. The `memory` package provides a concurrent atomic
-adapter.
+root to another store. The `memory` package provides a concurrent process-local
+adapter. The `filesystem` package provides a durable directory-backed adapter
+whose content-addressed node files are synced before atomic root publication.
 
 Stores may implement `RootRetainer` and `NodePruner`. The memory adapter keeps
 the published root implicitly retained. Call `RetainRoot` before publishing a
@@ -89,10 +91,10 @@ result, err := store.Prune(ctx, reachabilityLimits)
 ```
 
 Retention is explicit and process-local for the memory adapter. A lost lease
-is not crash-recovery evidence. Persistent adapters must durably define lease,
-publication, pruning, and recovery semantics before presenting the same
-guarantee. `CollectReachableNodes` is the bounded integrity-checked mark
-primitive available to adapter authors.
+is not crash-recovery evidence. The filesystem adapter deliberately does not
+implement retention or pruning; applications needing durable historical-root
+leases must add and prove that policy separately. `CollectReachableNodes` is
+the bounded integrity-checked mark primitive available to adapter authors.
 
 Missing reads return `MissingNodeError` with only the exact unavailable hash.
 After retrieving that encoded node from a peer or archive, call

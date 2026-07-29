@@ -1,0 +1,28 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie/filesystem
+cpu: Apple M4 Max
+                     │ benchmarks/raw/2026-07-29-filesystem.txt │
+                     │                  sec/op                  │
+FilesystemWarmGet                                  232.1µ ± 32%
+FilesystemOpenAndGet                               1.262m ± 31%
+FilesystemCommit                                   50.13m ± 19%
+geomean                                            2.449m
+
+                  │ benchmarks/raw/2026-07-29-filesystem.txt │
+                  │                   B/s                    │
+FilesystemWarmGet                              29.30Ki ± 33%
+
+                     │ benchmarks/raw/2026-07-29-filesystem.txt │
+                     │                   B/op                   │
+FilesystemWarmGet                                  28.18Ki ± 0%
+FilesystemOpenAndGet                               190.5Ki ± 0%
+FilesystemCommit                                   41.68Ki ± 2%
+geomean                                            60.71Ki
+
+                     │ benchmarks/raw/2026-07-29-filesystem.txt │
+                     │                allocs/op                 │
+FilesystemWarmGet                                    207.0 ± 0%
+FilesystemOpenAndGet                                2.167k ± 0%
+FilesystemCommit                                     360.0 ± 2%
+geomean                                              544.6

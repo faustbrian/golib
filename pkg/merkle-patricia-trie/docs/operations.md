@@ -44,10 +44,13 @@ hash must be reported as `ErrMissingNode`; the package converts it to a
 3. publish `StoreCommit.Root()` only after all node writes are durable; and
 4. return `ErrStaleRoot` on a publication conflict.
 
-Any failure must leave the old complete root observable. A backend without
-atomicity or durability must document that limitation and must not claim the
-strong commit contract. Stored and returned byte slices must be immutable from
-the caller's perspective.
+A failure before root replacement must leave the old complete root observable.
+An adapter that detects a durability failure after atomic replacement may
+return an error with either the old or new complete root observable, but it
+must expose that outcome and document reconciliation. A backend without atomic
+publication or explicit durability semantics must not claim the strong commit
+contract. Stored and returned byte slices must be immutable from the caller's
+perspective.
 
 A snapshot loaded from a store can commit only to the same store. Use
 `Rebuild` to migrate a root to a different backend so unchanged descendants
@@ -73,8 +76,11 @@ Persistent adapters must define:
 - pruning synchronization with publication and retention changes; and
 - how callers audit or rebuild stored nodes.
 
-The `memory` adapter is concurrent and atomic but process-local. It is not
-evidence for filesystem or database crash durability.
+The `memory` adapter is concurrent and atomic but process-local. The
+`filesystem` adapter syncs immutable node files before atomic root replacement
+and has process-termination recovery tests at both sides of root publication.
+It requires exclusive directory ownership and does not implement durable
+retentions or pruning.
 
 ## Iteration and streaming construction
 

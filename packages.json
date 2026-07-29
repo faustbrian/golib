@@ -3930,6 +3930,18 @@
     },
     {
       "module_directory": "pkg/merkle-patricia-trie",
+      "directory": "filesystem",
+      "name": "filesystem",
+      "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/filesystem",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/merkle-patricia-trie",
       "directory": "internal/rlp",
       "name": "rlp",
       "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/internal/rlp",

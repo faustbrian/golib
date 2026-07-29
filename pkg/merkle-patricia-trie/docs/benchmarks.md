@@ -34,13 +34,18 @@ commit, pruning, or recovery setup is the operation being measured.
 | Construction | 1,024 ordinary immutable updates or the sorted builder |
 | Rebuild | Raw 1,024-entry rebuild or 256-account state rebuild |
 | Stored reads | Loaded or reloaded snapshot over the memory store, with reads reported |
+| Filesystem warm read | Loaded 256-entry snapshot; exact node files remain in the operating-system cache |
+| Filesystem reopen/read | Open and close the durable directory for every lookup; operating-system caches are not purged |
+| Filesystem commit | One new key update plus synced node files and atomic root publication |
 | Rejection | One mutated proof or one corrupt root-node response |
 | Recovery/pruning | One exact-node overlay recovery or atomic memory-store prune |
 | Parallel read | Populated immutable `Get` through `testing.B.RunParallel` |
 
 The memory adapter is process-local. Its loaded/reloaded tracks measure the
-core's store boundary and node-read count, not filesystem or database cold
-cache behavior. Persistent adapters require separate cold/warm results.
+core's store boundary and node-read count. The filesystem track separately
+measures a reused warm handle, a newly opened handle, and durable commit. The
+reopen track is not presented as physical cold-cache latency because the
+benchmark does not purge operating-system or device caches.
 
 ## Environment and method
 
@@ -53,6 +58,7 @@ The 2026-07-29 baseline used:
 - `GOMAXPROCS=16` only for the parallel-read track;
 - ten samples per workload;
 - a 250 ms minimum sample time for the complete local matrix;
+- a 300 ms minimum sample time for the filesystem track;
 - a 500 ms minimum sample time for comparison and parallel tracks; and
 - `golang.org/x/perf/cmd/benchstat` at
   `v0.0.0-20260709024250-82a0b07e230d`.
@@ -95,6 +101,25 @@ At 16 workers, populated immutable reads measured 121.7 ns/op median with a
 20% confidence interval, 104 B/op, and four allocations. No serial/parallel
 ranking is made because `RunParallel` reports aggregate operation time under a
 different worker configuration.
+
+## Filesystem store
+
+The dependency-free filesystem adapter used a separate 256-entry string-key
+corpus. Ten serial samples produced:
+
+| Workload | Time/op | 95% interval | Bytes/op | Allocs/op |
+| --- | ---: | ---: | ---: | ---: |
+| Warm loaded `Get` | 232.1 µs | ±32% | 28.18 KiB | 207 |
+| Reopen and `Get` | 1.262 ms | ±31% | 190.5 KiB | 2,167 |
+| Update and durable commit | 50.13 ms | ±19% | 41.68 KiB | 360 |
+
+Every commit sample syncs content-addressed node files, the node directory, the
+root record, and the store directory. The reopen result includes root-record
+validation, temporary-file recovery scans, and a bounded node inventory. The
+complete observed distributions are retained; no outlier was removed.
+Raw samples and the pinned summary are in
+`benchmarks/raw/2026-07-29-filesystem.txt` and
+`benchmarks/raw/2026-07-29-filesystem-benchstat.txt`.
 
 ## Geth comparison
 
@@ -159,6 +184,10 @@ GOMAXPROCS=1 GOWORK=off go test -run '^$' -bench '^Benchmark' \
 GOMAXPROCS=16 GOWORK=off go test -run '^$' \
   -bench '^BenchmarkParallelGet$' -benchmem \
   -benchtime=500ms -count=10 .
+
+GOMAXPROCS=1 GOWORK=off go test -run '^$' \
+  -bench '^BenchmarkFilesystem(WarmGet|OpenAndGet|Commit)$' \
+  -benchmem -benchtime=300ms -count=10 ./filesystem
 ```
 
 Capture raw output before running the pinned `benchstat` revision. Do not

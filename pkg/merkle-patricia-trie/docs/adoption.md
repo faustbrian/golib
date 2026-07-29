@@ -17,7 +17,7 @@ Do not use it as a substitute for:
 | Verkle tree | Vector commitments and different path/proof semantics |
 | Unified Binary Trie proposals | Future/research execution-state structure, not the active hexary MPT |
 | EVM or execution client | This package does not execute transactions or apply fork state transitions |
-| Blockchain database | The root package defines a node-store contract but no durable database backend |
+| Blockchain database | The filesystem adapter is a durable node store, not a query engine, cache, or blockchain database |
 
 The module verifies a trie commitment. It does not determine canonical chain,
 fork choice, finality, block validity, or authorization of a root.
@@ -41,6 +41,11 @@ Before production use:
 9. Compare reconstructed roots against existing production data before cutover.
 10. Retain rollback access to the old implementation and roots until the new
     reader, writer, recovery, and pruning paths have been exercised.
+
+For a single-process durable deployment, the
+[filesystem adapter](filesystem-store.md) provides atomic root publication.
+It does not provide historical-root retention or pruning; choose another
+adapter or add a separately proven policy when those operations are required.
 
 ## Migrating from go-ethereum trie APIs
 

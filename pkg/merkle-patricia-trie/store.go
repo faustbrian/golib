@@ -14,8 +14,11 @@ type NodeReader interface {
 	GetNode(ctx context.Context, hash Root) ([]byte, error)
 }
 
-// NodeStore atomically writes a complete node batch and publishes its root.
-// CommitTrie must leave the previous root and nodes observable on failure.
+// NodeStore writes a complete node batch before atomically publishing its root.
+// Failures before publication must leave the previous root observable. An
+// adapter that can report a durability failure after atomic publication must
+// expose whether the old or new complete root is observable and document how
+// callers reconcile that outcome.
 type NodeStore interface {
 	NodeReader
 	CommitTrie(ctx context.Context, commit StoreCommit) error

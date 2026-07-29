@@ -72,6 +72,10 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   and EthereumJS implementations for raw and secure trie profiles.
 - Added a bounded sorted-input raw-trie root builder with strict ordering,
   transactional rejection, single finalization, and ordinary-insertion parity.
+- Added a dependency-free durable filesystem node store with bounded reads and
+  commits, immutable integrity-checked node files, atomic root publication,
+  interrupted-write cleanup, process-termination recovery evidence, and
+  ordinary/streaming/rebuild root parity.
 
 ### Changed
 

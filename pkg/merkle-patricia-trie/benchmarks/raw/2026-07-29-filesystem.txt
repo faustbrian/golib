@@ -1,0 +1,38 @@
+GOMAXPROCS=1 GOWORK=off go test -run '^$' -bench '^BenchmarkFilesystem(WarmGet|OpenAndGet|Commit)$' -benchmem -benchtime=300ms -count=10 ./filesystem
+
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie/filesystem
+cpu: Apple M4 Max
+BenchmarkFilesystemWarmGet    	    1668	    386635 ns/op	   0.02 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1033	    305535 ns/op	   0.03 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    2587	    224193 ns/op	   0.04 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1717	    206374 ns/op	   0.04 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1611	    194539 ns/op	   0.04 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1984	    234757 ns/op	   0.03 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1513	    293644 ns/op	   0.03 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1549	    229403 ns/op	   0.03 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1406	    245368 ns/op	   0.03 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemWarmGet    	    1621	    198258 ns/op	   0.04 MB/s	   28856 B/op	     207 allocs/op
+BenchmarkFilesystemOpenAndGet 	     172	   1785411 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     289	   1263700 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     374	    939649 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     184	   1654808 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     406	   1415523 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     253	   1260898 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     334	   1284548 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     312	   1003339 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     302	   1153600 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemOpenAndGet 	     342	   1065158 ns/op	  195056 B/op	    2167 allocs/op
+BenchmarkFilesystemCommit     	      10	  40500050 ns/op	   44033 B/op	     368 allocs/op
+BenchmarkFilesystemCommit     	       9	  38561857 ns/op	   43620 B/op	     366 allocs/op
+BenchmarkFilesystemCommit     	       7	  48166071 ns/op	   42682 B/op	     360 allocs/op
+BenchmarkFilesystemCommit     	       7	  53153179 ns/op	   42677 B/op	     360 allocs/op
+BenchmarkFilesystemCommit     	       6	  57134583 ns/op	   42122 B/op	     357 allocs/op
+BenchmarkFilesystemCommit     	       8	  44868812 ns/op	   43174 B/op	     363 allocs/op
+BenchmarkFilesystemCommit     	       6	  52097785 ns/op	   42122 B/op	     357 allocs/op
+BenchmarkFilesystemCommit     	       4	  88257604 ns/op	   40692 B/op	     351 allocs/op
+BenchmarkFilesystemCommit     	       6	  56547000 ns/op	   42122 B/op	     357 allocs/op
+BenchmarkFilesystemCommit     	       8	  45520714 ns/op	   43174 B/op	     363 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/merkle-patricia-trie/filesystem	89.381s
