@@ -4,6 +4,7 @@ package oidc
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -133,7 +135,13 @@ func (v *Validator) Authenticate(ctx context.Context, credential authentication.
 			authentication.WithFailureCause(err))
 	}
 	bearer, ok := credential.(authentication.BearerCredential)
-	if !ok || bearer.Token() == "" || len(bearer.Token()) > v.maxTokenBytes {
+	if !ok {
+		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if bearer.Token() == "" {
+		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(bearer.Token()) > v.maxTokenBytes {
 		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	principal, err := v.ValidateBearer(ctx, bearer.Token())
@@ -149,7 +157,10 @@ func (v *Validator) ValidateBearer(ctx context.Context, rawToken string) (authen
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(err))
 	}
-	if rawToken == "" || len(rawToken) > v.maxTokenBytes {
+	if rawToken == "" {
+		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(rawToken) > v.maxTokenBytes {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	if err := inspectCompactToken(rawToken, v.algorithms, v.maxClaims, v.maxClaimDepth); err != nil {
@@ -175,9 +186,16 @@ func (v *Validator) ValidateBearer(ctx context.Context, rawToken string) (authen
 
 func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) (authentication.Principal, error) {
 	now := v.clock.Now()
-	if token.Subject == "" || token.Issuer == "" || len(token.Audience) == 0 ||
-		token.IssuedAt.IsZero() || token.Expiry.IsZero() ||
-		!token.Expiry.After(now.Add(-v.clockSkew)) || token.IssuedAt.After(now.Add(v.clockSkew)) {
+	if token.IssuedAt.IsZero() {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	if token.Expiry.IsZero() {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	if !token.Expiry.After(now.Add(-v.clockSkew)) {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	if token.IssuedAt.After(now.Add(v.clockSkew)) {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
 	var rawClaims map[string]any
@@ -217,10 +235,9 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 	}
 	claims := make(map[string]any)
 	for name, value := range rawClaims {
-		if _, registered := registeredClaims[name]; registered || name == v.scopeClaim || name == v.tenantClaim {
-			continue
+		if !v.excludedPrincipalClaim(name) {
+			claims[name] = value
 		}
-		claims[name] = value
 	}
 	authenticatedAt := token.IssuedAt
 	if protocol.AuthTime != nil {
@@ -237,10 +254,22 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 	})
 }
 
+func (v *Validator) excludedPrincipalClaim(name string) bool {
+	if _, registered := registeredClaims[name]; registered {
+		return true
+	}
+	return slices.Contains([]string{v.scopeClaim, v.tenantClaim}, name)
+}
+
 func numericDate(encoded json.RawMessage) (time.Time, error) {
 	var seconds float64
-	if err := json.Unmarshal(encoded, &seconds); err != nil || math.IsInf(seconds, 0) || math.IsNaN(seconds) ||
-		seconds < -62135596800 || seconds > 253402300799 {
+	if err := json.Unmarshal(encoded, &seconds); err != nil {
+		return time.Time{}, authentication.ErrInvalidPrincipal
+	}
+	if seconds < -62135596800 {
+		return time.Time{}, authentication.ErrInvalidPrincipal
+	}
+	if seconds > 253402300799 {
 		return time.Time{}, authentication.ErrInvalidPrincipal
 	}
 	whole, fraction := math.Modf(seconds)
@@ -318,19 +347,13 @@ func applyDefaults(configuration *Config) {
 
 func validateConfig(configuration Config) (map[string]struct{}, error) {
 	issuer, err := url.Parse(configuration.Issuer)
-	if err != nil || issuer.Host == "" || issuer.User != nil || issuer.RawQuery != "" || issuer.Fragment != "" ||
-		(issuer.Scheme != "https" && (!configuration.InsecureHTTP || issuer.Scheme != "http")) ||
-		configuration.ClientID == "" || configuration.Clock == nil ||
-		configuration.ClockSkew < 0 || configuration.ClockSkew > 24*time.Hour ||
-		configuration.MaxTokenBytes <= 0 || configuration.MaxClaims <= 0 ||
-		configuration.MaxClaims > authentication.MaxClaims || configuration.MaxClaimDepth <= 0 ||
-		configuration.MaxClaimDepth > authentication.MaxClaimDepth ||
-		configuration.MaxHTTPBodyBytes <= 0 || configuration.DiscoveryTimeout <= 0 ||
-		configuration.MaxKeys <= 0 || configuration.MinRefreshInterval <= 0 ||
-		configuration.MaxRefreshInterval < configuration.MinRefreshInterval ||
-		configuration.MaxRefreshWaiters <= 0 ||
-		configuration.ScopeClaim == configuration.TenantClaim || len(configuration.Algorithms) == 0 ||
-		isNilNonceValidator(configuration.NonceValidator) && configuration.NonceValidator != nil {
+	if err != nil {
+		return nil, fmt.Errorf("%w: OIDC configuration", authentication.ErrInvalidConfiguration)
+	}
+	if !validIssuerURL(issuer, configuration.InsecureHTTP) {
+		return nil, fmt.Errorf("%w: OIDC configuration", authentication.ErrInvalidConfiguration)
+	}
+	if !validConfigLimits(configuration) {
 		return nil, fmt.Errorf("%w: OIDC configuration", authentication.ErrInvalidConfiguration)
 	}
 	allowed := make(map[string]struct{}, len(configuration.Algorithms))
@@ -344,6 +367,52 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 		allowed[algorithm] = struct{}{}
 	}
 	return allowed, nil
+}
+
+func validIssuerURL(issuer *url.URL, allowHTTP bool) bool {
+	if issuer.Host == "" {
+		return false
+	}
+	if issuer.User != nil {
+		return false
+	}
+	if issuer.RawQuery != "" {
+		return false
+	}
+	if issuer.Fragment != "" {
+		return false
+	}
+	switch issuer.Scheme {
+	case "https":
+		return true
+	case "http":
+		return allowHTTP
+	default:
+		return false
+	}
+}
+
+func validConfigLimits(configuration Config) bool {
+	return !slices.Contains([]bool{
+		configuration.ClientID != "",
+		configuration.Clock != nil,
+		cmp.Compare(configuration.ClockSkew, time.Duration(0)) != -1,
+		cmp.Compare(configuration.ClockSkew, 24*time.Hour) != 1,
+		cmp.Compare(configuration.MaxTokenBytes, 0) == 1,
+		cmp.Compare(configuration.MaxClaims, 0) == 1,
+		cmp.Compare(configuration.MaxClaims, authentication.MaxClaims) != 1,
+		cmp.Compare(configuration.MaxClaimDepth, 0) == 1,
+		cmp.Compare(configuration.MaxClaimDepth, authentication.MaxClaimDepth) != 1,
+		cmp.Compare(configuration.MaxHTTPBodyBytes, int64(0)) == 1,
+		cmp.Compare(configuration.DiscoveryTimeout, time.Duration(0)) == 1,
+		cmp.Compare(configuration.MaxKeys, 0) == 1,
+		cmp.Compare(configuration.MinRefreshInterval, time.Duration(0)) == 1,
+		cmp.Compare(configuration.MaxRefreshInterval, configuration.MinRefreshInterval) != -1,
+		cmp.Compare(configuration.MaxRefreshWaiters, 0) == 1,
+		configuration.ScopeClaim != configuration.TenantClaim,
+		len(configuration.Algorithms) != 0,
+		configuration.NonceValidator == nil || !isNilNonceValidator(configuration.NonceValidator),
+	}, false)
 }
 
 func isNilNonceValidator(validator NonceValidator) bool {
@@ -407,7 +476,7 @@ func inspectJSONObject(encoded []byte, maxMembers, maxDepth int) error {
 	if err := inspectJSONValue(decoder, 0, maxMembers, maxDepth, true); err != nil {
 		return err
 	}
-	if token, err := decoder.Token(); err == nil || token != nil {
+	if _, err := decoder.Token(); err == nil {
 		return errors.New("trailing JSON data")
 	}
 	return nil
@@ -425,7 +494,7 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 		}
 		return nil
 	}
-	depth++
+	depth = depth + 1
 	if depth > maxDepth {
 		return errors.New("ID-token JSON depth exceeded")
 	}
@@ -453,7 +522,7 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 	case '[':
 		count := 0
 		for decoder.More() {
-			count++
+			count = count + 1
 			if count > authentication.MaxClaimCollection {
 				return errors.New("ID-token collection bound exceeded")
 			}

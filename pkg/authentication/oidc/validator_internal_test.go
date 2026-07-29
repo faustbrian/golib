@@ -68,6 +68,15 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 	if err := inspectJSONObject(largeArray, authentication.MaxClaimCollection+1, 2); err == nil {
 		t.Fatal("inspectJSONObject(oversized array) error = nil")
 	}
+	oversizedMember, err := json.Marshal(map[string]any{
+		"values": make([]int, authentication.MaxClaimCollection+1),
+	})
+	if err != nil {
+		t.Fatalf("Marshal(oversized member) error = %v", err)
+	}
+	if err := inspectJSONObject(oversizedMember, 1, 2); err == nil {
+		t.Fatal("inspectJSONObject(oversized member array) error = nil")
+	}
 	if err := inspectJSONObject([]byte(`[[[]]]`), authentication.MaxClaims, 2); err == nil {
 		t.Fatal("inspectJSONObject(nested array) error = nil")
 	}
@@ -78,6 +87,22 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 	_, _ = decoder.Token()
 	if err := inspectJSONValue(decoder, 0, authentication.MaxClaims, authentication.MaxClaimDepth, false); err == nil {
 		t.Fatal("inspectJSONValue(unexpected closing delimiter) error = nil")
+	}
+}
+
+func TestInspectJSONObjectAcceptsExactDepthAndMemberBounds(t *testing.T) {
+	t.Parallel()
+
+	if err := inspectJSONObject([]byte(`{"a":{"b":1}}`), 1, 2); err != nil {
+		t.Fatalf("inspectJSONObject(exact bounds) error = %v", err)
+	}
+	array := make([]int, authentication.MaxClaimCollection)
+	encoded, err := json.Marshal(map[string]any{"values": array})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	if err := inspectJSONObject(encoded, 1, 2); err != nil {
+		t.Fatalf("inspectJSONObject(exact collection bound) error = %v", err)
 	}
 }
 
@@ -138,6 +163,125 @@ func TestConfigurationRejectsDuplicateAlgorithmsAndNilDependencies(t *testing.T)
 	}
 }
 
+func TestConfigurationAcceptsExactUpperBounds(t *testing.T) {
+	t.Parallel()
+
+	configuration := Config{
+		Issuer: "https://issuer.example.test", ClientID: "client",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(time.Unix(1, 0)),
+		ClockSkew: 24 * time.Hour, MaxTokenBytes: 1,
+		MaxClaims: authentication.MaxClaims, MaxClaimDepth: authentication.MaxClaimDepth,
+		MaxHTTPBodyBytes: 1, DiscoveryTimeout: time.Nanosecond, MaxKeys: 1,
+		MinRefreshInterval: time.Nanosecond, MaxRefreshInterval: time.Nanosecond,
+		MaxRefreshWaiters: 1,
+	}
+	if _, err := NewWithKeySet(configuration, valueKeySet{}); err != nil {
+		t.Fatalf("NewWithKeySet(exact bounds) error = %v", err)
+	}
+	configuration.Issuer = "http://issuer.example.test"
+	configuration.InsecureHTTP = true
+	if _, err := NewWithKeySet(configuration, valueKeySet{}); err != nil {
+		t.Fatalf("NewWithKeySet(insecure HTTP opt-in) error = %v", err)
+	}
+	defaults := Config{
+		Issuer: "https://issuer.example.test", ClientID: "client",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(time.Unix(1, 0)),
+	}
+	applyDefaults(&defaults)
+	if defaults.ClockSkew != 5*time.Minute {
+		t.Errorf("default ClockSkew = %v, want 5m", defaults.ClockSkew)
+	}
+}
+
+func TestConfigurationRejectsEachInvalidBoundary(t *testing.T) {
+	t.Parallel()
+
+	base := Config{
+		Issuer: "https://issuer.example.test", ClientID: "client",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(time.Unix(1, 0)),
+		ClockSkew: time.Second, MaxTokenBytes: 1,
+		MaxClaims: 1, MaxClaimDepth: 1, MaxHTTPBodyBytes: 1,
+		DiscoveryTimeout: time.Nanosecond, MaxKeys: 1,
+		MinRefreshInterval: time.Nanosecond, MaxRefreshInterval: time.Nanosecond,
+		MaxRefreshWaiters: 1, ScopeClaim: "scope", TenantClaim: "tenant",
+	}
+	tests := map[string]func(*Config){
+		"issuer parse":         func(c *Config) { c.Issuer = "://" },
+		"issuer user":          func(c *Config) { c.Issuer = "https://user@issuer.example.test" },
+		"issuer fragment":      func(c *Config) { c.Issuer += "#fragment" },
+		"issuer missing host":  func(c *Config) { c.Issuer = "https:///issuer" },
+		"issuer scheme":        func(c *Config) { c.Issuer = "ftp://issuer.example.test" },
+		"client":               func(c *Config) { c.ClientID = "" },
+		"clock":                func(c *Config) { c.Clock = nil },
+		"negative skew":        func(c *Config) { c.ClockSkew = -time.Nanosecond },
+		"excess skew":          func(c *Config) { c.ClockSkew = 24*time.Hour + time.Nanosecond },
+		"token bytes":          func(c *Config) { c.MaxTokenBytes = -1 },
+		"claims zero":          func(c *Config) { c.MaxClaims = -1 },
+		"claims excess":        func(c *Config) { c.MaxClaims = authentication.MaxClaims + 1 },
+		"depth zero":           func(c *Config) { c.MaxClaimDepth = -1 },
+		"depth excess":         func(c *Config) { c.MaxClaimDepth = authentication.MaxClaimDepth + 1 },
+		"HTTP body":            func(c *Config) { c.MaxHTTPBodyBytes = -1 },
+		"discovery timeout":    func(c *Config) { c.DiscoveryTimeout = -1 },
+		"keys":                 func(c *Config) { c.MaxKeys = -1 },
+		"minimum refresh":      func(c *Config) { c.MinRefreshInterval = -1 },
+		"refresh order":        func(c *Config) { c.MinRefreshInterval = 2; c.MaxRefreshInterval = 1 },
+		"refresh waiters":      func(c *Config) { c.MaxRefreshWaiters = -1 },
+		"duplicate claim name": func(c *Config) { c.TenantClaim = c.ScopeClaim },
+		"algorithms":           func(c *Config) { c.Algorithms = nil },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			configuration := base
+			mutate(&configuration)
+			if _, err := NewWithKeySet(configuration, valueKeySet{}); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+				t.Errorf("NewWithKeySet() error = %v, want invalid configuration", err)
+			}
+		})
+	}
+}
+
+func TestPrincipalRejectsMissingExpiryBeforeClaims(t *testing.T) {
+	t.Parallel()
+
+	validator := &Validator{clock: authtest.NewClock(time.Unix(1, 0))}
+	token := &upstreamoidc.IDToken{IssuedAt: time.Unix(1, 0)}
+	if _, err := validator.principal(context.Background(), token); !errors.Is(err, authentication.ErrInvalidPrincipal) {
+		t.Fatalf("principal(missing expiry) error = %v", err)
+	}
+}
+
+func TestNilNonceValidatorRecognizesNilInterface(t *testing.T) {
+	t.Parallel()
+
+	if !isNilNonceValidator(nil) {
+		t.Fatal("isNilNonceValidator(nil) = false")
+	}
+}
+
+func TestNumericDateBoundariesAndFraction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		encoded string
+		want    time.Time
+	}{
+		{encoded: `-62135596800`, want: time.Unix(-62135596800, 0).UTC()},
+		{encoded: `253402300799`, want: time.Unix(253402300799, 0).UTC()},
+		{encoded: `1.5`, want: time.Unix(1, int64(500*time.Millisecond)).UTC()},
+	}
+	for _, tt := range tests {
+		got, err := numericDate(json.RawMessage(tt.encoded))
+		if err != nil || !got.Equal(tt.want) {
+			t.Errorf("numericDate(%s) = %v, %v, want %v", tt.encoded, got, err, tt.want)
+		}
+	}
+	for _, encoded := range []string{`-62135596801`, `253402300800`, `"invalid"`} {
+		if _, err := numericDate(json.RawMessage(encoded)); err == nil {
+			t.Errorf("numericDate(%s) error = nil", encoded)
+		}
+	}
+}
+
 func TestValidateBearerRejectsCanceledAndEmptyInput(t *testing.T) {
 	t.Parallel()
 
@@ -149,6 +293,28 @@ func TestValidateBearerRejectsCanceledAndEmptyInput(t *testing.T) {
 	}
 	if _, err := validator.ValidateBearer(context.Background(), ""); !errors.Is(err, authentication.ErrCredentialsInvalid) {
 		t.Fatalf("ValidateBearer(empty) error = %v", err)
+	}
+	validator.maxTokenBytes = 3
+	if _, err := validator.ValidateBearer(context.Background(), "a.b"); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(exact token bound) error = %v", err)
+	}
+	if _, err := validator.ValidateBearer(context.Background(), "a.bc"); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("ValidateBearer(over token bound) error = %v", err)
+	}
+}
+
+func TestAuthenticateDistinguishesExactAndOversizedTokens(t *testing.T) {
+	t.Parallel()
+
+	validator := &Validator{maxTokenBytes: 3}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.b")); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("Authenticate(exact token bound) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.bc")); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("Authenticate(over token bound) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("")); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("Authenticate(empty token) error = %v", err)
 	}
 }
 

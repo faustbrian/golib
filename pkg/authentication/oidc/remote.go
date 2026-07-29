@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"cmp"
 	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -9,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,7 +92,12 @@ type remoteKeySet struct {
 
 func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) ([]byte, error) {
 	signed, err := jose.ParseSigned(rawToken, set.algorithms)
-	if err != nil || len(signed.Signatures) != 1 {
+	if err != nil {
+		return nil, errors.New("invalid OIDC signature structure")
+	}
+	switch len(signed.Signatures) {
+	case 1:
+	default:
 		return nil, errors.New("invalid OIDC signature structure")
 	}
 	keyID := signed.Signatures[0].Header.KeyID
@@ -103,7 +111,9 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 	if payload, found, err := verifyWithKeys(signed, keyID, keys); found {
 		return payload, err
 	}
-	if err := set.acquireWaiter(ctx); err != nil {
+	switch err := set.acquireWaiter(ctx); err {
+	case nil:
+	default:
 		reportUnavailable(ctx, err)
 		return nil, err
 	}
@@ -131,7 +141,9 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 		if !set.nextRefresh.IsZero() && now.Before(set.nextRefresh) {
 			refreshErr := set.refreshErr
 			set.mutex.Unlock()
-			if refreshErr != nil {
+			switch refreshErr {
+			case nil:
+			default:
 				reportUnavailable(ctx, refreshErr)
 				return nil, errors.New("OIDC keys unavailable")
 			}
@@ -153,7 +165,8 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 }
 
 func (set *remoteKeySet) acquireWaiter(ctx context.Context) error {
-	if set.waiters == nil {
+	switch set.waiters {
+	case nil:
 		return ctx.Err()
 	}
 	select {
@@ -216,11 +229,9 @@ func (set *remoteKeySet) refreshBounds() (time.Duration, time.Duration) {
 	if minimum <= 0 {
 		minimum = time.Minute
 	}
-	if maximum < minimum {
-		maximum = time.Hour
-		if maximum < minimum {
-			maximum = minimum
-		}
+	switch cmp.Compare(maximum, minimum) {
+	case -1:
+		maximum = max(time.Hour, minimum)
 	}
 	return minimum, maximum
 }
@@ -228,12 +239,11 @@ func (set *remoteKeySet) refreshBounds() (time.Duration, time.Duration) {
 func verifyWithKeys(signed *jose.JSONWebSignature, keyID string, keys []jose.JSONWebKey) ([]byte, bool, error) {
 	found := false
 	for _, key := range keys {
-		if key.KeyID != keyID {
-			continue
-		}
-		found = true
-		if payload, err := signed.Verify(key.Key); err == nil {
-			return payload, true, nil
+		if key.KeyID == keyID {
+			found = true
+			if payload, err := signed.Verify(key.Key); err == nil {
+				return payload, true, nil
+			}
 		}
 	}
 	if found {
@@ -244,7 +254,9 @@ func verifyWithKeys(signed *jose.JSONWebSignature, keyID string, keys []jose.JSO
 
 func (set *remoteKeySet) fetch(ctx context.Context) ([]jose.JSONWebKey, error) {
 	result, err := set.fetchConditional(ctx, "", "")
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return nil, err
 	}
 	return result.keys, nil
@@ -264,7 +276,9 @@ func (set *remoteKeySet) fetchConditional(
 	lastModified string,
 ) (fetchResult, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, set.url, nil)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return fetchResult{}, err
 	}
 	if etag != "" {
@@ -283,11 +297,23 @@ func (set *remoteKeySet) fetchConditional(
 		etag:         response.Header.Get("ETag"),
 		lastModified: response.Header.Get("Last-Modified"),
 	}
-	if response.StatusCode == http.StatusNotModified && (etag != "" || lastModified != "") {
-		result.notModified = true
-		return result, nil
-	}
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusNotModified:
+		switch etag {
+		case "":
+		default:
+			result.notModified = true
+			return result, nil
+		}
+		switch lastModified {
+		case "":
+		default:
+			result.notModified = true
+			return result, nil
+		}
+		return fetchResult{}, errors.New("OIDC JWK endpoint returned a non-success status")
+	case http.StatusOK:
+	default:
 		return fetchResult{}, errors.New("OIDC JWK endpoint returned a non-success status")
 	}
 	body, err := readBounded(response.Body, set.maxBodyBytes)
@@ -304,8 +330,7 @@ func (set *remoteKeySet) fetchConditional(
 	seen := make(map[string]struct{}, len(parsed.Keys))
 	keys := make([]jose.JSONWebKey, len(parsed.Keys))
 	for index, key := range parsed.Keys {
-		if key.KeyID == "" || !key.Valid() || !key.IsPublic() ||
-			key.Algorithm == "" || key.Use != "sig" {
+		if !validJWKMetadata(key) {
 			return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
 		}
 		if _, duplicate := seen[key.KeyID]; duplicate {
@@ -322,6 +347,12 @@ func (set *remoteKeySet) fetchConditional(
 	}
 	result.keys = keys
 	return result, nil
+}
+
+func validJWKMetadata(key jose.JSONWebKey) bool {
+	return !slices.Contains([]bool{
+		key.KeyID != "", key.Valid(), key.IsPublic(), key.Algorithm != "", key.Use == "sig",
+	}, false)
 }
 
 func joseKeyMatchesAlgorithm(key any, algorithm string) bool {
@@ -349,45 +380,72 @@ func cacheLifetime(header http.Header, minimum, maximum time.Duration) time.Dura
 	foundMaxAge := false
 	for _, value := range header.Values("Cache-Control") {
 		for _, directive := range strings.Split(value, ",") {
-			name, parameter, hasParameter := strings.Cut(strings.TrimSpace(directive), "=")
-			if strings.EqualFold(name, "no-cache") || strings.EqualFold(name, "no-store") {
+			seconds, state := cacheDirective(directive, maximum)
+			switch state {
+			case cacheDirectiveDisable:
 				return minimum
-			}
-			if !strings.EqualFold(name, "max-age") || !hasParameter {
-				continue
-			}
-			seconds, err := strconv.ParseInt(strings.Trim(parameter, `"`), 10, 64)
-			if err == nil && seconds >= 0 {
+			case cacheDirectiveMaxAge:
 				foundMaxAge = true
-				if seconds >= int64(maximum/time.Second) {
-					lifetime = maximum
-				} else {
-					lifetime = time.Duration(seconds) * time.Second
-				}
+				lifetime = seconds
 			}
 		}
 	}
 	if !foundMaxAge {
 		date, dateErr := http.ParseTime(header.Get("Date"))
 		expires, expiresErr := http.ParseTime(header.Get("Expires"))
-		if dateErr == nil && expiresErr == nil && expires.After(date) {
-			lifetime = expires.Sub(date)
+		if dateErr == nil {
+			if expiresErr == nil {
+				if expires.After(date) {
+					lifetime = expires.Sub(date)
+				}
+			}
 		}
 	}
-	if age, err := strconv.ParseInt(header.Get("Age"), 10, 64); err == nil && age > 0 {
-		if age >= int64(lifetime/time.Second) {
-			lifetime = 0
-		} else {
-			lifetime -= time.Duration(age) * time.Second
+	if age, err := strconv.ParseInt(header.Get("Age"), 10, 64); err == nil {
+		switch cmp.Compare(age, int64(0)) {
+		case 1:
+			switch cmp.Compare(age, int64(lifetime/time.Second)) {
+			case 0, 1:
+				lifetime = 0
+			default:
+				lifetime = lifetime - time.Duration(age)*time.Second
+			}
 		}
 	}
-	if lifetime < minimum {
-		return minimum
+	return min(max(lifetime, minimum), maximum)
+}
+
+type cacheDirectiveState uint8
+
+const (
+	cacheDirectiveIgnore cacheDirectiveState = iota
+	cacheDirectiveDisable
+	cacheDirectiveMaxAge
+)
+
+func cacheDirective(directive string, maximum time.Duration) (time.Duration, cacheDirectiveState) {
+	name, parameter, hasParameter := strings.Cut(strings.TrimSpace(directive), "=")
+	switch {
+	case strings.EqualFold(name, "no-cache"), strings.EqualFold(name, "no-store"):
+		return 0, cacheDirectiveDisable
+	case !strings.EqualFold(name, "max-age"), !hasParameter:
+		return 0, cacheDirectiveIgnore
 	}
-	if lifetime > maximum {
-		return maximum
+	seconds, err := strconv.ParseInt(strings.Trim(parameter, `"`), 10, 64)
+	if err != nil {
+		return 0, cacheDirectiveIgnore
 	}
-	return lifetime
+	switch cmp.Compare(seconds, int64(0)) {
+	case -1:
+		return 0, cacheDirectiveIgnore
+	}
+	maximumSeconds := int64(maximum.Seconds())
+	switch cmp.Compare(seconds, maximumSeconds) {
+	case 0, 1:
+		return maximum, cacheDirectiveMaxAge
+	default:
+		return time.Duration(seconds) * time.Second, cacheDirectiveMaxAge
+	}
 }
 
 func joseAlgorithms(names []string) []jose.SignatureAlgorithm {
@@ -400,8 +458,20 @@ func joseAlgorithms(names []string) []jose.SignatureAlgorithm {
 
 func validRemoteURL(rawURL string, allowHTTP bool) bool {
 	parsed, err := url.Parse(rawURL)
-	return err == nil && parsed.Host != "" && parsed.User == nil && parsed.Fragment == "" &&
-		(parsed.Scheme == "https" || allowHTTP && parsed.Scheme == "http")
+	if err != nil {
+		return false
+	}
+	if parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+		return false
+	}
+	switch parsed.Scheme {
+	case "https":
+		return true
+	case "http":
+		return allowHTTP
+	default:
+		return false
+	}
 }
 
 func hardenedClient(source *http.Client, maximum int64) *http.Client {
@@ -416,7 +486,8 @@ func hardenedClient(source *http.Client, maximum int64) *http.Client {
 		return errors.New("OIDC redirects are disabled")
 	}
 	transport := client.Transport
-	if transport == nil {
+	switch transport {
+	case nil:
 		transport = http.DefaultTransport
 	}
 	client.Transport = boundedTransport{base: transport, maximum: maximum}
@@ -447,10 +518,8 @@ func (body *boundedBody) Read(buffer []byte) (int, error) {
 	if body.exceeded {
 		return 0, errHTTPBodyTooLarge
 	}
-	limit := int64(len(buffer))
-	if limit > body.remaining+1 {
-		limit = body.remaining + 1
-	}
+	probe, _ := bits.Add64(uint64(body.remaining), 1, 0)
+	limit := min(int64(len(buffer)), int64(probe))
 	read, err := body.body.Read(buffer[:limit])
 	if int64(read) > body.remaining {
 		allowed := int(body.remaining)
@@ -458,7 +527,7 @@ func (body *boundedBody) Read(buffer []byte) (int, error) {
 		body.exceeded = true
 		return allowed, errHTTPBodyTooLarge
 	}
-	body.remaining -= int64(read)
+	body.remaining = body.remaining - int64(read)
 	return read, err
 }
 

@@ -56,6 +56,20 @@ func TestRemoteKeySetRejectsSignatureStructuresAndCachedMismatch(t *testing.T) {
 	if _, err := set.VerifySignature(context.Background(), "invalid"); err == nil {
 		t.Fatal("VerifySignature(invalid) error = nil")
 	}
+	multiSigner, err := jose.NewMultiSigner([]jose.SigningKey{
+		{Algorithm: jose.RS256, Key: private},
+		{Algorithm: jose.RS256, Key: other},
+	}, (&jose.SignerOptions{}).WithHeader("kid", "key"))
+	if err != nil {
+		t.Fatalf("NewMultiSigner() error = %v", err)
+	}
+	multiSigned, err := multiSigner.Sign([]byte(`{}`))
+	if err != nil {
+		t.Fatalf("Sign(multiple) error = %v", err)
+	}
+	if _, err := set.VerifySignature(context.Background(), multiSigned.FullSerialize()); err == nil {
+		t.Fatal("VerifySignature(multiple signatures) error = nil")
+	}
 	missingKeyID := signCompact(t, private, "", []byte(`{}`))
 	if _, err := set.VerifySignature(context.Background(), missingKeyID); err == nil {
 		t.Fatal("VerifySignature(missing kid) error = nil")
@@ -97,6 +111,8 @@ func TestRemoteFetchRejectsTransportAndJWKFailures(t *testing.T) {
 		{name: "empty", body: encode(), maxKeys: 1},
 		{name: "too many", body: encode(valid, jose.JSONWebKey{Key: &private.PublicKey, KeyID: "other", Algorithm: "RS256", Use: "sig"}), maxKeys: 1},
 		{name: "missing metadata", body: encode(jose.JSONWebKey{Key: &private.PublicKey}), maxKeys: 1},
+		{name: "missing algorithm", body: encode(jose.JSONWebKey{Key: &private.PublicKey, KeyID: "key", Use: "sig"}), maxKeys: 1},
+		{name: "wrong use", body: encode(jose.JSONWebKey{Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "enc"}), maxKeys: 1},
 		{name: "private key", body: encode(jose.JSONWebKey{Key: private, KeyID: "key", Algorithm: "RS256", Use: "sig"}), maxKeys: 1},
 		{name: "duplicate", body: encode(valid, valid), maxKeys: 2},
 		{name: "disallowed", body: encode(jose.JSONWebKey{Key: &private.PublicKey, KeyID: "key", Algorithm: "RS384", Use: "sig"}), maxKeys: 1},
@@ -138,6 +154,32 @@ func TestRemoteFetchRejectsTransportAndJWKFailures(t *testing.T) {
 	}
 	if keys, err := set.fetch(context.Background()); err != nil || len(keys) != 1 {
 		t.Fatalf("fetch(valid) = %d keys, %v", len(keys), err)
+	}
+}
+
+func TestRemoteFetchAcceptsEachConditionalValidatorIndependently(t *testing.T) {
+	t.Parallel()
+
+	set := &remoteKeySet{
+		url: "https://issuer.example.test/keys",
+		client: &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusNotModified, Header: make(http.Header),
+				Body: io.NopCloser(strings.NewReader("")), Request: request,
+			}, nil
+		})},
+	}
+	for name, validators := range map[string][2]string{
+		"etag":          {`"version"`, ""},
+		"last modified": {"", "Wed, 15 Jul 2026 12:00:00 GMT"},
+	} {
+		result, err := set.fetchConditional(context.Background(), validators[0], validators[1])
+		if err != nil || !result.notModified {
+			t.Errorf("fetchConditional(%s) = %+v, %v", name, result, err)
+		}
+	}
+	if _, err := set.fetchConditional(context.Background(), "", ""); err == nil {
+		t.Fatal("fetchConditional(304 without validator) error = nil")
 	}
 }
 
@@ -192,6 +234,14 @@ func TestHTTPHardeningAndBoundedReaders(t *testing.T) {
 	if _, err := readBounded(strings.NewReader("ab"), 1); !errors.Is(err, errHTTPBodyTooLarge) {
 		t.Fatalf("readBounded(oversized) error = %v", err)
 	}
+	if got, err := readBounded(strings.NewReader("a"), 1); err != nil || string(got) != "a" {
+		t.Fatalf("readBounded(exact) = %q, %v", got, err)
+	}
+	exactBody := &boundedBody{body: io.NopCloser(strings.NewReader("a")), remaining: 1}
+	exactBuffer := make([]byte, 2)
+	if read, err := exactBody.Read(exactBuffer); err != nil || read != 1 || exactBody.remaining != 0 {
+		t.Fatalf("Read(exact) = %d, %v, remaining %d", read, err, exactBody.remaining)
+	}
 }
 
 func TestRemoteRefreshConfigurationAndCacheSemantics(t *testing.T) {
@@ -226,6 +276,12 @@ func TestRemoteRefreshConfigurationAndCacheSemantics(t *testing.T) {
 	if minimum != 2*time.Hour || maximum != 2*time.Hour {
 		t.Fatalf("refreshBounds(clamped) = %v, %v", minimum, maximum)
 	}
+	set.minRefreshInterval = time.Hour
+	set.maxRefreshInterval = time.Hour
+	minimum, maximum = set.refreshBounds()
+	if minimum != time.Hour || maximum != time.Hour {
+		t.Fatalf("refreshBounds(equal) = %v, %v", minimum, maximum)
+	}
 
 	date := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
 	tests := []struct {
@@ -241,16 +297,63 @@ func TestRemoteRefreshConfigurationAndCacheSemantics(t *testing.T) {
 		{name: "invalid max age", header: http.Header{"Cache-Control": {"max-age=invalid"}}, want: 10 * time.Second},
 		{name: "negative max age", header: http.Header{"Cache-Control": {"max-age=-1"}}, want: 10 * time.Second},
 		{name: "maximum", header: http.Header{"Cache-Control": {"max-age=999999"}}, want: time.Minute},
+		{name: "exact maximum", header: http.Header{"Cache-Control": {"max-age=60"}}, want: time.Minute},
 		{name: "minimum", header: http.Header{"Cache-Control": {"max-age=0"}}, want: 10 * time.Second},
+		{name: "exact minimum", header: http.Header{"Cache-Control": {"max-age=10"}}, want: 10 * time.Second},
 		{name: "expires", header: http.Header{"Date": {date.Format(http.TimeFormat)}, "Expires": {date.Add(45 * time.Second).Format(http.TimeFormat)}}, want: 45 * time.Second},
+		{name: "expires equal", header: http.Header{"Date": {date.Format(http.TimeFormat)}, "Expires": {date.Format(http.TimeFormat)}}, want: 10 * time.Second},
 		{name: "expires above maximum", header: http.Header{"Date": {date.Format(http.TimeFormat)}, "Expires": {date.Add(2 * time.Minute).Format(http.TimeFormat)}}, want: time.Minute},
+		{name: "zero age", header: http.Header{"Cache-Control": {"max-age=30"}, "Age": {"0"}}, want: 30 * time.Second},
 		{name: "age remaining", header: http.Header{"Cache-Control": {"max-age=30"}, "Age": {"5"}}, want: 25 * time.Second},
+		{name: "age exact", header: http.Header{"Cache-Control": {"max-age=30"}, "Age": {"30"}}, want: 10 * time.Second},
 		{name: "age exhausted", header: http.Header{"Cache-Control": {"max-age=30"}, "Age": {"40"}}, want: 10 * time.Second},
 	}
 	for _, tt := range tests {
 		if got := cacheLifetime(tt.header, 10*time.Second, time.Minute); got != tt.want {
 			t.Errorf("cacheLifetime(%s) = %v, want %v", tt.name, got, tt.want)
 		}
+	}
+}
+
+func TestRemoteURLValidationRejectsEachUnsafeComponent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		raw       string
+		allowHTTP bool
+		want      bool
+	}{
+		{raw: "https://issuer.example.test/keys", want: true},
+		{raw: "http://issuer.example.test/keys", allowHTTP: true, want: true},
+		{raw: "http://issuer.example.test/keys"},
+		{raw: "ftp://issuer.example.test/keys", allowHTTP: true},
+		{raw: "https:///keys"},
+		{raw: "https://user@issuer.example.test/keys"},
+		{raw: "https://issuer.example.test/keys#fragment"},
+		{raw: "://"},
+	}
+	for _, tt := range tests {
+		if got := validRemoteURL(tt.raw, tt.allowHTTP); got != tt.want {
+			t.Errorf("validRemoteURL(%q, %v) = %v, want %v", tt.raw, tt.allowHTTP, got, tt.want)
+		}
+	}
+}
+
+func TestVerifyWithKeysContinuesToMatchingKey(t *testing.T) {
+	t.Parallel()
+
+	private := mustRSAKey(t)
+	compact := signCompact(t, private, "match", []byte(`{"sub":"user"}`))
+	signed, err := jose.ParseSigned(compact, []jose.SignatureAlgorithm{jose.RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned() error = %v", err)
+	}
+	payload, found, err := verifyWithKeys(signed, "match", []jose.JSONWebKey{
+		{Key: &private.PublicKey, KeyID: "other", Algorithm: "RS256", Use: "sig"},
+		{Key: &private.PublicKey, KeyID: "match", Algorithm: "RS256", Use: "sig"},
+	})
+	if err != nil || !found || string(payload) != `{"sub":"user"}` {
+		t.Fatalf("verifyWithKeys() = %q, %v, %v", payload, found, err)
 	}
 }
 
