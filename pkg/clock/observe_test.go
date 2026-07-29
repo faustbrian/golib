@@ -120,6 +120,20 @@ func TestObserveValidatesInputsAndContainsObserverPanics(t *testing.T) {
 	}
 }
 
+func TestObserveSkipsNilOptionsWithoutSkippingLaterValidation(t *testing.T) {
+	t.Parallel()
+
+	_, err := clock.Observe(
+		clock.System{},
+		clock.ObserverFunc(func(clock.Observation) {}),
+		nil,
+		clock.WithTags(map[string]string{"": "invalid"}),
+	)
+	if !errors.Is(err, clock.ErrObservationTags) {
+		t.Fatalf("Observe(nil, invalid option) error = %v, want ErrObservationTags", err)
+	}
+}
+
 func TestObservedClockDelegatesCapabilitiesAndAllLifecycleTransitions(t *testing.T) {
 	t.Parallel()
 

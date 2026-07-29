@@ -89,6 +89,19 @@ func TestSystemSleepHandlesImmediateAndInFlightCancellation(t *testing.T) {
 	}
 }
 
+func TestSystemSleepNonPositiveDurationAllocatesNoTimer(t *testing.T) {
+	for _, duration := range []time.Duration{0, -1} {
+		allocations := testing.AllocsPerRun(100, func() {
+			if err := (clock.System{}).Sleep(context.Background(), duration); err != nil {
+				t.Fatalf("Sleep(%v) error = %v", duration, err)
+			}
+		})
+		if allocations != 0 {
+			t.Fatalf("Sleep(%v) allocations = %v, want zero", duration, allocations)
+		}
+	}
+}
+
 func TestSystemTimerMatchesStandardLifecycle(t *testing.T) {
 	t.Parallel()
 
