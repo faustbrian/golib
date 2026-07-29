@@ -54,8 +54,13 @@ A separate isolated harness pins `ethereum/go-verkle` at
 256-wide tree root plus an aggregate proof covering membership, an absent
 suffix, and an absent stem. The reference verifier accepts the proof and
 rejects a mutated proof commitment and replay against a different valid root.
-This records reference behavior only; it is not independent tree agreement and
-does not make `go-verkle` a production dependency.
+The Go artifact alone records reference behavior and does not make `go-verkle`
+a production dependency. The pinned Rust trie now reproduces the same root
+commitment and every aggregate-proof element for that exact corpus, after the
+documented conversion of Rust's final scalar encoding to the little-endian Go
+JSON convention. Both reference verifiers accept their proof. This is
+independent one-corpus tree evidence, not general compatibility, hostile-decoder
+evidence, or a stable profile.
 
 ## Development rule
 

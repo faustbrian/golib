@@ -52,25 +52,27 @@ artifacts. Such artifacts MUST identify the exact implementation revision,
 profile assumptions, input corpus, and encoding layer being compared. Agreement
 MUST NOT be described as production readiness or Ethereum compatibility.
 
-The current Rust differential artifact establishes only canonical scalar and
+The low-level Rust differential artifacts establish canonical scalar and
 Banderwagon commitment encoding agreement for five deterministic generator
 multiples plus ordered 256-point generator-set agreement under SHA-256
 collision resistance for the pinned width, seed, revisions, and encodings. One
 pinned positive corpus also establishes exact aggregate-proof bytes and
-cross-verification for three openings under the `verkle` transcript label. It
-does not establish independent setup provenance, transcript soundness,
-comprehensive negative-proof behavior, hostile decoding, tree layout, roots,
-tree proofs, or witnesses, and therefore does not change this no-go decision.
-Its locked dependency graph also retains two unmaintained RustSec dependencies,
-so it cannot satisfy the production dependency policy.
+cross-verification for three openings under the `verkle` transcript label.
+Those artifacts do not establish independent setup provenance, transcript
+soundness, comprehensive negative-proof behavior, hostile decoding, or
+witnesses. The locked dependency graph also retains two unmaintained RustSec
+dependencies, so it cannot satisfy the production dependency policy.
 
-The pinned Go tree harness additionally records one deterministic root and an
-aggregate proof spanning membership, absent-suffix, and absent-stem claims. Its
-own verifier accepts the artifact and rejects a mutated proof commitment and a
-different valid root. Because the artifact and verification decision come from
-the same maintenance-mode implementation, they establish a reproducible
-reference corpus rather than independent tree agreement and do not change the
-no-go decision.
+The pinned Go tree harness records one deterministic root and an aggregate
+proof spanning membership, absent-suffix, and absent-stem claims. Its verifier
+accepts the artifact and rejects a mutated proof commitment and a different
+valid root. The pinned Rust trie independently produces the same root and every
+proof element for that corpus, after the explicit final-scalar byte-order
+conversion between the Rust and Go serialization conventions, and its verifier
+also accepts the proof. This establishes one exact tree-layout differential
+corpus. It does not cover updates, deletion, full proof containers, witnesses,
+hostile decoding, resource bounds, storage, or general state corpora and
+therefore does not change the no-go decision.
 
 ## Stable Profile Freeze Conditions
 

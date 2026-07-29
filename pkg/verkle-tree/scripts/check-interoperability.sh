@@ -13,6 +13,7 @@ encoding_fixture_id=rust-verkle-banderwagon-encoding-vectors
 generator_fixture_id=rust-verkle-generator-set
 multiproof_fixture_id=rust-verkle-multiproof
 go_verkle_fixture_id=go-verkle-tree-proof
+tree_proof_agreement_id=go-rust-verkle-tree-proof-agreement
 
 for tool in cargo diff git go jq rustc shasum; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -47,6 +48,10 @@ verify_generator_file "$encoding_fixture_id" toolchain_sha256 "$harness/rust-too
 verify_generator_file "$go_verkle_fixture_id" source_sha256 "$go_verkle_harness/main.go.template"
 verify_generator_file "$go_verkle_fixture_id" manifest_sha256 "$go_verkle_harness/go.mod.template"
 verify_generator_file "$go_verkle_fixture_id" lock_sha256 "$go_verkle_harness/go.sum.template"
+verify_generator_file "$tree_proof_agreement_id" source_sha256 "$harness/src/main.rs"
+verify_generator_file "$tree_proof_agreement_id" manifest_sha256 "$harness/Cargo.toml"
+verify_generator_file "$tree_proof_agreement_id" lock_sha256 "$harness/Cargo.lock"
+verify_generator_file "$tree_proof_agreement_id" toolchain_sha256 "$harness/rust-toolchain.toml"
 
 verify_fixture() {
     id=$1
@@ -67,6 +72,7 @@ verify_fixture "$encoding_fixture_id" "$encoding_fixture"
 verify_fixture "$generator_fixture_id" "$generator_fixture"
 verify_fixture "$multiproof_fixture_id" "$multiproof_fixture"
 verify_fixture "$go_verkle_fixture_id" "$go_verkle_fixture"
+verify_fixture "$tree_proof_agreement_id" "$go_verkle_fixture"
 
 expected_toolchain=$(sed -n 's/^channel = "\(.*\)"$/\1/p' "$harness/rust-toolchain.toml")
 actual_toolchain=$(
@@ -151,6 +157,7 @@ verify_source_files() {
 }
 
 verify_source_files "$multiproof_fixture_id" "$checkout_root"
+verify_source_files "$tree_proof_agreement_id" "$checkout_root"
 
 (
     cd "$harness"
@@ -169,6 +176,29 @@ diff -u "$generator_fixture" "$temporary/generated-generators.tsv"
     CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- multiproof
 ) >"$temporary/generated-multiproof.tsv"
 diff -u "$multiproof_fixture" "$temporary/generated-multiproof.tsv"
+
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- tree-proof
+) >"$temporary/generated-rust-tree-proof.tsv"
+{
+    printf '%s\n' "root_commitment	multiproof"
+    jq -r '
+        [
+            .root,
+            (
+                (.proof.d | ltrimstr("0x"))
+                + ([.proof.ipaProof.cl[] | ltrimstr("0x")] | join(""))
+                + ([.proof.ipaProof.cr[] | ltrimstr("0x")] | join(""))
+                + (.proof.ipaProof.finalEvaluation | ltrimstr("0x"))
+            )
+        ]
+        | @tsv
+    ' "$go_verkle_fixture"
+} >"$temporary/expected-rust-tree-proof.tsv"
+diff -u \
+    "$temporary/expected-rust-tree-proof.tsv" \
+    "$temporary/generated-rust-tree-proof.tsv"
 
 go_harness_run="$temporary/go-verkle"
 mkdir "$go_harness_run"

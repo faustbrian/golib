@@ -9,3 +9,4 @@ publish = false
 banderwagon = { git = "https://github.com/crate-crypto/rust-verkle.git", rev = "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88" }
 ipa-multipoint = { git = "https://github.com/crate-crypto/rust-verkle.git", rev = "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88" }
 sha2 = "0.10.9"
+verkle-trie = { git = "https://github.com/crate-crypto/rust-verkle.git", rev = "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88" }

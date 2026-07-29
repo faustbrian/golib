@@ -28,6 +28,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.
+- Establish exact root-commitment and aggregate-proof agreement with the pinned
+  independent Rust trie for that tree corpus, including the explicit
+  final-scalar byte-order conversion between reference encodings.
 
 ### Dependencies
 

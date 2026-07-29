@@ -1,12 +1,13 @@
 # Compatibility Status
 
-No production or tree compatibility claim is currently implemented.
+No production or general tree compatibility claim is currently implemented.
+The bounded research agreements below apply only to their exact corpora.
 
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
 | Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
-| `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic reference-generated tree root and aggregate membership/non-membership proof corpus; no independent tree, API, wire, or production compatibility |
-| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered 256-point generator-set digest agreement, and one exact three-opening aggregate-proof corpus; no tree, API, wire, or production compatibility |
+| `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root and aggregate membership/non-membership proof corpus agrees with the pinned Rust trie; no general tree, API, wire, or production compatibility |
+| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, raw three-opening proof, and one tree root/proof corpus agree with Go; no general tree, API, wire, or production compatibility |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
 | EIP-6800 | Stagnant at EIPs commit `c55786f4242e5324afd14c6bca890a369a771d7f` | Historical Ethereum Verkle layout | Not implemented |
 | EIP-7612 | Stagnant at the same EIPs commit | Historical overlay transition | Out of generic package scope |
@@ -39,8 +40,17 @@ and one absent stem. It pins the module revision and checksum, checksums the
 tree, proof, and JSON source files used by the reference, verifies the generated
 proof, rejects a mutated proof commitment and a different valid root, and
 compares the deterministic JSON artifact byte-for-byte. This is a pinned
-behavioral corpus from one maintenance-mode implementation, not differential
-agreement with an independently implemented tree.
+behavioral corpus from one maintenance-mode implementation.
+
+The pinned Rust trie independently inserts the same ordered state, obtains the
+same root commitment, creates the same aggregate-proof elements for the same
+present and absent keys, and accepts the proof with its verifier. The native
+Rust multiproof serialization writes the final scalar in canonical big-endian
+form; the comparison reverses only those final 32 bytes to match the
+little-endian scalar convention used by `go-verkle` JSON. All point bytes and
+the resulting 576-byte Go-compatible proof agree exactly. This one-corpus
+result does not establish alternate layouts, updates, deletion, complete proof
+containers, stateless witnesses, malformed-input parity, or production safety.
 
 Protocol activation, client database migration, gas accounting, block
 execution, and network witness distribution remain outside the generic package.

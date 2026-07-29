@@ -6,6 +6,7 @@ use ipa_multipoint::{
     transcript::Transcript,
 };
 use sha2::{Digest, Sha256};
+use verkle_trie::{database::memory_db::MemoryDb, Trie, TrieTrait, VerkleConfig};
 
 fn encode_hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
@@ -82,11 +83,68 @@ fn print_multiproof() {
     );
 }
 
+fn tree_key(first: u8, suffix: u8) -> [u8; 32] {
+    let mut key = [0_u8; 32];
+    key[0] = first;
+    key[31] = suffix;
+    key
+}
+
+fn tree_value(seed: u8) -> [u8; 32] {
+    let mut value = [0_u8; 32];
+    for (index, byte) in value.iter_mut().enumerate() {
+        *byte = seed.wrapping_add(index as u8);
+    }
+    value
+}
+
+fn print_tree_proof() {
+    let entries = vec![
+        (tree_key(0x00, 0x00), tree_value(0x11)),
+        (tree_key(0x00, 0x01), tree_value(0x22)),
+        (tree_key(0x01, 0xff), tree_value(0x33)),
+        (tree_key(0x01, 0x7f), tree_value(0x44)),
+    ];
+    let mut trie = Trie::new(VerkleConfig::new(MemoryDb::new()));
+    trie.insert(entries.into_iter());
+
+    let keys = vec![
+        tree_key(0x00, 0x00),
+        tree_key(0x00, 0x02),
+        tree_key(0x01, 0xff),
+        tree_key(0x02, 0x00),
+    ];
+    let values = keys.iter().map(|key| trie.get(*key)).collect();
+    let root = trie.root_commitment();
+    let proof = trie
+        .create_verkle_proof(keys.iter().copied())
+        .expect("tree proof creation failed");
+    let (verified, _) = proof.clone().check(keys, values, root);
+    assert!(verified, "Rust verifier rejected generated tree proof");
+    let mut proof_bytes = proof
+        .proof
+        .to_bytes()
+        .expect("tree multiproof serialization failed");
+    let scalar_offset = proof_bytes.len() - 32;
+    proof_bytes[scalar_offset..].reverse();
+
+    println!("root_commitment\tmultiproof");
+    println!(
+        "{}\t{}",
+        encode_hex(&root.to_bytes()),
+        encode_hex(&proof_bytes),
+    );
+}
+
 fn main() {
     match std::env::args().nth(1).as_deref() {
         Some("encodings") => print_encodings(),
         Some("generators") => print_generators(),
         Some("multiproof") => print_multiproof(),
-        _ => panic!("usage: verkle-tree-rust-encoding-vectors <encodings|generators|multiproof>"),
+        Some("tree-proof") => print_tree_proof(),
+        _ => panic!(
+            "usage: verkle-tree-rust-encoding-vectors \
+             <encodings|generators|multiproof|tree-proof>"
+        ),
     }
 }
