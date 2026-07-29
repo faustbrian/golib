@@ -7,6 +7,10 @@ import "fmt"
 // smaller, path limit before calling these helpers.
 const MaxCompactPathNibbles = 8192
 
+// maxCompactPathBytes includes the compact flag/padding byte for the maximum
+// even nibble path.
+const maxCompactPathBytes = 4097
+
 // CompactPath is a decoded canonical Ethereum hex-prefix path. Leaf termination
 // is structural metadata and is never included in Nibbles.
 type CompactPath struct {
@@ -50,8 +54,9 @@ func EncodeCompactPath(nibbles []byte, leaf bool) ([]byte, error) {
 	} else {
 		encoded[0] = flag << 4
 	}
-	for index := offset; index < len(nibbles); index += 2 {
-		encoded[1+(index-offset)/2] = nibbles[index]<<4 | nibbles[index+1]
+	for pair := range encoded[1:] {
+		index := offset + pair*2
+		encoded[pair+1] = nibbles[index]<<4 | nibbles[index+1]
 	}
 
 	return encoded, nil
@@ -63,7 +68,7 @@ func DecodeCompactPath(encoded []byte) (CompactPath, error) {
 	if len(encoded) == 0 {
 		return CompactPath{}, fmt.Errorf("%w: empty encoding", ErrInvalidCompactPath)
 	}
-	if len(encoded) > MaxCompactPathNibbles/2+1 {
+	if len(encoded) > maxCompactPathBytes {
 		return CompactPath{}, fmt.Errorf("%w: nibble limit exceeded", ErrInvalidCompactPath)
 	}
 

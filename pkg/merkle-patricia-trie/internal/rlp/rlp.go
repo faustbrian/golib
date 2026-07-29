@@ -117,15 +117,24 @@ func encode(value Value, limits Limits, depth int, items *int) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			if len(encoded) > limits.MaxEncodedBytes-len(payload) {
-				return nil, fmt.Errorf("%w: maximum encoded bytes", ErrLimit)
+			payload, err = appendListPayload(
+				payload, encoded, limits.MaxEncodedBytes,
+			)
+			if err != nil {
+				return nil, err
 			}
-			payload = append(payload, encoded...)
 		}
 		return prefixPayload(0xc0, 0xf7, payload, limits.MaxEncodedBytes)
 	default:
 		return nil, fmt.Errorf("%w: unknown value kind", ErrMalformed)
 	}
+}
+
+func appendListPayload(payload, encoded []byte, maximum int) ([]byte, error) {
+	if len(encoded) > maximum-len(payload)-1 {
+		return nil, fmt.Errorf("%w: maximum encoded bytes", ErrLimit)
+	}
+	return append(payload, encoded...), nil
 }
 
 func prefixPayload(shortBase, longBase byte, payload []byte, maximum int) ([]byte, error) {
@@ -140,7 +149,7 @@ func prefixPayload(shortBase, longBase byte, payload []byte, maximum int) ([]byt
 
 	length := encodeLength(len(payload))
 	prefixBytes := 1 + len(length)
-	if prefixBytes > maximum || len(payload) > maximum-prefixBytes {
+	if len(payload) > maximum-prefixBytes {
 		return nil, fmt.Errorf("%w: maximum encoded bytes", ErrLimit)
 	}
 	encoded := make([]byte, prefixBytes, prefixBytes+len(payload))
@@ -201,7 +210,7 @@ func decode(encoded []byte, limits Limits, depth int, items *int) (Value, int, e
 	case prefix <= 0x7f:
 		return String(encoded[:1]), 1, nil
 	case prefix <= 0xb7:
-		length := int(prefix - 0x80)
+		length := int(prefix) - 128
 		value, err := stringPayload(encoded, 1, length)
 		if err != nil {
 			return Value{}, 0, err
@@ -281,11 +290,13 @@ func decodeList(
 	values := make([]Value, 0)
 	for len(payload) != 0 {
 		value, consumed, decodeErr := decode(payload, limits, depth+1, items)
-		if decodeErr != nil {
+		switch decodeErr {
+		case nil:
+			values = append(values, value)
+			payload = payload[consumed:]
+		default:
 			return Value{}, 0, decodeErr
 		}
-		values = append(values, value)
-		payload = payload[consumed:]
 	}
 	return List(values...), offset + length, nil
 }

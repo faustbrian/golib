@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "ethereum/tests TrieTests",
+      "revision": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
+      "manifest": "testdata/ethereum-tests/MANIFEST.md"
+    },
+    {
+      "name": "go-ethereum",
+      "version": "v1.17.3",
+      "revision": "117e067f0f0bae1a17082321f224dedb6765b10f"
+    },
+    {
+      "name": "@ethereumjs/mpt",
+      "version": "10.1.2",
+      "revision": "28d6a165971964f239b77004196c6c0e87697835",
+      "integrity": "sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g=="
+    }
+  ]
+}

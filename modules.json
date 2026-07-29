@@ -10017,6 +10017,168 @@
       }
     },
     {
+      "directory": "pkg/merkle-patricia-trie",
+      "module_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/merkle-patricia-trie",
+          "directory": ".",
+          "name": "mpt",
+          "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/merkle-patricia-trie",
+          "directory": "internal/rlp",
+          "name": "rlp",
+          "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/internal/rlp",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/merkle-patricia-trie",
+          "directory": "memory",
+          "name": "memory",
+          "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/memory",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`merkle-patricia-trie` is an independent Go implementation of Ethereum's execution-layer modified Merkle Patricia trie. Its root package is `mpt`.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/merkle-patricia-trie/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "golang.org/x/crypto"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "interoperability"
+      ],
+      "interoperability_tools": [
+        "go-ethereum v1.17.3",
+        "@ethereumjs/mpt v10.1.2",
+        "Node.js 20 or newer"
+      ],
+      "specifications": [
+        "Ethereum Yellow Paper modified Merkle Patricia trie",
+        "Ethereum Recursive Length Prefix encoding"
+      ],
+      "conformance_corpora": [
+        "ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9"
+      ],
+      "provenance": [
+        "pkg/merkle-patricia-trie/specification/provenance.json"
+      ],
+      "goal_files": [
+        "pkg/merkle-patricia-trie/.ai/GOAL.md",
+        "pkg/merkle-patricia-trie/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/merkle-patricia-trie/.ai/GOAL.md",
+          "requirements_sha256": "94494de736060c65abbdb1a73d6443a9fd7e5d31f6c53c6d89a17a2d3f1fbec1",
+          "implementation_evidence": [
+            "pkg/merkle-patricia-trie/CHANGELOG.md",
+            "pkg/merkle-patricia-trie/README.md",
+            "pkg/merkle-patricia-trie/docs/architecture.md",
+            "pkg/merkle-patricia-trie/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/merkle-patricia-trie/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "28468d71bc34b7d17a16e70ccc8a024e0cae2ee4f83311c404c48412f58bd475",
+          "implementation_evidence": [
+            "pkg/merkle-patricia-trie/CHANGELOG.md",
+            "pkg/merkle-patricia-trie/README.md",
+            "pkg/merkle-patricia-trie/docs/architecture.md",
+            "pkg/merkle-patricia-trie/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": true,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/merkle-tree",
       "module_path": "github.com/faustbrian/golib/pkg/merkle-tree",
       "go_version": "1.26.5",
@@ -15114,7 +15276,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`secret-envelope` encrypts application-owned secret payloads with one-use AES-256-GCM data keys and delegates key wrapping to an explicit provider. The AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are best-effort zeroized after each local operation.",
+      "purpose": "`secret-envelope` encrypts application-owned secret payloads with one-use AES-256-GCM data keys and delegates key wrapping to an explicit provider. The AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are best-effort zeroized after each local operation. The same adapter also exposes a verify-only asymmetric KMS boundary for bounded externally signed raw statements.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -17459,6 +17621,143 @@
             "pkg/validation/docs/hardening-report.md",
             "pkg/validation/docs/performance.md",
             "pkg/validation/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/verkle-tree",
+      "module_path": "github.com/faustbrian/golib/pkg/verkle-tree",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/verkle-tree",
+          "directory": ".",
+          "name": "verkletree",
+          "import_path": "github.com/faustbrian/golib/pkg/verkle-tree",
+          "kind": "public",
+          "production": true,
+          "executable": false,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/verkle-tree",
+          "directory": "internal/backend",
+          "name": "backend",
+          "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/backend",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`verkle-tree` is intended to become a storage-independent Go library for authenticated key/value trees backed by vector commitments.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/verkle-tree/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/crate-crypto/go-ipa"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/verkle-tree/.ai/GOAL.md",
+        "pkg/verkle-tree/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/verkle-tree/.ai/GOAL.md",
+          "requirements_sha256": "69c8a5b0b5ef7719156f1184c3e45c17b96057d33318f22c421f1142c3ca3668",
+          "implementation_evidence": [
+            "pkg/verkle-tree/CHANGELOG.md",
+            "pkg/verkle-tree/README.md",
+            "pkg/verkle-tree/docs/compatibility.md",
+            "pkg/verkle-tree/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/verkle-tree/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "e7e3cbabb4169ddb2c026736054faec98a36c80c88fca2ff46c482528e20481a",
+          "implementation_evidence": [
+            "pkg/verkle-tree/CHANGELOG.md",
+            "pkg/verkle-tree/README.md",
+            "pkg/verkle-tree/docs/compatibility.md",
+            "pkg/verkle-tree/docs/threat-model.md"
           ],
           "verification_gates": [
             "format-check",

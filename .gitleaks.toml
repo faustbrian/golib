@@ -29,3 +29,8 @@ regexes = ['''(?i)"idempotency_key"\s*:\s*"maintenance-[0-9-]+"''']
 description = "Webhook vectors contain deliberate public test key material."
 targetRules = ["generic-api-key"]
 paths = ['''^(?:pkg/webhook/)?testdata/vectors/v1\.json$''']
+
+[[allowlists]]
+description = "Pinned Ethereum trie fixtures contain deliberate public test key material."
+targetRules = ["generic-api-key"]
+paths = ['''^(?:pkg/merkle-patricia-trie/)?testdata/ethereum-tests/TrieTests/trietest\.json$''']

@@ -839,6 +839,10 @@ func requiredTestTags(root, moduleDirectory string) ([]string, error) {
 			!slices.Contains(tags, "integration") {
 			tags = append(tags, "integration")
 		}
+		if bytes.Contains(data, []byte("//go:build interoperability")) &&
+			!slices.Contains(tags, "interoperability") {
+			tags = append(tags, "interoperability")
+		}
 		return nil
 	})
 	if err != nil {
@@ -1054,6 +1058,8 @@ func interoperabilityTools(directory string) []string {
 		return []string{"Java", "Apache Woden"}
 	case "ecma-regexp":
 		return []string{"Node.js", "Test262"}
+	case "merkle-patricia-trie":
+		return []string{"go-ethereum v1.17.3", "@ethereumjs/mpt v10.1.2", "Node.js 20 or newer"}
 	case "xsd":
 		return []string{"Docker", "Eclipse Temurin 25 JAXP"}
 	default:
@@ -1072,6 +1078,11 @@ func specifications(directory string) []string {
 		return []string{"JSON-RPC 2.0"}
 	case "merkle-tree":
 		return []string{"RFC 9162"}
+	case "merkle-patricia-trie":
+		return []string{
+			"Ethereum Yellow Paper modified Merkle Patricia trie",
+			"Ethereum Recursive Length Prefix encoding",
+		}
 	case "openapi":
 		return []string{"OpenAPI 2.0, 3.0, and 3.1"}
 	case "openrpc":
@@ -1092,6 +1103,10 @@ func conformanceCorpora(directory string) []string {
 		return []string{"TC39 Test262"}
 	case "json-schema":
 		return []string{"JSON-Schema-Test-Suite", "Bowtie"}
+	case "merkle-patricia-trie":
+		return []string{
+			"ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
+		}
 	case "xsd":
 		return []string{"W3C XML Schema Test Suite"}
 	default:

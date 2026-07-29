@@ -1,0 +1,8 @@
+{
+  "name": "merkle-patricia-trie-interoperability",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@ethereumjs/mpt": "10.1.2"
+  }
+}

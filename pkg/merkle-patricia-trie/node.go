@@ -197,7 +197,7 @@ func childReference(
 	child nodeEncoding,
 	state *encodingState,
 ) (rlp.Value, map[Root][]byte, error) {
-	persisted := make(map[Root][]byte, len(child.persisted)+1)
+	persisted := make(map[Root][]byte)
 	mergePersisted(persisted, child.persisted)
 	if len(child.bytes) < RootBytes {
 		return child.value, persisted, nil
@@ -310,10 +310,8 @@ func decodeChildReference(value rlp.Value) (node, error) {
 		case 0:
 			return nil, nil
 		case RootBytes:
-			root, err := RootFromBytes(reference)
-			if err != nil {
-				return nil, fmt.Errorf("%w: child hash: %v", ErrMalformedNode, err)
-			}
+			var root Root
+			copy(root[:], reference)
 			return hashNode(root), nil
 		default:
 			return nil, fmt.Errorf(
@@ -324,19 +322,13 @@ func decodeChildReference(value rlp.Value) (node, error) {
 		}
 	}
 
-	encoded, err := rlp.Encode(value, rlp.DefaultLimits())
-	if err != nil {
-		return nil, fmt.Errorf("%w: embedded child RLP: %v", ErrMalformedNode, err)
-	}
+	encoded, _ := rlp.Encode(value, rlp.DefaultLimits())
 	if len(encoded) >= RootBytes {
 		return nil, fmt.Errorf("%w: oversized embedded child", ErrMalformedNode)
 	}
 	child, err := decodeNodeValue(value)
 	if err != nil {
 		return nil, err
-	}
-	if child == nil {
-		return nil, fmt.Errorf("%w: embedded null child", ErrMalformedNode)
 	}
 	return child, nil
 }

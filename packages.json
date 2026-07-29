@@ -3917,6 +3917,42 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/merkle-patricia-trie",
+      "directory": ".",
+      "name": "mpt",
+      "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/merkle-patricia-trie",
+      "directory": "internal/rlp",
+      "name": "rlp",
+      "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/internal/rlp",
+      "kind": "internal",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/merkle-patricia-trie",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/merkle-tree",
       "directory": ".",
       "name": "merkletree",
@@ -7180,6 +7216,30 @@
       "name": "validationtext",
       "import_path": "github.com/faustbrian/golib/pkg/validation/validationtext",
       "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/verkle-tree",
+      "directory": ".",
+      "name": "verkletree",
+      "import_path": "github.com/faustbrian/golib/pkg/verkle-tree",
+      "kind": "public",
+      "production": true,
+      "executable": false,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/verkle-tree",
+      "directory": "internal/backend",
+      "name": "backend",
+      "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/backend",
+      "kind": "internal",
       "production": true,
       "executable": true,
       "coverage_required": true,

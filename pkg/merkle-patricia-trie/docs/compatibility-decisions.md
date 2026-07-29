@@ -13,6 +13,18 @@ key to an empty byte string has deletion semantics, matching the execution
 trie convention. Absence remains a typed outcome. Ethereum-specific helpers
 apply their own value validation before entering the core.
 
+## Empty raw key
+
+The raw profile accepts the empty byte string as a key. The Yellow Paper models
+trie keys as byte arrays without excluding length zero, and Geth v1.17.3
+preserves unrelated keys when that key is deleted. The imported legacy
+`TrieTests` corpus does not exercise this boundary. EthereumJS MPT v10.1.2
+instead resets the trie to the empty root when deleting the empty key from a
+populated raw trie. That behavior is not used as a compatibility oracle for
+empty-key deletion; differential traces against EthereumJS use non-empty keys.
+The exhaustive small-state model and focused empty-key mutation tests lock the
+chosen behavior.
+
 ## Child references
 
 Only a canonical child-node encoding shorter than 32 bytes is embedded.

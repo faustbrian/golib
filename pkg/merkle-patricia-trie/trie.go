@@ -2,38 +2,65 @@ package mpt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
-// Limits bounds in-memory trie operations. Store, proof, iteration, batch, and
-// snapshot limits are added by their respective APIs rather than being hidden
-// inside these fields.
+// Limits bounds trie traversal, encoding, hashing, storage reads, iteration,
+// batches, and proofs.
 type Limits struct {
-	MaxKeyBytes       int
-	MaxValueBytes     int
-	MaxTraversalDepth int
-	MaxTraversalNodes int
-	MaxEncodingNodes  int
-	MaxHashOperations int
+	MaxKeyBytes        int
+	MaxValueBytes      int
+	MaxTraversalDepth  int
+	MaxTraversalNodes  int
+	MaxEncodingNodes   int
+	MaxHashOperations  int
+	MaxNodeReads       int
+	MaxIteratorResults int
+	MaxIterationNodes  int
+	MaxRebuildNodes    int
+	MaxBatchOperations int
+	MaxProofKeys       int
+	MaxProofNodes      int
+	MaxProofBytes      int
+	MaxRecoveryNodes   int
+	MaxRecoveryBytes   int
 }
 
 // DefaultLimits returns conservative limits suitable for ordinary raw and
 // secure tries.
 func DefaultLimits() Limits {
 	return Limits{
-		MaxKeyBytes:       512,
-		MaxValueBytes:     1 << 20,
-		MaxTraversalDepth: 2048,
-		MaxTraversalNodes: 8192,
-		MaxEncodingNodes:  1 << 20,
-		MaxHashOperations: 1 << 20,
+		MaxKeyBytes:        512,
+		MaxValueBytes:      1 << 20,
+		MaxTraversalDepth:  2048,
+		MaxTraversalNodes:  8192,
+		MaxEncodingNodes:   1 << 20,
+		MaxHashOperations:  1 << 20,
+		MaxNodeReads:       4096,
+		MaxIteratorResults: 1 << 16,
+		MaxIterationNodes:  1 << 20,
+		MaxRebuildNodes:    1 << 22,
+		MaxBatchOperations: 4096,
+		MaxProofKeys:       256,
+		MaxProofNodes:      1024,
+		MaxProofBytes:      16 << 20,
+		MaxRecoveryNodes:   1024,
+		MaxRecoveryBytes:   16 << 20,
 	}
 }
 
 type trieSnapshot struct {
-	root   node
-	hash   Root
-	limits Limits
+	root    node
+	hash    Root
+	limits  Limits
+	base    Root
+	reader  NodeReader
+	pending map[Root][]byte
+
+	recovered     map[Root][]byte
+	recoveryNodes int
+	recoveryBytes int
 }
 
 // RawTrie is an immutable trie that uses caller bytes directly as its path.
@@ -47,7 +74,18 @@ func NewRawTrie(limits Limits) (RawTrie, error) {
 	if err := validateTrieLimits(limits); err != nil {
 		return RawTrie{}, err
 	}
-	return RawTrie{snapshot: &trieSnapshot{hash: EmptyRoot(), limits: limits}}, nil
+	return RawTrie{snapshot: &trieSnapshot{
+		hash: EmptyRoot(), base: EmptyRoot(), limits: limits,
+	}}, nil
+}
+
+// LoadRawTrie constructs a lazy immutable raw trie from a trusted root.
+func LoadRawTrie(root Root, reader NodeReader, limits Limits) (RawTrie, error) {
+	snapshot, err := loadSnapshot(root, reader, limits)
+	if err != nil {
+		return RawTrie{}, err
+	}
+	return RawTrie{snapshot: snapshot}, nil
 }
 
 // Root returns the snapshot's 32-byte commitment.
@@ -91,6 +129,15 @@ func (trie RawTrie) Delete(ctx context.Context, key []byte) (RawTrie, error) {
 	return RawTrie{snapshot: snapshot}, nil
 }
 
+// Commit atomically writes every pending hashed node and publishes the root.
+func (trie RawTrie) Commit(ctx context.Context, store NodeStore) (RawTrie, error) {
+	snapshot, err := commitSnapshot(ctx, trie.snapshot, store)
+	if err != nil {
+		return RawTrie{}, err
+	}
+	return RawTrie{snapshot: snapshot}, nil
+}
+
 // SecureTrie is an immutable trie that applies legacy Keccak-256 exactly once
 // to each caller key before path traversal. It has no pre-hashed-key method.
 type SecureTrie struct {
@@ -102,7 +149,18 @@ func NewSecureTrie(limits Limits) (SecureTrie, error) {
 	if err := validateTrieLimits(limits); err != nil {
 		return SecureTrie{}, err
 	}
-	return SecureTrie{snapshot: &trieSnapshot{hash: EmptyRoot(), limits: limits}}, nil
+	return SecureTrie{snapshot: &trieSnapshot{
+		hash: EmptyRoot(), base: EmptyRoot(), limits: limits,
+	}}, nil
+}
+
+// LoadSecureTrie constructs a lazy immutable secure trie from a trusted root.
+func LoadSecureTrie(root Root, reader NodeReader, limits Limits) (SecureTrie, error) {
+	snapshot, err := loadSnapshot(root, reader, limits)
+	if err != nil {
+		return SecureTrie{}, err
+	}
+	return SecureTrie{snapshot: snapshot}, nil
 }
 
 // Root returns the snapshot's 32-byte commitment.
@@ -147,6 +205,15 @@ func (trie SecureTrie) Delete(ctx context.Context, key []byte) (SecureTrie, erro
 	return SecureTrie{snapshot: snapshot}, nil
 }
 
+// Commit atomically writes every pending hashed node and publishes the root.
+func (trie SecureTrie) Commit(ctx context.Context, store NodeStore) (SecureTrie, error) {
+	snapshot, err := commitSnapshot(ctx, trie.snapshot, store)
+	if err != nil {
+		return SecureTrie{}, err
+	}
+	return SecureTrie{snapshot: snapshot}, nil
+}
+
 func getSnapshot(
 	ctx context.Context,
 	snapshot *trieSnapshot,
@@ -157,14 +224,15 @@ func getSnapshot(
 		return nil, err
 	}
 	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
-	path, err := keyPath(key, secure, &budget)
-	if err != nil {
-		return nil, err
-	}
+	path, _ := keyPath(key, secure, &budget)
 	state := traversalState{
 		ctx:       ctx,
 		maxDepth:  snapshot.limits.MaxTraversalDepth,
 		nodesLeft: snapshot.limits.MaxTraversalNodes,
+		readsLeft: snapshot.limits.MaxNodeReads,
+		reader:    snapshot.reader,
+		pending:   snapshot.pending,
+		budget:    &budget,
 	}
 	value, found, err := getNode(snapshot.root, path, 0, &state)
 	if err != nil {
@@ -189,21 +257,28 @@ func updateSnapshot(
 		return deleteSnapshot(ctx, snapshot, key, secure)
 	}
 
+	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
 	state := traversalState{
 		ctx:       ctx,
 		maxDepth:  snapshot.limits.MaxTraversalDepth,
 		nodesLeft: snapshot.limits.MaxTraversalNodes,
+		readsLeft: snapshot.limits.MaxNodeReads,
+		reader:    snapshot.reader,
+		pending:   snapshot.pending,
+		budget:    &budget,
 	}
-	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
-	path, err := keyPath(key, secure, &budget)
-	if err != nil {
-		return nil, err
-	}
+	path, _ := keyPath(key, secure, &budget)
 	root, err := insertNode(snapshot.root, path, value, 0, &state)
 	if err != nil {
 		return nil, err
 	}
-	return finishSnapshot(ctx, root, snapshot.limits, &budget)
+	finished, err := finishSnapshot(
+		ctx, root, snapshot.limits, snapshot.base, snapshot.reader, &budget,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return inheritRecovery(finished, snapshot), nil
 }
 
 func deleteSnapshot(
@@ -215,16 +290,17 @@ func deleteSnapshot(
 	if err := validateOperation(ctx, snapshot, key, nil, false); err != nil {
 		return nil, err
 	}
+	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
 	state := traversalState{
 		ctx:       ctx,
 		maxDepth:  snapshot.limits.MaxTraversalDepth,
 		nodesLeft: snapshot.limits.MaxTraversalNodes,
+		readsLeft: snapshot.limits.MaxNodeReads,
+		reader:    snapshot.reader,
+		pending:   snapshot.pending,
+		budget:    &budget,
 	}
-	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
-	path, err := keyPath(key, secure, &budget)
-	if err != nil {
-		return nil, err
-	}
+	path, _ := keyPath(key, secure, &budget)
 	root, deleted, err := deleteNode(snapshot.root, path, 0, &state)
 	if err != nil {
 		return nil, err
@@ -232,22 +308,32 @@ func deleteSnapshot(
 	if !deleted {
 		return nil, ErrAbsentKey
 	}
-	return finishSnapshot(ctx, root, snapshot.limits, &budget)
+	finished, err := finishSnapshot(
+		ctx, root, snapshot.limits, snapshot.base, snapshot.reader, &budget,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return inheritRecovery(finished, snapshot), nil
 }
 
 func finishSnapshot(
 	ctx context.Context,
 	root node,
 	limits Limits,
+	base Root,
+	reader NodeReader,
 	budget *workBudget,
 ) (*trieSnapshot, error) {
 	if err := checkContext(ctx); err != nil {
 		return nil, err
 	}
 	if root == nil {
-		return &trieSnapshot{hash: EmptyRoot(), limits: limits}, nil
+		return &trieSnapshot{
+			hash: EmptyRoot(), base: base, limits: limits, reader: reader,
+		}, nil
 	}
-	encoded, _, err := encodeNodeBounded(
+	encoded, pending, err := encodeNodeBounded(
 		ctx,
 		root,
 		limits.MaxEncodingNodes,
@@ -263,7 +349,11 @@ func finishSnapshot(
 	if err != nil {
 		return nil, err
 	}
-	return &trieSnapshot{root: root, hash: hash, limits: limits}, nil
+	pending[hash] = append([]byte(nil), encoded...)
+	return &trieSnapshot{
+		root: root, hash: hash, limits: limits, base: base, reader: reader,
+		pending: pending,
+	}, nil
 }
 
 func validateTrieLimits(limits Limits) error {
@@ -275,7 +365,17 @@ func validateTrieLimits(limits Limits) error {
 		limits.MaxTraversalDepth > MaxCompactPathNibbles+1 ||
 		limits.MaxTraversalNodes <= 0 ||
 		limits.MaxEncodingNodes <= 0 ||
-		limits.MaxHashOperations <= 0 {
+		limits.MaxHashOperations <= 0 ||
+		limits.MaxNodeReads <= 0 ||
+		limits.MaxIteratorResults <= 0 ||
+		limits.MaxIterationNodes <= 0 ||
+		limits.MaxRebuildNodes <= 0 ||
+		limits.MaxBatchOperations <= 0 ||
+		limits.MaxProofKeys <= 0 ||
+		limits.MaxProofNodes <= 0 ||
+		limits.MaxProofBytes <= 0 ||
+		limits.MaxRecoveryNodes <= 0 ||
+		limits.MaxRecoveryBytes <= 0 {
 		return fmt.Errorf("%w: invalid trie limits", ErrResourceLimit)
 	}
 	return nil
@@ -321,6 +421,10 @@ type traversalState struct {
 	ctx       context.Context
 	maxDepth  int
 	nodesLeft int
+	readsLeft int
+	reader    NodeReader
+	pending   map[Root][]byte
+	budget    *workBudget
 }
 
 func (state *traversalState) visit(depth int) error {
@@ -387,12 +491,22 @@ func getNode(
 		if !hasPrefix(path, current.path) {
 			return nil, false, nil
 		}
-		return getNode(current.child, path[len(current.path):], depth+1, state)
+		child, err := state.extensionChild(current.child)
+		if err != nil {
+			return nil, false, err
+		}
+		return getNode(child, path[len(current.path):], depth+1, state)
 	case *branchNode:
 		if len(path) == 0 {
 			return current.value, len(current.value) != 0, nil
 		}
 		return getNode(current.children[path[0]], path[1:], depth+1, state)
+	case hashNode:
+		resolved, err := state.resolve(Root(current))
+		if err != nil {
+			return nil, false, err
+		}
+		return getNode(resolved, path, depth, state)
 	default:
 		return nil, false, fmt.Errorf("%w: unresolved node", ErrMalformedNode)
 	}
@@ -413,7 +527,12 @@ func insertNode(
 	case *leafNode:
 		return insertLeaf(current, path, value)
 	case *extensionNode:
-		return insertExtension(current, path, value, depth, state)
+		child, err := state.extensionChild(current.child)
+		if err != nil {
+			return nil, err
+		}
+		resolved := &extensionNode{path: current.path, child: child}
+		return insertExtension(resolved, path, value, depth, state)
 	case *branchNode:
 		children := current.children
 		branchValue := current.value
@@ -427,6 +546,12 @@ func insertNode(
 			children[path[0]] = child
 		}
 		return newBranch(children, branchValue)
+	case hashNode:
+		resolved, err := state.resolve(Root(current))
+		if err != nil {
+			return nil, err
+		}
+		return insertNode(resolved, path, value, depth, state)
 	default:
 		return nil, fmt.Errorf("%w: unresolved node", ErrMalformedNode)
 	}
@@ -460,10 +585,7 @@ func insertLeaf(current *leafNode, path, value []byte) (node, error) {
 		}
 		children[newRemainder[0]] = leaf
 	}
-	branch, err := newBranch(children, branchValue)
-	if err != nil {
-		return nil, err
-	}
+	branch, _ := newBranch(children, branchValue)
 	if common == 0 {
 		return branch, nil
 	}
@@ -488,7 +610,8 @@ func insertExtension(
 		if err != nil {
 			return nil, err
 		}
-		return makeExtension(current.path, child)
+		compacted, _ := makeExtension(current.path, child)
+		return compacted, nil
 	}
 
 	var children [16]node
@@ -514,14 +637,12 @@ func insertExtension(
 		}
 		children[newRemainder[0]] = leaf
 	}
-	branch, err := newBranch(children, branchValue)
-	if err != nil {
-		return nil, err
-	}
+	branch, _ := newBranch(children, branchValue)
 	if common == 0 {
 		return branch, nil
 	}
-	return makeExtension(path[:common], branch)
+	compacted, _ := makeExtension(path[:common], branch)
+	return compacted, nil
 }
 
 func deleteNode(
@@ -545,8 +666,12 @@ func deleteNode(
 		if !hasPrefix(path, current.path) {
 			return current, false, nil
 		}
+		resolvedChild, resolveErr := state.extensionChild(current.child)
+		if resolveErr != nil {
+			return nil, false, resolveErr
+		}
 		child, deleted, err := deleteNode(
-			current.child,
+			resolvedChild,
 			path[len(current.path):],
 			depth+1,
 			state,
@@ -554,11 +679,8 @@ func deleteNode(
 		if err != nil || !deleted {
 			return current, deleted, err
 		}
-		if child == nil {
-			return nil, true, nil
-		}
-		compacted, err := makeExtension(current.path, child)
-		return compacted, true, err
+		compacted, _ := makeExtension(current.path, child)
+		return compacted, true, nil
 	case *branchNode:
 		children := current.children
 		branchValue := current.value
@@ -581,6 +703,12 @@ func deleteNode(
 		}
 		compacted, err := compactBranch(children, branchValue)
 		return compacted, true, err
+	case hashNode:
+		resolved, err := state.resolve(Root(current))
+		if err != nil {
+			return nil, false, err
+		}
+		return deleteNode(resolved, path, depth, state)
 	default:
 		return nil, false, fmt.Errorf("%w: unresolved node", ErrMalformedNode)
 	}
@@ -664,4 +792,129 @@ func slicesEqual(left, right []byte) bool {
 
 func errorsIsAbsent(err error) bool {
 	return err == ErrAbsentKey
+}
+
+func loadSnapshot(root Root, reader NodeReader, limits Limits) (*trieSnapshot, error) {
+	if err := validateTrieLimits(limits); err != nil {
+		return nil, err
+	}
+	if !validStore(reader) {
+		return nil, ErrInvalidStore
+	}
+	var rootNode node
+	if root != EmptyRoot() {
+		rootNode = hashNode(root)
+	}
+	return &trieSnapshot{
+		root: rootNode, hash: root, base: root, limits: limits, reader: reader,
+	}, nil
+}
+
+func commitSnapshot(
+	ctx context.Context,
+	snapshot *trieSnapshot,
+	store NodeStore,
+) (*trieSnapshot, error) {
+	if snapshot == nil {
+		return nil, ErrUninitialized
+	}
+	if err := checkContext(ctx); err != nil {
+		return nil, err
+	}
+	if !validStore(store) {
+		return nil, ErrInvalidStore
+	}
+	if snapshot.reader != nil && !sameStore(snapshot.reader, store) {
+		return nil, fmt.Errorf(
+			"%w: loaded snapshots must commit to their source store",
+			ErrInvalidStore,
+		)
+	}
+	if snapshot.reader != nil &&
+		snapshot.hash == snapshot.base &&
+		len(snapshot.pending) == 0 {
+		return snapshot, nil
+	}
+	commit := newStoreCommit(snapshot.base, snapshot.hash, snapshot.pending)
+	if err := store.CommitTrie(ctx, commit); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrStorageCommit, err)
+	}
+	return &trieSnapshot{
+		root: snapshot.root, hash: snapshot.hash, base: snapshot.hash,
+		limits: snapshot.limits, reader: store,
+	}, nil
+}
+
+func (state *traversalState) resolve(hash Root) (node, error) {
+	resolved, _, err := state.resolveEncoded(hash)
+	return resolved, err
+}
+
+func (state *traversalState) resolveEncoded(
+	hash Root,
+) (node, []byte, error) {
+	encoded, recovered := state.pending[hash]
+	if !recovered {
+		if state.reader == nil {
+			return nil, nil, fmt.Errorf("%w: unresolved hash without reader", ErrMalformedNode)
+		}
+		if state.readsLeft == 0 {
+			return nil, nil, fmt.Errorf("%w: node read bound exceeded", ErrResourceLimit)
+		}
+		state.readsLeft--
+		var err error
+		encoded, err = state.reader.GetNode(state.ctx, hash)
+		if err != nil {
+			if errors.Is(err, ErrMissingNode) {
+				return nil, nil, &MissingNodeError{Hash: hash, Cause: err}
+			}
+			return nil, nil, fmt.Errorf("%w: %w", ErrStorageRead, err)
+		}
+	}
+	encoded = append([]byte(nil), encoded...)
+	actual, err := state.budget.hash(encoded)
+	if err != nil {
+		return nil, nil, err
+	}
+	if actual != hash {
+		return nil, nil, &CorruptNodeError{
+			Hash: hash, Cause: fmt.Errorf("%w: hash mismatch", ErrCorruptNode),
+		}
+	}
+	resolved, err := decodeNode(encoded)
+	if err != nil || resolved == nil {
+		if err == nil {
+			err = fmt.Errorf("%w: stored null node", ErrMalformedNode)
+		}
+		return nil, nil, &CorruptNodeError{Hash: hash, Cause: err}
+	}
+	return resolved, append([]byte(nil), encoded...), nil
+}
+
+func (state *traversalState) extensionChild(child node) (node, error) {
+	switch child := child.(type) {
+	case *branchNode:
+		return child, nil
+	case hashNode:
+		hash := Root(child)
+		resolved, err := state.resolve(hash)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := resolved.(*branchNode); !ok {
+			return nil, &CorruptNodeError{
+				Hash: hash,
+				Cause: fmt.Errorf(
+					"%w: extension child is a compact node",
+					ErrMalformedNode,
+				),
+			}
+		}
+		return resolved, nil
+	default:
+		return nil, fmt.Errorf(
+			"%w: extension child is not a branch",
+			ErrMalformedNode,
+		)
+	}
 }

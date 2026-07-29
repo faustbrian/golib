@@ -17,6 +17,55 @@ concurrently. A mutable writer has one caller-owned synchronization owner and
 never launches hidden goroutines. Context cancellation and limits bound every
 I/O or potentially expensive public operation.
 
+`RawTrie` and `SecureTrie` values are immutable logical snapshots. Updates,
+deletions, and batches return new snapshots and leave the receiver unchanged.
+Iteration invokes callbacks synchronously and never retains callback-owned
+data.
+
+## Storage and publication
+
+`NodeReader` retrieves canonical nodes by exact legacy Keccak hash.
+`NodeStore` atomically writes a complete `StoreCommit` and publishes its root
+only if the previous root still matches. Trie reads rehash and canonically
+decode every stored node before use.
+
+A snapshot loaded from a store must commit back to that same store. This
+prevents a new store from publishing a root whose unchanged hashed descendants
+remain only in the source store. Copying between stores is a rebuild operation,
+not a commit. The `memory` adapter provides immutable node bytes, concurrent
+reads, and copy-on-write compare-and-swap commits.
+
+Missing-node recovery is an immutable overlay, not an unchecked store write.
+`RecoverNode` verifies the supplied bytes against the reported legacy-Keccak
+hash and canonical node grammar before returning a new snapshot. All traversal
+surfaces consult the bounded overlay before the backing reader, so lookup,
+mutation, proofs, iteration, and rebuild can resume without changing the old
+snapshot. A same-root commit durably repairs recovered nodes using the store's
+atomic compare-and-swap contract.
+
+`Rebuild` streams the source snapshot in trie order into a fresh materialized
+snapshot and compares the reconstructed commitment with the source root. Only
+that independent result may be committed to another store.
+
+`SortedBuilder` is a separate mutable, root-only construction boundary. It
+requires strict byte-key order and incrementally closes canonical subtries as
+their prefixes leave the input frontier. Completed branch nodes are reduced to
+embedded RLP or hash references, so retained state is bounded by key depth and
+the open branch frontier rather than entry count. It cannot be reused after
+successful finalization and does not expose or retain a mutable trie.
+
+## Current proof contract
+
+`Proof` carries an ordered root-to-terminal sequence of canonical RLP nodes.
+`MultiProof` orders nodes by first encounter across lexicographically sorted
+caller keys and carries each hashed node once. Embedded children remain inside
+their parent and are not duplicated. Verification supports raw and secure
+membership, non-membership, and mixed multi-key claims, rejecting wrong roots,
+claims, profiles, missing nodes, duplicate or reordered nodes, hash mismatches,
+and surplus material. EIP-1186 helpers bind account proofs to exact addresses
+and storage proofs to the storage root decoded from a proven canonical account.
+Range-proof completeness remains a later delivery phase.
+
 ## Canonical representation
 
 In-memory node forms are implementation details. Persistence and proofs use
