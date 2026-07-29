@@ -2,7 +2,60 @@
   "schema_version": 1,
   "captured_on": "2026-07-29",
   "profile_status": "not-frozen",
-  "imports": [],
+  "imports": [
+    {
+      "source_id": "crate-crypto-go-ipa-candidate",
+      "module_version": "v0.0.0-20240223125850-b1e8a79f509c",
+      "purpose": "internal canonical commitment and scalar encoding research",
+      "scope": "internal/backend",
+      "status": "pre-v1-research-only-production-rejected",
+      "license_review": {
+        "tool": "go-licenses",
+        "result": "pass-with-uninspectable-assembly-warning",
+        "licenses": [
+          "Apache-2.0",
+          "BSD-3-Clause",
+          "MIT"
+        ]
+      },
+      "vulnerability_review": {
+        "tool": "govulncheck",
+        "reachable_symbol_findings": 0,
+        "imported_package_findings": [
+          "GO-2025-4087"
+        ],
+        "required_module_findings": [
+          "GO-2026-5024"
+        ]
+      }
+    }
+  ],
+  "test_fixtures": [
+    {
+      "id": "go-ipa-banderwagon-point-encodings",
+      "source_id": "crate-crypto-go-ipa-candidate",
+      "source_path": "banderwagon/element_test.go",
+      "source_sha256": "b4f39cdbbd06a7bd4371734c2d5c697d25c46f43b12ea744b4fa2f755ff10410",
+      "source_lines": [
+        17,
+        103
+      ],
+      "license": "MIT OR Apache-2.0",
+      "generation_procedure": "Copy the canonical generator encoding and wrong-subgroup rejection vector from the pinned source lines.",
+      "review_procedure": "Decode through the checked compressed-point API, assert canonical round trip for the generator, and assert rejection for the wrong-subgroup vector.",
+      "reproducible": true
+    },
+    {
+      "id": "go-ipa-bandersnatch-scalar-modulus",
+      "source_id": "crate-crypto-go-ipa-candidate",
+      "source_path": "bandersnatch/fr/doc.go",
+      "source_value": "0x1cfb69d4ca675f520cce760202687600ff8f87007419047174fd06b52876e7e1",
+      "license": "MIT OR Apache-2.0",
+      "generation_procedure": "Encode the documented field modulus as exactly 32 bytes in little-endian order.",
+      "review_procedure": "Assert the canonical scalar decoder rejects the modulus because canonical field elements are strictly smaller.",
+      "reproducible": true
+    }
+  ],
   "sources": [
     {
       "id": "kuszmaul-verkle-trees",

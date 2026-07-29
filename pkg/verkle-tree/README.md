@@ -5,8 +5,9 @@ authenticated key/value trees backed by vector commitments.
 
 ## Status
 
-This module is **pre-v1 research only**. It does not yet expose a Go package,
-implement a tree, or make proof/interoperability claims.
+This module is **pre-v1 research only**. Its root package intentionally exposes
+no tree operations. It does not implement a tree or make proof/interoperability
+claims.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -22,10 +23,16 @@ stable:
 
 The exact evidence and consequences are recorded in
 [`specification/profile-freeze.md`](specification/profile-freeze.md) and
-[`specification/sources.json`](specification/sources.json).
+[`specification/sources.json`](specification/sources.json). The pinned backend's
+accepted seam and release blockers are in
+[`docs/backend-audit.md`](docs/backend-audit.md).
 
-No dependency, fixture, generator table, setup material, or generated constant
-has been imported.
+The pinned `go-ipa` dependency is imported only behind an internal canonical
+point/scalar encoding boundary. Its setup, generator table, commitment, and
+proof operations are not used. The encoding tests include two pinned upstream
+point fixtures and the documented scalar-field modulus; their provenance is
+recorded in [`specification/sources.json`](specification/sources.json). No
+setup material, generator table, or generated constant has been imported.
 
 ## Development rule
 
