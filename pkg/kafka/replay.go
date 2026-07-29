@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/bits"
 	"strings"
 	"sync"
 	"time"
@@ -554,15 +555,19 @@ func replayRemainingOverflows(
 	checkpoint ReplayCheckpoint,
 ) bool {
 	next := replayNextOffsets(ranges, checkpoint)
-	var total int64
+	var total uint64
 	for _, replayRange := range ranges {
-		remaining := replayRange.EndOffset - next[replayPartition{
-			topic: replayRange.Topic, partition: replayRange.Partition,
-		}]
-		if remaining > math.MaxInt64-total {
+		remaining, _ := bits.Sub64(
+			uint64(replayRange.EndOffset),
+			uint64(next[replayPartition{
+				topic: replayRange.Topic, partition: replayRange.Partition,
+			}]),
+			0,
+		)
+		total, _ = bits.Add64(total, remaining, 0)
+		if total > math.MaxInt64 {
 			return true
 		}
-		total += remaining
 	}
 
 	return false

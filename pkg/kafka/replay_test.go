@@ -115,6 +115,7 @@ func TestReplayConfigRejectsExactProgressTimeoutLowerBoundary(t *testing.T) {
 	t.Parallel()
 
 	config := validReplayConfig()
+	config.FetchMaxWait = time.Millisecond
 	config.ProgressTimeout = 100*time.Millisecond - time.Nanosecond
 	if _, err := normalizeReplayConfig(config); !errors.Is(err, ErrInvalidReplayConfig) {
 		t.Fatalf("progress timeout lower-bound error = %v", err)
