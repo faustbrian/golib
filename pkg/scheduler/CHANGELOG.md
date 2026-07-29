@@ -7,6 +7,8 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Restore immutable main pseudo-version pins for every owned dependency so the
+  current scheduler source resolves from a clean external module.
 - Release managed execution capacity before completing an occurrence so
   single-worker catch-up does not reject the next cooperative execution.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

@@ -3,11 +3,11 @@ module github.com/faustbrian/golib/pkg/scheduler
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/correlation v0.0.0
-	github.com/faustbrian/golib/pkg/idempotency v0.0.0
-	github.com/faustbrian/golib/pkg/queue v0.0.0
-	github.com/faustbrian/golib/pkg/service v0.0.0
-	github.com/faustbrian/golib/pkg/telemetry v0.0.0
+	github.com/faustbrian/golib/pkg/correlation v0.0.0-20260729185016-600a2ffaf74d
+	github.com/faustbrian/golib/pkg/idempotency v0.0.0-20260727121552-3a0d3e1f5277
+	github.com/faustbrian/golib/pkg/queue v0.0.0-20260729185723-d976d66afee5
+	github.com/faustbrian/golib/pkg/service v0.0.0-20260729185121-c56b7cb53124
+	github.com/faustbrian/golib/pkg/telemetry v0.0.0-20260726014151-129e137b63d8
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/valkey-io/valkey-go v1.0.76
@@ -21,9 +21,9 @@ require (
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/faustbrian/golib/pkg/cli v0.0.0 // indirect
-	github.com/faustbrian/golib/pkg/clock v0.0.0 // indirect
-	github.com/faustbrian/golib/pkg/identifier v0.0.0 // indirect
+	github.com/faustbrian/golib/pkg/cli v0.0.0-20260729183302-ac9562ceb0b5 // indirect
+	github.com/faustbrian/golib/pkg/clock v0.0.0-20260726014151-129e137b63d8 // indirect
+	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
