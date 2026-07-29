@@ -47,6 +47,13 @@ func TestParseOfficialUUIDVectorsAndInspectTime(t *testing.T) {
 			time:    time.Date(1997, 2, 3, 17, 43, 12, 216875000, time.UTC),
 		},
 		{
+			text:     "1d07decf-81d4-6fae-a765-00a0c91e6bf6",
+			version:  6,
+			hasTime:  true,
+			sortable: true,
+			time:     time.Date(1997, 2, 3, 17, 43, 12, 216875000, time.UTC),
+		},
+		{
 			text:     "017f22e2-79b0-7cc3-98c4-dc0c0c07398f",
 			version:  7,
 			hasTime:  true,

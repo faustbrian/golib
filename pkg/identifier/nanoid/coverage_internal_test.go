@@ -73,3 +73,33 @@ func TestRemainingNanoIDBoundaries(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGeneratorMaskUsesSmallestCoveringBitRange(t *testing.T) {
+	alphabet := "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+	for _, test := range []struct {
+		length int
+		mask   byte
+	}{
+		{length: 2, mask: 1},
+		{length: 3, mask: 3},
+		{length: 64, mask: 63},
+		{length: 65, mask: 127},
+		{length: 94, mask: 127},
+	} {
+		generator, err := NewGenerator(
+			Config{Alphabet: alphabet[:test.length], Size: 120},
+			repeatingReader(0),
+		)
+		if err != nil {
+			t.Fatalf("alphabet length %d: %v", test.length, err)
+		}
+		if generator.mask != test.mask {
+			t.Fatalf(
+				"alphabet length %d mask = %d, want %d",
+				test.length,
+				generator.mask,
+				test.mask,
+			)
+		}
+	}
+}

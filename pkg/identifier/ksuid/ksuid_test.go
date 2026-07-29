@@ -133,6 +133,34 @@ func TestGeneratorAcceptsTimestampAndCarryBoundaries(t *testing.T) {
 	}
 }
 
+func TestGeneratorRefreshesEntropyWhenSecondAdvances(t *testing.T) {
+	const epoch = int64(1_400_000_000)
+	firstSecond := time.Unix(epoch+1, 0)
+	secondSecond := firstSecond.Add(time.Second)
+	firstPayload := bytes.Repeat([]byte{0x11}, 16)
+	secondPayload := bytes.Repeat([]byte{0x22}, 16)
+	generator := identifierksuid.NewGenerator(
+		&clockSequence{times: []time.Time{firstSecond, secondSecond}},
+		bytes.NewReader(append(firstPayload, secondPayload...)),
+	)
+
+	first, err := generator.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := generator.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondBytes := second.Bytes()
+	if first.Inspect().Timestamp.Equal(second.Inspect().Timestamp) {
+		t.Fatalf("timestamps did not advance: %s, %s", first, second)
+	}
+	if !bytes.Equal(secondBytes[4:], secondPayload) {
+		t.Fatalf("second payload = %x, want %x", secondBytes[4:], secondPayload)
+	}
+}
+
 func TestSerializationAndSQLRoundTrips(t *testing.T) {
 	original, _ := identifierksuid.Parse("0ujtsYcgvSTl8PAuAdqWYSMnLOv")
 	if original.LogValue().String() != "[REDACTED]" {

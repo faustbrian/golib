@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"math/bits"
 	"strings"
 	"sync"
 
@@ -223,10 +224,7 @@ func NewGenerator(config Config, entropy io.Reader) (*Generator, error) {
 		entropy = cryptorand.Reader
 	}
 
-	mask := byte(1)
-	for int(mask) < len(config.Alphabet)-1 {
-		mask = mask<<1 | 1
-	}
+	mask := byte(1<<bits.Len(uint(len(config.Alphabet)-1))) - 1
 	step := int(math.Ceil(1.6 * float64(int(mask)*config.Size) / float64(len(config.Alphabet))))
 
 	return &Generator{config: config, entropy: entropy, mask: mask, step: step}, nil

@@ -20,21 +20,24 @@ func LaravelEnglish(source string) string {
 	source = truncateSource(source)
 
 	var transliterated strings.Builder
-	for offset := 0; offset < len(source); {
-		if replacement, consumed := longestReplacement(source[offset:]); consumed > 0 {
-			transliterated.WriteString(replacement)
-			offset += consumed
-			continue
-		}
+	offset := 0
+	for range len(source) {
+		if offset < len(source) {
+			if replacement, consumed := longestReplacement(source[offset:]); consumed > 0 {
+				transliterated.WriteString(replacement)
+				offset += consumed
+				continue
+			}
 
-		character, size := utf8.DecodeRuneInString(source[offset:])
-		switch {
-		case character == '\r' || character == '\n' || character == '\t':
-			transliterated.WriteByte(' ')
-		case character >= 0x20 && character <= 0x7E:
-			transliterated.WriteRune(character)
+			character, size := utf8.DecodeRuneInString(source[offset:])
+			switch {
+			case character == '\r' || character == '\n' || character == '\t':
+				transliterated.WriteByte(' ')
+			case printableASCII(character):
+				transliterated.WriteRune(character)
+			}
+			offset += size
 		}
-		offset += size
 	}
 
 	normalized := strings.NewReplacer(
@@ -48,17 +51,21 @@ func LaravelEnglish(source string) string {
 		switch {
 		case character >= 'a' && character <= 'z',
 			character >= '0' && character <= '9':
-			if pendingSeparator && result.Len() > 0 {
+			if pendingSeparator {
 				result.WriteByte('-')
 			}
 			result.WriteRune(character)
 			pendingSeparator = false
 		case character == '-' || unicode.IsSpace(character):
-			pendingSeparator = result.Len() > 0
+			pendingSeparator = result.Len() != 0
 		}
 	}
 
 	return result.String()
+}
+
+func printableASCII(character rune) bool {
+	return character >= 0x20 && character <= 0x7e
 }
 
 func truncateSource(source string) string {
