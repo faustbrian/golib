@@ -194,6 +194,80 @@ func BenchmarkVerifyConsistency(b *testing.B) {
 	}
 }
 
+func BenchmarkMultiInclusionProof(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	indexes := benchmarkMultiIndexes(256, 64)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if _, err := snapshot.MultiInclusionProof(
+			context.Background(),
+			indexes,
+			merkletree.DefaultMultiProofLimits(),
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkVerifyMultiInclusion(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	indexes := benchmarkMultiIndexes(256, 64)
+	selected := make([]merkletree.RawLeaf, len(indexes))
+	for index, leafIndex := range indexes {
+		selected[index] = leaves[leafIndex]
+	}
+	proof, err := snapshot.MultiInclusionProof(
+		context.Background(),
+		indexes,
+		merkletree.DefaultMultiProofLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if err := merkletree.VerifyMultiInclusion(
+			context.Background(),
+			proof,
+			selected,
+			merkletree.DefaultMultiProofLimits(),
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchmarkMultiIndexes(count int, stride uint64) []uint64 {
+	indexes := make([]uint64, count)
+	for index := range indexes {
+		indexes[index] = uint64(index) * stride
+	}
+
+	return indexes
+}
+
 func benchmarkConsistencySnapshots(
 	b *testing.B,
 	leaves []merkletree.RawLeaf,

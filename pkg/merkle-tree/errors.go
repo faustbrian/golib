@@ -42,11 +42,15 @@ var (
 	// ErrIndexOutOfRange identifies a leaf index outside a snapshot or proof.
 	ErrIndexOutOfRange = errors.New("merkle leaf index out of range")
 
-	// ErrMalformedProof identifies a structurally invalid inclusion proof.
+	// ErrInvalidLeafIndexes identifies an empty or duplicate multi-proof index
+	// selection.
+	ErrInvalidLeafIndexes = errors.New("invalid Merkle leaf indexes")
+
+	// ErrMalformedProof identifies a structurally invalid Merkle proof.
 	ErrMalformedProof = errors.New("malformed Merkle proof")
 
 	// ErrVerificationFailed identifies a well-formed proof that does not
-	// authenticate the supplied leaf under its bound root.
+	// authenticate its supplied leaves or bound roots.
 	ErrVerificationFailed = errors.New("merkle proof verification failed")
 )
 
@@ -54,7 +58,8 @@ var (
 type ResourceKind uint8
 
 const (
-	// ResourceLeaves is the number of leaves in an operation.
+	// ResourceLeaves is the number of leaves or selected leaf indexes in an
+	// operation.
 	ResourceLeaves ResourceKind = iota + 1
 
 	// ResourceLeafBytes is the encoded byte length of one raw leaf.

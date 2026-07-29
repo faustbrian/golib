@@ -3,9 +3,9 @@
 `merkle-tree` is a storage-independent cryptographic data-structure library
 for explicitly profiled, ordered Merkle trees. The current pre-v1 surface
 constructs bounded roots, incrementally appends leaves, creates immutable
-snapshots, generates inclusion and consistency proofs, and independently
-verifies them for the package canonical binary profile and the RFC 9162
-Certificate Transparency profile.
+snapshots, generates inclusion, multi-inclusion, and consistency proofs, and
+independently verifies them for the package canonical binary profile and the
+RFC 9162 Certificate Transparency profile.
 
 ## Quick start
 
@@ -132,6 +132,30 @@ Consistency proofs bind both complete root identities and the RFC 9162
 SUBPROOF node order. Equal, identical roots use an empty proof. The undefined
 zero-to-nonzero RFC consistency operation is rejected.
 
+To authenticate several leaves without repeating shared sibling nodes:
+
+```go
+proof, err := snapshot.MultiInclusionProof(
+    ctx,
+    []uint64{2, 0},
+    merkletree.DefaultMultiProofLimits(),
+)
+if err != nil {
+    return err
+}
+err = merkletree.VerifyMultiInclusion(
+    ctx,
+    proof,
+    []merkletree.RawLeaf{leaves[0], leaves[2]},
+    merkletree.DefaultMultiProofLimits(),
+)
+```
+
+Generation copies and sorts caller indexes without mutating the input.
+Duplicates are rejected, returned indexes are ascending, and verification
+leaves must follow that canonical order. The proof binds leaf digests and a
+minimal left-to-right depth-first frontier.
+
 ## Implemented profiles
 
 | Property | Canonical binary v1 | RFC 9162 v1 |
@@ -153,8 +177,8 @@ Merkle Tree Hash behavior implemented and tested here.
 ## Current pre-v1 boundary
 
 Root construction, atomic append and batch append, immutable snapshots, and
-inclusion and consistency proofs are implemented. Persistence, multi-inclusion
-proofs, proof encodings, external differential fixtures, and comparative
+inclusion, multi-inclusion, and consistency proofs are implemented.
+Persistence, proof encodings, external differential fixtures, and comparative
 benchmarks remain under development and are not claimed by the current API.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or

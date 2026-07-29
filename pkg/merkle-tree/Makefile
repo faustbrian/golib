@@ -35,6 +35,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test -run '^$$' -fuzz '^FuzzVerifyConsistency$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzVerifyMultiInclusion$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
 	$(GO) test -run '^$$' -bench '^Benchmark' \

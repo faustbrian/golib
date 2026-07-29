@@ -153,3 +153,44 @@ func ExampleSnapshot_ConsistencyProof() {
 	// Output:
 	// 2 3 1 <nil>
 }
+
+func ExampleSnapshot_MultiInclusionProof() {
+	leaves := []merkletree.RawLeaf{
+		merkletree.NewRawLeaf([]byte("first")),
+		merkletree.NewRawLeaf([]byte("second")),
+		merkletree.NewRawLeaf([]byte("third")),
+		merkletree.NewRawLeaf([]byte("fourth")),
+	}
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	proof, err := snapshot.MultiInclusionProof(
+		context.Background(),
+		[]uint64{3, 1},
+		merkletree.DefaultMultiProofLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	err = merkletree.VerifyMultiInclusion(
+		context.Background(),
+		proof,
+		[]merkletree.RawLeaf{leaves[1], leaves[3]},
+		merkletree.DefaultMultiProofLimits(),
+	)
+
+	fmt.Printf(
+		"%v %d %v\n",
+		proof.LeafIndexes(),
+		len(proof.Frontier()),
+		err,
+	)
+	// Output:
+	// [1 3] 2 <nil>
+}

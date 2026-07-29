@@ -111,6 +111,24 @@ Consistency element and traversal limits are checked before derived work.
 Every verifier loop is bounded by the uint64 tree-size width, including for
 hostile metadata.
 
+## Multi-inclusion proofs
+
+Multi-inclusion proofs use a package-defined deterministic frontier because RFC
+9162 specifies only single-leaf audit paths and consistency paths. Generation
+copies and sorts the requested indexes, rejects duplicates, and traverses the
+immutable snapshot from left to right. A subtree containing no requested leaf
+contributes exactly its root digest to the frontier; a selected leaf contributes
+its domain-separated leaf digest. Frontier nodes are therefore minimal and
+ordered by a left-to-right depth-first traversal.
+
+Verification requires raw leaves in canonical ascending-index order. It
+independently hashes those leaves, compares their proof-bound digests, consumes
+exactly one frontier node for each unselected subtree, and reconstructs the
+bound root. Missing, surplus, duplicate, reordered, out-of-range, or
+algorithm-confused elements are rejected. Cardinality, frontier, traversal,
+per-leaf byte, aggregate leaf-byte, and cancellation limits bound hostile
+inputs.
+
 ## Security assumptions
 
 Security depends on SHA-256 collision and second-preimage resistance and on

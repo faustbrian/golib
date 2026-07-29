@@ -20,3 +20,5 @@
   operations whose immutable snapshots remain stable after later mutations.
 - RFC 9162 consistency proof generation and independent verification binding
   both complete root identities, with bounded hostile-input traversal.
+- Deterministic multi-inclusion proofs with canonical index ordering, minimal
+  frontier nodes, explicit resource limits, and independent verification.

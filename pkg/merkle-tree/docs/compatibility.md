@@ -21,6 +21,11 @@ proofs are not defined by the RFC algorithm and are rejected. No wire-format,
 log-protocol, or other Certificate Transparency artifact compatibility is
 claimed yet.
 
+Multi-inclusion proofs are a package-defined operation over the selected root
+profile. RFC 9162 does not define a multi-proof format, so use of an RFC 9162
+root profile does not make this frontier representation an RFC interoperability
+claim.
+
 The package does not implement or claim compatibility with:
 
 - RFC 6962 Certificate Transparency v1 artifacts;
