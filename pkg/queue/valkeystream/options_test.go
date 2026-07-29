@@ -65,6 +65,9 @@ func TestOptionsApplyExplicitConfiguration(t *testing.T) {
 		WithReclaim(10*time.Second, time.Second, 32),
 		WithFailureStream("jobs-failures"),
 		WithDeadLetter("jobs-dead", 7),
+		WithDeliveryAttemptLimitResolver(
+			func(core.TaskMessage) int64 { return 9 },
+		),
 		WithCanceledDeadLetterCodes(
 			"deadline_exceeded",
 			"catalogue_import_timed_out",
@@ -99,6 +102,7 @@ func TestOptionsApplyExplicitConfiguration(t *testing.T) {
 	assert.Equal(t, "jobs-failures", opts.failureStream)
 	assert.Equal(t, "jobs-dead", opts.deadLetterStream)
 	assert.Equal(t, int64(7), opts.maxDeliveryAttempts)
+	assert.Equal(t, int64(9), opts.deliveryAttemptLimit(nil))
 	assert.Equal(t, map[string]struct{}{
 		"deadline_exceeded":          {},
 		"catalogue_import_timed_out": {},
@@ -182,6 +186,7 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 		"empty dead letter":        WithDeadLetter(" ", 3),
 		"same dead letter stream":  WithDeadLetter("golang-queue", 3),
 		"invalid delivery limit":   WithDeadLetter("dead", 1),
+		"nil delivery resolver":    WithDeliveryAttemptLimitResolver(nil),
 		"missing canceled codes":   WithCanceledDeadLetterCodes(),
 		"too many canceled codes": WithCanceledDeadLetterCodes(
 			tooManyCanceledCodes...,

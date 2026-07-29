@@ -40,6 +40,7 @@ var (
 	_ func(string) valkeystream.Option                                        = valkeystream.WithConsumer
 	_ func(int) valkeystream.Option                                           = valkeystream.WithDB
 	_ func(string, int64) valkeystream.Option                                 = valkeystream.WithDeadLetter
+	_ func(valkeystream.DeliveryAttemptLimitResolver) valkeystream.Option     = valkeystream.WithDeliveryAttemptLimitResolver
 	_ func(...string) valkeystream.Option                                     = valkeystream.WithCanceledDeadLetterCodes
 	_ func(time.Duration) valkeystream.Option                                 = valkeystream.WithDialTimeout
 	_ func(string) valkeystream.Option                                        = valkeystream.WithFailureStream
@@ -56,6 +57,7 @@ var (
 	_ func(string) valkeystream.Option                                        = valkeystream.WithStreamName
 	_ func(*tls.Config) valkeystream.Option                                   = valkeystream.WithTLSConfig
 	_ error                                                                   = valkeystream.ErrInvalidConfiguration
+	_ error                                                                   = valkeystream.ErrInvalidDeliveryAttemptLimit
 	_ error                                                                   = valkeystream.ErrManagementRecordNotFound
 	_ error                                                                   = valkeystream.ErrManagementRecordsDisabled
 	_ error                                                                   = valkeystream.ErrManagementControlDisabled

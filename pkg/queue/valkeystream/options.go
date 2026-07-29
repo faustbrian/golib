@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	maxReadBatchSize           = 256
-	maxReclaimBatchSize        = 256
-	maxBlockingPoolSize        = 128
-	maxReplayDestinations      = 64
-	maxCanceledDeadLetterCodes = 32
+	maxReadBatchSize                  = 256
+	maxReclaimBatchSize               = 256
+	maxBlockingPoolSize               = 128
+	maxReplayDestinations             = 64
+	maxCanceledDeadLetterCodes        = 32
+	maxResolvedDeliveryAttempts int64 = 100
 )
 
 type options struct {
@@ -49,12 +50,19 @@ type options struct {
 	failureStream           string
 	deadLetterStream        string
 	maxDeliveryAttempts     int64
+	deliveryAttemptLimit    DeliveryAttemptLimitResolver
 	canceledDeadLetterCodes map[string]struct{}
 	logger                  queue.Logger
 	runFunc                 func(context.Context, core.TaskMessage) error
 	management              *management.StatusMetadata
 	replayDestinations      map[string]struct{}
 }
+
+// DeliveryAttemptLimitResolver selects the terminal broker-delivery ceiling
+// for one decoded message. It must be deterministic, side-effect-free, and
+// return between two and 100. WithDeadLetter remains the default when no
+// resolver is configured.
+type DeliveryAttemptLimitResolver func(core.TaskMessage) int64
 
 // WithManagementStatus enables native worker and queue status reporting.
 func WithManagementStatus(metadata management.StatusMetadata) Option {
@@ -247,6 +255,25 @@ func WithDeadLetter(stream string, maxAttempts int64) Option {
 	return func(opts *options) error {
 		opts.deadLetterStream = strings.TrimSpace(stream)
 		opts.maxDeliveryAttempts = maxAttempts
+		return nil
+	}
+}
+
+// WithDeliveryAttemptLimitResolver overrides the default dead-letter attempt
+// ceiling per decoded message. Unsafe results and panics fail the delivery
+// without acknowledging or dead-lettering it.
+func WithDeliveryAttemptLimitResolver(
+	resolver DeliveryAttemptLimitResolver,
+) Option {
+	return func(opts *options) error {
+		if resolver == nil {
+			return invalidOption(
+				"delivery attempt limit resolver",
+				errors.New("resolver is required"),
+			)
+		}
+		opts.deliveryAttemptLimit = resolver
+
 		return nil
 	}
 }

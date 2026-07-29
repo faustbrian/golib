@@ -572,6 +572,10 @@ Valkey Streams provides a bounded built-in terminal policy through
 the terminal attempt appends to the dead-letter stream before acknowledging
 the source. Deduplicate dead letters by `original_id` because an ambiguous
 source acknowledgement can repeat the append.
+When one stream carries message classes with different terminal ceilings, add
+`WithDeliveryAttemptLimitResolver` and derive the limit from bounded immutable
+job metadata. Invalid results and resolver panics leave the delivery pending
+instead of silently applying the wrong policy.
 
 ## Valkey crash recovery
 
@@ -1165,6 +1169,10 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Valkey Streams workers can now select a bounded terminal broker-delivery
+  ceiling per decoded message with `WithDeliveryAttemptLimitResolver`.
+  `WithDeadLetter` remains the default; unsafe resolver results or panics leave
+  the source delivery pending and return a stable redacted error.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
@@ -1187,8 +1195,9 @@ versioning and Keep a Changelog structure.
   every existing consumer group has settled it.
 - Bound Redis and Valkey management page allocations to the package maximum
   and remove narrowing conversions from record and status pagination.
-- Retry Valkey integration container startup and endpoint publication failures,
-  clean up partial containers, and retain the last error for diagnosis.
+- Retry Valkey integration container startup, endpoint publication, and restart
+  readiness failures, clean up partial containers, and retain connection errors
+  for diagnosis.
 - Regenerated the complete documentation bundle from the current package
   documentation and release notes.
 - Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing
@@ -1840,6 +1849,7 @@ closes producer-owned connections.
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
 | `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
+| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 2 through 100 |
 | `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
@@ -1867,6 +1877,16 @@ retention deadline.
 Workers advertise `retention_count` only when this option is enabled and always
 advertise `purge` when management is configured. They do not advertise
 `retention_time` or `retention_bytes`.
+
+When messages sharing one stream require different broker-delivery ceilings,
+configure `WithDeliveryAttemptLimitResolver`. The resolver runs exactly once
+after bounded job decoding and before settlement callbacks are attached.
+It must inspect only immutable decoded message metadata, return a value from
+two through 100, and remain deterministic, side-effect-free, and non-blocking.
+`WithDeadLetter` supplies the fallback for workers without a resolver. An
+unsafe result or resolver panic returns `ErrInvalidDeliveryAttemptLimit`
+without acknowledging or dead-lettering the source delivery, so operators can
+correct configuration and reclaim it safely.
 
 ## Authentication and TLS
 
