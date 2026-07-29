@@ -2,10 +2,10 @@
   "schema_version": "v1",
   "generated": {
     "package_commit": "129e137b63d83c978f5f87ba7bc1e533ef79d5c6",
-    "source_sha256": "796899b8112782541addfa57a3254cca7abe2185d45bc6dd3b5c5c044da28c4c",
+    "source_sha256": "84cf98f8f421f3dc2d2ae7b3d2551391c5f739c8df06db7a9648a0d3f3779300",
     "go_version": "go1.26.5",
     "environment": "darwin/arm64",
-    "date": "2026-07-24",
+    "date": "2026-07-29",
     "commands": [
       "make check",
       "make release-check"
@@ -15,9 +15,9 @@
       "github.com/faustbrian/golib/pkg/measurement": "v0.1.0"
     },
     "fixtures": {
-      "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json": "f4a9fc1db4dc940b0bb2f49f0ec74781a3321298bfaeeb2dd2a889291589b1bf",
-      "docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv": "3679e7d837ca2cc30383e4f5291ea679c854afe57912ab0daceb87abc964e42e",
-      "docs/benchmarks/raw/2026-07-24-darwin-arm64.txt": "991d203bd4c1fd263339c507409048eae1d0de33ad58bca556c2d75be54efeb4",
+      "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json": "3baca039421c665a61350a5c3fa5fc83e40c36bddb9dbac848ab2c3628c28fde",
+      "docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv": "dd005f5579613265682dcf8ca1a0072182df524d8765270fe68350f2a7651a0f",
+      "docs/benchmarks/raw/2026-07-29-darwin-arm64.txt": "1f55b7cdf3ef06d0843dad505afb5854b424c68b52e9c117d13fb5315d886a99",
       "docs/mutation/raw/adapter.json": "7a81464a367db04aebf01b23691e61d40f46694ea1a5eb0e8bb064ad148959b4",
       "docs/mutation/raw/gomoney.json": "e4c972d7db9a5a53dfdddedcb81bdbc1e262abf02ebe79d434f64672784147c6",
       "docs/mutation/raw/root.json": "83c654d9ed2bcb7d5fff9f6aff9aa40bf9a9def9df78a0304795db672a1f5f75",
@@ -3231,7 +3231,7 @@
     {
       "feature": "fresh-process runtime comparison",
       "semantic_scope": "identical verified common subset with startup, serialization, RSS, and deadline treatment",
-      "status": "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json"
+      "status": "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json"
     },
     {
       "feature": "single-pass online packing",
@@ -3375,13 +3375,13 @@
   },
   "benchmarks": {
     "boxpacker_runtime_command": "scripts/benchmark-boxpacker.sh",
-    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json",
+    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json",
     "command": "make benchmark",
     "comparison_command": "make benchmark-compare",
-    "environment": "docs/benchmarks/2026-07-24-darwin-arm64.md",
-    "raw_output": "docs/benchmarks/raw/2026-07-24-darwin-arm64.txt",
+    "environment": "docs/benchmarks/2026-07-29-darwin-arm64.md",
+    "raw_output": "docs/benchmarks/raw/2026-07-29-darwin-arm64.txt",
     "rss_command": "make benchmark-rss",
-    "rss_raw_output": "docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv",
+    "rss_raw_output": "docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv",
     "rss_thresholds": "specification/benchmark-rss-thresholds.tsv",
     "semantic_normalization": "identical lattice, weights, rotations, stock, constraints, and objectives",
     "thresholds": "specification/benchmark-thresholds.tsv"

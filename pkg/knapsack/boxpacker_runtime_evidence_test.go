@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-const boxPackerRuntimeRaw = "docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json"
+const boxPackerRuntimeRaw = "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json"
 
 func TestBoxPackerRuntimeEvidenceIsCurrent(t *testing.T) {
 	t.Parallel()
@@ -20,7 +20,7 @@ func TestBoxPackerRuntimeEvidenceIsCurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if evidence.InputSHA256 != benchmarkInputSHA256(t, "boxpacker") {
-		t.Fatalf("BoxPacker runtime evidence is stale; run BOXPACKER_RUNTIME_RAW_OUTPUT=docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json ./scripts/benchmark-boxpacker.sh")
+		t.Fatalf("BoxPacker runtime evidence is stale; run BOXPACKER_RUNTIME_RAW_OUTPUT=%s ./scripts/benchmark-boxpacker.sh", boxPackerRuntimeRaw)
 	}
 	if evidence.SchemaVersion != "v1" || evidence.Date != benchmarkEvidenceDate ||
 		evidence.Environment == "" || evidence.Processor == "" ||

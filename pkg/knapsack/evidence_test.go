@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -547,9 +548,9 @@ func generatedEvidenceForTree(t *testing.T) generatedEvidence {
 	}
 	fixtures := map[string]string{}
 	for _, path := range []string{
-		"docs/benchmarks/raw/2026-07-24-darwin-arm64.txt",
-		"docs/benchmarks/raw/2026-07-24-darwin-arm64-rss.tsv",
-		"docs/benchmarks/raw/2026-07-24-boxpacker-runtime.json",
+		"docs/benchmarks/raw/2026-07-29-darwin-arm64.txt",
+		"docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv",
+		"docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json",
 		"docs/mutation/raw/gomoney.json",
 		"docs/mutation/raw/adapter.json",
 		"docs/mutation/raw/root.json",
@@ -626,6 +627,11 @@ func evidenceSourceFilesIn(t *testing.T, directory string) []string {
 		clean := strings.TrimPrefix(filepath.ToSlash(path), "./")
 		if clean == "" {
 			continue
+		}
+		if _, statErr := os.Stat(filepath.Join(directory, clean)); errors.Is(statErr, os.ErrNotExist) {
+			continue
+		} else if statErr != nil {
+			t.Fatal(statErr)
 		}
 		if clean == "specification/evidence.json" || strings.HasPrefix(clean, "docs/benchmarks/raw/") {
 			continue
