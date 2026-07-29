@@ -10,7 +10,7 @@ build_mutation_arguments() {
         unleash "${target}"
         --integration --coverpkg "${target}"
         --exclude-files '^.+/'
-        --workers 4 --test-cpu 1 --timeout-coefficient 50
+        --workers 4 --test-cpu 1 --timeout-coefficient 10
         --threshold-efficacy 100 --threshold-mcover 100
         --arithmetic-base --conditionals-boundary --conditionals-negation
         --invert-assignments --invert-bitwise --invert-bwassign
