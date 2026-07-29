@@ -3,8 +3,9 @@
 ## Decision
 
 `github.com/crate-crypto/go-ipa` is approved only for the current internal,
-pre-v1 canonical-encoding research boundary. It is rejected as the production
-commitment backend until the blockers below are resolved and re-audited.
+pre-v1 canonical-encoding and bounded serial vector-commitment research
+boundary. It is rejected as the production commitment backend until the
+blockers below are resolved and re-audited.
 
 The imported module version is
 `v0.0.0-20240223125850-b1e8a79f509c`, corresponding to commit
@@ -17,10 +18,10 @@ or provide a tagged release.
 
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
-This composition is accepted for the production encoding seam and the pinned
-test-only positive commitment/proof corpus exercised here. It is not evidence
-that untested setup, commitment, proof, or hostile-input behavior remains
-compatible.
+This composition is accepted for the canonical encoding seam, the internal
+experimental commitment engine, and the pinned test-only proof corpus
+exercised here. It is not evidence that proof operations or untested
+hostile-input behavior remain compatible.
 
 ## Evidence
 
@@ -39,6 +40,13 @@ At the pinned revision:
 - the ordered 256-point generator sets independently derived by the pinned Go
   and Rust implementations from `eth_verkle_oct_2021` have the same
   canonical-encoding digest;
+- zero, first and last one-hot, sparse boundary, and dense width-256 vectors
+  produce the same commitments and commitment-to-field images in the bounded
+  Go engine and independently pinned Rust implementation;
+- the Go engine accepts only fixed-size vectors of canonical scalars, checks
+  declared scalar, group-operation, generator, and scratch budgets before
+  amplified work, and performs commitment terms serially with deterministic
+  cancellation checkpoints;
 - one deterministic three-opening corpus produces the same canonical 576-byte
   aggregate proof through both implementations, and the Go verifier accepts
   the Rust proof;
@@ -83,11 +91,14 @@ configuration immutability while those globals remain authoritative.
 
 ### Uncancellable and CPU-derived work
 
-Setup generation, precomputation, multi-scalar multiplication, and multiproof
-aggregation do not accept `context.Context`. Several paths derive goroutine
-counts from `runtime.NumCPU`, and setup precomputation uses
-`context.Background`. A wrapper cannot cancel or join this work after a caller
-deadline without leaving backend work running.
+Generator derivation, setup precomputation, multi-scalar multiplication, and
+multiproof aggregation do not accept `context.Context`. Several paths derive
+goroutine counts from `runtime.NumCPU`, and setup precomputation uses
+`context.Background`. The internal engine avoids the backend precomputation
+and parallel multi-scalar paths: it derives the fixed set explicitly and
+commits serially. It still cannot interrupt the one fixed-width generator
+derivation call after it starts, so constructor cancellation is limited to
+preflight and post-derivation checks.
 
 ### Unsafe public surface
 
@@ -132,11 +143,23 @@ The current internal boundary may:
 - decode exactly 32-byte canonical little-endian scalars;
 - map an already validated non-identity commitment to its canonical scalar
   field image;
+- explicitly derive the fixed 256-point `eth_verkle_oct_2021` generator set
+  and reject a set whose ordered canonical digest differs from the pinned
+  independent fixture;
+- commit a fixed-width vector of canonical scalar encodings through bounded,
+  deterministic serial group operations;
+- retain the resulting identity only as an opaque in-memory commitment and
+  map it to scalar zero;
 - return one canonical encoding for accepted commitments and scalars; and
 - defensively copy caller bytes before dependency decoding.
 
-It must not yet construct setup, commit vectors, open positions, verify proofs,
-accept a serialized identity, or expose dependency values outside `internal/`.
+It must not yet precompute proof setup, open positions, verify proofs, accept a
+serialized identity, or expose dependency values outside `internal/`.
+
+The engine's generator and scratch-byte accounting is a deterministic,
+conservative package budget. It does not prove the dependency's complete heap
+allocation profile or constant-time behavior. The engine therefore remains an
+experimental internal component rather than an approved production backend.
 
 The separate `internal/leafvector` boundary performs dependency-free,
 fixed-size byte decomposition only. It produces canonical scalar bytes that are

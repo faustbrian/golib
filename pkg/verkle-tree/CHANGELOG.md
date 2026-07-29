@@ -23,6 +23,10 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add a bounded immutable canonical stem-topology model with distinct
   missing-child and different-stem outcomes, maximum-depth coverage,
   deletion-time path collapse, and pinned Rust path-hint agreement.
+- Add an explicit immutable research commitment engine with fixed-width
+  canonical scalar inputs, pinned generator-set validation, deterministic
+  resource limits, serial cancellation-aware arithmetic, and independent Rust
+  vector agreement.
 - Fix the experimental profile's dependency-free leaf field inputs, including
   present-zero marking, absence, suffix-half placement, local indices, stem
   encoding, and stem-vector positions, with pinned Rust differential vectors.
@@ -35,6 +39,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add allocation-reporting microbenchmarks for accepted commitment and scalar
   encodings and their fail-closed hostile-input paths, with reproducible
   methodology and raw local samples.
+- Add sparse and dense width-256 vector-commitment allocation benchmarks while
+  keeping tree and proof performance claims out of scope.
 - Add revision-pinned Rust differential fixtures for the accepted canonical
   scalar and Banderwagon commitment encoding seam.
 - Record ordered 256-point generator-set agreement between the pinned Go and

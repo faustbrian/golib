@@ -114,6 +114,9 @@ func TestRustVerkleGeneratorSet(t *testing.T) {
 	if len(fixtureDigest) != sha256.Size {
 		t.Fatalf("fixture digest bytes = %d, want %d", len(fixtureDigest), sha256.Size)
 	}
+	if !bytes.Equal(pinnedGeneratorDigest[:], fixtureDigest) {
+		t.Fatal("compiled generator digest differs from pinned Rust fixture")
+	}
 
 	generators := ipa.GenerateRandomPoints(width)
 	digest := sha256.New()

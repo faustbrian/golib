@@ -1,4 +1,4 @@
-use banderwagon::{CanonicalSerialize, Element, Fr, PrimeField};
+use banderwagon::{CanonicalSerialize, Element, Fr, PrimeField, Zero};
 use ipa_multipoint::{
     committer::DefaultCommitter,
     crs::CRS,
@@ -130,6 +130,40 @@ fn print_generators() {
         "256\teth_verkle_oct_2021\t{}",
         encode_hex(&digest.finalize())
     );
+}
+
+fn print_vector_commitment_row(case: &str, values: Vec<Fr>) {
+    let crs = CRS::new(256, b"eth_verkle_oct_2021");
+    let non_zero = values.iter().filter(|value| !value.is_zero()).count();
+    let commitment = crs.commit_lagrange_poly(&LagrangeBasis::new(values));
+
+    println!(
+        "{case}\t{non_zero}\t{}\t{}",
+        encode_hex(&commitment.to_bytes()),
+        encode_hex(&scalar_bytes(commitment.map_to_scalar_field())),
+    );
+}
+
+fn print_vector_commitments() {
+    println!("case\tnon_zero_terms\tcommitment_be\tmapped_scalar_le");
+    print_vector_commitment_row("zero", vec![Fr::from(0_u64); 256]);
+
+    let mut first = vec![Fr::from(0_u64); 256];
+    first[0] = Fr::from(1_u64);
+    print_vector_commitment_row("one-hot-first", first);
+
+    let mut last = vec![Fr::from(0_u64); 256];
+    last[255] = Fr::from(2_u64);
+    print_vector_commitment_row("one-hot-last", last);
+
+    let mut sparse = vec![Fr::from(0_u64); 256];
+    for (index, value) in [(0, 1_u64), (1, 2), (127, 3), (128, 255), (255, 65_535)] {
+        sparse[index] = Fr::from(value);
+    }
+    print_vector_commitment_row("sparse-boundaries", sparse);
+
+    let dense = (1_u64..=256).map(Fr::from).collect();
+    print_vector_commitment_row("dense-incrementing", dense);
 }
 
 fn print_multiproof() {
@@ -364,6 +398,7 @@ fn main() {
         Some("commitment-hashes") => print_commitment_hashes(),
         Some("leaf-vectors") => print_leaf_vectors(),
         Some("generators") => print_generators(),
+        Some("vector-commitments") => print_vector_commitments(),
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
         Some("topology") => print_topology(),
@@ -377,7 +412,8 @@ fn main() {
         ),
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
-             <encodings|commitment-hashes|leaf-vectors|generators|multiproof|tree-proof|\
+             <encodings|commitment-hashes|leaf-vectors|generators|vector-commitments|\
+             multiproof|tree-proof|\
              topology|\
              verify-go-witness|\
              update-go-witness>"

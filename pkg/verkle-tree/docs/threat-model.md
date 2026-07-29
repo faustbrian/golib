@@ -7,7 +7,11 @@ claimed values or absences for the exact key set, profile, and root. Tree
 updates must produce deterministic immutable snapshots without publishing
 partially durable state.
 
-This document defines audit scope. No control is implemented yet.
+This document defines the complete audit scope. Current internal controls cover
+canonical point and scalar decoding, fixed generator-set validation, bounded
+serial vector commitment, immutable state transitions, and canonical stem
+topology. Proof, witness, storage, publication, and complete side-channel
+controls remain unimplemented.
 
 ## Trust boundaries
 

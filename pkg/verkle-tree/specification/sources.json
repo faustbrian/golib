@@ -6,7 +6,7 @@
     {
       "source_id": "crate-crypto-go-ipa-candidate",
       "module_version": "v0.0.0-20240223125850-b1e8a79f509c",
-      "purpose": "internal canonical commitment and scalar encoding research",
+      "purpose": "internal canonical encoding and bounded experimental vector-commitment research",
       "scope": "internal/backend",
       "status": "pre-v1-research-only-production-rejected",
       "dependency_overrides": [
@@ -16,7 +16,7 @@
           "revision": "49879afc0859220afd5165bc6cafc1ee0a6e987a",
           "sum": "h1:PXDUBvk8AzhvWowHLWBEAfUQcV1/aZgWIqD6eMpXmDg=",
           "license": "Apache-2.0",
-          "compatibility_scope": "internal canonical point and scalar encodings"
+          "compatibility_scope": "internal canonical point and scalar encodings plus the bounded serial vector-commitment corpus"
         },
         {
           "module": "golang.org/x/sync",
@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -154,7 +154,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -218,7 +218,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -258,9 +258,18 @@
         "point_encoding": "canonical compressed Banderwagon",
         "digest": "SHA-256 over the ordered concatenation of 256 32-byte commitments"
       },
+      "compiled_constant": {
+        "path": "internal/backend/commitment_engine.go",
+        "name": "pinnedGeneratorDigest",
+        "value": "1fcaea10bf24f750200e06fa473c76ff0468007291fa548e2d99f09ba9256fdb",
+        "source": "the commitments_sha256 field in rust-verkle-generators.tsv",
+        "generation_procedure": "Decode the fixture's lowercase hexadecimal digest into the 32-byte Go array literal without byte-order conversion.",
+        "review_procedure": "Regenerate the pinned Rust fixture, independently derive and hash the ordered Go generator encodings, and require both results plus the compiled byte array to agree.",
+        "reproducible": true
+      },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -271,6 +280,53 @@
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust CRS implementation derives 256 ordered Banderwagon points from eth_verkle_oct_2021, canonically compresses them, and emits the SHA-256 digest of their concatenation.",
       "review_procedure": "Derive the same ordered 256-point set through the pinned Go implementation, canonically encode every point, hash the concatenation, and compare the width, seed, and digest with the independently generated Rust fixture.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-vector-commitments",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "ipa-multipoint/src/crs.rs",
+          "sha256": "2e65ca470354985d435acf7b8863e02142e81e0eea8d8a962c70fe266239fcc2"
+        },
+        {
+          "path": "ipa-multipoint/src/ipa.rs",
+          "sha256": "97d0f11b86cc99b91c84016d39981f1ab2bdcfb684e730d4204d817ae64547c7"
+        },
+        {
+          "path": "ipa-multipoint/src/lagrange_basis.rs",
+          "sha256": "ac16e6bf97d1f2e2ee922c72c5ede18295c227e5256ae4fd4055715819bfae5a"
+        },
+        {
+          "path": "banderwagon/src/element.rs",
+          "sha256": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442"
+        }
+      ],
+      "fixture_path": "internal/backend/testdata/rust-verkle-vector-commitments.tsv",
+      "fixture_sha256": "29d121af4f06b13ffdfec22953e5bdbb17edc323a9adfe28549ff1e121b9af61",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "width": 256,
+        "seed": "eth_verkle_oct_2021",
+        "scalar_encoding": "canonical 32-byte little-endian Bandersnatch scalar",
+        "point_encoding": "canonical compressed Banderwagon",
+        "construction": "sum of a[i] multiplied by the ordered generator G[i]",
+        "corpus": "zero, first and last one-hot, sparse boundary, and dense incrementing vectors"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- vector-commitments"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust CRS commits to five deterministic width-256 scalar vectors and emits each canonical commitment plus its commitment-to-field image.",
+      "review_procedure": "Verify the pinned Rust sources, harness, manifest, lock, toolchain, and fixture checksums; regenerate all rows; then require the bounded Go research engine to reproduce every identity decision, commitment byte, and mapped scalar byte.",
       "reproducible": true
     },
     {
@@ -310,7 +366,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -466,7 +522,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -537,7 +593,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e8f92ebdbb9116fd9c23c4c3ed589ed1cbf49a25ae4339aec98ceebbde9c1705",
+        "source_sha256": "fdb710c992fb3aa540b025268ca8e26195dfe6c259c3b70febef028cb3c743fc",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",

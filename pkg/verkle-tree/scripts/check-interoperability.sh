@@ -9,6 +9,7 @@ commitment_hash_fixture="$root/internal/backend/testdata/rust-verkle-commitment-
 leaf_vector_fixture="$root/internal/leafvector/testdata/rust-verkle-leaf-vectors.tsv"
 topology_fixture="$root/internal/treelayout/testdata/rust-verkle-topology.tsv"
 generator_fixture="$root/internal/backend/testdata/rust-verkle-generators.tsv"
+vector_commitment_fixture="$root/internal/backend/testdata/rust-verkle-vector-commitments.tsv"
 multiproof_fixture="$root/internal/backend/testdata/rust-verkle-multiproof.tsv"
 go_verkle_fixture="$root/internal/backend/testdata/go-verkle-tree-proof.json"
 sources="$root/specification/sources.json"
@@ -17,6 +18,7 @@ commitment_hash_fixture_id=rust-verkle-commitment-to-field-vectors
 leaf_vector_fixture_id=rust-verkle-leaf-vectors
 topology_fixture_id=rust-verkle-stem-topology
 generator_fixture_id=rust-verkle-generator-set
+vector_commitment_fixture_id=rust-verkle-vector-commitments
 multiproof_fixture_id=rust-verkle-multiproof
 go_verkle_fixture_id=go-verkle-tree-proof
 tree_proof_agreement_id=go-rust-verkle-tree-proof-agreement
@@ -63,6 +65,10 @@ verify_generator_file "$topology_fixture_id" source_sha256 "$harness/src/main.rs
 verify_generator_file "$topology_fixture_id" manifest_sha256 "$harness/Cargo.toml"
 verify_generator_file "$topology_fixture_id" lock_sha256 "$harness/Cargo.lock"
 verify_generator_file "$topology_fixture_id" toolchain_sha256 "$harness/rust-toolchain.toml"
+verify_generator_file "$vector_commitment_fixture_id" source_sha256 "$harness/src/main.rs"
+verify_generator_file "$vector_commitment_fixture_id" manifest_sha256 "$harness/Cargo.toml"
+verify_generator_file "$vector_commitment_fixture_id" lock_sha256 "$harness/Cargo.lock"
+verify_generator_file "$vector_commitment_fixture_id" toolchain_sha256 "$harness/rust-toolchain.toml"
 verify_generator_file "$go_verkle_fixture_id" source_sha256 "$go_verkle_harness/main.go.template"
 verify_generator_file "$go_verkle_fixture_id" manifest_sha256 "$go_verkle_harness/go.mod.template"
 verify_generator_file "$go_verkle_fixture_id" lock_sha256 "$go_verkle_harness/go.sum.template"
@@ -91,6 +97,7 @@ verify_fixture "$commitment_hash_fixture_id" "$commitment_hash_fixture"
 verify_fixture "$leaf_vector_fixture_id" "$leaf_vector_fixture"
 verify_fixture "$topology_fixture_id" "$topology_fixture"
 verify_fixture "$generator_fixture_id" "$generator_fixture"
+verify_fixture "$vector_commitment_fixture_id" "$vector_commitment_fixture"
 verify_fixture "$multiproof_fixture_id" "$multiproof_fixture"
 verify_fixture "$go_verkle_fixture_id" "$go_verkle_fixture"
 verify_fixture "$tree_proof_agreement_id" "$go_verkle_fixture"
@@ -181,6 +188,7 @@ verify_source_files "$multiproof_fixture_id" "$checkout_root"
 verify_source_files "$commitment_hash_fixture_id" "$checkout_root"
 verify_source_files "$leaf_vector_fixture_id" "$checkout_root"
 verify_source_files "$topology_fixture_id" "$checkout_root"
+verify_source_files "$vector_commitment_fixture_id" "$checkout_root"
 verify_source_files "$tree_proof_agreement_id" "$checkout_root"
 
 (
@@ -212,6 +220,12 @@ diff -u "$topology_fixture" "$temporary/generated-topology.tsv"
     CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- generators
 ) >"$temporary/generated-generators.tsv"
 diff -u "$generator_fixture" "$temporary/generated-generators.tsv"
+
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- vector-commitments
+) >"$temporary/generated-vector-commitments.tsv"
+diff -u "$vector_commitment_fixture" "$temporary/generated-vector-commitments.tsv"
 
 (
     cd "$harness"

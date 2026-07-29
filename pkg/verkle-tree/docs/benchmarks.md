@@ -1,12 +1,12 @@
-# Backend Encoding Benchmarks
+# Backend Microbenchmarks
 
 ## Status and scope
 
 These are pre-v1 component microbenchmarks for the implemented cryptographic
 boundary: canonical Banderwagon commitment and scalar encoding plus the
-commitment-to-field map. They do not measure a Verkle tree, vector commitment,
-proof, witness, storage adapter, or an equivalent end-to-end workload, and they
-support no comparative performance claim.
+commitment-to-field map and serial fixed-width vector commitment. They do not
+measure a Verkle tree, proof, witness, storage adapter, or an equivalent
+end-to-end workload, and they support no comparative performance claim.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -19,7 +19,7 @@ Command:
 
 ```console
 GOWORK=off go test ./internal/backend -run '^$' \
-  -bench '^(BenchmarkDecode|BenchmarkEncode|BenchmarkCommitmentToScalar)' \
+  -bench '^(BenchmarkDecode|BenchmarkEncode|BenchmarkCommitmentToScalar|BenchmarkCommitVector)' \
   -benchmem -count=5
 ```
 
@@ -53,6 +53,10 @@ nanoseconds per operation.
 | Decode canonical scalar | 77.17, 73.11, 70.89, 74.57, 74.84 | 0 | 0 |
 | Reject non-canonical scalar | 309.7, 375.0, 215.9, 195.7, 176.3 | 176 | 5 |
 | Encode scalar | 13.64, 23.18, 10.80, 11.81, 19.64 | 0 | 0 |
+| Commit sparse five-term vector | 108785, 69867, 64012, 231937, 70566 | 1321 | 20 |
+| Commit dense 256-term vector | 4835446, 16280795, 15844953, 2671274, 2909500 | 67632-67655 | 1024 |
 
 These results are descriptive evidence for this source and environment, not a
-portable performance guarantee.
+portable performance guarantee. The vector samples show substantial local
+variance and therefore are not suitable as a release threshold or comparative
+ranking.

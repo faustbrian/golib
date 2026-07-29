@@ -232,9 +232,8 @@ func TestBuildRejectsDuplicatesAndInvalidInputs(t *testing.T) {
 		t.Fatalf("maximum supported limits: %v", err)
 	}
 
-	//lint:ignore SA1012 Nil context rejection is part of the owned contract.
-	//nolint:staticcheck // Nil context rejection is part of the owned contract.
-	if _, err := Build(nil, nil, testLimits()); !errors.Is(err, errInvalidContext) {
+	var missingContext context.Context
+	if _, err := Build(missingContext, nil, testLimits()); !errors.Is(err, errInvalidContext) {
 		t.Fatalf("nil-context build error = %v, want %v", err, errInvalidContext)
 	}
 
@@ -272,9 +271,8 @@ func TestLayoutRejectsCancelledOperations(t *testing.T) {
 	if _, _, err := layout.Delete(cancelled, Stem{0x01}); !errors.Is(err, context.Canceled) || !errors.Is(err, errCancelled) {
 		t.Fatalf("cancelled delete error = %v, want cancellation", err)
 	}
-	//lint:ignore SA1012 Nil context rejection is part of the owned contract.
-	//nolint:staticcheck // Nil context rejection is part of the owned contract.
-	if _, err := layout.Lookup(nil, Stem{0x01}); !errors.Is(err, errInvalidContext) {
+	var missingContext context.Context
+	if _, err := layout.Lookup(missingContext, Stem{0x01}); !errors.Is(err, errInvalidContext) {
 		t.Fatalf("nil-context lookup error = %v, want %v", err, errInvalidContext)
 	}
 }

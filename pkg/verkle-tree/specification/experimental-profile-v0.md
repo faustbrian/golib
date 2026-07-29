@@ -209,6 +209,45 @@ generator, commitment-to-field, tree-root, and proof fixtures recorded in
 inputs only. It MUST NOT be read as a production-backend, proof-system, node
 encoding, or Ethereum compatibility claim.
 
+## Internal Commitment Construction
+
+The experimental internal engine MUST accept exactly one complete width-256
+vector of canonical 32-byte little-endian scalars. It MUST reject a
+non-canonical scalar rather than reduce it into the field. The fixed array
+input MUST NOT permit a caller-selected vector length.
+
+Engine construction MUST be explicit. It MUST derive exactly 256 ordered
+generators from `eth_verkle_oct_2021`, canonically encode them, and reject the
+set unless the SHA-256 digest of their concatenation is
+`1fcaea10bf24f750200e06fa473c76ff0468007291fa548e2d99f09ba9256fdb`.
+Package initialization MUST NOT derive this set or create engine-owned
+goroutines.
+
+Before generator derivation or commitment arithmetic, the engine MUST enforce
+positive bounds for generator derivations, scalar decodings, non-zero
+multi-scalar terms, and conservative deterministic scratch bytes. It MUST
+count non-zero terms before scalar decoding or group operations. Commitment
+terms MUST be evaluated in ascending vector-index order and MUST NOT depend on
+map iteration, processor count, or worker scheduling.
+
+The zero vector MUST produce an opaque in-memory identity commitment and its
+commitment-to-field image MUST be scalar zero. The identity MUST NOT be emitted
+through the accepted canonical commitment-byte encoder. A zero or corrupt
+engine or commitment MUST fail before cryptographic work.
+
+Commitment construction MUST check cancellation before scanning, while
+scanning, before each non-zero term, and after the final term. The pinned
+backend's fixed-width generator derivation does not accept a context and cannot
+be interrupted after it starts; construction checks cancellation immediately
+before and after that call. This remaining limitation prohibits production
+backend approval and MUST remain visible in the backend audit.
+
+The independent Rust corpus fixes zero, first and last one-hot, sparse boundary,
+and dense incrementing vector commitments plus their commitment-to-field
+images. Agreement with that corpus proves only this bounded construction seam.
+It MUST NOT be interpreted as proof-opening, proof-verification, side-channel,
+or production-backend evidence.
+
 ## State Transition Reference Model
 
 The package's independent slow reference model fixes state behavior before

@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"encoding/hex"
 	"testing"
 )
@@ -10,6 +11,7 @@ var (
 	benchmarkEncodedCommitment [commitmentSize]byte
 	benchmarkScalar            scalar
 	benchmarkEncodedScalar     [scalarSize]byte
+	benchmarkVectorCommitment  VectorCommitment
 )
 
 func BenchmarkDecodeCommitmentCanonical(b *testing.B) {
@@ -28,6 +30,34 @@ func BenchmarkDecodeCommitmentCanonical(b *testing.B) {
 			b.Fatal(err)
 		}
 		benchmarkCommitment = value
+	}
+}
+
+func BenchmarkCommitVectorSparse(b *testing.B) {
+	benchmarkCommitVector(b, "sparse-boundaries")
+}
+
+func BenchmarkCommitVectorDense(b *testing.B) {
+	benchmarkCommitVector(b, "dense-incrementing")
+}
+
+func benchmarkCommitVector(b *testing.B, fixture string) {
+	b.Helper()
+
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		b.Fatal(err)
+	}
+	vector, _ := commitmentFixtureVector(b, fixture)
+	b.ReportAllocs()
+	b.SetBytes(VectorWidth * scalarSize)
+	b.ResetTimer()
+
+	for range b.N {
+		benchmarkVectorCommitment, err = engine.Commit(context.Background(), vector)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

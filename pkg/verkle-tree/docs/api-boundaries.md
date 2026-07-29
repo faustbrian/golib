@@ -61,6 +61,12 @@ operations for vector commitment, validated commitment updates where supported,
 single and aggregate opening, verification, canonical cryptographic encoding,
 and transcript construction.
 
+The current internal research engine implements only canonical scalar input,
+fixed-width vector commitment, generator-set identity validation, opaque
+identity handling, and commitment-to-field mapping. It deliberately exposes no
+public tree surface and does not yet provide commitment updates, openings, or
+verification.
+
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or
 encoding from another.
