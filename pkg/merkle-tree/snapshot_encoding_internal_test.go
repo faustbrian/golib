@@ -13,8 +13,9 @@ func TestSnapshotPersistenceInputAndResourceLimits(t *testing.T) {
 	t.Parallel()
 
 	snapshot, data := persistedSnapshotFixture(t)
+	var nilContext context.Context
 	if _, err := ParseSnapshot(
-		nil,
+		nilContext,
 		data,
 		DefaultSnapshotPersistenceLimits(),
 	); !errors.Is(err, ErrInvalidContext) {
@@ -336,8 +337,9 @@ func TestResumeBuilderValidationCancellationAndLimits(t *testing.T) {
 	t.Parallel()
 
 	snapshot, _ := persistedSnapshotFixture(t)
+	var nilContext context.Context
 	if _, err := ResumeBuilder(
-		nil,
+		nilContext,
 		snapshot,
 		snapshot.totalBytes,
 		DefaultSnapshotLimits(),

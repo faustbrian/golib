@@ -48,7 +48,7 @@ var (
 	// ErrSnapshotAccountingMismatch identifies persisted raw-byte accounting
 	// that differs from the caller's separately trusted expected value.
 	ErrSnapshotAccountingMismatch = errors.New(
-		"Merkle snapshot byte accounting mismatch",
+		"merkle snapshot byte accounting mismatch",
 	)
 
 	// ErrInvalidTreeSize identifies an unsupported or impossible relationship
