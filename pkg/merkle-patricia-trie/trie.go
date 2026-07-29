@@ -51,12 +51,16 @@ func DefaultLimits() Limits {
 }
 
 type trieSnapshot struct {
-	root    node
-	hash    Root
-	limits  Limits
-	base    Root
-	reader  NodeReader
-	pending map[Root][]byte
+	root         node
+	readRoot     node
+	hash         Root
+	limits       Limits
+	base         Root
+	reader       NodeReader
+	pending      map[Root][]byte
+	parent       *pendingLayer
+	removed      map[Root]struct{}
+	materialized bool
 
 	recovered     map[Root][]byte
 	recoveryNodes int
@@ -76,6 +80,7 @@ func NewRawTrie(limits Limits) (RawTrie, error) {
 	}
 	return RawTrie{snapshot: &trieSnapshot{
 		hash: EmptyRoot(), base: EmptyRoot(), limits: limits,
+		materialized: true,
 	}}, nil
 }
 
@@ -151,6 +156,7 @@ func NewSecureTrie(limits Limits) (SecureTrie, error) {
 	}
 	return SecureTrie{snapshot: &trieSnapshot{
 		hash: EmptyRoot(), base: EmptyRoot(), limits: limits,
+		materialized: true,
 	}}, nil
 }
 
@@ -232,9 +238,20 @@ func getSnapshot(
 		readsLeft: snapshot.limits.MaxNodeReads,
 		reader:    snapshot.reader,
 		pending:   snapshot.pending,
+		parent:    snapshot.parent,
+		removed:   snapshot.removed,
 		budget:    &budget,
+		resolved:  make(map[Root]struct{}),
 	}
-	value, found, err := getNode(snapshot.root, path, 0, &state)
+	root := snapshot.root
+	if snapshot.materialized {
+		root = snapshot.readRoot
+		state.pending = nil
+		state.parent = nil
+		state.removed = nil
+		state.reader = nil
+	}
+	value, found, err := getNode(root, path, 0, &state)
 	if err != nil {
 		return nil, err
 	}
@@ -265,15 +282,36 @@ func updateSnapshot(
 		readsLeft: snapshot.limits.MaxNodeReads,
 		reader:    snapshot.reader,
 		pending:   snapshot.pending,
+		parent:    snapshot.parent,
+		removed:   snapshot.removed,
 		budget:    &budget,
+		resolved:  make(map[Root]struct{}),
 	}
 	path, _ := keyPath(key, secure, &budget)
 	root, err := insertNode(snapshot.root, path, value, 0, &state)
 	if err != nil {
 		return nil, err
 	}
-	finished, err := finishSnapshot(
-		ctx, root, snapshot.limits, snapshot.base, snapshot.reader, &budget,
+	var readRoot node
+	if snapshot.materialized {
+		readRoot, err = insertReadRoot(
+			snapshot.readRoot,
+			path,
+			value,
+			false,
+			&state,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	finished, err := finishMutatedSnapshot(
+		ctx,
+		root,
+		readRoot,
+		snapshot,
+		state.resolved,
+		&budget,
 	)
 	if err != nil {
 		return nil, err
@@ -298,7 +336,10 @@ func deleteSnapshot(
 		readsLeft: snapshot.limits.MaxNodeReads,
 		reader:    snapshot.reader,
 		pending:   snapshot.pending,
+		parent:    snapshot.parent,
+		removed:   snapshot.removed,
 		budget:    &budget,
+		resolved:  make(map[Root]struct{}),
 	}
 	path, _ := keyPath(key, secure, &budget)
 	root, deleted, err := deleteNode(snapshot.root, path, 0, &state)
@@ -308,8 +349,26 @@ func deleteSnapshot(
 	if !deleted {
 		return nil, ErrAbsentKey
 	}
-	finished, err := finishSnapshot(
-		ctx, root, snapshot.limits, snapshot.base, snapshot.reader, &budget,
+	var readRoot node
+	if snapshot.materialized {
+		readRoot, err = insertReadRoot(
+			snapshot.readRoot,
+			path,
+			nil,
+			true,
+			&state,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	finished, err := finishMutatedSnapshot(
+		ctx,
+		root,
+		readRoot,
+		snapshot,
+		state.resolved,
+		&budget,
 	)
 	if err != nil {
 		return nil, err
@@ -325,12 +384,61 @@ func finishSnapshot(
 	reader NodeReader,
 	budget *workBudget,
 ) (*trieSnapshot, error) {
+	return finishSnapshotWithPending(
+		ctx,
+		root,
+		root,
+		limits,
+		base,
+		reader,
+		nil,
+		nil,
+		true,
+		budget,
+	)
+}
+
+func finishMutatedSnapshot(
+	ctx context.Context,
+	root node,
+	readRoot node,
+	previous *trieSnapshot,
+	resolved map[Root]struct{},
+	budget *workBudget,
+) (*trieSnapshot, error) {
+	return finishSnapshotWithPending(
+		ctx,
+		root,
+		readRoot,
+		previous.limits,
+		previous.base,
+		previous.reader,
+		previous,
+		resolved,
+		previous.materialized,
+		budget,
+	)
+}
+
+func finishSnapshotWithPending(
+	ctx context.Context,
+	root node,
+	readRoot node,
+	limits Limits,
+	base Root,
+	reader NodeReader,
+	previous *trieSnapshot,
+	resolved map[Root]struct{},
+	materialized bool,
+	budget *workBudget,
+) (*trieSnapshot, error) {
 	if err := checkContext(ctx); err != nil {
 		return nil, err
 	}
 	if root == nil {
 		return &trieSnapshot{
 			hash: EmptyRoot(), base: base, limits: limits, reader: reader,
+			materialized: materialized,
 		}, nil
 	}
 	encoded, pending, err := encodeNodeBounded(
@@ -349,11 +457,53 @@ func finishSnapshot(
 	if err != nil {
 		return nil, err
 	}
-	pending[hash] = append([]byte(nil), encoded...)
+	frozen, err := decodeNode(encoded)
+	if err != nil {
+		return nil, err
+	}
+	added := make(map[Root][]byte)
+	mergePersistedReferences(added, pending)
+	added[hash] = append([]byte(nil), encoded...)
+	parent, removed := nextPendingLayer(previous, resolved)
+	if parent != nil && parent.depth >= maximumPendingLayerDepth {
+		compacted := materializePendingLayer(parent)
+		for stale := range removed {
+			delete(compacted, stale)
+		}
+		mergePersistedReferences(compacted, added)
+		added = compacted
+		parent = nil
+		removed = nil
+	}
 	return &trieSnapshot{
-		root: root, hash: hash, limits: limits, base: base, reader: reader,
-		pending: pending,
+		root: frozen, readRoot: readRoot, hash: hash, limits: limits,
+		base: base, reader: reader,
+		pending: added, parent: parent, removed: removed,
+		materialized: materialized,
 	}, nil
+}
+
+func insertReadRoot(
+	root node,
+	path, value []byte,
+	deleting bool,
+	state *traversalState,
+) (node, error) {
+	readState := traversalState{
+		ctx: state.ctx, maxDepth: state.maxDepth,
+		nodesLeft: state.nodesLeft, budget: state.budget,
+	}
+	if !deleting {
+		return insertNode(root, path, value, 0, &readState)
+	}
+	next, deleted, err := deleteNode(root, path, 0, &readState)
+	if err != nil {
+		return nil, err
+	}
+	if !deleted {
+		return nil, fmt.Errorf("%w: materialized snapshot diverged", ErrMalformedNode)
+	}
+	return next, nil
 }
 
 func validateTrieLimits(limits Limits) error {
@@ -424,7 +574,10 @@ type traversalState struct {
 	readsLeft int
 	reader    NodeReader
 	pending   map[Root][]byte
+	parent    *pendingLayer
+	removed   map[Root]struct{}
 	budget    *workBudget
+	resolved  map[Root]struct{}
 }
 
 func (state *traversalState) visit(depth int) error {
@@ -713,6 +866,14 @@ func deleteNode(
 			}
 			children[path[0]] = child
 		}
+		children, err := resolveCollapsibleBranchChild(
+			children,
+			branchValue,
+			state,
+		)
+		if err != nil {
+			return nil, false, err
+		}
 		compacted, err := compactBranch(children, branchValue)
 		return compacted, true, err
 	case hashNode:
@@ -730,6 +891,37 @@ func deleteNode(
 	default:
 		return nil, false, fmt.Errorf("%w: unresolved node", ErrMalformedNode)
 	}
+}
+
+func resolveCollapsibleBranchChild(
+	children [16]node,
+	value []byte,
+	state *traversalState,
+) ([16]node, error) {
+	if len(value) != 0 {
+		return children, nil
+	}
+	count := 0
+	only := 0
+	for index, child := range children {
+		if child != nil {
+			count++
+			only = index
+		}
+	}
+	if count != 1 {
+		return children, nil
+	}
+	hashed, ok := children[only].(hashNode)
+	if !ok {
+		return children, nil
+	}
+	resolved, err := state.resolveChild(Root(hashed))
+	if err != nil {
+		return children, err
+	}
+	children[only] = resolved
+	return children, nil
 }
 
 func compactBranch(children [16]node, value []byte) (node, error) {
@@ -850,16 +1042,21 @@ func commitSnapshot(
 	}
 	if snapshot.reader != nil &&
 		snapshot.hash == snapshot.base &&
-		len(snapshot.pending) == 0 {
+		len(snapshot.recovered) == 0 {
 		return snapshot, nil
 	}
-	commit := newStoreCommit(snapshot.base, snapshot.hash, snapshot.pending)
+	commit := newStoreCommit(
+		snapshot.base,
+		snapshot.hash,
+		materializeSnapshotPending(snapshot),
+	)
 	if err := store.CommitTrie(ctx, commit); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrStorageCommit, err)
 	}
 	return &trieSnapshot{
-		root: snapshot.root, hash: snapshot.hash, base: snapshot.hash,
-		limits: snapshot.limits, reader: store,
+		root: snapshot.root, readRoot: snapshot.readRoot,
+		hash: snapshot.hash, base: snapshot.hash, limits: snapshot.limits,
+		reader: store, materialized: snapshot.materialized,
 	}, nil
 }
 
@@ -895,7 +1092,12 @@ func (state *traversalState) resolveEncodedChild(
 func (state *traversalState) resolveEncoded(
 	hash Root,
 ) (node, []byte, error) {
-	encoded, recovered := state.pending[hash]
+	encoded, recovered := lookupPending(
+		state.pending,
+		state.removed,
+		state.parent,
+		hash,
+	)
 	if !recovered {
 		if state.reader == nil {
 			return nil, nil, fmt.Errorf("%w: unresolved hash without reader", ErrMalformedNode)
@@ -930,7 +1132,126 @@ func (state *traversalState) resolveEncoded(
 		}
 		return nil, nil, &CorruptNodeError{Hash: hash, Cause: err}
 	}
+	if state.resolved != nil {
+		state.resolved[hash] = struct{}{}
+	}
 	return resolved, append([]byte(nil), encoded...), nil
+}
+
+func mergePersistedReferences(target, source map[Root][]byte) {
+	for root, encoded := range source {
+		target[root] = encoded
+	}
+}
+
+const maximumPendingLayerDepth = 32
+
+type pendingLayer struct {
+	added   map[Root][]byte
+	removed map[Root]struct{}
+	parent  *pendingLayer
+	depth   int
+}
+
+func nextPendingLayer(
+	previous *trieSnapshot,
+	resolved map[Root]struct{},
+) (*pendingLayer, map[Root]struct{}) {
+	if previous == nil {
+		return nil, nil
+	}
+	parent := snapshotPendingLayer(previous)
+	removed := make(map[Root]struct{})
+	removed[previous.hash] = struct{}{}
+	for hash := range resolved {
+		removed[hash] = struct{}{}
+	}
+	return parent, removed
+}
+
+func snapshotPendingLayer(snapshot *trieSnapshot) *pendingLayer {
+	if snapshot == nil {
+		return nil
+	}
+	if len(snapshot.pending) == 0 && len(snapshot.removed) == 0 {
+		return snapshot.parent
+	}
+	depth := 1
+	if snapshot.parent != nil {
+		depth = snapshot.parent.depth + 1
+	}
+	return &pendingLayer{
+		added: snapshot.pending, removed: snapshot.removed,
+		parent: snapshot.parent, depth: depth,
+	}
+}
+
+func lookupSnapshotPending(
+	snapshot *trieSnapshot,
+	hash Root,
+) ([]byte, bool) {
+	if snapshot == nil {
+		return nil, false
+	}
+	return lookupPending(
+		snapshot.pending,
+		snapshot.removed,
+		snapshot.parent,
+		hash,
+	)
+}
+
+func lookupPending(
+	added map[Root][]byte,
+	removed map[Root]struct{},
+	parent *pendingLayer,
+	hash Root,
+) ([]byte, bool) {
+	if encoded, exists := added[hash]; exists {
+		return encoded, true
+	}
+	if _, stale := removed[hash]; stale {
+		return nil, false
+	}
+	for current := parent; current != nil; current = current.parent {
+		if encoded, exists := current.added[hash]; exists {
+			return encoded, true
+		}
+		if _, stale := current.removed[hash]; stale {
+			return nil, false
+		}
+	}
+	return nil, false
+}
+
+func materializeSnapshotPending(snapshot *trieSnapshot) map[Root][]byte {
+	if snapshot == nil {
+		return make(map[Root][]byte)
+	}
+	materialized := materializePendingLayer(snapshot.parent)
+	for hash := range snapshot.removed {
+		delete(materialized, hash)
+	}
+	mergePersistedReferences(materialized, snapshot.pending)
+	return materialized
+}
+
+func materializePendingLayer(layer *pendingLayer) map[Root][]byte {
+	if layer == nil {
+		return make(map[Root][]byte)
+	}
+	layers := make([]*pendingLayer, 0, layer.depth)
+	for current := layer; current != nil; current = current.parent {
+		layers = append(layers, current)
+	}
+	materialized := make(map[Root][]byte)
+	for index := len(layers) - 1; index >= 0; index-- {
+		for hash := range layers[index].removed {
+			delete(materialized, hash)
+		}
+		mergePersistedReferences(materialized, layers[index].added)
+	}
+	return materialized
 }
 
 func (state *traversalState) extensionChild(child node) (node, error) {

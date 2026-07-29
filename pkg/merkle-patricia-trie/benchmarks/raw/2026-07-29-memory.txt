@@ -1,0 +1,27 @@
+/usr/bin/time -l env GOMAXPROCS=1 GOWORK=off go test -run '^$' -bench '^BenchmarkOrdinaryConstruction$' -benchmem -benchtime=1x -count=1 .
+
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie
+cpu: Apple M4 Max
+BenchmarkOrdinaryConstruction 	       1	  19062208 ns/op	36730424 B/op	  270953 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/merkle-patricia-trie	0.211s
+        0.65 real         0.14 user         0.19 sys
+           105644032  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               15694  page reclaims
+                 305  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                  13  signals received
+                  28  voluntary context switches
+                2577  involuntary context switches
+          1672374487  instructions retired
+           825475493  cycles elapsed
+            17695416  peak memory footprint

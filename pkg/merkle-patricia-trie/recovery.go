@@ -53,7 +53,7 @@ func recoverSnapshot(
 	if !validStore(snapshot.reader) {
 		return nil, fmt.Errorf("%w: recovery requires a backing reader", ErrInvalidStore)
 	}
-	if existing, exists := snapshot.pending[hash]; exists {
+	if existing, exists := lookupSnapshotPending(snapshot, hash); exists {
 		if bytes.Equal(existing, encoded) {
 			return snapshot, nil
 		}
@@ -89,14 +89,20 @@ func recoverSnapshot(
 		return nil, err
 	}
 
-	pending := make(map[Root][]byte)
-	mergePersisted(pending, snapshot.pending)
-	pending[hash] = owned
 	recoveredNodes := make(map[Root][]byte)
 	mergePersisted(recoveredNodes, snapshot.recovered)
 	recoveredNodes[hash] = append([]byte(nil), owned...)
 	recovered := *snapshot
-	recovered.pending = pending
+	recovered.pending = map[Root][]byte{hash: owned}
+	recovered.parent = snapshotPendingLayer(snapshot)
+	recovered.removed = nil
+	if recovered.parent != nil &&
+		recovered.parent.depth >= maximumPendingLayerDepth {
+		compacted := materializePendingLayer(recovered.parent)
+		compacted[hash] = owned
+		recovered.pending = compacted
+		recovered.parent = nil
+	}
 	recovered.recovered = recoveredNodes
 	recovered.recoveryNodes++
 	recovered.recoveryBytes += len(owned)
@@ -107,10 +113,17 @@ func inheritRecovery(next, previous *trieSnapshot) *trieSnapshot {
 	if next.root == nil || len(previous.recovered) == 0 {
 		return next
 	}
-	mergePersisted(next.pending, previous.recovered)
 	next.recovered = make(map[Root][]byte, len(previous.recovered))
-	mergePersisted(next.recovered, previous.recovered)
-	next.recoveryNodes = previous.recoveryNodes
-	next.recoveryBytes = previous.recoveryBytes
+	recoveryBytes := 0
+	for hash, encoded := range previous.recovered {
+		if _, reachable := lookupSnapshotPending(next, hash); reachable {
+			owned := append([]byte(nil), encoded...)
+			next.pending[hash] = owned
+			next.recovered[hash] = append([]byte(nil), owned...)
+			recoveryBytes = recoveryBytes + len(owned)
+		}
+	}
+	next.recoveryNodes = len(next.recovered)
+	next.recoveryBytes = recoveryBytes
 	return next
 }

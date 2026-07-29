@@ -55,6 +55,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   and EthereumJS.
 - Added encoding, profile, proof, operation, storage, recovery, pruning,
   adoption, comparison, migration, and FAQ guides.
+- Added reproducible local benchmark workloads and an ownership-equivalent
+  populated raw lookup comparison against pinned Geth.
+- Reworked immutable updates to structurally share canonical pending-node
+  layers, bound overlay compaction, and discard superseded or unreachable
+  hashed nodes without changing roots or snapshot semantics.
 - Added immutable state and storage trie profiles with exact address and slot
   types, canonical account construction, unsigned word handling, zero-slot
   deletion, persistence, rebuild, recovery, proofs, and pinned Geth and

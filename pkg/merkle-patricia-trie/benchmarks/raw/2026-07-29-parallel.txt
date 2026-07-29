@@ -1,0 +1,18 @@
+GOMAXPROCS=16 GOWORK=off go test -run '^$' -bench '^BenchmarkParallelGet$' -benchmem -benchtime=500ms -count=10 .
+
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie
+cpu: Apple M4 Max
+BenchmarkParallelGet-16    	12308641	        97.65 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	11106012	       134.3 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 6732487	       143.6 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 5484169	       206.4 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	11453942	       113.3 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 5488465	       130.2 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 9914726	       130.1 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 7525287	        78.71 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	12061371	       107.0 ns/op	     104 B/op	       4 allocs/op
+BenchmarkParallelGet-16    	 8136816	       109.3 ns/op	     104 B/op	       4 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/merkle-patricia-trie	17.245s

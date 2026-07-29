@@ -76,6 +76,8 @@ func proveSnapshot(
 		readsLeft: snapshot.limits.MaxNodeReads,
 		reader:    snapshot.reader,
 		pending:   snapshot.pending,
+		parent:    snapshot.parent,
+		removed:   snapshot.removed,
 		budget:    &budget,
 	}
 	current := snapshot.root

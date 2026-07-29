@@ -114,9 +114,13 @@ func applyBatch(
 		readsLeft: snapshot.limits.MaxNodeReads,
 		reader:    snapshot.reader,
 		pending:   snapshot.pending,
+		parent:    snapshot.parent,
+		removed:   snapshot.removed,
 		budget:    &budget,
+		resolved:  make(map[Root]struct{}),
 	}
 	root := snapshot.root
+	readRoot := snapshot.readRoot
 	for _, mutation := range mutations {
 		path, err := keyPath(mutation.key, secure, &budget)
 		if err != nil {
@@ -125,19 +129,48 @@ func applyBatch(
 		switch mutation.kind {
 		case mutationPut:
 			root, err = insertNode(root, path, mutation.value, 0, &state)
+			if err != nil {
+				return nil, err
+			}
+			if snapshot.materialized {
+				readRoot, err = insertReadRoot(
+					readRoot,
+					path,
+					mutation.value,
+					false,
+					&state,
+				)
+			}
 		case mutationRemove:
 			var deleted bool
 			root, deleted, err = deleteNode(root, path, 0, &state)
-			if err == nil && !deleted {
-				err = ErrAbsentKey
+			if err != nil {
+				return nil, err
+			}
+			if !deleted {
+				return nil, ErrAbsentKey
+			}
+			if snapshot.materialized {
+				readRoot, err = insertReadRoot(
+					readRoot,
+					path,
+					nil,
+					true,
+					&state,
+				)
 			}
 		}
 		if err != nil {
 			return nil, err
 		}
 	}
-	finished, err := finishSnapshot(
-		ctx, root, snapshot.limits, snapshot.base, snapshot.reader, &budget,
+	finished, err := finishMutatedSnapshot(
+		ctx,
+		root,
+		readRoot,
+		snapshot,
+		state.resolved,
+		&budget,
 	)
 	if err != nil {
 		return nil, err

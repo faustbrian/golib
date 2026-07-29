@@ -108,14 +108,28 @@ func iterateSnapshot(
 		Limit:  options.Limit,
 	}
 	budget := workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
+	root := snapshot.root
+	reader := snapshot.reader
+	pending := snapshot.pending
+	parent := snapshot.parent
+	removed := snapshot.removed
+	if snapshot.materialized {
+		root = snapshot.readRoot
+		reader = nil
+		pending = nil
+		parent = nil
+		removed = nil
+	}
 	state := iterationState{
 		traversal: traversalState{
 			ctx:       ctx,
 			maxDepth:  snapshot.limits.MaxTraversalDepth,
 			nodesLeft: snapshot.limits.MaxIterationNodes,
 			readsLeft: snapshot.limits.MaxNodeReads,
-			reader:    snapshot.reader,
-			pending:   snapshot.pending,
+			reader:    reader,
+			pending:   pending,
+			parent:    parent,
+			removed:   removed,
 			budget:    &budget,
 		},
 		options: copied,
@@ -123,7 +137,7 @@ func iterateSnapshot(
 		yield:   yield,
 		hardMax: snapshot.limits.MaxIteratorResults,
 	}
-	err := state.walk(snapshot.root, nil, 0)
+	err := state.walk(root, nil, 0)
 	if errors.Is(err, errIterationLimitReached) {
 		return nil
 	}

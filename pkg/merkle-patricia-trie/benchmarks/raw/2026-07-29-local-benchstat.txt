@@ -1,0 +1,145 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie
+cpu: Apple M4 Max
+                            │ /tmp/mpt-local-release.txt │
+                            │           sec/op           │
+ComparableRawGetOwned                      281.4n ±  52%
+ParallelGet                                444.4n ± 237%
+OrdinaryConstruction                       157.9m ± 113%
+StoredGet/LoadedSnapshot                   28.88µ ±  25%
+StoredGet/ReloadedSnapshot                 34.15µ ±  89%
+EIP1186ProofSetVerification                228.7µ ±  99%
+MalformedProofRejection                    396.0n ±  83%
+CorruptStoredNodeRejection                 1.480µ ±  55%
+StateRebuild                               2.800m ± 192%
+GetEmpty                                   274.6n ± 145%
+GetPopulated                               217.3n ± 121%
+Update                                     498.6µ ±  45%
+Replace                                    425.9µ ±  84%
+Delete                                     597.8µ ± 131%
+AtomicBatch                                848.0µ ± 106%
+Root                                       5.098n ± 100%
+TransactionRoot                            1.997m ± 257%
+ReceiptRoot                                1.134m ± 161%
+StateAccountUpdate                         7.847µ ± 352%
+StateAccountGet                            1.819µ ±  90%
+StorageSlotUpdate                          3.795µ ±  45%
+StorageSlotGet                             786.8n ±  35%
+Commit                                     1.522m ±  89%
+ProofGeneration                            44.62µ ±  43%
+ProofVerification                          154.0µ ±  60%
+MultiProofGeneration                       2.232m ±  77%
+MultiProofVerification                     378.4µ ±  45%
+RangeProofGeneration                       396.6µ ± 164%
+RangeProofVerification                     83.68µ ±  41%
+FullIteration                              205.5µ ±  38%
+PrefixIteration                            281.0µ ± 124%
+Rebuild                                    4.667m ±  41%
+MissingNodeRecovery                        1.717µ ±  40%
+Prune                                      1.407m ±  56%
+SortedConstruction                         5.916m ±  40%
+geomean                                    56.85µ
+
+                            │ /tmp/mpt-local-release.txt │
+                            │            B/op            │
+ComparableRawGetOwned                       104.0 ± 0%
+ParallelGet                                 104.0 ± 0%
+OrdinaryConstruction                      35.03Mi ± 0%
+StoredGet/LoadedSnapshot                  21.35Ki ± 0%
+StoredGet/ReloadedSnapshot                21.70Ki ± 0%
+EIP1186ProofSetVerification               146.7Ki ± 0%
+MalformedProofRejection                     16.00 ± 0%
+CorruptStoredNodeRejection                  632.0 ± 0%
+StateRebuild                              1.277Mi ± 0%
+GetEmpty                                    72.00 ± 0%
+GetPopulated                                104.0 ± 0%
+Update                                    274.3Ki ± 0%
+Replace                                   298.8Ki ± 0%
+Delete                                    297.9Ki ± 0%
+AtomicBatch                               298.4Ki ± 0%
+Root                                        0.000 ± 0%
+TransactionRoot                           625.9Ki ± 0%
+ReceiptRoot                               635.2Ki ± 0%
+StateAccountUpdate                        3.445Ki ± 0%
+StateAccountGet                           1.164Ki ± 0%
+StorageSlotUpdate                         2.711Ki ± 0%
+StorageSlotGet                              144.0 ± 0%
+Commit                                    1.043Mi ± 0%
+ProofGeneration                           34.96Ki ± 0%
+ProofVerification                         16.86Ki ± 0%
+MultiProofGeneration                      553.3Ki ± 0%
+MultiProofVerification                    242.3Ki ± 0%
+RangeProofGeneration                      332.0Ki ± 0%
+RangeProofVerification                    55.46Ki ± 0%
+FullIteration                             89.07Ki ± 0%
+PrefixIteration                           89.08Ki ± 0%
+Rebuild                                   4.307Mi ± 0%
+MissingNodeRecovery                       2.031Ki ± 0%
+Prune                                     496.5Ki ± 0%
+SortedConstruction                        3.653Mi ± 0%
+geomean                                                ¹
+¹ summaries must be >0 to compute geomean
+
+                            │ /tmp/mpt-local-release.txt │
+                            │         allocs/op          │
+ComparableRawGetOwned                       4.000 ± 0%
+ParallelGet                                 4.000 ± 0%
+OrdinaryConstruction                       271.0k ± 0%
+StoredGet/LoadedSnapshot                    175.0 ± 0%
+StoredGet/ReloadedSnapshot                  177.0 ± 0%
+EIP1186ProofSetVerification                1.027k ± 0%
+MalformedProofRejection                     1.000 ± 0%
+CorruptStoredNodeRejection                  10.00 ± 0%
+StateRebuild                               11.66k ± 0%
+GetEmpty                                    3.000 ± 0%
+GetPopulated                                4.000 ± 0%
+Update                                      187.0 ± 0%
+Replace                                     397.0 ± 0%
+Delete                                      378.0 ± 0%
+AtomicBatch                                 657.0 ± 0%
+Root                                        0.000 ± 0%
+TransactionRoot                            7.569k ± 0%
+ReceiptRoot                                7.570k ± 0%
+StateAccountUpdate                          40.00 ± 0%
+StateAccountGet                             15.00 ± 0%
+StorageSlotUpdate                           38.00 ± 0%
+StorageSlotGet                              6.000 ± 0%
+Commit                                     3.342k ± 0%
+ProofGeneration                             335.0 ± 0%
+ProofVerification                           156.0 ± 0%
+MultiProofGeneration                       2.629k ± 0%
+MultiProofVerification                     2.413k ± 0%
+RangeProofGeneration                        962.0 ± 0%
+RangeProofVerification                      776.0 ± 0%
+FullIteration                              4.165k ± 0%
+PrefixIteration                            4.166k ± 0%
+Rebuild                                    33.92k ± 0%
+MissingNodeRecovery                         20.00 ± 0%
+Prune                                      4.661k ± 0%
+SortedConstruction                         22.39k ± 0%
+geomean                                                ¹
+¹ summaries must be >0 to compute geomean
+
+                           │ /tmp/mpt-local-release.txt │
+                           │          reads/op          │
+StoredGet/LoadedSnapshot                     5.000 ± 0%
+StoredGet/ReloadedSnapshot                   5.000 ± 0%
+CorruptStoredNodeRejection                   1.000 ± 0%
+geomean                                      2.924
+
+                            │ /tmp/mpt-local-release.txt │
+                            │          proof-B           │
+EIP1186ProofSetVerification                 6.938Ki ± 0%
+ProofVerification                           1.258Ki ± 0%
+MultiProofVerification                      19.98Ki ± 0%
+RangeProofVerification                      3.356Ki ± 0%
+geomean                                     4.918Ki
+
+                            │ /tmp/mpt-local-release.txt │
+                            │        proof-nodes         │
+EIP1186ProofSetVerification                   45.00 ± 0%
+ProofVerification                             5.000 ± 0%
+MultiProofVerification                        70.00 ± 0%
+RangeProofVerification                        38.00 ± 0%
+geomean                                       27.81

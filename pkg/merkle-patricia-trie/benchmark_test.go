@@ -315,6 +315,7 @@ func BenchmarkProofVerification(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	proofNodes, proofBytes := benchmarkProofSize(proof)
 	b.ResetTimer()
 	for b.Loop() {
 		if err := mpt.VerifyRawMembership(
@@ -323,6 +324,8 @@ func BenchmarkProofVerification(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	b.ReportMetric(float64(proofNodes), "proof-nodes")
+	b.ReportMetric(float64(proofBytes), "proof-B")
 }
 
 func BenchmarkMultiProofGeneration(b *testing.B) {
@@ -361,6 +364,7 @@ func BenchmarkMultiProofVerification(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	proofNodes, proofBytes := benchmarkMultiProofSize(proof)
 	b.ResetTimer()
 	for b.Loop() {
 		if err := mpt.VerifyRawMultiProof(
@@ -369,6 +373,8 @@ func BenchmarkMultiProofVerification(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	b.ReportMetric(float64(proofNodes), "proof-nodes")
+	b.ReportMetric(float64(proofBytes), "proof-B")
 }
 
 func BenchmarkRangeProofGeneration(b *testing.B) {
@@ -399,6 +405,7 @@ func BenchmarkRangeProofVerification(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	proofNodes, proofBytes := benchmarkRangeProofSize(proof)
 	b.ResetTimer()
 	for b.Loop() {
 		if err := mpt.VerifyRawRange(
@@ -413,6 +420,8 @@ func BenchmarkRangeProofVerification(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+	b.ReportMetric(float64(proofNodes), "proof-nodes")
+	b.ReportMetric(float64(proofBytes), "proof-B")
 }
 
 func BenchmarkFullIteration(b *testing.B) {

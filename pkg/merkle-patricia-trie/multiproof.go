@@ -130,8 +130,7 @@ func newMultiProofBuilder(
 	snapshot *trieSnapshot,
 ) *multiProofBuilder {
 	budget := &workBudget{hashesLeft: snapshot.limits.MaxHashOperations}
-	pending := make(map[Root][]byte, len(snapshot.pending))
-	mergePersisted(pending, snapshot.pending)
+	pending := materializeSnapshotPending(snapshot)
 	return &multiProofBuilder{
 		ctx: ctx, snapshot: snapshot, pending: pending,
 		decoded: make(map[Root]node), seen: make(map[Root]struct{}),
@@ -140,7 +139,8 @@ func newMultiProofBuilder(
 			nodesLeft: snapshot.limits.MaxTraversalNodes,
 			readsLeft: snapshot.limits.MaxNodeReads,
 			reader:    snapshot.reader, budget: budget,
-			pending: snapshot.pending,
+			pending: snapshot.pending, parent: snapshot.parent,
+			removed: snapshot.removed,
 		},
 	}
 }

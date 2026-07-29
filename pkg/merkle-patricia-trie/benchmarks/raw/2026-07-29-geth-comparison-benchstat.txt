@@ -1,0 +1,15 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie
+cpu: Apple M4 Max
+                      │ /tmp/mpt-comparison-local-normalized.txt │ /tmp/mpt-comparison-geth-normalized.txt │
+                      │                  sec/op                  │     sec/op       vs base                │
+ComparableRawGetOwned                              482.4n ± 113%      200.9n ± 33%  -58.35% (p=0.001 n=10)
+
+                      │ /tmp/mpt-comparison-local-normalized.txt │ /tmp/mpt-comparison-geth-normalized.txt │
+                      │                   B/op                   │      B/op        vs base                │
+ComparableRawGetOwned                                104.00 ± 0%        80.00 ± 0%  -23.08% (p=0.000 n=10)
+
+                      │ /tmp/mpt-comparison-local-normalized.txt │ /tmp/mpt-comparison-geth-normalized.txt │
+                      │                allocs/op                 │    allocs/op     vs base                │
+ComparableRawGetOwned                                 4.000 ± 0%        3.000 ± 0%  -25.00% (p=0.000 n=10)

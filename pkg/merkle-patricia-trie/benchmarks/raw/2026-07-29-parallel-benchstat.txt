@@ -1,0 +1,15 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/merkle-patricia-trie
+cpu: Apple M4 Max
+               │ /tmp/mpt-parallel-release.txt │
+               │            sec/op             │
+ParallelGet-16                    121.7n ± 20%
+
+               │ /tmp/mpt-parallel-release.txt │
+               │             B/op              │
+ParallelGet-16                      104.0 ± 0%
+
+               │ /tmp/mpt-parallel-release.txt │
+               │           allocs/op           │
+ParallelGet-16                      4.000 ± 0%

@@ -32,6 +32,7 @@ binary Merkle tree, SSZ merkleization, or Verkle tree.
 - [Security assumptions](docs/security.md)
 - [Source and fixture provenance](docs/source-provenance.md)
 - [Adoption, comparisons, migration, and FAQ](docs/adoption.md)
+- [Benchmark methodology and results](docs/benchmarks.md)
 
 ## Raw trie quick start
 

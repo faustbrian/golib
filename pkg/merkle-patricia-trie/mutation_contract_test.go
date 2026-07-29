@@ -408,7 +408,7 @@ func TestLoadedMultiNodeProofTraversesEveryHashedReference(t *testing.T) {
 		t.Fatalf("Root() error = %v", err)
 	}
 	reader := nodeReaderFunc(func(_ context.Context, hash Root) ([]byte, error) {
-		encoded, ok := trie.snapshot.pending[hash]
+		encoded, ok := lookupSnapshotPending(trie.snapshot, hash)
 		if !ok {
 			return nil, ErrMissingNode
 		}
