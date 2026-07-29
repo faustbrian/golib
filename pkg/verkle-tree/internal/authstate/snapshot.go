@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 
+	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
 )
@@ -226,6 +227,21 @@ func (snapshot Snapshot) Root() (backend.VectorCommitment, error) {
 	return snapshot.tree.Root()
 }
 
+// RootContainer returns the exact canonical profile-bound root. The empty tree
+// is encoded explicitly rather than as an identity point.
+func (snapshot Snapshot) RootContainer(ctx context.Context) (backend.Root, error) {
+	root, err := snapshot.Root()
+	if err != nil {
+		return backend.Root{}, err
+	}
+
+	return backend.NewRoot(
+		ctx,
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		root,
+	)
+}
+
 // Apply validates the complete batch, applies it in ascending key order, and
 // constructs a new immutable snapshot. Every failure leaves the receiver
 // unchanged and returns no usable transition.
@@ -393,6 +409,22 @@ func (transition Transition) PreRoot() (backend.VectorCommitment, error) {
 	return transition.preRoot, nil
 }
 
+// PreRootContainer returns the canonical profile-bound pre-state root.
+func (transition Transition) PreRootContainer(
+	ctx context.Context,
+) (backend.Root, error) {
+	root, err := transition.PreRoot()
+	if err != nil {
+		return backend.Root{}, err
+	}
+
+	return backend.NewRoot(
+		ctx,
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		root,
+	)
+}
+
 // PostRoot returns the exact root of the newly constructed snapshot.
 func (transition Transition) PostRoot() (backend.VectorCommitment, error) {
 	if !transition.valid {
@@ -400,6 +432,22 @@ func (transition Transition) PostRoot() (backend.VectorCommitment, error) {
 	}
 
 	return transition.postRoot, nil
+}
+
+// PostRootContainer returns the canonical profile-bound post-state root.
+func (transition Transition) PostRootContainer(
+	ctx context.Context,
+) (backend.Root, error) {
+	root, err := transition.PostRoot()
+	if err != nil {
+		return backend.Root{}, err
+	}
+
+	return backend.NewRoot(
+		ctx,
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		root,
+	)
 }
 
 func (snapshot Snapshot) validate() error {

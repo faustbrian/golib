@@ -59,6 +59,10 @@ All notable changes to `verkle-tree` will be documented in this file.
   payload, with canonical point and scalar validation, defensive ownership,
   cancellation checkpoints, and fail-closed resource accounting without
   claiming tree-proof verification.
+- Add a canonical 42-byte experimental root container that binds the exact
+  profile and encoding version, represents the empty root without an identity
+  point, rejects mismatches before point decoding, and binds snapshot
+  transitions to portable pre-state and post-state root bytes.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.

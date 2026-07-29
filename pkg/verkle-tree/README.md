@@ -93,9 +93,10 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: canonical container encodings, proof and
-witness semantics, commitment-level deletion, storage publication, and
-complete cryptographic resource accounting are not yet frozen or exported.
+The profile remains incomplete: canonical node, proof, witness, snapshot, and
+storage encodings, proof and witness semantics, commitment-level deletion,
+storage publication, and complete cryptographic resource accounting are not
+yet frozen or exported.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -125,8 +126,8 @@ preflights entry, stem, node, edge, commitment, field-mapping, aggregate-term,
 and scratch budgets, retains the canonical child edges, and supports concurrent
 builds through one immutable engine. Six independently generated Rust states
 agree on the empty identity and every non-empty root byte. This is not a public
-tree, canonical root encoding, incremental update path, proof system, storage
-implementation, or production-backend approval.
+tree, incremental update path, proof system, storage implementation, or
+production-backend approval.
 
 An internal authenticated-state layer now binds those complete roots to
 immutable ordered snapshots. It distinguishes absence from a present zero
@@ -134,10 +135,12 @@ value, validates complete duplicate-free batches before publication, applies
 set and delete operations in canonical key order, and returns a transition
 bound to the exact pre-state and post-state commitments. Every update currently
 rebuilds the complete committed tree; no incremental commitment-update,
-persistence, public snapshot, proof, witness, or canonical root-container claim
-is made. The pinned Go/Rust update corpus fixes one exact pre-root and post-root,
-while a separate cryptography-independent model checks broader state-transition
-behavior.
+persistence, public snapshot, proof, or witness claim is made. Snapshots and
+transitions now expose an internal canonical 42-byte profile-bound root
+container that represents an empty tree explicitly and rejects mismatched
+profiles before point decoding. The pinned Go/Rust update corpus fixes one exact
+pre-root and post-root, while a separate cryptography-independent model checks
+broader state-transition behavior.
 
 ## Development rule
 

@@ -8,12 +8,13 @@ updates must produce deterministic immutable snapshots without publishing
 partially durable state.
 
 This document defines the complete audit scope. Current internal controls cover
-canonical point and scalar decoding, strict bounded decoding of the fixed raw
-aggregate-opening payload, fixed generator-set validation, bounded serial vector
-commitment, immutable state transitions, canonical stem topology, bounded
-deterministic full-root construction, and atomic root-bound snapshot
-transitions. Tree-proof verification, witnesses, storage, publication, and
-complete side-channel controls remain unimplemented.
+canonical point and scalar decoding, strict profile-bound root decoding,
+strict bounded decoding of the fixed raw aggregate-opening payload, fixed
+generator-set validation, bounded serial vector commitment, immutable state
+transitions, canonical stem topology, bounded deterministic full-root
+construction, and atomic root-bound snapshot transitions. Tree-proof
+verification, witnesses, storage, publication, and complete side-channel
+controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -59,6 +60,11 @@ trailing-byte, identity-point, malformed-point, non-canonical-point,
 wrong-subgroup-point, non-canonical-scalar, caller-aliasing, and declared decode
 budget attacks. Acceptance proves only canonical syntax for one opaque payload;
 it does not prove the opening or authenticate any tree claim.
+
+The root decoder rejects wrong profile and encoding headers before point work,
+rejects alternate lengths and non-canonical commitment payloads, and uses a
+distinct empty kind so an identity point cannot be smuggled through root bytes.
+It does not bind a snapshot or prove that the committed state is available.
 
 ### Tree and state transitions
 

@@ -73,8 +73,10 @@ updates, opening generation, or verification.
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused
 concurrently; each result owns a complete immutable logical-node arena and an
-opaque root commitment. It deliberately exposes no root package API, wire
-container, persistence contract, proof operation, or incremental update seam.
+opaque root commitment. The backend boundary wraps that commitment in one
+strict 42-byte profile-bound root container, including an explicit empty-root
+kind that never decodes an identity point. It deliberately exposes no public
+root API, persistence contract, proof operation, or incremental update seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch
@@ -87,9 +89,10 @@ no-op. Snapshot copies support concurrent reads and independent updates because
 retained entries, trees, and the reusable builder are immutable.
 
 This boundary rebuilds the complete tree for each accepted batch. It is not a
-public writer, incremental commitment update, snapshot identifier, proof or
-witness, persistence transaction, durable publication, or canonical wire
-container.
+public writer, incremental commitment update, snapshot identifier, proof,
+witness, persistence transaction, or durable publication. Internal snapshots
+and transitions expose the canonical profile-bound root container for their
+exact roots.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

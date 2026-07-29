@@ -18,11 +18,11 @@ or provide a tagged release.
 
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
-This composition is accepted for the canonical encoding seam, the internal
-experimental commitment engine, the strict raw aggregate-opening-proof decoder,
-and the pinned test-only proof corpus exercised here. It is not evidence that
-proof generation, proof verification, or untested hostile-input behavior remain
-compatible.
+This composition is accepted for the canonical encoding seam, strict
+profile-bound root decoding, the internal experimental commitment engine, the
+strict raw aggregate-opening-proof decoder, and the pinned test-only proof
+corpus exercised here. It is not evidence that proof generation, proof
+verification, or untested hostile-input behavior remain compatible.
 
 ## Evidence
 
@@ -60,6 +60,9 @@ At the pinned revision:
 - point decoding checks canonical base-field encoding, curve membership, and
   the Banderwagon subgroup condition;
 - scalar decoding provides a canonical little-endian field decoder;
+- the fixed root container rejects profile and encoding mismatches before point
+  decoding, represents an empty root without an identity point, and bounds
+  bytes and point decodes;
 - the 256-point generator set is deterministically derived from
   `eth_verkle_oct_2021`; and
 - upstream fixes at the pinned commit distinguish trusted uncompressed

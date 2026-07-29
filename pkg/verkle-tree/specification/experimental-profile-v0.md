@@ -56,7 +56,7 @@ inconsistent representation before cryptographic work.
 The following parts of the profile are deliberately not frozen:
 
 - serialized empty-subtree representation and persisted node materialization;
-- canonical root, node, proof, witness, snapshot, and storage encodings;
+- canonical node, proof, witness, snapshot, and storage encodings;
 - canonical point, scalar, and proof-container rejection rules beyond the
   internal research seam already tested;
 - aggregate-proof and batch-verification failure semantics;
@@ -190,9 +190,9 @@ non-identity point with affine coordinates `(x, y)`, implementations MUST:
 
 The internal identity commitment MUST map to scalar zero. Untrusted roots,
 nodes, proofs, or witnesses MUST NOT use an all-zero point encoding to smuggle
-an identity through the checked commitment decoder. A future canonical
-container MAY represent an empty root explicitly, but that representation
-remains unfrozen.
+an identity through the checked commitment decoder. The canonical root
+container defined below represents an empty root explicitly without decoding an
+identity point.
 
 ### Internal Child Inputs
 
@@ -200,8 +200,8 @@ Each internal node commits to a width-256 vector. A present child at index `i`
 MUST contribute `H(child_commitment)` at index `i`. An absent child MUST
 contribute scalar zero. A vector containing only absent children commits to the
 internal identity, so the in-memory commitment of an empty tree is the
-identity. This mathematical identity does not define its future serialized
-root representation.
+identity. This mathematical identity is represented by the explicit empty kind
+in the root container below.
 
 These formulas agree for the checked corpora with both pinned implementations:
 the Go reference constructs the same suffix, stem, and internal vectors, while
@@ -210,6 +210,35 @@ generator, commitment-to-field, tree-root, and proof fixtures recorded in
 [`sources.json`](sources.json). This agreement fixes mathematical commitment
 inputs only. It MUST NOT be read as a production-backend, proof-system, node
 encoding, or Ethereum compatibility claim.
+
+## Root Container Encoding
+
+The experimental canonical root container MUST be exactly 42 bytes:
+
+| Offset | Size | Field |
+| ---: | ---: | --- |
+| 0 | 4 | ASCII magic `VKRT` |
+| 4 | 1 | profile identifier `1` |
+| 5 | 2 | profile version `0`, unsigned big-endian |
+| 7 | 2 | encoding version `1`, unsigned big-endian |
+| 9 | 1 | root kind |
+| 10 | 32 | root payload |
+
+Root kind `1` MUST denote the empty tree. Its payload MUST be all zero bytes,
+and those bytes MUST NOT be interpreted as an encoded point. Root kind `2`
+MUST denote a non-empty tree and its payload MUST be exactly one canonical,
+non-identity Banderwagon commitment. Every other kind MUST be rejected.
+
+A decoder MUST reject the wrong magic, profile identifier, profile version, or
+encoding version before point decoding. It MUST reject short input, trailing
+bytes, a nonzero empty payload, identity, malformed, non-canonical, or
+wrong-subgroup commitment payloads, and exhausted byte or point-decoding
+budgets. It MUST observe cancellation before and after point decoding and MUST
+defensively own the decoded state.
+
+The container binds only the exact profile and mathematical root. It does not
+identify a snapshot, authenticate a key set, or establish membership,
+non-membership, proof verification, persistence, or publication.
 
 ## Internal Commitment Construction
 
@@ -310,9 +339,10 @@ check cancellation; failure MUST publish no partial tree.
 The independently generated Rust corpus fixes roots for empty, present-zero,
 single-value, suffix-half boundary, separate-root-branch, and maximum-depth
 collision states. Agreement proves only deterministic mathematical root
-construction for those exact states. It does not define a canonical root
-container, persisted node encoding, incremental update algorithm, proof,
-witness, production backend, or general Rust compatibility.
+construction for those exact states. The package-owned root container binds
+them to the experimental profile, but it is not an external interoperability
+claim and does not establish a persisted node encoding, incremental update
+algorithm, proof, witness, production backend, or general Rust compatibility.
 
 ## State Transition Reference Model
 
@@ -369,8 +399,8 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a snapshot wire
-identity, canonical root container, storage publication, incremental
-commitment update, proof generation, witness verification, or stateless update.
+identity, storage publication, incremental commitment update, proof generation,
+witness verification, or stateless update.
 
 ## Compatibility Boundary
 
