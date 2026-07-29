@@ -1,7 +1,8 @@
 // Package merkletree constructs explicitly profiled cryptographic Merkle-tree
-// roots, incrementally appends ordered leaves into caller-owned builders,
-// creates immutable snapshots, and generates and independently verifies
-// inclusion, multi-inclusion, and append-only consistency proofs.
+// roots, streams roots through a logarithmic-memory builder, incrementally
+// appends ordered leaves into proof-retaining builders, creates immutable
+// snapshots, and generates and independently verifies inclusion,
+// multi-inclusion, and append-only consistency proofs.
 //
 // The package does not define a universal "Merkle tree" convention. Every
 // root carries a profile, profile version, hash algorithm, and tree size.

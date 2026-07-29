@@ -49,6 +49,14 @@ Its working memory is logarithmic in the leaf count. Validation bounds leaf
 count, each leaf's bytes, and aggregate leaf bytes before the digest stack is
 allocated. Cancellation is observed before hashing and between node merges.
 
+`RootBuilder` exposes that frontier as a caller-owned streaming construction
+primitive. Atomic append and batch append hash into temporary frontier state
+and publish only after every leaf, merge, limit, and cancellation check
+succeeds. `Root` folds the current frontier without mutating it. The builder
+retains neither raw leaves nor the node arena required for proofs, uses at most
+64 frontier digests for a uint64-sized tree, and is not safe for concurrent use
+without caller synchronization.
+
 ## Snapshots and inclusion proofs
 
 `Snapshot` retains a compact immutable binary tree of domain-separated node

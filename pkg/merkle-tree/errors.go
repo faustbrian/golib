@@ -31,6 +31,10 @@ var (
 	// mutable builder.
 	ErrInvalidBuilder = errors.New("invalid Merkle builder")
 
+	// ErrInvalidRootBuilder identifies an uninitialized or internally invalid
+	// streaming root builder.
+	ErrInvalidRootBuilder = errors.New("invalid Merkle root builder")
+
 	// ErrInvalidTreeSize identifies an unsupported or impossible relationship
 	// between two tree sizes.
 	ErrInvalidTreeSize = errors.New("invalid Merkle tree size")

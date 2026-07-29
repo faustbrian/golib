@@ -22,3 +22,5 @@
   both complete root identities, with bounded hostile-input traversal.
 - Deterministic multi-inclusion proofs with canonical index ordering, minimal
   frontier nodes, explicit resource limits, and independent verification.
+- Atomic streaming root construction that retains only a logarithmic digest
+  frontier and never retains raw leaves or the full node tree.

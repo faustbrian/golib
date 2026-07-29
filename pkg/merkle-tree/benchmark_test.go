@@ -144,6 +144,78 @@ func BenchmarkBuilderAppendBatch(b *testing.B) {
 	}
 }
 
+func BenchmarkRootBuilderAppend(b *testing.B) {
+	leaf := merkletree.NewRawLeaf(make([]byte, 32))
+	limits := merkletree.DefaultLimits()
+	limits.MaxLeaves = uint64(b.N)
+	builder, err := merkletree.NewRootBuilder(
+		merkletree.CanonicalProfile(),
+		limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(32)
+	b.ResetTimer()
+	for range b.N {
+		if err := builder.Append(context.Background(), leaf); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRootBuilderAppendBatch(b *testing.B) {
+	leaves := benchmarkLeaves(256)
+	limits := merkletree.DefaultLimits()
+	limits.MaxLeaves = uint64(b.N) * uint64(len(leaves))
+	builder, err := merkletree.NewRootBuilder(
+		merkletree.CanonicalProfile(),
+		limits,
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(leaves) * 32))
+	b.ResetTimer()
+	for range b.N {
+		if err := builder.AppendBatch(
+			context.Background(),
+			leaves,
+		); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkRootBuilderRoot(b *testing.B) {
+	leaves := benchmarkLeaves(16_383)
+	builder, err := merkletree.NewRootBuilder(
+		merkletree.CanonicalProfile(),
+		merkletree.DefaultLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := builder.AppendBatch(
+		context.Background(),
+		leaves,
+	); err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if _, err := builder.Root(context.Background()); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkConsistencyProof(b *testing.B) {
 	leaves := benchmarkLeaves(16_384)
 	older, newer := benchmarkConsistencySnapshots(b, leaves, 8_191)
