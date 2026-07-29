@@ -228,7 +228,7 @@ func (store *Store) RetainRoot(
 		return nil, fmt.Errorf("%w: retained root bound exceeded", mpt.ErrResourceLimit)
 	}
 	lease := &rootRetention{store: store, root: root}
-	leases := make(map[*rootRetention]mpt.Root, len(retained.leases)+1)
+	leases := make(map[*rootRetention]mpt.Root)
 	for existing, retainedRoot := range retained.leases {
 		leases[existing] = retainedRoot
 	}
@@ -373,7 +373,7 @@ func (retention *rootRetention) Release(ctx context.Context) error {
 	if _, exists := retained.leases[retention]; !exists {
 		return mpt.ErrReleasedRetention
 	}
-	leases := make(map[*rootRetention]mpt.Root, len(retained.leases)-1)
+	leases := make(map[*rootRetention]mpt.Root)
 	for existing, root := range retained.leases {
 		if existing != retention {
 			leases[existing] = root

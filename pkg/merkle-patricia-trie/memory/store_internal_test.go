@@ -143,6 +143,35 @@ func TestInternalRetentionAndPrunePostValidationBoundaries(t *testing.T) {
 	}
 }
 
+func TestInternalPruneSumsEveryRemovedNodeByte(t *testing.T) {
+	t.Parallel()
+
+	var first, second mpt.Root
+	first[0] = 1
+	second[0] = 2
+	store := &Store{state: &storeState{
+		root: mpt.EmptyRoot(),
+		nodes: map[mpt.Root][]byte{
+			first:  {1, 2},
+			second: {3, 4, 5},
+		},
+	}}
+
+	result, err := store.Prune(
+		context.Background(), mpt.DefaultReachabilityLimits(),
+	)
+	if err != nil {
+		t.Fatalf("Prune() error = %v", err)
+	}
+	if result.RemovedNodes() != 2 || result.RemovedBytes() != 5 {
+		t.Fatalf(
+			"Prune() removed (%d nodes, %d bytes), want (2, 5)",
+			result.RemovedNodes(),
+			result.RemovedBytes(),
+		)
+	}
+}
+
 type internalStepContext struct {
 	mutex    sync.Mutex
 	calls    int
