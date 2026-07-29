@@ -3,6 +3,7 @@ package mpt
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/merkle-patricia-trie/internal/rlp"
@@ -336,7 +337,7 @@ func TestReachabilityInternalBudgetsAndCancellation(t *testing.T) {
 	state.bytesLeft = len(nullEncoding)
 	if _, err := state.collectHash(
 		keccakRoot(nullEncoding), 0,
-	); !errors.Is(err, ErrCorruptNode) {
+	); !errors.Is(err, ErrCorruptNode) || !errors.Is(err, ErrMalformedNode) {
 		t.Fatalf("collectHash(null) error = %v", err)
 	}
 	canceled, cancel := context.WithCancel(context.Background())
@@ -391,6 +392,179 @@ func TestPruneResultReportsStoreCountsAndBytes(t *testing.T) {
 		result.RemovedNodes() != 2 ||
 		result.RemovedBytes() != 42 {
 		t.Fatalf("PruneResult = %+v", result)
+	}
+}
+
+func TestReachabilityCumulativeBudgetsIncludeEveryStoredNode(t *testing.T) {
+	t.Parallel()
+
+	childEncoding, _, err := encodeNode(
+		&leafNode{path: []byte{2}, value: make([]byte, RootBytes)},
+	)
+	if err != nil {
+		t.Fatalf("encode child: %v", err)
+	}
+	childRoot := keccakRoot(childEncoding)
+	var children [16]node
+	children[1] = hashNode(childRoot)
+	rootEncoding, _, err := encodeNode(
+		&branchNode{children: children, value: []byte("root")},
+	)
+	if err != nil {
+		t.Fatalf("encode root: %v", err)
+	}
+	root := keccakRoot(rootEncoding)
+	nodes := map[Root][]byte{root: rootEncoding, childRoot: childEncoding}
+	reads := 0
+	reader := nodeReaderFunc(func(_ context.Context, hash Root) ([]byte, error) {
+		reads++
+		return nodes[hash], nil
+	})
+	exact := ReachabilityLimits{
+		MaxRoots:          2,
+		MaxRetentions:     1,
+		MaxNodes:          2,
+		MaxBytes:          len(rootEncoding) + len(childEncoding),
+		MaxDepth:          1,
+		MaxNodeReads:      2,
+		MaxHashOperations: 2,
+	}
+	reachable, err := CollectReachableNodes(
+		context.Background(),
+		[]Root{EmptyRoot(), root},
+		reader,
+		exact,
+	)
+	if err != nil || len(reachable) != 2 || reads != 2 {
+		t.Fatalf(
+			"CollectReachableNodes(exact) = nodes %d, reads %d, error %v",
+			len(reachable),
+			reads,
+			err,
+		)
+	}
+	for _, test := range []struct {
+		name      string
+		constrain func(*ReachabilityLimits)
+	}{
+		{"reads", func(limits *ReachabilityLimits) { limits.MaxNodeReads-- }},
+		{"hashes", func(limits *ReachabilityLimits) { limits.MaxHashOperations-- }},
+		{"bytes", func(limits *ReachabilityLimits) { limits.MaxBytes-- }},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			limits := exact
+			test.constrain(&limits)
+			if _, err := CollectReachableNodes(
+				context.Background(), []Root{root}, reader, limits,
+			); !errors.Is(err, ErrResourceLimit) {
+				t.Fatalf("CollectReachableNodes() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestReachabilityHashedExtensionDepthBoundsAreInclusive(t *testing.T) {
+	t.Parallel()
+
+	var branchChildren [16]node
+	branchChildren[0] = &leafNode{path: nil, value: []byte{1}}
+	branch := &branchNode{
+		children: branchChildren,
+		value:    make([]byte, RootBytes),
+	}
+	branchEncoding, _, err := encodeNode(branch)
+	if err != nil {
+		t.Fatalf("encode branch: %v", err)
+	}
+	if len(branchEncoding) < RootBytes {
+		t.Fatalf("branch encoding has %d bytes", len(branchEncoding))
+	}
+	branchRoot := keccakRoot(branchEncoding)
+	state := func(maxDepth int) reachabilityState {
+		return reachabilityState{
+			ctx: context.Background(),
+			reader: nodeReaderFunc(func(context.Context, Root) ([]byte, error) {
+				return branchEncoding, nil
+			}),
+			limits: ReachabilityLimits{
+				MaxDepth: maxDepth,
+			},
+			readsLeft:  1,
+			hashesLeft: 1,
+			nodesLeft:  3,
+			bytesLeft:  len(branchEncoding),
+			active:     make(map[Root]struct{}),
+			nodes:      make(map[Root][]byte),
+			decoded:    make(map[Root]node),
+		}
+	}
+	extension := &extensionNode{
+		path: []byte{1}, child: hashNode(branchRoot),
+	}
+	constrained := state(0)
+	if err := constrained.collectNode(
+		extension, 0,
+	); !errors.Is(err, ErrResourceLimit) {
+		t.Fatalf("collectNode(depth zero) error = %v", err)
+	}
+	exact := state(2)
+	if err := exact.collectNode(extension, 0); err != nil {
+		t.Fatalf("collectNode(exact depth) error = %v", err)
+	}
+
+	limits := DefaultReachabilityLimits()
+	limits.MaxDepth = MaxCompactPathNibbles + 1
+	if err := validateReachabilityLimits(limits); err != nil {
+		t.Fatalf("validateReachabilityLimits(exact depth) error = %v", err)
+	}
+}
+
+func TestExactlyThirtyTwoByteStoredChildIsCanonical(t *testing.T) {
+	t.Parallel()
+
+	value := make([]byte, 29)
+	for index := range value {
+		value[index] = 0x80
+	}
+	childEncoding, _, err := encodeNode(
+		&leafNode{path: []byte{2}, value: value},
+	)
+	if err != nil {
+		t.Fatalf("encode child: %v", err)
+	}
+	if len(childEncoding) != RootBytes {
+		t.Fatalf("child encoding has %d bytes", len(childEncoding))
+	}
+	childRoot := keccakRoot(childEncoding)
+	var children [16]node
+	children[1] = hashNode(childRoot)
+	rootEncoding, _, err := encodeNode(
+		&branchNode{children: children, value: []byte("root")},
+	)
+	if err != nil {
+		t.Fatalf("encode root: %v", err)
+	}
+	root := keccakRoot(rootEncoding)
+	nodes := map[Root][]byte{root: rootEncoding, childRoot: childEncoding}
+	reader := nodeReaderFunc(func(_ context.Context, hash Root) ([]byte, error) {
+		return nodes[hash], nil
+	})
+	if _, err := CollectReachableNodes(
+		context.Background(),
+		[]Root{root},
+		reader,
+		DefaultReachabilityLimits(),
+	); err != nil {
+		t.Fatalf("CollectReachableNodes() error = %v", err)
+	}
+	trie, err := LoadRawTrie(root, reader, DefaultLimits())
+	if err != nil {
+		t.Fatalf("LoadRawTrie() error = %v", err)
+	}
+	got, err := trie.Get(context.Background(), []byte{0x12})
+	if err != nil || !slices.Equal(got, value) {
+		t.Fatalf("Get() = (%x, %v)", got, err)
 	}
 }
 

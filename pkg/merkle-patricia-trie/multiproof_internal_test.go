@@ -461,7 +461,10 @@ func TestMultiProofLookupRejectsResourceAndCanonicalityFailures(t *testing.T) {
 	other := Root{2}
 	lookup := &multiProofLookup{
 		nodes: map[Root]multiProofNode{
-			expected: {decoded: &leafNode{value: []byte("value")}},
+			expected: {
+				decoded: &leafNode{value: []byte("value")},
+				size:    RootBytes,
+			},
 		},
 		order: []Root{other}, used: make(map[Root]struct{}),
 	}
