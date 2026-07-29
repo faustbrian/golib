@@ -40,6 +40,33 @@ func ExampleStateTrie() {
 	// Output: 1 42
 }
 
+func ExampleVerifyAccountProof() {
+	ctx := context.Background()
+	limits := mpt.DefaultLimits()
+	var address [20]byte
+	address[19] = 0xaa
+	var balance [32]byte
+	balance[31] = 42
+	value, _ := mpt.NewAccountValue(
+		1, balance, mpt.EmptyRoot(), mpt.EmptyCodeHash(), limits,
+	)
+	trie, _ := mpt.NewStateTrie(limits)
+	trie, _ = trie.UpdateAccount(ctx, address, value)
+	root, _ := trie.Root()
+	proof, _ := trie.ProveAccount(ctx, address)
+
+	account, err := mpt.VerifyAccountProof(
+		ctx,
+		root,
+		address,
+		value.Bytes(),
+		proof,
+		limits,
+	)
+	fmt.Println(err == nil, account.Nonce(), account.Balance()[31])
+	// Output: true 1 42
+}
+
 func ExampleStorageTrie() {
 	var slot [32]byte
 	slot[31] = 7

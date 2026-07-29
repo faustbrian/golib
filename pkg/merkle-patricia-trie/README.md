@@ -22,6 +22,17 @@ in [source provenance](docs/source-provenance.md).
 The package does not implement an EVM, blockchain, network, JSON-RPC server,
 binary Merkle tree, SSZ merkleization, or Verkle tree.
 
+## Documentation
+
+- [Encoding and commitment contract](docs/encoding.md)
+- [Ethereum profiles and proof verification](docs/profiles-and-proofs.md)
+- [Operations, storage, recovery, and pruning](docs/operations.md)
+- [Architecture and ownership](docs/architecture.md)
+- [Compatibility decisions](docs/compatibility-decisions.md)
+- [Security assumptions](docs/security.md)
+- [Source and fixture provenance](docs/source-provenance.md)
+- [Adoption, comparisons, migration, and FAQ](docs/adoption.md)
+
 ## Raw trie quick start
 
 ```go
