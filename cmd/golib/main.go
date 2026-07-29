@@ -839,10 +839,6 @@ func requiredTestTags(root, moduleDirectory string) ([]string, error) {
 			!slices.Contains(tags, "integration") {
 			tags = append(tags, "integration")
 		}
-		if bytes.Contains(data, []byte("//go:build interoperability")) &&
-			!slices.Contains(tags, "interoperability") {
-			tags = append(tags, "interoperability")
-		}
 		return nil
 	})
 	if err != nil {

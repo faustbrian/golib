@@ -123,6 +123,11 @@ func TestRequiredTestTags(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFile(t, filepath.Join(root, "unit_test.go"), "package sample\n")
 	mustWriteFile(t, filepath.Join(root, "integration_test.go"), "//go:build integration\n\npackage sample\n")
+	mustWriteFile(
+		t,
+		filepath.Join(root, "interoperability_test.go"),
+		"//go:build interoperability\n\npackage sample\n",
+	)
 	mustWriteFile(t, filepath.Join(root, "testdata", "ignored_test.go"), "//go:build ignored\n\npackage sample\n")
 	mustWriteFile(t, filepath.Join(root, "nested", "go.mod"), "module example.com/nested\n")
 	mustWriteFile(t, filepath.Join(root, "nested", "nested_test.go"), "//go:build nested\n\npackage nested\n")

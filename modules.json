@@ -10071,9 +10071,7 @@
       ],
       "required_services": [],
       "build_tags": [],
-      "test_tags": [
-        "interoperability"
-      ],
+      "test_tags": [],
       "interoperability_tools": [
         "go-ethereum v1.17.3",
         "@ethereumjs/mpt v10.1.2",
