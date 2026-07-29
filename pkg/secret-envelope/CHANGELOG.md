@@ -10,6 +10,9 @@ All notable changes follow Keep a Changelog and semantic versioning.
   contexts and a versioned binary persistence representation.
 - AWS KMS data-key generation and decryption through a least-privilege client
   contract.
+- Verify-only AWS KMS authentication for bounded externally signed raw
+  statements with explicit RSASSA-PSS, ECDSA, or Ed25519 algorithms and
+  secret-safe typed failures.
 - Exact statement coverage, race, fuzz, API, security, vulnerability, and
   documentation gates.
 

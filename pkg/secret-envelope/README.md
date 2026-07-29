@@ -3,7 +3,9 @@
 `secret-envelope` encrypts application-owned secret payloads with one-use
 AES-256-GCM data keys and delegates key wrapping to an explicit provider. The
 AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are
-best-effort zeroized after each local operation.
+best-effort zeroized after each local operation. The same adapter also exposes
+a verify-only asymmetric KMS boundary for bounded externally signed raw
+statements.
 
 ## Boundary
 
@@ -11,6 +13,10 @@ Use this module for bounded application payloads persisted in databases or
 object storage. Use AWS Secrets Manager for deployment and static service
 credentials. The module does not manage secret rotation workflows,
 authorization, persistence records, IAM policies, or logging.
+
+Signature verification authenticates an exact message, key, and reviewed
+algorithm. It does not decide whether the signer may approve an action, fetch
+signed statements, or expose a signing operation.
 
 Encryption context is mandatory and authenticated by both AES-GCM and the key
 provider. Context values are non-secret because AWS KMS can expose them in
@@ -54,6 +60,26 @@ persisted, err := encrypted.MarshalBinary()
 Applications must load AWS configuration with the SDK default credential
 chain. Static credentials are not required by this module.
 
+For externally signed statements, construct a verify-only boundary:
+
+```go
+verifier, err := awskms.NewSignatureVerifier(
+    kms.NewFromConfig(awsConfig),
+    types.SigningAlgorithmSpecEcdsaSha256,
+)
+if err != nil {
+    return err
+}
+if err := verifier.Verify(
+    ctx,
+    approvalKeyARN,
+    canonicalStatement,
+    signature,
+); err != nil {
+    return err
+}
+```
+
 ## Guarantees
 
 - AES-256-GCM with fresh 96-bit nonces from `crypto/rand`.
@@ -64,6 +90,8 @@ chain. Static credentials are not required by this module.
 - Plaintext payloads bounded to 4 MiB, with bounded wrapped keys, contexts, and
   envelopes.
 - Redacted errors that retain `errors.Is` cause traversal.
+- Verify-only KMS authentication for raw messages up to 4096 bytes with
+  explicit PSS, ECDSA, or Ed25519 algorithms.
 
 ## Documentation
 
