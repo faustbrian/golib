@@ -20,6 +20,9 @@ Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
 already initialized snapshot builder. They exclude snapshot construction,
 generator initialization, proofs, witnesses, serialization, and persistence.
+Two further component benchmarks measure canonicalizing sixteen fixed-size tree
+claims and returning an owned copy of the resulting claim set. They exclude
+path construction, opening generation, proof encoding, and verification.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -39,7 +42,8 @@ GOWORK=off go test ./internal/committedtree -run '^$' \
   -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
 
 GOWORK=off go test ./internal/authstate -run '^$' \
-  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply)$' -benchmem -count=5
+  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy)' \
+  -benchmem -count=5
 ```
 
 Environment:
@@ -82,6 +86,8 @@ nanoseconds per operation.
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
+| Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |
+| Copy sixteen canonical tree claims | 211.9, 241.0, 356.6, 728.3, 300.0 | 1152 | 1 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

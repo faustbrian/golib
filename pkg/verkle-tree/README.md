@@ -142,6 +142,14 @@ profiles before point decoding. The pinned Go/Rust update corpus fixes one exact
 pre-root and post-root, while a separate cryptography-independent model checks
 broader state-transition behavior.
 
+An internal canonical claim-set boundary now fixes the ordered key/value
+assertions that a later tree proof must authenticate. It distinguishes a
+present all-zero value from absence, rejects duplicate or conflicting keys,
+binds the exact experimental profile before allocation, and owns all accepted
+claims under explicit count, scratch-memory, and cancellation limits. It does
+not yet bind a root, path metadata, transcript, opening payload, or verification
+result.
+
 ## Development rule
 
 Implementation MAY proceed incrementally behind the named experimental

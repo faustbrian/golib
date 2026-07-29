@@ -94,6 +94,15 @@ witness, persistence transaction, or durable publication. Internal snapshots
 and transitions expose the canonical profile-bound root container for their
 exact roots.
 
+The same internal layer owns a non-empty profile-bound claim set for future
+tree proofs. Membership and absence are distinct kinds, a membership claim may
+contain the all-zero value, and omitted keys remain distinct from claimed
+absence. Construction validates all claims and resource limits before
+allocation, deterministically orders claims by raw key, rejects every duplicate
+key, and returns owned copies safe for concurrent immutable reads. This claim
+set does not bind a root, path, opening payload, transcript, snapshot, or
+verification result.
+
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or
 encoding from another.

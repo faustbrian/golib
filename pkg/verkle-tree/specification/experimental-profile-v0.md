@@ -240,6 +240,37 @@ The container binds only the exact profile and mathematical root. It does not
 identify a snapshot, authenticate a key set, or establish membership,
 non-membership, proof verification, persistence, or publication.
 
+## Canonical Tree Claims
+
+An internal canonical claim set MUST bind the exact experimental profile and
+MUST contain at least one claim. Each claim MUST contain exactly one 32-byte
+key and one of:
+
+1. a membership assertion containing exactly one 32-byte value; or
+2. an absence assertion containing no value.
+
+A membership assertion containing the all-zero value MUST remain present and
+MUST NOT be rewritten as absence. An absence assertion carrying any value MUST
+be rejected.
+
+Claims MUST be ordered by ascending raw key bytes independently of caller
+order. Duplicate keys MUST be rejected, including equal membership assertions
+and conflicting membership and absence assertions. A key not included in the
+set MUST remain distinguishable from an included absence assertion.
+
+Construction MUST validate context, profile, limits, non-empty input, and every
+claim before allocating owned claim or sort storage. It MUST check claim-count
+and conservative deterministic temporary-byte limits before allocation, reject
+a configured or retained count above 65,536 claims, use a cancellation-aware
+deterministic sort, and defensively own accepted claims. Returned claim
+collections MUST also be owned by the caller and MUST NOT alias the immutable
+set.
+
+A canonical claim set fixes only the asserted key/value semantics and ordering.
+It does not bind a root, path, opening, transcript, or snapshot and does not
+authenticate any assertion. Those bindings remain REQUIRED in a complete tree
+proof container.
+
 ## Internal Commitment Construction
 
 The experimental internal engine MUST accept exactly one complete width-256

@@ -63,6 +63,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   profile and encoding version, represents the empty root without an identity
   point, rejects mismatches before point decoding, and binds snapshot
   transitions to portable pre-state and post-state root bytes.
+- Add internal canonical profile-bound membership and absence claims with
+  present-zero semantics, duplicate rejection, deterministic key ordering,
+  defensive ownership, cancellation, and explicit resource limits.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.

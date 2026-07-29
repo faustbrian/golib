@@ -12,9 +12,9 @@ canonical point and scalar decoding, strict profile-bound root decoding,
 strict bounded decoding of the fixed raw aggregate-opening payload, fixed
 generator-set validation, bounded serial vector commitment, immutable state
 transitions, canonical stem topology, bounded deterministic full-root
-construction, and atomic root-bound snapshot transitions. Tree-proof
-verification, witnesses, storage, publication, and complete side-channel
-controls remain unimplemented.
+construction, atomic root-bound snapshot transitions, and canonical
+profile-bound tree claims. Tree-proof verification, witnesses, storage,
+publication, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -82,6 +82,12 @@ in-memory publication, caller mutation of fixed arrays, and cross-snapshot root
 confusion. It does not authenticate old values supplied by an external witness,
 prove witness completeness, persist nodes, publish durable roots, or protect a
 future mutable writer from concurrent ownership violations.
+
+The canonical claim-set boundary additionally rejects duplicate and conflicting
+claimed keys, preserves present-zero and claimed-absence distinctions, and
+removes caller-order and aliasing ambiguity before proof construction. Because
+it carries no root, path, transcript, or opening, accepting a claim set provides
+no authentication and does not mitigate proof replay or omitted-path attacks.
 
 ### Resource exhaustion
 
