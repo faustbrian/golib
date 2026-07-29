@@ -6,7 +6,7 @@ The bounded research agreements below apply only to their exact corpora.
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
 | Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
-| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Structural metadata plus internal canonical topology, state, bounded vector commitments, complete mathematical roots, and immutable root-bound batch transitions; no public tree, proof, witness, storage, wire, production, or Ethereum compatibility |
+| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Structural metadata plus internal canonical topology, state, bounded vector commitments, complete mathematical roots, immutable root-bound batch transitions, and strict raw aggregate-opening payload decoding; no public tree, verified tree proof, witness, storage, wire, production, or Ethereum compatibility |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
 | `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening proof, stem path hints, one tree root/proof corpus, and its bounded stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
@@ -38,6 +38,9 @@ accept the Rust proof. This is one positive raw commitment-backend vector; it
 also rejects sampled field mutations, a wrong transcript label, and a wrong
 opened value. It does not establish exhaustive malformed-proof behavior,
 alternate valid transcripts, tree layout, canonical tree proofs, or witnesses.
+The package-owned raw decoder separately requires exact length and canonical
+encoding of every proof point and the final scalar under explicit hostile-input
+budgets. Syntactic acceptance does not assert cryptographic verification.
 
 The isolated `interoperability/go-verkle` harness reproduces a four-value,
 two-stem tree and an aggregate proof for two present keys, one absent suffix,

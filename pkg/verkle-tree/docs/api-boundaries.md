@@ -61,11 +61,14 @@ operations for vector commitment, validated commitment updates where supported,
 single and aggregate opening, verification, canonical cryptographic encoding,
 and transcript construction.
 
-The current internal research engine implements only canonical scalar input,
+The current internal research engine implements canonical scalar input,
 fixed-width vector commitment, generator-set identity validation, opaque
-identity handling, and commitment-to-field mapping. It deliberately exposes no
-public tree surface and does not yet provide commitment updates, openings, or
-verification.
+identity handling, commitment-to-field mapping, and strict decoding of the
+fixed 576-byte raw aggregate-opening proof. The decoder returns an immutable
+opaque payload after canonical point and scalar validation; it does not bind a
+root, key set, claim, path, transcript, or verification result. The boundary
+deliberately exposes no public tree surface and does not yet provide commitment
+updates, opening generation, or verification.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused

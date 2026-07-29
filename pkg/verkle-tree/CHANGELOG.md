@@ -55,6 +55,10 @@ All notable changes to `verkle-tree` will be documented in this file.
   Rust references for `eth_verkle_oct_2021`.
 - Add a pinned three-opening aggregate-proof corpus whose canonical bytes and
   verification result agree across the Go and Rust references.
+- Add a strict bounded decoder for the fixed 576-byte raw aggregate-opening
+  payload, with canonical point and scalar validation, defensive ownership,
+  cancellation checkpoints, and fail-closed resource accounting without
+  claiming tree-proof verification.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.

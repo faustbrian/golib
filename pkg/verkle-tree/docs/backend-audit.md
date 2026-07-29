@@ -19,9 +19,10 @@ or provide a tagged release.
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, the internal
-experimental commitment engine, and the pinned test-only proof corpus
-exercised here. It is not evidence that proof operations or untested
-hostile-input behavior remain compatible.
+experimental commitment engine, the strict raw aggregate-opening-proof decoder,
+and the pinned test-only proof corpus exercised here. It is not evidence that
+proof generation, proof verification, or untested hostile-input behavior remain
+compatible.
 
 ## Evidence
 
@@ -50,6 +51,10 @@ At the pinned revision:
 - one deterministic three-opening corpus produces the same canonical 576-byte
   aggregate proof through both implementations, and the Go verifier accepts
   the Rust proof;
+- the internal raw-proof decoder requires exactly 576 bytes, validates all 17
+  points and the final little-endian scalar canonically, rejects identity and
+  wrong-subgroup points, owns accepted bytes, and enforces byte, point-decode,
+  scalar-decode, and cancellation bounds before amplified work;
 - the Go verifier rejects one-bit mutations in every serialized proof element,
   a wrong transcript label, and a wrong opened value for that corpus;
 - point decoding checks canonical base-field encoding, curve membership, and
@@ -153,8 +158,10 @@ The current internal boundary may:
 - return one canonical encoding for accepted commitments and scalars; and
 - defensively copy caller bytes before dependency decoding.
 
-It must not yet precompute proof setup, open positions, verify proofs, accept a
-serialized identity, or expose dependency values outside `internal/`.
+It may decode only the fixed raw aggregate-proof payload described by the
+experimental profile. It must not yet precompute proof setup, open positions,
+verify proofs, accept a serialized identity, or expose dependency values
+outside `internal/`.
 
 The engine's generator and scratch-byte accounting is a deterministic,
 conservative package budget. It does not prove the dependency's complete heap

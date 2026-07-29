@@ -30,7 +30,8 @@ accepted seam and release blockers are in
 [`docs/backend-audit.md`](docs/backend-audit.md).
 
 Production code imports the pinned `go-ipa` dependency only behind an internal
-canonical point/scalar encoding and bounded serial vector-commitment boundary.
+canonical point/scalar encoding, bounded raw aggregate-opening-proof decoder,
+and bounded serial vector-commitment boundary.
 Test-only differential evidence additionally exercises aggregate opening,
 transcript, serialization, and verification operations. The encoding tests
 include two pinned upstream point fixtures and the documented scalar-field
@@ -56,8 +57,11 @@ fixed backend call that cannot be interrupted after it starts, so this seam is
 experimental and does not satisfy the production-backend gate.
 For one pinned three-opening corpus, both references also produce the same
 canonical 576-byte aggregate proof, and the Go verifier accepts the Rust proof.
-This narrow research result does not establish a stable transcript, hostile
-proof-decoding safety, or tree compatibility.
+The internal decoder now rejects wrong lengths, trailing bytes, identity,
+malformed, non-canonical, and wrong-subgroup points, and non-canonical final
+scalars under explicit byte and decode budgets. It returns only an opaque owned
+proof; this narrow boundary does not verify an opening, bind tree claims, freeze
+a stable transcript, or establish tree compatibility.
 A separate isolated harness pins `ethereum/go-verkle` at
 `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` and reproduces one deterministic
 256-wide tree root plus an aggregate proof covering membership, an absent

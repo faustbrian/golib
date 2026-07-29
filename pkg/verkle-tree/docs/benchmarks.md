@@ -3,10 +3,12 @@
 ## Status and scope
 
 These are pre-v1 component microbenchmarks for the implemented cryptographic
-boundary: canonical Banderwagon commitment and scalar encoding plus the
-commitment-to-field map and serial fixed-width vector commitment. They do not
-measure a Verkle tree, proof, witness, storage adapter, or an equivalent
-end-to-end workload, and they support no comparative performance claim.
+boundary: canonical Banderwagon commitment and scalar encoding, strict raw
+aggregate-opening-proof decoding, the commitment-to-field map, and serial
+fixed-width vector commitment. They do not measure proof generation or
+verification, a complete Verkle tree proof, witness, storage adapter, or an
+equivalent end-to-end workload, and they support no comparative performance
+claim.
 
 One additional component benchmark measures rebuilding the implemented
 immutable committed-node arena and mathematical root for the pinned four-entry,
@@ -70,6 +72,8 @@ nanoseconds per operation.
 | Decode canonical scalar | 77.17, 73.11, 70.89, 74.57, 74.84 | 0 | 0 |
 | Reject non-canonical scalar | 309.7, 375.0, 215.9, 195.7, 176.3 | 176 | 5 |
 | Encode scalar | 13.64, 23.18, 10.80, 11.81, 19.64 | 0 | 0 |
+| Decode canonical 576-byte raw opening proof | 429197, 110929, 115482, 111094, 107296 | 544 | 17 |
+| Reject 575-byte raw opening proof | 77.65, 78.30, 81.36, 79.81, 79.23 | 80 | 2 |
 | Commit sparse five-term vector | 108785, 69867, 64012, 231937, 70566 | 1321 | 20 |
 | Commit dense 256-term vector | 4835446, 16280795, 15844953, 2671274, 2909500 | 67632-67655 | 1024 |
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |

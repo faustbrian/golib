@@ -250,6 +250,29 @@ images. Agreement with that corpus proves only this bounded construction seam.
 It MUST NOT be interpreted as proof-opening, proof-verification, side-channel,
 or production-backend evidence.
 
+## Raw Aggregate Opening Proof Encoding
+
+The internal experimental raw aggregate-opening proof payload MUST contain, in
+order:
+
+1. one canonical 32-byte Banderwagon point `D`;
+2. eight canonical 32-byte Banderwagon points `L[0]` through `L[7]`;
+3. eight canonical 32-byte Banderwagon points `R[0]` through `R[7]`; and
+4. one canonical 32-byte little-endian scalar `A`.
+
+The payload length MUST therefore be exactly 576 bytes. A decoder MUST reject
+short input, trailing bytes, identity encodings, malformed or non-canonical
+points, points outside the required subgroup, and non-canonical or out-of-field
+scalars. It MUST check declared byte, point-decoding, and scalar-decoding
+budgets before the corresponding amplified work, MUST observe cancellation
+between point decodings, and MUST defensively own accepted bytes.
+
+This payload is not a tree proof container. Successful decoding establishes
+canonical syntax only. It MUST NOT imply cryptographic verification and MUST
+NOT supply or infer a profile identifier, root, key set, membership or absence
+claim, path metadata, opened values, transcript inputs, or snapshot identity.
+Those bindings remain REQUIRED before a verified proof API can exist.
+
 ## Committed Tree Construction
 
 The internal committed-tree builder MUST accept fixed 32-byte keys and values,

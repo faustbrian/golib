@@ -263,7 +263,7 @@ func TestRustVerkleMultiProofRejectsMutations(t *testing.T) {
 	}
 }
 
-func readMultiProofFixture(t *testing.T) (string, []byte) {
+func readMultiProofFixture(t testing.TB) (string, []byte) {
 	t.Helper()
 
 	contents, err := os.ReadFile("testdata/rust-verkle-multiproof.tsv")
@@ -308,7 +308,7 @@ func interopMultiProofCorpus() ([][]fr.Element, []uint8) {
 	return polynomials, []uint8{3, 3, 200}
 }
 
-func decodeInteropHex(t *testing.T, row int, kind, encoded string) []byte {
+func decodeInteropHex(t testing.TB, row int, kind, encoded string) []byte {
 	t.Helper()
 
 	decoded, err := hex.DecodeString(encoded)
