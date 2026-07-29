@@ -1,4 +1,4 @@
-# Backend Microbenchmarks
+# Component Microbenchmarks
 
 ## Status and scope
 
@@ -13,6 +13,11 @@ immutable committed-node arena and mathematical root for the pinned four-entry,
 two-stem corpus. It excludes builder and generator initialization, proof work,
 serialization, persistence, and incremental updates. It is not an end-to-end
 tree benchmark or a comparison with either reference implementation.
+
+Two authenticated-state component benchmarks measure an immutable lookup and a
+single-value replacement that rebuilds a one-entry committed tree through an
+already initialized snapshot builder. They exclude snapshot construction,
+generator initialization, proofs, witnesses, serialization, and persistence.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -30,6 +35,9 @@ GOWORK=off go test ./internal/backend -run '^$' \
 
 GOWORK=off go test ./internal/committedtree -run '^$' \
   -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
+
+GOWORK=off go test ./internal/authstate -run '^$' \
+  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply)$' -benchmem -count=5
 ```
 
 Environment:
@@ -65,6 +73,8 @@ nanoseconds per operation.
 | Commit sparse five-term vector | 108785, 69867, 64012, 231937, 70566 | 1321 | 20 |
 | Commit dense 256-term vector | 4835446, 16280795, 15844953, 2671274, 2909500 | 67632-67655 | 1024 |
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
+| Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
+| Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

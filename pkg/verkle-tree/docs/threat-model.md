@@ -10,8 +10,9 @@ partially durable state.
 This document defines the complete audit scope. Current internal controls cover
 canonical point and scalar decoding, fixed generator-set validation, bounded
 serial vector commitment, immutable state transitions, canonical stem topology,
-and bounded deterministic full-root construction. Proof, witness, storage,
-publication, and complete side-channel controls remain unimplemented.
+bounded deterministic full-root construction, and atomic root-bound snapshot
+transitions. Proof, witness, storage, publication, and complete side-channel
+controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -61,6 +62,13 @@ stronger atomicity, isolation, or durability than the selected store provides.
 - mixed-snapshot proof reads; and
 - partial publication, stale-root publication, corrupt-node use, or unsafe
   pruning.
+
+The internal authenticated-state layer currently mitigates absent/zero/delete
+ambiguity, nondeterministic batch order, duplicate operations, partial
+in-memory publication, caller mutation of fixed arrays, and cross-snapshot root
+confusion. It does not authenticate old values supplied by an external witness,
+prove witness completeness, persist nodes, publish durable roots, or protect a
+future mutable writer from concurrent ownership violations.
 
 ### Resource exhaustion
 

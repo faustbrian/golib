@@ -73,6 +73,21 @@ concurrently; each result owns a complete immutable logical-node arena and an
 opaque root commitment. It deliberately exposes no root package API, wire
 container, persistence contract, proof operation, or incremental update seam.
 
+The current internal authenticated-state boundary owns a canonical entry set
+and one complete committed tree per immutable snapshot. Construction and batch
+updates validate context, limits, entries, operations, and duplicates before
+publishing a result. A successful batch produces a new snapshot plus an opaque
+transition containing its exact pre-state and post-state commitments; an empty
+batch binds the same commitment on both sides. Delete remains distinct from
+setting the all-zero value, and deletion of an absent key is a deterministic
+no-op. Snapshot copies support concurrent reads and independent updates because
+retained entries, trees, and the reusable builder are immutable.
+
+This boundary rebuilds the complete tree for each accepted batch. It is not a
+public writer, incremental commitment update, snapshot identifier, proof or
+witness, persistence transaction, durable publication, or canonical wire
+container.
+
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or
 encoding from another.

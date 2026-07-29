@@ -16,8 +16,9 @@ Its definition MAY change incompatibly before v1.
 
 Only the profile identity and structural metadata are currently exported.
 Internal research boundaries implement the fixed topology, leaf field inputs,
-vector commitments, and complete mathematical root construction below. Public
-tree, root, node, proof, witness, snapshot, and persistence APIs remain
+vector commitments, complete mathematical root construction, and immutable
+root-bound state transitions below. Public tree, root, node, proof, witness,
+snapshot, and persistence APIs remain
 unimplemented. This document MUST NOT be read as a claim that those surfaces
 already exist.
 
@@ -314,6 +315,39 @@ commitment construction:
 The reference model produces no commitment, root, proof, or witness. It MUST
 NOT hash entries and present that hash as a Verkle root. Its purpose is to be an
 independent transition oracle for later vector-committed tree code.
+
+## Authenticated Snapshot Construction
+
+The internal authenticated-state layer binds the transition rules above to the
+complete mathematical tree construction:
+
+- construction MUST defensively own and canonically order all entries before
+  publishing a snapshot;
+- construction MUST reject duplicate keys, invalid limits, cancellation, and
+  exhausted entry or temporary-memory budgets before commitment work that the
+  failed boundary can avoid;
+- a snapshot MUST bind one immutable ordered state to its exact root
+  commitment and MUST support concurrent reads and independent updates;
+- a batch MUST validate every update and reject duplicate keys before
+  publishing a post-state snapshot;
+- accepted operations MUST be merged in ascending bytewise key order, so input
+  order cannot change the resulting state or root;
+- every failure MUST return no usable transition and MUST leave the pre-state
+  snapshot unchanged;
+- a successful batch MUST return a transition containing the exact pre-state
+  and post-state commitments; an empty batch MUST bind the same commitment on
+  both sides; and
+- each accepted non-empty batch currently MUST rebuild the complete committed
+  tree under the snapshot's fixed construction limits.
+
+The pinned independent update corpus fixes the exact pre-state and post-state
+root for one existing-value update and one absent-suffix insertion. Its proof
+openings with a null post-value are unchanged claims, not deletions. The slow
+reference model separately checks general in-memory transition semantics.
+
+This internal construction does not freeze or implement a snapshot wire
+identity, canonical root container, storage publication, incremental
+commitment update, proof generation, witness verification, or stateless update.
 
 ## Compatibility Boundary
 

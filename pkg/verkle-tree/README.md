@@ -124,6 +124,17 @@ agree on the empty identity and every non-empty root byte. This is not a public
 tree, canonical root encoding, incremental update path, proof system, storage
 implementation, or production-backend approval.
 
+An internal authenticated-state layer now binds those complete roots to
+immutable ordered snapshots. It distinguishes absence from a present zero
+value, validates complete duplicate-free batches before publication, applies
+set and delete operations in canonical key order, and returns a transition
+bound to the exact pre-state and post-state commitments. Every update currently
+rebuilds the complete committed tree; no incremental commitment-update,
+persistence, public snapshot, proof, witness, or canonical root-container claim
+is made. The pinned Go/Rust update corpus fixes one exact pre-root and post-root,
+while a separate cryptography-independent model checks broader state-transition
+behavior.
+
 ## Development rule
 
 Implementation MAY proceed incrementally behind the named experimental
