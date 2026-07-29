@@ -3,12 +3,14 @@ package jwt
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -103,7 +105,13 @@ func (v *Validator) Authenticate(ctx context.Context, credential authentication.
 			authentication.WithFailureCause(err))
 	}
 	bearer, ok := credential.(authentication.BearerCredential)
-	if !ok || bearer.Token() == "" || len(bearer.Token()) > v.maxTokenBytes {
+	if !ok {
+		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if bearer.Token() == "" {
+		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(bearer.Token()) > v.maxTokenBytes {
 		return authentication.Result{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 
@@ -120,7 +128,10 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(err))
 	}
-	if token == "" || len(token) > v.maxTokenBytes {
+	if token == "" {
+		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(token) > v.maxTokenBytes {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	if err := inspectCompactJWT(token, v.algorithms, v.maxClaims, v.maxClaimDepth); err != nil {
@@ -193,20 +204,21 @@ func (v *Validator) principal(token upstreamjwt.Token) (authentication.Principal
 	issuer, issuerOK := token.Issuer()
 	audiences, audiencesOK := token.Audience()
 	authenticatedAt, issuedAtOK := token.IssuedAt()
-	if !subjectOK || subject == "" || !issuerOK || issuer == "" || !audiencesOK ||
-		len(audiences) == 0 || !issuedAtOK {
+	if slices.Contains([]bool{
+		subjectOK, subject != "", issuerOK, issuer != "", audiencesOK,
+		len(audiences) != 0, issuedAtOK,
+	}, false) {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
 
 	claims := make(map[string]any)
 	for _, name := range token.Keys() {
-		if _, registered := registeredClaims[name]; registered || name == v.scopeClaim || name == v.tenantClaim {
-			continue
+		if !v.excludedPrincipalClaim(name) {
+			var value any
+			// Keys reports only values that Get can decode into the empty interface.
+			_ = token.Get(name, &value)
+			claims[name] = value
 		}
-		var value any
-		// Keys reports only values that Get can decode into the empty interface.
-		_ = token.Get(name, &value)
-		claims[name] = value
 	}
 	scopes, err := stringClaim(token, v.scopeClaim, true)
 	if err != nil {
@@ -222,6 +234,13 @@ func (v *Validator) principal(token upstreamjwt.Token) (authentication.Principal
 		Audiences: audiences, TenantHints: tenants, Scopes: scopes,
 		Claims: claims, AuthenticatedAt: authenticatedAt,
 	})
+}
+
+func (v *Validator) excludedPrincipalClaim(name string) bool {
+	if _, registered := registeredClaims[name]; registered {
+		return true
+	}
+	return slices.Contains([]string{v.scopeClaim, v.tenantClaim}, name)
 }
 
 func stringClaim(token upstreamjwt.Token, name string, splitSpaces bool) ([]string, error) {
@@ -281,12 +300,19 @@ func applyDefaults(configuration *Config) {
 func validateConfig(configuration Config) (map[string]struct{}, error) {
 	keySetConfigured := configuration.KeySet != nil
 	providerConfigured := !isNilProvider(configuration.Provider)
-	if configuration.Issuer == "" || configuration.Audience == "" || configuration.Clock == nil ||
-		keySetConfigured == providerConfigured || (keySetConfigured && configuration.KeySet.Len() == 0) ||
-		configuration.MaxTokenBytes <= 0 || configuration.MaxClaims <= 0 ||
-		configuration.MaxClaims > authentication.MaxClaims || configuration.MaxClaimDepth <= 0 ||
-		configuration.MaxClaimDepth > authentication.MaxClaimDepth || configuration.MaxKeys <= 0 ||
-		configuration.Skew < 0 || configuration.ScopeClaim == configuration.TenantClaim {
+	validKeySource := validConfiguredKeySource(configuration, keySetConfigured, providerConfigured)
+	if slices.Contains([]bool{
+		configuration.Issuer != "", configuration.Audience != "", configuration.Clock != nil,
+		validKeySource,
+		cmp.Compare(configuration.MaxTokenBytes, 0) == 1,
+		cmp.Compare(configuration.MaxClaims, 0) == 1,
+		cmp.Compare(configuration.MaxClaims, authentication.MaxClaims) != 1,
+		cmp.Compare(configuration.MaxClaimDepth, 0) == 1,
+		cmp.Compare(configuration.MaxClaimDepth, authentication.MaxClaimDepth) != 1,
+		cmp.Compare(configuration.MaxKeys, 0) == 1,
+		cmp.Compare(configuration.Skew, time.Duration(0)) != -1,
+		configuration.ScopeClaim != configuration.TenantClaim,
+	}, false) {
 		return nil, fmt.Errorf("%w: JWT configuration", authentication.ErrInvalidConfiguration)
 	}
 	if len(configuration.Algorithms) == 0 {
@@ -296,7 +322,13 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 	for _, algorithm := range configuration.Algorithms {
 		name := algorithm.String()
 		known, exists := jwa.LookupSignatureAlgorithm(name)
-		if !exists || name == jwa.NoSignature().String() || known.IsDeprecated() {
+		if !exists {
+			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
+		}
+		if name == jwa.NoSignature().String() {
+			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
+		}
+		if known.IsDeprecated() {
 			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
 		}
 		if _, duplicate := allowed[name]; duplicate {
@@ -305,6 +337,16 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 		allowed[name] = struct{}{}
 	}
 	return allowed, nil
+}
+
+func validConfiguredKeySource(configuration Config, keySetConfigured, providerConfigured bool) bool {
+	if keySetConfigured == providerConfigured {
+		return false
+	}
+	if keySetConfigured {
+		return configuration.KeySet.Len() != 0
+	}
+	return true
 }
 
 func isNilProvider(provider KeyProvider) bool {
@@ -326,27 +368,37 @@ func copyAndValidateKeySet(source jwk.Set, algorithms map[string]struct{}, maxim
 		return nil, fmt.Errorf("%w: JWK encoding", authentication.ErrInvalidConfiguration)
 	}
 	copied, err := jwk.Parse(encoded, jwk.WithRejectDuplicateKID(true))
-	if err != nil || copied.Len() == 0 || copied.Len() > maximum {
+	if err != nil {
+		return nil, fmt.Errorf("%w: JWK set", authentication.ErrInvalidConfiguration)
+	}
+	if copied.Len() == 0 {
+		return nil, fmt.Errorf("%w: JWK set", authentication.ErrInvalidConfiguration)
+	}
+	if copied.Len() > maximum {
 		return nil, fmt.Errorf("%w: JWK set", authentication.ErrInvalidConfiguration)
 	}
 	for index := 0; index < copied.Len(); index++ {
 		key, _ := copied.Key(index)
 		keyID, hasKeyID := key.KeyID()
 		algorithm, hasAlgorithm := key.Algorithm()
-		if !hasKeyID || keyID == "" || !hasAlgorithm {
+		if slices.Contains([]bool{hasKeyID, keyID != "", hasAlgorithm}, false) {
 			return nil, fmt.Errorf("%w: JWK identity", authentication.ErrInvalidConfiguration)
 		}
 		if _, allowed := algorithms[algorithm.String()]; !allowed {
 			return nil, fmt.Errorf("%w: JWK algorithm", authentication.ErrInvalidConfiguration)
 		}
-		if key.Validate() != nil || !keyTypeMatchesAlgorithm(key.KeyType(), algorithm.String()) {
+		if !keyTypeMatchesAlgorithm(key.KeyType(), algorithm.String()) {
 			return nil, fmt.Errorf("%w: JWK key type", authentication.ErrInvalidConfiguration)
 		}
-		if usage, exists := key.KeyUsage(); exists && usage != "sig" {
-			return nil, fmt.Errorf("%w: JWK usage", authentication.ErrInvalidConfiguration)
+		if usage, exists := key.KeyUsage(); exists {
+			if usage != "sig" {
+				return nil, fmt.Errorf("%w: JWK usage", authentication.ErrInvalidConfiguration)
+			}
 		}
-		if operations, exists := key.KeyOps(); exists && !containsVerifyOperation(operations) {
-			return nil, fmt.Errorf("%w: JWK operation", authentication.ErrInvalidConfiguration)
+		if operations, exists := key.KeyOps(); exists {
+			if !containsVerifyOperation(operations) {
+				return nil, fmt.Errorf("%w: JWK operation", authentication.ErrInvalidConfiguration)
+			}
 		}
 	}
 	return copied, nil
@@ -399,13 +451,19 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	// inspectJSONObject has already proven that header is valid JSON.
 	_ = json.Unmarshal(header, &fields)
 	var algorithm, keyID string
-	if err := json.Unmarshal(fields["alg"], &algorithm); err != nil || algorithm == "" {
+	if err := json.Unmarshal(fields["alg"], &algorithm); err != nil {
+		return errors.New("invalid JWT algorithm")
+	}
+	if algorithm == "" {
 		return errors.New("invalid JWT algorithm")
 	}
 	if _, allowed := algorithms[algorithm]; !allowed {
 		return errors.New("disallowed JWT algorithm")
 	}
-	if err := json.Unmarshal(fields["kid"], &keyID); err != nil || keyID == "" {
+	if err := json.Unmarshal(fields["kid"], &keyID); err != nil {
+		return errors.New("invalid JWT key ID")
+	}
+	if keyID == "" {
 		return errors.New("invalid JWT key ID")
 	}
 	if _, critical := fields["crit"]; critical {
@@ -420,7 +478,7 @@ func inspectJSONObject(encoded []byte, maxMembers, maxDepth int) error {
 	if err := inspectJSONValue(decoder, 0, maxMembers, maxDepth, true); err != nil {
 		return err
 	}
-	if token, err := decoder.Token(); err == nil || token != nil {
+	if _, err := decoder.Token(); err == nil {
 		return errors.New("trailing JSON data")
 	}
 	return nil
@@ -438,7 +496,7 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 		}
 		return nil
 	}
-	depth++
+	depth = depth + 1
 	if depth > maxDepth {
 		return errors.New("JWT JSON depth exceeded")
 	}
@@ -467,7 +525,7 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 	case '[':
 		count := 0
 		for decoder.More() {
-			count++
+			count = count + 1
 			if count > authentication.MaxClaimCollection {
 				return errors.New("JWT collection bound exceeded")
 			}

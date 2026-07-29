@@ -121,6 +121,15 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 	if err := inspectJSONObject(largeArray, authentication.MaxClaimCollection+1, 2); err == nil {
 		t.Fatal("inspectJSONObject(oversized array) error = nil")
 	}
+	oversizedMember, err := json.Marshal(map[string]any{
+		"values": make([]int, authentication.MaxClaimCollection+1),
+	})
+	if err != nil {
+		t.Fatalf("Marshal(oversized member) error = %v", err)
+	}
+	if err := inspectJSONObject(oversizedMember, 1, 2); err == nil {
+		t.Fatal("inspectJSONObject(oversized member array) error = nil")
+	}
 	if err := inspectJSONObject([]byte(`[[[]]]`), authentication.MaxClaims, 2); err == nil {
 		t.Fatal("inspectJSONObject(nested array) error = nil")
 	}
@@ -133,6 +142,23 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 	}
 	if err := inspectJSONValue(decoder, 0, authentication.MaxClaims, authentication.MaxClaimDepth, false); err == nil {
 		t.Fatal("inspectJSONValue(unexpected closing delimiter) error = nil")
+	}
+}
+
+func TestInspectJSONObjectAcceptsExactDepthAndMemberBounds(t *testing.T) {
+	t.Parallel()
+
+	if err := inspectJSONObject([]byte(`{"a":{"b":1}}`), 1, 2); err != nil {
+		t.Fatalf("inspectJSONObject(exact bounds) error = %v", err)
+	}
+	encoded, err := json.Marshal(map[string]any{
+		"values": make([]int, authentication.MaxClaimCollection),
+	})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	if err := inspectJSONObject(encoded, 1, 2); err != nil {
+		t.Fatalf("inspectJSONObject(exact collection bound) error = %v", err)
 	}
 }
 
@@ -150,8 +176,10 @@ func TestInspectCompactJWTRejectsEachBoundary(t *testing.T) {
 		encode(`[]`) + "." + encode(`{}`) + ".signature",
 		encode(`{"alg":"HS256","kid":"key"}`) + "." + encode(`[]`) + ".signature",
 		encode(`{"alg":1,"kid":"key"}`) + "." + encode(`{}`) + ".signature",
+		encode(`{"alg":"","kid":"key"}`) + "." + encode(`{}`) + ".signature",
 		encode(`{"alg":"RS256","kid":"key"}`) + "." + encode(`{}`) + ".signature",
 		encode(`{"alg":"HS256","kid":1}`) + "." + encode(`{}`) + ".signature",
+		encode(`{"alg":"HS256","kid":""}`) + "." + encode(`{}`) + ".signature",
 		encode(`{"alg":"HS256","kid":"key","crit":[]}`) + "." + encode(`{}`) + ".signature",
 	}
 	for _, token := range tests {
@@ -173,6 +201,7 @@ func TestConfigurationAndKeySetValidationBoundaries(t *testing.T) {
 		withAlgorithms(base, nil),
 		withAlgorithms(base, []jwa.SignatureAlgorithm{jwa.HS256(), jwa.HS256()}),
 		withAlgorithms(base, []jwa.SignatureAlgorithm{jwa.NewSignatureAlgorithm("UNKNOWN")}),
+		withAlgorithms(base, []jwa.SignatureAlgorithm{jwa.EdDSA()}),
 	}
 	for _, configuration := range invalid {
 		if _, err := New(configuration); !errors.Is(err, authentication.ErrInvalidConfiguration) {
@@ -203,14 +232,58 @@ func TestConfigurationAndKeySetValidationBoundaries(t *testing.T) {
 	if _, err := copyAndValidateKeySet(valid, map[string]struct{}{"HS256": {}}, 0); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("copyAndValidateKeySet(max=0) error = %v", err)
 	}
+	if _, err := copyAndValidateKeySet(valid, map[string]struct{}{"HS256": {}}, 1); err != nil {
+		t.Fatalf("copyAndValidateKeySet(exact max) error = %v", err)
+	}
 	if _, err := copyAndValidateKeySet(marshalErrorSet{embeddedSet: valid}, map[string]struct{}{"HS256": {}}, 1); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("copyAndValidateKeySet(marshal error) error = %v", err)
+	}
+	if _, err := copyAndValidateKeySet(malformedSet{embeddedSet: valid}, map[string]struct{}{"HS256": {}}, 1); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("copyAndValidateKeySet(parse error) error = %v", err)
 	}
 	providerConfiguration := base
 	providerConfiguration.KeySet = nil
 	providerConfiguration.Provider = valueProvider{set: valid}
 	if _, err := New(providerConfiguration); err != nil {
 		t.Fatalf("New(value provider) error = %v", err)
+	}
+}
+
+func TestConfigurationRejectsEachInvalidBoundary(t *testing.T) {
+	t.Parallel()
+
+	keys := symmetricKeySet(t, "key", jwa.HS256(), "sig")
+	base := Config{
+		Issuer: "issuer", Audience: "audience",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.HS256()}, KeySet: keys,
+		Clock: authtest.NewClock(time.Unix(1, 0)), Skew: time.Second,
+		MaxTokenBytes: 1, MaxClaims: 1, MaxClaimDepth: 1, MaxKeys: 1,
+		ScopeClaim: "scope", TenantClaim: "tenant",
+	}
+	tests := map[string]func(*Config){
+		"issuer":           func(c *Config) { c.Issuer = "" },
+		"audience":         func(c *Config) { c.Audience = "" },
+		"clock":            func(c *Config) { c.Clock = nil },
+		"both key sources": func(c *Config) { c.Provider = valueProvider{set: keys} },
+		"no key source":    func(c *Config) { c.KeySet = nil },
+		"empty key set":    func(c *Config) { c.KeySet = jwk.NewSet() },
+		"token bytes":      func(c *Config) { c.MaxTokenBytes = -1 },
+		"claims zero":      func(c *Config) { c.MaxClaims = -1 },
+		"claims excess":    func(c *Config) { c.MaxClaims = authentication.MaxClaims + 1 },
+		"depth zero":       func(c *Config) { c.MaxClaimDepth = -1 },
+		"depth excess":     func(c *Config) { c.MaxClaimDepth = authentication.MaxClaimDepth + 1 },
+		"keys":             func(c *Config) { c.MaxKeys = -1 },
+		"skew":             func(c *Config) { c.Skew = -time.Nanosecond },
+		"claim names":      func(c *Config) { c.TenantClaim = c.ScopeClaim },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			configuration := base
+			mutate(&configuration)
+			if _, err := New(configuration); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+				t.Errorf("New() error = %v, want invalid configuration", err)
+			}
+		})
 	}
 }
 
@@ -277,6 +350,22 @@ func TestValidateBearerAndProviderFailureBoundaries(t *testing.T) {
 	if _, err := validator.ValidateBearer(context.Background(), ""); !errors.Is(err, authentication.ErrCredentialsInvalid) {
 		t.Fatalf("ValidateBearer(empty) error = %v", err)
 	}
+	validator.maxTokenBytes = 3
+	if _, err := validator.ValidateBearer(context.Background(), "a.b"); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(exact token bound) error = %v", err)
+	}
+	if _, err := validator.ValidateBearer(context.Background(), "a.bc"); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("ValidateBearer(over token bound) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.b")); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("Authenticate(exact token bound) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.bc")); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("Authenticate(over token bound) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("")); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("Authenticate(empty token) error = %v", err)
+	}
 
 	want := authentication.NewFailure(authentication.FailureUnavailable)
 	validator = &Validator{provider: KeyProviderFunc(func(context.Context) (jwk.Set, error) {
@@ -326,6 +415,10 @@ type embeddedSet interface{ jwk.Set }
 type marshalErrorSet struct{ embeddedSet }
 
 func (marshalErrorSet) MarshalJSON() ([]byte, error) { return nil, errors.New("marshal failed") }
+
+type malformedSet struct{ embeddedSet }
+
+func (malformedSet) MarshalJSON() ([]byte, error) { return []byte(`{"keys":"invalid"}`), nil }
 
 type valueProvider struct{ set jwk.Set }
 

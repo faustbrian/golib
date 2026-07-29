@@ -1,10 +1,13 @@
 package jwt
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"math/bits"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"time"
 
@@ -91,22 +94,24 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 		}
 	}
 	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" ||
-		(parsed.Scheme != "https" && (!configuration.allowHTTP || parsed.Scheme != "http")) ||
-		configuration.client == nil || configuration.minRefresh <= 0 ||
-		configuration.maxRefresh < configuration.minRefresh || configuration.maxBodyBytes <= 0 ||
-		configuration.initTimeout <= 0 {
+	if err != nil {
+		return nil, fmt.Errorf("%w: remote JWK configuration", authentication.ErrInvalidConfiguration)
+	}
+	if !validRemoteConfiguration(parsed, configuration) {
 		return nil, fmt.Errorf("%w: remote JWK configuration", authentication.ErrInvalidConfiguration)
 	}
 
 	client := jwk.WrapHTTPClientDefaults(configuration.client)
 	initCtx, cancel := context.WithTimeout(ctx, configuration.initTimeout)
 	defer cancel()
-	if _, err := jwk.Fetch(initCtx, rawURL,
+	_, err = jwk.Fetch(initCtx, rawURL,
 		jwk.WithHTTPClient(client),
 		jwk.WithFetchWhitelist(exactWhitelist(rawURL)),
 		jwk.WithMaxFetchBodySize(configuration.maxBodyBytes),
-	); err != nil {
+	)
+	switch err {
+	case nil:
+	default:
 		return nil, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(err))
 	}
@@ -128,6 +133,21 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 			authentication.WithFailureCause(err))
 	}
 	return &Remote{cache: cache, url: rawURL}, nil
+}
+
+func validRemoteConfiguration(parsed *url.URL, configuration remoteConfig) bool {
+	validScheme := parsed.Scheme == "https"
+	if parsed.Scheme == "http" {
+		validScheme = configuration.allowHTTP
+	}
+	return !slices.Contains([]bool{
+		parsed.Host != "", parsed.User == nil, parsed.Fragment == "", validScheme,
+		configuration.client != nil,
+		cmp.Compare(configuration.minRefresh, time.Duration(0)) == 1,
+		cmp.Compare(configuration.maxRefresh, configuration.minRefresh) != -1,
+		cmp.Compare(configuration.maxBodyBytes, int64(0)) == 1,
+		cmp.Compare(configuration.initTimeout, time.Duration(0)) == 1,
+	}, false)
 }
 
 // KeySet returns the current cached JWK set without transferring ownership.
@@ -209,13 +229,19 @@ func (r *Remote) Close(ctx context.Context) error {
 }
 
 func (r *Remote) beginOperation(ctx context.Context) (context.Context, *jwk.Cache, uint64, error) {
-	if err := ctx.Err(); err != nil {
+	switch err := ctx.Err(); err {
+	case nil:
+	default:
 		return nil, nil, 0, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(err))
 	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	if r.closed || r.closing {
+	if r.closed {
+		return nil, nil, 0, authentication.NewFailure(authentication.FailureUnavailable,
+			authentication.WithFailureCause(authentication.ErrInvalidConfiguration))
+	}
+	if r.closing {
 		return nil, nil, 0, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(authentication.ErrInvalidConfiguration))
 	}
@@ -223,7 +249,8 @@ func (r *Remote) beginOperation(ctx context.Context) (context.Context, *jwk.Cach
 	if r.operations == nil {
 		r.operations = make(map[uint64]context.CancelFunc)
 	}
-	r.nextOperation++
+	nextOperation, _ := bits.Add64(r.nextOperation, 1, 0)
+	r.nextOperation = nextOperation
 	r.operations[r.nextOperation] = cancel
 	return operationCtx, r.cache, r.nextOperation, nil
 }
@@ -232,12 +259,18 @@ func (r *Remote) endOperation(operation uint64) {
 	r.mutex.Lock()
 	cancel := r.operations[operation]
 	delete(r.operations, operation)
-	if r.closing && len(r.operations) == 0 && r.idle != nil {
-		close(r.idle)
-		r.idle = nil
+	if r.closing {
+		if len(r.operations) == 0 {
+			if r.idle != nil {
+				close(r.idle)
+				r.idle = nil
+			}
+		}
 	}
 	r.mutex.Unlock()
-	if cancel != nil {
+	switch cancel {
+	case nil:
+	default:
 		cancel()
 	}
 }
@@ -247,7 +280,8 @@ func (r *Remote) finishClose(done chan struct{}, err error) {
 	r.closing = false
 	r.closeErr = err
 	r.idle = nil
-	if err == nil {
+	switch err {
+	case nil:
 		r.closed = true
 	}
 	close(done)
