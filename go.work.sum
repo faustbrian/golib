@@ -242,6 +242,7 @@ github.com/faustbrian/golib/pkg/outbox v0.0.0-20260728110331-b7c4c77520dd/go.mod
 github.com/faustbrian/golib/pkg/postgres v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:6+LGzkpGQD63KRh6TDFVMhlX8K3eIThXR2fhUfuT9Q0=
 github.com/faustbrian/golib/pkg/prompts v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:0gCbXYw9aTdJZ43xXcSKQJe6wczLj+a1e/RNyhoFGnQ=
 github.com/faustbrian/golib/pkg/queue v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:c9ENFp3Jr/8JCSzjYtm0l1pVQoER9JJbLzu0Lzh7qrM=
+github.com/faustbrian/golib/pkg/queue v0.0.0-20260729185654-5b77ff282cbc/go.mod h1:KbJMlejVIlYDawQ0ErQ3enpEnCeKzrDLrWmTJrpErtc=
 github.com/faustbrian/golib/pkg/router v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:8GMr8KoMNIgZ7IJ440vqA9W2X7L+/mGPKyaFd2aPXlg=
 github.com/faustbrian/golib/pkg/rule-engine v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:Dl+t/9xLwd7UU7ks8WPh9SHL3J9rphkqtEWyIDf/PRM=
 github.com/faustbrian/golib/pkg/scheduler v0.0.0-20260728110331-b7c4c77520dd/go.mod h1:6rNO/PlTK14YUebKUs/fbAT2gc2QUDqAqcNQzGOBrOE=
