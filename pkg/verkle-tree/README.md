@@ -147,8 +147,20 @@ assertions that a later tree proof must authenticate. It distinguishes a
 present all-zero value from absence, rejects duplicate or conflicting keys,
 binds the exact experimental profile before allocation, and owns all accepted
 claims under explicit count, scratch-memory, and cancellation limits. It does
-not yet bind a root, path metadata, transcript, opening payload, or verification
-result.
+not authenticate any assertion by itself.
+
+An internal immutable unverified tree-proof container now binds that canonical
+claim set to one exact non-empty root, one topology result per distinct queried
+stem, every required non-root path commitment, and one strict raw
+aggregate-opening payload. It deterministically orders stems and commitment
+paths, deduplicates shared suffix paths, rejects omitted, surplus, duplicate, or
+conflicting topology, distinguishes present, missing-child, and different-stem
+absence, and preflights retained and temporary resources with cancellation
+throughout attacker-amplified loops. It has no external encoding and performs
+no transcript construction, opening generation, cryptographic verification,
+witness validation, or state authorization.
+Empty-root non-membership remains deliberately unsupported until its proof form
+is specified without a meaningless aggregate-opening payload.
 
 ## Development rule
 

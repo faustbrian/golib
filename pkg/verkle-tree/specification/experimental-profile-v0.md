@@ -271,6 +271,68 @@ It does not bind a root, path, opening, transcript, or snapshot and does not
 authenticate any assertion. Those bindings remain REQUIRED in a complete tree
 proof container.
 
+## Canonical Unverified Tree-Proof Container
+
+The internal tree-proof container MUST bind exactly one valid non-empty
+profile-bound root, one canonical claim set for the same fixed experimental
+profile, one topology assertion for every distinct queried stem, every required
+non-root path commitment, and one canonical raw aggregate-opening payload.
+Construction MUST NOT report the container as cryptographically verified.
+
+Each topology assertion MUST identify the queried 31-byte stem, a depth from
+one through 31 inclusive, and exactly one terminal kind:
+
+1. `present`, meaning the queried stem commitment exists at that depth;
+2. `missing`, meaning the selected child is empty at that depth; or
+3. `different`, meaning the selected child contains one explicitly identified
+   different stem.
+
+A `different` stem MUST differ from the queried stem and MUST share every path
+byte through the asserted depth. `present` and `missing` assertions MUST NOT
+carry another stem. Exactly one topology assertion MUST exist for every
+distinct claimed stem; omitted, duplicate, surplus, or mismatched assertions
+MUST fail.
+
+Membership and claimed absence MAY both terminate at a `present` stem because
+one suffix can be absent from an existing stem. Every claim terminating at a
+`missing` or `different` assertion MUST be an absence claim. Present-zero
+membership remains membership.
+
+The root commitment MUST be omitted from the non-root path-commitment list.
+For each topology assertion, the required canonical paths are:
+
+- every internal prefix `stem[0:depth]` of lengths one through `depth-1`;
+- `stem[0:depth]` itself for `present` and `different`, but not for `missing`;
+  and
+- for each claim at a `present` stem,
+  `stem[0:depth] || (2 + suffix/128)`, selecting C1 with byte 2 or C2 with byte
+  3.
+
+If multiple claims require the same path, the path MUST occur exactly once.
+Every retained path MUST be non-empty, at most 32 bytes, and bind one valid
+non-identity vector commitment. Path commitments MUST be ordered
+lexicographically by their raw variable-length path bytes. A constructor MUST
+reject omitted, duplicate, surplus, or structurally conflicting paths,
+including one path classified simultaneously as internal, stem, suffix, or
+missing and one stem path that implies different terminal stems.
+
+Construction MUST validate the context, root, claim set, raw opening payload,
+limits, topology assertions, and path commitments before publishing a result.
+It MUST preflight claim, distinct-stem, path-commitment, derived-path,
+retained-path-byte, and conservative temporary-byte limits before their
+amplified work or allocations. Validation, canonical sorting, claim grouping,
+path derivation, duplicate detection, and result copying MUST observe
+cancellation. Accepted inputs and returned collections MUST not alias mutable
+caller storage, and an immutable container MUST support concurrent reads.
+
+This container has no external wire encoding and performs no transcript
+construction, opening generation, opening verification, or claim
+authentication. Successful construction proves only canonical in-memory
+structure for later proof verification. It MUST NOT be exposed as a verified
+proof or used to authorize a state transition. Empty-root non-membership MUST
+remain unsupported until its proof form is fixed without requiring a surplus
+aggregate-opening payload.
+
 ## Internal Commitment Construction
 
 The experimental internal engine MUST accept exactly one complete width-256

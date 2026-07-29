@@ -103,6 +103,18 @@ key, and returns owned copies safe for concurrent immutable reads. This claim
 set does not bind a root, path, opening payload, transcript, snapshot, or
 verification result.
 
+The next internal boundary combines those claims with one exact non-empty root,
+one validated present, missing-child, or different-stem result per distinct
+queried stem, the exact set of required non-root path commitments, and one
+canonical raw opening payload. It owns and deterministically orders all
+metadata, rejects missing, duplicate, surplus, or conflicting path information,
+bounds retained paths and derivation scratch before allocation, and supports
+concurrent immutable reads. Construction establishes canonical structure only.
+The container has no external encoding and does not generate or verify an
+opening, construct a transcript, authenticate a claim, or authorize an update.
+Empty-root non-membership remains outside this boundary until its proof
+representation is fixed.
+
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or
 encoding from another.

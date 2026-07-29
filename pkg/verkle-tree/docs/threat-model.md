@@ -13,8 +13,9 @@ strict bounded decoding of the fixed raw aggregate-opening payload, fixed
 generator-set validation, bounded serial vector commitment, immutable state
 transitions, canonical stem topology, bounded deterministic full-root
 construction, atomic root-bound snapshot transitions, and canonical
-profile-bound tree claims. Tree-proof verification, witnesses, storage,
-publication, and complete side-channel controls remain unimplemented.
+profile-bound tree claims plus an immutable canonical root-bound unverified
+tree-proof container. Tree-proof verification, witnesses, storage, publication,
+and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -88,6 +89,18 @@ claimed keys, preserves present-zero and claimed-absence distinctions, and
 removes caller-order and aliasing ambiguity before proof construction. Because
 it carries no root, path, transcript, or opening, accepting a claim set provides
 no authentication and does not mitigate proof replay or omitted-path attacks.
+
+The unverified tree-proof container binds a claim set to an exact root, one
+terminal topology result per queried stem, every required non-root commitment
+path, and one strict raw opening payload. It rejects omitted, duplicate, surplus,
+or conflicting stem and path metadata, including missing-child membership and
+inconsistent shared paths. Construction is deterministic, immutable,
+cancellation-aware, and resource-bounded. It does not construct or verify the
+transcript or opening equations, so acceptance still provides no
+cryptographic authentication and does not prevent a producer from supplying
+mathematically false but structurally valid commitments.
+It rejects empty roots until empty-root non-membership has an explicit proof
+form that cannot carry a meaningless surplus opening payload.
 
 ### Resource exhaustion
 

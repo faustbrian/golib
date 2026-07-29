@@ -66,6 +66,11 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add internal canonical profile-bound membership and absence claims with
   present-zero semantics, duplicate rejection, deterministic key ordering,
   defensive ownership, cancellation, and explicit resource limits.
+- Add an internal canonical unverified tree-proof container that binds an exact
+  root, claim set, stem topology, required non-root path commitments, and raw
+  opening payload while rejecting incomplete or conflicting metadata under
+  explicit resource and cancellation limits; empty-root proofs remain rejected
+  until their proof form is specified.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.
