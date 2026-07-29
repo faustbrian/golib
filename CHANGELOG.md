@@ -13,6 +13,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Define the cross-module worker-balancing goal for priority-aware per-queue
+  reservations, limits, borrowing, runtime convergence, and HPA/KEDA ownership.
 - Use local `v0.0.0` requirements by default while allowing releasable source
   manifests to pin exact main pseudo-versions for clean consumers.
 - Use `v0.0.0` for isolated local-proxy verification and resolve public

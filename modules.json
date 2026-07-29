@@ -49,6 +49,7 @@
         ".ai/GOAL_MONOREPO_REMEDIATION.md",
         ".ai/GOAL_PERFORMANCE.md",
         ".ai/GOAL_POLISH.md",
+        ".ai/GOAL_QUEUE_WORKER_BALANCING.md",
         ".ai/GOAL_RELEASE.md",
         ".ai/GOAL_SECURITY.md",
         ".ai/GOAL_SPECIFICATION_DECISIONS.md",
@@ -58,7 +59,7 @@
       "goal_evidence": [
         {
           "file": ".ai/GOAL.md",
-          "requirements_sha256": "26b017a3baa2915cee11bbfcb0d54c102746e956bc5b87553975dd22c91f7509",
+          "requirements_sha256": "e94a2108554413f6902f929115e6948b63ef0e6cd810063f95b476aa805b32f6",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
@@ -356,6 +357,39 @@
         {
           "file": ".ai/GOAL_POLISH.md",
           "requirements_sha256": "2274188b40fc5dfc965f2cd28fa8ba2acb014e61bbeed95937d03db8db76a0eb",
+          "implementation_evidence": [
+            "CHANGELOG.md",
+            "README.md",
+            "docs/architecture.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": ".ai/GOAL_QUEUE_WORKER_BALANCING.md",
+          "requirements_sha256": "a6939631dbbda720e462f16dd525b9591f949a6ed0273557650fa8e4d3ef437d",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",

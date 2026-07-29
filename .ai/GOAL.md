@@ -54,8 +54,9 @@ module that forces every package on every consumer.
   `.ai/GOAL_SECURITY.md`, `.ai/GOAL_PERFORMANCE.md`,
   `.ai/GOAL_BENCHMARKS.md`,
   `.ai/GOAL_SUPPLY_CHAIN.md`, `.ai/GOAL_RELEASE.md`,
-  `.ai/GOAL_COMPATIBILITY.md`, and `.ai/GOAL_MAINTENANCE.md` are part of this
-  goal's completion contract.
+  `.ai/GOAL_COMPATIBILITY.md`, `.ai/GOAL_MAINTENANCE.md`, and
+  `.ai/GOAL_QUEUE_WORKER_BALANCING.md` are part of this goal's completion
+  contract.
 
 ## Current Inventory To Verify
 
