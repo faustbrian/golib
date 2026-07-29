@@ -9,7 +9,8 @@ and local-coverage record beside the corpus.
 | --- | --- | --- |
 | Ethereum Yellow Paper | `efc5f9a1f356cba376c978eedb63cb0363c2aa85` | Trie, RLP, and execution-layer definitions |
 | execution-specs | `44d2b9cbd028b48f13e6ebf2635f977141cc397b` | Fork-aware executable specification |
-| execution-spec-tests | `10eaa63d5da2f50b63d4359968f36542212f9f50` | Current official fixtures |
+| execution-spec-tests repository | `10eaa63d5da2f50b63d4359968f36542212f9f50` | Archived fixture framework and format documentation |
+| execution-spec-tests stable fixtures | `v5.4.0` (`88e9fb8f10ed89805aa3110d0a2cd5dcadc19689`) | Official stable blockchain fixture release |
 | ethereum/tests | `c67e485ff8b5be9abc8ad15345ec21aa22e290d9` | Legacy trie fixtures not yet superseded |
 | go-ethereum v1.17.3 | `117e067f0f0bae1a17082321f224dedb6765b10f` | Pinned Go differential oracle |
 | Erigon | `aa82d55f3917439cd33cb1cbdca52f582d9bad11` | Independent Go differential oracle |
@@ -33,6 +34,14 @@ execution-specs `state.py`, `state_mpt.py`, and fork `fork_types.py` account
 encoder. Account RLP, minimally represented storage values, secure address and
 slot paths, and roots are compared with Geth v1.17.3. Secure paths and roots
 are also compared with the independently implemented EthereumJS MPT v10.1.2.
+
+The execution-spec-tests v5.4.0 `fixtures_stable.tar.gz` release asset is pinned
+by its published SHA-256 digest and imported through a checksum-verifying
+update script. Selected byte-identical Frontier, Berlin, London, Cancun, and
+Prague blockchain fixtures prove official pre/post allocation state roots and
+raw transaction roots for legacy and EIP-2718 types 1 through 4. The fixtures
+contain receipt-root commitments but not receipt values, so they are not
+presented as receipt-root construction evidence.
 
 The fork-profile envelope table is derived from the pinned execution-specs
 `berlin`, `london`, `paris`, `shanghai`, `cancun`, `prague`, and `osaka`

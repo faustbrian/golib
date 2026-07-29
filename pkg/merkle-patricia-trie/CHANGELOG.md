@@ -39,6 +39,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Imported the pinned legacy Ethereum raw and secure trie fixture corpus
   byte-for-byte with checksum, license, update, applicability, and local
   coverage records.
+- Imported pinned execution-spec-tests v5.4.0 blockchain fixtures byte-for-byte
+  and verified official pre/post allocation roots plus legacy and type-1
+  through type-4 transaction roots.
 - Added canonical RLP integer key derivation for raw transaction and receipt
   trie indexes.
 - Added bounded fuzz harnesses for compact paths, canonical RLP, node decoding,

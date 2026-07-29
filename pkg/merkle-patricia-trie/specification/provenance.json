@@ -6,6 +6,12 @@
       "revision": "44d2b9cbd028b48f13e6ebf2635f977141cc397b"
     },
     {
+      "name": "ethereum/execution-spec-tests stable fixtures",
+      "version": "v5.4.0",
+      "revision": "88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",
+      "manifest": "testdata/execution-spec-tests/MANIFEST.md"
+    },
+    {
       "name": "ethereum/tests TrieTests",
       "revision": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
       "manifest": "testdata/ethereum-tests/MANIFEST.md"

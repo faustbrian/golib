@@ -9,7 +9,8 @@ benchmark:
 		-benchmem -benchtime="$(BENCH_TIME)" ./...
 
 conformance:
-	GOWORK=off $(GO) test -run '^TestLegacyEthereum' -count=1 .
+	GOWORK=off $(GO) test \
+		-run '^(TestLegacyEthereum|TestExecutionSpec)' -count=1 .
 
 interoperability:
 	npm ci --ignore-scripts --no-audit --no-fund

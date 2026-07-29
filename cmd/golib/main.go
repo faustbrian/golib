@@ -1101,6 +1101,7 @@ func conformanceCorpora(directory string) []string {
 		return []string{"JSON-Schema-Test-Suite", "Bowtie"}
 	case "merkle-patricia-trie":
 		return []string{
+			"ethereum/execution-spec-tests stable fixtures v5.4.0 at 88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",
 			"ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
 		}
 	case "xsd":

@@ -192,6 +192,12 @@ the EIP-2718 transaction/receipt type relationship. They do not validate
 transaction fields, signatures, receipt fields, or state-transition semantics;
 callers remain responsible for those protocol rules.
 
+The conformance corpus reconstructs official execution-spec-tests v5.4.0
+pre/post allocation roots and block transaction roots for legacy and type-1
+through type-4 transactions. Its receipt-root fields are not claimed as
+construction evidence because blockchain fixtures do not include receipt
+values.
+
 For already sorted raw key/value streams, `SortedBuilder` calculates the same
 root without retaining the completed trie. Keys must be strictly increasing,
 values must be non-empty, and finalization succeeds exactly once. The builder

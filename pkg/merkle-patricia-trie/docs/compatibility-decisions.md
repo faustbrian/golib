@@ -92,6 +92,13 @@ instead of being normalized. Geth v1.17.3 independently agrees on account
 bytes and state/storage roots, while EthereumJS MPT v10.1.2 independently
 agrees on the secure paths and resulting roots.
 
+Pinned execution-spec-tests v5.4.0 blockchain allocations independently bind
+these rules to official pre-state, post-state, and storage-root commitments
+from Frontier through Prague. Their canonical block RLP also binds raw
+transaction roots for legacy transactions and typed envelopes 1 through 4.
+Receipt commitments in those headers are not used as evidence because the
+fixture format omits the receipt values needed to reconstruct the trie.
+
 ## Range-proof contract
 
 Range proofs use an explicit inclusive start and exclusive end over raw trie
