@@ -177,6 +177,27 @@ Duplicates are rejected, returned indexes are ascending, and verification
 leaves must follow that canonical order. The proof binds leaf digests and a
 minimal left-to-right depth-first frontier.
 
+Roots and proofs have a package-defined canonical binary encoding:
+
+```go
+encoded, err := proof.MarshalBinary()
+if err != nil {
+    return err
+}
+decoded, err := merkletree.ParseInclusionProof(
+    ctx,
+    encoded,
+    merkletree.DefaultEncodingLimits(),
+    merkletree.DefaultProofLimits(),
+)
+```
+
+Decoders require both an encoded-byte limit and the operation-specific work
+limits. They reject unsupported identities, non-canonical structure,
+truncation, trailing bytes, impossible element counts, and cancellation.
+Decoded objects own their state. See [canonical binary encoding](docs/encoding.md)
+for the exact version-1 wire format.
+
 ## Implemented profiles
 
 | Property | Canonical binary v1 | RFC 9162 v1 |
@@ -199,9 +220,9 @@ Merkle Tree Hash behavior implemented and tested here.
 
 Batch and streaming root construction, atomic append and batch append,
 immutable snapshots, and inclusion, multi-inclusion, and consistency proofs
-are implemented. Persistence, proof encodings, external differential fixtures,
-and comparative benchmarks remain under development and are not claimed by
-the current API.
+and their versioned canonical binary encodings are implemented. Persistence,
+external differential fixtures, and comparative benchmarks remain under
+development and are not claimed by the current API.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or
 consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle
@@ -222,7 +243,8 @@ registry assigns SHA-256 value `0x00`; the package does not accept an
 unspecified or caller-invented algorithm as RFC-compatible.
 
 See [profile and ownership semantics](docs/architecture.md) and
-[compatibility boundaries](docs/compatibility.md).
+[compatibility boundaries](docs/compatibility.md), and
+[canonical binary encoding](docs/encoding.md).
 
 ## License
 

@@ -24,3 +24,6 @@
   frontier nodes, explicit resource limits, and independent verification.
 - Atomic streaming root construction that retains only a logarithmic digest
   frontier and never retains raw leaves or the full node tree.
+- Versioned canonical binary encodings for roots and all proof operations,
+  with strict structural decoding, operation-specific resource limits, and
+  independently owned decoded state.

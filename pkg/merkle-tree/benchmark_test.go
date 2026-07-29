@@ -331,6 +331,70 @@ func BenchmarkVerifyMultiInclusion(b *testing.B) {
 	}
 }
 
+func BenchmarkInclusionProofEncoding(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	proof, err := snapshot.InclusionProof(
+		context.Background(),
+		8_192,
+		merkletree.DefaultProofLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	encoded, err := proof.MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(len(encoded)))
+		for range b.N {
+			if _, err := proof.MarshalBinary(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("parse", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(len(encoded)))
+		for range b.N {
+			if _, err := merkletree.ParseInclusionProof(
+				context.Background(),
+				encoded,
+				merkletree.DefaultEncodingLimits(),
+				merkletree.DefaultProofLimits(),
+			); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("reject_malformed", func(b *testing.B) {
+		truncated := encoded[:len(encoded)-1]
+		b.ReportAllocs()
+		b.SetBytes(int64(len(truncated)))
+		for range b.N {
+			if _, err := merkletree.ParseInclusionProof(
+				context.Background(),
+				truncated,
+				merkletree.DefaultEncodingLimits(),
+				merkletree.DefaultProofLimits(),
+			); err == nil {
+				b.Fatal("malformed proof accepted")
+			}
+		}
+	})
+}
+
 func benchmarkMultiIndexes(count int, stride uint64) []uint64 {
 	indexes := make([]uint64, count)
 	for index := range indexes {

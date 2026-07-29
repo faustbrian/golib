@@ -35,6 +35,16 @@ var (
 	// streaming root builder.
 	ErrInvalidRootBuilder = errors.New("invalid Merkle root builder")
 
+	// ErrMalformedEncoding identifies a non-canonical, truncated, trailing, or
+	// structurally invalid canonical binary object.
+	ErrMalformedEncoding = errors.New("malformed Merkle binary encoding")
+
+	// ErrUnsupportedEncodingVersion identifies a well-framed canonical object
+	// whose encoding version is not implemented.
+	ErrUnsupportedEncodingVersion = errors.New(
+		"unsupported Merkle encoding version",
+	)
+
 	// ErrInvalidTreeSize identifies an unsupported or impossible relationship
 	// between two tree sizes.
 	ErrInvalidTreeSize = errors.New("invalid Merkle tree size")
@@ -82,6 +92,9 @@ const (
 	// ResourceRetainedNodes is the number of immutable nodes retained by a
 	// snapshot.
 	ResourceRetainedNodes
+
+	// ResourceEncodedBytes is the byte length of a canonical binary object.
+	ResourceEncodedBytes
 )
 
 // ResourceError reports a configured bound and the rejected value. It never

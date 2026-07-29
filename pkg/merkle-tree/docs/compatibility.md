@@ -19,7 +19,9 @@ inclusion audit-path generation and verification from sections 2.1.3.1 and
 Certificate Transparency endpoint contract. Size-zero to nonzero consistency
 proofs are not defined by the RFC algorithm and are rejected. No wire-format,
 log-protocol, or other Certificate Transparency artifact compatibility is
-claimed yet.
+claimed. The package canonical binary encoding is explicitly package-owned;
+its algorithm value `1` is not RFC 9162's hash-algorithm registry value
+`0x00`.
 
 Multi-inclusion proofs are a package-defined operation over the selected root
 profile. RFC 9162 does not define a multi-proof format, so use of an RFC 9162

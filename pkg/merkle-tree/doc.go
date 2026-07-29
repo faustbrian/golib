@@ -2,7 +2,8 @@
 // roots, streams roots through a logarithmic-memory builder, incrementally
 // appends ordered leaves into proof-retaining builders, creates immutable
 // snapshots, and generates and independently verifies inclusion,
-// multi-inclusion, and append-only consistency proofs.
+// multi-inclusion, and append-only consistency proofs. Roots and proofs have
+// bounded, versioned canonical binary encodings.
 //
 // The package does not define a universal "Merkle tree" convention. Every
 // root carries a profile, profile version, hash algorithm, and tree size.

@@ -37,6 +37,14 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test -run '^$$' -fuzz '^FuzzVerifyMultiInclusion$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzParseRoot$$' \
+		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzParseInclusionProof$$' \
+		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzParseConsistencyProof$$' \
+		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzParseMultiInclusionProof$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
 	$(GO) test -run '^$$' -bench '^Benchmark' \
