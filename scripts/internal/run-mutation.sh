@@ -86,7 +86,8 @@ fi
 cd "${directory}"
 
 tags="$(jq -r --arg directory "${module}" \
-    '.modules[] | select(.directory == $directory) | .test_tags | join(",")' \
+    '.modules[] | select(.directory == $directory)
+    | .test_tags | map(select(. != "interoperability")) | join(",")' \
     "${root}/modules.json")"
 packages=()
 while IFS= read -r package_directory; do

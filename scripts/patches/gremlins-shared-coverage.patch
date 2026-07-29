@@ -1,7 +1,25 @@
 diff --git a/internal/coverage/coverage.go b/internal/coverage/coverage.go
 --- a/internal/coverage/coverage.go
 +++ b/internal/coverage/coverage.go
-@@ -144,0 +145,29 @@ func (c *Coverage) executeCoverage() (time.Duration, error) {
+@@ -102,0 +103,5 @@
++	if c.integrationMode {
++		if err := c.executeUnitBaseline(); err != nil {
++			return Result{}, fmt.Errorf("unit test baseline failed: %w", err)
++		}
++	}
+@@ -143,0 +149,11 @@
++func (c *Coverage) executeUnitBaseline() error {
++	cmd := c.cmdContext("go", "test", "-count=1", "./...")
++	if out, err := cmd.CombinedOutput(); err != nil {
++		log.Infof("\n%s\n", string(out))
++
++		return err
++	}
++
++	return nil
++}
++
+@@ -144,0 +161,29 @@
 +	if sourcePath := os.Getenv("GOLIB_GREMLINS_COVERAGE_PROFILE"); sourcePath != "" {
 +		elapsedText := os.Getenv("GOLIB_GREMLINS_COVERAGE_ELAPSED")
 +		elapsed, err := time.ParseDuration(elapsedText)

@@ -880,6 +880,7 @@ func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) 
 		`go mod edit -modfile="${modfile}"`,
 		`.module_path, .directory`,
 		`.coverage_required == true`,
+		`.test_tags | map(select(. != "interoperability")) | join(",")`,
 		`--exclude-files '^.+/'`,
 		`--threshold-efficacy 100`,
 		`--threshold-mcover 100`,
@@ -1106,6 +1107,7 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 		"scripts/internal/mutation-command.sh",
 		"scripts/package-source-digest.sh",
 		"scripts/patches/gremlins-run-all-mutants.patch",
+		"scripts/patches/gremlins-shared-coverage.patch",
 		"scripts/start-services.sh",
 	} {
 		writeFile(t, filepath.Join(repository, path), path+"\n")
@@ -1226,6 +1228,17 @@ func TestValue(t *testing.T) {
 		t.Fatal("mutation command did not change mutation digest")
 	}
 	writeFile(t, mutationCommand, "scripts/internal/mutation-command.sh\n")
+	coveragePatch := filepath.Join(
+		repository,
+		"scripts",
+		"patches",
+		"gremlins-shared-coverage.patch",
+	)
+	writeFile(t, coveragePatch, "revised shared coverage patch\n")
+	if current := digest(); current == initial {
+		t.Fatal("shared coverage patch did not change mutation digest")
+	}
+	writeFile(t, coveragePatch, "scripts/patches/gremlins-shared-coverage.patch\n")
 	writeFile(t, moduleSum, "example.test/dependency v0.0.0 h1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\n")
 	if current := digest(); current != initial {
 		t.Fatalf("module checksum changed mutation digest: %s != %s", current, initial)
@@ -2208,12 +2221,15 @@ func TestValue(t *testing.T) {
 		t.Fatalf("generate external coverage: %v\n%s", err, output)
 	}
 
-	// A failing test proves the patched binary does not recollect coverage.
-	writeFile(t, testFile, `package fixture
+	// A tagged failing test proves the patched binary does not recollect
+	// coverage while the required untagged unit baseline remains healthy.
+	writeFile(t, filepath.Join(module, "integration_test.go"), `//go:build integration
+
+package fixture
 
 import "testing"
 
-func TestValue(t *testing.T) {
+func TestIntegrationCoverage(t *testing.T) {
 	t.Fatal("coverage was recollected")
 }
 `)
@@ -2233,6 +2249,8 @@ func TestValue(t *testing.T) {
 		"--integration",
 		"--coverpkg",
 		".",
+		"--tags",
+		"integration",
 		"--invert-bitwise",
 		"--output-statuses",
 		"r",

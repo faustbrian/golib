@@ -10,6 +10,14 @@ documented in each module's changelog.
 - Pass Gremlins' integration-test CPU setting as distinct command arguments so
   mutation workers execute every target package instead of silently testing
   only the module root.
+- Bound each mutant test run to ten times its measured baseline so
+  non-terminating mutants are killed without occupying a worker for hours.
+- Prove an unmutated unit baseline, then run untagged package tests before
+  tagged whole-module integration tests for each mutant so baseline failures
+  cannot create false kills and unit-killed mutations do not repeatedly
+  provision expensive broker fixtures.
+- Include the patched shared-coverage implementation in mutation input
+  fingerprints so tooling changes cannot reuse stale exact-mutation evidence.
 - Permit releasable source manifests to pin immutable main pseudo-versions
   while isolated verification continues to use the generated local `v0.0.0`
   proxy, restoring clean installation without weakening local source checks.

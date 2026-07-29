@@ -19,6 +19,12 @@ fixtures, and interoperability checks.
 requires exactly 100% efficacy and mutant coverage. Reports must be non-empty
 and every viable mutation must be `KILLED`.
 
+Integration-mode campaigns first require one successful unmutated, untagged
+whole-module baseline. Each mutant then runs in its untagged owning package. A
+mutant killed there does not execute the tagged whole-module suite; only a unit
+survivor reaches integration tests. Both mutant phases share the same deadline,
+and any surviving integration run remains a failure.
+
 `scripts/discover-mutation.sh` is the separate review command for enumerating
 mutants and source-hashed zero-mutant packages. It does not write enforcement
 evidence and MUST NOT be used as a mutation quality gate.
