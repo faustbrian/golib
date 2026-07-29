@@ -90,6 +90,42 @@ func FuzzParseMultiInclusionProof(f *testing.F) {
 	})
 }
 
+func FuzzParseSnapshot(f *testing.F) {
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		[]merkletree.RawLeaf{
+			merkletree.NewRawLeaf([]byte("first")),
+			merkletree.NewRawLeaf([]byte("second")),
+		},
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		f.Fatalf("NewSnapshot() error = %v", err)
+	}
+	encoded, err := snapshot.MarshalBinary()
+	if err != nil {
+		f.Fatalf("MarshalBinary() error = %v", err)
+	}
+	f.Add(encoded)
+	f.Add([]byte("not a snapshot"))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 1<<20 {
+			return
+		}
+		limits := merkletree.DefaultSnapshotPersistenceLimits()
+		limits.MaxEncodedBytes = 1 << 20
+		limits.MaxTemporaryBytes = 1 << 20
+		decoded, err := merkletree.ParseSnapshot(
+			context.Background(),
+			data,
+			limits,
+		)
+		assertCanonicalProofEncoding(t, data, decoded.MarshalBinary, err)
+	})
+}
+
 func assertCanonicalProofEncoding(
 	t *testing.T,
 	data []byte,

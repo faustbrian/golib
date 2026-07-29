@@ -45,6 +45,12 @@ var (
 		"unsupported Merkle encoding version",
 	)
 
+	// ErrSnapshotAccountingMismatch identifies persisted raw-byte accounting
+	// that differs from the caller's separately trusted expected value.
+	ErrSnapshotAccountingMismatch = errors.New(
+		"Merkle snapshot byte accounting mismatch",
+	)
+
 	// ErrInvalidTreeSize identifies an unsupported or impossible relationship
 	// between two tree sizes.
 	ErrInvalidTreeSize = errors.New("invalid Merkle tree size")
@@ -95,6 +101,13 @@ const (
 
 	// ResourceEncodedBytes is the byte length of a canonical binary object.
 	ResourceEncodedBytes
+
+	// ResourceNodeReads is the number of persisted nodes traversed while
+	// validating or restoring a snapshot.
+	ResourceNodeReads
+
+	// ResourceTemporaryBytes is temporary memory required by an operation.
+	ResourceTemporaryBytes
 )
 
 // ResourceError reports a configured bound and the rejected value. It never

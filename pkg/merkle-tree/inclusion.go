@@ -79,10 +79,11 @@ const noSnapshotNode = ^uint64(0)
 // logarithmic proof generation. It is safe for concurrent read-only use. The
 // zero value fails with ErrInvalidSnapshot.
 type Snapshot struct {
-	profile  Profile
-	root     Root
-	nodes    []snapshotNode
-	rootNode uint64
+	profile    Profile
+	root       Root
+	nodes      []snapshotNode
+	rootNode   uint64
+	totalBytes uint64
 }
 
 type snapshotNode struct {
@@ -127,12 +128,17 @@ func NewSnapshot(
 	if err != nil {
 		return Snapshot{}, err
 	}
+	var totalBytes uint64
+	for _, leaf := range leaves {
+		totalBytes += uint64(len(leaf.value))
+	}
 
 	if len(leaves) == 0 {
 		return Snapshot{
-			profile:  profile,
-			root:     root,
-			rootNode: noSnapshotNode,
+			profile:    profile,
+			root:       root,
+			rootNode:   noSnapshotNode,
+			totalBytes: totalBytes,
 		}, nil
 	}
 
@@ -176,10 +182,11 @@ func NewSnapshot(
 	}
 
 	return Snapshot{
-		profile:  profile,
-		root:     root,
-		nodes:    nodes,
-		rootNode: rootNode,
+		profile:    profile,
+		root:       root,
+		nodes:      nodes,
+		rootNode:   rootNode,
+		totalBytes: totalBytes,
 	}, nil
 }
 
@@ -190,6 +197,18 @@ func (snapshot Snapshot) Root() (Root, error) {
 	}
 
 	return snapshot.root, nil
+}
+
+// TotalLeafBytes returns the declared total number of raw leaf bytes ingested
+// before hashing. Merkle roots do not authenticate raw leaf lengths; callers
+// parsing untrusted persisted snapshots must compare this value with
+// separately trusted accounting before relying on it.
+func (snapshot Snapshot) TotalLeafBytes() (uint64, error) {
+	if err := snapshot.validate(); err != nil {
+		return 0, err
+	}
+
+	return snapshot.totalBytes, nil
 }
 
 func (snapshot Snapshot) validate() error {
@@ -203,7 +222,9 @@ func (snapshot Snapshot) validate() error {
 		return ErrInvalidSnapshot
 	}
 	if snapshot.root.treeSize == 0 {
-		if len(snapshot.nodes) != 0 || snapshot.rootNode != noSnapshotNode {
+		if len(snapshot.nodes) != 0 ||
+			snapshot.rootNode != noSnapshotNode ||
+			snapshot.totalBytes != 0 {
 			return ErrInvalidSnapshot
 		}
 

@@ -45,6 +45,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test -run '^$$' -fuzz '^FuzzParseMultiInclusionProof$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzParseSnapshot$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
 	$(GO) test -run '^$$' -bench '^Benchmark' \

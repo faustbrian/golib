@@ -27,3 +27,6 @@
 - Versioned canonical binary encodings for roots and all proof operations,
   with strict structural decoding, operation-specific resource limits, and
   independently owned decoded state.
+- Canonical persisted snapshots with complete node-integrity validation,
+  cumulative byte accounting, explicit hostile-input limits, and independent
+  mutable builder resumption.

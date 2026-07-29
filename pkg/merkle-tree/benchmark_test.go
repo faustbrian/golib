@@ -395,6 +395,60 @@ func BenchmarkInclusionProofEncoding(b *testing.B) {
 	})
 }
 
+func BenchmarkSnapshotPersistence(b *testing.B) {
+	leaves := benchmarkLeaves(16_384)
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		leaves,
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		b.Fatal(err)
+	}
+	encoded, err := snapshot.MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
+	persistenceLimits := merkletree.DefaultSnapshotPersistenceLimits()
+
+	b.Run("marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(len(encoded)))
+		for range b.N {
+			if _, err := snapshot.MarshalBinary(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("parse", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(len(encoded)))
+		for range b.N {
+			if _, err := merkletree.ParseSnapshot(
+				context.Background(),
+				encoded,
+				persistenceLimits,
+			); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("resume_builder", func(b *testing.B) {
+		b.ReportAllocs()
+		for range b.N {
+			if _, err := merkletree.ResumeBuilder(
+				context.Background(),
+				snapshot,
+				uint64(len(leaves)*32),
+				merkletree.DefaultSnapshotLimits(),
+			); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 func benchmarkMultiIndexes(count int, stride uint64) []uint64 {
 	indexes := make([]uint64, count)
 	for index := range indexes {

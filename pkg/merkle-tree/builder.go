@@ -199,9 +199,10 @@ func (builder *Builder) Snapshot(ctx context.Context) (Snapshot, error) {
 		empty := sha256.Sum256(nil)
 
 		return Snapshot{
-			profile:  builder.profile,
-			root:     newRoot(builder.profile, 0, empty),
-			rootNode: noSnapshotNode,
+			profile:    builder.profile,
+			root:       newRoot(builder.profile, 0, empty),
+			rootNode:   noSnapshotNode,
+			totalBytes: builder.totalBytes,
 		}, nil
 	}
 
@@ -228,10 +229,11 @@ func (builder *Builder) Snapshot(ctx context.Context) (Snapshot, error) {
 	rootDigest := nodes[rootNode].digest
 
 	return Snapshot{
-		profile:  builder.profile,
-		root:     newRoot(builder.profile, builder.treeSize, rootDigest),
-		nodes:    nodes,
-		rootNode: rootNode,
+		profile:    builder.profile,
+		root:       newRoot(builder.profile, builder.treeSize, rootDigest),
+		nodes:      nodes,
+		rootNode:   rootNode,
+		totalBytes: builder.totalBytes,
 	}, nil
 }
 

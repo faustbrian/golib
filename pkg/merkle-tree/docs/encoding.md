@@ -14,7 +14,7 @@ Every object begins with this 10-byte header:
 |---:|---:|---|---|
 | 0 | 4 | magic | ASCII `MTRE` |
 | 4 | 1 | encoding version | `1` |
-| 5 | 1 | object type | root `1`, inclusion `2`, consistency `3`, multi-inclusion `4` |
+| 5 | 1 | object type | root `1`, inclusion `2`, consistency `3`, multi-inclusion `4`, snapshot `5` |
 | 6 | 1 | profile | canonical binary `1`, RFC 9162 `2` |
 | 7 | 2 | profile version | `1` |
 | 9 | 1 | package hash algorithm | SHA-256 `1` |
@@ -89,14 +89,44 @@ Selected indexes must be nonempty, strictly ascending, unique, and in range.
 The frontier must contain exactly the minimal package-defined left-to-right
 depth-first set for those indexes and tree size.
 
+## Persisted snapshot
+
+The fixed prefix is 74 bytes, followed by retained nodes in canonical
+postorder:
+
+| Field | Size |
+|---|---:|
+| common header | 10 |
+| tree size | 8 |
+| total raw leaf bytes ingested | 8 |
+| root digest | 32 |
+| retained-node count | 8 |
+| root-node index | 8 |
+| retained nodes | `count * 56` |
+
+Each retained node contains a 32-byte digest, 8-byte subtree size, 8-byte left
+child index, and 8-byte right child index. Leaves have subtree size `1` and
+both child indexes set to `2^64-1`. Branch children precede their parent, cover
+contiguous postorder ranges, and use the profile's recursive split. The root
+index is the final node. An empty snapshot has no nodes, total byte count zero,
+and root index `2^64-1`.
+
+Snapshot decoding recomputes every branch digest, verifies the root and tree
+shape, rejects shared, cyclic, reordered, missing, or surplus nodes, and
+enforces explicit encoded-byte, leaf, total-byte, retained-node, node-read,
+traversal-depth, and temporary-memory limits. Raw leaves are never persisted.
+The Merkle root does not authenticate the total raw leaf byte field.
+`ResumeBuilder` therefore requires the trusted expected value separately and
+rejects a mismatch.
+
 ## Decoder contract
 
-`ParseRoot` and the three proof parsers consume exactly one complete object.
-They reject unsupported versions, profiles, or algorithms; malformed field
-relationships; truncated or trailing data; and sizes that do not match their
-declared counts. Proof parsers also observe cancellation and enforce both
-`EncodingLimits` and their operation-specific proof limits before allocating
-vectors derived from input.
+`ParseRoot`, `ParseSnapshot`, and the three proof parsers consume exactly one
+complete object. They reject unsupported versions, profiles, or algorithms;
+malformed field relationships; truncated or trailing data; and sizes that do
+not match their declared counts. Proof and snapshot parsers observe
+cancellation and enforce operation-specific limits before allocating vectors
+derived from input.
 
 Successful decoders copy all object state. Mutating the input after a parse
 cannot mutate the returned root or proof. Authentication remains a separate

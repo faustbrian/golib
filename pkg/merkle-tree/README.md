@@ -198,6 +198,37 @@ truncation, trailing bytes, impossible element counts, and cancellation.
 Decoded objects own their state. See [canonical binary encoding](docs/encoding.md)
 for the exact version-1 wire format.
 
+Snapshots can be persisted without a package-owned database:
+
+```go
+encoded, err := snapshot.MarshalBinary()
+if err != nil {
+    return err
+}
+restored, err := merkletree.ParseSnapshot(
+    ctx,
+    encoded,
+    merkletree.DefaultSnapshotPersistenceLimits(),
+)
+if err != nil {
+    return err
+}
+builder, err := merkletree.ResumeBuilder(
+    ctx,
+    restored,
+    trustedTotalLeafBytes,
+    merkletree.DefaultSnapshotLimits(),
+)
+```
+
+The caller owns storage and atomic publication of `encoded`. Parsing validates
+the complete retained tree before returning. Persisted snapshots contain
+digests, shape, identity, and cumulative raw-byte accounting, but no raw leaf
+bytes. Because the Merkle root does not commit raw leaf lengths, resumption
+requires the expected cumulative byte count from trusted caller state and
+rejects a mismatch. A resumed builder reconstructs independent mutation state
+and applies its configured limits to later appends.
+
 ## Implemented profiles
 
 | Property | Canonical binary v1 | RFC 9162 v1 |
@@ -220,9 +251,10 @@ Merkle Tree Hash behavior implemented and tested here.
 
 Batch and streaming root construction, atomic append and batch append,
 immutable snapshots, and inclusion, multi-inclusion, and consistency proofs
-and their versioned canonical binary encodings are implemented. Persistence,
-external differential fixtures, and comparative benchmarks remain under
-development and are not claimed by the current API.
+and their versioned canonical binary encodings are implemented. Validated
+snapshot persistence and builder resumption are storage-independent and leave
+durability and atomic publication to the caller. External differential
+fixtures and comparative benchmarks remain under development.
 
 This package does not implement Ethereum's modified Merkle Patricia trie or
 consensus-layer SSZ merkleization. It does not implement sparse trees, Verkle

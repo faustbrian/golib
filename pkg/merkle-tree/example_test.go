@@ -222,3 +222,57 @@ func ExampleSnapshot_MultiInclusionProof() {
 	// Output:
 	// [1 3] 2 <nil>
 }
+
+func ExampleParseSnapshot() {
+	snapshot, err := merkletree.NewSnapshot(
+		context.Background(),
+		merkletree.CanonicalProfile(),
+		[]merkletree.RawLeaf{
+			merkletree.NewRawLeaf([]byte("first")),
+			merkletree.NewRawLeaf([]byte("second")),
+		},
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	encoded, err := snapshot.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	restored, err := merkletree.ParseSnapshot(
+		context.Background(),
+		encoded,
+		merkletree.DefaultSnapshotPersistenceLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	builder, err := merkletree.ResumeBuilder(
+		context.Background(),
+		restored,
+		uint64(len("first")+len("second")),
+		merkletree.DefaultSnapshotLimits(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	if err := builder.Append(
+		context.Background(),
+		merkletree.NewRawLeaf([]byte("third")),
+	); err != nil {
+		panic(err)
+	}
+	resumed, err := builder.Snapshot(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	root, err := resumed.Root()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(root.TreeSize())
+	// Output:
+	// 3
+}
