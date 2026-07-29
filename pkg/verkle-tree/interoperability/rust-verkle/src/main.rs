@@ -1,5 +1,6 @@
 use banderwagon::{CanonicalSerialize, Element, Fr};
 use ipa_multipoint::{
+    committer::DefaultCommitter,
     crs::CRS,
     lagrange_basis::{LagrangeBasis, PrecomputedWeights},
     multiproof::{MultiPoint, ProverQuery},
@@ -7,8 +8,12 @@ use ipa_multipoint::{
 };
 use sha2::{Digest, Sha256};
 use verkle_trie::{
+    constants::new_crs,
     database::memory_db::MemoryDb,
-    proof::golang_proof_format::{bytes32_to_element, hex_to_bytes32, VerkleProofGo},
+    proof::{
+        golang_proof_format::{bytes32_to_element, hex_to_bytes32, VerkleProofGo},
+        stateless_updater::verify_and_update,
+    },
     Trie, TrieTrait, VerkleConfig,
 };
 
@@ -152,6 +157,26 @@ fn verify_go_witness(path: &str, root_hex: &str) {
     println!("verified");
 }
 
+fn update_go_witness(path: &str, root_hex: &str) {
+    let witness = std::fs::read_to_string(path).expect("read Go update witness");
+    let proof = VerkleProofGo::from_json_str(&witness);
+    let (proof, keys_values) = proof
+        .from_verkle_proof_go_to_verkle_proof()
+        .expect("decode Go update witness");
+    let root = bytes32_to_element(hex_to_bytes32(root_hex)).expect("decode Go root");
+    let crs = new_crs();
+    let post_root = verify_and_update(
+        proof,
+        root,
+        keys_values.keys,
+        keys_values.current_values,
+        keys_values.new_values,
+        DefaultCommitter::new(&crs.G),
+    )
+    .expect("verify and apply Go update witness");
+    println!("{}", encode_hex(&post_root.to_bytes()));
+}
+
 fn main() {
     let mut arguments = std::env::args().skip(1);
     match arguments.next().as_deref() {
@@ -163,9 +188,14 @@ fn main() {
             &arguments.next().expect("missing Go execution witness path"),
             &arguments.next().expect("missing Go root"),
         ),
+        Some("update-go-witness") => update_go_witness(
+            &arguments.next().expect("missing Go update witness path"),
+            &arguments.next().expect("missing Go root"),
+        ),
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
-             <encodings|generators|multiproof|tree-proof|verify-go-witness>"
+             <encodings|generators|multiproof|tree-proof|verify-go-witness|\
+             update-go-witness>"
         ),
     }
 }

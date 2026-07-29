@@ -34,6 +34,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Require the independent Rust verifier to parse and accept the complete Go
   proof container for that corpus, while rejecting a different valid root, a
   replaced valid commitment, and a changed claimed value.
+- Add a bounded stateless-update corpus whose existing-value update,
+  absent-suffix insertion, and post-state root agree across Go and Rust; record
+  the Rust reference's absent-stem insertion panic as an interoperability gap.
 
 ### Dependencies
 

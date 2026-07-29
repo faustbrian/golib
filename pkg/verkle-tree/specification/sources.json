@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "ff702fef058305a76b48e41607f35552fe882d716bf86d50a6db7b5f2aa48d34",
+        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -147,7 +147,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "ff702fef058305a76b48e41607f35552fe882d716bf86d50a6db7b5f2aa48d34",
+        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -197,7 +197,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "ff702fef058305a76b48e41607f35552fe882d716bf86d50a6db7b5f2aa48d34",
+        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -255,19 +255,20 @@
         }
       ],
       "fixture_path": "internal/backend/testdata/go-verkle-tree-proof.json",
-      "fixture_sha256": "acf8c00302a90c1647504d91d5b1cbecb6121b056c3e7f4c129a29994947a382",
+      "fixture_sha256": "5964c763b88b046c8ad7d983744c31c2401588a6672a9eb02373ac504ca47856",
       "license": "Unlicense",
       "profile_assumptions": {
         "width": 256,
         "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
         "value_layout": "fixed 32-byte values for this corpus",
         "transcript": "vt",
-        "corpus": "four inserted values across two stems; prove two present keys, an absent suffix in an existing stem, and an absent stem",
-        "proof_encoding": "ethereum/go-verkle JSON representation of VerkleProof and StateDiff"
+        "corpus": "four inserted values across two stems; prove two present keys, an absent suffix in an existing stem, and an absent stem; update one present key and insert the absent suffix",
+        "proof_encoding": "ethereum/go-verkle JSON representation of VerkleProof and StateDiff",
+        "update_semantics": "the proof authenticates the pre-state openings; the witness carries two non-deletion post-state values; the expected post-state root checks their application; both unchanged proven keys have a null newValue"
       },
       "generator": {
         "source_path": "interoperability/go-verkle/main.go.template",
-        "source_sha256": "21bb9169b5e5cb168f8e6af0e6380b27963b918c8328e29c6267cdb66371e12f",
+        "source_sha256": "705d3fba2346a2177b9c71a86396a3d855798cc0a2d016902ae003f9345f4689",
         "manifest_path": "interoperability/go-verkle/go.mod.template",
         "manifest_sha256": "f293addab607416fa98ba644fbd9faed0eab07b89600f7e03a301605f85ca087",
         "lock_path": "interoperability/go-verkle/go.sum.template",
@@ -298,8 +299,8 @@
         "upstream_status": "maintenance-mode-no-longer-used",
         "production_status": "rejected-research-generator-only"
       },
-      "generation_procedure": "Run scripts/check-interoperability.sh. The isolated Go harness uses the exact pinned ethereum/go-verkle pseudo-version to build a deterministic tree, aggregate membership and non-membership openings, verify the proof through the reference verifier, and emit the root, ordered key set, proof, and state diff.",
-      "review_procedure": "Verify the harness source, module manifest, dependency lock, upstream source files, module revision, and fixture checksums; run with GOWORK disabled; require the reference verifier to accept the proof and reject a mutated proof commitment and a different valid tree root; and compare regenerated deterministic JSON byte-for-byte.",
+      "generation_procedure": "Run scripts/check-interoperability.sh. The isolated Go harness uses the exact pinned ethereum/go-verkle pseudo-version to build a deterministic tree, aggregate membership and non-membership openings, verify the proof, apply one update plus one insertion, verify the update proof and post-state root, and emit the roots, ordered key set, proofs, and state diffs.",
+      "review_procedure": "Verify the harness source, module manifest, dependency lock, upstream source files, module revision, and fixture checksums; run with GOWORK disabled; require the reference verifier to accept both proofs and reject a mutated proof commitment and a different valid tree root; and compare regenerated deterministic JSON byte-for-byte.",
       "reproducible": true
     },
     {
@@ -327,12 +328,16 @@
           "sha256": "d3884dac755f16d465b6122726ac8c9e667f7cfd4030d28a913882b278a1f429"
         },
         {
+          "path": "verkle-trie/src/proof/stateless_updater.rs",
+          "sha256": "4d30fba70c87ae530e391e7c5f0f8e021ea85faca252175cdb9df3f8d38c6918"
+        },
+        {
           "path": "verkle-trie/src/constants.rs",
           "sha256": "3e1faa3ab8a4cc139ca4e145fa808f3f0af9f9ea0d53c60e61095eaba2f5acd6"
         }
       ],
       "fixture_path": "internal/backend/testdata/go-verkle-tree-proof.json",
-      "fixture_sha256": "acf8c00302a90c1647504d91d5b1cbecb6121b056c3e7f4c129a29994947a382",
+      "fixture_sha256": "5964c763b88b046c8ad7d983744c31c2401588a6672a9eb02373ac504ca47856",
       "license": "MIT OR Apache-2.0",
       "profile_assumptions": {
         "width": 256,
@@ -342,18 +347,20 @@
         "transcript": "vt",
         "corpus": "the exact four-value, two-stem Go tree corpus with two present keys, one absent suffix, and one absent stem",
         "proof_encoding": "D, eight L points, eight R points, and the final scalar converted from Rust canonical big-endian bytes to the little-endian go-verkle JSON convention",
-        "proof_container": "go-verkle stateDiff and proof JSON remapped without semantic changes to the Rust reference's execution-witness field names"
+        "proof_container": "go-verkle stateDiff and proof JSON remapped without semantic changes to the Rust reference's execution-witness field names",
+        "stateless_update": "one existing value update, one absent-suffix insertion, and two unchanged proven values",
+        "known_reference_gap": "the pinned Rust stateless updater does not construct a commitment for ExtPresent::None absent-stem insertion before indexing updated_commitents_by_stem, causing a panic; that operation is excluded"
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "ff702fef058305a76b48e41607f35552fe882d716bf86d50a6db7b5f2aa48d34",
+        "source_sha256": "bf40968ef5b3bf8fd0495146522ff6306b378a6f59bed662ccf5db3c6921448f",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
         "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
         "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
         "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
-        "command": "cargo run --locked --quiet -- tree-proof; cargo run --locked --quiet -- verify-go-witness <witness.json> <root>"
+        "command": "cargo run --locked --quiet -- tree-proof; cargo run --locked --quiet -- verify-go-witness <witness.json> <root>; cargo run --locked --quiet -- update-go-witness <witness.json> <root>"
       },
       "dependency_review": {
         "reviewed_on": "2026-07-29",
@@ -378,8 +385,8 @@
         "verkle_trie_manifest_license": "missing; repository root is pinned and independently verified as MIT OR Apache-2.0",
         "production_status": "rejected-research-generator-only"
       },
-      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust trie independently inserts the exact Go corpus, computes its root, aggregates the same four membership and non-membership openings under transcript vt, verifies the proof with the Rust verifier, emits the root plus the go-verkle-compatible 576-byte proof, and independently parses and verifies the complete Go execution-witness proof container.",
-      "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; require the Rust verifier to accept both its native proof and the Go proof container; and compare the root commitment and every proof byte with the independently generated Go artifact after the explicitly documented final-scalar byte-order conversion.",
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust trie independently inserts the exact Go corpus, computes its root, aggregates the same four membership and non-membership openings under transcript vt, verifies the proof, emits the root plus the go-verkle-compatible 576-byte proof, parses and verifies the complete Go execution-witness proof container, and applies its bounded stateless update.",
+      "review_procedure": "Verify the pinned Rust source, harness, manifest, lock, toolchain, and fixture checksums; require the Rust verifier to accept both its native proof and the Go proof container; compare the root commitment and every proof byte after the documented scalar conversion; require the independently calculated Rust post-state root to match Go; and reject a different valid pre-state root and changed authenticated old value.",
       "reproducible": true
     }
   ],

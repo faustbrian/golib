@@ -72,10 +72,15 @@ conversion between the Rust and Go serialization conventions, and its verifier
 also accepts the proof. The Rust reference independently parses and accepts the
 complete Go proof container and rejects a different valid root, a replaced
 valid path commitment, and a changed claimed value. This establishes one exact
-tree-layout differential corpus with selected negative verification cases. It
-does not cover updates, deletion, canonical container encoding, stateless
-witness application, hostile decoding, resource bounds, storage, or general
-state corpora and therefore does not change the no-go decision.
+tree-layout differential corpus with selected negative verification cases. Both
+references also derive the same post-state root after one existing-value update
+and one absent-suffix insertion, and Rust rejects a different valid pre-state
+root or a changed authenticated old value. The Rust updater panics for the
+attempted absent-stem insertion because its `ExtPresent::None` branch does not
+construct the commitment later indexed during root recomputation. The corpus
+does not cover that operation, deletion, conflicting or reordered updates,
+canonical container encoding, hostile decoding, resource bounds, storage, or
+general state corpora and therefore does not change the no-go decision.
 
 ## Stable Profile Freeze Conditions
 

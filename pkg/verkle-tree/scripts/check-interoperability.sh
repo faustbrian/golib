@@ -253,6 +253,45 @@ if rust_verify_go_witness \
     exit 1
 fi
 
+jq -e '{stateDiff: .updateStateDiff, verkleProof: .updateProof}
+    | select(.stateDiff != null and .verkleProof != null)' \
+    "$go_verkle_fixture" >"$temporary/go-verkle-update-witness.json"
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- \
+        update-go-witness \
+        "$temporary/go-verkle-update-witness.json" \
+        "$(jq -er '.root' "$go_verkle_fixture")"
+) >"$temporary/rust-go-witness-post-root.txt"
+printf '%s\n' "$(jq -er '.postRoot' "$go_verkle_fixture")" \
+    >"$temporary/expected-rust-go-witness-post-root.txt"
+diff -u \
+    "$temporary/expected-rust-go-witness-post-root.txt" \
+    "$temporary/rust-go-witness-post-root.txt"
+if (
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- \
+        update-go-witness \
+        "$temporary/go-verkle-update-witness.json" \
+        "$valid_other_commitment"
+) >/dev/null 2>&1; then
+    printf '%s\n' "Rust updater accepted the Go update witness against a different valid root" >&2
+    exit 1
+fi
+jq '.stateDiff[0].suffixDiffs[0].currentValue |= sub("^0x11"; "0x10")' \
+    "$temporary/go-verkle-update-witness.json" \
+    >"$temporary/go-verkle-update-wrong-old-value.json"
+if (
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- \
+        update-go-witness \
+        "$temporary/go-verkle-update-wrong-old-value.json" \
+        "$(jq -er '.root' "$go_verkle_fixture")"
+) >/dev/null 2>&1; then
+    printf '%s\n' "Rust updater accepted a changed Go update old value" >&2
+    exit 1
+fi
+
 go_harness_run="$temporary/go-verkle"
 mkdir "$go_harness_run"
 cp "$go_verkle_harness/go.mod.template" "$go_harness_run/go.mod"

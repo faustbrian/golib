@@ -12,11 +12,14 @@ import (
 )
 
 type corpus struct {
-	Profile   string          `json:"profile"`
-	Root      string          `json:"root"`
-	Keys      []string        `json:"keys"`
-	Proof     json.RawMessage `json:"proof"`
-	StateDiff json.RawMessage `json:"stateDiff"`
+	Profile         string          `json:"profile"`
+	Root            string          `json:"root"`
+	PostRoot        string          `json:"postRoot"`
+	Keys            []string        `json:"keys"`
+	Proof           json.RawMessage `json:"proof"`
+	StateDiff       json.RawMessage `json:"stateDiff"`
+	UpdateProof     json.RawMessage `json:"updateProof"`
+	UpdateStateDiff json.RawMessage `json:"updateStateDiff"`
 }
 
 func main() {
@@ -60,6 +63,38 @@ func main() {
 	if err := verkle.Verify(serializedProof, root[:], nil, stateDiff); err != nil {
 		fatalf("verify proof: %v", err)
 	}
+
+	postTree := tree.Copy()
+	updates := []struct {
+		key   [32]byte
+		value [32]byte
+	}{
+		{key: key(0x00, 0x00), value: value(0x55)},
+		{key: key(0x00, 0x02), value: value(0x66)},
+	}
+	for _, update := range updates {
+		if err := postTree.Insert(update.key[:], update.value[:], nil); err != nil {
+			fatalf("insert post-state update: %v", err)
+		}
+	}
+	postRoot := postTree.Commit().Bytes()
+	updateProof, _, _, _, err := verkle.MakeVerkleMultiProof(tree, postTree, keys, nil)
+	if err != nil {
+		fatalf("make update multiproof: %v", err)
+	}
+	serializedUpdateProof, updateStateDiff, err := verkle.SerializeProof(updateProof)
+	if err != nil {
+		fatalf("serialize update proof: %v", err)
+	}
+	if err := verkle.Verify(
+		serializedUpdateProof,
+		root[:],
+		postRoot[:],
+		updateStateDiff,
+	); err != nil {
+		fatalf("verify update proof: %v", err)
+	}
+
 	mutatedProof := serializedProof.Copy()
 	mutatedProof.D[0] ^= 1
 	if err := verkle.Verify(mutatedProof, root[:], nil, stateDiff); err == nil {
@@ -88,17 +123,28 @@ func main() {
 	if err != nil {
 		fatalf("marshal state diff: %v", err)
 	}
+	updateProofJSON, err := json.Marshal(serializedUpdateProof)
+	if err != nil {
+		fatalf("marshal update proof: %v", err)
+	}
+	updateStateDiffJSON, err := json.Marshal(updateStateDiff)
+	if err != nil {
+		fatalf("marshal update state diff: %v", err)
+	}
 
 	encodedKeys := make([]string, len(keys))
 	for index := range keys {
 		encodedKeys[index] = hex.EncodeToString(keys[index])
 	}
 	output, err := json.MarshalIndent(corpus{
-		Profile:   "ethereum-go-verkle-aa0a270c0ed0-research",
-		Root:      hex.EncodeToString(root[:]),
-		Keys:      encodedKeys,
-		Proof:     proofJSON,
-		StateDiff: stateDiffJSON,
+		Profile:         "ethereum-go-verkle-aa0a270c0ed0-research",
+		Root:            hex.EncodeToString(root[:]),
+		PostRoot:        hex.EncodeToString(postRoot[:]),
+		Keys:            encodedKeys,
+		Proof:           proofJSON,
+		StateDiff:       stateDiffJSON,
+		UpdateProof:     updateProofJSON,
+		UpdateStateDiff: updateStateDiffJSON,
 	}, "", "  ")
 	if err != nil {
 		fatalf("marshal corpus: %v", err)

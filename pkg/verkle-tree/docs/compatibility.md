@@ -6,8 +6,8 @@ The bounded research agreements below apply only to their exact corpora.
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
 | Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
-| `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root and aggregate membership/non-membership proof corpus agrees with the pinned Rust trie; no general tree, API, wire, or production compatibility |
-| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, raw three-opening proof, and one tree root/proof corpus agree with Go; no general tree, API, wire, or production compatibility |
+| `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
+| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, raw three-opening proof, one tree root/proof corpus, and its bounded stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
 | EIP-6800 | Stagnant at EIPs commit `c55786f4242e5324afd14c6bca890a369a771d7f` | Historical Ethereum Verkle layout | Not implemented |
 | EIP-7612 | Stagnant at the same EIPs commit | Historical overlay transition | Out of generic package scope |
@@ -53,8 +53,14 @@ also parses the Go `stateDiff` and proof metadata as one execution-witness
 container and accepts it against the pinned root. It rejects the same container
 against a different valid root, with one path commitment replaced by another
 valid commitment, or with one claimed current value changed. This one-corpus
-result does not establish alternate layouts, updates, deletion, canonical JSON,
-stateless witness application, malformed-input parity, or production safety.
+result also derives the same post-state root through both stateless updaters
+after one existing-value update and one absent-suffix insertion, and the Rust
+updater rejects a different valid pre-state root and a changed authenticated old
+value. The pinned Rust updater does not handle insertion at an
+`ExtPresent::None` absent-stem path: it later indexes a missing updated-stem
+commitment and panics. The positive corpus therefore does not establish
+alternate layouts, absent-stem insertion, deletion, conflicting or reordered
+updates, canonical JSON, malformed-input parity, or production safety.
 
 Protocol activation, client database migration, gas accounting, block
 execution, and network witness distribution remain outside the generic package.

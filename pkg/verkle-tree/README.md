@@ -63,7 +63,14 @@ independent one-corpus tree evidence. The Rust reference also parses and accepts
 the complete Go proof container for that corpus and rejects a different valid
 root, a replaced valid path commitment, and a changed claimed value. These
 selected negative checks are not general compatibility, hostile-decoder
-evidence, canonical JSON evidence, or a stable profile.
+evidence, canonical JSON evidence, or a stable profile. For the same pre-state,
+both implementations also derive the same post-state root after updating one
+present value and inserting one absent suffix in an existing stem; Rust rejects
+the update witness against a different valid pre-state root or a changed
+authenticated old value. Inserting a new absent stem is deliberately excluded
+because the pinned Rust updater reaches an unhandled `ExtPresent::None` path and
+panics. Deletion, conflicting updates, ordering variants, and hostile update
+witnesses remain unproven.
 
 ## Development rule
 
