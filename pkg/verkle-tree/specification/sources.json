@@ -76,6 +76,50 @@
       "generation_procedure": "Encode the documented field modulus as exactly 32 bytes in little-endian order.",
       "review_procedure": "Assert the canonical scalar decoder rejects the modulus because canonical field elements are strictly smaller.",
       "reproducible": true
+    },
+    {
+      "id": "rust-verkle-banderwagon-encoding-vectors",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_path": "banderwagon/src/element.rs",
+      "source_sha256": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442",
+      "source_lines": [
+        37,
+        114
+      ],
+      "fixture_path": "internal/backend/testdata/rust-verkle-encoding.tsv",
+      "fixture_sha256": "d0c8e7a8f578a3b9bc74e7750a64ac32f09afccca7edc114f6021584376bd500",
+      "license": "MIT OR Apache-2.0",
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "f74db8eaa61b5aebe963607a1c73867e0336a3f5deffc9b5ee6b4c2369f5981c",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "bf048ea4d807ca674d14556c97b54cc61068f91ac78b3ed4765bb6d764547576",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "dcd1f1ec5837f6704acbf7a8e859d325f3616122ffe6d9940c5473de283e20d6",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet"
+      },
+      "dependency_review": {
+        "reviewed_on": "2026-07-29",
+        "cargo_audit_version": "0.22.2",
+        "known_vulnerabilities": 0,
+        "unmaintained_advisories": [
+          "RUSTSEC-2024-0388",
+          "RUSTSEC-2024-0436"
+        ],
+        "license_metadata": [
+          "Apache-2.0",
+          "BSD-2-Clause",
+          "MIT",
+          "Unicode-3.0"
+        ],
+        "banderwagon_manifest_license": "missing; repository root is pinned and independently verified as MIT OR Apache-2.0",
+        "production_status": "rejected-research-generator-only"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness multiplies the canonical prime-subgroup generator by the ordered scalars 1, 2, 3, 255, and 65535, then emits canonical scalar and commitment bytes.",
+      "review_procedure": "Compare the generated TSV byte-for-byte, decode every scalar and commitment through the checked Go boundary, verify canonical round trips, and verify each scalar's little-endian integer value and ordering.",
+      "reproducible": true
     }
   ],
   "sources": [
@@ -203,6 +247,9 @@
       "url": "https://github.com/crate-crypto/rust-verkle",
       "revision": "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
       "tree": "2e5a8ef853403337b3a675840ea34ad4e6be2fc0",
+      "latest_reviewed_revision": "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+      "latest_reviewed_on": "2026-07-29",
+      "latest_delta": "no newer upstream revision; repository HEAD is dated 2024-10-25",
       "license": "MIT OR Apache-2.0",
       "license_files": {
         "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",

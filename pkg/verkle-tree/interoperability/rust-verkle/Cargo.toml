@@ -1,0 +1,9 @@
+[package]
+name = "verkle-tree-rust-encoding-vectors"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+banderwagon = { git = "https://github.com/crate-crypto/rust-verkle.git", rev = "e27b8b4edf1992b4afa636c2fc7983bcc27ddb88" }

@@ -52,6 +52,14 @@ artifacts. Such artifacts MUST identify the exact implementation revision,
 profile assumptions, input corpus, and encoding layer being compared. Agreement
 MUST NOT be described as production readiness or Ethereum compatibility.
 
+The current Rust differential artifact establishes only canonical scalar and
+Banderwagon commitment encoding agreement for five deterministic generator
+multiples. It does not exercise or establish generator-set identity, vector
+commitments, openings, transcripts, tree layout, roots, proofs, or witnesses,
+and therefore does not change this no-go decision. Its locked dependency graph
+also retains two unmaintained RustSec dependencies, so it cannot satisfy the
+production dependency policy.
+
 ## Stable Profile Freeze Conditions
 
 Before a stable profile is named or implemented, the following MUST be fixed

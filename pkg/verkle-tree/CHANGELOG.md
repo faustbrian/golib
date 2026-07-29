@@ -19,6 +19,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add allocation-reporting microbenchmarks for accepted commitment and scalar
   encodings and their fail-closed hostile-input paths, with reproducible
   methodology and raw local samples.
+- Add revision-pinned Rust differential fixtures for the accepted canonical
+  scalar and Banderwagon commitment encoding seam.
 
 ### Dependencies
 

@@ -35,6 +35,10 @@ recorded in [`specification/sources.json`](specification/sources.json). No
 setup material, generator table, or generated constant has been imported.
 The preliminary encoding-only benchmark scope, method, and raw samples are in
 [`docs/benchmarks.md`](docs/benchmarks.md).
+An independently generated fixture from the pinned `rust-verkle` revision
+proves that the accepted scalar and commitment bytes round-trip identically
+across the Rust and Go encoding boundaries. This remains an encoding-only
+research result, not tree or proof compatibility.
 
 ## Development rule
 
