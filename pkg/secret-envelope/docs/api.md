@@ -23,3 +23,20 @@ its own copy so moving ciphertext without its exact wrapping key is rejected.
 The format is not JSON. JSON, text, Go-syntax, and `slog` representations are
 redacted. Encrypted bytes are not plaintext secrets, but exposing them still
 increases offline attack and operational risk.
+
+## AWS KMS signature verification
+
+`awskms.NewSignatureVerifier` fixes one reviewed signing algorithm for the
+verifier lifetime. `Verify` accepts an explicit KMS key reference, one non-empty
+raw message of at most 4096 bytes, and one bounded signature. It copies caller
+bytes before calling KMS and never exposes a signing operation.
+
+Accepted raw-message algorithms are RSASSA-PSS SHA-256/384/512, ECDSA
+SHA-256/384/512, and Ed25519 SHA-512. PKCS#1 v1.5, digest-mode, SM2, ML-DSA,
+and implicit algorithm selection are rejected.
+
+`ErrSignatureRejected` is an authenticated negative result.
+`ErrKMSSignatureVerification` is an operational KMS failure.
+`ErrInvalidSignatureResponse` rejects incomplete or contradictory successful
+responses. Wrapped causes remain available to `errors.Is` and `errors.As`, but
+formatted errors never render them.

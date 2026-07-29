@@ -15,6 +15,8 @@ memory dumps, or deletion and rollback of complete valid rows.
 
 - Context values must be non-secret, stable, and derived from trusted identity.
 - IAM must allow only `kms:GenerateDataKey` and `kms:Decrypt` on exact key ARNs.
+- Signature-verification workloads must allow only `kms:Verify` on exact
+  asymmetric signing-key ARNs and must not receive `kms:Sign`.
 - Applications must use the AWS SDK default credential chain and workload
   identity rather than static credentials.
 - Plaintext and decrypted values must never enter logs, traces, metrics, panic
@@ -24,3 +26,8 @@ memory dumps, or deletion and rollback of complete valid rows.
 
 Data-key zeroization is best effort. Go can retain compiler, stack, runtime, or
 garbage-collector copies that the module cannot erase.
+
+Signature verification proves only that KMS accepted the exact message,
+signature, key, and algorithm. Applications must separately authorize each key
+for its role, enforce replay and time policy, and canonicalize the complete
+statement before verification.

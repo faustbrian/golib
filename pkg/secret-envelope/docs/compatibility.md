@@ -9,5 +9,8 @@ canonicalization, redaction, or maximum accepted sizes is a compatibility
 change.
 
 AWS KMS integration is pinned through the module's `go.mod`. The adapter uses
-only symmetric KMS data keys and does not support asymmetric keys, Nitro
-recipient attestation, custom algorithms, or implicit key discovery.
+symmetric KMS data keys for envelopes. Its separate verify-only boundary
+supports bounded raw-message authentication with explicitly selected
+RSASSA-PSS, ECDSA, or Ed25519 asymmetric KMS keys. It does not support signing,
+digest-mode verification, PKCS#1 v1.5, SM2, ML-DSA, Nitro recipient
+attestation, custom algorithms, or implicit key discovery.
