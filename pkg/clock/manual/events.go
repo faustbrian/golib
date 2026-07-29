@@ -1,6 +1,7 @@
 package manual
 
 import (
+	"cmp"
 	"container/heap"
 	"time"
 
@@ -24,10 +25,13 @@ type eventHeap []*scheduledEvent
 
 func (events eventHeap) Len() int { return len(events) }
 func (events eventHeap) Less(left, right int) bool {
-	if events[left].deadline == events[right].deadline {
-		return events[left].sequence < events[right].sequence
+	if order := cmp.Compare(
+		events[left].deadline,
+		events[right].deadline,
+	); order != 0 {
+		return order == -1
 	}
-	return events[left].deadline < events[right].deadline
+	return cmp.Compare(events[left].sequence, events[right].sequence) == -1
 }
 func (events eventHeap) Swap(left, right int) {
 	events[left], events[right] = events[right], events[left]
@@ -55,13 +59,9 @@ func (clock *Clock) activateLocked(state *eventState, duration time.Duration, ow
 	if clock.active >= clock.limits.MaxActive {
 		return ErrActiveLimit
 	}
-	deadline := clock.elapsed
-	if duration > 0 {
-		var ok bool
-		deadline, ok = addDuration(clock.elapsed, duration)
-		if !ok {
-			return clockpkg.ErrOverflow
-		}
+	deadline, ok := deadlineAfter(clock.elapsed, duration)
+	if !ok {
+		return clockpkg.ErrOverflow
 	}
 	if clock.sequence == ^uint64(0) {
 		return clockpkg.ErrOverflow
@@ -74,13 +74,9 @@ func (clock *Clock) activateLocked(state *eventState, duration time.Duration, ow
 }
 
 func (clock *Clock) rescheduleLocked(state *eventState, duration time.Duration, owner any) error {
-	deadline := clock.elapsed
-	if duration > 0 {
-		var ok bool
-		deadline, ok = addDuration(clock.elapsed, duration)
-		if !ok {
-			return clockpkg.ErrOverflow
-		}
+	deadline, ok := deadlineAfter(clock.elapsed, duration)
+	if !ok {
+		return clockpkg.ErrOverflow
 	}
 	if clock.sequence == ^uint64(0) {
 		return clockpkg.ErrOverflow

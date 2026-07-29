@@ -1,13 +1,90 @@
 package manual
 
 import (
+	"container/heap"
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
 	clockpkg "github.com/faustbrian/golib/pkg/clock"
 )
+
+func TestInternalEventHeapUsesStrictDeadlineAndSequenceOrder(t *testing.T) {
+	first := &scheduledEvent{deadline: 1, sequence: 1}
+	second := &scheduledEvent{deadline: 1, sequence: 2}
+	later := &scheduledEvent{deadline: 2, sequence: 0}
+	equal := &scheduledEvent{deadline: 1, sequence: 1}
+	events := eventHeap{later, second, first, equal}
+
+	heap.Init(&events)
+	want := []*scheduledEvent{first, equal, second, later}
+	for index, expected := range want {
+		got := heap.Pop(&events).(*scheduledEvent) //nolint:forcetypeassert // The test owns only scheduled events.
+		if got.deadline != expected.deadline || got.sequence != expected.sequence {
+			t.Fatalf("event %d = (%d, %d), want (%d, %d)", index, got.deadline, got.sequence, expected.deadline, expected.sequence)
+		}
+		if got.index != -1 {
+			t.Fatalf("popped event index = %d, want -1", got.index)
+		}
+	}
+}
+
+func TestInternalAddDurationDetectsOnlySignedOverflow(t *testing.T) {
+	tests := []struct {
+		left  time.Duration
+		right time.Duration
+		want  time.Duration
+		ok    bool
+	}{
+		{left: 0, right: 0, want: 0, ok: true},
+		{left: time.Duration(math.MaxInt64), right: 0, want: time.Duration(math.MaxInt64), ok: true},
+		{left: time.Duration(math.MinInt64), right: 0, want: time.Duration(math.MinInt64), ok: true},
+		{left: time.Duration(math.MaxInt64 - 1), right: 1, want: time.Duration(math.MaxInt64), ok: true},
+		{left: time.Duration(math.MinInt64 + 1), right: -1, want: time.Duration(math.MinInt64), ok: true},
+		{left: time.Duration(math.MaxInt64), right: 1, ok: false},
+		{left: time.Duration(math.MinInt64), right: -1, ok: false},
+	}
+	for _, test := range tests {
+		got, ok := addDuration(test.left, test.right)
+		if got != test.want || ok != test.ok {
+			t.Fatalf("addDuration(%d, %d) = (%d, %v), want (%d, %v)", test.left, test.right, got, ok, test.want, test.ok)
+		}
+	}
+}
+
+func TestInternalNonPositiveDeadlineStaysAtCurrentElapsed(t *testing.T) {
+	clock, err := New(time.Unix(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock.elapsed = 10
+
+	value, err := clock.NewTimer(-time.Nanosecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer := value.(*Timer) //nolint:forcetypeassert // NewTimer owns this concrete type.
+	if timer.state.event.deadline != clock.elapsed {
+		t.Fatalf(
+			"negative-duration deadline = %v, want current elapsed %v",
+			timer.state.event.deadline,
+			clock.elapsed,
+		)
+	}
+}
+
+func TestInternalNewSkipsNilOptionBeforeLaterValidation(t *testing.T) {
+	_, err := New(
+		time.Unix(1, 0),
+		nil,
+		WithLimits(Limits{}),
+	)
+	if !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("New(nil, invalid limits) error = %v, want ErrInvalidLimits", err)
+	}
+}
 
 func TestInternalSequenceOverflowGuards(t *testing.T) {
 	start := time.Unix(1, 0)
@@ -338,6 +415,8 @@ func TestInternalNextRequestTargetSelectsEarliestEligible(t *testing.T) {
 		{name: "unordered", elapsed: 0, maxTarget: 3, want: 1, found: true},
 		{name: "bounded", elapsed: 0, maxTarget: 2, want: 1, found: true},
 		{name: "after earliest", elapsed: 1, maxTarget: 3, want: 2, found: true},
+		{name: "equal target", elapsed: 0, maxTarget: 1, want: 1, found: true},
+		{name: "duplicate target", elapsed: 0, maxTarget: 3, want: 1, found: true},
 		{name: "none", elapsed: 3, maxTarget: 3, want: 0, found: false},
 	} {
 		t.Run(test.name, func(t *testing.T) {

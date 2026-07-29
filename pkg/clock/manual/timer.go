@@ -40,13 +40,9 @@ func (timer *Timer) Reset(duration time.Duration) (bool, error) {
 	if !wasActive && timer.clock.active >= timer.clock.limits.MaxActive {
 		return false, ErrActiveLimit
 	}
-	deadline := timer.clock.elapsed
-	if duration > 0 {
-		var ok bool
-		deadline, ok = addDuration(timer.clock.elapsed, duration)
-		if !ok {
-			return wasActive, clockpkg.ErrOverflow
-		}
+	deadline, ok := deadlineAfter(timer.clock.elapsed, duration)
+	if !ok {
+		return wasActive, clockpkg.ErrOverflow
 	}
 	if timer.clock.sequence == ^uint64(0) {
 		return wasActive, clockpkg.ErrOverflow

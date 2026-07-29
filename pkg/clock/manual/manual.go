@@ -4,7 +4,6 @@ import (
 	"container/heap"
 	"context"
 	"errors"
-	"math"
 	"sync"
 	"time"
 
@@ -84,11 +83,10 @@ func New(start time.Time, options ...Option) (*Clock, error) {
 		MaxWorkPerAdvance: defaultMaxWork,
 	}}
 	for _, option := range options {
-		if option == nil {
-			continue
-		}
-		if err := option(&configuration); err != nil {
-			return nil, err
+		if option != nil {
+			if err := option(&configuration); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -223,11 +221,11 @@ func (clock *Clock) Sleep(ctx context.Context, duration time.Duration) error {
 
 	clock.mu.Lock()
 	waiter := &sleepWaiter{done: make(chan error, 1)}
-	if err := clock.activateLocked(&waiter.state, duration, waiter); err != nil {
-		clock.mu.Unlock()
+	err := clock.activateLocked(&waiter.state, duration, waiter)
+	clock.mu.Unlock()
+	if activationFailed(err) {
 		return err
 	}
-	clock.mu.Unlock()
 
 	select {
 	case err := <-waiter.done:
@@ -300,9 +298,7 @@ func (clock *Clock) Shutdown() error {
 		return nil
 	}
 	clock.closed = true
-	if len(clock.requests) > 0 {
-		clock.failRequestsLocked(ErrClosed)
-	}
+	clock.failRequestsLocked(ErrClosed)
 	for clock.events.Len() > 0 {
 		event := heap.Pop(&clock.events).(*scheduledEvent) //nolint:forcetypeassert // The owned heap stores only scheduled events.
 		event.state.event = nil
@@ -379,13 +375,15 @@ func (clock *Clock) wallAt(elapsed time.Duration) time.Time {
 }
 
 func addDuration(left, right time.Duration) (time.Duration, bool) {
-	if right > 0 && left > time.Duration(math.MaxInt64)-right {
+	sum := left + right
+	if ((left ^ sum) & (right ^ sum)) < 0 {
 		return 0, false
 	}
-	if right < 0 && left < time.Duration(math.MinInt64)-right {
-		return 0, false
-	}
-	return left + right, true
+	return sum, true
+}
+
+func deadlineAfter(elapsed, duration time.Duration) (time.Duration, bool) {
+	return addDuration(elapsed, max(duration, 0))
 }
 
 func callAndRecover(function func()) (panicked bool) {
@@ -419,7 +417,7 @@ func (clock *Clock) runAdvancement() error {
 	for {
 		clock.mu.Lock()
 		clock.completeEligibleLocked(activeCallbacks)
-		if len(clock.requests) == 0 && len(activeCallbacks) == 0 {
+		if advancementIdle(clock.requests, activeCallbacks) {
 			clock.advancing = false
 			clock.mu.Unlock()
 			return nil
@@ -427,24 +425,20 @@ func (clock *Clock) runAdvancement() error {
 
 		maxTarget := clock.elapsed
 		for _, request := range clock.requests {
-			if request.target > maxTarget {
-				maxTarget = request.target
-			}
+			maxTarget = max(maxTarget, request.target)
 		}
-		if len(activeCallbacks) > 0 {
+		if hasActiveCallbacks(activeCallbacks) {
 			allowedTarget := clock.elapsed
 			for _, request := range clock.requests {
-				if request.waiter.waiting && request.target > allowedTarget {
-					allowedTarget = request.target
+				if request.waiter.waiting {
+					allowedTarget = max(allowedTarget, request.target)
 				}
 			}
-			if maxTarget > allowedTarget {
-				maxTarget = allowedTarget
-			}
+			maxTarget = min(maxTarget, allowedTarget)
 		}
 		nextTarget, hasNextTarget := nextRequestTarget(clock.requests, clock.elapsed, maxTarget)
 		event := clock.nextValidLocked()
-		if event != nil && event.deadline <= maxTarget {
+		if eventEligible(event, maxTarget) {
 			if clock.work.Triggered >= clock.limits.MaxWorkPerAdvance {
 				clock.advanceErr = ErrWorkLimit
 				clock.failRequestsLocked(ErrWorkLimit)
@@ -459,7 +453,7 @@ func (clock *Clock) runAdvancement() error {
 			clock.elapsed = event.deadline
 			callback := clock.fireLocked(event)
 			clock.work.Triggered++
-			if callback == nil {
+			if !hasCallback(callback) {
 				clock.mu.Unlock()
 				continue
 			}
@@ -482,20 +476,51 @@ func (clock *Clock) runAdvancement() error {
 	}
 }
 
+func activationFailed(err error) bool {
+	return err != nil
+}
+
+func advancementIdle(
+	requests []*advanceRequest,
+	activeCallbacks map[uint64]struct{},
+) bool {
+	return len(requests) == 0 && len(activeCallbacks) == 0
+}
+
+func hasActiveCallbacks(activeCallbacks map[uint64]struct{}) bool {
+	return len(activeCallbacks) != 0
+}
+
+func eventEligible(event *scheduledEvent, target time.Duration) bool {
+	return event != nil && event.deadline <= target
+}
+
+func hasCallback(callback func()) bool {
+	return callback != nil
+}
+
 func nextRequestTarget(requests []*advanceRequest, elapsed, maxTarget time.Duration) (time.Duration, bool) {
 	nextTarget := time.Duration(0)
 	hasNextTarget := false
 	for _, request := range requests {
-		if request.target > elapsed && request.target <= maxTarget &&
-			(!hasNextTarget || request.target < nextTarget) {
-			nextTarget, hasNextTarget = request.target, true
+		if !requestWithinBounds(request.target, elapsed, maxTarget) {
+			continue
 		}
+		if !hasNextTarget {
+			nextTarget, hasNextTarget = request.target, true
+			continue
+		}
+		nextTarget = min(nextTarget, request.target)
 	}
 	return nextTarget, hasNextTarget
 }
 
+func requestWithinBounds(target, elapsed, maxTarget time.Duration) bool {
+	return target > elapsed && target <= maxTarget
+}
+
 func (clock *Clock) drainCallbacks(done <-chan callbackResult, active map[uint64]struct{}) {
-	for len(active) > 0 {
+	for range len(active) {
 		result := <-done
 		clock.mu.Lock()
 		delete(active, result.id)
@@ -523,28 +548,37 @@ func (clock *Clock) completeEligibleLocked(active map[uint64]struct{}) {
 	event := clock.nextValidLocked()
 	remaining := clock.requests[:0]
 	for _, request := range clock.requests {
-		blocked := request.target > clock.elapsed || (event != nil && event.deadline <= request.target)
-		if !blocked {
-			for callbackID := range active {
-				if callbackID > request.baseCallbackID {
-					blocked = true
-					break
-				}
-			}
-		}
+		blocked := requestBlocked(request, clock.elapsed, event, active)
 		if blocked {
 			remaining = append(remaining, request)
-			continue
+		} else {
+			request.waiter.result = Result{
+				StartedAt: request.startedAt, EndedAt: request.target,
+				Triggered: clock.work.Triggered - request.baseTriggered,
+				Callbacks: clock.work.Callbacks - request.baseCallbacks,
+				Panics:    clock.work.Panics - request.basePanics,
+			}
+			close(request.waiter.done)
 		}
-		request.waiter.result = Result{
-			StartedAt: request.startedAt, EndedAt: request.target,
-			Triggered: clock.work.Triggered - request.baseTriggered,
-			Callbacks: clock.work.Callbacks - request.baseCallbacks,
-			Panics:    clock.work.Panics - request.basePanics,
-		}
-		close(request.waiter.done)
 	}
 	clock.requests = remaining
+}
+
+func requestBlocked(
+	request *advanceRequest,
+	elapsed time.Duration,
+	event *scheduledEvent,
+	active map[uint64]struct{},
+) bool {
+	if request.target > elapsed || eventEligible(event, request.target) {
+		return true
+	}
+	for callbackID := range active {
+		if callbackID > request.baseCallbackID {
+			return true
+		}
+	}
+	return false
 }
 
 func (clock *Clock) failRequestsLocked(err error) {
