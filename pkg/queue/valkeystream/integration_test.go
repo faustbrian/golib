@@ -694,11 +694,17 @@ func startValkey9(
 		container, err := testcontainers.GenericContainer(t.Context(), testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Image: valkey9Image, ExposedPorts: []string{"6379/tcp"}, Cmd: command, Files: files,
-				WaitingFor: wait.ForLog("Ready to accept connections").WithStartupTimeout(2 * time.Minute),
+				WaitingFor: wait.ForListeningPort("6379/tcp").WithStartupTimeout(2 * time.Minute),
 			},
 			Started: true,
 		})
-		require.NoError(t, err)
+		if err != nil {
+			lastEndpointErr = err
+			if container != nil {
+				lastEndpointErr = errors.Join(lastEndpointErr, container.Terminate(t.Context()))
+			}
+			continue
+		}
 
 		endpoint, endpointErr := container.PortEndpoint(t.Context(), "6379/tcp", "")
 		if endpointErr == nil && endpoint != "" {
@@ -752,11 +758,11 @@ func newRecoveringIntegrationWorker(t *testing.T, endpoint, stream, consumer str
 	options := integrationWorkerOptions(endpoint, stream, consumer)
 	options = append(options, WithReclaim(20*time.Millisecond, 5*time.Millisecond, 8))
 	var worker *Worker
-	require.Eventually(t, func() bool {
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
 		var err error
 		worker, err = NewWorkerE(options...)
-		return err == nil
-	}, 5*time.Second, 20*time.Millisecond, "Valkey did not accept connections after restart")
+		assert.NoError(collect, err)
+	}, 2*time.Minute, 100*time.Millisecond, "Valkey did not accept connections after restart")
 	return worker
 }
 

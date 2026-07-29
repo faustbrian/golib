@@ -7,6 +7,8 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Remove unused CLI-related indirect dependencies from canonical module
+  metadata.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 
@@ -27,9 +29,9 @@ versioning and Keep a Changelog structure.
   every existing consumer group has settled it.
 - Bound Redis and Valkey management page allocations to the package maximum
   and remove narrowing conversions from record and status pagination.
-- Retry Valkey integration container creation when Docker starts the container
-  without publishing its requested port, and retain the endpoint error for
-  diagnosis instead of polling without reporting its cause.
+- Retry Valkey integration container startup, endpoint publication, and restart
+  readiness failures, clean up partial containers, and retain connection errors
+  for diagnosis.
 - Regenerated the complete documentation bundle from the current package
   documentation and release notes.
 - Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing

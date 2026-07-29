@@ -34,7 +34,11 @@ func ExampleWithWorkerLifecycle() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer q.Release()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = q.ReleaseContext(ctx)
+	}()
 
 	status, err := q.ObserveWorker(context.Background())
 	if err != nil {
@@ -50,7 +54,11 @@ func ExampleNewPool_queueTask() {
 	// allocate a pool with 5 goroutines to deal with those tasks
 	p := queue.NewPool(5)
 	// don't forget to release the pool in the end
-	defer p.Release()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = p.ReleaseContext(ctx)
+	}()
 
 	// assign tasks to asynchronous goroutine pool
 	for i := 0; i < taskN; i++ {
@@ -65,7 +73,12 @@ func ExampleNewPool_queueTask() {
 
 	// wait until all tasks done
 	for i := 0; i < taskN; i++ {
-		fmt.Println("index:", <-rets)
+		select {
+		case index := <-rets:
+			fmt.Println("index:", index)
+		case <-time.After(time.Second):
+			return
+		}
 	}
 
 	// Unordered output:
@@ -88,7 +101,11 @@ func ExampleNewPool_queueTaskTimeout() {
 		completed <- struct{}{}
 	}))
 	// don't forget to release the pool in the end
-	defer q.Release()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = q.ReleaseContext(ctx)
+	}()
 
 	// assign tasks to asynchronous goroutine pool
 	for i := 0; i < taskN; i++ {
@@ -119,10 +136,19 @@ func ExampleNewPool_queueTaskTimeout() {
 
 	// wait until all tasks done
 	for i := 0; i < taskN-1; i++ {
-		fmt.Println("index:", <-rets)
+		select {
+		case index := <-rets:
+			fmt.Println("index:", index)
+		case <-time.After(time.Second):
+			return
+		}
 	}
 	for i := 0; i < taskN; i++ {
-		<-completed
+		select {
+		case <-completed:
+		case <-time.After(time.Second):
+			return
+		}
 	}
 	close(resps)
 	for e := range resps {

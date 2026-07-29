@@ -352,6 +352,9 @@ func TestQueueDesiredTerminationAndManagementErrorsFailClosed(t *testing.T) {
 	if err != nil || result.Status != management.CommandRejected {
 		t.Fatalf("Execute(invalid target) = (%+v, %v)", result, err)
 	}
+	if ready := len(queue.ready); ready != 0 {
+		t.Fatalf("rejected resume scheduled %d worker admissions", ready)
+	}
 	if _, err := queue.Execute(context.Background(), management.Command{}); err == nil {
 		t.Fatal("Execute(invalid command) error = nil")
 	}
