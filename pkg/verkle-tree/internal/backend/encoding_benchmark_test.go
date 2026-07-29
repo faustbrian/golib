@@ -64,6 +64,25 @@ func BenchmarkEncodeCommitment(b *testing.B) {
 	}
 }
 
+func BenchmarkCommitmentToScalar(b *testing.B) {
+	encoded := mustDecodeBenchmarkHex(
+		b,
+		"4a2c7486fd924882bf02c6908de395122843e3e05264d7991e18e7985dad51e9",
+	)
+	value, err := decodeCommitment(encoded)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.SetBytes(commitmentSize)
+	b.ResetTimer()
+
+	for range b.N {
+		benchmarkScalar = commitmentToScalar(value)
+	}
+}
+
 func BenchmarkDecodeScalarCanonical(b *testing.B) {
 	encoded := make([]byte, scalarSize)
 	encoded[0] = 1

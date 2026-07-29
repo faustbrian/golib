@@ -53,10 +53,8 @@ inconsistent representation before cryptographic work.
 
 The following parts of the profile are deliberately not frozen:
 
-- node kinds, path traversal, extension-node behavior, and empty-subtree
-  commitments;
-- the complete leaf commitment because the commitment-to-field map for C1 and
-  C2 remains unfrozen;
+- node kinds, path traversal, extension-node behavior, and serialized
+  empty-subtree representation;
 - canonical root, node, proof, witness, snapshot, and storage encodings;
 - canonical point, scalar, and proof-container rejection rules beyond the
   internal research seam already tested;
@@ -107,19 +105,52 @@ The width-256 stem vector MUST reserve:
 | --- | --- |
 | `0` | extension-presence marker `1` |
 | `1` | the 31-byte stem interpreted little-endian |
-| `2` | the profile's commitment-to-field image of C1 |
-| `3` | the profile's commitment-to-field image of C2 |
+| `2` | `H(C1)` |
+| `3` | `H(C2)` |
 | `4..255` | zero |
 
-The commitment-to-field function at indices 2 and 3 is not yet frozen.
-Consequently, this section fixes canonical pre-commitment inputs and positions
-only. It MUST NOT be used to claim a complete leaf commitment, root, proof, or
-wire-compatible tree.
+For any width-256 vector `a`, its commitment is:
 
-These formulas agree for the checked corpus with both pinned implementations:
-the Go reference constructs the same two suffix vectors and four stem-vector
-positions, while the independently pinned Rust trie generates the canonical
-fixture recorded in [`sources.json`](sources.json).
+```
+VC(a) = sum(a[i] * G[i], i = 0..255)
+```
+
+`G` is the ordered generator set derived from the fixed
+`eth_verkle_oct_2021` seed. Therefore C1 is `VC(c1)`, C2 is `VC(c2)`, and the
+stem commitment is the commitment to the stem vector above.
+
+### Commitment To Field
+
+`H(P)` maps a Banderwagon commitment `P` into the scalar field. For a
+non-identity point with affine coordinates `(x, y)`, implementations MUST:
+
+1. compute `q = x / y` in the Bandersnatch base field;
+2. serialize `q` as its canonical 32-byte little-endian integer;
+3. interpret those bytes as a non-negative little-endian integer; and
+4. reduce that integer modulo the Bandersnatch scalar-field modulus.
+
+The internal identity commitment MUST map to scalar zero. Untrusted roots,
+nodes, proofs, or witnesses MUST NOT use an all-zero point encoding to smuggle
+an identity through the checked commitment decoder. A future canonical
+container MAY represent an empty root explicitly, but that representation
+remains unfrozen.
+
+### Internal Child Inputs
+
+Each internal node commits to a width-256 vector. A present child at index `i`
+MUST contribute `H(child_commitment)` at index `i`. An absent child MUST
+contribute scalar zero. A vector containing only absent children commits to the
+internal identity, so the in-memory commitment of an empty tree is the
+identity. This mathematical identity does not define its future serialized
+root representation.
+
+These formulas agree for the checked corpora with both pinned implementations:
+the Go reference constructs the same suffix, stem, and internal vectors, while
+the independently pinned Rust implementation reproduces the canonical leaf,
+generator, commitment-to-field, tree-root, and proof fixtures recorded in
+[`sources.json`](sources.json). This agreement fixes mathematical commitment
+inputs only. It MUST NOT be read as a production-backend, proof-system, node
+encoding, or Ethereum compatibility claim.
 
 ## State Transition Reference Model
 

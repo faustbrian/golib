@@ -44,6 +44,24 @@ fn print_encodings() {
     }
 }
 
+fn print_commitment_hashes() {
+    println!("scalar_u64\tcommitment_be\tmapped_scalar_le");
+    let identity = Element::zero();
+    println!(
+        "identity\t{}\t{}",
+        encode_hex(&identity.to_bytes()),
+        encode_hex(&scalar_bytes(identity.map_to_scalar_field())),
+    );
+    for value in [1_u64, 2, 3, 255, 65_535] {
+        let commitment = Element::prime_subgroup_generator() * Fr::from(value);
+        println!(
+            "{value}\t{}\t{}",
+            encode_hex(&commitment.to_bytes()),
+            encode_hex(&scalar_bytes(commitment.map_to_scalar_field())),
+        );
+    }
+}
+
 fn scalar_bytes(value: Fr) -> [u8; 32] {
     let mut encoded = [0_u8; 32];
     value
@@ -237,6 +255,7 @@ fn main() {
     let mut arguments = std::env::args().skip(1);
     match arguments.next().as_deref() {
         Some("encodings") => print_encodings(),
+        Some("commitment-hashes") => print_commitment_hashes(),
         Some("leaf-vectors") => print_leaf_vectors(),
         Some("generators") => print_generators(),
         Some("multiproof") => print_multiproof(),
@@ -251,7 +270,8 @@ fn main() {
         ),
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
-             <encodings|leaf-vectors|generators|multiproof|tree-proof|verify-go-witness|\
+             <encodings|commitment-hashes|leaf-vectors|generators|multiproof|tree-proof|\
+             verify-go-witness|\
              update-go-witness>"
         ),
     }

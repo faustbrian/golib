@@ -30,6 +30,13 @@ func encodeCommitment(value commitment) [commitmentSize]byte {
 	return value.element.Bytes()
 }
 
+func commitmentToScalar(value commitment) scalar {
+	var mapped fr.Element
+	value.element.MapToScalarField(&mapped)
+
+	return scalar{element: mapped}
+}
+
 func decodeCommitment(encoded []byte) (commitment, error) {
 	if len(encoded) != commitmentSize {
 		return commitment{}, fmt.Errorf("%w: encoded length", errInvalidCommitment)

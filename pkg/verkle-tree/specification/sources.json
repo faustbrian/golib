@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -125,6 +125,55 @@
       },
       "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness multiplies the canonical prime-subgroup generator by the ordered scalars 1, 2, 3, 255, and 65535, then emits canonical scalar and commitment bytes.",
       "review_procedure": "Compare the generated TSV byte-for-byte, decode every scalar and commitment through the checked Go boundary, verify canonical round trips, and verify each scalar's little-endian integer value and ordering.",
+      "reproducible": true
+    },
+    {
+      "id": "rust-verkle-commitment-to-field-vectors",
+      "source_id": "crate-crypto-rust-verkle",
+      "source_files": [
+        {
+          "path": "banderwagon/src/element.rs",
+          "sha256": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442"
+        },
+        {
+          "path": "LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "LICENSE-MIT",
+          "sha256": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f"
+        }
+      ],
+      "fixture_path": "internal/backend/testdata/rust-verkle-commitment-hashes.tsv",
+      "fixture_sha256": "32631f2964203b91238057addff56fa19368bc81c5c03b239dc51dc7ba967490",
+      "license": "MIT OR Apache-2.0",
+      "profile_assumptions": {
+        "map": "compute affine x/y in the Bandersnatch base field, serialize it as a 32-byte little-endian integer, then reduce that integer modulo the Bandersnatch scalar-field modulus",
+        "identity": "the internal identity commitment maps to scalar zero; an untrusted serialized identity remains invalid",
+        "corpus": "the identity plus prime-subgroup generator multiples 1, 2, 3, 255, and 65535"
+      },
+      "generator": {
+        "source_path": "interoperability/rust-verkle/src/main.rs",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
+        "manifest_path": "interoperability/rust-verkle/Cargo.toml",
+        "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
+        "lock_path": "interoperability/rust-verkle/Cargo.lock",
+        "lock_sha256": "5cfebc6d268ceac75fc1c2fb9912e26480d7264c86375109fc66e8f30669840d",
+        "toolchain_path": "interoperability/rust-verkle/rust-toolchain.toml",
+        "toolchain_sha256": "e1e35601df56bce6ac4edfc8f7b1abeed0a5b931f1c6f5d157b1433b6875f6aa",
+        "command": "cargo run --locked --quiet -- commitment-hashes"
+      },
+      "dependency_review": {
+        "reviewed_on": "2026-07-29",
+        "known_vulnerabilities": 0,
+        "unmaintained_advisories": [
+          "RUSTSEC-2024-0388",
+          "RUSTSEC-2024-0436"
+        ],
+        "production_status": "rejected-research-generator-only"
+      },
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness maps the deterministic commitment corpus through Banderwagon's commitment-to-scalar function and emits canonical commitment and scalar bytes.",
+      "review_procedure": "Verify the pinned Rust revision, mapping source, licenses, harness, manifest, lock, toolchain, and fixture checksums; regenerate the fixture byte-for-byte; require the checked Go boundary to reproduce every non-identity mapping; and require its untrusted decoder to reject the identity encoding.",
       "reproducible": true
     },
     {
@@ -169,7 +218,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -211,7 +260,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -261,7 +310,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -417,7 +466,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "e6c95d8f97e439c9342b624da9b8840626b54f8b9c8d655dd144b684c9fb6cc8",
+        "source_sha256": "67fe6314259b23f419af3c8263f9d4c0b13af49607d20480004fa424477b5113",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",

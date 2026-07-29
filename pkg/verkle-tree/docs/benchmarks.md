@@ -2,11 +2,11 @@
 
 ## Status and scope
 
-These are pre-v1 component microbenchmarks for the only implemented
-cryptographic boundary: canonical Banderwagon commitment and scalar encoding.
-They do not measure a Verkle tree, vector commitment, proof, witness, storage
-adapter, or an equivalent end-to-end workload, and they support no comparative
-performance claim.
+These are pre-v1 component microbenchmarks for the implemented cryptographic
+boundary: canonical Banderwagon commitment and scalar encoding plus the
+commitment-to-field map. They do not measure a Verkle tree, vector commitment,
+proof, witness, storage adapter, or an equivalent end-to-end workload, and they
+support no comparative performance claim.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -19,7 +19,8 @@ Command:
 
 ```console
 GOWORK=off go test ./internal/backend -run '^$' \
-  -bench '^(BenchmarkDecode|BenchmarkEncode)' -benchmem -count=5
+  -bench '^(BenchmarkDecode|BenchmarkEncode|BenchmarkCommitmentToScalar)' \
+  -benchmem -count=5
 ```
 
 Environment:
@@ -45,12 +46,13 @@ nanoseconds per operation.
 
 | Benchmark | ns/op samples | B/op | allocs/op |
 | --- | --- | ---: | ---: |
-| Decode canonical commitment | 6186, 6276, 6203, 6144, 6157 | 32 | 1 |
-| Reject identity commitment | 65.73, 65.19, 66.37, 73.76, 66.75 | 64 | 2 |
-| Encode commitment | 20.08, 19.94, 19.95, 20.08, 20.26 | 0 | 0 |
-| Decode canonical scalar | 39.94, 39.55, 40.14, 40.19, 40.43 | 0 | 0 |
-| Reject non-canonical scalar | 148.5, 141.4, 141.7, 146.1, 143.9 | 176 | 5 |
-| Encode scalar | 8.678, 8.683, 8.585, 8.687, 8.743 | 0 | 0 |
+| Decode canonical commitment | 26570, 22148, 25850, 28067, 11645 | 32 | 1 |
+| Reject identity commitment | 286.4, 304.8, 214.2, 168.1, 241.0 | 64 | 2 |
+| Encode commitment | 79.31, 57.34, 31.62, 50.70, 33.85 | 0 | 0 |
+| Map commitment to scalar | 1474, 1392, 2558, 1942, 3718 | 8 | 1 |
+| Decode canonical scalar | 77.17, 73.11, 70.89, 74.57, 74.84 | 0 | 0 |
+| Reject non-canonical scalar | 309.7, 375.0, 215.9, 195.7, 176.3 | 176 | 5 |
+| Encode scalar | 13.64, 23.18, 10.80, 11.81, 19.64 | 0 | 0 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee.

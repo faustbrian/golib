@@ -23,6 +23,10 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Fix the experimental profile's dependency-free leaf field inputs, including
   present-zero marking, absence, suffix-half placement, local indices, stem
   encoding, and stem-vector positions, with pinned Rust differential vectors.
+- Fix the profile's commitment-to-field map, internal child inputs, and
+  in-memory empty commitment semantics with pinned Go and Rust agreement,
+  without accepting serialized identity points or approving a production
+  commitment backend.
 - Establish the `verkletree` root package and an internal fail-closed boundary
   for canonical Banderwagon commitment and scalar encodings.
 - Add allocation-reporting microbenchmarks for accepted commitment and scalar

@@ -5,12 +5,14 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 harness="$root/interoperability/rust-verkle"
 go_verkle_harness="$root/interoperability/go-verkle"
 encoding_fixture="$root/internal/backend/testdata/rust-verkle-encoding.tsv"
+commitment_hash_fixture="$root/internal/backend/testdata/rust-verkle-commitment-hashes.tsv"
 leaf_vector_fixture="$root/internal/leafvector/testdata/rust-verkle-leaf-vectors.tsv"
 generator_fixture="$root/internal/backend/testdata/rust-verkle-generators.tsv"
 multiproof_fixture="$root/internal/backend/testdata/rust-verkle-multiproof.tsv"
 go_verkle_fixture="$root/internal/backend/testdata/go-verkle-tree-proof.json"
 sources="$root/specification/sources.json"
 encoding_fixture_id=rust-verkle-banderwagon-encoding-vectors
+commitment_hash_fixture_id=rust-verkle-commitment-to-field-vectors
 leaf_vector_fixture_id=rust-verkle-leaf-vectors
 generator_fixture_id=rust-verkle-generator-set
 multiproof_fixture_id=rust-verkle-multiproof
@@ -47,6 +49,10 @@ verify_generator_file "$encoding_fixture_id" source_sha256 "$harness/src/main.rs
 verify_generator_file "$encoding_fixture_id" manifest_sha256 "$harness/Cargo.toml"
 verify_generator_file "$encoding_fixture_id" lock_sha256 "$harness/Cargo.lock"
 verify_generator_file "$encoding_fixture_id" toolchain_sha256 "$harness/rust-toolchain.toml"
+verify_generator_file "$commitment_hash_fixture_id" source_sha256 "$harness/src/main.rs"
+verify_generator_file "$commitment_hash_fixture_id" manifest_sha256 "$harness/Cargo.toml"
+verify_generator_file "$commitment_hash_fixture_id" lock_sha256 "$harness/Cargo.lock"
+verify_generator_file "$commitment_hash_fixture_id" toolchain_sha256 "$harness/rust-toolchain.toml"
 verify_generator_file "$leaf_vector_fixture_id" source_sha256 "$harness/src/main.rs"
 verify_generator_file "$leaf_vector_fixture_id" manifest_sha256 "$harness/Cargo.toml"
 verify_generator_file "$leaf_vector_fixture_id" lock_sha256 "$harness/Cargo.lock"
@@ -75,6 +81,7 @@ verify_fixture() {
 }
 
 verify_fixture "$encoding_fixture_id" "$encoding_fixture"
+verify_fixture "$commitment_hash_fixture_id" "$commitment_hash_fixture"
 verify_fixture "$leaf_vector_fixture_id" "$leaf_vector_fixture"
 verify_fixture "$generator_fixture_id" "$generator_fixture"
 verify_fixture "$multiproof_fixture_id" "$multiproof_fixture"
@@ -164,6 +171,7 @@ verify_source_files() {
 }
 
 verify_source_files "$multiproof_fixture_id" "$checkout_root"
+verify_source_files "$commitment_hash_fixture_id" "$checkout_root"
 verify_source_files "$leaf_vector_fixture_id" "$checkout_root"
 verify_source_files "$tree_proof_agreement_id" "$checkout_root"
 
@@ -172,6 +180,12 @@ verify_source_files "$tree_proof_agreement_id" "$checkout_root"
     CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- encodings
 ) >"$temporary/generated-encodings.tsv"
 diff -u "$encoding_fixture" "$temporary/generated-encodings.tsv"
+
+(
+    cd "$harness"
+    CARGO_TARGET_DIR="$temporary/target" cargo run --locked --quiet -- commitment-hashes
+) >"$temporary/generated-commitment-hashes.tsv"
+diff -u "$commitment_hash_fixture" "$temporary/generated-commitment-hashes.tsv"
 
 (
     cd "$harness"
