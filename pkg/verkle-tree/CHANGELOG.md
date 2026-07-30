@@ -14,6 +14,12 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add the experimental public immutable snapshot, profile-bound root, canonical
+  batch-update transition, and aggregate proof APIs with explicit cancellation,
+  hostile-input budgets, canonical encoding, typed errors, and zero-value
+  rejection. Membership, absent-suffix, and absent-stem claims are independently
+  verified without consulting mutable tree state.
+
 - Add an internal fixed-profile aggregate proof engine that derives complete
   snapshot opening vectors, independently reconstructs verifier evaluations,
   generates and verifies the canonical `verkle` transcript, consolidates

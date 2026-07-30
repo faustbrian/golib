@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func FuzzClaimSetCanonicalization(f *testing.F) {
@@ -27,13 +27,13 @@ func FuzzClaimSetCanonicalization(f *testing.F) {
 		}
 		left, leftErr := NewClaimSet(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			internalprofile.ExperimentalBandersnatchIPA256V0(),
 			claims,
 			limits,
 		)
 		right, rightErr := NewClaimSet(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			internalprofile.ExperimentalBandersnatchIPA256V0(),
 			reversed,
 			limits,
 		)

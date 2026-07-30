@@ -1,9 +1,13 @@
 // Package verkletree is the pre-v1 home of an explicitly profiled,
 // storage-independent Verkle tree.
 //
-// The package currently exposes only the immutable identity and structural
-// metadata of one package-owned experimental profile. It exposes no tree,
-// root, proof, witness, or persistence API. Its internal cryptographic
-// encoding boundary exists to evaluate a pinned commitment backend without
-// making stability, production-readiness, or Ethereum-compatibility claims.
+// The package exposes one package-owned experimental profile, immutable
+// snapshots and roots, canonical atomic updates, and bounded aggregate
+// membership and non-membership proofs. Every expensive operation requires a
+// context and explicit resource limits. Witness, persistence, pruning, and
+// stable-profile APIs remain unavailable.
+//
+// The exported API is experimental and exists to evaluate a pinned commitment
+// backend and complete tree semantics without making stability,
+// production-readiness, or Ethereum-compatibility claims.
 package verkletree

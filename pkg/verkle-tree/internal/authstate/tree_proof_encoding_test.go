@@ -7,8 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestTreeProofBytesUsesCanonicalProfileBoundEncoding(t *testing.T) {
@@ -1020,7 +1020,7 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 			if name == "profile id" ||
 				name == "profile version" ||
 				name == "encoding version" {
-				if !errors.Is(err, verkletree.ErrUnsupportedProfile) {
+				if !errors.Is(err, internalprofile.ErrUnsupported) {
 					t.Fatalf("profile error = %v", err)
 				}
 			} else if !errors.Is(err, errInvalidTreeProofEncoding) {

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestClaimSetCanonicalizesAndOwnsClaims(t *testing.T) {
@@ -22,7 +22,7 @@ func TestClaimSetCanonicalizesAndOwnsClaims(t *testing.T) {
 	}
 	set, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		input,
 		testClaimLimits(),
 	)
@@ -35,7 +35,7 @@ func TestClaimSetCanonicalizesAndOwnsClaims(t *testing.T) {
 		t.Fatalf("claim count = %d, error = %v", count, countErr)
 	}
 	if profile, profileErr := set.Profile(); profileErr != nil ||
-		profile != verkletree.ExperimentalBandersnatchIPA256V0() {
+		profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
 		t.Fatalf("claim profile = %#v, error = %v", profile, profileErr)
 	}
 	claims, err := set.Claims(context.Background())
@@ -96,7 +96,7 @@ func TestClaimSetRejectsDuplicatesAndInvalidClaims(t *testing.T) {
 	key := testKey(1, 1)
 	if _, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		nil,
 		testClaimLimits(),
 	); !errors.Is(err, errInvalidClaimSet) {
@@ -128,7 +128,7 @@ func TestClaimSetRejectsDuplicatesAndInvalidClaims(t *testing.T) {
 
 			_, err := NewClaimSet(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.ExperimentalBandersnatchIPA256V0(),
 				claims,
 				testClaimLimits(),
 			)
@@ -151,11 +151,11 @@ func TestClaimSetRejectsProfileBeforeResources(t *testing.T) {
 
 	_, err := NewClaimSet(
 		context.Background(),
-		verkletree.Profile{},
+		internalprofile.Profile{},
 		[]Claim{Membership(testKey(1, 1), testValue(1))},
 		ClaimLimits{MaxClaims: 1, MaxTemporaryBytes: 1},
 	)
-	if !errors.Is(err, verkletree.ErrUnsupportedProfile) ||
+	if !errors.Is(err, internalprofile.ErrUnsupported) ||
 		errors.Is(err, errClaimResource) {
 		t.Fatalf("claim error = %v, want profile mismatch before resources", err)
 	}
@@ -202,7 +202,7 @@ func TestClaimSetEnforcesResourcesBeforeAllocation(t *testing.T) {
 
 			_, err := NewClaimSet(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.ExperimentalBandersnatchIPA256V0(),
 				claims,
 				test.limits,
 			)
@@ -222,7 +222,7 @@ func TestClaimSetEnforcesResourcesBeforeAllocation(t *testing.T) {
 func TestClaimSetRejectsInvalidStateContextAndLimits(t *testing.T) {
 	t.Parallel()
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	claims := []Claim{
 		Membership(testKey(2, 2), testValue(2)),
 		Absence(testKey(1, 1)),
@@ -328,7 +328,7 @@ func TestClaimLimitsAndSetValidationHonorImplementationBoundaries(t *testing.T) 
 		t.Fatalf("maximum claim limit: %v", err)
 	}
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	exactMaximum := ClaimSet{
 		profile: profile,
 		claims:  make([]Claim, maxClaimCount),
@@ -383,7 +383,7 @@ func TestClaimSetCanonicalizesMergeBoundaries(t *testing.T) {
 			}
 			set, err := NewClaimSet(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.ExperimentalBandersnatchIPA256V0(),
 				claims,
 				testClaimLimits(),
 			)
@@ -409,7 +409,7 @@ func TestClaimSetSupportsConcurrentImmutableReads(t *testing.T) {
 
 	set, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		[]Claim{
 			Membership(testKey(1, 1), testValue(1)),
 			Absence(testKey(2, 2)),

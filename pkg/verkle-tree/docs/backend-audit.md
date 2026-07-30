@@ -119,8 +119,8 @@ preflight and post-derivation checks.
 ### Unsafe public surface
 
 The dependency publicly exposes unchecked or trusted decoding operations and
-raw group, field, transcript, setup, and proof types. The future public
-`verkletree` API must not re-export any of them.
+raw group, field, transcript, setup, and proof types. The public `verkletree`
+API does not re-export any of them.
 
 ### Initialization and mutable precomputation
 

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestTreeProofCanonicalizesAndBindsComponents(t *testing.T) {
@@ -24,7 +24,7 @@ func TestTreeProofCanonicalizesAndBindsComponents(t *testing.T) {
 	keyMissing := testKey(2, 0)
 	claims, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		[]Claim{
 			Absence(keyMissing),
 			Absence(keyAbsentSuffix),
@@ -69,7 +69,7 @@ func TestTreeProofCanonicalizesAndBindsComponents(t *testing.T) {
 	pathCommitments[0] = mustPathCommitment(t, []byte{9}, commitment)
 
 	if profile, profileErr := proof.Profile(); profileErr != nil ||
-		profile != verkletree.ExperimentalBandersnatchIPA256V0() {
+		profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
 		t.Fatalf("proof profile = %#v, error = %v", profile, profileErr)
 	}
 	gotRoot, err := proof.Root()
@@ -1092,7 +1092,7 @@ func TestTreeProofCancellationAndInvalidReceiverBehavior(t *testing.T) {
 		t.Fatalf("zero opening error = %v", err)
 	}
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	validStem := PresentStemPath(stemFromKey(key), 1)
 	emptyRoot, err := newTestSnapshot(t, nil).RootContainer(context.Background())
 	if err != nil {
@@ -1266,7 +1266,7 @@ func mustClaimSet(t testing.TB, claims []Claim) ClaimSet {
 
 	set, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		claims,
 		testClaimLimits(),
 	)

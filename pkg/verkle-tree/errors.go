@@ -1,9 +1,160 @@
 package verkletree
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
+)
 
 var (
 	// ErrUnsupportedProfile identifies an unknown, zero, or internally
 	// inconsistent Verkle profile.
-	ErrUnsupportedProfile = errors.New("unsupported Verkle profile")
+	ErrUnsupportedProfile = internalprofile.ErrUnsupported
+
+	// ErrInvalidContext identifies a nil context.
+	ErrInvalidContext = errors.New("invalid Verkle operation context")
+
+	// ErrCancelled identifies an operation stopped by context cancellation.
+	ErrCancelled = errors.New("verkle operation cancelled")
+
+	// ErrInvalidLimits identifies a zero, overflowing, or unsupported resource
+	// declaration.
+	ErrInvalidLimits = errors.New("invalid Verkle resource limits")
+
+	// ErrInvalidSnapshot identifies an unusable immutable snapshot.
+	ErrInvalidSnapshot = errors.New("invalid Verkle snapshot")
+
+	// ErrInvalidUpdate identifies a zero or internally inconsistent update.
+	ErrInvalidUpdate = errors.New("invalid Verkle update")
+
+	// ErrDuplicateKey identifies duplicate keys in initial state or one batch.
+	ErrDuplicateKey = errors.New("duplicate Verkle key")
+
+	// ErrInvalidTransition identifies an unusable transition result.
+	ErrInvalidTransition = errors.New("invalid Verkle transition")
+
+	// ErrInvalidRoot identifies malformed or unusable root state.
+	ErrInvalidRoot = errors.New("invalid Verkle root")
+
+	// ErrInvalidProofEngine identifies an unusable proof engine.
+	ErrInvalidProofEngine = errors.New("invalid Verkle proof engine")
+
+	// ErrInvalidProof identifies a malformed, incomplete, or unusable proof.
+	ErrInvalidProof = errors.New("invalid Verkle proof")
+
+	// ErrVerification identifies a well-formed proof that did not authenticate
+	// its complete bound claim set.
+	ErrVerification = errors.New("verkle proof verification failed")
+
+	// ErrResourceExhausted identifies a declared resource budget rejection.
+	ErrResourceExhausted = errors.New("verkle resource limit exceeded")
+
+	// ErrCryptographic identifies a commitment or proof backend failure that is
+	// not an ordinary resource, input, or cancellation error.
+	ErrCryptographic = errors.New("verkle cryptographic operation failed")
 )
+
+// Resource identifies one caller-visible bounded resource.
+type Resource uint8
+
+const (
+	// ResourceEntries counts retained key/value entries.
+	ResourceEntries Resource = iota + 1
+
+	// ResourceBatchUpdates counts updates in one atomic operation.
+	ResourceBatchUpdates
+
+	// ResourceKeys counts requested proof keys.
+	ResourceKeys
+
+	// ResourceStems counts distinct 31-byte stems.
+	ResourceStems
+
+	// ResourceStemPaths counts retained terminal stem paths.
+	ResourceStemPaths
+
+	// ResourceNodes counts retained logical nodes.
+	ResourceNodes
+
+	// ResourceEdges counts retained internal-node edges.
+	ResourceEdges
+
+	// ResourceCommitments counts vector commitments.
+	ResourceCommitments
+
+	// ResourcePathCommitments counts retained proof-path commitments.
+	ResourcePathCommitments
+
+	// ResourcePathDerivations counts bounded topology derivations.
+	ResourcePathDerivations
+
+	// ResourcePathBytes counts retained canonical path bytes.
+	ResourcePathBytes
+
+	// ResourceQueries counts aggregate opening queries.
+	ResourceQueries
+
+	// ResourceNodeReads counts immutable committed-node reads.
+	ResourceNodeReads
+
+	// ResourceClaims counts retained membership and absence claims.
+	ResourceClaims
+
+	// ResourceFieldMappings counts commitment-to-field operations.
+	ResourceFieldMappings
+
+	// ResourceCommitmentTerms counts bounded commitment terms.
+	ResourceCommitmentTerms
+
+	// ResourceGeneratorDerivations counts fixed-profile generator derivations.
+	ResourceGeneratorDerivations
+
+	// ResourcePrecomputedPoints counts fixed-profile precomputed points.
+	ResourcePrecomputedPoints
+
+	// ResourceScalarDecodes counts canonical scalar decodings.
+	ResourceScalarDecodes
+
+	// ResourceMSMTerms counts multi-scalar-multiplication terms.
+	ResourceMSMTerms
+
+	// ResourceTemporaryBytes counts conservatively owned scratch memory.
+	ResourceTemporaryBytes
+
+	// ResourceRootBytes counts untrusted root-container bytes.
+	ResourceRootBytes
+
+	// ResourcePointDecodes counts strict group-point decodings.
+	ResourcePointDecodes
+
+	// ResourceProofBytes counts canonical proof bytes.
+	ResourceProofBytes
+
+	// ResourceWorkers counts dependency-owned proof workers.
+	ResourceWorkers
+)
+
+// ResourceError reports an exact rejected budget without disclosing keys,
+// values, commitments, roots, or proofs.
+type ResourceError struct {
+	Resource Resource
+	Limit    uint64
+	Actual   uint64
+}
+
+// Error implements error.
+func (err *ResourceError) Error() string {
+	return fmt.Sprintf(
+		"%v: resource %d has value %d, limit %d",
+		ErrResourceExhausted,
+		err.Resource,
+		err.Actual,
+		err.Limit,
+	)
+}
+
+// Unwrap makes ResourceError match ErrResourceExhausted.
+func (err *ResourceError) Unwrap() error {
+	return ErrResourceExhausted
+}

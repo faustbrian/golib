@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const benchmarkClaimBytes = 1 + len(Key{}) + len(Value{})
@@ -12,7 +12,7 @@ const benchmarkClaimBytes = 1 + len(Key{}) + len(Value{})
 func BenchmarkNewClaimSetSixteen(b *testing.B) {
 	claims := benchmarkClaims()
 	limits := testClaimLimits()
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	b.ReportAllocs()
 	b.SetBytes(int64(len(claims) * benchmarkClaimBytes))
 	b.ResetTimer()
@@ -31,7 +31,7 @@ func BenchmarkNewClaimSetSixteen(b *testing.B) {
 func BenchmarkClaimSetCopySixteen(b *testing.B) {
 	set, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		benchmarkClaims(),
 		testClaimLimits(),
 	)

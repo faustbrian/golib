@@ -7,9 +7,9 @@ import (
 	"math/bits"
 	"slices"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -196,7 +196,7 @@ func (snapshot Snapshot) ProofMaterial(
 	}
 	claimSet, err := NewClaimSet(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		profile.ExperimentalBandersnatchIPA256V0(),
 		claims,
 		ClaimLimits{
 			MaxClaims:         limits.MaxKeys,

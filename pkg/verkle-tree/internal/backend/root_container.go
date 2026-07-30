@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -103,7 +103,7 @@ func (err *RootResourceError) Unwrap() error {
 // invalid. Empty roots are represented by a kind tag rather than an identity
 // point encoding.
 type Root struct {
-	profile    verkletree.Profile
+	profile    internalprofile.Profile
 	kind       RootKind
 	commitment VectorCommitment
 	valid      bool
@@ -113,7 +113,7 @@ type Root struct {
 // Profile validation precedes commitment inspection.
 func NewRoot(
 	ctx context.Context,
-	profile verkletree.Profile,
+	profile internalprofile.Profile,
 	commitment VectorCommitment,
 ) (Root, error) {
 	if err := checkRootContext(ctx); err != nil {
@@ -174,11 +174,11 @@ func DecodeRoot(
 	if [rootMagicSize]byte(owned[:rootMagicSize]) != rootMagic {
 		return Root{}, fmt.Errorf("%w: magic", errInvalidRoot)
 	}
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	if owned[rootProfileIDIndex] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(owned[rootVersionOffset:rootEncodingOffset]) != profile.Version() ||
 		binary.BigEndian.Uint16(owned[rootEncodingOffset:rootKindIndex]) != profile.EncodingVersion() {
-		return Root{}, fmt.Errorf("%w: root profile", verkletree.ErrUnsupportedProfile)
+		return Root{}, fmt.Errorf("%w: root profile", internalprofile.ErrUnsupported)
 	}
 
 	switch RootKind(owned[rootKindIndex]) {
@@ -252,9 +252,9 @@ func (root Root) Bytes() ([RootSize]byte, error) {
 }
 
 // Profile returns the immutable profile bound into the root container.
-func (root Root) Profile() (verkletree.Profile, error) {
+func (root Root) Profile() (internalprofile.Profile, error) {
 	if err := root.validate(); err != nil {
-		return verkletree.Profile{}, err
+		return internalprofile.Profile{}, err
 	}
 
 	return root.profile, nil

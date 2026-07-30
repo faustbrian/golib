@@ -224,3 +224,8 @@ func matchAggregateQueries(
 
 	return openings, nil
 }
+
+// IsProofVerificationError reports a failed cryptographic verification.
+func IsProofVerificationError(err error) bool {
+	return errors.Is(err, errProofVerification)
+}

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestSnapshotRootContainerBindsProfileAndCommitment(t *testing.T) {
@@ -24,7 +24,7 @@ func TestSnapshotRootContainerBindsProfileAndCommitment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("root profile: %v", err)
 	}
-	if profile != verkletree.ExperimentalBandersnatchIPA256V0() {
+	if profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
 		t.Fatalf("root profile = %#v", profile)
 	}
 	encoded, err := container.Bytes()

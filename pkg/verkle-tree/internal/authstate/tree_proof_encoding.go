@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -369,13 +369,13 @@ func DecodeTreeProof(
 		treeProofMagic {
 		return TreeProof{}, errInvalidTreeProofEncoding
 	}
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	if encoded[treeProofMagicBytes] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(encoded[5:7]) != profile.Version() ||
 		binary.BigEndian.Uint16(encoded[7:9]) != profile.EncodingVersion() {
 		return TreeProof{}, fmt.Errorf(
 			"%w: proof profile",
-			verkletree.ErrUnsupportedProfile,
+			internalprofile.ErrUnsupported,
 		)
 	}
 
@@ -590,7 +590,7 @@ func decodeTreeProofClaims(
 	ctx context.Context,
 	encoded []byte,
 	count uint32,
-	profile verkletree.Profile,
+	profile internalprofile.Profile,
 	limits TreeProofDecodingLimits,
 ) (ClaimSet, error) {
 	claims := make([]Claim, count)
@@ -779,4 +779,9 @@ func checkTreeProofDecodingResource(
 		Limit:    limit,
 		Actual:   actual,
 	}
+}
+
+// IsInvalidProofEncodingError reports malformed canonical proof bytes.
+func IsInvalidProofEncodingError(err error) bool {
+	return errors.Is(err, errInvalidTreeProofEncoding)
 }

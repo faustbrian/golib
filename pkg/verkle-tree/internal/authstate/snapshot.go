@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"slices"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -237,7 +237,7 @@ func (snapshot Snapshot) RootContainer(ctx context.Context) (backend.Root, error
 
 	return backend.NewRoot(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		profile.ExperimentalBandersnatchIPA256V0(),
 		root,
 	)
 }
@@ -420,7 +420,7 @@ func (transition Transition) PreRootContainer(
 
 	return backend.NewRoot(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		profile.ExperimentalBandersnatchIPA256V0(),
 		root,
 	)
 }
@@ -445,7 +445,7 @@ func (transition Transition) PostRootContainer(
 
 	return backend.NewRoot(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		profile.ExperimentalBandersnatchIPA256V0(),
 		root,
 	)
 }
@@ -634,4 +634,9 @@ func checkResource(resource Resource, limit uint64, actual uint64) error {
 	}
 
 	return &ResourceError{Resource: resource, Limit: limit, Actual: actual}
+}
+
+// IsDuplicateKeyError reports whether err identifies a duplicate state key.
+func IsDuplicateKeyError(err error) bool {
+	return errors.Is(err, errDuplicateKey)
 }

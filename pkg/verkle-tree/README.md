@@ -5,11 +5,14 @@ authenticated key/value trees backed by vector commitments.
 
 ## Status
 
-This module is **pre-v1 research only**. Its root package exposes the immutable
-identity and structural metadata of the package-owned
-`verkletree-bandersnatch-ipa-256-v0` experimental profile, but no tree
-operations. It does not implement a production tree. Compatibility claims are
-limited to the exact research corpora described below.
+This module is **pre-v1 research only**. Its root package exposes the
+package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
+immutable in-memory snapshots, canonical set/delete transitions, profile-bound
+roots, and bounded aggregate membership and non-membership proofs. The public
+surface is experimental, rebuilds the complete tree for every update, and does
+not provide persistence or stateless witnesses. It is not a production-ready
+tree. Compatibility claims are limited to the exact research corpora described
+below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -28,6 +31,70 @@ The exact evidence and consequences are recorded in
 [`specification/sources.json`](specification/sources.json). The pinned backend's
 accepted seam and release blockers are in
 [`docs/backend-audit.md`](docs/backend-audit.md).
+
+## Five-minute quick start
+
+The API intentionally has no unbounded defaults. This example constructs an
+immutable snapshot, preserves a present all-zero value, applies one atomic
+update, and obtains profile-bound pre/post roots:
+
+```go
+ctx := context.Background()
+profile := verkletree.ExperimentalBandersnatchIPA256V0()
+limits := verkletree.SnapshotLimits{
+    State: verkletree.StateLimits{
+        MaxEntries: 64, MaxBatchUpdates: 64, MaxTemporaryBytes: 16 << 20,
+    },
+    Tree: verkletree.TreeLimits{
+        MaxEntries: 64, MaxStems: 64, MaxNodes: 128, MaxEdges: 128,
+        MaxCommitments: 256, MaxFieldMappings: 256,
+        MaxCommitmentTerms: 1 << 16, MaxTemporaryBytes: 16 << 20,
+    },
+    Commitment: verkletree.CommitmentLimits{
+        MaxGeneratorDerivations: 256, MaxScalarDecodes: 256,
+        MaxMSMTerms: 256, MaxTemporaryBytes: 1 << 20,
+    },
+}
+
+var key verkletree.Key
+snapshot, err := verkletree.NewSnapshot(
+    ctx,
+    profile,
+    []verkletree.Entry{{Key: key, Value: verkletree.Value{}}},
+    limits,
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+value, present, err := snapshot.Get(ctx, key)
+if err != nil || !present || value != (verkletree.Value{}) {
+    log.Fatal("present zero value was not preserved")
+}
+
+next, transition, err := snapshot.Apply(
+    ctx,
+    []verkletree.Update{verkletree.Set(key, verkletree.Value{1})},
+)
+if err != nil {
+    log.Fatal(err)
+}
+preRoot, err := transition.PreRoot()
+if err != nil {
+    log.Fatal(err)
+}
+postRoot, err := transition.PostRoot()
+if err != nil {
+    log.Fatal(err)
+}
+_, _ = next, preRoot
+_, _ = postRoot.Bytes()
+```
+
+Proof generation and verification use `NewProofEngine`, `Prove`, `Verify`,
+`Proof.Bytes`, and `DecodeProof`. They require separate explicit opening,
+generation, verification, encoding, and decoding limits because each stage has
+different hostile-input amplification.
 
 Production code imports the pinned `go-ipa` dependency only behind internal
 canonical point/scalar encoding, bounded aggregate-opening generation and
@@ -96,11 +163,10 @@ Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
 The profile remains incomplete: canonical node, witness, snapshot, and storage
-encodings, stable public proof and witness semantics, commitment-level
-deletion, storage publication, and complete dependency-level cancellation are
-not yet frozen or exported. The internal tree-proof container now has one
-package-owned experimental encoding, but that format is not a public or stable
-interoperability surface.
+encodings, stable proof and witness semantics, commitment-level deletion,
+storage publication, and complete dependency-level cancellation are not yet
+frozen. The exported proof container has one package-owned experimental
+encoding, but that format is not a stable interoperability surface.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -184,8 +250,8 @@ encoding and strict decoder bind the profile, root, ordered claims, topology,
 path commitments, and raw opening payload; reject alternate lengths, trailing
 bytes, nonzero padding, malformed points or scalars, and aggregate resource
 overruns before cryptographic decoding; and preserve cancellation and caller
-ownership. This remains an internal experimental format and performs no
-verification merely by construction or decoding.
+ownership. This remains an experimental format and performs no verification
+merely by construction or decoding.
 Empty-root non-membership remains deliberately unsupported until its proof form
 is specified without a meaningless aggregate-opening payload.
 
@@ -200,8 +266,10 @@ multi-scalar-multiplication, scratch-memory, generator, precomputation, and
 worker budgets are preflighted. Cancellation is checked throughout owned work
 and before and after dependency calls, but the pinned dependency cannot be
 interrupted during its aggregate proof operation; that remains a production
-backend blocker. This engine is internal and does not establish a stable public
-proof API, witness semantics, storage durability, or Ethereum compatibility.
+backend blocker. The root package exposes this engine through a fixed-profile
+experimental facade with opaque proofs and typed resource errors. It does not
+establish a stable proof API, witness semantics, storage durability, or
+Ethereum compatibility.
 
 ## Development rule
 

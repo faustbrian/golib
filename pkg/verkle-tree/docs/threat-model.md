@@ -15,8 +15,8 @@ transitions, canonical stem topology, bounded deterministic full-root
 construction, atomic root-bound snapshot transitions, and canonical
 profile-bound tree claims plus an immutable canonical root-bound unverified
 tree-proof container with an exact package-owned encoding and strict aggregate
-decoder, and fixed-profile aggregate tree-proof generation and verification.
-Public proof APIs, witnesses, storage, publication, dependency-level
+decoder, and public fixed-profile aggregate tree-proof generation and
+verification. Stateless witnesses, storage, publication, dependency-level
 cancellation, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries

@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"github.com/crate-crypto/go-ipa/banderwagon"
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestRootContainerCanonicalRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	commitment := testNonIdentityCommitment(t)
 	root, err := NewRoot(context.Background(), profile, commitment)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestRootContainerEncodesEmptyRootExplicitly(t *testing.T) {
 
 	root, err := NewRoot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		testIdentityCommitment(),
 	)
 	if err != nil {
@@ -149,7 +149,7 @@ func TestRootContainerRejectsMalformedEncodings(t *testing.T) {
 			_, err := DecodeRoot(context.Background(), encoded, limits)
 			switch name {
 			case "wrong profile", "wrong profile version", "wrong encoding version":
-				if !errors.Is(err, verkletree.ErrUnsupportedProfile) {
+				if !errors.Is(err, internalprofile.ErrUnsupported) {
 					t.Fatalf("decode error = %v, want ErrUnsupportedProfile", err)
 				}
 			default:
@@ -169,7 +169,7 @@ func TestRootContainerRejectsProfileBeforePointBudget(t *testing.T) {
 	limits := testRootLimits()
 	limits.MaxPointDecodes = 0
 	_, err := DecodeRoot(context.Background(), encoded, limits)
-	if !errors.Is(err, verkletree.ErrUnsupportedProfile) ||
+	if !errors.Is(err, internalprofile.ErrUnsupported) ||
 		errors.Is(err, errRootResource) {
 		t.Fatalf("decode error = %v, want profile mismatch before point budget", err)
 	}
@@ -228,12 +228,12 @@ func TestRootContainerEnforcesResources(t *testing.T) {
 func TestRootContainerRejectsInvalidStateContextAndLimits(t *testing.T) {
 	t.Parallel()
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	commitment := testNonIdentityCommitment(t)
 	encoded := testEncodedRoot(t)
-	if _, err := NewRoot(context.Background(), verkletree.Profile{}, commitment); !errors.Is(
+	if _, err := NewRoot(context.Background(), internalprofile.Profile{}, commitment); !errors.Is(
 		err,
-		verkletree.ErrUnsupportedProfile,
+		internalprofile.ErrUnsupported,
 	) {
 		t.Fatalf("new root profile error = %v", err)
 	}
@@ -301,7 +301,7 @@ func TestRootContainerRejectsInvalidStateContextAndLimits(t *testing.T) {
 
 	corrupt := []Root{
 		{
-			profile: verkletree.Profile{},
+			profile: internalprofile.Profile{},
 			kind:    RootKindEmpty,
 			valid:   true,
 		},
@@ -348,7 +348,7 @@ func testEncodedRoot(t testing.TB) []byte {
 
 	root, err := NewRoot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		testNonIdentityCommitment(t),
 	)
 	if err != nil {
@@ -419,6 +419,6 @@ func testRootLimits() RootLimits {
 	}
 }
 
-func testProfile() verkletree.Profile {
-	return verkletree.ExperimentalBandersnatchIPA256V0()
+func testProfile() internalprofile.Profile {
+	return internalprofile.ExperimentalBandersnatchIPA256V0()
 }

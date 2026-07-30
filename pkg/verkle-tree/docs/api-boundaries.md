@@ -1,24 +1,25 @@
 # Proposed API Boundaries
 
 This document records ownership boundaries for profile research. The exported
-`Profile`, `ProfileID`, `ProfileBandersnatchIPA256V0`,
-`ExperimentalBandersnatchIPA256V0`, and `ErrUnsupportedProfile` identifiers
-form the first experimental public contract. Other identifiers described here
-remain proposed.
+profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
+limit, resource, and typed-error identifiers form the current experimental
+public contract. Witness and storage identifiers described here remain
+proposed.
 
 ## Public concepts
 
-A future public API is expected to expose opaque, profile-bound forms of:
+The current public API exposes opaque, profile-bound forms of:
 
 - profile identity and version;
 - immutable root and snapshot;
 - read result with distinct present and absent states;
 - validated update and atomic batch;
 - membership, non-membership, and aggregate proof;
-- stateless witness and verified post-state result;
 - verifier;
-- resource limits and typed errors; and
-- caller-owned store capabilities.
+- resource limits and typed errors.
+
+A future public API is expected to add stateless witnesses, verified post-state
+results, and caller-owned store capabilities.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -68,8 +69,9 @@ identity handling, commitment-to-field mapping, strict decoding of the fixed
 verification. It binds the `verkle` transcript and pinned generators and
 rejects duplicate or conflicting opening identities. The decoder alone does
 not bind a root, key set, claim, path, transcript, or verification result. The
-boundary deliberately exposes no public tree surface and does not yet provide
-commitment updates or dependency-level cancellation during proof arithmetic.
+boundary is exposed only through the fixed experimental snapshot and proof
+facades and does not provide generic cryptographic composition, commitment
+updates, or dependency-level cancellation during proof arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused
@@ -78,10 +80,10 @@ opaque root commitment. The backend boundary wraps that commitment in one
 strict 42-byte profile-bound root container, including an explicit empty-root
 kind that never decodes an identity point. The immutable arena can extract one
 caller-owned, cancellation-aware proof path with explicit node-read,
-commitment, path-byte, and result-storage limits. It returns topology and exact
-non-root commitments only; it deliberately exposes no public root API,
-persistence contract, cryptographic proof operation, or incremental update
-seam.
+commitment, path-byte, and result-storage limits. The public facade exposes
+profile-bound roots and aggregate proof operations while keeping topology,
+points, vectors, and commitments internal. It provides no persistence contract
+or incremental update seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch
@@ -93,11 +95,10 @@ setting the all-zero value, and deletion of an absent key is a deterministic
 no-op. Snapshot copies support concurrent reads and independent updates because
 retained entries, trees, and the reusable builder are immutable.
 
-This boundary rebuilds the complete tree for each accepted batch. It is not a
-public writer, incremental commitment update, snapshot identifier, proof,
-witness, persistence transaction, or durable publication. Internal snapshots
-and transitions expose the canonical profile-bound root container for their
-exact roots.
+This boundary rebuilds the complete tree for each accepted public batch. It is
+not an incremental commitment update, witness, persistence transaction, or
+durable publication. Public snapshots and transitions expose the canonical
+profile-bound root container for their exact roots.
 
 The same internal layer owns a non-empty profile-bound claim set for future
 tree proofs. Membership and absence are distinct kinds, a membership claim may
@@ -146,9 +147,11 @@ opening backend. Verification reconstructs the expected evaluations solely
 from the immutable tree-proof container before invoking the cryptographic
 verifier. It rejects changed roots or values, incomplete or surplus paths,
 conflicting shared openings, invalid proofs, cancellation, and exhausted
-resource budgets. The engine is immutable and concurrency safe, but remains
-internal while the backend cannot stop proof arithmetic after cancellation and
-the public proof, witness, and storage contracts remain incomplete.
+resource budgets. The engine is immutable and concurrency safe. The root
+package exposes it through a fixed-profile facade that owns canonical proof
+bytes and independently verifies decoded proofs. The API remains experimental
+while the backend cannot stop proof arithmetic after cancellation and witness
+and storage contracts remain incomplete.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"slices"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -308,7 +308,7 @@ func (err *TreeProofResourceError) Unwrap() error {
 // binds claims and path commitments to an exact root and raw opening payload;
 // successful construction does not establish cryptographic verification.
 type TreeProof struct {
-	profile     verkletree.Profile
+	profile     internalprofile.Profile
 	root        backend.Root
 	claims      ClaimSet
 	stemPaths   []StemPath
@@ -503,9 +503,9 @@ func NewTreeProof(
 }
 
 // Profile returns the immutable profile bound to every proof component.
-func (proof TreeProof) Profile() (verkletree.Profile, error) {
+func (proof TreeProof) Profile() (internalprofile.Profile, error) {
 	if err := proof.validate(); err != nil {
-		return verkletree.Profile{}, err
+		return internalprofile.Profile{}, err
 	}
 
 	return proof.profile, nil
@@ -965,4 +965,11 @@ func checkTreeProofResource(
 		Limit:    limit,
 		Actual:   actual,
 	}
+}
+
+// IsInvalidProofError reports malformed or unusable tree-proof state.
+func IsInvalidProofError(err error) bool {
+	return errors.Is(err, errInvalidTreeProof) ||
+		errors.Is(err, errInvalidStemPath) ||
+		errors.Is(err, errInvalidPathCommitment)
 }

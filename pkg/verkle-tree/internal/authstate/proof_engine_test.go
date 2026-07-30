@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestProofEngineGeneratesDeterministicVerifiableTreeProof(t *testing.T) {
@@ -108,7 +108,7 @@ func TestProofEngineRejectsTamperedProofs(t *testing.T) {
 	changedClaims[0].value[0]++
 	claimSet, err := NewClaimSet(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
 		changedClaims,
 		testClaimLimits(),
 	)

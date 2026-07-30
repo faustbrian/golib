@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"slices"
 
-	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
@@ -155,7 +155,7 @@ func (err *ClaimResourceError) Unwrap() error {
 // ClaimSet is one immutable non-empty set of claims in ascending raw-key
 // order. Copies are safe for concurrent reads.
 type ClaimSet struct {
-	profile verkletree.Profile
+	profile internalprofile.Profile
 	claims  []Claim
 	valid   bool
 }
@@ -164,7 +164,7 @@ type ClaimSet struct {
 // and owns the claims in canonical ascending raw-key order.
 func NewClaimSet(
 	ctx context.Context,
-	profile verkletree.Profile,
+	profile internalprofile.Profile,
 	claims []Claim,
 	limits ClaimLimits,
 ) (ClaimSet, error) {
@@ -236,9 +236,9 @@ func (set ClaimSet) Count() (uint32, error) {
 }
 
 // Profile returns the immutable profile bound to the claims.
-func (set ClaimSet) Profile() (verkletree.Profile, error) {
+func (set ClaimSet) Profile() (internalprofile.Profile, error) {
 	if err := set.validate(); err != nil {
-		return verkletree.Profile{}, err
+		return internalprofile.Profile{}, err
 	}
 
 	return set.profile, nil
