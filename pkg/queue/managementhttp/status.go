@@ -458,7 +458,16 @@ func ensureEOF(decoder *json.Decoder) error {
 }
 
 func invalidToken(token string) bool {
-	return strings.TrimSpace(token) == "" || len(token) > maxTokenBytes
+	if strings.TrimSpace(token) == "" || len(token) > maxTokenBytes {
+		return true
+	}
+	for index := range len(token) {
+		if token[index] < 0x20 || token[index] == 0x7f {
+			return true
+		}
+	}
+
+	return false
 }
 
 func nilInterface(value any) bool {

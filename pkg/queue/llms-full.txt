@@ -70,7 +70,10 @@ External control planes should depend on the backend-neutral contracts in
 management capabilities are enabled only when both peers report support.
 The [`managementhttp`](docs/management.md#authenticated-http-transport)
 package makes those contracts remotely callable without exposing backend
-clients.
+clients. `managementhttp.NewFleetClient` can resolve a changing set of worker
+endpoints for multi-replica deployments, aggregate their status, route
+worker-specific commands, and fan queue or worker-group lifecycle commands to
+every current replica.
 
 ## Package Guarantees
 
@@ -89,6 +92,8 @@ clients.
   backend measurements from measured zero values, with paginated readers
 - bounded authenticated HTTP transport for remote status, records, and control
   commands
+- bounded dynamic management fleets with fail-closed discovery, complete status
+  aggregation, worker routing, and explicit partial fan-out outcomes
 - backend-neutral command enforcement contracts with explicit confirmation,
   bounded bulk retry, acknowledgement, timeout, partial, and unknown outcomes
 - revisioned desired-state reconciliation with monotonic per-target application,
@@ -411,6 +416,11 @@ these signatures.
   bearer-authenticated remote `management.StatusReader`,
   `management.RecordReader`, and `management.Controller` with an explicit
   snake-case wire contract.
+- `managementhttp.NewFleetClient` implements the same contracts across at most
+  100 dynamically resolved worker endpoints. It aggregates status, routes
+  worker commands to the endpoint reporting that worker, fans queue and
+  worker-group commands across the fleet, and returns explicit partial or
+  unavailable outcomes when acknowledgements are incomplete.
 
 See the [management protocol guide](management.md) for upgrade and failure
 semantics.
@@ -1167,16 +1177,27 @@ versioning and Keep a Changelog structure.
 
 ## [Unreleased]
 
+### Added
+
+- Add `managementhttp.NewFleetClient` for bounded dynamic worker discovery,
+  fleet-wide status aggregation, worker-target routing, and queue or worker-group
+  command fan-out. Acknowledgements require every current endpoint; partial and
+  unavailable outcomes remain explicit, and callers retain ownership of TLS,
+  discovery, and operation deadlines.
+
 ### Changed
 
+- Management HTTP handlers, single-endpoint clients, and fleet clients now
+  reject bearer tokens containing ASCII control characters before transport.
 - Valkey Streams workers can now select a bounded terminal broker-delivery
   ceiling per decoded message with `WithDeliveryAttemptLimitResolver`.
   `WithDeadLetter` remains the default; unsafe resolver results or panics leave
   the source delivery pending and return a stable redacted error.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
-- Require owned sibling modules at local `v0.0.0`; clean external consumers
-  pin each module to an exact main pseudo-version.
+- Move the optional service and correlation lifecycle adapter into the
+  independently versioned `queueservice` module. Core queue consumers no
+  longer inherit unrelated service runtime dependencies.
 
 - `Queue.ReleaseContext` now provides a bounded graceful worker path that
   rejects new admission, waits for accepted publishes and active handlers, and
@@ -3035,9 +3056,10 @@ GET /v1/records/dead-letters/{id}?visibility=hidden
 POST /v1/commands
 ```
 
-`NewHandler` requires a non-empty shared bearer token and at least one status,
-record, or controller service. It registers only the configured service routes and
-validates every request and adapter result before writing JSON. `NewClient`
+`NewHandler` requires a non-empty bounded shared bearer token without ASCII
+control characters and at least one status, record, or controller service. It
+registers only the configured service routes and validates every request and
+adapter result before writing JSON. `NewClient`
 implements `management.StatusReader`, `management.RecordReader`, and
 `management.Controller`, validates
 before network I/O, bounds response bytes, rejects unknown or trailing JSON,
@@ -3045,6 +3067,33 @@ and revalidates decoded pages and command results. Command request bodies are
 strict JSON capped at 16 KiB, and acknowledgements must match both the command
 ID and idempotency key. Transport and adapter errors cross the boundary only as
 stable secret-safe errors.
+
+`NewFleetClient` implements the same three contracts over a dynamic set of at
+most 100 worker-management endpoints. Its caller-owned `EndpointResolver` runs
+for every operation, so Kubernetes or another discovery mechanism can replace
+replicas without rebuilding the control plane. Endpoint identifiers must be
+stable and unique within a resolved snapshot, and normalized endpoint base URLs
+must not repeat. The resolver must return only replicas that share the same
+logical queue and record backend.
+
+Fleet status reads every resolved endpoint and fails closed if any endpoint
+cannot provide a trustworthy bounded snapshot. Worker identifiers must be
+unique across replicas. Queue observations with the same logical name are
+deduplicated using the newest observation time. Worker-target commands are
+routed only to the endpoint currently reporting that worker; queue and
+worker-group lifecycle commands are sent concurrently to every resolved
+endpoint. A fleet acknowledgement means every endpoint acknowledged. Complete
+unanimous non-acknowledgement results retain their status and failure code. An
+incomplete or mixed trustworthy result set is `partial` with `fleet_partial`;
+when no endpoint returns a trustworthy result the operation returns
+`ErrFleetUnavailable`. A missing worker returns `ErrFleetTargetUnavailable`.
+
+Failure and dead-letter records are shared-backend operations, so the fleet
+client uses the first endpoint in stable endpoint-ID order. Resolver failures,
+malformed endpoint sets, repeated cursors, duplicate workers, and oversized
+snapshots fail closed. Caller cancellation and deadlines remain observable.
+The caller must provide a bounded HTTP client with the required TLS or mTLS
+policy; bearer authentication does not encrypt transport.
 
 Record lists require explicit bounded sorting and return hidden payloads only.
 Inspection requires `hidden`, `redacted`, or `revealed` visibility. A backend

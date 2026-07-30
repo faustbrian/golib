@@ -66,7 +66,10 @@ External control planes should depend on the backend-neutral contracts in
 management capabilities are enabled only when both peers report support.
 The [`managementhttp`](docs/management.md#authenticated-http-transport)
 package makes those contracts remotely callable without exposing backend
-clients.
+clients. `managementhttp.NewFleetClient` can resolve a changing set of worker
+endpoints for multi-replica deployments, aggregate their status, route
+worker-specific commands, and fan queue or worker-group lifecycle commands to
+every current replica.
 
 ## Package Guarantees
 
@@ -85,6 +88,8 @@ clients.
   backend measurements from measured zero values, with paginated readers
 - bounded authenticated HTTP transport for remote status, records, and control
   commands
+- bounded dynamic management fleets with fail-closed discovery, complete status
+  aggregation, worker routing, and explicit partial fan-out outcomes
 - backend-neutral command enforcement contracts with explicit confirmation,
   bounded bulk retry, acknowledgement, timeout, partial, and unknown outcomes
 - revisioned desired-state reconciliation with monotonic per-target application,

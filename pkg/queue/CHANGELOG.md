@@ -5,8 +5,18 @@ versioning and Keep a Changelog structure.
 
 ## [Unreleased]
 
+### Added
+
+- Add `managementhttp.NewFleetClient` for bounded dynamic worker discovery,
+  fleet-wide status aggregation, worker-target routing, and queue or worker-group
+  command fan-out. Acknowledgements require every current endpoint; partial and
+  unavailable outcomes remain explicit, and callers retain ownership of TLS,
+  discovery, and operation deadlines.
+
 ### Changed
 
+- Management HTTP handlers, single-endpoint clients, and fleet clients now
+  reject bearer tokens containing ASCII control characters before transport.
 - Valkey Streams workers can now select a bounded terminal broker-delivery
   ceiling per decoded message with `WithDeliveryAttemptLimitResolver`.
   `WithDeadLetter` remains the default; unsafe resolver results or panics leave
