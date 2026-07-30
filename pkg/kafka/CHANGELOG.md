@@ -67,10 +67,12 @@ All notable changes to this module are documented here.
   record and 10/100-record batch workloads for all four clients, sequential and
   bounded-parallel eight-partition handling for the package policy and raw
   franz-go with exact per-partition order and broker-verified commits,
-  transactional production for the package policy, raw franz-go, and Sarama,
-  plus atomic consume-transform-produce workloads for the package policy and
-  raw franz-go, pinned dependency and broker inputs, per-workload environment
-  fingerprints, raw multi-sample captures, and variance-preserving analysis
+  transactional production for the package policy, raw franz-go, and Sarama
+  with committed and aborted visibility checks, plus atomic
+  consume-transform-produce workloads for the package policy and raw franz-go
+  with source-offset, abort-redelivery, and transformed-output checks, pinned
+  dependency and broker inputs, per-workload environment fingerprints, raw
+  multi-sample captures, and variance-preserving analysis
 - three-broker rack-local fetch evidence proving that a separate consumer
   process configured for a non-leader replica's rack handles and commits a
   source record after its single in-flight fetch completes on that follower

@@ -10,13 +10,18 @@ the exact workload and environment below, not a general client ranking.
   `BenchmarkEquivalentAsynchronousProduce`, plus
   `BenchmarkEquivalentMultiPartitionProduce` and
   `BenchmarkEquivalentConsumerHandling`, plus
-  `BenchmarkEquivalentCrossPartitionConsumerHandling`
+  `BenchmarkEquivalentCrossPartitionConsumerHandling`,
+  `BenchmarkEquivalentTransactionalProduce`, and
+  `BenchmarkEquivalentConsumeTransformProduce`
 - samples: 20 per workload/client combination
 - timed iterations: 50 acknowledged producer operations or 10 consumer
   fetch-handler-commit operations per sample
 - ranked producer clients: package policy, raw franz-go, IBM/Sarama
 - ranked consumer clients: package policy, raw franz-go, kafka-go, IBM/Sarama
 - ranked cross-partition consumer clients: package policy and raw franz-go
+- ranked transactional producer clients: package policy, raw franz-go,
+  IBM/Sarama
+- ranked consume-transform-produce clients: package policy and raw franz-go
 - key modes: keyed and explicitly unkeyed
 - single-record payloads: 128 bytes, 1 KiB, and 64 KiB
 - batch payloads: 128 bytes and 1 KiB across 10-record and 100-record batches
@@ -28,6 +33,8 @@ the exact workload and environment below, not a general client ranking.
   10-record or 100-record partition batches
 - cross-partition consumer payloads: 128 bytes and 1 KiB with one record in
   each of eight partitions and 256 SHA-256 handler rounds per record
+- transaction payloads: 128 bytes and 1 KiB across one-record and ten-record
+  transactions
 - compression: none and Snappy
 - broker contract: one or eight pre-created partitions, idempotence, ordered
   synchronous or bounded asynchronous production, and all-ISR acknowledgements
@@ -38,6 +45,12 @@ the exact workload and environment below, not a general client ranking.
   partitions; each operation handles one record per partition sequentially or
   with concurrency bounded at eight, preserves per-partition order, disables
   automatic commits, and synchronously commits every non-empty poll
+- transactional producer contract: one unique transactional ID per client,
+  idempotence, all-ISR acknowledgements, one pre-created partition, synchronous
+  per-record acknowledgement, and one commit per operation
+- consume-transform-produce contract: one read-committed group member and
+  unique transactional ID atomically commit transformed outputs and source
+  offsets; input production remains outside the timer
 - fixture: immutable Confluent Local 7.5.0 image; runtime reported `7.5.0-ccs`
 
 Kafka-go v0.4.51's producer is present only in the separately executed producer
@@ -58,6 +71,13 @@ observed count. All samples in this run completed with one commit per
 eight-record operation. The exclusion preserves settlement equivalence and
 does not imply unsupported-client behavior.
 
+The producer transaction capture excludes kafka-go because its writer does not
+expose Kafka transactions. The consume-transform-produce capture also excludes
+Sarama because neither its public group API nor kafka-go's exposes the same
+bounded `GroupTransactSession` poll-and-commit boundary. Sarama remains ranked
+in the producer-only transaction workload. The healthy-broker timings do not
+rank abort, fencing, timeout, unknown-outcome, or rebalance behavior.
+
 ## Files
 
 - [`environment-sync.txt`](environment-sync.txt) records the Go, host, Docker,
@@ -73,6 +93,12 @@ does not imply unsupported-client behavior.
 - [`environment-consumer-cross-partition.txt`](environment-consumer-cross-partition.txt)
   binds the sequential and bounded-parallel eight-partition consumer capture
   to its exact harness and execution environment.
+- [`environment-transaction-producer.txt`](environment-transaction-producer.txt)
+  binds the producer-only transaction capture to its exact harness and
+  execution environment.
+- [`environment-consume-transform-produce.txt`](environment-consume-transform-produce.txt)
+  binds the consume-transform-produce capture to its exact harness and
+  execution environment.
 - [`raw-producer.txt`](raw-producer.txt) contains all 720 unmodified
   single-record benchmark samples and the exact runtime broker assertion.
 - [`producer-benchstat.txt`](producer-benchstat.txt) contains the benchstat
@@ -104,6 +130,15 @@ does not imply unsupported-client behavior.
 - [`consumer-cross-partition-benchstat.txt`](consumer-cross-partition-benchstat.txt)
   contains its latency, throughput, commit-count, byte, and allocation
   distributions.
+- [`raw-transaction-producer.txt`](raw-transaction-producer.txt) contains all
+  480 producer transaction samples and exact record and transaction counts.
+- [`transaction-producer-benchstat.txt`](transaction-producer-benchstat.txt)
+  contains the producer transaction medians and distributions.
+- [`raw-consume-transform-produce.txt`](raw-consume-transform-produce.txt)
+  contains all 320 atomic read-process-write samples and exact source, output,
+  and transaction counts.
+- [`consume-transform-produce-benchstat.txt`](consume-transform-produce-benchstat.txt)
+  contains the consume-transform-produce medians and distributions.
 
 ## Commands
 
@@ -123,12 +158,18 @@ make environment > environment-consumer.txt
 make capture OUTPUT=raw-consumer.txt BENCH_PATTERN='^BenchmarkEquivalentConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
 make environment > environment-consumer-cross-partition.txt
 make capture OUTPUT=raw-consumer-cross-partition.txt BENCH_PATTERN='^BenchmarkEquivalentCrossPartitionConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-transaction-producer.txt
+make capture OUTPUT=raw-transaction-producer.txt BENCH_PATTERN='^BenchmarkEquivalentTransactionalProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-consume-transform-produce.txt
+make capture OUTPUT=raw-consume-transform-produce.txt BENCH_PATTERN='^BenchmarkEquivalentConsumeTransformProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 make analyze INPUT=raw-producer-multi-partition.txt > producer-multi-partition-benchstat.txt
 make analyze INPUT=raw-consumer.txt > consumer-benchstat.txt
 make analyze INPUT=raw-consumer-cross-partition.txt > consumer-cross-partition-benchstat.txt
+make analyze INPUT=raw-transaction-producer.txt > transaction-producer-benchstat.txt
+make analyze INPUT=raw-consume-transform-produce.txt > consume-transform-produce-benchstat.txt
 ```
 
 The producer correctness checks passed together before their captures. An
@@ -143,7 +184,13 @@ passed in 152.7 seconds, including 129.598 seconds in the benchmark process.
 The consumer command passed in 190 seconds, including 174.493 seconds in the
 benchmark process. The cross-partition consumer command passed with 320
 samples and 3,200 timed operations covering 25,600 records; its benchmark
-process completed in 47.519 seconds.
+process completed in 47.519 seconds. The producer transaction command passed
+with 480 samples and 4,800 timed committed transactions covering 26,400
+records; its benchmark process completed in 156.956 seconds. The
+consume-transform-produce command passed with 320 samples and 3,200 timed
+atomic operations covering 17,600 source and 17,600 output records; its
+benchmark process completed in 56.464 seconds. Every transactional sample
+reported exactly one Kafka transaction per logical operation.
 
 ## Artifact digests
 
@@ -165,10 +212,17 @@ eb995d8f44a412accc6ce8f08ab1d768e63d697aa9c68e4728849e775fe211f7  raw-consumer.t
 140e2734f35d36324193cb21140a612d2ff94f141df34a5ed4dbe1f8ab2daaf6  consumer-benchstat.txt
 7086acbe1091f3ca1b3bb56649032145edf95328590988a0770b499c5210d73b  raw-consumer-cross-partition.txt
 2df9e51162064ebfc082f56ebc32972e511f502672f29f7bdc6f508f69c30daa  consumer-cross-partition-benchstat.txt
+f249510e86986350c83d9d006b1932d03dd4a764ed5433285d465b02d07ad5b6  environment-transaction-producer.txt
+f2a860a66a685a9fd69c62fd2dd2982a4dd32c7b0c8e446aed0832a1f969c5bb  raw-transaction-producer.txt
+664387d92bee9cdd016d104c833b595753faea8c438dbff750a63ea44827c71a  transaction-producer-benchstat.txt
+f249510e86986350c83d9d006b1932d03dd4a764ed5433285d465b02d07ad5b6  environment-consume-transform-produce.txt
+f77a6d7e12dbc673df2e3fbfead4dc678d6b4c1f34ffb1e050e263c61d807312  raw-consume-transform-produce.txt
+6ea2ccc5b75dd10b8cc06af919e001911f987445f20a951f496660b624b134a7  consume-transform-produce-benchstat.txt
 ```
 
 Several producer franz-based results and consumer results have wide
 distributions on the shared local fixture; one consumer distribution spans
-320 percent and one cross-partition distribution spans 66 percent. Preserve
-that variance when interpreting this run; do not select the best sample or
-infer production superiority.
+320 percent, one cross-partition distribution spans 66 percent, and
+transaction latency distributions span as far as 76 percent. Preserve that
+variance when interpreting this run; do not select the best sample or infer
+production superiority.

@@ -526,19 +526,41 @@ func assertBenchmarkSinglePartitionOffset(
 		benchmarkTransactionOperationTimeout,
 	)
 	defer cancel()
-	offsets, err := kadm.NewClient(client).FetchOffsets(ctx, groupID)
-	if err != nil {
-		t.Fatalf("fetch transaction group offset: %v", err)
-	}
-	offset, exists := offsets.Lookup(topic, 0)
-	if !exists {
-		t.Fatalf("transaction offset for %s[0] is missing", topic)
-	}
-	if offset.Err != nil {
-		t.Fatalf("transaction offset error: %v", offset.Err)
-	}
-	if offset.At != want {
-		t.Fatalf("transaction offset = %d, want %d", offset.At, want)
+	admin := kadm.NewClient(client)
+	poll := time.NewTicker(10 * time.Millisecond)
+	defer poll.Stop()
+	var lastOffset int64
+	var lastOffsetExists bool
+	for {
+		offsets, err := admin.FetchOffsets(kadm.RequireStable(ctx), groupID)
+		if err != nil {
+			t.Fatalf("fetch transaction group offset: %v", err)
+		}
+		offset, exists := offsets.Lookup(topic, 0)
+		if exists && offset.Err != nil {
+			t.Fatalf("transaction offset error: %v", offset.Err)
+		}
+		if exists && offset.At == want {
+			return
+		}
+		if exists && offset.At > want {
+			t.Fatalf("transaction offset = %d, want %d", offset.At, want)
+		}
+		lastOffsetExists = exists
+		lastOffset = offset.At
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for transaction offset %s[0] = %d: %v; "+
+					"last exists = %t; last offset = %d",
+				topic,
+				want,
+				ctx.Err(),
+				lastOffsetExists,
+				lastOffset,
+			)
+		case <-poll.C:
+		}
 	}
 }
 

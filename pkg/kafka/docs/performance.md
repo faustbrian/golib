@@ -92,6 +92,28 @@ partition and final committed offset `3`. Observable synchronization separately
 proves the raw comparison runner's bounded overlap; the policy module's
 concurrency suite proves its worker bound and per-partition serialization.
 
+A producer-only transaction workload compares the package policy, raw
+franz-go, and Sarama. One operation begins a transaction, synchronously
+publishes one or ten keyed records through the candidate's public transaction
+surface, and commits. Kafka-go is excluded because its writer does not expose
+Kafka transactions. The capture spans 128-byte and 1 KiB payloads with no
+compression and Snappy: 20 samples of 10 operations for each of 24
+combinations, totaling 480 samples, 4,800 committed transactions, and 26,400
+records. Independent read-committed and read-uncommitted checks prove exact
+committed visibility and aborted-record invisibility for every ranked client.
+
+A consume-transform-produce workload compares the package policy and raw
+franz-go `GroupTransactSession`. One operation polls one or ten read-committed
+source records, copies and deterministically transforms them, publishes one
+equally sized output per source record, and atomically commits the source
+offsets and outputs. Kafka-go and Sarama are excluded because their public
+group APIs do not expose the same bounded poll-and-transaction boundary. The
+capture spans the same payload and compression matrix: 320 samples, 3,200
+logical operations, and 17,600 source plus 17,600 output records. Every sample
+completed in one Kafka transaction. Independent checks prove exact transformed
+output, source-offset advancement, abort invisibility, unchanged offsets after
+abort, and successful redelivery.
+
 ## Environment and interpretation
 
 The 2026-07-30 capture used Go 1.26.5 on Darwin arm64 with an Apple M4 Max,
@@ -134,6 +156,19 @@ the policy path and 0.66 to 1.10 milliseconds for raw franz-go. Distributions
 spread as far as 66 percent, so these results likewise describe the exact
 shared local fixture rather than a production budget or client ranking.
 
+Producer transaction medians for one record ranged from 6.37 to 25.92
+milliseconds for the policy path, 6.63 to 24.07 milliseconds for raw
+franz-go, and 8.24 to 8.62 milliseconds for Sarama. Ten-record transaction
+medians ranged from 17.75 to 26.09 milliseconds for the policy path, 16.61 to
+24.27 milliseconds for raw franz-go, and 70.89 to 73.26 milliseconds for
+Sarama. Consume-transform-produce medians ranged from 2.00 to 7.11
+milliseconds for one-record policy operations and 2.12 to 5.53 milliseconds
+for raw franz-go; ten-record medians ranged from 7.14 to 9.47 milliseconds for
+the policy path and 5.53 to 8.71 milliseconds for raw franz-go. Transaction
+latency distributions spread as far as 76 percent. These healthy
+single-broker results do not rank abort, fencing, timeout, unknown-outcome, or
+rebalance behavior.
+
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
@@ -146,7 +181,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 Release evidence still requires equivalent and reproducible captures for:
 
 - rebalance cost under multi-member consumer-group changes;
-- producer transactions and consume-transform-produce;
 - replay and inspection operations;
 - reconnect allocations plus idle CPU, memory, goroutines, and connections;
 - TLS and other deployment-representative transport costs; and

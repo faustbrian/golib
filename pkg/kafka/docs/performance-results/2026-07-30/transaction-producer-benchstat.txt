@@ -4,59 +4,36 @@ pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
 cpu: Apple M4 Max
                                                                        │ raw-transaction-producer.txt │
                                                                        │            sec/op            │
-EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                       24.88m ±  8%
-EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                       24.10m ±  5%
-EquivalentTransactionalProduce/1-records/128B/none/sarama-16                             9.708m ± 14%
-EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                     21.51m ±  9%
-EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                     19.85m ±  8%
-EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                           7.981m ± 10%
-EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                      24.57m ±  5%
-EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                      25.46m ± 10%
-EquivalentTransactionalProduce/10-records/128B/none/sarama-16                            72.64m ±  7%
-EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                    23.99m ± 17%
-EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                    22.18m ± 17%
-EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                          72.92m ±  8%
-EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                      11.80m ± 34%
-EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                      10.71m ± 34%
-EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                            8.827m ± 16%
-EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                    9.518m ± 41%
-EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                    11.75m ± 24%
-EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                          8.935m ±  8%
-EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                     19.29m ± 27%
-EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                     18.46m ± 14%
-EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                           71.61m ±  3%
-EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                   21.99m ± 29%
-EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                   17.86m ± 10%
-EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                         71.76m ±  1%
-geomean                                                                                  20.43m
+EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                       25.92m ±  5%
+EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                       24.07m ±  8%
+EquivalentTransactionalProduce/1-records/128B/none/sarama-16                             8.361m ±  8%
+EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                     23.46m ±  3%
+EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                     20.93m ± 13%
+EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                           8.240m ± 22%
+EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                      26.09m ± 10%
+EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                      24.27m ±  8%
+EquivalentTransactionalProduce/10-records/128B/none/sarama-16                            70.89m ±  6%
+EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                    17.75m ± 25%
+EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                    16.61m ± 17%
+EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                          73.26m ±  3%
+EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                      6.368m ± 76%
+EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                      7.233m ± 68%
+EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                            8.624m ±  3%
+EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                    7.698m ± 42%
+EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                    6.631m ± 40%
+EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                          8.413m ±  6%
+EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                     17.79m ± 16%
+EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                     17.44m ± 31%
+EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                           71.19m ±  2%
+EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                   18.62m ± 20%
+EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                   20.92m ± 12%
+EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                         71.39m ±  2%
+geomean                                                                                  18.36m
 
-                                                                       │ raw-transaction-producer.txt │
-                                                                       │             B/s              │
-EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                      9.766Ki ±  0%
-EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                      9.766Ki ±  0%
-EquivalentTransactionalProduce/1-records/128B/none/sarama-16                            19.53Ki ± 50%
-EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                    9.766Ki ±  0%
-EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                    9.766Ki ±  0%
-EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                          19.53Ki ±  0%
-EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                     58.59Ki ± 17%
-EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                     58.59Ki ±  0%
-EquivalentTransactionalProduce/10-records/128B/none/sarama-16                           19.53Ki ±  0%
-EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                   58.59Ki ± 33%
-EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                   68.36Ki ± 14%
-EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                         19.53Ki ±  0%
-EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                     87.89Ki ± 44%
-EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                     97.66Ki ± 50%
-EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                           117.2Ki ± 17%
-EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                   107.4Ki ± 73%
-EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                   87.89Ki ± 33%
-EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                         117.2Ki ±  8%
-EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                    532.2Ki ± 28%
-EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                    551.8Ki ± 17%
-EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                          146.5Ki ±  7%
-EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                  468.8Ki ± 23%
-EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                  576.2Ki ± 10%
-EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                        146.5Ki ±  7%
-geomean                                                                                 65.17Ki
+                                                                   │ raw-transaction-producer.txt │
+                                                                   │             MB/s             │
+EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                    0.000 ± ∞ ¹
+¹ need >= 6 samples for confidence interval at level 0.95
 
                                                                        │ raw-transaction-producer.txt │
                                                                        │          records/op          │
@@ -116,56 +93,84 @@ geomean                                                                         
 
                                                                        │ raw-transaction-producer.txt │
                                                                        │             B/op             │
-EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                       17.43Ki ± 2%
-EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                       15.69Ki ± 3%
-EquivalentTransactionalProduce/1-records/128B/none/sarama-16                             10.11Ki ± 0%
-EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                     16.99Ki ± 5%
-EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                     15.17Ki ± 9%
-EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                           10.55Ki ± 0%
-EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                      60.62Ki ± 1%
-EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                      49.75Ki ± 1%
-EquivalentTransactionalProduce/10-records/128B/none/sarama-16                            61.37Ki ± 0%
-EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                    60.41Ki ± 1%
-EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                    48.73Ki ± 2%
-EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                          65.82Ki ± 0%
-EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                      16.04Ki ± 3%
-EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                      13.37Ki ± 5%
-EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                            12.03Ki ± 0%
-EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                    16.71Ki ± 5%
-EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                    13.01Ki ± 7%
-EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                          12.80Ki ± 0%
-EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                     67.91Ki ± 1%
-EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                     48.11Ki ± 2%
-EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                           80.59Ki ± 0%
-EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                   68.00Ki ± 2%
-EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                   48.41Ki ± 1%
-EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                         88.32Ki ± 0%
-geomean                                                                                  29.20Ki
+EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                      17.38Ki ±  2%
+EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                      15.30Ki ±  3%
+EquivalentTransactionalProduce/1-records/128B/none/sarama-16                            10.11Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                    17.74Ki ±  7%
+EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                    14.86Ki ± 11%
+EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                          10.55Ki ±  0%
+EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                     61.34Ki ±  1%
+EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                     50.33Ki ±  1%
+EquivalentTransactionalProduce/10-records/128B/none/sarama-16                           61.39Ki ±  0%
+EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                   58.98Ki ±  3%
+EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                   47.77Ki ±  1%
+EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                         65.84Ki ±  0%
+EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                     15.22Ki ±  6%
+EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                     12.94Ki ±  4%
+EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                           12.02Ki ±  0%
+EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                   16.20Ki ±  6%
+EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                   13.56Ki ±  6%
+EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                         12.80Ki ±  0%
+EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                    68.33Ki ±  2%
+EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                    48.35Ki ±  2%
+EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                          80.61Ki ±  0%
+EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                  68.67Ki ±  1%
+EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                  49.56Ki ±  1%
+EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                        88.33Ki ±  0%
+geomean                                                                                 29.14Ki
 
                                                                        │ raw-transaction-producer.txt │
                                                                        │          allocs/op           │
-EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                         282.0 ± 2%
-EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                         263.0 ± 3%
+EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                         288.0 ± 2%
+EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                         255.5 ± 3%
 EquivalentTransactionalProduce/1-records/128B/none/sarama-16                               166.0 ± 0%
-EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                       266.0 ± 3%
-EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                       241.0 ± 3%
+EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                       281.5 ± 2%
+EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                       247.5 ± 6%
 EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                             171.0 ± 0%
-EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                        881.5 ± 1%
-EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                        725.0 ± 2%
+EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                        896.5 ± 1%
+EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                        734.0 ± 1%
 EquivalentTransactionalProduce/10-records/128B/none/sarama-16                              967.0 ± 0%
-EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                      870.0 ± 2%
-EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                      702.0 ± 2%
+EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                      844.5 ± 4%
+EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                      681.5 ± 1%
 EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                           1.017k ± 0%
-EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                        240.0 ± 5%
-EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                        212.5 ± 4%
-EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                              166.0 ± 1%
-EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                      234.5 ± 4%
-EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                      205.0 ± 3%
+EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                        225.0 ± 8%
+EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                        205.0 ± 7%
+EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                              166.0 ± 0%
+EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                      231.0 ± 6%
+EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                      205.0 ± 4%
 EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                            171.0 ± 0%
-EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                       856.0 ± 2%
+EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                       864.5 ± 2%
 EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                       697.0 ± 2%
 EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                             967.0 ± 0%
-EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                     846.0 ± 1%
-EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                     697.0 ± 1%
+EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                     865.0 ± 1%
+EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                     719.0 ± 2%
 EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                          1.017k ± 0%
-geomean                                                                                    425.6
+geomean                                                                                    425.5
+
+                                                                       │ raw-transaction-producer.txt │
+                                                                       │             B/s              │
+EquivalentTransactionalProduce/1-records/128B/none/golib-policy-16                      9.766Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/none/raw-franz-go-16                      9.766Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/none/sarama-16                            19.53Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/snappy/golib-policy-16                    9.766Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/snappy/raw-franz-go-16                    9.766Ki ±  0%
+EquivalentTransactionalProduce/1-records/128B/snappy/sarama-16                          19.53Ki ±  0%
+EquivalentTransactionalProduce/10-records/128B/none/golib-policy-16                     58.59Ki ± 17%
+EquivalentTransactionalProduce/10-records/128B/none/raw-franz-go-16                     58.59Ki ± 17%
+EquivalentTransactionalProduce/10-records/128B/none/sarama-16                           19.53Ki ±  0%
+EquivalentTransactionalProduce/10-records/128B/snappy/golib-policy-16                   87.89Ki ± 22%
+EquivalentTransactionalProduce/10-records/128B/snappy/raw-franz-go-16                   87.89Ki ± 22%
+EquivalentTransactionalProduce/10-records/128B/snappy/sarama-16                         19.53Ki ±  0%
+EquivalentTransactionalProduce/1-records/1024B/none/golib-policy-16                     166.0Ki ± 59%
+EquivalentTransactionalProduce/1-records/1024B/none/raw-franz-go-16                     141.6Ki ± 38%
+EquivalentTransactionalProduce/1-records/1024B/none/sarama-16                           117.2Ki ±  8%
+EquivalentTransactionalProduce/1-records/1024B/snappy/golib-policy-16                   131.8Ki ± 41%
+EquivalentTransactionalProduce/1-records/1024B/snappy/raw-franz-go-16                   156.2Ki ± 50%
+EquivalentTransactionalProduce/1-records/1024B/snappy/sarama-16                         117.2Ki ±  8%
+EquivalentTransactionalProduce/10-records/1024B/none/golib-policy-16                    576.2Ki ± 14%
+EquivalentTransactionalProduce/10-records/1024B/none/raw-franz-go-16                    590.8Ki ± 45%
+EquivalentTransactionalProduce/10-records/1024B/none/sarama-16                          146.5Ki ±  7%
+EquivalentTransactionalProduce/10-records/1024B/snappy/golib-policy-16                  551.8Ki ± 17%
+EquivalentTransactionalProduce/10-records/1024B/snappy/raw-franz-go-16                  488.3Ki ± 14%
+EquivalentTransactionalProduce/10-records/1024B/snappy/sarama-16                        146.5Ki ±  7%
+geomean                                                                                 72.60Ki

@@ -4,43 +4,43 @@ pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
 cpu: Apple M4 Max
                                                                           │ raw-consume-transform-produce.txt │
                                                                           │              sec/op               │
-EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                            7.546m ± 18%
-EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                            5.603m ± 21%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                          4.606m ± 19%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                          4.110m ± 37%
-EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                           8.633m ± 18%
-EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                           11.66m ± 35%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                         4.548m ± 38%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                         6.509m ± 36%
-EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                           1.776m ±  6%
-EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                           2.787m ± 30%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                         2.183m ± 37%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                         2.078m ± 15%
-EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                          6.672m ± 17%
-EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                          4.218m ± 27%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                        7.141m ± 12%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                        7.257m ± 25%
-geomean                                                                                          4.795m
+EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                            7.109m ± 14%
+EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                            5.531m ± 14%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                          4.436m ± 30%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                          3.889m ± 11%
+EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                           9.473m ± 16%
+EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                           8.706m ± 51%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                         8.440m ± 27%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                         7.585m ± 17%
+EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                           1.996m ±  4%
+EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                           4.005m ± 17%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                         2.373m ± 34%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                         2.119m ± 39%
+EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                          7.141m ± 26%
+EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                          5.534m ± 23%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                        8.509m ± 19%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                        5.763m ± 38%
+geomean                                                                                          5.192m
 
                                                                           │ raw-consume-transform-produce.txt │
                                                                           │                B/s                │
-EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                           39.06Ki ± 25%
-EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                           53.71Ki ± 27%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                         68.36Ki ± 14%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                         73.24Ki ± 33%
-EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                          351.6Ki ± 17%
-EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                          258.8Ki ± 43%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                        664.1Ki ± 28%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                        459.0Ki ± 57%
-EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                          1.125Mi ±  7%
-EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                          732.4Ki ± 43%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                        947.3Ki ± 28%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                        986.3Ki ± 15%
-EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                         3.004Mi ± 20%
-EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                         4.749Mi ± 21%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                       2.804Mi ± 11%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                       2.766Mi ± 33%
-geomean                                                                                         519.3Ki
+EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                           43.95Ki ± 11%
+EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                           58.59Ki ± 17%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                         68.36Ki ± 43%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                         78.12Ki ± 12%
+EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                          317.4Ki ± 14%
+EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                          346.7Ki ± 52%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                        356.4Ki ± 21%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                        400.4Ki ± 15%
+EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                          1.006Mi ±  4%
+EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                          512.7Ki ± 18%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                        864.3Ki ± 25%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                        971.7Ki ± 29%
+EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                         2.804Mi ± 36%
+EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                         3.624Mi ± 29%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                       2.351Mi ± 16%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                       3.476Mi ± 28%
+geomean                                                                                         482.9Ki
 
                                                                           │ raw-consume-transform-produce.txt │
                                                                           │         output-records/op         │
@@ -105,39 +105,39 @@ geomean                                                                         
                                                                           │ raw-consume-transform-produce.txt │
                                                                           │               B/op                │
 EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                            28.94Ki ± 1%
-EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                            26.35Ki ± 1%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                          28.95Ki ± 2%
+EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                            26.33Ki ± 0%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                          29.03Ki ± 3%
 EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                          26.27Ki ± 1%
-EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                           77.38Ki ± 1%
-EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                           66.30Ki ± 1%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                         80.07Ki ± 2%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                         67.50Ki ± 1%
-EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                           32.15Ki ± 0%
-EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                           28.67Ki ± 1%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                         32.39Ki ± 1%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                         29.25Ki ± 1%
-EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                          103.8Ki ± 1%
-EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                          85.73Ki ± 0%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                        106.6Ki ± 2%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                        88.24Ki ± 2%
-geomean                                                                                          49.19Ki
+EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                           77.76Ki ± 1%
+EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                           66.81Ki ± 0%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                         79.69Ki ± 1%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                         67.55Ki ± 0%
+EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                           32.07Ki ± 0%
+EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                           28.62Ki ± 1%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                         32.46Ki ± 1%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                         29.09Ki ± 1%
+EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                          103.9Ki ± 1%
+EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                          85.20Ki ± 1%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                        106.2Ki ± 2%
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                        89.14Ki ± 3%
+geomean                                                                                          49.20Ki
 
                                                                           │ raw-consume-transform-produce.txt │
                                                                           │             allocs/op             │
-EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                              453.5 ± 0%
+EquivalentConsumeTransformProduce/1-records/128B/none/golib-policy-16                              454.0 ± 0%
 EquivalentConsumeTransformProduce/1-records/128B/none/raw-franz-go-16                              420.0 ± 0%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                            452.0 ± 0%
-EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                            419.0 ± 0%
-EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                            1.068k ± 0%
-EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                             917.0 ± 0%
-EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                          1.074k ± 0%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/golib-policy-16                            454.0 ± 0%
+EquivalentConsumeTransformProduce/1-records/128B/snappy/raw-franz-go-16                            418.5 ± 0%
+EquivalentConsumeTransformProduce/10-records/128B/none/golib-policy-16                            1.070k ± 0%
+EquivalentConsumeTransformProduce/10-records/128B/none/raw-franz-go-16                             919.5 ± 0%
+EquivalentConsumeTransformProduce/10-records/128B/snappy/golib-policy-16                          1.073k ± 0%
 EquivalentConsumeTransformProduce/10-records/128B/snappy/raw-franz-go-16                           923.0 ± 0%
 EquivalentConsumeTransformProduce/1-records/1024B/none/golib-policy-16                             457.0 ± 0%
-EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                             424.0 ± 0%
+EquivalentConsumeTransformProduce/1-records/1024B/none/raw-franz-go-16                             423.5 ± 0%
 EquivalentConsumeTransformProduce/1-records/1024B/snappy/golib-policy-16                           458.0 ± 0%
-EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                           425.0 ± 0%
+EquivalentConsumeTransformProduce/1-records/1024B/snappy/raw-franz-go-16                           425.5 ± 0%
 EquivalentConsumeTransformProduce/10-records/1024B/none/golib-policy-16                           1.073k ± 0%
-EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                            923.5 ± 0%
+EquivalentConsumeTransformProduce/10-records/1024B/none/raw-franz-go-16                            923.0 ± 0%
 EquivalentConsumeTransformProduce/10-records/1024B/snappy/golib-policy-16                         1.073k ± 0%
-EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                          924.5 ± 0%
-geomean                                                                                            660.1
+EquivalentConsumeTransformProduce/10-records/1024B/snappy/raw-franz-go-16                          926.0 ± 0%
+geomean                                                                                            660.4

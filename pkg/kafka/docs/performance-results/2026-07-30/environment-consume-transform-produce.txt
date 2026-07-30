@@ -3,7 +3,7 @@ darwin
 arm64
 v8.0
 Darwin 27.0.0 arm64
-63348eaa2d1428e36b234f1d804540b0168ba914
+edfb30017e7d3f2fcc6ca39f77cc7fac4be37d80
 client=29.6.2 server=29.6.2 api=1.55
 843d5badaf3b1b859fd90dc3ffe0ce03b26c5072afcaadec99ea078a5f2ed54d  Makefile
 31247dd25f1fb08eec7716612a0e54a01e7bfb6ae0c5de7ca959c9a93c87046e  README.md
@@ -14,9 +14,9 @@ cdeed94a70ce11154891a5993bd2977164b0331e7f9b980bd111994a2ccb41ec  go.mod
 e4596d6804fc3ddc3ee8a5602b9d29395ddf2cb3fdfb07f00cd5139c8b06922d  go.sum
 5c01dac01b9fa700f529da520e98481691d0529ee70b9afa86d333f660710e53  producer_benchmark_test.go
 a4e80d4ba289dbe9d02c2d89a8d1e8d5a718ae76ccfb43c7a6c9be6f7b86df5e  producer_multi_partition_benchmark_test.go
-92645d0b5573e6c0143140943aa312c9f6fb3e986ec2104d70023b1e46b7eb72  transaction_processor_benchmark_test.go
+126f45f36ea24627cfc4c09ec076176c6c1be4b4359f828f89ace1b53933784a  transaction_processor_benchmark_test.go
 8ef988de548f9fdf6471dce4a5d9fc553cedaf6108c5f094e81a6499c70f71a5  transaction_producer_benchmark_test.go
-ce5449e874e4e341ee519e6324800423f4f70845eaaa10331fe2ae970f264ba5  ../../../../go.work
+32bb3340bcab21a80be0cc7af381896289bbd2b6cd0fd4943eff27df102f43e5  ../../../../go.work
 github.com/faustbrian/golib/pkg/kafka
 github.com/twmb/franz-go v1.21.5
 github.com/segmentio/kafka-go v0.4.51
