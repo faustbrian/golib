@@ -152,7 +152,7 @@ func TestSharedToolingContract(t *testing.T) {
 		"scripts/check-docs.sh":      {"relative Markdown links", "generate-llms.py --check"},
 		"scripts/generate-llms.py":   {"README.md", "--check"},
 		"scripts/release.sh":         {"origin/main", "make check", "git tag -a"},
-		".github/dependabot.yml": {"gomod", "github-actions"},
+		".github/dependabot.yml":     {"gomod", "github-actions"},
 	}
 
 	for path, fragments := range required {
