@@ -126,9 +126,10 @@ GET /v1/records/dead-letters/{id}?visibility=hidden
 POST /v1/commands
 ```
 
-`NewHandler` requires a non-empty shared bearer token and at least one status,
-record, or controller service. It registers only the configured service routes and
-validates every request and adapter result before writing JSON. `NewClient`
+`NewHandler` requires a non-empty bounded shared bearer token without ASCII
+control characters and at least one status, record, or controller service. It
+registers only the configured service routes and validates every request and
+adapter result before writing JSON. `NewClient`
 implements `management.StatusReader`, `management.RecordReader`, and
 `management.Controller`, validates
 before network I/O, bounds response bytes, rejects unknown or trailing JSON,
@@ -136,6 +137,33 @@ and revalidates decoded pages and command results. Command request bodies are
 strict JSON capped at 16 KiB, and acknowledgements must match both the command
 ID and idempotency key. Transport and adapter errors cross the boundary only as
 stable secret-safe errors.
+
+`NewFleetClient` implements the same three contracts over a dynamic set of at
+most 100 worker-management endpoints. Its caller-owned `EndpointResolver` runs
+for every operation, so Kubernetes or another discovery mechanism can replace
+replicas without rebuilding the control plane. Endpoint identifiers must be
+stable and unique within a resolved snapshot, and normalized endpoint base URLs
+must not repeat. The resolver must return only replicas that share the same
+logical queue and record backend.
+
+Fleet status reads every resolved endpoint and fails closed if any endpoint
+cannot provide a trustworthy bounded snapshot. Worker identifiers must be
+unique across replicas. Queue observations with the same logical name are
+deduplicated using the newest observation time. Worker-target commands are
+routed only to the endpoint currently reporting that worker; queue and
+worker-group lifecycle commands are sent concurrently to every resolved
+endpoint. A fleet acknowledgement means every endpoint acknowledged. Complete
+unanimous non-acknowledgement results retain their status and failure code. An
+incomplete or mixed trustworthy result set is `partial` with `fleet_partial`;
+when no endpoint returns a trustworthy result the operation returns
+`ErrFleetUnavailable`. A missing worker returns `ErrFleetTargetUnavailable`.
+
+Failure and dead-letter records are shared-backend operations, so the fleet
+client uses the first endpoint in stable endpoint-ID order. Resolver failures,
+malformed endpoint sets, repeated cursors, duplicate workers, and oversized
+snapshots fail closed. Caller cancellation and deadlines remain observable.
+The caller must provide a bounded HTTP client with the required TLS or mTLS
+policy; bearer authentication does not encrypt transport.
 
 Record lists require explicit bounded sorting and return hidden payloads only.
 Inspection requires `hidden`, `redacted`, or `revealed` visibility. A backend

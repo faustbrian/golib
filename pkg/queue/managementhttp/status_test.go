@@ -286,6 +286,7 @@ func TestTransportRejectsInvalidConfiguration(t *testing.T) {
 		{},
 		{Token: "token"},
 		{Token: "token", Status: typedStatus},
+		{Token: "token\ninvalid", Status: &statusReaderStub{}},
 	} {
 		if handler, err := NewHandler(config); handler != nil || !errors.Is(err, ErrInvalidConfiguration) {
 			t.Fatalf("NewHandler() = (%v, %v)", handler, err)
@@ -297,6 +298,7 @@ func TestTransportRejectsInvalidConfiguration(t *testing.T) {
 		{BaseURL: "ftp://worker.example", Token: "token"},
 		{BaseURL: "https://worker.example/path", Token: "token"},
 		{BaseURL: "https://worker.example", Token: ""},
+		{BaseURL: "https://worker.example", Token: "token\ninvalid"},
 		{BaseURL: "https://worker.example", Token: "token", MaxResponseBytes: -1},
 	} {
 		if client, err := NewClient(config); client != nil || !errors.Is(err, ErrInvalidConfiguration) {

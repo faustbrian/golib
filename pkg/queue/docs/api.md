@@ -168,6 +168,11 @@ these signatures.
   bearer-authenticated remote `management.StatusReader`,
   `management.RecordReader`, and `management.Controller` with an explicit
   snake-case wire contract.
+- `managementhttp.NewFleetClient` implements the same contracts across at most
+  100 dynamically resolved worker endpoints. It aggregates status, routes
+  worker commands to the endpoint reporting that worker, fans queue and
+  worker-group commands across the fleet, and returns explicit partial or
+  unavailable outcomes when acknowledgements are incomplete.
 
 See the [management protocol guide](management.md) for upgrade and failure
 semantics.
