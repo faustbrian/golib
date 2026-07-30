@@ -31,6 +31,7 @@ binary Merkle tree, SSZ merkleization, or Verkle tree.
 - [Architecture and ownership](docs/architecture.md)
 - [Compatibility decisions](docs/compatibility-decisions.md)
 - [Security assumptions](docs/security.md)
+- [Hardening report](docs/hardening-report.md)
 - [Source and fixture provenance](docs/source-provenance.md)
 - [Adoption, comparisons, migration, and FAQ](docs/adoption.md)
 - [Benchmark methodology and results](docs/benchmarks.md)

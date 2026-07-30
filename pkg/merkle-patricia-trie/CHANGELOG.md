@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Added
 
+- Added the stable-release hardening report with compatibility, fixture,
+  evidence, and unsupported-scope matrices.
 - Established the Ethereum MPT module boundary, authoritative-source pins,
   compatibility decisions, and hostile-input threat model.
 - Added canonical hex-prefix paths, bounded canonical RLP, legacy Keccak root
