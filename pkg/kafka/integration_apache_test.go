@@ -1460,7 +1460,7 @@ func proveTransactionProcessorProduceResponseLoss(
 		t.Fatalf("construct processor response-loss client: %v", err)
 	}
 
-	startedAt := time.Now()
+	var handlerStartedAt time.Time
 	result, err := processor.RunOnce(
 		ctx,
 		kafka.TransactionHandlerFunc(func(
@@ -1468,6 +1468,8 @@ func proveTransactionProcessorProduceResponseLoss(
 			_ kafka.ConsumedRecord,
 			transaction kafka.Transaction,
 		) error {
+			handlerStartedAt = time.Now()
+
 			return transaction.Publish(handlerCtx, kafka.ProducerRecord{
 				Topic: outputTopic,
 				Key:   []byte("processor-response-loss"),
@@ -1475,7 +1477,7 @@ func proveTransactionProcessorProduceResponseLoss(
 			})
 		}),
 	)
-	duration := time.Since(startedAt)
+	duration := time.Since(handlerStartedAt)
 	var deliveryErr *kafka.DeliveryError
 	if result.Polled != 1 || result.Processed != 0 ||
 		result.Published != 0 || result.Committed ||

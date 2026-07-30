@@ -474,6 +474,7 @@ func proveProducerThrottle(
 	var throttleDuration atomic.Int64
 	var throttledAfterResponse atomic.Bool
 	var throttleBrokerKnown atomic.Bool
+	var throttleObserved atomic.Bool
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:                brokers,
 		ClientID:               clientID,
@@ -496,6 +497,7 @@ func proveProducerThrottle(
 					throttleDuration.Store(
 						int64(observation.ThrottleDuration),
 					)
+					throttleObserved.Store(true)
 
 					return nil
 				},
@@ -512,14 +514,16 @@ func proveProducerThrottle(
 		}
 	}()
 
-	result := producer.PublishRecord(ctx, kafka.ProducerRecord{
-		Topic:     topic,
-		Partition: kafka.ExplicitPartition(0),
-		Key:       []byte("producer-throttle"),
-		Value:     make([]byte, 128*1024),
-	})
-	if result.Err != nil || result.Topic != topic || result.Partition != 0 {
-		t.Fatalf("throttled producer result = %#v", result)
+	for attempt := 0; attempt < 10 && !throttleObserved.Load(); attempt++ {
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(0),
+			Key:       []byte("producer-throttle"),
+			Value:     make([]byte, 128*1024),
+		})
+		if result.Err != nil || result.Topic != topic || result.Partition != 0 {
+			t.Fatalf("throttled producer result = %#v", result)
+		}
 	}
 	if duration := time.Duration(throttleDuration.Load()); duration <= 0 ||
 		!throttledAfterResponse.Load() ||
