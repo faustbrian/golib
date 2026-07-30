@@ -57,15 +57,16 @@ reconcile the published root before retrying.
 
 ## Ownership and concurrency
 
-One `Store` is safe for concurrent reads, audits, and one serialized writer.
-Concurrent commits derived from the same previous root produce one winner and
-`ErrStaleRoot` for the other writer. No store lock is held across filesystem
-I/O or iterator callbacks.
+One `Store` is safe for concurrent reads, audits, and one serialized commit,
+retention change, or prune operation. Concurrent commits derived from the same
+previous root produce one winner and `ErrStaleRoot` for the other writer. No
+store lock is held across filesystem I/O or iterator callbacks.
 
 The caller MUST ensure that only one open `Store` owns a directory. This
-adapter does not provide cross-process locking. `Close` rejects a commit that
-is currently publishing rather than waiting while filesystem I/O is active.
-In-flight reads do not retain mutable adapter state and may finish.
+adapter does not provide cross-process locking. `Close` rejects an active
+commit, retention change, or prune operation rather than waiting while
+filesystem I/O is active. In-flight reads do not retain mutable adapter state
+and may finish.
 
 ## Limits and recovery scope
 
@@ -74,21 +75,29 @@ In-flight reads do not retain mutable adapter state and may finish.
 - bytes in one node;
 - nodes and total bytes in one commit; and
 - total immutable node files, directory entries inspected by iteration, and
-  interrupted-write recovery.
+  interrupted-write recovery; and
+- durable historical-root retentions.
 
 `MaxStoredNodes` counts every content-addressed node file, including nodes that
 became unreachable from the published root or were written by a failed commit.
-Because this adapter does not prune, callers must size that lifetime bound or
-rotate into a separately rebuilt store before it is exhausted.
+Callers must retain every historical root still in use before pruning and size
+the bound for the published and retained graphs plus temporary commit growth.
 
 Use context deadlines for elapsed work. Nil and canceled contexts are rejected
 with the root package's typed errors.
 
-The adapter implements durable node storage and root publication only. It does
-not implement `RootRetainer` or `NodePruner`; no durable lease or pruning claim
-is made. Use `CollectReachableNodes` and a separately crash-tested retention
-policy before deleting content-addressed nodes. The memory adapter's pruning
-tests do not establish durable filesystem pruning.
+## Retention and pruning
+
+The adapter implements `RootRetainer` and `NodePruner`. `RetainRoot` validates
+the complete canonical graph before atomically publishing a checksummed,
+bounded lease record. `Release` atomically removes that record. `Retentions`
+returns the durable inventory in deterministic order.
+
+`Prune` marks the published root and every retained root, stages unreachable
+nodes in an owned transaction directory, and commits their removal atomically.
+`Open` completes or rolls back interrupted retention and prune operations
+before exposing the store. Callers must retain a historical root before
+publishing its replacement and release it only after every reader is done.
 
 ## Security boundary
 

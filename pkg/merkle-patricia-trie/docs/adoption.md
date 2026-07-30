@@ -44,8 +44,8 @@ Before production use:
 
 For a single-process durable deployment, the
 [filesystem adapter](filesystem-store.md) provides atomic root publication.
-It does not provide historical-root retention or pruning; choose another
-adapter or add a separately proven policy when those operations are required.
+It also provides bounded durable historical-root retention and
+crash-recoverable atomic pruning under exclusive directory ownership.
 
 ## Migrating from go-ethereum trie APIs
 

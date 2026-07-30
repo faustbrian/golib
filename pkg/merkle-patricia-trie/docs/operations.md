@@ -79,8 +79,8 @@ Persistent adapters must define:
 The `memory` adapter is concurrent and atomic but process-local. The
 `filesystem` adapter syncs immutable node files before atomic root replacement
 and has process-termination recovery tests at both sides of root publication.
-It requires exclusive directory ownership and does not implement durable
-retentions or pruning.
+It also persists bounded historical-root retentions and recovers interrupted
+retention and pruning operations. It requires exclusive directory ownership.
 
 ## Iteration and streaming construction
 

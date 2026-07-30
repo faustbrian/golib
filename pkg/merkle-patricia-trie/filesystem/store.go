@@ -20,12 +20,16 @@ import (
 )
 
 const (
-	rootFileName  = "ROOT"
-	nodeDirectory = "nodes"
-	rootRecordLen = 8 + mpt.RootBytes + sha256.Size
+	rootFileName       = "ROOT"
+	nodeDirectory      = "nodes"
+	retentionDirectory = "retentions"
+	rootRecordLen      = 8 + mpt.RootBytes + sha256.Size
+	retentionIDBytes   = 16
+	retentionRecordLen = 8 + mpt.RootBytes + sha256.Size
 )
 
 var rootMagic = [8]byte{'M', 'P', 'T', 'R', 'O', 'O', 'T', 1}
+var retentionMagic = [8]byte{'M', 'P', 'T', 'L', 'E', 'A', 'S', 1}
 
 // Limits bounds filesystem reads, writes, and iteration before allocation or
 // storage fan-out.
@@ -38,6 +42,8 @@ type Limits struct {
 	MaxCommitBytes int
 	// MaxStoredNodes bounds immutable node files retained by the store.
 	MaxStoredNodes int
+	// MaxRetentions bounds durable historical-root leases.
+	MaxRetentions int
 }
 
 // DefaultLimits returns the default explicit filesystem resource bounds.
@@ -47,6 +53,7 @@ func DefaultLimits() Limits {
 		MaxCommitNodes: 1 << 20,
 		MaxCommitBytes: 256 << 20,
 		MaxStoredNodes: 1 << 22,
+		MaxRetentions:  1024,
 	}
 }
 
@@ -54,15 +61,23 @@ func DefaultLimits() Limits {
 // publishes one root with atomic rename. A Store is safe for concurrent use
 // within one process. Callers must ensure one Store owns a directory at a time.
 type Store struct {
-	mutex       sync.RWMutex
-	path        string
-	nodesPath   string
-	root        mpt.Root
-	limits      Limits
-	storedNodes int
-	closed      bool
-	committing  bool
-	checkpoint  func(commitStage)
+	mutex               sync.RWMutex
+	path                string
+	nodesPath           string
+	retentionsPath      string
+	root                mpt.Root
+	limits              Limits
+	storedNodes         int
+	retentions          map[retentionID]mpt.Root
+	closed              bool
+	committing          bool
+	retentionChanging   bool
+	pruning             bool
+	checkpoint          func(commitStage)
+	pruneCheckpoint     func(pruneStage)
+	retentionCheckpoint func(retentionStage)
+	retentionOperations retentionOperations
+	pruneOperations     pruneOperations
 }
 
 type commitStage uint8
@@ -98,6 +113,22 @@ func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
 	if err := os.Mkdir(nodesPath, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, storageCommitError(err)
 	}
+	if err := recoverPruneArtifacts(
+		ctx,
+		path,
+		nodesPath,
+		limits,
+	); err != nil {
+		return nil, err
+	}
+	retentionsPath := filepath.Join(path, retentionDirectory)
+	if err := rejectSymlink(retentionsPath); err != nil {
+		return nil, err
+	}
+	if err := os.Mkdir(retentionsPath, 0o700); err != nil &&
+		!errors.Is(err, os.ErrExist) {
+		return nil, storageCommitError(err)
+	}
 	if err := recoverTemporaryFiles(
 		ctx,
 		path,
@@ -114,10 +145,27 @@ func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := recoverTemporaryRetentions(
+		ctx,
+		retentionsPath,
+		limits.MaxRetentions,
+	); err != nil {
+		return nil, err
+	}
+	retentions, err := readRetentions(
+		ctx,
+		retentionsPath,
+		limits.MaxRetentions,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	store := &Store{
-		path: path, nodesPath: nodesPath, limits: limits,
-		root: mpt.EmptyRoot(), storedNodes: storedNodes,
+		path: path, nodesPath: nodesPath, retentionsPath: retentionsPath,
+		limits: limits, root: mpt.EmptyRoot(), storedNodes: storedNodes,
+		retentions: retentions, retentionOperations: defaultRetentionOperations(),
+		pruneOperations: defaultPruneOperations(),
 	}
 	rootPath := filepath.Join(path, rootFileName)
 	record, err := readBoundedFile(rootPath, rootRecordLen)
@@ -354,7 +402,8 @@ func (store *Store) CommitTrie(
 		store.mutex.Unlock()
 		return mpt.ErrClosedStore
 	}
-	if store.committing || store.root != commit.PreviousRoot() {
+	if store.committing || store.retentionChanging || store.pruning ||
+		store.root != commit.PreviousRoot() {
 		store.mutex.Unlock()
 		return mpt.ErrStaleRoot
 	}
@@ -412,6 +461,10 @@ func (store *Store) IterateNodes(
 	if store.closed {
 		store.mutex.RUnlock()
 		return mpt.ErrClosedStore
+	}
+	if store.pruning {
+		store.mutex.RUnlock()
+		return mpt.ErrStaleRoot
 	}
 	nodesPath := store.nodesPath
 	maxNodeBytes := store.limits.MaxNodeBytes
@@ -487,8 +540,8 @@ func (store *Store) Close() error {
 	if store.closed {
 		return mpt.ErrClosedStore
 	}
-	if store.committing {
-		return fmt.Errorf("%w: commit in progress", mpt.ErrStorageCommit)
+	if store.committing || store.retentionChanging || store.pruning {
+		return fmt.Errorf("%w: store mutation in progress", mpt.ErrStorageCommit)
 	}
 	store.closed = true
 	return nil
@@ -639,7 +692,9 @@ func validateLimits(limits Limits) error {
 		limits.MaxCommitNodes <= 0 ||
 		limits.MaxCommitBytes <= 0 ||
 		limits.MaxStoredNodes <= 0 ||
-		limits.MaxStoredNodes == int(^uint(0)>>1) {
+		limits.MaxStoredNodes == int(^uint(0)>>1) ||
+		limits.MaxRetentions <= 0 ||
+		limits.MaxRetentions == int(^uint(0)>>1) {
 		return fmt.Errorf("%w: invalid filesystem limits", mpt.ErrResourceLimit)
 	}
 	return nil

@@ -90,11 +90,12 @@ if err := lease.Release(releaseCtx); err != nil {
 result, err := store.Prune(ctx, reachabilityLimits)
 ```
 
-Retention is explicit and process-local for the memory adapter. A lost lease
-is not crash-recovery evidence. The filesystem adapter deliberately does not
-implement retention or pruning; applications needing durable historical-root
-leases must add and prove that policy separately. `CollectReachableNodes` is
-the bounded integrity-checked mark primitive available to adapter authors.
+Retention is explicit and process-local for the memory adapter, so a lost
+memory lease is not crash-recovery evidence. The filesystem adapter persists
+bounded historical-root leases and recovers interrupted retention and pruning
+operations before opening the store. It requires exclusive directory
+ownership. `CollectReachableNodes` remains the bounded integrity-checked mark
+primitive available to other adapter authors.
 
 Missing reads return `MissingNodeError` with only the exact unavailable hash.
 After retrieving that encoded node from a peer or archive, call

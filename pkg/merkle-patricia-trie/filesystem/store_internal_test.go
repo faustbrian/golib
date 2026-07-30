@@ -676,6 +676,7 @@ func TestCommitLimitsAndImmutableNodeIntegrity(t *testing.T) {
 			limits: Limits{
 				MaxNodeBytes: 1 << 20, MaxCommitNodes: len(nodes) - 1,
 				MaxCommitBytes: 1 << 20, MaxStoredNodes: 100,
+				MaxRetentions: 1,
 			},
 		},
 		{
@@ -684,6 +685,7 @@ func TestCommitLimitsAndImmutableNodeIntegrity(t *testing.T) {
 				MaxNodeBytes:   len(nodes[0].Encoded()) - 1,
 				MaxCommitNodes: 100, MaxCommitBytes: 1 << 20,
 				MaxStoredNodes: 100,
+				MaxRetentions:  1,
 			},
 		},
 		{
@@ -692,6 +694,7 @@ func TestCommitLimitsAndImmutableNodeIntegrity(t *testing.T) {
 				MaxNodeBytes: 1 << 20, MaxCommitNodes: 100,
 				MaxCommitBytes: len(nodes[0].Encoded()) - 1,
 				MaxStoredNodes: 100,
+				MaxRetentions:  1,
 			},
 		},
 	} {
@@ -728,6 +731,7 @@ func TestCommitLimitsAndImmutableNodeIntegrity(t *testing.T) {
 			MaxCommitNodes: len(nodes),
 			MaxCommitBytes: totalBytes - 1,
 			MaxStoredNodes: len(nodes),
+			MaxRetentions:  1,
 		},
 	)
 	if err != nil {
@@ -751,6 +755,7 @@ func TestCommitLimitsAndImmutableNodeIntegrity(t *testing.T) {
 			MaxCommitNodes: len(nodes),
 			MaxCommitBytes: totalBytes,
 			MaxStoredNodes: len(nodes),
+			MaxRetentions:  1,
 		},
 	)
 	if err != nil {

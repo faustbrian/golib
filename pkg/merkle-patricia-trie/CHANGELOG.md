@@ -80,6 +80,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
   commits, immutable integrity-checked node files, atomic root publication,
   interrupted-write cleanup, process-termination recovery evidence, and
   ordinary/streaming/rebuild root parity.
+- Added durable historical-root leases and crash-recoverable atomic
+  mark-and-sweep pruning to the filesystem store, with bounded retention
+  inventory and exclusive mutation ownership.
 
 ### Changed
 
