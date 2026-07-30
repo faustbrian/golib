@@ -409,11 +409,7 @@ func (instrumentation *Instrumentation) observe(
 		operation.operationType,
 	)
 	policyAttributes := instrumentation.policyAttributes(observation)
-	spanAttributes := make(
-		[]attribute.KeyValue,
-		0,
-		len(metricAttributes)+len(policyAttributes)+8,
-	)
+	spanAttributes := make([]attribute.KeyValue, 0, len(metricAttributes))
 	spanAttributes = append(spanAttributes, metricAttributes...)
 	spanAttributes = append(spanAttributes, policyAttributes...)
 	if observation.PartitionKnown {

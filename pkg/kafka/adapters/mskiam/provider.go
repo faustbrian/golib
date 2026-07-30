@@ -343,10 +343,16 @@ func newProviderError(category error, cause error) error {
 }
 
 func validRegion(region string) bool {
-	if len(region) == 0 ||
-		len(region) > maxRegionBytes ||
-		!utf8.ValidString(region) ||
-		strings.TrimSpace(region) != region {
+	if len(region) == 0 {
+		return false
+	}
+	if len(region) > maxRegionBytes {
+		return false
+	}
+	if !utf8.ValidString(region) {
+		return false
+	}
+	if strings.TrimSpace(region) != region {
 		return false
 	}
 	segments := strings.Split(region, "-")

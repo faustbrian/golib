@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -518,8 +519,10 @@ func (consumer *Consumer[R]) start(ctx context.Context) error {
 		return ErrUnavailable
 	}
 	var attempt *startupAttempt
+	var attemptDone chan struct{}
 	if consumer.startup != nil {
-		attempt = &startupAttempt{done: make(chan struct{})}
+		attemptDone = make(chan struct{})
+		attempt = &startupAttempt{done: attemptDone}
 		consumer.startupAttempt = attempt
 	}
 	consumer.mu.Unlock()
@@ -530,9 +533,7 @@ func (consumer *Consumer[R]) start(ctx context.Context) error {
 			consumer.mu.Lock()
 			consumer.stopping = true
 			consumer.startupAttempt = nil
-			if attempt != nil {
-				close(attempt.done)
-			}
+			close(attemptDone)
 			consumer.mu.Unlock()
 
 			return &StartupError{
@@ -659,8 +660,10 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 		return ErrUnavailable
 	}
 	var attempt *startupAttempt
+	var attemptDone chan struct{}
 	if producer.startup != nil {
-		attempt = &startupAttempt{done: make(chan struct{})}
+		attemptDone = make(chan struct{})
+		attempt = &startupAttempt{done: attemptDone}
 		producer.startupAttempt = attempt
 	}
 	producer.mu.Unlock()
@@ -672,9 +675,7 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 				producer.mu.Lock()
 				producer.stopping = true
 				producer.startupAttempt = nil
-				if attempt != nil {
-					close(attempt.done)
-				}
+				close(attemptDone)
 				producer.mu.Unlock()
 
 				return &StartupError{
@@ -685,9 +686,7 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 
 			producer.mu.Lock()
 			producer.startupAttempt = nil
-			if attempt != nil {
-				close(attempt.done)
-			}
+			close(attemptDone)
 			producer.mu.Unlock()
 
 			return &StartupError{Validation: err}
@@ -860,13 +859,9 @@ func (carrier *headerCarrier) remove(fields []string) {
 	headers := *carrier.headers
 	retained := headers[:0]
 	for _, header := range headers {
-		remove := false
-		for _, field := range fields {
-			if strings.EqualFold(header.Key, field) {
-				remove = true
-				break
-			}
-		}
+		remove := slices.ContainsFunc(fields, func(field string) bool {
+			return strings.EqualFold(header.Key, field)
+		})
 		if !remove {
 			retained = append(retained, header)
 		}
