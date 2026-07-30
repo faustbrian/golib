@@ -1,9 +1,11 @@
 package committedtree
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 )
@@ -138,11 +140,10 @@ func (tree Tree) ProofPath(
 		return ProofPath{}, err
 	}
 
-	capacity := uint64(limits.MaxCommitments)
-	if temporaryCapacity := limits.MaxTemporaryBytes /
-		proofPathWorkingBytes; temporaryCapacity < capacity {
-		capacity = temporaryCapacity
-	}
+	capacity := min(
+		uint64(limits.MaxCommitments),
+		limits.MaxTemporaryBytes/proofPathWorkingBytes,
+	)
 	result := ProofPath{
 		Commitments: make([]ProofPathCommitment, 0, int(capacity)),
 	}
@@ -269,16 +270,13 @@ func (tree Tree) readProofPathNode(
 }
 
 func findProofPathChild(edges []edge, selected byte) (int, bool) {
-	for index := range edges {
-		switch {
-		case edges[index].index == selected:
-			return index, true
-		case edges[index].index > selected:
-			return 0, false
-		}
-	}
-
-	return 0, false
+	return slices.BinarySearchFunc(
+		edges,
+		selected,
+		func(edge edge, selected byte) int {
+			return cmp.Compare(edge.index, selected)
+		},
+	)
 }
 
 func appendProofPathCommitment(

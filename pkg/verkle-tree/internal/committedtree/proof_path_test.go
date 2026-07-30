@@ -14,7 +14,7 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 
 	left := testKey(7, 1)
 	left[1] = 1
-	right := testKey(7, 129)
+	right := testKey(7, 128)
 	right[1] = 2
 	isolated := testKey(9, 1)
 	isolated[1] = 4
@@ -307,13 +307,24 @@ func TestProofPathRejectsInvalidUseAndHonorsCancellation(t *testing.T) {
 	result, err := tree.ProofPath(
 		context.Background(),
 		Key{},
-		testProofPathLimits(),
+		ProofPathLimits{
+			MaxNodeReads:      1,
+			MaxCommitments:    5,
+			MaxPathBytes:      1,
+			MaxTemporaryBytes: 2 * proofPathWorkingBytes,
+		},
 	)
 	if err != nil ||
 		result.Kind != ProofPathMissing ||
 		result.Depth != 1 ||
 		len(result.Commitments) != 0 {
 		t.Fatalf("empty-tree proof path = %#v, error %v", result, err)
+	}
+	if cap(result.Commitments) != 2 {
+		t.Fatalf(
+			"empty-tree result capacity = %d, want 2",
+			cap(result.Commitments),
+		)
 	}
 
 	for cancelAt := 1; cancelAt <= 12; cancelAt++ {
@@ -399,6 +410,43 @@ func TestProofPathLimitsAndCorruptTreesFailClosed(t *testing.T) {
 	}
 
 	valid := validVectorCommitment(t)
+	treeValidity := []Tree{
+		{nodes: []node{{kind: nodeInternal}}, root: 0, valid: false},
+		{nodes: nil, root: 0, valid: true},
+		{nodes: []node{{kind: nodeInternal}}, root: 1, valid: true},
+	}
+	for index := range treeValidity {
+		if _, err := treeValidity[index].ProofPath(
+			context.Background(),
+			Key{},
+			testProofPathLimits(),
+		); !errors.Is(err, errInvalidTree) {
+			t.Fatalf("invalid tree header %d error = %v", index, err)
+		}
+	}
+	var nilContext context.Context
+	if _, err := treeValidity[2].ProofPath(
+		nilContext,
+		Key{},
+		ProofPathLimits{},
+	); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("root-boundary precedence error = %v", err)
+	}
+	childBoundary := Tree{
+		nodes: []node{{kind: nodeInternal, edgeCount: 1}},
+		edges: []edge{{child: 1}},
+		root:  0,
+		valid: true,
+	}
+	childLimits := testProofPathLimits()
+	childLimits.MaxNodeReads = 1
+	if _, err := childBoundary.ProofPath(
+		context.Background(),
+		Key{},
+		childLimits,
+	); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("child-boundary precedence error = %v", err)
+	}
 	corrupt := []Tree{
 		{nodes: []node{{kind: nodeStem}}, root: 0, valid: true},
 		{nodes: []node{{kind: nodeInternal, depth: 31}}, root: 0, valid: true},
@@ -409,7 +457,7 @@ func TestProofPathLimitsAndCorruptTreesFailClosed(t *testing.T) {
 		},
 		{
 			nodes: []node{{kind: nodeInternal, edgeCount: 1}},
-			edges: []edge{{child: 2}},
+			edges: []edge{{child: 1}},
 			root:  0,
 			valid: true,
 		},
@@ -449,6 +497,40 @@ func TestProofPathLimitsAndCorruptTreesFailClosed(t *testing.T) {
 		); !errors.Is(err, errInvalidTree) {
 			t.Fatalf("corrupt tree %d error = %v", index, err)
 		}
+	}
+}
+
+func TestProofPathAcceptsMaximumDepth(t *testing.T) {
+	t.Parallel()
+
+	var left Key
+	var right Key
+	left[30] = 1
+	right[30] = 2
+	tree, err := Build(
+		context.Background(),
+		[]Entry{
+			{Key: left, Value: testValue(1)},
+			{Key: right, Value: testValue(2)},
+		},
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build maximum-depth tree: %v", err)
+	}
+	result, err := tree.ProofPath(
+		context.Background(),
+		left,
+		testProofPathLimits(),
+	)
+	if err != nil {
+		t.Fatalf("extract maximum-depth path: %v", err)
+	}
+	if result.Kind != ProofPathPresent ||
+		result.Depth != 31 ||
+		len(result.Commitments) != 32 {
+		t.Fatalf("maximum-depth proof path = %#v", result)
 	}
 }
 
