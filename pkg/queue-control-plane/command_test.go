@@ -24,7 +24,7 @@ func (r failingReader) Read([]byte) (int, error) { return 0, r.err }
 
 var _ io.Reader = failingReader{}
 
-func TestNewCommandIDAllocatesOpaqueDistinctIdentifiers(t *testing.T) {
+func TestNewCommandIDAllocatesLowercaseULIDs(t *testing.T) {
 	t.Parallel()
 
 	seen := make(map[string]struct{}, 100)
@@ -33,15 +33,29 @@ func TestNewCommandIDAllocatesOpaqueDistinctIdentifiers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewCommandID() error = %v", err)
 		}
-		if len(identifier) != 36 || identifier[8] != '-' || identifier[13] != '-' ||
-			identifier[18] != '-' || identifier[23] != '-' {
-			t.Fatalf("NewCommandID() = %q, want canonical UUID", identifier)
+		if !isLowercaseULID(identifier) {
+			t.Fatalf("NewCommandID() = %q, want lowercase ULID", identifier)
 		}
 		if _, duplicate := seen[identifier]; duplicate {
 			t.Fatalf("NewCommandID() repeated %q", identifier)
 		}
 		seen[identifier] = struct{}{}
 	}
+}
+
+func isLowercaseULID(value string) bool {
+	const alphabet = "0123456789abcdefghjkmnpqrstvwxyz"
+
+	if len(value) != 26 || value[0] > '7' {
+		return false
+	}
+	for index := range len(value) {
+		if !strings.ContainsRune(alphabet, rune(value[index])) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func TestCommandLifetimeContractRemainsBounded(t *testing.T) {

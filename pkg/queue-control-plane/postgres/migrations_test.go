@@ -23,8 +23,8 @@ func TestMigrationSourceLoadsTenantScopedControlSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if len(migrations) != 8 {
-		t.Fatalf("len(Load()) = %d, want 8", len(migrations))
+	if len(migrations) != 9 {
+		t.Fatalf("len(Load()) = %d, want 9", len(migrations))
 	}
 
 	migration := migrations[0]
@@ -195,6 +195,26 @@ func TestMigrationSourceLoadsTenantScopedControlSchema(t *testing.T) {
 	} {
 		if !strings.Contains(capabilityMigration.UpSQL(), required) {
 			t.Fatalf("capability UpSQL() missing %q", required)
+		}
+	}
+
+	ulidMigration := migrations[8]
+	if ulidMigration.Version() != 9 ||
+		ulidMigration.Name() != "ulid_command_identifiers" {
+		t.Fatalf(
+			"ULID migration = %d/%q, want 9/ulid_command_identifiers",
+			ulidMigration.Version(), ulidMigration.Name(),
+		)
+	}
+	for _, required := range []string{
+		"ALTER COLUMN command_id TYPE text",
+		"queue_control_commands_command_id_shape_check",
+		"char_length(command_id) = 26",
+		"command_id = lower(command_id)",
+		"ALTER COLUMN command_id TYPE uuid",
+	} {
+		if !strings.Contains(ulidMigration.UpSQL()+ulidMigration.DownSQL(), required) {
+			t.Fatalf("ULID migration missing %q", required)
 		}
 	}
 }

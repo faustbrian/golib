@@ -11,12 +11,152 @@ import (
 	"testing"
 	"time"
 
+	identifierulid "github.com/faustbrian/golib/pkg/identifier/ulid"
 	gopostgres "github.com/faustbrian/golib/pkg/postgres"
 	controlplane "github.com/faustbrian/golib/pkg/queue-control-plane"
 	"github.com/faustbrian/golib/pkg/queue-control-plane/control"
 	controlpostgres "github.com/faustbrian/golib/pkg/queue-control-plane/postgres"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+func TestPostgresULIDMigrationPreservesHistoricalUUIDReferences(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Fatal("TEST_DATABASE_URL is required for integration tests")
+	}
+
+	database, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open PostgreSQL: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	connection, err := database.Conn(ctx)
+	if err != nil {
+		t.Fatalf("acquire PostgreSQL connection: %v", err)
+	}
+	t.Cleanup(func() { _ = connection.Close() })
+
+	const schema = "queue_control_ulid_upgrade"
+	if _, err := connection.ExecContext(ctx, "CREATE SCHEMA "+schema); err != nil {
+		t.Fatalf("create upgrade schema: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = connection.ExecContext(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+	})
+	if _, err := connection.ExecContext(ctx, "SET search_path TO "+schema+", public"); err != nil {
+		t.Fatalf("select upgrade schema: %v", err)
+	}
+
+	source, err := controlpostgres.MigrationSource()
+	if err != nil {
+		t.Fatalf("MigrationSource() error = %v", err)
+	}
+	migrationSet, err := source.Load(ctx)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	for _, migration := range migrationSet[:8] {
+		if _, err := connection.ExecContext(ctx, migration.UpSQL()); err != nil {
+			t.Fatalf("apply migration %d: %v", migration.Version(), err)
+		}
+	}
+
+	const historicalID = "11111111-1111-4111-8111-111111111111"
+	historicalStatements := []struct {
+		name  string
+		query string
+	}{
+		{name: "command", query: `
+INSERT INTO queue_control_commands (
+    tenant_id, idempotency_key, command_id, actor, authentication_method,
+    reason, action, required_capability, target_kind, target_name, requested_at,
+    deadline, status
+) VALUES (
+    'tenant-upgrade', 'historical-command', $1, 'operator', 'legacy',
+    'upgrade compatibility', 'pause', 'pause', 'queue', 'critical',
+    TIMESTAMPTZ '2026-07-30 10:00:00+00',
+    TIMESTAMPTZ '2026-07-30 10:00:30+00', 'pending'
+);`},
+		{name: "desired state", query: `
+INSERT INTO queue_control_desired_states (
+    tenant_id, target_kind, target_name, state, revision, command_id, changed_at
+) VALUES (
+    'tenant-upgrade', 'queue', 'critical', 'paused', 1, $1,
+    TIMESTAMPTZ '2026-07-30 10:00:00+00'
+);`},
+		{name: "audit history", query: `
+INSERT INTO queue_control_audit_events (
+    tenant_id, command_id, idempotency_key, occurred_at, actor, action, target,
+    result, previous_hash, hash
+) VALUES (
+    'tenant-upgrade', $1, 'historical-command',
+    TIMESTAMPTZ '2026-07-30 10:00:00+00', 'operator', 'pause',
+    'queue:critical', 'pending', decode(repeat('00', 32), 'hex'),
+    decode(repeat('01', 32), 'hex')
+
+);`},
+	}
+	for _, statement := range historicalStatements {
+		if _, err := connection.ExecContext(ctx, statement.query, historicalID); err != nil {
+			t.Fatalf("seed historical UUID %s: %v", statement.name, err)
+		}
+	}
+	if _, err := connection.ExecContext(ctx, migrationSet[8].UpSQL()); err != nil {
+		t.Fatalf("apply ULID migration: %v", err)
+	}
+
+	for table, query := range map[string]string{
+		"commands":      "SELECT command_id FROM queue_control_commands WHERE tenant_id = 'tenant-upgrade'",
+		"desired state": "SELECT command_id FROM queue_control_desired_states WHERE tenant_id = 'tenant-upgrade'",
+		"audit history": "SELECT command_id FROM queue_control_audit_events WHERE tenant_id = 'tenant-upgrade'",
+	} {
+		var identifier string
+		if err := connection.QueryRowContext(ctx, query).Scan(&identifier); err != nil {
+			t.Fatalf("read upgraded %s: %v", table, err)
+		}
+		if identifier != historicalID {
+			t.Fatalf("upgraded %s command ID = %q, want %q", table, identifier, historicalID)
+		}
+	}
+
+	newID, err := controlplane.NewCommandID()
+	if err != nil {
+		t.Fatalf("NewCommandID() error = %v", err)
+	}
+	if _, err := connection.ExecContext(ctx, `
+INSERT INTO queue_control_commands (
+    tenant_id, idempotency_key, command_id, actor, authentication_method,
+    reason, action, required_capability, target_kind, target_name, requested_at,
+    deadline, status
+) VALUES (
+    'tenant-upgrade', 'new-command', $1, 'operator', 'internal',
+    'new ULID command', 'resume', 'resume', 'queue', 'critical',
+    TIMESTAMPTZ '2026-07-30 10:01:00+00',
+    TIMESTAMPTZ '2026-07-30 10:01:30+00', 'pending'
+)`, newID); err != nil {
+		t.Fatalf("insert new ULID command: %v", err)
+	}
+
+	_, err = connection.ExecContext(ctx, `
+INSERT INTO queue_control_commands (
+    tenant_id, idempotency_key, command_id, actor, authentication_method,
+    reason, action, required_capability, target_kind, target_name, requested_at,
+    deadline, status
+) VALUES (
+    'tenant-upgrade', 'invalid-command', 'not-a-command-id', 'operator', 'internal',
+    'invalid identifier', 'pause', 'pause', 'queue', 'invalid',
+    TIMESTAMPTZ '2026-07-30 10:02:00+00',
+    TIMESTAMPTZ '2026-07-30 10:02:30+00', 'pending'
+)`)
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) ||
+		postgresError.ConstraintName != "queue_control_commands_command_id_shape_check" {
+		t.Fatalf("invalid command ID error = %v, want command ID shape constraint", err)
+	}
+}
 
 func TestPostgresRuntimeIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -73,6 +213,10 @@ func TestPostgresRuntimeIntegration(t *testing.T) {
 	}
 	if result.Status != controlplane.CommandSucceeded || dispatcher.Calls() != 1 {
 		t.Fatalf("Execute() = (%+v, %d dispatches)", result, dispatcher.Calls())
+	}
+	commandID, parseErr := identifierulid.Parse(result.CommandID)
+	if parseErr != nil || commandID.StringLower() != result.CommandID {
+		t.Fatalf("command ID = %q, want lowercase ULID", result.CommandID)
 	}
 	duplicate, err := service.Execute(ctx, command)
 	if err != nil || duplicate != result || dispatcher.Calls() != 1 {
@@ -347,7 +491,7 @@ func migrateIntegrationDatabase(ctx context.Context, dsn string) error {
 	if err != nil {
 		return err
 	}
-	if records := len(first.Records()); records != 0 && records != 8 {
+	if records := len(first.Records()); records != 0 && records != 9 {
 		return errors.New("integration: migration history was only partially applied")
 	}
 	second, err := runner.Up(ctx)

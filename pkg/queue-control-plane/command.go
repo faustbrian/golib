@@ -3,29 +3,26 @@ package controlplane
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
 	"time"
+
+	identifierulid "github.com/faustbrian/golib/pkg/identifier/ulid"
 )
 
-// NewCommandID allocates one opaque RFC 4122 version 4 operation identifier.
+// NewCommandID allocates one opaque lowercase ULID operation identifier.
 func NewCommandID() (string, error) {
 	return newCommandID(rand.Reader)
 }
 
 func newCommandID(reader io.Reader) (string, error) {
-	var value [16]byte
-	if _, err := io.ReadFull(reader, value[:]); err != nil {
+	identifier, err := identifierulid.NewGenerator(nil, reader).New()
+	if err != nil {
 		return "", err
 	}
-	value[6] = (value[6] & 0x0f) | 0x40
-	value[8] = (value[8] & 0x3f) | 0x80
-	encoded := hex.EncodeToString(value[:])
 
-	return encoded[0:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" +
-		encoded[16:20] + "-" + encoded[20:32], nil
+	return identifier.StringLower(), nil
 }
 
 // Action identifies an administrative mutation.

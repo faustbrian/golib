@@ -393,7 +393,17 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/ci.md",
+            "docs/goal-traceability.md",
+            "docs/migration.md",
+            "docs/module-dependencies.md",
+            "docs/module-lifecycle.md",
+            "docs/package-catalog.md",
+            "docs/package-selection.md",
+            "docs/quality.md",
+            "docs/releases.md",
+            "docs/troubleshooting.md"
           ],
           "verification_gates": [
             "format-check",
@@ -6848,6 +6858,7 @@
         "github.com/faustbrian/golib/pkg/lease",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
@@ -10114,6 +10125,7 @@
             "pkg/merkle-patricia-trie/CHANGELOG.md",
             "pkg/merkle-patricia-trie/README.md",
             "pkg/merkle-patricia-trie/docs/architecture.md",
+            "pkg/merkle-patricia-trie/docs/hardening-report.md",
             "pkg/merkle-patricia-trie/docs/security.md"
           ],
           "verification_gates": [
@@ -10148,6 +10160,7 @@
             "pkg/merkle-patricia-trie/CHANGELOG.md",
             "pkg/merkle-patricia-trie/README.md",
             "pkg/merkle-patricia-trie/docs/architecture.md",
+            "pkg/merkle-patricia-trie/docs/hardening-report.md",
             "pkg/merkle-patricia-trie/docs/security.md"
           ],
           "verification_gates": [
@@ -13741,6 +13754,7 @@
         "github.com/faustbrian/golib/pkg/authentication",
         "github.com/faustbrian/golib/pkg/authorization",
         "github.com/faustbrian/golib/pkg/clock",
+        "github.com/faustbrian/golib/pkg/identifier",
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",

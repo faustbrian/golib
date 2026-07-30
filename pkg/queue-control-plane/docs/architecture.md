@@ -31,10 +31,12 @@ Every mutation follows one sequence:
 
 A repeated idempotency key returns the stored result and is not dispatched
 again. Reusing a key for a different command returns an idempotency conflict.
-The service allocates a distinct UUID command ID before the first journal
-write. That identifier is preserved through PostgreSQL, queue dispatch,
+The service allocates a distinct lowercase ULID command ID before the first
+journal write. That identifier is preserved through PostgreSQL, queue dispatch,
 desired-state attribution, audit reads, API responses, clients, and CLI output;
 the idempotency key remains a separate caller-owned deduplication contract.
+The PostgreSQL upgrade retains historical UUID command identifiers as opaque
+text, but every command created after the upgrade receives a lowercase ULID.
 If dispatch fails before reaching a tenant controller, the public result is
 `failed` with the redacted code `dispatch_failed`. Published `queue`
 pending, dispatched, acknowledged, failed, unsupported, timed-out, canceled,

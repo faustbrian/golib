@@ -13,6 +13,9 @@ Versioning.
 
 ### Changed
 
+- New durable command identifiers are lowercase ULIDs. The PostgreSQL upgrade
+  preserves historical UUID command identifiers while changing command and
+  reference columns to text so existing audit history remains addressable.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 
@@ -56,7 +59,7 @@ Versioning.
   PostgreSQL recovery evidence.
 - Durable bounded command deadlines, authentication methods, required
   capabilities, and worker/protocol acknowledgement snapshots.
-- Durable UUID command identifiers distinct from caller-owned idempotency keys,
+- Durable opaque command identifiers distinct from caller-owned idempotency keys,
   including migration backfill and end-to-end result propagation.
 - Separate record-list, record-inspection, payload-view, and audit-view
   permissions with exact tenant and object scope.
