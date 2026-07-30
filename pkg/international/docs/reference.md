@@ -8,11 +8,19 @@
 | `locale` | BCP 47 | bounded registry-aware tags |
 | `currency` | ISO 4217 alphabetic/numeric | distinct active types |
 | `phone` | E.164 and libphonenumber metadata | bounded parseable numbers |
-| `postal` | country-contextual opaque value | bounded printable UTF-8 |
+| `postal` | country-contextual opaque value; optional pinned syntax validation | bounded printable UTF-8 |
 
 `Parse` validates a representation without changing it. APIs named
 `Canonicalize`, `Canonical`, or `Normalize` perform explicit transformations.
 Display names and phone formatting are presentation metadata, never identity.
+
+`postal.ValidSyntax` is an explicit compatibility operation backed by
+`postal.SyntaxDataset`. It removes ASCII spaces and dashes and canonicalizes
+ASCII case before applying the pinned country rule. It does not change
+`postal.Parse`: ordinary postal values remain opaque, and syntax validity does
+not establish existence, deliverability, locality, or address correctness.
+Callers must apply their transport-specific input bound before syntax
+validation.
 
 `international.LowercaseUnicode` performs explicit locale-neutral full
 Unicode lowercasing for protocol normalization. The caller supplies the

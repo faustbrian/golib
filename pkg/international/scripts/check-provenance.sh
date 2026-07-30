@@ -12,6 +12,7 @@ required_notices=(
   'BSD-3-Clause'
   'SIX ISO 4217 terms of use'
   'Apache-2.0'
+  'brick/postcode'
 )
 for notice in "${required_notices[@]}"; do
   grep -Fq -- "$notice" THIRD_PARTY_NOTICES.md || {
