@@ -5,16 +5,16 @@ comparable only when acknowledgement, idempotence, ordering, partition count,
 keying, compression, payload, retry, timeout, and commit behavior are aligned.
 Unsupported guarantees are exclusions, not faster results.
 
-## Current equivalent producer capture
+## Current equivalent producer captures
 
 The independently versioned
 [`benchmarks/clients`](../benchmarks/clients) module isolates comparison
-dependencies from the production module. Its current ranked workload measures
-one warmed synchronous producer sending one record at a time to one
-pre-created partition until all in-sync replicas acknowledge it. Idempotence
-and ordering are enabled for every ranked client. Topic creation, client
-construction, metadata warm-up, fixture startup, and shutdown are outside the
-timer.
+dependencies from the production module. Its ranked workloads measure one
+warmed synchronous producer sending either one record or one 10/100-record
+batch to one pre-created partition until all in-sync replicas acknowledge the
+complete operation. Idempotence and ordering are enabled for every ranked
+client. Topic creation, client construction, metadata warm-up, fixture startup,
+and shutdown are outside the timer.
 
 The capture covers:
 
@@ -23,7 +23,8 @@ The capture covers:
 - IBM/Sarama v1.60.1 with idempotence, all-ISR acknowledgements, and its
   required single in-flight request;
 - keyed and explicitly allowed unkeyed records;
-- 128-byte, 1 KiB, and 64 KiB payloads; and
+- 128-byte, 1 KiB, and 64 KiB single-record payloads;
+- 128-byte and 1 KiB payloads in 10-record and 100-record batches; and
 - uncompressed and Snappy-compressed batches.
 
 Kafka-go v0.4.51 participates in the real-broker correctness check as an
@@ -31,10 +32,13 @@ explicitly unranked control. Its `Writer` provides all-ISR acknowledgements but
 does not expose an idempotent-producer mode, so placing its producer latency in
 the durable ranking would compare different delivery contracts.
 
-The correctness check independently read the exact key and value published by
-each client. The timed capture recorded 20 samples of 50 acknowledged records
-for each of 36 ranked workload/client combinations: 720 benchmark samples and
-36,000 timed deliveries in total.
+Separate correctness checks independently read the exact key and value
+published by each client's single and batch APIs in input order. The timed
+single-record capture recorded 20 samples of 50 acknowledged records for each
+of 36 ranked workload/client combinations: 720 benchmark samples and 36,000
+timed deliveries. The batch capture recorded 20 samples of 50 acknowledged
+batches for each of 48 ranked combinations: 960 benchmark samples, 48,000
+timed batch operations, and 2,640,000 timed records.
 
 ## Environment and interpretation
 
@@ -45,12 +49,15 @@ raw samples, and benchstat distributions are stored with the
 [capture](performance-results/2026-07-30/README.md).
 
 The local single-node broker shares CPU and networking with the benchmark
-process. Observed median end-to-end latency ranged from 198 to 730 microseconds
-for the policy path, 173 to 491 microseconds for raw franz-go, and 6.3 to 7.3
-milliseconds for Sarama across the matrix. One franz-based case retained 239
-percent distribution spread even after the extended
-capture. Those ranges describe local fixture noise as well as client work;
-they do not establish superiority or a stable production budget.
+process. In the refreshed single-record capture, observed median end-to-end
+latency ranged from 275 microseconds to 1.14 milliseconds for the policy path,
+239 microseconds to 1.01 milliseconds for raw franz-go, and 6.5 to 7.7
+milliseconds for Sarama. Batch-operation medians ranged from 204 to 626
+microseconds for the policy path, 195 to 883 microseconds for raw franz-go, and
+6.4 to 8.6 milliseconds for Sarama. Individual distributions spread as far as
+184 percent on the shared local fixture. Those ranges describe local fixture
+noise as well as client work; they do not establish superiority or a stable
+production budget.
 
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
@@ -63,7 +70,7 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- synchronous batches and bounded asynchronous production;
+- bounded asynchronous production;
 - multiple partitions and partition-distribution behavior;
 - consumer record and batch handling, including kafka-go;
 - sequential and cross-partition handling, commits, and rebalance cost;

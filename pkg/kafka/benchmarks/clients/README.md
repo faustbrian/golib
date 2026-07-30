@@ -20,24 +20,26 @@ source of production support claims or a substitute for fault evidence.
 capture to record the exact Go version, operating system, architecture,
 workspace revision, Docker engine, client versions, and broker image.
 
-## Equivalent synchronous producer workload
+## Equivalent synchronous producer workloads
 
 `BenchmarkEquivalentSynchronousProduce` reuses one warmed producer and sends
-one record at a time until the broker acknowledges all in-sync replicas. Every
-ranked candidate has idempotence enabled, preserves order, uses one effective
-in-flight request in this serial workload, disables topic auto-creation, uses
-one pre-created partition, retries at most ten times, and has bounded request
-and delivery waits. Client construction, metadata warm-up, topic creation, and
-fixture startup are outside the timer. Record construction, client policy,
-serialization, compression, network transit, broker processing, and delivery
-result handling are inside it.
+one record at a time until the broker acknowledges all in-sync replicas.
+`BenchmarkEquivalentSynchronousBatchProduce` submits 10 or 100 records through
+each client's synchronous batch API and waits for the complete batch outcome.
+Every ranked candidate has idempotence enabled, preserves order, disables topic
+auto-creation, uses one pre-created partition, retries at most ten times, and
+has bounded request waits. Client construction, metadata warm-up, topic
+creation, and fixture startup are outside the timer. Public record mapping,
+client policy, serialization, compression, network transit, broker processing,
+and delivery-result handling are inside it.
 
-The matrix covers keyed and explicitly accepted unkeyed records, payloads of
-128 bytes, 1 KiB, and 64 KiB, and no compression plus Snappy. The one-partition
-fixture deliberately removes partition-count and partitioner distribution as
-variables. It does not establish many-partition, asynchronous, batch,
-transaction, reconnect, TLS, or steady-state resource results; those require
-separate workloads.
+The single-record matrix covers keyed and explicitly accepted unkeyed records,
+payloads of 128 bytes, 1 KiB, and 64 KiB, and no compression plus Snappy. The
+batch matrix uses the same key and compression modes, 128-byte and 1 KiB
+payloads, and 10-record plus 100-record batches. The one-partition fixture
+deliberately removes partition-count and partitioner distribution as variables.
+It does not establish many-partition, asynchronous, transaction, reconnect,
+TLS, or steady-state resource results; those require separate workloads.
 
 The policy library and raw franz-go use the same franz-go producer controls.
 Sarama requires `Net.MaxOpenRequests=1` for idempotence; because this workload
@@ -55,9 +57,11 @@ non-idempotent, unranked capability control. An equivalent consumer-group
 workload will include it; until that workload is captured, the overall
 competitor matrix remains incomplete.
 
-`TestEquivalentProducerOutcomes` separately verifies against the real fixture
-that every ranked client receives a successful acknowledgement and that a
-separate read path observes each exact key and payload once.
+`TestEquivalentProducerOutcomes` and
+`TestEquivalentProducerBatchOutcomes` separately verify against the real
+fixture that every ranked client and the unranked control receive successful
+outcomes, and that a separate read path observes each exact key and payload
+once in input order.
 
 ## Broker selection
 
@@ -83,8 +87,10 @@ environment, raw samples, and analysis outside that temporary cache:
 make test
 make verify
 make environment > environment.txt
-make capture OUTPUT=raw-producer.txt BENCH_COUNT=10 BENCH_TIME=10x
+make capture OUTPUT=raw-producer.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
+make capture OUTPUT=raw-producer-batch.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousBatchProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
+make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and

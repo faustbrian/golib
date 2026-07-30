@@ -83,7 +83,13 @@ func (compression benchmarkCompression) String() string {
 
 type synchronousProducer interface {
 	Produce(context.Context, []byte, []byte) error
+	ProduceBatch(context.Context, []benchmarkProducerRecord) error
 	Close(context.Context) error
+}
+
+type benchmarkProducerRecord struct {
+	key   []byte
+	value []byte
 }
 
 type producerCandidate struct {
@@ -132,6 +138,42 @@ func BenchmarkEquivalentSynchronousProduce(benchmark *testing.B) {
 						compression,
 					)
 				})
+			}
+		}
+	}
+}
+
+func BenchmarkEquivalentSynchronousBatchProduce(benchmark *testing.B) {
+	brokers := benchmarkBrokers(benchmark)
+	for _, keyed := range []bool{true, false} {
+		keyMode := "unkeyed"
+		if keyed {
+			keyMode = "keyed"
+		}
+		for _, size := range []int{128, 1024} {
+			for _, recordCount := range []int{10, 100} {
+				for _, compression := range []benchmarkCompression{
+					compressionNone,
+					compressionSnappy,
+				} {
+					name := fmt.Sprintf(
+						"%s/%dB/%d-records/%s",
+						keyMode,
+						size,
+						recordCount,
+						compression,
+					)
+					benchmark.Run(name, func(benchmark *testing.B) {
+						benchmarkEquivalentSynchronousBatchProduce(
+							benchmark,
+							brokers,
+							keyed,
+							size,
+							recordCount,
+							compression,
+						)
+					})
+				}
 			}
 		}
 	}
@@ -204,9 +246,82 @@ func benchmarkEquivalentSynchronousProduce(
 	}
 }
 
+func benchmarkEquivalentSynchronousBatchProduce(
+	benchmark *testing.B,
+	brokers []string,
+	keyed bool,
+	size int,
+	recordCount int,
+	compression benchmarkCompression,
+) {
+	benchmark.Helper()
+	key := []byte(nil)
+	if keyed {
+		key = []byte("benchmark-key")
+	}
+	value := make([]byte, size)
+	for index := range value {
+		value[index] = byte(index % 251)
+	}
+	records := make([]benchmarkProducerRecord, recordCount)
+	for index := range records {
+		records[index] = benchmarkProducerRecord{key: key, value: value}
+	}
+
+	for _, candidate := range producerCandidates {
+		benchmark.Run(candidate.name, func(benchmark *testing.B) {
+			topic := createBenchmarkTopic(benchmark, brokers)
+			producer := candidate.new(
+				benchmark,
+				brokers,
+				topic,
+				keyed,
+				compression,
+			)
+			benchmark.Cleanup(func() {
+				closeCtx, cancel := context.WithTimeout(
+					context.Background(),
+					benchmarkDeliveryTimeout+benchmarkRetryMax,
+				)
+				defer cancel()
+				if err := producer.Close(closeCtx); err != nil {
+					benchmark.Errorf("close %s producer: %v", candidate.name, err)
+				}
+			})
+
+			warmupCtx, warmupCancel := context.WithTimeout(
+				context.Background(),
+				benchmarkDeliveryTimeout+benchmarkRetryMax,
+			)
+			if err := producer.ProduceBatch(warmupCtx, records); err != nil {
+				warmupCancel()
+				benchmark.Fatalf("warm %s batch producer: %v", candidate.name, err)
+			}
+			warmupCancel()
+
+			benchmark.ReportAllocs()
+			benchmark.SetBytes(int64(recordCount * (len(key) + len(value))))
+			benchmark.ResetTimer()
+			for benchmark.Loop() {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					benchmarkDeliveryTimeout+benchmarkRetryMax,
+				)
+				err := producer.ProduceBatch(ctx, records)
+				cancel()
+				if err != nil {
+					benchmark.Fatalf("produce batch with %s: %v", candidate.name, err)
+				}
+			}
+			benchmark.StopTimer()
+			benchmark.ReportMetric(float64(recordCount), "records/op")
+		})
+	}
+}
+
 func TestEquivalentProducerOutcomes(t *testing.T) {
 	brokers := benchmarkBrokers(t)
-	topic := createBenchmarkTopic(t, brokers)
+	topic := createIsolatedBenchmarkTopic(t, brokers)
 	wantValues := make([][]byte, 0, len(producerOutcomeCandidates))
 	wantKeys := make([][]byte, 0, len(producerOutcomeCandidates))
 	for index, candidate := range producerOutcomeCandidates {
@@ -246,6 +361,56 @@ func TestEquivalentProducerOutcomes(t *testing.T) {
 	}
 	if !slices.EqualFunc(gotValues, wantValues, slices.Equal[[]byte]) {
 		t.Fatalf("consumed values = %q, want %q", gotValues, wantValues)
+	}
+}
+
+func TestEquivalentProducerBatchOutcomes(t *testing.T) {
+	brokers := benchmarkBrokers(t)
+	topic := createIsolatedBenchmarkTopic(t, brokers)
+	const recordsPerBatch = 3
+	wantValues := make([][]byte, 0, len(producerOutcomeCandidates)*recordsPerBatch)
+	wantKeys := make([][]byte, 0, len(producerOutcomeCandidates)*recordsPerBatch)
+	for candidateIndex, candidate := range producerOutcomeCandidates {
+		records := make([]benchmarkProducerRecord, 0, recordsPerBatch)
+		for recordIndex := range recordsPerBatch {
+			key := []byte(fmt.Sprintf("candidate-%d-record-%d", candidateIndex, recordIndex))
+			value := []byte(fmt.Sprintf("%s-record-%d", candidate.name, recordIndex))
+			records = append(records, benchmarkProducerRecord{key: key, value: value})
+			wantKeys = append(wantKeys, key)
+			wantValues = append(wantValues, value)
+		}
+		producer := candidate.new(t, brokers, topic, true, compressionSnappy)
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			benchmarkDeliveryTimeout+benchmarkRetryMax,
+		)
+		err := producer.ProduceBatch(ctx, records)
+		cancel()
+		if err != nil {
+			t.Fatalf("produce batch with %s: %v", candidate.name, err)
+		}
+		closeCtx, closeCancel := context.WithTimeout(
+			context.Background(),
+			benchmarkDeliveryTimeout+benchmarkRetryMax,
+		)
+		err = producer.Close(closeCtx)
+		closeCancel()
+		if err != nil {
+			t.Fatalf("close %s producer: %v", candidate.name, err)
+		}
+	}
+
+	gotKeys, gotValues := readBenchmarkRecords(
+		t,
+		brokers,
+		topic,
+		len(wantKeys),
+	)
+	if !slices.EqualFunc(gotKeys, wantKeys, slices.Equal[[]byte]) {
+		t.Fatalf("consumed batch keys = %q, want %q", gotKeys, wantKeys)
+	}
+	if !slices.EqualFunc(gotValues, wantValues, slices.Equal[[]byte]) {
+		t.Fatalf("consumed batch values = %q, want %q", gotValues, wantValues)
 	}
 }
 
@@ -341,6 +506,23 @@ func (producer *policyProducer) Produce(
 	}).Err
 }
 
+func (producer *policyProducer) ProduceBatch(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	policyRecords := make([]policy.ProducerRecord, len(records))
+	for index, record := range records {
+		policyRecords[index] = policy.ProducerRecord{
+			Topic: producer.topic,
+			Key:   record.key,
+			Value: record.value,
+		}
+	}
+	_, err := producer.producer.PublishBatch(ctx, policyRecords)
+
+	return err
+}
+
 func (producer *policyProducer) Close(ctx context.Context) error {
 	return producer.producer.Shutdown(ctx)
 }
@@ -398,6 +580,22 @@ func (producer *franzProducer) Produce(
 		Key:   key,
 		Value: value,
 	}).FirstErr()
+}
+
+func (producer *franzProducer) ProduceBatch(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	franzRecords := make([]*kgo.Record, len(records))
+	for index, record := range records {
+		franzRecords[index] = &kgo.Record{
+			Topic: producer.topic,
+			Key:   record.key,
+			Value: record.value,
+		}
+	}
+
+	return producer.client.ProduceSync(ctx, franzRecords...).FirstErr()
 }
 
 func (producer *franzProducer) Close(context.Context) error {
@@ -471,12 +669,32 @@ func (producer *saramaProducer) Produce(
 	return err
 }
 
+func (producer *saramaProducer) ProduceBatch(
+	_ context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	messages := make([]*sarama.ProducerMessage, len(records))
+	for index, record := range records {
+		message := &sarama.ProducerMessage{
+			Topic: producer.topic,
+			Value: sarama.ByteEncoder(record.value),
+		}
+		if record.key != nil {
+			message.Key = sarama.ByteEncoder(record.key)
+		}
+		messages[index] = message
+	}
+
+	return producer.producer.SendMessages(messages)
+}
+
 func (producer *saramaProducer) Close(context.Context) error {
 	return producer.producer.Close()
 }
 
 type kafkaGoProducer struct {
-	writer *segmentkafka.Writer
+	writer    *segmentkafka.Writer
+	transport *segmentkafka.Transport
 }
 
 func newKafkaGoProducer(
@@ -494,8 +712,13 @@ func newKafkaGoProducer(
 	if compression == compressionSnappy {
 		codec = segmentkafka.Snappy
 	}
+	transport := &segmentkafka.Transport{
+		ClientID:    "kafka-go-client-benchmark",
+		MetadataTTL: benchmarkRetryMin,
+	}
 
 	return &kafkaGoProducer{
+		transport: transport,
 		writer: &segmentkafka.Writer{
 			Addr:                   segmentkafka.TCP(brokers...),
 			Topic:                  topic,
@@ -509,6 +732,7 @@ func newKafkaGoProducer(
 			Async:                  false,
 			Compression:            codec,
 			AllowAutoTopicCreation: false,
+			Transport:              transport,
 		},
 	}
 }
@@ -524,8 +748,26 @@ func (producer *kafkaGoProducer) Produce(
 	})
 }
 
+func (producer *kafkaGoProducer) ProduceBatch(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	messages := make([]segmentkafka.Message, len(records))
+	for index, record := range records {
+		messages[index] = segmentkafka.Message{
+			Key:   record.key,
+			Value: record.value,
+		}
+	}
+
+	return producer.writer.WriteMessages(ctx, messages...)
+}
+
 func (producer *kafkaGoProducer) Close(context.Context) error {
-	return producer.writer.Close()
+	err := producer.writer.Close()
+	producer.transport.CloseIdleConnections()
+
+	return err
 }
 
 func benchmarkBrokers(tb testing.TB) []string {
@@ -653,6 +895,16 @@ func createBenchmarkTopic(tb testing.TB, brokers []string) string {
 	return benchmarkTopic
 }
 
+func createIsolatedBenchmarkTopic(tb testing.TB, brokers []string) string {
+	tb.Helper()
+	topic, err := createBenchmarkTopicOnce(brokers)
+	if err != nil {
+		tb.Fatalf("create isolated benchmark topic: %v", err)
+	}
+
+	return topic
+}
+
 func createBenchmarkTopicOnce(brokers []string) (string, error) {
 	topic := fmt.Sprintf("golib-client-benchmark-%d", time.Now().UnixNano())
 	client, err := kgo.NewClient(
@@ -666,7 +918,8 @@ func createBenchmarkTopicOnce(brokers []string) (string, error) {
 	defer client.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	results, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, nil, topic)
+	admin := kadm.NewClient(client)
+	results, err := admin.CreateTopics(ctx, 1, 1, nil, topic)
 	if err != nil {
 		return "", err
 	}
@@ -676,6 +929,25 @@ func createBenchmarkTopicOnce(brokers []string) (string, error) {
 	}
 	if result.Err != nil {
 		return "", fmt.Errorf("topic %q: %w", topic, result.Err)
+	}
+	metadataPoll := time.NewTicker(10 * time.Millisecond)
+	defer metadataPoll.Stop()
+	for {
+		details, listErr := admin.ListTopics(ctx, topic)
+		if listErr != nil {
+			return "", fmt.Errorf("inspect topic %q readiness: %w", topic, listErr)
+		}
+		detail, topicReady := details[topic]
+		partition, partitionReady := detail.Partitions[0]
+		if topicReady && detail.Err == nil && partitionReady &&
+			partition.Err == nil && partition.Leader >= 0 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("topic %q did not become ready: %w", topic, ctx.Err())
+		case <-metadataPoll.C:
+		}
 	}
 
 	return topic, nil
