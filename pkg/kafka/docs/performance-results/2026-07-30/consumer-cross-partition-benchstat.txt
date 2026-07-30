@@ -1,0 +1,163 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │              sec/op              │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                          2.070m ± 58%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                          2.120m ± 66%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                        2.948m ± 19%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                        2.034m ± 32%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                         1.609m ± 27%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                         997.7µ ± 21%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                       1.560m ± 29%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                       1.326m ± 43%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                            1.012m ± 42%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                            768.8µ ± 13%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                          857.6µ ± 20%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                          1.098m ± 28%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                           980.1µ ± 21%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                           663.8µ ± 52%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                         1.153m ± 36%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                         908.4µ ± 56%
+geomean                                                                                                1.266m
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │               B/s                │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                         605.5Ki ± 37%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                         590.8Ki ± 49%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                       429.7Ki ± 23%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                       620.1Ki ± 24%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                        5.012Mi ± 37%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                        8.087Mi ± 27%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                      5.169Mi ± 23%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                      6.094Mi ± 74%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                           1.225Mi ± 30%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                           1.597Mi ± 15%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                         1.435Mi ± 25%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                         1.121Mi ± 38%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                          8.230Mi ± 23%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                          12.15Mi ± 34%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                        7.010Mi ± 57%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                        8.898Mi ± 36%
+geomean                                                                                               2.489Mi
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │            commits/op            │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                            1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                            1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                          1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                          1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                           1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                           1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                         1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                         1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                              1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                              1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                            1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                            1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                             1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                             1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                           1.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                           1.000 ± 0%
+geomean                                                                                                  1.000
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │      handler-rounds/record       │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                            256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                            256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                          256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                          256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                           256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                           256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                         256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                         256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                              256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                              256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                            256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                            256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                             256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                             256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                           256.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                           256.0 ± 0%
+geomean                                                                                                  256.0
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │          partitions/op           │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                          8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                          8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                         8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                         8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                              8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                              8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                             8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                             8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                           8.000 ± 0%
+geomean                                                                                                  8.000
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │            records/op            │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                          8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                          8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                         8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                         8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                              8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                              8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                            8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                             8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                             8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                           8.000 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                           8.000 ± 0%
+geomean                                                                                                  8.000
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │               B/op               │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                          28.62Ki ± 2%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                          20.06Ki ± 7%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                        27.16Ki ± 3%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                        19.89Ki ± 3%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                         32.17Ki ± 4%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                         26.66Ki ± 7%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                       38.78Ki ± 8%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                       31.13Ki ± 4%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                            29.83Ki ± 3%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                            22.33Ki ± 1%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                          29.92Ki ± 2%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                          22.03Ki ± 2%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                           33.72Ki ± 5%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                           28.48Ki ± 3%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                         40.14Ki ± 5%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                         30.43Ki ± 5%
+geomean                                                                                                28.26Ki
+
+                                                                                 │ raw-consumer-cross-partition.txt │
+                                                                                 │            allocs/op             │
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/golib-policy-16                            313.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/none/raw-franz-go-16                            206.0 ± 3%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/golib-policy-16                          302.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/sequential/128B/snappy/raw-franz-go-16                          202.5 ± 1%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/golib-policy-16                           307.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/none/raw-franz-go-16                           211.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/golib-policy-16                         320.5 ± 4%
+EquivalentCrossPartitionConsumerHandling/sequential/1024B/snappy/raw-franz-go-16                         218.5 ± 3%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/golib-policy-16                              323.5 ± 1%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/none/raw-franz-go-16                              218.5 ± 1%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/golib-policy-16                            324.0 ± 0%
+EquivalentCrossPartitionConsumerHandling/parallel/128B/snappy/raw-franz-go-16                            218.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/golib-policy-16                             320.0 ± 3%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/none/raw-franz-go-16                             218.0 ± 1%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/golib-policy-16                           331.0 ± 2%
+EquivalentCrossPartitionConsumerHandling/parallel/1024B/snappy/raw-franz-go-16                           220.0 ± 3%
+geomean                                                                                                  260.6

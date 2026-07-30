@@ -64,7 +64,9 @@ All notable changes to this module are documented here.
   asynchronous-window, and keyed plus explicit eight-partition workloads for
   the package policy, raw franz-go, and Sarama, an explicitly unranked kafka-go
   producer capability control, plus equivalent manually committed consumer
-  record and 10/100-record batch workloads for all four clients, pinned
+  record and 10/100-record batch workloads for all four clients, sequential and
+  bounded-parallel eight-partition handling for the package policy and raw
+  franz-go with exact per-partition order and broker-verified commits, pinned
   dependency and broker inputs, per-workload environment fingerprints, raw
   multi-sample captures, and variance-preserving analysis
 - three-broker rack-local fetch evidence proving that a separate consumer

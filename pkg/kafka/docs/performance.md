@@ -73,6 +73,25 @@ is therefore outside this comparison. Sarama's synchronous commit method
 returns no error, so its healthy-broker timing is backed by the external offset
 check but does not prove equivalent commit-failure reporting.
 
+A separate eight-partition workload compares the package policy and raw
+franz-go because both expose the same bounded poll-and-commit cycle. One
+operation handles one record per partition with 256 SHA-256 rounds of fixed
+application work per record, either sequentially or with concurrency bounded
+at eight while preserving per-partition order. Automatic commits are disabled
+and every non-empty poll is synchronously committed. Kafka may split one
+logical operation across one to eight polls, so the benchmark reports the
+observed commit count; this capture observed exactly one commit per operation.
+Kafka-go and Sarama remain covered by the equivalent single-partition workload
+but are excluded here because their group APIs do not expose the same bounded
+multi-partition poll-and-commit boundary.
+
+The cross-partition capture recorded 20 samples of 10 operations for each of 16
+combinations: 320 samples, 3,200 timed operations, and 25,600 timed records.
+Independent correctness checks prove offsets `0`, `1`, and `2` in each
+partition and final committed offset `3`. Observable synchronization separately
+proves the raw comparison runner's bounded overlap; the policy module's
+concurrency suite proves its worker bound and per-partition serialization.
+
 ## Environment and interpretation
 
 The 2026-07-30 capture used Go 1.26.5 on Darwin arm64 with an Apple M4 Max,
@@ -108,6 +127,13 @@ distributions spread as far as 320 percent on the shared fixture. These
 distributions are descriptive evidence, not a stable production budget or a
 superiority claim.
 
+Cross-partition sequential-operation medians ranged from 1.56 to 2.95
+milliseconds for the policy path and 1.00 to 2.12 milliseconds for raw
+franz-go. Bounded-parallel medians ranged from 0.86 to 1.15 milliseconds for
+the policy path and 0.66 to 1.10 milliseconds for raw franz-go. Distributions
+spread as far as 66 percent, so these results likewise describe the exact
+shared local fixture rather than a production budget or client ranking.
+
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
@@ -119,7 +145,7 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- sequential and cross-partition handling, commits, and rebalance cost;
+- rebalance cost under multi-member consumer-group changes;
 - producer transactions and consume-transform-produce;
 - replay and inspection operations;
 - reconnect allocations plus idle CPU, memory, goroutines, and connections;

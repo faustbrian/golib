@@ -127,6 +127,36 @@ four clients. `TestBenchmarkConsumerTopicReuse` proves fixture growth reuses
 the same topic, and `TestBenchmarkConsumerOperationBytes` protects byte-rate
 accounting for both keys and values.
 
+`BenchmarkEquivalentCrossPartitionConsumerHandling` separately compares the
+package policy with raw franz-go across eight pre-created partitions. One
+operation drains exactly one record from every partition and preserves
+ascending order within each partition. Kafka may return that operation through
+one to eight bounded polls, so the benchmark performs one synchronous commit
+after each non-empty poll and reports the observed `commits/op` instead of
+assuming one fetch contains all partitions. Sequential mode admits one handler
+at a time. Parallel mode admits at most eight handlers across independent
+partitions while preserving sequential processing within each partition.
+Every handler performs 256 SHA-256 rounds per record as fixed deterministic
+application work. Input production and group setup remain outside the timer;
+fetch delivery, public record mapping, handler work, and synchronous commits
+are inside it.
+
+This cross-partition workload ranks only the policy and raw franz-go because
+both expose the same bounded `PollRecords` operation and commit boundary.
+Kafka-go and Sarama consumer-group APIs do not expose an equivalent bounded
+multi-partition poll-and-commit cycle. They remain included in the equivalent
+single-partition record and batch workload; excluding them here avoids ranking
+different settlement contracts.
+
+`TestEquivalentCrossPartitionConsumerOutcomes` proves exact offsets `0`, `1`,
+and `2` in each of eight partitions plus broker-verified committed offset `3`
+for both ranked clients. `TestRunCrossPartitionHandlersConcurrency` uses
+observable synchronization to prove the raw comparison runner admits bounded
+cross-partition overlap; the policy module's own concurrency tests prove its
+worker bound and per-partition serialization.
+`TestBenchmarkCrossPartitionOperationBytes` protects byte-rate accounting for
+all eight keys and values.
+
 ## Broker selection
 
 By default, the integration workload starts the pinned single-node Confluent
@@ -159,11 +189,14 @@ make environment > environment-multi-partition.txt
 make capture OUTPUT=raw-producer-multi-partition.txt BENCH_PATTERN='^BenchmarkEquivalentMultiPartitionProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make environment > environment-consumer.txt
 make capture OUTPUT=raw-consumer.txt BENCH_PATTERN='^BenchmarkEquivalentConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-consumer-cross-partition.txt
+make capture OUTPUT=raw-consumer-cross-partition.txt BENCH_PATTERN='^BenchmarkEquivalentCrossPartitionConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 make analyze INPUT=raw-producer-multi-partition.txt > producer-multi-partition-benchstat.txt
 make analyze INPUT=raw-consumer.txt > consumer-benchstat.txt
+make analyze INPUT=raw-consumer-cross-partition.txt > consumer-cross-partition-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and benchstat

@@ -9,12 +9,14 @@ the exact workload and environment below, not a general client ranking.
   `BenchmarkEquivalentSynchronousBatchProduce`, and
   `BenchmarkEquivalentAsynchronousProduce`, plus
   `BenchmarkEquivalentMultiPartitionProduce` and
-  `BenchmarkEquivalentConsumerHandling`
+  `BenchmarkEquivalentConsumerHandling`, plus
+  `BenchmarkEquivalentCrossPartitionConsumerHandling`
 - samples: 20 per workload/client combination
 - timed iterations: 50 acknowledged producer operations or 10 consumer
   fetch-handler-commit operations per sample
 - ranked producer clients: package policy, raw franz-go, IBM/Sarama
 - ranked consumer clients: package policy, raw franz-go, kafka-go, IBM/Sarama
+- ranked cross-partition consumer clients: package policy and raw franz-go
 - key modes: keyed and explicitly unkeyed
 - single-record payloads: 128 bytes, 1 KiB, and 64 KiB
 - batch payloads: 128 bytes and 1 KiB across 10-record and 100-record batches
@@ -24,12 +26,18 @@ the exact workload and environment below, not a general client ranking.
   Murmur2-keyed or explicitly assigned batch spanning eight partitions
 - consumer payloads: 128 bytes and 1 KiB across one-record handling and
   10-record or 100-record partition batches
+- cross-partition consumer payloads: 128 bytes and 1 KiB with one record in
+  each of eight partitions and 256 SHA-256 handler rounds per record
 - compression: none and Snappy
 - broker contract: one or eight pre-created partitions, idempotence, ordered
   synchronous or bounded asynchronous production, and all-ISR acknowledgements
 - consumer contract: one stable group member and partition, earliest reset,
   automatic commits disabled, handler success before a synchronous commit, and
   an exact externally verified committed offset
+- cross-partition consumer contract: one stable group member owns eight
+  partitions; each operation handles one record per partition sequentially or
+  with concurrency bounded at eight, preserves per-partition order, disables
+  automatic commits, and synchronously commits every non-empty poll
 - fixture: immutable Confluent Local 7.5.0 image; runtime reported `7.5.0-ccs`
 
 Kafka-go v0.4.51's producer is present only in the separately executed producer
@@ -41,6 +49,14 @@ the same assignment outcome, so rebalance behavior remains outside the
 workload. Sarama's synchronous consumer commit does not return an error. The
 healthy-broker capture independently verifies its exact final broker offset but
 does not compare commit-failure reporting.
+
+The cross-partition capture excludes kafka-go and Sarama because their public
+consumer-group APIs do not expose the same bounded multi-partition
+poll-and-commit cycle as the package policy and raw franz-go. One logical
+operation may require one to eight polls and commits; the capture reports the
+observed count. All samples in this run completed with one commit per
+eight-record operation. The exclusion preserves settlement equivalence and
+does not imply unsupported-client behavior.
 
 ## Files
 
@@ -54,6 +70,9 @@ does not compare commit-failure reporting.
   the eight-partition capture to its own execution revision and harness inputs.
 - [`environment-consumer.txt`](environment-consumer.txt) binds the consumer
   capture to the consumer harness and its exact execution environment.
+- [`environment-consumer-cross-partition.txt`](environment-consumer-cross-partition.txt)
+  binds the sequential and bounded-parallel eight-partition consumer capture
+  to its exact harness and execution environment.
 - [`raw-producer.txt`](raw-producer.txt) contains all 720 unmodified
   single-record benchmark samples and the exact runtime broker assertion.
 - [`producer-benchstat.txt`](producer-benchstat.txt) contains the benchstat
@@ -79,6 +98,12 @@ does not compare commit-failure reporting.
   samples and the exact runtime broker assertion.
 - [`consumer-benchstat.txt`](consumer-benchstat.txt) contains record and batch
   medians and distributions for time, throughput, bytes, and allocations.
+- [`raw-consumer-cross-partition.txt`](raw-consumer-cross-partition.txt)
+  contains all 320 unmodified sequential and bounded-parallel eight-partition
+  consumer benchmark samples.
+- [`consumer-cross-partition-benchstat.txt`](consumer-cross-partition-benchstat.txt)
+  contains its latency, throughput, commit-count, byte, and allocation
+  distributions.
 
 ## Commands
 
@@ -96,11 +121,14 @@ make environment > environment-multi-partition.txt
 make capture OUTPUT=raw-producer-multi-partition.txt BENCH_PATTERN='^BenchmarkEquivalentMultiPartitionProduce$$' BENCH_COUNT=20 BENCH_TIME=50x
 make environment > environment-consumer.txt
 make capture OUTPUT=raw-consumer.txt BENCH_PATTERN='^BenchmarkEquivalentConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-consumer-cross-partition.txt
+make capture OUTPUT=raw-consumer-cross-partition.txt BENCH_PATTERN='^BenchmarkEquivalentCrossPartitionConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 make analyze INPUT=raw-producer-multi-partition.txt > producer-multi-partition-benchstat.txt
 make analyze INPUT=raw-consumer.txt > consumer-benchstat.txt
+make analyze INPUT=raw-consumer-cross-partition.txt > consumer-cross-partition-benchstat.txt
 ```
 
 The producer correctness checks passed together before their captures. An
@@ -113,7 +141,9 @@ single-record command passed in 125.732 seconds; the batch command passed in
 353.308 seconds in the benchmark process; and the multi-partition command
 passed in 152.7 seconds, including 129.598 seconds in the benchmark process.
 The consumer command passed in 190 seconds, including 174.493 seconds in the
-benchmark process.
+benchmark process. The cross-partition consumer command passed with 320
+samples and 3,200 timed operations covering 25,600 records; its benchmark
+process completed in 47.519 seconds.
 
 ## Artifact digests
 
@@ -122,6 +152,7 @@ benchmark process.
 c8ae78cb8c533c4700e75f10b2df04475b8d0c6c5db19ca86dd63768d730bfa5  environment-async.txt
 8f32676be908c52309456267ce8f33155a929967e6754bb51528bcdebaf5b0f3  environment-multi-partition.txt
 3cc508d020f8df08c2353ccacf0cf18dc07d39aa5c93983fc6bcf58581ff9734  environment-consumer.txt
+8ccb8aa095093272acef9a7b22ffcec682039bf6f3614a189e05b69de0ee749d  environment-consumer-cross-partition.txt
 204e442595be45e0c48b34d1118ede761e8febf4c2fa54278a3bfcfed68dc072  raw-producer.txt
 d8f67026840c89649d360fb9ae3e70d020cbdc6ced5c85c9e6d7f603593004ca  producer-benchstat.txt
 61122eac053d494be4a78f19fbc45badca1a59138a6b0de6073b061020ad65e5  raw-producer-batch.txt
@@ -132,9 +163,12 @@ a9e2fb1d5e4a238282384b1e0f6696ec66f8ddc3e6fcf2b1cb83e6c0d84e98d6  raw-producer-a
 7c74bd48a2fcd8411007294b7f453c0bbbceb78747aaeeb25687effdd10fa4d3  producer-multi-partition-benchstat.txt
 eb995d8f44a412accc6ce8f08ab1d768e63d697aa9c68e4728849e775fe211f7  raw-consumer.txt
 140e2734f35d36324193cb21140a612d2ff94f141df34a5ed4dbe1f8ab2daaf6  consumer-benchstat.txt
+7086acbe1091f3ca1b3bb56649032145edf95328590988a0770b499c5210d73b  raw-consumer-cross-partition.txt
+2df9e51162064ebfc082f56ebc32972e511f502672f29f7bdc6f508f69c30daa  consumer-cross-partition-benchstat.txt
 ```
 
 Several producer franz-based results and consumer results have wide
 distributions on the shared local fixture; one consumer distribution spans
-320 percent. Preserve that variance when interpreting this run; do not select
-the best sample or infer production superiority.
+320 percent and one cross-partition distribution spans 66 percent. Preserve
+that variance when interpreting this run; do not select the best sample or
+infer production superiority.
