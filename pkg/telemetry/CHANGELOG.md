@@ -9,8 +9,8 @@ based on Keep a Changelog, and releases follow Semantic Versioning.
 
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
-- Require owned sibling modules at local `v0.0.0`; clean external consumers
-  pin each module to an exact main pseudo-version.
+- Pin owned sibling modules to exact resolvable main pseudo-versions so
+  standalone and clean external consumers use immutable dependency content.
 
 ### Added
 
