@@ -210,6 +210,7 @@ mutation_digest() {
     append_value module "${module}"
     append_file "${root}/scripts/check-mutation.sh"
     append_file "${root}/scripts/internal/run-mutation.sh"
+    append_file "${root}/scripts/internal/mutation-scratch.sh"
     while IFS= read -r package_directory; do
         [[ -n "${package_directory}" ]] || continue
         package_input_digest="$(

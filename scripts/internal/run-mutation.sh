@@ -24,36 +24,16 @@ fi
 directory="${root}/${module}"
 artifact="${root}/.artifacts/${module}"
 report="${artifact}/mutation.json"
-run_directory="${artifact}/mutation-run-${RANDOM}"
 checkpoint_directory="${artifact}/mutation-checkpoints"
 history_migrations="${root}/.golib/mutation-history-migrations.json"
-mkdir -p "${run_directory}" "${checkpoint_directory}"
+mkdir -p "${checkpoint_directory}"
 active_build_cache=""
+# shellcheck disable=SC1091
+source "${root}/scripts/internal/mutation-scratch.sh"
+mutation_scratch_initialize "${artifact}"
 historical_root_base="${run_directory}/historical-inputs"
 mutation_arguments=()
 execution_revision="$(git -C "${root}" rev-parse HEAD)"
-
-cleanup() {
-    if [[ -z "${active_build_cache}" || ! -d "${active_build_cache}" ]]; then
-        :
-    else
-        case "${active_build_cache}" in
-            "${run_directory}"/*.go-cache)
-                find "${active_build_cache}" -depth -delete
-                ;;
-            *)
-                printf 'refusing to remove unexpected mutation cache: %s\n' \
-                    "${active_build_cache}" >&2
-                return 1
-                ;;
-        esac
-        active_build_cache=""
-    fi
-    if [[ -d "${historical_root_base}" ]]; then
-        find "${historical_root_base}" -depth -delete
-    fi
-}
-trap cleanup EXIT INT TERM
 
 # shellcheck disable=SC1091
 source "${root}/.golib/versions.env"
@@ -244,8 +224,6 @@ for package_directory in "${packages[@]}"; do
         "${root}/scripts/gate-input-digest.sh" \
             mutation "${module}" "${package_directory}"
     )"
-    active_build_cache="${run_directory}/${slug}.go-cache"
-    mkdir -p "${active_build_cache}"
     build_mutation_arguments \
         "${target}" "${package_report}" "${tags}" "${discover_only}"
 
@@ -499,6 +477,7 @@ for package_directory in "${packages[@]}"; do
     fi
 
     printf '[%s] mutation package %s\n' "${module}" "${target}"
+    mutation_scratch_package_cache "${slug}"
     ensure_shared_coverage
     status=0
     if [[ "${discover_only}" -eq 1 ]]; then
@@ -528,7 +507,7 @@ for package_directory in "${packages[@]}"; do
             GOLIB_GREMLINS_COVERAGE_ELAPSED="${shared_coverage_elapsed}" \
             "${gremlins_binary}" "${mutation_arguments[@]}" || status=$?
     fi
-    cleanup
+    mutation_scratch_cleanup_package_cache
     if [[ "${status}" -ne 0 ]]; then
         if [[ "${discover_only}" -eq 1 ]]; then
             cat "${run_directory}/${slug}.log" >&2

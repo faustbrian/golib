@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Remove complete mutation scratch runs, including isolated Go caches and
+  historical input copies, after every exit path, and safely recover abandoned
+  owned runs without disturbing concurrent active runs.
 - Pass Gremlins' integration-test CPU setting as distinct command arguments so
   mutation workers execute every target package instead of silently testing
   only the module root.
