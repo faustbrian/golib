@@ -79,7 +79,7 @@ func TestTransportInjectsContextWithoutRecordingTargetData(t *testing.T) {
 			t.Fatalf("traceparent = %q, want injected context", request.Header.Get("traceparent"))
 		}
 		return &http.Response{
-			StatusCode: http.StatusBadGateway,
+			StatusCode: http.StatusBadRequest,
 			Header:     make(http.Header),
 			Body:       io.NopCloser(strings.NewReader("secret response body")),
 			Request:    request,
@@ -94,7 +94,10 @@ func TestTransportInjectsContextWithoutRecordingTargetData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTransport() error = %v", err)
 	}
-	request, _ := http.NewRequestWithContext(context.Background(), "CUSTOM-secret", "https://api.example/users/secret-id?token=secret", nil)
+	request, err := http.NewRequestWithContext(context.Background(), "CUSTOM-secret", "https://api.example/users/secret-id?token=secret", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext() error = %v", err)
+	}
 	request.Header.Set("traceparent", "stale")
 	response, err := transport.RoundTrip(request)
 	if err != nil {
@@ -111,7 +114,7 @@ func TestTransportInjectsContextWithoutRecordingTargetData(t *testing.T) {
 	if span.Name != "payments.request" || span.Status.Code != codes.Error {
 		t.Fatalf("span name/status = %q/%v, want fixed operation/error", span.Name, span.Status.Code)
 	}
-	if attributes["http.request.method"] != "_OTHER" || attributes["http.response.status_code"] != int64(502) {
+	if attributes["http.request.method"] != "_OTHER" || attributes["http.response.status_code"] != int64(400) {
 		t.Fatalf("span attributes = %+v, want normalized method and status", attributes)
 	}
 	assertNoSecret(t, attributes, "secret", "api.example", "token")
@@ -187,6 +190,9 @@ func TestHandlerValidatesInputAndPreservesPanics(t *testing.T) {
 		if span.Status.Code != codes.Error || strings.Contains(fmt.Sprint(span), "secret") {
 			t.Fatalf("panic telemetry is unsafe: %+v", span)
 		}
+		if got := attributeMap(span.Attributes)["http.response.status_code"]; got != int64(http.StatusInternalServerError) {
+			t.Fatalf("panic status = %v, want 500", got)
+		}
 		metrics, err := harness.Metrics(context.Background())
 		if err != nil {
 			t.Fatalf("Metrics() error = %v", err)
@@ -205,6 +211,20 @@ func TestHandlerValidatesInputAndPreservesPanics(t *testing.T) {
 			t.Fatalf("panic duration = %f, want elapsed handler time", duration)
 		}
 	}()
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+}
+
+func TestHandlerAcceptsMaximumRouteTemplate(t *testing.T) {
+	t.Parallel()
+
+	route := "/" + strings.Repeat("x", 255)
+	handler, err := NewHandler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), ServerConfig{
+		Operation: "server.request",
+		Route:     route,
+	})
+	if err != nil {
+		t.Fatalf("NewHandler(maximum route) error = %v", err)
+	}
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 }
 
@@ -252,7 +272,7 @@ func TestHandlerMarksServerFailures(t *testing.T) {
 
 	harness := testtelemetry.New()
 	handler, err := NewHandler(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		writer.WriteHeader(http.StatusServiceUnavailable)
+		writer.WriteHeader(http.StatusInternalServerError)
 	}), ServerConfig{Operation: "server.request", TracerProvider: harness.TracerProvider()})
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)

@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -33,6 +34,9 @@ func TestHTTPCollectorInteroperability(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("authorization") != "test-token" {
 			t.Errorf("authorization = %q, want test-token", request.Header.Get("authorization"))
+		}
+		if request.Header.Get("content-encoding") != "gzip" {
+			t.Errorf("content-encoding = %q, want gzip", request.Header.Get("content-encoding"))
 		}
 		body := readOTLPBody(t, request)
 		writer.Header().Set("content-type", "application/x-protobuf")
@@ -79,7 +83,8 @@ func TestGRPCCollectorInteroperabilityAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Listen() error = %v", err)
 	}
-	server := grpc.NewServer()
+	compressionStats := &compressionStatsHandler{}
+	server := grpc.NewServer(grpc.StatsHandler(compressionStats))
 	traceService := &traceCollector{failuresRemaining: 2}
 	metricService := &metricCollector{}
 	collectortrace.RegisterTraceServiceServer(server, traceService)
@@ -95,6 +100,10 @@ func TestGRPCCollectorInteroperabilityAndRetry(t *testing.T) {
 	}
 	if metricService.metrics.Load() == 0 {
 		t.Fatal("gRPC exported metrics = 0, want at least 1")
+	}
+	wantCompressed := traceService.attempts.Load() + metricService.attempts.Load()
+	if compressionStats.compressed.Load() != wantCompressed {
+		t.Fatalf("compressed RPCs = %d, want %d", compressionStats.compressed.Load(), wantCompressed)
 	}
 }
 
@@ -172,19 +181,41 @@ func (collector *traceCollector) Export(
 
 type metricCollector struct {
 	collectormetric.UnimplementedMetricsServiceServer
-	metrics atomic.Int64
+	attempts atomic.Int64
+	metrics  atomic.Int64
 }
 
 func (collector *metricCollector) Export(
 	ctx context.Context,
 	request *collectormetric.ExportMetricsServiceRequest,
 ) (*collectormetric.ExportMetricsServiceResponse, error) {
+	collector.attempts.Add(1)
 	if values := metadata.ValueFromIncomingContext(ctx, "authorization"); len(values) != 1 || values[0] != "test-token" {
 		return nil, status.Error(codes.Unauthenticated, "missing test token")
 	}
 	collector.metrics.Add(countMetrics(request))
 	return &collectormetric.ExportMetricsServiceResponse{}, nil
 }
+
+type compressionStatsHandler struct {
+	compressed atomic.Int64
+}
+
+func (handler *compressionStatsHandler) TagRPC(ctx context.Context, _ *stats.RPCTagInfo) context.Context {
+	return ctx
+}
+
+func (handler *compressionStatsHandler) HandleRPC(_ context.Context, event stats.RPCStats) {
+	if header, ok := event.(*stats.InHeader); ok && header.Compression == "gzip" {
+		handler.compressed.Add(1)
+	}
+}
+
+func (handler *compressionStatsHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
+	return ctx
+}
+
+func (*compressionStatsHandler) HandleConn(context.Context, stats.ConnStats) {}
 
 func integrationConfig(protocol Protocol, endpoint string) Config {
 	return Config{

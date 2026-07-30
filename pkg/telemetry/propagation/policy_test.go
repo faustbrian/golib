@@ -24,7 +24,7 @@ func TestPolicySeparatesTrustedAndUntrustedInboundBaggage(t *testing.T) {
 	}
 	carrier := otelpropagation.MapCarrier{
 		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
-		"baggage":     "tenant.tier=gold,user.id=secret",
+		"baggage":     "user.id=secret,tenant.tier=gold",
 	}
 
 	untrusted := policy.Extract(context.Background(), carrier)
@@ -39,6 +39,36 @@ func TestPolicySeparatesTrustedAndUntrustedInboundBaggage(t *testing.T) {
 	got := baggage.FromContext(trusted)
 	if got.Len() != 1 || got.Member("tenant.tier").Value() != "gold" {
 		t.Fatalf("trusted baggage = %q, want only tenant.tier=gold", got.String())
+	}
+}
+
+func TestPolicyAcceptsExactOutboundHeaderLimit(t *testing.T) {
+	t.Parallel()
+
+	policy, err := New(Config{
+		BaggageEnabled:     true,
+		TrustedBaggageKeys: []string{"first"},
+		MaxHeaderBytes:     len("first=1"),
+		MaxBaggageItems:    1,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	member, _ := baggage.NewMember("first", "1")
+	bag, _ := baggage.New(member)
+	carrier := otelpropagation.MapCarrier{}
+	policy.Inject(baggage.ContextWithBaggage(context.Background(), bag), carrier)
+	if carrier.Get("baggage") != "first=1" {
+		t.Fatalf("baggage = %q, want exact-limit value", carrier.Get("baggage"))
+	}
+}
+
+func TestWithinLimitCountsAllFields(t *testing.T) {
+	t.Parallel()
+
+	carrier := otelpropagation.MapCarrier{"first": "12345", "second": "67890"}
+	if withinLimit(carrier, 8, "first", "second") {
+		t.Fatal("withinLimit() = true, want cumulative limit enforced")
 	}
 }
 

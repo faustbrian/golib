@@ -103,7 +103,9 @@ func Init(ctx context.Context, config Config, opts ...Option) (*Runtime, error) 
 		buildMetricOptions: telemetrymetric.Options,
 	}
 	for _, option := range opts {
-		if option != nil {
+		switch option := option.(type) {
+		case nil:
+		default:
 			option.apply(&settings)
 		}
 	}
@@ -162,7 +164,8 @@ func Init(ctx context.Context, config Config, opts ...Option) (*Runtime, error) 
 		if err != nil {
 			return nil, errors.Join(err, runtime.cleanup(ctx))
 		}
-		if settings.metricExporter == nil {
+		switch settings.metricExporter.(type) {
+		case nil:
 			settings.metricExporter, err = telemetryotlp.NewMetricExporter(ctx, otlpConfig(config.Metrics.Exporter))
 			if err != nil {
 				return nil, errors.Join(fmt.Errorf("construct metric exporter: %w", err), runtime.cleanup(ctx))
@@ -330,7 +333,10 @@ func (r *Runtime) shutdownMeter(ctx context.Context) error {
 }
 
 func joinDistinct(primary, secondary error) error {
-	if secondary == nil || errors.Is(primary, secondary) {
+	if secondary == nil {
+		return primary
+	}
+	if errors.Is(primary, secondary) {
 		return primary
 	}
 	return errors.Join(primary, secondary)

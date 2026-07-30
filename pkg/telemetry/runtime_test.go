@@ -193,6 +193,22 @@ func TestJoinDistinctAggregatesIndependentFailures(t *testing.T) {
 	}
 }
 
+func TestJoinDistinctDoesNotDuplicateExistingFailures(t *testing.T) {
+	t.Parallel()
+
+	first := errors.New("first")
+	second := errors.New("second")
+	got := joinDistinct(first, nil)
+	var aggregate interface{ Unwrap() []error }
+	if !errors.Is(got, first) || errors.As(got, &aggregate) {
+		t.Fatalf("joinDistinct(first, nil) = %v, want original error", got)
+	}
+	wrapped := errors.Join(first, second)
+	if got := joinDistinct(wrapped, second); got.Error() != wrapped.Error() {
+		t.Fatalf("joinDistinct(wrapped, second) = %v, want original aggregate", got)
+	}
+}
+
 func TestRuntimeAggregatesTraceAndMetricFlushFailures(t *testing.T) {
 	traceFailure := errors.New("trace export failed")
 	metricFailure := errors.New("metric flush failed")
@@ -414,6 +430,27 @@ func TestDisabledRuntimeNeedsNoExporters(t *testing.T) {
 	}
 	if err := runtime.ForceFlush(context.Background()); err != nil {
 		t.Fatalf("ForceFlush() error = %v", err)
+	}
+	if err := runtime.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+}
+
+func TestInitSkipsNilOptionsAndAppliesFollowingOptions(t *testing.T) {
+	config := DefaultConfig("orders", "1.2.3")
+	config.RegisterGlobal = false
+	config.Traces.Enabled = false
+	config.Metrics.Enabled = false
+	applied := false
+
+	runtime, err := Init(context.Background(), config, nil, optionFunc(func(*options) {
+		applied = true
+	}))
+	if err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	if !applied {
+		t.Fatal("option following nil option was not applied")
 	}
 	if err := runtime.Shutdown(context.Background()); err != nil {
 		t.Fatalf("Shutdown() error = %v", err)

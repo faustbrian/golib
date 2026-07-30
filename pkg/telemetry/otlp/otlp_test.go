@@ -24,8 +24,10 @@ func TestConfigValidationRejectsInvalidTransportSettings(t *testing.T) {
 		"compression": func(config *Config) {
 			config.Compression = Compression("brotli")
 		},
-		"timeout": func(config *Config) { config.Timeout = 0 },
-		"retry":   func(config *Config) { config.Retry.MaxElapsedTime = -time.Second },
+		"timeout":                func(config *Config) { config.Timeout = 0 },
+		"retry initial interval": func(config *Config) { config.Retry.InitialInterval = 0 },
+		"retry max interval":     func(config *Config) { config.Retry.MaxInterval = 0 },
+		"retry max elapsed time": func(config *Config) { config.Retry.MaxElapsedTime = 0 },
 		"mTLS pair": func(config *Config) {
 			config.TLS.CertificateFile = "client.pem"
 		},
@@ -132,6 +134,9 @@ func TestTLSConfigLoadsCAAndClientCertificate(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("buildTLSConfig() error = %v", err)
+	}
+	if config == nil {
+		t.Fatal("buildTLSConfig() config = nil")
 	}
 	if config.RootCAs == nil || len(config.Certificates) != 1 || config.ServerName != "collector.internal" {
 		t.Fatalf("TLS config = %+v, want CA, client certificate, and server name", config)

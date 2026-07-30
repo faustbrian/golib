@@ -60,6 +60,7 @@ func TestBuildResourceIgnoresReservedCustomAttributes(t *testing.T) {
 
 	config := DefaultConfig("orders", "1.2.3")
 	config.Resource[string(semconv.ServiceNameKey)] = "untrusted"
+	config.Resource["zz.region"] = "eu-north-1"
 	res, err := BuildResource(context.Background(), config)
 	if err != nil {
 		t.Fatalf("BuildResource() error = %v", err)
@@ -67,5 +68,9 @@ func TestBuildResourceIgnoresReservedCustomAttributes(t *testing.T) {
 	value, _ := res.Set().Value(semconv.ServiceNameKey)
 	if value.AsString() != "orders" {
 		t.Fatalf("service.name = %q, want owned identity", value.AsString())
+	}
+	value, ok := res.Set().Value(attribute.Key("zz.region"))
+	if !ok || value.AsString() != "eu-north-1" {
+		t.Fatalf("zz.region = %q/%t, want post-reserved custom attribute", value.AsString(), ok)
 	}
 }

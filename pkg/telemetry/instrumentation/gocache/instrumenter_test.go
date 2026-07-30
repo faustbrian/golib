@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/telemetry/testtelemetry"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -33,7 +34,8 @@ func TestInstrumenterRecordsOnlyFixedCacheSemantics(t *testing.T) {
 
 	span := harness.Spans()[0]
 	text := fmt.Sprint(span)
-	if span.Name != "cache.get" || strings.Contains(text, "secret") || strings.Contains(text, "customer:123") {
+	if span.Name != "cache.get" || span.Status.Code != codes.Error || !strings.Contains(text, "cache.result") ||
+		!strings.Contains(text, "error") || strings.Contains(text, "secret") || strings.Contains(text, "customer:123") {
 		t.Fatalf("span recorded unsafe cache data: %s", text)
 	}
 	metrics, err := harness.Metrics(context.Background())

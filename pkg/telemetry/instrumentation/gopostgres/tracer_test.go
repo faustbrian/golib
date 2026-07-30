@@ -100,6 +100,18 @@ func TestConfigRejectsUnboundedOperationContracts(t *testing.T) {
 	}
 }
 
+func TestConfigAcceptsMaximumOperationContract(t *testing.T) {
+	t.Parallel()
+
+	operations := make([]string, maxOperations)
+	for index := range operations {
+		operations[index] = fmt.Sprintf("operation.%d", index)
+	}
+	if _, err := New(Config{Operations: operations}); err != nil {
+		t.Fatalf("New(maximum operations) error = %v", err)
+	}
+}
+
 func TestTracerUsesNoopProvidersAndToleratesMissingStartState(t *testing.T) {
 	t.Parallel()
 

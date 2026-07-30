@@ -112,3 +112,17 @@ func TestOptionsConstructExplicitHistogramView(t *testing.T) {
 		t.Fatalf("histogram bounds = %v, want configured boundaries", got)
 	}
 }
+
+func TestOptionsAcceptMaximumUnitLength(t *testing.T) {
+	t.Parallel()
+
+	if _, err := Options(Config{
+		CardinalityLimit: 10,
+		Views: []ViewConfig{{
+			Name: "latency",
+			Unit: strings.Repeat("u", 63),
+		}},
+	}); err != nil {
+		t.Fatalf("Options(maximum unit) error = %v", err)
+	}
+}

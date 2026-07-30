@@ -123,7 +123,7 @@ func (handler *serverHandler) ServeHTTP(writer http.ResponseWriter, request *htt
 			attribute.Int("http.response.status_code", status),
 		)
 		span.SetAttributes(attribute.Int("http.response.status_code", status))
-		if status >= http.StatusInternalServerError || panicValue != nil {
+		if status >= http.StatusInternalServerError {
 			span.SetStatus(codes.Error, "HTTP server error")
 		}
 		duration := captured.Duration
@@ -160,7 +160,8 @@ func NewTransport(base http.RoundTripper, config ClientConfig) (*Transport, erro
 	if err := validateOperation(config.Operation); err != nil {
 		return nil, err
 	}
-	if base == nil {
+	switch base.(type) {
+	case nil:
 		base = http.DefaultTransport
 	}
 	tracerProvider, meterProvider, propagator := providers(

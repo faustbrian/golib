@@ -57,18 +57,27 @@ func TestConfigValidationRejectsUnsafeValues(t *testing.T) {
 		"invalid protocol":      func(config *Config) { config.Traces.Exporter.Protocol = Protocol("udp") },
 		"empty endpoint":        func(config *Config) { config.Metrics.Exporter.Endpoint = "" },
 		"negative timeout":      func(config *Config) { config.ShutdownTimeout = -time.Second },
+		"zero shutdown timeout": func(config *Config) { config.ShutdownTimeout = 0 },
 		"unbounded queue":       func(config *Config) { config.Traces.Batch.MaxQueueSize = 0 },
 		"zero batch size":       func(config *Config) { config.Traces.Batch.MaxExportBatchSize = 0 },
 		"oversized batch":       func(config *Config) { config.Traces.Batch.MaxExportBatchSize = 3_000 },
 		"batch timeout":         func(config *Config) { config.Traces.Batch.BatchTimeout = 0 },
+		"batch export timeout":  func(config *Config) { config.Traces.Batch.ExportTimeout = 0 },
 		"invalid sampler":       func(config *Config) { config.Traces.Sampler.Mode = telemetrytrace.Mode("invalid") },
 		"NaN sampler":           func(config *Config) { config.Traces.Sampler.Ratio = math.NaN() },
 		"metric interval":       func(config *Config) { config.Metrics.ExportInterval = 0 },
+		"metric export timeout": func(config *Config) { config.Metrics.ExportTimeout = 0 },
 		"metric cardinality":    func(config *Config) { config.Metrics.CardinalityLimit = 0 },
 		"propagation bounds":    func(config *Config) { config.Propagation.MaxHeaderBytes = 0 },
 		"invalid compression":   func(config *Config) { config.Metrics.Exporter.Compression = Compression("brotli") },
 		"export timeout":        func(config *Config) { config.Traces.Exporter.Timeout = 0 },
-		"retry interval":        func(config *Config) { config.Metrics.Exporter.Retry.MaxInterval = 0 },
+		"retry initial interval": func(config *Config) {
+			config.Metrics.Exporter.Retry.InitialInterval = 0
+		},
+		"retry max interval": func(config *Config) { config.Metrics.Exporter.Retry.MaxInterval = 0 },
+		"retry max elapsed time": func(config *Config) {
+			config.Metrics.Exporter.Retry.MaxElapsedTime = 0
+		},
 		"incomplete client TLS": func(config *Config) { config.Traces.Exporter.TLS.CertificateFile = "client.pem" },
 		"plaintext with TLS": func(config *Config) {
 			config.Traces.Exporter.TLS.CAFile = "collector-ca.pem"
@@ -94,6 +103,29 @@ func TestConfigValidationRejectsUnsafeValues(t *testing.T) {
 				t.Fatal("Validate() error = nil, want validation error")
 			}
 		})
+	}
+}
+
+func TestConfigValidationAcceptsExactMaximums(t *testing.T) {
+	t.Parallel()
+
+	config := DefaultConfig("orders", strings.Repeat("v", 255))
+	config.Resource[strings.Repeat("k", 255)] = strings.Repeat("v", 4_096)
+	config.Traces.Batch.MaxExportBatchSize = config.Traces.Batch.MaxQueueSize
+
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v, want exact limits accepted", err)
+	}
+}
+
+func TestConfigValidationReportsQueueBoundary(t *testing.T) {
+	t.Parallel()
+
+	config := DefaultConfig("orders", "1.2.3")
+	config.Traces.Batch.MaxQueueSize = 0
+	err := config.Validate()
+	if err == nil || !strings.Contains(err.Error(), "max queue size") {
+		t.Fatalf("Validate() error = %v, want queue size error", err)
 	}
 }
 
