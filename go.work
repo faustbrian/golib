@@ -88,6 +88,7 @@ use (
 	./pkg/rule-engine/benchmarks/competitors
 	./pkg/scheduler
 	./pkg/secret-envelope
+	./pkg/secret-store/adapters/awssecretsmanager
 	./pkg/sequencer
 	./pkg/service
 	./pkg/service/benchmarks/platform
@@ -309,3 +310,5 @@ replace github.com/faustbrian/golib/pkg/merkle-tree v0.0.0 => ./pkg/merkle-tree
 replace github.com/faustbrian/golib/pkg/verkle-tree v0.0.0 => ./pkg/verkle-tree
 
 replace github.com/faustbrian/golib/pkg/queue/queueservice v0.0.0 => ./pkg/queue/queueservice
+
+replace github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager v0.0.0 => ./pkg/secret-store/adapters/awssecretsmanager
