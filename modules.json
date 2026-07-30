@@ -13954,7 +13954,9 @@
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/service"
       ],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+      ],
       "external_runtime_dependencies": [
         "go.opentelemetry.io/otel",
         "go.opentelemetry.io/otel/trace"
@@ -16335,6 +16337,7 @@
         "github.com/faustbrian/golib/pkg/migrations",
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
