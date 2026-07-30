@@ -157,6 +157,58 @@ worker bound and per-partition serialization.
 `TestBenchmarkCrossPartitionOperationBytes` protects byte-rate accounting for
 all eight keys and values.
 
+## Equivalent transactional workloads
+
+`BenchmarkEquivalentTransactionalProduce` compares one stable transactional
+producer per sample for the package policy, raw franz-go, and Sarama. One
+operation begins a transaction, synchronously publishes either one or ten
+keyed records one at a time through each candidate's public transaction
+surface, and commits it. The matrix covers 128-byte and 1 KiB payloads with no
+compression and Snappy. Client construction, producer-ID initialization, the
+warm transaction, topic creation, fixture startup, and shutdown remain outside
+the timer. Transaction begin, public record mapping and ownership policy,
+per-record broker acknowledgement, and commit are inside it.
+
+Every candidate uses a unique transactional ID, idempotence, all-ISR
+acknowledgements, ordering-preserving in-flight settings, bounded retries,
+bounded request and transaction timeouts, and one pre-created partition.
+Sarama requires one open broker request for idempotence. Kafka-go is excluded
+because its writer does not expose Kafka transactions. The workload measures
+healthy committed transactions only; abort, fencing, timeout, and unknown
+outcome behavior remain correctness and fault-injection concerns rather than
+latency rankings.
+
+`TestEquivalentTransactionalProducerOutcomes` commits two records and aborts a
+third through every ranked client. Independent direct-partition readers prove
+that read-committed isolation observes exactly the committed records while
+read-uncommitted isolation also observes the aborted record.
+
+`BenchmarkEquivalentConsumeTransformProduce` compares the package policy and
+raw franz-go `GroupTransactSession` across one-record and ten-record source
+polls. Each operation reads committed source records from one stable
+cooperative-sticky group member, copies and deterministically transforms every
+value, synchronously publishes one equally sized keyed output per source
+record, and commits the output plus source offsets in one Kafka transaction.
+Input production and group seeding are outside the timer. Poll delivery,
+record mapping, transformation, synchronous output acknowledgement, source
+offset addition, and transaction commit are inside it. The reported byte rate
+counts logical input and output key/value bytes. `transactions/op` reports the
+actual number of non-empty poll transactions because Kafka may split one
+logical operation across bounded polls.
+
+Kafka-go and Sarama are excluded from the consume-transform-produce ranking
+because their public group APIs do not expose the same bounded
+`GroupTransactSession` poll-and-commit boundary. Sarama remains ranked in the
+producer-only transaction workload. The exclusion avoids comparing different
+group-settlement and rebalance contracts.
+
+`TestEquivalentConsumeTransformProduceOutcomes` independently proves exact
+transformed output, atomic source-offset advancement, read-committed
+invisibility after a forced abort, unchanged source offset after that abort,
+and successful redelivery through both ranked clients. Read-uncommitted
+inspection proves both the aborted output and the committed retry remain in the
+Kafka log.
+
 ## Broker selection
 
 By default, the integration workload starts the pinned single-node Confluent
@@ -191,12 +243,18 @@ make environment > environment-consumer.txt
 make capture OUTPUT=raw-consumer.txt BENCH_PATTERN='^BenchmarkEquivalentConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
 make environment > environment-consumer-cross-partition.txt
 make capture OUTPUT=raw-consumer-cross-partition.txt BENCH_PATTERN='^BenchmarkEquivalentCrossPartitionConsumerHandling$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-transaction-producer.txt
+make capture OUTPUT=raw-transaction-producer.txt BENCH_PATTERN='^BenchmarkEquivalentTransactionalProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-consume-transform-produce.txt
+make capture OUTPUT=raw-consume-transform-produce.txt BENCH_PATTERN='^BenchmarkEquivalentConsumeTransformProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 make analyze INPUT=raw-producer-multi-partition.txt > producer-multi-partition-benchstat.txt
 make analyze INPUT=raw-consumer.txt > consumer-benchstat.txt
 make analyze INPUT=raw-consumer-cross-partition.txt > consumer-cross-partition-benchstat.txt
+make analyze INPUT=raw-transaction-producer.txt > transaction-producer-benchstat.txt
+make analyze INPUT=raw-consume-transform-produce.txt > consume-transform-produce-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and benchstat
