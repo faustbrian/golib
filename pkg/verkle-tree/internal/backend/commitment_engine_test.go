@@ -300,6 +300,36 @@ func TestVectorCommitmentZeroValueRejectsUse(t *testing.T) {
 	}
 }
 
+func TestVectorCommitmentDeduplicationKey(t *testing.T) {
+	t.Parallel()
+
+	if _, err := (VectorCommitment{}).DeduplicationKey(); !errors.Is(err, errInvalidCommitment) {
+		t.Fatalf("invalid key error = %v", err)
+	}
+	identityKey, err := EmptyVectorCommitment().DeduplicationKey()
+	if err != nil || identityKey != ([CommitmentSize]byte{}) {
+		t.Fatalf("identity key = %x, error = %v", identityKey, err)
+	}
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	var vector Vector
+	vector[0][0] = 1
+	commitment, err := engine.Commit(context.Background(), vector)
+	if err != nil {
+		t.Fatalf("commit vector: %v", err)
+	}
+	key, err := commitment.DeduplicationKey()
+	if err != nil {
+		t.Fatalf("deduplication key: %v", err)
+	}
+	encoded, err := commitment.Bytes()
+	if err != nil || key != encoded {
+		t.Fatalf("key = %x, encoding = %x, error = %v", key, encoded, err)
+	}
+}
+
 func testCommitmentLimits() CommitmentLimits {
 	return CommitmentLimits{
 		MaxGeneratorDerivations: VectorWidth,

@@ -21,9 +21,10 @@ with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict
 profile-bound root decoding, the internal experimental commitment engine, the
 strict standalone commitment decoder, strict raw aggregate-opening-proof
-decoder, strict internal tree-proof decoder, and the pinned test-only proof
-corpus exercised here. It is not evidence that proof generation, proof
-verification, or untested hostile-input behavior remain compatible.
+decoder, strict internal tree-proof decoder, fixed-profile aggregate opening
+and verification, and the pinned proof corpus exercised here. It is not
+evidence that untested hostile-input behavior, dependency-level cancellation,
+side-channel behavior, or production suitability remain compatible.
 
 ## Evidence
 
@@ -168,18 +169,29 @@ The current internal boundary may:
 - return one canonical encoding for accepted commitments and scalars; and
 - defensively copy caller bytes before dependency decoding; and
 - strictly decode canonical commitments where aggregate resource preflight has
-  already authorized one point operation.
+  already authorized one point operation;
+- initialize the exact pinned IPA settings after generator, precomputation,
+  scratch-memory, and dependency-worker preflight;
+- create aggregate openings only for complete canonical width-256 vectors
+  whose recomputed commitments match; and
+- verify complete canonical opening sets under the fixed `verkle` transcript.
 
 It may decode only the fixed raw aggregate-proof payload described by the
 experimental profile and the package-owned internal unverified tree-proof
-container that embeds it. It must not yet precompute proof setup, open
-positions, verify proofs, accept a serialized identity, or expose dependency
-values outside `internal/`.
+container that embeds it. It may construct and verify openings only through the
+fixed internal profile boundary. It must not accept a serialized identity,
+expose dependency values outside `internal/`, accept caller-selected
+transcripts or generators, or claim cancellation once a dependency proof call
+has begun.
 
-The engine's generator and scratch-byte accounting is a deterministic,
-conservative package budget. It does not prove the dependency's complete heap
-allocation profile or constant-time behavior. The engine therefore remains an
-experimental internal component rather than an approved production backend.
+The engine's generator, query, scalar, multi-scalar-multiplication, worker, and
+scratch-byte accounting is a deterministic conservative package budget. The
+pinned proof implementation uses `runtime.NumCPU()` internally and accepts no
+context, so the wrapper rejects insufficient worker budgets beforehand and can
+check cancellation only before and after the call. This does not prove the
+dependency's complete heap allocation profile or constant-time behavior. The
+engine therefore remains an experimental internal component rather than an
+approved production backend.
 
 The separate `internal/leafvector` boundary performs dependency-free,
 fixed-size byte decomposition only. It produces canonical scalar bytes that are

@@ -29,11 +29,12 @@ The exact evidence and consequences are recorded in
 accepted seam and release blockers are in
 [`docs/backend-audit.md`](docs/backend-audit.md).
 
-Production code imports the pinned `go-ipa` dependency only behind an internal
-canonical point/scalar encoding, bounded raw aggregate-opening-proof decoder,
-and bounded serial vector-commitment boundary.
-Test-only differential evidence additionally exercises aggregate opening,
-transcript, serialization, and verification operations. The encoding tests
+Production code imports the pinned `go-ipa` dependency only behind internal
+canonical point/scalar encoding, bounded aggregate-opening generation and
+verification, a strict raw proof decoder, and a bounded serial
+vector-commitment boundary. The fixed aggregate-opening engine binds the
+`verkle` transcript and pinned generator set without accepting caller-selected
+cryptographic composition. The encoding tests
 include two pinned upstream point fixtures and the documented scalar-field
 modulus; their provenance is recorded in
 [`specification/sources.json`](specification/sources.json). No setup material
@@ -60,8 +61,9 @@ canonical 576-byte aggregate proof, and the Go verifier accepts the Rust proof.
 The internal decoder now rejects wrong lengths, trailing bytes, identity,
 malformed, non-canonical, and wrong-subgroup points, and non-canonical final
 scalars under explicit byte and decode budgets. It returns only an opaque owned
-proof; this narrow boundary does not verify an opening, bind tree claims, freeze
-a stable transcript, or establish tree compatibility.
+proof. The separate fixed-profile opening engine verifies that payload against
+the complete reconstructed opening set; syntactic decoding alone still does
+not verify an opening or bind tree claims.
 A separate isolated harness pins `ethereum/go-verkle` at
 `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` and reproduces one deterministic
 256-wide tree root plus an aggregate proof covering membership, an absent
@@ -94,9 +96,9 @@ Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
 The profile remains incomplete: canonical node, witness, snapshot, and storage
-encodings, verified proof and witness semantics, commitment-level deletion,
-storage publication, and complete cryptographic resource accounting are not
-yet frozen or exported. The internal unverified proof container now has one
+encodings, stable public proof and witness semantics, commitment-level
+deletion, storage publication, and complete dependency-level cancellation are
+not yet frozen or exported. The internal tree-proof container now has one
 package-owned experimental encoding, but that format is not a public or stable
 interoperability surface.
 The exact boundary is recorded in
@@ -167,8 +169,8 @@ result per stem, the deduplicated internal, stem, and selected suffix-half
 commitments, and the profile-bound snapshot root. Aggregate key, stem,
 node-read, path, and temporary-memory limits are enforced before
 attacker-amplified work, and returned metadata is owned and safe for concurrent
-reads. This boundary does not generate an opening, construct a transcript,
-verify a claim, or support empty-root non-membership.
+reads. This material boundary does not authenticate claims by itself and does
+not support empty-root non-membership.
 
 An internal immutable unverified tree-proof container now binds that canonical
 claim set to one exact non-empty root, one topology result per distinct queried
@@ -183,10 +185,23 @@ path commitments, and raw opening payload; reject alternate lengths, trailing
 bytes, nonzero padding, malformed points or scalars, and aggregate resource
 overruns before cryptographic decoding; and preserve cancellation and caller
 ownership. This remains an internal experimental format and performs no
-transcript construction, opening generation, cryptographic verification,
-witness validation, or state authorization.
+verification merely by construction or decoding.
 Empty-root non-membership remains deliberately unsupported until its proof form
 is specified without a meaningless aggregate-opening payload.
+
+An explicit internal proof engine now derives complete prover vectors from one
+immutable snapshot, independently reconstructs verifier evaluations from the
+canonical proof material, consolidates identical commitment/index openings,
+constructs the fixed `verkle` transcript, and returns the canonical tree-proof
+container. Verification reconstructs the expected opening set from the decoded
+proof without consulting mutable tree state and rejects changed roots, claims,
+evaluations, or aggregate proof elements. Query, scalar-decode,
+multi-scalar-multiplication, scratch-memory, generator, precomputation, and
+worker budgets are preflighted. Cancellation is checked throughout owned work
+and before and after dependency calls, but the pinned dependency cannot be
+interrupted during its aggregate proof operation; that remains a production
+backend blocker. This engine is internal and does not establish a stable public
+proof API, witness semantics, storage durability, or Ethereum compatibility.
 
 ## Development rule
 

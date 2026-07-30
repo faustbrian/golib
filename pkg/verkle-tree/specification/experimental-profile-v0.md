@@ -511,7 +511,55 @@ This payload is not a tree proof container. Successful decoding establishes
 canonical syntax only. It MUST NOT imply cryptographic verification and MUST
 NOT supply or infer a profile identifier, root, key set, membership or absence
 claim, path metadata, opened values, transcript inputs, or snapshot identity.
-Those bindings remain REQUIRED before a verified proof API can exist.
+Those bindings remain REQUIRED before a public verified proof API can exist.
+
+## Aggregate Opening And Tree-Proof Verification
+
+The internal experimental aggregate-opening engine MUST bind width 256, the
+`eth_verkle_oct_2021` generator set, and the transcript label `verkle`. Callers
+MUST NOT select or replace the curve, field, width, generators, transcript, or
+proof encoding at runtime.
+
+Each prover query MUST contain one complete vector of 256 canonical
+little-endian field scalars, its opaque commitment, and one in-domain index.
+Before proof generation, the engine MUST decode every scalar canonically,
+recompute the commitment from the complete vector, and reject a mismatch. Each
+verifier query MUST contain one validated opaque commitment, one canonical
+little-endian evaluation scalar, and one in-domain index. The backend boundary
+MUST reject empty query sets and duplicate commitment/index pairs.
+
+Snapshot proof generation MUST derive queries in canonical raw path and index
+order from one immutable committed tree. Verifier evaluations MUST be
+reconstructed independently from the canonical claims, terminal stem paths,
+root, and exact non-root commitment set. Generation MUST require identical
+path, index, commitment, and selected evaluation between those independently
+derived records before invoking the backend. When distinct tree paths select
+the same commitment and index, both sides MUST consolidate them to the first
+canonical path; differing vectors or evaluations for that shared opening MUST
+fail closed.
+
+The resulting aggregate opening MUST use the exact 576-byte encoding above.
+Tree-proof verification MUST reconstruct the complete expected opening set
+from the immutable proof without consulting mutable tree state and MUST invoke
+the backend only after structural, profile, canonical-order, completeness, and
+resource validation. A well-formed proof that fails the cryptographic equation
+MUST return a verification error and MUST NOT be treated as absence. Changed
+roots, claims, values, commitments, indices, or proof elements MUST fail.
+
+Construction and verification MUST preflight positive limits for generator
+derivations, precomputed points, queries, scalar decodes, conservative
+multi-scalar-multiplication terms, temporary bytes, and workers. Owned query
+derivation and reconstruction MUST observe cancellation throughout. The pinned
+backend uses `runtime.NumCPU()` workers and accepts no context for aggregate
+proof arithmetic; the wrapper MUST reject a smaller worker budget before setup
+and MUST check cancellation immediately before and after each dependency call.
+This limitation prohibits production-backend approval.
+
+Successful verification establishes only that the canonical claims and absence
+statements are consistent with the committed root under this exact
+experimental profile and proof system. It does not establish storage
+durability, snapshot retention, witness completeness for updates, execution
+validity, Ethereum protocol compatibility, or authorization to mutate state.
 
 ## Committed Tree Construction
 

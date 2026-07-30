@@ -60,6 +60,14 @@ func TestRootContainerCanonicalRoundTrip(t *testing.T) {
 	if err != nil || !present || payload != wantCommitment {
 		t.Fatalf("decoded commitment = %x, present = %t, error = %v", payload, present, err)
 	}
+	gotCommitment, err := decoded.Commitment()
+	if err != nil {
+		t.Fatalf("decoded root commitment: %v", err)
+	}
+	gotCommitmentBytes, err := gotCommitment.Bytes()
+	if err != nil || gotCommitmentBytes != wantCommitment {
+		t.Fatalf("decoded opaque commitment = %x, error = %v", gotCommitmentBytes, err)
+	}
 }
 
 func TestRootContainerEncodesEmptyRootExplicitly(t *testing.T) {
@@ -93,6 +101,13 @@ func TestRootContainerEncodesEmptyRootExplicitly(t *testing.T) {
 	payload, present, err := decoded.CommitmentBytes()
 	if err != nil || present || payload != ([commitmentSize]byte{}) {
 		t.Fatalf("empty payload = %x, present = %t, error = %v", payload, present, err)
+	}
+	commitment, err := decoded.Commitment()
+	if err != nil {
+		t.Fatalf("empty opaque commitment: %v", err)
+	}
+	if identity, identityErr := commitment.IsIdentity(); identityErr != nil || !identity {
+		t.Fatalf("empty commitment identity = %t, error = %v", identity, identityErr)
 	}
 }
 
@@ -317,6 +332,14 @@ func TestRootContainerRejectsInvalidStateContextAndLimits(t *testing.T) {
 		if _, err := root.Bytes(); !errors.Is(err, errInvalidRoot) {
 			t.Fatalf("corrupt root %d error = %v", index, err)
 		}
+	}
+}
+
+func TestInvalidRootRejectsCommitmentAccess(t *testing.T) {
+	t.Parallel()
+
+	if _, err := (Root{}).Commitment(); !errors.Is(err, errInvalidRoot) {
+		t.Fatalf("invalid root commitment error = %v", err)
 	}
 }
 

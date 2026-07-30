@@ -49,3 +49,44 @@ func FuzzDecodeTreeProof(f *testing.F) {
 		}
 	})
 }
+
+func FuzzVerifyTreeProof(f *testing.F) {
+	key := testKey(0, 0)
+	snapshot := newTestSnapshot(f, []Entry{{Key: key, Value: testValue(1)}})
+	engine := newTestProofEngine(f)
+	proof, err := engine.Prove(
+		context.Background(),
+		snapshot,
+		[]Key{key, testKey(0, 1)},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		f.Fatalf("generate seed proof: %v", err)
+	}
+	canonical, err := proof.Bytes(
+		context.Background(),
+		testTreeProofEncodingLimits(),
+	)
+	if err != nil {
+		f.Fatalf("encode seed proof: %v", err)
+	}
+	f.Add(canonical)
+	f.Add([]byte{})
+
+	f.Fuzz(func(t *testing.T, encoded []byte) {
+		limits := testTreeProofDecodingLimits()
+		if uint64(len(encoded)) > limits.MaxProofBytes {
+			return
+		}
+		decoded, err := DecodeTreeProof(context.Background(), encoded, limits)
+		if err != nil {
+			return
+		}
+
+		_ = engine.Verify(
+			context.Background(),
+			decoded,
+			testProofVerificationLimits(),
+		)
+	})
+}

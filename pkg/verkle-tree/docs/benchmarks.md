@@ -5,9 +5,9 @@
 These are pre-v1 component microbenchmarks for the implemented cryptographic
 boundary: canonical Banderwagon commitment and scalar encoding, strict raw
 aggregate-opening-proof decoding, strict profile-bound root decoding, the
-commitment-to-field map, and serial fixed-width vector commitment. They do not
-measure proof generation or verification, a complete Verkle tree proof,
-witness, storage adapter, or an equivalent end-to-end workload, and they
+commitment-to-field map, serial fixed-width vector commitment, and internal
+aggregate tree-proof generation and verification. They do not measure a public
+API, witness, storage adapter, or an equivalent end-to-end workload, and they
 support no comparative performance claim.
 
 One additional component benchmark measures rebuilding the implemented
@@ -35,6 +35,11 @@ already decoded raw opening payload and exclude opening generation,
 cryptographic verification, and public interoperability. Three serialization
 benchmarks measure canonical encoding, strict decoding, and wrong-length
 rejection for the same internal unverified proof boundary.
+Two proof-engine benchmarks measure generation and independent verification of
+one sixteen-key membership proof through the complete internal snapshot,
+query-reconstruction, aggregate-opening, and tree-proof container path. They
+reuse initialized snapshot and proof engines and exclude setup, persistence,
+witness processing, and public API ownership costs.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -56,6 +61,9 @@ GOWORK=off go test ./internal/committedtree -run '^$' \
 GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkSnapshotProofMaterial|BenchmarkNewTreeProof|BenchmarkTreeProofCopy|BenchmarkEncodeTreeProof|BenchmarkDecodeTreeProof)' \
   -benchmem -count=5
+
+GOWORK=off go test ./internal/authstate -run '^$' \
+  -bench '^BenchmarkProofEngine$' -benchmem -benchtime=1x -count=5
 ```
 
 Environment:
@@ -107,6 +115,8 @@ nanoseconds per operation.
 | Encode canonical unverified tree proof | 5136, 16481, 16351, 13961, 6149 | 1024 | 1 |
 | Decode canonical unverified tree proof | 253440, 627923, 368237, 277831, 307604 | 4354-4355 | 30 |
 | Reject wrong-length encoded tree proof | 474.3, 374.8, 377.9, 267.9, 338.3 | 96 | 2 |
+| Generate sixteen-key aggregate tree proof | 23815417, 24936125, 24801834, 24196208, 27617792 | 10085560-10086816 | 5247-5270 |
+| Verify sixteen-key aggregate tree proof | 3257666, 3220208, 3738459, 3016125, 3131959 | 610968-611408 | 1143-1150 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

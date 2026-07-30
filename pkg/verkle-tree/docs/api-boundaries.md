@@ -63,12 +63,13 @@ and transcript construction.
 
 The current internal research engine implements canonical scalar input,
 fixed-width vector commitment, generator-set identity validation, opaque
-identity handling, commitment-to-field mapping, and strict decoding of the
-fixed 576-byte raw aggregate-opening proof. The decoder returns an immutable
-opaque payload after canonical point and scalar validation; it does not bind a
-root, key set, claim, path, transcript, or verification result. The boundary
-deliberately exposes no public tree surface and does not yet provide commitment
-updates, opening generation, or verification.
+identity handling, commitment-to-field mapping, strict decoding of the fixed
+576-byte aggregate-opening proof, and fixed-profile aggregate opening and
+verification. It binds the `verkle` transcript and pinned generators and
+rejects duplicate or conflicting opening identities. The decoder alone does
+not bind a root, key set, claim, path, transcript, or verification result. The
+boundary deliberately exposes no public tree surface and does not yet provide
+commitment updates or dependency-level cancellation during proof arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused
@@ -133,10 +134,21 @@ alternate lengths, trailing bytes, nonzero padding, malformed commitments and
 opening elements, and preflights aggregate byte, count, path, point, scalar,
 derivation, and temporary-memory budgets before cryptographic decoding or
 attacker-amplified allocation. It returns an owned but unverified container.
-This encoding is not a public or stable wire contract and does not generate or
-verify an opening, construct a transcript, authenticate a claim, or authorize
-an update. Empty-root non-membership remains outside this boundary until its
-proof representation is fixed.
+This encoding is not a public or stable wire contract and does not authenticate
+a claim merely by decoding. Empty-root non-membership remains outside this
+boundary until its proof representation is fixed.
+
+The internal proof engine combines the immutable snapshot, proof-material,
+committed-tree query, and fixed aggregate-opening boundaries. Generation first
+derives complete prover vectors and independently reconstructed verifier
+evaluations, requires exact canonical agreement, and only then invokes the
+opening backend. Verification reconstructs the expected evaluations solely
+from the immutable tree-proof container before invoking the cryptographic
+verifier. It rejects changed roots or values, incomplete or surplus paths,
+conflicting shared openings, invalid proofs, cancellation, and exhausted
+resource budgets. The engine is immutable and concurrency safe, but remains
+internal while the backend cannot stop proof arithmetic after cancellation and
+the public proof, witness, and storage contracts remain incomplete.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

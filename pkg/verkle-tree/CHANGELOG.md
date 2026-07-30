@@ -14,6 +14,12 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add an internal fixed-profile aggregate proof engine that derives complete
+  snapshot opening vectors, independently reconstructs verifier evaluations,
+  generates and verifies the canonical `verkle` transcript, consolidates
+  shared openings, rejects tampered roots and claims, and enforces explicit
+  cryptographic work, memory, worker, and cancellation bounds.
+
 - Add the immutable `verkletree-bandersnatch-ipa-256-v0` experimental profile
   identity and structural metadata without exposing runtime cryptographic
   composition or tree operations.

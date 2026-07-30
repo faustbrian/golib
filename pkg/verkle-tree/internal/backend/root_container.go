@@ -283,6 +283,19 @@ func (root Root) CommitmentBytes() ([commitmentSize]byte, bool, error) {
 	return encoded, true, nil
 }
 
+// Commitment returns the opaque root commitment. An empty root returns the
+// valid in-memory identity without exposing an identity point encoding.
+func (root Root) Commitment() (VectorCommitment, error) {
+	if err := root.validate(); err != nil {
+		return VectorCommitment{}, err
+	}
+	if root.kind == RootKindEmpty {
+		return EmptyVectorCommitment(), nil
+	}
+
+	return root.commitment, nil
+}
+
 func (root Root) validate() error {
 	if !root.valid || root.profile.Validate() != nil {
 		return errInvalidRoot

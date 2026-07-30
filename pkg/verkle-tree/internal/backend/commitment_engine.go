@@ -310,6 +310,20 @@ func (value VectorCommitment) ScalarBytes() ([scalarSize]byte, error) {
 	return encodeScalar(commitmentToScalar(value.value)), nil
 }
 
+// DeduplicationKey returns a stable comparable in-memory identity. The all-zero
+// key is reserved for the mathematical identity and is not a wire encoding.
+func (value VectorCommitment) DeduplicationKey() ([commitmentSize]byte, error) {
+	identity, err := value.IsIdentity()
+	if err != nil {
+		return [commitmentSize]byte{}, err
+	}
+	if identity {
+		return [commitmentSize]byte{}, nil
+	}
+
+	return encodeCommitment(value.value), nil
+}
+
 func checkCommitmentContext(ctx context.Context) error {
 	if ctx == nil {
 		return errInvalidCommitmentContext

@@ -143,6 +143,8 @@ type node struct {
 	kind       nodeKind
 	depth      uint8
 	stem       [31]byte
+	entryStart uint32
+	entryCount uint32
 	firstEdge  uint32
 	edgeCount  uint16
 	commitment backend.VectorCommitment
@@ -158,10 +160,11 @@ type edge struct {
 // Tree is an immutable committed-node arena. Copies are safe for concurrent
 // reads because construction owns the arena and never mutates it after return.
 type Tree struct {
-	nodes []node
-	edges []edge
-	root  uint32
-	valid bool
+	entries []Entry
+	nodes   []node
+	edges   []edge
+	root    uint32
+	valid   bool
 }
 
 // Root returns the opaque root commitment. The empty tree returns the internal
@@ -410,13 +413,19 @@ func buildPrepared(
 	}
 	root := uint32(len(builder.nodes) - 1)
 
-	return finalizeTree(
+	tree, err := finalizeTree(
 		builder.nodes,
 		builder.edges,
 		root,
 		plan.nodeCount,
 		plan.edgeCount,
 	)
+	if err != nil {
+		return Tree{}, err
+	}
+	tree.entries = plan.entries
+
+	return tree, nil
 }
 
 func sortEntries(ctx context.Context, entries []Entry) error {
@@ -693,6 +702,8 @@ func (builder *treeBuilder) commitStem(
 		kind:       nodeStem,
 		depth:      depth,
 		stem:       group.stem,
+		entryStart: uint32(group.entryStart),
+		entryCount: uint32(group.entryEnd - group.entryStart),
 		commitment: committed,
 		c1:         c1Commitment,
 		c2:         c2Commitment,

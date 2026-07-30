@@ -15,8 +15,9 @@ transitions, canonical stem topology, bounded deterministic full-root
 construction, atomic root-bound snapshot transitions, and canonical
 profile-bound tree claims plus an immutable canonical root-bound unverified
 tree-proof container with an exact package-owned encoding and strict aggregate
-decoder. Tree-proof verification, witnesses, storage, publication, and
-complete side-channel controls remain unimplemented.
+decoder, and fixed-profile aggregate tree-proof generation and verification.
+Public proof APIs, witnesses, storage, publication, dependency-level
+cancellation, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -120,6 +121,19 @@ nested cryptographic decoders remains distinguishable from malformed syntax,
 and accepted state does not alias the hostile input.
 It rejects empty roots until empty-root non-membership has an explicit proof
 form that cannot carry a meaningless surplus opening payload.
+
+The internal proof engine mitigates false structural claims by deriving full
+prover vectors from the immutable tree, independently reconstructing verifier
+evaluations from the proof, requiring exact canonical agreement, and verifying
+the aggregate opening under the fixed generator set and `verkle` transcript.
+It consolidates identical commitment/index openings and rejects conflicting
+vectors or evaluations, changed roots or claimed values, malformed proofs,
+partial opening sets, resource exhaustion, and cancellation observed by owned
+work. Verification is independent from mutable tree state. The pinned backend
+does not accept a context once aggregate proof arithmetic begins and chooses
+`runtime.NumCPU()` workers internally; preflight and post-call cancellation
+checks do not stop that in-flight work. This residual denial-of-service and
+worker-control risk blocks production-backend approval.
 
 ### Resource exhaustion
 
