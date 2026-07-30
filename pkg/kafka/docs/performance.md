@@ -114,13 +114,35 @@ completed in one Kafka transaction. Independent checks prove exact transformed
 output, source-offset advancement, abort invisibility, unchanged offsets after
 abort, and successful redelivery.
 
+A direct-partition replay workload compares the package policy, raw franz-go,
+kafka-go, and Sarama. Each operation constructs the public client resources,
+validates an exact inclusive-start/exclusive-end range against broker bounds,
+handles every requested record in ascending offset order, and closes all
+resources without joining or mutating a consumer group. The matrix spans 10
+and 100 records, 128-byte and 1 KiB payloads, and no compression plus Snappy:
+640 independent samples, 640 complete operations, and 35,200 handled records.
+Construction and shutdown remain inside the timer because the policy replay
+reader is intentionally single-use. An independent check proves exact offsets,
+keys, and values for `[1,3)` across all four clients.
+
+A read-only topic inspection workload compares one stable policy, raw
+franz-go, kafka-go, or Sarama client. Each operation issues metadata,
+beginning-offset, end-offset, and topic-configuration requests and normalizes
+the same leader epoch, replica/ISR/offline state, offsets, and durability,
+retention, compaction, segment, and unclean-election policy. The one- and
+eight-partition matrix contains 160 samples, 1,600 complete inspections, and
+7,200 normalized partition states. Independent checks prove exact four-client
+agreement for a three-partition topic.
+
 ## Environment and interpretation
 
-The 2026-07-30 capture used Go 1.26.5 on Darwin arm64 with an Apple M4 Max,
-Docker Desktop engine 29.6.2, and the immutable Confluent Local 7.5.0 fixture.
-The running broker reported `7.5.0-ccs`. Exact module versions, input hashes,
-raw samples, and benchstat distributions are stored with the
-[capture](performance-results/2026-07-30/README.md).
+The 2026-07-30 producer, consumer, and transaction capture and the 2026-07-31
+replay and inspection capture used Go 1.26.5 on Darwin arm64 with an Apple M4
+Max, Docker Desktop engine 29.6.2, and the immutable Confluent Local 7.5.0
+fixture. The running broker reported `7.5.0-ccs`. Exact module versions, input
+hashes, raw samples, and benchstat distributions are stored with the
+[2026-07-30 capture](performance-results/2026-07-30/README.md) and
+[2026-07-31 capture](performance-results/2026-07-31/README.md).
 
 The local single-node broker shares CPU and networking with the benchmark
 process. In the refreshed single-record capture, observed median end-to-end
@@ -169,6 +191,20 @@ latency distributions spread as far as 76 percent. These healthy
 single-broker results do not rank abort, fencing, timeout, unknown-outcome, or
 rebalance behavior.
 
+Complete replay-operation medians ranged from 7.855 to 30.53 milliseconds for
+the policy path, 9.706 to 31.90 milliseconds for raw franz-go, 391.9 to 432.0
+milliseconds for kafka-go, and 613.9 to 635.1 milliseconds for Sarama. The
+kafka-go and Sarama measurements include their public reader shutdown
+lifecycle. Policy distributions spread as far as 45 percent and raw franz-go
+as far as 44 percent.
+
+Complete inspection medians ranged from 3.472 to 5.330 milliseconds for the
+policy path, 3.005 to 4.309 milliseconds for raw franz-go, 4.505 to 4.810
+milliseconds for kafka-go, and 4.960 to 6.383 milliseconds for Sarama. One
+policy distribution spans 170 percent. These shared-fixture results remain
+descriptive evidence rather than stable production budgets or superiority
+claims.
+
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
@@ -181,7 +217,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 Release evidence still requires equivalent and reproducible captures for:
 
 - rebalance cost under multi-member consumer-group changes;
-- replay and inspection operations;
 - reconnect allocations plus idle CPU, memory, goroutines, and connections;
 - TLS and other deployment-representative transport costs; and
 - a previous released package version after one exists.

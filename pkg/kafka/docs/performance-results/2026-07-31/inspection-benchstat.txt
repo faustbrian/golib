@@ -1,0 +1,51 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                                  │ raw-inspection.txt │
+                                                  │       sec/op       │
+EquivalentInspection/1-partitions/golib-policy-16        5.330m ±  49%
+EquivalentInspection/1-partitions/raw-franz-go-16        4.309m ±  35%
+EquivalentInspection/1-partitions/kafka-go-16            4.505m ±  42%
+EquivalentInspection/1-partitions/sarama-16              6.383m ±  35%
+EquivalentInspection/8-partitions/golib-policy-16        3.472m ± 170%
+EquivalentInspection/8-partitions/raw-franz-go-16        3.005m ±  54%
+EquivalentInspection/8-partitions/kafka-go-16            4.810m ±  40%
+EquivalentInspection/8-partitions/sarama-16              4.960m ±  41%
+geomean                                                  4.487m
+
+                                                  │ raw-inspection.txt │
+                                                  │   partitions/op    │
+EquivalentInspection/1-partitions/golib-policy-16           1.000 ± 0%
+EquivalentInspection/1-partitions/raw-franz-go-16           1.000 ± 0%
+EquivalentInspection/1-partitions/kafka-go-16               1.000 ± 0%
+EquivalentInspection/1-partitions/sarama-16                 1.000 ± 0%
+EquivalentInspection/8-partitions/golib-policy-16           8.000 ± 0%
+EquivalentInspection/8-partitions/raw-franz-go-16           8.000 ± 0%
+EquivalentInspection/8-partitions/kafka-go-16               8.000 ± 0%
+EquivalentInspection/8-partitions/sarama-16                 8.000 ± 0%
+geomean                                                     2.828
+
+                                                  │ raw-inspection.txt │
+                                                  │        B/op        │
+EquivalentInspection/1-partitions/golib-policy-16        39.83Ki ±  0%
+EquivalentInspection/1-partitions/raw-franz-go-16        39.28Ki ±  0%
+EquivalentInspection/1-partitions/kafka-go-16            15.25Ki ± 41%
+EquivalentInspection/1-partitions/sarama-16              19.34Ki ±  0%
+EquivalentInspection/8-partitions/golib-policy-16        48.44Ki ±  0%
+EquivalentInspection/8-partitions/raw-franz-go-16        46.86Ki ±  0%
+EquivalentInspection/8-partitions/kafka-go-16            39.45Ki ± 17%
+EquivalentInspection/8-partitions/sarama-16              23.13Ki ±  0%
+geomean                                                  31.44Ki
+
+                                                  │ raw-inspection.txt │
+                                                  │     allocs/op      │
+EquivalentInspection/1-partitions/golib-policy-16           446.0 ± 0%
+EquivalentInspection/1-partitions/raw-franz-go-16           438.0 ± 0%
+EquivalentInspection/1-partitions/kafka-go-16               247.0 ± 1%
+EquivalentInspection/1-partitions/sarama-16                 235.0 ± 0%
+EquivalentInspection/8-partitions/golib-policy-16           529.0 ± 0%
+EquivalentInspection/8-partitions/raw-franz-go-16           507.0 ± 0%
+EquivalentInspection/8-partitions/kafka-go-16               542.0 ± 0%
+EquivalentInspection/8-partitions/sarama-16                 312.0 ± 0%
+geomean                                                     388.1

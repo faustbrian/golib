@@ -1,7 +1,7 @@
 GO ?= go
 BENCH_COUNT ?= 10
 BENCH_TIME ?= 10x
-BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce|MultiPartitionProduce|ConsumerHandling|CrossPartitionConsumerHandling|TransactionalProduce|ConsumeTransformProduce)$$
+BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce|MultiPartitionProduce|ConsumerHandling|CrossPartitionConsumerHandling|TransactionalProduce|ConsumeTransformProduce|Replay|Inspection)$$
 
 .PHONY: analyze benchmark capture environment test verify
 
@@ -9,7 +9,7 @@ test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|TransactionalProducer|ConsumeTransformProduce)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
+	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \

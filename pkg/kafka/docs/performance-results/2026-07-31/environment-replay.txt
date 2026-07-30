@@ -1,0 +1,28 @@
+go version go1.26.5 darwin/arm64
+darwin
+arm64
+v8.0
+Darwin 27.0.0 arm64
+2a15d4014de030d87dc61967c9aafd3f1dd8ce93
+client=29.6.2 server=29.6.2 api=1.55
+a1addd053614add34c3a0ae0aba991cacdc2b5d2b0d9c540cc4b91e426f65e11  Makefile
+c6459e1215696cfbe8eb282369ba0572b503d703770b5694319372aecb55cf92  README.md
+a36b2ea02a496bedf8aa2d82869e127d82be1af3a860be01e9002d7f5ca30609  consumer_benchmark_test.go
+96328c59fdd866859f19b28b684a4529aba05497aa4ff15610a75b0bd7c56c6c  consumer_cross_partition_benchmark_test.go
+9235b485252e96d87d9368c9f5d42a2fdf7d78c9517cd6a3d64add9ba96686b1  doc.go
+cdeed94a70ce11154891a5993bd2977164b0331e7f9b980bd111994a2ccb41ec  go.mod
+e4596d6804fc3ddc3ee8a5602b9d29395ddf2cb3fdfb07f00cd5139c8b06922d  go.sum
+3c5138bbf586c2341288df43f670f6beb18f8fc182f5be8de3c53a7b583bb95e  inspection_benchmark_test.go
+5c01dac01b9fa700f529da520e98481691d0529ee70b9afa86d333f660710e53  producer_benchmark_test.go
+a4e80d4ba289dbe9d02c2d89a8d1e8d5a718ae76ccfb43c7a6c9be6f7b86df5e  producer_multi_partition_benchmark_test.go
+9af8ccd61d4602ca13efa15dd4fe525a4608ba0ab882b572e280ee587feba9b7  replay_benchmark_test.go
+126f45f36ea24627cfc4c09ec076176c6c1be4b4359f828f89ace1b53933784a  transaction_processor_benchmark_test.go
+8ef988de548f9fdf6471dce4a5d9fc553cedaf6108c5f094e81a6499c70f71a5  transaction_producer_benchmark_test.go
+32bb3340bcab21a80be0cc7af381896289bbd2b6cd0fd4943eff27df102f43e5  ../../../../go.work
+github.com/faustbrian/golib/pkg/kafka
+github.com/twmb/franz-go v1.21.5
+github.com/segmentio/kafka-go v0.4.51
+github.com/IBM/sarama v1.60.1
+github.com/testcontainers/testcontainers-go/modules/kafka v0.43.0
+golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d
+broker-image=confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd

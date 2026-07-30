@@ -209,6 +209,57 @@ and successful redelivery through both ranked clients. Read-uncommitted
 inspection proves both the aborted output and the committed retry remain in the
 Kafka log.
 
+## Equivalent replay workload
+
+`BenchmarkEquivalentReplay` compares complete direct-partition replay
+operations for the package policy, raw franz-go, kafka-go, and Sarama. Every
+operation constructs a client, validates the requested inclusive start and
+exclusive end against current broker retention bounds, reads exactly the
+requested offsets in ascending partition order, invokes one synchronous
+borrowed-byte handler per record, and closes every client resource. No
+candidate joins a consumer group or reads, commits, resets, or deletes group
+offsets.
+
+The matrix covers 10-record and 100-record exact ranges with 128-byte and 1 KiB
+payloads produced without compression or with Snappy. Topic creation and input
+production are outside the timer. Direct-client construction, two offset-bound
+requests, fetch delivery, public record mapping, handler calls, and shutdown
+are inside it. The package replay reader is intentionally single-use, so
+excluding lifecycle cost would not measure its public operation. kafka-go
+requires a separate public `Client` for the bound requests and `Reader` for
+the direct partition; that public lifecycle is retained rather than replaced
+with private internals.
+
+`TestEquivalentReplayOutcomes` independently proves exact offsets, keys, and
+values for the non-zero subrange `[1,3)` across all four clients. The workload
+does not claim global order, group semantics, side-effect exactly-once
+behavior, retention-gap recovery, or replay fault performance.
+
+## Equivalent inspection workload
+
+`BenchmarkEquivalentInspection` compares one stable read-only client per
+sample for the package policy, raw franz-go, kafka-go, and Sarama. One
+operation performs topic metadata, beginning-offset, end-offset, and topic
+configuration requests, then returns a normalized state containing the topic
+identity; leader and leader epoch; replica, ISR, and offline-replica sets;
+offset bounds; and the same effective durability, retention, compaction,
+segment, and unclean-election configuration fields.
+
+The matrix covers pre-created one-partition and eight-partition topics.
+Fixture startup, topic creation, client construction, warm-up, and shutdown
+are outside the timer. All four protocol operations, response mapping,
+validation, sorting, defensive copies, and configuration parsing are inside
+it. Sarama shards offset requests by leader because its public client exposes
+the protocol request at that boundary; the pinned single-node fixture needs
+one request per beginning or end lookup. The workload does not compare
+multi-topic partial results, group lag, health hysteresis, authorization
+failures, or controller and leader failure.
+
+`TestEquivalentInspectionOutcomes` proves exact agreement across all four
+clients for three partitions and separately asserts sorted partition IDs,
+available leaders, exact replica/ISR sets, no offline replicas, zero beginning
+and end offsets, `min.insync.replicas=1`, and delete cleanup policy.
+
 ## Broker selection
 
 By default, the integration workload starts the pinned single-node Confluent
@@ -247,6 +298,10 @@ make environment > environment-transaction-producer.txt
 make capture OUTPUT=raw-transaction-producer.txt BENCH_PATTERN='^BenchmarkEquivalentTransactionalProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
 make environment > environment-consume-transform-produce.txt
 make capture OUTPUT=raw-consume-transform-produce.txt BENCH_PATTERN='^BenchmarkEquivalentConsumeTransformProduce$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-replay.txt
+make capture OUTPUT=raw-replay.txt BENCH_PATTERN='^BenchmarkEquivalentReplay$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-inspection.txt
+make capture OUTPUT=raw-inspection.txt BENCH_PATTERN='^BenchmarkEquivalentInspection$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
@@ -255,6 +310,8 @@ make analyze INPUT=raw-consumer.txt > consumer-benchstat.txt
 make analyze INPUT=raw-consumer-cross-partition.txt > consumer-cross-partition-benchstat.txt
 make analyze INPUT=raw-transaction-producer.txt > transaction-producer-benchstat.txt
 make analyze INPUT=raw-consume-transform-produce.txt > consume-transform-produce-benchstat.txt
+make analyze INPUT=raw-replay.txt > replay-benchstat.txt
+make analyze INPUT=raw-inspection.txt > inspection-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and benchstat
