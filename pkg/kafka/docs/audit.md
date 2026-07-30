@@ -3,7 +3,7 @@
 This audit records the starting point and current disposition of the
 production-policy redesign. A passing check against the draft is not evidence
 that the draft has the right contract. Status describes executable behavior in
-the current tree through 2026-07-29, not intended behavior.
+the current tree through 2026-07-30, not intended behavior.
 
 ## Current implementation inventory
 
