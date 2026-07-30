@@ -133,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep module-archive tests scoped to files shipped with the wire module;
+  repository-root workflow policy remains owned by the root verification gate.
 - Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
 - MessagePack now performs allocation-safe structural preflight for impossible
   collection lengths and composite map keys. Numeric preflight rejects

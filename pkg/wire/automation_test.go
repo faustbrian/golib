@@ -52,7 +52,6 @@ func TestSharedRepositoryContract(t *testing.T) {
 		"docs/security.md",
 		"docs/releasing.md",
 		"docs/repository-standards.md",
-		"../../.github/workflows/ci.yml",
 	}
 
 	for _, path := range required {
@@ -153,14 +152,7 @@ func TestSharedToolingContract(t *testing.T) {
 		"scripts/check-docs.sh":      {"relative Markdown links", "generate-llms.py --check"},
 		"scripts/generate-llms.py":   {"README.md", "--check"},
 		"scripts/release.sh":         {"origin/main", "make check", "git tag -a"},
-		"../../.github/workflows/ci.yml": {
-			"make repository-check",
-			"go run ./cmd/golib select --changed",
-			"./scripts/run-modules.sh check",
-			"actions/upload-artifact@",
-			"name: Required",
-		},
-		".github/dependabot.yml": {"gomod", "github-actions"},
+		".github/dependabot.yml":     {"gomod", "github-actions"},
 	}
 
 	for path, fragments := range required {

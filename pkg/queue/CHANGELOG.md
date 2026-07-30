@@ -270,6 +270,8 @@ versioning and Keep a Changelog structure.
 
 ### Fixed
 
+- Keep module-archive tests scoped to files shipped with the queue module;
+  repository-root workflow policy remains owned by the root verification gate.
 - Made in-memory ring shutdown completion durable so draining the final task
   cannot lose its wake-up when it races with the shutdown waiter.
 - Handler panics, plain failures, acknowledgement failures, and rejection
