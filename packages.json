@@ -6163,6 +6163,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/secret-store/adapters/awssecretsmanager",
+      "directory": ".",
+      "name": "awssecretsmanager",
+      "import_path": "github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/sequencer",
       "directory": ".",
       "name": "sequencer",

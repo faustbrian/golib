@@ -15445,6 +15445,61 @@
       }
     },
     {
+      "directory": "pkg/secret-store/adapters/awssecretsmanager",
+      "module_path": "github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/secret-store/adapters/awssecretsmanager",
+          "directory": ".",
+          "name": "awssecretsmanager",
+          "import_path": "github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This module creates or idempotently confirms immutable, explicitly versioned binary secrets through AWS Secrets Manager. It is intended for migrations and other workflows that must persist a stable external secret reference without storing plaintext in an application database.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/secret-store/adapters/awssecretsmanager/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2",
+        "github.com/aws/aws-sdk-go-v2/config",
+        "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/sequencer",
       "module_path": "github.com/faustbrian/golib/pkg/sequencer",
       "go_version": "1.26.5",
