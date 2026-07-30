@@ -305,9 +305,10 @@ visibility, and topic durability/offset inspection against Confluent Local
 explicit non-default cleanup, retention, compaction, segment, and
 unclean-election configuration. The same fixture proves a live classic static
 member's copied identity and two-partition assignment.
-The container image is pinned by repository digest. This compatibility fixture
-does not replace testing against an application's production broker version
-and configuration.
+The container image is pinned by repository digest and the fixture rejects a
+runtime version other than `7.5.0-ccs`. This compatibility fixture does not
+replace testing against an application's production broker version and
+configuration.
 
 ## Context and memory
 

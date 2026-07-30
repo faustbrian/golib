@@ -7,14 +7,17 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kerr"
@@ -23,6 +26,18 @@ import (
 
 const integrationKafkaImage = "confluentinc/confluent-local:7.5.0@" +
 	"sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd"
+
+const integrationKafkaVersion = "7.5.0-ccs"
+
+func TestIntegrationKafkaRuntimeVersionValidation(t *testing.T) {
+	t.Parallel()
+	if err := validateIntegrationKafkaVersion("7.5.0-ccs"); err != nil {
+		t.Fatalf("validate expected runtime version: %v", err)
+	}
+	if err := validateIntegrationKafkaVersion("7.5.1-ccs"); err == nil {
+		t.Fatal("unexpected runtime version was accepted")
+	}
+}
 
 func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -45,6 +60,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 			t.Errorf("terminate Kafka: %v", err)
 		}
 	})
+	assertIntegrationKafkaVersion(t, ctx, container)
 
 	brokers, err := container.Brokers(ctx)
 	if err != nil {
@@ -282,6 +298,37 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		deadLetterTopic,
 	)
 	proveReplayPolicy(t, ctx, brokers, producer, replayTopic)
+}
+
+func validateIntegrationKafkaVersion(version string) error {
+	if version != integrationKafkaVersion {
+		return errors.New("runtime version does not match pinned Kafka image")
+	}
+
+	return nil
+}
+
+func assertIntegrationKafkaVersion(
+	t *testing.T,
+	ctx context.Context,
+	container *tckafka.KafkaContainer,
+) {
+	t.Helper()
+	exitCode, output, err := container.Exec(
+		ctx,
+		[]string{"kafka-topics", "--version"},
+		tcexec.Multiplexed(),
+	)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("inspect Kafka runtime version: exit=%d error=%v", exitCode, err)
+	}
+	version, err := io.ReadAll(io.LimitReader(output, 256))
+	if err != nil {
+		t.Fatalf("read Kafka runtime version: %v", err)
+	}
+	if err := validateIntegrationKafkaVersion(strings.TrimSpace(string(version))); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func proveProducerModes(

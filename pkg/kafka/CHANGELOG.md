@@ -53,6 +53,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- exact runtime-version rejection for the digest-pinned Confluent Local
+  compatibility fixture
 - an independently versioned client benchmark harness with real-broker
   correctness checks, equivalent idempotent synchronous-producer workloads for
   the package policy, raw franz-go, and Sarama, an explicitly unranked kafka-go
