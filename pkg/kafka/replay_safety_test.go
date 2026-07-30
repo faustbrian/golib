@@ -15,7 +15,6 @@ import (
 func TestReplayConfigOwnsCheckpointAndRequiresExplicitSideEffectPolicy(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	config := validReplayConfig()
 	config.Ranges[0].EndOffset = 4
@@ -102,7 +101,6 @@ func TestReplayConfigOwnsCheckpointAndRequiresExplicitSideEffectPolicy(
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validReplayConfig()
 			config.Ranges[0].EndOffset = 4
@@ -119,7 +117,6 @@ func TestReplayConfigOwnsCheckpointAndRequiresExplicitSideEffectPolicy(
 }
 
 func TestReplayCompleteCheckpointDoesNotPoll(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{}
 	reader := replayReaderWithSafety(
@@ -153,7 +150,6 @@ func TestReplayCompleteCheckpointDoesNotPoll(t *testing.T) {
 }
 
 func TestReplayPlanAndResultExposeOwnedResumableProgress(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{
 		recordFetches(
@@ -239,7 +235,6 @@ func TestReplayPlanAndResultExposeOwnedResumableProgress(t *testing.T) {
 }
 
 func TestReplayFailureReturnsExactIncompleteCheckpoint(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("replay side effect failed")
 	reader := replayReaderWithSafety(
@@ -286,7 +281,6 @@ func TestReplayFailureReturnsExactIncompleteCheckpoint(t *testing.T) {
 }
 
 func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "events", Partition: 1, Offset: 1},
@@ -371,7 +365,6 @@ func TestReplayFailsClosedOnContextAndHandlerDeadline(t *testing.T) {
 }
 
 func TestReplayClassifiesOutOfRangeAndRecordLimitFailures(t *testing.T) {
-	t.Parallel()
 
 	outOfRangeReader := replayReaderWithSafety(
 		&recordingReplayBackend{fetches: []kgo.Fetches{
@@ -428,7 +421,6 @@ func TestReplayClassifiesOutOfRangeAndRecordLimitFailures(t *testing.T) {
 }
 
 func TestReplayValidatesBrokerBoundsBeforePolling(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -459,7 +451,6 @@ func TestReplayValidatesBrokerBoundsBeforePolling(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingReplayBackend{}
 			bounds := &recordingReplayBoundsBackend{
@@ -500,7 +491,6 @@ func TestReplayValidatesBrokerBoundsBeforePolling(t *testing.T) {
 }
 
 func TestReplayBrokerBoundsPreservePartialErrorsAndDeduplicateTopics(t *testing.T) {
-	t.Parallel()
 
 	ranges := []ReplayRange{
 		{Topic: "events", Partition: 0, EndOffset: 2},
@@ -572,7 +562,6 @@ func TestReplayBrokerBoundsPreservePartialErrorsAndDeduplicateTopics(t *testing.
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingReplayBoundsBackend{bounds: exact}
 			test.change(backend)
@@ -588,7 +577,6 @@ func TestReplayBrokerBoundsPreservePartialErrorsAndDeduplicateTopics(t *testing.
 }
 
 func TestReplayBoundsPlanningTimeoutAndCompletedRangeFiltering(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "active", Partition: 0, Offset: 1},
@@ -645,7 +633,6 @@ func TestReplayBoundsPlanningTimeoutAndCompletedRangeFiltering(t *testing.T) {
 }
 
 func TestReplayFailsBoundedlyWhenAnExactRangeMakesNoProgress(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{
 		poll: func(ctx context.Context, _ int) kgo.Fetches {
@@ -681,7 +668,6 @@ func TestReplayFailsBoundedlyWhenAnExactRangeMakesNoProgress(t *testing.T) {
 }
 
 func TestReplayProgressDeadlineIsPartitionScoped(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "events", Partition: 1, Offset: 0},
@@ -730,7 +716,6 @@ func TestReplayProgressDeadlineIsPartitionScoped(t *testing.T) {
 }
 
 func TestReplayChecksProgressDeadlineBeforeEachPoll(t *testing.T) {
-	t.Parallel()
 
 	current := time.Now()
 	backend := &recordingReplayBackend{
@@ -772,7 +757,6 @@ func TestReplayChecksProgressDeadlineBeforeEachPoll(t *testing.T) {
 }
 
 func TestReplayRequiresExplicitSideEffectOptIn(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{}
 	reader := replayReaderWithSafety(
@@ -799,7 +783,6 @@ func TestReplayRequiresExplicitSideEffectOptIn(t *testing.T) {
 func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "events", Partition: 1, Offset: 1},
@@ -892,7 +875,6 @@ func TestReplayLifecycleDoesNotHoldLockAcrossHandlerAndShutdownIsBounded(
 }
 
 func TestReplayRejectsConcurrentShutdown(t *testing.T) {
-	t.Parallel()
 
 	closeStarted := make(chan struct{})
 	releaseClose := make(chan struct{})
@@ -926,7 +908,6 @@ func TestReplayRejectsConcurrentShutdown(t *testing.T) {
 }
 
 func TestReplayShutdownValidatesContextAndWaitsForActiveReplay(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "events", Partition: 1, Offset: 1},

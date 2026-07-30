@@ -68,6 +68,8 @@ var (
 	ErrDrainIncomplete       = errors.New("kafka: producer drain is incomplete")
 )
 
+const defaultPartitionerBatchBytes = 65_536
+
 // KeyPolicy controls whether a producer accepts records without keys.
 type KeyPolicy uint8
 
@@ -346,9 +348,10 @@ func newProducer(
 	options := []kgo.Opt{
 		kgo.WithContext(clientCtx),
 		kgo.SeedBrokers(config.Brokers...),
+		kgo.AlwaysRetryEOF(),
 		kgo.ClientID(config.ClientID),
 		kgo.RecordPartitioner(newPolicyPartitioner(
-			kgo.UniformBytesPartitioner(64<<10, true, true, nil),
+			kgo.UniformBytesPartitioner(defaultPartitionerBatchBytes, true, true, nil),
 		)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.StopProducerOnDataLossDetected(),
@@ -575,15 +578,20 @@ func newProducerRetryBackoff(
 	minimum time.Duration,
 	maximum time.Duration,
 ) func(int) time.Duration {
-	seed := uint64(time.Now().UnixNano())
+	seed := producerRetrySeed(uint64(time.Now().UnixNano()), clientID)
+
+	return func(attempt int) time.Duration {
+		return producerRetryBackoffDuration(minimum, maximum, attempt, seed)
+	}
+}
+
+func producerRetrySeed(seed uint64, clientID string) uint64 {
 	for index := range len(clientID) {
 		seed ^= uint64(clientID[index])
 		seed *= 1099511628211
 	}
 
-	return func(attempt int) time.Duration {
-		return producerRetryBackoffDuration(minimum, maximum, attempt, seed)
-	}
+	return seed
 }
 
 func producerRetryBackoffDuration(
@@ -622,7 +630,10 @@ func maximumRecordPolicyBytes(limits MessageLimits) int64 {
 func validateCompressionPreferences(
 	preferences []CompressionCodec,
 ) error {
-	if len(preferences) == 0 || len(preferences) > 5 {
+	if len(preferences) == 0 {
+		return ErrInvalidCompressionPreference
+	}
+	if len(preferences) > 5 {
 		return ErrInvalidCompressionPreference
 	}
 	seen := make(map[CompressionCodec]struct{}, len(preferences))
@@ -851,11 +862,11 @@ func transactionalProduceSync(
 	expired := !stopCancellation()
 	cause := errors.Join(deliveryCtx.Err(), context.Cause(deliveryCtx))
 	cancelDelivery()
-	if expired && cause != nil {
-		return deliveries, cause
+	if !expired {
+		return deliveries, nil
 	}
 
-	return deliveries, nil
+	return deliveries, cause
 }
 
 func (producer *Producer) publishRecord(
@@ -1381,7 +1392,12 @@ func (producer *Producer) Shutdown(ctx context.Context) (resultErr error) {
 
 		return nil
 	}
-	if producer.maintenanceActive || producer.transactionActive {
+	if producer.maintenanceActive {
+		producer.stateMu.Unlock()
+
+		return ErrProducerBusy
+	}
+	if producer.transactionActive {
 		producer.stateMu.Unlock()
 
 		return ErrProducerBusy
@@ -1849,7 +1865,8 @@ func (producer *Producer) startOperation() error {
 	if producer.maintenanceActive {
 		return ErrProducerBusy
 	}
-	if producer.admitting == 0 {
+	switch producer.admitting {
+	case 0:
 		producer.admissionsDone = make(chan struct{})
 	}
 	producer.admitting++

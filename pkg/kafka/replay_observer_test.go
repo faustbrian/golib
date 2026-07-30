@@ -10,7 +10,6 @@ import (
 )
 
 func TestReplayEmitsPlanRecordRunAndShutdownObservations(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{
@@ -72,7 +71,6 @@ func TestReplayEmitsPlanRecordRunAndShutdownObservations(t *testing.T) {
 }
 
 func TestReplayObservesGapFailureAndExactProgress(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
 		&kgo.Record{Topic: "events", Partition: 1, Offset: 2},
@@ -108,7 +106,6 @@ func TestReplayObservesGapFailureAndExactProgress(t *testing.T) {
 }
 
 func TestReplayValidatesCopiesAndFencesObservers(t *testing.T) {
-	t.Parallel()
 
 	config := validReplayConfig()
 	config.Observers = ObserverPolicy{
@@ -214,7 +211,6 @@ func TestReplayValidatesCopiesAndFencesObservers(t *testing.T) {
 }
 
 func TestReplayWiresBrokerObserversAndObservesFailures(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	config := validReplayConfig()

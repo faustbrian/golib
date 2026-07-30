@@ -16,7 +16,6 @@ import (
 func TestInspectorObserversReportInspectionHealthReadinessAndShutdown(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		brokerMetadata: kadm.Metadata{
@@ -177,7 +176,6 @@ func TestInspectorObserversReportInspectionHealthReadinessAndShutdown(
 }
 
 func TestInspectorObserversReportBoundedFailures(t *testing.T) {
-	t.Parallel()
 
 	failure := errors.New("inspection unavailable")
 	backend := &metadataInspectorBackend{
@@ -240,7 +238,6 @@ func TestInspectorObserversReportBoundedFailures(t *testing.T) {
 func TestInspectorReadinessObserversReportHysteresisAndSkipInconclusiveCalls(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	dependencyErr := errors.New("dependency unavailable")
 	outcomes := []error{nil, dependencyErr}
@@ -339,7 +336,6 @@ func TestInspectorReadinessObserversReportHysteresisAndSkipInconclusiveCalls(
 }
 
 func TestInspectorObserversFenceSameInspectorReentry(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		brokerMetadata: kadm.Metadata{
@@ -401,7 +397,6 @@ func TestInspectorObserversFenceSameInspectorReentry(t *testing.T) {
 }
 
 func TestInspectorConfigValidatesCopiesAndWiresObservers(t *testing.T) {
-	t.Parallel()
 
 	observer := ObserverFunc(func(context.Context, Observation) error {
 		return nil
@@ -546,7 +541,6 @@ func mustNormalizeObserverPolicy(
 func TestInspectorObservationValidationRejectsContradictoryMetadata(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	success := Observation{
 		StartedAt: time.Unix(1, 0),

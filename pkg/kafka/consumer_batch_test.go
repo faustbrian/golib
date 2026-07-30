@@ -12,7 +12,6 @@ import (
 )
 
 func TestConsumedBatchRetainOwnsRecordBytes(t *testing.T) {
-	t.Parallel()
 
 	batch := ConsumedBatch{
 		Topic:     "events",
@@ -39,7 +38,6 @@ func TestConsumedBatchRetainOwnsRecordBytes(t *testing.T) {
 }
 
 func TestConsumedBatchRetainPreservesEmptyBatchMetadata(t *testing.T) {
-	t.Parallel()
 
 	retained := (ConsumedBatch{Topic: "events", Partition: 2}).Retain()
 
@@ -49,7 +47,6 @@ func TestConsumedBatchRetainPreservesEmptyBatchMetadata(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceSettlesSuccessfulPartitionsAtomically(t *testing.T) {
-	t.Parallel()
 
 	partitionOneFirst := &kgo.Record{Topic: "events", Partition: 1, Offset: 4}
 	partitionOneSecond := &kgo.Record{Topic: "events", Partition: 1, Offset: 5}
@@ -61,7 +58,7 @@ func TestConsumerRunBatchOnceSettlesSuccessfulPartitionsAtomically(t *testing.T)
 		partitionZeroFirst,
 		partitionZeroSecond,
 	)}
-	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
+	consumer := consumerWithBackend(backend, 4, time.Second, time.Second)
 	batchErr := errors.New("partition batch failed")
 	var handled []ConsumedBatch
 
@@ -92,7 +89,6 @@ func TestConsumerRunBatchOnceSettlesSuccessfulPartitionsAtomically(t *testing.T)
 }
 
 func TestConsumerRunBatchOnceRejectsMissingHandler(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -106,7 +102,6 @@ func TestConsumerRunBatchOnceRejectsMissingHandler(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceDrainsActiveBatchForBlockedRebalance(t *testing.T) {
-	t.Parallel()
 
 	last := &kgo.Record{Topic: "events", Partition: 0, Offset: 2}
 	backend := &recordingConsumerBackend{fetches: recordFetches(
@@ -153,7 +148,6 @@ func TestConsumerRunBatchOnceDrainsActiveBatchForBlockedRebalance(t *testing.T) 
 }
 
 func TestConsumerRunBatchOnceCancelsEntireActiveBatchForRebalance(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{fetches: recordFetches(
 		&kgo.Record{Topic: "events", Partition: 0, Offset: 1},
@@ -196,7 +190,6 @@ func TestConsumerRunBatchOnceCancelsEntireActiveBatchForRebalance(t *testing.T) 
 }
 
 func TestConsumerRunBatchOnceRejectsWholeInvalidPartitionBatch(t *testing.T) {
-	t.Parallel()
 
 	independent := &kgo.Record{Topic: "events", Partition: 1, Offset: 4}
 	backend := &recordingConsumerBackend{fetches: recordFetches(
@@ -226,7 +219,6 @@ func TestConsumerRunBatchOnceRejectsWholeInvalidPartitionBatch(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceContainsPanicAndEnforcesTimeout(t *testing.T) {
-	t.Parallel()
 
 	panicBackend := &recordingConsumerBackend{fetches: recordFetches(
 		&kgo.Record{Topic: "events", Partition: 0, Offset: 1},
@@ -262,7 +254,6 @@ func TestConsumerRunBatchOnceContainsPanicAndEnforcesTimeout(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceReportsFetchAndCommitErrors(t *testing.T) {
-	t.Parallel()
 
 	fetchErr := errors.New("fetch failed")
 	fetchBackend := &recordingConsumerBackend{fetches: kgo.NewErrFetch(fetchErr)}
@@ -307,7 +298,6 @@ func TestConsumerRunBatchOnceReportsFetchAndCommitErrors(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceTreatsFetchFencingAsTerminal(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{
 		fetches: kgo.NewErrFetch(kerr.FencedInstanceID),
@@ -348,7 +338,6 @@ func TestConsumerRunBatchOnceTreatsFetchFencingAsTerminal(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceStopsAdmissionBeforeHandler(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -373,7 +362,6 @@ func TestConsumerRunBatchOnceStopsAdmissionBeforeHandler(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceHandlesEmptyPollAndLifecycleErrors(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -424,7 +412,6 @@ func TestConsumerRunBatchOnceHandlesEmptyPollAndLifecycleErrors(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceFailsClosedForAssignmentErrors(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{fetches: recordFetches(
 		&kgo.Record{Topic: "events", Partition: 0, Offset: 1},
@@ -448,7 +435,6 @@ func TestConsumerRunBatchOnceFailsClosedForAssignmentErrors(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceRejectsBatchWithoutCurrentOwnership(t *testing.T) {
-	t.Parallel()
 
 	record := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	backend := &recordingConsumerBackend{}
@@ -475,7 +461,6 @@ func TestConsumerRunBatchOnceRejectsBatchWithoutCurrentOwnership(t *testing.T) {
 }
 
 func TestConsumerRunBatchOnceFencesSettlementAfterOwnershipLoss(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{fetches: recordFetches(
 		&kgo.Record{Topic: "events", Partition: 0, Offset: 1},

@@ -14,7 +14,6 @@ import (
 )
 
 func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T) {
-	t.Parallel()
 
 	secretCause := errors.New("dial user:password@broker.internal")
 	tests := []struct {
@@ -65,7 +64,6 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			err := newDeliveryError(test.cause)
 			if err == nil {
@@ -90,7 +88,6 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 }
 
 func TestPublishRecordReturnsClassifiedDeliveryFailure(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{deliveryErr: kerr.TopicAuthorizationFailed}
 	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -110,7 +107,6 @@ func TestPublishRecordReturnsClassifiedDeliveryFailure(t *testing.T) {
 }
 
 func TestDeliveryErrorSupportsAllStableCategoriesAndNilReceiver(t *testing.T) {
-	t.Parallel()
 
 	if got := ErrorAmbiguous.String(); got != "ambiguous" {
 		t.Fatalf("ErrorAmbiguous.String() = %q", got)
@@ -142,7 +138,6 @@ func TestDeliveryErrorSupportsAllStableCategoriesAndNilReceiver(t *testing.T) {
 }
 
 func TestConsumerErrorClassifiesAndRedactsGroupFailures(t *testing.T) {
-	t.Parallel()
 
 	cause := errors.Join(
 		kerr.NotCoordinator,
@@ -192,7 +187,6 @@ func TestConsumerErrorClassifiesAndRedactsGroupFailures(t *testing.T) {
 }
 
 func TestConsumerErrorSupportsAllOperationsAndNilReceiver(t *testing.T) {
-	t.Parallel()
 
 	if ConsumerOperationPoll.String() != "poll" ||
 		ConsumerOperationCommit.String() != "commit" ||

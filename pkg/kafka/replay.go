@@ -337,6 +337,7 @@ func newReplayReader(
 	}
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
+		kgo.AlwaysRetryEOF(),
 		kgo.ClientID(config.ClientID),
 		kgo.ConsumePartitions(partitions),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
@@ -479,7 +480,6 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 		config.MaxConcurrentFetches > 64 ||
 		config.MaxConcurrentHandlers < 1 ||
 		config.MaxConcurrentHandlers > 64 ||
-		config.FetchMaxBytes < 1<<20 ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
 		config.FetchMaxPartitionBytes > config.FetchMaxBytes ||
@@ -873,14 +873,13 @@ func (reader *ReplayReader) validateReplayBounds(
 		return errors.Join(ErrReplayBoundsUnavailable, cause)
 	}
 	for _, replayRange := range progress {
-		if replayRange.Complete {
-			continue
-		}
-		bound := bounds[replayPartition{
-			topic: replayRange.Topic, partition: replayRange.Partition,
-		}]
-		if replayRange.NextOffset < bound[0] || replayRange.EndOffset > bound[1] {
-			return ErrReplayOffsetOutOfRange
+		if !replayRange.Complete {
+			bound := bounds[replayPartition{
+				topic: replayRange.Topic, partition: replayRange.Partition,
+			}]
+			if replayRange.NextOffset < bound[0] || replayRange.EndOffset > bound[1] {
+				return ErrReplayOffsetOutOfRange
+			}
 		}
 	}
 

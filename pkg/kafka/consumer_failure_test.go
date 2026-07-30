@@ -12,7 +12,6 @@ import (
 )
 
 func TestNewFailureHandlerValidatesPolicyBeforeUse(t *testing.T) {
-	t.Parallel()
 
 	handler := HandlerFunc(func(context.Context, ConsumedMessage) error { return nil })
 	publisher := &recordingFailurePublisher{}
@@ -186,7 +185,6 @@ func TestNewFailureHandlerValidatesPolicyBeforeUse(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := FailureHandlerConfig{
 				Handler: handler,
@@ -208,8 +206,45 @@ func TestNewFailureHandlerValidatesPolicyBeforeUse(t *testing.T) {
 	}
 }
 
+func TestFailureHandlerPolicyAcceptsInclusiveBoundaries(t *testing.T) {
+
+	handler := HandlerFunc(func(context.Context, ConsumedMessage) error {
+		return errors.New("failed")
+	})
+	publisher := &recordingFailurePublisher{}
+	for _, timeout := range []time.Duration{100 * time.Millisecond, 2 * time.Minute} {
+		config := FailureHandlerConfig{
+			Handler:        handler,
+			Mode:           FailureModeRetryTopic,
+			Target:         FailureTarget{Topic: "events.retry.v1", Version: 1},
+			Publisher:      publisher,
+			PublishTimeout: timeout,
+		}
+		if err := config.Validate(); err != nil {
+			t.Fatalf("publish timeout %s Validate() error = %v", timeout, err)
+		}
+	}
+
+	retry, err := normalizeFailureRetryPolicy(FailureRetryPolicy{
+		MaxAttempts:    maximumFailureAttempts,
+		InitialBackoff: time.Millisecond,
+		MaxBackoff:     maximumFailureBackoff,
+		Categories:     []ErrorCategory{ErrorPermanent, ErrorFatal},
+	})
+	if err != nil {
+		t.Fatalf("maximum retry policy error = %v", err)
+	}
+	if retry.MaxAttempts != maximumFailureAttempts ||
+		retry.MaxBackoff != maximumFailureBackoff ||
+		!reflect.DeepEqual(
+			retry.Categories,
+			[]ErrorCategory{ErrorPermanent, ErrorFatal},
+		) {
+		t.Fatalf("maximum retry policy = %#v", retry)
+	}
+}
+
 func TestFailureHandlerConfigValidateAndDefaultRetryCategory(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("retryable application failure")
 	attempts := 0
@@ -252,7 +287,6 @@ func TestFailureHandlerConfigValidateAndDefaultRetryCategory(t *testing.T) {
 }
 
 func TestFailureHandlerRetriesBoundedlyWithCappedBackoff(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("sensitive handler detail")
 	attempts := 0
@@ -302,7 +336,6 @@ func TestFailureHandlerRetriesBoundedlyWithCappedBackoff(t *testing.T) {
 }
 
 func TestFailureHandlerStopsWithoutRetryingUnselectedCategory(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("payload=do-not-render")
 	handler, err := NewFailureHandler(FailureHandlerConfig{
@@ -337,7 +370,6 @@ func TestFailureHandlerStopsWithoutRetryingUnselectedCategory(t *testing.T) {
 }
 
 func TestFailureHandlerPublishesOwnedDeadLetterMetadata(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("database unavailable")
 	publisher := &recordingFailurePublisher{}
@@ -403,7 +435,6 @@ func TestFailureHandlerPublishesOwnedDeadLetterMetadata(t *testing.T) {
 }
 
 func TestFailureHandlerPreservesFetchedBytesAcrossAttempts(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("retryable")
 	attempts := 0
@@ -470,7 +501,6 @@ func TestFailureHandlerPreservesFetchedBytesAcrossAttempts(t *testing.T) {
 }
 
 func TestConsumerSettlesOnlyDefiniteFailurePublication(t *testing.T) {
-	t.Parallel()
 
 	source := &kgo.Record{
 		Topic: "events", Partition: 1, Offset: 8, Value: []byte("payload"),
@@ -497,7 +527,6 @@ func TestConsumerSettlesOnlyDefiniteFailurePublication(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingConsumerBackend{
 				fetches: recordFetches(source),
@@ -545,7 +574,6 @@ func TestConsumerSettlesOnlyDefiniteFailurePublication(t *testing.T) {
 }
 
 func TestFailureHandlerPublishFailureDoesNotResolveSource(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed")
 	publishErr := errors.New("broker rejected")
@@ -580,7 +608,6 @@ func TestFailureHandlerPublishFailureDoesNotResolveSource(t *testing.T) {
 }
 
 func TestFailureHandlerDelegatesTerminalDecision(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed")
 	var failure HandlerFailure
@@ -619,7 +646,6 @@ func TestFailureHandlerDelegatesTerminalDecision(t *testing.T) {
 }
 
 func TestFailureHandlerBackoffHonorsCancellation(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("retry me")
 	handler, err := newFailureHandler(
@@ -658,7 +684,6 @@ func TestFailureHandlerBackoffHonorsCancellation(t *testing.T) {
 }
 
 func TestFailureHandlerExhaustionIsExplicit(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("retryable")
 	handler, err := newFailureHandler(
@@ -694,7 +719,6 @@ func TestFailureHandlerExhaustionIsExplicit(t *testing.T) {
 }
 
 func TestFailureHandlerCancellationSkipsTerminalAction(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler stopped")
 	publisher := &recordingFailurePublisher{}
@@ -723,7 +747,6 @@ func TestFailureHandlerCancellationSkipsTerminalAction(t *testing.T) {
 }
 
 func TestFailureHandlerContainsClassifierFailures(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed")
 	tests := []struct {
@@ -750,7 +773,6 @@ func TestFailureHandlerContainsClassifierFailures(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			handler, err := NewFailureHandler(FailureHandlerConfig{
 				Handler: HandlerFunc(func(context.Context, ConsumedMessage) error {
@@ -777,7 +799,6 @@ func TestFailureHandlerContainsClassifierFailures(t *testing.T) {
 }
 
 func TestFailureHandlerContainsHandlerAndTerminalCallbackPanics(t *testing.T) {
-	t.Parallel()
 
 	handler := HandlerFunc(func(context.Context, ConsumedMessage) error {
 		panic("sensitive handler panic")
@@ -826,7 +847,6 @@ func TestFailureHandlerContainsHandlerAndTerminalCallbackPanics(t *testing.T) {
 }
 
 func TestFailureHandlerRejectsUnsafePublishedRecord(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed")
 	tests := []struct {
@@ -857,7 +877,6 @@ func TestFailureHandlerRejectsUnsafePublishedRecord(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			publisher := &recordingFailurePublisher{}
 			handler, err := NewFailureHandler(FailureHandlerConfig{
@@ -886,7 +905,6 @@ func TestFailureHandlerRejectsUnsafePublishedRecord(t *testing.T) {
 }
 
 func TestFailureHandlerDelegateErrorRemainsUnsettled(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed")
 	delegateErr := errors.New("delegate failed")
@@ -916,7 +934,6 @@ func TestFailureHandlerDelegateErrorRemainsUnsettled(t *testing.T) {
 }
 
 func TestFailureHandlerContextAndInternalFailClosedPaths(t *testing.T) {
-	t.Parallel()
 
 	handler, err := NewFailureHandler(FailureHandlerConfig{
 		Handler: HandlerFunc(func(context.Context, ConsumedMessage) error {
@@ -940,7 +957,6 @@ func TestFailureHandlerContextAndInternalFailClosedPaths(t *testing.T) {
 }
 
 func TestFailureHelpersCoverStableDiagnosticsAndTiming(t *testing.T) {
-	t.Parallel()
 
 	if got := (FailureStage(0)).String(); got != "unknown" {
 		t.Fatalf("FailureStage(0).String() = %q", got)
@@ -992,6 +1008,19 @@ func TestFailureHelpersCoverStableDiagnosticsAndTiming(t *testing.T) {
 		MaxBackoff:     5,
 	}, 2); got != 5 {
 		t.Fatalf("saturated backoff = %v, want 5", got)
+	}
+	for attempt, want := range map[int]time.Duration{
+		1: 2,
+		2: 4,
+		3: 5,
+		4: 5,
+	} {
+		if got := failureBackoff(FailureRetryPolicy{
+			InitialBackoff: 2,
+			MaxBackoff:     5,
+		}, attempt); got != want {
+			t.Fatalf("failureBackoff(attempt %d) = %v, want %v", attempt, got, want)
+		}
 	}
 
 	if err := waitFailureBackoff(context.Background(), time.Millisecond); err != nil {

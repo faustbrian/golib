@@ -269,6 +269,7 @@ func newTransactionProcessor(
 	options := []kgo.Opt{
 		kgo.WithContext(clientCtx),
 		kgo.SeedBrokers(config.Connection.Brokers...),
+		kgo.AlwaysRetryEOF(),
 		kgo.ClientID(config.Connection.ClientID),
 		kgo.ConsumerGroup(config.Group.GroupID),
 		kgo.ConsumeTopics(config.Group.Topics...),
@@ -284,7 +285,7 @@ func newTransactionProcessor(
 		kgo.RebalanceTimeout(config.Group.RebalanceTimeout),
 		kgo.HeartbeatInterval(config.Group.HeartbeatInterval),
 		kgo.RecordPartitioner(newPolicyPartitioner(
-			kgo.UniformBytesPartitioner(64<<10, true, true, nil),
+			kgo.UniformBytesPartitioner(defaultPartitionerBatchBytes, true, true, nil),
 		)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.StopProducerOnDataLossDetected(),
@@ -408,7 +409,7 @@ func normalizeTransactionProcessorConfig(
 		TransactionEndTimeout:  config.Output.TransactionEndTimeout,
 		Security:               config.Connection.Security,
 	})
-	if err != nil || producer.TransactionalID == "" {
+	if err != nil {
 		return TransactionProcessorConfig{}, errors.Join(
 			ErrInvalidTransactionProcessorConfig,
 			err,
@@ -725,7 +726,13 @@ func (publisher *processorTransactionPublisher) publish(
 
 		return err
 	}
-	if len(deliveries) != 1 || deliveries[0].Record == nil {
+	if len(deliveries) != 1 {
+		err := newDeliveryError(ErrDeliveryResultMissing)
+		publisher.recordFailure(err)
+
+		return err
+	}
+	if deliveries[0].Record == nil {
 		err := newDeliveryError(ErrDeliveryResultMissing)
 		publisher.recordFailure(err)
 
@@ -952,7 +959,12 @@ func (processor *TransactionProcessor) Run(
 	}
 	defer processor.endRun()
 
-	for ctx.Err() == nil {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 		if _, err := processor.runOnce(ctx, handler); err != nil {
 			if ctx.Err() != nil {
 				processor.lifecycleMu.Lock()
@@ -968,8 +980,6 @@ func (processor *TransactionProcessor) Run(
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (processor *TransactionProcessor) beginRun() error {

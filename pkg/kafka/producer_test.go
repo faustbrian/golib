@@ -18,7 +18,6 @@ import (
 )
 
 func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:       []string{"broker.internal:9092"},
@@ -82,7 +81,6 @@ func TestProducerConfigUsesExplicitCompressionPreference(t *testing.T) {
 }
 
 func TestProducerConfigRequiresAndOwnsTopicAllowlist(t *testing.T) {
-	t.Parallel()
 
 	if _, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:  []string{"broker.internal:9092"},
@@ -125,7 +123,6 @@ func TestProducerConfigRequiresAndOwnsTopicAllowlist(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			for index := range test.topics {
 				if test.topics[index] == "" {
 					test.topics[index] = "topic-" + strconv.Itoa(index)
@@ -144,7 +141,6 @@ func TestProducerConfigRequiresAndOwnsTopicAllowlist(t *testing.T) {
 }
 
 func TestProducerConfigBoundsMaximumHeaderFraming(t *testing.T) {
-	t.Parallel()
 
 	limits := MessageLimits{
 		MaxTopicBytes:       1,
@@ -169,7 +165,6 @@ func TestProducerConfigBoundsMaximumHeaderFraming(t *testing.T) {
 }
 
 func TestProducerPartitionerCombinesAutomaticAndExplicitSelection(t *testing.T) {
-	t.Parallel()
 
 	automatic := &recordingBackupTopicPartitioner{
 		recordingTopicPartitioner: recordingTopicPartitioner{
@@ -311,7 +306,6 @@ func (iterator *recordingBackupIter) Rem() int {
 }
 
 func TestProducerPartitionerFallsBackToAutomaticPartition(t *testing.T) {
-	t.Parallel()
 
 	automatic := &recordingTopicPartitioner{partition: 1}
 	partitioner := newPolicyPartitioner(
@@ -339,7 +333,6 @@ func TestProducerPartitionerFallsBackToAutomaticPartition(t *testing.T) {
 }
 
 func TestProducerConfigRejectsInvalidCompressionPreference(t *testing.T) {
-	t.Parallel()
 
 	tests := map[string][]CompressionCodec{
 		"empty codec":       {0},
@@ -357,7 +350,6 @@ func TestProducerConfigRejectsInvalidCompressionPreference(t *testing.T) {
 	}
 	for name, preferences := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			producer, err := NewProducer(ProducerConfig{
 				Brokers:                []string{"broker.internal:9092"},
@@ -382,7 +374,6 @@ func TestProducerConfigRejectsInvalidCompressionPreference(t *testing.T) {
 }
 
 func TestCompressionCodecNamesAndFranzMapping(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		codec CompressionCodec
@@ -397,7 +388,6 @@ func TestCompressionCodecNamesAndFranzMapping(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			if test.codec.String() != test.name {
 				t.Fatalf("name = %q, want %q", test.codec, test.name)
@@ -414,7 +404,6 @@ func TestCompressionCodecNamesAndFranzMapping(t *testing.T) {
 }
 
 func TestNewProducerRequiresAtLeastOneBroker(t *testing.T) {
-	t.Parallel()
 
 	producer, err := NewProducer(ProducerConfig{
 		ClientID: "track",
@@ -429,7 +418,6 @@ func TestNewProducerRequiresAtLeastOneBroker(t *testing.T) {
 }
 
 func TestNewProducerRequiresClientIdentity(t *testing.T) {
-	t.Parallel()
 
 	producer, err := NewProducer(ProducerConfig{
 		Brokers: []string{"broker.internal:9092"},
@@ -444,7 +432,6 @@ func TestNewProducerRequiresClientIdentity(t *testing.T) {
 }
 
 func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
-	t.Parallel()
 
 	manyBrokers := make([]string, 33)
 	for index := range manyBrokers {
@@ -528,7 +515,6 @@ func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			producer, err := NewProducer(ProducerConfig{
 				Brokers:  test.brokers,
@@ -549,7 +535,6 @@ func TestNewProducerValidatesBrokerAndClientIdentity(t *testing.T) {
 }
 
 func TestNewProducerUsesBoundedMessageDefaults(t *testing.T) {
-	t.Parallel()
 
 	producer, err := NewProducer(ProducerConfig{
 		Brokers:       []string{"broker.internal:9092"},
@@ -580,7 +565,6 @@ func TestNewProducerUsesBoundedMessageDefaults(t *testing.T) {
 }
 
 func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:       []string{"broker.internal:9092"},
@@ -645,7 +629,6 @@ func TestProducerConfigAppliesBoundedReliabilityDefaults(t *testing.T) {
 }
 
 func TestMessageLimitsEnforceEveryExactPolicyBoundary(t *testing.T) {
-	t.Parallel()
 
 	maximum := MessageLimits{
 		MaxTopicBytes:       249,
@@ -682,7 +665,6 @@ func TestMessageLimitsEnforceEveryExactPolicyBoundary(t *testing.T) {
 }
 
 func TestProducerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	for name, config := range map[string]ProducerConfig{
 		"minimum": producerBoundaryConfig(false),
@@ -785,7 +767,6 @@ func TestProducerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 }
 
 func TestProducerConfigRejectsExclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	for name, change := range map[string]func(*ProducerConfig){
 		"request timeout": func(config *ProducerConfig) {
@@ -856,7 +837,6 @@ func producerBoundaryConfig(maximum bool) ProducerConfig {
 }
 
 func TestNewProducerAcceptsMinimumRetryBackoff(t *testing.T) {
-	t.Parallel()
 
 	producer, err := NewProducer(ProducerConfig{
 		Brokers:         []string{"broker.internal:9092"},
@@ -872,7 +852,6 @@ func TestNewProducerAcceptsMinimumRetryBackoff(t *testing.T) {
 }
 
 func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
-	t.Parallel()
 
 	const (
 		minimum = 250 * time.Millisecond
@@ -930,7 +909,6 @@ func TestProducerRetryBackoffIsExponentiallyBoundedAndJittered(t *testing.T) {
 }
 
 func TestProducerMetadataMinAgeHasIndependentSafeFloor(t *testing.T) {
-	t.Parallel()
 
 	if got := producerMetadataMinAge(time.Millisecond); got != 250*time.Millisecond {
 		t.Fatalf("producerMetadataMinAge(1ms) = %s, want 250ms", got)
@@ -941,7 +919,6 @@ func TestProducerMetadataMinAgeHasIndependentSafeFloor(t *testing.T) {
 }
 
 func TestProducerConfigNormalizesSecureTransport(t *testing.T) {
-	t.Parallel()
 
 	sourceTLS := &tls.Config{}
 	config, err := normalizeProducerConfig(ProducerConfig{
@@ -977,7 +954,6 @@ func TestProducerConfigNormalizesSecureTransport(t *testing.T) {
 }
 
 func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -1181,7 +1157,6 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := ProducerConfig{
 				Brokers:  []string{"broker.internal:9092"},
@@ -1206,7 +1181,6 @@ func TestNewProducerRejectsUnboundedProducerConfiguration(t *testing.T) {
 }
 
 func TestNewProducerRejectsPartiallyConfiguredMessageLimits(t *testing.T) {
-	t.Parallel()
 
 	limits := DefaultMessageLimits()
 	limits.MaxHeaders = 0
@@ -1226,7 +1200,6 @@ func TestNewProducerRejectsPartiallyConfiguredMessageLimits(t *testing.T) {
 }
 
 func TestNewProducerPreservesClientConstructionFailure(t *testing.T) {
-	t.Parallel()
 
 	want := errors.New("client construction failed")
 	producer, err := newProducer(
@@ -1250,7 +1223,6 @@ func TestNewProducerPreservesClientConstructionFailure(t *testing.T) {
 }
 
 func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
-	t.Parallel()
 
 	var franzClient *kgo.Client
 	producer, err := newProducer(
@@ -1316,7 +1288,6 @@ func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
 }
 
 func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing.T) {
-	t.Parallel()
 
 	const deliveryWaitTimeout = time.Minute
 	backend := &recordingProducerBackend{}
@@ -1367,7 +1338,6 @@ func TestProducerBoundsDeliveryContextsAndDetachesAdmittedAsyncRecord(t *testing
 }
 
 func TestProducerZeroDeliveryWaitPreservesLiveContexts(t *testing.T) {
-	t.Parallel()
 
 	producer := &Producer{}
 	callerCtx := context.Background()
@@ -1391,7 +1361,6 @@ func TestProducerZeroDeliveryWaitPreservesLiveContexts(t *testing.T) {
 }
 
 func TestProducerBatchAcceptsExactByteLimitAndBoundsObservationMetadata(t *testing.T) {
-	t.Parallel()
 
 	records := []ProducerRecord{
 		{Topic: "events", Key: []byte("first"), Value: []byte("one")},
@@ -1428,7 +1397,6 @@ func TestProducerBatchAcceptsExactByteLimitAndBoundsObservationMetadata(t *testi
 }
 
 func TestProducerRecordSizeIncludesEveryHeaderFramingComponent(t *testing.T) {
-	t.Parallel()
 
 	record := ProducerRecord{
 		Topic: "events",
@@ -1445,7 +1413,6 @@ func TestProducerRecordSizeIncludesEveryHeaderFramingComponent(t *testing.T) {
 }
 
 func TestProducerBatchResultsRetainInputOrderAcrossDeliveryCompletion(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{
 		produceSync: func(
@@ -1487,7 +1454,6 @@ func TestProducerBatchResultsRetainInputOrderAcrossDeliveryCompletion(t *testing
 }
 
 func TestProducerBatchRejectsInconsistentDeliveryResults(t *testing.T) {
-	t.Parallel()
 
 	tests := map[string]struct {
 		produceSync   func(...*kgo.Record) kgo.ProduceResults
@@ -1525,7 +1491,6 @@ func TestProducerBatchRejectsInconsistentDeliveryResults(t *testing.T) {
 	for name, test := range tests {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{
 				produceSync: func(
@@ -1565,7 +1530,6 @@ func TestProducerBatchRejectsInconsistentDeliveryResults(t *testing.T) {
 }
 
 func TestProducerAsyncCancellationDuringAdmissionRemainsAuthoritative(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{
 		produceAdmissionStarted: make(chan struct{}),
@@ -1613,7 +1577,6 @@ func TestProducerAsyncCancellationDuringAdmissionRemainsAuthoritative(t *testing
 }
 
 func TestProducerPublishesMessageSynchronously(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -1663,7 +1626,6 @@ func TestProducerPublishesMessageSynchronously(t *testing.T) {
 }
 
 func TestProducerPreservesDeliveryAndHealthFailures(t *testing.T) {
-	t.Parallel()
 
 	deliveryErr := errors.New("delivery failed")
 	healthErr := errors.New("broker unavailable")
@@ -1685,7 +1647,6 @@ func TestProducerPreservesDeliveryAndHealthFailures(t *testing.T) {
 }
 
 func TestProducerRunsSerializedTransaction(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -1716,7 +1677,6 @@ func TestProducerRunsSerializedTransaction(t *testing.T) {
 }
 
 func TestProducerAbortsFailedOrPanickingTransaction(t *testing.T) {
-	t.Parallel()
 
 	callbackErr := errors.New("application failed")
 	tests := []struct {
@@ -1741,7 +1701,6 @@ func TestProducerAbortsFailedOrPanickingTransaction(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{}
 			producer := &Producer{
@@ -1765,7 +1724,6 @@ func TestProducerAbortsFailedOrPanickingTransaction(t *testing.T) {
 }
 
 func TestProducerRejectsUnavailableTransaction(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -1794,7 +1752,6 @@ func TestProducerRejectsUnavailableTransaction(t *testing.T) {
 }
 
 func TestProducerPreservesTransactionCleanupFailures(t *testing.T) {
-	t.Parallel()
 
 	callbackErr := errors.New("application failed")
 	abortErr := errors.New("abort buffered failed")
@@ -1819,7 +1776,6 @@ func TestProducerPreservesTransactionCleanupFailures(t *testing.T) {
 }
 
 func TestProducerClassifiesTransactionCommitFailure(t *testing.T) {
-	t.Parallel()
 
 	unknownErr := errors.New("connection lost during commit")
 	unknownBackend := &recordingProducerBackend{endErr: unknownErr}
@@ -1852,7 +1808,6 @@ func TestProducerClassifiesTransactionCommitFailure(t *testing.T) {
 }
 
 func TestTransactionCannotPublishAfterCallbackReturns(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)
@@ -1877,7 +1832,6 @@ func TestTransactionCannotPublishAfterCallbackReturns(t *testing.T) {
 }
 
 func TestTransactionWaitsForStartedPublishBeforeCommit(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{
 		produceStarted: make(chan struct{}),
@@ -1930,7 +1884,6 @@ func transactionalProducer(backend producerBackend) *Producer {
 }
 
 func TestRunTransactionTerminatesAfterAmbiguousPublishDeadline(t *testing.T) {
-	t.Parallel()
 
 	clientCtx, cancelClient := context.WithCancel(context.Background())
 	release := make(chan struct{})
@@ -1996,7 +1949,6 @@ func TestRunTransactionTerminatesAfterAmbiguousPublishDeadline(t *testing.T) {
 }
 
 func TestProducerCloseDoesNotReportSuccessWhileTerminalCloseIsRunning(t *testing.T) {
-	t.Parallel()
 
 	clientCtx, cancelClient := context.WithCancel(context.Background())
 	closeStarted := make(chan struct{})
@@ -2055,7 +2007,6 @@ func TestProducerCloseDoesNotReportSuccessWhileTerminalCloseIsRunning(t *testing
 }
 
 func TestTransactionalPublishPreservesExistingFatalState(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)
@@ -2074,7 +2025,6 @@ func TestTransactionalPublishPreservesExistingFatalState(t *testing.T) {
 }
 
 func TestTransactionalPublishRejectsCanceledContextBeforeAdmission(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)
@@ -2103,7 +2053,6 @@ func TestTransactionalPublishRejectsCanceledContextBeforeAdmission(t *testing.T)
 }
 
 func TestTransactionalPublishRejectsMissingDeliveryResult(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{omitDeliveries: true}
 	producer := transactionalProducer(backend)
@@ -2129,7 +2078,6 @@ func TestTransactionalPublishRejectsMissingDeliveryResult(t *testing.T) {
 }
 
 func TestProducerRejectsMessageWithoutTopic(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -2145,7 +2093,6 @@ func TestProducerRejectsMessageWithoutTopic(t *testing.T) {
 }
 
 func TestProducerRejectsTopicAboveConfiguredLimit(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	limits := DefaultMessageLimits()
@@ -2165,12 +2112,10 @@ func TestProducerRejectsTopicAboveConfiguredLimit(t *testing.T) {
 }
 
 func TestProducerRejectsBrokerInvalidTopicName(t *testing.T) {
-	t.Parallel()
 
 	for _, topic := range []string{".", "..", "events/commands", "events\x00", "events-\xff"} {
 		topic := topic
 		t.Run(topic, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{}
 			producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -2188,7 +2133,6 @@ func TestProducerRejectsBrokerInvalidTopicName(t *testing.T) {
 }
 
 func TestProducerRejectsMessageFieldsAboveConfiguredLimits(t *testing.T) {
-	t.Parallel()
 
 	limits := DefaultMessageLimits()
 	manyHeaders := make([]Header, limits.MaxHeaders+1)
@@ -2274,7 +2218,6 @@ func TestProducerRejectsMessageFieldsAboveConfiguredLimits(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{}
 			producer := &Producer{client: backend, limits: limits}
@@ -2292,7 +2235,6 @@ func TestProducerRejectsMessageFieldsAboveConfiguredLimits(t *testing.T) {
 }
 
 func TestProducerRejectsAggregateHeaderKeyOverflow(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	limits := DefaultMessageLimits()
@@ -2316,7 +2258,6 @@ func TestProducerRejectsAggregateHeaderKeyOverflow(t *testing.T) {
 }
 
 func TestProducerRejectsAggregateHeaderValueOverflow(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	limits := DefaultMessageLimits()
@@ -2340,7 +2281,6 @@ func TestProducerRejectsAggregateHeaderValueOverflow(t *testing.T) {
 }
 
 func TestProducerRecordValidationAcceptsEveryExactMaterialLimit(t *testing.T) {
-	t.Parallel()
 
 	limits := MessageLimits{
 		MaxTopicBytes:       1,
@@ -2367,7 +2307,6 @@ func TestProducerRecordValidationAcceptsEveryExactMaterialLimit(t *testing.T) {
 }
 
 func TestProducerOperationAccountingTracksAdmissionAndCompletion(t *testing.T) {
-	t.Parallel()
 
 	producer := &Producer{}
 	if err := producer.startOperation(); err != nil {

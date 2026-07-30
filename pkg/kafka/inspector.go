@@ -118,10 +118,10 @@ type TopicCleanupPolicy uint8
 const (
 	// TopicCleanupDelete removes old segments under the effective retention
 	// time or per-partition byte limit.
-	TopicCleanupDelete TopicCleanupPolicy = 1 << iota
+	TopicCleanupDelete TopicCleanupPolicy = 1
 	// TopicCleanupCompact retains the latest record for each key, subject to
 	// Kafka's compaction and tombstone-retention policy.
-	TopicCleanupCompact
+	TopicCleanupCompact TopicCleanupPolicy = 2
 )
 
 // TopicState is the current metadata for one requested topic.
@@ -346,6 +346,7 @@ func newInspector(
 
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
+		kgo.AlwaysRetryEOF(),
 		kgo.ClientID(config.ClientID),
 		kgo.DialTimeout(config.DialTimeout),
 	}
@@ -483,10 +484,16 @@ func (inspector *Inspector) Cluster(
 	if len(metadata.Brokers) > inspector.metadataBrokerLimit() {
 		return ClusterState{}, ErrInspectionResponseTooLarge
 	}
-	if len(metadata.Brokers) == 0 ||
-		len(metadata.Cluster) > 255 ||
-		metadata.Cluster != strings.TrimSpace(metadata.Cluster) ||
-		!utf8.ValidString(metadata.Cluster) {
+	if len(metadata.Brokers) == 0 {
+		return ClusterState{}, ErrInvalidInspectionResponse
+	}
+	if len(metadata.Cluster) > 255 {
+		return ClusterState{}, ErrInvalidInspectionResponse
+	}
+	if metadata.Cluster != strings.TrimSpace(metadata.Cluster) {
+		return ClusterState{}, ErrInvalidInspectionResponse
+	}
+	if !utf8.ValidString(metadata.Cluster) {
 		return ClusterState{}, ErrInvalidInspectionResponse
 	}
 
@@ -498,13 +505,25 @@ func (inspector *Inspector) Cluster(
 	}
 	seen := make(map[int32]struct{}, len(metadata.Brokers))
 	for _, broker := range metadata.Brokers {
-		if broker.NodeID < 0 ||
-			broker.Host == "" ||
-			broker.Host != strings.TrimSpace(broker.Host) ||
-			len(broker.Host) > 255 ||
-			!utf8.ValidString(broker.Host) ||
-			broker.Port < 1 ||
-			broker.Port > 65_535 {
+		if broker.NodeID < 0 {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if broker.Host == "" {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if broker.Host != strings.TrimSpace(broker.Host) {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if len(broker.Host) > 255 {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if !utf8.ValidString(broker.Host) {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if broker.Port < 1 {
+			return ClusterState{}, ErrInvalidInspectionResponse
+		}
+		if broker.Port > 65_535 {
 			return ClusterState{}, ErrInvalidInspectionResponse
 		}
 		if _, duplicate := seen[broker.NodeID]; duplicate {
@@ -514,10 +533,13 @@ func (inspector *Inspector) Cluster(
 		rack := ""
 		if broker.Rack != nil {
 			rack = *broker.Rack
-			if rack != "" &&
-				(rack != strings.TrimSpace(rack) ||
-					len(rack) > 255 ||
-					!utf8.ValidString(rack)) {
+			if rack != "" && rack != strings.TrimSpace(rack) {
+				return ClusterState{}, ErrInvalidInspectionResponse
+			}
+			if len(rack) > 255 {
+				return ClusterState{}, ErrInvalidInspectionResponse
+			}
+			if !utf8.ValidString(rack) {
 				return ClusterState{}, ErrInvalidInspectionResponse
 			}
 		}
@@ -695,7 +717,10 @@ func (inspector *Inspector) buildTopicStates(
 			}
 			start, startExists := startOffsets.Lookup(detail.Topic, partition.Partition)
 			end, endExists := endOffsets.Lookup(detail.Topic, partition.Partition)
-			if !startExists || !endExists {
+			if !startExists {
+				return nil, ErrInvalidInspectionResponse
+			}
+			if !endExists {
 				return nil, ErrInvalidInspectionResponse
 			}
 			if start.Topic != detail.Topic ||
@@ -742,13 +767,25 @@ func validateInspectionPartition(
 	partition kadm.PartitionDetail,
 	maxBrokers int,
 ) error {
-	if partition.Partition < 0 ||
-		partition.Leader < -1 ||
-		partition.LeaderEpoch < -1 ||
-		len(partition.Replicas) == 0 ||
-		len(partition.Replicas) > maxBrokers ||
-		len(partition.ISR) > maxBrokers ||
-		len(partition.OfflineReplicas) > maxBrokers {
+	if partition.Partition < 0 {
+		return ErrInvalidInspectionResponse
+	}
+	if partition.Leader < -1 {
+		return ErrInvalidInspectionResponse
+	}
+	if partition.LeaderEpoch < -1 {
+		return ErrInvalidInspectionResponse
+	}
+	if len(partition.Replicas) == 0 {
+		return ErrInvalidInspectionResponse
+	}
+	if len(partition.Replicas) > maxBrokers {
+		return ErrInvalidInspectionResponse
+	}
+	if len(partition.ISR) > maxBrokers {
+		return ErrInvalidInspectionResponse
+	}
+	if len(partition.OfflineReplicas) > maxBrokers {
 		return ErrInvalidInspectionResponse
 	}
 	replicas := make(map[int32]struct{}, len(partition.Replicas))
@@ -826,11 +863,19 @@ func inspectionTopicConfigs(
 			if field == 0 {
 				continue
 			}
-			if found&field != 0 ||
-				config.Sensitive ||
-				config.Value == nil ||
-				len(*config.Value) > 64 ||
-				!utf8.ValidString(*config.Value) {
+			if found&field != 0 {
+				return nil, ErrInvalidInspectionResponse
+			}
+			if config.Sensitive {
+				return nil, ErrInvalidInspectionResponse
+			}
+			if config.Value == nil {
+				return nil, ErrInvalidInspectionResponse
+			}
+			if len(*config.Value) > 64 {
+				return nil, ErrInspectionResponseTooLarge
+			}
+			if !utf8.ValidString(*config.Value) {
 				return nil, ErrInvalidInspectionResponse
 			}
 			if err := parsed.set(field, *config.Value); err != nil {
@@ -838,9 +883,11 @@ func inspectionTopicConfigs(
 			}
 			found |= field
 		}
-		if found != allTopicInspectionConfigFields ||
-			parsed.minimumCompactionLagMilliseconds >
-				parsed.maximumCompactionLagMilliseconds {
+		if found != allTopicInspectionConfigFields {
+			return nil, ErrInvalidInspectionResponse
+		}
+		if parsed.minimumCompactionLagMilliseconds >
+			parsed.maximumCompactionLagMilliseconds {
 			return nil, ErrInvalidInspectionResponse
 		}
 		result[resource.Name] = parsed
@@ -954,11 +1001,19 @@ func (config *topicInspectionConfig) set(
 		return err
 	case topicInspectionMinimumCleanableDirtyRatio:
 		parsed, err := strconv.ParseFloat(value, 64)
-		if err != nil ||
-			math.IsNaN(parsed) ||
-			math.IsInf(parsed, 0) ||
-			parsed < 0 ||
-			parsed > 1 {
+		if err != nil {
+			return ErrInvalidInspectionResponse
+		}
+		if math.IsNaN(parsed) {
+			return ErrInvalidInspectionResponse
+		}
+		if math.IsInf(parsed, 0) {
+			return ErrInvalidInspectionResponse
+		}
+		if parsed < 0 {
+			return ErrInvalidInspectionResponse
+		}
+		if parsed > 1 {
 			return ErrInvalidInspectionResponse
 		}
 		config.minimumCleanableDirtyRatio = parsed
@@ -992,7 +1047,13 @@ func (config *topicInspectionConfig) set(
 
 func parseInspectionInteger(value string, minimum, maximum int64) (int64, error) {
 	parsed, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || parsed < minimum || parsed > maximum {
+	if err != nil {
+		return 0, ErrInvalidInspectionResponse
+	}
+	if parsed < minimum {
+		return 0, ErrInvalidInspectionResponse
+	}
+	if parsed > maximum {
 		return 0, ErrInvalidInspectionResponse
 	}
 
@@ -1001,7 +1062,13 @@ func parseInspectionInteger(value string, minimum, maximum int64) (int64, error)
 
 func parseInspectionInt(value string, minimum, maximum int) (int, error) {
 	parsed, err := strconv.Atoi(value)
-	if err != nil || parsed < minimum || parsed > maximum {
+	if err != nil {
+		return 0, ErrInvalidInspectionResponse
+	}
+	if parsed < minimum {
+		return 0, ErrInvalidInspectionResponse
+	}
+	if parsed > maximum {
 		return 0, ErrInvalidInspectionResponse
 	}
 
@@ -1278,9 +1345,7 @@ func (inspector *Inspector) validateConsumerGroupLags(
 				if lag.Commit.At >= 0 {
 					expectedLag = lag.End.Offset - lag.Commit.At
 				}
-				if expectedLag < 0 {
-					expectedLag = 0
-				}
+				expectedLag = max(expectedLag, 0)
 				if lag.Lag != expectedLag {
 					return ErrInvalidInspectionResponse
 				}
@@ -1380,7 +1445,7 @@ func consumeGroupAssignmentCopyBudget(
 	if assignment == nil {
 		return ErrInvalidInspectionResponse
 	}
-	if len(assignment.Topics) > maximum-*used {
+	if len(assignment.Topics) > maximum {
 		return ErrInspectionResponseTooLarge
 	}
 	*used += len(assignment.Topics)
@@ -1470,10 +1535,16 @@ func validateInspectionTargets(targets []string, maximumBytes int) error {
 	}
 	seen := make(map[string]struct{}, len(targets))
 	for _, target := range targets {
-		if target == "" ||
-			target != strings.TrimSpace(target) ||
-			len(target) > maximumBytes ||
-			!utf8.ValidString(target) {
+		if target == "" {
+			return ErrInvalidInspectionTarget
+		}
+		if target != strings.TrimSpace(target) {
+			return ErrInvalidInspectionTarget
+		}
+		if len(target) > maximumBytes {
+			return ErrInvalidInspectionTarget
+		}
+		if !utf8.ValidString(target) {
 			return ErrInvalidInspectionTarget
 		}
 		if _, exists := seen[target]; exists {

@@ -8,7 +8,6 @@ import (
 )
 
 func TestProducerConfigValidate(t *testing.T) {
-	t.Parallel()
 
 	tests := map[string]struct {
 		config  kafka.ProducerConfig
@@ -39,7 +38,6 @@ func TestProducerConfigValidate(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			err := test.config.Validate()
 			if !errors.Is(err, test.wantErr) {

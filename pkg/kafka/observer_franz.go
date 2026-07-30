@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"math"
 	"net"
 	"strings"
 	"time"
@@ -193,13 +194,13 @@ func observedRequestDuration(e2e kgo.BrokerE2E) (time.Duration, bool) {
 	} {
 		if component < 0 {
 			truncated = true
-
-			continue
+		} else {
+			total := uint64(duration) + uint64(component)
+			if total > math.MaxInt64 {
+				return time.Duration(math.MaxInt64), true
+			}
+			duration = time.Duration(total)
 		}
-		if duration > time.Duration(1<<63-1)-component {
-			return time.Duration(1<<63 - 1), true
-		}
-		duration += component
 	}
 
 	return duration, truncated

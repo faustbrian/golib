@@ -9,12 +9,10 @@ import (
 )
 
 func TestProtocolPolicyValidatesMinimumVersion(t *testing.T) {
-	t.Parallel()
 
 	for _, version := range []string{"", "3.9", "v3.9", "3.9.7"} {
 		version := version
 		t.Run("valid_"+version, func(t *testing.T) {
-			t.Parallel()
 
 			if err := (ProtocolPolicy{MinimumVersion: version}).Validate(); err != nil {
 				t.Fatalf("Validate() error = %v", err)
@@ -22,10 +20,15 @@ func TestProtocolPolicyValidatesMinimumVersion(t *testing.T) {
 		})
 	}
 
-	for _, version := range []string{" ", "3", "99.0", "3.\n9", string([]byte{0xff})} {
+	for _, version := range []string{
+		" ",
+		"3",
+		"99.0",
+		"3.\n9",
+		string([]byte{0xff}),
+	} {
 		version := version
 		t.Run("invalid_"+version, func(t *testing.T) {
-			t.Parallel()
 
 			err := (ProtocolPolicy{MinimumVersion: version}).Validate()
 			if !errors.Is(err, ErrInvalidProtocolPolicy) {
@@ -36,7 +39,6 @@ func TestProtocolPolicyValidatesMinimumVersion(t *testing.T) {
 }
 
 func TestKafkaReleaseMinimumComparison(t *testing.T) {
-	t.Parallel()
 
 	for version, want := range map[string]bool{
 		"2":    false,
@@ -44,12 +46,12 @@ func TestKafkaReleaseMinimumComparison(t *testing.T) {
 		"2.5":  true,
 		"v2.5": true,
 		"3.0":  true,
+		"3.x":  false,
 		"x.5":  false,
 		"2.x":  false,
 	} {
 		version := version
 		t.Run(version, func(t *testing.T) {
-			t.Parallel()
 
 			if got := kafkaReleaseAtLeast(version, 2, 5); got != want {
 				t.Fatalf("kafkaReleaseAtLeast(%q) = %t, want %t", version, got, want)
@@ -58,8 +60,7 @@ func TestKafkaReleaseMinimumComparison(t *testing.T) {
 	}
 }
 
-func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
-	t.Parallel()
+func TestClientRolesApplyProtocolAndBoundedEOFRecoveryPolicy(t *testing.T) {
 
 	const version = "3.9"
 	assertMinimum := func(t *testing.T, client *kgo.Client) {
@@ -70,10 +71,12 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 		if !ok || !got.Equal(want) {
 			t.Fatalf("MinVersions option = %#v, want %s", got, version)
 		}
+		if got := client.OptValue(kgo.AlwaysRetryEOF); got != true {
+			t.Fatalf("AlwaysRetryEOF option = %#v, want true", got)
+		}
 	}
 
 	t.Run("producer", func(t *testing.T) {
-		t.Parallel()
 
 		var client *kgo.Client
 		producer, err := newProducer(ProducerConfig{
@@ -95,7 +98,6 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 	})
 
 	t.Run("consumer", func(t *testing.T) {
-		t.Parallel()
 
 		config := validConsumerConfig()
 		config.Protocol = ProtocolPolicy{MinimumVersion: version}
@@ -114,7 +116,6 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 	})
 
 	t.Run("replay", func(t *testing.T) {
-		t.Parallel()
 
 		config := validReplayConfig()
 		config.Protocol = ProtocolPolicy{MinimumVersion: version}
@@ -133,7 +134,6 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 	})
 
 	t.Run("inspector", func(t *testing.T) {
-		t.Parallel()
 
 		var client *kgo.Client
 		inspector, err := newInspector(InspectorConfig{
@@ -161,7 +161,6 @@ func TestClientRolesApplyMinimumProtocolVersion(t *testing.T) {
 }
 
 func TestClientRolesRejectInvalidProtocolPolicy(t *testing.T) {
-	t.Parallel()
 
 	policy := ProtocolPolicy{MinimumVersion: "unknown"}
 	producerConfig := ProducerConfig{
@@ -205,7 +204,6 @@ func TestClientRolesRejectInvalidProtocolPolicy(t *testing.T) {
 	for name, run := range tests {
 		run := run
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			if err := run(); !errors.Is(err, ErrInvalidProtocolPolicy) {
 				t.Fatalf("normalize error = %v, want %v", err, ErrInvalidProtocolPolicy)

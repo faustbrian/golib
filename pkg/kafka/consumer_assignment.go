@@ -1,7 +1,8 @@
 package kafka
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"sync"
 )
 
@@ -109,16 +110,18 @@ func (state *consumerAssignmentState) validated(
 	partitions map[string][]int32,
 	adding bool,
 ) ([]TopicPartition, error) {
-	count := 0
+	counted := make([]struct{}, 0)
 	for _, topicPartitions := range partitions {
-		if len(topicPartitions) > state.maximum-count {
-			return nil, ErrTooManyAssignedPartitions
+		for range topicPartitions {
+			if len(counted) == state.maximum {
+				return nil, ErrTooManyAssignedPartitions
+			}
+			counted = append(counted, struct{}{})
 		}
-		count += len(topicPartitions)
 	}
 
-	validated := make([]TopicPartition, 0, count)
-	seen := make(map[TopicPartition]struct{}, count)
+	validated := make([]TopicPartition, 0, len(counted))
+	seen := make(map[TopicPartition]struct{}, len(counted))
 	additional := 0
 	for topic, topicPartitions := range partitions {
 		if _, subscribed := state.subscriptions[topic]; !subscribed {
@@ -134,13 +137,17 @@ func (state *consumerAssignmentState) validated(
 			}
 			seen[partition] = struct{}{}
 			validated = append(validated, partition)
-			if _, exists := state.partitions[partition]; adding && !exists {
-				additional++
+			if adding {
+				if _, exists := state.partitions[partition]; !exists {
+					additional++
+				}
 			}
 		}
 	}
-	if adding && len(state.partitions)+additional > state.maximum {
-		return nil, ErrTooManyAssignedPartitions
+	if adding {
+		if len(state.partitions)+additional > state.maximum {
+			return nil, ErrTooManyAssignedPartitions
+		}
 	}
 
 	return validated, nil
@@ -183,7 +190,11 @@ func (state *consumerAssignmentState) owns(
 	defer state.mu.RUnlock()
 
 	if !token.observed {
-		return !state.observed && state.err == nil
+		if state.observed {
+			return false
+		}
+
+		return state.err == nil
 	}
 	if state.err != nil || state.epoch != token.epoch {
 		return false
@@ -199,10 +210,16 @@ func (state *consumerAssignmentState) validate(
 	state.mu.RLock()
 	defer state.mu.RUnlock()
 
-	if token.observed != state.observed ||
-		state.err != nil ||
-		(token.observed && token.epoch != state.epoch) {
+	if token.observed != state.observed {
 		return ErrConsumerOwnershipLost
+	}
+	if state.err != nil {
+		return ErrConsumerOwnershipLost
+	}
+	if token.observed {
+		if token.epoch != state.epoch {
+			return ErrConsumerOwnershipLost
+		}
 	}
 
 	return nil
@@ -219,12 +236,12 @@ func (state *consumerAssignmentState) snapshot() (ConsumerAssignment, error) {
 	for partition := range state.partitions {
 		partitions = append(partitions, partition)
 	}
-	sort.Slice(partitions, func(left, right int) bool {
-		if partitions[left].Topic == partitions[right].Topic {
-			return partitions[left].Partition < partitions[right].Partition
+	slices.SortFunc(partitions, func(left, right TopicPartition) int {
+		if topicOrder := cmp.Compare(left.Topic, right.Topic); topicOrder != 0 {
+			return topicOrder
 		}
 
-		return partitions[left].Topic < partitions[right].Topic
+		return cmp.Compare(left.Partition, right.Partition)
 	})
 
 	return ConsumerAssignment{

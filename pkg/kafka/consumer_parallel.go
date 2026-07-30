@@ -206,10 +206,9 @@ func (consumer *Consumer) observeConsumedBatch(
 			consumer.limits,
 		); validationErr != nil {
 			valid = false
-
-			break
+		} else {
+			bytes = bytes + consumedRecordSize(record)
 		}
-		bytes += consumedRecordSize(record)
 	}
 	if valid {
 		last := batch.records[len(batch.records)-1]
@@ -240,8 +239,10 @@ func (consumer *Consumer) settlePartitionResults(
 	var handlerErr error
 	for _, partitionResult := range partitionResults {
 		result.Processed += partitionResult.processed
-		if handlerErr == nil && partitionResult.err != nil {
-			handlerErr = partitionResult.err
+		if handlerErr == nil {
+			if partitionResult.err != nil {
+				handlerErr = partitionResult.err
+			}
 		}
 		if partitionResult.lastSuccessful != nil {
 			committable = append(
@@ -336,8 +337,6 @@ func (consumer *Consumer) observeConsumerCommit(
 		for _, record := range records[1:] {
 			if record.Topic != topic {
 				topic = ""
-
-				break
 			}
 		}
 	}
@@ -362,9 +361,14 @@ func (consumer *Consumer) observeConsumerCommit(
 }
 
 func consumedRecordSize(record *kgo.Record) int64 {
-	size := int64(len(record.Topic) + len(record.Key) + len(record.Value) + 32)
+	size := int64(len(record.Topic))
+	size = size + int64(len(record.Key))
+	size = size + int64(len(record.Value))
+	size = size + 32
 	for _, header := range record.Headers {
-		size += int64(len(header.Key) + len(header.Value) + 8)
+		size = size + int64(len(header.Key))
+		size = size + int64(len(header.Value))
+		size = size + 8
 	}
 
 	return size

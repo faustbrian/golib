@@ -10,7 +10,6 @@ import (
 )
 
 func TestRunTransactionClassifiesDefinitiveCommitFailures(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -41,7 +40,6 @@ func TestRunTransactionClassifiesDefinitiveCommitFailures(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{endErr: test.cause}
 			err := transactionalProducer(backend).RunTransaction(
@@ -63,7 +61,6 @@ func TestRunTransactionClassifiesDefinitiveCommitFailures(t *testing.T) {
 }
 
 func TestRunTransactionClassifiesAbortableCommitFailure(t *testing.T) {
-	t.Parallel()
 
 	for name, cause := range map[string]error{
 		"operation not attempted": kerr.OperationNotAttempted,
@@ -71,7 +68,6 @@ func TestRunTransactionClassifiesAbortableCommitFailure(t *testing.T) {
 	} {
 		cause := cause
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{
 				endErrors: []error{cause, nil},
@@ -96,7 +92,6 @@ func TestRunTransactionClassifiesAbortableCommitFailure(t *testing.T) {
 }
 
 func TestRunTransactionRedactsUnknownCommitOutcome(t *testing.T) {
-	t.Parallel()
 
 	cause := errors.New("commit failed through user:password@broker.internal")
 	backend := &recordingProducerBackend{endErr: cause}
@@ -122,7 +117,6 @@ func TestRunTransactionRedactsUnknownCommitOutcome(t *testing.T) {
 }
 
 func TestRunTransactionClassifiesBeginAndAbortFailures(t *testing.T) {
-	t.Parallel()
 
 	beginCause := kerr.TransactionalIDAuthorizationFailed
 	beginBackend := &recordingProducerBackend{beginErr: beginCause}
@@ -164,7 +158,6 @@ func TestRunTransactionClassifiesBeginAndAbortFailures(t *testing.T) {
 }
 
 func TestRunTransactionPrioritizesUnknownAbortCleanup(t *testing.T) {
-	t.Parallel()
 
 	abortCause := errors.New("abort outcome unavailable")
 	backend := &recordingProducerBackend{
@@ -189,7 +182,6 @@ func TestRunTransactionPrioritizesUnknownAbortCleanup(t *testing.T) {
 }
 
 func TestRunTransactionClassifiesBufferedAndDefinitiveAbortFailures(t *testing.T) {
-	t.Parallel()
 
 	callbackErr := errors.New("application failed")
 	bufferCause := errors.New("buffer did not drain")
@@ -217,7 +209,6 @@ func TestRunTransactionClassifiesBufferedAndDefinitiveAbortFailures(t *testing.T
 	} {
 		cause := cause
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{endErr: cause}
 			err := transactionalProducer(backend).RunTransaction(
@@ -237,7 +228,6 @@ func TestRunTransactionClassifiesBufferedAndDefinitiveAbortFailures(t *testing.T
 }
 
 func TestTransactionErrorSupportsStableOperationsAndNilReceiver(t *testing.T) {
-	t.Parallel()
 
 	if TransactionOperationBegin.String() != "begin" ||
 		TransactionOperationCommit.String() != "commit" ||

@@ -15,7 +15,6 @@ import (
 )
 
 func TestInspectorPlansReplayTimestampWindowAsOwnedExactRanges(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	end := start.Add(time.Hour)
@@ -138,7 +137,6 @@ func TestInspectorPlansReplayTimestampWindowAsOwnedExactRanges(t *testing.T) {
 }
 
 func TestReplayTimestampRequestValidation(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	valid := ReplayTimestampRequest{
@@ -150,6 +148,29 @@ func TestReplayTimestampRequestValidation(t *testing.T) {
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+
+	maximumPartitions := make([]TopicPartition, 1_024)
+	for index := range maximumPartitions {
+		maximumPartitions[index] = TopicPartition{
+			Topic: "events", Partition: int32(index),
+		}
+	}
+	maximumTopics := make([]TopicPartition, 64)
+	for index := range maximumTopics {
+		maximumTopics[index] = TopicPartition{
+			Topic: "topic-" + twoDigits(index), Partition: 0,
+		}
+	}
+	for name, partitions := range map[string][]TopicPartition{
+		"maximum partitions": maximumPartitions,
+		"maximum topics":     maximumTopics,
+	} {
+		request := valid
+		request.Partitions = partitions
+		if err := request.Validate(); err != nil {
+			t.Fatalf("%s Validate() error = %v", name, err)
+		}
 	}
 
 	tooManyPartitions := make([]TopicPartition, 1_025)
@@ -246,7 +267,6 @@ func TestReplayTimestampRequestValidation(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			request := valid
 			request.Partitions = append(
@@ -261,8 +281,81 @@ func TestReplayTimestampRequestValidation(t *testing.T) {
 	}
 }
 
+func TestReplayTimestampMillisecondValidationUsesExactBoundaries(t *testing.T) {
+
+	for _, test := range []struct {
+		name      string
+		timestamp time.Time
+		want      int64
+		valid     bool
+	}{
+		{
+			name:      "epoch",
+			timestamp: time.UnixMilli(0),
+			want:      0,
+			valid:     true,
+		},
+		{
+			name:      "exact positive millisecond",
+			timestamp: time.UnixMilli(1),
+			want:      1,
+			valid:     true,
+		},
+		{
+			name:      "sub millisecond",
+			timestamp: time.UnixMilli(1).Add(time.Nanosecond),
+		},
+		{
+			name:      "before epoch",
+			timestamp: time.UnixMilli(-1),
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+
+			got, valid := exactReplayTimestampMilli(test.timestamp)
+			if got != test.want || valid != test.valid {
+				t.Fatalf(
+					"exactReplayTimestampMilli() = (%d, %t), want (%d, %t)",
+					got,
+					valid,
+					test.want,
+					test.valid,
+				)
+			}
+		})
+	}
+}
+
+func TestListedReplayTimestampOffsetUsesInclusiveTimestampBoundary(t *testing.T) {
+
+	if !validListedReplayTimestampOffset(0, timestampListedOffset(
+		"events",
+		0,
+		0,
+		0,
+	)) {
+		t.Fatal("epoch timestamp offset rejected")
+	}
+	if !validListedReplayTimestampOffset(10, timestampListedOffset(
+		"events",
+		0,
+		1,
+		10,
+	)) {
+		t.Fatal("timestamp equal to requested boundary rejected")
+	}
+	if validListedReplayTimestampOffset(10, timestampListedOffset(
+		"events",
+		0,
+		1,
+		9,
+	)) {
+		t.Fatal("timestamp before requested boundary accepted")
+	}
+}
+
 func TestInspectorRejectsIncompleteRetainedTimestampWindow(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	end := start.Add(time.Hour)
@@ -312,7 +405,6 @@ func TestInspectorRejectsIncompleteRetainedTimestampWindow(t *testing.T) {
 }
 
 func TestInspectorTimestampPlanningFailsClosed(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	end := start.Add(time.Hour)
@@ -500,7 +592,6 @@ func TestInspectorTimestampPlanningFailsClosed(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			inspector := &Inspector{
 				admin:                 test.backend,
@@ -531,7 +622,6 @@ func TestInspectorTimestampPlanningFailsClosed(t *testing.T) {
 }
 
 func TestInspectorTimestampPlanningHonorsLateCancellation(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	end := start.Add(time.Hour)
@@ -590,20 +680,27 @@ func TestInspectorTimestampPlanningHonorsLateCancellation(t *testing.T) {
 }
 
 func TestReplayTimestampPlanRejectsOverflowAndOversizedResponses(t *testing.T) {
-	t.Parallel()
 
-	inspector := &Inspector{maxMetadataPartitions: 1}
+	inspector := &Inspector{maxMetadataPartitions: 2}
 	partitions := []TopicPartition{
+		{Topic: "accounts", Partition: 0},
 		{Topic: "events", Partition: 0},
-		{Topic: "events", Partition: 1},
 	}
 	offsets := listedTimestampOffsets(
+		timestampListedOffset("accounts", 0, 0, -1),
 		timestampListedOffset("events", 0, 0, -1),
-		timestampListedOffset("events", 1, 0, -1),
 	)
 	if err := inspector.validateReplayTimestampOffsets(
 		-2,
 		partitions,
+		offsets,
+	); err != nil {
+		t.Fatalf("exact-limit validateReplayTimestampOffsets() error = %v", err)
+	}
+	offsets["events"][1] = timestampListedOffset("events", 1, 0, -1)
+	if err := inspector.validateReplayTimestampOffsets(
+		-2,
+		append(partitions, TopicPartition{Topic: "events", Partition: 1}),
 		offsets,
 	); !errors.Is(err, ErrInspectionResponseTooLarge) {
 		t.Fatalf("validateReplayTimestampOffsets() error = %v", err)
@@ -626,6 +723,32 @@ func TestReplayTimestampPlanRejectsOverflowAndOversizedResponses(t *testing.T) {
 		timestampListedOffset("accounts", 0, -1, -1),
 		timestampListedOffset("events", 0, -1, -1),
 	)
+	exactHighWatermarks := listedTimestampOffsets(
+		timestampListedOffset("accounts", 0, 1, -1),
+		timestampListedOffset("events", 0, math.MaxInt64-1, -1),
+	)
+	exactPlan, exactErr := inspector.buildReplayTimestampPlan(
+		0,
+		1,
+		[]TopicPartition{
+			{Topic: "events", Partition: 0},
+			{Topic: "accounts", Partition: 0},
+		},
+		logStarts,
+		exactHighWatermarks,
+		starts,
+		ends,
+	)
+	if exactErr != nil {
+		t.Fatalf("exact-limit buildReplayTimestampPlan() error = %v", exactErr)
+	}
+	if exactPlan.TotalRemaining != math.MaxInt64 {
+		t.Fatalf(
+			"exact-limit TotalRemaining = %d, want %d",
+			exactPlan.TotalRemaining,
+			int64(math.MaxInt64),
+		)
+	}
 	plan, err := inspector.buildReplayTimestampPlan(
 		0,
 		1,
@@ -646,8 +769,41 @@ func TestReplayTimestampPlanRejectsOverflowAndOversizedResponses(t *testing.T) {
 	}
 }
 
+func TestInspectorAcceptsTimestampTargetsAtConfiguredBound(t *testing.T) {
+
+	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
+	backendError := errors.New("broker called")
+	backend := &timestampInspectorBackend{
+		errors: map[int64]error{-2: backendError},
+	}
+	inspector := &Inspector{
+		admin:                 backend,
+		requestTimeout:        time.Second,
+		maxMetadataPartitions: 2,
+	}
+	plan, err := inspector.PlanReplayByTimestamp(
+		context.Background(),
+		ReplayTimestampRequest{
+			StartInclusive: start,
+			EndExclusive:   start.Add(time.Second),
+			Partitions: []TopicPartition{
+				{Topic: "events", Partition: 0},
+				{Topic: "events", Partition: 1},
+			},
+		},
+	)
+	if !errors.Is(err, backendError) {
+		t.Fatalf("PlanReplayByTimestamp() error = %v", err)
+	}
+	if !reflect.DeepEqual(plan, ReplayTimestampPlan{}) {
+		t.Fatalf("PlanReplayByTimestamp() plan = %#v", plan)
+	}
+	if !reflect.DeepEqual(backend.timestamps, []int64{-2}) {
+		t.Fatalf("broker requests = %v", backend.timestamps)
+	}
+}
+
 func TestInspectorRejectsTimestampTargetsAboveConfiguredBound(t *testing.T) {
-	t.Parallel()
 
 	start := time.Date(2026, 7, 27, 8, 0, 0, 0, time.UTC)
 	backend := &timestampInspectorBackend{}
@@ -679,7 +835,6 @@ func TestInspectorRejectsTimestampTargetsAboveConfiguredBound(t *testing.T) {
 }
 
 func TestFranzInspectorListsOnlyRequestedPartitionOffsets(t *testing.T) {
-	t.Parallel()
 
 	response := kmsg.NewPtrListOffsetsResponse()
 	response.Topics = append(
@@ -735,7 +890,6 @@ func TestFranzInspectorListsOnlyRequestedPartitionOffsets(t *testing.T) {
 }
 
 func TestReplayTimestampShardParsingFailsClosed(t *testing.T) {
-	t.Parallel()
 
 	partitions := []TopicPartition{{Topic: "events", Partition: 0}}
 	backendError := errors.New("request failed")
@@ -809,7 +963,6 @@ func TestReplayTimestampShardParsingFailsClosed(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			offsets, err := parseReplayTimestampShards(
 				test.shards,

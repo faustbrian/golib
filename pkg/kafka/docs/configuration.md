@@ -15,6 +15,15 @@ control surface. Invalid combinations fail closed; there is no unrestricted
 | `Security` | verified TLS | TLS 1.2 minimum with system roots. Plaintext requires `DevelopmentPlaintextSecurity`. See the [security guide](security.md). |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 
+Every package-owned franz-go client retries an EOF received before the first
+broker response. Broker restarts and coordinator leader changes can close a
+newly established connection at that boundary, including during transactional
+producer-ID initialization. Retries remain bounded by the role's configured
+request, delivery, transaction, planning, handler, or shutdown deadline. This
+policy can delay diagnosis of a broker-side TLS, SASL, listener, or endpoint
+mismatch until that bound expires, so deployments must validate security and
+listener configuration before rollout.
+
 Kafka brokers advertise supported request versions per connection through
 `ApiVersions`. franz-go normally selects the newest request version supported
 by both client and broker. `MinimumVersion` maps to franz-go `MinVersions`: it

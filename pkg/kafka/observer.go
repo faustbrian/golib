@@ -294,9 +294,13 @@ type Observation struct {
 // Validate reports whether the observation satisfies the public bounded
 // metadata, settlement-count, and event-cardinality invariants.
 func (observation Observation) Validate() error {
-	if observation.Kind < ObservationProduceRecord ||
-		observation.Kind > ObservationTransactionProcessorShutdown ||
-		observation.StartedAt.IsZero() ||
+	if observation.Kind < ObservationProduceRecord {
+		return ErrInvalidObservation
+	}
+	if observation.Kind > ObservationTransactionProcessorShutdown {
+		return ErrInvalidObservation
+	}
+	if observation.StartedAt.IsZero() ||
 		observation.Duration < 0 ||
 		observation.RecordCount < 0 ||
 		observation.PartitionCount < 0 ||

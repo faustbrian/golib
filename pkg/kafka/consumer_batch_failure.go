@@ -223,10 +223,16 @@ func normalizeBatchFailureHandlerConfig(
 
 	switch config.Mode {
 	case FailureModeStop:
-		if config.Target != (FailureTarget{}) ||
-			config.Publisher != nil ||
-			config.Delegate != nil ||
-			config.PublishTimeout != 0 {
+		if config.Target != (FailureTarget{}) {
+			return BatchFailureHandlerConfig{}, ErrInvalidFailurePolicy
+		}
+		if config.Publisher != nil {
+			return BatchFailureHandlerConfig{}, ErrInvalidFailurePolicy
+		}
+		if config.Delegate != nil {
+			return BatchFailureHandlerConfig{}, ErrInvalidFailurePolicy
+		}
+		if config.PublishTimeout != 0 {
 			return BatchFailureHandlerConfig{}, ErrInvalidFailurePolicy
 		}
 	case FailureModeRetryTopic, FailureModeDeadLetter:
@@ -236,8 +242,10 @@ func normalizeBatchFailureHandlerConfig(
 		if config.Delegate != nil {
 			return BatchFailureHandlerConfig{}, ErrInvalidFailurePolicy
 		}
-		if config.Target.Version == 0 ||
-			!validKafkaTopicName(config.Target.Topic, config.Limits.MaxTopicBytes) {
+		if config.Target.Version == 0 {
+			return BatchFailureHandlerConfig{}, ErrInvalidFailureTarget
+		}
+		if !validKafkaTopicName(config.Target.Topic, config.Limits.MaxTopicBytes) {
 			return BatchFailureHandlerConfig{}, ErrInvalidFailureTarget
 		}
 		if config.PublishTimeout == 0 {
@@ -324,20 +332,22 @@ func (handler *batchFailureHandler) HandleBatch(
 			Category: category,
 			cause:    handlerErr,
 		}
-		if attempt < handler.retry.MaxAttempts && handler.retryable(category) {
-			delay := failureBackoff(handler.retry, attempt)
-			if err := handler.wait(ctx, delay); err != nil {
-				return newFailureHandlingError(
-					FailureStageBackoff,
-					category,
-					attempt,
-					ErrFailureBackoff,
-					handlerErr,
-					err,
-				)
-			}
+		if attempt < handler.retry.MaxAttempts {
+			if handler.retryable(category) {
+				delay := failureBackoff(handler.retry, attempt)
+				if err := handler.wait(ctx, delay); err != nil {
+					return newFailureHandlingError(
+						FailureStageBackoff,
+						category,
+						attempt,
+						ErrFailureBackoff,
+						handlerErr,
+						err,
+					)
+				}
 
-			continue
+				continue
+			}
 		}
 
 		return handler.resolve(ctx, failure)
@@ -356,8 +366,10 @@ func validateFailureBatch(
 	if len(batch.Records) > maxRecords {
 		return errors.Join(ErrInvalidFailureBatch, ErrTooManyBatchRecords)
 	}
-	if batch.Partition < 0 ||
-		!validKafkaTopicName(batch.Topic, limits.MaxTopicBytes) {
+	if batch.Partition < 0 {
+		return ErrInvalidFailureBatch
+	}
+	if !validKafkaTopicName(batch.Topic, limits.MaxTopicBytes) {
 		return ErrInvalidFailureBatch
 	}
 	var total int64
@@ -415,7 +427,6 @@ func (handler *batchFailureHandler) resolve(
 	case FailureModeStop:
 		causes := []error{ErrConsumerFailureStopped, failure.cause}
 		if failure.Attempt == handler.retry.MaxAttempts &&
-			handler.retry.MaxAttempts > 1 &&
 			handler.retryable(failure.Category) {
 			causes = append(causes, ErrFailureAttemptsExhausted)
 		}

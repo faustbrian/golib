@@ -12,7 +12,6 @@ import (
 )
 
 func TestNewBatchFailureHandlerValidatesBoundedPolicy(t *testing.T) {
-	t.Parallel()
 
 	base := BatchFailureHandlerConfig{
 		Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
@@ -140,7 +139,6 @@ func TestNewBatchFailureHandlerValidatesBoundedPolicy(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := base
 			test.change(&config)
@@ -155,8 +153,34 @@ func TestNewBatchFailureHandlerValidatesBoundedPolicy(t *testing.T) {
 	}
 }
 
+func TestBatchFailureHandlerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
+
+	config := BatchFailureHandlerConfig{
+		Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			return errors.New("failed")
+		}),
+		Mode:            FailureModeRetryTopic,
+		Target:          FailureTarget{Topic: "events.retry.v1", Version: 1},
+		Publisher:       successfulBatchFailurePublisher(),
+		MaxBatchRecords: maximumFailureBatchRecords,
+		MaxBatchBytes:   maximumFailureBatchBytes,
+		PublishTimeout:  2 * time.Minute,
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("inclusive BatchFailureHandlerConfig.Validate() error = %v", err)
+	}
+	handler, err := NewBatchFailureHandler(config)
+	if err != nil || handler == nil {
+		t.Fatalf("inclusive NewBatchFailureHandler() = %#v/%v", handler, err)
+	}
+
+	config.PublishTimeout = 100 * time.Millisecond
+	if err = config.Validate(); err != nil {
+		t.Fatalf("minimum publish timeout Validate() error = %v", err)
+	}
+}
+
 func TestBatchFailureHandlerRejectsInvalidBatchesBeforeRetention(t *testing.T) {
-	t.Parallel()
 
 	valid := testFailureBatch()
 	tests := []struct {
@@ -214,7 +238,6 @@ func TestBatchFailureHandlerRejectsInvalidBatchesBeforeRetention(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			calls := 0
 			config := BatchFailureHandlerConfig{
@@ -258,8 +281,31 @@ func TestBatchFailureHandlerRejectsInvalidBatchesBeforeRetention(t *testing.T) {
 	}
 }
 
+func TestFailureBatchValidationAcceptsExactCountBytesAndOffsetZero(t *testing.T) {
+
+	batch := testFailureBatch()
+	batch.Records[0].Offset = 0
+	batch.Records[1].Offset = 1
+	exactBytes := failureBatchInputBytes(batch)
+	if err := validateFailureBatch(
+		batch,
+		DefaultMessageLimits(),
+		len(batch.Records),
+		exactBytes,
+	); err != nil {
+		t.Fatalf("exact-limit validateFailureBatch() error = %v", err)
+	}
+	if err := validateFailureBatch(
+		batch,
+		DefaultMessageLimits(),
+		len(batch.Records),
+		exactBytes-1,
+	); !errors.Is(err, ErrBatchTooLarge) {
+		t.Fatalf("undersized validateFailureBatch() error = %v", err)
+	}
+}
+
 func TestBatchFailureHandlerRetriesAnOwnedWholeBatch(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("retry batch")
 	input := testFailureBatch()
@@ -312,7 +358,6 @@ func TestBatchFailureHandlerRetriesAnOwnedWholeBatch(t *testing.T) {
 }
 
 func TestBatchFailureCausePreservesProgrammaticIdentity(t *testing.T) {
-	t.Parallel()
 
 	cause := errors.New("handler failed")
 	failure := BatchFailure{cause: cause}
@@ -322,7 +367,6 @@ func TestBatchFailureCausePreservesProgrammaticIdentity(t *testing.T) {
 }
 
 func TestBatchFailureHandlerFailureStagesRemainBoundedAndRedacted(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("sensitive batch handler detail")
 	tests := []struct {
@@ -369,7 +413,6 @@ func TestBatchFailureHandlerFailureStagesRemainBoundedAndRedacted(t *testing.T) 
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			ctx, cancel := context.WithCancel(context.Background())
 			if test.cancel {
@@ -415,7 +458,6 @@ func TestBatchFailureHandlerFailureStagesRemainBoundedAndRedacted(t *testing.T) 
 }
 
 func TestBatchFailureHandlerStopExhaustionAndInternalMode(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("failed")
 	handler, err := newBatchFailureHandler(
@@ -451,8 +493,30 @@ func TestBatchFailureHandlerStopExhaustionAndInternalMode(t *testing.T) {
 	}
 }
 
+func TestBatchFailureHandlerSingleStopAttemptIsNotExhaustion(t *testing.T) {
+
+	handlerErr := errors.New("failed")
+	handler, err := NewBatchFailureHandler(BatchFailureHandlerConfig{
+		Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			return handlerErr
+		}),
+		Classifier: FailureClassifierFunc(func(error) ErrorCategory {
+			return ErrorRetryable
+		}),
+		Retry: FailureRetryPolicy{MaxAttempts: 1},
+	})
+	if err != nil {
+		t.Fatalf("NewBatchFailureHandler() error = %v", err)
+	}
+	got := handler.HandleBatch(context.Background(), testFailureBatch())
+	if !errors.Is(got, ErrConsumerFailureStopped) ||
+		!errors.Is(got, handlerErr) ||
+		errors.Is(got, ErrFailureAttemptsExhausted) {
+		t.Fatalf("single-attempt stop error = %#v", got)
+	}
+}
+
 func TestBatchFailureHandlerSurfacesPartialRetryTopicPublication(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("batch failed")
 	publishErr := errors.New("second delivery failed")
@@ -525,8 +589,106 @@ func TestBatchFailureHandlerSurfacesPartialRetryTopicPublication(t *testing.T) {
 	}
 }
 
+func TestBatchFailureHandlerPreservesPublisherErrorWithoutDeliveryFailures(t *testing.T) {
+
+	handlerErr := errors.New("batch failed")
+	publishErr := errors.New("publisher failed")
+	handler, err := NewBatchFailureHandler(BatchFailureHandlerConfig{
+		Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			return handlerErr
+		}),
+		Mode:   FailureModeRetryTopic,
+		Target: FailureTarget{Topic: "events.retry.v1", Version: 1},
+		Publisher: BatchFailurePublisherFunc(func(
+			_ context.Context,
+			records []ProducerRecord,
+		) ([]DeliveryResult, error) {
+			results := make([]DeliveryResult, len(records))
+			for index := range results {
+				results[index].Topic = "events.retry.v1"
+			}
+
+			return results, publishErr
+		}),
+	})
+	if err != nil {
+		t.Fatalf("NewBatchFailureHandler() error = %v", err)
+	}
+	got := handler.HandleBatch(context.Background(), testFailureBatch())
+	if !errors.Is(got, ErrFailurePublish) ||
+		!errors.Is(got, handlerErr) ||
+		!errors.Is(got, publishErr) {
+		t.Fatalf("publisher-only failure error = %#v", got)
+	}
+}
+
+func TestBatchFailureHandlerAcceptsExactTargetBatchBytes(t *testing.T) {
+
+	handlerErr := errors.New("batch failed")
+	var captured []ProducerRecord
+	capturingPublisher := BatchFailurePublisherFunc(func(
+		_ context.Context,
+		records []ProducerRecord,
+	) ([]DeliveryResult, error) {
+		captured = make([]ProducerRecord, len(records))
+		copy(captured, records)
+		results := make([]DeliveryResult, len(records))
+		for index := range results {
+			results[index].Topic = "events.retry.v1"
+		}
+
+		return results, nil
+	})
+	config := BatchFailureHandlerConfig{
+		Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+			return handlerErr
+		}),
+		Mode:      FailureModeRetryTopic,
+		Target:    FailureTarget{Topic: "events.retry.v1", Version: 1},
+		Publisher: capturingPublisher,
+	}
+	handler, err := NewBatchFailureHandler(config)
+	if err != nil {
+		t.Fatalf("NewBatchFailureHandler(capture) error = %v", err)
+	}
+	if err = handler.HandleBatch(context.Background(), testFailureBatch()); err != nil {
+		t.Fatalf("capture HandleBatch() error = %v", err)
+	}
+	var exactBytes int64
+	for _, record := range captured {
+		exactBytes += recordSize(record)
+	}
+
+	config.MaxBatchBytes = exactBytes
+	handler, err = NewBatchFailureHandler(config)
+	if err != nil {
+		t.Fatalf("NewBatchFailureHandler(exact) error = %v", err)
+	}
+	if err = handler.HandleBatch(context.Background(), testFailureBatch()); err != nil {
+		t.Fatalf("exact-byte HandleBatch() error = %v", err)
+	}
+
+	publishCalls := 0
+	config.MaxBatchBytes = exactBytes - 1
+	config.Publisher = BatchFailurePublisherFunc(func(
+		context.Context,
+		[]ProducerRecord,
+	) ([]DeliveryResult, error) {
+		publishCalls++
+
+		return nil, nil
+	})
+	handler, err = NewBatchFailureHandler(config)
+	if err != nil {
+		t.Fatalf("NewBatchFailureHandler(undersized) error = %v", err)
+	}
+	got := handler.HandleBatch(context.Background(), testFailureBatch())
+	if !errors.Is(got, ErrBatchTooLarge) || publishCalls != 0 {
+		t.Fatalf("undersized target HandleBatch() = %v/calls:%d", got, publishCalls)
+	}
+}
+
 func TestBatchFailureHandlerRejectsUnsafeTargetBatchBeforePublishing(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name       string
@@ -558,7 +720,6 @@ func TestBatchFailureHandlerRejectsUnsafeTargetBatchBeforePublishing(t *testing.
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			calls := 0
 			config := BatchFailureHandlerConfig{
@@ -594,7 +755,6 @@ func TestBatchFailureHandlerRejectsUnsafeTargetBatchBeforePublishing(t *testing.
 }
 
 func TestBatchFailureHandlerContainsTerminalCallbackPanics(t *testing.T) {
-	t.Parallel()
 
 	handler := BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
 		panic("sensitive handler panic")
@@ -640,7 +800,6 @@ func TestBatchFailureHandlerContainsTerminalCallbackPanics(t *testing.T) {
 }
 
 func TestBatchFailureHandlerRejectsInvalidDeliveryResultSets(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name    string
@@ -655,7 +814,6 @@ func TestBatchFailureHandlerRejectsInvalidDeliveryResultSets(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			handler, err := NewBatchFailureHandler(BatchFailureHandlerConfig{
 				Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
@@ -686,7 +844,6 @@ func TestBatchFailureHandlerRejectsInvalidDeliveryResultSets(t *testing.T) {
 }
 
 func TestBatchFailureDelegateControlsWholeBatchSettlement(t *testing.T) {
-	t.Parallel()
 
 	delegateErr := errors.New("delegate failed")
 	for _, test := range []struct {
@@ -700,7 +857,6 @@ func TestBatchFailureDelegateControlsWholeBatchSettlement(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			last := &kgo.Record{Topic: "events", Partition: 0, Offset: 8}
 			backend := &recordingConsumerBackend{fetches: recordFetches(
@@ -802,7 +958,6 @@ func failureHeaderValue(record ProducerRecord, name string) string {
 }
 
 func TestBatchFailureHandlerPublishedRecordsRemainInputOrdered(t *testing.T) {
-	t.Parallel()
 
 	var offsets []string
 	handler, err := NewBatchFailureHandler(BatchFailureHandlerConfig{

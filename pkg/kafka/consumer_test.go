@@ -15,7 +15,6 @@ import (
 )
 
 func TestNewConsumerRequiresGroupIdentity(t *testing.T) {
-	t.Parallel()
 
 	consumer, err := NewConsumer(ConsumerConfig{
 		Brokers:     []string{"broker.internal:9092"},
@@ -33,7 +32,6 @@ func TestNewConsumerRequiresGroupIdentity(t *testing.T) {
 }
 
 func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeConsumerConfig(validConsumerConfig())
 	if err != nil {
@@ -63,7 +61,6 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 }
 
 func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	minimum := validConsumerConfig()
 	minimum.MaxPollRecords = 1
@@ -122,7 +119,6 @@ func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 }
 
 func TestConsumerConfigRejectsExactTimeoutRelationshipBoundaries(t *testing.T) {
-	t.Parallel()
 
 	heartbeatEqualsSession := validConsumerConfig()
 	heartbeatEqualsSession.SessionTimeout = time.Second
@@ -151,7 +147,6 @@ func TestConsumerConfigRejectsExactTimeoutRelationshipBoundaries(t *testing.T) {
 }
 
 func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
-	t.Parallel()
 
 	consumer, err := NewConsumer(validConsumerConfig())
 	if err != nil {
@@ -180,7 +175,6 @@ func TestNewConsumerConstructsAndReportsClientFactoryFailure(t *testing.T) {
 }
 
 func TestNewConsumerOwnsPauseSubscriptionPolicy(t *testing.T) {
-	t.Parallel()
 
 	config := validConsumerConfig()
 	consumer, err := NewConsumer(config)
@@ -208,7 +202,6 @@ func TestNewConsumerOwnsPauseSubscriptionPolicy(t *testing.T) {
 }
 
 func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
-	t.Parallel()
 
 	config := validConsumerConfig()
 	config.InstanceID = "track-processor-01"
@@ -299,7 +292,6 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 }
 
 func TestConsumerTracksAssignmentLifecycle(t *testing.T) {
-	t.Parallel()
 
 	consumer := consumerWithBackend(
 		&recordingConsumerBackend{}, 10, time.Second, time.Second,
@@ -360,7 +352,6 @@ func TestConsumerTracksAssignmentLifecycle(t *testing.T) {
 func TestBoundedCallbackPartitionCountAcceptsExactLimitAndRejectsAggregateOverflow(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	if count, truncated := boundedCallbackPartitionCount(
 		map[string][]int32{"events": {0}, "commands": {0}},
@@ -377,7 +368,6 @@ func TestBoundedCallbackPartitionCountAcceptsExactLimitAndRejectsAggregateOverfl
 }
 
 func TestConsumerRejectsInvalidOrOversizedAssignments(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		maximum    int
@@ -407,7 +397,6 @@ func TestConsumerRejectsInvalidOrOversizedAssignments(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			consumer := consumerWithBackend(
 				&recordingConsumerBackend{}, 10, time.Second, time.Second,
@@ -432,7 +421,6 @@ func TestConsumerRejectsInvalidOrOversizedAssignments(t *testing.T) {
 }
 
 func TestConsumerAssignmentErrorsRemainFailClosedUntilLoss(t *testing.T) {
-	t.Parallel()
 
 	consumer := consumerWithBackend(
 		&recordingConsumerBackend{}, 10, time.Second, time.Second,
@@ -452,7 +440,6 @@ func TestConsumerAssignmentErrorsRemainFailClosedUntilLoss(t *testing.T) {
 }
 
 func TestConsumerRejectsInvalidRevocationAndAccumulatedAssignment(t *testing.T) {
-	t.Parallel()
 
 	invalidRevocation := consumerWithBackend(
 		&recordingConsumerBackend{}, 10, time.Second, time.Second,
@@ -475,7 +462,6 @@ func TestConsumerRejectsInvalidRevocationAndAccumulatedAssignment(t *testing.T) 
 }
 
 func TestConsumerAssignmentSortsTopicsAndPartitions(t *testing.T) {
-	t.Parallel()
 
 	state := newConsumerAssignmentState(3, []string{"z-events", "a-events"})
 	state.assigned(map[string][]int32{
@@ -492,8 +478,46 @@ func TestConsumerAssignmentSortsTopicsAndPartitions(t *testing.T) {
 	}
 }
 
+func TestConsumerAssignmentTokenAcceptsOnlyItsExactObservedEpoch(t *testing.T) {
+
+	state := newConsumerAssignmentState(1, []string{"events"})
+	unobserved, err := state.token()
+	if err != nil {
+		t.Fatalf("unobserved token() error = %v", err)
+	}
+	state.assigned(map[string][]int32{"events": {0}})
+	if state.owns(unobserved, TopicPartition{Topic: "events", Partition: 0}) {
+		t.Fatal("unobserved token retained ownership after assignment")
+	}
+	if err := state.validate(unobserved); !errors.Is(
+		err,
+		ErrConsumerOwnershipLost,
+	) {
+		t.Fatalf("validate(unobserved token) error = %v", err)
+	}
+	token, err := state.token()
+	if err != nil {
+		t.Fatalf("token() error = %v", err)
+	}
+	if err := state.validate(token); err != nil {
+		t.Fatalf("validate(current token) error = %v", err)
+	}
+	state.mu.Lock()
+	state.err = ErrInvalidAssignment
+	state.mu.Unlock()
+	if err := state.validate(token); !errors.Is(err, ErrConsumerOwnershipLost) {
+		t.Fatalf("validate(failed assignment token) error = %v", err)
+	}
+	state.mu.Lock()
+	state.err = nil
+	state.mu.Unlock()
+	token.epoch++
+	if err := state.validate(token); !errors.Is(err, ErrConsumerOwnershipLost) {
+		t.Fatalf("validate(future token) error = %v", err)
+	}
+}
+
 func TestConsumerFencesSettlementAfterAssignmentEpochChanges(t *testing.T) {
-	t.Parallel()
 
 	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	second := &kgo.Record{Topic: "events", Partition: 1, Offset: 2}
@@ -521,7 +545,6 @@ func TestConsumerFencesSettlementAfterAssignmentEpochChanges(t *testing.T) {
 }
 
 func TestConsumerRejectsFetchedRecordWithoutCurrentOwnership(t *testing.T) {
-	t.Parallel()
 
 	record := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	backend := &recordingConsumerBackend{}
@@ -549,7 +572,6 @@ func TestConsumerRejectsFetchedRecordWithoutCurrentOwnership(t *testing.T) {
 }
 
 func TestNewConsumerAppliesExplicitBalancePolicies(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		policy GroupBalancePolicy
@@ -560,7 +582,6 @@ func TestNewConsumerAppliesExplicitBalancePolicies(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validConsumerConfig()
 			config.BalancePolicy = test.policy
@@ -584,7 +605,6 @@ func TestNewConsumerAppliesExplicitBalancePolicies(t *testing.T) {
 }
 
 func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
-	t.Parallel()
 
 	manyTopics := make([]string, 65)
 	for index := range manyTopics {
@@ -758,7 +778,6 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validConsumerConfig()
 			test.change(&config)
@@ -776,7 +795,6 @@ func TestNewConsumerValidatesIdentityTopicsAndOffsetPolicy(t *testing.T) {
 }
 
 func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -791,6 +809,7 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "negative concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = -1 }},
 		{name: "excessive concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = 65 }},
 		{name: "negative fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = -1 }},
+		{name: "small fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = 1<<20 - 1 }},
 		{name: "excessive fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = 101 << 20 }},
 		{name: "small partition fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxPartitionBytes = 1<<20 - 1 }},
 		{name: "partition fetch exceeds aggregate", change: func(config *ConsumerConfig) {
@@ -827,7 +846,6 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validConsumerConfig()
 			test.change(&config)
@@ -845,7 +863,6 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 }
 
 func TestConsumerRunOnceProcessesThenCommitsBoundedPoll(t *testing.T) {
-	t.Parallel()
 
 	records := []*kgo.Record{
 		{
@@ -894,7 +911,6 @@ func TestConsumerRunOnceProcessesThenCommitsBoundedPoll(t *testing.T) {
 }
 
 func TestConsumerCancelsActiveHandlerForBlockedRebalance(t *testing.T) {
-	t.Parallel()
 
 	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	backend := &recordingConsumerBackend{fetches: recordFetches(
@@ -943,7 +959,6 @@ func TestConsumerCancelsActiveHandlerForBlockedRebalance(t *testing.T) {
 }
 
 func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
-	t.Parallel()
 
 	first := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	backend := &recordingConsumerBackend{fetches: recordFetches(
@@ -990,7 +1005,6 @@ func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
 }
 
 func TestConsumerRebalanceSignalBeforeHandlerContextStopsAdmission(t *testing.T) {
-	t.Parallel()
 
 	rebalance := newConsumerRebalanceState(RebalanceCancelHandler)
 	rebalance.beginPoll()
@@ -1012,7 +1026,6 @@ func TestConsumerRebalanceSignalBeforeHandlerContextStopsAdmission(t *testing.T)
 }
 
 func TestConsumerStopsAdmissionWhenRebalanceSignalPrecedesPollReturn(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1037,7 +1050,6 @@ func TestConsumerStopsAdmissionWhenRebalanceSignalPrecedesPollReturn(t *testing.
 }
 
 func TestConsumerRunOnceCommitsOnlyContiguousPartitionSuccess(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("projection failed")
 	partitionZeroFirst := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
@@ -1087,7 +1099,6 @@ func TestConsumerRunOnceCommitsOnlyContiguousPartitionSuccess(t *testing.T) {
 }
 
 func TestConsumerRunOnceRejectsFetchedRecordOutsideLimits(t *testing.T) {
-	t.Parallel()
 
 	partitionZeroFirst := &kgo.Record{Topic: "events", Partition: 0, Offset: 1}
 	partitionZeroInvalid := &kgo.Record{
@@ -1126,7 +1137,6 @@ func TestConsumerRunOnceRejectsFetchedRecordOutsideLimits(t *testing.T) {
 }
 
 func TestConsumedMessageLimitsAcceptEveryExactMaterialBoundary(t *testing.T) {
-	t.Parallel()
 
 	limits := MessageLimits{
 		MaxTopicBytes:       1,
@@ -1156,7 +1166,6 @@ func TestConsumedMessageLimitsAcceptEveryExactMaterialBoundary(t *testing.T) {
 }
 
 func TestConsumedObservationMetadataAcceptsExactRecordLimit(t *testing.T) {
-	t.Parallel()
 
 	consumer := &Consumer{
 		limits:         DefaultMessageLimits(),
@@ -1183,7 +1192,6 @@ func TestConsumedObservationMetadataAcceptsExactRecordLimit(t *testing.T) {
 }
 
 func TestConsumerRunOnceRejectsFetchedBytesBeforeHandler(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{fetches: recordFetches(&kgo.Record{
 		Topic: "events", Partition: 0, Offset: 1, Key: []byte("oversized"),
@@ -1208,7 +1216,6 @@ func TestConsumerRunOnceRejectsFetchedBytesBeforeHandler(t *testing.T) {
 }
 
 func TestConsumerRunOnceRejectsMissingHandler(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1221,8 +1228,232 @@ func TestConsumerRunOnceRejectsMissingHandler(t *testing.T) {
 	}
 }
 
+func runConsumerCriticalGuards(t *testing.T) {
+	t.Run("valid record reaches handler", func(t *testing.T) {
+		backend := &recordingConsumerBackend{
+			fetches: recordFetches(&kgo.Record{Topic: "events", Partition: 1, Offset: 1}),
+		}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		handled := 0
+
+		result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			handled++
+
+			return nil
+		}))
+
+		if err != nil ||
+			result != (PollResult{Polled: 1, Processed: 1, Committed: 1}) ||
+			handled != 1 || backend.pollCalls != 1 || backend.allowed != 1 {
+			t.Fatalf("result/error/handled/backend = %#v/%v/%d/%#v", result, err, handled, backend)
+		}
+	})
+
+	t.Run("lifecycle error stops polling", func(t *testing.T) {
+		backend := &recordingConsumerBackend{}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		consumer.closed = true
+
+		result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			t.Fatal("closed consumer invoked handler")
+
+			return nil
+		}))
+
+		if !errors.Is(err, ErrConsumerClosed) || result != (PollResult{}) || backend.pollCalls != 0 {
+			t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+		}
+	})
+
+	t.Run("poll error stops processing", func(t *testing.T) {
+		pollErr := errors.New("poll failed")
+		backend := &recordingConsumerBackend{fetches: kgo.NewErrFetch(pollErr)}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+
+		result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			t.Fatal("failed poll invoked handler")
+
+			return nil
+		}))
+
+		if !errors.Is(err, pollErr) || result != (PollResult{}) || backend.allowed != 1 {
+			t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+		}
+	})
+
+	t.Run("assignment error stops processing", func(t *testing.T) {
+		assignmentErr := errors.New("assignment failed")
+		backend := &recordingConsumerBackend{
+			fetches: recordFetches(&kgo.Record{Topic: "events", Partition: 1, Offset: 1}),
+		}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		consumer.assignment.fail(assignmentErr)
+
+		result, err := consumer.RunOnce(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			t.Fatal("failed assignment invoked handler")
+
+			return nil
+		}))
+
+		if !errors.Is(err, assignmentErr) || result != (PollResult{Polled: 1}) || backend.allowed != 1 {
+			t.Fatalf("result/error/backend = %#v/%v/%#v", result, err, backend)
+		}
+	})
+
+	t.Run("run returns the first poll error", func(t *testing.T) {
+		pollErr := errors.New("first poll failed")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		backend := &recordingConsumerBackend{}
+		backend.poll = func(context.Context, int) kgo.Fetches {
+			if backend.pollCalls == 1 {
+				return kgo.NewErrFetch(pollErr)
+			}
+			cancel()
+
+			return kgo.NewErrFetch(context.Canceled)
+		}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+
+		err := consumer.Run(ctx, HandlerFunc(func(context.Context, ConsumedMessage) error {
+			t.Fatal("failed poll invoked handler")
+
+			return nil
+		}))
+
+		if !errors.Is(err, pollErr) || backend.pollCalls != 1 {
+			t.Fatalf("Run() error/backend = %v/%#v", err, backend)
+		}
+	})
+
+	t.Run("canceled run accepts a valid handler", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		backend := &recordingConsumerBackend{}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+
+		err := consumer.Run(ctx, HandlerFunc(func(context.Context, ConsumedMessage) error {
+			t.Fatal("canceled run invoked handler")
+
+			return nil
+		}))
+
+		if err != nil || backend.pollCalls != 0 {
+			t.Fatalf("Run() error/backend = %v/%#v", err, backend)
+		}
+	})
+
+	t.Run("fatal lifecycle state prevents a run", func(t *testing.T) {
+		fatalErr := errors.New("consumer fenced")
+		consumer := consumerWithBackend(&recordingConsumerBackend{}, 1, time.Second, time.Second)
+		consumer.fatalErr = fatalErr
+
+		err := consumer.beginRun()
+		if err == nil {
+			consumer.endRun()
+		}
+		if !errors.Is(err, ErrConsumerFatal) || !errors.Is(err, fatalErr) {
+			t.Fatalf("beginRun() error = %v", err)
+		}
+	})
+
+	t.Run("handler panic is contained", func(t *testing.T) {
+		err := callHandler(context.Background(), HandlerFunc(func(
+			context.Context,
+			ConsumedMessage,
+		) error {
+			panic("sensitive payload")
+		}), ConsumedMessage{})
+
+		if !errors.Is(err, ErrHandlerPanic) {
+			t.Fatalf("callHandler() error = %v, want %v", err, ErrHandlerPanic)
+		}
+	})
+
+	t.Run("exact header limit remains valid", func(t *testing.T) {
+		limits := DefaultMessageLimits()
+		limits.MaxHeaders = 1
+		message, err := consumedMessageWithinLimits(&kgo.Record{
+			Topic:   "events",
+			Headers: []kgo.RecordHeader{{Key: "correlation-id", Value: []byte("one")}},
+		}, limits)
+
+		if err != nil || len(message.Headers) != 1 {
+			t.Fatalf("consumedMessageWithinLimits() message/error = %#v/%v", message, err)
+		}
+	})
+
+	t.Run("invalid record is not returned", func(t *testing.T) {
+		limits := DefaultMessageLimits()
+		message, err := consumedMessageWithinLimits(&kgo.Record{
+			Topic: "events",
+			Key:   make([]byte, limits.MaxKeyBytes+1),
+		}, limits)
+
+		if !errors.Is(err, ErrKeyTooLarge) || !reflect.DeepEqual(message, ConsumedMessage{}) {
+			t.Fatalf("consumedMessageWithinLimits() message/error = %#v/%v", message, err)
+		}
+	})
+
+	t.Run("observer reentry cannot start shutdown", func(t *testing.T) {
+		backend := &recordingConsumerBackend{}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		consumer.observerCallbacks = 1
+
+		err := consumer.Shutdown(context.Background())
+
+		if !errors.Is(err, ErrObserverReentry) || backend.leaveCalls != 0 || backend.closed != 0 {
+			t.Fatalf("Shutdown() error/backend = %v/%#v", err, backend)
+		}
+	})
+
+	t.Run("shutdown cancellation does not skip an active run", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		backend := &recordingConsumerBackend{}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		consumer.runDone = make(chan struct{})
+
+		err := consumer.Shutdown(ctx)
+
+		if !errors.Is(err, ErrConsumerShutdownIncomplete) ||
+			!errors.Is(err, context.Canceled) ||
+			backend.leaveCalls != 0 || backend.closed != 0 {
+			t.Fatalf("Shutdown() error/backend = %v/%#v", err, backend)
+		}
+	})
+
+	t.Run("pause boundaries reject only invalid requests", func(t *testing.T) {
+		backend := &recordingConsumerBackend{}
+		consumer := consumerWithBackend(backend, 1, time.Second, time.Second)
+		consumer.maxPausedPartitions = 1
+		partition := TopicPartition{Topic: "events", Partition: 0}
+
+		if err := consumer.PausePartitions(partition); err != nil {
+			t.Fatalf("PausePartitions(valid) error = %v", err)
+		}
+		if err := consumer.PausePartitions(); !errors.Is(err, ErrPausePartitionsRequired) {
+			t.Fatalf("PausePartitions(empty) error = %v, want %v", err, ErrPausePartitionsRequired)
+		}
+		if len(backend.pauseCalls) != 1 {
+			t.Fatalf("pause calls = %#v", backend.pauseCalls)
+		}
+	})
+}
+
 func TestConsumerPauseResumePartitions(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1272,7 +1503,6 @@ func TestConsumerPauseResumePartitions(t *testing.T) {
 }
 
 func TestConsumerPausedPartitionsSortsWithinTopic(t *testing.T) {
-	t.Parallel()
 
 	consumer := &Consumer{pausedPartitions: map[TopicPartition]struct{}{
 		{Topic: "events", Partition: 2}:   {},
@@ -1289,7 +1519,6 @@ func TestConsumerPausedPartitionsSortsWithinTopic(t *testing.T) {
 }
 
 func TestConsumerPauseResumeRejectInvalidPartitions(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name       string
@@ -1325,7 +1554,6 @@ func TestConsumerPauseResumeRejectInvalidPartitions(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingConsumerBackend{}
 			consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1343,7 +1571,6 @@ func TestConsumerPauseResumeRejectInvalidPartitions(t *testing.T) {
 }
 
 func TestConsumerPauseBoundsAccumulatedPartitions(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1365,7 +1592,6 @@ func TestConsumerPauseBoundsAccumulatedPartitions(t *testing.T) {
 }
 
 func TestConsumerPauseRejectsOversizedRequestBeforeInspectingPartitions(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1388,7 +1614,6 @@ func TestConsumerPauseRejectsOversizedRequestBeforeInspectingPartitions(t *testi
 }
 
 func TestConsumerPauseRejectsLifecycleStates(t *testing.T) {
-	t.Parallel()
 
 	partition := TopicPartition{Topic: "events", Partition: 0}
 	closingBackend := &recordingConsumerBackend{leaveErr: errors.New("leave failed")}
@@ -1417,7 +1642,6 @@ func TestConsumerPauseRejectsLifecycleStates(t *testing.T) {
 }
 
 func TestConsumerShutdownFencesRunsAndCanResumeAfterTimeout(t *testing.T) {
-	t.Parallel()
 
 	handlerEntered := make(chan struct{})
 	releaseHandler := make(chan struct{})
@@ -1496,7 +1720,6 @@ func TestConsumerShutdownFencesRunsAndCanResumeAfterTimeout(t *testing.T) {
 }
 
 func TestConsumerShutdownRejectsConcurrentShutdown(t *testing.T) {
-	t.Parallel()
 
 	backend := &blockingLeaveConsumerBackend{
 		recordingConsumerBackend: &recordingConsumerBackend{},
@@ -1520,7 +1743,6 @@ func TestConsumerShutdownRejectsConcurrentShutdown(t *testing.T) {
 }
 
 func TestConsumerShutdownCanRetryLeaveFailure(t *testing.T) {
-	t.Parallel()
 
 	leaveErr := errors.New("leave failed")
 	backend := &recordingConsumerBackend{leaveErr: leaveErr}
@@ -1547,7 +1769,6 @@ func TestConsumerShutdownCanRetryLeaveFailure(t *testing.T) {
 }
 
 func TestConsumerShutdownPreservesStaticMembership(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1562,7 +1783,6 @@ func TestConsumerShutdownPreservesStaticMembership(t *testing.T) {
 }
 
 func TestConsumerCloseUsesConfiguredShutdown(t *testing.T) {
-	t.Parallel()
 
 	handlerEntered := make(chan struct{})
 	releaseHandler := make(chan struct{})
@@ -1608,7 +1828,6 @@ func TestConsumerCloseUsesConfiguredShutdown(t *testing.T) {
 }
 
 func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
-	t.Parallel()
 
 	fetchErr := errors.Join(
 		kerr.NotCoordinator,
@@ -1690,7 +1909,6 @@ func TestConsumerRunOnceReportsFetchAndCommitFailures(t *testing.T) {
 }
 
 func TestConsumerStaticMembershipFencingIsTerminal(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1744,7 +1962,6 @@ func TestConsumerStaticMembershipFencingIsTerminal(t *testing.T) {
 }
 
 func TestConsumerCommitFencingEntersTerminalState(t *testing.T) {
-	t.Parallel()
 
 	record := &kgo.Record{Topic: "events", Offset: 1}
 	backend := &recordingConsumerBackend{
@@ -1786,7 +2003,6 @@ func TestConsumerCommitFencingEntersTerminalState(t *testing.T) {
 }
 
 func TestConsumerFencingDuringHandlerJoinsActiveFailure(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("handler failed during fencing")
 	backend := &recordingConsumerBackend{
@@ -1814,7 +2030,6 @@ func TestConsumerFencingDuringHandlerJoinsActiveFailure(t *testing.T) {
 }
 
 func TestConsumerRunOnceContainsHandlerPanicAndEnforcesTimeout(t *testing.T) {
-	t.Parallel()
 
 	panicBackend := &recordingConsumerBackend{
 		fetches: recordFetches(&kgo.Record{Topic: "events", Offset: 1}),
@@ -1855,7 +2070,6 @@ func TestConsumerRunOnceContainsHandlerPanicAndEnforcesTimeout(t *testing.T) {
 }
 
 func TestConsumerRunOnceHandlesEmptyPollAndClose(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
@@ -1878,7 +2092,6 @@ func TestConsumerRunOnceHandlesEmptyPollAndClose(t *testing.T) {
 }
 
 func TestConsumerRunCancellationLeavesActiveRecordUnsettled(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	backend := &recordingConsumerBackend{
@@ -1905,7 +2118,6 @@ func TestConsumerRunCancellationLeavesActiveRecordUnsettled(t *testing.T) {
 }
 
 func TestConsumerRunReturnsProcessingFailure(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("projection failed")
 	backend := &recordingConsumerBackend{
@@ -1926,7 +2138,6 @@ func TestConsumerRunReturnsProcessingFailure(t *testing.T) {
 }
 
 func TestConsumerRunRejectsMissingHandlerAndStopsOnCanceledPoll(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)

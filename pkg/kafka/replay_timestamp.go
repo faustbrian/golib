@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"math/bits"
 	"slices"
 	"time"
 
@@ -170,10 +171,6 @@ func (inspector *Inspector) PlanReplayByTimestamp(
 }
 
 func exactReplayTimestampMilli(timestamp time.Time) (int64, bool) {
-	if timestamp.IsZero() ||
-		timestamp.Nanosecond()%int(time.Millisecond) != 0 {
-		return 0, false
-	}
 	millisecond := timestamp.UnixMilli()
 	if millisecond < 0 ||
 		!time.UnixMilli(millisecond).Equal(timestamp) {
@@ -251,7 +248,12 @@ func (inspector *Inspector) buildReplayTimestampPlan(
 			return ReplayTimestampPlan{}, ErrReplayTimestampRangeIncomplete
 		}
 		remaining := endOffset - startOffset
-		if remaining > math.MaxInt64-plan.TotalRemaining {
+		totalRemaining, carry := bits.Add64(
+			uint64(plan.TotalRemaining),
+			uint64(remaining),
+			0,
+		)
+		if carry != 0 || totalRemaining > math.MaxInt64 {
 			return ReplayTimestampPlan{}, ErrInvalidInspectionResponse
 		}
 		plan.Partitions = append(
@@ -262,7 +264,7 @@ func (inspector *Inspector) buildReplayTimestampPlan(
 				Remaining: remaining,
 			},
 		)
-		plan.TotalRemaining += remaining
+		plan.TotalRemaining = int64(totalRemaining)
 	}
 
 	return plan, nil
@@ -288,11 +290,31 @@ func (inspector *Inspector) validateReplayTimestampOffsets(
 		partitionCount += len(listedPartitions)
 		for partition, offset := range listedPartitions {
 			key := replayPartition{topic: topic, partition: partition}
-			if _, requested := expected[key]; !requested ||
-				partition < 0 ||
-				offset.Topic != topic ||
-				offset.Partition != partition ||
-				!validListedReplayTimestampOffset(timestamp, offset) {
+			if _, requested := expected[key]; !requested {
+				return errors.Join(
+					ErrInvalidInspectionResponse,
+					offset.Err,
+				)
+			}
+			if partition < 0 {
+				return errors.Join(
+					ErrInvalidInspectionResponse,
+					offset.Err,
+				)
+			}
+			if offset.Topic != topic {
+				return errors.Join(
+					ErrInvalidInspectionResponse,
+					offset.Err,
+				)
+			}
+			if offset.Partition != partition {
+				return errors.Join(
+					ErrInvalidInspectionResponse,
+					offset.Err,
+				)
+			}
+			if !validListedReplayTimestampOffset(timestamp, offset) {
 				return errors.Join(
 					ErrInvalidInspectionResponse,
 					offset.Err,
@@ -316,7 +338,11 @@ func validListedReplayTimestampOffset(
 		return false
 	}
 	if requested < 0 {
-		return offset.Offset >= 0 && offset.Timestamp == -1
+		if offset.Offset < 0 {
+			return false
+		}
+
+		return offset.Timestamp == -1
 	}
 	if offset.Offset == -1 {
 		return offset.Timestamp == -1
@@ -387,7 +413,10 @@ func parseReplayTimestampShards(
 			return nil, shard.Err
 		}
 		response, ok := shard.Resp.(*kmsg.ListOffsetsResponse)
-		if !ok || response == nil {
+		if !ok {
+			return nil, ErrInvalidInspectionResponse
+		}
+		if response == nil {
 			return nil, ErrInvalidInspectionResponse
 		}
 		for _, topic := range response.Topics {

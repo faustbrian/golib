@@ -10,7 +10,6 @@ import (
 func TestProducerShutdownObserversReportAttemptsAndFenceReentry(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{flushErr: context.Canceled}
 	var observations []Observation
@@ -67,7 +66,6 @@ func TestProducerShutdownObserversReportAttemptsAndFenceReentry(
 func TestConsumerShutdownObserversReportAttemptsAndFenceReentry(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{leaveErr: context.Canceled}
 	consumer := consumerWithBackend(
@@ -127,7 +125,6 @@ func TestConsumerShutdownObserversReportAttemptsAndFenceReentry(
 func TestTransactionProcessorShutdownObserversReportAttemptsAndFenceReentry(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &recordingTransactionProcessorBackend{
 		leaveErr: context.Canceled,

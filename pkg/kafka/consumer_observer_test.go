@@ -12,7 +12,6 @@ import (
 )
 
 func TestConsumerObserversReportRebalanceLifecycle(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -76,7 +75,6 @@ func TestConsumerObserversReportRebalanceLifecycle(t *testing.T) {
 }
 
 func TestConsumerObserversBoundInvalidRebalanceMetadata(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -143,7 +141,6 @@ func TestConsumerObserversBoundInvalidRebalanceMetadata(t *testing.T) {
 }
 
 func TestConsumerObserversReportRecordCommitAndPollOutcomes(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -259,7 +256,6 @@ func TestConsumerObserversReportRecordCommitAndPollOutcomes(t *testing.T) {
 }
 
 func TestConsumerPollObservationDoesNotTruncateExactRecordLimit(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -298,7 +294,6 @@ func TestConsumerPollObservationDoesNotTruncateExactRecordLimit(t *testing.T) {
 }
 
 func TestConsumerObserversReportCommitFailureWithoutClaimingSettlement(t *testing.T) {
-	t.Parallel()
 
 	commitErr := errors.New("commit unavailable")
 	var observations []Observation
@@ -366,7 +361,6 @@ func TestConsumerObserversReportCommitFailureWithoutClaimingSettlement(t *testin
 }
 
 func TestConsumerObserversReportPartitionBatchOutcome(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -438,14 +432,14 @@ func TestConsumerObserversReportPartitionBatchOutcome(t *testing.T) {
 		batch.RecordCount != 2 ||
 		batch.PartitionCount != 1 ||
 		batch.ProcessedCount != 2 ||
-		batch.RecordBytes == 0 ||
+		batch.RecordBytes != consumedRecordSize(records[0])+
+			consumedRecordSize(records[1]) ||
 		!batch.Succeeded {
 		t.Fatalf("batch observation = %#v", batch)
 	}
 }
 
 func TestConsumerObserverContextFencesConsumerReentry(t *testing.T) {
-	t.Parallel()
 
 	var consumer *Consumer
 	var reentryErrors []error
@@ -519,7 +513,6 @@ func TestConsumerObserverContextFencesConsumerReentry(t *testing.T) {
 }
 
 func TestConsumerConfigValidatesObserverPolicyWithoutAllocatingClient(t *testing.T) {
-	t.Parallel()
 
 	config := validConsumerConfig()
 	config.Observers = ObserverPolicy{
@@ -554,7 +547,6 @@ func TestConsumerConfigValidatesObserverPolicyWithoutAllocatingClient(t *testing
 }
 
 func TestConsumerWiresRebalanceCallbacksToObservers(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	config := validConsumerConfig()
@@ -600,7 +592,6 @@ func TestConsumerWiresRebalanceCallbacksToObservers(t *testing.T) {
 }
 
 func TestConsumerObserversFailClosedForInvalidFetchedMetadata(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -669,7 +660,6 @@ func TestConsumerObserversFailClosedForInvalidFetchedMetadata(t *testing.T) {
 }
 
 func TestConsumerObserversOmitMixedTopicCardinality(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -748,7 +738,6 @@ func TestConsumerObserversOmitMixedTopicCardinality(t *testing.T) {
 }
 
 func TestConsumerObserverReportsEmptyPoll(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -793,7 +782,6 @@ func TestConsumerObserverReportsEmptyPoll(t *testing.T) {
 }
 
 func TestConsumerBatchObserversReportHandlerAndMetadataFailures(t *testing.T) {
-	t.Parallel()
 
 	handlerErr := errors.New("batch projection failed")
 	for name, test := range map[string]struct {
@@ -830,7 +818,6 @@ func TestConsumerBatchObserversReportHandlerAndMetadataFailures(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			var observations []Observation
 			policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -883,7 +870,6 @@ func TestConsumerBatchObserversReportHandlerAndMetadataFailures(t *testing.T) {
 }
 
 func TestConsumerRejectsBackendPollBeyondConfiguredRecordLimit(t *testing.T) {
-	t.Parallel()
 
 	records := []*kgo.Record{
 		{Topic: "events", Partition: 1, Offset: 4, Key: []byte("one")},
@@ -913,7 +899,6 @@ func TestConsumerRejectsBackendPollBeyondConfiguredRecordLimit(t *testing.T) {
 	} {
 		run := run
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			var got Observation
 			policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -963,7 +948,6 @@ func TestConsumerRejectsBackendPollBeyondConfiguredRecordLimit(t *testing.T) {
 }
 
 func TestConsumerObserverPreservesFailurePolicyCategory(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -1013,7 +997,6 @@ func TestConsumerObserverPreservesFailurePolicyCategory(t *testing.T) {
 }
 
 func TestConsumerObserverContainsPanickingErrorClassification(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -1068,7 +1051,6 @@ func (panickingObservationCategoryError) Category() ErrorCategory {
 }
 
 func TestConsumerRecordObserversCanRunAcrossPartitionsConcurrently(t *testing.T) {
-	t.Parallel()
 
 	var entered atomic.Int32
 	var failures atomic.Int32

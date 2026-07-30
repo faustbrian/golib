@@ -24,9 +24,13 @@ func (policy ProtocolPolicy) Validate() error {
 	if policy.MinimumVersion == "" {
 		return nil
 	}
-	if policy.MinimumVersion != strings.TrimSpace(policy.MinimumVersion) ||
-		!validKafkaText(policy.MinimumVersion, 16) ||
-		kversion.FromString(policy.MinimumVersion) == nil {
+	if policy.MinimumVersion != strings.TrimSpace(policy.MinimumVersion) {
+		return ErrInvalidProtocolPolicy
+	}
+	if !validKafkaText(policy.MinimumVersion, 16) {
+		return ErrInvalidProtocolPolicy
+	}
+	if kversion.FromString(policy.MinimumVersion) == nil {
 		return ErrInvalidProtocolPolicy
 	}
 

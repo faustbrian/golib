@@ -268,6 +268,7 @@ func newConsumer(
 	var consumer *Consumer
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
+		kgo.AlwaysRetryEOF(),
 		kgo.ClientID(config.ClientID),
 		kgo.ConsumerGroup(config.GroupID),
 		kgo.ConsumeTopics(config.Topics...),
@@ -495,7 +496,6 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.MaxConcurrentFetches > 64 ||
 		config.MaxConcurrentHandlers < 1 ||
 		config.MaxConcurrentHandlers > 64 ||
-		config.FetchMaxBytes < 1<<20 ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
 		config.FetchMaxPartitionBytes > config.FetchMaxBytes ||

@@ -6,6 +6,14 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- classify selected broker topic-configuration values above the documented
+  64-byte inspection limit as `ErrInspectionResponseTooLarge` while preserving
+  `ErrInvalidInspectionResponse` for bounded values that fail semantic parsing
+- retry a first-request EOF within each role's existing request, delivery, or
+  lifecycle deadline so producer-ID initialization and ordinary broker calls
+  survive broker and transaction-coordinator failover instead of permanently
+  poisoning a new client; TLS, SASL, and endpoint mismatches remain bounded by
+  those deadlines rather than failing on the first EOF
 - classify consumer-group poll, offset-commit, and graceful-leave failures
   through redacted `ConsumerError` values with stable operation, category, and
   retryability metadata while preserving the original cause for deliberate

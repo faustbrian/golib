@@ -10,7 +10,6 @@ import (
 )
 
 func TestConsumedRecordRetainOwnsAllRecordBytes(t *testing.T) {
-	t.Parallel()
 
 	borrowed := ConsumedRecord{
 		Topic:         "events",
@@ -53,8 +52,24 @@ func TestConsumedRecordRetainOwnsAllRecordBytes(t *testing.T) {
 	}
 }
 
+func TestKafkaTopicNameAcceptsExactLengthAndCharacterBoundaries(t *testing.T) {
+
+	if !validKafkaTopicName("abcd", 4) {
+		t.Fatal("topic at exact byte limit rejected")
+	}
+	for _, name := range []string{"a", "z", "A", "Z", "0", "9"} {
+		if !validKafkaTopicName(name, 1) {
+			t.Fatalf("valid boundary topic character %q rejected", name)
+		}
+	}
+	for _, name := range []string{"`", "{", "@", "[", "/", ":"} {
+		if validKafkaTopicName(name, 1) {
+			t.Fatalf("invalid boundary-adjacent topic character %q accepted", name)
+		}
+	}
+}
+
 func TestProducerPublishRecordReturnsDeliveryMetadataAndOwnsInput(t *testing.T) {
-	t.Parallel()
 
 	deliveredAt := time.Unix(1_700_000_123, 456)
 	backend := &recordingProducerBackend{
@@ -99,7 +114,6 @@ func TestProducerPublishRecordReturnsDeliveryMetadataAndOwnsInput(t *testing.T) 
 }
 
 func TestProducerPublishRecordReturnsPerRecordFailure(t *testing.T) {
-	t.Parallel()
 
 	want := errors.New("delivery failed")
 	backend := &recordingProducerBackend{deliveryErr: want}
@@ -116,7 +130,6 @@ func TestProducerPublishRecordReturnsPerRecordFailure(t *testing.T) {
 }
 
 func TestProducerRequiresKeysUnlessUnkeyedProductionIsExplicit(t *testing.T) {
-	t.Parallel()
 
 	defaultConfig, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:       []string{"broker.internal:9092"},
@@ -159,7 +172,6 @@ func TestProducerRequiresKeysUnlessUnkeyedProductionIsExplicit(t *testing.T) {
 }
 
 func TestProducerRoutesAutomaticAndExplicitPartitionsWithoutAliasingPolicy(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -199,7 +211,6 @@ func TestProducerRoutesAutomaticAndExplicitPartitionsWithoutAliasingPolicy(t *te
 }
 
 func TestProducerRejectsInvalidPartitionSelectionsBeforeAdmission(t *testing.T) {
-	t.Parallel()
 
 	tests := []PartitionSelection{
 		{Mode: PartitionAutomatic, Partition: 1},
@@ -226,7 +237,6 @@ func TestProducerRejectsInvalidPartitionSelectionsBeforeAdmission(t *testing.T) 
 }
 
 func TestProducerRejectsTopicsOutsideConfiguredAllowlist(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -253,7 +263,6 @@ func TestProducerRejectsTopicsOutsideConfiguredAllowlist(t *testing.T) {
 }
 
 func TestTransactionRejectsTopicOutsideConfiguredAllowlist(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)
@@ -273,7 +282,6 @@ func TestTransactionRejectsTopicOutsideConfiguredAllowlist(t *testing.T) {
 }
 
 func TestProducerConfigurationBoundsBufferedBytesIndependentlyFromBatchBytes(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeProducerConfig(ProducerConfig{
 		Brokers:       []string{"broker.internal:9092"},
@@ -297,7 +305,6 @@ func TestProducerConfigurationBoundsBufferedBytesIndependentlyFromBatchBytes(t *
 }
 
 func TestProducerPublishBatchReturnsOrderedPartialDeliveryResults(t *testing.T) {
-	t.Parallel()
 
 	wantFailure := errors.New("second delivery failed")
 	backend := &recordingProducerBackend{
@@ -349,7 +356,6 @@ func TestProducerPublishBatchReturnsOrderedPartialDeliveryResults(t *testing.T) 
 }
 
 func TestProducerPublishBatchRejectsInvalidBatchBeforeProduction(t *testing.T) {
-	t.Parallel()
 
 	tests := map[string]struct {
 		records []ProducerRecord
@@ -377,7 +383,6 @@ func TestProducerPublishBatchRejectsInvalidBatchBeforeProduction(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingProducerBackend{}
 			producer := &Producer{
@@ -404,7 +409,6 @@ func TestProducerPublishBatchRejectsInvalidBatchBeforeProduction(t *testing.T) {
 }
 
 func TestProducerPublishAsyncOwnsInputAndReportsLaterDelivery(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -462,7 +466,6 @@ func TestProducerPublishAsyncOwnsInputAndReportsLaterDelivery(t *testing.T) {
 }
 
 func TestProducerCloseIsIdempotentAndFencesNewOperations(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{
 		flushCompletesAsync: true,
@@ -526,7 +529,6 @@ func TestProducerCloseIsIdempotentAndFencesNewOperations(t *testing.T) {
 }
 
 func TestProducerShutdownWaitsForPreexistingAdmission(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{
 		produceAdmissionStarted: make(chan struct{}),
@@ -586,7 +588,6 @@ func TestProducerShutdownWaitsForPreexistingAdmission(t *testing.T) {
 }
 
 func TestProducerLifecycleSupportsBoundedDrainAbortAndShutdown(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{flushErr: context.Canceled}
 	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -616,7 +617,6 @@ func TestProducerLifecycleSupportsBoundedDrainAbortAndShutdown(t *testing.T) {
 }
 
 func TestProducerFailedShutdownFencesProductionButAllowsRecovery(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{flushErr: context.Canceled}
 	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
@@ -645,7 +645,6 @@ func TestProducerFailedShutdownFencesProductionButAllowsRecovery(t *testing.T) {
 }
 
 func TestProducerRejectsNilOperationContexts(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)
@@ -685,7 +684,6 @@ func TestProducerRejectsNilOperationContexts(t *testing.T) {
 }
 
 func TestProducerReportsMissingSyncAndAsyncDeliveryResults(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{omitDeliveries: true}
 	producer := &Producer{
@@ -737,7 +735,6 @@ func TestProducerReportsMissingSyncAndAsyncDeliveryResults(t *testing.T) {
 }
 
 func TestProducerBatchAndAsyncValidateEveryRecordPolicy(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := &Producer{
@@ -779,7 +776,6 @@ func TestProducerBatchAndAsyncValidateEveryRecordPolicy(t *testing.T) {
 }
 
 func TestProducerRecordValidationIsAvailableBeforeOwnershipTransfer(t *testing.T) {
-	t.Parallel()
 
 	record := ProducerRecord{
 		Topic:   "events",
@@ -806,7 +802,6 @@ func TestProducerRecordValidationIsAvailableBeforeOwnershipTransfer(t *testing.T
 }
 
 func TestProducerRejectsOperationsAcrossTransactionAndMaintenanceBoundaries(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingProducerBackend{}
 	producer := transactionalProducer(backend)

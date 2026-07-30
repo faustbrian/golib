@@ -63,7 +63,6 @@ func newTestTLSCertificate(t *testing.T) tls.Certificate {
 }
 
 func TestClientSecurityDefaultsToVerifiedTLSAndRequiresExplicitPlaintext(t *testing.T) {
-	t.Parallel()
 
 	if err := (ClientSecurity{}).Validate(); err != nil {
 		t.Fatalf("validate zero security: %v", err)
@@ -105,7 +104,6 @@ func TestClientSecurityDefaultsToVerifiedTLSAndRequiresExplicitPlaintext(t *test
 }
 
 func TestClientSecurityOptionsApplyTLSAndSASL(t *testing.T) {
-	t.Parallel()
 
 	security, err := normalizeClientSecurity(ClientSecurity{
 		TLS: &tls.Config{MinVersion: tls.VersionTLS13},
@@ -130,7 +128,6 @@ func TestClientSecurityOptionsApplyTLSAndSASL(t *testing.T) {
 }
 
 func TestAuthenticationProvidersRotateWithinBoundedRedactedSessions(t *testing.T) {
-	t.Parallel()
 
 	var calls atomic.Int32
 	usernamePasswordProvider := UsernamePasswordProviderFunc(func(
@@ -235,7 +232,6 @@ func usernamePasswordProviderString(credentials UsernamePassword) string {
 }
 
 func TestClientSecurityDefensivelyCopiesTLSMaterial(t *testing.T) {
-	t.Parallel()
 
 	roots := x509.NewCertPool()
 	certificate := newTestTLSCertificate(t)
@@ -271,7 +267,6 @@ func TestClientSecurityDefensivelyCopiesTLSMaterial(t *testing.T) {
 }
 
 func TestAuthenticationRejectsInvalidExpiredAndPanickingProviderResults(t *testing.T) {
-	t.Parallel()
 
 	usernameProviderFailure := errors.New("username provider secret failed")
 	tests := []struct {
@@ -479,7 +474,6 @@ func TestAuthenticationRejectsInvalidExpiredAndPanickingProviderResults(t *testi
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			_, _, err := test.authentication.saslMechanism(time.Second).Authenticate(
 				context.Background(), "broker.internal",
@@ -493,7 +487,6 @@ func TestAuthenticationRejectsInvalidExpiredAndPanickingProviderResults(t *testi
 }
 
 func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
-	t.Parallel()
 	var nilUsernameProvider UsernamePasswordProviderFunc
 	var nilOAuthProvider OAuthBearerProviderFunc
 	var nilCertificateProvider ClientCertificateProviderFunc
@@ -559,7 +552,6 @@ func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
 }
 
 func TestClientSecurityAcceptsInclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	provider := UsernamePasswordProviderFunc(func(
 		context.Context,
@@ -572,7 +564,6 @@ func TestClientSecurityAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	for _, timeout := range []time.Duration{100 * time.Millisecond, time.Minute} {
 		timeout := timeout
 		t.Run(timeout.String(), func(t *testing.T) {
-			t.Parallel()
 
 			security, err := normalizeClientSecurity(ClientSecurity{
 				TLS: &tls.Config{
@@ -595,7 +586,6 @@ func TestClientSecurityAcceptsInclusivePolicyBoundaries(t *testing.T) {
 }
 
 func TestClientSecurityAcceptsTLSMaterialLimits(t *testing.T) {
-	t.Parallel()
 
 	certificate := newTestTLSCertificate(t)
 	certificates := make([]tls.Certificate, 16)
@@ -645,7 +635,6 @@ func TestClientSecurityAcceptsTLSMaterialLimits(t *testing.T) {
 }
 
 func TestCredentialProvidersAcceptInclusiveMaterialLimits(t *testing.T) {
-	t.Parallel()
 
 	credentials, err := callUsernamePasswordProvider(
 		context.Background(),
@@ -705,7 +694,6 @@ func TestCredentialProvidersAcceptInclusiveMaterialLimits(t *testing.T) {
 }
 
 func TestClientCertificateProviderAcceptsInclusiveRequestLimits(t *testing.T) {
-	t.Parallel()
 
 	acceptableCAs := make([][]byte, 64)
 	signatureSchemes := make([]tls.SignatureScheme, 64)
@@ -749,7 +737,6 @@ func TestClientCertificateProviderAcceptsInclusiveRequestLimits(t *testing.T) {
 }
 
 func TestClientCertificateProviderAcceptsInclusiveMaterialLimits(t *testing.T) {
-	t.Parallel()
 
 	base := newTestTLSCertificate(t)
 	signatureAlgorithms := make([]tls.SignatureScheme, 32)
@@ -797,7 +784,6 @@ func TestClientCertificateProviderAcceptsInclusiveMaterialLimits(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			provided := test.certificate()
 			security, err := normalizeClientSecurity(ClientSecurity{
@@ -821,7 +807,6 @@ func TestClientCertificateProviderAcceptsInclusiveMaterialLimits(t *testing.T) {
 }
 
 func TestClientCertificateValidationIsolatesEveryMaterialInvariant(t *testing.T) {
-	t.Parallel()
 
 	base := newTestTLSCertificate(t)
 	if !validClientCertificate(base) {
@@ -919,7 +904,6 @@ func TestClientCertificateValidationIsolatesEveryMaterialInvariant(t *testing.T)
 }
 
 func TestClientCertificateRequestAggregatesEveryCA(t *testing.T) {
-	t.Parallel()
 
 	if !validClientCertificateRequest(&tls.CertificateRequestInfo{
 		AcceptableCAs: [][]byte{{1}, make([]byte, (64<<10)-1)},
@@ -943,7 +927,6 @@ func TestClientCertificateRequestAggregatesEveryCA(t *testing.T) {
 }
 
 func TestMatchingPublicKeysRequiresBothEncodingsAndEquality(t *testing.T) {
-	t.Parallel()
 
 	first := newTestTLSCertificate(t)
 	signer := first.PrivateKey.(crypto.Signer)
@@ -966,7 +949,6 @@ func TestMatchingPublicKeysRequiresBothEncodingsAndEquality(t *testing.T) {
 }
 
 func TestClientSecurityRejectsUnboundedOrBypassingTLSMaterial(t *testing.T) {
-	t.Parallel()
 	firstCertificate := newTestTLSCertificate(t)
 	_, secondPrivateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -1051,7 +1033,6 @@ func TestClientSecurityRejectsUnboundedOrBypassingTLSMaterial(t *testing.T) {
 }
 
 func TestClientCertificateProviderIsBoundedOwnedAndPanicSafe(t *testing.T) {
-	t.Parallel()
 
 	providedCertificate := newTestTLSCertificate(t)
 	providedCertificate.OCSPStaple = []byte{7}
@@ -1116,7 +1097,6 @@ func TestClientCertificateProviderIsBoundedOwnedAndPanicSafe(t *testing.T) {
 }
 
 func TestClientCertificateProviderReceivesTLSHandshakeContext(t *testing.T) {
-	t.Parallel()
 
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(
 		response http.ResponseWriter,
@@ -1164,7 +1144,6 @@ func TestClientCertificateProviderReceivesTLSHandshakeContext(t *testing.T) {
 }
 
 func TestClientCertificateProviderAcceptsNilTLSRequest(t *testing.T) {
-	t.Parallel()
 
 	provided := newTestTLSCertificate(t)
 	certificate, err := callClientCertificateProvider(
@@ -1198,7 +1177,6 @@ func TestClientCertificateProviderAcceptsNilTLSRequest(t *testing.T) {
 }
 
 func TestAuthenticationCharacterPoliciesCoverExactBoundaries(t *testing.T) {
-	t.Parallel()
 
 	tokenCharacters := map[byte]bool{
 		'a': true, 'z': true,
@@ -1261,7 +1239,6 @@ func TestAuthenticationCharacterPoliciesCoverExactBoundaries(t *testing.T) {
 }
 
 func TestCredentialTextPolicyIsolatedRules(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name     string
@@ -1286,7 +1263,6 @@ func TestCredentialTextPolicyIsolatedRules(t *testing.T) {
 }
 
 func TestClientCertificateProviderRejectsErrorsAndInvalidMaterial(t *testing.T) {
-	t.Parallel()
 
 	providerFailure := errors.New("certificate secret-key failed")
 	validCertificate := newTestTLSCertificate(t)
@@ -1337,7 +1313,6 @@ func TestClientCertificateProviderRejectsErrorsAndInvalidMaterial(t *testing.T) 
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			security, err := normalizeClientSecurity(ClientSecurity{
 				ClientCertificateProvider: ClientCertificateProviderFunc(func(
@@ -1366,7 +1341,6 @@ func TestClientCertificateProviderRejectsErrorsAndInvalidMaterial(t *testing.T) 
 }
 
 func TestClientCertificateProviderRejectsUnboundedBrokerRequestBeforeCallback(t *testing.T) {
-	t.Parallel()
 
 	var providerCalled atomic.Bool
 	security, err := normalizeClientSecurity(ClientSecurity{

@@ -18,7 +18,10 @@ type consumerRebalanceState struct {
 func newConsumerRebalanceState(
 	policy RebalanceHandlerPolicy,
 ) *consumerRebalanceState {
-	return &consumerRebalanceState{policy: policy}
+	return &consumerRebalanceState{
+		policy:         policy,
+		handlerCancels: make(map[uint64]context.CancelCauseFunc),
+	}
 }
 
 func (state *consumerRebalanceState) beginPoll() {
@@ -74,9 +77,6 @@ func (state *consumerRebalanceState) handlerContext(
 	timeoutCtx, timeoutCancel := context.WithTimeout(ctx, timeout)
 	handlerCtx, handlerCancel := context.WithCancelCause(timeoutCtx)
 	handlerID := state.nextHandlerID()
-	if state.handlerCancels == nil {
-		state.handlerCancels = make(map[uint64]context.CancelCauseFunc)
-	}
 	state.handlerCancels[handlerID] = handlerCancel
 	state.mu.Unlock()
 
@@ -101,7 +101,7 @@ func (state *consumerRebalanceState) nextHandlerID() uint64 {
 	for {
 		state.handlerID++
 		if state.handlerID == 0 {
-			continue
+			state.handlerID++
 		}
 		if _, active := state.handlerCancels[state.handlerID]; !active {
 			return state.handlerID

@@ -12,7 +12,6 @@ import (
 )
 
 func TestInspectorReturnsBoundedConsumerGroupMembersAndAssignments(t *testing.T) {
-	t.Parallel()
 
 	instanceID := "worker-1"
 	backend := &metadataInspectorBackend{
@@ -97,7 +96,6 @@ func TestInspectorReturnsBoundedConsumerGroupMembersAndAssignments(t *testing.T)
 }
 
 func TestInspectorSortsMultipleConsumerGroupResults(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		recordingInspectorBackend: recordingInspectorBackend{
@@ -129,7 +127,6 @@ func TestInspectorSortsMultipleConsumerGroupResults(t *testing.T) {
 }
 
 func TestInspectorReadinessUsesHysteresisWithoutAffectingLiveness(t *testing.T) {
-	t.Parallel()
 
 	dependencyErr := errors.New("dependency unavailable")
 	outcomes := []error{nil, nil, dependencyErr, dependencyErr, dependencyErr, nil, nil}
@@ -183,7 +180,6 @@ func TestInspectorReadinessUsesHysteresisWithoutAffectingLiveness(t *testing.T) 
 }
 
 func TestInspectorReadinessIgnoresInvalidOrCanceledObservations(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{}
 	inspector := inspectorWithMetadataBackend(backend)
@@ -218,7 +214,6 @@ func TestInspectorReadinessIgnoresInvalidOrCanceledObservations(t *testing.T) {
 }
 
 func TestInspectorCloseImmediatelyFencesAllHealthSignals(t *testing.T) {
-	t.Parallel()
 
 	healthCalls := 0
 	backend := &metadataInspectorBackend{}
@@ -268,7 +263,6 @@ func TestInspectorCloseImmediatelyFencesAllHealthSignals(t *testing.T) {
 }
 
 func TestInspectorCloseFencesAnInFlightReadinessObservation(t *testing.T) {
-	t.Parallel()
 
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -313,7 +307,6 @@ func TestInspectorCloseFencesAnInFlightReadinessObservation(t *testing.T) {
 }
 
 func TestInspectorCloseFencesReadinessWaitingToRecordObservation(t *testing.T) {
-	t.Parallel()
 
 	probed := make(chan struct{})
 	backend := &metadataInspectorBackend{}
@@ -365,7 +358,6 @@ func TestInspectorCloseFencesReadinessWaitingToRecordObservation(t *testing.T) {
 }
 
 func TestReadinessPolicyDefaultsAndValidatesBounds(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeInspectorConfig(InspectorConfig{
 		Brokers:  []string{"broker.internal:9092"},
@@ -431,7 +423,6 @@ func TestReadinessPolicyDefaultsAndValidatesBounds(t *testing.T) {
 }
 
 func TestConsumerAssignmentDecodeRejectsDuplicateTopics(t *testing.T) {
-	t.Parallel()
 
 	err := copyConsumerMemberAssignment(
 		make(map[string][]int32),
@@ -446,7 +437,6 @@ func TestConsumerAssignmentDecodeRejectsDuplicateTopics(t *testing.T) {
 }
 
 func TestConsumerAssignmentDecodeCopiesBrokerState(t *testing.T) {
-	t.Parallel()
 
 	assignment := &kmsg.ConsumerMemberAssignment{
 		Topics: []kmsg.ConsumerMemberAssignmentTopic{{
@@ -512,7 +502,6 @@ func (function kadmGroupLagClientFunc) Lag(
 }
 
 func TestFranzInspectorBackendTranslatesGroupLagStateAndErrors(t *testing.T) {
-	t.Parallel()
 
 	requestErr := errors.New("request failed")
 	backend := &franzInspectorBackend{
@@ -544,7 +533,6 @@ func TestFranzInspectorBackendTranslatesGroupLagStateAndErrors(t *testing.T) {
 }
 
 func TestConsumerAssignmentCopyBudgetBoundsTopicsAndPartitions(t *testing.T) {
-	t.Parallel()
 
 	used := 0
 	if err := consumeGroupAssignmentCopyBudget(
@@ -604,7 +592,6 @@ func TestConsumerAssignmentCopyBudgetBoundsTopicsAndPartitions(t *testing.T) {
 }
 
 func TestGroupTranslationRejectsExcessiveDecodedAssignments(t *testing.T) {
-	t.Parallel()
 
 	lags, err := translateDescribedGroupLagsWithDecoder(
 		kadm.DescribedGroupLags{
@@ -633,7 +620,6 @@ func TestGroupTranslationRejectsExcessiveDecodedAssignments(t *testing.T) {
 }
 
 func TestFranzInspectorBackendBoundsGroupMetadataBeforeTranslation(t *testing.T) {
-	t.Parallel()
 
 	backend := &franzInspectorBackend{
 		maxGroupMembers:       1,
@@ -661,7 +647,6 @@ func TestFranzInspectorBackendBoundsGroupMetadataBeforeTranslation(t *testing.T)
 }
 
 func TestInspectorRejectsInvalidOrExcessiveGroupMemberState(t *testing.T) {
-	t.Parallel()
 
 	instanceID := "instance-1"
 	valid := func() inspectorGroupLags {
@@ -892,7 +877,6 @@ func TestInspectorRejectsInvalidOrExcessiveGroupMemberState(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			lags := valid()
 			backend := &metadataInspectorBackend{
@@ -913,7 +897,6 @@ func TestInspectorRejectsInvalidOrExcessiveGroupMemberState(t *testing.T) {
 }
 
 func TestInspectorGroupLagErrorsAreDeterministic(t *testing.T) {
-	t.Parallel()
 
 	first := errors.New("first group failed")
 	second := errors.New("second group failed")

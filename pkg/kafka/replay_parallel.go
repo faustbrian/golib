@@ -133,7 +133,10 @@ func runReplayPartitionWorkers(
 ) []replayPartitionResult {
 	results := make([]replayPartitionResult, len(batches))
 	workers := min(maximum, len(batches))
-	if workers <= 1 {
+	if workers == 0 {
+		return results
+	}
+	if workers == 1 {
 		for index, batch := range batches {
 			results[index] = process(batch)
 		}

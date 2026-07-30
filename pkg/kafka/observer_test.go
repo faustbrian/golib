@@ -12,7 +12,6 @@ import (
 )
 
 func TestProducerObserversReceiveOrderedDeliveryMetadata(t *testing.T) {
-	t.Parallel()
 
 	var order []int
 	var observations []Observation
@@ -90,7 +89,6 @@ func TestProducerObserversReceiveOrderedDeliveryMetadata(t *testing.T) {
 }
 
 func TestProducerObserverReportsBoundedBatchOutcome(t *testing.T) {
-	t.Parallel()
 
 	var got []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -142,7 +140,6 @@ func TestProducerObserverReportsBoundedBatchOutcome(t *testing.T) {
 }
 
 func TestProducerObserverReportsAsyncOutcomeAfterCallerCancellation(t *testing.T) {
-	t.Parallel()
 
 	var got []Observation
 	var callbackContextErr error
@@ -200,7 +197,6 @@ func TestProducerObserverReportsAsyncOutcomeAfterCallerCancellation(t *testing.T
 }
 
 func TestProducerObserverContextFencesProducerReentry(t *testing.T) {
-	t.Parallel()
 
 	var producer *Producer
 	var reentryErrors []error
@@ -268,7 +264,6 @@ func TestProducerObserverContextFencesProducerReentry(t *testing.T) {
 }
 
 func TestAsyncProducerObserverCannotCloseItsProducer(t *testing.T) {
-	t.Parallel()
 
 	var producer *Producer
 	var closeErr error
@@ -315,7 +310,6 @@ func TestAsyncProducerObserverCannotCloseItsProducer(t *testing.T) {
 }
 
 func TestObserverPolicyValidationAndOwnership(t *testing.T) {
-	t.Parallel()
 
 	noopObserver := ObserverFunc(func(context.Context, Observation) error {
 		return nil
@@ -388,7 +382,6 @@ func TestObserverPolicyValidationAndOwnership(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			if err := test.policy.Validate(); !errors.Is(err, test.want) {
 				t.Fatalf("Validate() error = %v, want %v", err, test.want)
@@ -425,7 +418,6 @@ func TestObserverPolicyValidationAndOwnership(t *testing.T) {
 }
 
 func TestProducerBatchObservationOmitsMixedTopicCardinality(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -467,7 +459,6 @@ func TestProducerBatchObservationOmitsMixedTopicCardinality(t *testing.T) {
 }
 
 func TestProducerBatchObservationBoundsRejectedMetadata(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		records         []ProducerRecord
@@ -508,7 +499,6 @@ func TestProducerBatchObservationBoundsRejectedMetadata(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			var got Observation
 			policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -549,7 +539,6 @@ func TestProducerBatchObservationBoundsRejectedMetadata(t *testing.T) {
 }
 
 func TestProducerObserverReportsAsyncFailureCategory(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -594,7 +583,6 @@ func TestProducerObserverReportsAsyncFailureCategory(t *testing.T) {
 }
 
 func TestObserverFailuresAreContainedAndReportedInOrder(t *testing.T) {
-	t.Parallel()
 
 	sensitive := errors.New("token=observer-secret")
 	var completed bool
@@ -657,7 +645,6 @@ func TestObserverFailuresAreContainedAndReportedInOrder(t *testing.T) {
 }
 
 func TestObserverTimeoutIsReportedAfterCooperativeReturn(t *testing.T) {
-	t.Parallel()
 
 	var failure ObservationFailure
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -693,7 +680,6 @@ func TestObserverTimeoutIsReportedAfterCooperativeReturn(t *testing.T) {
 }
 
 func TestEmptyObserverDispatcherIsANoOp(t *testing.T) {
-	t.Parallel()
 
 	newObserverDispatcher(ObserverPolicy{}).observe(
 		context.Background(),
@@ -702,7 +688,6 @@ func TestEmptyObserverDispatcherIsANoOp(t *testing.T) {
 }
 
 func TestObservationKindString(t *testing.T) {
-	t.Parallel()
 
 	for kind, want := range map[ObservationKind]string{
 		ObservationProduceRecord:                "producer.record",
@@ -746,7 +731,6 @@ func TestObservationKindString(t *testing.T) {
 }
 
 func TestObservationKindValuesRemainStable(t *testing.T) {
-	t.Parallel()
 
 	for kind, want := range map[ObservationKind]ObservationKind{
 		ObservationProduceRecord:                1,
@@ -791,7 +775,6 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	base := Observation{
 		Kind:        ObservationProduceRecord,
@@ -866,7 +849,6 @@ func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 }
 
 func TestObservationValidationAcceptsInclusiveMetadataBoundaries(t *testing.T) {
-	t.Parallel()
 
 	startedAt := time.Unix(1, 0)
 	tests := map[string]Observation{
@@ -928,7 +910,6 @@ func TestObservationValidationAcceptsInclusiveMetadataBoundaries(t *testing.T) {
 }
 
 func TestObservationValidationEnforcesEventRecordCardinality(t *testing.T) {
-	t.Parallel()
 
 	base := Observation{
 		StartedAt: time.Unix(1, 0),
@@ -992,7 +973,6 @@ func TestObservationValidationEnforcesEventRecordCardinality(t *testing.T) {
 }
 
 func TestObservationValidationEnforcesReplayProgress(t *testing.T) {
-	t.Parallel()
 
 	base := Observation{
 		StartedAt: time.Unix(1, 0),
@@ -1231,7 +1211,6 @@ func TestObservationValidationEnforcesReplayProgress(t *testing.T) {
 }
 
 func TestObservationValidationRejectsContradictoryReplayOutcomes(t *testing.T) {
-	t.Parallel()
 
 	base := Observation{
 		StartedAt: time.Unix(1, 0),

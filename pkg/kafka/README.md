@@ -158,6 +158,10 @@ Kafka request versions are negotiated per broker connection by default. Set a
 validated `ProtocolPolicy.MinimumVersion` only when a reviewed capability must
 not downgrade below a known Kafka request table. This is not a broker-version
 or support check. See the [configuration reference](docs/configuration.md).
+All package-owned clients retry a broker EOF that occurs before the first
+response, within their existing operation deadlines, so broker restart and
+coordinator failover do not permanently poison a new client. A listener,
+TLS, or SASL mismatch can therefore surface only when that bound expires.
 
 ## Consumer
 

@@ -270,6 +270,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		producer,
 		transactionSourceTopic,
 		transactionOutputTopic,
+		"golib-compatibility-"+transactionSourceTopic,
 	)
 	proveFailureTopicPolicy(
 		t,
@@ -1152,6 +1153,7 @@ func proveConsumeTransformProduce(
 	producer *kafka.Producer,
 	sourceTopic string,
 	outputTopic string,
+	sourceTransactionalID string,
 ) {
 	t.Helper()
 
@@ -1159,7 +1161,7 @@ func proveConsumeTransformProduce(
 		Brokers:         brokers,
 		ClientID:        "golib-compatibility-transaction-source-producer",
 		AllowedTopics:   []string{sourceTopic},
-		TransactionalID: "golib-compatibility-transaction-source-producer",
+		TransactionalID: sourceTransactionalID,
 		Security:        kafka.DevelopmentPlaintextSecurity(),
 	})
 	if err != nil {
@@ -1180,7 +1182,51 @@ func proveConsumeTransformProduce(
 		return hiddenSourceErr
 	})
 	if !errors.Is(err, hiddenSourceErr) {
-		t.Fatalf("abort source transaction: %v", err)
+		var transactionErr *kafka.TransactionError
+		var protocolErr *kerr.Error
+		errors.As(err, &transactionErr)
+		errors.As(err, &protocolErr)
+		var operation kafka.TransactionOperation
+		var category kafka.ErrorCategory
+		var abortable bool
+		var outcomeKnown bool
+		if transactionErr != nil {
+			operation = transactionErr.Operation()
+			category = transactionErr.Category()
+			abortable = transactionErr.Abortable()
+			outcomeKnown = transactionErr.OutcomeKnown()
+		}
+		var protocolCode int16
+		if protocolErr != nil {
+			protocolCode = protocolErr.Code
+		}
+		causeTypes := make([]string, 0, 4)
+		for cause := err; cause != nil; cause = errors.Unwrap(cause) {
+			causeTypes = append(causeTypes, fmt.Sprintf("%T", cause))
+		}
+		var networkErr net.Error
+		hasNetworkErr := errors.As(err, &networkErr)
+		networkTimeout := hasNetworkErr && networkErr.Timeout()
+		networkTemporary := hasNetworkErr && networkErr.Temporary()
+		t.Fatalf(
+			"abort source transaction: %v; operation=%s category=%s "+
+				"abortable=%t outcome-known=%t protocol-code=%d "+
+				"cause-types=%q deadline=%t canceled=%t client-closed=%t "+
+				"network=%t timeout=%t temporary=%t",
+			err,
+			operation,
+			category,
+			abortable,
+			outcomeKnown,
+			protocolCode,
+			causeTypes,
+			errors.Is(err, context.DeadlineExceeded),
+			errors.Is(err, context.Canceled),
+			errors.Is(err, kgo.ErrClientClosed),
+			hasNetworkErr,
+			networkTimeout,
+			networkTemporary,
+		)
 	}
 	if err := sourceTransaction.Close(); err != nil {
 		t.Fatalf("close transactional source producer: %v", err)

@@ -13,7 +13,6 @@ import (
 )
 
 func TestConsumerHandlerConcurrencyDefaultsAndBounds(t *testing.T) {
-	t.Parallel()
 
 	config := validConsumerConfig()
 	normalized, err := normalizeConsumerConfig(config)
@@ -43,10 +42,25 @@ func TestConsumerHandlerConcurrencyDefaultsAndBounds(t *testing.T) {
 	}
 }
 
+func TestConsumedRecordSizeIncludesExactKafkaMetadataAndHeaderBytes(t *testing.T) {
+
+	record := &kgo.Record{
+		Topic: "abc",
+		Key:   []byte("de"),
+		Value: []byte("fghi"),
+		Headers: []kgo.RecordHeader{
+			{Key: "j", Value: []byte("kl")},
+			{Key: "mno", Value: []byte("pqrs")},
+		},
+	}
+	if got, want := consumedRecordSize(record), int64(67); got != want {
+		t.Fatalf("consumedRecordSize() = %d, want %d", got, want)
+	}
+}
+
 func TestConsumerProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	partitionZero := []*kgo.Record{
 		{Topic: "events", Partition: 0, Offset: 0},
@@ -120,7 +134,6 @@ func TestConsumerProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 func TestConsumerBlockedRebalanceCancelsEveryActivePartitionHandler(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	backend := &recordingConsumerBackend{
 		fetches: partitionFetches(
@@ -178,7 +191,6 @@ func TestConsumerBlockedRebalanceCancelsEveryActivePartitionHandler(
 func TestConsumerParallelFailureDoesNotBlockIndependentPartitionSettlement(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	failed := &kgo.Record{Topic: "events", Partition: 0, Offset: 0}
 	partitionOne := []*kgo.Record{
@@ -225,7 +237,6 @@ func TestConsumerParallelFailureDoesNotBlockIndependentPartitionSettlement(
 func TestConsumerBlockedRebalanceDrainsEveryActivePartitionHandler(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	partitionZero := []*kgo.Record{
 		{Topic: "events", Partition: 0, Offset: 0},
@@ -291,7 +302,6 @@ func TestConsumerBlockedRebalanceDrainsEveryActivePartitionHandler(
 }
 
 func TestConsumerProcessesPartitionBatchesConcurrently(t *testing.T) {
-	t.Parallel()
 
 	partitionZero := []*kgo.Record{
 		{Topic: "events", Partition: 0, Offset: 0},
@@ -348,7 +358,6 @@ func TestConsumerProcessesPartitionBatchesConcurrently(t *testing.T) {
 func TestConsumerRebalanceHandlerIDsAvoidOverflowAndActiveCollisions(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	state := newConsumerRebalanceState(RebalanceCancelHandler)
 	state.handlerID = ^uint64(0)
@@ -380,7 +389,6 @@ func TestConsumerRebalanceHandlerIDsAvoidOverflowAndActiveCollisions(
 }
 
 func TestConsumerHandlerCompletionObservesPendingRebalance(t *testing.T) {
-	t.Parallel()
 
 	state := newConsumerRebalanceState(RebalanceCancelHandler)
 	state.beginPoll()
@@ -409,7 +417,6 @@ func TestConsumerHandlerCompletionObservesPendingRebalance(t *testing.T) {
 }
 
 func TestConsumerDoesNotSettleHandlerSuccessAfterContextDeadline(t *testing.T) {
-	t.Parallel()
 
 	recordBackend := &recordingConsumerBackend{
 		fetches: recordFetches(&kgo.Record{Topic: "events", Offset: 1}),
@@ -469,7 +476,6 @@ func TestConsumerDoesNotSettleHandlerSuccessAfterContextDeadline(t *testing.T) {
 }
 
 func TestConsumerRejectsNilRunnerAndShutdownContexts(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name string
@@ -529,7 +535,6 @@ func TestConsumerRejectsNilRunnerAndShutdownContexts(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingConsumerBackend{
 				fetches: recordFetches(&kgo.Record{
@@ -556,7 +561,6 @@ func TestConsumerRejectsNilRunnerAndShutdownContexts(t *testing.T) {
 }
 
 func TestConsumerDoesNotAdmitHandlersAfterRunnerCancellation(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name string
@@ -605,7 +609,6 @@ func TestConsumerDoesNotAdmitHandlersAfterRunnerCancellation(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingConsumerBackend{
 				fetches: recordFetches(&kgo.Record{

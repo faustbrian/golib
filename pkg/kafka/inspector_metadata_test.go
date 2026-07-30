@@ -14,7 +14,6 @@ import (
 )
 
 func TestInspectorReturnsBoundedClusterIdentityAndBrokerState(t *testing.T) {
-	t.Parallel()
 
 	rack := "eu-north-1a"
 	backend := &metadataInspectorBackend{
@@ -64,7 +63,6 @@ func TestInspectorReturnsBoundedClusterIdentityAndBrokerState(t *testing.T) {
 }
 
 func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
@@ -133,7 +131,6 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 }
 
 func TestInspectorRejectsTopicMetadataWithoutPartitions(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		metadata: kadm.Metadata{Topics: kadm.TopicDetails{
@@ -159,7 +156,6 @@ func TestInspectorRejectsTopicMetadataWithoutPartitions(t *testing.T) {
 }
 
 func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T) {
-	t.Parallel()
 
 	configs := map[string]string{
 		"min.insync.replicas":            "2",
@@ -226,7 +222,6 @@ func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T)
 }
 
 func TestInspectorTopicInspectionAcceptsCleanupPolicyValues(t *testing.T) {
-	t.Parallel()
 
 	for _, test := range []struct {
 		value string
@@ -246,7 +241,6 @@ func TestInspectorTopicInspectionAcceptsCleanupPolicyValues(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.value, func(t *testing.T) {
-			t.Parallel()
 
 			got, err := parseTopicCleanupPolicy(test.value)
 			if err != nil || got != test.want {
@@ -263,7 +257,6 @@ func TestInspectorTopicInspectionAcceptsCleanupPolicyValues(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionAcceptsUncleanLeaderElection(t *testing.T) {
-	t.Parallel()
 
 	resource := validTopicInspectionResource("events", "2")
 	for index := range resource.Configs {
@@ -285,7 +278,6 @@ func TestInspectorTopicInspectionAcceptsUncleanLeaderElection(t *testing.T) {
 }
 
 func TestTopicInspectionMinInSyncReplicasUsesPlatformSafeBounds(t *testing.T) {
-	t.Parallel()
 
 	var config topicInspectionConfig
 	if err := config.set(
@@ -312,7 +304,6 @@ func TestTopicInspectionMinInSyncReplicasUsesPlatformSafeBounds(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
-	t.Parallel()
 
 	resource := validTopicInspectionResource("events", "2")
 	resource.Configs = append(resource.Configs, kadm.Config{
@@ -330,7 +321,6 @@ func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionRejectsUnknownSelectedField(t *testing.T) {
-	t.Parallel()
 
 	var config topicInspectionConfig
 	if err := config.set(0, "value"); !errors.Is(
@@ -414,7 +404,6 @@ var _ inspectorBackend = (*metadataInspectorBackend)(nil)
 var _ inspectorClient = (*metadataInspectorBackend)(nil)
 
 func TestInspectorClusterRejectsInvalidOrExcessiveBrokerMetadata(t *testing.T) {
-	t.Parallel()
 
 	valid := kadm.Metadata{
 		Cluster:    "cluster-1",
@@ -484,7 +473,6 @@ func TestInspectorClusterRejectsInvalidOrExcessiveBrokerMetadata(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			metadata := valid
 			metadata.Brokers = append(kadm.BrokerDetails(nil), valid.Brokers...)
@@ -506,7 +494,6 @@ func TestInspectorClusterRejectsInvalidOrExcessiveBrokerMetadata(t *testing.T) {
 }
 
 func TestInspectorClusterRepresentsUnavailableIdentityAndController(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{brokerMetadata: kadm.Metadata{
 		Controller: 9,
@@ -528,7 +515,6 @@ func TestInspectorClusterRepresentsUnavailableIdentityAndController(t *testing.T
 }
 
 func TestInspectorOperationsEnforceOwnedRequestDeadline(t *testing.T) {
-	t.Parallel()
 
 	backend := &metadataInspectorBackend{
 		brokerMetadataFn: func(ctx context.Context) (kadm.Metadata, error) {
@@ -612,7 +598,6 @@ func TestInspectorOperationsEnforceOwnedRequestDeadline(t *testing.T) {
 }
 
 func TestInspectorConfigAppliesAndValidatesMetadataBounds(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeInspectorConfig(InspectorConfig{
 		Brokers:  []string{"broker.internal:9092"},
@@ -652,7 +637,6 @@ func TestInspectorConfigAppliesAndValidatesMetadataBounds(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := InspectorConfig{
 				Brokers:  []string{"broker.internal:9092"},
@@ -670,7 +654,6 @@ func TestInspectorConfigAppliesAndValidatesMetadataBounds(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
-	t.Parallel()
 
 	base := func() *metadataInspectorBackend {
 		return &metadataInspectorBackend{
@@ -847,7 +830,6 @@ func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := base()
 			test.change(backend)
@@ -880,7 +862,6 @@ func TestInspectorTopicInspectionFailsClosedOnIncompleteState(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
-	t.Parallel()
 
 	base := func() *metadataInspectorBackend {
 		return &metadataInspectorBackend{
@@ -975,7 +956,6 @@ func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := base()
 			partition := backend.metadata.Topics["events"].Partitions[0]
@@ -994,7 +974,6 @@ func TestInspectorTopicInspectionRejectsInconsistentReplicaState(t *testing.T) {
 }
 
 func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T) {
-	t.Parallel()
 
 	validValue := "2"
 	requested := map[string]struct{}{"events": {}}
@@ -1082,7 +1061,6 @@ func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T)
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			if _, err := inspectionTopicConfigs(
 				requested,
@@ -1095,7 +1073,6 @@ func TestInspectorTopicInspectionRejectsInvalidDurabilityResponses(t *testing.T)
 }
 
 func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
-	t.Parallel()
 
 	set := func(resource *kadm.ResourceConfig, key, value string) {
 		for index := range resource.Configs {
@@ -1110,6 +1087,7 @@ func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		change func(*kadm.ResourceConfig)
+		want   error
 	}{
 		{
 			name: "unknown cleanup policy",
@@ -1231,6 +1209,7 @@ func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
 			change: func(resource *kadm.ResourceConfig) {
 				set(resource, "retention.ms", strings.Repeat("1", 65))
 			},
+			want: ErrInspectionResponseTooLarge,
 		},
 		{
 			name: "duplicate selected value",
@@ -1249,14 +1228,17 @@ func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			resource := validTopicInspectionResource("events", "2")
 			test.change(&resource)
+			want := test.want
+			if want == nil {
+				want = ErrInvalidInspectionResponse
+			}
 			if _, err := inspectionTopicConfigs(
 				map[string]struct{}{"events": {}},
 				kadm.ResourceConfigs{resource},
-			); !errors.Is(err, ErrInvalidInspectionResponse) {
+			); !errors.Is(err, want) {
 				t.Fatalf("inspectionTopicConfigs() error = %v", err)
 			}
 		})
@@ -1277,7 +1259,6 @@ func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
 	} {
 		key := key
 		t.Run("missing "+key, func(t *testing.T) {
-			t.Parallel()
 
 			resource := validTopicInspectionResource("events", "2")
 			resource.Configs = slices.DeleteFunc(
@@ -1332,7 +1313,6 @@ func validTopicInspectionResource(
 }
 
 func TestInspectorConsumerGroupLagBoundsAndValidatesBrokerState(t *testing.T) {
-	t.Parallel()
 
 	valid := func() kadm.DescribedGroupLags {
 		return kadm.DescribedGroupLags{
@@ -1464,7 +1444,6 @@ func TestInspectorConsumerGroupLagBoundsAndValidatesBrokerState(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			lags := valid()
 			test.change(lags)

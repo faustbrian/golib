@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -803,6 +804,20 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 
 	assertApacheKafkaDelivery(t, ctx, producer, topic, 0, "before-stop")
 	stoppedNode := state.Partitions[0].Leader
+	transactionState := waitForApacheTopicState(
+		t,
+		ctx,
+		inspector,
+		"__transaction_state",
+		func(state kafka.TopicState) bool {
+			return len(state.Partitions) > 0 && allPartitionsMatch(state, 3, 3)
+		},
+	)
+	sourceTransactionalID := apacheTransactionalIDForLeader(
+		t,
+		transactionState,
+		stoppedNode,
+	)
 	t.Logf("stopping Apache Kafka node %d", stoppedNode)
 	cluster.stopNode(t, ctx, stoppedNode)
 
@@ -839,6 +854,7 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		producer,
 		processorSourceTopic,
 		processorOutputTopic,
+		sourceTransactionalID,
 	)
 	waitForApacheTopicState(t, ctx, inspector, "__consumer_offsets", func(
 		state kafka.TopicState,
@@ -3392,6 +3408,48 @@ func allPartitionsMatch(
 	}
 
 	return true
+}
+
+func apacheTransactionalIDForLeader(
+	t *testing.T,
+	state kafka.TopicState,
+	leader int32,
+) string {
+	t.Helper()
+
+	leaders := make(map[int32]int32, len(state.Partitions))
+	for _, partition := range state.Partitions {
+		leaders[partition.Partition] = partition.Leader
+	}
+	for candidate := range 10_000 {
+		transactionalID := fmt.Sprintf(
+			"golib-apache-coordinator-failover-%d",
+			candidate,
+		)
+		partition := apacheTransactionCoordinatorPartition(
+			transactionalID,
+			len(state.Partitions),
+		)
+		if leaders[partition] == leader {
+			return transactionalID
+		}
+	}
+
+	t.Fatalf("no transactional ID maps to Apache Kafka broker %d", leader)
+
+	return ""
+}
+
+func apacheTransactionCoordinatorPartition(
+	transactionalID string,
+	partitionCount int,
+) int32 {
+	var hash int32
+	for _, character := range transactionalID {
+		hash = 31*hash + int32(character)
+	}
+
+	return int32((uint32(hash) & math.MaxInt32) % uint32(partitionCount))
 }
 
 func proveApacheKafkaRackLocalFetch(

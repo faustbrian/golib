@@ -14,7 +14,6 @@ import (
 )
 
 func TestBrokerObserverReportsCopiedConnectionMetadata(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -65,7 +64,6 @@ func TestBrokerObserverReportsCopiedConnectionMetadata(t *testing.T) {
 }
 
 func TestBrokerObserverReportsRequestLatencyAndRedactedFailure(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	hook := newTestFranzObserverHook(t, "consumer-client", "projection-group", &got)
@@ -107,7 +105,6 @@ func TestBrokerObserverReportsRequestLatencyAndRedactedFailure(t *testing.T) {
 }
 
 func TestBrokerObserverReportsThrottleAndDisconnect(t *testing.T) {
-	t.Parallel()
 
 	var got []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -159,7 +156,6 @@ func TestBrokerObserverReportsThrottleAndDisconnect(t *testing.T) {
 }
 
 func TestConsumerGroupObserverReportsRedactedManagementError(t *testing.T) {
-	t.Parallel()
 
 	var got Observation
 	hook := newTestFranzObserverHook(
@@ -187,7 +183,6 @@ func TestConsumerGroupObserverReportsRedactedManagementError(t *testing.T) {
 }
 
 func TestBrokerObserverClipsInvalidHookMetadata(t *testing.T) {
-	t.Parallel()
 
 	var got []Observation
 	policy, err := normalizeObserverPolicy(ObserverPolicy{
@@ -257,6 +252,31 @@ func TestBrokerObserverClipsInvalidHookMetadata(t *testing.T) {
 	}
 	if got[3].ThrottleDuration != 0 || !got[3].Truncated {
 		t.Fatalf("bounded throttle observation = %#v", got[3])
+	}
+}
+
+func TestBrokerObserverHelpersAcceptExactZeroAndMaximumBoundaries(t *testing.T) {
+
+	if brokerID, known := observedBrokerID(0); brokerID != 0 || !known {
+		t.Fatalf("observedBrokerID(0) = %d/%t", brokerID, known)
+	}
+	if apiKey, known := observedAPIKey(0); apiKey != 0 || !known {
+		t.Fatalf("observedAPIKey(0) = %d/%t", apiKey, known)
+	}
+	if duration, truncated := observedDuration(0); duration != 0 || truncated {
+		t.Fatalf("observedDuration(0) = %s/%t", duration, truncated)
+	}
+	if bytes, truncated := observedBytes(0); bytes != 0 || truncated {
+		t.Fatalf("observedBytes(0) = %d/%t", bytes, truncated)
+	}
+	duration, truncated := observedRequestDuration(kgo.BrokerE2E{
+		WriteWait:   0,
+		TimeToWrite: time.Duration(math.MaxInt64 - 3),
+		ReadWait:    1,
+		TimeToRead:  2,
+	})
+	if duration != time.Duration(math.MaxInt64) || truncated {
+		t.Fatalf("exact maximum request duration = %s/%t", duration, truncated)
 	}
 }
 

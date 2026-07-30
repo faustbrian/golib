@@ -868,8 +868,14 @@ func validClientCertificate(certificate tls.Certificate) bool {
 func matchingPublicKeys(first, second any) bool {
 	firstEncoded, firstErr := x509.MarshalPKIXPublicKey(first)
 	secondEncoded, secondErr := x509.MarshalPKIXPublicKey(second)
+	if firstErr != nil {
+		return false
+	}
+	if secondErr != nil {
+		return false
+	}
 
-	return firstErr == nil && secondErr == nil && bytes.Equal(firstEncoded, secondEncoded)
+	return bytes.Equal(firstEncoded, secondEncoded)
 }
 
 func validCredentialText(value string, required bool) bool {

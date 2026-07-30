@@ -11,7 +11,6 @@ import (
 )
 
 func TestObservationFailureFormattingRedactsObserverCause(t *testing.T) {
-	t.Parallel()
 
 	sensitive := errors.New("token=observer-secret")
 	var got kafka.ObservationFailure

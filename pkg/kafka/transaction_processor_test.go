@@ -15,7 +15,6 @@ import (
 )
 
 func TestTransactionProcessorConfigNormalizesAndOwnsPolicy(t *testing.T) {
-	t.Parallel()
 
 	brokers := []string{"broker-a.internal:9092", "broker-b.internal:9092"}
 	sourceTopics := []string{"source-events"}
@@ -66,7 +65,6 @@ func TestTransactionProcessorConfigNormalizesAndOwnsPolicy(t *testing.T) {
 }
 
 func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
-	t.Parallel()
 
 	config := validTransactionProcessorConfig()
 	config.Group.ResetOffset = OffsetLatest
@@ -87,11 +85,19 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 			if client.OptValue(kgo.FetchIsolationLevel) != int8(1) ||
 				client.OptValue(kgo.DisableAutoCommit) != true ||
 				client.OptValue(kgo.TransactionalID) != "transaction-worker-0" ||
+				client.OptValue(kgo.AlwaysRetryEOF) != true ||
 				client.OptValue(kgo.StopProducerOnDataLossDetected) != true ||
 				client.OptValue(kgo.AllowIdempotentProduceCancellation) != false ||
 				client.OptValue(kgo.MetadataMinAge) != 250*time.Millisecond ||
 				!ok || !minimum.Equal(kversion.FromString("2.5")) {
 				t.Fatalf("unsafe transaction processor options")
+			}
+			startOffset, ok := client.OptValue(kgo.ConsumeStartOffset).(kgo.Offset)
+			if !ok || startOffset.EpochOffset().Offset != -1 {
+				t.Fatalf("ConsumeStartOffset option = %#v, want end offset", startOffset)
+			}
+			if got := client.OptValue(kgo.Rack); got != "rack-a" {
+				t.Fatalf("Rack option = %#v", got)
 			}
 			retryBackoff, ok := client.OptValue(kgo.RetryBackoffFn).(func(int) time.Duration)
 			if !ok || retryBackoff(10) < 800*time.Millisecond ||
@@ -108,6 +114,13 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 	if !processor.staticMembership {
 		t.Fatal("transaction processor did not retain static membership")
 	}
+	if processor.deliveryWaitTimeout != 31*time.Second {
+		t.Fatalf(
+			"delivery wait timeout = %s, want %s",
+			processor.deliveryWaitTimeout,
+			31*time.Second,
+		)
+	}
 
 	factoryErr := errors.New("client construction failed")
 	processor, err = newTransactionProcessor(
@@ -122,7 +135,6 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 }
 
 func TestTransactionProcessorPublicConstructor(t *testing.T) {
-	t.Parallel()
 
 	config := validTransactionProcessorConfig()
 	config.Group.InstanceID = "transaction-worker-instance"
@@ -156,7 +168,6 @@ func TestTransactionProcessorPublicConstructor(t *testing.T) {
 func TestTransactionProcessorConfigRejectsUnsafePolicyBeforeConstruction(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	for name, mutate := range map[string]func(*TransactionProcessorConfig){
 		"transactional ID required": func(config *TransactionProcessorConfig) {
@@ -186,7 +197,6 @@ func TestTransactionProcessorConfigRejectsUnsafePolicyBeforeConstruction(
 	} {
 		mutate := mutate
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validTransactionProcessorConfig()
 			mutate(&config)
@@ -212,8 +222,63 @@ func TestTransactionProcessorConfigRejectsUnsafePolicyBeforeConstruction(
 	}
 }
 
+func TestTransactionProcessorOutputLimitsUseInclusiveBoundaries(t *testing.T) {
+
+	minimumBytes := maximumRecordPolicyBytes(DefaultMessageLimits())
+	validLimits := []struct {
+		name    string
+		records int
+		bytes   int64
+	}{
+		{name: "minimum records", records: 1, bytes: minimumBytes},
+		{name: "maximum records", records: 100_000, bytes: minimumBytes},
+		{name: "maximum bytes", records: 1, bytes: 1 << 30},
+	}
+	for _, limit := range validLimits {
+		limit := limit
+		t.Run(limit.name, func(t *testing.T) {
+
+			config := validTransactionProcessorConfig()
+			config.Output.MaxOutputRecords = limit.records
+			config.Output.MaxOutputBytes = limit.bytes
+			normalized, err := normalizeTransactionProcessorConfig(config)
+			if err != nil {
+				t.Fatalf("normalizeTransactionProcessorConfig() error = %v", err)
+			}
+			if normalized.Output.MaxOutputRecords != limit.records ||
+				normalized.Output.MaxOutputBytes != limit.bytes {
+				t.Fatalf("normalized output limits = %#v", normalized.Output)
+			}
+		})
+	}
+
+	invalidLimits := []struct {
+		name    string
+		records int
+		bytes   int64
+	}{
+		{name: "above maximum records", records: 100_001, bytes: minimumBytes},
+		{name: "below minimum bytes", records: 1, bytes: minimumBytes - 1},
+		{name: "above maximum bytes", records: 1, bytes: 1<<30 + 1},
+	}
+	for _, limit := range invalidLimits {
+		limit := limit
+		t.Run(limit.name, func(t *testing.T) {
+
+			config := validTransactionProcessorConfig()
+			config.Output.MaxOutputRecords = limit.records
+			config.Output.MaxOutputBytes = limit.bytes
+			if _, err := normalizeTransactionProcessorConfig(config); !errors.Is(
+				err,
+				ErrInvalidTransactionProcessorConfig,
+			) {
+				t.Fatalf("normalizeTransactionProcessorConfig() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestTransactionProcessorConfigPreservesValidationCause(t *testing.T) {
-	t.Parallel()
 
 	config := validTransactionProcessorConfig()
 	config.Connection.Protocol.MinimumVersion = "unknown"
@@ -225,7 +290,6 @@ func TestTransactionProcessorConfigPreservesValidationCause(t *testing.T) {
 }
 
 func TestTransactionProcessorCommitsCompletePollAtomically(t *testing.T) {
-	t.Parallel()
 
 	first := transactionSourceRecord(0, "first")
 	second := transactionSourceRecord(1, "second")
@@ -275,7 +339,6 @@ func TestTransactionProcessorCommitsCompletePollAtomically(t *testing.T) {
 }
 
 func TestTransactionProcessorAbortsWholePollOnHandlerFailure(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingTransactionProcessorBackend{
 		fetches: []kgo.Fetches{transactionFetches(
@@ -319,7 +382,6 @@ func TestTransactionProcessorAbortsWholePollOnHandlerFailure(t *testing.T) {
 }
 
 func TestTransactionProcessorSurfacesRebalanceAbort(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingTransactionProcessorBackend{
 		fetches: []kgo.Fetches{transactionFetches(
@@ -350,7 +412,6 @@ func TestTransactionProcessorSurfacesRebalanceAbort(t *testing.T) {
 }
 
 func TestTransactionProcessorAbortsPartialFetchError(t *testing.T) {
-	t.Parallel()
 
 	fetchErr := errors.New("partial fetch failure")
 	fetches := transactionFetches(transactionSourceRecord(0, "first"))
@@ -383,7 +444,6 @@ func TestTransactionProcessorAbortsPartialFetchError(t *testing.T) {
 }
 
 func TestTransactionProcessorFencesPartialFetchCleanupFailure(t *testing.T) {
-	t.Parallel()
 
 	fetchErr := errors.New("partial fetch failure")
 	for name, backend := range map[string]*recordingTransactionProcessorBackend{
@@ -398,7 +458,6 @@ func TestTransactionProcessorFencesPartialFetchCleanupFailure(t *testing.T) {
 	} {
 		backend := backend
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			fetches := transactionFetches(transactionSourceRecord(0, "first"))
 			backend.fetches = []kgo.Fetches{
@@ -436,7 +495,6 @@ func TestTransactionProcessorFencesPartialFetchCleanupFailure(t *testing.T) {
 }
 
 func TestTransactionProcessorFencesLifecycleFailure(t *testing.T) {
-	t.Parallel()
 
 	for name, backend := range map[string]*recordingTransactionProcessorBackend{
 		"begin": {
@@ -456,7 +514,6 @@ func TestTransactionProcessorFencesLifecycleFailure(t *testing.T) {
 	} {
 		backend := backend
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			processor := transactionProcessorForTest(t, backend)
 			_, firstErr := processor.RunOnce(
@@ -497,7 +554,6 @@ func TestTransactionProcessorFencesLifecycleFailure(t *testing.T) {
 func TestTransactionProcessorRejectsInvalidOutputAndIgnoredDeliveryFailure(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	for name, record := range map[string]ProducerRecord{
 		"invalid": {
@@ -515,7 +571,6 @@ func TestTransactionProcessorRejectsInvalidOutputAndIgnoredDeliveryFailure(
 	} {
 		record := record
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingTransactionProcessorBackend{
 				fetches: []kgo.Fetches{transactionFetches(
@@ -562,7 +617,6 @@ func TestTransactionProcessorRejectsInvalidOutputAndIgnoredDeliveryFailure(
 	} {
 		results := results
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingTransactionProcessorBackend{
 				fetches: []kgo.Fetches{transactionFetches(
@@ -594,7 +648,6 @@ func TestTransactionProcessorRejectsInvalidOutputAndIgnoredDeliveryFailure(
 }
 
 func TestTransactionProcessorAbortsBrokerRecordOutsidePolicy(t *testing.T) {
-	t.Parallel()
 
 	record := transactionSourceRecord(0, "first")
 	record.Value = make([]byte, DefaultMessageLimits().MaxValueBytes+1)
@@ -626,7 +679,6 @@ func TestTransactionProcessorAbortsBrokerRecordOutsidePolicy(t *testing.T) {
 }
 
 func TestTransactionProcessorBoundsTransactionOutputAggregate(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingTransactionProcessorBackend{
 		fetches: []kgo.Fetches{transactionFetches(
@@ -695,7 +747,6 @@ func TestTransactionProcessorBoundsTransactionOutputAggregate(t *testing.T) {
 }
 
 func TestTransactionProcessorBoundsProcessingAndContainsPanic(t *testing.T) {
-	t.Parallel()
 
 	for name, handler := range map[string]TransactionHandler{
 		"panic": TransactionHandlerFunc(func(
@@ -717,7 +768,6 @@ func TestTransactionProcessorBoundsProcessingAndContainsPanic(t *testing.T) {
 	} {
 		handler := handler
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingTransactionProcessorBackend{
 				fetches: []kgo.Fetches{transactionFetches(
@@ -742,7 +792,6 @@ func TestTransactionProcessorBoundsProcessingAndContainsPanic(t *testing.T) {
 }
 
 func TestTransactionProcessorClassifiesEndFailures(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		try          kgo.TransactionEndTry
@@ -774,7 +823,6 @@ func TestTransactionProcessorClassifiesEndFailures(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			backend := &recordingTransactionProcessorBackend{
 				fetches: []kgo.Fetches{transactionFetches(
@@ -811,7 +859,6 @@ func TestTransactionProcessorClassifiesEndFailures(t *testing.T) {
 func TestTransactionProcessorTerminatesAfterAmbiguousPublishDeadline(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	clientCtx, cancelClient := context.WithCancel(context.Background())
 	release := make(chan struct{})
@@ -882,7 +929,6 @@ func TestTransactionProcessorTerminatesAfterAmbiguousPublishDeadline(
 func TestTransactionProcessorRetainsTerminalPublishAfterIgnoredFailure(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	clientCtx, cancelClient := context.WithCancel(context.Background())
 	backend := &recordingTransactionProcessorBackend{
@@ -935,7 +981,6 @@ func TestTransactionProcessorRetainsTerminalPublishAfterIgnoredFailure(
 }
 
 func TestTransactionProcessorPublisherBoundsRetainedTerminalFailures(t *testing.T) {
-	t.Parallel()
 
 	ordinaryErr := errors.New("ordinary failure")
 	firstTerminalErr := errors.New("first terminal failure")
@@ -953,7 +998,6 @@ func TestTransactionProcessorPublisherBoundsRetainedTerminalFailures(t *testing.
 }
 
 func TestTransactionProcessorRejectsCanceledOutputBeforeAdmission(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingTransactionProcessorBackend{}
 	publisher := &processorTransactionPublisher{
@@ -981,7 +1025,6 @@ func TestTransactionProcessorRejectsCanceledOutputBeforeAdmission(t *testing.T) 
 }
 
 func TestTransactionProcessorRunLifecycle(t *testing.T) {
-	t.Parallel()
 
 	processor := transactionProcessorForTest(
 		t,
@@ -1099,7 +1142,6 @@ func TestTransactionProcessorRunLifecycle(t *testing.T) {
 }
 
 func TestTransactionProcessorSerializesRunAndBoundsShutdown(t *testing.T) {
-	t.Parallel()
 
 	pollStarted := make(chan struct{})
 	releasePoll := make(chan struct{})
@@ -1228,7 +1270,6 @@ func waitTransactionProcessorShutdown(
 }
 
 func TestTransactionProcessorShutdownFailuresAndStaticMembership(t *testing.T) {
-	t.Parallel()
 
 	processor := transactionProcessorForTest(
 		t,
@@ -1261,16 +1302,19 @@ func TestTransactionProcessorShutdownFailuresAndStaticMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct static processor: %v", err)
 	}
+	cancelCalled := false
+	staticProcessor.cancelClient = func() {
+		cancelCalled = true
+	}
 	if err := staticProcessor.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	if staticBackend.leaveCalls != 0 || !staticBackend.closed {
+	if staticBackend.leaveCalls != 0 || !staticBackend.closed || !cancelCalled {
 		t.Fatalf("static close state = %#v", staticBackend)
 	}
 }
 
 func TestFranzTransactionProcessorBackendLifecycle(t *testing.T) {
-	t.Parallel()
 
 	backend, err := newFranzTransactionProcessorBackend(
 		kgo.SeedBrokers("127.0.0.1:1"),

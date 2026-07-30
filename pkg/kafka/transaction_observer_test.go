@@ -11,7 +11,6 @@ import (
 )
 
 func TestProducerObserversReportSuccessfulTransactionLifecycle(t *testing.T) {
-	t.Parallel()
 
 	var observations []Observation
 	producer := transactionalProducer(&recordingProducerBackend{})
@@ -47,7 +46,6 @@ func TestProducerObserversReportSuccessfulTransactionLifecycle(t *testing.T) {
 }
 
 func TestProducerObserversClassifyTransactionFailures(t *testing.T) {
-	t.Parallel()
 
 	callbackErr := errors.New("application failed")
 	for name, test := range map[string]struct {
@@ -116,7 +114,6 @@ func TestProducerObserversClassifyTransactionFailures(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			var observations []Observation
 			producer := transactionalProducer(test.backend)
@@ -130,7 +127,6 @@ func TestProducerObserversClassifyTransactionFailures(t *testing.T) {
 }
 
 func TestTransactionObservationCategoryClassifiesPlainError(t *testing.T) {
-	t.Parallel()
 
 	if category := transactionObservationCategory(context.DeadlineExceeded); category !=
 		ErrorTimeout {
@@ -141,7 +137,6 @@ func TestTransactionObservationCategoryClassifiesPlainError(t *testing.T) {
 func TestTransactionProcessorConfigValidatesObserversBeforeConstruction(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	config := validTransactionProcessorConfig()
 	config.Observers = ObserverPolicy{
@@ -173,7 +168,6 @@ func TestTransactionProcessorConfigValidatesObserversBeforeConstruction(
 }
 
 func TestTransactionProcessorWiresBrokerObservers(t *testing.T) {
-	t.Parallel()
 
 	config := validTransactionProcessorConfig()
 	config.Observers = transactionObserverPolicy(&[]Observation{})
@@ -212,7 +206,6 @@ func TestTransactionProcessorWiresBrokerObservers(t *testing.T) {
 }
 
 func TestTransactionProcessorObserversReportTransactionLifecycle(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		backend    *recordingTransactionProcessorBackend
@@ -307,7 +300,6 @@ func TestTransactionProcessorObserversReportTransactionLifecycle(t *testing.T) {
 	} {
 		test := test
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			var observations []Observation
 			config := validTransactionProcessorConfig()
@@ -345,7 +337,6 @@ func TestTransactionProcessorObserversReportTransactionLifecycle(t *testing.T) {
 }
 
 func TestTransactionProcessorObserverCannotReenterLifecycle(t *testing.T) {
-	t.Parallel()
 
 	var processor *TransactionProcessor
 	var reentryErrors []error

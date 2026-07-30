@@ -15,7 +15,6 @@ import (
 )
 
 func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeReplayConfig(validReplayConfig())
 	if err != nil {
@@ -38,7 +37,6 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 }
 
 func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	minimum := validReplayConfig()
 	minimum.Ranges = []ReplayRange{{
@@ -112,7 +110,6 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 }
 
 func TestReplayConfigRejectsExactProgressTimeoutLowerBoundary(t *testing.T) {
-	t.Parallel()
 
 	config := validReplayConfig()
 	config.FetchMaxWait = time.Millisecond
@@ -123,7 +120,6 @@ func TestReplayConfigRejectsExactProgressTimeoutLowerBoundary(t *testing.T) {
 }
 
 func TestReplayRemainingOverflowAccountsForCheckpointAndExactMaximum(t *testing.T) {
-	t.Parallel()
 
 	exactMaximum := []ReplayRange{
 		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: math.MaxInt64 - 1},
@@ -146,7 +142,6 @@ func TestReplayRemainingOverflowAccountsForCheckpointAndExactMaximum(t *testing.
 }
 
 func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
-	t.Parallel()
 
 	manyRanges := make([]ReplayRange, 1_025)
 	for index := range manyRanges {
@@ -214,7 +209,6 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validReplayConfig()
 			test.change(&config)
@@ -231,7 +225,6 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 }
 
 func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{
 		recordFetches(
@@ -275,7 +268,6 @@ func TestReplayProcessesExactRangesWithoutCommitting(t *testing.T) {
 }
 
 func TestReplayAcceptsExactlyMaxPollRecordsAndOneSerialHandler(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{fetches: []kgo.Fetches{
 		recordFetches(&kgo.Record{Topic: "events", Partition: 0, Offset: 0}),
@@ -301,7 +293,6 @@ func TestReplayAcceptsExactlyMaxPollRecordsAndOneSerialHandler(t *testing.T) {
 }
 
 func TestReplayHandlerReceivesRangeAndResumeMetadataWithRetainableRecord(t *testing.T) {
-	t.Parallel()
 
 	source := &kgo.Record{
 		Topic:     "events",
@@ -353,7 +344,6 @@ func TestReplayHandlerReceivesRangeAndResumeMetadataWithRetainableRecord(t *test
 }
 
 func TestReplayPlanAgainstBrokerValidatesEffectiveRangesWithoutRunning(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{}
 	ranges := []ReplayRange{
@@ -395,7 +385,6 @@ func TestReplayPlanAgainstBrokerValidatesEffectiveRangesWithoutRunning(t *testin
 }
 
 func TestReplayPlanAgainstBrokerFailsClosedWithoutConsumingReader(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -499,7 +488,6 @@ func TestReplayPlanAgainstBrokerFailsClosedWithoutConsumingReader(t *testing.T) 
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			reader := replayReaderWithBackend(
 				&recordingReplayBackend{},
@@ -538,7 +526,6 @@ func TestReplayPlanAgainstBrokerFailsClosedWithoutConsumingReader(t *testing.T) 
 }
 
 func TestReplayShutdownWaitsForActiveBrokerPlan(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingReplayBackend{}
 	reader := replayReaderWithBackend(backend, []ReplayRange{{
@@ -578,7 +565,6 @@ func TestReplayShutdownWaitsForActiveBrokerPlan(t *testing.T) {
 }
 
 func TestReplayStopsOnFetchHandlerAndConfigurationFailures(t *testing.T) {
-	t.Parallel()
 
 	reader := replayReaderWithBackend(&recordingReplayBackend{}, []ReplayRange{{
 		Topic: "events", Partition: 1, StartOffset: 1, EndOffset: 2,
@@ -637,7 +623,6 @@ func TestReplayStopsOnFetchHandlerAndConfigurationFailures(t *testing.T) {
 }
 
 func TestReplayFailsClosedOnUnexpectedRecordsAndOffsetGaps(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -669,7 +654,6 @@ func TestReplayFailsClosedOnUnexpectedRecordsAndOffsetGaps(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			reader := replayReaderWithBackend(&recordingReplayBackend{
 				fetches: []kgo.Fetches{recordFetches(test.record)},
@@ -692,7 +676,6 @@ func TestReplayFailsClosedOnUnexpectedRecordsAndOffsetGaps(t *testing.T) {
 }
 
 func TestReplayReaderConstructsClosesAndPreservesFactoryFailure(t *testing.T) {
-	t.Parallel()
 
 	reader, err := NewReplayReader(validReplayConfig())
 	if err != nil {

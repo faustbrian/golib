@@ -12,7 +12,6 @@ import (
 )
 
 func TestInspectorReturnsSortedTopicAndLagState(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingInspectorBackend{
 		topics: kadm.TopicDetails{
@@ -86,7 +85,6 @@ func TestInspectorReturnsSortedTopicAndLagState(t *testing.T) {
 }
 
 func TestInspectorValidatesBoundedRequests(t *testing.T) {
-	t.Parallel()
 
 	backend := &recordingInspectorBackend{}
 	inspector := &Inspector{admin: backend, client: backend}
@@ -173,7 +171,6 @@ func TestInspectorValidatesBoundedRequests(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 			if err := test.call(); !errors.Is(err, test.want) {
 				t.Fatalf("error = %v, want %v", err, test.want)
 			}
@@ -185,7 +182,6 @@ func TestInspectorValidatesBoundedRequests(t *testing.T) {
 }
 
 func TestInspectorPreservesRequestAndPartitionFailures(t *testing.T) {
-	t.Parallel()
 
 	requestErr := errors.New("metadata unavailable")
 	backend := &recordingInspectorBackend{topicErr: requestErr, lagErr: requestErr}
@@ -225,7 +221,6 @@ func TestInspectorPreservesRequestAndPartitionFailures(t *testing.T) {
 }
 
 func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *testing.T) {
-	t.Parallel()
 
 	inspector, err := NewInspector(InspectorConfig{
 		Brokers:     []string{"broker.internal:9092"},
@@ -277,7 +272,6 @@ func TestInspectorConstructsHealthChecksClosesAndPreservesFactoryFailure(t *test
 }
 
 func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
-	t.Parallel()
 
 	tests := []struct {
 		name   string
@@ -322,7 +316,6 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			inspector, err := NewInspector(test.config)
 			if inspector != nil {
@@ -339,7 +332,6 @@ func TestInspectorConfigRejectsInvalidIdentitySecurityAndTimeout(t *testing.T) {
 }
 
 func TestInspectorConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
-	t.Parallel()
 
 	for name, config := range map[string]InspectorConfig{
 		"minimum": {

@@ -419,9 +419,13 @@ func normalizeFailureHandlerConfig(
 		if config.Delegate == nil {
 			return FailureHandlerConfig{}, ErrFailureDelegateRequired
 		}
-		if config.Target != (FailureTarget{}) ||
-			config.Publisher != nil ||
-			config.PublishTimeout != 0 {
+		if config.Target != (FailureTarget{}) {
+			return FailureHandlerConfig{}, ErrInvalidFailurePolicy
+		}
+		if config.Publisher != nil {
+			return FailureHandlerConfig{}, ErrInvalidFailurePolicy
+		}
+		if config.PublishTimeout != 0 {
 			return FailureHandlerConfig{}, ErrInvalidFailurePolicy
 		}
 	}
@@ -439,8 +443,13 @@ func normalizeFailureRetryPolicy(
 		return FailureRetryPolicy{}, ErrInvalidFailurePolicy
 	}
 	if policy.MaxAttempts == 1 {
-		if policy.InitialBackoff != 0 || policy.MaxBackoff != 0 ||
-			len(policy.Categories) != 0 {
+		if policy.InitialBackoff != 0 {
+			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+		}
+		if policy.MaxBackoff != 0 {
+			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
+		}
+		if len(policy.Categories) != 0 {
 			return FailureRetryPolicy{}, ErrInvalidFailurePolicy
 		}
 
@@ -573,12 +582,8 @@ func (handler *failureHandler) retryable(category ErrorCategory) bool {
 
 func failureBackoff(policy FailureRetryPolicy, attempt int) time.Duration {
 	delay := policy.InitialBackoff
-	for current := 1; current < attempt; current++ {
-		if delay >= policy.MaxBackoff ||
-			delay > policy.MaxBackoff/2 {
-			return policy.MaxBackoff
-		}
-		delay *= 2
+	for current := 1; current < attempt && delay != policy.MaxBackoff; current++ {
+		delay = min(delay*2, policy.MaxBackoff)
 	}
 	return delay
 }
@@ -602,10 +607,10 @@ func (handler *failureHandler) resolve(
 	switch handler.mode {
 	case FailureModeStop:
 		causes := []error{ErrConsumerFailureStopped, failure.cause}
-		if failure.Attempt == handler.retry.MaxAttempts &&
-			handler.retry.MaxAttempts > 1 &&
-			handler.retryable(failure.Category) {
-			causes = append(causes, ErrFailureAttemptsExhausted)
+		if failure.Attempt == handler.retry.MaxAttempts {
+			if handler.retryable(failure.Category) {
+				causes = append(causes, ErrFailureAttemptsExhausted)
+			}
 		}
 
 		return newFailureHandlingError(

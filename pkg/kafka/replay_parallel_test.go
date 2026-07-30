@@ -7,12 +7,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 func TestReplayHandlerConcurrencyDefaultsAndBounds(t *testing.T) {
-	t.Parallel()
 
 	config, err := normalizeReplayConfig(validReplayConfig())
 	if err != nil {
@@ -57,7 +57,6 @@ func TestReplayHandlerConcurrencyDefaultsAndBounds(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			config := validReplayConfig()
 			test.change(&config)
@@ -72,7 +71,6 @@ func TestReplayHandlerConcurrencyDefaultsAndBounds(t *testing.T) {
 }
 
 func TestNewReplayReaderAppliesConcurrencyPolicyOptions(t *testing.T) {
-	t.Parallel()
 
 	config := validReplayConfig()
 	config.MaxConcurrentFetches = 3
@@ -103,7 +101,6 @@ func TestNewReplayReaderAppliesConcurrencyPolicyOptions(t *testing.T) {
 func TestReplayProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	ranges := []ReplayRange{
 		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 2},
@@ -187,7 +184,6 @@ func TestReplayProcessesPartitionsConcurrentlyButEachPartitionSequentially(
 func TestReplayParallelFailurePreservesIndependentPartitionProgress(
 	t *testing.T,
 ) {
-	t.Parallel()
 
 	ranges := []ReplayRange{
 		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1},
@@ -239,7 +235,6 @@ func TestReplayParallelFailurePreservesIndependentPartitionProgress(
 }
 
 func TestReplayParallelRejectsUnexpectedPartitionBeforeHandlers(t *testing.T) {
-	t.Parallel()
 
 	reader := replayReaderWithBackend(
 		&recordingReplayBackend{fetches: []kgo.Fetches{recordFetches(
@@ -270,7 +265,6 @@ func TestReplayParallelRejectsUnexpectedPartitionBeforeHandlers(t *testing.T) {
 }
 
 func TestReplayRejectsBackendRecordsBeyondPollLimitBeforeHandlers(t *testing.T) {
-	t.Parallel()
 
 	ranges := []ReplayRange{
 		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1},
@@ -306,7 +300,20 @@ func TestReplayRejectsBackendRecordsBeyondPollLimitBeforeHandlers(t *testing.T) 
 }
 
 func TestReplayPartitionWorkerSingleBatchAndExpiredDeadline(t *testing.T) {
-	t.Parallel()
+
+	emptyCalls := 0
+	emptyResults := runReplayPartitionWorkers(
+		nil,
+		2,
+		func(consumerPartitionBatch) replayPartitionResult {
+			emptyCalls++
+
+			return replayPartitionResult{}
+		},
+	)
+	if emptyResults == nil || len(emptyResults) != 0 || emptyCalls != 0 {
+		t.Fatalf("empty worker results/calls = %#v/%d", emptyResults, emptyCalls)
+	}
 
 	batch := consumerPartitionBatch{
 		partition: TopicPartition{Topic: "events", Partition: 1},
@@ -356,8 +363,137 @@ func TestReplayPartitionWorkerSingleBatchAndExpiredDeadline(t *testing.T) {
 	}
 }
 
+func TestReplayPartitionProcessingCountsExactSkipAndGapOutcomes(t *testing.T) {
+
+	reader := replayReaderWithBackend(
+		&recordingReplayBackend{},
+		[]ReplayRange{{
+			Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 2,
+		}},
+	)
+	handler := ReplayHandlerFunc(func(context.Context, ReplayRecord) error {
+		t.Fatal("skip or gap record invoked handler")
+
+		return nil
+	})
+	future := reader.now().Add(time.Second)
+
+	complete := reader.processReplayPartition(
+		context.Background(),
+		handler,
+		consumerPartitionBatch{
+			partition: TopicPartition{Topic: "events", Partition: 0},
+			records: []*kgo.Record{
+				{Topic: "events", Partition: 0, Offset: 2},
+				{Topic: "events", Partition: 0, Offset: 3},
+			},
+		},
+		ReplayRangeResult{
+			ReplayRange: ReplayRange{
+				Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 2,
+			},
+			NextOffset: 2,
+			Complete:   true,
+		},
+		ReplayMetadata{},
+		future,
+	)
+	if complete.err != nil ||
+		complete.skipped != 2 ||
+		complete.failed != 0 ||
+		complete.progress.Skipped != 2 ||
+		complete.progress.Failed != 0 {
+		t.Fatalf("complete partition result = %#v", complete)
+	}
+
+	duplicate := reader.processReplayPartition(
+		context.Background(),
+		ReplayHandlerFunc(func(
+			_ context.Context,
+			record ReplayRecord,
+		) error {
+			if record.Offset != 1 {
+				t.Fatalf("processed duplicate offset %d", record.Offset)
+			}
+
+			return nil
+		}),
+		consumerPartitionBatch{
+			partition: TopicPartition{Topic: "events", Partition: 0},
+			records: []*kgo.Record{
+				{Topic: "events", Partition: 0, Offset: 0},
+				{Topic: "events", Partition: 0, Offset: 1},
+			},
+		},
+		ReplayRangeResult{
+			ReplayRange: ReplayRange{
+				Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 2,
+			},
+			NextOffset: 1,
+		},
+		ReplayMetadata{},
+		future,
+	)
+	if duplicate.err != nil ||
+		duplicate.skipped != 1 ||
+		duplicate.processed != 1 ||
+		duplicate.failed != 0 ||
+		duplicate.progress.Skipped != 1 ||
+		duplicate.progress.Processed != 1 ||
+		duplicate.progress.Failed != 0 ||
+		duplicate.progress.NextOffset != 2 ||
+		!duplicate.progress.Complete {
+		t.Fatalf("duplicate partition result = %#v", duplicate)
+	}
+
+	for name, test := range map[string]struct {
+		recordOffset int64
+		progress     ReplayRangeResult
+	}{
+		"before start": {
+			recordOffset: -1,
+			progress: ReplayRangeResult{ReplayRange: ReplayRange{
+				Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 2,
+			}},
+		},
+		"at exclusive end": {
+			recordOffset: 1,
+			progress: ReplayRangeResult{
+				ReplayRange: ReplayRange{
+					Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1,
+				},
+				NextOffset: 1,
+			},
+		},
+	} {
+		test := test
+		t.Run(name, func(t *testing.T) {
+
+			result := reader.processReplayPartition(
+				context.Background(),
+				handler,
+				consumerPartitionBatch{
+					partition: TopicPartition{Topic: "events", Partition: 0},
+					records: []*kgo.Record{{
+						Topic: "events", Partition: 0, Offset: test.recordOffset,
+					}},
+				},
+				test.progress,
+				ReplayMetadata{},
+				future,
+			)
+			if !errors.Is(result.err, ErrReplayOffsetGap) ||
+				result.failed != 1 ||
+				result.skipped != 0 ||
+				result.progress.Failed != 1 ||
+				result.progress.Skipped != 0 {
+				t.Fatalf("gap partition result = %#v", result)
+			}
+		})
+	}
+}
+
 func TestReplayParallelCancellationDoesNotAdmitQueuedPartition(t *testing.T) {
-	t.Parallel()
 
 	ranges := []ReplayRange{
 		{Topic: "events", Partition: 0, StartOffset: 0, EndOffset: 1},
