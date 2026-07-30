@@ -67,6 +67,42 @@ func ExampleVerifyAccountProof() {
 	// Output: true 1 42
 }
 
+func ExampleVerifyStorageProofs() {
+	ctx := context.Background()
+	limits := mpt.DefaultLimits()
+	storage, _ := mpt.NewStorageTrie(limits)
+	storageRoot, _ := storage.Root()
+
+	var address [20]byte
+	value, _ := mpt.NewAccountValue(
+		0, [32]byte{}, storageRoot, mpt.EmptyCodeHash(), limits,
+	)
+	state, _ := mpt.NewStateTrie(limits)
+	state, _ = state.UpdateAccount(ctx, address, value)
+	stateRoot, _ := state.Root()
+	accountProof, _ := state.ProveAccount(ctx, address)
+	account, _ := mpt.VerifyAccountProof(
+		ctx, stateRoot, address, value.Bytes(), accountProof, limits,
+	)
+
+	var firstSlot [32]byte
+	var secondSlot [32]byte
+	secondSlot[31] = 1
+	firstProof, _ := storage.ProveSlot(ctx, firstSlot)
+	secondProof, _ := storage.ProveSlot(ctx, secondSlot)
+	err := mpt.VerifyStorageProofs(
+		ctx,
+		account,
+		[]mpt.StorageProofClaim{
+			mpt.StorageAbsenceClaim(firstSlot, firstProof),
+			mpt.StorageAbsenceClaim(secondSlot, secondProof),
+		},
+		limits,
+	)
+	fmt.Println(err == nil)
+	// Output: true
+}
+
 func ExampleStorageTrie() {
 	var slot [32]byte
 	slot[31] = 7

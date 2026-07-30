@@ -140,15 +140,24 @@ account, err := mpt.VerifyAccountProof(
 )
 
 slotProof, err := mpt.ProofFromNodes(storageProofNodes, limits)
-err = mpt.VerifyStorageProof(
+absentSlotProof, err := mpt.ProofFromNodes(absentStorageProofNodes, limits)
+claims := []mpt.StorageProofClaim{
+    mpt.StorageMembershipClaim(
+        slot, minimalNonZeroStorageValue, slotProof,
+    ),
+    mpt.StorageAbsenceClaim(absentSlot, absentSlotProof),
+}
+err = mpt.VerifyStorageProofs(
     ctx,
     account,
-    slot,
-    minimalNonZeroStorageValue, // nil verifies absence/zero
-    slotProof,
+    claims,
     limits,
 )
 ```
+
+`VerifyStorageProof` remains the single-slot convenience function. The
+proof-set verifier copies membership values, validates aggregate proof
+node/byte/hash budgets, and rejects repeated slots before checking any proof.
 
 For an absent account, call `VerifyAccountAbsence`; do not construct a synthetic
 empty account. A verified absent account, an absent slot under a verified

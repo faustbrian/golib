@@ -140,6 +140,7 @@ privacy and retention boundary.
 
 ### Is this a stable v1 release?
 
-No. The module remains pre-v1 until every release gate and compatibility claim
-in the project goal has complete evidence. Review the changelog and source
-provenance before adopting a pre-v1 revision.
+No. The documented compatibility surface has complete local release evidence,
+but the module remains unreleased and pre-v1 until the repository release
+process publishes a versioned tag. Review the changelog and source provenance
+before adopting an untagged revision.

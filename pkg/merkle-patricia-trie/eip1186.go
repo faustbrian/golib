@@ -17,6 +17,40 @@ type Account struct {
 	verified    bool
 }
 
+// StorageProofClaim is one immutable EIP-1186 storage membership or absence
+// claim. Construct claims with StorageMembershipClaim or StorageAbsenceClaim.
+type StorageProofClaim struct {
+	slot          [RootBytes]byte
+	expectedValue []byte
+	proof         Proof
+	present       bool
+	valid         bool
+}
+
+// StorageMembershipClaim constructs an exact non-zero storage-value claim.
+// expectedValue is copied and must be a minimal unsigned big-endian integer.
+func StorageMembershipClaim(
+	slot [RootBytes]byte,
+	expectedValue []byte,
+	proof Proof,
+) StorageProofClaim {
+	return StorageProofClaim{
+		slot:          slot,
+		expectedValue: append([]byte(nil), expectedValue...),
+		proof:         proof,
+		present:       true,
+		valid:         true,
+	}
+}
+
+// StorageAbsenceClaim constructs an exact absent-slot claim.
+func StorageAbsenceClaim(
+	slot [RootBytes]byte,
+	proof Proof,
+) StorageProofClaim {
+	return StorageProofClaim{slot: slot, proof: proof, valid: true}
+}
+
 // Nonce returns the account's unsigned 64-bit transaction nonce.
 func (account Account) Nonce() uint64 {
 	return account.nonce
@@ -107,6 +141,83 @@ func VerifyStorageProof(
 		proof,
 		limits,
 	)
+}
+
+// VerifyStorageProofs verifies one or more independent EIP-1186 slot proofs
+// against a verified account. It validates the complete claim set before
+// traversal, rejects duplicate or conflicting slots, and applies proof count
+// and byte limits to the aggregate transport payload.
+func VerifyStorageProofs(
+	ctx context.Context,
+	account Account,
+	claims []StorageProofClaim,
+	limits Limits,
+) error {
+	if err := validateTrieLimits(limits); err != nil {
+		return err
+	}
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
+	if !account.verified {
+		return ErrInvalidAccount
+	}
+	if len(claims) == 0 || len(claims) > limits.MaxProofKeys {
+		return fmt.Errorf("%w: invalid storage proof count", ErrInvalidProofClaim)
+	}
+
+	seen := make(map[[RootBytes]byte]struct{}, len(claims))
+	totalNodes := 0
+	totalBytes := 0
+	hashOperations := 0
+	for _, claim := range claims {
+		if !claim.valid {
+			return ErrInvalidProofClaim
+		}
+		if _, duplicate := seen[claim.slot]; duplicate {
+			return ErrDuplicateProofKey
+		}
+		seen[claim.slot] = struct{}{}
+		if claim.present &&
+			(len(claim.expectedValue) == 0 ||
+				len(claim.expectedValue) > RootBytes ||
+				claim.expectedValue[0] == 0) {
+			return ErrInvalidStorageValue
+		}
+		if len(claim.proof.nodes) > limits.MaxProofNodes-totalNodes {
+			return fmt.Errorf("%w: proof node bound exceeded", ErrResourceLimit)
+		}
+		totalNodes += len(claim.proof.nodes)
+		if len(claim.proof.nodes)+1 >
+			limits.MaxHashOperations-hashOperations {
+			return fmt.Errorf("%w: hash operation bound exceeded", ErrResourceLimit)
+		}
+		hashOperations += len(claim.proof.nodes) + 1
+		for _, encoded := range claim.proof.nodes {
+			if len(encoded) > limits.MaxProofBytes-totalBytes {
+				return fmt.Errorf("%w: proof byte bound exceeded", ErrResourceLimit)
+			}
+			totalBytes += len(encoded)
+		}
+	}
+
+	for _, claim := range claims {
+		expectedValue := claim.expectedValue
+		if !claim.present {
+			expectedValue = nil
+		}
+		if err := VerifyStorageProof(
+			ctx,
+			account,
+			claim.slot,
+			expectedValue,
+			claim.proof,
+			limits,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func encodeStorageInteger(value []byte) []byte {

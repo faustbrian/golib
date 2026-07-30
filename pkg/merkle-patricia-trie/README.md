@@ -3,9 +3,11 @@
 `merkle-patricia-trie` is an independent Go implementation of Ethereum's
 execution-layer modified Merkle Patricia trie. Its root package is `mpt`.
 
-The module is under active pre-v1 development. Compatibility claims are made
-only for surfaces backed by the pinned sources and executable evidence listed
-in [source provenance](docs/source-provenance.md).
+The implementation is hardened for the compatibility surface documented
+below. The module remains unreleased and pre-v1 until the repository release
+process publishes a versioned tag. Compatibility claims are limited to the
+pinned sources and executable evidence in
+[source provenance](docs/source-provenance.md).
 
 ## Intended guarantees
 
@@ -165,6 +167,9 @@ failed proofs. `VerifyStorageProof` accepts an exact 32-byte slot key and a
 minimal unsigned big-endian expected value, derives the secure path, encodes
 the Ethereum storage value, and binds verification to the proven account
 storage root. An empty expected storage value verifies absence.
+`StorageMembershipClaim` and `StorageAbsenceClaim` make proof-set intent
+explicit. `VerifyStorageProofs` validates one or many slot proofs as one
+bounded set and rejects duplicate or conflicting slots before traversal.
 
 These helpers consume decoded proof-node bytes and do not depend on JSON-RPC
 objects or hex/quantity conventions. Interoperability tests verify account
@@ -242,8 +247,9 @@ does not produce a mutable snapshot or persist nodes.
 
 ## Status
 
-The compatibility foundation is being implemented in the delivery phases
-described in [architecture](docs/architecture.md). No release or Ethereum
-compatibility claim should be inferred from package presence alone.
+The documented compatibility surface has completed the delivery and hardening
+phases in [architecture](docs/architecture.md). The module remains unreleased
+and pre-v1 until the repository release process publishes a versioned tag; no
+claim beyond the pinned evidence should be inferred from package presence.
 
 Licensed under Apache-2.0.

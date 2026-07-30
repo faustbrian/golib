@@ -87,6 +87,112 @@ func TestEIP1186AccountAndStorageProofs(t *testing.T) {
 	}
 }
 
+func TestEIP1186StorageProofSet(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	limits := mpt.DefaultLimits()
+	storageTrie, err := mpt.NewSecureTrie(limits)
+	if err != nil {
+		t.Fatalf("NewSecureTrie(storage) error = %v", err)
+	}
+	var firstSlot [32]byte
+	firstSlot[31] = 1
+	var secondSlot [32]byte
+	secondSlot[31] = 2
+	var absentSlot [32]byte
+	absentSlot[31] = 3
+	firstValue := []byte{0x2a}
+	secondValue := []byte{0x01, 0x80}
+	for slot, value := range map[[32]byte][]byte{
+		firstSlot: firstValue, secondSlot: secondValue,
+	} {
+		storageTrie, err = storageTrie.Update(
+			ctx,
+			slot[:],
+			mustRLPString(t, value),
+		)
+		if err != nil {
+			t.Fatalf("storage Update() error = %v", err)
+		}
+	}
+
+	var address [20]byte
+	storageRoot := mustSecureRoot(t, storageTrie)
+	accountEncoding := mustAccountRLP(
+		t, nil, nil, storageRoot, [32]byte{},
+	)
+	stateTrie, err := mpt.NewSecureTrie(limits)
+	if err != nil {
+		t.Fatalf("NewSecureTrie(state) error = %v", err)
+	}
+	stateTrie, err = stateTrie.Update(ctx, address[:], accountEncoding)
+	if err != nil {
+		t.Fatalf("state Update() error = %v", err)
+	}
+	accountProof, err := stateTrie.Prove(ctx, address[:])
+	if err != nil {
+		t.Fatalf("state Prove() error = %v", err)
+	}
+	account, err := mpt.VerifyAccountProof(
+		ctx,
+		mustSecureRoot(t, stateTrie),
+		address,
+		accountEncoding,
+		accountProof,
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("VerifyAccountProof() error = %v", err)
+	}
+
+	firstProof, err := storageTrie.Prove(ctx, firstSlot[:])
+	if err != nil {
+		t.Fatalf("Prove(first slot) error = %v", err)
+	}
+	secondProof, err := storageTrie.Prove(ctx, secondSlot[:])
+	if err != nil {
+		t.Fatalf("Prove(second slot) error = %v", err)
+	}
+	absentProof, err := storageTrie.Prove(ctx, absentSlot[:])
+	if err != nil {
+		t.Fatalf("Prove(absent slot) error = %v", err)
+	}
+
+	firstClaim := mpt.StorageMembershipClaim(
+		firstSlot,
+		firstValue,
+		firstProof,
+	)
+	firstValue[0] = 0xff
+	claims := []mpt.StorageProofClaim{
+		firstClaim,
+		mpt.StorageMembershipClaim(secondSlot, secondValue, secondProof),
+		mpt.StorageAbsenceClaim(absentSlot, absentProof),
+	}
+	if err := mpt.VerifyStorageProofs(
+		ctx,
+		account,
+		claims,
+		limits,
+	); err != nil {
+		t.Fatalf("VerifyStorageProofs() error = %v", err)
+	}
+
+	duplicate := append(
+		append([]mpt.StorageProofClaim(nil), claims...),
+		mpt.StorageAbsenceClaim(firstSlot, firstProof),
+	)
+	if err := mpt.VerifyStorageProofs(
+		ctx,
+		account,
+		duplicate,
+		limits,
+	); !errors.Is(err, mpt.ErrDuplicateProofKey) {
+		t.Fatalf("VerifyStorageProofs(duplicate) error = %v", err)
+	}
+}
+
 func TestEIP1186AbsentAccountAndStorageSlot(t *testing.T) {
 	t.Parallel()
 

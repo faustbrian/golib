@@ -43,7 +43,7 @@ receipt, account-lifecycle, EVM, consensus, or chain semantics. See
 | Multi-key | Deduplicated shared nodes with strict canonical traversal | EthereumJS interoperability and proof-mutation tests |
 | Range | Complete ordered interval under the bounded range contract | EthereumJS interoperability, exhaustive small-state tests, and mutation tests |
 | EIP-1186 account | Account value or absence under a supplied state root | Account-proof tests and both client oracles |
-| EIP-1186 storage | Slot value or absence under the account's proven storage root | Storage proof-set tests and both client oracles |
+| EIP-1186 storage | One or many slot values or absences under the account's proven storage root, with duplicate rejection | Storage proof-set tests and both client oracles |
 
 Verification establishes only a value or absence claim under the supplied
 root. It does not establish that the root is canonical for a chain, finalized,

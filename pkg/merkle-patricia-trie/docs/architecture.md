@@ -91,7 +91,8 @@ opaque commitments. This proves that the returned leaf sequence is complete
 without loading unrelated subtrees. Secure range endpoints are explicit
 already-transformed 32-byte paths. EIP-1186 helpers bind account proofs to
 exact addresses and storage proofs to the storage root decoded from a proven
-canonical account.
+canonical account. Storage proof sets validate all claims and aggregate proof
+limits before traversal and reject repeated or conflicting slots.
 
 ## Canonical representation
 
