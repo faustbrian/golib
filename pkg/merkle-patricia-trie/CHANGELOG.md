@@ -47,7 +47,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Added canonical RLP integer key derivation for raw transaction and receipt
   trie indexes.
 - Added bounded fuzz harnesses for compact paths, canonical RLP, node decoding,
-  proof verification, mutation sequences, and ordered iteration.
+  proof verification, mutation sequences, rebuilds, EIP-1186, streaming
+  construction, commit/recovery/pruning transitions, cancellation, and
+  ordered iteration callback failures.
 - Added transport-independent EIP-1186 account membership, account absence,
   canonical account decoding, and storage-slot proof verification helpers.
 - Verified EIP-1186 account membership, account absence, storage membership,
