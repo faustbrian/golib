@@ -205,6 +205,7 @@ func TestProcessManagerInstrumentationPreservesFailuresAndPanics(
 			t.Fatal("failed process-manager plan reported command count")
 		}
 	}
+	assertAllSpansError(t, spans)
 	var metrics metricdata.ResourceMetrics
 	if err := reader.Collect(context.Background(), &metrics); err != nil {
 		t.Fatalf("Collect() error = %v", err)

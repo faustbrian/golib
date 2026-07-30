@@ -32,7 +32,7 @@ var (
 func (instrumentation *Instrumentation) WrapEventStore(
 	next eventsourcing.EventStore,
 ) (eventsourcing.EventStore, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if next == nil {
@@ -46,7 +46,7 @@ func (instrumentation *Instrumentation) WrapEventStore(
 func (instrumentation *Instrumentation) WrapGlobalReader(
 	next eventsourcing.GlobalReader,
 ) (eventsourcing.GlobalReader, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if next == nil {

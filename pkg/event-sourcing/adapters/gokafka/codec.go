@@ -531,20 +531,32 @@ func validateRecord(
 
 	total := 0
 	for _, item := range headers {
-		if item.Key == "" ||
-			len(item.Key) > limits.MaxHeaderKeyBytes ||
-			len(item.Value) > limits.MaxHeaderValueBytes ||
-			len(item.Key) > limits.MaxHeaderBytes-total {
+		next, valid := nextHeaderByteTotal(total, item, limits)
+		if !valid {
 			return ErrRecordCorrupt
 		}
-		total += len(item.Key)
-		if len(item.Value) > limits.MaxHeaderBytes-total {
-			return ErrRecordCorrupt
-		}
-		total += len(item.Value)
+		total = next
 	}
 
 	return nil
+}
+
+func nextHeaderByteTotal(
+	total int,
+	item kafka.Header,
+	limits kafka.MessageLimits,
+) (int, bool) {
+	if item.Key == "" ||
+		len(item.Key) > limits.MaxHeaderKeyBytes ||
+		len(item.Value) > limits.MaxHeaderValueBytes {
+		return 0, false
+	}
+	size := len(item.Key) + len(item.Value)
+	if size > limits.MaxHeaderBytes-total {
+		return 0, false
+	}
+
+	return total + size, true
 }
 
 func validTopic(topic string, maximum int) bool {

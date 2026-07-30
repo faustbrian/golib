@@ -49,7 +49,10 @@ func (instrumentation *Instrumentation) WrapProjectionRunner(
 	name string,
 	next ProjectionRunner,
 ) (ProjectionRunner, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if instrumentation == nil {
+		return nil, ErrRuntimeRequired
+	}
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if !validTelemetryProjectionName(name) {
@@ -185,7 +188,10 @@ func (instrumentation *Instrumentation) RecordProjectionLag(
 	current eventsourcing.GlobalPosition,
 	highWatermark eventsourcing.GlobalPosition,
 ) error {
-	if instrumentation == nil || !instrumentation.valid() {
+	if instrumentation == nil {
+		return ErrRuntimeRequired
+	}
+	if !instrumentation.valid() {
 		return ErrRuntimeRequired
 	}
 	if ctx == nil {

@@ -228,29 +228,18 @@ func validateDeadLetterRecord(
 	}
 	headerBytes := 0
 	for _, item := range record.Headers {
-		if item.Key == "" ||
-			len(item.Key) > limits.MaxHeaderKeyBytes ||
-			len(item.Value) > limits.MaxHeaderValueBytes ||
-			len(item.Key) > limits.MaxHeaderBytes-headerBytes {
+		next, valid := nextHeaderByteTotal(headerBytes, item, limits)
+		if !valid {
 			return ErrRecordCorrupt
 		}
-		headerBytes += len(item.Key)
-		if len(item.Value) > limits.MaxHeaderBytes-headerBytes {
-			return ErrRecordCorrupt
-		}
-		headerBytes += len(item.Value)
+		headerBytes = next
 	}
 	for _, item := range deadLetterPositionHeaders(record) {
-		if len(item.Key) > limits.MaxHeaderKeyBytes ||
-			len(item.Value) > limits.MaxHeaderValueBytes ||
-			len(item.Key) > limits.MaxHeaderBytes-headerBytes {
+		next, valid := nextHeaderByteTotal(headerBytes, item, limits)
+		if !valid {
 			return ErrRecordCorrupt
 		}
-		headerBytes += len(item.Key)
-		if len(item.Value) > limits.MaxHeaderBytes-headerBytes {
-			return ErrRecordCorrupt
-		}
-		headerBytes += len(item.Value)
+		headerBytes = next
 	}
 
 	return nil

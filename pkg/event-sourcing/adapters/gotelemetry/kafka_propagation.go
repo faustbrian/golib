@@ -108,7 +108,10 @@ func (instrumentation *Instrumentation) WrapKafkaHandler(
 func (instrumentation *Instrumentation) kafkaPropagation(
 	config KafkaPropagationConfig,
 ) (map[string]struct{}, kafka.MessageLimits, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if instrumentation == nil {
+		return nil, kafka.MessageLimits{}, ErrRuntimeRequired
+	}
+	if !instrumentation.valid() {
 		return nil, kafka.MessageLimits{}, ErrRuntimeRequired
 	}
 	limits := config.Limits
@@ -263,20 +266,14 @@ func propagationKeys(
 	fields map[string]struct{},
 ) []string {
 	keys := make([]string, 0, len(fields))
+	seen := make(map[string]struct{}, len(fields))
 	for _, header := range headers {
 		key := strings.ToLower(header.Key)
-		if _, allowed := fields[key]; !allowed {
-			continue
-		}
-		duplicate := false
-		for _, existing := range keys {
-			if existing == key {
-				duplicate = true
-				break
+		if _, allowed := fields[key]; allowed {
+			if _, duplicate := seen[key]; !duplicate {
+				keys = append(keys, key)
+				seen[key] = struct{}{}
 			}
-		}
-		if !duplicate {
-			keys = append(keys, key)
 		}
 	}
 	return keys
@@ -367,15 +364,17 @@ func validKafkaHeaders(
 	for _, header := range headers {
 		if header.Key == "" ||
 			len(header.Key) > limits.MaxHeaderKeyBytes ||
-			len(header.Value) > limits.MaxHeaderValueBytes ||
-			len(header.Key) > limits.MaxHeaderBytes-total {
+			len(header.Value) > limits.MaxHeaderValueBytes {
 			return false
 		}
 		total += len(header.Key)
-		if len(header.Value) > limits.MaxHeaderBytes-total {
+		if total > limits.MaxHeaderBytes {
 			return false
 		}
 		total += len(header.Value)
+		if total > limits.MaxHeaderBytes {
+			return false
+		}
 	}
 	return true
 }
@@ -391,13 +390,12 @@ func validKafkaPropagationHeaders(
 	seen := make(map[string]struct{}, len(fields))
 	for _, header := range headers {
 		key := strings.ToLower(header.Key)
-		if _, propagationField := fields[key]; !propagationField {
-			continue
+		if _, propagationField := fields[key]; propagationField {
+			if _, duplicate := seen[key]; duplicate {
+				return false
+			}
+			seen[key] = struct{}{}
 		}
-		if _, duplicate := seen[key]; duplicate {
-			return false
-		}
-		seen[key] = struct{}{}
 	}
 	return true
 }

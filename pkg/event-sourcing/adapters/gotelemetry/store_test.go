@@ -199,7 +199,17 @@ func TestStoreInstrumentationPreservesFailuresAndPanics(t *testing.T) {
 }
 
 func TestInstrumentedIteratorPreservesErrorsCloseAndPanics(t *testing.T) {
-	instrumentation := newKafkaTestInstrumentation(t, propagation.TraceContext{})
+	recorder := tracetest.NewSpanRecorder()
+	instrumentation, err := New(testRuntime{
+		tracer: sdktrace.NewTracerProvider(
+			sdktrace.WithSpanProcessor(recorder),
+		),
+		meter:      sdkmetric.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
 	want := errors.New("iterator failure")
 	next := &telemetryIterator{err: want, closeErr: want}
 	store, err := instrumentation.WrapEventStore(&telemetryStore{iterator: next})
@@ -217,6 +227,7 @@ func TestInstrumentedIteratorPreservesErrorsCloseAndPanics(t *testing.T) {
 	if iterator.Next(context.Background()) {
 		t.Fatal("Next() = true")
 	}
+	assertAllSpansError(t, recorder.Ended())
 	if !errors.Is(iterator.Err(), want) {
 		t.Fatalf("Err() = %v", iterator.Err())
 	}

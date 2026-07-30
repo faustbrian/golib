@@ -24,7 +24,7 @@ var (
 func (instrumentation *Instrumentation) WrapSnapshotStore(
 	next eventsourcing.SnapshotStore,
 ) (eventsourcing.SnapshotStore, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if next == nil {

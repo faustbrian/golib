@@ -207,6 +207,7 @@ func TestProjectionControlInstrumentationPreservesFailuresAndPanics(
 	if strings.Contains(fmt.Sprint(recorder.Ended()), secret.Error()) {
 		t.Fatal("projection control telemetry disclosed diagnostics")
 	}
+	assertAllSpansError(t, recorder.Ended())
 }
 
 func TestProjectionControlInstrumentationRejectsInvalidCalls(t *testing.T) {

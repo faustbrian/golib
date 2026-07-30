@@ -9,6 +9,7 @@ import (
 	"time"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -96,6 +97,9 @@ func TestSnapshotStoreInstrumentationMeasuresLifecycleOutcomes(t *testing.T) {
 			t.Fatalf("span %d = %q", index, spans[index].Name())
 		}
 	}
+	if spans[3].Status().Code != codes.Error {
+		t.Fatalf("stale snapshot span status = %s", spans[3].Status().Code)
+	}
 	if telemetry := fmt.Sprint(spans); strings.Contains(
 		telemetry,
 		snapshot.Stream().AggregateID(),
@@ -178,6 +182,7 @@ func TestSnapshotStoreInstrumentationPreservesErrorsAndPanics(t *testing.T) {
 	) {
 		t.Fatal("snapshot telemetry disclosed failure diagnostics")
 	}
+	assertAllSpansError(t, recorder.Ended())
 }
 
 func TestSnapshotStoreInstrumentationRejectsInvalidCalls(t *testing.T) {

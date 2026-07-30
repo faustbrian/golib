@@ -31,7 +31,7 @@ func (instrumentation *Instrumentation) WrapProjectionHandler(
 	name string,
 	next projection.Handler,
 ) (projection.Handler, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if !validTelemetryProjectionName(name) {

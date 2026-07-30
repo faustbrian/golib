@@ -45,7 +45,7 @@ func (instrumentation *Instrumentation) WrapProjectionController(
 	name string,
 	next ProjectionController,
 ) (ProjectionController, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if !validTelemetryProjectionName(name) {

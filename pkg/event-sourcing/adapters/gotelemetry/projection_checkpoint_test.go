@@ -187,6 +187,7 @@ func TestProjectionCheckpointInstrumentationPreservesFailuresAndPanics(
 	if strings.Contains(fmt.Sprint(recorder.Ended()), secret.Error()) {
 		t.Fatal("checkpoint telemetry disclosed failure diagnostics")
 	}
+	assertAllSpansError(t, recorder.Ended())
 }
 
 func TestProjectionCheckpointInstrumentationPreservesInputsAndRedactsInvalidName(

@@ -30,7 +30,7 @@ var (
 func (instrumentation *Instrumentation) WrapProjectionCheckpointStore(
 	next projection.CheckpointStore,
 ) (projection.CheckpointStore, error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if next == nil {

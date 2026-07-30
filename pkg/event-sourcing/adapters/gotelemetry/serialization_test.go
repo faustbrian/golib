@@ -328,6 +328,7 @@ func TestPayloadCodecInstrumentationPreservesFailuresAndPanics(t *testing.T) {
 	if strings.Contains(fmt.Sprint(spans), secret.Error()) {
 		t.Fatal("codec telemetry disclosed failure diagnostics")
 	}
+	assertAllSpansError(t, spans)
 	var metrics metricdata.ResourceMetrics
 	if err := reader.Collect(context.Background(), &metrics); err != nil {
 		t.Fatalf("Collect() error = %v", err)

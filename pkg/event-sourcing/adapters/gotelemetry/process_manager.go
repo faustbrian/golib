@@ -50,7 +50,7 @@ func WrapProcessManager[Command any](
 	name string,
 	next ProcessManager[Command],
 ) (ProcessManager[Command], error) {
-	if instrumentation == nil || !instrumentation.valid() {
+	if !instrumentation.valid() {
 		return nil, ErrRuntimeRequired
 	}
 	if !validTelemetryProcessManagerName(name) {
