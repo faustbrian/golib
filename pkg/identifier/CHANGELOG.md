@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 ### Changed
 
+- Escape line breaks in generic identifier assertion diagnostics so hostile
+  canonical values cannot forge test log entries.
 - ULID parsing now accepts consistently lowercase Laravel storage values while
   retaining uppercase canonical output and rejecting mixed-case input.
 - The module workflow gate now validates the repository's single root workflow

@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -129,11 +130,20 @@ func AssertCanonical[T stringValue](t testing.TB, value T, parse func(string) (T
 	text := value.String()
 	parsed, err := parse(text)
 	if err != nil {
-		t.Fatalf("parse canonical %q: %v", text, err)
+		t.Fatalf(
+			"parse canonical %q: %s",
+			sanitizeLogValue(text),
+			sanitizeLogValue(err.Error()),
+		)
 	}
 	if parsed != value {
-		t.Fatalf("canonical round trip changed %q", text)
+		t.Fatalf("canonical round trip changed %q", sanitizeLogValue(text))
 	}
+}
+
+func sanitizeLogValue(value string) string {
+	value = strings.ReplaceAll(value, "\r", `\r`)
+	return strings.ReplaceAll(value, "\n", `\n`)
 }
 
 // AssertStrictlyOrdered proves each adjacent value is greater than its
