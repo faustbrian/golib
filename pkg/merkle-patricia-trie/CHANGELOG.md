@@ -86,6 +86,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Filesystem retention and pruning now reject unopened stores, bound recovery
+  without integer overflow, and document indeterminate post-publication
+  storage outcomes.
 - State-account nonces now use `uint64`, and balances use exact 32-byte words,
   matching the execution-spec account types instead of exposing ambiguous
   minimally encoded integer bytes.

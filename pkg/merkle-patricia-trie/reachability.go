@@ -34,12 +34,17 @@ func DefaultReachabilityLimits() ReachabilityLimits {
 }
 
 // RootRetention keeps one historical root eligible for loading until Release.
+// Root does not transfer ownership of internal storage. Release makes the root
+// eligible for a later prune; it does not itself delete nodes. Repeated release
+// returns ErrReleasedRetention.
 type RootRetention interface {
 	Root() Root
 	Release(ctx context.Context) error
 }
 
 // RootRetainer is an optional store capability for retaining historical roots.
+// Implementations must document whether leases survive restart and how callers
+// reconcile an error reported after durable lease publication.
 type RootRetainer interface {
 	RetainRoot(
 		ctx context.Context,
@@ -49,7 +54,10 @@ type RootRetainer interface {
 }
 
 // NodePruner is an optional store capability for atomically deleting nodes
-// unreachable from its published root and retained historical roots.
+// unreachable from its published root and retained historical roots. A
+// non-zero PruneResult returned with an error means deletion committed and the
+// result describes it; a zero result with an error means deletion did not
+// commit. Implementations must document recovery for interrupted operations.
 type NodePruner interface {
 	Prune(ctx context.Context, limits ReachabilityLimits) (PruneResult, error)
 }

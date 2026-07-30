@@ -61,6 +61,12 @@ func TestStorePersistsIndependentRootRetentionsAcrossReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open(reopen) error = %v", err)
 	}
+	if _, err := store.Retentions(
+		ctx,
+		1,
+	); !errors.Is(err, mpt.ErrResourceLimit) {
+		t.Fatalf("Retentions(undersized maximum) error = %v", err)
+	}
 	retentions, err := store.Retentions(ctx, limits.MaxRetentions)
 	if err != nil {
 		t.Fatalf("Retentions() error = %v", err)

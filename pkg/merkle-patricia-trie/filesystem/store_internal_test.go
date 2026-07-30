@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -200,6 +201,18 @@ func TestStoreValidatesContextsReceiversAndIteratorInputs(t *testing.T) {
 		{name: "stored nodes maximum integer", mutate: func(limits *Limits) {
 			limits.MaxStoredNodes = int(^uint(0) >> 1)
 		}},
+		{name: "retentions zero", mutate: func(limits *Limits) {
+			limits.MaxRetentions = 0
+		}},
+		{name: "retentions negative", mutate: func(limits *Limits) {
+			limits.MaxRetentions = -1
+		}},
+		{name: "retentions recovery overflow", mutate: func(limits *Limits) {
+			limits.MaxRetentions = int(^uint(0)>>1) - 1
+		}},
+		{name: "retentions maximum integer", mutate: func(limits *Limits) {
+			limits.MaxRetentions = int(^uint(0) >> 1)
+		}},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -222,6 +235,23 @@ func TestStoreValidatesContextsReceiversAndIteratorInputs(t *testing.T) {
 	}
 	if err := validateLimits(validLimits); err != nil {
 		t.Fatalf("validateLimits(valid) error = %v", err)
+	}
+	if strconv.IntSize == 64 {
+		maximumUint64 := ^uint64(0)
+		exactProduct := validLimits
+		exactProduct.MaxNodeBytes = 3
+		exactProduct.MaxStoredNodes = int(maximumUint64 / 3)
+		if err := validateLimits(exactProduct); err != nil {
+			t.Fatalf("validateLimits(exact stored bytes) error = %v", err)
+		}
+		overflowProduct := exactProduct
+		overflowProduct.MaxStoredNodes++
+		if err := validateLimits(overflowProduct); !errors.Is(
+			err,
+			mpt.ErrResourceLimit,
+		) {
+			t.Fatalf("validateLimits(stored byte overflow) error = %v", err)
+		}
 	}
 
 	store, err := Open(context.Background(), path, DefaultLimits())
@@ -1227,6 +1257,19 @@ func TestStoreCancellationAndStorageFailureBoundaries(t *testing.T) {
 		t.Fatalf("writeNode(existing) error = %v", err)
 	}
 
+	store.retentionChanging = true
+	if err := store.CommitTrie(ctx, commit); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("CommitTrie(retention in progress) error = %v", err)
+	}
+	if err := store.Close(); !errors.Is(err, mpt.ErrStorageCommit) {
+		t.Fatalf("Close(retention in progress) error = %v", err)
+	}
+	store.retentionChanging = false
+	store.pruning = true
+	if err := store.CommitTrie(ctx, commit); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("CommitTrie(prune in progress) error = %v", err)
+	}
+	store.pruning = false
 	store.committing = true
 	if err := store.Close(); !errors.Is(err, mpt.ErrStorageCommit) {
 		t.Fatalf("Close(commit in progress) error = %v", err)
@@ -1447,13 +1490,43 @@ func TestOpenClassifiesCreationAndReadFailures(t *testing.T) {
 		}
 	})
 
-	t.Run("initial root publication permission", func(t *testing.T) {
+	t.Run("retention directory creation permission", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "trie")
 		if err := os.MkdirAll(
 			filepath.Join(path, nodeDirectory),
 			0o700,
 		); err != nil {
 			t.Fatalf("MkdirAll(nodes) error = %v", err)
+		}
+		if err := os.Chmod(path, 0o500); err != nil {
+			t.Fatalf("Chmod(path) error = %v", err)
+		}
+		defer func() {
+			if err := os.Chmod(path, 0o700); err != nil {
+				t.Errorf("restore path mode error = %v", err)
+			}
+		}()
+		if _, err := Open(
+			ctx,
+			path,
+			DefaultLimits(),
+		); !errors.Is(err, mpt.ErrStorageCommit) {
+			t.Fatalf("Open(read-only retention parent) error = %v", err)
+		}
+	})
+
+	t.Run("initial root publication permission", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "trie")
+		for _, directory := range []string{
+			nodeDirectory,
+			retentionDirectory,
+		} {
+			if err := os.MkdirAll(
+				filepath.Join(path, directory),
+				0o700,
+			); err != nil {
+				t.Fatalf("MkdirAll(%s) error = %v", directory, err)
+			}
 		}
 		if err := os.Chmod(path, 0o500); err != nil {
 			t.Fatalf("Chmod(path) error = %v", err)

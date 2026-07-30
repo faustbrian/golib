@@ -73,7 +73,7 @@ and may finish.
 `filesystem.Limits` bounds:
 
 - bytes in one node;
-- nodes and total bytes in one commit; and
+- nodes and total bytes in one commit;
 - total immutable node files, directory entries inspected by iteration, and
   interrupted-write recovery; and
 - durable historical-root retentions.
@@ -98,6 +98,14 @@ nodes in an owned transaction directory, and commits their removal atomically.
 `Open` completes or rolls back interrupted retention and prune operations
 before exposing the store. Callers must retain a historical root before
 publishing its replacement and release it only after every reader is done.
+
+A storage error after a retention record was renamed or removed has an
+indeterminate crash outcome. Reopen the store and call `Retentions` before
+retrying, even when `RetainRoot` returned a nil lease. When `RetainRoot`
+returns both a lease and an error, that lease remains effective in the current
+process. A `Prune` error with a non-zero result means the prune commit point
+passed and the result describes the logical removal; a zero result means no
+removal committed and `Open` will restore any staged nodes.
 
 ## Security boundary
 

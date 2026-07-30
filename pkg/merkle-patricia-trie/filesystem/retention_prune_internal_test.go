@@ -151,6 +151,29 @@ func TestRetentionInventoryRejectsCorruptState(t *testing.T) {
 	); !errors.Is(err, mpt.ErrResourceLimit) {
 		t.Fatalf("readRetentions(invalid bound) error = %v", err)
 	}
+	failure := errors.New("injected retention inventory failure")
+	if _, err := readRetentionsWith(
+		ctx,
+		validPath,
+		1,
+		func(string, int) ([]os.DirEntry, error) {
+			return nil, failure
+		},
+		readBoundedFile,
+	); !errors.Is(err, mpt.ErrStorageRead) {
+		t.Fatalf("readRetentionsWith(directory failure) error = %v", err)
+	}
+	if _, err := readRetentionsWith(
+		ctx,
+		validPath,
+		1,
+		readDirectoryBounded,
+		func(string, int) ([]byte, error) {
+			return nil, failure
+		},
+	); !errors.Is(err, mpt.ErrStorageRead) {
+		t.Fatalf("readRetentionsWith(file failure) error = %v", err)
+	}
 
 	for _, test := range []struct {
 		name    string
@@ -190,6 +213,145 @@ func TestRetentionInventoryRejectsCorruptState(t *testing.T) {
 	}
 }
 
+func TestTemporaryRetentionRecoveryPropagatesFailures(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("injected retention recovery failure")
+	path := t.TempDir()
+	operations := defaultRecoveryOperations()
+	operations.readDirectory = func(string, int) ([]os.DirEntry, error) {
+		return nil, failure
+	}
+	if err := recoverTemporaryRetentionsWith(
+		context.Background(),
+		path,
+		1,
+		operations,
+	); !errors.Is(err, mpt.ErrStorageRead) {
+		t.Fatalf("recoverTemporaryRetentionsWith(read failure) error = %v", err)
+	}
+	operations.readDirectory = func(string, int) ([]os.DirEntry, error) {
+		return nil, mpt.ErrResourceLimit
+	}
+	if err := recoverTemporaryRetentionsWith(
+		context.Background(),
+		path,
+		1,
+		operations,
+	); !errors.Is(err, mpt.ErrResourceLimit) {
+		t.Fatalf("recoverTemporaryRetentionsWith(bound) error = %v", err)
+	}
+
+	encodedID := strings.Repeat("00", retentionIDBytes)
+	temporary := filepath.Join(path, "."+encodedID+".tmp-value")
+	if err := os.WriteFile(temporary, []byte("temporary"), 0o600); err != nil {
+		t.Fatalf("WriteFile(temporary) error = %v", err)
+	}
+	operations = defaultRecoveryOperations()
+	operations.syncDirectory = func(string) error { return failure }
+	if err := recoverTemporaryRetentionsWith(
+		context.Background(),
+		path,
+		1,
+		operations,
+	); !errors.Is(err, mpt.ErrStorageCommit) {
+		t.Fatalf("recoverTemporaryRetentionsWith(sync failure) error = %v", err)
+	}
+}
+
+func TestOpenRejectsCorruptRetentionAndPruneArtifacts(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	t.Run("prune artifact", func(t *testing.T) {
+		t.Parallel()
+
+		path := t.TempDir()
+		if err := os.WriteFile(
+			filepath.Join(path, prunePendingDirectory),
+			[]byte("invalid"),
+			0o600,
+		); err != nil {
+			t.Fatalf("WriteFile(prune artifact) error = %v", err)
+		}
+		if _, err := Open(
+			ctx,
+			path,
+			DefaultLimits(),
+		); !errors.Is(err, mpt.ErrStorageRead) {
+			t.Fatalf("Open(prune artifact) error = %v", err)
+		}
+	})
+	t.Run("retention symlink", func(t *testing.T) {
+		t.Parallel()
+
+		path := t.TempDir()
+		if err := os.Symlink(
+			path,
+			filepath.Join(path, retentionDirectory),
+		); err != nil {
+			t.Fatalf("Symlink(retentions) error = %v", err)
+		}
+		if _, err := Open(
+			ctx,
+			path,
+			DefaultLimits(),
+		); !errors.Is(err, mpt.ErrInvalidStore) {
+			t.Fatalf("Open(retention symlink) error = %v", err)
+		}
+	})
+	t.Run("temporary retention directory", func(t *testing.T) {
+		t.Parallel()
+
+		path := t.TempDir()
+		retentions := filepath.Join(path, retentionDirectory)
+		if err := os.Mkdir(retentions, 0o700); err != nil {
+			t.Fatalf("Mkdir(retentions) error = %v", err)
+		}
+		name := "." + strings.Repeat("00", retentionIDBytes) + ".tmp-value"
+		if err := os.Mkdir(
+			filepath.Join(retentions, name),
+			0o700,
+		); err != nil {
+			t.Fatalf("Mkdir(temporary retention) error = %v", err)
+		}
+		if _, err := Open(
+			ctx,
+			path,
+			DefaultLimits(),
+		); !errors.Is(err, mpt.ErrCorruptNode) {
+			t.Fatalf("Open(temporary retention directory) error = %v", err)
+		}
+	})
+	t.Run("corrupt retention record", func(t *testing.T) {
+		t.Parallel()
+
+		path := t.TempDir()
+		store, err := Open(ctx, path, DefaultLimits())
+		if err != nil {
+			t.Fatalf("Open() error = %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+		name := strings.Repeat("00", retentionIDBytes)
+		if err := os.WriteFile(
+			filepath.Join(path, retentionDirectory, name),
+			[]byte("invalid"),
+			0o600,
+		); err != nil {
+			t.Fatalf("WriteFile(corrupt retention) error = %v", err)
+		}
+		if _, err := Open(
+			ctx,
+			path,
+			DefaultLimits(),
+		); !errors.Is(err, mpt.ErrCorruptNode) {
+			t.Fatalf("Open(corrupt retention) error = %v", err)
+		}
+	})
+}
+
 func TestRetentionAndPruneValidateLifecycle(t *testing.T) {
 	t.Parallel()
 
@@ -213,6 +375,26 @@ func TestRetentionAndPruneValidateLifecycle(t *testing.T) {
 		mpt.DefaultReachabilityLimits(),
 	); !errors.Is(err, mpt.ErrInvalidStore) {
 		t.Fatalf("nil Prune() error = %v", err)
+	}
+	zeroStore := &Store{}
+	if _, err := zeroStore.RetainRoot(
+		ctx,
+		mpt.EmptyRoot(),
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrInvalidStore) {
+		t.Fatalf("zero RetainRoot() error = %v", err)
+	}
+	if _, err := zeroStore.Retentions(
+		ctx,
+		1,
+	); !errors.Is(err, mpt.ErrInvalidStore) {
+		t.Fatalf("zero Retentions() error = %v", err)
+	}
+	if _, err := zeroStore.Prune(
+		ctx,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrInvalidStore) {
+		t.Fatalf("zero Prune() error = %v", err)
 	}
 	var nilRetention *rootRetention
 	if nilRetention.Root() != (mpt.Root{}) {
@@ -238,6 +420,47 @@ func TestRetentionAndPruneValidateLifecycle(t *testing.T) {
 	root, err := trie.Root()
 	if err != nil {
 		t.Fatalf("Root() error = %v", err)
+	}
+	if _, err := store.Retentions(ctx, 0); !errors.Is(
+		err,
+		mpt.ErrResourceLimit,
+	) {
+		t.Fatalf("Retentions(zero maximum, empty) error = %v", err)
+	}
+	busyNodePath := store.nodePath(root)
+	hiddenBusyNodePath := busyNodePath + ".hidden"
+	if err := os.Rename(busyNodePath, hiddenBusyNodePath); err != nil {
+		t.Fatalf("Rename(busy node) error = %v", err)
+	}
+	store.committing = true
+	if _, err := store.RetainRoot(
+		ctx,
+		root,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("RetainRoot(concurrent commit) error = %v", err)
+	}
+	store.committing = false
+	store.retentionChanging = true
+	if _, err := store.RetainRoot(
+		ctx,
+		root,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("RetainRoot(concurrent retention) error = %v", err)
+	}
+	store.retentionChanging = false
+	store.pruning = true
+	if _, err := store.RetainRoot(
+		ctx,
+		root,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("RetainRoot(concurrent prune) error = %v", err)
+	}
+	store.pruning = false
+	if err := os.Rename(hiddenBusyNodePath, busyNodePath); err != nil {
+		t.Fatalf("Restore(busy node) error = %v", err)
 	}
 
 	canceled, cancel := context.WithCancel(ctx)
@@ -306,14 +529,58 @@ func TestRetentionAndPruneValidateLifecycle(t *testing.T) {
 	); err != nil {
 		t.Fatalf("Retentions() error = %v", err)
 	}
+	exactRetentionLimit := mpt.DefaultReachabilityLimits()
+	exactRetentionLimit.MaxRetentions = 1
+	if _, err := store.Prune(ctx, exactRetentionLimit); err != nil {
+		t.Fatalf("Prune(exact retention bound) error = %v", err)
+	}
+	retainedNodePath := store.nodePath(root)
+	hiddenNodePath := retainedNodePath + ".hidden"
+	if err := os.Rename(retainedNodePath, hiddenNodePath); err != nil {
+		t.Fatalf("Rename(retained node) error = %v", err)
+	}
+	store.limits.MaxRetentions = 1
+	if _, err := store.RetainRoot(
+		ctx,
+		root,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrResourceLimit) {
+		t.Fatalf("RetainRoot(full before traversal) error = %v", err)
+	}
+	store.limits.MaxRetentions = DefaultLimits().MaxRetentions
+	if err := os.Rename(hiddenNodePath, retainedNodePath); err != nil {
+		t.Fatalf("Restore(retained node) error = %v", err)
+	}
 	if err := lease.Release(canceled); !errors.Is(err, mpt.ErrCanceled) {
 		t.Fatalf("Release(canceled) error = %v", err)
 	}
 	store.committing = true
+	if _, err := store.Prune(
+		ctx,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("Prune(concurrent commit) error = %v", err)
+	}
 	if err := lease.Release(ctx); !errors.Is(err, mpt.ErrStaleRoot) {
 		t.Fatalf("Release(concurrent commit) error = %v", err)
 	}
 	store.committing = false
+	store.retentionChanging = true
+	if _, err := store.Prune(
+		ctx,
+		mpt.DefaultReachabilityLimits(),
+	); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("Prune(concurrent retention) error = %v", err)
+	}
+	if err := lease.Release(ctx); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("Release(concurrent retention) error = %v", err)
+	}
+	store.retentionChanging = false
+	store.pruning = true
+	if err := lease.Release(ctx); !errors.Is(err, mpt.ErrStaleRoot) {
+		t.Fatalf("Release(concurrent prune) error = %v", err)
+	}
+	store.pruning = false
 	if err := lease.Release(ctx); err != nil {
 		t.Fatalf("Release() error = %v", err)
 	}
@@ -378,10 +645,12 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 	t.Parallel()
 
 	failure := errors.New("injected retention persistence failure")
+	rollbackFailure := errors.New("injected retention rollback failure")
 	for _, test := range []struct {
 		name      string
 		configure func(*Store)
 		wantLease bool
+		wantCause error
 	}{
 		{
 			name: "identifier",
@@ -420,10 +689,16 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 		{
 			name: "sync rollback sync",
 			configure: func(store *Store) {
+				calls := 0
 				store.retentionOperations.syncDirectory = func(string) error {
-					return failure
+					calls++
+					if calls == 1 {
+						return failure
+					}
+					return rollbackFailure
 				}
 			},
+			wantCause: rollbackFailure,
 		},
 		{
 			name:      "sync rollback remove",
@@ -457,6 +732,13 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 			if !errors.Is(err, mpt.ErrStorageCommit) {
 				t.Fatalf("RetainRoot() error = %v", err)
 			}
+			if test.wantCause != nil && !errors.Is(err, test.wantCause) {
+				t.Fatalf(
+					"RetainRoot() error = %v, want cause %v",
+					err,
+					test.wantCause,
+				)
+			}
 			if (lease != nil) != test.wantLease {
 				t.Fatalf("RetainRoot() lease = %v, want non-nil %t", lease, test.wantLease)
 			}
@@ -466,7 +748,14 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 	t.Run("post-validation state", func(t *testing.T) {
 		t.Parallel()
 
-		for _, state := range []string{"closed", "busy", "capacity", "canceled"} {
+		for _, state := range []string{
+			"closed",
+			"committing",
+			"retention",
+			"pruning",
+			"capacity",
+			"canceled",
+		} {
 			state := state
 			t.Run(state, func(t *testing.T) {
 				t.Parallel()
@@ -475,6 +764,8 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 				defer func() {
 					store.closed = false
 					store.committing = false
+					store.retentionChanging = false
+					store.pruning = false
 					if closeErr := store.Close(); closeErr != nil {
 						t.Errorf("Close() error = %v", closeErr)
 					}
@@ -488,8 +779,12 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 					switch state {
 					case "closed":
 						store.closed = true
-					case "busy":
+					case "committing":
 						store.committing = true
+					case "retention":
+						store.retentionChanging = true
+					case "pruning":
+						store.pruning = true
 					case "capacity":
 						store.retentions[retentionID{}] = root
 						store.limits.MaxRetentions = 1
@@ -508,7 +803,7 @@ func TestRetentionPersistenceFailureBoundaries(t *testing.T) {
 					if !errors.Is(err, mpt.ErrClosedStore) {
 						t.Fatalf("RetainRoot() error = %v", err)
 					}
-				case "busy":
+				case "committing", "retention", "pruning":
 					if !errors.Is(err, mpt.ErrStaleRoot) {
 						t.Fatalf("RetainRoot() error = %v", err)
 					}
@@ -684,26 +979,100 @@ func TestPruneRecoveryRejectsConflictsAndRestoresPendingNodes(t *testing.T) {
 	); err == nil {
 		t.Fatal("readPruneEntries(missing) error = nil")
 	}
+	invalidPrune := filepath.Join(base, "invalid-prune")
+	if err := os.Mkdir(invalidPrune, 0o700); err != nil {
+		t.Fatalf("Mkdir(invalid prune) error = %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(invalidPrune, "invalid"),
+		[]byte("x"),
+		0o600,
+	); err != nil {
+		t.Fatalf("WriteFile(invalid prune) error = %v", err)
+	}
+	if _, err := readPruneEntries(
+		invalidPrune,
+		1,
+	); !errors.Is(err, mpt.ErrCorruptNode) {
+		t.Fatalf("readPruneEntries(invalid) error = %v", err)
+	}
 	if err := removeCommittedPrune(
 		filepath.Join(base, "missing-prune"),
 		1,
 	); err == nil {
 		t.Fatal("removeCommittedPrune(missing) error = nil")
 	}
-	if _, err := addRemovedBytes(^uint64(0), 1); !errors.Is(
-		err,
-		mpt.ErrResourceLimit,
-	) {
-		t.Fatalf("addRemovedBytes(overflow) error = %v", err)
+
+	operations := defaultPruneOperations()
+	failure := errors.New("injected restore failure")
+	operations.lstat = func(string) (os.FileInfo, error) {
+		return nil, failure
 	}
-	if _, err := addRemovedBytes(0, -1); !errors.Is(
-		err,
-		mpt.ErrResourceLimit,
-	) {
-		t.Fatalf("addRemovedBytes(negative) error = %v", err)
+	if err := restorePrunedNodeWith(
+		source,
+		target,
+		5,
+		operations,
+	); !errors.Is(err, failure) {
+		t.Fatalf("restorePrunedNodeWith(stat failure) error = %v", err)
 	}
-	if total, err := addRemovedBytes(1, 2); err != nil || total != 3 {
-		t.Fatalf("addRemovedBytes() = (%d, %v), want (3, nil)", total, err)
+	operations = defaultPruneOperations()
+	readCalls := 0
+	operations.readFile = func(path string, maximum int) ([]byte, error) {
+		readCalls++
+		if readCalls == 1 {
+			return nil, failure
+		}
+		return readBoundedFile(path, maximum)
+	}
+	if err := restorePrunedNodeWith(
+		source,
+		target,
+		5,
+		operations,
+	); !errors.Is(err, failure) {
+		t.Fatalf("restorePrunedNodeWith(source read failure) error = %v", err)
+	}
+	operations = defaultPruneOperations()
+	readCalls = 0
+	operations.readFile = func(path string, maximum int) ([]byte, error) {
+		readCalls++
+		if readCalls == 2 {
+			return nil, failure
+		}
+		return readBoundedFile(path, maximum)
+	}
+	if err := restorePrunedNodeWith(
+		source,
+		target,
+		5,
+		operations,
+	); !errors.Is(err, failure) {
+		t.Fatalf("restorePrunedNodeWith(target read failure) error = %v", err)
+	}
+
+	restoreBase, restoreNodes, restoreHash := preparePruneStage(t)
+	restorePending := filepath.Join(restoreBase, prunePendingDirectory)
+	if err := os.Mkdir(restorePending, 0o700); err != nil {
+		t.Fatalf("Mkdir(restore pending) error = %v", err)
+	}
+	restoreName := hex.EncodeToString(restoreHash[:])
+	if err := os.Rename(
+		filepath.Join(restoreNodes, restoreName),
+		filepath.Join(restorePending, restoreName),
+	); err != nil {
+		t.Fatalf("Rename(restore node) error = %v", err)
+	}
+	operations = defaultPruneOperations()
+	operations.rename = func(string, string) error { return failure }
+	if err := restorePendingPrune(
+		restoreNodes,
+		restorePending,
+		1,
+		DefaultLimits().MaxNodeBytes,
+		operations,
+	); !errors.Is(err, failure) {
+		t.Fatalf("restorePendingPrune(rename failure) error = %v", err)
 	}
 }
 
@@ -727,7 +1096,7 @@ func TestStagePruneRollsBackCancellationAndMoveFailures(t *testing.T) {
 
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	if committed, err := stagePrune(
+	committed, err := stagePrune(
 		canceled,
 		base,
 		nodes,
@@ -736,15 +1105,19 @@ func TestStagePruneRollsBackCancellationAndMoveFailures(t *testing.T) {
 		DefaultLimits().MaxNodeBytes,
 		func(pruneStage) {},
 		defaultPruneOperations(),
-	); committed || !errors.Is(err, mpt.ErrCanceled) {
+	)
+	if committed || !errors.Is(err, mpt.ErrCanceled) {
 		t.Fatalf("stagePrune(canceled) = (%t, %v)", committed, err)
+	}
+	if errors.Is(err, mpt.ErrStorageCommit) {
+		t.Fatalf("stagePrune(canceled) added storage failure: %v", err)
 	}
 	if _, err := os.Lstat(nodePath); err != nil {
 		t.Fatalf("canceled prune lost node: %v", err)
 	}
 
 	cancelAfterStage, cancel := context.WithCancel(ctx)
-	if committed, err := stagePrune(
+	committed, err = stagePrune(
 		cancelAfterStage,
 		base,
 		nodes,
@@ -757,8 +1130,12 @@ func TestStagePruneRollsBackCancellationAndMoveFailures(t *testing.T) {
 			}
 		},
 		defaultPruneOperations(),
-	); committed || !errors.Is(err, mpt.ErrCanceled) {
+	)
+	if committed || !errors.Is(err, mpt.ErrCanceled) {
 		t.Fatalf("stagePrune(cancel after stage) = (%t, %v)", committed, err)
+	}
+	if errors.Is(err, mpt.ErrStorageCommit) {
+		t.Fatalf("stagePrune(cancel after stage) added storage failure: %v", err)
 	}
 	if _, err := os.Lstat(nodePath); err != nil {
 		t.Fatalf("staged canceled prune lost node: %v", err)
@@ -995,6 +1372,236 @@ func TestPruneReportsPreAndPostCommitFailures(t *testing.T) {
 				t.Fatalf("GetNode(current root) error = %v", err)
 			}
 		})
+	}
+}
+
+func TestPruneRejectsRecoveryReachabilityAndInventoryFailures(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("injected prune boundary failure")
+	t.Run("recovery", func(t *testing.T) {
+		t.Parallel()
+
+		store, _ := openCommittedRetentionStore(t)
+		defer func() {
+			store.pruneOperations = defaultPruneOperations()
+			if closeErr := store.Close(); closeErr != nil {
+				t.Errorf("Close() error = %v", closeErr)
+			}
+		}()
+		store.pruneOperations.lstat = func(path string) (os.FileInfo, error) {
+			if filepath.Base(path) == prunePendingDirectory {
+				return nil, failure
+			}
+			return os.Lstat(path)
+		}
+		if _, err := store.Prune(
+			context.Background(),
+			mpt.DefaultReachabilityLimits(),
+		); !errors.Is(err, mpt.ErrStorageRead) {
+			t.Fatalf("Prune(recovery failure) error = %v", err)
+		}
+	})
+	t.Run("missing published root", func(t *testing.T) {
+		t.Parallel()
+
+		store, err := Open(
+			context.Background(),
+			filepath.Join(t.TempDir(), "trie"),
+			DefaultLimits(),
+		)
+		if err != nil {
+			t.Fatalf("Open() error = %v", err)
+		}
+		defer func() {
+			if closeErr := store.Close(); closeErr != nil {
+				t.Errorf("Close() error = %v", closeErr)
+			}
+		}()
+		store.root[0] = 1
+		if _, err := store.Prune(
+			context.Background(),
+			mpt.DefaultReachabilityLimits(),
+		); !errors.Is(err, mpt.ErrMissingNode) {
+			t.Fatalf("Prune(missing root) error = %v", err)
+		}
+	})
+	t.Run("inventory", func(t *testing.T) {
+		t.Parallel()
+
+		store, _ := openCommittedRetentionStore(t)
+		defer func() {
+			store.pruneOperations = defaultPruneOperations()
+			if closeErr := store.Close(); closeErr != nil {
+				t.Errorf("Close() error = %v", closeErr)
+			}
+		}()
+		store.pruneOperations.readDirectory = func(string, int) (
+			[]os.DirEntry,
+			error,
+		) {
+			return nil, failure
+		}
+		if _, err := store.Prune(
+			context.Background(),
+			mpt.DefaultReachabilityLimits(),
+		); !errors.Is(err, mpt.ErrStorageRead) {
+			t.Fatalf("Prune(inventory failure) error = %v", err)
+		}
+	})
+}
+
+func TestUnreachableNodeInventoryRejectsEveryHostileBoundary(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("injected unreachable inventory failure")
+	for _, state := range []string{
+		"resource",
+		"read directory",
+		"canceled",
+		"invalid name",
+		"read node",
+		"hash mismatch",
+		"count mismatch",
+	} {
+		state := state
+		t.Run(state, func(t *testing.T) {
+			t.Parallel()
+
+			nodes := t.TempDir()
+			store := &Store{
+				nodesPath:       nodes,
+				limits:          DefaultLimits(),
+				pruneOperations: defaultPruneOperations(),
+			}
+			ctx := context.Background()
+			node := captureCommit(t).Nodes()[0]
+			hash := node.Hash()
+			name := hex.EncodeToString(hash[:])
+			content := node.Encoded()
+			switch state {
+			case "resource":
+				store.pruneOperations.readDirectory = func(string, int) (
+					[]os.DirEntry,
+					error,
+				) {
+					return nil, mpt.ErrResourceLimit
+				}
+			case "read directory":
+				store.pruneOperations.readDirectory = func(string, int) (
+					[]os.DirEntry,
+					error,
+				) {
+					return nil, failure
+				}
+			case "canceled":
+				canceled, cancel := context.WithCancel(ctx)
+				cancel()
+				ctx = canceled
+			case "invalid name":
+				name = "invalid"
+			case "read node":
+				store.pruneOperations.readFile = func(string, int) ([]byte, error) {
+					return nil, failure
+				}
+			case "hash mismatch":
+				content = append([]byte(nil), content...)
+				content[0] ^= 0xff
+			case "count mismatch":
+				store.storedNodes = 2
+			}
+			if state != "resource" && state != "read directory" {
+				if err := os.WriteFile(
+					filepath.Join(nodes, name),
+					content,
+					0o600,
+				); err != nil {
+					t.Fatalf("WriteFile(node) error = %v", err)
+				}
+				if state != "count mismatch" {
+					store.storedNodes = 1
+				}
+			}
+			_, _, err := store.unreachableNodes(
+				ctx,
+				map[mpt.Root]struct{}{},
+			)
+			switch state {
+			case "resource":
+				if !errors.Is(err, mpt.ErrResourceLimit) {
+					t.Fatalf("unreachableNodes() error = %v", err)
+				}
+			case "read directory", "read node":
+				if !errors.Is(err, mpt.ErrStorageRead) {
+					t.Fatalf("unreachableNodes() error = %v", err)
+				}
+			case "canceled":
+				if !errors.Is(err, mpt.ErrCanceled) {
+					t.Fatalf("unreachableNodes() error = %v", err)
+				}
+			default:
+				if !errors.Is(err, mpt.ErrCorruptNode) {
+					t.Fatalf("unreachableNodes() error = %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestUnreachableNodeInventoryReportsExactBytes(t *testing.T) {
+	t.Parallel()
+
+	nodes := t.TempDir()
+	stored := captureCommit(t).Nodes()
+	if len(stored) < 2 {
+		t.Fatalf("captureCommit() nodes = %d, want at least 2", len(stored))
+	}
+	expected := make(map[mpt.Root]struct{}, 2)
+	var expectedBytes uint64
+	for _, node := range stored[:2] {
+		hash := node.Hash()
+		encoded := node.Encoded()
+		if err := os.WriteFile(
+			filepath.Join(nodes, hex.EncodeToString(hash[:])),
+			encoded,
+			0o600,
+		); err != nil {
+			t.Fatalf("WriteFile(node) error = %v", err)
+		}
+		expected[hash] = struct{}{}
+		expectedBytes += uint64(len(encoded))
+	}
+	store := &Store{
+		nodesPath:       nodes,
+		limits:          DefaultLimits(),
+		storedNodes:     2,
+		pruneOperations: defaultPruneOperations(),
+	}
+	unreachable, removedBytes, err := store.unreachableNodes(
+		context.Background(),
+		map[mpt.Root]struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("unreachableNodes() error = %v", err)
+	}
+	if len(unreachable) != len(expected) {
+		t.Fatalf(
+			"unreachableNodes() hashes = %x, want %d",
+			unreachable,
+			len(expected),
+		)
+	}
+	for _, hash := range unreachable {
+		if _, exists := expected[hash]; !exists {
+			t.Fatalf("unreachableNodes() unexpected hash = %x", hash)
+		}
+	}
+	if removedBytes != expectedBytes {
+		t.Fatalf(
+			"unreachableNodes() removed bytes = %d, want %d",
+			removedBytes,
+			expectedBytes,
+		)
 	}
 }
 

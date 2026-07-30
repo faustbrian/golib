@@ -67,6 +67,11 @@ before publishing a replacement and keep the returned `RootRetention` until
 all readers have released the snapshot. `Release` makes the root eligible for
 future pruning; it does not delete nodes immediately.
 
+Persistent retention operations may cross their durable publication point
+before reporting a storage-sync error. After such an error, reopen and
+inventory durable retentions before retrying or pruning. A returned non-nil
+retention remains caller-owned even when accompanied by an error.
+
 Persistent adapters must define:
 
 - whether node writes and root publication share one durable transaction;
@@ -144,6 +149,12 @@ prune must cause a conflict or a retry, never deletion based on stale reachabili
 `PruneResult` reports stored nodes before and after and the removed byte count.
 Cancellation, corruption, missing data, a resource limit, or a stale root must
 leave the previous node set intact.
+
+A storage failure is different: a non-zero result accompanied by an error
+means the adapter crossed its documented prune commit point. The result
+describes the committed logical removal, and adapter recovery must finish it.
+A zero result accompanied by an error means no removal committed and recovery
+must restore any staged nodes.
 
 ## Errors and retry decisions
 

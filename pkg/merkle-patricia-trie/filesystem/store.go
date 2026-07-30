@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/bits"
 	"os"
 	"path/filepath"
 	"slices"
@@ -687,6 +688,10 @@ func (store *Store) nodePath(hash mpt.Root) string {
 }
 
 func validateLimits(limits Limits) error {
+	storedBytesHigh, _ := bits.Mul64(
+		uint64(limits.MaxStoredNodes),
+		uint64(limits.MaxNodeBytes),
+	)
 	if limits.MaxNodeBytes <= 0 ||
 		limits.MaxNodeBytes == int(^uint(0)>>1) ||
 		limits.MaxCommitNodes <= 0 ||
@@ -694,7 +699,8 @@ func validateLimits(limits Limits) error {
 		limits.MaxStoredNodes <= 0 ||
 		limits.MaxStoredNodes == int(^uint(0)>>1) ||
 		limits.MaxRetentions <= 0 ||
-		limits.MaxRetentions == int(^uint(0)>>1) {
+		limits.MaxRetentions >= int(^uint(0)>>1)-1 ||
+		storedBytesHigh != 0 {
 		return fmt.Errorf("%w: invalid filesystem limits", mpt.ErrResourceLimit)
 	}
 	return nil

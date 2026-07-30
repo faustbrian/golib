@@ -46,3 +46,41 @@ func FuzzNodeFilenameCanonicalDecode(f *testing.F) {
 		}
 	})
 }
+
+func FuzzRetentionRecordCanonicalRoundTrip(f *testing.F) {
+	f.Add(encodeRetentionRecord(mpt.EmptyRoot()))
+	f.Add([]byte("malformed"))
+
+	f.Fuzz(func(t *testing.T, record []byte) {
+		if len(record) > retentionRecordLen+1 {
+			return
+		}
+		root, err := decodeRetentionRecord(record)
+		if err != nil {
+			return
+		}
+		roundTrip := encodeRetentionRecord(root)
+		if !bytes.Equal(roundTrip, record) {
+			t.Fatalf("retention record round trip = %x, want %x", roundTrip, record)
+		}
+	})
+}
+
+func FuzzRetentionFilenameCanonicalDecode(f *testing.F) {
+	f.Add(strings.Repeat("00", retentionIDBytes))
+	f.Add(strings.Repeat("AA", retentionIDBytes))
+	f.Add("malformed")
+
+	f.Fuzz(func(t *testing.T, name string) {
+		if len(name) > hex.EncodedLen(retentionIDBytes)+1 {
+			return
+		}
+		id, err := decodeRetentionName(name)
+		if err != nil {
+			return
+		}
+		if encoded := hex.EncodeToString(id[:]); encoded != name {
+			t.Fatalf("canonical retention filename = %q, want %q", encoded, name)
+		}
+	})
+}

@@ -51,6 +51,10 @@ func defaultRetentionOperations() retentionOperations {
 // RetainRoot durably records an independent lease for a complete historical
 // root. The returned lease remains effective across Store.Close and process
 // restart; use Retentions after reopening to recover durable lease handles.
+// ErrStorageCommit after record publication has an indeterminate crash outcome:
+// callers must reconcile Retentions after reopening even when the returned
+// lease is nil. A non-nil lease returned with an error remains effective in the
+// current process and must not be discarded without reconciliation.
 func (store *Store) RetainRoot(
 	ctx context.Context,
 	root mpt.Root,
@@ -60,6 +64,9 @@ func (store *Store) RetainRoot(
 		return nil, err
 	}
 	if store == nil {
+		return nil, mpt.ErrInvalidStore
+	}
+	if store.path == "" {
 		return nil, mpt.ErrInvalidStore
 	}
 	store.mutex.RLock()
@@ -166,6 +173,9 @@ func (store *Store) Retentions(
 		return nil, err
 	}
 	if store == nil {
+		return nil, mpt.ErrInvalidStore
+	}
+	if store.path == "" {
 		return nil, mpt.ErrInvalidStore
 	}
 	if maximum <= 0 {
@@ -296,18 +306,32 @@ func recoverTemporaryRetentions(
 	path string,
 	maximum int,
 ) error {
+	return recoverTemporaryRetentionsWith(
+		ctx,
+		path,
+		maximum,
+		defaultRecoveryOperations(),
+	)
+}
+
+func recoverTemporaryRetentionsWith(
+	ctx context.Context,
+	path string,
+	maximum int,
+	operations recoveryOperations,
+) error {
 	removed, err := removeTemporaryFiles(
 		ctx,
 		path,
 		maximum+1,
-		defaultRecoveryOperations(),
+		operations,
 		isTemporaryRetentionFile,
 	)
 	if err != nil {
 		return err
 	}
 	if removed {
-		if err := syncDirectory(path); err != nil {
+		if err := operations.syncDirectory(path); err != nil {
 			return storageCommitError(err)
 		}
 	}
@@ -330,7 +354,23 @@ func readRetentions(
 	path string,
 	maximum int,
 ) (map[retentionID]mpt.Root, error) {
-	entries, err := readDirectoryBounded(path, maximum)
+	return readRetentionsWith(
+		ctx,
+		path,
+		maximum,
+		readDirectoryBounded,
+		readBoundedFile,
+	)
+}
+
+func readRetentionsWith(
+	ctx context.Context,
+	path string,
+	maximum int,
+	readDirectory func(string, int) ([]os.DirEntry, error),
+	readFile func(string, int) ([]byte, error),
+) (map[retentionID]mpt.Root, error) {
+	entries, err := readDirectory(path, maximum)
 	if err != nil {
 		if errors.Is(err, mpt.ErrResourceLimit) {
 			return nil, err
@@ -346,7 +386,7 @@ func readRetentions(
 		if err != nil {
 			return nil, err
 		}
-		record, err := readBoundedFile(
+		record, err := readFile(
 			filepath.Join(path, entry.Name()),
 			retentionRecordLen,
 		)
@@ -366,7 +406,10 @@ func parseRetentionName(entry os.DirEntry) (retentionID, error) {
 	if !entry.Type().IsRegular() {
 		return retentionID{}, corruptRetentionError("non-regular retention file")
 	}
-	name := entry.Name()
+	return decodeRetentionName(entry.Name())
+}
+
+func decodeRetentionName(name string) (retentionID, error) {
 	if len(name) != hex.EncodedLen(retentionIDBytes) ||
 		name != strings.ToLower(name) {
 		return retentionID{}, corruptRetentionError("invalid retention filename")

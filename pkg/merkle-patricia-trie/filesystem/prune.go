@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -51,6 +50,9 @@ func defaultPruneOperations() pruneOperations {
 // durable retention. The mark phase validates the complete reachable graph.
 // A crash before the prune commit point restores staged nodes during Open; a
 // crash after it completes deletion without making any retained root unreadable.
+// A non-zero result returned with an error means the commit point passed and
+// reports the nodes logically removed; a zero result with an error reports no
+// committed removal. Open reconciles any transaction artifact after a crash.
 func (store *Store) Prune(
 	ctx context.Context,
 	limits mpt.ReachabilityLimits,
@@ -59,6 +61,9 @@ func (store *Store) Prune(
 		return mpt.PruneResult{}, err
 	}
 	if store == nil {
+		return mpt.PruneResult{}, mpt.ErrInvalidStore
+	}
+	if store.path == "" {
 		return mpt.PruneResult{}, mpt.ErrInvalidStore
 	}
 	store.mutex.Lock()
@@ -78,8 +83,7 @@ func (store *Store) Prune(
 		)
 	}
 	store.pruning = true
-	roots := make([]mpt.Root, 0, len(store.retentions)+1)
-	roots = append(roots, store.root)
+	roots := []mpt.Root{store.root}
 	for _, root := range store.retentions {
 		roots = append(roots, root)
 	}
@@ -148,7 +152,7 @@ func (store *Store) unreachableNodes(
 	ctx context.Context,
 	reachable map[mpt.Root]struct{},
 ) ([]mpt.Root, uint64, error) {
-	entries, err := readDirectoryBounded(
+	entries, err := store.pruneOperations.readDirectory(
 		store.nodesPath,
 		store.limits.MaxStoredNodes,
 	)
@@ -171,7 +175,7 @@ func (store *Store) unreachableNodes(
 		if _, retained := reachable[hash]; retained {
 			continue
 		}
-		encoded, err := readBoundedFile(
+		encoded, err := store.pruneOperations.readFile(
 			store.nodePath(hash),
 			store.limits.MaxNodeBytes,
 		)
@@ -184,10 +188,7 @@ func (store *Store) unreachableNodes(
 				Cause: fmt.Errorf("%w: hash mismatch", mpt.ErrCorruptNode),
 			}
 		}
-		removedBytes, err = addRemovedBytes(removedBytes, len(encoded))
-		if err != nil {
-			return nil, 0, err
-		}
+		removedBytes += uint64(len(encoded))
 		unreachable = append(unreachable, hash)
 	}
 	store.mutex.RLock()
@@ -205,16 +206,6 @@ func (store *Store) unreachableNodes(
 		return bytes.Compare(left[:], right[:])
 	})
 	return unreachable, removedBytes, nil
-}
-
-func addRemovedBytes(current uint64, size int) (uint64, error) {
-	if size < 0 || uint64(size) > math.MaxUint64-current {
-		return 0, fmt.Errorf(
-			"%w: pruned byte count overflow",
-			mpt.ErrResourceLimit,
-		)
-	}
-	return current + uint64(size), nil
 }
 
 func stagePrune(
