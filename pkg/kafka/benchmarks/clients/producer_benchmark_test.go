@@ -16,6 +16,7 @@ import (
 	"github.com/IBM/sarama"
 	policy "github.com/faustbrian/golib/pkg/kafka"
 	segmentkafka "github.com/segmentio/kafka-go"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -533,6 +534,7 @@ func startBenchmarkFixture() {
 	exitCode, output, err := container.Exec(
 		versionCtx,
 		[]string{"kafka-topics", "--version"},
+		tcexec.Multiplexed(),
 	)
 	versionCancel()
 	if err != nil || exitCode != 0 {

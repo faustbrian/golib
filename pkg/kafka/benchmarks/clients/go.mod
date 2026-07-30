@@ -80,5 +80,3 @@ require (
 )
 
 tool golang.org/x/perf/cmd/benchstat
-
-replace github.com/faustbrian/golib/pkg/kafka => ../..
