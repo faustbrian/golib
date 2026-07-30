@@ -90,6 +90,12 @@ All notable changes to `verkle-tree` will be documented in this file.
   absent-suffix insertion, and post-state root agree across Go and Rust; record
   the Rust reference's absent-stem insertion panic as an interoperability gap.
 
+### Fixed
+
+- Reject reordered claim, stem-path, and path-commitment records during strict
+  tree-proof decoding instead of silently normalizing alternate encodings, and
+  report malformed proof topology through the canonical decoding error.
+
 ### Dependencies
 
 - Override the pinned backend's stale transitive cryptography and Go support

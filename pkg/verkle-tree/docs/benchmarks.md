@@ -97,9 +97,9 @@ nanoseconds per operation.
 | Copy sixteen canonical tree claims | 211.9, 241.0, 356.6, 728.3, 300.0 | 1152 | 1 |
 | Canonicalize sixteen-claim unverified tree proof | 33948, 46259, 33676, 31726, 31940 | 50816-50818 | 7 |
 | Copy sixteen-claim tree-proof metadata | 1306, 1680, 3757, 2622, 2787 | 3456 | 2 |
-| Encode canonical unverified tree proof | 6202, 11681, 20044, 11026, 16152 | 1024 | 1 |
-| Decode canonical unverified tree proof | 1152910, 311067, 320242, 445179, 483435 | 4355 | 30 |
-| Reject wrong-length encoded tree proof | 93.64, 89.30, 59.97, 49.40, 48.76 | 0 | 0 |
+| Encode canonical unverified tree proof | 5136, 16481, 16351, 13961, 6149 | 1024 | 1 |
+| Decode canonical unverified tree proof | 253440, 627923, 368237, 277831, 307604 | 4354-4355 | 30 |
+| Reject wrong-length encoded tree proof | 474.3, 374.8, 377.9, 267.9, 338.3 | 96 | 2 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

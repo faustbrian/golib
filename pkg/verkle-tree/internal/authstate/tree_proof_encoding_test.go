@@ -499,49 +499,11 @@ func TestDecodeTreeProofDistinguishesTruncatedHeaderFromDeclaredLength(
 func TestDecodeTreeProofPreservesMultipleRecordStrides(t *testing.T) {
 	t.Parallel()
 
+	decoded := testMultipleRecordTreeProofRoundTrip(t)
 	firstKey := testKey(0, 0)
 	secondKey := testKey(1, 128)
 	firstValue := testValue(1)
 	secondValue := testValue(101)
-	commitment := testProofCommitment(t)
-	proof, err := NewTreeProof(
-		context.Background(),
-		testProofRoot(t),
-		mustClaimSet(t, []Claim{
-			Membership(secondKey, secondValue),
-			Membership(firstKey, firstValue),
-		}),
-		[]StemPath{
-			PresentStemPath(stemFromKey(secondKey), 1),
-			PresentStemPath(stemFromKey(firstKey), 1),
-		},
-		[]PathCommitment{
-			mustPathCommitment(t, []byte{1, 3}, commitment),
-			mustPathCommitment(t, []byte{0, 2}, commitment),
-			mustPathCommitment(t, []byte{1}, commitment),
-			mustPathCommitment(t, []byte{0}, commitment),
-		},
-		testRawOpeningProof(t),
-		testTreeProofLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new multi-record proof: %v", err)
-	}
-	encoded, err := proof.Bytes(
-		context.Background(),
-		testTreeProofEncodingLimits(),
-	)
-	if err != nil {
-		t.Fatalf("encode multi-record proof: %v", err)
-	}
-	decoded, err := DecodeTreeProof(
-		context.Background(),
-		encoded,
-		testTreeProofDecodingLimits(),
-	)
-	if err != nil {
-		t.Fatalf("decode multi-record proof: %v", err)
-	}
 	for _, expected := range []struct {
 		key   Key
 		value Value
@@ -585,6 +547,160 @@ func TestDecodeTreeProofPreservesMultipleRecordStrides(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestDecodeTreeProofRejectsNonCanonicalRecordOrdering(t *testing.T) {
+	t.Parallel()
+
+	_, canonical := testMultipleRecordEncodedTreeProof(t)
+	claimOffset := treeProofHeaderBytes
+	stemOffset := claimOffset + 2*claimEncodedBytes
+	commitmentOffset := stemOffset + 2*stemPathEncodedBytes
+	tests := map[string]struct {
+		encoded []byte
+		detail  string
+	}{
+		"reordered claims": {
+			encoded: swapTreeProofRecords(
+				canonical,
+				claimOffset,
+				claimOffset+claimEncodedBytes,
+				claimEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: claim order",
+		},
+		"duplicate claims": {
+			encoded: duplicateTreeProofRecord(
+				canonical,
+				claimOffset,
+				claimOffset+claimEncodedBytes,
+				claimEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: claim order",
+		},
+		"reordered stem paths": {
+			encoded: swapTreeProofRecords(
+				canonical,
+				stemOffset,
+				stemOffset+stemPathEncodedBytes,
+				stemPathEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: stem-path order",
+		},
+		"duplicate stem paths": {
+			encoded: duplicateTreeProofRecord(
+				canonical,
+				stemOffset,
+				stemOffset+stemPathEncodedBytes,
+				stemPathEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: stem-path order",
+		},
+		"reordered first path commitments": {
+			encoded: swapTreeProofRecords(
+				canonical,
+				commitmentOffset,
+				commitmentOffset+pathCommitmentEncodedBytes,
+				pathCommitmentEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: " +
+				"path-commitment order",
+		},
+		"reordered later path commitments": {
+			encoded: swapTreeProofRecords(
+				canonical,
+				commitmentOffset+2*pathCommitmentEncodedBytes,
+				commitmentOffset+3*pathCommitmentEncodedBytes,
+				pathCommitmentEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: " +
+				"path-commitment order",
+		},
+		"duplicate path commitments": {
+			encoded: duplicateTreeProofRecord(
+				canonical,
+				commitmentOffset,
+				commitmentOffset+pathCommitmentEncodedBytes,
+				pathCommitmentEncodedBytes,
+			),
+			detail: "invalid canonical tree-proof encoding: " +
+				"path-commitment order",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := DecodeTreeProof(
+				context.Background(),
+				test.encoded,
+				testTreeProofDecodingLimits(),
+			); !errors.Is(err, errInvalidTreeProofEncoding) ||
+				err.Error() != test.detail {
+				t.Fatalf("reordered records error = %v", err)
+			}
+		})
+	}
+}
+
+func testMultipleRecordTreeProofRoundTrip(t testing.TB) TreeProof {
+	t.Helper()
+
+	_, encoded := testMultipleRecordEncodedTreeProof(t)
+	decoded, err := DecodeTreeProof(
+		context.Background(),
+		encoded,
+		testTreeProofDecodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("decode multi-record proof: %v", err)
+	}
+
+	return decoded
+}
+
+func testMultipleRecordEncodedTreeProof(
+	t testing.TB,
+) (TreeProof, []byte) {
+	t.Helper()
+
+	firstKey := testKey(0, 0)
+	secondKey := testKey(1, 128)
+	firstValue := testValue(1)
+	secondValue := testValue(101)
+	commitment := testProofCommitment(t)
+	proof, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{
+			Membership(secondKey, secondValue),
+			Membership(firstKey, firstValue),
+		}),
+		[]StemPath{
+			PresentStemPath(stemFromKey(secondKey), 1),
+			PresentStemPath(stemFromKey(firstKey), 1),
+		},
+		[]PathCommitment{
+			mustPathCommitment(t, []byte{1, 3}, commitment),
+			mustPathCommitment(t, []byte{0, 2}, commitment),
+			mustPathCommitment(t, []byte{1}, commitment),
+			mustPathCommitment(t, []byte{0}, commitment),
+		},
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new multi-record proof: %v", err)
+	}
+	encoded, err := proof.Bytes(
+		context.Background(),
+		testTreeProofEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode multi-record proof: %v", err)
+	}
+
+	return proof, encoded
 }
 
 func TestDecodeTreeProofAcceptsMaximumPathLength(t *testing.T) {
@@ -748,6 +864,8 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 				if !errors.Is(err, verkletree.ErrUnsupportedProfile) {
 					t.Fatalf("profile error = %v", err)
 				}
+			} else if !errors.Is(err, errInvalidTreeProofEncoding) {
+				t.Fatalf("encoding error = %v", err)
 			}
 		})
 	}
@@ -992,6 +1110,38 @@ func putTreeProofCount(encoded []byte, offset int, count uint32) []byte {
 	binary.BigEndian.PutUint32(
 		mutated[offset:offset+treeProofCountBytes],
 		count,
+	)
+
+	return mutated
+}
+
+func swapTreeProofRecords(
+	encoded []byte,
+	leftOffset int,
+	rightOffset int,
+	recordBytes int,
+) []byte {
+	mutated := bytes.Clone(encoded)
+	left := bytes.Clone(mutated[leftOffset : leftOffset+recordBytes])
+	copy(
+		mutated[leftOffset:leftOffset+recordBytes],
+		mutated[rightOffset:rightOffset+recordBytes],
+	)
+	copy(mutated[rightOffset:rightOffset+recordBytes], left)
+
+	return mutated
+}
+
+func duplicateTreeProofRecord(
+	encoded []byte,
+	sourceOffset int,
+	targetOffset int,
+	recordBytes int,
+) []byte {
+	mutated := bytes.Clone(encoded)
+	copy(
+		mutated[targetOffset:targetOffset+recordBytes],
+		mutated[sourceOffset:sourceOffset+recordBytes],
 	)
 
 	return mutated

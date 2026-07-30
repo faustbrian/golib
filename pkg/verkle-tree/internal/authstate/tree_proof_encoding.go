@@ -1,6 +1,7 @@
 package authstate
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -465,6 +466,21 @@ func DecodeTreeProof(
 				return TreeProof{}, errInvalidTreeProofEncoding
 			}
 		}
+		if index > 0 {
+			previousOffset := commitmentsOffset +
+				int(index-1)*pathCommitmentEncodedBytes
+			previousLength := encoded[previousOffset]
+			if bytes.Compare(
+				encoded[previousOffset+1:previousOffset+1+
+					int(previousLength)],
+				encoded[offset+1:offset+1+int(length)],
+			) >= 0 {
+				return TreeProof{}, fmt.Errorf(
+					"%w: path-commitment order",
+					errInvalidTreeProofEncoding,
+				)
+			}
+		}
 		pathBytes += uint64(length)
 	}
 	if err := checkTreeProofDecodingResource(
@@ -539,7 +555,7 @@ func DecodeTreeProof(
 		return TreeProof{}, normalizeTreeProofDecodingError(err)
 	}
 
-	return NewTreeProof(
+	proof, err := NewTreeProof(
 		ctx,
 		root,
 		claims,
@@ -555,6 +571,11 @@ func DecodeTreeProof(
 			MaxTemporaryBytes:  limits.MaxTemporaryBytes,
 		},
 	)
+	if err != nil {
+		return TreeProof{}, normalizeTreeProofDecodingError(err)
+	}
+
+	return proof, nil
 }
 
 func decodeTreeProofClaims(
@@ -572,6 +593,13 @@ func decodeTreeProofClaims(
 		offset := index * claimEncodedBytes
 		var key Key
 		copy(key[:], encoded[offset:offset+len(key)])
+		if index > 0 &&
+			bytes.Compare(claims[index-1].key[:], key[:]) >= 0 {
+			return ClaimSet{}, fmt.Errorf(
+				"%w: claim order",
+				errInvalidTreeProofEncoding,
+			)
+		}
 		kindOffset := offset + len(key)
 		var value Value
 		copy(value[:], encoded[kindOffset+1:kindOffset+1+len(value)])
@@ -617,6 +645,13 @@ func decodeTreeProofStemPaths(
 		offset := index * stemPathEncodedBytes
 		var stem Stem
 		copy(stem[:], encoded[offset:offset+len(stem)])
+		if index > 0 &&
+			bytes.Compare(paths[index-1].stem[:], stem[:]) >= 0 {
+			return nil, fmt.Errorf(
+				"%w: stem-path order",
+				errInvalidTreeProofEncoding,
+			)
+		}
 		depthOffset := offset + len(stem)
 		depth := encoded[depthOffset]
 		kind := StemPathKind(encoded[depthOffset+1])
