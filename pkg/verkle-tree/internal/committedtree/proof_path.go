@@ -315,7 +315,7 @@ func appendProofPathCommitment(
 	); err != nil {
 		return err
 	}
-	if _, err := commitment.Bytes(); err != nil {
+	if _, err := commitment.IsIdentity(); err != nil {
 		return errInvalidTree
 	}
 

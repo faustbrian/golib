@@ -89,6 +89,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add a bounded stateless-update corpus whose existing-value update,
   absent-suffix insertion, and post-state root agree across Go and Rust; record
   the Rust reference's absent-stem insertion panic as an interoperability gap.
+- Add cancellation-aware immutable proof-path extraction that distinguishes
+  present, missing-child, and different-stem termination while returning exact
+  caller-owned non-root commitments under explicit resource limits.
 
 ### Fixed
 

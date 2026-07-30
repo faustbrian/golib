@@ -240,6 +240,41 @@ The container binds only the exact profile and mathematical root. It does not
 identify a snapshot, authenticate a key set, or establish membership,
 non-membership, proof verification, persistence, or publication.
 
+## Immutable Proof-Path Extraction
+
+An immutable committed tree MAY extract the non-root commitment material for
+one fixed-length key without constructing a cryptographic opening. Extraction
+MUST return exactly one terminal kind:
+
+1. `present`, when the exact queried stem is committed;
+2. `missing`, when the selected internal child is absent; or
+3. `different`, when the selected child commits to another stem.
+
+The returned depth MUST be between one and 31. A `different` result MUST return
+the encountered stem; the other kinds MUST return no encountered stem.
+
+For every selected non-empty internal edge, extraction MUST return the child
+commitment at the raw stem prefix through that edge. A present stem MUST also
+return its selected suffix-half commitment at
+`stem[0:depth] || (2 + suffix/128)`. A missing edge MUST NOT invent an identity
+commitment. A selected suffix half with no present values MUST return its valid
+in-memory identity commitment; this identity has no accepted point encoding in
+the current tree-proof container. Commitments MUST therefore already be in
+canonical path order for one key, and the root commitment MUST remain outside
+the returned list.
+
+Extraction MUST validate the immutable arena, observe cancellation, count root
+and child node reads, and enforce positive limits for node reads, returned
+commitments, retained path bytes, and caller-owned result storage before the
+corresponding work or allocation. Returned slices MUST be caller-owned and
+MUST NOT alias the immutable tree. Corrupt indices, depths, node kinds,
+commitments, or edge ranges MUST fail closed.
+
+This material fixes tree topology and the commitments a later prover or
+verifier requires. It does not include evaluation scalars, construct an
+aggregate opening, authenticate a value or absence claim, or establish proof
+verification.
+
 ## Canonical Tree Claims
 
 An internal canonical claim set MUST bind the exact experimental profile and

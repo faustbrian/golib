@@ -131,6 +131,12 @@ agree on the empty identity and every non-empty root byte. This is not a public
 tree, incremental update path, proof system, storage implementation, or
 production-backend approval.
 
+The immutable committed tree can now extract bounded caller-owned proof-path
+material for one key. It distinguishes present stems, missing children, and
+different stems and returns the exact internal, stem, and selected C1/C2
+commitments required by the package-owned proof topology. This extraction does
+not construct an opening, verify a proof, or authenticate a claim.
+
 An internal authenticated-state layer now binds those complete roots to
 immutable ordered snapshots. It distinguishes absence from a present zero
 value, validates complete duplicate-free batches before publication, applies

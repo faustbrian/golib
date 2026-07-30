@@ -38,12 +38,14 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 		depth        uint8
 		existingStem [31]byte
 		paths        [][]byte
+		identityAt   int
 	}{
 		"present c1": {
-			key:   left,
-			kind:  ProofPathPresent,
-			depth: 2,
-			paths: [][]byte{{7}, {7, 1}, {7, 1, 2}},
+			key:        left,
+			kind:       ProofPathPresent,
+			depth:      2,
+			paths:      [][]byte{{7}, {7, 1}, {7, 1, 2}},
+			identityAt: -1,
 		},
 		"absent suffix in present stem": {
 			key: func() Key {
@@ -51,25 +53,40 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 				key[31] = 42
 				return key
 			}(),
-			kind:  ProofPathPresent,
-			depth: 2,
-			paths: [][]byte{{7}, {7, 1}, {7, 1, 2}},
+			kind:       ProofPathPresent,
+			depth:      2,
+			paths:      [][]byte{{7}, {7, 1}, {7, 1, 2}},
+			identityAt: -1,
 		},
 		"present c2": {
-			key:   right,
-			kind:  ProofPathPresent,
-			depth: 2,
-			paths: [][]byte{{7}, {7, 2}, {7, 2, 3}},
+			key:        right,
+			kind:       ProofPathPresent,
+			depth:      2,
+			paths:      [][]byte{{7}, {7, 2}, {7, 2, 3}},
+			identityAt: -1,
+		},
+		"absent suffix in empty half": {
+			key: func() Key {
+				key := isolated
+				key[31] = 200
+				return key
+			}(),
+			kind:       ProofPathPresent,
+			depth:      1,
+			paths:      [][]byte{{9}, {9, 3}},
+			identityAt: 1,
 		},
 		"missing child": {
-			key:   testKey(8, 1),
-			kind:  ProofPathMissing,
-			depth: 1,
+			key:        testKey(8, 1),
+			kind:       ProofPathMissing,
+			depth:      1,
+			identityAt: -1,
 		},
 		"missing child after final edge": {
-			key:   testKey(255, 1),
-			kind:  ProofPathMissing,
-			depth: 1,
+			key:        testKey(255, 1),
+			kind:       ProofPathMissing,
+			depth:      1,
+			identityAt: -1,
 		},
 		"different stem": {
 			key: func() Key {
@@ -81,6 +98,7 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 			depth:        1,
 			existingStem: [31]byte(isolated[:31]),
 			paths:        [][]byte{{9}},
+			identityAt:   -1,
 		},
 	}
 	for name, test := range tests {
@@ -120,8 +138,14 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 						test.paths[index],
 					)
 				}
-				if _, encodeErr := path.Commitment.Bytes(); encodeErr != nil {
-					t.Fatalf("commitment %d: %v", index, encodeErr)
+				identity, identityErr := path.Commitment.IsIdentity()
+				if identityErr != nil || identity != (index == test.identityAt) {
+					t.Fatalf(
+						"commitment %d identity = %t, error %v",
+						index,
+						identity,
+						identityErr,
+					)
 				}
 			}
 		})
