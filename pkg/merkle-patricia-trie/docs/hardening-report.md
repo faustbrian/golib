@@ -57,8 +57,11 @@ are recorded in [source provenance](source-provenance.md),
 
 The checked corpus comprises all six imported legacy `ethereum/tests` trie
 fixture files; five execution-spec-test fixtures spanning Frontier, Berlin,
-London, Cancun, and Prague; four pinned Geth receipt-transition outputs;
-dynamic Geth 1.17.3 tests; and dynamic `@ethereumjs/trie` 10.1.2 tests.
+London, Cancun, and Prague; four pinned Geth receipt-transition outputs; a
+checksummed local EIP-1186 account/storage proof fixture aligned with the
+EthereumJS interoperability corpus; dynamic Geth 1.17.3 tests; and dynamic
+`@ethereumjs/trie` 10.1.2 tests. Geth verifies the same EIP-1186 semantic
+surface with a separate deterministic corpus.
 
 Execution-spec fixtures prove their supplied state, transaction, and receipt
 roots. They do not expose every intermediate receipt value, so receipt
@@ -76,8 +79,9 @@ retention, and pruning.
 
 Snapshots are immutable and safe for concurrent reads. Writers have explicit
 ownership. The package creates no goroutines, timers, tickers, worker pools, or
-background retries. Race and repeated race-stress tests cover snapshots,
-commits, retention, pruning, close behavior, and independent writers.
+background retries. An architecture test rejects any production `go`
+statement. Race and repeated race-stress tests cover snapshots, commits,
+retention, pruning, close behavior, and independent writers.
 
 Release evidence includes exact 100% statement coverage in all four production
 packages; exact 100% mutation efficacy and mutant coverage; bounded fuzzing;

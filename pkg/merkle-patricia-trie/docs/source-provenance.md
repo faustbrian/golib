@@ -64,6 +64,13 @@ their LGPL-3.0 license and per-file checksums. Their exact receipt values
 reconstruct legacy, type-2, type-3, and type-4 receipt roots. Type-1 receipt
 roots remain covered dynamically by both pinned client oracles.
 
+The separately labeled local EIP-1186 regression fixture records decoded proof
+bytes for deterministic account membership, account absence, storage
+membership, and storage absence claims. Its manifest records the exact
+generator corpus, checksum, CC0 dedication, update procedure, and pinned Geth
+and EthereumJS oracle revisions. It is not represented as an official
+Ethereum fixture.
+
 ## Updating
 
 1. Resolve and record the exact upstream commit.

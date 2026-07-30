@@ -22,7 +22,7 @@ benchmark-comparison:
 
 conformance:
 	GOWORK=off $(GO) test \
-		-run '^(TestLegacyEthereum|TestExecutionSpec|TestGethReceipt)' \
+		-run '^(TestEIP1186RegressionFixture|TestLegacyEthereum|TestExecutionSpec|TestGethReceipt)' \
 		-count=1 .
 
 interoperability:

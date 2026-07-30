@@ -8,6 +8,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 - Added the stable-release hardening report with compatibility, fixture,
   evidence, and unsupported-scope matrices.
+- Added a checksummed local EIP-1186 account and storage proof regression
+  fixture alongside pinned Geth and EthereumJS proof interoperability.
 - Established the Ethereum MPT module boundary, authoritative-source pins,
   compatibility decisions, and hostile-input threat model.
 - Added canonical hex-prefix paths, bounded canonical RLP, legacy Keccak root
