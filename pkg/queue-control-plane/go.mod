@@ -4,13 +4,13 @@ go 1.26.5
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/faustbrian/golib/pkg/authentication v0.0.0
-	github.com/faustbrian/golib/pkg/authorization v0.0.0
-	github.com/faustbrian/golib/pkg/identifier v0.0.0
-	github.com/faustbrian/golib/pkg/migrations v0.0.0
-	github.com/faustbrian/golib/pkg/postgres v0.0.0
-	github.com/faustbrian/golib/pkg/queue v0.0.0
-	github.com/faustbrian/golib/pkg/telemetry v0.0.0
+	github.com/faustbrian/golib/pkg/authentication v0.0.0-20260730075205-03d6b338a2cf
+	github.com/faustbrian/golib/pkg/authorization v0.0.0-20260730075205-03d6b338a2cf
+	github.com/faustbrian/golib/pkg/identifier v0.0.0-20260730073026-bbe414b6d6cd
+	github.com/faustbrian/golib/pkg/migrations v0.0.0-20260730073026-bbe414b6d6cd
+	github.com/faustbrian/golib/pkg/postgres v0.0.0-20260730073026-bbe414b6d6cd
+	github.com/faustbrian/golib/pkg/queue v0.0.0-20260730073026-bbe414b6d6cd
+	github.com/faustbrian/golib/pkg/telemetry v0.0.0-20260730073026-bbe414b6d6cd
 	github.com/jackc/pgx/v5 v5.10.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
@@ -29,7 +29,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
-	github.com/faustbrian/golib/pkg/clock v0.0.0 // indirect
+	github.com/faustbrian/golib/pkg/clock v0.0.0-20260730073026-bbe414b6d6cd // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -53,7 +53,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/pressly/goose/v3 v3.27.1 // indirect
-	github.com/redis/go-redis/v9 v9.19.0 // indirect
+	github.com/redis/go-redis/v9 v9.21.0 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/valkey-io/valkey-go v1.0.76 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
