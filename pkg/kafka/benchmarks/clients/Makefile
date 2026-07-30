@@ -1,0 +1,43 @@
+GO ?= go
+BENCH_COUNT ?= 10
+BENCH_TIME ?= 10x
+BENCH_PATTERN ?= ^BenchmarkEquivalentSynchronousProduce$$
+
+.PHONY: analyze benchmark capture environment test verify
+
+test:
+	$(GO) test ./...
+
+verify:
+	$(GO) test -tags=integration -run '^TestEquivalentProducerOutcomes$$' -count=1
+
+benchmark:
+	$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
+		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v
+
+capture:
+	test -n '$(OUTPUT)'
+	$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
+		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v \
+		> '$(OUTPUT)'
+	cat '$(OUTPUT)'
+
+analyze:
+	test -n '$(INPUT)'
+	$(GO) tool benchstat '$(INPUT)'
+
+environment:
+	$(GO) version
+	$(GO) env GOOS GOARCH GOARM64
+	uname -a
+	git rev-parse HEAD
+	docker version --format \
+		'client={{.Client.Version}} server={{.Server.Version}} api={{.Server.APIVersion}}'
+	$(GO) list -m \
+		github.com/faustbrian/golib/pkg/kafka \
+		github.com/twmb/franz-go \
+		github.com/segmentio/kafka-go \
+		github.com/IBM/sarama \
+		github.com/testcontainers/testcontainers-go/modules/kafka \
+		golang.org/x/perf
+	@echo 'broker-image=confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd'

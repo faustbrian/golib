@@ -8019,6 +8019,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+        "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
         "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/service/integration/adoption"
@@ -8251,6 +8252,65 @@
         "lint": true,
         "mutation": true,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/kafka/benchmarks/clients",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/kafka/benchmarks/clients",
+          "directory": ".",
+          "name": "clients",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
+          "kind": "harness",
+          "production": false,
+          "executable": false,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This non-releasable module isolates comparison clients and container tooling from the Kafka policy module. It records end-to-end broker measurements only where the candidates can provide the same observable contract. It is not a source of production support claims or a substitute for fault evidence.",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/kafka"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/IBM/sarama",
+        "github.com/testcontainers/testcontainers-go/modules/kafka",
+        "github.com/twmb/franz-go",
+        "github.com/twmb/franz-go/pkg/kadm"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }

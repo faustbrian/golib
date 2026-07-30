@@ -3197,6 +3197,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/kafka/benchmarks/clients",
+      "directory": ".",
+      "name": "clients",
+      "import_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
+      "kind": "harness",
+      "production": false,
+      "executable": false,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/kafka/kafkaservice",
       "directory": ".",
       "name": "kafkaservice",
