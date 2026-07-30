@@ -27,7 +27,9 @@ Two proof-container benchmarks measure canonical validation and ordering of
 sixteen claims, sixteen stem paths, and sixteen non-root commitment paths, plus
 owned copies of the retained stem and commitment metadata. They reuse an
 already decoded raw opening payload and exclude opening generation,
-cryptographic verification, and external encoding.
+cryptographic verification, and public interoperability. Three serialization
+benchmarks measure canonical encoding, strict decoding, and wrong-length
+rejection for the same internal unverified proof boundary.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -47,13 +49,13 @@ GOWORK=off go test ./internal/committedtree -run '^$' \
   -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
 
 GOWORK=off go test ./internal/authstate -run '^$' \
-  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkNewTreeProof|BenchmarkTreeProofCopy)' \
+  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkNewTreeProof|BenchmarkTreeProofCopy|BenchmarkEncodeTreeProof|BenchmarkDecodeTreeProof)' \
   -benchmem -count=5
 ```
 
 Environment:
 
-- Date: 2026-07-29
+- Date: 2026-07-30
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -95,6 +97,9 @@ nanoseconds per operation.
 | Copy sixteen canonical tree claims | 211.9, 241.0, 356.6, 728.3, 300.0 | 1152 | 1 |
 | Canonicalize sixteen-claim unverified tree proof | 33948, 46259, 33676, 31726, 31940 | 50816-50818 | 7 |
 | Copy sixteen-claim tree-proof metadata | 1306, 1680, 3757, 2622, 2787 | 3456 | 2 |
+| Encode canonical unverified tree proof | 6202, 11681, 20044, 11026, 16152 | 1024 | 1 |
+| Decode canonical unverified tree proof | 1152910, 311067, 320242, 445179, 483435 | 4355 | 30 |
+| Reject wrong-length encoded tree proof | 93.64, 89.30, 59.97, 49.40, 48.76 | 0 | 0 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

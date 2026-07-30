@@ -17,10 +17,10 @@ Its definition MAY change incompatibly before v1.
 Only the profile identity and structural metadata are currently exported.
 Internal research boundaries implement the fixed topology, leaf field inputs,
 vector commitments, complete mathematical root construction, and immutable
-root-bound state transitions below. Public tree, root, node, proof, witness,
-snapshot, and persistence APIs remain
-unimplemented. This document MUST NOT be read as a claim that those surfaces
-already exist.
+root-bound state transitions below, plus an internal canonical unverified
+tree-proof encoding and strict decoder. Public tree, root, node, proof,
+witness, snapshot, and persistence APIs remain unimplemented. This document
+MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
 
@@ -56,9 +56,9 @@ inconsistent representation before cryptographic work.
 The following parts of the profile are deliberately not frozen:
 
 - serialized empty-subtree representation and persisted node materialization;
-- canonical node, proof, witness, snapshot, and storage encodings;
-- canonical point, scalar, and proof-container rejection rules beyond the
-  internal research seam already tested;
+- canonical node, witness, snapshot, and storage encodings;
+- canonical point, scalar, and verified-proof rejection rules beyond the
+  internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
 - commitment and witness update ordering, conflicting old-value claims,
   stateless witness completeness, and post-state calculation;
@@ -325,13 +325,89 @@ path derivation, duplicate detection, and result copying MUST observe
 cancellation. Accepted inputs and returned collections MUST not alias mutable
 caller storage, and an immutable container MUST support concurrent reads.
 
-This container has no external wire encoding and performs no transcript
-construction, opening generation, opening verification, or claim
-authentication. Successful construction proves only canonical in-memory
-structure for later proof verification. It MUST NOT be exposed as a verified
-proof or used to authorize a state transition. Empty-root non-membership MUST
-remain unsupported until its proof form is fixed without requiring a surplus
-aggregate-opening payload.
+This container performs no transcript construction, opening generation,
+opening verification, or claim authentication. Successful construction proves
+only canonical structure for later proof verification. It MUST NOT be exposed
+as a verified proof or used to authorize a state transition. Empty-root
+non-membership MUST remain unsupported until its proof form is fixed without
+requiring a surplus aggregate-opening payload.
+
+## Canonical Tree-Proof Encoding
+
+The internal unverified tree-proof container MUST have exactly one
+package-owned canonical byte encoding. This encoding is experimental and
+internal; it MUST NOT be described as a public, stable, or independently
+compatible wire format.
+
+The encoding MUST contain the following fields in order:
+
+| Offset | Length | Field |
+| ---: | ---: | --- |
+| 0 | 4 | ASCII magic `VKPF` |
+| 4 | 1 | profile identifier `1` |
+| 5 | 2 | profile version `0`, unsigned big-endian |
+| 7 | 2 | container encoding version `1`, unsigned big-endian |
+| 9 | 42 | exact canonical non-empty root container |
+| 51 | 4 | claim count, unsigned big-endian |
+| 55 | 4 | stem-path count, unsigned big-endian |
+| 59 | 4 | path-commitment count, unsigned big-endian |
+| 63 | variable | canonical claim records |
+| variable | variable | canonical stem-path records |
+| variable | variable | canonical path-commitment records |
+| final 576 bytes | 576 | canonical raw aggregate-opening payload |
+
+Each claim record MUST be exactly 65 bytes: the 32-byte key, one byte whose
+value is `1` for membership or `2` for absence, and 32 value bytes. Membership
+MUST retain all 32 value bytes, including the all-zero value. Absence MUST
+encode 32 zero bytes and a decoder MUST reject any other absence payload.
+Claim records MUST occur in ascending raw-key order.
+
+Each stem-path record MUST be exactly 64 bytes: the queried 31-byte stem, the
+one-byte depth, one byte whose value is `1` for present, `2` for missing, or
+`3` for different, and a 31-byte existing-stem field. The existing-stem field
+MUST be zero for present and missing records and MUST contain the distinct
+encountered stem for a different record. Stem-path records MUST occur in
+ascending queried-stem order.
+
+Each path-commitment record MUST be exactly 65 bytes: a one-byte path length
+from one through 32, a 32-byte path field, and one canonical 32-byte
+non-identity Banderwagon commitment. The path field MUST contain the path
+followed by zero padding through byte 32. A decoder MUST reject nonzero
+padding. Records MUST occur in lexicographic order of their variable-length
+paths.
+
+The exact encoded length MUST be:
+
+```text
+639 + 65 * claim_count + 64 * stem_path_count +
+65 * path_commitment_count
+```
+
+A decoder MUST reject a wrong magic, profile identifier, profile version, or
+encoding version. It MUST reject a declared-count/length mismatch, alternate
+length, trailing bytes, invalid record kind, non-canonical ordering, duplicate
+or conflicting reconstructed metadata, nonzero padding, malformed or identity
+commitment, malformed root, and malformed aggregate-opening payload.
+
+Profile and version mismatch MUST fail before point or scalar decoding. Before
+cryptographic decoding or attacker-amplified allocation, a decoder MUST
+preflight the input byte length, record counts, conservative path derivations,
+exact encoded size, aggregate point decodes, aggregate scalar decodes, retained
+path bytes, and conservative temporary bytes. A configured point- or
+scalar-decode budget of zero MUST reject the proof before the corresponding
+cryptographic operation. No configured limit MAY denote an unbounded
+resource.
+
+Encoding and decoding MUST observe cancellation throughout their amplified
+loops. Cancellation or deadline errors from nested root, commitment, or
+opening decoders MUST remain distinguishable from malformed syntax. The
+encoder MUST return caller-owned bytes, and the decoder MUST defensively own
+all accepted state.
+
+Successful decoding proves only that the bytes form the canonical unverified
+container described above. It MUST NOT imply transcript construction, opening
+verification, claim authentication, witness completeness, or authorization of
+a state transition.
 
 ## Internal Commitment Construction
 

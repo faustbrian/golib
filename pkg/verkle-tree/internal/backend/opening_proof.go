@@ -13,6 +13,14 @@ const (
 	OpeningProofSize = openingProofPointCount*commitmentSize + scalarSize
 
 	openingProofPointCount = 17
+
+	// OpeningProofPointDecodes is the exact number of strict point decodings
+	// required by one aggregate-opening payload.
+	OpeningProofPointDecodes = openingProofPointCount
+
+	// OpeningProofScalarDecodes is the exact number of strict scalar decodings
+	// required by one aggregate-opening payload.
+	OpeningProofScalarDecodes = 1
 )
 
 var (

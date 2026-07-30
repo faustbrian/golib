@@ -9,7 +9,10 @@ import (
 )
 
 const (
-	commitmentSize = banderwagon.CompressedSize
+	// CommitmentSize is the fixed canonical Banderwagon commitment length.
+	CommitmentSize = banderwagon.CompressedSize
+
+	commitmentSize = CommitmentSize
 	scalarSize     = fr.Bytes
 )
 

@@ -71,6 +71,12 @@ All notable changes to `verkle-tree` will be documented in this file.
   opening payload while rejecting incomplete or conflicting metadata under
   explicit resource and cancellation limits; empty-root proofs remain rejected
   until their proof form is specified.
+- Add an exact package-owned canonical encoding and strict bounded decoder for
+  the unverified tree-proof container, binding its profile, root, ordered
+  claims, topology, path commitments, and opening payload while rejecting
+  mismatches, alternate lengths, trailing bytes, nonzero padding, malformed
+  cryptographic encodings, cancellation, and exhausted aggregate budgets
+  before returning an owned but still-unverified proof.
 - Add a revision-pinned `ethereum/go-verkle` research corpus covering a
   deterministic tree root, aggregate membership and non-membership proof,
   proof-commitment mutation rejection, and cross-root replay rejection.

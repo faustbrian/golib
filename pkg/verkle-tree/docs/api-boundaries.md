@@ -110,10 +110,16 @@ canonical raw opening payload. It owns and deterministically orders all
 metadata, rejects missing, duplicate, surplus, or conflicting path information,
 bounds retained paths and derivation scratch before allocation, and supports
 concurrent immutable reads. Construction establishes canonical structure only.
-The container has no external encoding and does not generate or verify an
-opening, construct a transcript, authenticate a claim, or authorize an update.
-Empty-root non-membership remains outside this boundary until its proof
-representation is fixed.
+The container has one exact package-owned canonical byte encoding and a strict
+decoder. The decoder rejects profile mismatches before point work, rejects
+alternate lengths, trailing bytes, nonzero padding, malformed commitments and
+opening elements, and preflights aggregate byte, count, path, point, scalar,
+derivation, and temporary-memory budgets before cryptographic decoding or
+attacker-amplified allocation. It returns an owned but unverified container.
+This encoding is not a public or stable wire contract and does not generate or
+verify an opening, construct a transcript, authenticate a claim, or authorize
+an update. Empty-root non-membership remains outside this boundary until its
+proof representation is fixed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

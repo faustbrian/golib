@@ -93,10 +93,12 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: canonical node, proof, witness, snapshot, and
-storage encodings, proof and witness semantics, commitment-level deletion,
+The profile remains incomplete: canonical node, witness, snapshot, and storage
+encodings, verified proof and witness semantics, commitment-level deletion,
 storage publication, and complete cryptographic resource accounting are not
-yet frozen or exported.
+yet frozen or exported. The internal unverified proof container now has one
+package-owned experimental encoding, but that format is not a public or stable
+interoperability surface.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -156,8 +158,13 @@ aggregate-opening payload. It deterministically orders stems and commitment
 paths, deduplicates shared suffix paths, rejects omitted, surplus, duplicate, or
 conflicting topology, distinguishes present, missing-child, and different-stem
 absence, and preflights retained and temporary resources with cancellation
-throughout attacker-amplified loops. It has no external encoding and performs
-no transcript construction, opening generation, cryptographic verification,
+throughout attacker-amplified loops. Its exact package-owned canonical byte
+encoding and strict decoder bind the profile, root, ordered claims, topology,
+path commitments, and raw opening payload; reject alternate lengths, trailing
+bytes, nonzero padding, malformed points or scalars, and aggregate resource
+overruns before cryptographic decoding; and preserve cancellation and caller
+ownership. This remains an internal experimental format and performs no
+transcript construction, opening generation, cryptographic verification,
 witness validation, or state authorization.
 Empty-root non-membership remains deliberately unsupported until its proof form
 is specified without a meaningless aggregate-opening payload.

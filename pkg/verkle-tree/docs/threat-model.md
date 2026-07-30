@@ -14,8 +14,9 @@ generator-set validation, bounded serial vector commitment, immutable state
 transitions, canonical stem topology, bounded deterministic full-root
 construction, atomic root-bound snapshot transitions, and canonical
 profile-bound tree claims plus an immutable canonical root-bound unverified
-tree-proof container. Tree-proof verification, witnesses, storage, publication,
-and complete side-channel controls remain unimplemented.
+tree-proof container with an exact package-owned encoding and strict aggregate
+decoder. Tree-proof verification, witnesses, storage, publication, and
+complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -99,6 +100,15 @@ cancellation-aware, and resource-bounded. It does not construct or verify the
 transcript or opening equations, so acceptance still provides no
 cryptographic authentication and does not prevent a producer from supplying
 mathematically false but structurally valid commitments.
+Its strict decoder rejects the wrong profile before point decoding, alternate
+or inconsistent lengths, trailing bytes, nonzero fixed-width path padding,
+invalid claim and topology tags, malformed or identity commitments, malformed
+opening points or scalars, and non-canonical reconstructed ordering. It
+preflights aggregate proof bytes, record counts, derived paths, retained path
+bytes, point and scalar decodes, and conservative temporary memory before
+cryptographic decoding or attacker-amplified allocation. Cancellation from
+nested cryptographic decoders remains distinguishable from malformed syntax,
+and accepted state does not alias the hostile input.
 It rejects empty roots until empty-root non-membership has an explicit proof
 form that cannot carry a meaningless surplus opening payload.
 

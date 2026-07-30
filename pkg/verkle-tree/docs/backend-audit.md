@@ -20,7 +20,8 @@ The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict
 profile-bound root decoding, the internal experimental commitment engine, the
-strict raw aggregate-opening-proof decoder, and the pinned test-only proof
+strict standalone commitment decoder, strict raw aggregate-opening-proof
+decoder, strict internal tree-proof decoder, and the pinned test-only proof
 corpus exercised here. It is not evidence that proof generation, proof
 verification, or untested hostile-input behavior remain compatible.
 
@@ -63,6 +64,12 @@ At the pinned revision:
 - the fixed root container rejects profile and encoding mismatches before point
   decoding, represents an empty root without an identity point, and bounds
   bytes and point decodes;
+- the standalone commitment decoder enforces caller-declared byte and point
+  budgets around strict canonical non-identity point decoding; and
+- the internal tree-proof decoder rejects profile mismatches, alternate
+  lengths, trailing bytes, nonzero path padding, invalid record semantics, and
+  malformed root, path-commitment, or aggregate-opening encodings under
+  aggregate byte, count, path, decode, scratch, and cancellation limits;
 - the 256-point generator set is deterministically derived from
   `eth_verkle_oct_2021`; and
 - upstream fixes at the pinned commit distinguish trusted uncompressed
@@ -159,12 +166,15 @@ The current internal boundary may:
 - retain the resulting identity only as an opaque in-memory commitment and
   map it to scalar zero;
 - return one canonical encoding for accepted commitments and scalars; and
-- defensively copy caller bytes before dependency decoding.
+- defensively copy caller bytes before dependency decoding; and
+- strictly decode canonical commitments where aggregate resource preflight has
+  already authorized one point operation.
 
 It may decode only the fixed raw aggregate-proof payload described by the
-experimental profile. It must not yet precompute proof setup, open positions,
-verify proofs, accept a serialized identity, or expose dependency values
-outside `internal/`.
+experimental profile and the package-owned internal unverified tree-proof
+container that embeds it. It must not yet precompute proof setup, open
+positions, verify proofs, accept a serialized identity, or expose dependency
+values outside `internal/`.
 
 The engine's generator and scratch-byte accounting is a deterministic,
 conservative package budget. It does not prove the dependency's complete heap
