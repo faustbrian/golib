@@ -56,6 +56,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Keep module-archive tests scoped to files shipped with the tabular module;
+  repository-root workflow policy remains owned by the root verification gate.
 - Avoid redundant row copies when CSV normalization is disabled and use a
   bounded 64 KiB source buffer to improve large-file throughput.
 - Bound fuzz-smoke concurrency to avoid deadline flakes on high-core hosts.
