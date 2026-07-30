@@ -28,8 +28,12 @@ idempotence setting.
 
 ## Files
 
-- [`environment.txt`](environment.txt) records the Go, host, Docker, broker,
-  dependency, workspace revision, and tracked harness-input identities.
+- [`environment-sync.txt`](environment-sync.txt) records the Go, host, Docker,
+  broker, dependency, execution revision, and tracked harness-input identities
+  for the refreshed single-record and batch captures.
+- [`environment-async.txt`](environment-async.txt) records the same exact
+  identity set for the asynchronous capture. Separate files prevent a later
+  workload from replacing provenance for earlier raw results.
 - [`raw-producer.txt`](raw-producer.txt) contains all 720 unmodified
   single-record benchmark samples and the exact runtime broker assertion.
 - [`producer-benchstat.txt`](producer-benchstat.txt) contains the benchstat
@@ -54,9 +58,10 @@ processes:
 
 ```sh
 make verify
-make environment > environment.txt
+make environment > environment-sync.txt
 make capture OUTPUT=raw-producer.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousProduce$$' BENCH_COUNT=20 BENCH_TIME=50x
 make capture OUTPUT=raw-producer-batch.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousBatchProduce$$' BENCH_COUNT=20 BENCH_TIME=50x
+make environment > environment-async.txt
 make capture OUTPUT=raw-producer-async.txt BENCH_PATTERN='^BenchmarkEquivalentAsynchronousProduce$$' BENCH_COUNT=20 BENCH_TIME=50x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
@@ -72,7 +77,8 @@ batch command passed in 151.422 seconds; and the asynchronous command passed in
 ## Artifact digests
 
 ```text
-c8ae78cb8c533c4700e75f10b2df04475b8d0c6c5db19ca86dd63768d730bfa5  environment.txt
+5138d5e160a52eb6ada65c9e0a04e20000041afb09c6b7d98806a30a5edc3d19  environment-sync.txt
+c8ae78cb8c533c4700e75f10b2df04475b8d0c6c5db19ca86dd63768d730bfa5  environment-async.txt
 204e442595be45e0c48b34d1118ede761e8febf4c2fa54278a3bfcfed68dc072  raw-producer.txt
 d8f67026840c89649d360fb9ae3e70d020cbdc6ced5c85c9e6d7f603593004ca  producer-benchstat.txt
 61122eac053d494be4a78f19fbc45badca1a59138a6b0de6073b061020ad65e5  raw-producer-batch.txt

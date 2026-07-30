@@ -98,15 +98,17 @@ environment, raw samples, and analysis outside that temporary cache:
 ```sh
 make test
 make verify
-make environment > environment.txt
+make environment > environment-sync.txt
 make capture OUTPUT=raw-producer.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make capture OUTPUT=raw-producer-batch.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousBatchProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
+make environment > environment-async.txt
 make capture OUTPUT=raw-producer-async.txt BENCH_PATTERN='^BenchmarkEquivalentAsynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 ```
 
-Ten independent samples are the default. Publish the raw samples and
-benchstat distributions with the environment record; do not select only the
-best result. Functional verification and timing remain separate commands.
+Ten independent samples are the default. Publish the raw samples and benchstat
+distributions with a workload-specific environment record; never replace an
+earlier capture's input identity when the harness changes. Do not select only
+the best result. Functional verification and timing remain separate commands.

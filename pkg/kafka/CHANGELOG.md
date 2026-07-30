@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- preserve separate synchronous and asynchronous benchmark environment
+  snapshots so extending the harness cannot replace the exact execution
+  revision and input fingerprints bound to earlier raw results
 - classify selected broker topic-configuration values above the documented
   64-byte inspection limit as `ErrInspectionResponseTooLarge` while preserving
   `ErrInvalidInspectionResponse` for bounded values that fail semantic parsing
