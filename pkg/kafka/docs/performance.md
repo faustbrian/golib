@@ -5,7 +5,7 @@ comparable only when acknowledgement, idempotence, ordering, partition count,
 keying, compression, payload, retry, timeout, and commit behavior are aligned.
 Unsupported guarantees are exclusions, not faster results.
 
-## Current equivalent producer captures
+## Current equivalent client captures
 
 The independently versioned
 [`benchmarks/clients`](../benchmarks/clients) module isolates comparison
@@ -52,6 +52,27 @@ windows, and 2,640,000 timed records.
 The multi-partition capture has 24 ranked combinations, 24,000 timed batches,
 and 1,920,000 timed records distributed evenly across eight partitions.
 
+The same harness separately measures one stable single-partition consumer-group
+member with automatic commits disabled. Record mode invokes one handler and
+synchronously commits one record; batch mode presents 10 or 100 contiguous
+records to one application batch handler and synchronously commits the last
+offset.
+Handler success precedes every commit. Group join, input production, fixture
+growth, construction, and shutdown are outside the timer. Fetch delivery,
+public record mapping, handler invocation, and commit are inside it.
+
+The consumer capture covers the package policy, raw franz-go, kafka-go, and
+Sarama across 128-byte and 1 KiB payloads produced without compression or with
+Snappy. It recorded 20 samples of 10 operations for each of 48 combinations:
+960 benchmark samples, 9,600 timed operations, and 355,200 timed records.
+Independent correctness checks prove exact record and batch handler order plus
+the final committed broker offset for every client. One member and one
+partition produce the same assignment outcome, but kafka-go uses range
+assignment while the other clients use cooperative-sticky; rebalance behavior
+is therefore outside this comparison. Sarama's synchronous commit method
+returns no error, so its healthy-broker timing is backed by the external offset
+check but does not prove equivalent commit-failure reporting.
+
 ## Environment and interpretation
 
 The 2026-07-30 capture used Go 1.26.5 on Darwin arm64 with an Apple M4 Max,
@@ -68,14 +89,24 @@ milliseconds for Sarama. Batch-operation medians ranged from 204 to 626
 microseconds for the policy path, 195 to 883 microseconds for raw franz-go, and
 6.4 to 8.6 milliseconds for Sarama. Bounded asynchronous-window medians ranged
 from 6.14 to 7.15 milliseconds for the policy path, 6.16 to 7.88 milliseconds
-for raw franz-go, and 6.23 to 7.29 milliseconds for Sarama. Individual
-Eight-partition batch medians ranged from 0.89 to 2.77 milliseconds for the
+for raw franz-go, and 6.23 to 7.29 milliseconds for Sarama. Eight-partition
+batch medians ranged from 0.89 to 2.77 milliseconds for the
 policy path, 0.82 to 3.04 milliseconds for raw franz-go, and 7.04 to 9.17
 milliseconds for Sarama. Individual distributions spread as far as 184 percent
 in the earlier synchronous captures, 7 percent for asynchronous latency, and
 38 percent for multi-partition latency on the shared local fixture. Those
 ranges describe local fixture noise as well as client work; they do not
 establish superiority or a stable production budget.
+
+Consumer record-operation medians ranged from 0.49 to 5.70 milliseconds for
+the policy path, 0.38 to 3.65 milliseconds for raw franz-go, 0.46 to 2.06
+milliseconds for kafka-go, and 82.7 to 97.8 milliseconds for Sarama. Consumer
+batch-operation medians ranged from 0.28 to 3.04 milliseconds for the policy
+path, 0.27 to 0.46 milliseconds for raw franz-go, 0.29 to 0.65 milliseconds
+for kafka-go, and 0.37 to 0.88 milliseconds for Sarama. Consumer latency
+distributions spread as far as 320 percent on the shared fixture. These
+distributions are descriptive evidence, not a stable production budget or a
+superiority claim.
 
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
@@ -88,7 +119,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- consumer record and batch handling, including kafka-go;
 - sequential and cross-partition handling, commits, and rebalance cost;
 - producer transactions and consume-transform-produce;
 - replay and inspection operations;

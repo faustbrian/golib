@@ -63,9 +63,10 @@ All notable changes to this module are documented here.
   idempotent synchronous single-record, 10/100-record batch, 10/100-record
   asynchronous-window, and keyed plus explicit eight-partition workloads for
   the package policy, raw franz-go, and Sarama, an explicitly unranked kafka-go
-  capability control, pinned dependency and broker inputs, per-workload
-  environment fingerprints, raw multi-sample captures, and
-  variance-preserving analysis
+  producer capability control, plus equivalent manually committed consumer
+  record and 10/100-record batch workloads for all four clients, pinned
+  dependency and broker inputs, per-workload environment fingerprints, raw
+  multi-sample captures, and variance-preserving analysis
 - three-broker rack-local fetch evidence proving that a separate consumer
   process configured for a non-leader replica's rack handles and commits a
   source record after its single in-flight fetch completes on that follower
