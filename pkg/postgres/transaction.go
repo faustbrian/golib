@@ -161,7 +161,9 @@ func runInTransaction(
 		panicValue := recover()
 		switch {
 		case !needsRollback:
-		case panicValue != nil || err == nil:
+		case panicValue != nil:
+			rollbackAfterTerminalCallback(ctx, tx, cleanupTimeout)
+		case err == nil:
 			rollbackAfterTerminalCallback(ctx, tx, cleanupTimeout)
 		default:
 			err = errors.Join(err, rollbackAfterCallbackError(ctx, tx, cleanupTimeout))

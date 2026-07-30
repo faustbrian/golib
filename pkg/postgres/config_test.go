@@ -37,8 +37,8 @@ func TestParseConfigAppliesFiniteProductionDefaults(t *testing.T) {
 	if config.HealthCheckPeriod != time.Minute {
 		t.Errorf("HealthCheckPeriod = %s, want 1m", config.HealthCheckPeriod)
 	}
-	if config.PingTimeout != DefaultPingTimeout {
-		t.Errorf("PingTimeout = %s, want %s", config.PingTimeout, DefaultPingTimeout)
+	if config.PingTimeout != 2*time.Second {
+		t.Errorf("PingTimeout = %s, want 2s", config.PingTimeout)
 	}
 	if config.ConnConfig.ConnectTimeout != 5*time.Second {
 		t.Errorf("ConnectTimeout = %s, want 5s", config.ConnConfig.ConnectTimeout)
@@ -200,6 +200,28 @@ func TestParseConfigRejectsInconsistentPoolSizes(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ParseConfig() error = nil")
+	}
+}
+
+func TestParseConfigAcceptsPoolSizesAtMaximum(t *testing.T) {
+	t.Parallel()
+
+	config, err := ParseConfig(Config{
+		DSN:          "postgres://localhost/app?sslmode=disable",
+		MaxConns:     2,
+		MinConns:     2,
+		MinIdleConns: 2,
+	})
+	if err != nil {
+		t.Fatalf("ParseConfig(equal pool sizes) error = %v", err)
+	}
+	if config.MinConns != config.MaxConns || config.MinIdleConns != config.MaxConns {
+		t.Fatalf(
+			"pool sizes = max %d min %d idle %d",
+			config.MaxConns,
+			config.MinConns,
+			config.MinIdleConns,
+		)
 	}
 }
 

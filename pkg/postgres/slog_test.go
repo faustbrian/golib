@@ -24,7 +24,7 @@ func TestSlogObserverRecordsOnlyBoundedFields(t *testing.T) {
 	})
 
 	entry := output.String()
-	for _, expected := range []string{"transaction", "error", "unique_violation", "23505"} {
+	for _, expected := range []string{`"level":"ERROR"`, "transaction", "error", "unique_violation", "23505"} {
 		if !strings.Contains(entry, expected) {
 			t.Fatalf("log entry %q does not contain %q", entry, expected)
 		}
@@ -62,7 +62,7 @@ func TestSlogObserverIncludesPresentPoolSnapshot(t *testing.T) {
 		HasPoolStats: true,
 	})
 	entry := output.String()
-	for _, expected := range []string{`"pool.acquired":1`, `"pool.idle":2`, `"pool.total":3`, `"pool.max":4`} {
+	for _, expected := range []string{`"level":"DEBUG"`, `"pool.acquired":1`, `"pool.idle":2`, `"pool.total":3`, `"pool.max":4`} {
 		if !strings.Contains(entry, expected) {
 			t.Fatalf("log entry %q does not contain %q", entry, expected)
 		}

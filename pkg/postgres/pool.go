@@ -178,7 +178,7 @@ func (p *Pool) Ping(ctx context.Context) error {
 	defer cancel()
 
 	err := p.backend.Ping(ctx)
-	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) {
 		err = errors.Join(ErrHealthTimeout, err)
 	}
 	observation := observationFor(OperationPing, started, err)

@@ -51,6 +51,7 @@ func TestObserverRecordsBoundedLifecycleMetrics(t *testing.T) {
 		"db.client.connection.count",
 		"pool.acquire",
 		"pool_exhaustion",
+		"53300",
 	} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("metrics do not contain %q: %s", expected, text)
@@ -82,8 +83,12 @@ func TestObserverDoesNotRecordPoolGaugesWithoutSnapshot(t *testing.T) {
 	if err := reader.Collect(context.Background(), &metrics); err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	if strings.Contains(fmt.Sprint(metrics), "db.client.connection.count") {
+	text := fmt.Sprint(metrics)
+	if strings.Contains(text, "db.client.connection.count") {
 		t.Fatalf("transaction observation recorded absent pool gauges: %v", metrics)
+	}
+	if strings.Contains(text, "db.response.status_code") {
+		t.Fatalf("transaction observation recorded absent SQL state: %v", metrics)
 	}
 }
 

@@ -94,6 +94,16 @@ func TestNewLazyExposesNativePool(t *testing.T) {
 	if got := pool.Raw().Config().MaxConns; got != 7 {
 		t.Errorf("Raw().Config().MaxConns = %d, want 7", got)
 	}
+	if pool.acquireTimeout != 5*time.Second ||
+		pool.pingTimeout != 2*time.Second ||
+		pool.shutdownTimeout != 10*time.Second {
+		t.Fatalf(
+			"default timeouts = acquire %s ping %s shutdown %s",
+			pool.acquireTimeout,
+			pool.pingTimeout,
+			pool.shutdownTimeout,
+		)
+	}
 	if err := pool.Close(context.Background()); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
@@ -105,6 +115,9 @@ func TestPoolAcquireUsesConfiguredBound(t *testing.T) {
 	backend := &stubPoolBackend{
 		stats: Stats{AcquiredConns: 1, MaxConns: 1},
 		acquire: func(ctx context.Context) (*pgxpool.Conn, error) {
+			if _, ok := ctx.Deadline(); !ok {
+				return nil, errors.New("configured acquisition deadline was not applied")
+			}
 			<-ctx.Done()
 
 			return nil, ctx.Err()
@@ -163,6 +176,9 @@ func TestPoolReadinessUsesBoundedPingAndReportsStats(t *testing.T) {
 	}
 	if !errors.Is(health.Err, sentinel) {
 		t.Fatalf("Readiness().Err = %v, want sentinel", health.Err)
+	}
+	if errors.Is(health.Err, ErrHealthTimeout) {
+		t.Fatalf("Readiness().Err = %v, incorrectly reports health timeout", health.Err)
 	}
 }
 
@@ -293,6 +309,40 @@ func TestBoundedContextWithCauseSupportsNoAdditionalTimeout(t *testing.T) {
 	cancel()
 	if !errors.Is(ctx.Err(), context.Canceled) || errors.Is(context.Cause(ctx), ErrAcquireTimeout) {
 		t.Fatalf("context error and cause = (%v, %v)", ctx.Err(), context.Cause(ctx))
+	}
+}
+
+func TestPoolSaturationAccountsForConstructingConnections(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		stats Stats
+		want  bool
+	}{
+		"unbounded": {
+			stats: Stats{AcquiredConns: 1},
+		},
+		"available": {
+			stats: Stats{AcquiredConns: 1, MaxConns: 2},
+		},
+		"constructing reaches capacity": {
+			stats: Stats{AcquiredConns: 1, ConstructingConns: 1, MaxConns: 2},
+			want:  true,
+		},
+	} {
+		if got := poolIsSaturated(test.stats); got != test.want {
+			t.Fatalf("poolIsSaturated(%s) = %t, want %t", name, got, test.want)
+		}
+	}
+}
+
+func TestBoundedContextWithCauseAppliesPositiveTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := boundedContextWithCause(context.Background(), time.Hour, ErrAcquireTimeout)
+	defer cancel()
+	if _, ok := ctx.Deadline(); !ok {
+		t.Fatal("bounded context has no deadline")
 	}
 }
 
