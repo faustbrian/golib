@@ -6,6 +6,7 @@ import (
 )
 
 var benchmarkTree Tree
+var benchmarkProofPath ProofPath
 
 func BenchmarkBuildFourEntries(b *testing.B) {
 	builder, err := NewBuilder(
@@ -29,6 +30,37 @@ func BenchmarkBuildFourEntries(b *testing.B) {
 		benchmarkTree, err = builder.Build(context.Background(), entries)
 		if err != nil {
 			b.Fatalf("build tree: %v", err)
+		}
+	}
+}
+
+func BenchmarkProofPath(b *testing.B) {
+	key := testKey(0, 0)
+	other := testKey(0, 1)
+	other[1] = 1
+	tree, err := Build(
+		context.Background(),
+		[]Entry{
+			{Key: key, Value: testValue(1)},
+			{Key: other, Value: testValue(2)},
+		},
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		b.Fatalf("build proof tree: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		benchmarkProofPath, err = tree.ProofPath(
+			context.Background(),
+			key,
+			testProofPathLimits(),
+		)
+		if err != nil {
+			b.Fatalf("extract proof path: %v", err)
 		}
 	}
 }

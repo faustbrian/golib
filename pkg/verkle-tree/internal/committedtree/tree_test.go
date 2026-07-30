@@ -428,10 +428,10 @@ func TestBuildRejectsExhaustedResourcesBeforeCommitmentWork(t *testing.T) {
 		},
 		{
 			name:     "complete bytes",
-			limits:   Limits{MaxEntries: 16, MaxStems: 16, MaxNodes: 64, MaxEdges: 64, MaxCommitments: 64, MaxFieldMappings: 64, MaxCommitmentTerms: 1024, MaxTemporaryBytes: 279_711},
+			limits:   Limits{MaxEntries: 16, MaxStems: 16, MaxNodes: 64, MaxEdges: 64, MaxCommitments: 64, MaxFieldMappings: 64, MaxCommitmentTerms: 1024, MaxTemporaryBytes: 281_247},
 			resource: ResourceTemporaryBytes,
-			limit:    279_711,
-			actual:   279_712,
+			limit:    281_247,
+			actual:   281_248,
 		},
 	}
 	for _, test := range tests {

@@ -19,7 +19,7 @@ const (
 	edgeWorkingBytes  = uint64(16)
 	// The retained node budget deliberately exceeds the current backend point
 	// representation plus node metadata on every supported architecture.
-	nodeWorkingBytes = uint64(256)
+	nodeWorkingBytes = uint64(768)
 	vectorBytes      = uint64(backend.VectorWidth * 32)
 	maxLiveVectors   = uint64(34)
 )
@@ -146,6 +146,8 @@ type node struct {
 	firstEdge  uint32
 	edgeCount  uint16
 	commitment backend.VectorCommitment
+	c1         backend.VectorCommitment
+	c2         backend.VectorCommitment
 }
 
 type edge struct {
@@ -692,6 +694,8 @@ func (builder *treeBuilder) commitStem(
 		depth:      depth,
 		stem:       group.stem,
 		commitment: committed,
+		c1:         c1Commitment,
+		c2:         c2Commitment,
 	})
 
 	return committed, nil
