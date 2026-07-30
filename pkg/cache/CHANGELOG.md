@@ -7,6 +7,8 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
+- Encode the schema prefix without allocation-size arithmetic after enforcing
+  the configured payload boundary.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so

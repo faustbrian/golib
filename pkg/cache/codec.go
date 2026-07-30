@@ -40,10 +40,7 @@ func (c JSONCodec[V]) Encode(value V) ([]byte, error) {
 			limit,
 		)
 	}
-	encodedSize := len(payload) + 1
-	encoded := make([]byte, encodedSize)
-	encoded[0] = c.Version
-	copy(encoded[1:], payload)
+	encoded := append([]byte{c.Version}, payload...)
 	return encoded, nil
 }
 
