@@ -37,6 +37,11 @@ metadata does not recognize it as valid. Neither result proves ownership.
 **Why can’t postal parsing confirm a city?** Postal values are bounded opaque
 values. Address validation, search, and provider rules belong in Postal.
 
+**When should `postal.ValidSyntax` be used?** Only when a contract explicitly
+requires the pinned country-format compatibility result. Bound untrusted input
+first and do not interpret `true` as proof that the code exists or is
+deliverable.
+
 For generated drift, verify network access, upstream checksum changes, and
 license terms before updating a pin. For config or SQL failures, inspect the
 typed safe error and confirm the input is a string/byte value, not a number.

@@ -4,6 +4,8 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+- Add opt-in country-aware postal-code syntax validation compatible with the
+  pinned `brick/postcode` 0.5.0 rules used by legacy Postal callers.
 - Add bounded, locale-neutral full Unicode lowercasing for protocols that
   require multi-rune and context-sensitive lowercase mappings.
 - Replace nonexistent owned-module v0.1.0 tags with available main revisions
