@@ -16,6 +16,7 @@ import (
 	"github.com/IBM/sarama"
 	policy "github.com/faustbrian/golib/pkg/kafka"
 	segmentkafka "github.com/segmentio/kafka-go"
+	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -59,6 +60,10 @@ func TestMain(m *testing.M) {
 }
 
 type benchmarkCompression uint8
+
+type benchmarkNoopLogger struct{}
+
+func (benchmarkNoopLogger) Printf(string, ...any) {}
 
 const (
 	compressionNone benchmarkCompression = iota
@@ -519,7 +524,11 @@ func benchmarkBrokers(tb testing.TB) []string {
 func startBenchmarkFixture() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	container, err := tckafka.Run(ctx, benchmarkKafkaImage)
+	container, err := tckafka.Run(
+		ctx,
+		benchmarkKafkaImage,
+		testcontainers.WithLogger(benchmarkNoopLogger{}),
+	)
 	benchmarkFixture = container
 	if err != nil {
 		benchmarkFixtureErr = err

@@ -6,34 +6,36 @@ BENCH_PATTERN ?= ^BenchmarkEquivalentSynchronousProduce$$
 .PHONY: analyze benchmark capture environment test verify
 
 test:
-	$(GO) test ./...
+	@$(GO) test ./...
 
 verify:
-	$(GO) test -tags=integration -run '^TestEquivalentProducerOutcomes$$' -count=1
+	@$(GO) test -tags=integration -run '^TestEquivalentProducerOutcomes$$' -count=1
 
 benchmark:
-	$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
+	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
 		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v
 
 capture:
-	test -n '$(OUTPUT)'
-	$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
+	@test -n '$(OUTPUT)'
+	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
 		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v \
 		> '$(OUTPUT)'
-	cat '$(OUTPUT)'
+	@cat '$(OUTPUT)'
 
 analyze:
-	test -n '$(INPUT)'
-	$(GO) tool benchstat '$(INPUT)'
+	@test -n '$(INPUT)'
+	@$(GO) tool benchstat '$(INPUT)'
 
 environment:
-	$(GO) version
-	$(GO) env GOOS GOARCH GOARM64
-	uname -a
-	git rev-parse HEAD
-	docker version --format \
+	@$(GO) version
+	@$(GO) env GOOS GOARCH GOARM64
+	@uname -srm
+	@git rev-parse HEAD
+	@docker version --format \
 		'client={{.Client.Version}} server={{.Server.Version}} api={{.Server.APIVersion}}'
-	$(GO) list -m \
+	@git ls-files -- . | LC_ALL=C sort | xargs shasum -a 256
+	@shasum -a 256 ../../../../go.work
+	@$(GO) list -m \
 		github.com/faustbrian/golib/pkg/kafka \
 		github.com/twmb/franz-go \
 		github.com/segmentio/kafka-go \
