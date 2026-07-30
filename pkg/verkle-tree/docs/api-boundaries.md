@@ -75,8 +75,12 @@ value, leaf, and topology rules. Its immutable builder may be reused
 concurrently; each result owns a complete immutable logical-node arena and an
 opaque root commitment. The backend boundary wraps that commitment in one
 strict 42-byte profile-bound root container, including an explicit empty-root
-kind that never decodes an identity point. It deliberately exposes no public
-root API, persistence contract, proof operation, or incremental update seam.
+kind that never decodes an identity point. The immutable arena can extract one
+caller-owned, cancellation-aware proof path with explicit node-read,
+commitment, path-byte, and result-storage limits. It returns topology and exact
+non-root commitments only; it deliberately exposes no public root API,
+persistence contract, cryptographic proof operation, or incremental update
+seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch

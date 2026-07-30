@@ -76,5 +76,50 @@ func FuzzBuildDeterministic(f *testing.F) {
 		if leftCount != rightCount {
 			t.Fatalf("node counts differ: %d / %d", leftCount, rightCount)
 		}
+
+		var query Key
+		if len(entries) > 0 {
+			query = entries[0].Key
+		}
+		leftPath, err := left.ProofPath(
+			context.Background(),
+			query,
+			testProofPathLimits(),
+		)
+		if err != nil {
+			t.Fatalf("extract left proof path: %v", err)
+		}
+		rightPath, err := right.ProofPath(
+			context.Background(),
+			query,
+			testProofPathLimits(),
+		)
+		if err != nil {
+			t.Fatalf("extract right proof path: %v", err)
+		}
+		if leftPath.Kind != rightPath.Kind ||
+			leftPath.Depth != rightPath.Depth ||
+			leftPath.ExistingStem != rightPath.ExistingStem ||
+			len(leftPath.Commitments) != len(rightPath.Commitments) {
+			t.Fatalf("proof-path metadata differs: %#v / %#v", leftPath, rightPath)
+		}
+		for index := range leftPath.Commitments {
+			leftCommitment := leftPath.Commitments[index]
+			rightCommitment := rightPath.Commitments[index]
+			leftScalar, leftErr := leftCommitment.Commitment.ScalarBytes()
+			rightScalar, rightErr := rightCommitment.Commitment.ScalarBytes()
+			if leftErr != nil ||
+				rightErr != nil ||
+				leftCommitment.Path != rightCommitment.Path ||
+				leftCommitment.Length != rightCommitment.Length ||
+				leftScalar != rightScalar {
+				t.Fatalf(
+					"proof-path commitment %d differs: %#v / %#v",
+					index,
+					leftCommitment,
+					rightCommitment,
+				)
+			}
+		}
 	})
 }
