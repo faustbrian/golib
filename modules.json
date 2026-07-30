@@ -393,17 +393,7 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md",
-            "docs/ci.md",
-            "docs/goal-traceability.md",
-            "docs/migration.md",
-            "docs/module-dependencies.md",
-            "docs/module-lifecycle.md",
-            "docs/package-catalog.md",
-            "docs/package-selection.md",
-            "docs/quality.md",
-            "docs/releases.md",
-            "docs/troubleshooting.md"
+            "docs/architecture.md"
           ],
           "verification_gates": [
             "format-check",
