@@ -18,7 +18,9 @@ source of production support claims or a substitute for fault evidence.
 
 `go.sum` pins the module content checksums. Run `make environment` with every
 capture to record the exact Go version, operating system, architecture,
-workspace revision, Docker engine, client versions, and broker image.
+workspace revision, Docker engine, client versions, broker image, and every
+Go source, module, Makefile, and README harness input whether or not it is
+staged yet. Generated benchmark and environment outputs are excluded.
 
 ## Equivalent producer workloads
 
@@ -31,9 +33,15 @@ records through each client's asynchronous API and waits for every individual
 delivery outcome before starting the next window. This keeps the maximum
 application-owned outstanding work explicit while measuring asynchronous
 admission, delivery callbacks, and result collection together.
+`BenchmarkEquivalentMultiPartitionProduce` sends one 80-record synchronous
+batch across eight pre-created partitions. The keyed mode selects ten keys per
+partition with Kafka's Murmur2 mapping; the explicit mode assigns ten records
+to each partition through every client's manual-partition API. Both modes wait
+for the complete batch outcome.
 Every ranked candidate has idempotence enabled, preserves order, disables topic
-auto-creation, uses one pre-created partition, retries at most ten times, and
-has bounded request waits, client channels, and retry buffers. Client
+auto-creation, uses a pre-created topic with the workload's declared partition
+count, retries at most ten times, and has bounded request waits, client channels,
+and retry buffers. Client
 construction, metadata warm-up, topic creation, fixture startup, and shutdown
 are outside the timer. Public record mapping, client policy, serialization,
 compression, network transit, broker processing, and delivery-result handling
@@ -46,8 +54,12 @@ payloads, and 10-record plus 100-record batches. The one-partition fixture
 deliberately removes partition-count and partitioner distribution as variables.
 The asynchronous matrix uses the batch matrix's key, payload, compression, and
 10/100-record dimensions but submits each record independently before awaiting
-all results. It does not establish many-partition, transaction, reconnect, TLS,
-or steady-state resource results; those require separate workloads.
+all results. The multi-partition matrix uses 128-byte and 1 KiB payloads with
+no compression and Snappy. Automatic unkeyed multi-partition production is not
+ranked: franz-go's adaptive KIP-794 partitioner and Sarama's random fallback do
+not provide an equivalent distribution contract. The workloads do not
+establish transaction, reconnect, TLS, or steady-state resource results; those
+require separate evidence.
 
 The policy library and raw franz-go use the same franz-go producer controls.
 Sarama requires `Net.MaxOpenRequests=1` for idempotence; the one-partition
@@ -58,6 +70,9 @@ exactly equivalent to franz-go's total record-delivery deadline, so the
 healthy-broker ranking does not compare timeout behavior. Cancellation behavior
 also differs after admission; timed operations use a healthy broker and wait for
 every result, so the ranking does not compare cancellation ambiguity.
+Keyed multi-partition candidates all use Kafka's Murmur2 mapping. Explicit mode
+uses the package policy, franz-go manual partitioner, or Sarama manual
+partitioner directly; it does not infer placement from client defaults.
 
 `kafka-go` v0.4.51 is pinned for the required comparison program, but is not
 included in the durable-producer ranking: its public `Writer` supports
@@ -74,6 +89,9 @@ competitor matrix remains incomplete.
 asynchronous admission and every per-record delivery result. Each test uses a
 separate real-broker read path to observe every exact key and payload once in
 input order for all ranked clients and the unranked control.
+`TestEquivalentMultiPartitionProducerOutcomes` separately reads every one of
+eight partitions and proves exact per-partition order for the keyed and
+explicit modes across all ranked clients.
 
 ## Broker selection
 
@@ -103,9 +121,12 @@ make capture OUTPUT=raw-producer.txt BENCH_PATTERN='^BenchmarkEquivalentSynchron
 make capture OUTPUT=raw-producer-batch.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousBatchProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make environment > environment-async.txt
 make capture OUTPUT=raw-producer-async.txt BENCH_PATTERN='^BenchmarkEquivalentAsynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
+make environment > environment-multi-partition.txt
+make capture OUTPUT=raw-producer-multi-partition.txt BENCH_PATTERN='^BenchmarkEquivalentMultiPartitionProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
+make analyze INPUT=raw-producer-multi-partition.txt > producer-multi-partition-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and benchstat

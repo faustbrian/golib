@@ -60,10 +60,11 @@ All notable changes to this module are documented here.
   compatibility fixture
 - an independently versioned client benchmark harness with real-broker
   single-record, batch, and bounded asynchronous correctness checks, equivalent
-  idempotent synchronous single-record, 10/100-record batch, and 10/100-record
-  asynchronous-window workloads for the package policy, raw franz-go, and
-  Sarama, an explicitly unranked kafka-go capability control, pinned dependency
-  and broker inputs, environment fingerprints, raw multi-sample captures, and
+  idempotent synchronous single-record, 10/100-record batch, 10/100-record
+  asynchronous-window, and keyed plus explicit eight-partition workloads for
+  the package policy, raw franz-go, and Sarama, an explicitly unranked kafka-go
+  capability control, pinned dependency and broker inputs, per-workload
+  environment fingerprints, raw multi-sample captures, and
   variance-preserving analysis
 - three-broker rack-local fetch evidence proving that a separate consumer
   process configured for a non-leader replica's rack handles and commits a

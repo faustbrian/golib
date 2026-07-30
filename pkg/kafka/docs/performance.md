@@ -11,11 +11,12 @@ The independently versioned
 [`benchmarks/clients`](../benchmarks/clients) module isolates comparison
 dependencies from the production module. Its ranked workloads measure one
 warmed producer sending either one synchronous record, one synchronous
-10/100-record batch, or one bounded 10/100-record asynchronous window to one
-pre-created partition until all in-sync replicas acknowledge the complete
-operation. Idempotence and ordering are enabled for every ranked client. Topic
-creation, client construction, metadata warm-up, fixture startup, and shutdown
-are outside the timer.
+10/100-record batch, one bounded 10/100-record asynchronous window to one
+partition, or one 80-record keyed or explicitly partitioned batch across eight
+partitions until all in-sync replicas acknowledge the complete operation.
+Idempotence and ordering are enabled for every ranked client. Topic creation,
+client construction, metadata warm-up, fixture startup, and shutdown are
+outside the timer.
 
 The capture covers:
 
@@ -27,7 +28,9 @@ The capture covers:
 - 128-byte, 1 KiB, and 64 KiB single-record payloads;
 - 128-byte and 1 KiB payloads in 10-record and 100-record batches;
 - 128-byte and 1 KiB payloads in bounded 10-record and 100-record asynchronous
-  windows; and
+  windows;
+- balanced Murmur2-keyed and explicitly assigned 80-record batches across
+  eight partitions with 128-byte and 1 KiB payloads; and
 - uncompressed and Snappy-compressed workloads.
 
 Kafka-go v0.4.51 participates in the real-broker correctness check as an
@@ -37,6 +40,8 @@ the durable ranking would compare different delivery contracts.
 
 Separate correctness checks independently read the exact key and value
 published by each client's single, batch, and asynchronous APIs in input order.
+The keyed and explicit multi-partition check reads each partition independently
+and proves exact order within that partition.
 The timed single-record capture recorded 20 samples of 50 acknowledged records
 for each of 36 ranked workload/client combinations: 720 benchmark samples and
 36,000 timed deliveries. The batch capture recorded 20 samples of 50
@@ -44,6 +49,8 @@ acknowledged batches for each of 48 ranked combinations: 960 benchmark samples,
 48,000 timed batch operations, and 2,640,000 timed records.
 The asynchronous capture uses the same 48 combinations, 48,000 timed bounded
 windows, and 2,640,000 timed records.
+The multi-partition capture has 24 ranked combinations, 24,000 timed batches,
+and 1,920,000 timed records distributed evenly across eight partitions.
 
 ## Environment and interpretation
 
@@ -62,10 +69,13 @@ microseconds for the policy path, 195 to 883 microseconds for raw franz-go, and
 6.4 to 8.6 milliseconds for Sarama. Bounded asynchronous-window medians ranged
 from 6.14 to 7.15 milliseconds for the policy path, 6.16 to 7.88 milliseconds
 for raw franz-go, and 6.23 to 7.29 milliseconds for Sarama. Individual
-distributions spread as far as 184 percent in the synchronous captures and
-7 percent for asynchronous latency on the shared local fixture. Those ranges
-describe local fixture noise as well as client work; they do not establish
-superiority or a stable production budget.
+Eight-partition batch medians ranged from 0.89 to 2.77 milliseconds for the
+policy path, 0.82 to 3.04 milliseconds for raw franz-go, and 7.04 to 9.17
+milliseconds for Sarama. Individual distributions spread as far as 184 percent
+in the earlier synchronous captures, 7 percent for asynchronous latency, and
+38 percent for multi-partition latency on the shared local fixture. Those
+ranges describe local fixture noise as well as client work; they do not
+establish superiority or a stable production budget.
 
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
@@ -78,7 +88,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- multiple partitions and partition-distribution behavior;
 - consumer record and batch handling, including kafka-go;
 - sequential and cross-partition handling, commits, and rebalance cost;
 - producer transactions and consume-transform-produce;

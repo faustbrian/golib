@@ -760,6 +760,24 @@ func newFranzProducer(
 	compression benchmarkCompression,
 ) synchronousProducer {
 	t.Helper()
+
+	return newFranzProducerWithPartitioner(
+		t,
+		brokers,
+		topic,
+		compression,
+		kgo.UniformBytesPartitioner(65_536, true, true, nil),
+	)
+}
+
+func newFranzProducerWithPartitioner(
+	t testing.TB,
+	brokers []string,
+	topic string,
+	compression benchmarkCompression,
+	partitioner kgo.Partitioner,
+) *franzProducer {
+	t.Helper()
 	codec := kgo.NoCompression()
 	if compression == compressionSnappy {
 		codec = kgo.SnappyCompression()
@@ -767,7 +785,7 @@ func newFranzProducer(
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.ClientID("raw-franz-go-client-benchmark"),
-		kgo.RecordPartitioner(kgo.UniformBytesPartitioner(65_536, true, true, nil)),
+		kgo.RecordPartitioner(partitioner),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.StopProducerOnDataLossDetected(),
 		kgo.MaxBufferedRecords(1_000),
@@ -914,7 +932,7 @@ func newSaramaProducerConfig(
 	config.ChannelBufferSize = 1_000
 	config.Producer.Partitioner = sarama.NewRandomPartitioner
 	if keyed {
-		config.Producer.Partitioner = sarama.NewHashPartitioner
+		config.Producer.Partitioner = sarama.NewMurmur2Partitioner
 	}
 	if compression == compressionSnappy {
 		config.Producer.Compression = sarama.CompressionSnappy
@@ -1382,6 +1400,13 @@ func createIsolatedBenchmarkTopic(tb testing.TB, brokers []string) string {
 }
 
 func createBenchmarkTopicOnce(brokers []string) (string, error) {
+	return createBenchmarkTopicWithPartitionsOnce(brokers, 1)
+}
+
+func createBenchmarkTopicWithPartitionsOnce(
+	brokers []string,
+	partitionCount int32,
+) (string, error) {
 	topic := fmt.Sprintf("golib-client-benchmark-%d", time.Now().UnixNano())
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
@@ -1395,7 +1420,7 @@ func createBenchmarkTopicOnce(brokers []string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	admin := kadm.NewClient(client)
-	results, err := admin.CreateTopics(ctx, 1, 1, nil, topic)
+	results, err := admin.CreateTopics(ctx, partitionCount, 1, nil, topic)
 	if err != nil {
 		return "", err
 	}
@@ -1414,9 +1439,16 @@ func createBenchmarkTopicOnce(brokers []string) (string, error) {
 			return "", fmt.Errorf("inspect topic %q readiness: %w", topic, listErr)
 		}
 		detail, topicReady := details[topic]
-		partition, partitionReady := detail.Partitions[0]
-		if topicReady && detail.Err == nil && partitionReady &&
-			partition.Err == nil && partition.Leader >= 0 {
+		ready := topicReady && detail.Err == nil &&
+			len(detail.Partitions) == int(partitionCount)
+		for partitionID := range partitionCount {
+			partition, partitionReady := detail.Partitions[partitionID]
+			if !partitionReady || partition.Err != nil || partition.Leader < 0 {
+				ready = false
+				break
+			}
+		}
+		if ready {
 			break
 		}
 		select {

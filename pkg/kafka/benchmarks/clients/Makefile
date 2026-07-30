@@ -1,7 +1,7 @@
 GO ?= go
 BENCH_COUNT ?= 10
 BENCH_TIME ?= 10x
-BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce)$$
+BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce|MultiPartitionProduce)$$
 
 .PHONY: analyze benchmark capture environment test verify
 
@@ -9,7 +9,7 @@ test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^TestEquivalent(Producer(Batch)?|AsynchronousProducer)Outcomes$$' -count=1
+	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer)Outcomes|BenchmarkMultiPartitionRecordBytes)$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
@@ -33,7 +33,10 @@ environment:
 	@git rev-parse HEAD
 	@docker version --format \
 		'client={{.Client.Version}} server={{.Server.Version}} api={{.Server.APIVersion}}'
-	@git ls-files -- . | LC_ALL=C sort | xargs shasum -a 256
+	@find . -maxdepth 1 -type f \( \
+		-name '*.go' -o -name 'go.mod' -o -name 'go.sum' -o \
+		-name 'Makefile' -o -name 'README.md' \
+	\) -print | sed 's|^./||' | LC_ALL=C sort | xargs shasum -a 256
 	@shasum -a 256 ../../../../go.work
 	@$(GO) list -m \
 		github.com/faustbrian/golib/pkg/kafka \

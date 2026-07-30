@@ -1,0 +1,22 @@
+go version go1.26.5 darwin/arm64
+darwin
+arm64
+v8.0
+Darwin 27.0.0 arm64
+d3d8a44fde1dbfb3c2e9633bc71d5b19a04b0919
+client=29.6.2 server=29.6.2 api=1.55
+59f2ab995b929b9a4ae3134fc9f55c0ff0234bf2e7c897ea202a791b753ddd83  Makefile
+a577a74d31dc3688655e7a9042f93f9f36451a7060519792d42a3d0b5d8c4aec  README.md
+9235b485252e96d87d9368c9f5d42a2fdf7d78c9517cd6a3d64add9ba96686b1  doc.go
+cdeed94a70ce11154891a5993bd2977164b0331e7f9b980bd111994a2ccb41ec  go.mod
+e4596d6804fc3ddc3ee8a5602b9d29395ddf2cb3fdfb07f00cd5139c8b06922d  go.sum
+5c01dac01b9fa700f529da520e98481691d0529ee70b9afa86d333f660710e53  producer_benchmark_test.go
+a4e80d4ba289dbe9d02c2d89a8d1e8d5a718ae76ccfb43c7a6c9be6f7b86df5e  producer_multi_partition_benchmark_test.go
+ce5449e874e4e341ee519e6324800423f4f70845eaaa10331fe2ae970f264ba5  ../../../../go.work
+github.com/faustbrian/golib/pkg/kafka
+github.com/twmb/franz-go v1.21.5
+github.com/segmentio/kafka-go v0.4.51
+github.com/IBM/sarama v1.60.1
+github.com/testcontainers/testcontainers-go/modules/kafka v0.43.0
+golang.org/x/perf v0.0.0-20260709024250-82a0b07e230d
+broker-image=confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd
