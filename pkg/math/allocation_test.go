@@ -13,6 +13,8 @@ import (
 	"github.com/faustbrian/golib/pkg/math/rational"
 )
 
+var conditionStringSink string
+
 func TestRepresentativeAllocationBudgets(t *testing.T) {
 	if raceEnabled {
 		t.Skip("race instrumentation changes allocation counts")
@@ -40,7 +42,15 @@ func TestRepresentativeAllocationBudgets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	conditions := gomath.ConditionRounded | gomath.ConditionInexact |
+		gomath.ConditionOverflow | gomath.ConditionUnderflow |
+		gomath.ConditionDivisionByZero | gomath.ConditionInvalidOperation |
+		gomath.ConditionClamped | gomath.ConditionSubnormal |
+		gomath.Condition(1<<15)
 
+	assertAllocationsAtMost(t, "condition formatting", 4, func() {
+		conditionStringSink = conditions.String()
+	})
 	assertAllocationsAtMost(t, "integer root", 3_000, func() {
 		if _, err := integerRoot.Root(context.Background(), 17, limits); err != nil {
 			t.Fatal(err)

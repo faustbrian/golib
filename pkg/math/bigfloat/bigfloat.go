@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	gomath "github.com/faustbrian/golib/pkg/math"
@@ -88,7 +89,10 @@ func Parse(text string, base int, operation Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if text == "" || strings.TrimSpace(text) != text || len(text) > limits.MaxInputDigits {
+	if text == "" {
+		return Result{}, gomath.ErrInvalidSyntax
+	}
+	if strings.TrimSpace(text) != text || len(text) > limits.MaxInputDigits {
 		return Result{}, gomath.ErrInvalidSyntax
 	}
 	if base != 0 && base != 2 && base != 10 && base != 16 {
@@ -351,17 +355,12 @@ func roundTripDecimalDigits(precision uint) int {
 }
 
 func integerDigits(value int) int {
-	magnitude := uint64(value)
-	if value < 0 {
-		magnitude = uint64(-(value + 1)) + 1
+	var buffer [32]byte
+	text := strconv.AppendInt(buffer[:0], int64(value), 10)
+	if text[0] == '-' {
+		return len(text) - 1
 	}
-	digits := 1
-	for magnitude >= 10 {
-		magnitude /= 10
-		digits++
-	}
-
-	return digits
+	return len(text)
 }
 
 func renderedDigits(text string) int {
