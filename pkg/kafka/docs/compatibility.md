@@ -1,7 +1,7 @@
 # Compatibility and execution matrix
 
 This matrix separates pinned implementation inputs from support claims. It was
-recorded through 2026-07-29. Upstream protocol support is not package evidence.
+recorded through 2026-07-30. Upstream protocol support is not package evidence.
 
 The independently versioned `kafkaservice` module is additive and pre-v1.
 Existing direct producer and consumer construction remains supported. The
@@ -14,12 +14,13 @@ contracts and does not change their wire or settlement semantics.
 | --- | --- | --- |
 | Go toolchain and module language | Go 1.26.5, `go 1.26.5` | `go version`, `go env`, and `go.mod` |
 | Host used for baseline | Darwin arm64, Apple M4 Max | Go environment and benchmark output |
-| Container runtime | Docker Desktop engine 29.6.2, API 1.54 | Testcontainers runtime inspection on 2026-07-27 |
+| Container runtime | Docker Desktop engine 29.6.2, API 1.55 | Benchmark environment capture on 2026-07-30 |
 | franz-go | v1.21.5, tag target `1ba5fd24f949a335dbc7caaef1d6037e132ef23e` | Go module proxy plus upstream tag; latest stable found on 2026-07-27 |
 | kadm | v1.18.0, tag target `a7255a3f2bc7247e70a15b18080cc4e5cd1e42d6` | Go module proxy plus upstream tag; latest stable found on 2026-07-27 |
+| Producer comparison clients | kafka-go v0.4.51; IBM/Sarama v1.60.1 | Go module proxy on 2026-07-30; isolated non-releasable benchmark module |
 | testcontainers-go core and Kafka module | v0.43.0 | Go module proxy |
 | Testcontainers resource reaper | `testcontainers/ryuk:0.14.0`, locally resolved digest `sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0` | Runtime log and local Docker image metadata; testcontainers invokes the tag, so an immutable source-level pin remains a release blocker |
-| Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; actual runtime version still needs assertion |
+| Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test; the benchmark harness independently asserts runtime version `7.5.0-ccs`, while the root compatibility fixture still needs its own assertion |
 | Current Apache Kafka fixture | `apache/kafka:4.3.1`, multi-platform index `sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837` | Source-pinned three-node combined KRaft and isolated secured single-node fixtures; every fixture reports exactly `4.3.1`; the secured fixtures report OpenSSL 3.5.7 and run the broker as image UID 1000; arm64 manifest `sha256:c2b5172ab20d66381ec1729796a410fd611135821994526d4d42d2f256054af3` |
 | Mutation tool | patched Gremlins v0.6.0 | The current-tree module gate requires and records exact 100% efficacy and mutator coverage for the root package and bundled slog adapter; transient mutant counts remain in its attributable evidence artifact rather than this version matrix |
 | Lint/static analysis | golangci-lint v2.12.2, Staticcheck v0.7.0, NilAway `9fd1b8d7bac8` | Repository tool pins |
@@ -61,6 +62,7 @@ floor still does not establish operational support for an untested broker.
 | Replay | Offset/timestamp planning, exact ranges, gaps, resume | Local and broker-validated checkpoint-aware dry-run plans, exact-partition timestamp-window plans, explicit side-effect opt-in, replay-specific range and resume metadata, broker-boundary preflight, exact no-reset ranges, independently bounded fetch and cross-partition handler concurrency, resumable per-range progress, cancellation, bounded shutdown, and payload-free plan, record, exact-progress, shutdown, and broker observations are implemented. The single-node fixture proves an executable timestamp-derived plan, broker-validated planning without consuming execution, interrupted replay, external-checkpoint resume, cancellation after real handler admission without settlement, bounded cross-partition handler overlap with sequential per-partition order, future out-of-range rejection, and fail-closed rejection after Kafka `DeleteRecords` advances the log start. A separate pinned Apache 4.3.1 fixture keeps the log start at offset 0 while compaction removes that exact offset, then proves `[0,1)` fails as `ErrReplayOffsetGap` without handler admission and with an unchanged checkpoint. Leader-recovery or unclean-election log-truncation evidence remains incomplete. |
 | Inspection/health | Cluster/topic/group/durability and separated health signals | Single-broker cluster/controller, topic replica/ISR/offline, beginning/end offset, effective `min.insync.replicas`, non-default cleanup/retention/compaction/segment/unclean-election policy, classic-group lag/member assignment, dependency health, local liveness, and readiness-hysteresis evidence. The Apache fixture additionally proves exact three-broker cluster identity, RF=3/ISR=3, clean leader failover at ISR=2, and ISR=3 recovery; tiered-storage local retention, KIP-848 inspection, multi-target partial failures, and complete service health composition remain unverified. |
 | Observability | Producer, consumer, rebalance, transaction, replay, inspection, and lifecycle events plus optional adapters | Root payload-free producer delivery, nontransactional consumer record/batch/commit/poll and group lifecycle, producer and consume-transform-produce transaction lifecycle, producer/consumer/transaction-processor/replay/inspector shutdown, inspector cluster/topic/group/dependency/readiness, and every client role's broker events are deterministically tested. The single-broker fixture proves producer and consume-transform-produce begin/commit/abort events plus transaction-processor broker requests. The standard-library slog adapter emits fixed bounded scalar fields, denies every Kafka identity by default, contains handler panics, and has exact local statement, fuzz, race, concurrency, and allocation evidence. The independently versioned OpenTelemetry adapter maps every current event, pins development-status messaging semantic conventions 1.43.0, defaults every identity attribute off, and has exact local statement, fuzz, race, concurrency, and allocation evidence. Standalone authentication, complete rebalance timing, and cross-message propagation remain unimplemented. |
+| Performance | Equivalent producer, consumer, transaction, replay, inspection, reconnect, resource, and policy-overhead workloads | The isolated client harness has real-broker correctness evidence for the package policy, raw franz-go, Sarama, and an unranked kafka-go control. Its current timed evidence covers only the equivalent idempotent all-ISR synchronous single-record contract for the first three clients on one local partition, with keying, payload, and compression variants, 20 samples of 50 deliveries, raw results, environment fingerprints, and variance-preserving analysis. Kafka-go production is excluded because v0.4.51 cannot match idempotence. The remaining workload and controlled-environment matrix is unverified. |
 | Operating systems/architectures | Linux amd64/arm64 plus repository-supported developer platforms | Local Darwin arm64 only; CI matrix not yet established |
 
 ## Release evidence
@@ -105,6 +107,9 @@ Design and implementation are checked against:
   and idempotent in-flight cancellation contracts, plus the tag-pinned
   [`ProduceSync`](https://github.com/twmb/franz-go/blob/v1.21.5/pkg/kgo/producer.go)
   callback aggregation used to verify cross-partition completion ordering;
+- the tag-pinned [kafka-go v0.4.51](https://github.com/segmentio/kafka-go/tree/v0.4.51)
+  writer source and [IBM/Sarama v1.60.1](https://github.com/IBM/sarama/tree/v1.60.1)
+  producer configuration used to establish the benchmark capability boundary;
 - [Amazon MSK documentation](https://docs.aws.amazon.com/msk/), including
   [IAM client configuration](https://docs.aws.amazon.com/msk/latest/developerguide/configure-clients-for-iam-access-control.html);
 - [OpenTelemetry Kafka semantic conventions](https://opentelemetry.io/docs/specs/semconv/messaging/kafka/);

@@ -4,6 +4,7 @@ package clients_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,7 @@ import (
 const (
 	benchmarkKafkaImage = "confluentinc/confluent-local:7.5.0@" +
 		"sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd"
+	benchmarkKafkaVersion    = "7.5.0-ccs"
 	benchmarkBatchBytes      = 1 << 20
 	benchmarkDeliveryTimeout = 30 * time.Second
 	benchmarkRequestTimeout  = 10 * time.Second
@@ -41,6 +43,7 @@ var (
 	benchmarkFixtureBrokers []string
 	benchmarkFixtureVersion string
 	benchmarkFixtureErr     error
+	benchmarkRuntimeReport  sync.Once
 	benchmarkTopicOnce      sync.Once
 	benchmarkTopic          string
 	benchmarkTopicErr       error
@@ -243,6 +246,38 @@ func TestEquivalentProducerOutcomes(t *testing.T) {
 	}
 	if !slices.EqualFunc(gotValues, wantValues, slices.Equal[[]byte]) {
 		t.Fatalf("consumed values = %q, want %q", gotValues, wantValues)
+	}
+}
+
+func TestBenchmarkRuntimeVersionValidation(t *testing.T) {
+	t.Parallel()
+	if err := validateBenchmarkFixtureVersion("7.5.0-ccs"); err != nil {
+		t.Fatalf("validate expected runtime version: %v", err)
+	}
+	if err := validateBenchmarkFixtureVersion("7.5.1-ccs"); err == nil {
+		t.Fatal("unexpected runtime version was accepted")
+	}
+}
+
+func TestBenchmarkRuntimeIdentityValidation(t *testing.T) {
+	t.Parallel()
+	for _, identity := range []string{
+		"Apache Kafka 4.3.1",
+		"MSK-Provisioned eu-north-1",
+	} {
+		if !validBenchmarkRuntimeIdentity(identity) {
+			t.Fatalf("safe runtime identity %q was rejected", identity)
+		}
+	}
+	for _, identity := range []string{
+		"",
+		"broker\tidentity",
+		"broker\x1b[31midentity",
+		strings.Repeat("a", 257),
+	} {
+		if validBenchmarkRuntimeIdentity(identity) {
+			t.Fatalf("unsafe runtime identity %q was accepted", identity)
+		}
 	}
 }
 
@@ -497,8 +532,8 @@ func benchmarkBrokers(tb testing.TB) []string {
 	tb.Helper()
 	if configured := os.Getenv("KAFKA_BENCH_BROKERS"); configured != "" {
 		identity := os.Getenv("KAFKA_BENCH_BROKER_IDENTITY")
-		if identity == "" || len(identity) > 256 || strings.ContainsAny(identity, "\r\n") {
-			tb.Fatal("KAFKA_BENCH_BROKER_IDENTITY must be a bounded single-line description")
+		if !validBenchmarkRuntimeIdentity(identity) {
+			tb.Fatal("KAFKA_BENCH_BROKER_IDENTITY must be a bounded safe description")
 		}
 		brokers := strings.Split(configured, ",")
 		for _, broker := range brokers {
@@ -507,7 +542,7 @@ func benchmarkBrokers(tb testing.TB) []string {
 				tb.Fatal("KAFKA_BENCH_BROKERS contains an invalid or secret-bearing address")
 			}
 		}
-		tb.Logf("benchmark broker runtime: %s", identity)
+		reportBenchmarkRuntime(identity)
 
 		return brokers
 	}
@@ -516,9 +551,42 @@ func benchmarkBrokers(tb testing.TB) []string {
 	if benchmarkFixtureErr != nil {
 		tb.Fatalf("start benchmark Kafka fixture: %v", benchmarkFixtureErr)
 	}
-	tb.Logf("benchmark broker runtime: Confluent Local %s", benchmarkFixtureVersion)
+	reportBenchmarkRuntime("Confluent Local " + benchmarkFixtureVersion)
 
 	return slices.Clone(benchmarkFixtureBrokers)
+}
+
+func reportBenchmarkRuntime(identity string) {
+	benchmarkRuntimeReport.Do(func() {
+		fmt.Printf("benchmark-broker-runtime=%s\n", identity)
+	})
+}
+
+func validBenchmarkRuntimeIdentity(identity string) bool {
+	if identity == "" || len(identity) > 256 || identity != strings.TrimSpace(identity) {
+		return false
+	}
+	for index := range len(identity) {
+		character := identity[index]
+		if character >= 'a' && character <= 'z' ||
+			character >= 'A' && character <= 'Z' ||
+			character >= '0' && character <= '9' ||
+			strings.ContainsRune(" ._:+()-", rune(character)) {
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func validateBenchmarkFixtureVersion(version string) error {
+	if version != benchmarkKafkaVersion {
+		return errors.New("runtime version does not match pinned broker image")
+	}
+
+	return nil
 }
 
 func startBenchmarkFixture() {
@@ -562,8 +630,8 @@ func startBenchmarkFixture() {
 		return
 	}
 	benchmarkFixtureVersion = strings.TrimSpace(string(version))
-	if benchmarkFixtureVersion == "" || len(benchmarkFixtureVersion) > 128 {
-		benchmarkFixtureErr = fmt.Errorf("runtime version is invalid")
+	if err := validateBenchmarkFixtureVersion(benchmarkFixtureVersion); err != nil {
+		benchmarkFixtureErr = err
 
 		return
 	}

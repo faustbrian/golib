@@ -354,8 +354,8 @@ quotas, ACLs, and destructive administrative operations.
 
 See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibility.md),
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
-[observability](docs/observability.md), [operations](docs/operations.md), and
-[security](docs/security.md).
+[observability](docs/observability.md), [performance evidence](docs/performance.md),
+[operations](docs/operations.md), and [security](docs/security.md).
 
 ## Development
 
@@ -379,6 +379,13 @@ remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
 [SECURITY.md](SECURITY.md). The module is licensed under the [MIT
 License](LICENSE).
+
+The non-releasable [`benchmarks/clients`](benchmarks/clients) module keeps
+franz-go, kafka-go, Sarama, benchstat, and broker-fixture comparison tooling out
+of the production dependency graph. Its producer ranking includes only clients
+that can match the idempotent all-ISR contract; see the
+[performance guide](docs/performance.md) for the current capture and remaining
+matrix.
 
 From the repository root, `make release-dry-run MODULES=pkg/kafka` verifies the
 committed module through a fresh `GOWORK=off` consumer and local source proxy.

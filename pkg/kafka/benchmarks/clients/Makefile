@@ -13,18 +13,18 @@ verify:
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
-		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v
+		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)'
 
 capture:
 	@test -n '$(OUTPUT)'
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
-		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' -v \
+		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' \
 		> '$(OUTPUT)'
 	@cat '$(OUTPUT)'
 
 analyze:
 	@test -n '$(INPUT)'
-	@$(GO) tool benchstat '$(INPUT)'
+	@cd '$(dir $(INPUT))' && $(GO) tool benchstat '$(notdir $(INPUT))'
 
 environment:
 	@$(GO) version

@@ -62,12 +62,13 @@ separate read path observes each exact key and payload once.
 ## Broker selection
 
 By default, the integration workload starts the pinned single-node Confluent
-Local image through testcontainers. Set `KAFKA_BENCH_BROKERS` to a comma-separated
-broker list to use an already provisioned cluster. External brokers are never
-created, reconfigured, or deleted, but the harness creates uniquely named
-one-partition topics. Set `KAFKA_BENCH_BROKER_IDENTITY` to a bounded public
-description of that cluster; do not put credentials or secret-bearing URLs in
-either variable or captured output.
+Local image through testcontainers and rejects a runtime version other than
+`7.5.0-ccs`. Set `KAFKA_BENCH_BROKERS` to a comma-separated broker list to use
+an already provisioned cluster. External brokers are never created,
+reconfigured, or deleted, but the harness creates uniquely named one-partition
+topics. Set `KAFKA_BENCH_BROKER_IDENTITY` to a bounded public description of
+that cluster using only ASCII letters, digits, spaces, and `._:+()-`; do not
+put credentials or secret-bearing URLs in either variable or captured output.
 
 The default fixture is local, single-node, plaintext, and shares host CPU and
 network resources. Results describe only that environment. They must not be

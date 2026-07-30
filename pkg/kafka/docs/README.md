@@ -14,5 +14,6 @@
 - [Replay](replay.md)
 - [Inspection and dependency health](inspection.md)
 - [Observability hooks, slog, and OpenTelemetry adapters](observability.md)
+- [Performance evidence and benchmark matrix](performance.md)
 - [Operations](operations.md)
 - [Security](security.md)

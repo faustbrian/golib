@@ -8047,6 +8047,7 @@
             "pkg/kafka/docs/api.md",
             "pkg/kafka/docs/architecture.md",
             "pkg/kafka/docs/compatibility.md",
+            "pkg/kafka/docs/performance.md",
             "pkg/kafka/docs/security.md"
           ],
           "verification_gates": [
@@ -8084,6 +8085,7 @@
             "pkg/kafka/docs/api.md",
             "pkg/kafka/docs/architecture.md",
             "pkg/kafka/docs/compatibility.md",
+            "pkg/kafka/docs/performance.md",
             "pkg/kafka/docs/security.md"
           ],
           "verification_gates": [
@@ -8276,6 +8278,7 @@
       "external_runtime_dependencies": [
         "github.com/IBM/sarama",
         "github.com/segmentio/kafka-go",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/kafka",
         "github.com/twmb/franz-go",
         "github.com/twmb/franz-go/pkg/kadm"

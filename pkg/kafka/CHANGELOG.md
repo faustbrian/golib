@@ -53,6 +53,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- an independently versioned client benchmark harness with real-broker
+  correctness checks, equivalent idempotent synchronous-producer workloads for
+  the package policy, raw franz-go, and Sarama, an explicitly unranked kafka-go
+  capability control, pinned dependency and broker inputs, environment
+  fingerprints, raw multi-sample capture, and variance-preserving analysis
 - three-broker rack-local fetch evidence proving that a separate consumer
   process configured for a non-leader replica's rack handles and commits a
   source record after its single in-flight fetch completes on that follower
