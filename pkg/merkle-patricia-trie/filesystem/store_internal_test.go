@@ -1452,98 +1452,68 @@ func TestOpenClassifiesCreationAndReadFailures(t *testing.T) {
 		t.Fatalf("rejectSymlink(too long) error = %v", err)
 	}
 
-	t.Run("directory creation permission", func(t *testing.T) {
-		parent := t.TempDir()
-		if err := os.Chmod(parent, 0o500); err != nil {
-			t.Fatalf("Chmod(parent) error = %v", err)
-		}
-		defer func() {
-			if err := os.Chmod(parent, 0o700); err != nil {
-				t.Errorf("restore parent mode error = %v", err)
+	failure := errors.New("injected open failure")
+	for _, scenario := range []struct {
+		name   string
+		inject func(*openOperations)
+	}{
+		{
+			name: "directory creation",
+			inject: func(operations *openOperations) {
+				operations.mkdirAll = func(string, os.FileMode) error {
+					return failure
+				}
+			},
+		},
+		{
+			name: "node directory creation",
+			inject: func(operations *openOperations) {
+				operations.mkdir = func(path string, mode os.FileMode) error {
+					if filepath.Base(path) == nodeDirectory {
+						return failure
+					}
+					return os.Mkdir(path, mode)
+				}
+			},
+		},
+		{
+			name: "retention directory creation",
+			inject: func(operations *openOperations) {
+				operations.mkdir = func(path string, mode os.FileMode) error {
+					if filepath.Base(path) == retentionDirectory {
+						return failure
+					}
+					return os.Mkdir(path, mode)
+				}
+			},
+		},
+		{
+			name: "initial root publication",
+			inject: func(operations *openOperations) {
+				operations.publishRoot = func(
+					*Store,
+					context.Context,
+					mpt.Root,
+				) (bool, error) {
+					return false, storageCommitError(failure)
+				}
+			},
+		},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			operations := defaultOpenOperations()
+			scenario.inject(&operations)
+			if _, err := openWith(
+				ctx,
+				filepath.Join(t.TempDir(), "trie"),
+				DefaultLimits(),
+				operations,
+			); !errors.Is(err, mpt.ErrStorageCommit) ||
+				!errors.Is(err, failure) {
+				t.Fatalf("openWith(%s) error = %v", scenario.name, err)
 			}
-		}()
-		if _, err := Open(
-			ctx,
-			filepath.Join(parent, "trie"),
-			DefaultLimits(),
-		); !errors.Is(err, mpt.ErrStorageCommit) {
-			t.Fatalf("Open(read-only parent) error = %v", err)
-		}
-	})
-
-	t.Run("node directory creation permission", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "trie")
-		if err := os.Mkdir(path, 0o500); err != nil {
-			t.Fatalf("Mkdir(path) error = %v", err)
-		}
-		defer func() {
-			if err := os.Chmod(path, 0o700); err != nil {
-				t.Errorf("restore path mode error = %v", err)
-			}
-		}()
-		if _, err := Open(
-			ctx,
-			path,
-			DefaultLimits(),
-		); !errors.Is(err, mpt.ErrStorageCommit) {
-			t.Fatalf("Open(read-only node parent) error = %v", err)
-		}
-	})
-
-	t.Run("retention directory creation permission", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "trie")
-		if err := os.MkdirAll(
-			filepath.Join(path, nodeDirectory),
-			0o700,
-		); err != nil {
-			t.Fatalf("MkdirAll(nodes) error = %v", err)
-		}
-		if err := os.Chmod(path, 0o500); err != nil {
-			t.Fatalf("Chmod(path) error = %v", err)
-		}
-		defer func() {
-			if err := os.Chmod(path, 0o700); err != nil {
-				t.Errorf("restore path mode error = %v", err)
-			}
-		}()
-		if _, err := Open(
-			ctx,
-			path,
-			DefaultLimits(),
-		); !errors.Is(err, mpt.ErrStorageCommit) {
-			t.Fatalf("Open(read-only retention parent) error = %v", err)
-		}
-	})
-
-	t.Run("initial root publication permission", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "trie")
-		for _, directory := range []string{
-			nodeDirectory,
-			retentionDirectory,
-		} {
-			if err := os.MkdirAll(
-				filepath.Join(path, directory),
-				0o700,
-			); err != nil {
-				t.Fatalf("MkdirAll(%s) error = %v", directory, err)
-			}
-		}
-		if err := os.Chmod(path, 0o500); err != nil {
-			t.Fatalf("Chmod(path) error = %v", err)
-		}
-		defer func() {
-			if err := os.Chmod(path, 0o700); err != nil {
-				t.Errorf("restore path mode error = %v", err)
-			}
-		}()
-		if _, err := Open(
-			ctx,
-			path,
-			DefaultLimits(),
-		); !errors.Is(err, mpt.ErrStorageCommit) {
-			t.Fatalf("Open(read-only root parent) error = %v", err)
-		}
-	})
+		})
+	}
 }
 
 func TestAtomicPublicationPropagatesEveryFileFailure(t *testing.T) {

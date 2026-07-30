@@ -92,6 +92,35 @@ const (
 // adapter writes, inventories stored nodes, and validates the published root.
 // It returns typed MPT storage, corruption, cancellation, or limit errors.
 func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
+	return openWith(ctx, path, limits, defaultOpenOperations())
+}
+
+type openOperations struct {
+	mkdirAll    func(string, os.FileMode) error
+	mkdir       func(string, os.FileMode) error
+	publishRoot func(*Store, context.Context, mpt.Root) (bool, error)
+}
+
+func defaultOpenOperations() openOperations {
+	return openOperations{
+		mkdirAll: os.MkdirAll,
+		mkdir:    os.Mkdir,
+		publishRoot: func(
+			store *Store,
+			ctx context.Context,
+			root mpt.Root,
+		) (bool, error) {
+			return store.publishRoot(ctx, root)
+		},
+	}
+}
+
+func openWith(
+	ctx context.Context,
+	path string,
+	limits Limits,
+	operations openOperations,
+) (*Store, error) {
 	if err := checkContext(ctx); err != nil {
 		return nil, err
 	}
@@ -104,14 +133,15 @@ func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
 	if err := rejectSymlink(path); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(path, 0o700); err != nil {
+	if err := operations.mkdirAll(path, 0o700); err != nil {
 		return nil, storageCommitError(err)
 	}
 	nodesPath := filepath.Join(path, nodeDirectory)
 	if err := rejectSymlink(nodesPath); err != nil {
 		return nil, err
 	}
-	if err := os.Mkdir(nodesPath, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := operations.mkdir(nodesPath, 0o700); err != nil &&
+		!errors.Is(err, os.ErrExist) {
 		return nil, storageCommitError(err)
 	}
 	if err := recoverPruneArtifacts(
@@ -126,7 +156,7 @@ func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
 	if err := rejectSymlink(retentionsPath); err != nil {
 		return nil, err
 	}
-	if err := os.Mkdir(retentionsPath, 0o700); err != nil &&
+	if err := operations.mkdir(retentionsPath, 0o700); err != nil &&
 		!errors.Is(err, os.ErrExist) {
 		return nil, storageCommitError(err)
 	}
@@ -178,7 +208,11 @@ func Open(ctx context.Context, path string, limits Limits) (*Store, error) {
 		}
 		store.root = root
 	case errors.Is(err, os.ErrNotExist):
-		if _, writeErr := store.publishRoot(ctx, mpt.EmptyRoot()); writeErr != nil {
+		if _, writeErr := operations.publishRoot(
+			store,
+			ctx,
+			mpt.EmptyRoot(),
+		); writeErr != nil {
 			return nil, writeErr
 		}
 	default:
