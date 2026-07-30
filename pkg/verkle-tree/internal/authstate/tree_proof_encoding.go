@@ -319,12 +319,15 @@ func (proof TreeProof) Bytes(
 		offset++
 		copy(encoded[offset:], path.path[:])
 		offset += maxProofPathLength
-		commitmentBytes, commitmentErr := path.commitment.Bytes()
-		if commitmentErr != nil {
+		identity, identityErr := path.commitment.IsIdentity()
+		if identityErr != nil {
 			return nil, errInvalidTreeProof
 		}
-		copy(encoded[offset:], commitmentBytes[:])
-		offset += len(commitmentBytes)
+		if !identity {
+			commitmentBytes, _ := path.commitment.Bytes()
+			copy(encoded[offset:], commitmentBytes[:])
+		}
+		offset += backend.CommitmentSize
 	}
 	copy(encoded[offset:], openingBytes[:])
 	if err := checkTreeProofEncodingContext(ctx); err != nil {
@@ -428,29 +431,13 @@ func DecodeTreeProof(
 			errInvalidTreeProofEncoding,
 		)
 	}
-	pointDecodes := uint64(commitmentCount) + 1 +
-		backend.OpeningProofPointDecodes
-	if err := checkTreeProofDecodingResource(
-		TreeProofDecodingResourcePointDecodes,
-		uint64(limits.MaxPointDecodes),
-		pointDecodes,
-	); err != nil {
-		return TreeProof{}, err
-	}
-	if err := checkTreeProofDecodingResource(
-		TreeProofDecodingResourceScalarDecodes,
-		uint64(limits.MaxScalarDecodes),
-		backend.OpeningProofScalarDecodes,
-	); err != nil {
-		return TreeProof{}, err
-	}
-
 	claimsOffset := treeProofHeaderBytes
 	stemPathsOffset := claimsOffset + int(claimCount)*claimEncodedBytes
 	commitmentsOffset := stemPathsOffset +
 		int(stemPathCount)*stemPathEncodedBytes
 	openingOffset := len(encoded) - backend.OpeningProofSize
 	pathBytes := uint64(0)
+	pointDecodes := uint64(1 + backend.OpeningProofPointDecodes)
 	for index := uint32(0); index < commitmentCount; index++ {
 		if err := checkTreeProofEncodingContext(ctx); err != nil {
 			return TreeProof{}, err
@@ -481,12 +468,33 @@ func DecodeTreeProof(
 				)
 			}
 		}
+		commitmentOffset := pathEnd
+		commitmentEnd := commitmentOffset + backend.CommitmentSize
+		if [backend.CommitmentSize]byte(
+			encoded[commitmentOffset:commitmentEnd],
+		) != ([backend.CommitmentSize]byte{}) {
+			pointDecodes++
+		}
 		pathBytes += uint64(length)
 	}
 	if err := checkTreeProofDecodingResource(
 		TreeProofDecodingResourcePathBytes,
 		limits.MaxPathBytes,
 		pathBytes,
+	); err != nil {
+		return TreeProof{}, err
+	}
+	if err := checkTreeProofDecodingResource(
+		TreeProofDecodingResourcePointDecodes,
+		uint64(limits.MaxPointDecodes),
+		pointDecodes,
+	); err != nil {
+		return TreeProof{}, err
+	}
+	if err := checkTreeProofDecodingResource(
+		TreeProofDecodingResourceScalarDecodes,
+		uint64(limits.MaxScalarDecodes),
+		backend.OpeningProofScalarDecodes,
 	); err != nil {
 		return TreeProof{}, err
 	}
@@ -693,16 +701,23 @@ func decodeTreeProofPathCommitments(
 		length := encoded[offset]
 		commitmentOffset := offset + 1 + maxProofPathLength
 		commitmentEnd := commitmentOffset + backend.CommitmentSize
-		commitment, err := backend.DecodeVectorCommitment(
-			ctx,
+		payload := [backend.CommitmentSize]byte(
 			encoded[commitmentOffset:commitmentEnd],
-			backend.VectorCommitmentDecodingLimits{
-				MaxCommitmentBytes: backend.CommitmentSize,
-				MaxPointDecodes:    1,
-			},
 		)
-		if err != nil {
-			return nil, normalizeTreeProofDecodingError(err)
+		commitment := backend.EmptyVectorCommitment()
+		if payload != ([backend.CommitmentSize]byte{}) {
+			var err error
+			commitment, err = backend.DecodeVectorCommitment(
+				ctx,
+				payload[:],
+				backend.VectorCommitmentDecodingLimits{
+					MaxCommitmentBytes: backend.CommitmentSize,
+					MaxPointDecodes:    1,
+				},
+			)
+			if err != nil {
+				return nil, normalizeTreeProofDecodingError(err)
+			}
 		}
 		value, _ := NewPathCommitment(
 			encoded[offset+1:offset+1+int(length)],

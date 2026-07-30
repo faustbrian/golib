@@ -115,6 +115,19 @@ type VectorCommitment struct {
 	valid bool
 }
 
+// EmptyVectorCommitment returns the mathematical commitment to the all-zero
+// vector. It is valid only as opaque in-memory state and has no accepted point
+// encoding.
+func EmptyVectorCommitment() VectorCommitment {
+	var identity banderwagon.Element
+	identity.SetIdentity()
+
+	return VectorCommitment{
+		value: commitment{element: identity},
+		valid: true,
+	}
+}
+
 // NewCommitmentEngine explicitly derives the fixed generator set and starts no
 // engine-owned goroutines. The pinned dependency's own initialization remains
 // a documented production blocker.

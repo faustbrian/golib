@@ -187,6 +187,165 @@ func TestDecodeTreeProofRoundTripsCanonicalEncoding(t *testing.T) {
 	}
 }
 
+func TestTreeProofEncodingRoundTripsExplicitEmptyPathCommitment(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	key := testKey(0, 130)
+	identity, err := newTestSnapshot(t, nil).Root()
+	if err != nil {
+		t.Fatalf("identity commitment: %v", err)
+	}
+	emptyPath, err := NewPathCommitment([]byte{0, 3}, identity)
+	if err != nil {
+		t.Fatalf("new empty path commitment: %v", err)
+	}
+	proof, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{Absence(key)}),
+		[]StemPath{PresentStemPath(stemFromKey(key), 1)},
+		[]PathCommitment{
+			mustPathCommitment(t, []byte{0}, testProofCommitment(t)),
+			emptyPath,
+		},
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new tree proof: %v", err)
+	}
+	encoded, err := proof.Bytes(
+		context.Background(),
+		testTreeProofEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode tree proof: %v", err)
+	}
+	commitmentOffset := treeProofHeaderBytes + claimEncodedBytes +
+		stemPathEncodedBytes + pathCommitmentEncodedBytes +
+		1 + maxProofPathLength
+	if got := [backend.CommitmentSize]byte(
+		encoded[commitmentOffset : commitmentOffset+backend.CommitmentSize],
+	); got != ([backend.CommitmentSize]byte{}) {
+		t.Fatalf("empty path marker = %x, want zero", got)
+	}
+
+	limits := testTreeProofDecodingLimits()
+	limits.MaxPointDecodes = 1 + backend.OpeningProofPointDecodes + 1
+	decoded, err := DecodeTreeProof(context.Background(), encoded, limits)
+	if err != nil {
+		t.Fatalf("decode tree proof: %v", err)
+	}
+	limits.MaxPointDecodes--
+	if _, err := DecodeTreeProof(
+		context.Background(),
+		encoded,
+		limits,
+	); !errors.Is(err, errTreeProofDecodingResource) {
+		t.Fatalf("point decode limit error = %v", err)
+	}
+	commitments, err := decoded.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("decoded path commitments: %v", err)
+	}
+	got, err := commitments[1].Commitment()
+	if err != nil {
+		t.Fatalf("decoded empty commitment: %v", err)
+	}
+	if empty, emptyErr := got.IsIdentity(); emptyErr != nil || !empty {
+		t.Fatalf("decoded identity = %t, error %v", empty, emptyErr)
+	}
+	reencoded, err := decoded.Bytes(
+		context.Background(),
+		testTreeProofEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("reencode tree proof: %v", err)
+	}
+	if !bytes.Equal(reencoded, encoded) {
+		t.Fatal("explicit empty path commitment did not round trip")
+	}
+
+	emptyStem, err := NewPathCommitment([]byte{0}, identity)
+	if err != nil {
+		t.Fatalf("new empty stem commitment: %v", err)
+	}
+	if _, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{Absence(key)}),
+		[]StemPath{PresentStemPath(stemFromKey(key), 1)},
+		[]PathCommitment{emptyStem, emptyPath},
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	); !errors.Is(err, errInvalidTreeProof) {
+		t.Fatalf("empty stem commitment error = %v", err)
+	}
+	if _, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{Membership(key, Value{})}),
+		[]StemPath{PresentStemPath(stemFromKey(key), 1)},
+		[]PathCommitment{
+			mustPathCommitment(t, []byte{0}, testProofCommitment(t)),
+			emptyPath,
+		},
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	); !errors.Is(err, errInvalidTreeProof) {
+		t.Fatalf("empty membership commitment error = %v", err)
+	}
+}
+
+func TestTreeProofEmptySuffixRequiresOnlyAbsenceClaims(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0, 130)
+	second := testKey(0, 131)
+	identity, err := newTestSnapshot(t, nil).Root()
+	if err != nil {
+		t.Fatalf("identity commitment: %v", err)
+	}
+	emptyPath, err := NewPathCommitment([]byte{0, 3}, identity)
+	if err != nil {
+		t.Fatalf("new empty path commitment: %v", err)
+	}
+	commitments := []PathCommitment{
+		mustPathCommitment(t, []byte{0}, testProofCommitment(t)),
+		emptyPath,
+	}
+	stemPaths := []StemPath{
+		PresentStemPath(stemFromKey(first), 1),
+	}
+	if _, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{Absence(first), Absence(second)}),
+		stemPaths,
+		commitments,
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	); err != nil {
+		t.Fatalf("two absent suffixes: %v", err)
+	}
+	if _, err := NewTreeProof(
+		context.Background(),
+		testProofRoot(t),
+		mustClaimSet(t, []Claim{
+			Absence(first),
+			Membership(second, Value{}),
+		}),
+		stemPaths,
+		commitments,
+		testRawOpeningProof(t),
+		testTreeProofLimits(),
+	); !errors.Is(err, errInvalidTreeProof) {
+		t.Fatalf("mixed suffix claims error = %v", err)
+	}
+}
+
 func TestTreeProofEncodingLimitBoundaries(t *testing.T) {
 	t.Parallel()
 

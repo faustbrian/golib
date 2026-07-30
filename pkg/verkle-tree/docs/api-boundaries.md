@@ -114,6 +114,9 @@ canonical raw opening payload. It owns and deterministically orders all
 metadata, rejects missing, duplicate, surplus, or conflicting path information,
 bounds retained paths and derivation scratch before allocation, and supports
 concurrent immutable reads. Construction establishes canonical structure only.
+An empty selected suffix half uses a zero-payload container marker that is
+never passed to the point decoder; the same marker on an internal or stem path
+is invalid.
 The container has one exact package-owned canonical byte encoding and a strict
 decoder. The decoder rejects profile mismatches before point work, rejects
 alternate lengths, trailing bytes, nonzero padding, malformed commitments and

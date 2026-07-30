@@ -102,8 +102,9 @@ cryptographic authentication and does not prevent a producer from supplying
 mathematically false but structurally valid commitments.
 Its strict decoder rejects the wrong profile before point decoding, alternate
 or inconsistent lengths, trailing bytes, nonzero fixed-width path padding,
-invalid claim and topology tags, malformed or identity commitments, malformed
-opening points or scalars, and non-canonical reconstructed ordering. It
+invalid claim and topology tags, misplaced empty-vector markers, malformed or
+identity point encodings, malformed opening points or scalars, and
+non-canonical reconstructed ordering. It
 preflights aggregate proof bytes, record counts, derived paths, retained path
 bytes, point and scalar decodes, and conservative temporary memory before
 cryptographic decoding or attacker-amplified allocation. Cancellation from

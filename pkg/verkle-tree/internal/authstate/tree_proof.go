@@ -158,8 +158,10 @@ func (path StemPath) validate() error {
 	return nil
 }
 
-// PathCommitment binds one non-root canonical tree path to its non-identity
-// vector commitment. Its zero value is invalid.
+// PathCommitment binds one non-root canonical tree path to its vector
+// commitment. It may retain the internal empty-vector identity; TreeProof
+// accepts that identity only for an all-absence suffix half. Its zero value is
+// invalid.
 type PathCommitment struct {
 	path       [maxProofPathLength]byte
 	commitment backend.VectorCommitment
@@ -175,7 +177,7 @@ func NewPathCommitment(
 	if len(path) == 0 || len(path) > maxProofPathLength {
 		return PathCommitment{}, errInvalidPathCommitment
 	}
-	if _, err := commitment.Bytes(); err != nil {
+	if _, err := commitment.IsIdentity(); err != nil {
 		return PathCommitment{}, errInvalidPathCommitment
 	}
 
@@ -216,7 +218,7 @@ func (value PathCommitment) validate() error {
 		value.length > maxProofPathLength {
 		return errInvalidPathCommitment
 	}
-	if _, err := value.commitment.Bytes(); err != nil {
+	if _, err := value.commitment.IsIdentity(); err != nil {
 		return errInvalidPathCommitment
 	}
 
@@ -591,10 +593,11 @@ const (
 )
 
 type pathMarker struct {
-	path     [maxProofPathLength]byte
-	leafStem Stem
-	length   uint8
-	kind     pathMarkerKind
+	path            [maxProofPathLength]byte
+	leafStem        Stem
+	length          uint8
+	kind            pathMarkerKind
+	identityAllowed bool
 }
 
 func derivePathMarkers(
@@ -657,11 +660,14 @@ func derivePathMarkers(
 				suffixPath := make([]byte, path.depth+1)
 				copy(suffixPath, path.stem[:path.depth])
 				suffixPath[path.depth] = 2 + key[31]/128
-				markers = append(markers, newPathMarker(
+				marker := newPathMarker(
 					suffixPath,
 					pathMarkerSuffix,
 					Stem{},
-				))
+				)
+				marker.identityAllowed =
+					claims[index].kind == ClaimAbsence
+				markers = append(markers, marker)
 			}
 		case StemPathMissing:
 			if err := requireAbsenceClaims(
@@ -741,6 +747,7 @@ func matchExpectedCommitments(
 			return err
 		}
 		end := markerIndex + 1
+		identityAllowed := markers[markerIndex].identityAllowed
 		for end < len(markers) &&
 			comparePathMarkers(markers[markerIndex], markers[end]) == 0 {
 			if err := checkTreeProofContext(ctx); err != nil {
@@ -750,10 +757,14 @@ func matchExpectedCommitments(
 				markers[markerIndex].leafStem != markers[end].leafStem {
 				return errInvalidTreeProof
 			}
+			identityAllowed = identityAllowed &&
+				markers[end].identityAllowed
 			end++
 		}
 		if markers[markerIndex].kind != pathMarkerMissing {
-			expected = append(expected, markers[markerIndex])
+			marker := markers[markerIndex]
+			marker.identityAllowed = identityAllowed
+			expected = append(expected, marker)
 		}
 		markerIndex = end
 	}
@@ -763,6 +774,18 @@ func matchExpectedCommitments(
 		equalMarkerCommitmentPath,
 	) {
 		return errInvalidTreeProof
+	}
+	for index := range expected {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		identity, err := commitments[index].commitment.IsIdentity()
+		if err != nil ||
+			(identity &&
+				(expected[index].kind != pathMarkerSuffix ||
+					!expected[index].identityAllowed)) {
+			return errInvalidTreeProof
+		}
 	}
 
 	return nil

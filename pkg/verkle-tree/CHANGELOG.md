@@ -92,6 +92,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add cancellation-aware immutable proof-path extraction that distinguishes
   present, missing-child, and different-stem termination while returning exact
   caller-owned non-root commitments under explicit resource limits.
+- Represent an empty selected suffix half with one canonical zero-payload
+  marker in unverified tree proofs without accepting an identity point
+  encoding or consuming a point-decode budget.
 
 ### Fixed
 

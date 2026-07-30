@@ -258,10 +258,10 @@ commitment at the raw stem prefix through that edge. A present stem MUST also
 return its selected suffix-half commitment at
 `stem[0:depth] || (2 + suffix/128)`. A missing edge MUST NOT invent an identity
 commitment. A selected suffix half with no present values MUST return its valid
-in-memory identity commitment; this identity has no accepted point encoding in
-the current tree-proof container. Commitments MUST therefore already be in
-canonical path order for one key, and the root commitment MUST remain outside
-the returned list.
+in-memory identity commitment. The tree-proof container MUST represent this
+case with its explicit empty-vector marker rather than an identity point
+encoding. Commitments MUST therefore already be in canonical path order for
+one key, and the root commitment MUST remain outside the returned list.
 
 Extraction MUST validate the immutable arena, observe cancellation, count root
 and child node reads, and enforce positive limits for node reads, returned
@@ -345,11 +345,14 @@ For each topology assertion, the required canonical paths are:
 
 If multiple claims require the same path, the path MUST occur exactly once.
 Every retained path MUST be non-empty, at most 32 bytes, and bind one valid
-non-identity vector commitment. Path commitments MUST be ordered
-lexicographically by their raw variable-length path bytes. A constructor MUST
-reject omitted, duplicate, surplus, or structurally conflicting paths,
-including one path classified simultaneously as internal, stem, suffix, or
-missing and one stem path that implies different terminal stems.
+vector commitment. An internal or stem path MUST bind a non-identity
+commitment. A suffix path MAY bind the in-memory identity only to represent an
+empty selected suffix half and only when every claim selecting that half is an
+absence claim. Path commitments MUST be ordered lexicographically by their raw
+variable-length path bytes. A constructor MUST reject omitted,
+duplicate, surplus, or structurally conflicting paths, including one path
+classified simultaneously as internal, stem, suffix, or missing, an identity
+on a non-suffix path, and one stem path that implies different terminal stems.
 
 Construction MUST validate the context, root, claim set, raw opening payload,
 limits, topology assertions, and path commitments before publishing a result.
@@ -405,9 +408,12 @@ encountered stem for a different record. Stem-path records MUST occur in
 ascending queried-stem order.
 
 Each path-commitment record MUST be exactly 65 bytes: a one-byte path length
-from one through 32, a 32-byte path field, and one canonical 32-byte
-non-identity Banderwagon commitment. The path field MUST contain the path
-followed by zero padding through byte 32. A decoder MUST reject nonzero
+from one through 32, a 32-byte path field, and a 32-byte commitment payload.
+The payload MUST be either one canonical non-identity Banderwagon commitment or
+32 zero bytes denoting the selected suffix half's empty-vector commitment. The
+zero payload is a container marker, not a point encoding, and MUST be accepted
+only for a structurally required suffix path. The path field MUST contain the
+path followed by zero padding through byte 32. A decoder MUST reject nonzero
 padding. Records MUST occur in lexicographic order of their variable-length
 paths.
 
@@ -421,8 +427,9 @@ The exact encoded length MUST be:
 A decoder MUST reject a wrong magic, profile identifier, profile version, or
 encoding version. It MUST reject a declared-count/length mismatch, alternate
 length, trailing bytes, invalid record kind, non-canonical ordering, duplicate
-or conflicting reconstructed metadata, nonzero padding, malformed or identity
-commitment, malformed root, and malformed aggregate-opening payload.
+or conflicting reconstructed metadata, nonzero padding, a zero commitment
+payload on a non-suffix path, malformed or identity point encodings, malformed
+root, and malformed aggregate-opening payload.
 
 Profile and version mismatch MUST fail before point or scalar decoding. Before
 cryptographic decoding or attacker-amplified allocation, a decoder MUST
@@ -430,8 +437,8 @@ preflight the input byte length, record counts, conservative path derivations,
 exact encoded size, aggregate point decodes, aggregate scalar decodes, retained
 path bytes, and conservative temporary bytes. A configured point- or
 scalar-decode budget of zero MUST reject the proof before the corresponding
-cryptographic operation. No configured limit MAY denote an unbounded
-resource.
+cryptographic operation. The explicit empty-vector marker MUST NOT consume a
+point decode. No configured limit MAY denote an unbounded resource.
 
 Encoding and decoding MUST observe cancellation throughout their amplified
 loops. Cancellation or deadline errors from nested root, commitment, or

@@ -365,6 +365,22 @@ func TestPathCommitmentValidatesAndOwnsPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("identity root: %v", err)
 	}
+	empty, err := NewPathCommitment([]byte{1}, identity)
+	if err != nil {
+		t.Fatalf("empty path commitment: %v", err)
+	}
+	gotEmpty, err := empty.Commitment()
+	if err != nil {
+		t.Fatalf("empty path commitment value: %v", err)
+	}
+	if isIdentity, identityErr := gotEmpty.IsIdentity(); identityErr != nil ||
+		!isIdentity {
+		t.Fatalf(
+			"empty path identity = %t, error %v",
+			isIdentity,
+			identityErr,
+		)
+	}
 	for name, candidate := range map[string]struct {
 		path       []byte
 		commitment backend.VectorCommitment
@@ -372,7 +388,6 @@ func TestPathCommitmentValidatesAndOwnsPath(t *testing.T) {
 		"empty path":      {path: nil, commitment: commitment},
 		"excessive path":  {path: make([]byte, maxProofPathLength+1), commitment: commitment},
 		"zero commitment": {path: []byte{1}},
-		"identity":        {path: []byte{1}, commitment: identity},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

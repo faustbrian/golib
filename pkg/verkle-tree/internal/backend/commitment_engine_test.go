@@ -14,6 +14,11 @@ import (
 func TestCommitmentEngineCommitsZeroVectorAsInternalIdentity(t *testing.T) {
 	t.Parallel()
 
+	direct := EmptyVectorCommitment()
+	if identity, err := direct.IsIdentity(); err != nil || !identity {
+		t.Fatalf("empty vector identity = %t, error %v", identity, err)
+	}
+
 	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
 	if err != nil {
 		t.Fatalf("new commitment engine: %v", err)

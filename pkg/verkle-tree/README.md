@@ -135,7 +135,10 @@ The immutable committed tree can now extract bounded caller-owned proof-path
 material for one key. It distinguishes present stems, missing children, and
 different stems and returns the exact internal, stem, and selected C1/C2
 commitments required by the package-owned proof topology. This extraction does
-not construct an opening, verify a proof, or authenticate a claim.
+not construct an opening, verify a proof, or authenticate a claim. The
+unverified tree-proof container represents an empty selected suffix half with a
+unique zero-payload marker; the strict point decoder still rejects identity
+point encodings.
 
 An internal authenticated-state layer now binds those complete roots to
 immutable ordered snapshots. It distinguishes absence from a present zero
