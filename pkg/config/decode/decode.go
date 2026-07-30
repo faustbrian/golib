@@ -2,6 +2,7 @@
 package decode
 
 import (
+	"cmp"
 	"context"
 	"encoding"
 	"errors"
@@ -9,7 +10,7 @@ import (
 	"math"
 	"net/url"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -471,7 +472,7 @@ func sortedKeys(object map[string]any) []string {
 	for key := range object {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -490,8 +491,8 @@ func normalizeErrors(err error) error {
 	if len(fields) == 1 {
 		return fields[0]
 	}
-	sort.SliceStable(fields, func(left, right int) bool {
-		return fields[left].Path < fields[right].Path
+	slices.SortStableFunc(fields, func(left, right *FieldError) int {
+		return cmp.Compare(left.Path, right.Path)
 	})
 	return &Errors{Fields: fields}
 }

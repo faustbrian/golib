@@ -176,6 +176,154 @@ func TestParseRejectsEverySyntaxAndLimitCategory(t *testing.T) {
 	}
 }
 
+func TestParseReportsExactSyntaxLocationsAndAllowsLimitBoundaries(t *testing.T) {
+	t.Parallel()
+
+	limits := Limits{MaxLines: 3, MaxLineBytes: 100, MaxKeys: 3}
+	for name, data := range map[string]string{
+		"one line":            "A=1",
+		"trailing newline":    "A=1\n",
+		"exact lines":         "A=1\nB=2\nC=3",
+		"exact lines newline": "A=1\nB=2\nC=3\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := parse(context.Background(), []byte(data), limits); err != nil {
+				t.Fatalf("parse() error = %v", err)
+			}
+		})
+	}
+	if _, err := parse(
+		context.Background(),
+		[]byte("VALUE=12"),
+		Limits{MaxLines: 3, MaxLineBytes: 8, MaxKeys: 3},
+	); err != nil {
+		t.Fatalf("parse(exact line byte limit) error = %v", err)
+	}
+
+	tests := map[string]struct {
+		data       string
+		wantLine   int
+		wantColumn int
+		wantReason string
+	}{
+		"leading NUL": {
+			data: "\x00VALUE=bad", wantLine: 1, wantColumn: 1,
+			wantReason: "NUL byte is forbidden",
+		},
+		"equals without name": {
+			data: "=bad", wantLine: 1, wantColumn: 1,
+			wantReason: "invalid variable name",
+		},
+		"missing equals": {
+			data: "VALUE", wantLine: 1, wantColumn: 6,
+			wantReason: "missing equals sign",
+		},
+		"single multiline remainder": {
+			data: "VALUE='first\nsecond' bad", wantLine: 2, wantColumn: 1,
+			wantReason: "content after quoted value",
+		},
+		"double multiline remainder": {
+			data: "VALUE=\"first\nsecond\" bad", wantLine: 2, wantColumn: 1,
+			wantReason: "content after quoted value",
+		},
+		"multiline trailing escape": {
+			data: "VALUE=\"first\nbad\\", wantLine: 2, wantColumn: 4,
+			wantReason: "trailing escape",
+		},
+		"multiline unsupported escape": {
+			data: "VALUE=\"first\nbad\\q\"", wantLine: 2, wantColumn: 5,
+			wantReason: "unsupported escape",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parse(context.Background(), []byte(test.data), limits)
+			var syntaxErr *SyntaxError
+			if !errors.As(err, &syntaxErr) ||
+				syntaxErr.Line != test.wantLine ||
+				syntaxErr.Column != test.wantColumn ||
+				syntaxErr.Reason != test.wantReason {
+				t.Fatalf("parse() error = %#v", err)
+			}
+		})
+	}
+
+	if _, err := parse(
+		context.Background(),
+		[]byte("A=1\nB=2\nC=3"),
+		Limits{MaxLines: 2, MaxLineBytes: 8, MaxKeys: 3},
+	); err == nil {
+		t.Fatal("parse(line overflow) error = nil")
+	}
+	if _, err := parse(
+		context.Background(),
+		[]byte("VALUE=123"),
+		Limits{MaxLines: 3, MaxLineBytes: 8, MaxKeys: 3},
+	); err == nil {
+		t.Fatal("parse(line byte overflow) error = nil")
+	}
+	if _, err := parse(
+		context.Background(),
+		[]byte("A=1\nVALUE=123"),
+		Limits{MaxLines: 3, MaxLineBytes: 8, MaxKeys: 3},
+	); err == nil || err.Error() != "dotenv line 2 exceeds 8 byte limit" {
+		t.Fatalf("parse(second line byte overflow) error = %v", err)
+	}
+}
+
+func TestValueParsersReportExactLinesColumnsAndCommentBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		parse      func() error
+		wantLine   int
+		wantColumn int
+	}{
+		"unquoted line": {
+			parse: func() error {
+				_, _, _, err := parseValue([]string{"", "", ""}, 2, `bad\`)
+				return err
+			},
+			wantLine: 3, wantColumn: 4,
+		},
+		"unterminated quote": {
+			parse: func() error {
+				_, _, _, err := parseValue([]string{"", "", ""}, 2, `"bad`)
+				return err
+			},
+			wantLine: 3, wantColumn: 1,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var syntaxErr *SyntaxError
+			if err := test.parse(); !errors.As(err, &syntaxErr) ||
+				syntaxErr.Line != test.wantLine ||
+				syntaxErr.Column != test.wantColumn {
+				t.Fatalf("parse error = %#v", err)
+			}
+		})
+	}
+
+	for input, want := range map[string]string{
+		"#comment":          "",
+		"value#not-comment": "value#not-comment",
+		"value #comment":    "value",
+	} {
+		got, err := unquoted(input, 7)
+		if err != nil || got != want {
+			t.Fatalf("unquoted(%q) = %q, %v, want %q", input, got, err, want)
+		}
+	}
+	_, err := unquoted(`bad\`, 7)
+	var syntaxErr *SyntaxError
+	if !errors.As(err, &syntaxErr) || syntaxErr.Line != 7 || syntaxErr.Column != 4 {
+		t.Fatalf("unquoted(trailing escape) error = %#v", err)
+	}
+}
+
 func TestParsingCoversEscapesCommentsNamesAndCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -268,6 +416,58 @@ func TestInterpolationCoversResolutionFallbackAndBounds(t *testing.T) {
 	if !reflect.DeepEqual(records, want) {
 		t.Fatalf("interpolate() records = %#v, want %#v", records, want)
 	}
+}
+
+func TestInterpolationAllowsExactBoundsAndClassifiesEmptyExpressions(t *testing.T) {
+	t.Parallel()
+
+	records := []record{{name: "A", value: "${B}", interpolate: true}}
+	if err := interpolate(context.Background(), records, Interpolation{
+		Variables: map[string]string{"B": "ok"},
+		MaxDepth:  2, MaxExpandedBytes: 2,
+	}); err != nil {
+		t.Fatalf("interpolate(exact bounds) error = %v", err)
+	}
+
+	records = []record{{name: "A", value: "${B}", interpolate: true}}
+	err := interpolate(context.Background(), records, Interpolation{
+		Variables: map[string]string{"B": "ok"},
+		MaxDepth:  1, MaxExpandedBytes: 2,
+	})
+	var interpolationErr *InterpolationError
+	if !errors.As(err, &interpolationErr) ||
+		interpolationErr.Reason != "maximum depth exceeded" {
+		t.Fatalf("interpolate(depth overflow) error = %#v", err)
+	}
+
+	_, err = expand("${}", "A", nil, 0, Interpolation{
+		MaxDepth: 1, MaxExpandedBytes: 10,
+	}, func(string, []string, int) (string, error) {
+		return "", nil
+	})
+	if !errors.As(err, &interpolationErr) ||
+		interpolationErr.Reason != "invalid variable name" {
+		t.Fatalf("expand(empty expression) error = %#v", err)
+	}
+
+	got, err := expand("x"+escapedDollar+"y", "A", nil, 0, Interpolation{
+		MaxDepth: 1, MaxExpandedBytes: len(escapedDollar) + 2,
+	}, func(string, []string, int) (string, error) {
+		return "", nil
+	})
+	if err != nil || got != "x"+escapedDollar+"y" {
+		t.Fatalf("expand(escaped literal) = %q, %v", got, err)
+	}
+
+	got, err = expand("${B}", "A", nil, 0, Interpolation{
+		MaxDepth: 1, MaxExpandedBytes: 2,
+	}, func(string, []string, int) (string, error) {
+		return "ok", nil
+	})
+	if err != nil || got != "ok" {
+		t.Fatalf("expand(exact expression limit) = %q, %v", got, err)
+	}
+
 }
 
 func TestLoadPropagatesMapperAndInterpolationErrors(t *testing.T) {

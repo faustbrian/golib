@@ -283,6 +283,51 @@ func TestSearchHonorsCancellationAndCandidateLimit(t *testing.T) {
 	if !errors.Is(err, discover.ErrLimit) {
 		t.Fatalf("Search() error = %v, want ErrLimit", err)
 	}
+
+	results, err := discover.Search(context.Background(), discover.Options{
+		Root: root, Directories: []string{root},
+		SearchPlaces: []string{"one"}, MaxCandidates: 1,
+	})
+	if err != nil || len(results) != 0 {
+		t.Fatalf("Search(exact candidate limit) = %#v, %v", results, err)
+	}
+}
+
+func TestSearchAllowsExactResultLimitAndContinuesAfterExplicitDirectory(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	directory := filepath.Join(root, "directory")
+	mustMkdirAll(t, directory)
+	directoryFile := filepath.Join(directory, "app.yaml")
+	explicitFile := filepath.Join(root, "explicit.yaml")
+	mustWrite(t, directoryFile, "source: directory")
+	mustWrite(t, explicitFile, "source: explicit")
+
+	results, err := discover.Search(context.Background(), discover.Options{
+		Root: root,
+		Explicit: []string{
+			directory,
+			explicitFile,
+		},
+		SearchPlaces: []string{"app.yaml"},
+		MaxResults:   2,
+		Mode:         discover.SearchAll,
+	})
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	want := []string{directoryFile, explicitFile}
+	if got := paths(results); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Search() paths = %#v, want %#v", got, want)
+	}
+
+	one, err := discover.Search(context.Background(), discover.Options{
+		Root: root, Explicit: []string{explicitFile}, MaxResults: 1,
+	})
+	if err != nil || len(one) != 1 {
+		t.Fatalf("Search(exact result limit) = %#v, %v", one, err)
+	}
 }
 
 func paths(results []discover.Result) []string {

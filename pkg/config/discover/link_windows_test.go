@@ -41,9 +41,42 @@ func TestPathContainsSymlinkRejectsWindowsReparseComponent(t *testing.T) {
 	}
 }
 
+func TestIsLinkLikeClassifiesSymlinksAndWindowsAttributes(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		info os.FileInfo
+		want bool
+	}{
+		"symlink mode": {
+			info: windowsFileInfo{mode: os.ModeSymlink},
+			want: true,
+		},
+		"reparse point": {
+			info: windowsFileInfo{attributes: syscall.FILE_ATTRIBUTE_REPARSE_POINT},
+			want: true,
+		},
+		"other windows attribute": {
+			info: windowsFileInfo{attributes: syscall.FILE_ATTRIBUTE_DIRECTORY},
+		},
+		"wrong system metadata": {
+			info: windowsFileInfo{system: struct{}{}},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := isLinkLike(test.info); got != test.want {
+				t.Fatalf("isLinkLike() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 type windowsFileInfo struct {
 	attributes uint32
 	mode       fs.FileMode
+	system     any
 }
 
 func (windowsFileInfo) Name() string           { return "entry" }
@@ -52,5 +85,8 @@ func (info windowsFileInfo) Mode() fs.FileMode { return info.mode }
 func (windowsFileInfo) ModTime() time.Time     { return time.Time{} }
 func (info windowsFileInfo) IsDir() bool       { return info.mode.IsDir() }
 func (info windowsFileInfo) Sys() any {
+	if info.system != nil {
+		return info.system
+	}
 	return &syscall.Win32FileAttributeData{FileAttributes: info.attributes}
 }

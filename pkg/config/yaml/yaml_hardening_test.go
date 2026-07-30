@@ -234,6 +234,80 @@ func TestConvertRejectsMalformedAndUnsupportedNodes(t *testing.T) {
 	}
 }
 
+func TestConvertEnforcesExactDepthKeyAndSequenceBoundaries(t *testing.T) {
+	t.Parallel()
+
+	scalarNode := func(value string) *yamlv4.Node {
+		return &yamlv4.Node{Kind: yamlv4.ScalarNode, Tag: "!!str", Value: value}
+	}
+	mapping := &yamlv4.Node{
+		Kind: yamlv4.MappingNode,
+		Tag:  "!!map",
+		Content: []*yamlv4.Node{
+			scalarNode("value"),
+			scalarNode("loaded"),
+		},
+	}
+	keys := 0
+	got, err := convert(
+		context.Background(),
+		mapping,
+		1,
+		"",
+		Limits{MaxDepth: 2, MaxKeys: 1},
+		&keys,
+	)
+	if err != nil || !reflect.DeepEqual(got, map[string]any{"value": "loaded"}) || keys != 1 {
+		t.Fatalf("convert(exact limits) = %#v, keys %d, error %v", got, keys, err)
+	}
+
+	keys = 0
+	_, err = convert(
+		context.Background(),
+		mapping,
+		1,
+		"",
+		Limits{MaxDepth: 1, MaxKeys: 1},
+		&keys,
+	)
+	const mappingDepthError = `decode YAML config: depth exceeds 1 at "value"`
+	if err == nil || err.Error() != mappingDepthError {
+		t.Fatalf("convert(mapping depth) error = %v, want %q", err, mappingDepthError)
+	}
+
+	sequence := &yamlv4.Node{
+		Kind:    yamlv4.SequenceNode,
+		Tag:     "!!seq",
+		Content: []*yamlv4.Node{scalarNode("loaded")},
+	}
+	keys = 0
+	got, err = convert(
+		context.Background(),
+		sequence,
+		1,
+		"items",
+		Limits{MaxDepth: 2, MaxKeys: 1},
+		&keys,
+	)
+	if err != nil || !reflect.DeepEqual(got, []any{"loaded"}) {
+		t.Fatalf("convert(exact sequence depth) = %#v, %v", got, err)
+	}
+
+	keys = 0
+	_, err = convert(
+		context.Background(),
+		sequence,
+		1,
+		"items",
+		Limits{MaxDepth: 1, MaxKeys: 1},
+		&keys,
+	)
+	const sequenceDepthError = `decode YAML config: depth exceeds 1 at "items[0]"`
+	if err == nil || err.Error() != sequenceDepthError {
+		t.Fatalf("convert(sequence depth) error = %v, want %q", err, sequenceDepthError)
+	}
+}
+
 func TestScalarAndIntegerBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -258,14 +332,16 @@ func TestScalarAndIntegerBoundaries(t *testing.T) {
 	}
 
 	want := map[string]any{
-		"decimal":  int64(-42),
-		"hex":      int64(255),
-		"octal":    int64(8),
-		"binary":   int64(3),
-		"unsigned": uint64(math.MaxUint64),
+		"decimal":      int64(-42),
+		"hex":          int64(255),
+		"signed hex":   int64(-255),
+		"positive hex": int64(255),
+		"octal":        int64(8),
+		"binary":       int64(3),
+		"unsigned":     uint64(math.MaxUint64),
 	}
 	inputs := map[string]string{
-		"decimal": "-4_2", "hex": "0xFF", "octal": "0o10",
+		"decimal": "-4_2", "hex": "0xFF", "signed hex": "-0xFF", "positive hex": "+0xFF", "octal": "0o10",
 		"binary": "0b11", "unsigned": "+18446744073709551615",
 	}
 	got := make(map[string]any, len(inputs))

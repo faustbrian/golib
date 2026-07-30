@@ -448,6 +448,55 @@ func TestInspectUsesPathComponentsForSymlinkDetection(t *testing.T) {
 	}
 }
 
+func TestRootlessSymlinkWalkInspectsAncestors(t *testing.T) {
+	t.Parallel()
+
+	regularInfo, err := os.Stat(os.Args[0])
+	if err != nil {
+		t.Fatalf("Stat(test binary) error = %v", err)
+	}
+	directory := filepath.Join(string(filepath.Separator), "rootless")
+	operations := defaultFileOperations
+	operations.lstat = func(candidate string) (os.FileInfo, error) {
+		mode := regularInfo.Mode()
+		if candidate == directory {
+			mode = os.ModeSymlink
+		}
+		return fileInfoWithMode{FileInfo: regularInfo, mode: mode}, nil
+	}
+	configured := settings{operations: operations}
+	link, err := configured.pathContainsSymlink(
+		filepath.Join(directory, "config.yaml"),
+		regularInfo,
+	)
+	if err != nil || !link {
+		t.Fatalf("pathContainsSymlink() = %v, %v, want true", link, err)
+	}
+}
+
+func TestSymlinkWalkStopsBeforeInspectingConfiguredRoot(t *testing.T) {
+	t.Parallel()
+
+	regularInfo, err := os.Stat(os.Args[0])
+	if err != nil {
+		t.Fatalf("Stat(test binary) error = %v", err)
+	}
+	root := t.TempDir()
+	failure := errors.New("root must not be inspected")
+	operations := defaultFileOperations
+	operations.lstat = func(string) (os.FileInfo, error) {
+		return nil, failure
+	}
+	configured := settings{rootAbs: root, operations: operations}
+	link, err := configured.pathContainsSymlink(
+		filepath.Join(root, "config.yaml"),
+		regularInfo,
+	)
+	if err != nil || link {
+		t.Fatalf("pathContainsSymlink() = %v, %v, want false", link, err)
+	}
+}
+
 func TestSearchPropagatesInjectedCandidateAndExplicitStatFailures(t *testing.T) {
 	t.Parallel()
 

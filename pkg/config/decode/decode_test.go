@@ -276,6 +276,24 @@ func TestValueDecodesNumericKindsAndRejectsBoundaries(t *testing.T) {
 		t.Fatalf("numbers = %#v", got)
 	}
 
+	for name, input := range map[string]any{
+		"zero":                    uint64(0),
+		"maximum uint64 to int64": uint64(math.MaxInt64),
+		"maximum uint to int64":   uint(math.MaxInt64),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var got int64
+			if err := decode.Value(input, &got); err != nil {
+				t.Fatalf("Value(%T(%v)) error = %v", input, input, err)
+			}
+		})
+	}
+	var unsignedZero uint64
+	if err := decode.Value(int64(0), &unsignedZero); err != nil || unsignedZero != 0 {
+		t.Fatalf("Value(signed zero to unsigned) = %d, %v", unsignedZero, err)
+	}
+
 	tests := map[string]struct {
 		input       any
 		destination any
@@ -372,6 +390,29 @@ func TestIntoRejectsAmbiguousIgnoredAndUnsupportedFields(t *testing.T) {
 	if ignoredDestination.unexported != "" {
 		t.Fatalf("Into(ignored) unexported = %q, want empty", ignoredDestination.unexported)
 	}
+	if err := decode.Into(map[string]any{"-": "value"}, &ignoredDestination); err == nil {
+		t.Fatal("Into(ignored key) error = nil, want unknown field error")
+	}
+
+	type exportedAfterPrivate struct {
+		_     string
+		Value string
+	}
+	var afterPrivate exportedAfterPrivate
+	if err := decode.Into(map[string]any{"value": "loaded"}, &afterPrivate); err != nil ||
+		afterPrivate.Value != "loaded" {
+		t.Fatalf("Into(exported after private) = %#v, %v", afterPrivate, err)
+	}
+	if err := decode.Into(map[string]any{"_": "value"}, &afterPrivate); err == nil {
+		t.Fatal("Into(unexported key) error = nil, want unknown field error")
+	}
+
+	type commaDefaultRequired struct {
+		Value string `config:",required"`
+	}
+	if err := decode.Into(map[string]any{}, &commaDefaultRequired{}); err == nil {
+		t.Fatal("Into(comma-default required) error = nil")
+	}
 
 	var unsupported chan int
 	if err := decode.Value("value", &unsupported); err == nil {
@@ -456,6 +497,17 @@ func TestTypedErrorsExposeSafeMetadataAndCauses(t *testing.T) {
 	if got := field.Error(); !strings.Contains(got, `source "environment"`) ||
 		!strings.Contains(got, `at "APP_TOKEN"`) || strings.Contains(got, "canary cause") {
 		t.Fatalf("FieldError.Error() = %q", got)
+	}
+	const wantFieldMessage = `decode config field "token": expected string, received int: ` +
+		`conversion failed from source "environment" at "APP_TOKEN"`
+	if got := field.Error(); got != wantFieldMessage {
+		t.Fatalf("FieldError.Error() = %q, want %q", got, wantFieldMessage)
+	}
+	withoutMetadata := (&decode.FieldError{
+		Path: "token", Expected: "string", Received: "int",
+	}).Error()
+	if withoutMetadata != `decode config field "token": expected string, received int` {
+		t.Fatalf("FieldError.Error() without metadata = %q", withoutMetadata)
 	}
 	if text, err := field.MarshalText(); err != nil || string(text) != field.Error() {
 		t.Fatalf("FieldError.MarshalText() = %q, %v", text, err)

@@ -139,9 +139,19 @@ func TestRunInvokesValueAndPointerSelfValidatorsBeforeRegisteredValidators(t *te
 func TestRunHandlesNilValidatorAndCancellationBetweenValidators(t *testing.T) {
 	t.Parallel()
 
-	err := validation.Run[string](context.Background(), "value", nil)
+	laterFailure := errors.New("later failure")
+	err := validation.Run[string](
+		context.Background(),
+		"value",
+		nil,
+		func(context.Context, string) error {
+			return validation.At("later", laterFailure)
+		},
+	)
 	var failures *validation.Errors
-	if !errors.As(err, &failures) || !reflect.DeepEqual(failures.Paths(), []string{""}) {
+	if !errors.As(err, &failures) ||
+		!reflect.DeepEqual(failures.Paths(), []string{"", "later"}) ||
+		!errors.Is(err, laterFailure) {
 		t.Fatalf("Run(nil) error = %#v", err)
 	}
 

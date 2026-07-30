@@ -16,15 +16,7 @@ type DefaultSources struct {
 
 // NewDefaultPlan assigns category priorities and returns an inspectable plan.
 func NewDefaultPlan(sources DefaultSources) (Plan, error) {
-	resolved := make([]Source, 0,
-		len(sources.Defaults)+
-			len(sources.DiscoveredBase)+
-			len(sources.DiscoveredProfile)+
-			len(sources.ExplicitFiles)+
-			len(sources.Dotenv)+
-			len(sources.Environment)+
-			len(sources.Overrides),
-	)
+	var resolved []Source
 	resolved = appendPriority(resolved, sources.Defaults, PriorityDefaults)
 	resolved = appendPriority(resolved, sources.DiscoveredBase, PriorityDiscoveredBase)
 	resolved = appendPriority(resolved, sources.DiscoveredProfile, PriorityDiscoveredProfile)
@@ -50,11 +42,11 @@ func appendPriority(destination, sources []Source, priority int) []Source {
 	for _, source := range sources {
 		if source == nil || isNilSource(source) {
 			destination = append(destination, nil)
-			continue
+		} else {
+			info := source.Info()
+			info.Priority = priority
+			destination = append(destination, prioritySource{source: source, info: info})
 		}
-		info := source.Info()
-		info.Priority = priority
-		destination = append(destination, prioritySource{source: source, info: info})
 	}
 	return destination
 }

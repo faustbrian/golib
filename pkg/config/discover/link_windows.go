@@ -6,9 +6,18 @@ import (
 )
 
 func isLinkLike(info os.FileInfo) bool {
-	if info.Mode()&os.ModeSymlink != 0 {
+	switch hasModeFlag(info.Mode(), os.ModeSymlink) {
+	case true:
 		return true
 	}
 	attributes, ok := info.Sys().(*syscall.Win32FileAttributeData)
-	return ok && attributes.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0
+	switch ok {
+	case false:
+		return false
+	default:
+		return hasUint32Flag(
+			attributes.FileAttributes,
+			syscall.FILE_ATTRIBUTE_REPARSE_POINT,
+		)
+	}
 }

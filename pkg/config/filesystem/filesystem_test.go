@@ -55,7 +55,10 @@ func TestFromFSDispatchesSupportedExtensions(t *testing.T) {
 func TestFromFSRejectsUnsupportedFormatUnlessExplicit(t *testing.T) {
 	t.Parallel()
 
-	files := fstest.MapFS{"config.data": &fstest.MapFile{Data: []byte(`{"name":"json"}`)}}
+	files := fstest.MapFS{
+		"config.data":      &fstest.MapFile{Data: []byte(`{"name":"json"}`)},
+		"config.toml.data": &fstest.MapFile{Data: []byte(`name = "toml"`)},
+	}
 	if _, err := filesystem.FromFS(files, "config.data", filesystem.Options{Name: "auto"}); err == nil {
 		t.Fatal("FromFS() error = nil, want unsupported extension")
 	}
@@ -67,6 +70,17 @@ func TestFromFSRejectsUnsupportedFormatUnlessExplicit(t *testing.T) {
 	}
 	if _, err := source.Load(context.Background()); err != nil {
 		t.Fatalf("Source.Load() error = %v", err)
+	}
+
+	source, err = filesystem.FromFS(files, "config.toml.data", filesystem.Options{
+		Name: "explicit-toml", Format: filesystem.FormatTOML,
+	})
+	if err != nil {
+		t.Fatalf("FromFS(explicit TOML) error = %v", err)
+	}
+	document, err := source.Load(context.Background())
+	if err != nil || document.Tree["name"] != "toml" {
+		t.Fatalf("Source.Load(explicit TOML) = %#v, %v", document, err)
 	}
 }
 

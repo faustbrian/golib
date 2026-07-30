@@ -39,10 +39,12 @@ type contextReader struct {
 }
 
 func (r *contextReader) Read(buffer []byte) (int, error) {
-	if err := r.ctx.Err(); err != nil {
+	switch err := r.ctx.Err(); err {
+	case nil:
+		return r.reader.Read(buffer)
+	default:
 		return 0, err
 	}
-	return r.reader.Read(buffer)
 }
 
 // FromFS returns a repeatable input for path.
@@ -180,42 +182,48 @@ func Read(ctx context.Context, reader io.Reader, maxBytes int64) ([]byte, error)
 	}
 	var buffer bytes.Buffer
 	chunk := make([]byte, 32*1024)
-	emptyReads := 0
+	var emptyReads []struct{}
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		remaining := limit - int64(buffer.Len())
 		if remaining == 0 {
-			break
+			return boundedReadResult(&buffer, maxBytes)
 		}
-		readBuffer := chunk
-		if remaining < int64(len(readBuffer)) {
-			readBuffer = readBuffer[:remaining]
-		}
+		readBuffer := chunk[:min(int64(len(chunk)), remaining)]
 		count, err := readContext(ctx, reader, readBuffer)
 		if count < 0 || count > len(readBuffer) {
 			return nil, errors.New("source reader returned invalid byte count")
 		}
-		if count > 0 {
-			_, _ = buffer.Write(chunk[:count])
-			emptyReads = 0
-		} else if err == nil {
-			emptyReads++
-			if emptyReads >= 100 {
-				return nil, io.ErrNoProgress
+		switch count {
+		case 0:
+			switch err {
+			case nil:
+				emptyReads = append(emptyReads, struct{}{})
+				if len(emptyReads) >= 100 {
+					return nil, io.ErrNoProgress
+				}
 			}
+		default:
+			_, _ = buffer.Write(chunk[:count])
+			emptyReads = emptyReads[:0]
 		}
 		// Reader implementations must return io.EOF directly. Avoid invoking
 		// extension-owned Is methods while controlling the file lifecycle.
 		//nolint:errorlint // Deliberately do not traverse an untrusted error.
 		if err == io.EOF {
-			break
+			return boundedReadResult(&buffer, maxBytes)
 		}
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			return nil, err
 		}
 	}
+}
+
+func boundedReadResult(buffer *bytes.Buffer, maxBytes int64) ([]byte, error) {
 	if int64(buffer.Len()) > maxBytes {
 		return nil, fmt.Errorf("source input exceeds %d byte limit", maxBytes)
 	}

@@ -32,6 +32,7 @@ func TestForCanonicalizesUnsignedDefaultsLikeStructuredSources(t *testing.T) {
 
 	type unsigned struct {
 		Port     uint16 `config:"port" default:"5432"`
+		Boundary uint64 `config:"boundary" default:"9223372036854775807"`
 		Sequence uint64 `config:"sequence" default:"18446744073709551615"`
 	}
 	source, err := defaults.For[unsigned]("defaults")
@@ -44,6 +45,9 @@ func TestForCanonicalizesUnsignedDefaultsLikeStructuredSources(t *testing.T) {
 	}
 	if got := document.Tree["port"]; got != int64(5432) {
 		t.Fatalf("port = %T(%v), want int64(5432)", got, got)
+	}
+	if got := document.Tree["boundary"]; got != int64(math.MaxInt64) {
+		t.Fatalf("boundary = %T(%v), want int64 MaxInt64", got, got)
 	}
 	if got := document.Tree["sequence"]; got != uint64(math.MaxUint64) {
 		t.Fatalf("sequence = %T(%v), want uint64 MaxUint64", got, got)

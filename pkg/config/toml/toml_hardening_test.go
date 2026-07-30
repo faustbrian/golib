@@ -206,6 +206,76 @@ func TestNormalizeCollectionAndUnsupportedValueBoundaries(t *testing.T) {
 	}
 }
 
+func TestNormalizeEnforcesExactDepthKeyAndCollectionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	keys := 0
+	got, err := normalize(
+		context.Background(),
+		map[string]any{"value": true},
+		1,
+		"",
+		Limits{MaxDepth: 2, MaxKeys: 1},
+		&keys,
+	)
+	if err != nil || !reflect.DeepEqual(got, map[string]any{"value": true}) || keys != 1 {
+		t.Fatalf("normalize(exact limits) = %#v, keys %d, error %v", got, keys, err)
+	}
+
+	keys = 0
+	_, err = normalize(
+		context.Background(),
+		map[string]any{"value": true},
+		1,
+		"",
+		Limits{MaxDepth: 1, MaxKeys: 1},
+		&keys,
+	)
+	const objectDepthError = `decode TOML config: depth exceeds 1 at "value"`
+	if err == nil || err.Error() != objectDepthError {
+		t.Fatalf("normalize(object depth) error = %v, want %q", err, objectDepthError)
+	}
+
+	keys = 0
+	_, err = normalize(
+		context.Background(),
+		[]map[string]any{{"value": true}},
+		1,
+		"tables",
+		Limits{MaxDepth: 2, MaxKeys: 1},
+		&keys,
+	)
+	const tableDepthError = `decode TOML config: depth exceeds 2 at "tables[0].value"`
+	if err == nil || err.Error() != tableDepthError {
+		t.Fatalf("normalize(table array depth) error = %v, want %q", err, tableDepthError)
+	}
+
+	keys = 0
+	_, err = normalize(
+		context.Background(),
+		[]any{true},
+		1,
+		"items",
+		Limits{MaxDepth: 1, MaxKeys: 1},
+		&keys,
+	)
+	const arrayDepthError = `decode TOML config: depth exceeds 1 at "items[0]"`
+	if err == nil || err.Error() != arrayDepthError {
+		t.Fatalf("normalize(array depth) error = %v, want %q", err, arrayDepthError)
+	}
+}
+
+func TestJoinHandlesRootAndNestedPaths(t *testing.T) {
+	t.Parallel()
+
+	if got := join("", "child"); got != "child" {
+		t.Fatalf("join(root) = %q", got)
+	}
+	if got := join("parent", "child"); got != "parent.child" {
+		t.Fatalf("join(nested) = %q", got)
+	}
+}
+
 func TestSourceHonorsCancellationDuringNormalization(t *testing.T) {
 	t.Parallel()
 

@@ -276,8 +276,13 @@ func validateWith(options Options, operations fileOperations) (settings, error) 
 			return settings{}, errors.New("configuration search place must be a safe filename")
 		}
 	}
-	if options.Upward && (options.StartDir == "" || options.StopDir == "") {
-		return settings{}, errors.New("upward discovery requires start and stop directories")
+	if options.Upward {
+		if options.StartDir == "" {
+			return settings{}, errors.New("upward discovery requires start and stop directories")
+		}
+		if options.StopDir == "" {
+			return settings{}, errors.New("upward discovery requires start and stop directories")
+		}
 	}
 	if options.UseUserConfigDir {
 		if options.Application == "" || filepath.Base(options.Application) != options.Application {
@@ -427,14 +432,14 @@ func (s settings) pathContainsSymlink(
 			return false, discoveryOperationError(err)
 		}
 		if rootInfo != nil && s.operations.sameFile(info, rootInfo) {
-			break
+			return false, nil
 		}
 		if isLinkLike(info) {
 			return true, nil
 		}
 		parent := filepath.Dir(directory)
 		if samePath(parent, directory) {
-			break
+			return false, nil
 		}
 		directory = parent
 	}

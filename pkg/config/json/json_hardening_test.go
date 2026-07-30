@@ -142,6 +142,87 @@ func TestSourceRejectsEveryInvalidRootAndDelimiterState(t *testing.T) {
 	}
 }
 
+func TestSourceClassifiesTrailingRootTokensExactly(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		data string
+		want string
+	}{
+		"multiple roots": {
+			data: `{} {}`,
+			want: "decode JSON config: multiple root values",
+		},
+		"malformed trailing token": {
+			data: `{} trailing`,
+			want: "decode JSON config: invalid character 'a' in literal true (expecting 'u')",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			source, err := jsonsource.Bytes([]byte(test.data), jsonsource.Options{Name: "json"})
+			if err != nil {
+				t.Fatalf("Bytes() error = %v", err)
+			}
+			if _, err := source.Load(context.Background()); err == nil || err.Error() != test.want {
+				t.Fatalf("Load() error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestSourceEnforcesExactDepthKeyAndArrayIndexBoundaries(t *testing.T) {
+	t.Parallel()
+
+	source, err := jsonsource.Bytes(
+		[]byte(`{"item":[true]}`),
+		jsonsource.Options{
+			Name: "json",
+			Limits: jsonsource.Limits{
+				MaxDepth: 3,
+				MaxKeys:  1,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("Bytes(exact limits) error = %v", err)
+	}
+	if document, err := source.Load(context.Background()); err != nil ||
+		!reflect.DeepEqual(document.Tree, map[string]any{"item": []any{true}}) {
+		t.Fatalf("Load(exact limits) = %#v, %v", document, err)
+	}
+
+	source, err = jsonsource.Bytes(
+		[]byte(`{"item":[true]}`),
+		jsonsource.Options{
+			Name: "json",
+			Limits: jsonsource.Limits{
+				MaxDepth: 2,
+				MaxKeys:  1,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("Bytes(depth limit) error = %v", err)
+	}
+	const depthError = `decode JSON config: depth exceeds 2 at "item[0]"`
+	if _, err := source.Load(context.Background()); err == nil || err.Error() != depthError {
+		t.Fatalf("Load(depth limit) error = %v, want %q", err, depthError)
+	}
+
+	source, err = jsonsource.Bytes(
+		[]byte(`{"items":[true,18446744073709551616]}`),
+		jsonsource.Options{Name: "json"},
+	)
+	if err != nil {
+		t.Fatalf("Bytes(array index) error = %v", err)
+	}
+	const indexError = `decode JSON number at "items[1]": integer out of range`
+	if _, err := source.Load(context.Background()); err == nil || err.Error() != indexError {
+		t.Fatalf("Load(array index) error = %v, want %q", err, indexError)
+	}
+}
+
 func TestSourceConvertsNullNegativeAndUnsignedNumberBoundaries(t *testing.T) {
 	t.Parallel()
 

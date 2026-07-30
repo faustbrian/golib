@@ -453,11 +453,83 @@ func TestReadValidatesBoundsErrorsAndCancellation(t *testing.T) {
 	if _, err := Read(context.Background(), zeroProgressReader{}, 100); !errors.Is(err, io.ErrNoProgress) {
 		t.Fatalf("Read(no progress) error = %v, want io.ErrNoProgress", err)
 	}
+	counting := &countingZeroProgressReader{}
+	if _, err := Read(context.Background(), counting, 100); !errors.Is(err, io.ErrNoProgress) ||
+		counting.calls != 100 {
+		t.Fatalf("Read(counting no progress) calls = %d, error = %v", counting.calls, err)
+	}
+
+	exact := bytes.Repeat([]byte{'x'}, 32*1024)
+	got, err := Read(context.Background(), bytes.NewReader(exact), int64(len(exact)))
+	if err != nil || !bytes.Equal(got, exact) {
+		t.Fatalf("Read(exact full chunk) length = %d, error = %v", len(got), err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	reader := &cancelReader{cancel: cancel}
 	if _, err := Read(ctx, reader, 100); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Read() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestFileChangedDistinguishesGenerationState(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		before fileVersion
+		after  fileVersion
+		want   bool
+	}{
+		"same generated version": {
+			before: fileVersion{generated: true, generation: "same"},
+			after:  fileVersion{generated: true, generation: "same"},
+		},
+		"changed generated version": {
+			before: fileVersion{generated: true, generation: "before"},
+			after:  fileVersion{generated: true, generation: "after"},
+			want:   true,
+		},
+		"untracked generation values": {
+			before: fileVersion{generation: "before"},
+			after:  fileVersion{generation: "after"},
+		},
+		"generation support changed": {
+			before: fileVersion{},
+			after:  fileVersion{generated: true},
+			want:   true,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := fileChanged(test.before, test.after); got != test.want {
+				t.Fatalf("fileChanged() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestClassifyNotExistHandlesEveryWrapperBoundary(t *testing.T) {
+	t.Parallel()
+
+	var nilPathError *fs.PathError
+	for name, test := range map[string]struct {
+		err  error
+		want bool
+	}{
+		"nil":              {},
+		"plain":            {err: errors.New("plain")},
+		"typed nil path":   {err: nilPathError},
+		"direct":           {err: fs.ErrNotExist, want: true},
+		"wrapped":          {err: &fs.PathError{Err: fs.ErrNotExist}, want: true},
+		"wrapped nonmatch": {err: &fs.PathError{Err: errors.New("plain")}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := classifyNotExist(test.err); got != test.want {
+				t.Fatalf("classifyNotExist() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 
@@ -695,6 +767,13 @@ func (f *generationChangingFile) GenerationContext(
 type zeroProgressReader struct{}
 
 func (zeroProgressReader) Read([]byte) (int, error) { return 0, nil }
+
+type countingZeroProgressReader struct{ calls int }
+
+func (reader *countingZeroProgressReader) Read([]byte) (int, error) {
+	reader.calls++
+	return 0, nil
+}
 
 type contextualFS struct {
 	opens  int

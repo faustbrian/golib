@@ -249,11 +249,13 @@ func TestEnvironForConvertsUnsignedScalar(t *testing.T) {
 
 	type settings struct {
 		Value    uint8  `config:"value"`
+		Boundary uint64 `config:"boundary"`
 		Sequence uint64 `config:"sequence"`
 	}
 	source, err := environment.EnvironFor[settings](
 		[]string{
 			"APP_VALUE=42",
+			"APP_BOUNDARY=9223372036854775807",
 			"APP_SEQUENCE=18446744073709551615",
 		},
 		options(),
@@ -266,6 +268,7 @@ func TestEnvironForConvertsUnsignedScalar(t *testing.T) {
 		t.Fatalf("Source.Load() error = %v", err)
 	}
 	if document.Tree["value"] != int64(42) ||
+		document.Tree["boundary"] != int64(math.MaxInt64) ||
 		document.Tree["sequence"] != uint64(math.MaxUint64) {
 		t.Fatalf("Source.Load() tree = %#v", document.Tree)
 	}
@@ -278,6 +281,70 @@ func TestEnvironForConvertsUnsignedScalar(t *testing.T) {
 		snapshot.Value().Value != 42 ||
 		snapshot.Value().Sequence != math.MaxUint64 {
 		t.Fatalf("Load() = %#v, %v", snapshot, err)
+	}
+}
+
+func TestEnvironForAllowsExactLimitsAndClassifiesMalformedWantedVariable(t *testing.T) {
+	t.Parallel()
+
+	type settings struct {
+		Value string `config:"value" env:"VALUE"`
+	}
+	source, err := environment.EnvironFor[settings](
+		[]string{"VALUE=x", "OTHER=y"},
+		environment.Options{
+			Name: "environment",
+			Case: environment.CaseSensitive,
+			Limits: environment.Limits{
+				MaxVariables:  2,
+				MaxBytes:      len("VALUE=x") + len("OTHER=y"),
+				MaxValueBytes: 1,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("EnvironFor() error = %v", err)
+	}
+	document, err := source.Load(context.Background())
+	if err != nil || document.Tree["value"] != "x" {
+		t.Fatalf("Load(exact limits) = %#v, %v", document, err)
+	}
+
+	source, err = environment.EnvironFor[settings](
+		[]string{"OTHER=x", "VALUE=y"},
+		environment.Options{
+			Name: "environment",
+			Case: environment.CaseSensitive,
+			Limits: environment.Limits{
+				MaxVariables:  2,
+				MaxBytes:      len("OTHER=x"),
+				MaxValueBytes: 1,
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("EnvironFor(cumulative bytes) error = %v", err)
+	}
+	_, err = source.Load(context.Background())
+	var limitErr *environment.LimitError
+	if !errors.As(err, &limitErr) ||
+		limitErr.Kind != "bytes" ||
+		limitErr.Actual != len("OTHER=x")+len("VALUE=y") {
+		t.Fatalf("Load(cumulative bytes) error = %#v", err)
+	}
+
+	source, err = environment.EnvironFor[settings](
+		[]string{"VALUE"},
+		environment.Options{Name: "environment", Case: environment.CaseSensitive},
+	)
+	if err != nil {
+		t.Fatalf("EnvironFor(malformed) error = %v", err)
+	}
+	_, err = source.Load(context.Background())
+	var mappingErr *environment.MappingError
+	if !errors.As(err, &mappingErr) ||
+		mappingErr.Received != "malformed variable" {
+		t.Fatalf("Load(malformed) error = %#v", err)
 	}
 }
 

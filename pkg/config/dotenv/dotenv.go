@@ -237,8 +237,9 @@ func parse(ctx context.Context, data []byte, limits Limits) ([]record, error) {
 	if bytes.IndexByte(data, 0) >= 0 {
 		return nil, &SyntaxError{Line: 1, Column: 1, Reason: "NUL byte is forbidden"}
 	}
-	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
-	if len(lines) > limits.MaxLines+1 || (len(lines) == limits.MaxLines+1 && lines[len(lines)-1] != "") {
+	normalized := strings.ReplaceAll(string(data), "\r\n", "\n")
+	lines := strings.Split(strings.TrimSuffix(normalized, "\n"), "\n")
+	if len(lines) > limits.MaxLines {
 		return nil, fmt.Errorf("dotenv input exceeds %d line limit", limits.MaxLines)
 	}
 	for index, line := range lines {
@@ -331,10 +332,12 @@ func quoted(
 	escapes bool,
 ) (string, int, string, error) {
 	var result strings.Builder
-	for lineIndex := start; lineIndex < len(lines); lineIndex++ {
-		line := input
-		if lineIndex > start {
-			line = lines[lineIndex]
+	for offset, sourceLine := range lines[start:] {
+		lineIndex := start + offset
+		line := sourceLine
+		if offset == 0 {
+			line = input
+		} else {
 			result.WriteByte('\n')
 		}
 		for index := 0; index < len(line); index++ {
@@ -489,7 +492,7 @@ func expand(
 			if !hasFallback || !errors.As(err, &missing) || missing.Reason != "variable is absent" {
 				return "", err
 			}
-			value, err = expand(fallback, owner, stack, depth+1, options, resolve)
+			value, err = expand(fallback, owner, stack, depth, options, resolve)
 			if err != nil {
 				return "", err
 			}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -32,7 +33,10 @@ func (b *ByteSize) UnmarshalText(text []byte) error {
 		if strings.HasSuffix(input, unit.suffix) {
 			number := strings.TrimSpace(strings.TrimSuffix(input, unit.suffix))
 			value, err := strconv.ParseInt(number, 10, 64)
-			if err != nil || value < 0 || value > int64(^uint64(0)>>1)/int64(unit.scale) {
+			if err != nil {
+				return fmt.Errorf("invalid byte size")
+			}
+			if value < 0 || value > math.MaxInt64/int64(unit.scale) {
 				return fmt.Errorf("invalid byte size")
 			}
 			*b = ByteSize(value) * unit.scale
@@ -40,7 +44,10 @@ func (b *ByteSize) UnmarshalText(text []byte) error {
 		}
 	}
 	value, err := strconv.ParseInt(input, 10, 64)
-	if err != nil || value < 0 {
+	if err != nil {
+		return fmt.Errorf("invalid byte size")
+	}
+	if value < 0 {
 		return fmt.Errorf("invalid byte size")
 	}
 	*b = ByteSize(value)

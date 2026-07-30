@@ -177,7 +177,7 @@ func configTag(field reflect.StructField) (string, map[string]bool) {
 	if name == "" {
 		name = strings.ToLower(field.Name)
 	}
-	metadata := make(map[string]bool, len(parts)-1)
+	metadata := make(map[string]bool)
 	for _, option := range parts[1:] {
 		metadata[option] = true
 	}

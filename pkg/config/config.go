@@ -310,32 +310,34 @@ func applyFieldMetadata(typeOf reflect.Type, path string, origins map[string]Ori
 	}
 	for index := 0; index < typeOf.NumField(); index++ {
 		definition := typeOf.Field(index)
-		if !definition.IsExported() {
-			continue
+		if definition.IsExported() {
+			applyDefinitionMetadata(definition, path, origins)
 		}
-		name := definition.Tag.Get("config")
-		options := ""
-		if comma := strings.IndexByte(name, ','); comma >= 0 {
-			options = name[comma+1:]
-			name = name[:comma]
-		}
-		if name == "-" {
-			continue
-		}
-		if name == "" {
-			name = strings.ToLower(definition.Name)
-		}
-		fieldPath := name
-		if path != "" {
-			fieldPath = path + "." + name
-		}
-		sensitive := metadataOption(options, "secret")
-		deprecated := metadataOption(options, "deprecated")
-		if sensitive || deprecated {
-			markOriginMetadata(origins, fieldPath, sensitive, deprecated)
-		}
-		applyFieldMetadata(definition.Type, fieldPath, origins)
 	}
+}
+
+func applyDefinitionMetadata(
+	definition reflect.StructField,
+	path string,
+	origins map[string]Origin,
+) {
+	name, options, _ := strings.Cut(definition.Tag.Get("config"), ",")
+	if name == "-" {
+		return
+	}
+	if name == "" {
+		name = strings.ToLower(definition.Name)
+	}
+	fieldPath := name
+	if path != "" {
+		fieldPath = path + "." + name
+	}
+	sensitive := metadataOption(options, "secret")
+	deprecated := metadataOption(options, "deprecated")
+	if sensitive || deprecated {
+		markOriginMetadata(origins, fieldPath, sensitive, deprecated)
+	}
+	applyFieldMetadata(definition.Type, fieldPath, origins)
 }
 
 func metadataOption(options, wanted string) bool {
@@ -355,12 +357,11 @@ func markOriginMetadata(
 ) {
 	prefix := path + "."
 	for candidate, origin := range origins {
-		if candidate != path && !strings.HasPrefix(candidate, prefix) {
-			continue
+		if candidate == path || strings.HasPrefix(candidate, prefix) {
+			origin.Sensitive = origin.Sensitive || sensitive
+			origin.Deprecated = origin.Deprecated || deprecated
+			origins[candidate] = origin
 		}
-		origin.Sensitive = origin.Sensitive || sensitive
-		origin.Deprecated = origin.Deprecated || deprecated
-		origins[candidate] = origin
 	}
 }
 
@@ -390,25 +391,30 @@ func applyPresence(value reflect.Value, path string, origins map[string]Origin) 
 	}
 	for index := 0; index < value.NumField(); index++ {
 		definition := value.Type().Field(index)
-		if !definition.IsExported() {
-			continue
+		if definition.IsExported() {
+			applyFieldPresence(value.Field(index), definition, path, origins)
 		}
-		name := definition.Tag.Get("config")
-		if comma := strings.IndexByte(name, ','); comma >= 0 {
-			name = name[:comma]
-		}
-		if name == "-" {
-			continue
-		}
-		if name == "" {
-			name = strings.ToLower(definition.Name)
-		}
-		fieldPath := name
-		if path != "" {
-			fieldPath = path + "." + name
-		}
-		applyPresence(value.Field(index), fieldPath, origins)
 	}
+}
+
+func applyFieldPresence(
+	value reflect.Value,
+	definition reflect.StructField,
+	path string,
+	origins map[string]Origin,
+) {
+	name, _, _ := strings.Cut(definition.Tag.Get("config"), ",")
+	if name == "-" {
+		return
+	}
+	if name == "" {
+		name = strings.ToLower(definition.Name)
+	}
+	fieldPath := name
+	if path != "" {
+		fieldPath = path + "." + name
+	}
+	applyPresence(value, fieldPath, origins)
 }
 
 func annotateDecodeError(err error, origins map[string]Origin) {
@@ -441,16 +447,19 @@ func nearestOrigin(path string, origins map[string]Origin) (Origin, bool) {
 		if origin, ok := origins[candidate]; ok {
 			return origin, true
 		}
-		if bracket := strings.LastIndexByte(candidate, '['); bracket >= 0 &&
-			strings.HasSuffix(candidate, "]") {
-			candidate = candidate[:bracket]
-			continue
+		if strings.HasSuffix(candidate, "]") {
+			if strings.Contains(candidate, "[") {
+				bracket := strings.LastIndexByte(candidate, '[')
+				candidate = candidate[:bracket]
+				continue
+			}
 		}
-		if dot := strings.LastIndexByte(candidate, '.'); dot >= 0 {
+		switch dot := strings.LastIndexByte(candidate, '.'); dot {
+		case -1:
+			return Origin{}, false
+		default:
 			candidate = candidate[:dot]
-			continue
 		}
-		break
 	}
 	return Origin{}, false
 }
@@ -479,29 +488,28 @@ func applyOrigins(
 		if _, deleted := value.(merge.Delete); deleted {
 			delete(origins, path)
 			deleteDescendants(origins, path)
-			continue
-		}
-
-		origin := Origin{
-			Source: source.Name, Sensitive: source.Sensitive, Present: true, State: Present,
-		}
-		if value == nil {
-			origin.State = Null
-		}
-		if override, exists := overrides[path]; exists {
-			if override.Source != "" {
-				origin.Source = override.Source
-			}
-			origin.Sensitive = origin.Sensitive || override.Sensitive
-			origin.Location = override.Location
-			origin.Present = override.Present
-			origin.State = override.State
-		}
-		origins[path] = origin
-		if object, ok := value.(map[string]any); ok {
-			applyOrigins(origins, object, overrides, path, source)
 		} else {
-			deleteDescendants(origins, path)
+			origin := Origin{
+				Source: source.Name, Sensitive: source.Sensitive, Present: true, State: Present,
+			}
+			if value == nil {
+				origin.State = Null
+			}
+			if override, exists := overrides[path]; exists {
+				if override.Source != "" {
+					origin.Source = override.Source
+				}
+				origin.Sensitive = origin.Sensitive || override.Sensitive
+				origin.Location = override.Location
+				origin.Present = override.Present
+				origin.State = override.State
+			}
+			origins[path] = origin
+			if object, ok := value.(map[string]any); ok {
+				applyOrigins(origins, object, overrides, path, source)
+			} else {
+				deleteDescendants(origins, path)
+			}
 		}
 	}
 }
@@ -560,7 +568,7 @@ type treeVisit struct {
 type treeCanonicalizer struct {
 	ctx      context.Context
 	visiting map[treeVisit]bool
-	keys     int
+	keys     []struct{}
 	items    int
 }
 
@@ -600,8 +608,8 @@ func (c *treeCanonicalizer) object(
 		if parent != "" {
 			path = parent + "." + key
 		}
-		c.keys++
-		if c.keys > maxCanonicalTreeKeys {
+		c.keys = append(c.keys, struct{}{})
+		if len(c.keys) > maxCanonicalTreeKeys {
 			return nil, &TreeLimitError{
 				Path: path, Kind: "keys", Limit: maxCanonicalTreeKeys,
 			}
@@ -696,10 +704,6 @@ func validateSnapshotValue(
 	if !value.IsValid() {
 		return nil
 	}
-	if (value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface ||
-		value.Kind() == reflect.Map || value.Kind() == reflect.Slice) && value.IsNil() {
-		return nil
-	}
 	if value.CanInterface() {
 		if _, ok := value.Interface().(interface{ cloneConfigValue() any }); ok {
 			return nil
@@ -770,8 +774,8 @@ func typeContainsMutableReferences(typeOf reflect.Type) bool {
 	case reflect.Array:
 		return typeContainsMutableReferences(typeOf.Elem())
 	case reflect.Struct:
-		for index := 0; index < typeOf.NumField(); index++ {
-			if typeContainsMutableReferences(typeOf.Field(index).Type) {
+		for _, definition := range reflect.VisibleFields(typeOf) {
+			if typeContainsMutableReferences(definition.Type) {
 				return true
 			}
 		}
@@ -780,10 +784,7 @@ func typeContainsMutableReferences(typeOf reflect.Type) bool {
 }
 
 func joinConfigPath(parent string, definition reflect.StructField) string {
-	name := definition.Tag.Get("config")
-	if comma := strings.IndexByte(name, ','); comma >= 0 {
-		name = name[:comma]
-	}
+	name, _, _ := strings.Cut(definition.Tag.Get("config"), ",")
 	if name == "" {
 		name = strings.ToLower(definition.Name)
 	}
@@ -806,11 +807,14 @@ func cloneReflect(value reflect.Value) reflect.Value {
 			if cloned.IsValid() && cloned.Type().AssignableTo(value.Type()) {
 				return cloned
 			}
-			if value.Kind() == reflect.Pointer && cloned.IsValid() &&
-				cloned.Type().AssignableTo(value.Type().Elem()) {
-				pointer := reflect.New(value.Type().Elem())
-				pointer.Elem().Set(cloned)
-				return pointer
+			if value.Kind() == reflect.Pointer {
+				if cloned.IsValid() {
+					if cloned.Type().AssignableTo(value.Type().Elem()) {
+						pointer := reflect.New(value.Type().Elem())
+						pointer.Elem().Set(cloned)
+						return pointer
+					}
+				}
 			}
 		}
 	}

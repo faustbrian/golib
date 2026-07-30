@@ -9,8 +9,8 @@ and releases use Semantic Versioning.
 
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
-- Require owned sibling modules at local `v0.0.0`; clean external consumers
-  pin each module to an exact main pseudo-version.
+- Pin owned sibling modules to exact resolvable main pseudo-versions so
+  standalone and clean external consumers use immutable dependency content.
 
 - Unsigned typed defaults and environment or dotenv values within the signed
   integer range now use the same canonical numeric representation as JSON,

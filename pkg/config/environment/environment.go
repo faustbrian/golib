@@ -383,7 +383,7 @@ func parseConfigTag(field reflect.StructField) (string, map[string]bool) {
 	if name == "" {
 		name = strings.ToLower(field.Name)
 	}
-	metadata := make(map[string]bool, len(parts)-1)
+	metadata := make(map[string]bool)
 	for _, option := range parts[1:] {
 		metadata[option] = true
 	}
@@ -569,16 +569,34 @@ func setPath(tree map[string]any, path []string, value any) {
 }
 
 func normalize(name string, mode CaseMode) string {
-	if mode == CaseInsensitive || (mode == CaseNative && runtime.GOOS == "windows") {
-		return strings.ToUpper(name)
+	if !caseInsensitive(mode, runtime.GOOS) {
+		return name
 	}
-	return name
+	return strings.ToUpper(name)
+}
+
+func caseInsensitive(mode CaseMode, goos string) bool {
+	switch mode {
+	case CaseInsensitive:
+		return true
+	case CaseNative:
+		return goos == "windows"
+	default:
+		return false
+	}
 }
 
 func validName(name string) bool {
 	for index, character := range name {
-		if character == '_' || unicode.IsLetter(character) || (index > 0 && unicode.IsDigit(character)) {
+		switch {
+		case character == '_':
 			continue
+		case unicode.IsLetter(character):
+			continue
+		case unicode.IsDigit(character):
+			if index > 0 {
+				continue
+			}
 		}
 		return false
 	}

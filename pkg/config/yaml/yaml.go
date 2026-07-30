@@ -127,14 +127,22 @@ func (s *source) Load(ctx context.Context) (config.Document, error) {
 	for {
 		var document yamlv4.Node
 		err = loader.Load(&document)
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
+		switch err {
+		case nil:
+			documents = append(documents, document)
+		default:
+			if errors.Is(err, io.EOF) {
+				return s.convertDocuments(ctx, documents)
+			}
 			return config.Document{}, parseError(0, 0, err)
 		}
-		documents = append(documents, document)
 	}
+}
+
+func (s *source) convertDocuments(
+	ctx context.Context,
+	documents []yamlv4.Node,
+) (config.Document, error) {
 	if len(documents) != 1 {
 		return config.Document{}, parseError(0, 0, errors.New("expected one document"))
 	}
@@ -203,13 +211,13 @@ func convert(
 		if len(node.Content)%2 != 0 {
 			return nil, parseError(node.Line, node.Column, errors.New("odd mapping"))
 		}
-		object := make(map[string]any, len(node.Content)/2)
+		object := make(map[string]any)
 		for index := 0; index < len(node.Content); index += 2 {
 			keyNode := node.Content[index]
 			if keyNode.Kind != yamlv4.ScalarNode || keyNode.ShortTag() != "!!str" {
 				return nil, parseError(keyNode.Line, keyNode.Column, errors.New("non-string key"))
 			}
-			if keyNode.Value == "<<" || keyNode.ShortTag() == "!!merge" {
+			if keyNode.Value == "<<" {
 				return nil, parseError(keyNode.Line, keyNode.Column, errors.New("merge keys disabled"))
 			}
 			childPath := join(path, keyNode.Value)

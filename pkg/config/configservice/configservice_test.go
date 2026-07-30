@@ -102,8 +102,9 @@ func TestNewRejectsDotenvOutsideExplicitLocalMode(t *testing.T) {
 
 func TestNewRejectsInvalidSourceConstruction(t *testing.T) {
 	tests := []struct {
-		name    string
-		options configservice.Options[settings]
+		name       string
+		options    configservice.Options[settings]
+		wantReason string
 	}{
 		{
 			name: "dotenv",
@@ -113,6 +114,17 @@ func TestNewRejectsInvalidSourceConstruction(t *testing.T) {
 					FS: fstest.MapFS{}, Path: "", Options: dotenv.Options{Name: "local-dotenv"},
 				},
 			},
+			wantReason: "requires a filesystem and path",
+		},
+		{
+			name: "dotenv filesystem",
+			options: configservice.Options[settings]{
+				Local: true,
+				Dotenv: &configservice.Dotenv{
+					Path: ".env", Options: dotenv.Options{Name: "local-dotenv"},
+				},
+			},
+			wantReason: "requires a filesystem and path",
 		},
 		{
 			name: "dotenv options",
@@ -140,7 +152,25 @@ func TestNewRejectsInvalidSourceConstruction(t *testing.T) {
 			if !errors.As(err, &optionsError) || optionsError.Error() == "" {
 				t.Fatalf("New() error = %v, want safe OptionsError", err)
 			}
+			if test.wantReason != "" && optionsError.Reason != test.wantReason {
+				t.Fatalf("OptionsError.Reason = %q, want %q", optionsError.Reason, test.wantReason)
+			}
 		})
+	}
+}
+
+func TestOptionsErrorUnwrapIncludesOnlyPresentCause(t *testing.T) {
+	t.Parallel()
+
+	withoutCause := (&configservice.OptionsError{}).Unwrap()
+	if len(withoutCause) != 1 || !errors.Is(withoutCause[0], configservice.ErrInvalidOptions) {
+		t.Fatalf("Unwrap(without cause) = %#v", withoutCause)
+	}
+
+	cause := errors.New("construction failure")
+	withCause := (&configservice.OptionsError{Cause: cause}).Unwrap()
+	if len(withCause) != 2 || !errors.Is(withCause[1], cause) {
+		t.Fatalf("Unwrap(with cause) = %#v", withCause)
 	}
 }
 

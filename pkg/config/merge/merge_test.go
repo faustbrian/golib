@@ -95,6 +95,31 @@ func TestTreesReportsTheLexicallyFirstConflict(t *testing.T) {
 	}
 }
 
+func TestTreesContinuesAfterRecursivelyMergingAnObject(t *testing.T) {
+	t.Parallel()
+
+	got, err := merge.Trees(
+		map[string]any{
+			"nested": map[string]any{"lower": true},
+			"z":      "lower",
+		},
+		map[string]any{
+			"nested": map[string]any{"upper": true},
+			"z":      "upper",
+		},
+	)
+	if err != nil {
+		t.Fatalf("Trees() error = %v", err)
+	}
+	want := map[string]any{
+		"nested": map[string]any{"lower": true, "upper": true},
+		"z":      "upper",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Trees() = %#v, want %#v", got, want)
+	}
+}
+
 func TestTreesDoesNotMutateInputs(t *testing.T) {
 	t.Parallel()
 
