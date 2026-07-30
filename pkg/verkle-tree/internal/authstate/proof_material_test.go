@@ -128,8 +128,14 @@ func TestSnapshotProofMaterialDerivesCanonicalClaimsAndPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("snapshot root: %v", err)
 	}
-	gotRootBytes, _ := root.Bytes()
-	wantRootBytes, _ := wantRoot.Bytes()
+	gotRootBytes, err := root.Bytes()
+	if err != nil {
+		t.Fatalf("material root bytes: %v", err)
+	}
+	wantRootBytes, err := wantRoot.Bytes()
+	if err != nil {
+		t.Fatalf("snapshot root bytes: %v", err)
+	}
 	if gotRootBytes != wantRootBytes {
 		t.Fatalf("material root = %x, want %x", gotRootBytes, wantRootBytes)
 	}
@@ -469,12 +475,18 @@ func TestSnapshotProofMaterialSupportsMaximumStemDepth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("proof material: %v", err)
 	}
-	paths, _ := material.StemPaths(context.Background())
+	paths, err := material.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("stem paths: %v", err)
+	}
 	depth, err := paths[0].Depth()
 	if err != nil || depth != 31 {
 		t.Fatalf("stem depth = %d, error %v", depth, err)
 	}
-	commitments, _ := material.PathCommitments(context.Background())
+	commitments, err := material.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("path commitments: %v", err)
+	}
 	if len(commitments) != 32 {
 		t.Fatalf("path commitment count = %d, want 32", len(commitments))
 	}
@@ -495,10 +507,7 @@ func TestSnapshotProofMaterialAvoidsRedundantStemExtractions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("high-half material: %v", err)
 	}
-	root, _ := material.Root()
-	claims, _ := material.Claims()
-	paths, _ := material.StemPaths(context.Background())
-	commitments, _ := material.PathCommitments(context.Background())
+	root, claims, paths, commitments := mustProofMaterialParts(t, material)
 	if _, err := NewTreeProof(
 		context.Background(),
 		root,
@@ -536,10 +545,7 @@ func TestSnapshotProofMaterialExtractsSuffixBoundaryHalf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("proof material: %v", err)
 	}
-	root, _ := material.Root()
-	claims, _ := material.Claims()
-	paths, _ := material.StemPaths(context.Background())
-	commitments, _ := material.PathCommitments(context.Background())
+	root, claims, paths, commitments := mustProofMaterialParts(t, material)
 	if _, err := NewTreeProof(
 		context.Background(),
 		root,
@@ -592,20 +598,38 @@ func TestProofMaterialIsDeterministicOwnedAndConcurrent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("right material: %v", err)
 	}
-	leftPaths, _ := left.StemPaths(context.Background())
-	rightPaths, _ := right.StemPaths(context.Background())
+	leftPaths, err := left.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("left stem paths: %v", err)
+	}
+	rightPaths, err := right.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("right stem paths: %v", err)
+	}
 	if !slices.Equal(leftPaths, rightPaths) {
 		t.Fatalf("stem paths differ: %#v / %#v", leftPaths, rightPaths)
 	}
-	leftCommitments, _ := left.PathCommitments(context.Background())
-	rightCommitments, _ := right.PathCommitments(context.Background())
+	leftCommitments, err := left.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("left path commitments: %v", err)
+	}
+	rightCommitments, err := right.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("right path commitments: %v", err)
+	}
 	if !slices.Equal(leftCommitments, rightCommitments) {
 		t.Fatalf("commitments differ: %#v / %#v", leftCommitments, rightCommitments)
 	}
 	leftPaths[0] = StemPath{}
 	leftCommitments[0] = PathCommitment{}
-	ownedPaths, _ := left.StemPaths(context.Background())
-	ownedCommitments, _ := left.PathCommitments(context.Background())
+	ownedPaths, err := left.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("owned stem paths: %v", err)
+	}
+	ownedCommitments, err := left.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("owned path commitments: %v", err)
+	}
 	if ownedPaths[0] == (StemPath{}) || ownedCommitments[0] == (PathCommitment{}) {
 		t.Fatal("returned slices alias retained proof material")
 	}
@@ -701,7 +725,10 @@ func TestProofMaterialHelpers(t *testing.T) {
 		existing := stemFromKey(testKey(0, 0))
 		existing[1] = 1
 		path := stemPathFromCommitted(stem, committedtree.ProofPath{Kind: kind, Depth: 1, ExistingStem: existing})
-		got, _ := path.Kind()
+		got, err := path.Kind()
+		if err != nil {
+			t.Fatalf("kind %d: %v", kind, err)
+		}
 		if got != expected {
 			t.Fatalf("kind %d mapped to %d", kind, got)
 		}
@@ -831,6 +858,32 @@ func backendEmptyRoot(t testing.TB) backend.Root {
 	}
 
 	return root
+}
+
+func mustProofMaterialParts(
+	t testing.TB,
+	material ProofMaterial,
+) (backend.Root, ClaimSet, []StemPath, []PathCommitment) {
+	t.Helper()
+
+	root, err := material.Root()
+	if err != nil {
+		t.Fatalf("material root: %v", err)
+	}
+	claims, err := material.Claims()
+	if err != nil {
+		t.Fatalf("material claims: %v", err)
+	}
+	paths, err := material.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("material stem paths: %v", err)
+	}
+	commitments, err := material.PathCommitments(context.Background())
+	if err != nil {
+		t.Fatalf("material path commitments: %v", err)
+	}
+
+	return root, claims, paths, commitments
 }
 
 func assertProofMaterialResourceError(
