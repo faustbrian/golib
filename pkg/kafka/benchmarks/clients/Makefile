@@ -1,7 +1,7 @@
 GO ?= go
 BENCH_COUNT ?= 10
 BENCH_TIME ?= 10x
-BENCH_PATTERN ?= ^BenchmarkEquivalentSynchronous(Produce|BatchProduce)$$
+BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce)$$
 
 .PHONY: analyze benchmark capture environment test verify
 
@@ -9,7 +9,7 @@ test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^TestEquivalentProducer(Batch)?Outcomes$$' -count=1
+	@$(GO) test -tags=integration -run '^TestEquivalent(Producer(Batch)?|AsynchronousProducer)Outcomes$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \

@@ -20,33 +20,44 @@ source of production support claims or a substitute for fault evidence.
 capture to record the exact Go version, operating system, architecture,
 workspace revision, Docker engine, client versions, and broker image.
 
-## Equivalent synchronous producer workloads
+## Equivalent producer workloads
 
 `BenchmarkEquivalentSynchronousProduce` reuses one warmed producer and sends
 one record at a time until the broker acknowledges all in-sync replicas.
 `BenchmarkEquivalentSynchronousBatchProduce` submits 10 or 100 records through
 each client's synchronous batch API and waits for the complete batch outcome.
+`BenchmarkEquivalentAsynchronousProduce` admits a bounded window of 10 or 100
+records through each client's asynchronous API and waits for every individual
+delivery outcome before starting the next window. This keeps the maximum
+application-owned outstanding work explicit while measuring asynchronous
+admission, delivery callbacks, and result collection together.
 Every ranked candidate has idempotence enabled, preserves order, disables topic
 auto-creation, uses one pre-created partition, retries at most ten times, and
-has bounded request waits. Client construction, metadata warm-up, topic
-creation, and fixture startup are outside the timer. Public record mapping,
-client policy, serialization, compression, network transit, broker processing,
-and delivery-result handling are inside it.
+has bounded request waits, client channels, and retry buffers. Client
+construction, metadata warm-up, topic creation, fixture startup, and shutdown
+are outside the timer. Public record mapping, client policy, serialization,
+compression, network transit, broker processing, and delivery-result handling
+are inside it.
 
 The single-record matrix covers keyed and explicitly accepted unkeyed records,
 payloads of 128 bytes, 1 KiB, and 64 KiB, and no compression plus Snappy. The
 batch matrix uses the same key and compression modes, 128-byte and 1 KiB
 payloads, and 10-record plus 100-record batches. The one-partition fixture
 deliberately removes partition-count and partitioner distribution as variables.
-It does not establish many-partition, asynchronous, transaction, reconnect,
-TLS, or steady-state resource results; those require separate workloads.
+The asynchronous matrix uses the batch matrix's key, payload, compression, and
+10/100-record dimensions but submits each record independently before awaiting
+all results. It does not establish many-partition, transaction, reconnect, TLS,
+or steady-state resource results; those require separate workloads.
 
 The policy library and raw franz-go use the same franz-go producer controls.
-Sarama requires `Net.MaxOpenRequests=1` for idempotence; because this workload
-submits only one synchronous record at a time, that lower client ceiling does
-not change the effective in-flight count. Sarama has no single setting exactly
-equivalent to franz-go's total record-delivery deadline, so the healthy-broker
-ranking does not compare timeout behavior.
+Sarama requires `Net.MaxOpenRequests=1` for idempotence; the one-partition
+workload preserves ordering while still allowing asynchronous admission to fill
+the next broker batch. Sarama's input channel, bridging retry length, and
+bridging retry bytes are explicitly bounded. Sarama has no single setting
+exactly equivalent to franz-go's total record-delivery deadline, so the
+healthy-broker ranking does not compare timeout behavior. Cancellation behavior
+also differs after admission; timed operations use a healthy broker and wait for
+every result, so the ranking does not compare cancellation ambiguity.
 
 `kafka-go` v0.4.51 is pinned for the required comparison program, but is not
 included in the durable-producer ranking: its public `Writer` supports
@@ -58,10 +69,11 @@ workload will include it; until that workload is captured, the overall
 competitor matrix remains incomplete.
 
 `TestEquivalentProducerOutcomes` and
-`TestEquivalentProducerBatchOutcomes` separately verify against the real
-fixture that every ranked client and the unranked control receive successful
-outcomes, and that a separate read path observes each exact key and payload
-once in input order.
+`TestEquivalentProducerBatchOutcomes` verify the synchronous APIs.
+`TestEquivalentAsynchronousProducerOutcomes` independently exercises bounded
+asynchronous admission and every per-record delivery result. Each test uses a
+separate real-broker read path to observe every exact key and payload once in
+input order for all ranked clients and the unranked control.
 
 ## Broker selection
 
@@ -89,8 +101,10 @@ make verify
 make environment > environment.txt
 make capture OUTPUT=raw-producer.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make capture OUTPUT=raw-producer-batch.txt BENCH_PATTERN='^BenchmarkEquivalentSynchronousBatchProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
+make capture OUTPUT=raw-producer-async.txt BENCH_PATTERN='^BenchmarkEquivalentAsynchronousProduce$$' BENCH_COUNT=10 BENCH_TIME=10x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
+make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and

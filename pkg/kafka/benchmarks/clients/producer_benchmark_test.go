@@ -87,6 +87,11 @@ type synchronousProducer interface {
 	Close(context.Context) error
 }
 
+type asynchronousProducer interface {
+	ProduceWindow(context.Context, []benchmarkProducerRecord) error
+	Close(context.Context) error
+}
+
 type benchmarkProducerRecord struct {
 	key   []byte
 	value []byte
@@ -95,6 +100,11 @@ type benchmarkProducerRecord struct {
 type producerCandidate struct {
 	name string
 	new  func(testing.TB, []string, string, bool, benchmarkCompression) synchronousProducer
+}
+
+type asynchronousProducerCandidate struct {
+	name string
+	new  func(testing.TB, []string, string, bool, benchmarkCompression) asynchronousProducer
 }
 
 var producerCandidates = []producerCandidate{
@@ -108,6 +118,20 @@ var producerOutcomeCandidates = append(
 	producerCandidate{
 		name: "kafka-go-non-idempotent-control",
 		new:  newKafkaGoProducer,
+	},
+)
+
+var asynchronousProducerCandidates = []asynchronousProducerCandidate{
+	{name: "golib-policy", new: newPolicyAsynchronousProducer},
+	{name: "raw-franz-go", new: newFranzAsynchronousProducer},
+	{name: "sarama", new: newSaramaAsynchronousProducer},
+}
+
+var asynchronousProducerOutcomeCandidates = append(
+	slices.Clone(asynchronousProducerCandidates),
+	asynchronousProducerCandidate{
+		name: "kafka-go-non-idempotent-control",
+		new:  newKafkaGoAsynchronousProducer,
 	},
 )
 
@@ -170,6 +194,42 @@ func BenchmarkEquivalentSynchronousBatchProduce(benchmark *testing.B) {
 							keyed,
 							size,
 							recordCount,
+							compression,
+						)
+					})
+				}
+			}
+		}
+	}
+}
+
+func BenchmarkEquivalentAsynchronousProduce(benchmark *testing.B) {
+	brokers := benchmarkBrokers(benchmark)
+	for _, keyed := range []bool{true, false} {
+		keyMode := "unkeyed"
+		if keyed {
+			keyMode = "keyed"
+		}
+		for _, size := range []int{128, 1024} {
+			for _, windowSize := range []int{10, 100} {
+				for _, compression := range []benchmarkCompression{
+					compressionNone,
+					compressionSnappy,
+				} {
+					name := fmt.Sprintf(
+						"%s/%dB/%d-outstanding/%s",
+						keyMode,
+						size,
+						windowSize,
+						compression,
+					)
+					benchmark.Run(name, func(benchmark *testing.B) {
+						benchmarkEquivalentAsynchronousProduce(
+							benchmark,
+							brokers,
+							keyed,
+							size,
+							windowSize,
 							compression,
 						)
 					})
@@ -319,6 +379,79 @@ func benchmarkEquivalentSynchronousBatchProduce(
 	}
 }
 
+func benchmarkEquivalentAsynchronousProduce(
+	benchmark *testing.B,
+	brokers []string,
+	keyed bool,
+	size int,
+	windowSize int,
+	compression benchmarkCompression,
+) {
+	benchmark.Helper()
+	key := []byte(nil)
+	if keyed {
+		key = []byte("benchmark-key")
+	}
+	value := make([]byte, size)
+	for index := range value {
+		value[index] = byte(index % 251)
+	}
+	records := make([]benchmarkProducerRecord, windowSize)
+	for index := range records {
+		records[index] = benchmarkProducerRecord{key: key, value: value}
+	}
+
+	for _, candidate := range asynchronousProducerCandidates {
+		benchmark.Run(candidate.name, func(benchmark *testing.B) {
+			topic := createBenchmarkTopic(benchmark, brokers)
+			producer := candidate.new(
+				benchmark,
+				brokers,
+				topic,
+				keyed,
+				compression,
+			)
+			benchmark.Cleanup(func() {
+				closeCtx, cancel := context.WithTimeout(
+					context.Background(),
+					benchmarkDeliveryTimeout+benchmarkRetryMax,
+				)
+				defer cancel()
+				if err := producer.Close(closeCtx); err != nil {
+					benchmark.Errorf("close %s asynchronous producer: %v", candidate.name, err)
+				}
+			})
+
+			warmupCtx, warmupCancel := context.WithTimeout(
+				context.Background(),
+				benchmarkDeliveryTimeout+benchmarkRetryMax,
+			)
+			if err := producer.ProduceWindow(warmupCtx, records); err != nil {
+				warmupCancel()
+				benchmark.Fatalf("warm %s asynchronous producer: %v", candidate.name, err)
+			}
+			warmupCancel()
+
+			benchmark.ReportAllocs()
+			benchmark.SetBytes(int64(windowSize * (len(key) + len(value))))
+			benchmark.ResetTimer()
+			for benchmark.Loop() {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					benchmarkDeliveryTimeout+benchmarkRetryMax,
+				)
+				err := producer.ProduceWindow(ctx, records)
+				cancel()
+				if err != nil {
+					benchmark.Fatalf("produce asynchronously with %s: %v", candidate.name, err)
+				}
+			}
+			benchmark.StopTimer()
+			benchmark.ReportMetric(float64(windowSize), "records/op")
+		})
+	}
+}
+
 func TestEquivalentProducerOutcomes(t *testing.T) {
 	brokers := benchmarkBrokers(t)
 	topic := createIsolatedBenchmarkTopic(t, brokers)
@@ -411,6 +544,51 @@ func TestEquivalentProducerBatchOutcomes(t *testing.T) {
 	}
 	if !slices.EqualFunc(gotValues, wantValues, slices.Equal[[]byte]) {
 		t.Fatalf("consumed batch values = %q, want %q", gotValues, wantValues)
+	}
+}
+
+func TestEquivalentAsynchronousProducerOutcomes(t *testing.T) {
+	brokers := benchmarkBrokers(t)
+	const recordsPerWindow = 3
+	for candidateIndex, candidate := range asynchronousProducerOutcomeCandidates {
+		topic := createIsolatedBenchmarkTopic(t, brokers)
+		records := make([]benchmarkProducerRecord, 0, recordsPerWindow)
+		wantKeys := make([][]byte, 0, recordsPerWindow)
+		wantValues := make([][]byte, 0, recordsPerWindow)
+		for recordIndex := range recordsPerWindow {
+			key := []byte(fmt.Sprintf("candidate-%d-record-%d", candidateIndex, recordIndex))
+			value := []byte(fmt.Sprintf("%s-record-%d", candidate.name, recordIndex))
+			records = append(records, benchmarkProducerRecord{key: key, value: value})
+			wantKeys = append(wantKeys, key)
+			wantValues = append(wantValues, value)
+		}
+		producer := candidate.new(t, brokers, topic, true, compressionSnappy)
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			benchmarkDeliveryTimeout+benchmarkRetryMax,
+		)
+		err := producer.ProduceWindow(ctx, records)
+		cancel()
+		if err != nil {
+			t.Fatalf("produce asynchronously with %s: %v", candidate.name, err)
+		}
+		closeCtx, closeCancel := context.WithTimeout(
+			context.Background(),
+			benchmarkDeliveryTimeout+benchmarkRetryMax,
+		)
+		err = producer.Close(closeCtx)
+		closeCancel()
+		if err != nil {
+			t.Fatalf("close %s asynchronous producer: %v", candidate.name, err)
+		}
+
+		gotKeys, gotValues := readBenchmarkRecords(t, brokers, topic, recordsPerWindow)
+		if !slices.EqualFunc(gotKeys, wantKeys, slices.Equal[[]byte]) {
+			t.Fatalf("consumed asynchronous keys from %s = %q, want %q", candidate.name, gotKeys, wantKeys)
+		}
+		if !slices.EqualFunc(gotValues, wantValues, slices.Equal[[]byte]) {
+			t.Fatalf("consumed asynchronous values from %s = %q, want %q", candidate.name, gotValues, wantValues)
+		}
 	}
 }
 
@@ -523,6 +701,48 @@ func (producer *policyProducer) ProduceBatch(
 	return err
 }
 
+func newPolicyAsynchronousProducer(
+	t testing.TB,
+	brokers []string,
+	topic string,
+	keyed bool,
+	compression benchmarkCompression,
+) asynchronousProducer {
+	t.Helper()
+
+	return newPolicyProducer(t, brokers, topic, keyed, compression).(*policyProducer)
+}
+
+func (producer *policyProducer) ProduceWindow(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	deliveries := make([]<-chan policy.DeliveryResult, 0, len(records))
+	for _, record := range records {
+		delivery, err := producer.producer.PublishAsync(ctx, policy.ProducerRecord{
+			Topic: producer.topic,
+			Key:   record.key,
+			Value: record.value,
+		})
+		if err != nil {
+			return err
+		}
+		deliveries = append(deliveries, delivery)
+	}
+
+	var resultErr error
+	for _, delivery := range deliveries {
+		select {
+		case result := <-delivery:
+			resultErr = errors.Join(resultErr, result.Err)
+		case <-ctx.Done():
+			return errors.Join(resultErr, ctx.Err())
+		}
+	}
+
+	return resultErr
+}
+
 func (producer *policyProducer) Close(ctx context.Context) error {
 	return producer.producer.Shutdown(ctx)
 }
@@ -598,6 +818,46 @@ func (producer *franzProducer) ProduceBatch(
 	return producer.client.ProduceSync(ctx, franzRecords...).FirstErr()
 }
 
+func newFranzAsynchronousProducer(
+	t testing.TB,
+	brokers []string,
+	topic string,
+	keyed bool,
+	compression benchmarkCompression,
+) asynchronousProducer {
+	t.Helper()
+
+	return newFranzProducer(t, brokers, topic, keyed, compression).(*franzProducer)
+}
+
+func (producer *franzProducer) ProduceWindow(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	results := make(chan error, len(records))
+	for _, record := range records {
+		producer.client.Produce(ctx, &kgo.Record{
+			Topic: producer.topic,
+			Key:   record.key,
+			Value: record.value,
+		}, func(_ *kgo.Record, err error) {
+			results <- err
+		})
+	}
+
+	var resultErr error
+	for range records {
+		select {
+		case err := <-results:
+			resultErr = errors.Join(resultErr, err)
+		case <-ctx.Done():
+			return errors.Join(resultErr, ctx.Err())
+		}
+	}
+
+	return resultErr
+}
+
 func (producer *franzProducer) Close(context.Context) error {
 	producer.client.Close()
 
@@ -617,6 +877,19 @@ func newSaramaProducer(
 	compression benchmarkCompression,
 ) synchronousProducer {
 	t.Helper()
+	config := newSaramaProducerConfig(keyed, compression)
+	producer, err := sarama.NewSyncProducer(brokers, config)
+	if err != nil {
+		t.Fatalf("construct Sarama producer: %v", err)
+	}
+
+	return &saramaProducer{producer: producer, topic: topic}
+}
+
+func newSaramaProducerConfig(
+	keyed bool,
+	compression benchmarkCompression,
+) *sarama.Config {
 	config := sarama.NewConfig()
 	config.ClientID = "sarama-client-benchmark"
 	config.Version = sarama.V3_5_0_0
@@ -631,10 +904,14 @@ func newSaramaProducer(
 	config.Producer.Timeout = benchmarkRequestTimeout
 	config.Producer.Idempotent = true
 	config.Producer.Return.Successes = true
+	config.Producer.Return.Errors = true
 	config.Producer.Retry.Max = benchmarkRecordRetries
 	config.Producer.Retry.Backoff = benchmarkRetryMin
+	config.Producer.Retry.MaxBufferLength = 4_096
+	config.Producer.Retry.MaxBufferBytes = 64 << 20
 	config.Producer.Flush.Frequency = benchmarkLinger
 	config.Producer.Flush.MaxMessages = 100
+	config.ChannelBufferSize = 1_000
 	config.Producer.Partitioner = sarama.NewRandomPartitioner
 	if keyed {
 		config.Producer.Partitioner = sarama.NewHashPartitioner
@@ -644,12 +921,8 @@ func newSaramaProducer(
 	} else {
 		config.Producer.Compression = sarama.CompressionNone
 	}
-	producer, err := sarama.NewSyncProducer(brokers, config)
-	if err != nil {
-		t.Fatalf("construct Sarama producer: %v", err)
-	}
 
-	return &saramaProducer{producer: producer, topic: topic}
+	return config
 }
 
 func (producer *saramaProducer) Produce(
@@ -690,6 +963,117 @@ func (producer *saramaProducer) ProduceBatch(
 
 func (producer *saramaProducer) Close(context.Context) error {
 	return producer.producer.Close()
+}
+
+type saramaAsynchronousResult struct {
+	delivery chan error
+}
+
+type saramaAsynchronousProducer struct {
+	producer  sarama.AsyncProducer
+	topic     string
+	drained   chan struct{}
+	closeOnce sync.Once
+}
+
+func newSaramaAsynchronousProducer(
+	t testing.TB,
+	brokers []string,
+	topic string,
+	keyed bool,
+	compression benchmarkCompression,
+) asynchronousProducer {
+	t.Helper()
+	producer, err := sarama.NewAsyncProducer(
+		brokers,
+		newSaramaProducerConfig(keyed, compression),
+	)
+	if err != nil {
+		t.Fatalf("construct asynchronous Sarama producer: %v", err)
+	}
+	asynchronous := &saramaAsynchronousProducer{
+		producer: producer,
+		topic:    topic,
+		drained:  make(chan struct{}),
+	}
+	go asynchronous.drainResults()
+
+	return asynchronous
+}
+
+func (producer *saramaAsynchronousProducer) ProduceWindow(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	results := make([]*saramaAsynchronousResult, 0, len(records))
+	for _, record := range records {
+		result := &saramaAsynchronousResult{delivery: make(chan error, 1)}
+		message := &sarama.ProducerMessage{
+			Topic:    producer.topic,
+			Value:    sarama.ByteEncoder(record.value),
+			Metadata: result,
+		}
+		if record.key != nil {
+			message.Key = sarama.ByteEncoder(record.key)
+		}
+		select {
+		case producer.producer.Input() <- message:
+			results = append(results, result)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	var resultErr error
+	for _, result := range results {
+		select {
+		case err := <-result.delivery:
+			resultErr = errors.Join(resultErr, err)
+		case <-ctx.Done():
+			return errors.Join(resultErr, ctx.Err())
+		}
+	}
+
+	return resultErr
+}
+
+func (producer *saramaAsynchronousProducer) drainResults() {
+	defer close(producer.drained)
+	successes := producer.producer.Successes()
+	failures := producer.producer.Errors()
+	for successes != nil || failures != nil {
+		select {
+		case message, ok := <-successes:
+			if !ok {
+				successes = nil
+				continue
+			}
+			completeSaramaAsynchronousResult(message, nil)
+		case failure, ok := <-failures:
+			if !ok {
+				failures = nil
+				continue
+			}
+			completeSaramaAsynchronousResult(failure.Msg, failure.Err)
+		}
+	}
+}
+
+func completeSaramaAsynchronousResult(message *sarama.ProducerMessage, err error) {
+	result, ok := message.Metadata.(*saramaAsynchronousResult)
+	if ok {
+		result.delivery <- err
+	}
+}
+
+func (producer *saramaAsynchronousProducer) Close(ctx context.Context) error {
+	producer.closeOnce.Do(producer.producer.AsyncClose)
+	select {
+	case <-producer.drained:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type kafkaGoProducer struct {
@@ -764,6 +1148,98 @@ func (producer *kafkaGoProducer) ProduceBatch(
 }
 
 func (producer *kafkaGoProducer) Close(context.Context) error {
+	err := producer.writer.Close()
+	producer.transport.CloseIdleConnections()
+
+	return err
+}
+
+type kafkaGoAsynchronousProducer struct {
+	writer    *segmentkafka.Writer
+	transport *segmentkafka.Transport
+}
+
+func newKafkaGoAsynchronousProducer(
+	_ testing.TB,
+	brokers []string,
+	topic string,
+	keyed bool,
+	compression benchmarkCompression,
+) asynchronousProducer {
+	balancer := segmentkafka.Balancer(&segmentkafka.RoundRobin{})
+	if keyed {
+		balancer = &segmentkafka.Murmur2Balancer{}
+	}
+	codec := segmentkafka.Compression(0)
+	if compression == compressionSnappy {
+		codec = segmentkafka.Snappy
+	}
+	transport := &segmentkafka.Transport{
+		ClientID:    "kafka-go-async-client-benchmark",
+		MetadataTTL: benchmarkRetryMin,
+	}
+
+	return &kafkaGoAsynchronousProducer{
+		transport: transport,
+		writer: &segmentkafka.Writer{
+			Addr:                   segmentkafka.TCP(brokers...),
+			Topic:                  topic,
+			Balancer:               balancer,
+			MaxAttempts:            benchmarkRecordRetries,
+			BatchSize:              100,
+			BatchBytes:             benchmarkBatchBytes,
+			BatchTimeout:           benchmarkLinger,
+			ReadTimeout:            benchmarkRequestTimeout,
+			WriteTimeout:           benchmarkRequestTimeout,
+			RequiredAcks:           segmentkafka.RequireAll,
+			Async:                  true,
+			Compression:            codec,
+			AllowAutoTopicCreation: false,
+			Transport:              transport,
+			Completion: func(messages []segmentkafka.Message, err error) {
+				for _, message := range messages {
+					result, ok := message.WriterData.(chan error)
+					if ok {
+						result <- err
+					}
+				}
+			},
+		},
+	}
+}
+
+func (producer *kafkaGoAsynchronousProducer) ProduceWindow(
+	ctx context.Context,
+	records []benchmarkProducerRecord,
+) error {
+	results := make([]chan error, len(records))
+	messages := make([]segmentkafka.Message, len(records))
+	for index, record := range records {
+		results[index] = make(chan error, 1)
+		messages[index] = segmentkafka.Message{
+			Key:        record.key,
+			Value:      record.value,
+			WriterData: results[index],
+		}
+	}
+	if err := producer.writer.WriteMessages(ctx, messages...); err != nil {
+		return err
+	}
+
+	var resultErr error
+	for _, result := range results {
+		select {
+		case err := <-result:
+			resultErr = errors.Join(resultErr, err)
+		case <-ctx.Done():
+			return errors.Join(resultErr, ctx.Err())
+		}
+	}
+
+	return resultErr
+}
+
+func (producer *kafkaGoAsynchronousProducer) Close(context.Context) error {
 	err := producer.writer.Close()
 	producer.transport.CloseIdleConnections()
 
