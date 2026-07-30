@@ -23,6 +23,11 @@ generator initialization, proofs, witnesses, serialization, and persistence.
 Two further component benchmarks measure canonicalizing sixteen fixed-size tree
 claims and returning an owned copy of the resulting claim set. They exclude
 path construction, opening generation, proof encoding, and verification.
+One snapshot proof-material benchmark derives eight membership claims, eight
+missing-stem absence claims, their canonical topology, and their deduplicated
+non-root commitments from one already constructed immutable snapshot. It
+excludes snapshot construction, aggregate-opening generation, proof encoding,
+verification, and persistence.
 Two proof-container benchmarks measure canonical validation and ordering of
 sixteen claims, sixteen stem paths, and sixteen non-root commitment paths, plus
 owned copies of the retained stem and commitment metadata. They reuse an
@@ -49,7 +54,7 @@ GOWORK=off go test ./internal/committedtree -run '^$' \
   -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
 
 GOWORK=off go test ./internal/authstate -run '^$' \
-  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkNewTreeProof|BenchmarkTreeProofCopy|BenchmarkEncodeTreeProof|BenchmarkDecodeTreeProof)' \
+  -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkSnapshotProofMaterial|BenchmarkNewTreeProof|BenchmarkTreeProofCopy|BenchmarkEncodeTreeProof|BenchmarkDecodeTreeProof)' \
   -benchmem -count=5
 ```
 
@@ -96,6 +101,7 @@ nanoseconds per operation.
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |
 | Copy sixteen canonical tree claims | 211.9, 241.0, 356.6, 728.3, 300.0 | 1152 | 1 |
+| Assemble sixteen-key snapshot proof material | 186928, 54189, 59131, 61148, 50293 | 161793-161800 | 32 |
 | Canonicalize sixteen-claim unverified tree proof | 33948, 46259, 33676, 31726, 31940 | 50816-50818 | 7 |
 | Copy sixteen-claim tree-proof metadata | 1306, 1680, 3757, 2622, 2787 | 3456 | 2 |
 | Encode canonical unverified tree proof | 5136, 16481, 16351, 13961, 6149 | 1024 | 1 |

@@ -91,6 +91,14 @@ removes caller-order and aliasing ambiguity before proof construction. Because
 it carries no root, path, transcript, or opening, accepting a claim set provides
 no authentication and does not mitigate proof replay or omitted-path attacks.
 
+Snapshot proof-material assembly mitigates mixed-snapshot reads by deriving the
+root, actual membership or absence claims, terminal stem topology, and required
+commitments from one immutable committed arena. It rejects duplicate keys,
+normalizes caller order, deduplicates shared commitment paths, and accounts
+aggregate node reads and path work before extraction. The result remains
+structural material only: without a transcript and valid aggregate opening it
+does not authenticate any claim or commitment.
+
 The unverified tree-proof container binds a claim set to an exact root, one
 terminal topology result per queried stem, every required non-root commitment
 path, and one strict raw opening payload. It rejects omitted, duplicate, surplus,

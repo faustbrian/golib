@@ -160,6 +160,16 @@ binds the exact experimental profile before allocation, and owns all accepted
 claims under explicit count, scratch-memory, and cancellation limits. It does
 not authenticate any assertion by itself.
 
+An immutable snapshot can now assemble the canonical structural inputs for an
+aggregate proof read from one exact committed state. Given unordered distinct
+keys, it derives their membership or absence claims, one terminal topology
+result per stem, the deduplicated internal, stem, and selected suffix-half
+commitments, and the profile-bound snapshot root. Aggregate key, stem,
+node-read, path, and temporary-memory limits are enforced before
+attacker-amplified work, and returned metadata is owned and safe for concurrent
+reads. This boundary does not generate an opening, construct a transcript,
+verify a claim, or support empty-root non-membership.
+
 An internal immutable unverified tree-proof container now binds that canonical
 claim set to one exact non-empty root, one topology result per distinct queried
 stem, every required non-root path commitment, and one strict raw

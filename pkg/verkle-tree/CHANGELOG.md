@@ -95,6 +95,10 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Represent an empty selected suffix half with one canonical zero-payload
   marker in unverified tree proofs without accepting an identity point
   encoding or consuming a point-decode budget.
+- Add bounded immutable snapshot proof-material assembly that derives canonical
+  membership and absence claims, terminal stem topology, exact deduplicated
+  path commitments, and the non-empty snapshot root from unordered distinct
+  keys without mixing snapshot state or claiming an aggregate opening.
 
 ### Fixed
 

@@ -107,6 +107,16 @@ key, and returns owned copies safe for concurrent immutable reads. This claim
 set does not bind a root, path, opening payload, transcript, snapshot, or
 verification result.
 
+The immutable snapshot proof-material operation accepts unordered distinct
+fixed-size keys and derives canonical claims, one terminal stem path per
+distinct stem, the exact deduplicated non-root commitments required by those
+paths, and the snapshot's non-empty profile-bound root. One invocation reads
+only the retained immutable committed tree, so its outputs cannot mix snapshot
+versions. It owns every returned slice, supports concurrent reads, and enforces
+aggregate key, stem, node-read, commitment, path-byte, temporary-memory, and
+cancellation limits. It does not produce an aggregate opening or a verified
+proof, and empty-root non-membership remains deliberately unsupported.
+
 The next internal boundary combines those claims with one exact non-empty root,
 one validated present, missing-child, or different-stem result per distinct
 queried stem, the exact set of required non-root path commitments, and one
