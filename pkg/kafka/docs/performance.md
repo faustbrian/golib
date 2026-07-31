@@ -92,6 +92,17 @@ partition and final committed offset `3`. Observable synchronization separately
 proves the raw comparison runner's bounded overlap; the policy module's
 concurrency suite proves its worker bound and per-partition serialization.
 
+A separate cooperative-sticky rebalance workload compares the package policy,
+raw franz-go, and Sarama across two partitions. One stable member remains in
+the group while each operation constructs a second public client, joins it,
+handles and commits one record, and waits for broker inspection to prove a
+stable one-partition-per-member assignment. It then closes that client and
+waits for the first member to stably regain both partitions. Topic creation,
+input production, first-member setup, and final shutdown are excluded. Kafka-go
+v0.4.51 is excluded because it does not expose cooperative-sticky assignment.
+The capture contains 30 single-operation samples with independently proven
+initial, joined, handled, left, and restored outcomes.
+
 A producer-only transaction workload compares the package policy, raw
 franz-go, and Sarama. One operation begins a transaction, synchronously
 publishes one or ten keyed records through the candidate's public transaction
@@ -148,11 +159,11 @@ proves shutdown returns all observed connections to zero.
 ## Environment and interpretation
 
 The 2026-07-30 producer, consumer, and transaction capture and the 2026-07-31
-replay, inspection, reconnect, and resource captures used Go 1.26.5 on Darwin
-arm64 with an Apple M4 Max, Docker Desktop engine 29.6.2, and the immutable
-Confluent Local 7.5.0 fixture. The running broker reported `7.5.0-ccs`. Exact
-module versions, input hashes, raw samples, and benchstat distributions are
-stored with the
+replay, inspection, rebalance, reconnect, and resource captures used Go 1.26.5
+on Darwin arm64 with an Apple M4 Max, Docker Desktop engine 29.6.2, and the
+immutable Confluent Local 7.5.0 fixture. The running broker reported
+`7.5.0-ccs`. Exact module versions, input hashes, raw samples, and benchstat
+distributions are stored with the
 [2026-07-30 capture](performance-results/2026-07-30/README.md) and
 [2026-07-31 capture](performance-results/2026-07-31/README.md).
 
@@ -189,6 +200,14 @@ franz-go. Bounded-parallel medians ranged from 0.86 to 1.15 milliseconds for
 the policy path and 0.66 to 1.10 milliseconds for raw franz-go. Distributions
 spread as far as 66 percent, so these results likewise describe the exact
 shared local fixture rather than a production budget or client ranking.
+
+Complete cooperative-sticky rebalance medians were 1.516 seconds for the policy
+path, 1.509 seconds for raw franz-go, and 2.189 seconds for Sarama.
+Construction-through-commit-and-stability medians were 1.010, 1.004, and 1.132
+seconds respectively; close-through-one-member-stability medians were 506.1
+milliseconds, 507.7 milliseconds, and 1.053 seconds. Bounded broker inspection
+is part of these observable stability boundaries, so they are not protocol-only
+wire timings.
 
 Producer transaction medians for one record ranged from 6.37 to 25.92
 milliseconds for the policy path, 6.63 to 24.07 milliseconds for raw
@@ -246,7 +265,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- rebalance cost under multi-member consumer-group changes;
 - TLS and other deployment-representative transport costs; and
 - a previous released package version after one exists.
 

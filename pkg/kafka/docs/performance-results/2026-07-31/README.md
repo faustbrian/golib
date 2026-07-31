@@ -1,4 +1,4 @@
-# Equivalent Kafka replay, inspection, and resource captures, 2026-07-31
+# Equivalent Kafka replay, inspection, rebalance, and resource captures, 2026-07-31
 
 This directory publishes one bounded local comparison run. It is evidence for
 the exact workload and environment below, not a general client ranking.
@@ -29,6 +29,16 @@ replica/ISR/offline state, offsets, and durability, retention, compaction,
 segment, and unclean-election configuration. The capture contains 160 samples
 of ten operations, for 1,600 complete inspections and 7,200 normalized
 partition states.
+
+`BenchmarkEquivalentConsumerRebalance` compares the package policy, raw
+franz-go, and Sarama under one cooperative-sticky two-partition contract. One
+stable member remains in the group. Each operation constructs a second public
+client, joins it, handles and commits one record, and waits for broker
+inspection to prove a stable one-partition-per-member assignment. It then
+closes that client and waits until the first member stably owns both partitions
+again. Ten samples per client report the join-through-commit-and-stability
+boundary, the close-through-stability boundary, and their total. Kafka-go is
+excluded because v0.4.51 does not expose cooperative-sticky assignment.
 
 `BenchmarkEquivalentInspectionReconnect` compares one warmed stable inspector
 for each client after the same owned broker is stopped, an inspection fails
@@ -63,6 +73,10 @@ Reconnect correctness proved the same normalized state before and after a real
 broker restart for every client. Idle-resource correctness proved each warmed
 client held broker connections and returned every observed connection to zero;
 the focused race run passed both resource contracts.
+Rebalance correctness independently proved the initial one-member
+two-partition assignment, the stable two-member one-partition-each assignment,
+exact handling through the joining member, and restoration after it left. Its
+focused race run passed before capture.
 
 These healthy single-node results do not prove replay behavior under retention
 gaps, compaction, truncation, cancellation, or side-effect failure. They do not
@@ -85,6 +99,13 @@ fixtures own those claims.
   inspection samples and the runtime broker assertion.
 - [`inspection-benchstat.txt`](inspection-benchstat.txt) preserves inspection
   latency, partition-count, byte, and allocation distributions.
+- [`environment-rebalance.txt`](environment-rebalance.txt) binds the
+  cooperative-sticky results to the exact execution revision and harness
+  inputs.
+- [`raw-rebalance.txt`](raw-rebalance.txt) contains all 30 unmodified
+  rebalance samples and the runtime broker assertion.
+- [`rebalance-benchstat.txt`](rebalance-benchstat.txt) preserves join, leave,
+  total, and partition-count distributions.
 - [`environment-resources.txt`](environment-resources.txt) binds reconnect and
   idle results to their execution revision and complete harness input identity.
 - `raw-resources-reconnect-{policy,franz,kafka-go,sarama}-{01,02}.txt`
@@ -109,6 +130,10 @@ make analyze INPUT=raw-replay.txt > replay-benchstat.txt
 make environment > environment-inspection.txt
 make capture OUTPUT=raw-inspection.txt BENCH_PATTERN='^BenchmarkEquivalentInspection$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-inspection.txt > inspection-benchstat.txt
+go test -race -tags=integration -run '^TestEquivalentConsumerRebalanceOutcomes$' -count=1 -timeout=15m ./...
+make environment > environment-rebalance.txt
+make rebalance-capture OUTPUT=raw-rebalance.txt REBALANCE_PATTERN='^BenchmarkEquivalentConsumerRebalance$$' REBALANCE_COUNT=10 REBALANCE_TIME=1x
+go tool benchstat raw-rebalance.txt > rebalance-benchstat.txt
 go test -race -tags=integration -run '^TestEquivalentInspection(Reconnect|IdleResource)Outcomes$' -count=1 -timeout=25m ./...
 make environment > environment-resources.txt
 make resource-capture OUTPUT=raw-resources-reconnect-policy-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
@@ -127,6 +152,8 @@ go tool benchstat raw-resources-idle.txt > resources-idle-benchstat.txt
 The replay process passed in 368.004 seconds. Every sample reported exactly
 10 or 100 records per operation. The inspection process passed in 29.847
 seconds. Every sample reported exactly one or eight partitions per operation.
+The rebalance process passed in 76.446 seconds. All 30 samples reported two
+partitions and completed both exact stable-assignment boundaries.
 The eight reconnect checkpoint processes passed in 1,175.999 aggregate
 seconds, and every sample recovered all three normalized partitions. The idle
 capture passed in 35.859 seconds, and every sample proved that all connections
@@ -145,6 +172,15 @@ Inspection medians ranged from 3.472 to 5.330 milliseconds for the policy,
 3.005 to 4.309 milliseconds for raw franz-go, 4.505 to 4.810 milliseconds for
 kafka-go, and 4.960 to 6.383 milliseconds for Sarama. One policy distribution
 spans 170 percent on the shared local fixture.
+
+Complete cooperative-sticky rebalance medians were 1.516 seconds for the policy
+path, 1.509 seconds for raw franz-go, and 2.189 seconds for Sarama. The
+construction-through-commit-and-stability medians were 1.010, 1.004, and 1.132
+seconds respectively. Close-through-one-member-stability medians were 506.1
+milliseconds, 507.7 milliseconds, and 1.053 seconds. Bounded broker group
+inspection is included because it establishes the exact stable boundary;
+topic creation, input production, first-member setup, and final shutdown are
+excluded.
 
 Reconnect medians were 19.66 seconds for the policy, 19.53 seconds for raw
 franz-go, 19.27 seconds for kafka-go, and 19.42 seconds for Sarama, with
@@ -173,10 +209,13 @@ validation, sorting, and defensive copies are part of its public contract.
 
 ```text
 6f6e278629292842b85890b7b86c210691414752bb399bf5023c34be48fe5758  environment-inspection.txt
+c8529c02f7827bb86c08be6b5ef0203c2d1716000fcd504d915b870c8ea3cef4  environment-rebalance.txt
 6f6e278629292842b85890b7b86c210691414752bb399bf5023c34be48fe5758  environment-replay.txt
 8cbb9ada06dfb8033b5a0d688e4207a786c4a96cf9f017019941e07fefde512d  inspection-benchstat.txt
 03b07fff85a9bf377c52a348866515c9e09339ac10da3718c06eb1c8418ffcb6  raw-inspection.txt
+9ff2e47d6783c350add4e033c05930509ac427bd81509f63b41c1731d87b627a  raw-rebalance.txt
 f642451b6deefc063b619e361d9dd76b5ea96f416163ff5b29617d9ddfc03003  raw-replay.txt
+2988afa954690f55e744d0ee32737dd42b9b42d04eebcedee4c78f2a3ce44eed  rebalance-benchstat.txt
 0f94670dbba3d0ada39e01e2b44d6684b0fb5ba5b113773d8832ddba9748130c  replay-benchstat.txt
 70416879767ca17391118f82b445b640d338b6d10b025b7d1a1e8a29329b6905  environment-resources.txt
 6c37a943131f6521337381220cb698338414f99b9311267c9ae662f92221007f  raw-resources-idle.txt

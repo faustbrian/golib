@@ -66,7 +66,9 @@ All notable changes to this module are documented here.
   producer capability control, plus equivalent manually committed consumer
   record and 10/100-record batch workloads for all four clients, sequential and
   bounded-parallel eight-partition handling for the package policy and raw
-  franz-go with exact per-partition order and broker-verified commits,
+  franz-go with exact per-partition order and broker-verified commits, plus
+  cooperative-sticky join and leave timing for the package policy, raw
+  franz-go, and Sarama with exact broker-inspected assignments,
   transactional production for the package policy, raw franz-go, and Sarama
   with committed and aborted visibility checks, plus atomic
   consume-transform-produce workloads for the package policy and raw franz-go

@@ -157,6 +157,28 @@ worker bound and per-partition serialization.
 `TestBenchmarkCrossPartitionOperationBytes` protects byte-rate accounting for
 all eight keys and values.
 
+`BenchmarkEquivalentConsumerRebalance` compares the package policy, raw
+franz-go, and Sarama under the same two-partition cooperative-sticky group
+contract. One stable member remains in the group. Each operation constructs a
+second public client, joins it, handles and synchronously commits one record,
+and waits until broker inspection proves a stable two-member assignment with
+one unique partition per member. It then closes the joining client and waits
+until the broker proves the first member stably owns both partitions again.
+
+The benchmark separately reports construction-through-commit-and-stability
+join time and close-through-stability leave time. Topic creation, input
+production, the first client construction and join, and final fixture shutdown
+are outside the measured boundary. Bounded read-only group inspection is inside
+the boundary because it establishes the same observable stable assignment for
+every client. Kafka-go v0.4.51 is excluded because it does not expose
+cooperative-sticky assignment; comparing its eager range protocol would measure
+a different rebalance contract.
+
+`TestEquivalentConsumerRebalanceOutcomes` independently proves the initial
+one-member/two-partition state, the two-member one-partition-each state, exact
+handling through the joining member, and restoration of the first member's
+two-partition assignment after the second member leaves.
+
 ## Equivalent transactional workloads
 
 `BenchmarkEquivalentTransactionalProduce` compares one stable transactional

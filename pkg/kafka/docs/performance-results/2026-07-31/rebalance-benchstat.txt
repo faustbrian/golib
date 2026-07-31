@@ -1,0 +1,31 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                            │ raw-rebalance.txt │
+                                            │      sec/op       │
+EquivalentConsumerRebalance/golib-policy-16         1.516 ±  2%
+EquivalentConsumerRebalance/raw-franz-go-16         1.509 ± 17%
+EquivalentConsumerRebalance/sarama-16               2.189 ±  3%
+geomean                                             1.711
+
+                                            │     raw-rebalance.txt      │
+                                            │ join-through-commit-sec/op │
+EquivalentConsumerRebalance/golib-policy-16                   1.010 ± 2%
+EquivalentConsumerRebalance/raw-franz-go-16                   1.004 ± 2%
+EquivalentConsumerRebalance/sarama-16                         1.132 ± 6%
+geomean                                                       1.047
+
+                                            │      raw-rebalance.txt      │
+                                            │ leave-through-stable-sec/op │
+EquivalentConsumerRebalance/golib-policy-16                  506.1m ±  1%
+EquivalentConsumerRebalance/raw-franz-go-16                  507.7m ± 49%
+EquivalentConsumerRebalance/sarama-16                         1.053 ±  0%
+geomean                                                      646.8m
+
+                                            │ raw-rebalance.txt │
+                                            │   partitions/op   │
+EquivalentConsumerRebalance/golib-policy-16          2.000 ± 0%
+EquivalentConsumerRebalance/raw-franz-go-16          2.000 ± 0%
+EquivalentConsumerRebalance/sarama-16                2.000 ± 0%
+geomean                                              2.000

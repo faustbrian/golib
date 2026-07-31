@@ -1,0 +1,37 @@
+benchmark-broker-runtime=Confluent Local 7.5.0-ccs
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1496419292 ns/op	 985405000 join-through-commit-ns/op	 511014292 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1542322917 ns/op	1032762417 join-through-commit-ns/op	 509560500 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1498587918 ns/op	 993549959 join-through-commit-ns/op	 505037959 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1552646126 ns/op	1022472792 join-through-commit-ns/op	 530173334 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1500851292 ns/op	 997861250 join-through-commit-ns/op	 502990042 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1517649501 ns/op	1010440709 join-through-commit-ns/op	 507208792 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1513617583 ns/op	1009047041 join-through-commit-ns/op	 504570542 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1523558209 ns/op	1013926125 join-through-commit-ns/op	 509632084 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1564729833 ns/op	1060104875 join-through-commit-ns/op	 504624958 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/golib-policy-16         	       1	1503307875 ns/op	1000770833 join-through-commit-ns/op	 502537042 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1807661333 ns/op	1052897708 join-through-commit-ns/op	 754763625 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1768655458 ns/op	1013662708 join-through-commit-ns/op	 754992750 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1502702541 ns/op	 983240541 join-through-commit-ns/op	 519462000 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1509583166 ns/op	1003775583 join-through-commit-ns/op	 505807583 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1509256126 ns/op	1005083042 join-through-commit-ns/op	 504173084 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1498440334 ns/op	 992833250 join-through-commit-ns/op	 505607084 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1534206625 ns/op	1024712875 join-through-commit-ns/op	 509493750 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1503437916 ns/op	 999143500 join-through-commit-ns/op	 504294416 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1525615541 ns/op	1006278375 join-through-commit-ns/op	 519337166 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/raw-franz-go-16         	       1	1450341875 ns/op	 947928792 join-through-commit-ns/op	 502413083 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2262068333 ns/op	1208490833 join-through-commit-ns/op	1053577500 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2204977333 ns/op	1152163000 join-through-commit-ns/op	1052814333 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2094954001 ns/op	1041676709 join-through-commit-ns/op	1053277292 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2178990124 ns/op	1115946333 join-through-commit-ns/op	1063043791 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2254906625 ns/op	1201816250 join-through-commit-ns/op	1053090375 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2145882668 ns/op	1092491209 join-through-commit-ns/op	1053391459 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2162397917 ns/op	1107492750 join-through-commit-ns/op	1054905167 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2167504833 ns/op	1117511250 join-through-commit-ns/op	1049993583 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2199686916 ns/op	1146878208 join-through-commit-ns/op	1052808708 leave-through-stable-ns/op	         2.000 partitions/op
+BenchmarkEquivalentConsumerRebalance/sarama-16               	       1	2232350083 ns/op	1174629500 join-through-commit-ns/op	1057720583 leave-through-stable-ns/op	         2.000 partitions/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/kafka/benchmarks/clients	76.446s
