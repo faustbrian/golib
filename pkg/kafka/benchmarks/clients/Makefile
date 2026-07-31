@@ -2,14 +2,17 @@ GO ?= go
 BENCH_COUNT ?= 10
 BENCH_TIME ?= 10x
 BENCH_PATTERN ?= ^BenchmarkEquivalent(Synchronous(Produce|BatchProduce)|AsynchronousProduce|MultiPartitionProduce|ConsumerHandling|CrossPartitionConsumerHandling|TransactionalProduce|ConsumeTransformProduce|Replay|Inspection)$$
+RESOURCE_COUNT ?= 10
+RESOURCE_TIME ?= 1x
+RESOURCE_PATTERN ?= ^BenchmarkEquivalentInspection(Reconnect|IdleResources)$$
 
-.PHONY: analyze benchmark capture environment test verify
+.PHONY: analyze benchmark capture environment resource-benchmark resource-capture test verify
 
 test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
+	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
@@ -19,6 +22,17 @@ capture:
 	@test -n '$(OUTPUT)'
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
 		-benchmem -benchtime='$(BENCH_TIME)' -count='$(BENCH_COUNT)' \
+		> '$(OUTPUT)'
+	@cat '$(OUTPUT)'
+
+resource-benchmark:
+	@$(GO) test -tags=integration -run '^$$' -bench '$(RESOURCE_PATTERN)' \
+		-benchtime='$(RESOURCE_TIME)' -count='$(RESOURCE_COUNT)'
+
+resource-capture:
+	@test -n '$(OUTPUT)'
+	@$(GO) test -tags=integration -run '^$$' -bench '$(RESOURCE_PATTERN)' \
+		-benchtime='$(RESOURCE_TIME)' -count='$(RESOURCE_COUNT)' \
 		> '$(OUTPUT)'
 	@cat '$(OUTPUT)'
 

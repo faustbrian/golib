@@ -260,6 +260,50 @@ clients for three partitions and separately asserts sorted partition IDs,
 available leaders, exact replica/ISR sets, no offline replicas, zero beginning
 and end offsets, `min.insync.replicas=1`, and delete cleanup policy.
 
+## Equivalent reconnect and idle-resource workloads
+
+`BenchmarkEquivalentInspectionReconnect` compares a stable policy, raw
+franz-go, kafka-go, and Sarama inspector after the same owned single-node
+broker has become unreachable and restarted at the same endpoint. Before each
+sample, the harness proves that the warmed client fails a complete inspection
+while the broker is down. The timed and allocation-counted boundary starts
+after the broker is ready again and ends only after the same client returns the
+exact pre-failure three-partition metadata, offset, and durability state.
+Docker control, broker shutdown and startup, the deliberate failed request,
+fixture construction, topic creation, client construction, warm-up, and
+shutdown are outside the reported reconnect boundary.
+
+The reconnect fixture reserves one loopback port and pins that host binding for
+the complete container lifetime so a restart does not silently turn client
+reconstruction against a new endpoint into a reconnect result. Reported
+`reconnect-allocs/op` and `reconnect-bytes/op` are process allocation-counter
+deltas across only the post-restart client operation. They include public
+request mapping, client retry/backoff, connection initialization, four Kafka
+protocol operations, response normalization, and harness contexts. They do not
+include broker downtime, Docker work, or allocations performed concurrently
+outside the measured process boundary.
+
+`BenchmarkEquivalentInspectionIdleResources` constructs and warms one
+three-partition inspector, then observes a fixed 500-millisecond interval with
+no application requests. It reports the retained heap bytes and objects,
+goroutine delta, active connections, total opened and closed connections, and
+Go runtime busy CPU nanoseconds normalized to one wall-clock second. Heap and
+goroutine values are process-level deltas from a garbage-collected baseline;
+they can include shared runtime noise and are descriptive rather than hard
+budgets. Connection counts are obtained from stable policy observations,
+franz-go hooks, kafka-go's public dial seam, or Sarama's public broker state.
+Every sample closes its inspector and proves all observed broker connections
+return to zero.
+
+`TestEquivalentInspectionReconnectOutcomes` independently proves exact state
+before and after a real broker restart for all four clients.
+`TestEquivalentInspectionIdleResourceOutcomes` proves the measured clients
+hold at least one warmed connection, return the same normalized topic state,
+record nonnegative CPU time, and close every observed connection. These
+single-node plaintext workloads do not establish multi-broker leader recovery,
+TLS reconnect cost, process RSS, kernel socket memory, or deployment-specific
+resource budgets.
+
 ## Broker selection
 
 By default, the integration workload starts the pinned single-node Confluent
@@ -302,6 +346,8 @@ make environment > environment-replay.txt
 make capture OUTPUT=raw-replay.txt BENCH_PATTERN='^BenchmarkEquivalentReplay$$' BENCH_COUNT=20 BENCH_TIME=10x
 make environment > environment-inspection.txt
 make capture OUTPUT=raw-inspection.txt BENCH_PATTERN='^BenchmarkEquivalentInspection$$' BENCH_COUNT=20 BENCH_TIME=10x
+make environment > environment-resources.txt
+make resource-capture OUTPUT=raw-resources.txt RESOURCE_COUNT=10 RESOURCE_TIME=1x
 make analyze INPUT=raw-producer.txt > producer-benchstat.txt
 make analyze INPUT=raw-producer-batch.txt > producer-batch-benchstat.txt
 make analyze INPUT=raw-producer-async.txt > producer-async-benchstat.txt
@@ -312,9 +358,13 @@ make analyze INPUT=raw-transaction-producer.txt > transaction-producer-benchstat
 make analyze INPUT=raw-consume-transform-produce.txt > consume-transform-produce-benchstat.txt
 make analyze INPUT=raw-replay.txt > replay-benchstat.txt
 make analyze INPUT=raw-inspection.txt > inspection-benchstat.txt
+make analyze INPUT=raw-resources.txt > resources-benchstat.txt
 ```
 
 Ten independent samples are the default. Publish the raw samples and benchstat
 distributions with a workload-specific environment record; never replace an
 earlier capture's input identity when the harness changes. Do not select only
-the best result. Functional verification and timing remain separate commands.
+the best result. The dedicated resource target fixes each expensive broker
+restart or idle interval at one operation per sample; do not fold it into the
+healthy-path benchmark matrix. Functional verification and timing remain
+separate commands.
