@@ -242,6 +242,22 @@ func (snapshot Snapshot) RootContainer(ctx context.Context) (backend.Root, error
 	)
 }
 
+// StorageImage returns a complete immutable canonical node image for the exact
+// snapshot without publishing it.
+func (snapshot Snapshot) StorageImage(
+	ctx context.Context,
+	limits committedtree.StorageEncodingLimits,
+) (committedtree.StorageImage, error) {
+	if err := snapshot.validate(); err != nil {
+		return committedtree.StorageImage{}, err
+	}
+	if err := checkContext(ctx); err != nil {
+		return committedtree.StorageImage{}, err
+	}
+
+	return snapshot.tree.StorageImage(ctx, limits)
+}
+
 // Apply validates the complete batch, applies it in ascending key order, and
 // constructs a new immutable snapshot. Every failure leaves the receiver
 // unchanged and returns no usable transition.

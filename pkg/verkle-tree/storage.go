@@ -1,0 +1,336 @@
+package verkletree
+
+import (
+	"context"
+	"crypto/sha256"
+	"errors"
+	"fmt"
+	"reflect"
+
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
+)
+
+// NodeIDSize is the exact byte length of a stored-node content address.
+const NodeIDSize = sha256.Size
+
+// NodeID is the SHA-256 content address of one complete canonical,
+// profile-bound stored node.
+type NodeID [NodeIDSize]byte
+
+// Bytes returns the content address by value.
+func (id NodeID) Bytes() [NodeIDSize]byte {
+	return id
+}
+
+// StoreCapabilities is a bit set of independently asserted store guarantees.
+// Unknown bits are ignored by this package.
+type StoreCapabilities uint8
+
+const (
+	// StoreCapabilityImmutableNodes means a content address can never resolve
+	// to different bytes.
+	StoreCapabilityImmutableNodes StoreCapabilities = 1 << iota
+
+	// StoreCapabilityAtomicCommit means every supplied node and root
+	// publication is one atomic operation.
+	StoreCapabilityAtomicCommit
+
+	// StoreCapabilityDurablePublication means a successful commit has made all
+	// nodes durable before its root becomes observable.
+	StoreCapabilityDurablePublication
+
+	// StoreCapabilityCompareAndSwap means publication checks the exact
+	// previous-root expectation.
+	StoreCapabilityCompareAndSwap
+)
+
+// RequiredWriteStoreCapabilities is the complete guarantee set required by
+// Snapshot.Commit.
+const RequiredWriteStoreCapabilities = StoreCapabilityImmutableNodes |
+	StoreCapabilityAtomicCommit |
+	StoreCapabilityDurablePublication |
+	StoreCapabilityCompareAndSwap
+
+// Supports reports whether capabilities contains every required bit.
+func (capabilities StoreCapabilities) Supports(
+	required StoreCapabilities,
+) bool {
+	return capabilities&required == required
+}
+
+// StoreCapabilityError reports the exact guarantees a store did not assert.
+type StoreCapabilityError struct {
+	Required  StoreCapabilities
+	Available StoreCapabilities
+	Missing   StoreCapabilities
+}
+
+// Error implements error.
+func (err *StoreCapabilityError) Error() string {
+	return fmt.Sprintf(
+		"%v: required %d, available %d, missing %d",
+		ErrStoreCapability,
+		err.Required,
+		err.Available,
+		err.Missing,
+	)
+}
+
+// Unwrap makes StoreCapabilityError match ErrStoreCapability.
+func (err *StoreCapabilityError) Unwrap() error {
+	return ErrStoreCapability
+}
+
+// NodeStore atomically makes a complete immutable node set durable and then
+// publishes its root. Implementations must enforce StoreCommit's previous-root
+// expectation. Each StoredNode encoding returned to an implementation is an
+// owned copy that the implementation may retain.
+type NodeStore interface {
+	Capabilities() StoreCapabilities
+	CommitSnapshot(ctx context.Context, commit StoreCommit) error
+}
+
+// StoredNode is one immutable content-addressed canonical node.
+type StoredNode struct {
+	value committedtree.StorageNode
+}
+
+// ID returns the node's exact content address.
+func (node StoredNode) ID() NodeID {
+	return NodeID(node.value.ID())
+}
+
+// Encoded returns a caller-owned copy of the canonical profile-bound bytes.
+func (node StoredNode) Encoded() []byte {
+	return node.value.Encoded()
+}
+
+// StoreCommit is one immutable atomic node-write and root-publication request.
+// Its zero value rejects use through every validating accessor.
+type StoreCommit struct {
+	previous    Root
+	root        Root
+	rootNode    NodeID
+	nodes       []StoredNode
+	hasPrevious bool
+	valid       bool
+}
+
+// PreviousRoot returns the exact compare-and-swap expectation. A false present
+// value means the store must require that no root is currently published.
+func (commit StoreCommit) PreviousRoot() (root Root, present bool, err error) {
+	if err := commit.validate(); err != nil {
+		return Root{}, false, err
+	}
+	if !commit.hasPrevious {
+		return Root{}, false, nil
+	}
+
+	return commit.previous, true, nil
+}
+
+// Root returns the root to publish only after every node is durable.
+func (commit StoreCommit) Root() (Root, error) {
+	if err := commit.validate(); err != nil {
+		return Root{}, err
+	}
+
+	return commit.root, nil
+}
+
+// RootNode returns the content address of Root's canonical logical root node.
+func (commit StoreCommit) RootNode() (NodeID, error) {
+	if err := commit.validate(); err != nil {
+		return NodeID{}, err
+	}
+
+	return commit.rootNode, nil
+}
+
+// Nodes returns owned nodes in ascending content-address order.
+func (commit StoreCommit) Nodes(ctx context.Context) ([]StoredNode, error) {
+	if err := commit.validate(); err != nil {
+		return nil, err
+	}
+	if err := checkPublicContext(ctx); err != nil {
+		return nil, err
+	}
+
+	nodes := make([]StoredNode, len(commit.nodes))
+	for index := range commit.nodes {
+		if err := checkPublicContext(ctx); err != nil {
+			return nil, err
+		}
+		nodes[index] = commit.nodes[index]
+	}
+
+	return nodes, nil
+}
+
+func (commit StoreCommit) validate() error {
+	if !commit.valid || len(commit.nodes) == 0 {
+		return ErrStorageCommit
+	}
+	if _, err := commit.root.Bytes(); err != nil {
+		return ErrStorageCommit
+	}
+	if commit.hasPrevious {
+		if _, err := commit.previous.Bytes(); err != nil {
+			return ErrStorageCommit
+		}
+	}
+	return nil
+}
+
+// StorageLimits bounds canonical node encoding before an adapter is invoked.
+// Adapter-owned I/O and durability resources remain the adapter's explicit
+// responsibility.
+type StorageLimits struct {
+	MaxNodes          uint32
+	MaxNodeBytes      uint64
+	MaxEncodedBytes   uint64
+	MaxHashes         uint32
+	MaxTemporaryBytes uint64
+}
+
+func (limits StorageLimits) validate() error {
+	if limits.MaxNodes == 0 ||
+		limits.MaxNodes > maxPublicCount ||
+		limits.MaxNodeBytes == 0 ||
+		limits.MaxEncodedBytes == 0 ||
+		limits.MaxHashes == 0 ||
+		limits.MaxHashes > maxPublicCount ||
+		limits.MaxTemporaryBytes == 0 {
+		return ErrInvalidLimits
+	}
+
+	return nil
+}
+
+// Commit canonically encodes every immutable logical node and asks store to
+// atomically make the complete set durable before publishing the snapshot
+// root. previous is copied when non-nil and is the required currently
+// published root; nil requires that no root is currently published. Failure
+// preserves the immutable snapshot.
+func (snapshot Snapshot) Commit(
+	ctx context.Context,
+	store NodeStore,
+	previous *Root,
+	limits StorageLimits,
+) error {
+	if !snapshot.valid {
+		return ErrInvalidSnapshot
+	}
+	if err := checkPublicContext(ctx); err != nil {
+		return err
+	}
+	if !validNodeStore(store) {
+		return ErrInvalidStore
+	}
+	if err := limits.validate(); err != nil {
+		return err
+	}
+
+	var expected Root
+	hasExpected := previous != nil
+	if hasExpected {
+		expected = *previous
+		if _, err := expected.Bytes(); err != nil {
+			return ErrInvalidRoot
+		}
+	}
+	root, err := snapshot.Root()
+	if err != nil {
+		return err
+	}
+	available := store.Capabilities()
+	if !available.Supports(RequiredWriteStoreCapabilities) {
+		return &StoreCapabilityError{
+			Required:  RequiredWriteStoreCapabilities,
+			Available: available,
+			Missing:   RequiredWriteStoreCapabilities &^ available,
+		}
+	}
+	image, err := snapshot.value.StorageImage(
+		ctx,
+		committedtree.StorageEncodingLimits{
+			MaxNodes:          limits.MaxNodes,
+			MaxNodeBytes:      limits.MaxNodeBytes,
+			MaxEncodedBytes:   limits.MaxEncodedBytes,
+			MaxHashes:         limits.MaxHashes,
+			MaxTemporaryBytes: limits.MaxTemporaryBytes,
+		},
+	)
+	if err != nil {
+		return translateStorageEncodingError(err)
+	}
+	// StorageImage returning nil error establishes this invariant.
+	rootNode, _ := image.RootID()
+	internalNodes, err := image.Nodes(ctx)
+	if err != nil {
+		return translateStorageEncodingError(err)
+	}
+	nodes := make([]StoredNode, len(internalNodes))
+	for index := range internalNodes {
+		if err := checkPublicContext(ctx); err != nil {
+			return err
+		}
+		nodes[index] = StoredNode{value: internalNodes[index]}
+	}
+	commit := StoreCommit{
+		previous:    expected,
+		root:        root,
+		rootNode:    NodeID(rootNode),
+		nodes:       nodes,
+		hasPrevious: hasExpected,
+		valid:       true,
+	}
+	if err := store.CommitSnapshot(ctx, commit); err != nil {
+		return fmt.Errorf("%w: %w", ErrStorageCommit, err)
+	}
+
+	return nil
+}
+
+func translateStorageEncodingError(err error) error {
+	var resourceErr *committedtree.StorageEncodingResourceError
+	if errors.As(err, &resourceErr) {
+		resource := ResourceTemporaryBytes
+		switch resourceErr.Resource {
+		case committedtree.StorageEncodingResourceNodes:
+			resource = ResourceNodes
+		case committedtree.StorageEncodingResourceNodeBytes:
+			resource = ResourceNodeBytes
+		case committedtree.StorageEncodingResourceEncodedBytes:
+			resource = ResourceEncodedNodeBytes
+		case committedtree.StorageEncodingResourceHashes:
+			resource = ResourceNodeHashes
+		case committedtree.StorageEncodingResourceTemporaryBytes:
+		}
+
+		return &ResourceError{
+			Resource: resource,
+			Limit:    resourceErr.Limit,
+			Actual:   resourceErr.Actual,
+		}
+	}
+	if errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("encode snapshot nodes: %w: %w", ErrCancelled, err)
+	}
+	return fmt.Errorf("encode snapshot nodes: %w", ErrCryptographic)
+}
+
+func validNodeStore(store NodeStore) bool {
+	if store == nil {
+		return false
+	}
+	value := reflect.ValueOf(store)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Pointer, reflect.Slice:
+		return !value.IsNil()
+	default:
+		return true
+	}
+}

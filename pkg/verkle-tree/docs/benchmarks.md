@@ -16,6 +16,12 @@ two-stem corpus. It excludes builder and generator initialization, proof work,
 serialization, persistence, and incremental updates. It is not an end-to-end
 tree benchmark or a comparison with either reference implementation.
 
+A storage-image component benchmark measures canonical encoding, content
+hashing, ownership copying, and content-address sorting for the same four-entry
+corpus. It excludes adapter calls, durable writes, compare-and-swap
+publication, persisted reads, recovery, and pruning. It therefore measures the
+package-owned storage-write preparation boundary, not storage performance.
+
 Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
 already initialized snapshot builder. They exclude snapshot construction,
@@ -56,7 +62,8 @@ GOWORK=off go test ./internal/backend -run '^$' \
   -benchmem -count=5
 
 GOWORK=off go test ./internal/committedtree -run '^$' \
-  -bench '^BenchmarkBuildFourEntries$' -benchmem -count=5
+  -bench '^(BenchmarkBuildFourEntries|BenchmarkProofPath|BenchmarkStorageImage)$' \
+  -benchmem -count=5
 
 GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^(BenchmarkSnapshotGet|BenchmarkSnapshotApply|BenchmarkNewClaimSet|BenchmarkClaimSetCopy|BenchmarkSnapshotProofMaterial|BenchmarkNewTreeProof|BenchmarkTreeProofCopy|BenchmarkEncodeTreeProof|BenchmarkDecodeTreeProof)' \
@@ -105,6 +112,7 @@ nanoseconds per operation.
 | Commit dense 256-term vector | 4835446, 16280795, 15844953, 2671274, 2909500 | 67632-67655 | 1024 |
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
 | Extract one immutable committed-tree proof path | 3765, 3824, 4398, 4883, 6526 | 4864 | 1 |
+| Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |

@@ -14,13 +14,13 @@ shown here.
 profile. It is not stable, audited, production-ready, or Ethereum-compatible.
 Its definition MAY change incompatibly before v1.
 
-Only the profile identity and structural metadata are currently exported.
-Internal research boundaries implement the fixed topology, leaf field inputs,
-vector commitments, complete mathematical root construction, and immutable
-root-bound state transitions below, plus an internal canonical unverified
-tree-proof encoding and strict decoder. Public tree, root, node, proof,
-witness, snapshot, and persistence APIs remain unimplemented. This document
-MUST NOT be read as a claim that those surfaces already exist.
+The exported experimental surface implements immutable snapshots, roots,
+root-bound state transitions, aggregate proofs, and capability-checked
+canonical storage writes. Internal research boundaries implement the fixed
+topology, leaf field inputs, vector commitments, complete mathematical root
+construction, and encodings below. Persisted reads, recovery, pruning,
+retention, stateless witnesses, and stable APIs remain unimplemented. This
+document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
 
@@ -55,14 +55,16 @@ inconsistent representation before cryptographic work.
 
 The following parts of the profile are deliberately not frozen:
 
-- serialized empty-subtree representation and persisted node materialization;
-- canonical node, witness, snapshot, and storage encodings;
+- serialized empty-subtree representation outside the root and stored-node
+  formats defined below;
+- canonical witness and snapshot encodings;
 - canonical point, scalar, and verified-proof rejection rules beyond the
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
 - commitment and witness update ordering, conflicting old-value claims,
   stateless witness completeness, and post-state calculation;
-- snapshot identity, storage atomicity, publication, recovery, and pruning;
+- persisted snapshot identity, read isolation, recovery, retention, and
+  pruning;
   and
 - operation budgets, cancellation checkpoints, and resource accounting.
 
@@ -239,6 +241,90 @@ defensively own the decoded state.
 The container binds only the exact profile and mathematical root. It does not
 identify a snapshot, authenticate a key set, or establish membership,
 non-membership, proof verification, persistence, or publication.
+
+## Canonical Stored-Node Encoding And Publication
+
+The experimental stored-node encoding MUST bind the complete logical node and
+profile. Every node MUST begin with this 44-byte header:
+
+| Offset | Size | Field |
+| ---: | ---: | --- |
+| 0 | 4 | ASCII magic `VKND` |
+| 4 | 1 | profile identifier `1` |
+| 5 | 2 | profile version `0`, unsigned big-endian |
+| 7 | 2 | encoding version `1`, unsigned big-endian |
+| 9 | 1 | node kind: internal `1` or stem `2` |
+| 10 | 1 | logical depth |
+| 11 | 1 | commitment kind |
+| 12 | 32 | commitment payload |
+
+Commitment kind `0` MUST denote the mathematical identity and its payload MUST
+be all zero bytes. Commitment kind `1` MUST contain exactly one canonical,
+non-identity Banderwagon commitment. Every other commitment kind, a nonzero
+identity payload, or an identity or malformed point payload MUST be rejected.
+The identity marker is a container value and MUST NOT be passed to a point
+decoder.
+
+An internal node MUST append an unsigned two-byte big-endian child count,
+followed by that many 33-byte child records. Each record MUST contain the
+one-byte child index followed by the 32-byte content address of the complete
+canonical child node. Records MUST be in strictly ascending child-index order.
+Every child MUST be at the exact path and depth required by the fixed topology.
+The empty tree MUST be encoded as one depth-zero internal node with identity
+commitment and zero children. A non-empty internal node MUST contain at least
+one child and MUST NOT use the identity commitment.
+
+A stem node MUST append, in order:
+
+1. the exact 31-byte stem;
+2. one 33-byte commitment-kind/payload encoding for C1;
+3. one 33-byte commitment-kind/payload encoding for C2;
+4. an unsigned two-byte big-endian entry count; and
+5. that many 33-byte entry records, each containing one suffix byte and its
+   exact 32-byte value.
+
+The stem entry count MUST be between one and 256 inclusive. Entry suffixes MUST
+be strictly ascending and MUST occur exactly once. The stem-node commitment
+MUST be non-identity; either suffix-half commitment MAY use the identity marker
+when that half is empty. Stem-node depth MUST be between one and 31 inclusive.
+No node may contain trailing bytes or an alternate field order.
+
+The content address of a node MUST be SHA-256 over its complete canonical bytes.
+This digest is a storage-integrity identifier only. It MUST NOT replace, be
+presented as, or be mixed into the Verkle vector commitment. Internal child
+records MUST reference this content address. A complete storage image MUST
+contain its root node and MUST order all nodes by ascending raw content-address
+bytes before handing the batch to a store.
+
+Before allocating encoded nodes or hashing content, the encoder MUST enforce
+positive bounds for logical nodes, one-node bytes, aggregate encoded bytes,
+content hashes, and deterministic temporary memory. The temporary-memory bound
+MUST cover retained encodings, the caller-owned node copy, node records, and
+deterministic sorting scratch. The encoder MUST check cancellation throughout
+node sizing, encoding, child and entry traversal, copying, and sorting.
+Malformed retained arena metadata or exhausted resources MUST produce no
+storage image.
+
+An atomic publication operation MUST require the store to assert immutable-node,
+atomic-commit, durable-publication, and compare-and-swap capabilities before
+encoding or I/O. The operation MUST provide exactly one immutable commit
+containing:
+
+- either an exact expected previous root or an explicit expectation that no
+  root is published;
+- the exact new profile-bound Verkle root;
+- the content address of its canonical root node; and
+- the complete canonical node set.
+
+The adapter MUST make every supplied node durable before making the new root
+observable and MUST reject a stale previous-root expectation atomically. A
+failed adapter call MUST NOT change the immutable in-memory snapshot. A
+successful adapter return is the adapter's durability assertion; this generic
+package cannot prove an adapter honored it.
+
+This write boundary does not define persisted node reads, read snapshots,
+recovery, retention, pruning, or bounded store iteration. It does not establish
+storage-adapter correctness, snapshot availability, or Ethereum compatibility.
 
 ## Immutable Proof-Path Extraction
 
@@ -600,8 +686,9 @@ single-value, suffix-half boundary, separate-root-branch, and maximum-depth
 collision states. Agreement proves only deterministic mathematical root
 construction for those exact states. The package-owned root container binds
 them to the experimental profile, but it is not an external interoperability
-claim and does not establish a persisted node encoding, incremental update
-algorithm, proof, witness, production backend, or general Rust compatibility.
+claim and does not establish persisted-read compatibility, an incremental
+update algorithm, proof or witness compatibility, a production backend, or
+general Rust compatibility.
 
 ## State Transition Reference Model
 
@@ -658,8 +745,9 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a snapshot wire
-identity, storage publication, incremental commitment update, proof generation,
-witness verification, or stateless update.
+identity, persisted reads, recovery, retention, pruning, incremental commitment
+updates, witness verification, or stateless updates. The separate storage write
+boundary publishes the complete canonical node image defined above.
 
 ## Compatibility Boundary
 

@@ -4,8 +4,10 @@
 // The package exposes one package-owned experimental profile, immutable
 // snapshots and roots, canonical atomic updates, and bounded aggregate
 // membership and non-membership proofs. Every expensive operation requires a
-// context and explicit resource limits. Witness, persistence, pruning, and
-// stable-profile APIs remain unavailable.
+// context and explicit resource limits. Snapshots can produce canonical
+// content-addressed node batches for capability-checked atomic publication.
+// Persisted reads, witnesses, recovery, pruning, and stable-profile APIs remain
+// unavailable.
 //
 // The exported API is experimental and exists to evaluate a pinned commitment
 // backend and complete tree semantics without making stability,

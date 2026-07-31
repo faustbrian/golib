@@ -2,9 +2,9 @@
 
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
-limit, resource, and typed-error identifiers form the current experimental
-public contract. Witness and storage identifiers described here remain
-proposed.
+canonical storage-write, limit, resource, and typed-error identifiers form the
+current experimental public contract. Witnesses and persisted read/recovery
+identifiers described here remain proposed.
 
 ## Public concepts
 
@@ -15,11 +15,13 @@ The current public API exposes opaque, profile-bound forms of:
 - read result with distinct present and absent states;
 - validated update and atomic batch;
 - membership, non-membership, and aggregate proof;
+- canonical content-addressed node batches and capability-checked atomic root
+  publication;
 - verifier;
 - resource limits and typed errors.
 
 A future public API is expected to add stateless witnesses, verified post-state
-results, and caller-owned store capabilities.
+results, persisted read snapshots, recovery, retention, and pruning.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -43,14 +45,23 @@ its metadata fields are not runtime composition options.
 
 ## Storage
 
-The core storage boundary must be narrow and capability-aware. It must support
-immutable node reads, atomic write batches, read snapshots, durable-root
-publication, integrity checks, recovery, retention, pruning, and bounded
-iteration without requiring a particular database.
+The current public write boundary is narrow and capability-aware.
+`Snapshot.Commit` builds a complete immutable `StoreCommit` containing
+profile-bound canonical nodes in ascending SHA-256 content-address order, the
+root-node address, the exact new Verkle root, and either an exact previous root
+or an explicit no-root expectation.
 
-Atomicity, durability, snapshot isolation, and compare-and-swap publication
-must be explicit capabilities. A tree operation must reject a store that cannot
-provide the guarantees required for that operation.
+The store must explicitly assert immutable-node, atomic-commit,
+durable-publication, and compare-and-swap capabilities. The operation rejects a
+missing capability before encoding or I/O. The adapter receives exactly one
+commit call and owns making every node durable before publishing the root. A
+successful return is therefore an adapter durability claim; the core cannot
+independently prove it.
+
+Immutable node reads, integrity verification on reads, read snapshots,
+recovery, retention, pruning, and bounded iteration remain future boundaries.
+The package does not yet reconstruct a snapshot from stored nodes or claim
+snapshot isolation.
 
 Database, filesystem, and object-storage adapters belong in additive nested
 modules and must not become root-package dependencies.
@@ -82,8 +93,9 @@ kind that never decodes an identity point. The immutable arena can extract one
 caller-owned, cancellation-aware proof path with explicit node-read,
 commitment, path-byte, and result-storage limits. The public facade exposes
 profile-bound roots and aggregate proof operations while keeping topology,
-points, vectors, and commitments internal. It provides no persistence contract
-or incremental update seam.
+points, vectors, and commitments internal. It now produces a complete canonical
+content-addressed node image for the public atomic write boundary, but provides
+no persisted read, recovery, or incremental update seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch
@@ -96,9 +108,10 @@ no-op. Snapshot copies support concurrent reads and independent updates because
 retained entries, trees, and the reusable builder are immutable.
 
 This boundary rebuilds the complete tree for each accepted public batch. It is
-not an incremental commitment update, witness, persistence transaction, or
-durable publication. Public snapshots and transitions expose the canonical
-profile-bound root container for their exact roots.
+not an incremental commitment update or witness operation. Public snapshots
+and transitions expose the canonical profile-bound root container for their
+exact roots; `Snapshot.Commit` separately delegates one complete atomic
+node/root publication to a capability-checked caller store.
 
 The same internal layer owns a non-empty profile-bound claim set for future
 tree proofs. Membership and absence are distinct kinds, a membership claim may

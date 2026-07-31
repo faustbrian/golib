@@ -121,5 +121,55 @@ func FuzzBuildDeterministic(f *testing.F) {
 				)
 			}
 		}
+
+		leftImage, err := left.StorageImage(
+			context.Background(),
+			testStorageEncodingLimits(),
+		)
+		if err != nil {
+			t.Fatalf("encode left storage image: %v", err)
+		}
+		rightImage, err := right.StorageImage(
+			context.Background(),
+			testStorageEncodingLimits(),
+		)
+		if err != nil {
+			t.Fatalf("encode right storage image: %v", err)
+		}
+		leftID, err := leftImage.RootID()
+		if err != nil {
+			t.Fatalf("read left storage root ID: %v", err)
+		}
+		rightID, err := rightImage.RootID()
+		if err != nil {
+			t.Fatalf("read right storage root ID: %v", err)
+		}
+		if leftID != rightID {
+			t.Fatalf("storage root IDs differ: %x / %x", leftID, rightID)
+		}
+		leftNodes, err := leftImage.Nodes(context.Background())
+		if err != nil {
+			t.Fatalf("read left storage nodes: %v", err)
+		}
+		rightNodes, err := rightImage.Nodes(context.Background())
+		if err != nil {
+			t.Fatalf("read right storage nodes: %v", err)
+		}
+		if len(leftNodes) != len(rightNodes) {
+			t.Fatalf(
+				"storage node counts differ: %d / %d",
+				len(leftNodes),
+				len(rightNodes),
+			)
+		}
+		for index := range leftNodes {
+			if leftNodes[index].ID() != rightNodes[index].ID() ||
+				!slices.Equal(
+					leftNodes[index].Encoded(),
+					rightNodes[index].Encoded(),
+				) {
+				t.Fatalf("storage node %d differs", index)
+			}
+		}
 	})
 }

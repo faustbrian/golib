@@ -440,6 +440,19 @@ func TestSnapshotRejectsInvalidStateInputsAndContexts(t *testing.T) {
 	if _, _, err := snapshot.Apply(cancelled, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled apply context error = %v", err)
 	}
+	storageLimits := committedtree.StorageEncodingLimits{
+		MaxNodes:          8,
+		MaxNodeBytes:      1 << 16,
+		MaxEncodedBytes:   1 << 16,
+		MaxHashes:         8,
+		MaxTemporaryBytes: 1 << 17,
+	}
+	if _, err := snapshot.StorageImage(
+		nilContext,
+		storageLimits,
+	); !errors.Is(err, errInvalidContext) {
+		t.Fatalf("nil storage-image context error = %v", err)
+	}
 
 	var zero Snapshot
 	if _, _, err := zero.Get(context.Background(), Key{}); !errors.Is(err, errInvalidSnapshot) {
@@ -447,6 +460,12 @@ func TestSnapshotRejectsInvalidStateInputsAndContexts(t *testing.T) {
 	}
 	if _, err := zero.Root(); !errors.Is(err, errInvalidSnapshot) {
 		t.Fatalf("zero root error = %v", err)
+	}
+	if _, err := zero.StorageImage(
+		context.Background(),
+		storageLimits,
+	); !errors.Is(err, errInvalidSnapshot) {
+		t.Fatalf("zero storage-image error = %v", err)
 	}
 	if _, _, err := zero.Apply(context.Background(), nil); !errors.Is(err, errInvalidSnapshot) {
 		t.Fatalf("zero apply error = %v", err)

@@ -43,6 +43,19 @@ var (
 	// ErrInvalidProof identifies a malformed, incomplete, or unusable proof.
 	ErrInvalidProof = errors.New("invalid Verkle proof")
 
+	// ErrInvalidStore identifies a nil or unusable caller-owned node store.
+	ErrInvalidStore = errors.New("invalid Verkle node store")
+
+	// ErrStoreCapability identifies a store missing a required publication
+	// guarantee.
+	ErrStoreCapability = errors.New("missing Verkle store capability")
+
+	// ErrStorageCommit identifies an atomic node/root publication failure.
+	ErrStorageCommit = errors.New("verkle storage commit failed")
+
+	// ErrStaleRoot identifies a compare-and-swap publication conflict.
+	ErrStaleRoot = errors.New("stale Verkle root")
+
 	// ErrVerification identifies a well-formed proof that did not authenticate
 	// its complete bound claim set.
 	ErrVerification = errors.New("verkle proof verification failed")
@@ -97,6 +110,16 @@ const (
 
 	// ResourceNodeReads counts immutable committed-node reads.
 	ResourceNodeReads
+
+	// ResourceNodeBytes counts one canonical persisted node.
+	ResourceNodeBytes
+
+	// ResourceEncodedNodeBytes counts all canonical persisted nodes in one
+	// atomic commit.
+	ResourceEncodedNodeBytes
+
+	// ResourceNodeHashes counts content-address calculations.
+	ResourceNodeHashes
 
 	// ResourceClaims counts retained membership and absence claims.
 	ResourceClaims

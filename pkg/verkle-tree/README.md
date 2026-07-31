@@ -8,11 +8,12 @@ authenticated key/value trees backed by vector commitments.
 This module is **pre-v1 research only**. Its root package exposes the
 package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
 immutable in-memory snapshots, canonical set/delete transitions, profile-bound
-roots, and bounded aggregate membership and non-membership proofs. The public
-surface is experimental, rebuilds the complete tree for every update, and does
-not provide persistence or stateless witnesses. It is not a production-ready
-tree. Compatibility claims are limited to the exact research corpora described
-below.
+roots, bounded aggregate membership and non-membership proofs, and an atomic
+caller-owned storage write boundary. The public surface is experimental,
+rebuilds the complete tree for every update, and does not yet load persisted
+snapshots or provide recovery, pruning, retention, or stateless witnesses. It
+is not a production-ready tree. Compatibility claims are limited to the exact
+research corpora described below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -162,11 +163,12 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: canonical node, witness, snapshot, and storage
-encodings, stable proof and witness semantics, commitment-level deletion,
-storage publication, and complete dependency-level cancellation are not yet
-frozen. The exported proof container has one package-owned experimental
-encoding, but that format is not a stable interoperability surface.
+The profile remains incomplete: canonical witness and snapshot encodings,
+persisted read and recovery semantics, stable proof and witness semantics,
+commitment-level deletion, and complete dependency-level cancellation are not
+yet frozen. Canonical stored-node bytes and atomic write publication now have
+one package-owned experimental encoding and contract, but neither is a stable
+interoperability surface and no persisted snapshot loader is exposed.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -214,7 +216,7 @@ value, validates complete duplicate-free batches before publication, applies
 set and delete operations in canonical key order, and returns a transition
 bound to the exact pre-state and post-state commitments. Every update currently
 rebuilds the complete committed tree; no incremental commitment-update,
-persistence, public snapshot, proof, or witness claim is made. Snapshots and
+persisted-read, recovery, or witness claim is made. Snapshots and
 transitions now expose an internal canonical 42-byte profile-bound root
 container that represents an empty tree explicitly and rejects mismatched
 profiles before point decoding. The pinned Go/Rust update corpus fixes one exact
@@ -270,6 +272,27 @@ backend blocker. The root package exposes this engine through a fixed-profile
 experimental facade with opaque proofs and typed resource errors. It does not
 establish a stable proof API, witness semantics, storage durability, or
 Ethereum compatibility.
+
+## Experimental storage writes
+
+`Snapshot.Commit` converts the complete immutable tree into canonical
+profile-bound internal and stem nodes. Internal nodes reference children by the
+SHA-256 digest of their complete canonical bytes; this content hash protects
+storage identity and is not the Verkle root commitment. The resulting
+`StoreCommit` contains the expected previous root, new Verkle root, root-node
+content address, and nodes ordered by content address.
+
+A `NodeStore` must explicitly report immutable-node, atomic-commit,
+durable-publication, and compare-and-swap capabilities. The package rejects a
+store missing any guarantee before node encoding or I/O. A nil previous root
+requires that the store have no published root; a non-nil previous root is the
+exact compare-and-swap expectation. The adapter owns the transaction and must
+make every supplied node durable before making the new root observable.
+
+This boundary does not yet load or verify stored nodes, open read snapshots,
+recover interrupted adapter transactions, retain historical roots, or prune
+unreachable nodes. No database, filesystem, or object-storage adapter is part
+of the root module yet.
 
 ## Development rule
 
