@@ -1,4 +1,4 @@
-# Equivalent Kafka replay and inspection captures, 2026-07-31
+# Equivalent Kafka replay, inspection, and resource captures, 2026-07-31
 
 This directory publishes one bounded local comparison run. It is evidence for
 the exact workload and environment below, not a general client ranking.
@@ -30,6 +30,22 @@ segment, and unclean-election configuration. The capture contains 160 samples
 of ten operations, for 1,600 complete inspections and 7,200 normalized
 partition states.
 
+`BenchmarkEquivalentInspectionReconnect` compares one warmed stable inspector
+for each client after the same owned broker is stopped, an inspection fails
+under a two-second context, and the broker restarts at the exact same endpoint.
+The measured boundary contains only the post-restart operation through exact
+recovery of the pre-failure three-partition state. Ten samples per client
+record reconnect latency, allocations, and allocated bytes. The 40 samples
+were checkpointed as eight five-sample shards so an interruption cannot discard
+completed candidates.
+
+`BenchmarkEquivalentInspectionIdleResources` compares one warmed stable
+three-partition inspector over a fixed 500-millisecond interval with no
+application request. Ten samples per client record garbage-collected heap and
+object deltas, goroutine deltas, active and verified closed connections, and
+Go runtime user, GC, and scavenger CPU. Every sample proves shutdown returns
+all observed broker connections to zero. The capture contains 40 idle samples.
+
 The fixture is the immutable Confluent Local 7.5.0 image and reported
 `7.5.0-ccs` at runtime. The host was Darwin arm64 on an Apple M4 Max with Go
 1.26.5 and Docker Desktop engine 29.6.2. Exact module versions, the execution
@@ -43,6 +59,10 @@ Inspection proved exact four-client agreement for three sorted partitions,
 including leader epochs, replicas, ISR, offline replicas, beginning and end
 offsets, `min.insync.replicas`, cleanup policy, and every other configuration
 field included in the timed contract.
+Reconnect correctness proved the same normalized state before and after a real
+broker restart for every client. Idle-resource correctness proved each warmed
+client held broker connections and returned every observed connection to zero;
+the focused race run passed both resource contracts.
 
 These healthy single-node results do not prove replay behavior under retention
 gaps, compaction, truncation, cancellation, or side-effect failure. They do not
@@ -65,6 +85,16 @@ fixtures own those claims.
   inspection samples and the runtime broker assertion.
 - [`inspection-benchstat.txt`](inspection-benchstat.txt) preserves inspection
   latency, partition-count, byte, and allocation distributions.
+- [`environment-resources.txt`](environment-resources.txt) binds reconnect and
+  idle results to their execution revision and complete harness input identity.
+- `raw-resources-reconnect-{policy,franz,kafka-go,sarama}-{01,02}.txt`
+  preserves ten unmodified restart samples per client in durable five-sample
+  checkpoints.
+- [`raw-resources-idle.txt`](raw-resources-idle.txt) preserves all 40
+  unmodified idle-resource samples.
+- [`resources-reconnect-benchstat.txt`](resources-reconnect-benchstat.txt) and
+  [`resources-idle-benchstat.txt`](resources-idle-benchstat.txt) preserve the
+  combined resource distributions.
 
 ## Commands
 
@@ -79,11 +109,28 @@ make analyze INPUT=raw-replay.txt > replay-benchstat.txt
 make environment > environment-inspection.txt
 make capture OUTPUT=raw-inspection.txt BENCH_PATTERN='^BenchmarkEquivalentInspection$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-inspection.txt > inspection-benchstat.txt
+go test -race -tags=integration -run '^TestEquivalentInspection(Reconnect|IdleResource)Outcomes$' -count=1 -timeout=25m ./...
+make environment > environment-resources.txt
+make resource-capture OUTPUT=raw-resources-reconnect-policy-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-policy-02.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-franz-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^raw-franz-go$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-franz-02.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^raw-franz-go$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-kafka-go-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^kafka-go$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-kafka-go-02.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^kafka-go$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-sarama-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^sarama$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-reconnect-sarama-02.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^sarama$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
+make resource-capture OUTPUT=raw-resources-idle.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionIdleResources$$' RESOURCE_COUNT=10 RESOURCE_TIME=1x
+go tool benchstat -col '' raw-resources-reconnect-*.txt > resources-reconnect-benchstat.txt
+go tool benchstat raw-resources-idle.txt > resources-idle-benchstat.txt
 ```
 
 The replay process passed in 368.004 seconds. Every sample reported exactly
 10 or 100 records per operation. The inspection process passed in 29.847
 seconds. Every sample reported exactly one or eight partitions per operation.
+The eight reconnect checkpoint processes passed in 1,175.999 aggregate
+seconds, and every sample recovered all three normalized partitions. The idle
+capture passed in 35.859 seconds, and every sample proved that all connections
+active at the measured point returned to zero.
 
 ## Interpretation
 
@@ -99,6 +146,25 @@ Inspection medians ranged from 3.472 to 5.330 milliseconds for the policy,
 kafka-go, and 4.960 to 6.383 milliseconds for Sarama. One policy distribution
 spans 170 percent on the shared local fixture.
 
+Reconnect medians were 19.66 seconds for the policy, 19.53 seconds for raw
+franz-go, 19.27 seconds for kafka-go, and 19.42 seconds for Sarama, with
+12-to-16-percent distributions. Median reconnect allocations were 10.87k for
+the policy, 11.33k for raw franz-go, 39.06k for kafka-go, and 16.59k for
+Sarama. Median allocated bytes were 593.0 KiB, 606.2 KiB, 4.292 MiB, and
+6.076 MiB respectively. These values include each client's retry/backoff and
+four complete inspection protocol operations after broker readiness; broker
+downtime and Docker lifecycle work are excluded.
+
+The idle point-in-time medians were two active and verified closed
+connections, three goroutines, 30.03 KiB, and 167.5 heap objects for the
+policy; two connections, three goroutines, 29.20 KiB, and 152 objects for raw
+franz-go; four connections, five goroutines, 164.6 KiB, and 140 objects for
+kafka-go; and one connection, three goroutines, 154.6 KiB, and 258.5 objects
+for Sarama. The direct Go runtime user, GC, and scavenger counters reported
+zero CPU nanoseconds per second for every 500-millisecond sample, which means
+those classes accumulated no observable CPU at the metric's resolution; it is
+not a claim of physically zero process, system, or kernel CPU.
+
 These distributions describe the exact noisy local environment. They are not
 stable budgets and do not establish client superiority. The policy path's
 validation, sorting, and defensive copies are part of its public contract.
@@ -112,4 +178,16 @@ validation, sorting, and defensive copies are part of its public contract.
 03b07fff85a9bf377c52a348866515c9e09339ac10da3718c06eb1c8418ffcb6  raw-inspection.txt
 f642451b6deefc063b619e361d9dd76b5ea96f416163ff5b29617d9ddfc03003  raw-replay.txt
 0f94670dbba3d0ada39e01e2b44d6684b0fb5ba5b113773d8832ddba9748130c  replay-benchstat.txt
+70416879767ca17391118f82b445b640d338b6d10b025b7d1a1e8a29329b6905  environment-resources.txt
+6c37a943131f6521337381220cb698338414f99b9311267c9ae662f92221007f  raw-resources-idle.txt
+99474d469dcbf4430db93ed825c21bd1590459d49791394df67cc9f6d875ae00  raw-resources-reconnect-franz-01.txt
+a88f44e19621073ba66a8229558782ed1f9648b9e43257f8959a87b95ab30d84  raw-resources-reconnect-franz-02.txt
+351fdfa66831489d7a56f900e75cfb8a5e33867dd2826a07a0bfe85ce3466753  raw-resources-reconnect-kafka-go-01.txt
+3569e9f28e03bdff18090b3f413bb7946c9000e195bac56e971eb4ecc07b63da  raw-resources-reconnect-kafka-go-02.txt
+db837d578cc6585cf2a3bde4b8001d8d9e7f770cb814898d52dd64e48d7b6d1a  raw-resources-reconnect-policy-01.txt
+e6cb81e3faf8106b8ec60f5a9f9e89ae9715232bec735f768e23c8c7e0da1042  raw-resources-reconnect-policy-02.txt
+a8506bae84224b3ddfa5a5da48fe660e5e6fbb327564f20ab40e28974fd0107f  raw-resources-reconnect-sarama-01.txt
+08a2c4109e244741dff19a6ddac55fdf0faba582e5acd343ae7fe880891c95f1  raw-resources-reconnect-sarama-02.txt
+85698cba80260432dd358ffa915da2d195a5819b2fecc77a0ed1dff6303d36d8  resources-idle-benchstat.txt
+ff9e4f80c29f594eca3cca8efd35e4774f0f7b092662e3b072f087918fdc1124  resources-reconnect-benchstat.txt
 ```

@@ -1,0 +1,31 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                              │   sec/op    │
+EquivalentInspectionReconnect/raw-franz-go-16   19.53 ± 12%
+EquivalentInspectionReconnect/kafka-go-16       19.27 ± 14%
+EquivalentInspectionReconnect/golib-policy-16   19.66 ± 16%
+EquivalentInspectionReconnect/sarama-16         19.42 ± 12%
+geomean                                         19.47
+
+                                              │ partitions/op │
+EquivalentInspectionReconnect/raw-franz-go-16      3.000 ± 0%
+EquivalentInspectionReconnect/kafka-go-16          3.000 ± 0%
+EquivalentInspectionReconnect/golib-policy-16      3.000 ± 0%
+EquivalentInspectionReconnect/sarama-16            3.000 ± 0%
+geomean                                            3.000
+
+                                              │ reconnect-allocs/op │
+EquivalentInspectionReconnect/raw-franz-go-16          11.33k ±  9%
+EquivalentInspectionReconnect/kafka-go-16              39.06k ± 15%
+EquivalentInspectionReconnect/golib-policy-16          10.87k ± 14%
+EquivalentInspectionReconnect/sarama-16                16.59k ± 12%
+geomean                                                16.81k
+
+                                              │ reconnect-bytes/op │
+EquivalentInspectionReconnect/raw-franz-go-16        606.2Ki ±  8%
+EquivalentInspectionReconnect/kafka-go-16            4.292Mi ± 14%
+EquivalentInspectionReconnect/golib-policy-16        593.0Ki ± 14%
+EquivalentInspectionReconnect/sarama-16              6.076Mi ± 12%
+geomean                                              1.729Mi

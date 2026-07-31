@@ -134,13 +134,25 @@ eight-partition matrix contains 160 samples, 1,600 complete inspections, and
 7,200 normalized partition states. Independent checks prove exact four-client
 agreement for a three-partition topic.
 
+A restart workload uses the same four stable inspectors against a dedicated
+fixed-endpoint broker. Each sample proves a complete inspection fails under a
+two-second context while the broker is stopped, restarts the broker without
+changing its endpoint, then measures the post-readiness operation until the
+client recovers the exact pre-failure three-partition state. Ten samples per
+client report latency, allocation count, and allocated bytes. A separate
+500-millisecond no-request workload reports ten garbage-collected point samples
+per client for retained heap, heap objects, goroutines, active and verified
+closed connections, and Go runtime user, GC, and scavenger CPU; every sample
+proves shutdown returns all observed connections to zero.
+
 ## Environment and interpretation
 
 The 2026-07-30 producer, consumer, and transaction capture and the 2026-07-31
-replay and inspection capture used Go 1.26.5 on Darwin arm64 with an Apple M4
-Max, Docker Desktop engine 29.6.2, and the immutable Confluent Local 7.5.0
-fixture. The running broker reported `7.5.0-ccs`. Exact module versions, input
-hashes, raw samples, and benchstat distributions are stored with the
+replay, inspection, reconnect, and resource captures used Go 1.26.5 on Darwin
+arm64 with an Apple M4 Max, Docker Desktop engine 29.6.2, and the immutable
+Confluent Local 7.5.0 fixture. The running broker reported `7.5.0-ccs`. Exact
+module versions, input hashes, raw samples, and benchstat distributions are
+stored with the
 [2026-07-30 capture](performance-results/2026-07-30/README.md) and
 [2026-07-31 capture](performance-results/2026-07-31/README.md).
 
@@ -205,6 +217,24 @@ policy distribution spans 170 percent. These shared-fixture results remain
 descriptive evidence rather than stable production budgets or superiority
 claims.
 
+Post-restart inspection medians were 19.66 seconds for the policy path, 19.53
+seconds for raw franz-go, 19.27 seconds for kafka-go, and 19.42 seconds for
+Sarama. Median reconnect allocations were 10.87k, 11.33k, 39.06k, and 16.59k
+respectively; median allocated bytes were 593.0 KiB, 606.2 KiB, 4.292 MiB, and
+6.076 MiB. The distributions span 12 to 16 percent. Broker downtime, the
+deliberate failed request, and Docker lifecycle work are outside these values;
+client retry/backoff, connection initialization, four protocol operations, and
+normalized state recovery are inside them.
+
+Idle point samples reported two active and verified closed connections, three
+goroutines, 30.03 KiB, and 167.5 heap objects for the policy; two connections,
+three goroutines, 29.20 KiB, and 152 objects for raw franz-go; four
+connections, five goroutines, 164.6 KiB, and 140 objects for kafka-go; and one
+connection, three goroutines, 154.6 KiB, and 258.5 objects for Sarama. Direct
+Go runtime user, GC, and scavenger counters reported no observable CPU in
+these intervals. These process-level observations remain descriptive rather
+than production budgets.
+
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
@@ -217,7 +247,6 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 Release evidence still requires equivalent and reproducible captures for:
 
 - rebalance cost under multi-member consumer-group changes;
-- reconnect allocations plus idle CPU, memory, goroutines, and connections;
 - TLS and other deployment-representative transport costs; and
 - a previous released package version after one exists.
 

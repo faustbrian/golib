@@ -1,0 +1,12 @@
+benchmark-broker-runtime=Confluent Local 7.5.0-ccs
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+BenchmarkEquivalentInspectionReconnect/golib-policy-16         	       1	17721575167 ns/op	         3.000 partitions/op	      9698 reconnect-allocs/op	    542384 reconnect-bytes/op
+BenchmarkEquivalentInspectionReconnect/golib-policy-16         	       1	19076072375 ns/op	         3.000 partitions/op	     10546 reconnect-allocs/op	    593672 reconnect-bytes/op
+BenchmarkEquivalentInspectionReconnect/golib-policy-16         	       1	19766601000 ns/op	         3.000 partitions/op	     11106 reconnect-allocs/op	    620792 reconnect-bytes/op
+BenchmarkEquivalentInspectionReconnect/golib-policy-16         	       1	21322714584 ns/op	         3.000 partitions/op	     11552 reconnect-allocs/op	    643072 reconnect-bytes/op
+BenchmarkEquivalentInspectionReconnect/golib-policy-16         	       1	22782217750 ns/op	         3.000 partitions/op	     12386 reconnect-allocs/op	    690512 reconnect-bytes/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/kafka/benchmarks/clients	151.857s

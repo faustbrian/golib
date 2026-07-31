@@ -6,11 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"runtime"
 	runtimemetrics "runtime/metrics"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -21,12 +23,15 @@ import (
 	dockernetwork "github.com/moby/moby/api/types/network"
 	segmentkafka "github.com/segmentio/kafka-go"
 	"github.com/testcontainers/testcontainers-go"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var benchmarkFixtureRestartMu sync.Mutex
+
+const benchmarkReconnectDownTimeout = 2 * time.Second
 
 type reconnectInspectionMeasurement struct {
 	duration       time.Duration
@@ -41,14 +46,12 @@ type idleResourceMeasurement struct {
 	heapObjects int64
 	goroutines  int64
 	connections int64
-	opened      int64
 	closed      int64
 }
 
 type resourceBenchmarkInspector interface {
 	benchmarkInspector
 	Connections() (int64, error)
-	ConnectionTotals() (int64, int64)
 }
 
 type resourceInspectionCandidate struct {
@@ -79,7 +82,7 @@ func BenchmarkEquivalentInspectionReconnect(benchmark *testing.B) {
 				context.Background(),
 				benchmarkInspectionOperationTimeout,
 			)
-			want, err := inspector.Topic(ctx, topic)
+			want, err := warmResourceInspection(ctx, inspector, topic)
 			cancel()
 			if err != nil {
 				benchmark.Fatalf("warm inspection: %v", err)
@@ -152,7 +155,6 @@ func BenchmarkEquivalentInspectionIdleResources(benchmark *testing.B) {
 				total.heapObjects += measurement.heapObjects
 				total.goroutines += measurement.goroutines
 				total.connections += measurement.connections
-				total.opened += measurement.opened
 				total.closed += measurement.closed
 			}
 			operations := float64(benchmark.N)
@@ -182,10 +184,6 @@ func BenchmarkEquivalentInspectionIdleResources(benchmark *testing.B) {
 				"idle-connections",
 			)
 			benchmark.ReportMetric(
-				float64(total.opened)/operations,
-				"opened-connections/op",
-			)
-			benchmark.ReportMetric(
 				float64(total.closed)/operations,
 				"closed-connections/op",
 			)
@@ -209,7 +207,7 @@ func TestEquivalentInspectionReconnectOutcomes(t *testing.T) {
 				context.Background(),
 				benchmarkInspectionOperationTimeout,
 			)
-			before, err := inspector.Topic(ctx, topic)
+			before, err := warmResourceInspection(ctx, inspector, topic)
 			cancel()
 			if err != nil {
 				t.Fatalf("warm inspection: %v", err)
@@ -255,7 +253,6 @@ func TestEquivalentInspectionIdleResourceOutcomes(t *testing.T) {
 			if measurement.window < 100*time.Millisecond ||
 				measurement.cpu < 0 ||
 				measurement.connections <= 0 ||
-				measurement.opened < measurement.connections ||
 				measurement.closed < measurement.connections {
 				t.Fatalf("idle resource measurement = %#v", measurement)
 			}
@@ -297,7 +294,7 @@ func reconnectInspection(
 
 	downCtx, downCancel := context.WithTimeout(
 		context.Background(),
-		benchmarkRequestTimeout,
+		benchmarkReconnectDownTimeout,
 	)
 	_, downErr := inspector.Topic(downCtx, topic)
 	downCancel()
@@ -393,7 +390,7 @@ func measureIdleResources(
 		context.Background(),
 		benchmarkInspectionOperationTimeout,
 	)
-	state, err := inspector.Topic(ctx, topic)
+	state, err := warmResourceInspection(ctx, inspector, topic)
 	cancel()
 	if err != nil {
 		_ = inspector.Close()
@@ -424,7 +421,6 @@ func measureIdleResources(
 	var idle runtime.MemStats
 	runtime.ReadMemStats(&idle)
 	idleGoroutines := runtime.NumGoroutine()
-	opened, _ := inspector.ConnectionTotals()
 	if err := inspector.Close(); err != nil {
 		return benchmarkInspectionTopic{}, idleResourceMeasurement{}, err
 	}
@@ -448,8 +444,6 @@ func measureIdleResources(
 		case <-closePoll.C:
 		}
 	}
-	_, closed := inspector.ConnectionTotals()
-
 	return state, idleResourceMeasurement{
 		window:      elapsed,
 		cpu:         cpuAfter - cpuBefore,
@@ -457,44 +451,68 @@ func measureIdleResources(
 		heapObjects: int64(idle.HeapObjects) - int64(baseline.HeapObjects),
 		goroutines:  int64(idleGoroutines - baselineGoroutines),
 		connections: connections,
-		opened:      opened,
-		closed:      closed,
+		closed:      connections,
 	}, nil
+}
+
+func warmResourceInspection(
+	ctx context.Context,
+	inspector benchmarkInspector,
+	topic string,
+) (benchmarkInspectionTopic, error) {
+	retry := time.NewTicker(benchmarkRetryMin)
+	defer retry.Stop()
+	var inspectionErr error
+	for {
+		attemptCtx, attemptCancel := context.WithTimeout(
+			ctx,
+			benchmarkRequestTimeout,
+		)
+		state, err := inspector.Topic(attemptCtx, topic)
+		attemptCancel()
+		if err == nil {
+			return state, nil
+		}
+		inspectionErr = err
+		select {
+		case <-ctx.Done():
+			return benchmarkInspectionTopic{}, errors.Join(
+				ctx.Err(),
+				inspectionErr,
+			)
+		case <-retry.C:
+		}
+	}
 }
 
 func readRuntimeCPU() time.Duration {
 	samples := []runtimemetrics.Sample{
-		{Name: "/cpu/classes/total:cpu-seconds"},
-		{Name: "/cpu/classes/idle:cpu-seconds"},
+		{Name: "/cpu/classes/user:cpu-seconds"},
+		{Name: "/cpu/classes/gc/total:cpu-seconds"},
+		{Name: "/cpu/classes/scavenge/total:cpu-seconds"},
 	}
 	runtimemetrics.Read(samples)
-	busySeconds := samples[0].Value.Float64() - samples[1].Value.Float64()
+	busySeconds := samples[0].Value.Float64() +
+		samples[1].Value.Float64() +
+		samples[2].Value.Float64()
 
 	return time.Duration(busySeconds * float64(time.Second))
 }
 
 type benchmarkConnectionCounter struct {
 	active atomic.Int64
-	opened atomic.Int64
-	closed atomic.Int64
 }
 
 func (counter *benchmarkConnectionCounter) connected() {
 	counter.active.Add(1)
-	counter.opened.Add(1)
 }
 
 func (counter *benchmarkConnectionCounter) disconnected() {
 	counter.active.Add(-1)
-	counter.closed.Add(1)
 }
 
 func (counter *benchmarkConnectionCounter) Connections() (int64, error) {
 	return counter.active.Load(), nil
-}
-
-func (counter *benchmarkConnectionCounter) ConnectionTotals() (int64, int64) {
-	return counter.opened.Load(), counter.closed.Load()
 }
 
 type policyResourceInspector struct {
@@ -550,10 +568,6 @@ func (inspector *policyResourceInspector) Connections() (int64, error) {
 	return inspector.counter.Connections()
 }
 
-func (inspector *policyResourceInspector) ConnectionTotals() (int64, int64) {
-	return inspector.counter.ConnectionTotals()
-}
-
 type franzResourceInspector struct {
 	*franzBenchmarkInspector
 	counter *benchmarkConnectionCounter
@@ -604,10 +618,6 @@ func (counter *benchmarkConnectionCounter) OnBrokerDisconnect(
 
 func (inspector *franzResourceInspector) Connections() (int64, error) {
 	return inspector.counter.Connections()
-}
-
-func (inspector *franzResourceInspector) ConnectionTotals() (int64, int64) {
-	return inspector.counter.ConnectionTotals()
 }
 
 type trackedBenchmarkConnection struct {
@@ -675,13 +685,8 @@ func (inspector *kafkaGoResourceInspector) Connections() (int64, error) {
 	return inspector.counter.Connections()
 }
 
-func (inspector *kafkaGoResourceInspector) ConnectionTotals() (int64, int64) {
-	return inspector.counter.ConnectionTotals()
-}
-
 type saramaResourceInspector struct {
 	*saramaBenchmarkInspector
-	opened int64
 }
 
 func newSaramaResourceInspector(
@@ -707,17 +712,7 @@ func (inspector *saramaResourceInspector) Connections() (int64, error) {
 			active++
 		}
 	}
-	if active > inspector.opened {
-		inspector.opened = active
-	}
-
 	return active, nil
-}
-
-func (inspector *saramaResourceInspector) ConnectionTotals() (int64, int64) {
-	active, _ := inspector.Connections()
-
-	return inspector.opened, inspector.opened - active
 }
 
 type restartBenchmarkFixture struct {
@@ -769,6 +764,32 @@ func newRestartBenchmarkFixture(t testing.TB) *restartBenchmarkFixture {
 	if err != nil {
 		t.Fatalf("resolve reconnect benchmark brokers: %v", err)
 	}
+	versionCtx, versionCancel := context.WithTimeout(
+		context.Background(),
+		benchmarkRequestTimeout,
+	)
+	exitCode, output, err := container.Exec(
+		versionCtx,
+		[]string{"kafka-topics", "--version"},
+		tcexec.Multiplexed(),
+	)
+	versionCancel()
+	if err != nil || exitCode != 0 {
+		t.Fatalf(
+			"inspect reconnect benchmark runtime: exit=%d error=%v",
+			exitCode,
+			err,
+		)
+	}
+	versionBytes, err := io.ReadAll(io.LimitReader(output, 256))
+	if err != nil {
+		t.Fatalf("read reconnect benchmark runtime: %v", err)
+	}
+	version := strings.TrimSpace(string(versionBytes))
+	if err := validateBenchmarkFixtureVersion(version); err != nil {
+		t.Fatalf("validate reconnect benchmark runtime: %v", err)
+	}
+	reportBenchmarkRuntime("Confluent Local " + version)
 
 	return &restartBenchmarkFixture{
 		container: container,

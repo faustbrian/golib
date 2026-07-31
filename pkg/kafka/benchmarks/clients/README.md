@@ -266,7 +266,8 @@ and end offsets, `min.insync.replicas=1`, and delete cleanup policy.
 franz-go, kafka-go, and Sarama inspector after the same owned single-node
 broker has become unreachable and restarted at the same endpoint. Before each
 sample, the harness proves that the warmed client fails a complete inspection
-while the broker is down. The timed and allocation-counted boundary starts
+under a two-second context while the broker is down. The timed and
+allocation-counted boundary starts
 after the broker is ready again and ends only after the same client returns the
 exact pre-failure three-partition metadata, offset, and durability state.
 Docker control, broker shutdown and startup, the deliberate failed request,
@@ -286,14 +287,14 @@ outside the measured process boundary.
 `BenchmarkEquivalentInspectionIdleResources` constructs and warms one
 three-partition inspector, then observes a fixed 500-millisecond interval with
 no application requests. It reports the retained heap bytes and objects,
-goroutine delta, active connections, total opened and closed connections, and
-Go runtime busy CPU nanoseconds normalized to one wall-clock second. Heap and
-goroutine values are process-level deltas from a garbage-collected baseline;
-they can include shared runtime noise and are descriptive rather than hard
-budgets. Connection counts are obtained from stable policy observations,
-franz-go hooks, kafka-go's public dial seam, or Sarama's public broker state.
-Every sample closes its inspector and proves all observed broker connections
-return to zero.
+goroutine delta, active connections, verified closed connections, and Go
+runtime user, GC, and scavenger CPU nanoseconds normalized to one wall-clock
+second. Heap and goroutine values are process-level deltas from a
+garbage-collected baseline; they can include shared runtime noise and are
+descriptive rather than hard budgets. Active connection counts are obtained
+from stable policy observations, franz-go hooks, kafka-go's public dial seam,
+or Sarama's public broker state. Every sample closes its inspector and proves
+the same number of observed active broker connections return to zero.
 
 `TestEquivalentInspectionReconnectOutcomes` independently proves exact state
 before and after a real broker restart for all four clients.

@@ -1,0 +1,60 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                                  │ raw-resources-idle.txt │
+                                                  │         sec/op         │
+EquivalentInspectionIdleResources/golib-policy-16              501.8m ± 0%
+EquivalentInspectionIdleResources/raw-franz-go-16              501.0m ± 0%
+EquivalentInspectionIdleResources/kafka-go-16                  501.5m ± 0%
+EquivalentInspectionIdleResources/sarama-16                    501.6m ± 0%
+geomean                                                        501.5m
+
+                                                  │ raw-resources-idle.txt │
+                                                  │ closed-connections/op  │
+EquivalentInspectionIdleResources/golib-policy-16               2.000 ± 0%
+EquivalentInspectionIdleResources/raw-franz-go-16               2.000 ± 0%
+EquivalentInspectionIdleResources/kafka-go-16                   4.000 ± 0%
+EquivalentInspectionIdleResources/sarama-16                     1.000 ± 0%
+geomean                                                         2.000
+
+                                                  │ raw-resources-idle.txt │
+                                                  │    idle-connections    │
+EquivalentInspectionIdleResources/golib-policy-16               2.000 ± 0%
+EquivalentInspectionIdleResources/raw-franz-go-16               2.000 ± 0%
+EquivalentInspectionIdleResources/kafka-go-16                   4.000 ± 0%
+EquivalentInspectionIdleResources/sarama-16                     1.000 ± 0%
+geomean                                                         2.000
+
+                                                  │ raw-resources-idle.txt │
+                                                  │     idle-cpu-ns/s      │
+EquivalentInspectionIdleResources/golib-policy-16             0.000 ± 0%
+EquivalentInspectionIdleResources/raw-franz-go-16             0.000 ± 0%
+EquivalentInspectionIdleResources/kafka-go-16                 0.000 ± 0%
+EquivalentInspectionIdleResources/sarama-16                   0.000 ± 0%
+geomean                                                                  ¹
+¹ summaries must be >0 to compute geomean
+
+                                                  │ raw-resources-idle.txt │
+                                                  │    idle-goroutines     │
+EquivalentInspectionIdleResources/golib-policy-16               3.000 ± 0%
+EquivalentInspectionIdleResources/raw-franz-go-16               3.000 ± 0%
+EquivalentInspectionIdleResources/kafka-go-16                   5.000 ± 0%
+EquivalentInspectionIdleResources/sarama-16                     3.000 ± 0%
+geomean                                                         3.409
+
+                                                  │ raw-resources-idle.txt │
+                                                  │    idle-heap-bytes     │
+EquivalentInspectionIdleResources/golib-policy-16            30.03Ki ±  7%
+EquivalentInspectionIdleResources/raw-franz-go-16            29.20Ki ±  3%
+EquivalentInspectionIdleResources/kafka-go-16                164.6Ki ± 39%
+EquivalentInspectionIdleResources/sarama-16                  154.6Ki ±  1%
+geomean                                                      68.72Ki
+
+                                                  │ raw-resources-idle.txt │
+                                                  │   idle-heap-objects    │
+EquivalentInspectionIdleResources/golib-policy-16               167.5 ± 4%
+EquivalentInspectionIdleResources/raw-franz-go-16               152.0 ± 3%
+EquivalentInspectionIdleResources/kafka-go-16                   140.0 ± 5%
+EquivalentInspectionIdleResources/sarama-16                     258.5 ± 4%
+geomean                                                         174.2
