@@ -1,0 +1,59 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                                      │ raw-tls.txt  │
+                                                      │    sec/op    │
+EquivalentTLSSynchronousProduce/128B/golib-policy-16    458.9µ ± 42%
+EquivalentTLSSynchronousProduce/128B/raw-franz-go-16    328.0µ ± 59%
+EquivalentTLSSynchronousProduce/128B/sarama-16          7.051m ±  5%
+EquivalentTLSSynchronousProduce/1024B/golib-policy-16   289.5µ ±  7%
+EquivalentTLSSynchronousProduce/1024B/raw-franz-go-16   290.0µ ± 99%
+EquivalentTLSSynchronousProduce/1024B/sarama-16         6.852m ±  4%
+EquivalentTLSConnectProduceClose/golib-policy-16        16.38m ±  2%
+EquivalentTLSConnectProduceClose/raw-franz-go-16        16.08m ±  2%
+EquivalentTLSConnectProduceClose/sarama-16              13.41m ±  1%
+geomean                                                 2.346m
+
+                                                      │  raw-tls.txt  │
+                                                      │      B/s      │
+EquivalentTLSSynchronousProduce/128B/golib-policy-16    273.4Ki ± 29%
+EquivalentTLSSynchronousProduce/128B/raw-franz-go-16    380.9Ki ± 36%
+EquivalentTLSSynchronousProduce/128B/sarama-16          19.53Ki ±  0%
+EquivalentTLSSynchronousProduce/1024B/golib-policy-16   3.371Mi ±  6%
+EquivalentTLSSynchronousProduce/1024B/raw-franz-go-16   3.366Mi ± 50%
+EquivalentTLSSynchronousProduce/1024B/sarama-16         146.5Ki ±  7%
+geomean                                                 390.5Ki
+
+                                                      │ raw-tls.txt  │
+                                                      │     B/op     │
+EquivalentTLSSynchronousProduce/128B/golib-policy-16    5.057Ki ± 0%
+EquivalentTLSSynchronousProduce/128B/raw-franz-go-16    4.244Ki ± 0%
+EquivalentTLSSynchronousProduce/128B/sarama-16          5.940Ki ± 0%
+EquivalentTLSSynchronousProduce/1024B/golib-policy-16   5.973Ki ± 0%
+EquivalentTLSSynchronousProduce/1024B/raw-franz-go-16   4.271Ki ± 1%
+EquivalentTLSSynchronousProduce/1024B/sarama-16         7.849Ki ± 0%
+EquivalentTLSConnectProduceClose/golib-policy-16        383.9Ki ± 0%
+EquivalentTLSConnectProduceClose/raw-franz-go-16        378.3Ki ± 0%
+EquivalentTLSConnectProduceClose/sarama-16              673.1Ki ± 1%
+geomean                                                 23.85Ki
+
+                                                      │ raw-tls.txt │
+                                                      │  allocs/op  │
+EquivalentTLSSynchronousProduce/128B/golib-policy-16     71.00 ± 0%
+EquivalentTLSSynchronousProduce/128B/raw-franz-go-16     60.00 ± 0%
+EquivalentTLSSynchronousProduce/128B/sarama-16           96.00 ± 0%
+EquivalentTLSSynchronousProduce/1024B/golib-policy-16    71.00 ± 0%
+EquivalentTLSSynchronousProduce/1024B/raw-franz-go-16    60.00 ± 0%
+EquivalentTLSSynchronousProduce/1024B/sarama-16          96.00 ± 0%
+EquivalentTLSConnectProduceClose/golib-policy-16        2.574k ± 0%
+EquivalentTLSConnectProduceClose/raw-franz-go-16        2.515k ± 0%
+EquivalentTLSConnectProduceClose/sarama-16              4.030k ± 2%
+geomean                                                  253.8
+
+                                                 │  raw-tls.txt   │
+                                                 │ connections/op │
+EquivalentTLSConnectProduceClose/golib-policy-16       1.000 ± 0%
+EquivalentTLSConnectProduceClose/raw-franz-go-16       1.000 ± 0%
+EquivalentTLSConnectProduceClose/sarama-16             1.000 ± 0%
+geomean                                                1.000

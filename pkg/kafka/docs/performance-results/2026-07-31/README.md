@@ -1,4 +1,4 @@
-# Equivalent Kafka replay, inspection, rebalance, and resource captures, 2026-07-31
+# Equivalent Kafka replay, inspection, rebalance, TLS, and resource captures, 2026-07-31
 
 This directory publishes one bounded local comparison run. It is evidence for
 the exact workload and environment below, not a general client ranking.
@@ -40,6 +40,15 @@ again. Ten samples per client report the join-through-commit-and-stability
 boundary, the close-through-stability boundary, and their total. Kafka-go is
 excluded because v0.4.51 does not expose cooperative-sticky assignment.
 
+`BenchmarkEquivalentTLSSynchronousProduce` compares the package policy, raw
+franz-go, and Sarama with verified TLS 1.3, idempotent all-ISR production,
+Murmur2-keyed records, no compression, and one partition. Ten samples of 100
+operations cover both 128-byte and 1 KiB payloads. A separate
+`BenchmarkEquivalentTLSConnectProduceClose` capture measures ten samples of 100
+complete client construction, verified connection, 128-byte delivery, and
+bounded shutdown lifecycles per client. Kafka-go is excluded because it cannot
+match the idempotent producer contract.
+
 `BenchmarkEquivalentInspectionReconnect` compares one warmed stable inspector
 for each client after the same owned broker is stopped, an inspection fails
 under a two-second context, and the broker restarts at the exact same endpoint.
@@ -56,14 +65,17 @@ object deltas, goroutine deltas, active and verified closed connections, and
 Go runtime user, GC, and scavenger CPU. Every sample proves shutdown returns
 all observed broker connections to zero. The capture contains 40 idle samples.
 
-The fixture is the immutable Confluent Local 7.5.0 image and reported
-`7.5.0-ccs` at runtime. The host was Darwin arm64 on an Apple M4 Max with Go
-1.26.5 and Docker Desktop engine 29.6.2. Exact module versions, the execution
-revision, and every harness input hash are recorded in the environment files.
+The general fixture is the immutable Confluent Local 7.5.0 image and reported
+`7.5.0-ccs` at runtime. TLS uses the separately pinned Apache Kafka 4.3.1 image,
+whose broker and OpenSSL 3.5.7 versions were asserted at runtime. The host was
+Darwin arm64 on an Apple M4 Max with Go 1.26.5 and Docker Desktop engine
+29.6.2. Exact module versions, the execution revision, and every harness input
+hash are recorded in the environment files.
 
 ## Correctness boundary
 
-Before capture, a race-enabled real-broker check passed for both workloads.
+Before capture, race-enabled real-broker checks passed for the applicable
+workloads.
 Replay independently proved exact offsets, keys, and values for `[1,3)`.
 Inspection proved exact four-client agreement for three sorted partitions,
 including leader epochs, replicas, ISR, offline replicas, beginning and end
@@ -77,6 +89,10 @@ Rebalance correctness independently proved the initial one-member
 two-partition assignment, the stable two-member one-partition-each assignment,
 exact handling through the joining member, and restoration after it left. Its
 focused race run passed before capture.
+TLS correctness proved the broker accepted only TLS 1.3, then independently
+read every exact key and value delivered by all three producers through a
+separate verified TLS client. Its focused race run and the complete nested
+client-harness correctness suite passed before capture.
 
 These healthy single-node results do not prove replay behavior under retention
 gaps, compaction, truncation, cancellation, or side-effect failure. They do not
@@ -106,6 +122,12 @@ fixtures own those claims.
   rebalance samples and the runtime broker assertion.
 - [`rebalance-benchstat.txt`](rebalance-benchstat.txt) preserves join, leave,
   total, and partition-count distributions.
+- [`environment-tls.txt`](environment-tls.txt) binds the TLS results to the
+  exact execution revision, pinned Apache image, and complete harness inputs.
+- [`raw-tls.txt`](raw-tls.txt) contains all 90 unmodified TLS samples and the
+  exact Kafka, OpenSSL, and TLS runtime assertion.
+- [`tls-benchstat.txt`](tls-benchstat.txt) preserves persistent delivery and
+  connection-lifecycle latency, throughput, allocation, and byte distributions.
 - [`environment-resources.txt`](environment-resources.txt) binds reconnect and
   idle results to their execution revision and complete harness input identity.
 - `raw-resources-reconnect-{policy,franz,kafka-go,sarama}-{01,02}.txt`
@@ -134,6 +156,10 @@ go test -race -tags=integration -run '^TestEquivalentConsumerRebalanceOutcomes$'
 make environment > environment-rebalance.txt
 make rebalance-capture OUTPUT=raw-rebalance.txt REBALANCE_PATTERN='^BenchmarkEquivalentConsumerRebalance$$' REBALANCE_COUNT=10 REBALANCE_TIME=1x
 go tool benchstat raw-rebalance.txt > rebalance-benchstat.txt
+go test -race -tags=integration -run '^TestEquivalentTLSProducerOutcomes$' -count=1 -timeout=5m ./...
+make environment > environment-tls.txt
+make tls-capture OUTPUT=raw-tls.txt TLS_COUNT=10 TLS_TIME=100x
+go tool benchstat raw-tls.txt > tls-benchstat.txt
 go test -race -tags=integration -run '^TestEquivalentInspection(Reconnect|IdleResource)Outcomes$' -count=1 -timeout=25m ./...
 make environment > environment-resources.txt
 make resource-capture OUTPUT=raw-resources-reconnect-policy-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
@@ -154,6 +180,9 @@ The replay process passed in 368.004 seconds. Every sample reported exactly
 seconds. Every sample reported exactly one or eight partitions per operation.
 The rebalance process passed in 76.446 seconds. All 30 samples reported two
 partitions and completed both exact stable-assignment boundaries.
+The TLS process passed in 75.364 seconds. Its 90 samples cover 6,000 persistent
+deliveries and 3,000 complete connection-delivery-shutdown lifecycles; every
+lifecycle reported exactly one connection per operation.
 The eight reconnect checkpoint processes passed in 1,175.999 aggregate
 seconds, and every sample recovered all three normalized partitions. The idle
 capture passed in 35.859 seconds, and every sample proved that all connections
@@ -181,6 +210,15 @@ milliseconds, 507.7 milliseconds, and 1.053 seconds. Bounded broker group
 inspection is included because it establishes the exact stable boundary;
 topic creation, input production, first-member setup, and final shutdown are
 excluded.
+
+Persistent verified-TLS medians for 128-byte records were 458.9 microseconds
+for the policy path, 328.0 microseconds for raw franz-go, and 7.051 milliseconds
+for Sarama. The corresponding 1 KiB medians were 289.5 microseconds, 290.0
+microseconds, and 6.852 milliseconds. Complete construction, verified TLS
+connection, 128-byte delivery, and shutdown medians were 16.38 milliseconds,
+16.08 milliseconds, and 13.41 milliseconds. Persistent latency distributions
+spread as far as 99 percent on the shared local host, so these values are
+descriptive rather than comparative performance claims.
 
 Reconnect medians were 19.66 seconds for the policy, 19.53 seconds for raw
 franz-go, 19.27 seconds for kafka-go, and 19.42 seconds for Sarama, with
@@ -211,12 +249,15 @@ validation, sorting, and defensive copies are part of its public contract.
 6f6e278629292842b85890b7b86c210691414752bb399bf5023c34be48fe5758  environment-inspection.txt
 c8529c02f7827bb86c08be6b5ef0203c2d1716000fcd504d915b870c8ea3cef4  environment-rebalance.txt
 6f6e278629292842b85890b7b86c210691414752bb399bf5023c34be48fe5758  environment-replay.txt
+62d11f60ae6e23b547d4b3afe102c13e2006936e1bef196dfbc30d209c393932  environment-tls.txt
 8cbb9ada06dfb8033b5a0d688e4207a786c4a96cf9f017019941e07fefde512d  inspection-benchstat.txt
 03b07fff85a9bf377c52a348866515c9e09339ac10da3718c06eb1c8418ffcb6  raw-inspection.txt
 9ff2e47d6783c350add4e033c05930509ac427bd81509f63b41c1731d87b627a  raw-rebalance.txt
 f642451b6deefc063b619e361d9dd76b5ea96f416163ff5b29617d9ddfc03003  raw-replay.txt
+dd37f3bdcc56630cedcf608ff1bb09d19d43321e6ff7f7b753176dcb567a3f1c  raw-tls.txt
 2988afa954690f55e744d0ee32737dd42b9b42d04eebcedee4c78f2a3ce44eed  rebalance-benchstat.txt
 0f94670dbba3d0ada39e01e2b44d6684b0fb5ba5b113773d8832ddba9748130c  replay-benchstat.txt
+182308d49bfc1b79616e0222c36081790a45d547f300224946ad439beac6c29a  tls-benchstat.txt
 70416879767ca17391118f82b445b640d338b6d10b025b7d1a1e8a29329b6905  environment-resources.txt
 6c37a943131f6521337381220cb698338414f99b9311267c9ae662f92221007f  raw-resources-idle.txt
 99474d469dcbf4430db93ed825c21bd1590459d49791394df67cc9f6d875ae00  raw-resources-reconnect-franz-01.txt

@@ -57,7 +57,7 @@ all results. The multi-partition matrix uses 128-byte and 1 KiB payloads with
 no compression and Snappy. Automatic unkeyed multi-partition production is not
 ranked: franz-go's adaptive KIP-794 partitioner and Sarama's random fallback do
 not provide an equivalent distribution contract. The workloads do not
-establish transaction, reconnect, TLS, or steady-state resource results; those
+establish transaction, reconnect, or steady-state resource results; those
 require separate evidence.
 
 The policy library and raw franz-go use the same franz-go producer controls.
@@ -178,6 +178,29 @@ a different rebalance contract.
 one-member/two-partition state, the two-member one-partition-each state, exact
 handling through the joining member, and restoration of the first member's
 two-partition assignment after the second member leaves.
+
+## Equivalent TLS workloads
+
+`BenchmarkEquivalentTLSSynchronousProduce` compares the package policy, raw
+franz-go, and Sarama using verified TLS 1.3, idempotent all-ISR production,
+Murmur2-keyed records, no compression, and one broker partition. Each candidate
+uses one warmed persistent public producer. Client construction, TLS handshake,
+topic creation, warmup, and shutdown are outside the timed boundary; public
+record mapping, encryption, network transit, broker processing, and delivery
+settlement are inside it.
+
+`BenchmarkEquivalentTLSConnectProduceClose` measures one complete public
+producer lifecycle per operation: construction, verified TLS 1.3 connection,
+one 128-byte keyed delivery, and bounded shutdown. It reports exactly one
+connection lifecycle per operation. Kafka-go remains excluded because its
+writer cannot match the idempotent producer contract.
+
+Both workloads use a separately pinned Apache Kafka 4.3.1 fixture with a
+runtime-asserted OpenSSL 3.5.7 server and an ephemeral private CA whose key and
+certificate material never enter captured output. The fixture permits only TLS
+1.3 on its external listener. `TestEquivalentTLSProducerOutcomes` independently
+asserts the negotiated protocol and reads every exact produced key and value
+through a separate verified TLS client.
 
 ## Equivalent transactional workloads
 
@@ -324,8 +347,8 @@ before and after a real broker restart for all four clients.
 hold at least one warmed connection, return the same normalized topic state,
 record nonnegative CPU time, and close every observed connection. These
 single-node plaintext workloads do not establish multi-broker leader recovery,
-TLS reconnect cost, process RSS, kernel socket memory, or deployment-specific
-resource budgets.
+TLS reconnect recovery after broker failure, process RSS, kernel socket memory,
+or deployment-specific resource budgets.
 
 ## Broker selection
 
@@ -338,9 +361,11 @@ topics. Set `KAFKA_BENCH_BROKER_IDENTITY` to a bounded public description of
 that cluster using only ASCII letters, digits, spaces, and `._:+()-`; do not
 put credentials or secret-bearing URLs in either variable or captured output.
 
-The default fixture is local, single-node, plaintext, and shares host CPU and
-network resources. Results describe only that environment. They must not be
-used to claim production throughput or superiority.
+The default general fixture is local, single-node, plaintext, and shares host
+CPU and network resources. The TLS workload instead starts its dedicated
+single-node Apache fixture and does not accept external brokers or credentials.
+Results describe only those environments. They must not be used to claim
+production throughput or superiority.
 
 ## Running
 

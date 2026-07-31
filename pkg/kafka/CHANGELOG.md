@@ -69,6 +69,9 @@ All notable changes to this module are documented here.
   franz-go with exact per-partition order and broker-verified commits, plus
   cooperative-sticky join and leave timing for the package policy, raw
   franz-go, and Sarama with exact broker-inspected assignments,
+  verified TLS 1.3 persistent-delivery and complete
+  connection-delivery-shutdown workloads for the same three clients against a
+  pinned Apache Kafka 4.3.1 and OpenSSL 3.5.7 fixture,
   transactional production for the package policy, raw franz-go, and Sarama
   with committed and aborted visibility checks, plus atomic
   consume-transform-produce workloads for the package policy and raw franz-go

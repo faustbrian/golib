@@ -103,6 +103,16 @@ v0.4.51 is excluded because it does not expose cooperative-sticky assignment.
 The capture contains 30 single-operation samples with independently proven
 initial, joined, handled, left, and restored outcomes.
 
+A verified-TLS workload compares the package policy, raw franz-go, and Sarama
+against a separately pinned Apache Kafka 4.3.1 broker that accepts only TLS 1.3.
+The persistent path warms one idempotent all-ISR producer, then measures
+128-byte and 1 KiB keyed deliveries. The connection path measures complete
+public client construction, verified connection, one 128-byte keyed delivery,
+and bounded shutdown. Ten samples of 100 operations produce 6,000 persistent
+deliveries and 3,000 connection lifecycles. An independent race-enabled check
+asserts TLS 1.3 and reads every exact result through a separate verified client.
+Kafka-go is excluded because it cannot match the idempotent producer contract.
+
 A producer-only transaction workload compares the package policy, raw
 franz-go, and Sarama. One operation begins a transaction, synchronously
 publishes one or ten keyed records through the candidate's public transaction
@@ -162,7 +172,9 @@ The 2026-07-30 producer, consumer, and transaction capture and the 2026-07-31
 replay, inspection, rebalance, reconnect, and resource captures used Go 1.26.5
 on Darwin arm64 with an Apple M4 Max, Docker Desktop engine 29.6.2, and the
 immutable Confluent Local 7.5.0 fixture. The running broker reported
-`7.5.0-ccs`. Exact module versions, input hashes, raw samples, and benchstat
+`7.5.0-ccs`. The TLS capture used the same host and toolchain with the immutable
+Apache Kafka 4.3.1 fixture; runtime checks asserted Kafka 4.3.1, OpenSSL 3.5.7,
+and TLS 1.3. Exact module versions, input hashes, raw samples, and benchstat
 distributions are stored with the
 [2026-07-30 capture](performance-results/2026-07-30/README.md) and
 [2026-07-31 capture](performance-results/2026-07-31/README.md).
@@ -208,6 +220,15 @@ seconds respectively; close-through-one-member-stability medians were 506.1
 milliseconds, 507.7 milliseconds, and 1.053 seconds. Bounded broker inspection
 is part of these observable stability boundaries, so they are not protocol-only
 wire timings.
+
+Persistent verified-TLS medians for 128-byte records were 458.9 microseconds
+for the policy path, 328.0 microseconds for raw franz-go, and 7.051 milliseconds
+for Sarama; 1 KiB medians were 289.5 microseconds, 290.0 microseconds, and 6.852
+milliseconds. Complete construction, TLS connection, 128-byte delivery, and
+shutdown medians were 16.38 milliseconds, 16.08 milliseconds, and 13.41
+milliseconds. Persistent distributions spread as far as 99 percent on the
+shared local host, so they are descriptive evidence rather than client rankings
+or production budgets.
 
 Producer transaction medians for one record ranged from 6.37 to 25.92
 milliseconds for the policy path, 6.63 to 24.07 milliseconds for raw
@@ -265,7 +286,7 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- TLS and other deployment-representative transport costs; and
+- mTLS, SASL, and other deployment-representative authentication costs; and
 - a previous released package version after one exists.
 
 Future runs must retain raw samples and environment fingerprints, report

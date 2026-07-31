@@ -59,6 +59,10 @@ func TestMain(m *testing.M) {
 		}
 		cancel()
 	}
+	if err := closeBenchmarkTLSFixture(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "terminate benchmark TLS Kafka fixture: %v\n", err)
+		code = 1
+	}
 	os.Exit(code)
 }
 

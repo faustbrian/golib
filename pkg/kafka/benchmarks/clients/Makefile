@@ -8,14 +8,17 @@ REBALANCE_PATTERN ?= ^BenchmarkEquivalentConsumerRebalance$$
 RESOURCE_COUNT ?= 10
 RESOURCE_TIME ?= 1x
 RESOURCE_PATTERN ?= ^BenchmarkEquivalentInspection(Reconnect|IdleResources)$$
+TLS_COUNT ?= 10
+TLS_TIME ?= 100x
+TLS_PATTERN ?= ^BenchmarkEquivalentTLS(SynchronousProduce|ConnectProduceClose)$$
 
-.PHONY: analyze benchmark capture environment rebalance-benchmark rebalance-capture resource-benchmark resource-capture test verify
+.PHONY: analyze benchmark capture environment rebalance-benchmark rebalance-capture resource-benchmark resource-capture test tls-benchmark tls-capture verify
 
 test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|ConsumerRebalance|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
+	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|ConsumerRebalance|TLSProducer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
@@ -50,6 +53,17 @@ resource-capture:
 		> '$(OUTPUT)'
 	@cat '$(OUTPUT)'
 
+tls-benchmark:
+	@$(GO) test -tags=integration -run '^$$' -bench '$(TLS_PATTERN)' \
+		-benchmem -benchtime='$(TLS_TIME)' -count='$(TLS_COUNT)'
+
+tls-capture:
+	@test -n '$(OUTPUT)'
+	@$(GO) test -tags=integration -run '^$$' -bench '$(TLS_PATTERN)' \
+		-benchmem -benchtime='$(TLS_TIME)' -count='$(TLS_COUNT)' \
+		> '$(OUTPUT)'
+	@cat '$(OUTPUT)'
+
 analyze:
 	@test -n '$(INPUT)'
 	@cd '$(dir $(INPUT))' && $(GO) tool benchstat '$(notdir $(INPUT))'
@@ -74,3 +88,4 @@ environment:
 		github.com/testcontainers/testcontainers-go/modules/kafka \
 		golang.org/x/perf
 	@echo 'broker-image=confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd'
+	@echo 'tls-broker-image=apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837'
