@@ -138,6 +138,9 @@ All notable changes to this module are documented here.
   source offsets remain atomic, failed processing redelivers without visible
   output, and a later retry succeeds while one broker process is unavailable
   at ISR two
+- pinned Apache Kafka 3.7.2 minimum-version evidence proving producer
+  transactions and atomic consume-transform-produce commit, abort, isolation,
+  source-offset settlement, redelivery, and retry across three KRaft nodes
 - three-broker Apache Kafka evidence that a replacement producer using the
   same transactional ID fences the older producer, aborts its pending record,
   and leaves only the replacement transaction visible to read-committed

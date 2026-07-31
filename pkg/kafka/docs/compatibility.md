@@ -85,6 +85,8 @@ Design and implementation are checked against:
 
 - [Apache Kafka documentation](https://kafka.apache.org/documentation/) and
   [supported downloads](https://kafka.apache.org/community/downloads/), plus
+  the official [Kafka 3.7 Docker image
+  documentation](https://kafka.apache.org/37/getting-started/docker/) and
   the broker-compatible rules in Kafka's
   [`Topic` source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/internals/Topic.java);
 - [Apache Kafka producer configuration](https://kafka.apache.org/43/configuration/producer-configs/),
