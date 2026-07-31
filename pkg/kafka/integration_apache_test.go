@@ -37,6 +37,8 @@ import (
 const (
 	apacheKafkaImage = "apache/kafka:4.3.1@" +
 		"sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837"
+	apacheKafkaMinimumImage = "apache/kafka:3.7.2@" +
+		"sha256:8bd63e1bd445e5e19427a4bdbcc3d23bf6efd774b058a41b36ba87fda7623e34"
 	apacheKafkaClusterID  = "4L6g3nShT-eMCtK--X86sw"
 	apacheKafkaClientPort = "9092/tcp"
 	apacheKafkaStartFile  = "/tmp/golib-kafka-start.sh"
@@ -129,6 +131,74 @@ func TestApacheKafkaConsumerChild(t *testing.T) {
 	}
 
 	runApacheKafkaConsumerChild(t)
+}
+
+func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaClusterWithImage(
+		t,
+		ctx,
+		apacheKafkaMinimumImage,
+		false,
+	)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "3.7.2")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	prefix := fmt.Sprintf(
+		"golib-apache-minimum-transactions-%d",
+		time.Now().UnixNano(),
+	)
+	transactionTopic := prefix + "-producer"
+	sourceTopic := prefix + "-source"
+	outputTopic := prefix + "-output"
+	for _, topic := range []string{
+		transactionTopic,
+		sourceTopic,
+		outputTopic,
+	} {
+		createIntegrationTopicWithReplication(
+			t,
+			ctx,
+			brokers,
+			topic,
+			1,
+			3,
+			map[string]*string{
+				"min.insync.replicas": kadm.StringPtr("2"),
+			},
+		)
+	}
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-minimum-transaction-source",
+		AllowedTopics: []string{sourceTopic},
+		KeyPolicy:     kafka.KeyRequired,
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct minimum-version source producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			t.Errorf("close minimum-version source producer: %v", err)
+		}
+	}()
+
+	proveProducerTransactionVisibility(t, ctx, brokers, transactionTopic)
+	proveConsumeTransformProduce(
+		t,
+		ctx,
+		brokers,
+		producer,
+		sourceTopic,
+		outputTopic,
+		"golib-apache-minimum-transaction-source",
+	)
 }
 
 func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
@@ -3164,6 +3234,17 @@ func startApacheKafkaCluster(
 ) *apacheKafkaCluster {
 	t.Helper()
 
+	return startApacheKafkaClusterWithImage(t, ctx, apacheKafkaImage, true)
+}
+
+func startApacheKafkaClusterWithImage(
+	t *testing.T,
+	ctx context.Context,
+	image string,
+	includeShareCoordinator bool,
+) *apacheKafkaCluster {
+	t.Helper()
+
 	dockerNetwork := newApacheKafkaNetwork(t, ctx)
 	testcontainers.CleanupNetwork(t, dockerNetwork)
 
@@ -3172,10 +3253,13 @@ func startApacheKafkaCluster(
 		alias := fmt.Sprintf("kafka-%d", nodeID)
 		request := testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        apacheKafkaImage,
+				Image:        image,
 				ExposedPorts: []string{apacheKafkaClientPort},
-				Env:          apacheKafkaEnvironment(nodeID),
-				Networks:     []string{dockerNetwork.Name},
+				Env: apacheKafkaEnvironment(
+					nodeID,
+					includeShareCoordinator,
+				),
+				Networks: []string{dockerNetwork.Name},
 				NetworkAliases: map[string][]string{
 					dockerNetwork.Name: {alias},
 				},
@@ -3301,29 +3385,36 @@ func newApacheKafkaNetwork(
 	return nil
 }
 
-func apacheKafkaEnvironment(nodeID int32) map[string]string {
-	return map[string]string{
-		"KAFKA_NODE_ID":                                          fmt.Sprint(nodeID),
-		"KAFKA_BROKER_RACK":                                      fmt.Sprintf("rack-%d", nodeID),
-		"KAFKA_REPLICA_SELECTOR_CLASS":                           "org.apache.kafka.common.replica.RackAwareReplicaSelector",
-		"KAFKA_PROCESS_ROLES":                                    "broker,controller",
-		"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":                   "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT",
-		"KAFKA_CONTROLLER_QUORUM_VOTERS":                         "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093",
-		"KAFKA_LISTENERS":                                        "PLAINTEXT://:19092,CONTROLLER://:9093,PLAINTEXT_HOST://:9092",
-		"KAFKA_INTER_BROKER_LISTENER_NAME":                       "PLAINTEXT",
-		"KAFKA_CONTROLLER_LISTENER_NAMES":                        "CONTROLLER",
-		"CLUSTER_ID":                                             apacheKafkaClusterID,
-		"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR":                 "3",
-		"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR":                    "2",
-		"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR":         "3",
-		"KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR": "3",
-		"KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR":            "2",
-		"KAFKA_DEFAULT_REPLICATION_FACTOR":                       "3",
-		"KAFKA_MIN_INSYNC_REPLICAS":                              "2",
-		"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS":                 "0",
-		"KAFKA_AUTO_CREATE_TOPICS_ENABLE":                        "false",
-		"KAFKA_LOG_DIRS":                                         "/tmp/kraft-combined-logs",
+func apacheKafkaEnvironment(
+	nodeID int32,
+	includeShareCoordinator bool,
+) map[string]string {
+	environment := map[string]string{
+		"KAFKA_NODE_ID":                                  fmt.Sprint(nodeID),
+		"KAFKA_BROKER_RACK":                              fmt.Sprintf("rack-%d", nodeID),
+		"KAFKA_REPLICA_SELECTOR_CLASS":                   "org.apache.kafka.common.replica.RackAwareReplicaSelector",
+		"KAFKA_PROCESS_ROLES":                            "broker,controller",
+		"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":           "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT",
+		"KAFKA_CONTROLLER_QUORUM_VOTERS":                 "1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093",
+		"KAFKA_LISTENERS":                                "PLAINTEXT://:19092,CONTROLLER://:9093,PLAINTEXT_HOST://:9092",
+		"KAFKA_INTER_BROKER_LISTENER_NAME":               "PLAINTEXT",
+		"KAFKA_CONTROLLER_LISTENER_NAMES":                "CONTROLLER",
+		"CLUSTER_ID":                                     apacheKafkaClusterID,
+		"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR":         "3",
+		"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR":            "2",
+		"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "3",
+		"KAFKA_DEFAULT_REPLICATION_FACTOR":               "3",
+		"KAFKA_MIN_INSYNC_REPLICAS":                      "2",
+		"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS":         "0",
+		"KAFKA_AUTO_CREATE_TOPICS_ENABLE":                "false",
+		"KAFKA_LOG_DIRS":                                 "/tmp/kraft-combined-logs",
 	}
+	if includeShareCoordinator {
+		environment["KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR"] = "3"
+		environment["KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR"] = "2"
+	}
+
+	return environment
 }
 
 func (cluster *apacheKafkaCluster) brokers(
