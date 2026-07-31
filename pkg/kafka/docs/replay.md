@@ -139,6 +139,16 @@ records, preserves next offset 0 as incomplete, and never invokes the handler.
 This proves the gap category against compaction without inferring the deletion
 cause from a fetch response.
 
+A separate three-node Apache Kafka 4.3.1 fixture owns a replication-factor-one
+partition, confirms the range `[0,3)`, stops its leader, shortens the active log
+segment tail, removes its clean-shutdown marker, and restarts the same broker.
+Kafka recovery discards the incomplete final batch and reports log start 0 plus
+log end 2. Replaying the original `[0,3)` range returns
+`ErrReplayOffsetOutOfRange` before polling or handler admission, reports the
+range incomplete, and preserves next offset 0. This proves fail-closed replay
+after broker log recovery; unclean leader election remains separate unverified
+evidence.
+
 Already-buffered offsets before an explicit resume position are counted as
 skipped. Records beyond a completed end can also be observed from the final
 bounded fetch and are counted as skipped; the partition is then paused while

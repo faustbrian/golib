@@ -131,6 +131,156 @@ func TestApacheKafkaConsumerChild(t *testing.T) {
 	runApacheKafkaConsumerChild(t)
 }
 
+func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
+	t *testing.T,
+) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf(
+		"golib-apache-replay-log-recovery-%d",
+		time.Now().UnixNano(),
+	)
+	createIntegrationTopicWithReplication(
+		t,
+		ctx,
+		brokers,
+		topic,
+		1,
+		1,
+		map[string]*string{
+			"min.insync.replicas":            kadm.StringPtr("1"),
+			"unclean.leader.election.enable": kadm.StringPtr("false"),
+		},
+	)
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-replay-log-recovery-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct log-recovery replay inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	state := waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].ReplicationFactor == 1 &&
+			state.Partitions[0].InSyncReplicas == 1
+	})
+	leader := state.Partitions[0].Leader
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-replay-log-recovery-producer",
+		AllowedTopics: []string{topic},
+		KeyPolicy:     kafka.KeyRequired,
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct log-recovery replay producer: %v", err)
+	}
+	for index := range 3 {
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte(fmt.Sprintf("log-recovery-key-%d", index)),
+			Value: bytes.Repeat([]byte{byte(index + 1)}, 4<<10),
+		})
+		if result.Err != nil ||
+			result.Partition != 0 ||
+			result.Offset != int64(index) {
+			_ = producer.Close()
+			t.Fatalf("log-recovery replay delivery %d = %#v", index, result)
+		}
+	}
+	if err = producer.Close(); err != nil {
+		t.Fatalf("close log-recovery replay producer: %v", err)
+	}
+	state = waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].BeginningOffset == 0 &&
+			state.Partitions[0].EndOffset == 3
+	})
+	if state.Partitions[0].Leader != leader {
+		t.Fatalf(
+			"log-recovery replay leader changed from %d to %d",
+			leader,
+			state.Partitions[0].Leader,
+		)
+	}
+
+	cluster.stopNode(t, ctx, leader)
+	removedBytes := cluster.truncateTopicTail(t, ctx, leader, topic, 16)
+	if removedBytes != 16 {
+		t.Fatalf("log-recovery truncated bytes = %d, want 16", removedBytes)
+	}
+	cluster.startNode(t, ctx, leader)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+	state = waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].Leader == leader &&
+			state.Partitions[0].InSyncReplicas == 1 &&
+			state.Partitions[0].BeginningOffset == 0 &&
+			state.Partitions[0].EndOffset == 2
+	})
+	if state.Partitions[0].ReplicationFactor != 1 {
+		t.Fatalf("log-recovery replay state = %#v", state)
+	}
+
+	reader, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-replay-log-recovery-reader",
+		Ranges: []kafka.ReplayRange{{
+			Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 3,
+		}},
+		SideEffects: kafka.ReplaySideEffectsAllowed,
+		Security:    kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct log-recovery replay reader: %v", err)
+	}
+	handlerCalled := false
+	result, replayErr := reader.Replay(ctx, kafka.ReplayHandlerFunc(func(
+		context.Context,
+		kafka.ReplayRecord,
+	) error {
+		handlerCalled = true
+
+		return nil
+	}))
+	if closeErr := reader.Close(); closeErr != nil {
+		t.Fatalf("close log-recovery replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, kafka.ErrReplayOffsetOutOfRange) ||
+		handlerCalled ||
+		result.Polled != 0 ||
+		result.Processed != 0 ||
+		result.Failed != 0 ||
+		result.CompletedRanges != 0 ||
+		result.IncompleteRanges != 1 ||
+		len(result.Ranges) != 1 ||
+		result.Ranges[0].NextOffset != 0 ||
+		result.Ranges[0].Complete {
+		t.Fatalf(
+			"log-recovery replay result/error/handler = %#v/%v/%t",
+			result,
+			replayErr,
+			handlerCalled,
+		)
+	}
+}
+
 func runApacheKafkaConsumerChild(t *testing.T) {
 	t.Helper()
 
@@ -3249,6 +3399,75 @@ func (cluster *apacheKafkaCluster) stopNode(
 	if exitCode != 0 {
 		t.Fatalf("stop Apache Kafka node %d: exit %d", nodeID, exitCode)
 	}
+}
+
+func (cluster *apacheKafkaCluster) truncateTopicTail(
+	t *testing.T,
+	ctx context.Context,
+	nodeID int32,
+	topic string,
+	bytesToRemove int64,
+) int64 {
+	t.Helper()
+
+	node := cluster.node(t, nodeID)
+	script := `set -eu
+topic_dir="/tmp/kraft-combined-logs/$1-0"
+segment="$(find "$topic_dir" -maxdepth 1 -type f -name '*.log' | LC_ALL=C sort | tail -n 1)"
+test -n "$segment"
+old_size="$(wc -c < "$segment")"
+test "$old_size" -gt "$2"
+new_size="$((old_size - $2))"
+truncate -s "$new_size" "$segment"
+base="${segment%.log}"
+rm -f "$base.index" "$base.timeindex" "$base.txnindex"
+rm -f /tmp/kraft-combined-logs/.kafka_cleanshutdown
+printf '%s %s\n' "$old_size" "$new_size"`
+	exitCode, output, err := node.container.Exec(
+		ctx,
+		[]string{
+			"sh",
+			"-c",
+			script,
+			"truncate-kafka-topic-tail",
+			topic,
+			strconv.FormatInt(bytesToRemove, 10),
+		},
+		tcexec.Multiplexed(),
+	)
+	if err != nil {
+		t.Fatalf("truncate Apache Kafka topic tail on node %d: %v", nodeID, err)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(output, 256))
+	if readErr != nil {
+		t.Fatalf("read Apache Kafka truncation result: %v", readErr)
+	}
+	if exitCode != 0 {
+		t.Fatalf(
+			"truncate Apache Kafka topic tail on node %d: exit %d",
+			nodeID,
+			exitCode,
+		)
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) != 2 {
+		t.Fatalf("Apache Kafka truncation result = %q", data)
+	}
+	oldSize, oldErr := strconv.ParseInt(fields[0], 10, 64)
+	newSize, newErr := strconv.ParseInt(fields[1], 10, 64)
+	if oldErr != nil ||
+		newErr != nil ||
+		oldSize <= newSize ||
+		oldSize-newSize != bytesToRemove {
+		t.Fatalf(
+			"Apache Kafka truncation sizes = %q (%v, %v)",
+			data,
+			oldErr,
+			newErr,
+		)
+	}
+
+	return oldSize - newSize
 }
 
 func (cluster *apacheKafkaCluster) startNode(

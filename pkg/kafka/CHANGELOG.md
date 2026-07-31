@@ -153,6 +153,10 @@ All notable changes to this module are documented here.
 - pinned Apache Kafka 4.3.1 compaction evidence proving replay fails closed as
   `ErrReplayOffsetGap` without handler admission or checkpoint advancement when
   the requested offset is removed while the broker log start remains unchanged
+- pinned Apache Kafka 4.3.1 broker-recovery evidence proving replay rejects an
+  original `[0,3)` range as `ErrReplayOffsetOutOfRange` before handler admission
+  and preserves next offset 0 after offline segment-tail truncation reduces the
+  recovered log end to 2
 - replay execution now accepts `ReplayHandler` instead of the consumer-group
   `Handler` and supplies each `ReplayRecord` with its complete requested range
   and checkpoint-derived effective start; callers must migrate
