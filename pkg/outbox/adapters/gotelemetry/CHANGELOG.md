@@ -4,6 +4,11 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Replace the unresolved Outbox `v0.0.0` requirement with an immutable main
+  pseudo-version so workspace-disabled consumers resolve the adapter.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.
