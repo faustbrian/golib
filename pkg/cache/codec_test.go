@@ -52,6 +52,24 @@ func TestJSONCodecRejectsMalformedAndOversizedPayloads(t *testing.T) {
 	}
 }
 
+func TestJSONCodecReservesSchemaByteWithinEncodedSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	codec := cache.JSONCodec[string]{Version: 1, MaxEncodedSize: 4}
+	encoded, err := codec.Encode("a")
+	if err != nil {
+		t.Fatalf("Encode() at exact limit error = %v", err)
+	}
+	if string(encoded) != "\x01\"a\"" {
+		t.Fatalf("Encode() at exact limit = %q", encoded)
+	}
+
+	codec.MaxEncodedSize = 3
+	if _, err := codec.Encode("a"); !errors.Is(err, cache.ErrValueTooLarge) {
+		t.Fatalf("Encode() without schema-byte room error = %v", err)
+	}
+}
+
 func TestJSONCodecRejectsInvalidVersionsAndAmbiguousJSON(t *testing.T) {
 	t.Parallel()
 

@@ -32,7 +32,7 @@ func (c JSONCodec[V]) Encode(value V) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %w", ErrDecode, err)
 	}
 	limit := c.sizeLimit()
-	if cmp.Compare(len(payload), limit) != -1 {
+	if len(payload) >= limit {
 		return nil, fmt.Errorf(
 			"%w: payload length %d leaves no room within encoded limit %d",
 			ErrValueTooLarge,
@@ -40,7 +40,10 @@ func (c JSONCodec[V]) Encode(value V) ([]byte, error) {
 			limit,
 		)
 	}
-	encoded := append([]byte{c.Version}, payload...)
+	encodedSize := len(payload) + 1
+	encoded := make([]byte, encodedSize)
+	encoded[0] = c.Version
+	copy(encoded[1:], payload)
 	return encoded, nil
 }
 

@@ -7,8 +7,8 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Changed
 
-- Encode the schema prefix without allocation-size arithmetic after enforcing
-  the configured payload boundary.
+- Guard schema-prefix allocation arithmetic against the platform integer limit
+  after enforcing the configured payload boundary.
 - Remove unused CLI-related indirect dependencies from canonical module
   metadata.
 - Pin owned sibling modules to exact resolvable main pseudo-versions so
@@ -51,8 +51,8 @@ Versioning and keeps an Unreleased section at the top.
 
 ### Fixed
 
-- Bound the versioned JSON allocation before adding its schema byte so hostile
-  encoded-size arithmetic cannot overflow.
+- Reject versioned JSON payloads whose schema-prefix allocation would overflow
+  the platform integer size.
 - Require Redis protocol readiness and an actual `NOAUTH` response before
   authenticated backend assertions begin.
 - Run fuzz smoke campaigns for a deterministic execution count so the Go fuzz
