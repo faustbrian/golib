@@ -290,6 +290,43 @@ func TestAggregateRepositoryRejectsInvalidStoreReads(t *testing.T) {
 	}
 }
 
+func TestAggregateRepositoryStopsAfterShortLoadPage(t *testing.T) {
+	t.Parallel()
+
+	stream, err := eventsourcing.NewStreamID("account", "account-42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads := 0
+	unexpectedRead := errors.New("unexpected read after short page")
+	store := &repositoryStoreFuncs{
+		read: func(
+			_ context.Context,
+			_ eventsourcing.StreamID,
+			options eventsourcing.ReadStreamOptions,
+		) (eventsourcing.MessageIterator, error) {
+			reads++
+			if reads != 1 {
+				return nil, unexpectedRead
+			}
+			if options.FromVersion() != 1 || options.Limit() != 2 {
+				t.Fatalf("ReadStream() options = %#v", options)
+			}
+
+			return &repositorySliceIterator{messages: []eventsourcing.Message{
+				repositoryMessageAt(t, stream, 1),
+			}}, nil
+		},
+	}
+	config := completeRepositoryConfig(t, store)
+	config.ReadBatchSize = 2
+	repository := repositoryFromConfig(t, config)
+	aggregate, err := repository.Load(context.Background(), "account-42")
+	if err != nil || aggregate == nil || aggregate.owner != "Ada" || reads != 1 {
+		t.Fatalf("Load() = %#v, %v, reads %d", aggregate, err, reads)
+	}
+}
+
 func TestAggregateRepositoryValidatesSnapshotRestoreBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -558,6 +595,63 @@ func TestAggregateRepositoryRestorationHandlesReadFailureAndMaximumVersion(
 		result == nil ||
 		result.lifecycle.CommittedVersion() != maximum {
 		t.Fatalf("Restore(maximum) = %#v, %v", result, err)
+	}
+}
+
+func TestAggregateRepositoryStopsAfterShortRestorePage(t *testing.T) {
+	t.Parallel()
+
+	stream, err := eventsourcing.NewStreamID("account", "account-42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads := 0
+	unexpectedRead := errors.New("unexpected read after short restore page")
+	store := &repositoryStoreFuncs{
+		read: func(
+			_ context.Context,
+			_ eventsourcing.StreamID,
+			options eventsourcing.ReadStreamOptions,
+		) (eventsourcing.MessageIterator, error) {
+			reads++
+			switch reads {
+			case 1:
+				if options.FromVersion() != 1 || options.ToVersion() != 1 ||
+					options.Limit() != 1 {
+					t.Fatalf("snapshot ReadStream() options = %#v", options)
+				}
+
+				return &repositorySliceIterator{messages: []eventsourcing.Message{
+					repositoryMessageAt(t, stream, 1),
+				}}, nil
+			case 2:
+				if options.FromVersion() != 2 || options.ToVersion() != 0 ||
+					options.Limit() != 2 {
+					t.Fatalf("history ReadStream() options = %#v", options)
+				}
+
+				return &repositorySliceIterator{messages: []eventsourcing.Message{
+					repositoryMessageAt(t, stream, 2),
+				}}, nil
+			default:
+				return nil, unexpectedRead
+			}
+		},
+	}
+	config := completeRepositoryConfig(t, store)
+	config.ReadBatchSize = 2
+	repository := repositoryFromConfig(t, config)
+	restored, err := repository.Restore(
+		context.Background(),
+		"account-42",
+		1,
+		func() (*repositoryAccount, error) {
+			return &repositoryAccount{id: "account-42", owner: "Ada"}, nil
+		},
+	)
+	if err != nil || restored == nil ||
+		restored.lifecycle.CommittedVersion() != 2 || reads != 2 {
+		t.Fatalf("Restore() = %#v, %v, reads %d", restored, err, reads)
 	}
 }
 

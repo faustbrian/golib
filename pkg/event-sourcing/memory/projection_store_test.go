@@ -293,8 +293,13 @@ func TestProjectionStoreRejectsCheckpointFromHandlerPausedInFlight(
 		err    error
 	}
 	finished := make(chan runOutcome, 1)
+	runContext, cancelRun := context.WithTimeout(
+		context.Background(),
+		500*time.Millisecond,
+	)
+	defer cancelRun()
 	go func() {
-		result, runErr := runner.RunBatch(context.Background())
+		result, runErr := runner.RunBatch(runContext)
 		finished <- runOutcome{result: result, err: runErr}
 	}()
 	released := false
@@ -304,18 +309,34 @@ func TestProjectionStoreRejectsCheckpointFromHandlerPausedInFlight(
 			close(releaseHandler)
 		}
 		if !completed {
-			<-finished
+			select {
+			case <-finished:
+			case <-time.After(500 * time.Millisecond):
+				t.Error("RunBatch() did not stop after cleanup")
+			}
 		}
 	}()
-	<-handlerStarted
+	select {
+	case <-handlerStarted:
+	case outcome := <-finished:
+		completed = true
+		t.Fatalf("RunBatch() exited before handler = %#v, %v", outcome.result, outcome.err)
+	case <-runContext.Done():
+		t.Fatal("RunBatch() did not reach handler before deadline")
+	}
 	status, err := controller.Pause(context.Background())
 	if err != nil || status.State() != projection.StatePaused {
 		t.Fatalf("Pause() = %#v, %v", status, err)
 	}
 	close(releaseHandler)
 	released = true
-	outcome := <-finished
-	completed = true
+	var outcome runOutcome
+	select {
+	case outcome = <-finished:
+		completed = true
+	case <-runContext.Done():
+		t.Fatal("RunBatch() did not finish before deadline")
+	}
 	if !errors.Is(outcome.err, projection.ErrProjectionPaused) ||
 		outcome.result.Handled() != 1 ||
 		outcome.result.Checkpointed() != 0 ||

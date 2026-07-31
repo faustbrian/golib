@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Advance repository pagination from validated page contents and terminate on
+  empty pages, preventing reconstruction defects from repeatedly reading the
+  same stream page.
 - Fail projection replay closed when a restored or truncated event store no
   longer contains the durable checkpoint position, preventing terminal hooks
   from running against history behind recorded projection progress. Terminal

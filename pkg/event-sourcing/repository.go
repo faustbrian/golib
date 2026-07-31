@@ -222,16 +222,18 @@ func (repository *AggregateRepository[ID, Aggregate]) Load(
 		if err != nil {
 			return zero, err
 		}
-		if count != 0 {
-			loaded = true
+		if count == 0 {
+			if !loaded {
+				return zero, ErrStreamNotFound
+			}
+
+			return aggregate, nil
 		}
-		if !loaded && count < repository.readBatchSize {
-			return zero, ErrStreamNotFound
-		}
+		loaded = true
 		if count < repository.readBatchSize || lifecycle.committed == ^uint64(0) {
 			return aggregate, nil
 		}
-		nextVersion = lifecycle.committed + 1
+		nextVersion += uint64(count)
 	}
 }
 
@@ -286,11 +288,14 @@ func (repository *AggregateRepository[ID, Aggregate]) Restore(
 		if err != nil {
 			return zero, err
 		}
+		if count == 0 {
+			return aggregate, nil
+		}
 		if count < repository.readBatchSize ||
 			lifecycle.committed == ^uint64(0) {
 			return aggregate, nil
 		}
-		nextVersion = lifecycle.committed + 1
+		nextVersion += uint64(count)
 	}
 }
 
