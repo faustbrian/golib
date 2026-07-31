@@ -270,9 +270,9 @@ func (id ID) UUIDValue() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: id.Bytes(), Valid: true}, nil
 }
 
-// V4Generator owns its entropy source and serializes access to it.
+// V4Generator owns its entropy source. Caller-provided readers are serialized;
+// the concurrency-safe crypto/rand.Reader default is used directly.
 type V4Generator struct {
-	mutex   sync.Mutex
 	entropy io.Reader
 }
 
@@ -280,17 +280,14 @@ type V4Generator struct {
 // crypto/rand.Reader for this generator instance.
 func NewV4Generator(entropy io.Reader) *V4Generator {
 	if entropy == nil {
-		entropy = cryptorand.Reader
+		return &V4Generator{entropy: cryptorand.Reader}
 	}
 
-	return &V4Generator{entropy: entropy}
+	return &V4Generator{entropy: &lockedReader{reader: entropy}}
 }
 
 // New generates a UUIDv4.
 func (generator *V4Generator) New() (ID, error) {
-	generator.mutex.Lock()
-	defer generator.mutex.Unlock()
-
 	var id ID
 	if _, err := io.ReadFull(generator.entropy, id[:]); err != nil {
 		return ID{}, fmt.Errorf("%w: UUIDv4: %w", identifier.ErrEntropy, err)
@@ -299,6 +296,18 @@ func (generator *V4Generator) New() (ID, error) {
 	id[8] = id[8]&0x3f | 0x80
 
 	return id, nil
+}
+
+type lockedReader struct {
+	mutex  sync.Mutex
+	reader io.Reader
+}
+
+func (reader *lockedReader) Read(destination []byte) (int, error) {
+	reader.mutex.Lock()
+	defer reader.mutex.Unlock()
+
+	return reader.reader.Read(destination)
 }
 
 // V7Generator owns a clock, entropy source, mutex, and monotonic state.

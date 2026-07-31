@@ -117,7 +117,8 @@ func validate(value string, policy Policy) error {
 	if maximum < 1 || maximum > 1024 || len(value) == 0 || len(value) > maximum {
 		return fmt.Errorf("%w: length", ErrInvalidID)
 	}
-	for _, char := range value {
+	for index := range len(value) {
+		char := value[index]
 		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
 			(char < '0' || char > '9') && char != '-' && char != '_' {
 			return fmt.Errorf("%w: alphabet", ErrInvalidID)

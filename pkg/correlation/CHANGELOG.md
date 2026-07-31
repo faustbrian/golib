@@ -7,6 +7,8 @@ versioning once released.
 
 ### Fixed
 
+- Trust the canonical default UUID generator while validating custom generator
+  output once with a byte-oriented ASCII policy scan.
 - Return fresh correlation and request identifiers on explicitly rejected
   malformed HTTP metadata without invoking application handlers.
 - Avoid allocating header-value storage when optional inbound correlation

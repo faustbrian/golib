@@ -41,8 +41,9 @@ type InboundPolicy struct {
 
 // Factory creates fresh hop identifiers without global mutable state.
 type Factory struct {
-	policy    Policy
-	generator Generator
+	policy            Policy
+	generator         Generator
+	validateGenerated bool
 }
 
 // NewFactory constructs a factory. The default generator uses crypto/rand.
@@ -50,10 +51,15 @@ func NewFactory(options FactoryOptions) (*Factory, error) {
 	if err := validatePolicy(options.Policy); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidFactory, err)
 	}
+	validateGenerated := options.Generator != nil
 	if options.Generator == nil {
 		options.Generator = &uuidGenerator{generator: identifieruuid.NewV4Generator(nil)}
 	}
-	return &Factory{policy: options.Policy, generator: options.Generator}, nil
+	return &Factory{
+		policy:            options.Policy,
+		generator:         options.Generator,
+		validateGenerated: validateGenerated,
+	}, nil
 }
 
 type uuidGenerator struct{ generator *identifieruuid.V4Generator }
@@ -137,7 +143,7 @@ func (factory *Factory) newCorrelationID() (CorrelationID, error) {
 	if err != nil {
 		return "", err
 	}
-	return ParseCorrelationID(value, factory.policy)
+	return CorrelationID(value), nil
 }
 
 func (factory *Factory) newRequestID() (RequestID, error) {
@@ -145,7 +151,7 @@ func (factory *Factory) newRequestID() (RequestID, error) {
 	if err != nil {
 		return "", err
 	}
-	return ParseRequestID(value, factory.policy)
+	return RequestID(value), nil
 }
 
 func (factory *Factory) generate() (string, error) {
@@ -156,8 +162,10 @@ func (factory *Factory) generate() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrGeneration, err)
 	}
-	if err := validate(value, factory.policy); err != nil {
-		return "", fmt.Errorf("%w: %w", ErrGeneration, err)
+	if factory.validateGenerated {
+		if err := validate(value, factory.policy); err != nil {
+			return "", fmt.Errorf("%w: %w", ErrGeneration, err)
+		}
 	}
 	return value, nil
 }

@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 ### Changed
 
+- Use the concurrency-safe default cryptographic entropy source directly for
+  UUIDv4 generation while retaining serialization for caller-provided readers.
 - Escape line breaks in generic identifier assertion diagnostics so hostile
   canonical values cannot forge test log entries.
 - ULID parsing now accepts consistently lowercase Laravel storage values while
