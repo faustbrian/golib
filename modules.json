@@ -8277,6 +8277,7 @@
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
         "github.com/IBM/sarama",
+        "github.com/moby/moby/api",
         "github.com/segmentio/kafka-go",
         "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/kafka",
@@ -17911,6 +17912,18 @@
           "directory": "internal/leafvector",
           "name": "leafvector",
           "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector",
+          "kind": "internal",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/verkle-tree",
+          "directory": "internal/profile",
+          "name": "profile",
+          "import_path": "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile",
           "kind": "internal",
           "production": true,
           "executable": true,
