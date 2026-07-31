@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	eventpostgres "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
@@ -123,6 +124,18 @@ func TestStoreAppendCommitsAndCleansUpTransaction(t *testing.T) {
 			len(messages),
 			transaction.commitCalls,
 			transaction.rollbackCalls,
+		)
+	}
+	const expectedCleanupTimeout = 5 * time.Second
+	remaining := time.Until(transaction.rollbackUntil)
+	if !transaction.rollbackBound ||
+		remaining < expectedCleanupTimeout-time.Second ||
+		remaining > expectedCleanupTimeout {
+		t.Fatalf(
+			"rollback deadline bound=%t remaining=%s, want within %s",
+			transaction.rollbackBound,
+			remaining,
+			expectedCleanupTimeout,
 		)
 	}
 }

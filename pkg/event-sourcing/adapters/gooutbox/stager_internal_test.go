@@ -253,6 +253,8 @@ type fakeTransaction struct {
 	commitErr     error
 	commitCalls   int
 	rollbackCalls int
+	rollbackUntil time.Time
+	rollbackBound bool
 }
 
 func (transaction *fakeTransaction) Begin(
@@ -267,8 +269,9 @@ func (transaction *fakeTransaction) Commit(context.Context) error {
 	return transaction.commitErr
 }
 
-func (transaction *fakeTransaction) Rollback(context.Context) error {
+func (transaction *fakeTransaction) Rollback(ctx context.Context) error {
 	transaction.rollbackCalls++
+	transaction.rollbackUntil, transaction.rollbackBound = ctx.Deadline()
 
 	return nil
 }

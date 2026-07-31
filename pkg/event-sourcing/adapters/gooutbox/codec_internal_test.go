@@ -2,6 +2,7 @@ package gooutbox
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -186,6 +187,49 @@ func TestEnvelopeCodecHashesOversizedAggregateOrderingKey(t *testing.T) {
 	}
 }
 
+func TestEnvelopeCodecPreservesExactTopicAndOrderingKeyBounds(t *testing.T) {
+	t.Parallel()
+
+	limits := DefaultLimits()
+	topic := strings.Repeat("t", limits.MaxTopicBytes)
+	codec := mustCodec(t, FixedTopic(topic), limits)
+	aggregateID := strings.Repeat("a", limits.MaxOrderingKeyBytes)
+	envelope, err := codec.Encode(
+		internalMessageWithAggregateAndMetadata(t, aggregateID, nil),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Topic != topic || envelope.OrderingKey != aggregateID {
+		t.Fatalf(
+			"boundary routing = (%q, %q), want (%q, %q)",
+			envelope.Topic,
+			envelope.OrderingKey,
+			topic,
+			aggregateID,
+		)
+	}
+}
+
+func TestEnvelopeCodecDefaultLimitsFitMaximumApplicationMetadata(t *testing.T) {
+	t.Parallel()
+
+	metadata := make(map[string]string, 16)
+	for index := range 16 {
+		key := fmt.Sprintf("k%02d", index)
+		metadata[key] = strings.Repeat(
+			"v",
+			eventsourcing.MaxMetadataValueBytes-len(key),
+		)
+	}
+	codec := mustCodec(t, FixedTopic("events"), DefaultLimits())
+	if _, err := codec.Encode(
+		internalMessageWithAggregateAndMetadata(t, "account-1", metadata),
+	); err != nil {
+		t.Fatalf("Encode maximum application metadata: %v", err)
+	}
+}
+
 func TestEnvelopeCodecRejectsMalformedEnvelopeFields(t *testing.T) {
 	t.Parallel()
 
@@ -221,6 +265,9 @@ func TestEnvelopeCodecRejectsMalformedEnvelopeFields(t *testing.T) {
 			value.Metadata[MetadataRecordedAt] = time.Time{}.Format(
 				time.RFC3339Nano,
 			)
+		},
+		"recorded time syntax": func(value *outbox.Envelope) {
+			value.Metadata[MetadataRecordedAt] = "invalid"
 		},
 		"application metadata": func(value *outbox.Envelope) {
 			value.Metadata[MetadataApplication] = "[]"
@@ -314,6 +361,41 @@ func internalMessage(
 		Pending:        pending,
 		StreamVersion:  7,
 		GlobalPosition: position,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return message
+}
+
+func internalMessageWithAggregateAndMetadata(
+	t testing.TB,
+	aggregateID string,
+	metadata map[string]string,
+) eventsourcing.Message {
+	t.Helper()
+
+	stream, err := eventsourcing.NewStreamID("account", aggregateID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, fixture := internalPending(t)
+	pending, err := eventsourcing.NewPendingMessage(
+		eventsourcing.PendingMessageInput{
+			ID:         fixture.ID().String(),
+			Stream:     stream,
+			Event:      fixture.Event(),
+			Metadata:   metadata,
+			RecordedAt: fixture.RecordedAt(),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+		Pending:       pending,
+		StreamVersion: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

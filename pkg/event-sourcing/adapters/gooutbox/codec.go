@@ -278,7 +278,7 @@ func (codec *EnvelopeCodec) Decode(
 		time.RFC3339Nano,
 		envelope.Metadata[MetadataRecordedAt],
 	)
-	if err != nil || recordedAt.IsZero() {
+	if err != nil {
 		return eventsourcing.Message{}, ErrEnvelopeCorrupt
 	}
 	var applicationMetadata map[string]string
