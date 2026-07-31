@@ -3,6 +3,7 @@ package goqueue
 import (
 	"bytes"
 	"errors"
+	"io"
 	"math"
 	"strings"
 	"testing"
@@ -58,6 +59,32 @@ func TestCodecRoundTripsAbsentOptionalFields(t *testing.T) {
 	if !decoded.Message().Equal(delivery.Message()) ||
 		decoded.Mode() != eventsourcing.DeliveryLive {
 		t.Fatalf("Decode() = %#v", decoded)
+	}
+}
+
+func TestCodecAcceptsExactEnvelopeLimit(t *testing.T) {
+	delivery := minimalQueueDelivery(t)
+	codec, err := NewCodec(CodecConfig{})
+	if err != nil {
+		t.Fatalf("NewCodec() error = %v", err)
+	}
+	encoded, err := codec.Encode(delivery)
+	if err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	codec, err = NewCodec(CodecConfig{MaxEnvelopeBytes: len(encoded)})
+	if err != nil {
+		t.Fatalf("NewCodec(boundary) error = %v", err)
+	}
+	bounded, err := codec.Encode(delivery)
+	if err != nil {
+		t.Fatalf("Encode(boundary) error = %v", err)
+	}
+	if !bytes.Equal(bounded, encoded) {
+		t.Fatalf("Encode(boundary) = %s, want %s", bounded, encoded)
+	}
+	if _, err := codec.Decode(bounded); err != nil {
+		t.Fatalf("Decode(boundary) error = %v", err)
 	}
 }
 
@@ -136,6 +163,22 @@ func TestCodecRejectsNonCanonicalAndMalformedInput(t *testing.T) {
 	}
 }
 
+func TestCodecPreservesTrailingSyntaxCause(t *testing.T) {
+	codec, err := NewCodec(CodecConfig{})
+	if err != nil {
+		t.Fatalf("NewCodec() error = %v", err)
+	}
+	encoded, err := codec.Encode(minimalQueueDelivery(t))
+	if err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	_, err = codec.Decode(append(encoded, '{'))
+	if !errors.Is(err, ErrEnvelopeInvalid) ||
+		!errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("Decode() error = %v, want preserved JSON syntax cause", err)
+	}
+}
+
 func TestWireEnvelopeRejectsIncompatibleFields(t *testing.T) {
 	valid := wireEnvelopeFromDelivery(t)
 	tests := map[string]func(*wireEnvelope){
@@ -181,6 +224,23 @@ func TestWireEnvelopeRejectsIncompatibleFields(t *testing.T) {
 				t.Fatalf("delivery() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestWireEnvelopeAcceptsMaximumSchemaVersion(t *testing.T) {
+	envelope := wireEnvelopeFromDelivery(t)
+	envelope.EventSchemaVersion = math.MaxUint32
+	delivery, err := envelope.delivery()
+	if err != nil {
+		t.Fatalf("delivery() error = %v", err)
+	}
+	if delivery.Message().Event().Version() !=
+		eventsourcing.SchemaVersion(math.MaxUint32) {
+		t.Fatalf(
+			"schema version = %d, want %d",
+			delivery.Message().Event().Version(),
+			uint64(math.MaxUint32),
+		)
 	}
 }
 
