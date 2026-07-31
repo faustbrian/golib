@@ -1205,6 +1205,8 @@ Versioning and keeps an Unreleased section until a release is tagged.
 
 ### Fixed
 
+- Migration example checks no longer retain mutable checksums for local
+  zero-version workspace modules.
 - transaction, savepoint, and isolated-test callbacks that terminate their
   goroutine now roll back exactly once; observed operations report `aborted`
 - rollback panics can no longer replace a callback panic or convert

@@ -33,10 +33,6 @@ github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkp
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/ISU=
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
-github.com/faustbrian/golib/pkg/migrations v0.0.0 h1:DPwnsZ/uABUvqCo+hNFiG5hTI9rld9Bnv+ObGS7W3kc=
-github.com/faustbrian/golib/pkg/migrations v0.0.0/go.mod h1:hhJ/+sX0SB4TcO+okugigaAejHAj6yg9sng/vO7CY/Y=
-github.com/faustbrian/golib/pkg/postgres v0.0.0 h1:I1nUJDDLmGUVuz6hcPIYFtN8IShLdDPqaicq3DFhL1M=
-github.com/faustbrian/golib/pkg/postgres v0.0.0/go.mod h1:6tS+cRwLv07NrmYuem9GTT0wlavbeDgpZSMnaf99ZII=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
