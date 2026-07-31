@@ -3,7 +3,7 @@ module github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry
 go 1.26.5
 
 require (
-	github.com/faustbrian/golib/pkg/outbox v0.0.0
+	github.com/faustbrian/golib/pkg/outbox v0.0.0-20260731034205-0d6ce6b909dd
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0

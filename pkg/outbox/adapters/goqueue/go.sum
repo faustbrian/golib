@@ -31,10 +31,10 @@ github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/ISU=
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
-github.com/faustbrian/golib/pkg/outbox v0.0.0 h1:ha8kSvZLmSiVUnYUZD+BgPQoZuAa9769jzCJ4prVT2c=
-github.com/faustbrian/golib/pkg/outbox v0.0.0/go.mod h1:qDvNTz8uelQJ5ROQT1Uabl2GPj6OE2anIUyd6w1qkNE=
-github.com/faustbrian/golib/pkg/queue v0.0.0 h1:rVPrFdgcMUYSu5G3CXkpRUaRrnQcGDuy945Z5dA7y2k=
-github.com/faustbrian/golib/pkg/queue v0.0.0/go.mod h1:+xzoeH1hLgOTmmsv+41EqZyOFSnq/mxthAlUmLfd/zA=
+github.com/faustbrian/golib/pkg/outbox v0.0.0-20260731034205-0d6ce6b909dd h1:biFNiXPlK9PtJPbHAYSrNcfeE1ZkEPnfEx1BNXq8IrE=
+github.com/faustbrian/golib/pkg/outbox v0.0.0-20260731034205-0d6ce6b909dd/go.mod h1:qDvNTz8uelQJ5ROQT1Uabl2GPj6OE2anIUyd6w1qkNE=
+github.com/faustbrian/golib/pkg/queue v0.0.0-20260731034205-0d6ce6b909dd h1:3t9YfauxUBTt4hyWH+n0UK6oizc8dM4lurW585Z9AE0=
+github.com/faustbrian/golib/pkg/queue v0.0.0-20260731034205-0d6ce6b909dd/go.mod h1:KbJMlejVIlYDawQ0ErQ3enpEnCeKzrDLrWmTJrpErtc=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=

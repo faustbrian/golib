@@ -8,6 +8,11 @@ publisher contracts are public compatibility surfaces.
 
 ## [Unreleased]
 
+### Fixed
+
+- Pin standalone publisher adapters to resolvable immutable main revisions so
+  their workspace-disabled module and release gates can run independently.
+
 ### Compatibility
 
 - Added a pinned module export baseline so incompatible public API changes
