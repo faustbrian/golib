@@ -1,11 +1,9 @@
 package verkletree
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/authstate"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
@@ -313,14 +311,6 @@ func (engine ProofEngine) Prove(
 		}
 		owned[index] = authstate.Key(keys[index])
 	}
-	slices.SortFunc(owned, func(left, right authstate.Key) int {
-		return bytes.Compare(left[:], right[:])
-	})
-	for index := 1; index < len(owned); index++ {
-		if owned[index] == owned[index-1] {
-			return Proof{}, ErrDuplicateKey
-		}
-	}
 	value, err := engine.value.Prove(
 		ctx,
 		snapshot.value,
@@ -538,6 +528,9 @@ func translateProofError(operation string, err error, verification bool) error {
 	if errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("%s: %w: %w", operation, ErrCancelled, err)
+	}
+	if authstate.IsDuplicateKeyError(err) {
+		return fmt.Errorf("%s: %w", operation, ErrDuplicateKey)
 	}
 	if verification || authstate.IsProofVerificationError(err) {
 		return fmt.Errorf("%s: %w", operation, ErrVerification)

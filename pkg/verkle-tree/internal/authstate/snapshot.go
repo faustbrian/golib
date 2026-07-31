@@ -638,5 +638,6 @@ func checkResource(resource Resource, limit uint64, actual uint64) error {
 
 // IsDuplicateKeyError reports whether err identifies a duplicate state key.
 func IsDuplicateKeyError(err error) bool {
-	return errors.Is(err, errDuplicateKey)
+	return errors.Is(err, errDuplicateKey) ||
+		errors.Is(err, errDuplicateClaimKey)
 }

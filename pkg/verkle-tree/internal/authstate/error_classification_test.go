@@ -10,6 +10,7 @@ func TestFacadeErrorClassifiers(t *testing.T) {
 
 	other := errors.New("different")
 	if !IsDuplicateKeyError(errDuplicateKey) ||
+		!IsDuplicateKeyError(errDuplicateClaimKey) ||
 		IsDuplicateKeyError(other) ||
 		!IsProofVerificationError(errProofVerification) ||
 		IsProofVerificationError(other) ||
