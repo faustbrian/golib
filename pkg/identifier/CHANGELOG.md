@@ -15,7 +15,8 @@ All notable changes follow Keep a Changelog and semantic versioning.
 - The module workflow gate now validates the repository's single root workflow
   instead of requiring a forbidden package-local workflow.
 - Refreshed the exported API fingerprint for the canonical Go 1.26
-  documentation output, including explicit lowercase ULID output.
+  documentation output, including explicit lowercase ULID output and
+  concurrency-safe UUIDv4 entropy ownership.
 
 ### Added
 
