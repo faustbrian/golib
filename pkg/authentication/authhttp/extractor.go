@@ -125,7 +125,7 @@ func (s authorizationSource) extract(request *http.Request) (authentication.Cred
 		wanted = "Bearer"
 	}
 	separator := strings.IndexAny(values[0], " \t")
-	if separator < 0 {
+	if separator == -1 {
 		if strings.EqualFold(values[0], wanted) {
 			return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 		}
@@ -141,7 +141,10 @@ func (s authorizationSource) extract(request *http.Request) (authentication.Cred
 	}
 
 	if s.kind == authentication.CredentialBearer {
-		if len(payload) > s.maxBytes || !validBearerToken(payload, s.pipe) {
+		if len(payload) > s.maxBytes {
+			return nil, false, authentication.NewFailure(authentication.FailureInvalid)
+		}
+		if !validBearerToken(payload, s.pipe) {
 			return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 		}
 		return authentication.NewBearerCredential(payload), true, nil
@@ -150,7 +153,10 @@ func (s authorizationSource) extract(request *http.Request) (authentication.Cred
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	decoded, err := base64.StdEncoding.Strict().DecodeString(payload)
-	if err != nil || len(decoded) > s.maxBytes || base64.StdEncoding.EncodeToString(decoded) != payload {
+	if err != nil {
+		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(decoded) > s.maxBytes {
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	username, password, ok := strings.Cut(string(decoded), ":")
@@ -229,9 +235,13 @@ func (s bearerNamedSource) extract(request *http.Request) (authentication.Creden
 	if len(values) != 1 {
 		return nil, false, authentication.NewFailure(authentication.FailureAmbiguous)
 	}
-	if values[0] == "" ||
-		len(values[0]) > s.maxBytes ||
-		!validBearerToken(values[0], s.pipe) {
+	if values[0] == "" {
+		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(values[0]) > s.maxBytes {
+		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if !validBearerToken(values[0], s.pipe) {
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	return authentication.NewBearerCredential(values[0]), true, nil
@@ -310,7 +320,10 @@ func (s apiKeySource) extract(request *http.Request) (authentication.Credential,
 		}
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
-	if ids[0] == "" || keys[0] == "" || len(ids[0]) > s.maxIDBytes || len(keys[0]) > s.maxKeyBytes {
+	if ids[0] == "" || keys[0] == "" {
+		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
+	}
+	if len(ids[0]) > s.maxIDBytes || len(keys[0]) > s.maxKeyBytes {
 		return nil, false, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	return authentication.NewAPIKeyCredential(ids[0], keys[0]), true, nil

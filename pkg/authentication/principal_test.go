@@ -141,6 +141,10 @@ func TestPrincipalRejectsHostileClaims(t *testing.T) {
 	for range authentication.MaxClaimDepth + 1 {
 		deep = []any{deep}
 	}
+	deepMap := any("value")
+	for range authentication.MaxClaimDepth {
+		deepMap = map[string]any{"next": deepMap}
+	}
 	tests := map[string]map[string]any{
 		"too many claims":      tooManyClaims,
 		"empty claim name":     {"": "value"},
@@ -149,6 +153,7 @@ func TestPrincipalRejectsHostileClaims(t *testing.T) {
 		"oversized map":        {"value": largeMap},
 		"oversized collection": {"value": largeSlice},
 		"excessive depth":      {"value": deep},
+		"excessive map depth":  {"value": deepMap},
 		"nested invalid map":   {"value": map[string]any{"bad": new(string)}},
 		"nested invalid slice": {"value": []any{new(string)}},
 	}
@@ -163,6 +168,42 @@ func TestPrincipalRejectsHostileClaims(t *testing.T) {
 				t.Fatalf("NewPrincipal() error = %v, want ErrInvalidPrincipal", err)
 			}
 		})
+	}
+}
+
+func TestPrincipalAcceptsExactClaimLimits(t *testing.T) {
+	t.Parallel()
+
+	claims := make(map[string]any, authentication.MaxClaims)
+	for index := range authentication.MaxClaims - 3 {
+		claims[fmt.Sprintf("claim-%d", index)] = index
+	}
+
+	exactCollection := make([]any, authentication.MaxClaimCollection)
+	exactMap := make(map[string]any, authentication.MaxClaimCollection)
+	for index := range authentication.MaxClaimCollection {
+		exactCollection[index] = index
+		exactMap[fmt.Sprintf("key-%d", index)] = index
+	}
+	claims["collection"] = exactCollection
+	claims["map"] = exactMap
+
+	deep := any("value")
+	for range authentication.MaxClaimDepth - 1 {
+		deep = []any{deep}
+	}
+	claims["deep"] = deep
+
+	principal, err := authentication.NewPrincipal(authentication.PrincipalSpec{
+		Subject: "service",
+		Method:  "bearer",
+		Claims:  claims,
+	})
+	if err != nil {
+		t.Fatalf("NewPrincipal() exact limits error = %v", err)
+	}
+	if got := principal.Claims(); len(got) != authentication.MaxClaims {
+		t.Fatalf("Principal.Claims() count = %d", len(got))
 	}
 }
 

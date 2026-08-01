@@ -279,6 +279,33 @@ func TestMiddlewareAcceptsStructDependenciesAndNilOption(t *testing.T) {
 	}
 }
 
+func TestMiddlewareContinuesPastNilOption(t *testing.T) {
+	t.Parallel()
+
+	middleware, err := authhttp.NewMiddleware(
+		extractorFunc(func(*http.Request) (authentication.Credential, error) {
+			return nil, authentication.NewFailure(authentication.FailureAbsent)
+		}),
+		structAuthenticator{},
+		nil,
+		authhttp.WithOptionalAnonymous(),
+	)
+	if err != nil {
+		t.Fatalf("NewMiddleware() error = %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	middleware(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		principal, ok := authentication.PrincipalFromContext(request.Context())
+		if !ok || !principal.IsAnonymous() {
+			t.Fatalf("anonymous principal = (%v, %v)", principal, ok)
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+}
+
 func TestMiddlewareDropsInvalidFailureChallenges(t *testing.T) {
 	t.Parallel()
 

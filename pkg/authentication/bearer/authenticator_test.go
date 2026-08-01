@@ -3,6 +3,7 @@ package bearer_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -96,6 +97,56 @@ func TestStaticBearerRejectsInvalidConfiguration(t *testing.T) {
 		if _, err := bearer.NewStatic(entries); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 			t.Errorf("NewStatic(%d entries) error = %v, want invalid configuration", len(entries), err)
 		}
+	}
+}
+
+func TestStaticBearerAcceptsExactLimitsAndKeepsEarlierMatch(t *testing.T) {
+	t.Parallel()
+
+	entries := make([]bearer.Entry, bearer.MaxEntries)
+	for index := range entries {
+		entries[index] = bearer.Entry{
+			Token:     fmt.Sprintf("token-%d", index),
+			Principal: authentication.PrincipalSpec{Subject: fmt.Sprintf("service-%d", index)},
+		}
+	}
+	authenticator, err := bearer.NewStatic(entries)
+	if err != nil {
+		t.Fatalf("NewStatic() exact entry limit error = %v", err)
+	}
+	result, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewBearerCredential("token-0"),
+	)
+	if err != nil {
+		t.Fatalf("Authenticate() first entry error = %v", err)
+	}
+	principal, ok := result.Principal()
+	if !ok || principal.Subject() != "service-0" {
+		t.Fatalf("Authenticate() first entry principal = (%v, %v)", principal, ok)
+	}
+
+	entries = append(entries, bearer.Entry{
+		Token:     "overflow-token",
+		Principal: authentication.PrincipalSpec{Subject: "overflow"},
+	})
+	if _, err := bearer.NewStatic(entries); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("NewStatic() oversized entry error = %v", err)
+	}
+
+	maxToken := strings.Repeat("x", 8*1024)
+	authenticator, err = bearer.NewStatic([]bearer.Entry{{
+		Token:     maxToken,
+		Principal: authentication.PrincipalSpec{Subject: "bounded"},
+	}})
+	if err != nil {
+		t.Fatalf("NewStatic() exact token limit error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewBearerCredential(maxToken),
+	); err != nil {
+		t.Fatalf("Authenticate() exact token limit error = %v", err)
 	}
 }
 
@@ -234,6 +285,27 @@ func TestAuthenticatorRejectsMalformedCredentialBeforeCallback(t *testing.T) {
 	}
 }
 
+func TestAuthenticatorAcceptsExactConfiguredTokenLimit(t *testing.T) {
+	t.Parallel()
+
+	const token = "12345678"
+	authenticator, err := bearer.New(bearer.ValidatorFunc(func(_ context.Context, got string) (authentication.Principal, error) {
+		if got != token {
+			t.Fatalf("ValidateBearer() token = %q, want %q", got, token)
+		}
+		return mustPrincipal(t, "service", "bearer"), nil
+	}), bearer.WithMaxTokenBytes(len(token)))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewBearerCredential(token),
+	); err != nil {
+		t.Fatalf("Authenticate() exact token limit error = %v", err)
+	}
+}
+
 func TestAuthenticatorHonorsCanceledContext(t *testing.T) {
 	t.Parallel()
 
@@ -277,6 +349,16 @@ func TestAuthenticatorRejectsInvalidConfigurationAndPrincipal(t *testing.T) {
 	}
 	if _, err := authenticator.Authenticate(context.Background(), authentication.NewBearerCredential("token")); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("Authenticate() error = %v, want unavailable", err)
+	}
+
+	authenticator, err = bearer.New(bearer.ValidatorFunc(func(context.Context, string) (authentication.Principal, error) {
+		return mustPrincipal(t, "service", "api_key"), nil
+	}))
+	if err != nil {
+		t.Fatalf("New(wrong method validator) error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(context.Background(), authentication.NewBearerCredential("token")); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("Authenticate(wrong method) error = %v, want unavailable", err)
 	}
 }
 

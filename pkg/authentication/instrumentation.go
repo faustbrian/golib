@@ -126,11 +126,7 @@ func safeNow(clock Clock, fallback time.Time) (now time.Time) {
 }
 
 func safeDuration(started, finished time.Time) time.Duration {
-	duration := finished.Sub(started)
-	if duration < 0 {
-		return 0
-	}
-	return duration
+	return max(finished.Sub(started), 0)
 }
 
 func isNil(value any) bool {

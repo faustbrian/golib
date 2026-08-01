@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	authentication "github.com/faustbrian/golib/pkg/authentication"
@@ -286,6 +287,42 @@ func TestAuthorizationSourcesHandleNakedSchemesAndBasicBounds(t *testing.T) {
 	}
 }
 
+func TestAuthorizationSourcesAcceptExactBounds(t *testing.T) {
+	t.Parallel()
+
+	bearer, err := mustExtractor(
+		t,
+		authhttp.BearerAuthorization(authhttp.WithBearerMaxBytes(6)),
+	).Extract(requestWithHeaders([]string{"Bearer azAZ09"}))
+	if err != nil || bearer.(authentication.BearerCredential).Token() != "azAZ09" {
+		t.Fatalf("exact bearer extraction = (%v, %v)", bearer, err)
+	}
+
+	decoded := strings.Repeat("u", 8*1024-1) + ":"
+	basic, err := mustExtractor(t, authhttp.BasicAuthorization()).Extract(
+		requestWithHeaders([]string{"Basic " + base64.StdEncoding.EncodeToString([]byte(decoded))}),
+	)
+	if err != nil {
+		t.Fatalf("exact Basic extraction error = %v", err)
+	}
+	credential := basic.(authentication.BasicCredential)
+	if len(credential.Username()) != 8*1024-1 || credential.Password() != "" {
+		t.Fatalf("exact Basic credential lengths = (%d, %d)", len(credential.Username()), len(credential.Password()))
+	}
+}
+
+func TestBasicAuthorizationRejectsDecodedCredentialAboveLimit(t *testing.T) {
+	t.Parallel()
+
+	decoded := strings.Repeat("u", 8*1024) + ":"
+	_, err := mustExtractor(t, authhttp.BasicAuthorization()).Extract(
+		requestWithHeaders([]string{"Basic " + base64.StdEncoding.EncodeToString([]byte(decoded))}),
+	)
+	if !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("oversized decoded Basic error = %v, want invalid", err)
+	}
+}
+
 func TestNamedBearerSourcesRejectAbsentDuplicateAndHostileValues(t *testing.T) {
 	t.Parallel()
 
@@ -300,6 +337,7 @@ func TestNamedBearerSourcesRejectAbsentDuplicateAndHostileValues(t *testing.T) {
 		{name: "absent", source: authhttp.BearerQuery("token"), request: &http.Request{Header: make(http.Header), URL: &url.URL{}}, want: authentication.ErrCredentialsAbsent},
 		{name: "duplicate", source: authhttp.BearerQuery("token"), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "token=one&token=two"}}, want: authentication.ErrAmbiguousCredentials},
 		{name: "empty", source: authhttp.BearerQuery("token"), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "token="}}, want: authentication.ErrCredentialsInvalid},
+		{name: "exact bound", source: authhttp.BearerQuery("token", authhttp.WithBearerMaxBytes(4)), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "token=az09"}}, want: nil},
 		{name: "invalid", source: authhttp.BearerCookie("token"), request: requestWithCookie(&http.Cookie{Name: "token", Value: "bad token"}), want: authentication.ErrCredentialsInvalid},
 		{name: "oversized", source: authhttp.BearerQuery("token", authhttp.WithBearerMaxBytes(3)), request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "token=long"}}, want: authentication.ErrCredentialsInvalid},
 	}
@@ -325,7 +363,12 @@ func TestAPIKeySourcesRejectMalformedQueriesAndBoundedValues(t *testing.T) {
 		{name: "nil URL", request: &http.Request{Header: make(http.Header)}, want: authentication.ErrCredentialsInvalid},
 		{name: "malformed query", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "%"}}, want: authentication.ErrCredentialsInvalid},
 		{name: "empty values", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=&key="}}, want: authentication.ErrCredentialsInvalid},
+		{name: "empty id", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=&key=key"}}, want: authentication.ErrCredentialsInvalid},
+		{name: "empty key", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=id&key="}}, want: authentication.ErrCredentialsInvalid},
+		{name: "missing id", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "key=key"}}, want: authentication.ErrCredentialsInvalid},
+		{name: "missing key", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=id"}}, want: authentication.ErrCredentialsInvalid},
 		{name: "oversized key", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=primary&key=long"}}, want: authentication.ErrCredentialsInvalid},
+		{name: "exact key bound", request: &http.Request{Header: make(http.Header), URL: &url.URL{RawQuery: "id=id&key=key"}}, want: nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

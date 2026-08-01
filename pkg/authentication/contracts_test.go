@@ -110,7 +110,9 @@ func TestChallengeRejectsInvalidProtocolData(t *testing.T) {
 	}{
 		{name: "empty scheme", params: map[string]string{}},
 		{name: "invalid scheme", scheme: "Bear er", params: map[string]string{}},
+		{name: "delete in scheme", scheme: "Bearer\x7f", params: map[string]string{}},
 		{name: "invalid parameter name", scheme: "Bearer", params: map[string]string{"bad name": "value"}},
+		{name: "delete in parameter name", scheme: "Bearer", params: map[string]string{"bad\x7f": "value"}},
 		{name: "control in value", scheme: "Bearer", params: map[string]string{"realm": "bad\r\nvalue"}},
 		{name: "non-newline control in value", scheme: "Bearer", params: map[string]string{"realm": "bad\x01value"}},
 		{name: "delete in value", scheme: "Bearer", params: map[string]string{"realm": "bad\x7fvalue"}},
@@ -129,6 +131,27 @@ func TestChallengeRejectsInvalidProtocolData(t *testing.T) {
 				t.Fatalf("NewChallenge() error = %v, want ErrInvalidChallenge", err)
 			}
 		})
+	}
+}
+
+func TestChallengeAcceptsExactProtocolLimits(t *testing.T) {
+	t.Parallel()
+
+	parameters := challengeParameters(authentication.MaxChallengeParameters)
+	parameters["edge"] = "\t !~" + strings.Repeat("a", authentication.MaxChallengeValueBytes-4)
+	delete(parameters, "p0")
+	parameters[strings.Repeat("n", authentication.MaxChallengeNameBytes)] = "value"
+	delete(parameters, "p1")
+
+	challenge, err := authentication.NewChallenge(
+		strings.Repeat("a", authentication.MaxChallengeSchemeBytes),
+		parameters,
+	)
+	if err != nil {
+		t.Fatalf("NewChallenge() exact limits error = %v", err)
+	}
+	if got := challenge.Parameters()["edge"]; len(got) != authentication.MaxChallengeValueBytes {
+		t.Fatalf("challenge edge value length = %d", len(got))
 	}
 }
 

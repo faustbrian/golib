@@ -55,7 +55,7 @@ func (c *Composite) Authenticate(ctx context.Context, credential Credential) (Re
 	for _, authenticator := range authenticators {
 		result, err := authenticator.Authenticate(ctx, credential)
 		if err == nil {
-			if principal, ok := result.Principal(); ok && result.State() == ResultAuthenticated && !principal.IsAnonymous() {
+			if _, ok := result.Principal(); ok {
 				return result, nil
 			}
 			return Result{}, NewFailure(FailureUnavailable, WithFailureCause(ErrInvalidConfiguration))

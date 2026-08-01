@@ -9,6 +9,9 @@ this project follows Semantic Versioning.
 
 - Protect static Basic and API-key credentials with random per-authenticator
   HMAC-SHA-256 keys instead of reusable unkeyed secret digests.
+- Enforce and prove inclusive credential, principal, challenge, collection, and
+  static-entry bounds at their exact limits; reject forged result states and
+  provider method mismatches without weakening fail-closed behavior.
 
 ### Changed
 

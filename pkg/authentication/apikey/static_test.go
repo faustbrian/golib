@@ -3,6 +3,7 @@ package apikey_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -186,6 +187,38 @@ func TestStaticRejectsDuplicateKeyConfiguration(t *testing.T) {
 				t.Fatalf("NewStatic() error = %v, want ErrInvalidConfiguration", err)
 			}
 		})
+	}
+}
+
+func TestStaticAcceptsExactEntryLimitAndRejectsOneMore(t *testing.T) {
+	t.Parallel()
+
+	entries := make([]apikey.Entry, apikey.MaxEntries)
+	for index := range entries {
+		entries[index] = apikey.Entry{
+			ID:        fmt.Sprintf("id-%d", index),
+			Key:       fmt.Sprintf("key-%d", index),
+			Principal: authentication.PrincipalSpec{Subject: fmt.Sprintf("service-%d", index)},
+		}
+	}
+	authenticator, err := apikey.NewStatic(entries)
+	if err != nil {
+		t.Fatalf("NewStatic() exact entry limit error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewAPIKeyCredential("id-255", "key-255"),
+	); err != nil {
+		t.Fatalf("Authenticate() final exact-limit entry error = %v", err)
+	}
+
+	entries = append(entries, apikey.Entry{
+		ID:        "overflow",
+		Key:       "overflow-key",
+		Principal: authentication.PrincipalSpec{Subject: "overflow"},
+	})
+	if _, err := apikey.NewStatic(entries); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("NewStatic() oversized entry error = %v", err)
 	}
 }
 

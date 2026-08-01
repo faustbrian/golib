@@ -91,6 +91,9 @@ func TestCompositeStopsOnNonRejectedFailure(t *testing.T) {
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, tt.want)
 			}
+			if tt.name != "unclassified" && err != tt.err {
+				t.Fatalf("Authenticate() error identity = %v, want original %v", err, tt.err)
+			}
 			if fallbackCalled {
 				t.Fatal("fallback called after terminal failure")
 			}
@@ -190,6 +193,9 @@ func TestCompositeTreatsBareRejectionAndAbsentAsClassified(t *testing.T) {
 			_, err = composite.Authenticate(context.Background(), authentication.NewBearerCredential("token"))
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("Authenticate() error = %v, want %v", err, tt.want)
+			}
+			if tt.name == "absent" && err != tt.err {
+				t.Fatalf("Authenticate() error identity = %v, want original %v", err, tt.err)
 			}
 		})
 	}

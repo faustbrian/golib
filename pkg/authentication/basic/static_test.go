@@ -3,6 +3,7 @@ package basic_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	authentication "github.com/faustbrian/golib/pkg/authentication"
@@ -102,6 +103,43 @@ func TestStaticRejectsUnsafeConfiguration(t *testing.T) {
 				t.Fatalf("NewStatic() error = %v, want ErrInvalidConfiguration", err)
 			}
 		})
+	}
+}
+
+func TestStaticAcceptsExactEntryLimitAndKeepsEarlierMatch(t *testing.T) {
+	t.Parallel()
+
+	entries := make([]basic.Entry, basic.MaxEntries)
+	for index := range entries {
+		entries[index] = basic.Entry{
+			Username:  fmt.Sprintf("user-%d", index),
+			Password:  fmt.Sprintf("password-%d", index),
+			Principal: authentication.PrincipalSpec{Subject: fmt.Sprintf("service-%d", index)},
+		}
+	}
+	authenticator, err := basic.NewStatic(entries)
+	if err != nil {
+		t.Fatalf("NewStatic() exact entry limit error = %v", err)
+	}
+	result, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewBasicCredential("user-0", "password-0"),
+	)
+	if err != nil {
+		t.Fatalf("Authenticate() first entry error = %v", err)
+	}
+	principal, ok := result.Principal()
+	if !ok || principal.Subject() != "service-0" {
+		t.Fatalf("Authenticate() first entry principal = (%v, %v)", principal, ok)
+	}
+
+	entries = append(entries, basic.Entry{
+		Username:  "overflow",
+		Password:  "overflow-password",
+		Principal: authentication.PrincipalSpec{Subject: "overflow"},
+	})
+	if _, err := basic.NewStatic(entries); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("NewStatic() oversized entry error = %v", err)
 	}
 }
 

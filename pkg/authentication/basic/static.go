@@ -103,7 +103,7 @@ func (s *Static) Authenticate(ctx context.Context, credential authentication.Cre
 	for _, entry := range s.entries {
 		current := subtle.ConstantTimeCompare(username[:], entry.username[:]) &
 			subtle.ConstantTimeCompare(password[:], entry.password[:])
-		if current == 1 && matched == 0 {
+		if current == 1 {
 			result = entry.result
 		}
 		matched |= current

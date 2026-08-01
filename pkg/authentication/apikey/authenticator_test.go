@@ -71,6 +71,35 @@ func TestAuthenticatorBoundsInputAndClassifiesFailures(t *testing.T) {
 	}
 }
 
+func TestAuthenticatorAcceptsExactInputLimits(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	authenticator, err := apikey.New(
+		apikey.ValidatorFunc(func(_ context.Context, keyID, key string) (authentication.Principal, error) {
+			called = true
+			if keyID != "id12" || key != "key-1234" {
+				t.Fatalf("ValidateAPIKey() = (%q, %q)", keyID, key)
+			}
+			return apiKeyPrincipal(t, "service"), nil
+		}),
+		apikey.WithMaxKeyIDBytes(4),
+		apikey.WithMaxKeyBytes(8),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(
+		context.Background(),
+		authentication.NewAPIKeyCredential("id12", "key-1234"),
+	); err != nil {
+		t.Fatalf("Authenticate() exact limits error = %v", err)
+	}
+	if !called {
+		t.Fatal("validator was not called at exact input limits")
+	}
+}
+
 func TestAuthenticatorHonorsCancellationAndProviderFailures(t *testing.T) {
 	t.Parallel()
 
@@ -108,6 +137,11 @@ func TestAuthenticatorRejectsUnsafeConfigurationAndProviderIdentity(t *testing.T
 	}), apikey.WithMaxKeyIDBytes(0)); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("New(invalid bound) error = %v", err)
 	}
+	if _, err := apikey.New(apikey.ValidatorFunc(func(context.Context, string, string) (authentication.Principal, error) {
+		return authentication.Principal{}, nil
+	}), apikey.WithMaxKeyBytes(0)); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(invalid key bound) error = %v", err)
+	}
 
 	authenticator, err := apikey.New(apikey.ValidatorFunc(func(context.Context, string, string) (authentication.Principal, error) {
 		return authentication.AnonymousPrincipal(), nil
@@ -117,6 +151,20 @@ func TestAuthenticatorRejectsUnsafeConfigurationAndProviderIdentity(t *testing.T
 	}
 	if _, err := authenticator.Authenticate(context.Background(), authentication.NewAPIKeyCredential("id", "key")); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("Authenticate(anonymous) error = %v", err)
+	}
+
+	wrongMethod, err := authentication.NewPrincipal(authentication.PrincipalSpec{Subject: "service", Method: "bearer"})
+	if err != nil {
+		t.Fatalf("NewPrincipal() error = %v", err)
+	}
+	authenticator, err = apikey.New(apikey.ValidatorFunc(func(context.Context, string, string) (authentication.Principal, error) {
+		return wrongMethod, nil
+	}))
+	if err != nil {
+		t.Fatalf("New() wrong-method validator error = %v", err)
+	}
+	if _, err := authenticator.Authenticate(context.Background(), authentication.NewAPIKeyCredential("id", "key")); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("Authenticate(wrong method) error = %v", err)
 	}
 }
 

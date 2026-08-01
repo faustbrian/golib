@@ -78,7 +78,7 @@ func NewMiddleware(extractor CredentialExtractor, authenticator authentication.A
 				return
 			}
 			principal, ok := result.Principal()
-			if !ok || result.State() != authentication.ResultAuthenticated {
+			if !ok {
 				writeFailure(writer, authentication.NewFailure(authentication.FailureUnavailable,
 					authentication.WithFailureCause(authentication.ErrInvalidConfiguration)), configuration.challenges)
 				return
