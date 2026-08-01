@@ -169,6 +169,20 @@ func TestEncodeRejectsUnsafeOptionsAndPayloads(t *testing.T) {
 	}
 }
 
+func TestEncodeReturnsDirectValidationErrors(t *testing.T) {
+	for _, payload := range [][]byte{
+		nil,
+		bytes.Repeat([]byte("A"), 81),
+	} {
+		_, err := code128.Encode(payload, code128.Options{})
+		_, wrapsOne := err.(interface{ Unwrap() error })
+		_, wrapsMultiple := err.(interface{ Unwrap() []error })
+		if !errors.Is(err, code128.ErrInvalidInput) || wrapsOne || wrapsMultiple {
+			t.Fatalf("Encode(%d bytes) error = %v", len(payload), err)
+		}
+	}
+}
+
 func TestEncodeAcceptsPayloadCharacterAndOptionBoundaries(t *testing.T) {
 	for _, payload := range [][]byte{
 		bytes.Repeat([]byte("A"), 80),

@@ -91,6 +91,21 @@ func TestEncodeRejectsInvalidDataAndUnsafeQuietZones(t *testing.T) {
 	}
 }
 
+func TestEncodeReturnsDirectOptionValidationErrors(t *testing.T) {
+	for _, options := range []ean.Options{
+		{QuietZoneLeft: -1},
+		{QuietZoneRight: -1},
+		{Height: -1},
+	} {
+		_, err := ean.Encode13("4006381333931", options)
+		_, wrapsOne := err.(interface{ Unwrap() error })
+		_, wrapsMultiple := err.(interface{ Unwrap() []error })
+		if !errors.Is(err, ean.ErrInvalidInput) || wrapsOne || wrapsMultiple {
+			t.Fatalf("Encode13(%+v) error = %v", options, err)
+		}
+	}
+}
+
 func TestEncodeAcceptsDimensionAndSupplementBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		encode func(string, ean.Options) (barcode.Symbol, error)

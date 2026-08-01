@@ -342,8 +342,8 @@ func NewSymbol(options SymbolOptions) (Symbol, error) {
 	if _, ok := CapabilityFor(options.Format); !ok {
 		return Symbol{}, fmt.Errorf("%w: %q", ErrUnsupportedFormat, options.Format)
 	}
-	hasMatrix := options.Matrix.width > 0 && options.Matrix.height > 0
-	hasBars := options.Bars.width > 0 && options.Bars.height > 0
+	hasMatrix := len(options.Matrix.modules) != 0
+	hasBars := len(options.Bars.runs) != 0
 	if hasMatrix == hasBars {
 		return Symbol{}, ErrInvalidDimensions
 	}

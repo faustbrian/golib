@@ -96,18 +96,14 @@ func Encode(payload []byte, options Options) (barcode.Symbol, error) {
 }
 
 func fullASCII(payload []byte) ([]byte, error) {
-	extended := false
-	for _, character := range payload {
-		if !strings.ContainsRune(alphabet, rune(character)) {
-			extended = true
-			break
-		}
-	}
-	if !extended {
+	firstExtended := strings.IndexFunc(string(payload), func(character rune) bool {
+		return !strings.ContainsRune(alphabet, character)
+	})
+	if firstExtended == -1 {
 		return append([]byte(nil), payload...), nil
 	}
 
-	encoded := make([]byte, 0, len(payload)*2)
+	encoded := make([]byte, 0)
 	for _, character := range payload {
 		switch character {
 		case 0:
@@ -122,7 +118,7 @@ func fullASCII(payload []byte) ([]byte, error) {
 			switch {
 			case character <= 26:
 				encoded = append(encoded, '$', 'A'+character-1)
-			case character < ' ':
+			case character <= 31:
 				encoded = append(encoded, '%', 'A'+character-27)
 			case character <= ',' || character == '/' || character == ':':
 				encoded = append(encoded, '/', 'A'+character-33)

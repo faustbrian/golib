@@ -3,8 +3,11 @@ package datamatrix
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"reflect"
 	"testing"
+
+	"github.com/makiuchi-d/gozxing/datamatrix/encoder"
 )
 
 func TestECICodewordsMatchAssignmentWidthBoundaries(t *testing.T) {
@@ -17,6 +20,8 @@ func TestECICodewordsMatchAssignmentWidthBoundaries(t *testing.T) {
 		{assignment: 127, want: []byte{128, 1}},
 		{assignment: 16_382, want: []byte{191, 254}},
 		{assignment: 16_383, want: []byte{192, 1, 1}},
+		{assignment: 16_384, want: []byte{192, 1, 2}},
+		{assignment: 100_000, want: []byte{193, 76, 52}},
 		{assignment: 999_999, want: []byte{207, 63, 129}},
 	}
 	for _, test := range tests {
@@ -34,11 +39,24 @@ func TestPaddingRandomizationMatchesECC200Vectors(t *testing.T) {
 	if got := randomize253(3); got != 70 {
 		t.Fatalf("randomize253(3) = %d, want 70", got)
 	}
+	if got := randomize253(28); got != 254 {
+		t.Fatalf("randomize253(28) = %d, want 254", got)
+	}
 	codewords := []byte{232, 231}
 	codewords = appendBase256(codewords, 1)
 	codewords = appendBase256(codewords, 0xe9)
 	if !reflect.DeepEqual(codewords, []byte{232, 231, 194, 64}) {
 		t.Fatalf("Base 256 codewords = %v, want [232 231 194 64]", codewords)
+	}
+}
+
+func TestControlledEncodingDistinguishesBase256LengthLimit(t *testing.T) {
+	_, err := encodeControlled(make([]byte, 1555), Options{ECI: 1}, encoder.SymbolShapeHint_FORCE_NONE, nil, nil)
+	if err == nil || errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("encodeControlled(1555 bytes) error = %v, want symbol-capacity error", err)
+	}
+	if _, err := encodeControlled(make([]byte, 1556), Options{ECI: 1}, encoder.SymbolShapeHint_FORCE_NONE, nil, nil); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("encodeControlled(1556 bytes) error = %v, want ErrInvalidInput", err)
 	}
 }
 

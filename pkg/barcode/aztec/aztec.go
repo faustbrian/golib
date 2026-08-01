@@ -83,19 +83,22 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 		return Symbol{}, ErrInvalidInput
 	}
 	forcedLayers := options.Layers
-	if forcedLayers > 0 && options.Compact {
+	if options.Compact {
 		forcedLayers = -forcedLayers
 	}
 	code, err := aztecencoder.EncodeWithControls(
 		payload, errorCorrection, forcedLayers, options.GS1, options.ECI,
 	)
-	if options.Compact && options.Layers == 0 {
-		for layer := 1; layer <= 4; layer++ {
-			code, err = aztecencoder.EncodeWithControls(
-				payload, errorCorrection, -layer, options.GS1, options.ECI,
-			)
-			if err == nil {
-				break
+	if options.Compact {
+		switch options.Layers {
+		case 0:
+			for layer := 1; layer <= 4; layer++ {
+				code, err = aztecencoder.EncodeWithControls(
+					payload, errorCorrection, -layer, options.GS1, options.ECI,
+				)
+				if err == nil {
+					break
+				}
 			}
 		}
 	}
@@ -104,8 +107,8 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 	}
 	width := code.Matrix.Width() + 2*quietZone
 	modules := make([]bool, width*width)
-	for y := 0; y < code.Matrix.Height(); y++ {
-		for x := 0; x < code.Matrix.Width(); x++ {
+	for y := range code.Matrix.Height() {
+		for x := range code.Matrix.Width() {
 			modules[(y+quietZone)*width+x+quietZone] = code.Matrix.Get(x, y)
 		}
 	}

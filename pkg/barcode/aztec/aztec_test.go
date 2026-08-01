@@ -1,6 +1,7 @@
 package aztec_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -81,6 +82,102 @@ func TestEncodeRejectsUnsafeOptions(t *testing.T) {
 	} {
 		if _, err := aztec.Encode(test.payload, test.options); !errors.Is(err, aztec.ErrInvalidInput) {
 			t.Fatalf("Encode(%q, %+v) error = %v", test.payload, test.options, err)
+		}
+	}
+}
+
+func TestEncodeAcceptsExactLimits(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		options aztec.Options
+	}{
+		{
+			name: "payload bytes", payload: bytes.Repeat([]byte("1"), 4096),
+			options: aztec.Options{ErrorCorrectionPercent: 1},
+		},
+		{name: "full layers", payload: []byte("A"), options: aztec.Options{Layers: 32}},
+		{
+			name: "compact layers", payload: []byte("A"),
+			options: aztec.Options{Compact: true, Layers: 4},
+		},
+		{
+			name: "error correction", payload: []byte("A"),
+			options: aztec.Options{ErrorCorrectionPercent: 100},
+		},
+		{
+			name: "quiet zone", payload: []byte("A"),
+			options: aztec.Options{QuietZone: 256},
+		},
+		{name: "ECI", payload: []byte("A"), options: aztec.Options{ECI: 999_999}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			symbol, err := aztec.Encode(test.payload, test.options)
+			if err != nil {
+				t.Fatalf("Encode() error = %v", err)
+			}
+			if symbol.Logical().Format() != barcode.Aztec {
+				t.Fatalf("Format() = %q", symbol.Logical().Format())
+			}
+		})
+	}
+}
+
+func TestEncodeReturnsStableValidationError(t *testing.T) {
+	for _, test := range []struct {
+		payload []byte
+		options aztec.Options
+	}{
+		{},
+		{payload: []byte("A"), options: aztec.Options{ECI: 1_000_000}},
+	} {
+		_, err := aztec.Encode(test.payload, test.options)
+		_, wrapsOne := err.(interface{ Unwrap() error })
+		_, wrapsMultiple := err.(interface{ Unwrap() []error })
+		if !errors.Is(err, aztec.ErrInvalidInput) || wrapsOne || wrapsMultiple {
+			t.Fatalf("Encode(%d bytes, %+v) error = %v", len(test.payload), test.options, err)
+		}
+	}
+}
+
+func TestEncodeSelectsSmallestAutomaticCompactLayer(t *testing.T) {
+	for _, test := range []struct {
+		payloadBytes int
+		wantLayers   int
+	}{
+		{payloadBytes: 30, wantLayers: 2},
+		{payloadBytes: 60, wantLayers: 4},
+	} {
+		symbol, err := aztec.Encode(bytes.Repeat([]byte("A"), test.payloadBytes), aztec.Options{Compact: true})
+		if err != nil {
+			t.Fatalf("Encode(%d bytes) error = %v", test.payloadBytes, err)
+		}
+		if !symbol.Compact() || symbol.Layers() != test.wantLayers {
+			t.Fatalf("Encode(%d bytes) metadata = (compact %t, layers %d), want layers %d",
+				test.payloadBytes, symbol.Compact(), symbol.Layers(), test.wantLayers)
+		}
+	}
+}
+
+func TestEncodeAppliesConfiguredQuietZone(t *testing.T) {
+	symbol, err := aztec.Encode([]byte("A"), aztec.Options{
+		Compact: true, Layers: 1, ErrorCorrectionPercent: 1, QuietZone: 2,
+	})
+	if err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	matrix := symbol.Logical().Matrix()
+	if matrix.Width() != 19 || matrix.Height() != 19 {
+		t.Fatalf("matrix dimensions = %dx%d", matrix.Width(), matrix.Height())
+	}
+	for offset := range 2 {
+		for coordinate := range matrix.Width() {
+			if matrix.At(coordinate, offset) || matrix.At(offset, coordinate) ||
+				matrix.At(coordinate, matrix.Height()-1-offset) ||
+				matrix.At(matrix.Width()-1-offset, coordinate) {
+				t.Fatalf("quiet zone contains a dark module at offset %d", offset)
+			}
 		}
 	}
 }

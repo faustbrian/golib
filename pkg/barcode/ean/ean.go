@@ -118,7 +118,13 @@ func makeSymbol(
 	minimumRight int,
 	options Options,
 ) (barcode.Symbol, error) {
-	if options.QuietZoneLeft < 0 || options.QuietZoneRight < 0 || options.Height < 0 {
+	if options.QuietZoneLeft < 0 {
+		return barcode.Symbol{}, ErrInvalidInput
+	}
+	if options.QuietZoneRight < 0 {
+		return barcode.Symbol{}, ErrInvalidInput
+	}
+	if options.Height < 0 {
 		return barcode.Symbol{}, ErrInvalidInput
 	}
 	left := options.QuietZoneLeft
@@ -172,7 +178,9 @@ func encodeSupplement(value string) (string, error) {
 
 	parity := ""
 	if len(value) == 2 {
-		parity = [...]string{"LL", "LG", "GL", "GG"}[int((value[0]-'0')*10+(value[1]-'0'))%4]
+		first := strings.IndexByte("0123456789", value[0])
+		second := strings.IndexByte("0123456789", value[1])
+		parity = [...]string{"LL", "LG", "GL", "GG"}[(first*10+second)%4]
 	} else {
 		checksum := (3*int(value[0]-'0') + 9*int(value[1]-'0') +
 			3*int(value[2]-'0') + 9*int(value[3]-'0') + 3*int(value[4]-'0')) % 10
@@ -195,7 +203,7 @@ func encodeSupplement(value string) (string, error) {
 }
 
 func runs(modules string) []barcode.Bar {
-	result := make([]barcode.Bar, 0, len(modules)/2)
+	result := make([]barcode.Bar, 0)
 	dark := modules[0] == '1'
 	width := 1
 	for index := 1; index < len(modules); index++ {

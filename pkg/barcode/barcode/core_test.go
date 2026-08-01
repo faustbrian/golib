@@ -125,6 +125,18 @@ func TestMatrixRejectsInvalidDimensions(t *testing.T) {
 	}
 }
 
+func TestMatrixDistinguishesMaximumSafeProductFromOverflow(t *testing.T) {
+	maximumInt := int(^uint(0) >> 1)
+	if _, err := barcode.NewMatrix(maximumInt, 1, nil); !errors.Is(err, barcode.ErrInvalidModules) {
+		t.Fatalf("NewMatrix(maximumInt, 1) error = %v, want invalid module count", err)
+	}
+
+	_, err := barcode.NewMatrix(2, 2, []bool{true})
+	if !errors.Is(err, barcode.ErrInvalidModules) || !strings.Contains(err.Error(), "got 1, want 4") {
+		t.Fatalf("NewMatrix(2, 2) error = %v", err)
+	}
+}
+
 func TestCapabilitiesAreExplicitForEveryKnownFormat(t *testing.T) {
 	for _, format := range barcode.Formats() {
 		capability, ok := barcode.CapabilityFor(format)
@@ -245,6 +257,39 @@ func TestBarsRejectInvalidRunsAndOverflow(t *testing.T) {
 				t.Fatal("NewBars() error = nil, want validation error")
 			}
 		})
+	}
+}
+
+func TestBarsAcceptMaximumSafeWidth(t *testing.T) {
+	maximumInt := int(^uint(0) >> 1)
+	bars, err := barcode.NewBars(1, []barcode.Bar{
+		{Dark: true, Width: maximumInt - 1},
+		{Width: 1},
+	})
+	if err != nil {
+		t.Fatalf("NewBars() error = %v", err)
+	}
+	if bars.Width() != maximumInt {
+		t.Fatalf("Width() = %d, want %d", bars.Width(), maximumInt)
+	}
+}
+
+func TestDecodeResultAcceptsExactMetadataLimits(t *testing.T) {
+	for _, confidence := range []float64{0, 1} {
+		result, err := barcode.NewDecodeResult(barcode.DecodeResultOptions{
+			Format:        barcode.QRCode,
+			Checksum:      barcode.ChecksumInvalid,
+			HasConfidence: true,
+			Confidence:    confidence,
+		})
+		if err != nil {
+			t.Fatalf("NewDecodeResult(confidence %v) error = %v", confidence, err)
+		}
+		gotConfidence, ok := result.Confidence()
+		if result.Checksum() != barcode.ChecksumInvalid || !ok || gotConfidence != confidence {
+			t.Fatalf("metadata = (checksum %v, confidence %v, present %t)",
+				result.Checksum(), gotConfidence, ok)
+		}
 	}
 }
 

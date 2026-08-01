@@ -146,10 +146,13 @@ func codeSetName(codeSet CodeSet) string {
 }
 
 func matrixRuns(matrix *gozxing.BitMatrix) []barcode.Bar {
-	runs := make([]barcode.Bar, 0, matrix.GetWidth()/2)
+	runs := make([]barcode.Bar, 0)
 	dark := matrix.Get(0, 0)
 	width := 1
-	for x := 1; x < matrix.GetWidth(); x++ {
+	for x := range matrix.GetWidth() {
+		if x == 0 {
+			continue
+		}
 		if matrix.Get(x, 0) == dark {
 			width++
 			continue

@@ -114,8 +114,8 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 			options.StructuredAppend.Index >= options.StructuredAppend.Total ||
 			options.StructuredAppend.FileID == 0 || options.StructuredAppend.FileID == 255 ||
 			options.Macro != MacroNone) ||
-		options.MaxWidth > 0 && options.MinWidth > options.MaxWidth ||
-		options.MaxHeight > 0 && options.MinHeight > options.MaxHeight {
+		options.MaxWidth != 0 && options.MinWidth > options.MaxWidth ||
+		options.MaxHeight != 0 && options.MinHeight > options.MaxHeight {
 		return Symbol{}, ErrInvalidInput
 	}
 	quietZone := options.QuietZone
@@ -142,12 +142,12 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 		hints[gozxing.EncodeHintType_DATA_MATRIX_SHAPE] = shape
 	}
 	var minSize, maxSize *gozxing.Dimension
-	if options.MinWidth > 0 || options.MinHeight > 0 {
+	if options.MinWidth != 0 {
 		dimension, _ := gozxing.NewDimension(options.MinWidth, options.MinHeight)
 		minSize = dimension
 		hints[gozxing.EncodeHintType_MIN_SIZE] = dimension
 	}
-	if options.MaxWidth > 0 || options.MaxHeight > 0 {
+	if options.MaxWidth != 0 {
 		dimension, _ := gozxing.NewDimension(options.MaxWidth, options.MaxHeight)
 		maxSize = dimension
 		hints[gozxing.EncodeHintType_MAX_SIZE] = dimension
@@ -262,13 +262,9 @@ func structuredAppendSequence(index, total int) byte {
 func appendBase256(codewords []byte, value byte) []byte {
 	position := len(codewords) + 1
 	pseudoRandom := (149*position)%255 + 1
-	randomized := int(value) + pseudoRandom
-	if randomized > 255 {
-		randomized -= 256
-	}
 
-	// #nosec G115 -- modulo arithmetic bounds randomized to one byte.
-	return append(codewords, byte(randomized))
+	// #nosec G115 -- conversion implements the ECC 200 modulo-256 sum.
+	return append(codewords, byte(int(value)+pseudoRandom))
 }
 
 func randomize253(position int) byte {
@@ -289,7 +285,7 @@ func eciCodewords(assignment int) []byte {
 		return []byte{byte(assignment + 1)}
 	case assignment <= 16_382:
 		value := assignment - 127
-		return []byte{byte(value/254 + 128), byte(value%254 + 1)}
+		return []byte{byte(value/254) | 0x80, byte(value%254 + 1)}
 	default:
 		value := assignment - 16_383
 		// #nosec G115 -- validation bounds every ECI component to one byte.
@@ -310,7 +306,7 @@ func placementMatrix(
 	for y := 0; y < info.GetSymbolDataHeight(); y++ {
 		matrixX := 0
 		if y%info.GetMatrixHeight() == 0 {
-			for x := 0; x < info.GetSymbolWidth(); x++ {
+			for x := range info.GetSymbolWidth() {
 				if x%2 == 0 {
 					matrix.Set(matrixX, matrixY)
 				}
@@ -350,8 +346,8 @@ func placementMatrix(
 func copyMatrix(source *gozxing.BitMatrix, quietZone int) barcode.Matrix {
 	width, height := source.GetWidth()+2*quietZone, source.GetHeight()+2*quietZone
 	modules := make([]bool, width*height)
-	for y := 0; y < source.GetHeight(); y++ {
-		for x := 0; x < source.GetWidth(); x++ {
+	for y := range source.GetHeight() {
+		for x := range source.GetWidth() {
 			modules[(y+quietZone)*width+x+quietZone] = source.Get(x, y)
 		}
 	}

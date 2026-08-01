@@ -1,6 +1,7 @@
 package datamatrix_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -79,8 +80,8 @@ func TestEncodeRejectsUnsafeOptions(t *testing.T) {
 		{},
 		{payload: []byte("A"), options: datamatrix.Options{QuietZone: -1}},
 		{payload: []byte("A"), options: datamatrix.Options{Shape: datamatrix.Shape(99)}},
-		{payload: []byte("A"), options: datamatrix.Options{MinWidth: 30, MaxWidth: 20}},
-		{payload: []byte("A"), options: datamatrix.Options{MinHeight: 30, MaxHeight: 20}},
+		{payload: []byte("A"), options: datamatrix.Options{MinWidth: 30, MinHeight: 10, MaxWidth: 20, MaxHeight: 10}},
+		{payload: []byte("A"), options: datamatrix.Options{MinWidth: 10, MinHeight: 30, MaxWidth: 10, MaxHeight: 20}},
 		{payload: []byte("A"), options: datamatrix.Options{MinWidth: -1}},
 		{payload: []byte("A"), options: datamatrix.Options{MinHeight: -1}},
 		{payload: []byte("A"), options: datamatrix.Options{MaxWidth: -1}},
@@ -111,6 +112,37 @@ func TestEncodeRejectsUnsafeOptions(t *testing.T) {
 	}
 }
 
+func TestEncodeReturnsDirectValidationErrors(t *testing.T) {
+	for _, test := range []struct {
+		payload []byte
+		options datamatrix.Options
+	}{
+		{},
+		{payload: []byte("A"), options: datamatrix.Options{MinWidth: 30, MinHeight: 10, MaxWidth: 20, MaxHeight: 10}},
+		{payload: []byte("A"), options: datamatrix.Options{MinWidth: 10, MinHeight: 30, MaxWidth: 10, MaxHeight: 20}},
+	} {
+		_, err := datamatrix.Encode(test.payload, test.options)
+		_, wrapsOne := err.(interface{ Unwrap() error })
+		_, wrapsMultiple := err.(interface{ Unwrap() []error })
+		if !errors.Is(err, datamatrix.ErrInvalidInput) || wrapsOne || wrapsMultiple {
+			t.Fatalf("Encode(%d bytes, %+v) error = %v", len(test.payload), test.options, err)
+		}
+	}
+}
+
+func TestEncodeAcceptsExactDimensionAndQuietZoneLimits(t *testing.T) {
+	symbol, err := datamatrix.Encode([]byte("A"), datamatrix.Options{
+		MinWidth: 10, MinHeight: 10, MaxWidth: 10, MaxHeight: 10, QuietZone: 256,
+	})
+	if err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	matrix := symbol.Logical().Matrix()
+	if matrix.Width() != 522 || matrix.Height() != 522 {
+		t.Fatalf("matrix dimensions = %dx%d, want 522x522", matrix.Width(), matrix.Height())
+	}
+}
+
 func TestEncodeSupportsStructuredAppendBoundaries(t *testing.T) {
 	header := &datamatrix.StructuredAppend{Index: 15, Total: 16, FileID: 254}
 	symbol, err := datamatrix.Encode([]byte("PART"), datamatrix.Options{StructuredAppend: header})
@@ -130,13 +162,17 @@ func TestEncodeAcceptsECC200CapacityBoundaries(t *testing.T) {
 		t.Fatalf("Encode(maximum numeric payload) error = %v", err)
 	}
 	for _, length := range []int{249, 250, 1553} {
-		symbol, err := datamatrix.Encode(make([]byte, length), datamatrix.Options{ECI: 1})
+		payload := bytes.Repeat([]byte("A"), length)
+		symbol, err := datamatrix.Encode(payload, datamatrix.Options{ECI: 1})
 		if err != nil {
 			t.Fatalf("Encode(Base 256 length %d) error = %v", length, err)
 		}
 		if len(symbol.Logical().Payload()) != length {
 			t.Fatalf("Payload() length = %d, want %d",
 				len(symbol.Logical().Payload()), length)
+		}
+		if length <= 250 {
+			assertImageDecode(t, symbol, string(payload))
 		}
 	}
 	if _, err := datamatrix.Encode(make([]byte, 1554), datamatrix.Options{ECI: 1}); !errors.Is(err, datamatrix.ErrInvalidInput) {

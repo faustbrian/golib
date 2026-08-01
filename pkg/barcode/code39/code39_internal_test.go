@@ -54,3 +54,13 @@ func TestFullASCIIExpansionMatchesUpperPunctuationBoundary(t *testing.T) {
 		t.Fatalf("fullASCII() = %q, want %%P%%Q%%R%%S%%T", got)
 	}
 }
+
+func TestFullASCIIExpansionMatchesRangeBoundaries(t *testing.T) {
+	got, err := fullASCII([]byte{0, 31, 'Z', 'z'})
+	if err != nil {
+		t.Fatalf("fullASCII() error = %v", err)
+	}
+	if string(got) != "%U%EZ+Z" {
+		t.Fatalf("fullASCII() = %q, want %%U%%EZ+Z", got)
+	}
+}
