@@ -10,9 +10,11 @@ package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
 immutable snapshots, canonical set/delete transitions, profile-bound roots,
 bounded aggregate membership and non-membership proofs, atomic caller-owned
 storage writes, and bounded reconstruction from isolated caller-owned read
-snapshots. The public surface is experimental, rebuilds the complete tree for
-every update and persisted load, and does not yet provide recovery, pruning,
-retention, or stateless witnesses. It is not a production-ready tree.
+snapshots, plus bounded recovery audits over current and retained roots. The
+public surface is experimental, rebuilds the complete tree for every update,
+persisted load, and audited publication, and does not yet apply recovery,
+prune nodes, change retention, or provide stateless witnesses. It is not a
+production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -306,9 +308,22 @@ Adapters that persist the root bytes and root-node address separately can use
 pair after restart; successful construction does not bypass the loader's
 independent root-node verification.
 
-This boundary does not recover interrupted adapter transactions, retain
-historical roots, or prune unreachable nodes. No database, filesystem, or
-object-storage adapter is part of the root module yet.
+For recovery planning, a `NodeAuditStore` can expose one isolated view of its
+current publication, canonically ordered retained publications, and complete
+ascending node-ID inventory. `AuditStorage` fully verifies every publication
+before comparing their combined reachable set with that inventory. It reports
+unreachable identifiers without reading or decoding their bytes, so malformed
+debris from an interrupted unpublished write can be identified without
+attacker-controlled point work. Inventory pages, publications, reachable and
+unreachable nodes, per-publication reads, and temporary memory are explicitly
+bounded. The core reduces each adapter page bound to remaining scratch space
+before I/O, reserves the peak old/new result-buffer growth and defensive-copy
+cost, and rejects hidden publication or node-ID slice capacity, omitted,
+duplicated, or reordered node IDs.
+
+The audit is read-only. This boundary does not change retention or prune
+unreachable nodes, and no database, filesystem, or object-storage adapter is
+part of the root module yet.
 
 ## Development rule
 

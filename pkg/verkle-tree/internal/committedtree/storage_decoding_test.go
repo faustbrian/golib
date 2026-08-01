@@ -109,26 +109,40 @@ func TestDecodeStorageNodeRejectsHostileEnvelopeBeforePointDecoding(t *testing.T
 	t.Parallel()
 
 	canonical := canonicalStorageNode(t)
-	mutations := map[string]func([]byte){
-		"magic":           func(value []byte) { value[0] ^= 0xff },
-		"profile":         func(value []byte) { value[storageNodeMagicBytes]++ },
-		"profile version": func(value []byte) { value[storageNodeMagicBytes+storageNodeProfileIDBytes+1]++ },
-		"encoding version": func(value []byte) {
-			value[storageNodeMagicBytes+storageNodeProfileIDBytes+storageNodeVersionBytes+1]++
+	mutations := map[string]func([]byte) []byte{
+		"magic": func(value []byte) []byte {
+			value[0] ^= 0xff
+
+			return value
 		},
-		"kind":          func(value []byte) { value[storageNodeHeaderBytes-storageCommitmentBytes-2] = 0xff },
-		"trailing byte": func(value []byte) { value = append(value, 1) },
+		"profile": func(value []byte) []byte {
+			value[storageNodeMagicBytes]++
+
+			return value
+		},
+		"profile version": func(value []byte) []byte {
+			value[storageNodeMagicBytes+storageNodeProfileIDBytes+1]++
+
+			return value
+		},
+		"encoding version": func(value []byte) []byte {
+			value[storageNodeMagicBytes+storageNodeProfileIDBytes+storageNodeVersionBytes+1]++
+
+			return value
+		},
+		"kind": func(value []byte) []byte {
+			value[storageNodeHeaderBytes-storageCommitmentBytes-2] = 0xff
+
+			return value
+		},
+		"trailing byte": func(value []byte) []byte { return append(value, 1) },
 	}
 	for name, mutate := range mutations {
 		name, mutate := name, mutate
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			value := append([]byte(nil), canonical...)
-			if name == "trailing byte" {
-				value = append(value, 1)
-			} else {
-				mutate(value)
-			}
+			value = mutate(value)
 			limits := testStorageDecodingLimits()
 			limits.MaxPointDecodes = 0
 			_, err := DecodeStorageNode(context.Background(), value, limits)
@@ -152,7 +166,8 @@ func TestDecodeStorageNodeRejectsInvalidInputsAndBudgets(t *testing.T) {
 	); !errors.Is(err, ErrStorageNodeProfile) || !errors.Is(err, ErrInvalidStorageNode) {
 		t.Fatalf("wrong-profile error = %v", err)
 	}
-	if _, err := DecodeStorageNode(nil, canonical, testStorageDecodingLimits()); !errors.Is(err, ErrInvalidStorageDecodingContext) {
+	var nilContext context.Context
+	if _, err := DecodeStorageNode(nilContext, canonical, testStorageDecodingLimits()); !errors.Is(err, ErrInvalidStorageDecodingContext) {
 		t.Fatalf("nil context error = %v", err)
 	}
 	if _, err := DecodeStorageNode(context.Background(), canonical, StorageDecodingLimits{}); !errors.Is(err, ErrInvalidStorageDecodingLimits) {

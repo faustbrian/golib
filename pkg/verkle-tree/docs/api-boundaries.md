@@ -3,8 +3,9 @@
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
 canonical storage-write and isolated storage-read, limit, resource, and
-typed-error identifiers form the current experimental public contract.
-Witnesses and recovery identifiers described here remain proposed.
+typed-error identifiers, plus read-only storage audit identifiers, form the
+current experimental public contract. Witnesses, retention mutation, pruning,
+and recovery-application identifiers described here remain proposed.
 
 ## Public concepts
 
@@ -18,11 +19,12 @@ The current public API exposes opaque, profile-bound forms of:
 - canonical content-addressed node batches and capability-checked atomic root
   publication;
 - capability-checked isolated persisted snapshot reconstruction;
+- capability-checked bounded current/retained-root and node-inventory audit;
 - verifier;
 - resource limits and typed errors.
 
 A future public API is expected to add stateless witnesses, verified post-state
-results, recovery, retention, and pruning.
+results, atomic retention changes, and pruning.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -76,8 +78,26 @@ decoded `Root` and persisted `NodeID`; that constructor validates the root but
 does not assert that the address is correct. `LoadSnapshot` supplies that
 independent verification.
 
-Recovery, retention, pruning, crash repair, and bounded audit iteration remain
-future boundaries.
+`AuditStorage` requires immutable-node, isolated-snapshot-read, and complete
+node-inventory capabilities. One `NodeAuditSnapshot` fixes the current
+publication, every retained historical publication, their immutable node
+namespace, and the complete node-ID inventory until close. Retained
+publications and paged node IDs have canonical strict ordering. The core fully
+loads and independently verifies every publication, unions their reachable
+content addresses, and then compares that set with the complete inventory.
+Adapter-returned publication length and capacity are both charged before the
+normalized copy is allocated.
+Before each inventory call it reduces the page limit to the remaining
+temporary-memory budget under worst-case deterministic unreachable-result
+growth, including simultaneous old/new buffers and the later defensive copy;
+returned length and capacity must both fit that limit.
+Nodes outside every verified publication are returned as owned ascending IDs;
+their untrusted bytes are not read or decoded. Missing reachable IDs,
+duplicates, reordering, invalid continuation, resource exhaustion,
+cancellation, adapter failure, and close failure produce no usable audit.
+
+The audit is intentionally read-only. Atomic retention mutation, deletion,
+pruning, and crash repair remain future boundaries.
 
 Database, filesystem, and object-storage adapters belong in additive nested
 modules and must not become root-package dependencies.
@@ -111,7 +131,9 @@ commitment, path-byte, and result-storage limits. The public facade exposes
 profile-bound roots and aggregate proof operations while keeping topology,
 points, vectors, and commitments internal. It produces and strictly decodes the
 complete canonical content-addressed nodes used by the public atomic write and
-isolated read boundaries, but provides no recovery or incremental update seam.
+isolated read boundaries. The audit facade uses those same nodes for bounded
+reachability verification, but provides no retention mutation, pruning, or
+incremental update seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch

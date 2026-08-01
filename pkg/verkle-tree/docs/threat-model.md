@@ -18,9 +18,10 @@ tree-proof container with an exact package-owned encoding and strict aggregate
 decoder, and public fixed-profile aggregate tree-proof generation and
 verification, plus canonical content-addressed storage writes,
 capability-checked atomic root publication, and bounded isolated persisted
-snapshot reconstruction. Stateless witnesses, recovery, retention, pruning,
-dependency-level cancellation, and complete side-channel controls remain
-unimplemented.
+snapshot reconstruction, plus bounded read-only auditing of current and
+retained roots against a canonical complete node inventory. Stateless
+witnesses, retention mutation, pruning, recovery application, dependency-level
+cancellation, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -102,8 +103,19 @@ and any mismatch with the independently rebuilt mathematical root or canonical
 root-node address. It closes the read view exactly once and returns no snapshot
 when read, reconstruction, cancellation, or close fails. The adapter remains
 trusted to honor its asserted capabilities; only adapter crash and isolation
-tests can prove those guarantees. The package does not recover interrupted
-adapter work, retain roots, or prune nodes.
+tests can prove those guarantees. The audit boundary requires an isolated
+complete inventory, verifies every current and retained root before classifying
+nodes, requires strictly ascending bounded inventory pages, and never decodes
+unreachable bytes. Returned publication capacity and its normalized copy are
+charged together. Each adapter page bound is reduced to remaining temporary
+memory before I/O, including result-buffer growth and defensive copying, and
+hidden returned capacity is rejected. This limits
+attacker-controlled amplification while
+identifying debris outside all valid snapshots. A dishonest adapter can still
+omit inventory entries unless its asserted complete-inventory capability is
+independently tested. The package does not change retained roots or delete
+nodes, so the audit alone cannot recover interrupted adapter work or establish
+safe pruning.
 
 The canonical claim-set boundary additionally rejects duplicate and conflicting
 claimed keys, preserves present-zero and claimed-absence distinctions, and

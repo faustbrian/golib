@@ -58,6 +58,14 @@ var (
 	// lifecycle failure.
 	ErrStorageRead = errors.New("verkle storage read failed")
 
+	// ErrStorageAudit identifies a caller-owned audit adapter or audit-view
+	// lifecycle failure.
+	ErrStorageAudit = errors.New("verkle storage audit failed")
+
+	// ErrStorageInventory identifies an incomplete, duplicated, reordered, or
+	// otherwise inconsistent immutable node inventory.
+	ErrStorageInventory = errors.New("invalid Verkle storage inventory")
+
 	// ErrStorageSnapshotMissing identifies a store with no published snapshot.
 	ErrStorageSnapshotMissing = errors.New("verkle storage snapshot missing")
 
@@ -172,6 +180,18 @@ const (
 
 	// ResourceWorkers counts dependency-owned proof workers.
 	ResourceWorkers
+
+	// ResourcePublications counts current and retained roots audited together.
+	ResourcePublications
+
+	// ResourceInventoryPages counts bounded node-inventory calls.
+	ResourceInventoryPages
+
+	// ResourceInventoryNodes counts content addresses returned by inventory.
+	ResourceInventoryNodes
+
+	// ResourceUnreachableNodes counts stored nodes outside every audited root.
+	ResourceUnreachableNodes
 )
 
 // ResourceError reports an exact rejected budget without disclosing keys,

@@ -24,6 +24,12 @@ All notable changes to `verkle-tree` will be documented in this file.
   node independently, closes the view atomically, and distinguishes missing,
   corrupt, resource-exhausted, cancelled, and adapter-failure states. Recovery,
   retention, and pruning remain unavailable.
+- Add a bounded caller-owned storage audit boundary that verifies the current
+  and every retained publication before canonically inventorying stored node
+  identifiers. It reports only nodes unreachable from all verified roots,
+  rejects omitted, duplicated, reordered, or unbounded inventory pages, and
+  performs no deletion. Atomic retention changes and pruning remain
+  unavailable.
 
 - Add the experimental public immutable snapshot, profile-bound root, canonical
   batch-update transition, and aggregate proof APIs with explicit cancellation,

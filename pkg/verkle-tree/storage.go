@@ -46,6 +46,10 @@ const (
 	// StoreCapabilitySnapshotReads means OpenSnapshot returns one fixed root
 	// publication whose content-addressed nodes remain readable until Close.
 	StoreCapabilitySnapshotReads
+
+	// StoreCapabilityNodeInventory means OpenAudit returns an isolated,
+	// canonically ordered view of every retained publication and stored node.
+	StoreCapabilityNodeInventory
 )
 
 // RequiredWriteStoreCapabilities is the complete guarantee set required by
@@ -59,6 +63,12 @@ const RequiredWriteStoreCapabilities = StoreCapabilityImmutableNodes |
 // LoadSnapshot.
 const RequiredReadStoreCapabilities = StoreCapabilityImmutableNodes |
 	StoreCapabilitySnapshotReads
+
+// RequiredAuditStoreCapabilities is the complete guarantee set required by
+// AuditStorage.
+const RequiredAuditStoreCapabilities = StoreCapabilityImmutableNodes |
+	StoreCapabilitySnapshotReads |
+	StoreCapabilityNodeInventory
 
 // Supports reports whether capabilities contains every required bit.
 func (capabilities StoreCapabilities) Supports(

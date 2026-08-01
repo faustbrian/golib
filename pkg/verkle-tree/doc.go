@@ -7,8 +7,10 @@
 // context and explicit resource limits. Snapshots can produce canonical
 // content-addressed node batches for capability-checked atomic publication and
 // reconstruct snapshots from capability-checked isolated reads after verifying
-// every reachable node, root, and content address. Witnesses, recovery,
-// retention, pruning, and stable-profile APIs remain unavailable.
+// every reachable node, root, and content address. A bounded audit can compare
+// the complete canonical node inventory with all verified current and retained
+// roots without mutating storage. Witnesses, retention changes, pruning,
+// recovery application, and stable-profile APIs remain unavailable.
 //
 // The exported API is experimental and exists to evaluate a pinned commitment
 // backend and complete tree semantics without making stability,

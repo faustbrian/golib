@@ -76,6 +76,10 @@ type storageReadAccounting struct {
 	pointDecodes uint64
 }
 
+type storageNodeSource interface {
+	ReadNode(ctx context.Context, id NodeID, maxBytes uint64) ([]byte, error)
+}
+
 // LoadSnapshot opens one caller-owned isolated read view, verifies every
 // reachable content address and canonical node, reconstructs the immutable
 // state, and independently recomputes both the mathematical root and canonical
@@ -145,11 +149,25 @@ func LoadSnapshot(
 
 func loadStoredSnapshot(
 	ctx context.Context,
-	view NodeReadSnapshot,
+	view storageNodeSource,
 	profile Profile,
 	publishedRoot Root,
 	rootNode NodeID,
 	limits StorageReadLimits,
+) (Snapshot, error) {
+	return loadStoredSnapshotObserved(
+		ctx, view, profile, publishedRoot, rootNode, limits, nil,
+	)
+}
+
+func loadStoredSnapshotObserved(
+	ctx context.Context,
+	view storageNodeSource,
+	profile Profile,
+	publishedRoot Root,
+	rootNode NodeID,
+	limits StorageReadLimits,
+	observe func(NodeID) error,
 ) (Snapshot, error) {
 	accounting := storageReadAccounting{nodes: 1}
 	if err := checkStorageReadTemporary(limits, accounting.nodes, 0, 0); err != nil {
@@ -157,6 +175,11 @@ func loadStoredSnapshot(
 	}
 	pending := []pendingStorageNode{{id: rootNode}}
 	seen := map[NodeID]struct{}{rootNode: {}}
+	if observe != nil {
+		if err := observe(rootNode); err != nil {
+			return Snapshot{}, err
+		}
+	}
 	entries := make([]Entry, 0)
 
 	for cursor := 0; cursor < len(pending); cursor++ {
@@ -317,6 +340,11 @@ func loadStoredSnapshot(
 				prefix := current.prefix
 				prefix[current.depth] = child.Index
 				seen[id] = struct{}{}
+				if observe != nil {
+					if err := observe(id); err != nil {
+						return Snapshot{}, err
+					}
+				}
 				pending = append(pending, pendingStorageNode{
 					id:     id,
 					prefix: prefix,
@@ -355,14 +383,10 @@ func loadStoredSnapshot(
 			}
 		}
 	}
-	pending = nil
-	seen = nil
-
 	snapshot, err := NewSnapshot(ctx, profile, entries, limits.Snapshot)
 	if err != nil {
 		return Snapshot{}, translateStorageReconstructionError(err)
 	}
-	entries = nil
 	// NewSnapshot returning nil error establishes root availability.
 	computedRoot, _ := snapshot.Root()
 	wantRoot, _ := publishedRoot.Bytes()

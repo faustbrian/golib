@@ -31,6 +31,13 @@ no I/O, locking, durability, transaction, or recovery cost. The result measures
 the package-owned validation and full-rebuild path only; it is not a cold or
 warm database benchmark.
 
+One public storage-audit benchmark verifies a current and one retained
+in-memory snapshot, unions their reachable nodes, pages a complete mock node-ID
+inventory, and identifies one unpublished node. The mock has no I/O, locking,
+transaction, crash-recovery, retention-mutation, or deletion cost. The result
+measures only package-owned validation, reconstruction, and inventory
+classification.
+
 Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
 already initialized snapshot builder. They exclude snapshot construction,
@@ -82,7 +89,8 @@ GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^BenchmarkProofEngine$' -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
-  -bench '^BenchmarkLoadSnapshotFourEntries$' -benchmem -count=5
+  -bench '^(BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots)$' \
+  -benchmem -count=5
 ```
 
 Environment:
@@ -126,6 +134,7 @@ nanoseconds per operation.
 | Extract one immutable committed-tree proof path | 3765, 3824, 4398, 4883, 6526 | 4864 | 1 |
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
 | Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
+| Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |

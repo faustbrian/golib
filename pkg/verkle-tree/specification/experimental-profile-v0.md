@@ -19,8 +19,10 @@ root-bound state transitions, aggregate proofs, capability-checked canonical
 storage writes, and bounded isolated persisted reconstruction. Internal
 research boundaries implement the fixed
 topology, leaf field inputs, vector commitments, complete mathematical root
-construction, and encodings below. Recovery, pruning, retention, stateless
-witnesses, and stable APIs remain unimplemented. This
+construction, and encodings below. A bounded read-only recovery audit covers
+current and retained publications plus complete node-ID inventory. Retention
+mutation, pruning, recovery application, stateless witnesses, and stable APIs
+remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -351,9 +353,35 @@ recomputed from that rebuilt tree. Missing nodes, corrupt bytes, unsupported
 profiles, exhausted resources, cancellation, adapter failures, and close
 failures MUST remain distinguishable and MUST return no usable snapshot.
 
-These write and read boundaries do not define recovery, retention, pruning,
-bounded store iteration, or crash repair. They do not establish
-storage-adapter correctness, snapshot availability, or Ethereum compatibility.
+A storage audit MUST require immutable-node, isolated-snapshot-read, and
+complete-node-inventory capabilities before opening one isolated view. That
+view MUST fix the optional current publication, every retained publication,
+the immutable node namespace, and the complete node-ID inventory until close.
+Retained publications MUST exclude the current publication and use strict
+canonical root/root-node ordering, transfer ownership, enforce their caller-
+supplied bound before allocation or I/O, and expose no capacity beyond that
+bound. Their complete returned capacity and the auditor's normalized copy MUST
+fit the temporary-memory limit together. Node inventory pages MUST enforce their
+caller-supplied bound before allocation or I/O, transfer ownership, use strict
+ascending content-address order, and make forward progress when continuation is
+declared. The auditor MUST reduce that bound before every call to cover the
+remaining temporary-memory budget under worst-case deterministic result-buffer
+growth, including simultaneous old/new buffers and the report's defensive
+copy. Both the returned slice length and capacity MUST fit the supplied bound.
+
+Before classifying any node as unreachable, the auditor MUST fully verify every
+current and retained publication using the persisted reconstruction contract.
+It MUST union their reachable content addresses and reject any inventory that
+omits a reachable address, repeats or reorders an address, supplies an invalid
+publication, stalls pagination, or exceeds publication, page, inventory,
+unreachable-node, read, or temporary-memory limits. Bytes for unreachable nodes
+MUST NOT be read or point-decoded. A successful report MUST own its ascending
+unreachable identifiers and MUST NOT mutate the adapter. Failure or close
+failure MUST return no usable report.
+
+These write, read, and audit boundaries do not define retention mutation,
+atomic pruning, deletion, or crash repair. They do not establish storage-adapter
+correctness, snapshot availability, or Ethereum compatibility.
 
 ## Immutable Proof-Path Extraction
 
@@ -774,9 +802,10 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
-encoding, recovery, retention, pruning, incremental commitment updates, witness
-verification, or stateless updates. The storage boundaries publish and verify
-the complete canonical node image defined above.
+encoding, retention mutation, pruning, recovery application, incremental
+commitment updates, witness verification, or stateless updates. The storage
+boundaries publish and verify the complete canonical node image defined above
+and can audit reachability without mutation.
 
 ## Compatibility Boundary
 
