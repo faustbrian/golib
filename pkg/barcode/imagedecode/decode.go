@@ -11,6 +11,7 @@ import (
 	_ "image/jpeg" //nolint:revive // Register JPEG for the generic image decoder.
 	_ "image/png"  //nolint:revive // Register PNG for the generic image decoder.
 	"io"
+	"math"
 	"strings"
 	"time"
 
@@ -185,7 +186,13 @@ func Decode(ctx context.Context, input image.Image, options Options) (barcode.De
 
 	current := bitmap
 	currentInverted := inverted
-	for rotation := 0; rotation < limits.MaxRotations; rotation++ {
+	for rotation := range limits.MaxRotations {
+		if rotation > 0 {
+			current, _ = current.RotateCounterClockwise()
+			if currentInverted != nil {
+				currentInverted, _ = currentInverted.RotateCounterClockwise()
+			}
+		}
 		for _, item := range candidates {
 			variants := []*gozxing.BinaryBitmap{current}
 			if currentInverted != nil {
@@ -204,16 +211,18 @@ func Decode(ctx context.Context, input image.Image, options Options) (barcode.De
 				if decodeErr != nil {
 					continue
 				}
-				if corrections := correctionsFor(result); limits.MaxCorrections > 0 && corrections > limits.MaxCorrections {
+				if exceedsCorrectionBudget(correctionsFor(result), limits.MaxCorrections) {
 					return barcode.DecodeResult{}, ErrLimitExceeded
 				}
-				if len(result.GetText()) > limits.MaxPayloadBytes || len(result.GetRawBytes()) > limits.MaxPayloadBytes {
+				if exceedsPayloadBudget(result, limits.MaxPayloadBytes) {
 					return barcode.DecodeResult{}, ErrLimitExceeded
 				}
 				payload := result.GetText()
-				if item.gs1 && strings.HasPrefix(payload, "]C1") {
-					payload = strings.TrimPrefix(payload, "]C1")
-					result.PutMetadata(gozxing.ResultMetadataType_SYMBOLOGY_IDENTIFIER, "]C1")
+				if item.gs1 {
+					if strings.HasPrefix(payload, "]C1") {
+						payload = strings.TrimPrefix(payload, "]C1")
+						result.PutMetadata(gozxing.ResultMetadataType_SYMBOLOGY_IDENTIFIER, "]C1")
+					}
 				}
 				// Preserve the requested semantic format. Some symbologies share a
 				// physical reader, notably ITF and GS1 ITF-14, so the reader's broad
@@ -231,20 +240,28 @@ func Decode(ctx context.Context, input image.Image, options Options) (barcode.De
 				return decoded, nil
 			}
 		}
-		if rotation+1 < limits.MaxRotations {
-			current, _ = current.RotateCounterClockwise()
-			if currentInverted != nil {
-				currentInverted, _ = currentInverted.RotateCounterClockwise()
-			}
-		}
 	}
 	return barcode.DecodeResult{}, decodeFailure(ctx, started, limits.MaxDuration)
 }
 
 func validateImageSize(width, height int, limits Limits) error {
-	if width <= 0 || height <= 0 || width > limits.MaxWidth || height > limits.MaxHeight ||
-		width > int(^uint(0)>>1)/height || width*height > limits.MaxPixels ||
-		width*height > limits.MaxMemoryBytes/4 {
+	if width <= 0 {
+		return ErrLimitExceeded
+	}
+	if height <= 0 {
+		return ErrLimitExceeded
+	}
+	if width > limits.MaxWidth {
+		return ErrLimitExceeded
+	}
+	if height > limits.MaxHeight {
+		return ErrLimitExceeded
+	}
+	if width > limits.MaxPixels/height {
+		return ErrLimitExceeded
+	}
+	const bytesPerPixel = 4
+	if width > (limits.MaxMemoryBytes/bytesPerPixel)/height {
 		return ErrLimitExceeded
 	}
 
@@ -263,18 +280,44 @@ func contextError(ctx context.Context, started time.Time, maximum time.Duration)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if maximum > 0 && time.Since(started) >= maximum {
-		return context.DeadlineExceeded
+	if maximum <= 0 {
+		return nil
 	}
-
-	return nil
+	if time.Now().Before(started.Add(maximum)) {
+		return nil
+	}
+	return context.DeadlineExceeded
 }
 
 func normalizeLimits(limits Limits) (Limits, error) {
-	if limits.MaxWidth < 0 || limits.MaxHeight < 0 || limits.MaxPixels < 0 ||
-		limits.MaxCandidates < 0 || limits.MaxPayloadBytes < 0 || limits.MaxRotations < 0 ||
-		limits.MaxMemoryBytes < 0 || limits.MaxEncodedBytes < 0 ||
-		limits.MaxCorrections < 0 || limits.MaxDuration < 0 {
+	if limits.MaxWidth < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxHeight < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxPixels < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxCandidates < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxPayloadBytes < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxRotations < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxMemoryBytes < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxEncodedBytes < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxCorrections < 0 {
+		return Limits{}, ErrLimitExceeded
+	}
+	if limits.MaxDuration < 0 {
 		return Limits{}, ErrLimitExceeded
 	}
 	if limits.MaxWidth == 0 {
@@ -354,7 +397,7 @@ func candidatesFor(formats []barcode.Format, assumeCode39Checksum bool) ([]candi
 }
 
 func cloneHints(source map[gozxing.DecodeHintType]interface{}) map[gozxing.DecodeHintType]interface{} {
-	result := make(map[gozxing.DecodeHintType]interface{}, len(source)+1)
+	result := make(map[gozxing.DecodeHintType]interface{}, len(source))
 	for key, value := range source {
 		result[key] = value
 	}
@@ -385,22 +428,17 @@ func qrOrientation(points []gozxing.ResultPoint) int {
 	if len(points) < 2 {
 		return 0
 	}
-	dx := points[1].GetX() - points[0].GetX()
-	dy := points[1].GetY() - points[0].GetY()
-	if dx < 0 {
-		dx = -dx
-	}
-	if dy < 0 {
-		dy = -dy
-	}
+	horizontal := points[1].GetX() - points[0].GetX()
+	vertical := points[1].GetY() - points[0].GetY()
+	dx := math.Abs(horizontal)
+	dy := math.Abs(vertical)
 	if dx > dy {
-		if points[1].GetX() > points[0].GetX() {
-			return 270
+		if math.Signbit(horizontal) {
+			return 90
 		}
-
-		return 90
+		return 270
 	}
-	if points[1].GetY() > points[0].GetY() {
+	if vertical > 0 {
 		return 180
 	}
 
@@ -424,7 +462,7 @@ func checksumStatus(format barcode.Format) barcode.ChecksumStatus {
 
 func metadataDiagnostics(result *gozxing.Result) []string {
 	metadata := result.GetResultMetadata()
-	diagnostics := make([]string, 0, 3)
+	var diagnostics []string
 	for _, key := range []gozxing.ResultMetadataType{
 		gozxing.ResultMetadataType_ERROR_CORRECTION_LEVEL,
 		gozxing.ResultMetadataType_UPC_EAN_EXTENSION,
@@ -454,4 +492,18 @@ func correctionsFor(result *gozxing.Result) int {
 	corrections, _ := result.GetResultMetadata()[gozxing.ResultMetadataType_OTHER].(int)
 
 	return corrections
+}
+
+func exceedsCorrectionBudget(corrections, maximum int) bool {
+	if maximum <= 0 {
+		return false
+	}
+	return corrections > maximum
+}
+
+func exceedsPayloadBudget(result *gozxing.Result, maximum int) bool {
+	if len(result.GetText()) > maximum {
+		return true
+	}
+	return len(result.GetRawBytes()) > maximum
 }

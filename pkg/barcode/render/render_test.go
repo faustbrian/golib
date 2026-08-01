@@ -200,6 +200,8 @@ func TestRenderRejectsOverflowAndExplicitLimitViolations(t *testing.T) {
 	tests := []render.Options{
 		{Scale: -1},
 		{Scale: int(^uint(0) >> 1)},
+		{Limits: render.Limits{MaxDimension: -1}},
+		{Limits: render.Limits{MaxPixels: -1}},
 		{Scale: 2, Limits: render.Limits{MaxPixels: 100}},
 		{Scale: 2, Limits: render.Limits{MaxDimension: 40}},
 	}
@@ -207,6 +209,50 @@ func TestRenderRejectsOverflowAndExplicitLimitViolations(t *testing.T) {
 		if _, err := render.Image(symbol.Logical(), options); !errors.Is(err, render.ErrLimitExceeded) {
 			t.Fatalf("Image(%+v) error = %v, want ErrLimitExceeded", options, err)
 		}
+	}
+	matrix := symbol.Logical().Matrix()
+	if _, err := render.Image(symbol.Logical(), render.Options{Limits: render.Limits{
+		MaxDimension: max(matrix.Width(), matrix.Height()),
+		MaxPixels:    matrix.Width() * matrix.Height(),
+	}}); err != nil {
+		t.Fatalf("Image(exact limits) error = %v", err)
+	}
+}
+
+func TestRenderAcceptsSinglePixelAndRejectsAsymmetricOverflow(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		width, height int
+		scale         int
+		limits        render.Limits
+		wantError     bool
+	}{
+		{name: "single pixel exact limits", width: 1, height: 1},
+		{name: "width overflow", width: 2, height: 1, scale: int(^uint(0) >> 1), wantError: true},
+		{name: "height overflow", width: 1, height: 2, scale: int(^uint(0) >> 1), wantError: true},
+		{name: "height dimension limit", width: 1, height: 2, limits: render.Limits{MaxDimension: 1, MaxPixels: 2}, wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			matrix, err := barcode.NewMatrix(test.width, test.height, make([]bool, test.width*test.height))
+			if err != nil {
+				t.Fatalf("NewMatrix() error = %v", err)
+			}
+			symbol, err := barcode.NewSymbol(barcode.SymbolOptions{Format: barcode.QRCode, Payload: []byte("A"), Matrix: matrix})
+			if err != nil {
+				t.Fatalf("NewSymbol() error = %v", err)
+			}
+			options := render.Options{Scale: test.scale, Limits: test.limits}
+			if !test.wantError {
+				options.Limits = render.Limits{MaxDimension: 1, MaxPixels: 1}
+			}
+			_, err = render.Image(symbol, options)
+			if test.wantError && !errors.Is(err, render.ErrLimitExceeded) {
+				t.Fatalf("Image() error = %v, want ErrLimitExceeded", err)
+			}
+			if !test.wantError && err != nil {
+				t.Fatalf("Image() error = %v", err)
+			}
+		})
 	}
 }
 

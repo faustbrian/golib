@@ -2,8 +2,10 @@
 package qr
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"unicode/utf8"
 
@@ -141,31 +143,14 @@ func (symbol Symbol) StructuredAppend() (StructuredAppend, bool) {
 
 // Encode returns an exact logical QR matrix including its quiet zone.
 func Encode(payload []byte, options Options) (Symbol, error) {
-	if len(payload) == 0 || len(payload) > maxPayloadBytes || options.Mode > Kanji ||
-		options.ErrorCorrection > High || options.Version < 0 || options.Version > 40 ||
-		options.QuietZone < 0 || options.FNC1 > FNC1Second {
-		return Symbol{}, ErrInvalidInput
-	}
-	if options.StructuredAppend != nil && (options.StructuredAppend.Total < 2 ||
-		options.StructuredAppend.Total > 16 || options.StructuredAppend.Index < 0 ||
-		options.StructuredAppend.Index >= options.StructuredAppend.Total) {
-		return Symbol{}, ErrInvalidInput
+	quietZone, maskSet, err := validateOptions(payload, options)
+	if err != nil {
+		return Symbol{}, err
 	}
 	if options.FNC1 == FNC1First {
 		if _, err := gs1.ParseRaw(string(payload), gs1.ParseLimits{MaxInputBytes: maxPayloadBytes}); err != nil {
 			return Symbol{}, fmt.Errorf("%w: %w", ErrInvalidInput, err)
 		}
-	}
-	maskSet := options.MaskSet || options.Mask != 0
-	if maskSet && (options.Mask < 0 || options.Mask > 7) {
-		return Symbol{}, ErrInvalidInput
-	}
-	quietZone := options.QuietZone
-	if quietZone == 0 {
-		quietZone = defaultQuietZone
-	}
-	if quietZone < defaultQuietZone || quietZone > 256 {
-		return Symbol{}, ErrInvalidInput
 	}
 	if err := validateMode(payload, options.Mode); err != nil {
 		return Symbol{}, err
@@ -186,23 +171,14 @@ func EncodeStructured(payload []byte, options Options) ([]Symbol, error) {
 	if options.StructuredAppend != nil {
 		return nil, ErrInvalidInput
 	}
+	quietZone, maskSet, validationErr := validateOptions(payload, options)
+	if validationErr != nil {
+		return nil, validationErr
+	}
 	if symbol, err := Encode(payload, options); err == nil {
 		return []Symbol{symbol}, nil
 	}
-	if len(payload) == 0 || len(payload) > maxPayloadBytes || options.Mode != Auto ||
-		options.ErrorCorrection > High || options.Version < 0 || options.Version > 40 ||
-		options.QuietZone < 0 || options.FNC1 > FNC1Second {
-		return nil, ErrInvalidInput
-	}
-	quietZone := options.QuietZone
-	if quietZone == 0 {
-		quietZone = defaultQuietZone
-	}
-	if quietZone < defaultQuietZone || quietZone > 256 {
-		return nil, ErrInvalidInput
-	}
-	maskSet := options.MaskSet || options.Mask != 0
-	if maskSet && (options.Mask < 0 || options.Mask > 7) {
+	if options.Mode != Auto {
 		return nil, ErrInvalidInput
 	}
 	level := options.ErrorCorrection
@@ -221,7 +197,7 @@ func EncodeStructured(payload []byte, options Options) ([]Symbol, error) {
 		if _, parseErr := gs1.ParseRaw(string(payload), gs1.ParseLimits{MaxInputBytes: maxPayloadBytes}); parseErr != nil {
 			return nil, fmt.Errorf("%w: %w", ErrInvalidInput, parseErr)
 		}
-		data = unixsplit.FNC1Text(text, charset, eci, -1)
+		data = unixsplit.FNC1Text(text, charset, eci, math.MinInt)
 	case FNC1Second:
 		data = unixsplit.FNC1Text(text, charset, eci, int(options.FNC1ApplicationIndicator))
 	}
@@ -230,13 +206,16 @@ func EncodeStructured(payload []byte, options Options) ([]Symbol, error) {
 		version = 1
 	}
 	var parts [][]unixcoding.Segment
-	for ; version <= 40; version++ {
-		parts, err = unixsplit.SplitMulti(data, unixcoding.Version(version), codingLevel(level))
-		if err == nil || options.Version != 0 {
-			break
+	for _, candidate := range candidateVersions() {
+		if candidate >= version {
+			parts, err = unixsplit.SplitMulti(data, unixcoding.Version(candidate), codingLevel(level))
+			if err == nil || options.Version != 0 {
+				version = candidate
+				break
+			}
 		}
 	}
-	if err != nil || len(parts) < 2 || len(parts) > 16 {
+	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidInput, err)
 	}
 
@@ -265,13 +244,7 @@ func EncodeStructured(payload []byte, options Options) ([]Symbol, error) {
 }
 
 func structuredPayload(segments []unixcoding.Segment) []byte {
-	length := 0
-	for _, segment := range segments {
-		if segment.Mode < unixcoding.ECI {
-			length += len(segment.Text)
-		}
-	}
-	payload := make([]byte, 0, length)
+	var payload []byte
 	for _, segment := range segments {
 		if segment.Mode < unixcoding.ECI {
 			payload = append(payload, segment.Text...)
@@ -295,7 +268,7 @@ func encodeOptimized(payload []byte, options Options, quietZone int, maskSet boo
 	case FNC1None:
 		data = unixsplit.Text(text, charset, eci)
 	case FNC1First:
-		data = unixsplit.FNC1Text(text, charset, eci, -1)
+		data = unixsplit.FNC1Text(text, charset, eci, math.MinInt)
 	case FNC1Second:
 		data = unixsplit.FNC1Text(text, charset, eci, int(options.FNC1ApplicationIndicator))
 	}
@@ -360,23 +333,13 @@ func splitInput(payload []byte, assignment int) (string, unixsplit.Charset, int,
 func optimizedMode(segments []unixcoding.Segment) Mode {
 	mode, set := Auto, false
 	for _, segment := range segments {
-		var current Mode
-		switch segment.Mode {
-		case unixcoding.Numeric:
-			current = Numeric
-		case unixcoding.Alphanumeric, unixcoding.FNC1Alpha:
-			current = Alphanumeric
-		case unixcoding.Kanji, unixcoding.ShiftJISKanji:
-			current = Kanji
-		case unixcoding.Byte, unixcoding.Latin1:
-			current = Byte
-		case unixcoding.ECI, unixcoding.StructAppend, unixcoding.FNC1First, unixcoding.FNC1Second:
-			continue
+		current, relevant := segmentMode(segment.Mode)
+		if relevant {
+			if set && mode != current {
+				return Auto
+			}
+			mode, set = current, true
 		}
-		if set && mode != current {
-			return Auto
-		}
-		mode, set = current, true
 	}
 	if !set {
 		return Auto
@@ -385,34 +348,29 @@ func optimizedMode(segments []unixcoding.Segment) Mode {
 	return mode
 }
 
+func segmentMode(mode unixcoding.Mode) (Mode, bool) {
+	switch mode {
+	case unixcoding.Numeric:
+		return Numeric, true
+	case unixcoding.Alphanumeric, unixcoding.FNC1Alpha:
+		return Alphanumeric, true
+	case unixcoding.Kanji, unixcoding.ShiftJISKanji:
+		return Kanji, true
+	case unixcoding.Byte, unixcoding.Latin1:
+		return Byte, true
+	case unixcoding.ECI, unixcoding.StructAppend, unixcoding.FNC1First, unixcoding.FNC1Second:
+		return Auto, false
+	default:
+		return Auto, false
+	}
+}
+
 func encodeExtended(payload []byte, options Options, quietZone int, maskSet bool) (Symbol, error) {
 	level := options.ErrorCorrection
 	if level == DefaultErrorCorrection {
 		level = Medium
 	}
-	segments := make([]unixcoding.Segment, 0, 4)
-	if options.StructuredAppend != nil {
-		header := options.StructuredAppend
-		segments = append(segments, unixcoding.Segment{
-			Mode: unixcoding.StructAppend,
-			// #nosec G115 -- index and total were bounded to four-bit fields.
-			Text: string([]byte{byte(header.Index<<4 | (header.Total - 1)), header.Parity}),
-		})
-	}
-	if options.FNC1 == FNC1First {
-		segments = append(segments, unixcoding.Segment{Mode: unixcoding.FNC1First})
-	}
-	if options.FNC1 == FNC1Second {
-		segments = append(segments, unixcoding.Segment{
-			Mode: unixcoding.FNC1Second,
-			Text: string([]byte{options.FNC1ApplicationIndicator}),
-		})
-	}
-	if options.ECI != 0 {
-		eci, _ := encodeECI(options.ECI)
-		segments = append(segments, unixcoding.Segment{Mode: unixcoding.ECI, Text: eci})
-	}
-	segments = append(segments, unixcoding.Segment{Mode: codingMode(options.Mode), Text: string(payload)})
+	segments := extendedSegments(payload, options)
 
 	version := options.Version
 	if version == 0 {
@@ -421,10 +379,13 @@ func encodeExtended(payload []byte, options Options, quietZone int, maskSet bool
 	var code *unixcoding.Code
 	var mask int
 	var err error
-	for ; version <= 40; version++ {
-		code, mask, err = encodeSegments(segments, version, level, options.Mask, maskSet)
-		if err == nil || options.Version != 0 {
-			break
+	for _, candidate := range candidateVersions() {
+		if candidate >= version {
+			code, mask, err = encodeSegments(segments, candidate, level, options.Mask, maskSet)
+			if err == nil || options.Version != 0 {
+				version = candidate
+				break
+			}
 		}
 	}
 	if err != nil {
@@ -446,6 +407,44 @@ func encodeExtended(payload []byte, options Options, quietZone int, maskSet bool
 		fnc1ApplicationIndicator: options.FNC1ApplicationIndicator,
 		structuredAppend:         header,
 	}, nil
+}
+
+func candidateVersions() [40]int {
+	return [40]int{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+		11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+		21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+		31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+	}
+}
+
+func extendedSegments(payload []byte, options Options) []unixcoding.Segment {
+	segments := make([]unixcoding.Segment, 0, 4)
+	if options.StructuredAppend != nil {
+		headerBytes := structuredAppendBytes(*options.StructuredAppend)
+		segments = append(segments, unixcoding.Segment{Mode: unixcoding.StructAppend, Text: string(headerBytes[:])})
+	}
+	if options.FNC1 == FNC1First {
+		segments = append(segments, unixcoding.Segment{Mode: unixcoding.FNC1First})
+	}
+	if options.FNC1 == FNC1Second {
+		segments = append(segments, unixcoding.Segment{
+			Mode: unixcoding.FNC1Second,
+			Text: string([]byte{options.FNC1ApplicationIndicator}),
+		})
+	}
+	if options.ECI != 0 {
+		eci, _ := encodeECI(options.ECI)
+		segments = append(segments, unixcoding.Segment{Mode: unixcoding.ECI, Text: eci})
+	}
+	segments = append(segments, unixcoding.Segment{Mode: codingMode(options.Mode), Text: string(payload)})
+
+	return segments
+}
+
+func structuredAppendBytes(header StructuredAppend) [2]byte {
+	// #nosec G115 -- index and total were bounded to four-bit fields.
+	return [2]byte{byte(header.Index<<4 | (header.Total - 1)), header.Parity}
 }
 
 func encodeSegments(segments []unixcoding.Segment, version int, level ErrorCorrection, requestedMask int, maskSet bool) (*unixcoding.Code, int, error) {
@@ -480,7 +479,7 @@ func encodeSegments(segments []unixcoding.Segment, version int, level ErrorCorre
 			bitmap[index] = data[index] ^ plan.Pattern[candidate][index]
 		}
 		code := &unixcoding.Code{Bitmap: bitmap, Size: plan.Size, Stride: (plan.Size + 7) / 8}
-		if penalty := code.Penalty(); penalty < bestPenalty {
+		if penalty := code.Penalty(); cmp.Compare(penalty, bestPenalty) == -1 {
 			bestPenalty, bestMask, best = penalty, candidate, bitmap
 		}
 	}
@@ -534,14 +533,73 @@ func encodeECI(assignment int) (string, error) {
 func logicalCodingMatrix(source *unixcoding.Code, quietZone int) barcode.Matrix {
 	width := source.Size + 2*quietZone
 	modules := make([]bool, width*width)
-	for y := 0; y < source.Size; y++ {
-		for x := 0; x < source.Size; x++ {
+	for y := range source.Size {
+		for x := range source.Size {
 			modules[(y+quietZone)*width+x+quietZone] = source.Black(x, y)
 		}
 	}
 	matrix, _ := barcode.NewMatrix(width, width, modules)
 
 	return matrix
+}
+
+func validateOptions(payload []byte, options Options) (int, bool, error) {
+	if len(payload) == 0 {
+		return 0, false, ErrInvalidInput
+	}
+	if len(payload) > maxPayloadBytes {
+		return 0, false, ErrInvalidInput
+	}
+	if options.Mode > Kanji {
+		return 0, false, ErrInvalidInput
+	}
+	if options.ErrorCorrection > High {
+		return 0, false, ErrInvalidInput
+	}
+	if options.Version < 0 {
+		return 0, false, ErrInvalidInput
+	}
+	if options.Version > 40 {
+		return 0, false, ErrInvalidInput
+	}
+	if options.QuietZone < 0 {
+		return 0, false, ErrInvalidInput
+	}
+	if options.FNC1 > FNC1Second {
+		return 0, false, ErrInvalidInput
+	}
+	if options.StructuredAppend != nil {
+		if options.StructuredAppend.Total < 2 {
+			return 0, false, ErrInvalidInput
+		}
+		if options.StructuredAppend.Total > 16 {
+			return 0, false, ErrInvalidInput
+		}
+		if options.StructuredAppend.Index < 0 {
+			return 0, false, ErrInvalidInput
+		}
+	}
+	maskSet := options.MaskSet || options.Mask != 0
+	if maskSet {
+		if options.Mask < 0 {
+			return 0, false, ErrInvalidInput
+		}
+		if options.Mask > 7 {
+			return 0, false, ErrInvalidInput
+		}
+	}
+	quietZone := options.QuietZone
+	if quietZone == 0 {
+		quietZone = defaultQuietZone
+	}
+	if quietZone < defaultQuietZone {
+		return 0, false, ErrInvalidInput
+	}
+	if quietZone > 256 {
+		return 0, false, ErrInvalidInput
+	}
+
+	return quietZone, maskSet, nil
 }
 
 // EncodeGS1 serializes validated elements and adds first-position FNC1.

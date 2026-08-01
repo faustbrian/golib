@@ -127,13 +127,22 @@ func (symbol Symbol) Macro() (Macro, bool) {
 // Encode returns a PDF417 matrix with explicit compaction, correction, and
 // row/column bounds. Each codeword row is rendered four modules high.
 func Encode(payload []byte, options Options) (Symbol, error) {
-	if len(payload) == 0 || len(payload) > maxPayloadBytes || options.Compaction > Numeric ||
-		options.ErrorCorrection > Level8 || options.QuietZone < 0 ||
-		options.ECI < 0 || options.ECI >= 811_800 || !validMacro(options.Macro) ||
-		options.MinRows < 0 || options.MaxRows < 0 || options.MinColumns < 0 || options.MaxColumns < 0 ||
-		options.MinRows > 90 || options.MaxRows > 90 || options.MinColumns > 30 || options.MaxColumns > 30 ||
-		options.MaxRows > 0 && options.MinRows > options.MaxRows ||
-		options.MaxColumns > 0 && options.MinColumns > options.MaxColumns {
+	if len(payload) == 0 {
+		return Symbol{}, ErrInvalidInput
+	}
+	if len(payload) > maxPayloadBytes {
+		return Symbol{}, ErrInvalidInput
+	}
+	if options.Compaction > Numeric {
+		return Symbol{}, ErrInvalidInput
+	}
+	if options.QuietZone < 0 {
+		return Symbol{}, ErrInvalidInput
+	}
+	if !validDimension(options.MinRows, options.MaxRows, 90) {
+		return Symbol{}, ErrInvalidInput
+	}
+	if !validDimension(options.MinColumns, options.MaxColumns, 30) {
 		return Symbol{}, ErrInvalidInput
 	}
 	quietZone := options.QuietZone
@@ -146,13 +155,6 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 	errorCorrection := options.ErrorCorrection
 	if errorCorrection == DefaultErrorCorrection {
 		errorCorrection = Level2
-	}
-	if options.Compaction == Numeric {
-		for _, value := range payload {
-			if value < '0' || value > '9' {
-				return Symbol{}, ErrInvalidInput
-			}
-		}
 	}
 	encoder := pdf417encoder.NewPDF417Encoder()
 	encoder.SetCompaction(pdf417encoder.Compaction(options.Compaction))
@@ -186,6 +188,23 @@ func Encode(payload []byte, options Options) (Symbol, error) {
 	}, nil
 }
 
+func validDimension(minimum, maximum, limit int) bool {
+	switch {
+	case minimum < 0:
+		return false
+	case maximum < 0:
+		return false
+	case minimum > limit:
+		return false
+	case maximum > limit:
+		return false
+	case maximum != 0 && minimum > maximum:
+		return false
+	default:
+		return true
+	}
+}
+
 func dimensions(minimum, maximum, defaultMinimum, defaultMaximum int) (int, int) {
 	if minimum == 0 {
 		minimum = defaultMinimum
@@ -195,25 +214,6 @@ func dimensions(minimum, maximum, defaultMinimum, defaultMaximum int) (int, int)
 	}
 	return minimum, maximum
 }
-
-func validMacro(macro *Macro) bool {
-	if macro == nil {
-		return true
-	}
-	if macro.SegmentIndex < 0 || macro.SegmentIndex > 99_998 || macro.FileID == "" ||
-		len(macro.FileID)%3 != 0 || negative(macro.SegmentCount) || negative(macro.Timestamp) ||
-		negative(macro.FileSize) || negative(macro.Checksum) {
-		return false
-	}
-	for index, value := range macro.FileID {
-		if value < '0' || value > '9' || index%3 == 2 && macro.FileID[index-2:index+1] > "899" {
-			return false
-		}
-	}
-	return true
-}
-
-func negative[T ~int | ~int64](value *T) bool { return value != nil && *value < 0 }
 
 func internalMacro(macro *Macro) *pdf417encoder.Macro {
 	if macro == nil {

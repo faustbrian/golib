@@ -131,7 +131,7 @@ func ParseBracketed(input string, limits ParseLimits) (ElementString, error) {
 			return ElementString{}, ErrInvalidElement
 		}
 		closeOffset := strings.IndexByte(input[cursor+1:], ')')
-		if closeOffset < 0 {
+		if closeOffset == -1 {
 			return ElementString{}, ErrInvalidElement
 		}
 		closeIndex := cursor + 1 + closeOffset
@@ -143,7 +143,7 @@ func ParseBracketed(input string, limits ParseLimits) (ElementString, error) {
 		valueStart := closeIndex + 1
 		nextOffset := strings.IndexByte(input[valueStart:], '(')
 		valueEnd := len(input)
-		if nextOffset >= 0 {
+		if nextOffset != -1 {
 			valueEnd = valueStart + nextOffset
 		}
 		value := input[valueStart:valueEnd]
@@ -192,7 +192,7 @@ func ParseRaw(input string, limits ParseLimits) (ElementString, error) {
 		} else {
 			separator := strings.IndexByte(input[cursor:], 0x1d)
 			valueEnd = len(input)
-			if separator >= 0 {
+			if separator != -1 {
 				valueEnd = cursor + separator
 			}
 		}
@@ -221,7 +221,10 @@ func ParseRaw(input string, limits ParseLimits) (ElementString, error) {
 }
 
 func normalizeParseLimits(input string, limits ParseLimits) (ParseLimits, error) {
-	if limits.MaxInputBytes < 0 || limits.MaxElements < 0 {
+	if limits.MaxInputBytes < 0 {
+		return ParseLimits{}, ErrLimitExceeded
+	}
+	if limits.MaxElements < 0 {
 		return ParseLimits{}, ErrLimitExceeded
 	}
 	if limits.MaxInputBytes == 0 {
@@ -233,7 +236,7 @@ func normalizeParseLimits(input string, limits ParseLimits) (ParseLimits, error)
 	if len(input) == 0 {
 		return ParseLimits{}, ErrInvalidElement
 	}
-	if len(input) > limits.MaxInputBytes || limits.MaxElements < 1 {
+	if len(input) > limits.MaxInputBytes {
 		return ParseLimits{}, ErrLimitExceeded
 	}
 
@@ -261,7 +264,7 @@ func parseDictionary(dictionary string) (map[string]definition, error) {
 			title = ""
 		}
 		fields := strings.Fields(content)
-		if len(fields) < 2 {
+		if len(fields) == 1 {
 			return nil, ErrInvalidElement
 		}
 		aiPattern := fields[0]
@@ -287,22 +290,21 @@ func parseDictionary(dictionary string) (map[string]definition, error) {
 		excluded := make([]string, 0, 2)
 		for ; fieldIndex < len(fields); fieldIndex++ {
 			key, value, attribute := strings.Cut(fields[fieldIndex], "=")
-			if !attribute {
-				continue
-			}
-			switch key {
-			case "req":
-				parsed, ok := parseRequirements(value)
-				if !ok {
-					return nil, ErrInvalidElement
+			if attribute {
+				switch key {
+				case "req":
+					parsed, ok := parseRequirements(value)
+					if !ok {
+						return nil, ErrInvalidElement
+					}
+					required = append(required, parsed)
+				case "ex":
+					parsed := strings.Split(value, ",")
+					if !validPatterns(parsed) {
+						return nil, ErrInvalidElement
+					}
+					excluded = append(excluded, parsed...)
 				}
-				required = append(required, parsed)
-			case "ex":
-				parsed := strings.Split(value, ",")
-				if !validPatterns(parsed) {
-					return nil, ErrInvalidElement
-				}
-				excluded = append(excluded, parsed...)
 			}
 		}
 		minimum, maximum := 0, 0
@@ -340,7 +342,7 @@ func parseRequirements(value string) ([][]string, bool) {
 		}
 	}
 
-	return parsed, len(parsed) > 0
+	return parsed, true
 }
 
 func validPatterns(patterns []string) bool {
@@ -402,17 +404,10 @@ func validateAssociations(elements []Element, definitions map[string]definition)
 
 func hasPatternExcept(present map[string]struct{}, pattern, excluded string) bool {
 	for ai := range present {
-		if ai == excluded || len(ai) != len(pattern) {
+		if ai == excluded {
 			continue
 		}
-		matched := true
-		for index := range pattern {
-			if pattern[index] != 'n' && pattern[index] != ai[index] {
-				matched = false
-				break
-			}
-		}
-		if matched {
+		if matchesPattern(ai, pattern) {
 			return true
 		}
 	}
@@ -422,22 +417,25 @@ func hasPatternExcept(present map[string]struct{}, pattern, excluded string) boo
 
 func hasPattern(present map[string]struct{}, pattern string) bool {
 	for ai := range present {
-		if len(ai) != len(pattern) {
-			continue
-		}
-		matched := true
-		for index := range pattern {
-			if pattern[index] != 'n' && pattern[index] != ai[index] {
-				matched = false
-				break
-			}
-		}
-		if matched {
+		if matchesPattern(ai, pattern) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func matchesPattern(ai, pattern string) bool {
+	if len(ai) != len(pattern) {
+		return false
+	}
+	for index := range pattern {
+		if pattern[index] != 'n' && pattern[index] != ai[index] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isFlags(value string) bool {
@@ -470,11 +468,11 @@ func parseComponent(value string) (component, error) {
 	typeExpression := value
 	if parsed.optional {
 		closing := strings.IndexByte(typeExpression, ']')
-		if closing < 0 {
+		if closing == -1 {
 			return component{}, ErrInvalidElement
 		}
 		typeExpression = typeExpression[1:closing]
-	} else if comma := strings.IndexByte(typeExpression, ','); comma >= 0 {
+	} else if comma := strings.IndexByte(typeExpression, ','); comma != -1 {
 		typeExpression = typeExpression[:comma]
 	}
 	if len(typeExpression) < 2 {
@@ -511,10 +509,19 @@ func expandAI(value string) []string {
 	}
 	start, startErr := strconv.Atoi(startText)
 	end, endErr := strconv.Atoi(endText)
-	if startErr != nil || endErr != nil || end < start || len(startText) != len(endText) {
+	if startErr != nil {
 		return []string{""}
 	}
-	result := make([]string, 0, end-start+1)
+	if endErr != nil {
+		return []string{""}
+	}
+	if end < start {
+		return []string{""}
+	}
+	if len(startText) != len(endText) {
+		return []string{""}
+	}
+	result := make([]string, 0)
 	for current := start; current <= end; current++ {
 		result = append(result, fmtFixedWidth(current, len(startText)))
 	}
@@ -538,7 +545,10 @@ func matchDefinition(loaded map[string]definition, input string) (definition, in
 }
 
 func validateValue(definition definition, value string) error {
-	if len(value) < definition.min || len(value) > definition.max {
+	if len(value) < definition.min {
+		return ErrInvalidElement
+	}
+	if len(value) > definition.max {
 		return ErrInvalidElement
 	}
 	offset := 0

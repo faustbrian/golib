@@ -46,8 +46,18 @@ func TestDictionaryGrammarSupportsRangesFlagsAndOptionalComponents(t *testing.T)
 	}
 }
 
+func TestDictionaryGrammarSumsRequiredComponents(t *testing.T) {
+	loaded, err := parseDictionary("01 N2 X3")
+	if err != nil {
+		t.Fatalf("parseDictionary() error = %v", err)
+	}
+	if loaded["01"].min != 5 || loaded["01"].max != 5 {
+		t.Fatalf("definition lengths = %d..%d, want 5..5", loaded["01"].min, loaded["01"].max)
+	}
+}
+
 func TestDictionaryGrammarSupportsAssociationAttributes(t *testing.T) {
-	loaded, err := parseDictionary("01 N2 req=02+03,04 req=05 ex=06,07 # associations")
+	loaded, err := parseDictionary("01 N2 ignored req=02+03,04 req=05 ex=06,07 # associations")
 	if err != nil {
 		t.Fatalf("parseDictionary() error = %v", err)
 	}
@@ -109,9 +119,9 @@ func TestValueValidationCoversSupportedCharacterClasses(t *testing.T) {
 		bad   string
 	}{
 		{kind: 'N', valid: "012", bad: "12A"},
-		{kind: 'X', valid: "a Z!", bad: "\x1f"},
+		{kind: 'X', valid: "\x20~", bad: "\x1f"},
 		{kind: 'Y', valid: "ABC-./12", bad: "abc"},
-		{kind: 'Z', valid: "Az_09-", bad: "."},
+		{kind: 'Z', valid: "AZaz_09-", bad: "."},
 		{kind: 'Q', valid: "", bad: "A"},
 	}
 	for _, tt := range tests {
@@ -161,6 +171,47 @@ func TestValueValidationCoversSupportedCharacterClasses(t *testing.T) {
 	}
 	if err := validateValue(insufficient, "ABC12"); !errors.Is(err, ErrInvalidElement) {
 		t.Fatalf("validateValue(insufficient) error = %v", err)
+	}
+	optionalMiddle := definition{
+		min: 2, max: 4,
+		components: []component{
+			{kind: 'X', min: 1, max: 1},
+			{kind: 'N', min: 2, max: 2, optional: true},
+			{kind: 'Y', min: 1, max: 1},
+		},
+	}
+	if err := validateValue(optionalMiddle, "AZ"); err != nil {
+		t.Fatalf("validateValue(optional middle omitted) error = %v", err)
+	}
+	multipleRequiredSuffixes := definition{
+		min: 3, max: 5,
+		components: []component{
+			{kind: 'X', min: 1, max: 3},
+			{kind: 'N', min: 1, max: 1},
+			{kind: 'Y', min: 1, max: 1},
+		},
+	}
+	if err := validateValue(multipleRequiredSuffixes, "A1B"); err != nil {
+		t.Fatalf("validateValue(multiple required suffixes) error = %v", err)
+	}
+}
+
+func TestDictionaryHelpersCoverExactBoundaries(t *testing.T) {
+	if validPatterns(nil) {
+		t.Fatal("validPatterns(nil) = true")
+	}
+	if got := expandAI("10-10"); len(got) != 1 || got[0] != "10" {
+		t.Fatalf("expandAI(single) = %v", got)
+	}
+	for _, value := range []string{"a-10", "10-b", "11-10", "1-10"} {
+		if got := expandAI(value); len(got) != 1 || got[0] != "" {
+			t.Fatalf("expandAI(%q) = %v", value, got)
+		}
+	}
+	present := map[string]struct{}{"1234": {}, "1299": {}, "99": {}}
+	if !hasPattern(present, "12nn") || hasPattern(present, "13nn") ||
+		!hasPatternExcept(present, "12nn", "1234") {
+		t.Fatal("pattern matching boundaries are incorrect")
 	}
 }
 

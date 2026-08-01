@@ -102,7 +102,7 @@ func EncodeHighLevel(msg string, compaction Compaction) (string, error) {
 
 	if compaction == CompactionText {
 		for i, ch := range msg {
-			if ch > 127 {
+			if !isTextRune(ch) {
 				return "", fmt.Errorf("non-encodable character detected: %c (Unicode: %d) at position #%d", ch, ch, i)
 			}
 		}
@@ -121,7 +121,7 @@ func EncodeHighLevel(msg string, compaction Compaction) (string, error) {
 
 	case CompactionByte:
 		msgBytes := []byte(msg)
-		encodeBinary(msgBytes, p, len(msgBytes), byteCompaction, &sb)
+		encodeBinary(msgBytes, byteCompaction, &sb)
 
 	case CompactionNumeric:
 		for _, value := range []byte(msg) {
@@ -134,14 +134,19 @@ func EncodeHighLevel(msg string, compaction Compaction) (string, error) {
 
 	case CompactionAuto:
 		encodingMode := textCompaction // Default mode, see 4.4.2.1
-		for p < msgLen {
+		next := 0
+		for index := range msgLen {
+			if index != next {
+				continue
+			}
+			p = index
 			n := determineConsecutiveDigitCount(msg, p)
 			if n >= 13 {
 				sb.WriteRune(rune(latchToNumeric))
 				encodingMode = numericCompaction
 				textSubMode = submodeAlpha // Reset after latch
 				encodeNumeric(msg, p, n, &sb)
-				p += n
+				next = p + n
 			} else {
 				t := determineConsecutiveTextCount(msg, p)
 				if t >= 5 || n == msgLen {
@@ -151,20 +156,14 @@ func EncodeHighLevel(msg string, compaction Compaction) (string, error) {
 						textSubMode = submodeAlpha // start with submode alpha after latch
 					}
 					textSubMode = encodeText(msg, p, t, &sb, textSubMode)
-					p += t
+					next = p + t
 				} else {
 					b := determineConsecutiveBinaryCount(msg, p)
 					bytesData := []byte(msg[p : p+b])
-					if len(bytesData) == 1 && encodingMode == textCompaction {
-						// Switch for one byte (instead of latch)
-						encodeBinary(bytesData, 0, 1, textCompaction, &sb)
-					} else {
-						// Mode latch performed by encodeBinary()
-						encodeBinary(bytesData, 0, len(bytesData), encodingMode, &sb)
-						encodingMode = byteCompaction
-						textSubMode = submodeAlpha // Reset after latch
-					}
-					p += b
+					encodeBinary(bytesData, encodingMode, &sb)
+					encodingMode = byteCompaction
+					textSubMode = submodeAlpha // Reset after binary compaction
+					next = p + b
 				}
 			}
 		}
@@ -311,7 +310,8 @@ func encodeText(
 
 // encodeBinary encodes parts of the message using Byte Compaction as described
 // in ISO/IEC 15438:2001(E), chapter 4.4.3.
-func encodeBinary(bytes []byte, startpos, count, startmode int, sb *strings.Builder) {
+func encodeBinary(bytes []byte, startmode int, sb *strings.Builder) {
+	count := len(bytes)
 	if count == 1 && startmode == textCompaction {
 		sb.WriteRune(rune(shiftToByte))
 	} else {
@@ -322,53 +322,44 @@ func encodeBinary(bytes []byte, startpos, count, startmode int, sb *strings.Buil
 		}
 	}
 
-	idx := startpos
-	// Encode sixpacks
-	if count >= 6 {
-		chars := make([]rune, 5)
-		for (startpos + count - idx) >= 6 {
-			var t int64
-			for i := 0; i < 6; i++ {
-				t <<= 8
-				t += int64(bytes[idx+i]) & 0xff
-			}
-			for i := 0; i < 5; i++ {
-				chars[i] = rune(t % 900)
-				t /= 900
-			}
-			for i := len(chars) - 1; i >= 0; i-- {
-				sb.WriteRune(chars[i])
-			}
-			idx += 6
+	chars := make([]rune, 5)
+	for len(bytes) >= 6 {
+		var t int64
+		for offset := range 6 {
+			t <<= 8
+			t += int64(bytes[offset]) & 0xff
 		}
+		for offset := range 5 {
+			chars[offset] = rune(t % 900)
+			t /= 900
+		}
+		for offset := range len(chars) {
+			sb.WriteRune(chars[len(chars)-1-offset])
+		}
+		bytes = bytes[6:]
 	}
 	// Encode rest (remaining n<5 bytes if any)
-	for i := idx; i < startpos+count; i++ {
-		ch := int(bytes[i]) & 0xff
+	for _, value := range bytes {
+		ch := int(value) & 0xff
 		sb.WriteRune(rune(ch))
 	}
 }
 
 // encodeNumeric encodes parts of the message using Numeric Compaction.
 func encodeNumeric(msg string, startpos, count int, sb *strings.Builder) {
-	idx := 0
-	var tmp strings.Builder
-	tmp.Grow(count/3 + 1)
 	num900 := big.NewInt(900)
 	num0 := big.NewInt(0)
-	for idx < count {
-		tmp.Reset()
-		length := 44
-		if count-idx < 44 {
-			length = count - idx
-		}
+	chunkCount := (count + 43) / 44
+	for chunk := range chunkCount {
+		idx := chunk * 44
+		length := min(44, count-idx)
 		part := "1" + msg[startpos+idx:startpos+idx+length]
 		bigint := new(big.Int)
 		bigint.SetString(part, 10)
 
-		tmpRunes := make([]rune, 0, length/3+1)
+		var tmpRunes []rune
 		mod := new(big.Int)
-		for {
+		for range len(part) {
 			bigint.DivMod(bigint, num900, mod)
 			tmpRunes = append(tmpRunes, rune(mod.Int64())) //nolint:gosec // The remainder is below 900.
 			if bigint.Cmp(num0) == 0 {
@@ -377,10 +368,9 @@ func encodeNumeric(msg string, startpos, count int, sb *strings.Builder) {
 		}
 
 		// Reverse and append
-		for i := len(tmpRunes) - 1; i >= 0; i-- {
-			sb.WriteRune(tmpRunes[i])
+		for offset := range len(tmpRunes) {
+			sb.WriteRune(tmpRunes[len(tmpRunes)-1-offset])
 		}
-		idx += length
 	}
 }
 
@@ -405,6 +395,10 @@ func isPunctuation(ch byte) bool {
 }
 
 func isText(ch byte) bool {
+	return isTextRune(rune(ch))
+}
+
+func isTextRune(ch rune) bool {
 	return ch == '\t' || ch == '\n' || ch == '\r' || (ch >= 32 && ch <= 126)
 }
 
@@ -414,11 +408,9 @@ func determineConsecutiveDigitCount(msg string, startpos int) int {
 	count := 0
 	msgLen := len(msg)
 	idx := startpos
-	if idx < msgLen {
-		for idx < msgLen && isDigit(msg[idx]) {
-			count++
-			idx++
-		}
+	for idx < msgLen && isDigit(msg[idx]) {
+		count++
+		idx++
 	}
 	return count
 }
@@ -426,51 +418,30 @@ func determineConsecutiveDigitCount(msg string, startpos int) int {
 // determineConsecutiveTextCount determines the number of consecutive
 // characters that are encodable using text compaction.
 func determineConsecutiveTextCount(msg string, startpos int) int {
-	msgLen := len(msg)
-	idx := startpos
-	for idx < msgLen {
-		numericCount := 0
-		for numericCount < 13 && idx < msgLen && isDigit(msg[idx]) {
-			numericCount++
-			idx++
-		}
+	for offset := range len(msg) - startpos {
+		idx := startpos + offset
+		numericCount := determineConsecutiveDigitCount(msg, idx)
 		if numericCount >= 13 {
-			return idx - startpos - numericCount
-		}
-		if numericCount > 0 {
-			// Heuristic: All text-encodable chars or digits are binary encodable
-			continue
+			return offset
 		}
 
 		// Check if character is encodable
 		if !isText(msg[idx]) {
-			break
+			return offset
 		}
-		idx++
 	}
-	return idx - startpos
+	return len(msg) - startpos
 }
 
 // determineConsecutiveBinaryCount determines the number of consecutive
 // characters that are encodable using binary compaction.
 func determineConsecutiveBinaryCount(msg string, startpos int) int {
-	msgLen := len(msg)
-	idx := startpos
-	for idx < msgLen {
-		numericCount := 0
-
-		i := idx
-		for numericCount < 13 && isDigit(msg[i]) {
-			numericCount++
-			i = idx + numericCount
-			if i >= msgLen {
-				break
-			}
-		}
+	remaining := msg[startpos:]
+	for offset := range len(remaining) {
+		numericCount := determineConsecutiveDigitCount(remaining, offset)
 		if numericCount >= 13 {
-			return idx - startpos
+			return offset
 		}
-		idx++
 	}
-	return idx - startpos
+	return len(remaining)
 }

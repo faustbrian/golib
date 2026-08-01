@@ -80,6 +80,32 @@ func TestControlledDataMatrixECIWidths(t *testing.T) {
 	}
 }
 
+func TestDataMatrixECIExactBoundaries(t *testing.T) {
+	for _, test := range []struct {
+		codewords  []byte
+		assignment int
+		next       int
+	}{
+		{codewords: []byte{1}, assignment: 0, next: 1},
+		{codewords: []byte{127}, assignment: 126, next: 1},
+		{codewords: []byte{128, 1}, assignment: 127, next: 2},
+		{codewords: []byte{191, 255}, assignment: 16_383, next: 2},
+		{codewords: []byte{192, 1, 1}, assignment: 16_383, next: 3},
+		{codewords: []byte{254, 255, 255}, assignment: 4_081_145, next: 3},
+	} {
+		assignment, next, ok := decodeDataMatrixECI(test.codewords, 0)
+		if !ok || assignment != test.assignment || next != test.next {
+			t.Fatalf("decodeDataMatrixECI(%v) = (%d, %d, %t), want (%d, %d, true)",
+				test.codewords, assignment, next, ok, test.assignment, test.next)
+		}
+	}
+	for _, codewords := range [][]byte{{0}, {192, 1, 0}} {
+		if _, _, ok := decodeDataMatrixECI(codewords, 0); ok {
+			t.Fatalf("decodeDataMatrixECI(%v) succeeded", codewords)
+		}
+	}
+}
+
 func TestControlledDataMatrixSequenceMacroAndFallbackECI(t *testing.T) {
 	for _, test := range []struct {
 		prefix  []byte
@@ -120,6 +146,7 @@ func TestTwoDReaderFallbackControls(t *testing.T) {
 		raw  []byte
 		want string
 	}{
+		{text: "EMPTY", want: "EMPTY"},
 		{text: "\x1dDATA", raw: []byte{232, 230}, want: "DATA"},
 		{text: "[)>\x1e05\x1dDATA", raw: []byte{236, 230}, want: "[)>\x1e05\x1dDATA\x1e\x04"},
 		{text: "[)>\x1e06\x1dDATA\x1e\x04", raw: []byte{237, 230}, want: "[)>\x1e06\x1dDATA\x1e\x04"},
@@ -205,6 +232,10 @@ func TestDecodeRotatesInvertedInput(t *testing.T) {
 func TestControlledDataMatrixRejectsMalformedCodewords(t *testing.T) {
 	tests := [][]byte{
 		nil,
+		{233, 1},
+		{232},
+		{236},
+		{237},
 		{241},
 		{241, 0},
 		{241, 128},
@@ -214,6 +245,7 @@ func TestControlledDataMatrixRejectsMalformedCodewords(t *testing.T) {
 		{241, 255},
 		{241, 2, 230},
 		{241, 2, 231},
+		{231, randomize255(2, 2), randomize255('A', 3)},
 	}
 	for _, codewords := range tests {
 		if got, ok := decodeControlledDataMatrix(codewords); ok {
@@ -232,6 +264,36 @@ func TestBase256LengthFormsAndFailures(t *testing.T) {
 	large[1] = randomize255(0, 2)
 	if length, next, ok := decodeBase256Length(large, 0); !ok || length != 250 || next != 2 {
 		t.Fatalf("large length form = (%d, %d, %t)", length, next, ok)
+	}
+	for _, test := range []struct {
+		first, second byte
+		want          int
+	}{
+		{first: 249, want: 249},
+		{first: 250, second: 249, want: 499},
+		{first: 255, second: 249, want: 1_749},
+	} {
+		codewords := []byte{randomize255(test.first, 1)}
+		if test.first > 249 {
+			codewords = append(codewords, randomize255(test.second, 2))
+		}
+		length, _, ok := decodeBase256Length(codewords, 0)
+		if !ok || length != test.want {
+			t.Fatalf("decodeBase256Length(%d, %d) = (%d, %t), want %d", test.first, test.second, length, ok, test.want)
+		}
+	}
+	for _, test := range []struct {
+		value    byte
+		position int
+		want     byte
+	}{
+		{value: 150, position: 1, want: 0},
+		{value: 149, position: 1, want: 255},
+		{value: 151, position: 1, want: 1},
+	} {
+		if got := unrandomize255(test.value, test.position); got != test.want {
+			t.Fatalf("unrandomize255(%d, %d) = %d, want %d", test.value, test.position, got, test.want)
+		}
 	}
 	for _, test := range []struct {
 		codewords []byte
@@ -272,6 +334,9 @@ func TestOrientationChecksumAndFormatMappings(t *testing.T) {
 		{points: points(1, 0, 2, 0), want: 270},
 		{points: points(0, 1, 0, 2), want: 180},
 		{points: points(0, 2, 0, 1), want: 0},
+		{points: points(0, 0, 1, 1), want: 180},
+		{points: points(1, 1, 0, 0), want: 0},
+		{points: points(1, 1, 1, 1), want: 0},
 	} {
 		if got := qrOrientation(test.points); got != test.want {
 			t.Fatalf("qrOrientation(%v) = %d, want %d", test.points, got, test.want)
@@ -287,8 +352,59 @@ func TestOrientationChecksumAndFormatMappings(t *testing.T) {
 			t.Fatalf("checksumStatus(%q) = %v, want %v", format, got, want)
 		}
 	}
+	combined := gozxing.NewResult("A", nil, nil, gozxing.BarcodeFormat_CODE_128)
+	combined.PutMetadata(gozxing.ResultMetadataType_ORIENTATION, 90)
+	if got := orientationFor(combined, 1); got != barcode.Orientation0 {
+		t.Fatalf("orientationFor(combined) = %d, want 0", got)
+	}
+	corrected := gozxing.NewResult("A", nil, nil, gozxing.BarcodeFormat_QR_CODE)
+	corrected.PutMetadata(gozxing.ResultMetadataType_OTHER, 1)
+	if got := metadataDiagnostics(corrected); len(got) != 1 || got[0] != "ERRORS_CORRECTED=1" {
+		t.Fatalf("metadataDiagnostics() = %q", got)
+	}
+	uncorrected := gozxing.NewResult("A", nil, nil, gozxing.BarcodeFormat_QR_CODE)
+	if got := metadataDiagnostics(uncorrected); len(got) != 0 {
+		t.Fatalf("metadataDiagnostics(uncorrected) = %q", got)
+	}
+	if exceedsCorrectionBudget(1, 1) || !exceedsCorrectionBudget(2, 1) || exceedsCorrectionBudget(1, 0) {
+		t.Fatal("correction budget boundary is incorrect")
+	}
+	payload := gozxing.NewResult("AB", []byte("AB"), nil, gozxing.BarcodeFormat_QR_CODE)
+	if exceedsPayloadBudget(payload, 2) || !exceedsPayloadBudget(payload, 1) {
+		t.Fatal("payload budget boundary is incorrect")
+	}
 	if err := contextError(context.Background(), timeNow(), 0); err != nil {
 		t.Fatalf("contextError() error = %v", err)
+	}
+}
+
+func TestImageAndLimitExactBoundaries(t *testing.T) {
+	limits := Limits{
+		MaxWidth: 4, MaxHeight: 3, MaxPixels: 12, MaxMemoryBytes: 48,
+	}
+	if err := validateImageSize(4, 3, limits); err != nil {
+		t.Fatalf("validateImageSize(exact limits) error = %v", err)
+	}
+	memoryLimits := limits
+	memoryLimits.MaxHeight = 4
+	memoryLimits.MaxPixels = 100
+	if err := validateImageSize(4, 4, memoryLimits); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("validateImageSize(memory limit) error = %v", err)
+	}
+	for _, size := range [][2]int{{0, 1}, {1, 0}, {5, 1}, {1, 4}, {4, 4}} {
+		if err := validateImageSize(size[0], size[1], limits); !errors.Is(err, ErrLimitExceeded) {
+			t.Fatalf("validateImageSize(%d, %d) error = %v", size[0], size[1], err)
+		}
+	}
+	for _, limits := range []Limits{
+		{MaxWidth: -1}, {MaxHeight: -1}, {MaxPixels: -1},
+		{MaxCandidates: -1}, {MaxPayloadBytes: -1}, {MaxRotations: -1},
+		{MaxMemoryBytes: -1}, {MaxEncodedBytes: -1},
+		{MaxCorrections: -1}, {MaxDuration: -1},
+	} {
+		if _, err := normalizeLimits(limits); !errors.Is(err, ErrLimitExceeded) {
+			t.Fatalf("normalizeLimits(%+v) error = %v", limits, err)
+		}
 	}
 }
 

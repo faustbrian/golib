@@ -4,6 +4,7 @@ package upc
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/faustbrian/golib/pkg/barcode/barcode"
@@ -33,7 +34,10 @@ type Options struct {
 // EncodeA accepts an eleven-digit body or a complete twelve-digit UPC-A.
 func EncodeA(value string, options Options) (barcode.Symbol, error) {
 	left, right, height, err := dimensions(options, 9, 9)
-	if err != nil || (len(value) != 11 && len(value) != 12) {
+	if err != nil {
+		return barcode.Symbol{}, ErrInvalidInput
+	}
+	if len(value) != 11 && len(value) != 12 {
 		return barcode.Symbol{}, ErrInvalidInput
 	}
 
@@ -75,7 +79,7 @@ func EncodeE(value string, options Options) (barcode.Symbol, error) {
 		map[gozxing.EncodeHintType]interface{}{gozxing.EncodeHintType_MARGIN: 0},
 	)
 	var core strings.Builder
-	for x := 0; x < matrix.GetWidth(); x++ {
+	for x := range matrix.GetWidth() {
 		if matrix.Get(x, 0) {
 			core.WriteByte('1')
 		} else {
@@ -151,7 +155,13 @@ func expandEUnchecked(value string) string {
 }
 
 func dimensions(options Options, minimumLeft, minimumRight int) (int, int, int, error) {
-	if options.QuietZoneLeft < 0 || options.QuietZoneRight < 0 || options.Height < 0 {
+	if options.QuietZoneLeft < 0 {
+		return 0, 0, 0, ErrInvalidInput
+	}
+	if options.QuietZoneRight < 0 {
+		return 0, 0, 0, ErrInvalidInput
+	}
+	if options.Height < 0 {
 		return 0, 0, 0, ErrInvalidInput
 	}
 	left := options.QuietZoneLeft
@@ -205,7 +215,8 @@ func encodeSupplement(value string) (string, error) {
 	}
 	parity := ""
 	if len(value) == 2 {
-		parity = [...]string{"LL", "LG", "GL", "GG"}[int((value[0]-'0')*10+(value[1]-'0'))%4]
+		number, _ := strconv.Atoi(value)
+		parity = [...]string{"LL", "LG", "GL", "GG"}[number%4]
 	} else {
 		checksum := (3*int(value[0]-'0') + 9*int(value[1]-'0') +
 			3*int(value[2]-'0') + 9*int(value[3]-'0') + 3*int(value[4]-'0')) % 10
@@ -227,7 +238,7 @@ func encodeSupplement(value string) (string, error) {
 }
 
 func moduleRuns(modules string) []barcode.Bar {
-	result := make([]barcode.Bar, 0, len(modules)/2)
+	var result []barcode.Bar
 	dark := modules[0] == '1'
 	width := 1
 	for index := 1; index < len(modules); index++ {

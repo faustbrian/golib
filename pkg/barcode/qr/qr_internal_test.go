@@ -2,6 +2,7 @@ package qr
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	unixcoding "github.com/unixdj/qr/coding"
@@ -48,6 +49,8 @@ func TestOptimizedModeClassifiesSegmentPlans(t *testing.T) {
 		{name: "kanji", segments: []unixcoding.Segment{{Mode: unixcoding.ShiftJISKanji}}, want: Kanji},
 		{name: "byte", segments: []unixcoding.Segment{{Mode: unixcoding.Latin1}}, want: Byte},
 		{name: "metadata only", segments: []unixcoding.Segment{{Mode: unixcoding.ECI}}, want: Auto},
+		{name: "unknown metadata", segments: []unixcoding.Segment{{Mode: unixcoding.Mode(255)}}, want: Auto},
+		{name: "metadata before data", segments: []unixcoding.Segment{{Mode: unixcoding.ECI}, {Mode: unixcoding.Numeric}}, want: Numeric},
 		{name: "mixed", segments: []unixcoding.Segment{{Mode: unixcoding.Numeric}, {Mode: unixcoding.Byte}}, want: Auto},
 	}
 	for _, tt := range tests {
@@ -100,6 +103,38 @@ func TestStructuredPayloadExcludesControlSegments(t *testing.T) {
 	}
 	if got := string(structuredPayload(segments)); got != "payload" {
 		t.Fatalf("structuredPayload() = %q, want payload", got)
+	}
+}
+
+func TestExtendedSegmentsEncodeControlMetadata(t *testing.T) {
+	header := &StructuredAppend{Index: 1, Total: 3, Parity: 0xaa}
+	segments := extendedSegments([]byte("12"), Options{
+		Mode:                     Numeric,
+		ECI:                      26,
+		FNC1:                     FNC1Second,
+		FNC1ApplicationIndicator: 7,
+		StructuredAppend:         header,
+	})
+	want := []unixcoding.Segment{
+		{Mode: unixcoding.StructAppend, Text: string([]byte{0x12, 0xaa})},
+		{Mode: unixcoding.FNC1Second, Text: string([]byte{7})},
+		{Mode: unixcoding.ECI, Text: string([]byte{26})},
+		{Mode: unixcoding.Numeric, Text: "12"},
+	}
+	if !reflect.DeepEqual(segments, want) {
+		t.Fatalf("extendedSegments() = %#v, want %#v", segments, want)
+	}
+
+	segments = extendedSegments([]byte("A"), Options{Mode: Byte, FNC1: FNC1First})
+	want = []unixcoding.Segment{{Mode: unixcoding.FNC1First}, {Mode: unixcoding.Byte, Text: "A"}}
+	if !reflect.DeepEqual(segments, want) {
+		t.Fatalf("first-position segments = %#v, want %#v", segments, want)
+	}
+
+	segments = extendedSegments([]byte("A"), Options{Mode: Byte})
+	want = []unixcoding.Segment{{Mode: unixcoding.Byte, Text: "A"}}
+	if !reflect.DeepEqual(segments, want) {
+		t.Fatalf("plain segments = %#v, want %#v", segments, want)
 	}
 }
 

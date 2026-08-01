@@ -55,6 +55,25 @@ func TestEncodeMacroControlBlock(t *testing.T) {
 	}
 }
 
+func TestEncodeMacroAcceptsFieldBoundaries(t *testing.T) {
+	zero := 0
+	zero64 := int64(0)
+	encoded, err := encodeMacro(&Macro{
+		SegmentIndex: 99_998,
+		FileID:       "000899",
+		SegmentCount: &zero,
+		Timestamp:    &zero64,
+		FileSize:     &zero64,
+		Checksum:     &zero,
+	})
+	if err != nil {
+		t.Fatalf("encodeMacro() boundary error = %v", err)
+	}
+	if codewords := []rune(encoded); len(codewords) < 5 || codewords[3] != 0 || codewords[4] != 899 {
+		t.Fatalf("boundary codewords = %v", codewords)
+	}
+}
+
 func TestEncodeMacroRejectsInvalidFields(t *testing.T) {
 	negative := -1
 	negative64 := int64(-1)

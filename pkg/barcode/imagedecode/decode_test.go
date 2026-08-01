@@ -333,7 +333,9 @@ func TestDecodeEncodedBoundsCompressedImages(t *testing.T) {
 		t.Fatalf("png.Encode() error = %v", err)
 	}
 	result, err := imagedecode.DecodeEncoded(context.Background(), bytes.NewReader(encoded.Bytes()), imagedecode.Options{
-		Formats: []barcode.Format{barcode.QRCode}, Limits: imagedecode.Limits{MaxDuration: time.Second},
+		Formats: []barcode.Format{barcode.QRCode}, Limits: imagedecode.Limits{
+			MaxDuration: time.Second, MaxEncodedBytes: encoded.Len(),
+		},
 	})
 	if err != nil || string(result.Payload()) != "ENCODED-IMAGE" {
 		t.Fatalf("DecodeEncoded() = (%q, %v)", result.Payload(), err)
@@ -486,5 +488,18 @@ func TestDecodeRejectsUnsupportedFormatsAndCandidateLimits(t *testing.T) {
 		Limits:  imagedecode.Limits{MaxCandidates: 1},
 	}); !errors.Is(err, imagedecode.ErrLimitExceeded) {
 		t.Fatalf("Decode(pre-allocation candidate limit) error = %v", err)
+	}
+	if _, err := imagedecode.Decode(context.Background(), input, imagedecode.Options{
+		Formats: []barcode.Format{barcode.QRCode},
+		Limits:  imagedecode.Limits{MaxCandidates: 1, MaxRotations: 1},
+	}); !errors.Is(err, imagedecode.ErrNotFound) {
+		t.Fatalf("Decode(exact candidate limit) error = %v", err)
+	}
+	if _, err := imagedecode.Decode(context.Background(), input, imagedecode.Options{
+		Formats:       []barcode.Format{barcode.QRCode},
+		AllowInverted: true,
+		Limits:        imagedecode.Limits{MaxCandidates: 2, MaxRotations: 1},
+	}); !errors.Is(err, imagedecode.ErrNotFound) {
+		t.Fatalf("Decode(exact inverted candidate limit) error = %v", err)
 	}
 }

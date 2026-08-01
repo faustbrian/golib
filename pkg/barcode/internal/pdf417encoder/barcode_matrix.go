@@ -54,7 +54,6 @@ type BarcodeMatrix struct {
 	matrix     []*BarcodeRow
 	currentRow int
 	height     int
-	width      int
 }
 
 // NewBarcodeMatrix creates a new BarcodeMatrix with the given height (rows)
@@ -64,7 +63,6 @@ func NewBarcodeMatrix(height, width int) *BarcodeMatrix {
 		matrix:     make([]*BarcodeRow, height),
 		currentRow: -1,
 		height:     height,
-		width:      width * 17,
 	}
 	for i := range m.matrix {
 		m.matrix[i] = NewBarcodeRow((width+4)*17 + 1)

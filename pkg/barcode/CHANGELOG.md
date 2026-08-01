@@ -23,6 +23,13 @@ listed in `README.md` and exposed through `barcode.CapabilityFor`.
 
 ## Unreleased
 
+### Fixed
+
+- Reject invalid PDF417 text controls and over-capacity symbols with classified
+  errors instead of allowing low-level encoding panics.
+- Keep GS1 parsing, image decoding, and barcode layout boundary processing
+  bounded and deterministic for hostile or extreme inputs.
+
 ### Compatibility
 
 - Added an explicit raw-FNC1 Code 128 compatibility mode for legacy payloads

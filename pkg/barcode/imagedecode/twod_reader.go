@@ -58,8 +58,8 @@ func (reader twoDReader) Decode(input *gozxing.BinaryBitmap, hints map[gozxing.D
 	for index := range gray.Pix {
 		gray.Pix[index] = 255
 	}
-	for y := 0; y < matrix.GetHeight(); y++ {
-		for x := 0; x < matrix.GetWidth(); x++ {
+	for y := range matrix.GetHeight() {
+		for x := range matrix.GetWidth() {
 			if matrix.Get(x, y) {
 				gray.SetGray(x, y, color.Gray{})
 			}
@@ -81,28 +81,30 @@ func (reader twoDReader) Decode(input *gozxing.BinaryBitmap, hints map[gozxing.D
 		points[index] = gozxing.NewResultPoint(point.X, point.Y)
 	}
 	text := decoded.Text
-	controls := dataMatrixControls{sequence: -1, fileID: -1, eciAssignment: -1}
-	if reader.format == gozxing.BarcodeFormat_DATA_MATRIX && len(decoded.RawBytes) > 0 {
-		if controlled, ok := decodeControlledDataMatrixDetails(decoded.RawBytes); ok {
-			text, controls = controlled.text, controlled
-		} else {
-			switch decoded.RawBytes[0] {
-			case 232:
-				text = strings.TrimPrefix(text, "\x1d")
-			case 236, 237:
-				if !strings.HasSuffix(text, "\x1e\x04") {
-					text += "\x1e\x04"
+	controls := dataMatrixControls{}
+	if reader.format == gozxing.BarcodeFormat_DATA_MATRIX {
+		if len(decoded.RawBytes) > 0 {
+			if controlled, ok := decodeControlledDataMatrixDetails(decoded.RawBytes); ok {
+				text, controls = controlled.text, controlled
+			} else {
+				switch decoded.RawBytes[0] {
+				case 232:
+					text = strings.TrimPrefix(text, "\x1d")
+				case 236, 237:
+					if !strings.HasSuffix(text, "\x1e\x04") {
+						text += "\x1e\x04"
+					}
 				}
 			}
 		}
 	}
 	result = gozxing.NewResult(text, decoded.RawBytes, points, reader.format)
 	copyTwoDMetadata(result, decoded)
-	if controls.sequence >= 0 {
+	if controls.hasSequence {
 		result.PutMetadata(gozxing.ResultMetadataType_STRUCTURED_APPEND_SEQUENCE, controls.sequence)
 		result.PutMetadata(gozxing.ResultMetadataType_STRUCTURED_APPEND_PARITY, controls.fileID)
 	}
-	if controls.eciAssignment >= 0 {
+	if controls.hasECI {
 		result.PutMetadata(resultMetadataECI, eciMetadata{
 			assignment: controls.eciAssignment,
 			supported:  controls.eciSupported,
@@ -116,8 +118,10 @@ type dataMatrixControls struct {
 	text          string
 	sequence      int
 	fileID        int
+	hasSequence   bool
 	eciAssignment int
 	eciSupported  bool
+	hasECI        bool
 }
 
 func decodeControlledDataMatrix(codewords []byte) (string, bool) {
@@ -126,7 +130,7 @@ func decodeControlledDataMatrix(codewords []byte) (string, bool) {
 }
 
 func decodeControlledDataMatrixDetails(codewords []byte) (dataMatrixControls, bool) {
-	controlled := dataMatrixControls{sequence: -1, fileID: -1, eciAssignment: -1}
+	controlled := dataMatrixControls{}
 	if len(codewords) == 0 {
 		return controlled, false
 	}
@@ -134,12 +138,16 @@ func decodeControlledDataMatrixDetails(codewords []byte) (dataMatrixControls, bo
 	prefix, suffix := "", ""
 	switch codewords[index] {
 	case 233:
-		if len(codewords) < 3 {
+		if len(codewords) == 1 {
+			return controlled, false
+		}
+		if len(codewords) == 2 {
 			return controlled, false
 		}
 		controlled.sequence = int(codewords[1])
 		controlled.fileID = int(codewords[2])
-		index += 3
+		controlled.hasSequence = true
+		index = 3
 	case 236:
 		prefix = "[)>\x1e05\x1d"
 		suffix = "\x1e\x04"
@@ -151,25 +159,37 @@ func decodeControlledDataMatrixDetails(codewords []byte) (dataMatrixControls, bo
 	case 232:
 		index++
 	}
-	if index < len(codewords) && codewords[index] == 232 {
-		index++
-	}
-	assignment := -1
-	if index < len(codewords) && codewords[index] == 241 {
-		index++
-		var ok bool
-		assignment, index, ok = decodeDataMatrixECI(codewords, index)
-		if !ok {
-			return controlled, false
+	if index < len(codewords) {
+		if codewords[index] == 232 {
+			index++
 		}
-		controlled.eciAssignment = assignment
 	}
-	if index >= len(codewords) || codewords[index] != 231 {
+	assignment, hasAssignment := 0, false
+	if index < len(codewords) {
+		if codewords[index] == 241 {
+			index++
+			var ok bool
+			assignment, index, ok = decodeDataMatrixECI(codewords, index)
+			if !ok {
+				return controlled, false
+			}
+			controlled.eciAssignment = assignment
+			controlled.hasECI = true
+			hasAssignment = true
+		}
+	}
+	if index >= len(codewords) {
+		return controlled, false
+	}
+	if codewords[index] != 231 {
 		return controlled, false
 	}
 	index++
 	length, next, ok := decodeBase256Length(codewords, index)
-	if !ok || length < 0 || length > len(codewords)-next {
+	if !ok {
+		return controlled, false
+	}
+	if length > len(codewords)-next {
 		return controlled, false
 	}
 	payload := make([]byte, length)
@@ -177,11 +197,14 @@ func decodeControlledDataMatrixDetails(codewords []byte) (dataMatrixControls, bo
 		payload[offset] = unrandomize255(codewords[next+offset], next+offset+1)
 	}
 	text := string(payload)
-	if assignment >= 0 {
-		if eci, err := charset.GetECIByValue(assignment); err == nil && eci != nil {
+	if hasAssignment {
+		if eci, err := charset.GetECIByValue(assignment); err == nil {
+			if eci == nil {
+				controlled.text = prefix + text + suffix
+				return controlled, true
+			}
 			controlled.eciSupported = true
 			labels := append([]string{eci.GoName, eci.Name}, eci.Aliases...)
-			decoded := false
 			for _, label := range labels {
 				encoding, lookupErr := htmlindex.Get(label)
 				if lookupErr != nil {
@@ -189,13 +212,12 @@ func decodeControlledDataMatrixDetails(codewords []byte) (dataMatrixControls, bo
 				}
 				converted, decodeErr := encoding.NewDecoder().Bytes(payload)
 				if decodeErr == nil {
-					text, decoded = string(converted), true
-					break
+					text = string(converted)
+					controlled.text = prefix + text + suffix
+					return controlled, true
 				}
 			}
-			if !decoded {
-				text = charset.DecodeBytes(payload, eci.GoName)
-			}
+			text = charset.DecodeBytes(payload, eci.GoName)
 		}
 	}
 
@@ -213,13 +235,22 @@ func decodeDataMatrixECI(codewords []byte, index int) (int, int, bool) {
 	case first <= 127:
 		return first - 1, index, first > 0
 	case first <= 191:
-		if index >= len(codewords) || codewords[index] == 0 {
+		if index >= len(codewords) {
+			return 0, index, false
+		}
+		if codewords[index] == 0 {
 			return 0, index, false
 		}
 		assignment := (first-128)*254 + int(codewords[index]) - 1 + 127
 		return assignment, index + 1, true
 	case first <= 254:
-		if index+1 >= len(codewords) || codewords[index] == 0 || codewords[index+1] == 0 {
+		if index+1 >= len(codewords) {
+			return 0, index, false
+		}
+		if codewords[index] == 0 {
+			return 0, index, false
+		}
+		if codewords[index+1] == 0 {
 			return 0, index, false
 		}
 		assignment := (first-192)*64_516 + (int(codewords[index])-1)*254 +
@@ -252,13 +283,8 @@ func decodeBase256Length(codewords []byte, index int) (int, int, bool) {
 
 func unrandomize255(value byte, position int) byte {
 	pseudoRandom := (149*position)%255 + 1
-	unrandomized := int(value) - pseudoRandom
-	if unrandomized < 0 {
-		unrandomized += 256
-	}
-
 	// #nosec G115 -- modulo reversal bounds unrandomized to one byte.
-	return byte(unrandomized)
+	return byte(int(value) - pseudoRandom)
 }
 
 func (reader twoDReader) Reset() { reader.reader.Reset() }

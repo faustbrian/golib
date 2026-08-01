@@ -161,3 +161,14 @@ func TestParsersRejectMalformedStructureAndLimits(t *testing.T) {
 		t.Fatalf("ParseRaw(element limit) error = %v", err)
 	}
 }
+
+func TestParserAcceptsExactInputLimit(t *testing.T) {
+	const input = "(01)09501101530003(10)ABC"
+	parsed, err := gs1.ParseBracketed(input, gs1.ParseLimits{MaxInputBytes: len(input), MaxElements: 2})
+	if err != nil {
+		t.Fatalf("ParseBracketed() error = %v", err)
+	}
+	if got := len(parsed.Elements()); got != 2 {
+		t.Fatalf("len(Elements()) = %d, want 2", got)
+	}
+}

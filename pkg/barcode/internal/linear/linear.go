@@ -28,11 +28,12 @@ func Encode(
 		return barcode.Bars{}, err
 	}
 
-	runs := make([]barcode.Bar, 0, matrix.GetWidth()/2+2)
+	var runs []barcode.Bar
 	runs = append(runs, barcode.Bar{Width: quietLeft})
 	dark := matrix.Get(0, 0)
 	width := 1
-	for x := 1; x < matrix.GetWidth(); x++ {
+	for offset := range matrix.GetWidth() - 1 {
+		x := offset + 1
 		if matrix.Get(x, 0) == dark {
 			width++
 			continue

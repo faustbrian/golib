@@ -64,7 +64,6 @@ func EncodeWithControls(
 
 	// 2. Choose symbol size.
 	eccBits := bits.Size()*minECCPercent/100 + 11
-	totalSizeBits := bits.Size() + eccBits
 
 	var compact bool
 	var layers int
@@ -73,7 +72,7 @@ func EncodeWithControls(
 	var stuffedBits *bitutil.BitArray
 
 	if userSpecifiedLayers != 0 {
-		compact = userSpecifiedLayers < 0
+		compact = userSpecifiedLayers < 1
 		layers = userSpecifiedLayers
 		if compact {
 			layers = -layers
@@ -87,18 +86,16 @@ func EncodeWithControls(
 		}
 		totalBitsInLayer = totalBitsInLayerFn(layers, compact)
 		wordSize = wordSizeTable[layers]
-		usableBits := totalBitsInLayer - (totalBitsInLayer % wordSize)
 		stuffedBits = stuffBits(bits, wordSize)
-		if stuffedBits.Size()+eccBits > usableBits {
-			return nil, fmt.Errorf("aztec: data too large for user specified layer")
-		}
-		if compact && stuffedBits.Size() > wordSize*64 {
+		if !fitsLayer(stuffedBits.Size(), eccBits, totalBitsInLayer, wordSize, compact) {
 			return nil, fmt.Errorf("aztec: data too large for user specified layer")
 		}
 	} else {
 		// Auto: try Compact1-4, then Normal4-32.
 		// (Normal1-3 are skipped because Compact(i+1) is the same size but has more data.)
 		found := false
+		wordSize = wordSizeTable[1]
+		stuffedBits = stuffBits(bits, wordSize)
 		for i := 0; i <= 32; i++ {
 			compact = i <= 3
 			if compact {
@@ -107,18 +104,11 @@ func EncodeWithControls(
 				layers = i
 			}
 			totalBitsInLayer = totalBitsInLayerFn(layers, compact)
-			if totalSizeBits > totalBitsInLayer {
-				continue
-			}
-			if stuffedBits == nil || wordSize != wordSizeTable[layers] {
+			if wordSize != wordSizeTable[layers] {
 				wordSize = wordSizeTable[layers]
 				stuffedBits = stuffBits(bits, wordSize)
 			}
-			usableBits := totalBitsInLayer - (totalBitsInLayer % wordSize)
-			if compact && stuffedBits.Size() > wordSize*64 {
-				continue
-			}
-			if stuffedBits.Size()+eccBits <= usableBits {
+			if fitsLayer(stuffedBits.Size(), eccBits, totalBitsInLayer, wordSize, compact) {
 				found = true
 				break
 			}
@@ -149,7 +139,7 @@ func EncodeWithControls(
 			alignmentMap[i] = i
 		}
 	} else {
-		matrixSize = baseMatrixSize + 1 + 2*((baseMatrixSize/2-1)/15)
+		matrixSize = fullMatrixSize(baseMatrixSize)
 		origCenter := baseMatrixSize / 2
 		center := matrixSize / 2
 		for i := 0; i < origCenter; i++ {
@@ -196,8 +186,13 @@ func EncodeWithControls(
 		drawBullsEye(matrix, matrixSize/2, 5)
 	} else {
 		drawBullsEye(matrix, matrixSize/2, 7)
-		for i, j := 0, 0; i < baseMatrixSize/2-1; i, j = i+15, j+16 {
-			for k := (matrixSize / 2) & 1; k < matrixSize; k += 2 {
+		alignmentMarkCount := (baseMatrixSize/2 - 1 + 14) / 15
+		for mark := range alignmentMarkCount {
+			j := mark * 16
+			start := (matrixSize / 2) & 1
+			positionCount := ((matrixSize - 1 - start) / 2) + 1
+			for position := range positionCount {
+				k := start + position*2
 				matrix.Set(matrixSize/2-j, k)
 				matrix.Set(matrixSize/2+j, k)
 				matrix.Set(k, matrixSize/2-j)
@@ -223,6 +218,21 @@ func totalBitsInLayerFn(layers int, compact bool) int {
 	return (base + 16*layers) * layers
 }
 
+func fitsLayer(stuffedSize, eccBits, totalBits, wordSize int, compact bool) bool {
+	usableBits := totalBits - totalBits%wordSize
+	if stuffedSize+eccBits > usableBits {
+		return false
+	}
+	if compact && stuffedSize > wordSize*64 {
+		return false
+	}
+	return true
+}
+
+func fullMatrixSize(baseMatrixSize int) int {
+	return baseMatrixSize + 1 + 2*((baseMatrixSize/2-1)/15)
+}
+
 // stuffBits processes the data bit stream, inserting stuff bits to prevent
 // all-zero or all-one codewords. Matches the Java ZXing Encoder.stuffBits.
 func stuffBits(bits *bitutil.BitArray, wordSize int) *bitutil.BitArray {
@@ -230,9 +240,13 @@ func stuffBits(bits *bitutil.BitArray, wordSize int) *bitutil.BitArray {
 	n := bits.Size()
 	mask := (1 << uint(wordSize)) - 2 // all bits except LSB
 
-	for i := 0; i < n; i += wordSize {
+	next := 0
+	for i := range n {
+		if i != next {
+			continue
+		}
 		word := 0
-		for j := 0; j < wordSize; j++ {
+		for j := range wordSize {
 			if i+j >= n || bits.Get(i+j) {
 				word |= 1 << uint(wordSize-1-j)
 			}
@@ -242,14 +256,15 @@ func stuffBits(bits *bitutil.BitArray, wordSize int) *bitutil.BitArray {
 			// Upper bits are all 1 -> stuff: write upper bits (LSB=0), back up 1
 			// #nosec G115 -- word is bounded to wordSize bits.
 			out.AppendBits(uint32(word&mask), wordSize)
-			i-- // net effect with loop increment: advance wordSize-1 bits
+			next = i + wordSize - 1
 		case 0:
 			// Upper bits are all 0 -> stuff: write with LSB=1, back up 1
 			// #nosec G115 -- word is bounded to wordSize bits.
 			out.AppendBits(uint32(word|1), wordSize)
-			i--
+			next = i + wordSize - 1
 		default:
 			out.AppendBits(uint32(word), wordSize)
+			next = i + wordSize
 		}
 	}
 	return out
@@ -310,7 +325,8 @@ func generateModeMessage(compact bool, layers, messageSizeInWords int) *bitutil.
 
 // drawBullsEye draws the concentric finder rings and orientation marks.
 func drawBullsEye(matrix *bitutil.BitMatrix, center, size int) {
-	for i := 0; i < size; i += 2 {
+	for ring := range (size + 1) / 2 {
+		i := ring * 2
 		for j := center - i; j <= center+i; j++ {
 			matrix.Set(j, center-i)
 			matrix.Set(j, center+i)

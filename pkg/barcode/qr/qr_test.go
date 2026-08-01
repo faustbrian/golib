@@ -106,7 +106,7 @@ func TestEncodeStructuredSplitsAndCalculatesParity(t *testing.T) {
 	payload := bytes.Repeat([]byte("0123456789abcdef"), 30)
 	symbols, err := qr.EncodeStructured(payload, qr.Options{
 		Version:         5,
-		ErrorCorrection: qr.Medium,
+		ErrorCorrection: qr.Low,
 	})
 	if err != nil {
 		t.Fatalf("EncodeStructured() error = %v", err)
@@ -120,6 +120,12 @@ func TestEncodeStructuredSplitsAndCalculatesParity(t *testing.T) {
 	}
 	joined := make([]byte, 0, len(payload))
 	for index, symbol := range symbols {
+		if symbol.ErrorCorrection() != qr.Low {
+			t.Fatalf("symbol %d error correction = %v, want low", index, symbol.ErrorCorrection())
+		}
+		if symbol.Version() != 5 {
+			t.Fatalf("symbol %d version = %d, want 5", index, symbol.Version())
+		}
 		header, ok := symbol.StructuredAppend()
 		if !ok || header.Index != index || header.Total != len(symbols) || header.Parity != parity {
 			t.Fatalf("header %d = (%+v, %t)", index, header, ok)
@@ -128,6 +134,16 @@ func TestEncodeStructuredSplitsAndCalculatesParity(t *testing.T) {
 	}
 	if !bytes.Equal(joined, payload) {
 		t.Fatalf("joined payload differs: got %d bytes, want %d", len(joined), len(payload))
+	}
+}
+
+func TestEncodeStructuredAcceptsExactlyTwoParts(t *testing.T) {
+	symbols, err := qr.EncodeStructured(bytes.Repeat([]byte("A"), 21), qr.Options{Version: 1})
+	if err != nil {
+		t.Fatalf("EncodeStructured() error = %v", err)
+	}
+	if len(symbols) != 2 {
+		t.Fatalf("symbol count = %d, want 2", len(symbols))
 	}
 }
 
@@ -264,6 +280,7 @@ func TestEncodeRejectsModeCharsetAndCapacityMismatches(t *testing.T) {
 		{name: "correction enum", payload: []byte("A"), options: qr.Options{ErrorCorrection: qr.ErrorCorrection(99)}, want: qr.ErrInvalidInput},
 		{name: "fnc1 enum", payload: []byte("A"), options: qr.Options{FNC1: qr.FNC1Mode(99)}, want: qr.ErrInvalidInput},
 		{name: "large quiet zone", payload: []byte("A"), options: qr.Options{QuietZone: 257}, want: qr.ErrInvalidInput},
+		{name: "first non ASCII byte without ECI", payload: []byte{0x80}, want: qr.ErrInvalidInput},
 		{name: "non ASCII without ECI", payload: []byte{0xff}, want: qr.ErrInvalidInput},
 		{name: "invalid UTF8 ECI", payload: []byte{0xff}, options: qr.Options{ECI: 26}, want: qr.ErrInvalidInput},
 		{name: "invalid Shift JIS input", payload: []byte{0xff}, options: qr.Options{ECI: 20}, want: qr.ErrInvalidInput},

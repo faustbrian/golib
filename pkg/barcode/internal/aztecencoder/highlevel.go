@@ -51,7 +51,8 @@ func init() {
 	//   20 = @, 21 = \, 22 = ^, 23 = _, 24 = `, 25 = |, 26 = ~, 27 = \x7F (DEL),
 	//   28 = PL, 29 = UL, 30 = (reserved), 31 = BS
 	charMap[' '][modeMixed] = 1
-	for c := byte(1); c <= 13; c++ {
+	for offset := range 13 {
+		c := byte(offset + 1)
 		charMap[c][modeMixed] = int(c) + 1 // codes 2..14
 	}
 	charMap[0x1B][modeMixed] = 15
@@ -71,7 +72,8 @@ func init() {
 	// DIGIT (4 bits per code):
 	//   0 = FLG(n), 1 = SP, 2..11 = '0'..'9', 12 = ',', 13 = '.', 14 = UL, 15 = AS
 	charMap[' '][modeDigit] = 1
-	for c := byte('0'); c <= '9'; c++ {
+	for offset := range 10 {
+		c := byte('0' + offset)
 		charMap[c][modeDigit] = int(c-'0') + 2
 	}
 	charMap[','][modeDigit] = 12
@@ -202,8 +204,12 @@ func highLevelEncode(data []byte, gs1 bool, eci int) (*bitutil.BitArray, error) 
 	}
 	curMode := modeUpper
 
-	i := 0
-	for i < len(data) {
+	next := 0
+	for i := range len(data) {
+		if i != next {
+			continue
+		}
+		next = i + 1
 		// Check for two-character PUNCT pairs.
 		if i+1 < len(data) {
 			pair := [2]byte{data[i], data[i+1]}
@@ -221,7 +227,7 @@ func highLevelEncode(data []byte, gs1 bool, eci int) (*bitutil.BitArray, error) 
 					curMode = modePunct
 					result.AppendBits(uint32(pCode), modeBits[modePunct])
 				}
-				i += 2
+				next = i + 2
 				continue
 			}
 		}
@@ -231,7 +237,6 @@ func highLevelEncode(data []byte, gs1 bool, eci int) (*bitutil.BitArray, error) 
 		// If encodable in the current mode, emit directly.
 		if charMap[b][curMode] != -1 {
 			result.AppendBits(uint32(charMap[b][curMode]), modeBits[curMode])
-			i++
 			continue
 		}
 
@@ -249,7 +254,7 @@ func highLevelEncode(data []byte, gs1 bool, eci int) (*bitutil.BitArray, error) 
 				result.AppendBits(31, modeBits[modePunct]) // UL
 				curMode = modeUpper
 			}
-			i = emitBinaryShift(result, data, i, curMode)
+			next = emitBinaryShift(result, data, i, curMode)
 			continue
 		}
 
@@ -266,7 +271,6 @@ func highLevelEncode(data []byte, gs1 bool, eci int) (*bitutil.BitArray, error) 
 			curMode = newMode
 			result.AppendBits(uint32(charMap[b][curMode]), modeBits[curMode])
 		}
-		i++
 	}
 
 	return result, nil
@@ -278,8 +282,8 @@ func appendFlag(result *bitutil.BitArray, digits string) {
 	// #nosec G115 -- ECI assignments contain at most six decimal digits.
 	result.AppendBits(uint32(len(digits)), 3)
 	for _, digit := range digits {
-		// #nosec G115 -- digits are restricted to ASCII decimal runes.
-		result.AppendBits(uint32(digit-'0'+2), modeBits[modeDigit])
+		// #nosec G115 -- digit table codes are bounded to four bits.
+		result.AppendBits(uint32(charMap[byte(digit)][modeDigit]), modeBits[modeDigit])
 	}
 }
 
@@ -355,7 +359,7 @@ func emitBinaryShift(bits *bitutil.BitArray, data []byte, pos int, curMode int) 
 		pos = start + 1
 	}
 	count := pos - start
-	if count > 2078 {
+	if count >= 2079 {
 		count = 2078
 		pos = start + count
 	}

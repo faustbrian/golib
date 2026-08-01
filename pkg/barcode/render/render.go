@@ -9,6 +9,7 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
+	"math"
 	"strconv"
 
 	"github.com/faustbrian/golib/pkg/barcode/barcode"
@@ -163,17 +164,24 @@ func prepare(symbol barcode.Symbol, options Options) (prepared, error) {
 		matrix := symbol.Matrix()
 		logicalWidth, logicalHeight = matrix.Width(), matrix.Height()
 	}
-	if logicalWidth <= 0 || logicalHeight <= 0 {
+	if min(logicalWidth, logicalHeight) == 0 {
 		return prepared{}, ErrInvalidSymbol
 	}
 	scale := options.Scale
+	if scale < 0 {
+		return prepared{}, ErrLimitExceeded
+	}
 	if scale == 0 {
 		scale = 1
 	}
-	if scale < 0 || logicalWidth > int(^uint(0)>>1)/scale || logicalHeight > int(^uint(0)>>1)/scale {
+	width, widthOK := boundedProduct(logicalWidth, scale, math.MaxInt)
+	height, heightOK := boundedProduct(logicalHeight, scale, math.MaxInt)
+	if !widthOK {
 		return prepared{}, ErrLimitExceeded
 	}
-	width, height := logicalWidth*scale, logicalHeight*scale
+	if !heightOK {
+		return prepared{}, ErrLimitExceeded
+	}
 	maxDimension := options.Limits.MaxDimension
 	if maxDimension == 0 {
 		maxDimension = defaultMaxDimension
@@ -182,8 +190,19 @@ func prepare(symbol barcode.Symbol, options Options) (prepared, error) {
 	if maxPixels == 0 {
 		maxPixels = defaultMaxPixels
 	}
-	if maxDimension < 1 || maxPixels < 1 || width > maxDimension || height > maxDimension ||
-		width > int(^uint(0)>>1)/height || width*height > maxPixels {
+	if maxDimension < 1 {
+		return prepared{}, ErrLimitExceeded
+	}
+	if maxPixels < 1 {
+		return prepared{}, ErrLimitExceeded
+	}
+	if width > maxDimension {
+		return prepared{}, ErrLimitExceeded
+	}
+	if height > maxDimension {
+		return prepared{}, ErrLimitExceeded
+	}
+	if _, ok := boundedProduct(width, height, maxPixels); !ok {
 		return prepared{}, ErrLimitExceeded
 	}
 
@@ -200,6 +219,15 @@ func prepare(symbol barcode.Symbol, options Options) (prepared, error) {
 		width: width, height: height, scale: scale,
 		foreground: foreground, background: background,
 	}, nil
+}
+
+func boundedProduct(left, right, limit int) (int, bool) {
+	if left > math.MaxInt/right {
+		return 0, false
+	}
+	product := left * right
+
+	return product, product <= limit
 }
 
 func writeRect(writer io.Writer, x, y, width, height int, value color.NRGBA) error {

@@ -112,6 +112,9 @@ func TestUPCRejectsInvalidInput(t *testing.T) {
 	if _, err := upc.EncodeA("036000291453", upc.Options{}); !errors.Is(err, upc.ErrInvalidInput) {
 		t.Fatalf("EncodeA(bad check) error = %v", err)
 	}
+	if _, err := upc.EncodeA("036000291452", upc.Options{Height: -1}); !errors.Is(err, upc.ErrInvalidInput) {
+		t.Fatalf("EncodeA(invalid dimensions) error = %v", err)
+	}
 	if _, err := upc.EncodeE("24210005", upc.Options{}); !errors.Is(err, upc.ErrInvalidInput) {
 		t.Fatalf("EncodeE(number system) error = %v", err)
 	}

@@ -153,21 +153,21 @@ func bearerMatrix(bars barcode.Bars, quiet, bearer int, style BearerStyle) (barc
 			barModules = append(barModules, run.Dark)
 		}
 	}
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			dark := false
-			if y < bearer || y >= height-bearer {
-				dark = x >= quiet && x < width-quiet
-			} else {
-				dark = barModules[x]
-				if style == BearerFrame &&
-					// The first payload module at x == quiet is already dark.
-					((x > quiet && x < quiet+bearer) ||
-						(x >= width-quiet-bearer && x < width-quiet)) {
-					dark = true
-				}
+	for y := range height {
+		row := modules[y*width : (y+1)*width]
+		if y < bearer || y >= height-bearer {
+			for x := quiet; x < width-quiet; x++ {
+				row[x] = true
 			}
-			modules[y*width+x] = dark
+			continue
+		}
+
+		copy(row, barModules)
+		if style == BearerFrame {
+			for offset := range bearer {
+				row[quiet+offset] = true
+				row[width-quiet-1-offset] = true
+			}
 		}
 	}
 

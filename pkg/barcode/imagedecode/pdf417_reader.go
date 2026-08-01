@@ -27,8 +27,8 @@ func (pdf417Reader) Decode(input *gozxing.BinaryBitmap, hints map[gozxing.Decode
 	for index := range gray.Pix {
 		gray.Pix[index] = 255
 	}
-	for y := 0; y < matrix.GetHeight(); y++ {
-		for x := 0; x < matrix.GetWidth(); x++ {
+	for y := range matrix.GetHeight() {
+		for x := range matrix.GetWidth() {
 			if matrix.Get(x, y) {
 				gray.SetGray(x, y, color.Gray{})
 			}

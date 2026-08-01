@@ -12,6 +12,7 @@ func TestCalculateAndValidateCheckDigit(t *testing.T) {
 		body string
 		want byte
 	}{
+		{body: "0", want: '0'},
 		{body: "400638133393", want: '1'},
 		{body: "03600029145", want: '2'},
 		{body: "9638507", want: '4'},

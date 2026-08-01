@@ -179,6 +179,8 @@ func TestEncodeRejectsUnsafeOptions(t *testing.T) {
 		{payload: []byte("A"), options: pdf417.Options{MinRows: 10, MaxRows: 5}},
 		{payload: []byte("A"), options: pdf417.Options{MinColumns: 10, MaxColumns: 5}},
 		{payload: []byte("A"), options: pdf417.Options{MinRows: -1}},
+		{payload: []byte("A"), options: pdf417.Options{MaxRows: -1}},
+		{payload: []byte("A"), options: pdf417.Options{MinRows: 91}},
 		{payload: []byte("A"), options: pdf417.Options{MaxRows: 91}},
 		{payload: []byte("A"), options: pdf417.Options{MinColumns: -1}},
 		{payload: []byte("A"), options: pdf417.Options{MaxColumns: 31}},
@@ -198,6 +200,48 @@ func TestEncodeRejectsUnsafeOptions(t *testing.T) {
 		if _, err := pdf417.Encode(test.payload, test.options); !errors.Is(err, pdf417.ErrInvalidInput) {
 			t.Fatalf("Encode(%q, %+v) error = %v", test.payload, test.options, err)
 		}
+	}
+}
+
+func TestEncodeAcceptsOptionBoundaries(t *testing.T) {
+	zero := 0
+	zero64 := int64(0)
+	for _, test := range []struct {
+		name    string
+		options pdf417.Options
+	}{
+		{name: "maximum quiet zone", options: pdf417.Options{QuietZone: 256}},
+		{name: "maximum ECI", options: pdf417.Options{ECI: 811_799}},
+		{name: "maximum rows", options: pdf417.Options{MinRows: 90, MaxRows: 90}},
+		{name: "maximum columns", options: pdf417.Options{MinColumns: 30, MaxColumns: 30}},
+		{name: "equal row bounds", options: pdf417.Options{MinRows: 3, MaxRows: 3}},
+		{name: "equal column bounds", options: pdf417.Options{MinColumns: 2, MaxColumns: 2}},
+		{name: "maximum macro fields", options: pdf417.Options{Macro: &pdf417.Macro{
+			SegmentIndex: 99_998,
+			FileID:       "000899",
+			SegmentCount: &zero,
+			Timestamp:    &zero64,
+			FileSize:     &zero64,
+			Checksum:     &zero,
+		}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := pdf417.Encode([]byte("A"), test.options); err != nil {
+				t.Fatalf("Encode() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestEncodeDistinguishesPayloadSafetyFromSymbolCapacity(t *testing.T) {
+	_, err := pdf417.Encode(make([]byte, 4096), pdf417.Options{Compaction: pdf417.Byte})
+	var causes interface{ Unwrap() []error }
+	if err == nil || !errors.Is(err, pdf417.ErrInvalidInput) ||
+		!errors.As(err, &causes) || len(causes.Unwrap()) != 2 {
+		t.Fatalf("within-limit capacity error = %v", err)
+	}
+	if _, err = pdf417.Encode(make([]byte, 4097), pdf417.Options{Compaction: pdf417.Byte}); !errors.Is(err, pdf417.ErrInvalidInput) || errors.As(err, &causes) {
+		t.Fatalf("over-limit error = %v", err)
 	}
 }
 

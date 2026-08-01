@@ -7,6 +7,7 @@
 package pdf417encoder
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"math"
@@ -19,6 +20,7 @@ const (
 	stopPattern  = 0x3fa29
 
 	preferredRatio     = 3.0
+	maxSymbolCodewords = 928
 	defaultModuleWidth = 0.357 // 1px in mm
 	moduleHeight       = 2.0   // mm
 )
@@ -586,7 +588,7 @@ func (p *PDF417Encoder) GenerateBarcodeLogicWithControls(
 		return err
 	}
 	sourceCodeWords := len([]rune(highLevel)) + len([]rune(macroCodewords))
-	if sourceCodeWords+errorCorrectionCodeWords+1 > 929 { // +1 for symbol length CW
+	if sourceCodeWords > maxSymbolCodewords-errorCorrectionCodeWords-1 {
 		return fmt.Errorf("encoded message contains too many code words, message too big (%d bytes)", len(msg))
 	}
 
@@ -607,7 +609,7 @@ func (p *PDF417Encoder) GenerateBarcodeLogicWithControls(
 	sb.Grow(n)
 	sb.WriteRune(rune(n)) //nolint:gosec // A PDF417 symbol has at most 929 codewords.
 	sb.WriteString(highLevel)
-	for i := 0; i < pad; i++ {
+	for range pad {
 		sb.WriteRune(900) // PAD characters
 	}
 	sb.WriteString(macroCodewords)
@@ -634,7 +636,8 @@ func encodeMacro(macro *Macro) (string, error) {
 	var result strings.Builder
 	result.WriteRune(928)
 	encodeNumeric(fmt.Sprintf("%05d", macro.SegmentIndex), 0, 5, &result)
-	for offset := 0; offset < len(macro.FileID); offset += 3 {
+	for group := range len(macro.FileID) / 3 {
+		offset := group * 3
 		codeword, err := strconv.Atoi(macro.FileID[offset : offset+3])
 		if err != nil || codeword < 0 || codeword > 899 {
 			return "", errors.New("invalid Macro PDF417 file ID")
@@ -712,19 +715,16 @@ func calculateNumberOfRows(m, k, c int) int {
 // getNumberOfPadCodewords calculates the number of pad codewords as described
 // in 4.9.2 of ISO/IEC 15438:2001(E).
 func getNumberOfPadCodewords(m, k, c, r int) int {
-	n := c*r - k
-	if n > m+1 {
-		return n - m - 1
-	}
-	return 0
+	return max(0, c*r-k-m-1)
 }
 
 // encodeChar encodes a single character pattern into the barcode row.
 func encodeChar(pattern, length int, logic *BarcodeRow) {
 	mapVal := 1 << (length - 1)
 	last := (pattern & mapVal) != 0
-	width := 0
-	for i := 0; i < length; i++ {
+	width := 1
+	for range length - 1 {
+		mapVal >>= 1
 		black := (pattern & mapVal) != 0
 		if last == black {
 			width++
@@ -733,7 +733,6 @@ func encodeChar(pattern, length int, logic *BarcodeRow) {
 			last = black
 			width = 1
 		}
-		mapVal >>= 1
 	}
 	logic.AddBar(last, width)
 }
@@ -791,29 +790,25 @@ func determineDimensions(minCols, maxCols, minRows, maxRows, sourceCodeWords, er
 
 		rows := calculateNumberOfRows(sourceCodeWords, errorCorrectionCodeWords, cols)
 
-		if rows < minRows {
-			break
+		if rows >= minRows && rows <= maxRows {
+			newRatio := (float64(17*cols+69) * defaultModuleWidth) / (float64(rows) * moduleHeight)
+			candidateDistance := math.Abs(newRatio - preferredRatio)
+			candidateIsPreferred := dimension == nil
+			if !candidateIsPreferred {
+				candidateIsPreferred = math.Min(candidateDistance, math.Abs(ratio-preferredRatio)) == candidateDistance
+			}
+			if candidateIsPreferred {
+				ratio = newRatio
+				dimension = []int{cols, rows}
+			}
 		}
-
-		if rows > maxRows {
-			continue
-		}
-
-		newRatio := (float64(17*cols+69) * defaultModuleWidth) / (float64(rows) * moduleHeight)
-
-		// ignore if previous ratio is closer to preferred ratio
-		if dimension != nil && math.Abs(newRatio-preferredRatio) > math.Abs(ratio-preferredRatio) {
-			continue
-		}
-
-		ratio = newRatio
-		dimension = []int{cols, rows}
 	}
 
 	// Handle case when min values were larger than necessary
 	if dimension == nil {
 		rows := calculateNumberOfRows(sourceCodeWords, errorCorrectionCodeWords, currentCol)
-		if rows < minRows {
+		switch cmp.Compare(rows, minRows) {
+		case -1:
 			dimension = []int{minCols, minRows}
 		}
 	}
