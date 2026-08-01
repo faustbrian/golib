@@ -6,9 +6,10 @@ These are pre-v1 component microbenchmarks for the implemented cryptographic
 boundary: canonical Banderwagon commitment and scalar encoding, strict raw
 aggregate-opening-proof decoding, strict profile-bound root decoding, the
 commitment-to-field map, serial fixed-width vector commitment, and internal
-aggregate tree-proof generation and verification. They do not measure a public
-API, witness, storage adapter, or an equivalent end-to-end workload, and they
-support no comparative performance claim.
+aggregate tree-proof generation and verification. One public loader benchmark
+uses an in-memory test reader as described below. The suite does not measure a
+production storage adapter, witness, or equivalent cross-implementation
+end-to-end workload, and it supports no comparative performance claim.
 
 One additional component benchmark measures rebuilding the implemented
 immutable committed-node arena and mathematical root for the pinned four-entry,
@@ -21,6 +22,14 @@ hashing, ownership copying, and content-address sorting for the same four-entry
 corpus. It excludes adapter calls, durable writes, compare-and-swap
 publication, persisted reads, recovery, and pruning. It therefore measures the
 package-owned storage-write preparation boundary, not storage performance.
+
+One public persisted-load benchmark opens the in-memory caller-owned read view,
+verifies and decodes every canonical node, reconstructs the complete immutable
+four-entry tree, recomputes the mathematical root and canonical root-node
+address, and closes the view. The mock reader copies each returned node but has
+no I/O, locking, durability, transaction, or recovery cost. The result measures
+the package-owned validation and full-rebuild path only; it is not a cold or
+warm database benchmark.
 
 Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
@@ -71,11 +80,14 @@ GOWORK=off go test ./internal/authstate -run '^$' \
 
 GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^BenchmarkProofEngine$' -benchmem -benchtime=1x -count=5
+
+GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkLoadSnapshotFourEntries$' -benchmem -count=5
 ```
 
 Environment:
 
-- Date: 2026-07-30
+- Date: 2026-08-01
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -113,6 +125,7 @@ nanoseconds per operation.
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
 | Extract one immutable committed-tree proof path | 3765, 3824, 4398, 4883, 6526 | 4864 | 1 |
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
+| Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |

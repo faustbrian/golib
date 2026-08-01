@@ -7,13 +7,14 @@ authenticated key/value trees backed by vector commitments.
 
 This module is **pre-v1 research only**. Its root package exposes the
 package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
-immutable in-memory snapshots, canonical set/delete transitions, profile-bound
-roots, bounded aggregate membership and non-membership proofs, and an atomic
-caller-owned storage write boundary. The public surface is experimental,
-rebuilds the complete tree for every update, and does not yet load persisted
-snapshots or provide recovery, pruning, retention, or stateless witnesses. It
-is not a production-ready tree. Compatibility claims are limited to the exact
-research corpora described below.
+immutable snapshots, canonical set/delete transitions, profile-bound roots,
+bounded aggregate membership and non-membership proofs, atomic caller-owned
+storage writes, and bounded reconstruction from isolated caller-owned read
+snapshots. The public surface is experimental, rebuilds the complete tree for
+every update and persisted load, and does not yet provide recovery, pruning,
+retention, or stateless witnesses. It is not a production-ready tree.
+Compatibility claims are limited to the exact research corpora described
+below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -163,12 +164,12 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: canonical witness and snapshot encodings,
-persisted read and recovery semantics, stable proof and witness semantics,
+The profile remains incomplete: canonical witness and whole-snapshot
+encodings, recovery semantics, stable proof and witness semantics,
 commitment-level deletion, and complete dependency-level cancellation are not
-yet frozen. Canonical stored-node bytes and atomic write publication now have
-one package-owned experimental encoding and contract, but neither is a stable
-interoperability surface and no persisted snapshot loader is exposed.
+yet frozen. Canonical stored-node bytes, atomic write publication, and isolated
+persisted reconstruction now have one package-owned experimental contract, but
+none is a stable interoperability surface.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -216,7 +217,7 @@ value, validates complete duplicate-free batches before publication, applies
 set and delete operations in canonical key order, and returns a transition
 bound to the exact pre-state and post-state commitments. Every update currently
 rebuilds the complete committed tree; no incremental commitment-update,
-persisted-read, recovery, or witness claim is made. Snapshots and
+recovery, or witness claim is made. Snapshots and
 transitions now expose an internal canonical 42-byte profile-bound root
 container that represents an empty tree explicitly and rejects mismatched
 profiles before point decoding. The pinned Go/Rust update corpus fixes one exact
@@ -273,7 +274,7 @@ experimental facade with opaque proofs and typed resource errors. It does not
 establish a stable proof API, witness semantics, storage durability, or
 Ethereum compatibility.
 
-## Experimental storage writes
+## Experimental storage boundary
 
 `Snapshot.Commit` converts the complete immutable tree into canonical
 profile-bound internal and stem nodes. Internal nodes reference children by the
@@ -289,10 +290,25 @@ requires that the store have no published root; a non-nil previous root is the
 exact compare-and-swap expectation. The adapter owns the transaction and must
 make every supplied node durable before making the new root observable.
 
-This boundary does not yet load or verify stored nodes, open read snapshots,
-recover interrupted adapter transactions, retain historical roots, or prune
-unreachable nodes. No database, filesystem, or object-storage adapter is part
-of the root module yet.
+For reads, a `NodeReader` must report immutable-node and snapshot-read
+capabilities. `LoadSnapshot` opens one fixed `NodeReadSnapshot`, obtains its
+opaque `StorePublication` with the operation context, and passes that context
+plus the configured one-node byte bound to every adapter read before ownership
+of returned bytes transfers to the loader.
+It verifies every reachable SHA-256 address, strictly decodes each canonical
+node, rejects repeated references and path/depth conflicts, rebuilds the
+complete immutable state, and compares both the mathematical root and canonical
+root-node address. The view is closed exactly once; no snapshot is returned if
+opening, publication, node reading, decoding, reconstruction, cancellation, or
+closing fails. Missing persisted nodes and corrupt nodes have distinct errors.
+Adapters that persist the root bytes and root-node address separately can use
+`DecodeRoot` and `NewStorePublication` to reconstruct the opaque publication
+pair after restart; successful construction does not bypass the loader's
+independent root-node verification.
+
+This boundary does not recover interrupted adapter transactions, retain
+historical roots, or prune unreachable nodes. No database, filesystem, or
+object-storage adapter is part of the root module yet.
 
 ## Development rule
 

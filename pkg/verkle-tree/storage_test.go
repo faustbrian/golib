@@ -228,12 +228,205 @@ func TestSnapshotCommitWrapsStoreFailureAndPreservesSnapshot(t *testing.T) {
 	}
 }
 
+func TestLoadSnapshotReconstructsPublishedCanonicalState(t *testing.T) {
+	t.Parallel()
+
+	want := mustPublicSnapshot(t, []verkletree.Entry{
+		{Key: publicKey(2, 129), Value: publicValue(3)},
+		{Key: publicKey(1, 0), Value: verkletree.Value{}},
+		{Key: publicKey(1, 128), Value: publicValue(2)},
+	})
+	store := newCaptureNodeStore()
+	store.capabilities |= verkletree.RequiredReadStoreCapabilities
+	if err := want.Commit(
+		context.Background(),
+		store,
+		nil,
+		testPublicStorageLimits(),
+	); err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+
+	got, err := verkletree.LoadSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		store,
+		testPublicStorageReadLimits(),
+	)
+	if err != nil {
+		t.Fatalf("LoadSnapshot() error = %v", err)
+	}
+	wantRoot, _ := want.Root()
+	gotRoot, rootErr := got.Root()
+	if rootErr != nil || !equalPublicRoots(t, gotRoot, wantRoot) {
+		t.Fatalf("loaded root differs: %v", rootErr)
+	}
+	zero, present, getErr := got.Get(context.Background(), publicKey(1, 0))
+	if getErr != nil || !present || zero != (verkletree.Value{}) {
+		t.Fatalf("zero value = (%x, %t, %v)", zero, present, getErr)
+	}
+	if store.openCalls != 1 || store.readCalls == 0 || store.closeCalls != 1 {
+		t.Fatalf(
+			"store calls open=%d read=%d close=%d",
+			store.openCalls,
+			store.readCalls,
+			store.closeCalls,
+		)
+	}
+	if store.maxReadBytes != testPublicStorageReadLimits().MaxNodeBytes {
+		t.Fatalf("read byte bound = %d", store.maxReadBytes)
+	}
+}
+
+func TestLoadSnapshotReconstructsEmptyRootWithoutPointDecoding(t *testing.T) {
+	t.Parallel()
+
+	want := mustPublicSnapshot(t, nil)
+	store := newCaptureNodeStore()
+	store.capabilities |= verkletree.RequiredReadStoreCapabilities
+	if err := want.Commit(
+		context.Background(),
+		store,
+		nil,
+		testPublicStorageLimits(),
+	); err != nil {
+		t.Fatalf("Commit() error = %v", err)
+	}
+	limits := testPublicStorageReadLimits()
+	limits.MaxPointDecodes = 0
+	got, err := verkletree.LoadSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		store,
+		limits,
+	)
+	if err != nil {
+		t.Fatalf("LoadSnapshot() error = %v", err)
+	}
+	root, err := got.Root()
+	if err != nil {
+		t.Fatalf("Root() error = %v", err)
+	}
+	empty, err := root.IsEmpty()
+	if err != nil || !empty {
+		t.Fatalf("IsEmpty() = (%t, %v)", empty, err)
+	}
+}
+
+func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
+	t.Parallel()
+
+	want := mustPublicSnapshot(t, []verkletree.Entry{{
+		Key: publicKey(1, 1), Value: publicValue(1),
+	}})
+	makeStore := func(t testing.TB) *captureNodeStore {
+		t.Helper()
+		store := newCaptureNodeStore()
+		store.capabilities |= verkletree.RequiredReadStoreCapabilities
+		if err := want.Commit(
+			context.Background(),
+			store,
+			nil,
+			testPublicStorageLimits(),
+		); err != nil {
+			t.Fatalf("Commit() error = %v", err)
+		}
+		return store
+	}
+
+	t.Run("missing publication", func(t *testing.T) {
+		store := makeStore(t)
+		store.openErr = verkletree.ErrStorageSnapshotMissing
+		_, err := verkletree.LoadSnapshot(
+			context.Background(),
+			verkletree.ExperimentalBandersnatchIPA256V0(),
+			store,
+			testPublicStorageReadLimits(),
+		)
+		if !errors.Is(err, verkletree.ErrStorageSnapshotMissing) ||
+			!errors.Is(err, verkletree.ErrStorageRead) {
+			t.Fatalf("LoadSnapshot() error = %v", err)
+		}
+	})
+
+	t.Run("missing node", func(t *testing.T) {
+		store := makeStore(t)
+		store.missing = true
+		_, err := verkletree.LoadSnapshot(
+			context.Background(),
+			verkletree.ExperimentalBandersnatchIPA256V0(),
+			store,
+			testPublicStorageReadLimits(),
+		)
+		if !errors.Is(err, verkletree.ErrStorageNodeMissing) ||
+			!errors.Is(err, verkletree.ErrStorageRead) {
+			t.Fatalf("LoadSnapshot() error = %v", err)
+		}
+	})
+
+	t.Run("corrupt node", func(t *testing.T) {
+		store := makeStore(t)
+		store.corrupt = true
+		_, err := verkletree.LoadSnapshot(
+			context.Background(),
+			verkletree.ExperimentalBandersnatchIPA256V0(),
+			store,
+			testPublicStorageReadLimits(),
+		)
+		if !errors.Is(err, verkletree.ErrStorageNodeCorrupt) {
+			t.Fatalf("LoadSnapshot() error = %v", err)
+		}
+	})
+
+	t.Run("reader failure", func(t *testing.T) {
+		store := makeStore(t)
+		store.readErr = errors.New("reader unavailable")
+		_, err := verkletree.LoadSnapshot(
+			context.Background(),
+			verkletree.ExperimentalBandersnatchIPA256V0(),
+			store,
+			testPublicStorageReadLimits(),
+		)
+		if !errors.Is(err, verkletree.ErrStorageRead) ||
+			errors.Is(err, verkletree.ErrStorageNodeMissing) {
+			t.Fatalf("LoadSnapshot() error = %v", err)
+		}
+	})
+
+	t.Run("close failure is atomic", func(t *testing.T) {
+		store := makeStore(t)
+		store.closeErr = errors.New("close failed")
+		loaded, err := verkletree.LoadSnapshot(
+			context.Background(),
+			verkletree.ExperimentalBandersnatchIPA256V0(),
+			store,
+			testPublicStorageReadLimits(),
+		)
+		_, rootErr := loaded.Root()
+		if !errors.Is(err, verkletree.ErrStorageRead) ||
+			!errors.Is(rootErr, verkletree.ErrInvalidSnapshot) {
+			t.Fatalf("LoadSnapshot() errors = (%v, %v)", err, rootErr)
+		}
+	})
+}
+
 type captureNodeStore struct {
 	capabilities    verkletree.StoreCapabilities
 	commit          verkletree.StoreCommit
+	publication     verkletree.StorePublication
+	nodes           map[verkletree.NodeID][]byte
 	err             error
+	openErr         error
+	readErr         error
+	closeErr        error
+	missing         bool
+	corrupt         bool
 	calls           int
 	capabilityCalls int
+	openCalls       int
+	readCalls       int
+	closeCalls      int
+	maxReadBytes    uint64
 }
 
 func newCaptureNodeStore() *captureNodeStore {
@@ -256,8 +449,76 @@ func (store *captureNodeStore) CommitSnapshot(
 		return store.err
 	}
 	store.commit = commit
+	publication, err := commit.Publication()
+	if err != nil {
+		return err
+	}
+	nodes, err := commit.Nodes(context.Background())
+	if err != nil {
+		return err
+	}
+	store.publication = publication
+	store.nodes = make(map[verkletree.NodeID][]byte, len(nodes))
+	for _, node := range nodes {
+		store.nodes[node.ID()] = node.Encoded()
+	}
 
 	return nil
+}
+
+func (store *captureNodeStore) OpenSnapshot(
+	_ context.Context,
+) (verkletree.NodeReadSnapshot, error) {
+	store.openCalls++
+	if store.openErr != nil {
+		return nil, store.openErr
+	}
+
+	return &captureNodeReadSnapshot{store: store}, nil
+}
+
+type captureNodeReadSnapshot struct {
+	store *captureNodeStore
+}
+
+func (snapshot *captureNodeReadSnapshot) Publication(
+	ctx context.Context,
+) (verkletree.StorePublication, error) {
+	if err := ctx.Err(); err != nil {
+		return verkletree.StorePublication{}, err
+	}
+
+	return snapshot.store.publication, nil
+}
+
+func (snapshot *captureNodeReadSnapshot) ReadNode(
+	_ context.Context,
+	id verkletree.NodeID,
+	maxBytes uint64,
+) ([]byte, error) {
+	snapshot.store.readCalls++
+	snapshot.store.maxReadBytes = maxBytes
+	if snapshot.store.readErr != nil {
+		return nil, snapshot.store.readErr
+	}
+	if snapshot.store.missing {
+		return nil, verkletree.ErrStorageNodeMissing
+	}
+	encoded, present := snapshot.store.nodes[id]
+	if !present {
+		return nil, verkletree.ErrStorageNodeMissing
+	}
+	owned := append([]byte(nil), encoded...)
+	if snapshot.store.corrupt {
+		owned[len(owned)-1] ^= 0xff
+	}
+
+	return owned, nil
+}
+
+func (snapshot *captureNodeReadSnapshot) Close(context.Context) error {
+	snapshot.store.closeCalls++
+	return snapshot.store.closeErr
 }
 
 func testPublicStorageLimits() verkletree.StorageLimits {
@@ -267,6 +528,21 @@ func testPublicStorageLimits() verkletree.StorageLimits {
 		MaxEncodedBytes:   1 << 20,
 		MaxHashes:         64,
 		MaxTemporaryBytes: 2 << 20,
+	}
+}
+
+func testPublicStorageReadLimits() verkletree.StorageReadLimits {
+	return verkletree.StorageReadLimits{
+		MaxEntries:        64,
+		MaxNodes:          64,
+		MaxEdges:          64,
+		MaxNodeReads:      64,
+		MaxNodeBytes:      1 << 20,
+		MaxEncodedBytes:   2 << 20,
+		MaxHashes:         128,
+		MaxPointDecodes:   192,
+		MaxTemporaryBytes: 4 << 20,
+		Snapshot:          publicSnapshotLimits(),
 	}
 }
 

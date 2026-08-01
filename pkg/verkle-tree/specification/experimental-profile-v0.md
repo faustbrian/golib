@@ -15,11 +15,12 @@ profile. It is not stable, audited, production-ready, or Ethereum-compatible.
 Its definition MAY change incompatibly before v1.
 
 The exported experimental surface implements immutable snapshots, roots,
-root-bound state transitions, aggregate proofs, and capability-checked
-canonical storage writes. Internal research boundaries implement the fixed
+root-bound state transitions, aggregate proofs, capability-checked canonical
+storage writes, and bounded isolated persisted reconstruction. Internal
+research boundaries implement the fixed
 topology, leaf field inputs, vector commitments, complete mathematical root
-construction, and encodings below. Persisted reads, recovery, pruning,
-retention, stateless witnesses, and stable APIs remain unimplemented. This
+construction, and encodings below. Recovery, pruning, retention, stateless
+witnesses, and stable APIs remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -63,8 +64,8 @@ The following parts of the profile are deliberately not frozen:
 - aggregate-proof and batch-verification failure semantics;
 - commitment and witness update ordering, conflicting old-value claims,
   stateless witness completeness, and post-state calculation;
-- persisted snapshot identity, read isolation, recovery, retention, and
-  pruning;
+- durable snapshot naming beyond the root publication pair, recovery,
+  retention, and pruning;
   and
 - operation budgets, cancellation checkpoints, and resource accounting.
 
@@ -322,8 +323,36 @@ failed adapter call MUST NOT change the immutable in-memory snapshot. A
 successful adapter return is the adapter's durability assertion; this generic
 package cannot prove an adapter honored it.
 
-This write boundary does not define persisted node reads, read snapshots,
-recovery, retention, pruning, or bounded store iteration. It does not establish
+Persisted reconstruction MUST require immutable-node and isolated-snapshot-read
+capabilities before opening a view. The view MUST bind one exact profile-bound
+root and canonical root-node content address for its complete lifetime. Each
+publication and node read MUST receive the operation context. Each node read
+MUST enforce the remaining one-node byte bound before adapter allocation or
+I/O, MUST transfer stable bytes to the loader, and the view MUST be closed with
+the operation context exactly once on every path after opening. Close MUST
+release local resources even when that context is already cancelled and MUST
+use its deadline to bound external cleanup.
+
+Before each attacker-amplified store call, allocation, hash, or point decode,
+the loader MUST enforce positive bounds for entries, nodes, edges, node reads,
+one-node bytes, aggregate bytes, hashes, point decodes, and temporary memory.
+The fixed profile header, node kind, structural lengths, count bounds, sorted
+records, and absence of trailing bytes MUST be validated before point decoding.
+Identity commitment markers MUST NOT reach the point decoder. Every nonidentity
+payload MUST be decoded canonically with subgroup checks.
+
+The loader MUST traverse only nodes reachable from the published root-node
+address, verify SHA-256 over every returned complete node before using it,
+reject repeated node references, and require exact parent/child depth and stem
+prefix agreement. It MUST reconstruct the ordered entry state and independently
+rebuild the complete committed tree. Success requires equality with both the
+published mathematical root and the canonical root-node content address
+recomputed from that rebuilt tree. Missing nodes, corrupt bytes, unsupported
+profiles, exhausted resources, cancellation, adapter failures, and close
+failures MUST remain distinguishable and MUST return no usable snapshot.
+
+These write and read boundaries do not define recovery, retention, pruning,
+bounded store iteration, or crash repair. They do not establish
 storage-adapter correctness, snapshot availability, or Ethereum compatibility.
 
 ## Immutable Proof-Path Extraction
@@ -744,10 +773,10 @@ root for one existing-value update and one absent-suffix insertion. Its proof
 openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
-This internal construction does not freeze or implement a snapshot wire
-identity, persisted reads, recovery, retention, pruning, incremental commitment
-updates, witness verification, or stateless updates. The separate storage write
-boundary publishes the complete canonical node image defined above.
+This internal construction does not freeze or implement a whole-snapshot wire
+encoding, recovery, retention, pruning, incremental commitment updates, witness
+verification, or stateless updates. The storage boundaries publish and verify
+the complete canonical node image defined above.
 
 ## Compatibility Boundary
 

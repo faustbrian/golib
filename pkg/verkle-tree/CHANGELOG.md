@@ -17,8 +17,13 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add an experimental caller-owned storage write boundary that encodes complete
   immutable trees as deterministic profile-bound nodes, addresses each node by
   SHA-256, and requires immutable-node, atomic-commit, durable-publication, and
-  compare-and-swap capabilities before publishing a root. Persisted reads,
-  recovery, retention, and pruning remain unavailable.
+  compare-and-swap capabilities before publishing a root.
+- Add bounded persisted snapshot reconstruction over caller-owned isolated read
+  views. The loader strictly decodes every reachable canonical node, verifies
+  content addresses, topology, profile, mathematical root, and canonical root
+  node independently, closes the view atomically, and distinguishes missing,
+  corrupt, resource-exhausted, cancelled, and adapter-failure states. Recovery,
+  retention, and pruning remain unavailable.
 
 - Add the experimental public immutable snapshot, profile-bound root, canonical
   batch-update transition, and aggregate proof APIs with explicit cancellation,

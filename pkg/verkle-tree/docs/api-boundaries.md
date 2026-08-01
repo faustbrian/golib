@@ -2,9 +2,9 @@
 
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
-canonical storage-write, limit, resource, and typed-error identifiers form the
-current experimental public contract. Witnesses and persisted read/recovery
-identifiers described here remain proposed.
+canonical storage-write and isolated storage-read, limit, resource, and
+typed-error identifiers form the current experimental public contract.
+Witnesses and recovery identifiers described here remain proposed.
 
 ## Public concepts
 
@@ -17,11 +17,12 @@ The current public API exposes opaque, profile-bound forms of:
 - membership, non-membership, and aggregate proof;
 - canonical content-addressed node batches and capability-checked atomic root
   publication;
+- capability-checked isolated persisted snapshot reconstruction;
 - verifier;
 - resource limits and typed errors.
 
 A future public API is expected to add stateless witnesses, verified post-state
-results, persisted read snapshots, recovery, retention, and pruning.
+results, recovery, retention, and pruning.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -58,10 +59,25 @@ commit call and owns making every node durable before publishing the root. A
 successful return is therefore an adapter durability claim; the core cannot
 independently prove it.
 
-Immutable node reads, integrity verification on reads, read snapshots,
-recovery, retention, pruning, and bounded iteration remain future boundaries.
-The package does not yet reconstruct a snapshot from stored nodes or claim
-snapshot isolation.
+`LoadSnapshot` requires immutable-node and snapshot-read capabilities, opens
+exactly one `NodeReadSnapshot`, and closes it exactly once. The view returns one
+fixed `StorePublication` and transfers ownership of each returned node encoding
+to the loader. Publication and node reads receive the operation context. The
+loader bounds node and edge counts, store calls, node and aggregate bytes,
+hashes, point decodes, retained entries, and scratch memory.
+It verifies every reachable SHA-256 content address before strict profile-bound
+decoding, rejects duplicate references and path/depth inconsistencies, rebuilds
+the immutable state under separate cryptographic limits, and compares both the
+mathematical root and canonical root-node address. No partial snapshot escapes
+on read or close failure. The adapter remains responsible for actually
+providing the asserted isolated view.
+An adapter may reconstruct `StorePublication` after restart from a strictly
+decoded `Root` and persisted `NodeID`; that constructor validates the root but
+does not assert that the address is correct. `LoadSnapshot` supplies that
+independent verification.
+
+Recovery, retention, pruning, crash repair, and bounded audit iteration remain
+future boundaries.
 
 Database, filesystem, and object-storage adapters belong in additive nested
 modules and must not become root-package dependencies.
@@ -93,9 +109,9 @@ kind that never decodes an identity point. The immutable arena can extract one
 caller-owned, cancellation-aware proof path with explicit node-read,
 commitment, path-byte, and result-storage limits. The public facade exposes
 profile-bound roots and aggregate proof operations while keeping topology,
-points, vectors, and commitments internal. It now produces a complete canonical
-content-addressed node image for the public atomic write boundary, but provides
-no persisted read, recovery, or incremental update seam.
+points, vectors, and commitments internal. It produces and strictly decodes the
+complete canonical content-addressed nodes used by the public atomic write and
+isolated read boundaries, but provides no recovery or incremental update seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch

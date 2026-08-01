@@ -43,15 +43,31 @@ var (
 	// ErrInvalidProof identifies a malformed, incomplete, or unusable proof.
 	ErrInvalidProof = errors.New("invalid Verkle proof")
 
-	// ErrInvalidStore identifies a nil or unusable caller-owned node store.
+	// ErrInvalidStore identifies a nil or unusable caller-owned storage
+	// boundary.
 	ErrInvalidStore = errors.New("invalid Verkle node store")
 
-	// ErrStoreCapability identifies a store missing a required publication
-	// guarantee.
+	// ErrStoreCapability identifies a store missing a required read or
+	// publication guarantee.
 	ErrStoreCapability = errors.New("missing Verkle store capability")
 
 	// ErrStorageCommit identifies an atomic node/root publication failure.
 	ErrStorageCommit = errors.New("verkle storage commit failed")
+
+	// ErrStorageRead identifies a caller-owned store read or read-snapshot
+	// lifecycle failure.
+	ErrStorageRead = errors.New("verkle storage read failed")
+
+	// ErrStorageSnapshotMissing identifies a store with no published snapshot.
+	ErrStorageSnapshotMissing = errors.New("verkle storage snapshot missing")
+
+	// ErrStorageNodeMissing identifies a referenced content-addressed node that
+	// the store could not return.
+	ErrStorageNodeMissing = errors.New("verkle storage node missing")
+
+	// ErrStorageNodeCorrupt identifies a node, topology, root, or content
+	// address that is inconsistent with the canonical persisted snapshot.
+	ErrStorageNodeCorrupt = errors.New("verkle storage node corrupt")
 
 	// ErrStaleRoot identifies a compare-and-swap publication conflict.
 	ErrStaleRoot = errors.New("stale Verkle root")
@@ -114,8 +130,8 @@ const (
 	// ResourceNodeBytes counts one canonical persisted node.
 	ResourceNodeBytes
 
-	// ResourceEncodedNodeBytes counts all canonical persisted nodes in one
-	// atomic commit.
+	// ResourceEncodedNodeBytes counts aggregate canonical persisted-node bytes
+	// encoded or decoded by one operation.
 	ResourceEncodedNodeBytes
 
 	// ResourceNodeHashes counts content-address calculations.

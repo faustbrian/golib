@@ -16,10 +16,11 @@ construction, atomic root-bound snapshot transitions, and canonical
 profile-bound tree claims plus an immutable canonical root-bound unverified
 tree-proof container with an exact package-owned encoding and strict aggregate
 decoder, and public fixed-profile aggregate tree-proof generation and
-verification, plus canonical content-addressed storage writes and
-capability-checked atomic root publication. Stateless witnesses, persisted
-reads, recovery, pruning, dependency-level cancellation, and complete
-side-channel controls remain unimplemented.
+verification, plus canonical content-addressed storage writes,
+capability-checked atomic root publication, and bounded isolated persisted
+snapshot reconstruction. Stateless witnesses, recovery, retention, pruning,
+dependency-level cancellation, and complete side-channel controls remain
+unimplemented.
 
 ## Trust boundaries
 
@@ -85,18 +86,24 @@ The internal authenticated-state layer currently mitigates absent/zero/delete
 ambiguity, nondeterministic batch order, duplicate operations, partial
 in-memory publication, caller mutation of fixed arrays, and cross-snapshot root
 confusion. It does not authenticate old values supplied by an external witness,
-prove witness completeness, load persisted nodes, or protect a future mutable
-writer from concurrent ownership violations.
+prove witness completeness, or protect a future mutable writer from concurrent
+ownership violations.
 
 The storage write boundary encodes the complete immutable arena into canonical
 profile-bound nodes, hashes the complete bytes for content addressing, orders
 the batch deterministically, copies adapter-visible encodings, and rejects
 missing atomicity, durability, immutable-node, or compare-and-swap capability
 claims before I/O. Publication failure leaves the immutable snapshot unchanged.
-The adapter remains trusted to honor its asserted capabilities; only adapter
-crash tests can prove those guarantees. The package does not yet verify stored
-bytes on read, reconstruct read snapshots, recover interrupted adapter work,
-retain roots, or prune nodes.
+The persisted loader requires immutable-node and isolated-snapshot-read
+capabilities, then verifies each reachable content address before strict point
+decoding. It rejects malformed envelopes, alternate encodings, invalid points,
+wrong depth or path, duplicate references, missing nodes, resource overflow,
+and any mismatch with the independently rebuilt mathematical root or canonical
+root-node address. It closes the read view exactly once and returns no snapshot
+when read, reconstruction, cancellation, or close fails. The adapter remains
+trusted to honor its asserted capabilities; only adapter crash and isolation
+tests can prove those guarantees. The package does not recover interrupted
+adapter work, retain roots, or prune nodes.
 
 The canonical claim-set boundary additionally rejects duplicate and conflicting
 claimed keys, preserves present-zero and claimed-absence distinctions, and

@@ -42,6 +42,10 @@ const (
 	// StoreCapabilityCompareAndSwap means publication checks the exact
 	// previous-root expectation.
 	StoreCapabilityCompareAndSwap
+
+	// StoreCapabilitySnapshotReads means OpenSnapshot returns one fixed root
+	// publication whose content-addressed nodes remain readable until Close.
+	StoreCapabilitySnapshotReads
 )
 
 // RequiredWriteStoreCapabilities is the complete guarantee set required by
@@ -50,6 +54,11 @@ const RequiredWriteStoreCapabilities = StoreCapabilityImmutableNodes |
 	StoreCapabilityAtomicCommit |
 	StoreCapabilityDurablePublication |
 	StoreCapabilityCompareAndSwap
+
+// RequiredReadStoreCapabilities is the complete guarantee set required by
+// LoadSnapshot.
+const RequiredReadStoreCapabilities = StoreCapabilityImmutableNodes |
+	StoreCapabilitySnapshotReads
 
 // Supports reports whether capabilities contains every required bit.
 func (capabilities StoreCapabilities) Supports(
@@ -90,6 +99,28 @@ type NodeStore interface {
 	CommitSnapshot(ctx context.Context, commit StoreCommit) error
 }
 
+// NodeReader opens one isolated immutable view of a published root and its
+// content-addressed nodes. ReadNode explicitly transfers ownership of its
+// returned byte slice to the loader; implementations must not retain or mutate
+// that slice after returning it.
+type NodeReader interface {
+	Capabilities() StoreCapabilities
+	OpenSnapshot(ctx context.Context) (NodeReadSnapshot, error)
+}
+
+// NodeReadSnapshot is one fixed publication and its immutable node namespace.
+// LoadSnapshot closes every successfully opened value exactly once. Methods
+// must be safe for sequential use by one loader; concurrent safety is not
+// required. ReadNode must enforce maxBytes before allocating or reading the
+// node and transfers ownership of a stable encoding on success. Close receives
+// the operation context; implementations must release local resources even
+// when that context is already cancelled and use it to bound external cleanup.
+type NodeReadSnapshot interface {
+	Publication(ctx context.Context) (StorePublication, error)
+	ReadNode(ctx context.Context, id NodeID, maxBytes uint64) ([]byte, error)
+	Close(ctx context.Context) error
+}
+
 // StoredNode is one immutable content-addressed canonical node.
 type StoredNode struct {
 	value committedtree.StorageNode
@@ -114,6 +145,63 @@ type StoreCommit struct {
 	nodes       []StoredNode
 	hasPrevious bool
 	valid       bool
+}
+
+// StorePublication is the immutable root pair adapters persist and return from
+// NodeReadSnapshot.Publication. Its zero value rejects use.
+type StorePublication struct {
+	root     Root
+	rootNode NodeID
+	valid    bool
+}
+
+// NewStorePublication reconstructs the opaque publication pair from a decoded
+// canonical root and its persisted root-node content address. It validates the
+// root immediately; LoadSnapshot independently verifies that rootNode names the
+// complete canonical state.
+func NewStorePublication(root Root, rootNode NodeID) (StorePublication, error) {
+	if _, err := root.Bytes(); err != nil {
+		return StorePublication{}, ErrInvalidRoot
+	}
+
+	return StorePublication{root: root, rootNode: rootNode, valid: true}, nil
+}
+
+// Root returns the published profile-bound mathematical root.
+func (publication StorePublication) Root() (Root, error) {
+	if err := publication.validate(); err != nil {
+		return Root{}, err
+	}
+
+	return publication.root, nil
+}
+
+// RootNode returns the content address of the published canonical root node.
+func (publication StorePublication) RootNode() (NodeID, error) {
+	if err := publication.validate(); err != nil {
+		return NodeID{}, err
+	}
+
+	return publication.rootNode, nil
+}
+
+func (publication StorePublication) validate() error {
+	if !publication.valid {
+		return ErrStorageRead
+	}
+	if _, err := publication.root.Bytes(); err != nil {
+		return ErrStorageRead
+	}
+
+	return nil
+}
+
+func (publication StorePublication) values() (Root, NodeID, error) {
+	if err := publication.validate(); err != nil {
+		return Root{}, NodeID{}, err
+	}
+
+	return publication.root, publication.rootNode, nil
 }
 
 // PreviousRoot returns the exact compare-and-swap expectation. A false present
@@ -145,6 +233,18 @@ func (commit StoreCommit) RootNode() (NodeID, error) {
 	}
 
 	return commit.rootNode, nil
+}
+
+// Publication returns the exact immutable root pair for later snapshot reads.
+func (commit StoreCommit) Publication() (StorePublication, error) {
+	if err := commit.validate(); err != nil {
+		return StorePublication{}, err
+	}
+
+	// commit.validate already proves the constructor precondition.
+	publication, _ := NewStorePublication(commit.root, commit.rootNode)
+
+	return publication, nil
 }
 
 // Nodes returns owned nodes in ascending content-address order.
