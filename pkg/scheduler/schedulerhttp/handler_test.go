@@ -94,10 +94,16 @@ func TestHandlerRecoversLeaseWithFence(t *testing.T) {
 func TestHandlerRejectsInvalidRequests(t *testing.T) {
 	t.Parallel()
 
+	registry, _ := scheduler.Compile()
 	if _, err := schedulerhttp.New(nil, nil); err == nil {
 		t.Fatal("New(nil) error = nil")
 	}
-	registry, _ := scheduler.Compile()
+	if _, err := schedulerhttp.New(registry, nil); err == nil {
+		t.Fatal("New(nil store) error = nil")
+	}
+	if _, err := schedulerhttp.New(nil, memory.New()); err == nil {
+		t.Fatal("New(nil registry) error = nil")
+	}
 	handler, _ := schedulerhttp.New(registry, memory.New())
 	tests := []struct {
 		method string
@@ -117,6 +123,24 @@ func TestHandlerRejectsInvalidRequests(t *testing.T) {
 		if response.Code != test.want {
 			t.Fatalf("%s %s status = %d, want %d", test.method, test.path, response.Code, test.want)
 		}
+	}
+}
+
+func TestScheduleTestReportsFalseOutsideABoundary(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule("report", "task", scheduler.Daily())
+	registry, _ := scheduler.Compile(schedule)
+	handler, _ := schedulerhttp.New(registry, memory.New())
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(
+		http.MethodGet,
+		"/v1/schedules/report/test?at=2026-01-02T00:01:00Z",
+		nil,
+	))
+	if response.Code != http.StatusOK ||
+		!contains(response.Body.String(), `"due":false`) {
+		t.Fatalf("test response = %d %s", response.Code, response.Body.String())
 	}
 }
 

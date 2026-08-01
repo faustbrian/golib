@@ -24,7 +24,16 @@ func Run(
 	registry *scheduler.Registry,
 	leases lease.Store,
 ) int {
-	if registry == nil || leases == nil || stdout == nil || stderr == nil {
+	if registry == nil {
+		return 2
+	}
+	if leases == nil {
+		return 2
+	}
+	if stdout == nil {
+		return 2
+	}
+	if stderr == nil {
 		return 2
 	}
 	if len(args) == 0 {
@@ -69,7 +78,10 @@ func next(args []string, stdout, stderr io.Writer, registry *scheduler.Registry)
 	flags.SetOutput(stderr)
 	name := flags.String("name", "", "schedule name")
 	afterValue := flags.String("after", "", "RFC3339 instant")
-	if flags.Parse(args) != nil || *name == "" {
+	if flags.Parse(args) != nil {
+		return 2
+	}
+	if *name == "" {
 		return 2
 	}
 	after, err := time.Parse(time.RFC3339Nano, *afterValue)
@@ -89,7 +101,10 @@ func due(args []string, stdout, stderr io.Writer, registry *scheduler.Registry) 
 	name := flags.String("name", "", "schedule name")
 	afterValue := flags.String("after", "", "RFC3339 instant")
 	throughValue := flags.String("through", "", "RFC3339 instant")
-	if flags.Parse(args) != nil || *name == "" {
+	if flags.Parse(args) != nil {
+		return 2
+	}
+	if *name == "" {
 		return 2
 	}
 	after, err := time.Parse(time.RFC3339Nano, *afterValue)
@@ -112,7 +127,10 @@ func test(args []string, stdout, stderr io.Writer, registry *scheduler.Registry)
 	flags.SetOutput(stderr)
 	name := flags.String("name", "", "schedule name")
 	atValue := flags.String("at", "", "RFC3339 instant")
-	if flags.Parse(args) != nil || *name == "" {
+	if flags.Parse(args) != nil {
+		return 2
+	}
+	if *name == "" {
 		return 2
 	}
 	at, err := time.Parse(time.RFC3339Nano, *atValue)
@@ -131,7 +149,10 @@ func recoverLease(ctx context.Context, args []string, stdout, stderr io.Writer, 
 	flags.SetOutput(stderr)
 	key := flags.String("key", "", "lease key")
 	tokenValue := flags.String("token", "", "fencing token")
-	if flags.Parse(args) != nil || *key == "" {
+	if flags.Parse(args) != nil {
+		return 2
+	}
+	if *key == "" {
 		return 2
 	}
 	token, err := strconv.ParseUint(*tokenValue, 10, 64)

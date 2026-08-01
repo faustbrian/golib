@@ -198,7 +198,13 @@ type conditionResult struct {
 
 // NewRunner validates dependencies and distributed safety capabilities.
 func NewRunner(registry *Registry, leases lease.Store, executor Executor, options ...RunnerOption) (*Runner, error) {
-	if registry == nil || leases == nil || executor == nil {
+	if registry == nil {
+		return nil, ErrInvalidRunner
+	}
+	if leases == nil {
+		return nil, ErrInvalidRunner
+	}
+	if executor == nil {
 		return nil, ErrInvalidRunner
 	}
 	runner := &Runner{
@@ -363,10 +369,7 @@ func (runner *Runner) RunFrom(ctx context.Context, cursor time.Time) error {
 			<-ctx.Done()
 			return ctx.Err()
 		}
-		delay := next.Sub(runner.clock.Now())
-		if delay < 0 {
-			delay = 0
-		}
+		delay := max(next.Sub(runner.clock.Now()), time.Duration(0))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -624,15 +627,20 @@ func awaitExecution(ctx context.Context, managed managedExecution) error {
 			}
 			heartbeatDone = nil
 		case <-ctx.Done():
-			if managed.heartbeat != nil {
-				select {
-				case <-managed.heartbeat.done:
-					return errors.Join(ctx.Err(), managed.heartbeat.result.err)
-				default:
-				}
-			}
-			return ctx.Err()
+			return errors.Join(ctx.Err(), completedHeartbeatError(managed.heartbeat))
 		}
+	}
+}
+
+func completedHeartbeatError(monitor *heartbeatMonitor) error {
+	if monitor == nil {
+		return nil
+	}
+	select {
+	case <-monitor.done:
+		return monitor.result.err
+	default:
+		return nil
 	}
 }
 
@@ -643,10 +651,9 @@ func (runner *Runner) heartbeatTaskLease(
 	ttl time.Duration,
 	monitor *heartbeatMonitor,
 ) {
-	defer close(monitor.done)
 	interval := runner.heartbeatInterval
 	if interval == 0 {
-		interval = max(ttl/3, time.Nanosecond)
+		interval = defaultHeartbeatInterval(ttl)
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -656,6 +663,7 @@ func (runner *Runner) heartbeatTaskLease(
 		select {
 		case <-ctx.Done():
 			monitor.result = heartbeatResult{owned: current}
+			close(monitor.done)
 			return
 		case <-ticker.C:
 			now := owned.AcquiredAt.Add(time.Since(started))
@@ -663,13 +671,18 @@ func (runner *Runner) heartbeatTaskLease(
 			renewed, err := runner.leases.Heartbeat(heartbeatCtx, current, ttl, now)
 			cancelHeartbeat()
 			if err != nil {
-				cancel()
 				monitor.result = heartbeatResult{owned: current, err: err}
+				close(monitor.done)
+				cancel()
 				return
 			}
 			current = renewed
 		}
 	}
+}
+
+func defaultHeartbeatInterval(ttl time.Duration) time.Duration {
+	return max(ttl/3, time.Nanosecond)
 }
 
 func (runner *Runner) acquireTask(ctx context.Context, schedule Schedule, now time.Time) (lease.Lease, error) {

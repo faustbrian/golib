@@ -42,3 +42,25 @@ func TestBufferRejectsInvalidCapacity(t *testing.T) {
 		t.Fatal("NewBuffer(too large) error = nil")
 	}
 }
+
+func TestBufferAcceptsExactCapacityLimits(t *testing.T) {
+	t.Parallel()
+
+	minimum, err := history.NewBuffer(1)
+	if err != nil {
+		t.Fatalf("NewBuffer(1) error = %v", err)
+	}
+	minimum.Observe(scheduler.Event{Type: scheduler.EventBefore})
+	if entries := minimum.Entries(); len(entries) != 1 {
+		t.Fatalf("minimum Entries() count = %d", len(entries))
+	}
+
+	maximum, err := history.NewBuffer(history.MaxCapacity)
+	if err != nil {
+		t.Fatalf("NewBuffer(MaxCapacity) error = %v", err)
+	}
+	maximum.Observe(scheduler.Event{Type: scheduler.EventCompleted})
+	if entries := maximum.Entries(); len(entries) != 1 {
+		t.Fatalf("maximum Entries() count = %d", len(entries))
+	}
+}

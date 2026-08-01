@@ -75,10 +75,7 @@ func NewRuntime(runtime *gotelemetry.Runtime, logger *slog.Logger) (*Observer, e
 
 // Observe records one scheduler lifecycle event.
 func (observer *Observer) Observe(event scheduler.Event) {
-	ctx := event.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := eventContext(event.Context)
 	attributes := []attribute.KeyValue{
 		attribute.String("scheduler.event", event.Type.String()),
 		attribute.String("scheduler.result", event.Result.String()),
@@ -134,6 +131,13 @@ func (observer *Observer) Observe(event scheduler.Event) {
 		}
 	case scheduler.EventSuccess, scheduler.EventSkipped, scheduler.EventOverlap:
 	}
+}
+
+func eventContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 func (observer *Observer) withSpan(key string, callback func(activeSpan)) {

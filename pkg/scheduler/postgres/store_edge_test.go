@@ -143,6 +143,35 @@ func TestStoreRejectsInvalidAndCanceledMutations(t *testing.T) {
 	}
 }
 
+func TestValidationRequiresWholePositiveMilliseconds(t *testing.T) {
+	t.Parallel()
+
+	if err := validate(
+		context.Background(),
+		"key",
+		"owner",
+		0,
+	); !errors.Is(err, lease.ErrInvalid) {
+		t.Fatalf("validate(0) error = %v", err)
+	}
+	if err := validate(
+		context.Background(),
+		"key",
+		"owner",
+		time.Millisecond,
+	); err != nil {
+		t.Fatalf("validate(1ms) error = %v", err)
+	}
+	if err := validate(
+		context.Background(),
+		"key",
+		"owner",
+		time.Millisecond-time.Nanosecond,
+	); !errors.Is(err, lease.ErrInvalid) {
+		t.Fatalf("validate(sub-millisecond) error = %v", err)
+	}
+}
+
 func TestStorePropagatesRowsAndMutationCorruption(t *testing.T) {
 	t.Parallel()
 

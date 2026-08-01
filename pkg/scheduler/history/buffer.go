@@ -26,7 +26,10 @@ func NewBuffer(capacity int) (*Buffer, error) {
 	if capacity < 1 || capacity > MaxCapacity {
 		return nil, ErrInvalidCapacity
 	}
-	return &Buffer{entries: make([]scheduler.Event, 0, capacity), capacity: capacity}, nil
+	return &Buffer{
+		entries:  make([]scheduler.Event, 0, min(capacity, 1_024)),
+		capacity: capacity,
+	}, nil
 }
 
 // Observe appends an event and evicts the oldest event when full.

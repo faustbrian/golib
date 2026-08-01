@@ -463,7 +463,10 @@ func cloneSchedule(schedule Schedule) Schedule {
 	schedule.Conditions = slices.Clone(schedule.Conditions)
 	schedule.Metadata = maps.Clone(schedule.Metadata)
 	if encoded, err := json.Marshal(schedule.Parameters); err == nil {
-		_ = json.Unmarshal(encoded, &schedule.Parameters)
+		var parameters map[string]any
+		if json.Unmarshal(encoded, &parameters) == nil {
+			schedule.Parameters = parameters
+		}
 	}
 	return schedule
 }

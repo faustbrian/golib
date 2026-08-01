@@ -159,6 +159,16 @@ func TestExecutorValidatesConfiguration(t *testing.T) {
 			}
 		})
 	}
+	if _, err := scheduleridempotency.New(
+		validStore,
+		inner,
+		scheduleridempotency.Options{
+			Tenant: "acme",
+			Lease:  goidempotency.MaxLease,
+		},
+	); err != nil {
+		t.Fatalf("New(MaxLease) error = %v", err)
+	}
 }
 
 func TestExecutorHandlesCancellationIdentityAndStoreFailure(t *testing.T) {

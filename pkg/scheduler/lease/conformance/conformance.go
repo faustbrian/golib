@@ -22,6 +22,8 @@ type Harness struct {
 // Factory creates an isolated conformance harness for a subtest.
 type Factory func(t *testing.T) Harness
 
+const minimumHeartbeatExtension = 59_000_000_000
+
 // TestStore runs the shared ownership, fencing, and recovery contract.
 func TestStore(t *testing.T, factory Factory) {
 	t.Helper()
@@ -79,8 +81,8 @@ func TestStore(t *testing.T, factory Factory) {
 				t.Fatalf("Acquire() error = %v", err)
 			}
 		}
-		if winners != 1 || held != contenders-1 {
-			t.Fatalf("acquisition results = %d winners, %d held", winners, held)
+		if err := validateAcquisitionResults(winners, held, contenders); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -97,8 +99,11 @@ func TestStore(t *testing.T, factory Factory) {
 		if err != nil {
 			t.Fatalf("Acquire(current) error = %v", err)
 		}
-		if current.FencingToken <= stale.FencingToken {
-			t.Fatalf("fencing token did not increase: %d <= %d", current.FencingToken, stale.FencingToken)
+		if err := validateFencingAdvance(
+			current.FencingToken,
+			stale.FencingToken,
+		); err != nil {
+			t.Fatal(err)
 		}
 		if err := harness.Store.Release(context.Background(), stale); !errors.Is(err, lease.ErrStaleOwner) && !errors.Is(err, lease.ErrNotFound) {
 			t.Fatalf("Release(stale) error = %v, want ErrStaleOwner", err)
@@ -113,8 +118,8 @@ func TestStore(t *testing.T, factory Factory) {
 		if err != nil {
 			t.Fatalf("Inspect() error = %v", err)
 		}
-		if inspected.Owner != current.Owner || inspected.FencingToken != current.FencingToken {
-			t.Fatalf("current owner changed: %+v", inspected)
+		if err := validateSameLease(inspected, current); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -125,13 +130,15 @@ func TestStore(t *testing.T, factory Factory) {
 		if err != nil {
 			t.Fatalf("Acquire() error = %v", err)
 		}
-		harness.Advance(30 * time.Millisecond)
+		harness.Advance(30_000_000)
 		heartbeat, err := harness.Store.Heartbeat(context.Background(), owned, 2*time.Minute, harness.Now())
 		if err != nil {
 			t.Fatalf("Heartbeat() error = %v", err)
 		}
-		if extension := heartbeat.ExpiresAt.Sub(owned.ExpiresAt); extension < 59*time.Second {
-			t.Fatalf("lease extension = %v, want at least 59s", extension)
+		if err := validateHeartbeatExtension(
+			heartbeat.ExpiresAt.Sub(owned.ExpiresAt),
+		); err != nil {
+			t.Fatal(err)
 		}
 		forged := owned
 		forged.Owner = "replica-b"
@@ -155,7 +162,11 @@ func TestStore(t *testing.T, factory Factory) {
 		}
 
 		owned, _ = harness.Store.Acquire(context.Background(), owned.Key, "replica-a", time.Minute, harness.Now())
-		if err := harness.Store.Recover(context.Background(), owned.Key, owned.FencingToken+1); !errors.Is(err, lease.ErrStaleOwner) {
+		if err := harness.Store.Recover(
+			context.Background(),
+			owned.Key,
+			differentFencingToken(owned.FencingToken),
+		); !errors.Is(err, lease.ErrStaleOwner) {
 			t.Fatalf("Recover(wrong token) error = %v, want ErrStaleOwner", err)
 		}
 		if err := harness.Store.Recover(context.Background(), owned.Key, owned.FencingToken); err != nil {
@@ -165,8 +176,11 @@ func TestStore(t *testing.T, factory Factory) {
 		if err != nil {
 			t.Fatalf("Acquire(after recover) error = %v", err)
 		}
-		if next.FencingToken <= owned.FencingToken {
-			t.Fatalf("fencing token after recover = %d, want > %d", next.FencingToken, owned.FencingToken)
+		if err := validateFencingAdvance(
+			next.FencingToken,
+			owned.FencingToken,
+		); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -201,8 +215,72 @@ func TestStore(t *testing.T, factory Factory) {
 			t.Fatalf("Inspect(canceled) error = %v", err)
 		}
 		current, err := harness.Store.Inspect(context.Background(), owned.Key)
-		if err != nil || current.Owner != owned.Owner || current.FencingToken != owned.FencingToken {
-			t.Fatalf("canceled operations changed lease: %+v, %v", current, err)
+		if err != nil {
+			t.Fatalf("Inspect(current) error = %v", err)
+		}
+		if err := validateSameLease(current, owned); err != nil {
+			t.Fatal(err)
 		}
 	})
+}
+
+func validateAcquisitionResults(winners, held, contenders int) error {
+	if winners != 1 {
+		return fmt.Errorf("acquisition results = %d winners, want 1", winners)
+	}
+	expectedHeld := contenders - 1
+	if held != expectedHeld {
+		return fmt.Errorf(
+			"acquisition results = %d held, want %d",
+			held,
+			expectedHeld,
+		)
+	}
+	return nil
+}
+
+func differentFencingToken(token uint64) uint64 {
+	if token == 1 {
+		return 2
+	}
+	return 1
+}
+
+func validateFencingAdvance(current, previous uint64) error {
+	if current <= previous {
+		return fmt.Errorf(
+			"fencing token did not increase: %d <= %d",
+			current,
+			previous,
+		)
+	}
+	return nil
+}
+
+func validateHeartbeatExtension(extension time.Duration) error {
+	if extension < minimumHeartbeatExtension {
+		return fmt.Errorf(
+			"lease extension = %v, want at least 59s",
+			extension,
+		)
+	}
+	return nil
+}
+
+func validateSameLease(current, expected lease.Lease) error {
+	if current.Owner != expected.Owner {
+		return fmt.Errorf(
+			"lease owner = %q, want %q",
+			current.Owner,
+			expected.Owner,
+		)
+	}
+	if current.FencingToken != expected.FencingToken {
+		return fmt.Errorf(
+			"lease fencing token = %d, want %d",
+			current.FencingToken,
+			expected.FencingToken,
+		)
+	}
+	return nil
 }

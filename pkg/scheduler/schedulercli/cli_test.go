@@ -71,7 +71,45 @@ func TestCLIRecoversLeaseAndReportsInvalidInput(t *testing.T) {
 func TestCLIRejectsMissingDependencies(t *testing.T) {
 	t.Parallel()
 
-	if code := schedulercli.Run(context.Background(), nil, &bytes.Buffer{}, &bytes.Buffer{}, nil, nil); code != 2 {
-		t.Fatalf("Run(nil) = %d, want 2", code)
+	registry, _ := scheduler.Compile()
+	store := memory.New()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	for name, invoke := range map[string]func() int{
+		"registry": func() int {
+			return schedulercli.Run(context.Background(), nil, stdout, stderr, nil, store)
+		},
+		"leases": func() int {
+			return schedulercli.Run(context.Background(), nil, stdout, stderr, registry, nil)
+		},
+		"stdout": func() int {
+			return schedulercli.Run(context.Background(), nil, nil, stderr, registry, store)
+		},
+		"stderr": func() int {
+			return schedulercli.Run(context.Background(), nil, stdout, nil, registry, store)
+		},
+	} {
+		if code := invoke(); code != 2 {
+			t.Fatalf("Run(nil %s) = %d, want 2", name, code)
+		}
+	}
+}
+
+func TestCLITestReportsFalseOutsideABoundary(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule("report", "task", scheduler.Daily())
+	registry, _ := scheduler.Compile(schedule)
+	var stdout, stderr bytes.Buffer
+	code := schedulercli.Run(
+		context.Background(),
+		[]string{"test", "--name", "report", "--at", "2026-01-02T00:01:00Z"},
+		&stdout,
+		&stderr,
+		registry,
+		memory.New(),
+	)
+	if code != 0 || !strings.Contains(stdout.String(), `"due":false`) {
+		t.Fatalf("Run(test not due) = %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
 	}
 }

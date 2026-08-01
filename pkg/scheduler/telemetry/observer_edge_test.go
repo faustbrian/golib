@@ -12,6 +12,7 @@ import (
 	schedulertelemetry "github.com/faustbrian/golib/pkg/scheduler/telemetry"
 	gotelemetry "github.com/faustbrian/golib/pkg/telemetry"
 	"github.com/faustbrian/golib/pkg/telemetry/testtelemetry"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
@@ -108,10 +109,22 @@ func TestObserverRecordsFailureAndSupersededLifecycles(t *testing.T) {
 		Type: scheduler.EventCompleted, Result: scheduler.ResultFailed,
 		Occurrence: scheduler.Occurrence{IdempotencyKey: "missing"}, Err: want,
 	})
+	completedOnly := occurrence
+	completedOnly.IdempotencyKey = "completed-only"
+	observer.Observe(scheduler.Event{
+		Type: scheduler.EventBefore, Occurrence: completedOnly,
+	})
+	observer.Observe(scheduler.Event{
+		Type: scheduler.EventCompleted, Result: scheduler.ResultFailed,
+		Occurrence: completedOnly,
+	})
 
 	spans := harness.Spans()
-	if len(spans) != 2 {
+	if len(spans) != 3 {
 		t.Fatalf("spans = %+v", spans)
+	}
+	if len(spans[1].Events) == 0 || spans[2].Status.Code != codes.Error {
+		t.Fatalf("failure spans = %+v", spans)
 	}
 	if !bytes.Contains(logs.Bytes(), []byte(`"level":"ERROR"`)) {
 		t.Fatalf("logs = %s", logs.String())

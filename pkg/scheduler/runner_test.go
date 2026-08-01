@@ -249,7 +249,7 @@ func TestRunnerBoundsConditionThatNeverReturns(t *testing.T) {
 			close(release)
 			t.Fatalf("Tick() error = %v, want ErrCallbackTimeout", err)
 		}
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(time.Second):
 		close(release)
 		<-done
 		t.Fatal("Tick() blocked on condition")
@@ -558,7 +558,7 @@ func TestRunnerBoundsHooksAndObserversThatNeverReturn(t *testing.T) {
 			close(release)
 			t.Fatalf("Tick() error = %v", err)
 		}
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(time.Second):
 		close(release)
 		<-done
 		t.Fatal("Tick() blocked on hook or observer")

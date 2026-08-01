@@ -7,6 +7,14 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- Deep-copy nested schedule parameters when compiling a registry so caller
+  mutations cannot alter compiled execution input.
+- Classify task-lease heartbeat failures deterministically before canceling the
+  managed execution.
+- Bound the initial history-buffer allocation independently from its accepted
+  maximum capacity.
+- Strengthen lease-store conformance checks and exact scheduler, adapter, CLI,
+  HTTP, telemetry, and lifecycle boundary coverage.
 - Restore immutable main pseudo-version pins for every owned dependency so the
   current scheduler source resolves from a clean external module.
 - Release managed execution capacity before completing an occurrence so

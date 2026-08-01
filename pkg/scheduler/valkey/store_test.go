@@ -119,6 +119,12 @@ func TestStoreValidatesConfigurationAndInputs(t *testing.T) {
 	if _, err := newStore(nil, "scheduler"); !errors.Is(err, lease.ErrInvalid) {
 		t.Fatalf("newStore(nil) error = %v", err)
 	}
+	if _, err := newStore(
+		&fakeExecutor{},
+		string(make([]byte, MaxPrefixBytes)),
+	); err != nil {
+		t.Fatalf("newStore(maximum prefix) error = %v", err)
+	}
 	for _, prefix := range []string{"", "bad{slot}", string(make([]byte, 65))} {
 		if _, err := newStore(&fakeExecutor{}, prefix); !errors.Is(err, lease.ErrInvalid) {
 			t.Fatalf("newStore(prefix %q) error = %v", prefix, err)
@@ -138,6 +144,14 @@ func TestStoreValidatesConfigurationAndInputs(t *testing.T) {
 	cancel()
 	if _, err := store.Acquire(ctx, "key", "owner", time.Minute, time.Time{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Acquire(canceled) error = %v", err)
+	}
+}
+
+func TestSemanticErrorRequiresExactErrorReplyShape(t *testing.T) {
+	t.Parallel()
+
+	if err := semanticError([]string{"ok", "held"}); err != nil {
+		t.Fatalf("semanticError(non-error reply) = %v", err)
 	}
 }
 

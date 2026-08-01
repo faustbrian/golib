@@ -319,7 +319,7 @@ func validate(ctx context.Context, key, owner string, ttl time.Duration) error {
 	if err := validateIdentity(ctx, key, owner); err != nil {
 		return err
 	}
-	if ttl <= 0 || ttl.Milliseconds() <= 0 {
+	if ttl.Milliseconds() <= 0 {
 		return lease.ErrInvalid
 	}
 	return nil

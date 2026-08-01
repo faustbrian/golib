@@ -59,25 +59,25 @@ func Compile(schedules ...Schedule) (*Registry, error) {
 	for _, schedule := range schedules {
 		if _, exists := registry.entries[schedule.Name]; exists {
 			errs = append(errs, fmt.Errorf("%w: %s", ErrDuplicateSchedule, schedule.Name))
-			continue
-		}
-		parsed, err := schedulercron.Compile(schedule.Expression, schedule.Timezone)
-		if err != nil {
-			classification := ErrInvalidExpression
-			if errors.Is(err, schedulercron.ErrInvalidTimezone) {
-				classification = ErrInvalidTimezone
+		} else {
+			parsed, err := schedulercron.Compile(schedule.Expression, schedule.Timezone)
+			if err != nil {
+				classification := ErrInvalidExpression
+				if errors.Is(err, schedulercron.ErrInvalidTimezone) {
+					classification = ErrInvalidTimezone
+				}
+				errs = append(errs, fmt.Errorf("%w: %s: %w", classification, schedule.Name, err))
+			} else {
+				registry.entries[schedule.Name] = compiledSchedule{
+					schedule: cloneSchedule(schedule),
+					cron: jitteredSchedule{
+						Schedule: parsed,
+						offset:   deterministicJitter(schedule.Identity, schedule.Jitter),
+					},
+				}
+				registry.names = append(registry.names, schedule.Name)
 			}
-			errs = append(errs, fmt.Errorf("%w: %s: %w", classification, schedule.Name, err))
-			continue
 		}
-		registry.entries[schedule.Name] = compiledSchedule{
-			schedule: cloneSchedule(schedule),
-			cron: jitteredSchedule{
-				Schedule: parsed,
-				offset:   deterministicJitter(schedule.Identity, schedule.Jitter),
-			},
-		}
-		registry.names = append(registry.names, schedule.Name)
 	}
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
@@ -155,7 +155,7 @@ func (registry *Registry) Due(name string, after, through time.Time) ([]Occurren
 		}
 		if !withinBounds(entry.schedule, next) {
 			if !entry.schedule.EndAt.IsZero() && next.After(entry.schedule.EndAt) {
-				break
+				return occurrences, nil
 			}
 			continue
 		}
