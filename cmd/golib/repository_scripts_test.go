@@ -1168,8 +1168,9 @@ func Value() int { return dependency.Value() }
 	}
 	sibling := filepath.Join(repository, "pkg", "example", "sibling", "sibling.go")
 	writeFile(t, sibling, "package sibling\n\nfunc Value() int { return 1 }\n")
+	consumerSource := filepath.Join(repository, "pkg", "example", "consumer", "consumer.go")
 	consumerTest := filepath.Join(repository, "pkg", "example", "consumer", "consumer_test.go")
-	writeFile(t, filepath.Join(repository, "pkg", "example", "consumer", "consumer.go"), `package consumer
+	writeFile(t, consumerSource, `package consumer
 
 import example "example.test/example"
 
@@ -1315,8 +1316,8 @@ func TestValue(t *testing.T) {
 	}
 }
 `)
-	if current := digest(); current == initial {
-		t.Fatal("reverse-dependent test did not change mutation digest")
+	if current := digest(); current != initial {
+		t.Fatalf("reverse-dependent test changed mutation digest: %s != %s", current, initial)
 	}
 	writeFile(t, consumerTest, `package consumer
 
@@ -1327,6 +1328,21 @@ func TestValue(t *testing.T) {
 		t.Fatal("wrong value")
 	}
 }
+`)
+	writeFile(t, consumerSource, `package consumer
+
+import example "example.test/example"
+
+func Value() int { return example.Value() + 0 }
+`)
+	if current := digest(); current != initial {
+		t.Fatalf("reverse-dependent source changed mutation digest: %s != %s", current, initial)
+	}
+	writeFile(t, consumerSource, `package consumer
+
+import example "example.test/example"
+
+func Value() int { return example.Value() }
 `)
 	writeFile(t, fixture, "two\n")
 	if current := digest(); current == initial {

@@ -437,8 +437,7 @@ package_digest() {
             (.ImportPath // "" | sub(" \\[.*$"; ""));
         [.[] | select(
             canonical_import == $target or
-            (.ForTest // "") == $target or
-            ((.Deps // []) | index($target)) != null
+            (.ForTest // "") == $target
         )] as $observers
         | ([$observers[].Dir] | unique) as $observer_directories
         | ([

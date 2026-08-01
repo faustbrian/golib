@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Restrict package mutation fingerprints to the target package's compiled
+  tests and dependency closure so unrelated reverse dependants cannot trigger
+  redundant mutation campaigns they do not observe.
 - Remove complete mutation scratch runs, including isolated Go caches and
   historical input copies, after every exit path, and safely recover abandoned
   owned runs without disturbing concurrent active runs.

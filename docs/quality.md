@@ -76,10 +76,13 @@ time, and count.
 
 Mutation remains more narrowly content-addressed than the aggregate gates. Its
 module fingerprint is assembled from the independently persisted package
-fingerprints, including compiled source, tests, embedded data, conventional
-fixture corpora, owned dependencies, policy, tool versions, and relevant
-environment. Consequently, a history-only change or documentation edit cannot
-force mutation execution when its actual inputs are unchanged.
+fingerprints, including the target package's compiled source and tests, their
+compiled dependency closure, embedded data, conventional fixture corpora,
+policy, tool versions, and relevant environment. Reverse dependants are not
+package-campaign observers unless their tests are explicitly executed by that
+campaign. Consequently, a history-only change, documentation edit, or unrelated
+reverse-dependant change cannot force mutation execution when its actual inputs
+are unchanged.
 
 Commands that intentionally modify the checkout (`format`, `tidy`, and
 `api-update`) do not produce verification checkpoints. Their resulting files
