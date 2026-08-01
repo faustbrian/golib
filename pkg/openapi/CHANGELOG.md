@@ -73,6 +73,8 @@
   mutation.
 - Make supported conversion source dialects explicit and verify OpenAPI 3.2
   media indexing and example-member traversal under mutation.
+- Preserve OpenAPI 3.0 schema and media traversal after skipped or malformed
+  members, with explicit defensive branches for malformed object shapes.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of

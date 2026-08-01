@@ -365,6 +365,38 @@ func TestOAS30CollectorCoversMalformedAndReferencedObjects(t *testing.T) {
 	}
 }
 
+func TestOAS30ConversionContinuesAfterSkippedSchemaAndMediaMembers(t *testing.T) {
+	t.Parallel()
+
+	converter := &oas30SchemaConverter{ctx: context.Background(), maxNodes: 100}
+	for _, raw := range []string{
+		`{"maximum":2,"exclusiveMaximum":true,"x-after":true}`,
+		`{"exclusiveMinimum":false,"x-after":true}`,
+	} {
+		converted, err := converter.schema(conversionValue(t, raw), "/schema")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if after, exists := converted.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+			t.Fatalf("schema member after skipped keyword = %#v", converted)
+		}
+	}
+
+	collector := oas30SchemaCollector{
+		locations:  map[string]struct{}{},
+		references: map[string]struct{}{},
+	}
+	collector.content(conversionValue(t, `{
+		"content":{
+			"application/broken":true,
+			"application/json":{"schema":{"type":"string"}}
+		}
+	}`), "/request")
+	if _, exists := collector.locations["/request/application~1json/schema"]; !exists {
+		t.Fatalf("schema locations = %#v", collector.locations)
+	}
+}
+
 func TestOAS32ConverterCoversScalarAndVisitFailures(t *testing.T) {
 	t.Parallel()
 

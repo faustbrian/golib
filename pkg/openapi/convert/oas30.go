@@ -105,7 +105,10 @@ func (converter *oas30SchemaConverter) schema(
 		switch member.Name {
 		case "type":
 			if enabledBoolean(value, "nullable") {
-				if typeName, scalar := member.Value.Text(); scalar && typeName != "null" {
+				if typeName, scalar := member.Value.Text(); scalar {
+					if typeName == "null" {
+						break
+					}
 					typeNameValue, _ := jsonvalue.String(typeName)
 					nullName, _ := jsonvalue.String("null")
 					member.Value, _ = jsonvalue.Array([]jsonvalue.Value{
@@ -143,7 +146,15 @@ func (converter *oas30SchemaConverter) schema(
 			if !enabled {
 				continue
 			}
-			if hasMinimum && minimum.Kind() == jsonvalue.NumberKind {
+			if hasMinimum {
+				if minimum.Kind() != jsonvalue.NumberKind {
+					converter.loss(
+						memberPointer,
+						"openapi.convert.exclusive-bound-without-value",
+						"exclusiveMinimum has no numeric minimum to preserve",
+					)
+					continue
+				}
 				member.Value = minimum
 			} else {
 				converter.loss(
@@ -166,7 +177,15 @@ func (converter *oas30SchemaConverter) schema(
 			if !enabled {
 				continue
 			}
-			if hasMaximum && maximum.Kind() == jsonvalue.NumberKind {
+			if hasMaximum {
+				if maximum.Kind() != jsonvalue.NumberKind {
+					converter.loss(
+						memberPointer,
+						"openapi.convert.exclusive-bound-without-value",
+						"exclusiveMaximum has no numeric maximum to preserve",
+					)
+					continue
+				}
 				member.Value = maximum
 			} else {
 				converter.loss(
@@ -292,8 +311,14 @@ func (converter *oas30SchemaConverter) loss(
 
 func enabledBoolean(value jsonvalue.Value, name string) bool {
 	member, exists := value.Lookup(name)
+	if !exists {
+		return false
+	}
 	enabled, valid := member.Bool()
-	return exists && valid && enabled
+	if !valid {
+		return false
+	}
+	return enabled
 }
 
 type oas30SchemaCollector struct {
@@ -332,10 +357,14 @@ func (collector oas30SchemaCollector) pathItem(value jsonvalue.Value, pointer st
 	for _, method := range []string{
 		"get", "put", "post", "delete", "options", "head", "patch", "trace",
 	} {
-		if operation, exists := value.Lookup(method); exists &&
-			operation.Kind() == jsonvalue.ObjectKind {
-			collector.operation(operation, pointer+"/"+method)
+		operation, exists := value.Lookup(method)
+		if !exists {
+			continue
 		}
+		if operation.Kind() != jsonvalue.ObjectKind {
+			continue
+		}
+		collector.operation(operation, pointer+"/"+method)
 	}
 }
 
@@ -352,7 +381,10 @@ func (collector oas30SchemaCollector) operation(value jsonvalue.Value, pointer s
 
 func (collector oas30SchemaCollector) parameters(value jsonvalue.Value, pointer string) {
 	parameters, exists := value.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
+	if !exists {
+		return
+	}
+	if parameters.Kind() != jsonvalue.ArrayKind {
 		return
 	}
 	elements, _ := parameters.Elements()
@@ -364,7 +396,10 @@ func (collector oas30SchemaCollector) parameters(value jsonvalue.Value, pointer 
 }
 
 func (collector oas30SchemaCollector) parameter(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	if schema, exists := value.Lookup("schema"); exists {
@@ -375,13 +410,20 @@ func (collector oas30SchemaCollector) parameter(value jsonvalue.Value, pointer s
 }
 
 func (collector oas30SchemaCollector) requestBody(value jsonvalue.Value, pointer string) {
-	if value.Kind() == jsonvalue.ObjectKind && !isReference(value) {
-		collector.content(value, pointer+"/content")
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
 	}
+	if isReference(value) {
+		return
+	}
+	collector.content(value, pointer+"/content")
 }
 
 func (collector oas30SchemaCollector) response(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	collector.content(value, pointer+"/content")
@@ -443,7 +485,10 @@ func (collector oas30SchemaCollector) referenceOrVisit(
 }
 
 func (collector oas30SchemaCollector) callback(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	members, _ := value.Members()
@@ -500,7 +545,10 @@ func (collector oas30SchemaCollector) mapReferences(
 
 func objectMember(value jsonvalue.Value, name string) (jsonvalue.Value, bool) {
 	member, exists := value.Lookup(name)
-	return member, exists && member.Kind() == jsonvalue.ObjectKind
+	if !exists {
+		return member, false
+	}
+	return member, member.Kind() == jsonvalue.ObjectKind
 }
 
 func isReference(value jsonvalue.Value) bool {
