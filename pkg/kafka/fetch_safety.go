@@ -284,7 +284,7 @@ func (decompressor *boundedDecompressor) decompressXerialSnappy(
 ) ([]byte, error) {
 	destination := make([]byte, 0, min(len(source), decompressor.maximumBytes))
 	for len(source) > 0 {
-		if len(source) < 4 {
+		if len(source) <= 4 {
 			return nil, ErrFetchBatchMalformed
 		}
 		encodedBytes := binary.BigEndian.Uint32(source)

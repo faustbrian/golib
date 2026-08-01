@@ -129,7 +129,7 @@ func TestBoundedDecompressorBoundsCumulativeXerialSnappyChunks(t *testing.T) {
 }
 
 func TestBoundedDecompressorDecodesXerialSnappyChunks(t *testing.T) {
-	const maximumBytes = 1 << 20
+	const maximumBytes = len("firstsecond")
 	compressor, err := kgo.DefaultCompressor(kgo.SnappyCompression())
 	if err != nil {
 		t.Fatalf("DefaultCompressor() error = %v", err)
@@ -164,6 +164,7 @@ func TestBoundedDecompressorRedactsMalformedCompressionErrors(t *testing.T) {
 		name   string
 		codec  kgo.CompressionCodecType
 		source []byte
+		exact  bool
 	}{
 		{name: "gzip", codec: kgo.CodecGzip, source: []byte("secret-gzip")},
 		{name: "snappy", codec: kgo.CodecSnappy, source: []byte("secret-snappy")},
@@ -171,6 +172,15 @@ func TestBoundedDecompressorRedactsMalformedCompressionErrors(t *testing.T) {
 		{name: "lz4", codec: kgo.CodecLz4, source: []byte("secret-lz4")},
 		{name: "zstd", codec: kgo.CodecZstd, source: []byte("secret-zstd")},
 		{name: "unknown", codec: kgo.CompressionCodecType(127), source: []byte("secret-unknown")},
+		{name: "header-only xerial", codec: kgo.CodecSnappy, source: []byte{
+			130, 83, 78, 65, 80, 80, 89, 0,
+			0, 0, 0, 1, 0, 0, 0, 1,
+		}},
+		{name: "empty xerial chunk", codec: kgo.CodecSnappy, exact: true, source: []byte{
+			130, 83, 78, 65, 80, 80, 89, 0,
+			0, 0, 0, 1, 0, 0, 0, 1,
+			0, 0, 0, 0,
+		}},
 		{name: "short xerial chunk", codec: kgo.CodecSnappy, source: append(
 			[]byte{130, 83, 78, 65, 80, 80, 89, 0, 0, 0, 0, 1, 0, 0, 0, 1},
 			1, 2, 3,
@@ -196,6 +206,9 @@ func TestBoundedDecompressorRedactsMalformedCompressionErrors(t *testing.T) {
 			)
 			if decoded != nil || !errors.Is(err, ErrFetchBatchMalformed) {
 				t.Fatalf("Decompress() = (%q, %v), want malformed", decoded, err)
+			}
+			if testCase.exact && err != ErrFetchBatchMalformed {
+				t.Fatalf("Decompress() error = %#v, want stable sentinel", err)
 			}
 			if err.Error() != ErrFetchBatchMalformed.Error() {
 				t.Fatalf("Decompress() diagnostic = %q", err)
@@ -328,6 +341,20 @@ func TestFetchDecompressionPolicyBoundsAndReleasesBufferedBytes(t *testing.T) {
 		t.Fatalf("third Decompress() = (%q, %v)", third, thirdErr)
 	}
 	pool.PutDecompressBytes(third)
+}
+
+func TestFetchDecompressionBudgetAdmitsItsExactLimit(t *testing.T) {
+	budget := &fetchDecompressionBudget{maximumBytes: 4}
+	if !budget.reserve(4) || budget.activeBytes.Load() != 4 {
+		t.Fatalf("reserve(exact limit) active = %d", budget.activeBytes.Load())
+	}
+	if budget.reserve(1) {
+		t.Fatal("reserve() exceeded the active decoded-byte limit")
+	}
+	budget.PutDecompressBytes(make([]byte, 0, 4))
+	if budget.activeBytes.Load() != 0 {
+		t.Fatalf("released active bytes = %d", budget.activeBytes.Load())
+	}
 }
 
 func TestRecycleFetchedRecordsReleasesFranzGoDecompressionMemory(t *testing.T) {
