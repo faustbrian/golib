@@ -16,6 +16,10 @@ func TestSelectAppliesExplicitImplicitAndDefaultMappings(t *testing.T) {
 		{Name: "mapping", Value: discriminatorObject(t, []jsonvalue.Member{
 			{Name: "dog", Value: discriminatorString(t, "Dog")},
 			{Name: "cat", Value: discriminatorString(t, "./Cat")},
+			{Name: "parent", Value: discriminatorString(t, "../Cat")},
+			{Name: "absolute", Value: discriminatorString(t, "/Cat")},
+			{Name: "fragment", Value: discriminatorString(t, "#Cat")},
+			{Name: "urn", Value: discriminatorString(t, "urn:cat")},
 		})},
 		{Name: "defaultMapping", Value: discriminatorString(t, "Fallback")},
 	})
@@ -27,6 +31,10 @@ func TestSelectAppliesExplicitImplicitAndDefaultMappings(t *testing.T) {
 	}{
 		{discriminatorInstance(t, "kind", "dog"), "Dog", discriminator.TargetSchemaName, discriminator.MatchExplicit},
 		{discriminatorInstance(t, "kind", "cat"), "./Cat", discriminator.TargetURIReference, discriminator.MatchExplicit},
+		{discriminatorInstance(t, "kind", "parent"), "../Cat", discriminator.TargetURIReference, discriminator.MatchExplicit},
+		{discriminatorInstance(t, "kind", "absolute"), "/Cat", discriminator.TargetURIReference, discriminator.MatchExplicit},
+		{discriminatorInstance(t, "kind", "fragment"), "#Cat", discriminator.TargetURIReference, discriminator.MatchExplicit},
+		{discriminatorInstance(t, "kind", "urn"), "urn:cat", discriminator.TargetURIReference, discriminator.MatchExplicit},
 		{discriminatorInstance(t, "kind", "bird"), "bird", discriminator.TargetSchemaName, discriminator.MatchImplicit},
 		{discriminatorObject(t, nil), "Fallback", discriminator.TargetSchemaName, discriminator.MatchDefault},
 	} {
