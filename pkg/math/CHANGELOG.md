@@ -13,3 +13,5 @@
   malformed limits and extreme intermediate values fail without runaway work.
 - Reject malformed deterministic binary frames at exact payload, header, sign,
   length, and exponent boundaries.
+- Harden integer parsing, arithmetic preflights, random range limits, and root
+  search boundaries against overflow and runaway work.

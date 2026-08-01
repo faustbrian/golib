@@ -68,11 +68,13 @@ func Parse(text string, options ParseOptions) (Integer, error) {
 	if options.Base < 2 || options.Base > 36 {
 		return Integer{}, fmt.Errorf("%w: base must be between 2 and 36", gomath.ErrInvalidArgument)
 	}
-	if text == "" || (!options.AllowWhitespace && strings.TrimSpace(text) != text) {
+	if text == "" {
 		return Integer{}, gomath.ErrInvalidSyntax
 	}
 	if options.AllowWhitespace {
 		text = strings.TrimSpace(text)
+	} else if strings.TrimSpace(text) != text {
+		return Integer{}, gomath.ErrInvalidSyntax
 	}
 	if text == "" {
 		return Integer{}, gomath.ErrInvalidSyntax
@@ -237,7 +239,7 @@ func (i Integer) Root(ctx context.Context, degree uint32, limits gomath.Limits) 
 	if degree > limits.MaxRootDegree {
 		return Integer{}, fmt.Errorf("%w: root degree", gomath.ErrLimitExceeded)
 	}
-	negative := i.Sign() < 0
+	negative := i.Sign() == -1
 	if negative && degree%2 == 0 {
 		return Integer{}, fmt.Errorf("%w: even root of a negative integer", gomath.ErrDomain)
 	}
@@ -262,20 +264,22 @@ func (i Integer) Root(ctx context.Context, degree uint32, limits gomath.Limits) 
 
 // Min returns the lesser operand.
 func Min(left, right Integer) Integer {
-	if left.Cmp(right) <= 0 {
+	switch left.Cmp(right) {
+	case -1, 0:
 		return left
+	default:
+		return right
 	}
-
-	return right
 }
 
 // Max returns the greater operand.
 func Max(left, right Integer) Integer {
-	if left.Cmp(right) >= 0 {
+	switch left.Cmp(right) {
+	case 0, 1:
 		return left
+	default:
+		return right
 	}
-
-	return right
 }
 
 // Clamp restricts value to the inclusive interval [minimum, maximum].
@@ -307,7 +311,10 @@ func LCM(ctx context.Context, left, right Integer, limits gomath.Limits) (Intege
 	if err := checkIntegerOperands(limits, &left.n, &right.n); err != nil {
 		return Integer{}, err
 	}
-	if left.Sign() == 0 || right.Sign() == 0 {
+	if left.Sign() == 0 {
+		return Integer{}, nil
+	}
+	if right.Sign() == 0 {
 		return Integer{}, nil
 	}
 	gcd := new(big.Int).GCD(nil, nil, &left.n, &right.n)
@@ -443,7 +450,16 @@ func validateDigits(text string, base int, allowUnderscores bool) (string, int, 
 	for index := 0; index < len(text); index++ {
 		character := text[index]
 		if character == '_' {
-			if !allowUnderscores || count == 0 || previousUnderscore || index == len(text)-1 {
+			if !allowUnderscores {
+				return "", 0, false
+			}
+			if count == 0 {
+				return "", 0, false
+			}
+			if previousUnderscore {
+				return "", 0, false
+			}
+			if index == len(text)-1 {
 				return "", 0, false
 			}
 			previousUnderscore = true
@@ -480,9 +496,9 @@ func nthRoot(ctx context.Context, value *big.Int, degree uint32, limits gomath.L
 		return new(big.Int), nil
 	}
 	low := new(big.Int)
-	high := new(big.Int).Lsh(big.NewInt(1), uint((value.BitLen()+int(degree)-1)/int(degree)+1))
+	high := new(big.Int).Lsh(big.NewInt(1), uint(rootUpperBoundShift(value.BitLen(), degree)))
 	one := big.NewInt(1)
-	for new(big.Int).Sub(high, low).Cmp(one) > 0 {
+	for new(big.Int).Sub(high, low).Cmp(one) != 0 {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -490,9 +506,7 @@ func nthRoot(ctx context.Context, value *big.Int, degree uint32, limits gomath.L
 		power := new(big.Int).Exp(mid, new(big.Int).SetUint64(uint64(degree)), nil)
 		if power.BitLen() > limits.MaxIntermediateBits {
 			high = mid
-			continue
-		}
-		if power.Cmp(value) <= 0 {
+		} else if power.Cmp(value) <= 0 {
 			low = mid
 		} else {
 			high = mid
@@ -500,4 +514,8 @@ func nthRoot(ctx context.Context, value *big.Int, degree uint32, limits gomath.L
 	}
 
 	return low, nil
+}
+
+func rootUpperBoundShift(bitLength int, degree uint32) int {
+	return (bitLength-1)/int(degree) + 2
 }
