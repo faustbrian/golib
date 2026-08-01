@@ -59,6 +59,46 @@ func TestSignatureVerifierAuthenticatesExactRawMessage(t *testing.T) {
 	}
 }
 
+func TestSignatureVerifierAcceptsExactRequestLimits(t *testing.T) {
+	t.Parallel()
+
+	const keyPrefix = "arn:aws:kms:r:a:key/"
+	keyReference := keyPrefix + strings.Repeat(
+		"k",
+		maximumSignatureKeyBytes-len(keyPrefix),
+	)
+	client := &recordingSignatureClient{
+		output: &kms.VerifyOutput{
+			KeyId:            aws.String(keyReference),
+			SignatureValid:   true,
+			SigningAlgorithm: types.SigningAlgorithmSpecEcdsaSha256,
+		},
+	}
+	verifier, err := NewSignatureVerifier(
+		client,
+		types.SigningAlgorithmSpecEcdsaSha256,
+	)
+	if err != nil {
+		t.Fatalf("NewSignatureVerifier() error = %v", err)
+	}
+	message := bytes.Repeat([]byte{0x42}, maximumRawSignatureMessageBytes)
+	signature := bytes.Repeat([]byte{0x24}, maximumSignatureBytes)
+	if err := verifier.Verify(
+		context.Background(),
+		keyReference,
+		message,
+		signature,
+	); err != nil {
+		t.Fatalf("Verify() at request limits error = %v", err)
+	}
+	if client.input == nil ||
+		len(aws.ToString(client.input.KeyId)) != maximumSignatureKeyBytes ||
+		len(client.input.Message) != maximumRawSignatureMessageBytes ||
+		len(client.input.Signature) != maximumSignatureBytes {
+		t.Fatalf("Verify input lengths = %#v", client.input)
+	}
+}
+
 func TestSignatureVerifierRejectsInvalidConstructionAndRequests(t *testing.T) {
 	t.Parallel()
 
@@ -153,6 +193,41 @@ func TestSignatureVerifierRejectsInvalidConstructionAndRequests(t *testing.T) {
 			ctx:          context.Background(),
 			keyReference: "arn:aws:kms:eu-north-1:123456789012:alias/example",
 			message:      []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"short ARN": {
+			ctx: context.Background(), keyReference: "arn:aws:kms:r:a",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"wrong ARN prefix": {
+			ctx: context.Background(), keyReference: "notarn:aws:kms:r:a:key/k",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"empty ARN partition": {
+			ctx: context.Background(), keyReference: "arn::kms:r:a:key/k",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"wrong ARN service": {
+			ctx: context.Background(), keyReference: "arn:aws:notkms:r:a:key/k",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"empty ARN region": {
+			ctx: context.Background(), keyReference: "arn:aws:kms::a:key/k",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"empty ARN account": {
+			ctx: context.Background(), keyReference: "arn:aws:kms:r::key/k",
+			message: []byte("message"), signature: []byte("signature"),
+			want: ErrInvalidSignatureRequest,
+		},
+		"empty ARN key": {
+			ctx: context.Background(), keyReference: "arn:aws:kms:r:a:key/",
+			message: []byte("message"), signature: []byte("signature"),
 			want: ErrInvalidSignatureRequest,
 		},
 		"empty message": {

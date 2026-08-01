@@ -20,5 +20,7 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 - Increased the authenticated plaintext bound to 4 MiB for bounded encrypted
   evidence and object-storage payloads.
+- Hardened exact context, envelope, wrapped-key, and AWS KMS signature request
+  boundaries, including minimum and maximum valid envelope encodings.
 
 No release has been published.

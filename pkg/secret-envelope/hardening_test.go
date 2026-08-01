@@ -45,6 +45,55 @@ func TestContextRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestContextAcceptsExactLimitsAndRejectsPartialState(t *testing.T) {
+	t.Parallel()
+
+	maximumEntries := make(map[string]string, maxContextEntries)
+	for index := range maxContextEntries {
+		maximumEntries[fmt.Sprintf("entry-%02d", index)] = "value"
+	}
+	if _, err := NewContext(maximumEntries); err != nil {
+		t.Fatalf("NewContext() at entry limit error = %v", err)
+	}
+	if _, err := NewContext(map[string]string{
+		strings.Repeat("k", maxContextKeySize): strings.Repeat(
+			"v",
+			maxContextValueSize,
+		),
+	}); err != nil {
+		t.Fatalf("NewContext() at key and value limits error = %v", err)
+	}
+
+	exactSize := make(map[string]string, 16)
+	for index := range 15 {
+		exactSize[fmt.Sprintf("key-%04d", index)] = strings.Repeat(
+			"v",
+			maxContextValueSize,
+		)
+	}
+	exactSize["key-0015"] = strings.Repeat("v", 768)
+	encryptionContext, err := NewContext(exactSize)
+	if err != nil {
+		t.Fatalf("NewContext() at encoded-size limit error = %v", err)
+	}
+	if len(encryptionContext.AdditionalData()) != maxContextSize {
+		t.Fatalf(
+			"context size = %d, want %d",
+			len(encryptionContext.AdditionalData()),
+			maxContextSize,
+		)
+	}
+
+	for name, candidate := range map[string]Context{
+		"values-only": {values: map[string]string{"key": "value"}},
+		"data-only":   {additionalData: []byte("encoded")},
+	} {
+		if candidate.valid() {
+			t.Fatalf("%s partial context reported valid", name)
+		}
+	}
+}
+
 func TestEnvelopeRepresentationsAreRedactedAndCallerOwned(t *testing.T) {
 	t.Parallel()
 
@@ -188,6 +237,64 @@ func TestEnvelopeRejectsInvalidFieldsAndEncodings(t *testing.T) {
 				t.Fatalf("MarshalBinary() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestEnvelopeAcceptsExactSizeLimits(t *testing.T) {
+	t.Parallel()
+
+	minimum := Envelope{
+		keyReference:     "k",
+		encryptedDataKey: []byte{0x42},
+		nonce:            bytes.Repeat([]byte{0x24}, NonceSize),
+		ciphertext:       bytes.Repeat([]byte{0x42}, 16),
+	}
+	minimumEncoded, err := minimum.MarshalBinary()
+	if err != nil {
+		t.Fatalf("minimum MarshalBinary() error = %v", err)
+	}
+	if len(minimumEncoded) != minimumEnvelopeSize {
+		t.Fatalf(
+			"minimum envelope size = %d, want %d",
+			len(minimumEncoded),
+			minimumEnvelopeSize,
+		)
+	}
+	if _, err = ParseEnvelope(minimumEncoded); err != nil {
+		t.Fatalf("ParseEnvelope(minimum) error = %v", err)
+	}
+
+	maximum := Envelope{
+		keyReference: strings.Repeat("k", maxKeyReferenceSize),
+		encryptedDataKey: bytes.Repeat(
+			[]byte{0x42},
+			maxEncryptedDataKeySize,
+		),
+		nonce: bytes.Repeat([]byte{0x24}, NonceSize),
+		ciphertext: bytes.Repeat(
+			[]byte{0x42},
+			MaxPlaintextSize+16,
+		),
+	}
+	maximumEncoded, err := maximum.MarshalBinary()
+	if err != nil {
+		t.Fatalf("maximum MarshalBinary() error = %v", err)
+	}
+	if len(maximumEncoded) != MaxEnvelopeSize {
+		t.Fatalf(
+			"maximum envelope size = %d, want %d",
+			len(maximumEncoded),
+			MaxEnvelopeSize,
+		)
+	}
+	parsed, err := ParseEnvelope(maximumEncoded)
+	if err != nil {
+		t.Fatalf("ParseEnvelope(maximum) error = %v", err)
+	}
+	if len(parsed.keyReference) != maxKeyReferenceSize ||
+		len(parsed.encryptedDataKey) != maxEncryptedDataKeySize ||
+		len(parsed.ciphertext) != MaxPlaintextSize+16 {
+		t.Fatal("maximum envelope fields changed during parsing")
 	}
 }
 
@@ -389,6 +496,47 @@ func TestNewDataKeyRejectsInvalidMaterial(t *testing.T) {
 				t.Fatalf("NewDataKey() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestServiceAcceptsMaximumWrappedKeyMaterial(t *testing.T) {
+	t.Parallel()
+
+	wrapped := bytes.Repeat([]byte{0x42}, maxEncryptedDataKeySize)
+	keyReference := strings.Repeat("k", maxKeyReferenceSize)
+	dataKey, err := NewDataKey(
+		bytes.Repeat([]byte{0x24}, DataKeySize),
+		wrapped,
+		keyReference,
+	)
+	if err != nil {
+		t.Fatalf("NewDataKey() at limits error = %v", err)
+	}
+	if len(dataKey.EncryptedDataKey()) != maxEncryptedDataKeySize {
+		t.Fatal("NewDataKey() changed maximum wrapped key")
+	}
+
+	encryptionContext, err := NewContext(map[string]string{"service": "test"})
+	if err != nil {
+		t.Fatalf("NewContext() error = %v", err)
+	}
+	service, err := NewService(
+		&recordingProvider{rawDataKey: &dataKey},
+		WithNonceReader(bytes.NewReader(bytes.Repeat([]byte{0x11}, NonceSize))),
+	)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	envelope, err := service.Encrypt(context.Background(), EncryptRequest{
+		Plaintext:    []byte("secret"),
+		KeyReference: keyReference,
+		Context:      encryptionContext,
+	})
+	if err != nil {
+		t.Fatalf("Encrypt() with maximum wrapped key error = %v", err)
+	}
+	if len(envelope.encryptedDataKey) != maxEncryptedDataKeySize {
+		t.Fatal("Encrypt() changed maximum wrapped key")
 	}
 }
 

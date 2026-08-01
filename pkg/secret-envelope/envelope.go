@@ -16,6 +16,7 @@ const (
 	maxKeyReferenceSize          = 2048
 	maxEncryptedDataKeySize      = 64 << 10
 	envelopeHeaderSize           = 17
+	minimumEnvelopeSize          = envelopeHeaderSize + 1 + 1 + NonceSize + 16
 	envelopeVersion         byte = 1
 	algorithmAES256GCM      byte = 1
 	envelopeMagic                = "SEV1"
@@ -72,7 +73,7 @@ func (envelope Envelope) MarshalBinary() ([]byte, error) {
 		return nil, ErrInvalidEnvelope
 	}
 
-	encoded := make([]byte, envelopeHeaderSize, envelope.encodedSize())
+	encoded := make([]byte, envelope.encodedSize())
 	copy(encoded[:4], envelopeMagic)
 	encoded[4] = envelopeVersion
 	encoded[5] = algorithmAES256GCM
@@ -83,17 +84,18 @@ func (envelope Envelope) MarshalBinary() ([]byte, error) {
 	)
 	encoded[12] = byte(len(envelope.nonce))
 	binary.BigEndian.PutUint32(encoded[13:17], uint32(len(envelope.ciphertext)))
-	encoded = append(encoded, envelope.keyReference...)
-	encoded = append(encoded, envelope.encryptedDataKey...)
-	encoded = append(encoded, envelope.nonce...)
-	encoded = append(encoded, envelope.ciphertext...)
+	offset := envelopeHeaderSize
+	offset += copy(encoded[offset:], envelope.keyReference)
+	offset += copy(encoded[offset:], envelope.encryptedDataKey)
+	offset += copy(encoded[offset:], envelope.nonce)
+	copy(encoded[offset:], envelope.ciphertext)
 
 	return encoded, nil
 }
 
 // ParseEnvelope validates and copies a versioned persistence representation.
 func ParseEnvelope(encoded []byte) (Envelope, error) {
-	if len(encoded) < envelopeHeaderSize ||
+	if len(encoded) < minimumEnvelopeSize ||
 		len(encoded) > MaxEnvelopeSize ||
 		string(encoded[:4]) != envelopeMagic ||
 		encoded[4] != envelopeVersion ||

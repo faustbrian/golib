@@ -145,8 +145,16 @@ func validRawSignatureAlgorithm(
 }
 
 func validSignatureKeyReference(value string) bool {
-	if value == "" || len(value) > maximumSignatureKeyBytes ||
-		strings.TrimSpace(value) != value || !utf8.ValidString(value) {
+	if value == "" {
+		return false
+	}
+	if len(value) > maximumSignatureKeyBytes {
+		return false
+	}
+	if strings.TrimSpace(value) != value {
+		return false
+	}
+	if !utf8.ValidString(value) {
 		return false
 	}
 	for _, character := range value {
