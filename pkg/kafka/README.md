@@ -249,9 +249,14 @@ older duplicate member, its consumer permanently rejects new runners with
 cause; shut it down and construct a new consumer with a corrected identity.
 
 Consumer fetches default to at most four concurrent broker requests, 50 MiB per
-request, and 1 MiB per partition. All three limits are explicit and validated.
+request, and 1 MiB per partition. A separate 64 MiB hard broker-response cap,
+8 MiB decoded-batch cap, and 64 MiB active decoded-buffer budget prevent a
+broker progress exception or compressed batch from bypassing memory policy.
+All limits are explicit and validated.
 A broker can return one record batch larger than the per-partition limit so a
-consumer can make progress; broker topic limits must remain compatible.
+consumer can make progress; the hard response and decompression limits still
+fail closed before handler admission or offset settlement. Broker topic limits
+must remain compatible.
 Application callbacks default to one at a time. Set
 `MaxConcurrentHandlers` explicitly, up to 64, to process independent
 partitions concurrently; records inside each partition remain sequential and

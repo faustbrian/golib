@@ -86,6 +86,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	deadLetterSourceTopic := topic + "-dead-letter-source"
 	deadLetterTopic := topic + "-dead-letter-v3"
 	replayTopic := topic + "-replay"
+	fetchSafetyTopic := topic + "-fetch-safety"
+	fetchSafetyOutputTopic := topic + "-fetch-safety-output"
 	var brokerConnectObserved atomic.Bool
 	var brokerRequestObserved atomic.Bool
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
@@ -172,6 +174,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, deadLetterSourceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, deadLetterTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, replayTopic, 2)
+	createIntegrationTopic(t, ctx, brokers, fetchSafetyTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, fetchSafetyOutputTopic, 1)
 	assertInspectionState(t, ctx, brokers, explicitTopic)
 	if err := producer.Health(ctx); err != nil {
 		t.Fatalf("check Kafka health: %v", err)
@@ -308,6 +312,209 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		deadLetterTopic,
 	)
 	proveReplayPolicy(t, ctx, brokers, producer, replayTopic)
+	proveFetchDecompressionPolicy(
+		t,
+		ctx,
+		brokers,
+		fetchSafetyTopic,
+		fetchSafetyOutputTopic,
+	)
+}
+
+func proveFetchDecompressionPolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	sourceTopic string,
+	outputTopic string,
+) {
+	t.Helper()
+	rawProducer, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-fetch-safety-fixture-producer"),
+		kgo.RequiredAcks(kgo.AllISRAcks()),
+		kgo.RecordPartitioner(kgo.ManualPartitioner()),
+		kgo.ProducerBatchCompression(kgo.GzipCompression()),
+		kgo.ProducerBatchMaxBytes(2<<20),
+		kgo.ProducerLinger(0),
+	)
+	if err != nil {
+		t.Fatalf("construct fetch-safety producer: %v", err)
+	}
+	defer rawProducer.Close()
+	records := make([]*kgo.Record, 3)
+	for index := range records {
+		records[index] = &kgo.Record{
+			Topic:     sourceTopic,
+			Partition: 0,
+			Key:       []byte(fmt.Sprintf("fetch-safety-%d", index)),
+			Value:     []byte(strings.Repeat("a", 400<<10)),
+		}
+	}
+	for index, result := range rawProducer.ProduceSync(ctx, records...) {
+		if result.Err != nil {
+			t.Fatalf("produce fetch-safety record %d: %v", index, result.Err)
+		}
+	}
+
+	limits := kafka.DefaultMessageLimits()
+	limits.MaxValueBytes = 500 << 10
+	consumerGroup := "golib-fetch-safety-consumer"
+	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+		Brokers:                      brokers,
+		ClientID:                     consumerGroup,
+		GroupID:                      consumerGroup,
+		Topics:                       []string{sourceTopic},
+		ResetOffset:                  kafka.OffsetEarliest,
+		Limits:                       limits,
+		MaxPollRecords:               3,
+		MaxConcurrentFetches:         1,
+		FetchMaxBytes:                1 << 20,
+		FetchMaxPartitionBytes:       1 << 20,
+		BrokerMaxReadBytes:           2 << 20,
+		MaxDecompressedBatchBytes:    1 << 20,
+		MaxBufferedDecompressedBytes: 2 << 20,
+		Security:                     kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct fetch-safety consumer: %v", err)
+	}
+	var consumerCalls atomic.Int32
+	result, consumeErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+		context.Context,
+		kafka.ConsumedMessage,
+	) error {
+		consumerCalls.Add(1)
+
+		return nil
+	}))
+	if result.Committed != 0 || consumerCalls.Load() != 0 ||
+		!errors.Is(consumeErr, kafka.ErrFetchBatchTooLarge) {
+		t.Fatalf(
+			"fetch-safety consumer result = %#v, calls = %d, error = %v",
+			result,
+			consumerCalls.Load(),
+			consumeErr,
+		)
+	}
+	var consumerFailure *kafka.ConsumerError
+	if !errors.As(consumeErr, &consumerFailure) ||
+		consumerFailure.Category() != kafka.ErrorOversized {
+		t.Fatalf("fetch-safety consumer error = %v", consumeErr)
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		sourceTopic,
+		consumerGroup,
+		map[int32]int64{0: -1},
+	)
+	closeIntegrationConsumer(t, consumer)
+
+	transactionGroup := "golib-fetch-safety-transaction"
+	processor, err := kafka.NewTransactionProcessor(kafka.TransactionProcessorConfig{
+		Connection: kafka.TransactionConnectionConfig{
+			Brokers:  brokers,
+			ClientID: transactionGroup,
+			Security: kafka.DevelopmentPlaintextSecurity(),
+		},
+		Group: kafka.TransactionGroupConfig{
+			GroupID:                      transactionGroup,
+			Topics:                       []string{sourceTopic},
+			ResetOffset:                  kafka.OffsetEarliest,
+			MaxPollRecords:               3,
+			MaxConcurrentFetches:         1,
+			FetchMaxBytes:                1 << 20,
+			FetchMaxPartitionBytes:       1 << 20,
+			BrokerMaxReadBytes:           2 << 20,
+			MaxDecompressedBatchBytes:    1 << 20,
+			MaxBufferedDecompressedBytes: 2 << 20,
+		},
+		Output: kafka.TransactionOutputConfig{
+			AllowedTopics:   []string{outputTopic},
+			TransactionalID: transactionGroup + "-0",
+		},
+		Limits: limits,
+	})
+	if err != nil {
+		t.Fatalf("construct fetch-safety processor: %v", err)
+	}
+	var transactionCalls atomic.Int32
+	transactionResult, transactionErr := processor.RunOnce(
+		ctx,
+		kafka.TransactionHandlerFunc(func(
+			context.Context,
+			kafka.ConsumedRecord,
+			kafka.Transaction,
+		) error {
+			transactionCalls.Add(1)
+
+			return nil
+		}),
+	)
+	if transactionResult.Committed || transactionCalls.Load() != 0 ||
+		!errors.Is(transactionErr, kafka.ErrFetchBatchTooLarge) {
+		t.Fatalf(
+			"fetch-safety transaction result = %#v, calls = %d, error = %v",
+			transactionResult,
+			transactionCalls.Load(),
+			transactionErr,
+		)
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		sourceTopic,
+		transactionGroup,
+		map[int32]int64{0: -1},
+	)
+	if err := processor.Close(); err != nil {
+		t.Fatalf("close fetch-safety processor: %v", err)
+	}
+
+	replay, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-fetch-safety-replay",
+		Ranges: []kafka.ReplayRange{{
+			Topic: sourceTopic, Partition: 0, StartOffset: 0, EndOffset: 3,
+		}},
+		SideEffects:                  kafka.ReplaySideEffectsAllowed,
+		Limits:                       limits,
+		MaxPollRecords:               3,
+		MaxConcurrentFetches:         1,
+		FetchMaxBytes:                1 << 20,
+		FetchMaxPartitionBytes:       1 << 20,
+		BrokerMaxReadBytes:           2 << 20,
+		MaxDecompressedBatchBytes:    1 << 20,
+		MaxBufferedDecompressedBytes: 2 << 20,
+		Security:                     kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct fetch-safety replay: %v", err)
+	}
+	var replayCalls atomic.Int32
+	replayResult, replayErr := replay.Replay(ctx, kafka.ReplayHandlerFunc(func(
+		context.Context,
+		kafka.ReplayRecord,
+	) error {
+		replayCalls.Add(1)
+
+		return nil
+	}))
+	if replayResult.Processed != 0 || replayCalls.Load() != 0 ||
+		!errors.Is(replayErr, kafka.ErrFetchBatchTooLarge) {
+		t.Fatalf(
+			"fetch-safety replay result = %#v, calls = %d, error = %v",
+			replayResult,
+			replayCalls.Load(),
+			replayErr,
+		)
+	}
+	if err := replay.Close(); err != nil {
+		t.Fatalf("close fetch-safety replay: %v", err)
+	}
 }
 
 func validateIntegrationKafkaVersion(version string) error {

@@ -52,6 +52,9 @@ func TestTransactionProcessorConfigNormalizesAndOwnsPolicy(t *testing.T) {
 	}
 	if normalized.Group.MaxPollRecords != 100 ||
 		normalized.Group.ProcessingTimeout != 30*time.Second ||
+		normalized.Group.BrokerMaxReadBytes != 64<<20 ||
+		normalized.Group.MaxDecompressedBatchBytes != 8<<20 ||
+		normalized.Group.MaxBufferedDecompressedBytes != 64<<20 ||
 		normalized.Connection.Protocol.MinimumVersion != "2.5" ||
 		normalized.Output.MaxOutputRecords != 1_000 ||
 		normalized.Output.MaxOutputBytes != 10<<20 ||
@@ -70,6 +73,9 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 	config.Group.ResetOffset = OffsetLatest
 	config.Group.InstanceID = "transaction-worker-instance"
 	config.Group.Rack = "rack-a"
+	config.Group.BrokerMaxReadBytes = 70 << 20
+	config.Group.MaxDecompressedBatchBytes = 9 << 20
+	config.Group.MaxBufferedDecompressedBytes = 10 << 20
 	if err := config.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
@@ -88,6 +94,7 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 				client.OptValue(kgo.AlwaysRetryEOF) != true ||
 				client.OptValue(kgo.StopProducerOnDataLossDetected) != true ||
 				client.OptValue(kgo.AllowIdempotentProduceCancellation) != false ||
+				client.OptValue(kgo.BrokerMaxReadBytes) != int32(70<<20) ||
 				client.OptValue(kgo.MetadataMinAge) != 250*time.Millisecond ||
 				!ok || !minimum.Equal(kversion.FromString("2.5")) {
 				t.Fatalf("unsafe transaction processor options")
@@ -98,6 +105,13 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 			}
 			if got := client.OptValue(kgo.Rack); got != "rack-a" {
 				t.Fatalf("Rack option = %#v", got)
+			}
+			decompressor, ok := client.OptValue(kgo.WithDecompressor).(*boundedDecompressor)
+			if !ok || decompressor.maximumBytes != 9<<20 {
+				t.Fatalf("WithDecompressor option = %#v", decompressor)
+			}
+			if budget := fetchBudgetFromClient(t, client); budget.maximumBytes != 10<<20 {
+				t.Fatalf("decompression budget = %#v", budget)
 			}
 			retryBackoff, ok := client.OptValue(kgo.RetryBackoffFn).(func(int) time.Duration)
 			if !ok || retryBackoff(10) < 800*time.Millisecond ||
@@ -193,6 +207,17 @@ func TestTransactionProcessorConfigRejectsUnsafePolicyBeforeConstruction(
 		},
 		"pre KIP-447 protocol": func(config *TransactionProcessorConfig) {
 			config.Connection.Protocol.MinimumVersion = "2.4"
+		},
+		"broker read below fetch": func(config *TransactionProcessorConfig) {
+			config.Group.FetchMaxBytes = 2 << 20
+			config.Group.BrokerMaxReadBytes = 1 << 20
+		},
+		"decoded batch below record policy": func(config *TransactionProcessorConfig) {
+			config.Group.MaxDecompressedBatchBytes = maximumRecordPolicyBytes(DefaultMessageLimits()) - 1
+		},
+		"decoded buffer below batch": func(config *TransactionProcessorConfig) {
+			config.Group.MaxDecompressedBatchBytes = 9 << 20
+			config.Group.MaxBufferedDecompressedBytes = 8 << 20
 		},
 	} {
 		mutate := mutate

@@ -55,8 +55,9 @@ to every multi-partition revocation or ownership-loss interleaving.
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest
 or latest reset policy. Construction validates all policy before franz-go
 allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
-poll records, fetch wait, session, rebalance, heartbeat, handler, commit, and
-dial durations are bounded.
+the hard encoded broker response, each decoded record batch, active decoded
+buffers, poll records, fetch wait, session, rebalance, heartbeat, handler,
+commit, and dial durations are bounded.
 The package rejects a backend poll above `MaxPollRecords` with
 `ErrTooManyFetchedRecords` before invoking a handler, even though franz-go is
 also configured with that limit.
@@ -78,6 +79,19 @@ commit, and release the poll gate.
 topic bound, and each fetched record must fit every key, value, header count,
 header key, individual header value, and aggregate header bound before the
 package copies header metadata or runs a handler.
+Compressed batches are decoded through the package's bounded decoder before
+this record validation. `ErrFetchBatchTooLarge` identifies one expanded batch;
+`ErrFetchDecompressedBufferFull` identifies aggregate active decoded storage.
+Both are non-retryable `ErrorOversized` poll outcomes for the current policy,
+admit no record from the rejected batch, and do not commit its source offset.
+When a response contains earlier complete batches, franz-go may return that
+contiguous prefix and retry the rejected trailing batch on a later poll; only
+the successfully handled prefix can be committed. Records are
+recycled only after processing, observations, and settlement complete; retain
+bytes explicitly when they must outlive the callback.
+This reclaimable active-buffer lifecycle applies to Kafka record batches
+(magic 2). Legacy compressed message sets are unsupported; see the
+[compatibility matrix](compatibility.md).
 
 ## Consumer infrastructure failures
 

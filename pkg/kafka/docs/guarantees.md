@@ -317,7 +317,26 @@ Consumed byte slices reference the current fetch. Use `ConsumedRecord.Retain`
 before keeping a record beyond its handler call. Configuration and record
 bounds prevent unbounded caller-controlled allocation inside this module.
 Consumer fetch policy limits concurrent requests, response bytes, and bytes per
-partition. These are compressed-fetch controls rather than a strict heap cap:
-franz-go may accept one batch above the partition limit to make progress, and
-decompression can expand the retained bytes. Broker record limits remain part
-of the deployment safety boundary.
+partition. Kafka may accept one batch above the partition fetch limit to make
+progress, so `BrokerMaxReadBytes` is the separate hard encoded-response cap.
+The package replaces franz-go's multi-gigabyte decompression ceiling with an
+explicit per-batch limit and a client-wide active decoded-buffer budget.
+Decoded storage is recycled only after observations, handlers, settlement, or
+transaction completion no longer need the borrowed record. A rejected batch
+never reaches a handler and never advances a source offset. Broker and topic
+record limits remain part of the deployment safety boundary.
+If a response contains complete batches before a rejected trailing batch,
+franz-go may return that contiguous prefix and retry the rejected batch on a
+later poll. The package may process and settle only the returned prefix; it
+never commits across the rejected batch.
+
+Active-buffer reclamation is supported for Kafka record batches (magic 2), the
+format produced by the supported Kafka broker versions. Legacy compressed
+message sets (magic 0 or 1) remain readable through franz-go and still obey the
+hard encoded-response and decoded-batch limits, but franz-go does not attach
+their decompression allocation to returned records. The package therefore
+cannot reclaim that budget entry when processing completes. Repeated legacy
+reads eventually fail closed with `ErrFetchDecompressedBufferFull`; operators
+must rewrite legacy segments or replace the client. This format is unverified
+and unsupported rather than silently claimed to have the modern lifecycle
+guarantee.

@@ -2,12 +2,47 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+func FuzzFetchDecompression(f *testing.F) {
+	f.Add(uint8(kgo.CodecNone), uint32(4), []byte("1234"))
+	f.Add(uint8(kgo.CodecGzip), uint32(1<<20), []byte("malformed"))
+	f.Add(uint8(kgo.CodecSnappy), uint32(1<<20), []byte{
+		130, 83, 78, 65, 80, 80, 89, 0,
+		0, 0, 0, 1, 0, 0, 0, 1,
+	})
+	f.Add(uint8(127), uint32(0), []byte("unknown"))
+
+	f.Fuzz(func(t *testing.T, codec uint8, maximum uint32, source []byte) {
+		const maximumFuzzBytes = 1 << 20
+		if len(source) > maximumFuzzBytes {
+			source = source[:maximumFuzzBytes]
+		}
+		maximumBytes := int(maximum%maximumFuzzBytes) + 1
+		decoded, err := newBoundedDecompressor(maximumBytes).Decompress(
+			source,
+			kgo.CompressionCodecType(codec%8),
+		)
+		if len(decoded) > maximumBytes {
+			t.Fatalf("decoded bytes = %d, maximum = %d", len(decoded), maximumBytes)
+		}
+		if err != nil && decoded != nil {
+			t.Fatalf("Decompress() returned bytes with error %v", err)
+		}
+		if err != nil &&
+			!errors.Is(err, ErrFetchBatchTooLarge) &&
+			!errors.Is(err, ErrFetchBatchMalformed) {
+			t.Fatalf("Decompress() returned unstable error %v", err)
+		}
+	})
+}
 
 func FuzzConsumerConfig(f *testing.F) {
 	f.Add(

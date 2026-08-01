@@ -1,12 +1,34 @@
 package kafka
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+func BenchmarkBoundedFetchDecompression(b *testing.B) {
+	source := bytes.Repeat([]byte("record-batch"), 8<<10)
+	compressor, err := kgo.DefaultCompressor(kgo.ZstdCompression())
+	if err != nil {
+		b.Fatal(err)
+	}
+	var destination bytes.Buffer
+	compressed, codec := compressor.Compress(&destination, source)
+	decompressor, budget := newFetchDecompressionPolicy(1<<20, 8<<20)
+
+	b.SetBytes(int64(len(source)))
+	b.ReportAllocs()
+	for b.Loop() {
+		decoded, decodeErr := decompressor.Decompress(compressed, codec)
+		if decodeErr != nil || len(decoded) != len(source) {
+			b.Fatalf("Decompress() = (%d bytes, %v)", len(decoded), decodeErr)
+		}
+		budget.PutDecompressBytes(decoded)
+	}
+}
 
 func BenchmarkMessageValidation(b *testing.B) {
 	message := Message{

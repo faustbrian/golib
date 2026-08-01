@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- bound encoded broker responses, individual decompressed Kafka record
+  batches, and aggregate active decoded buffers across consumer groups,
+  consume-transform-produce, and replay; oversized compressed input now fails
+  before handler admission or source settlement with stable redacted errors
 - preserve separate synchronous and asynchronous benchmark environment
   snapshots so extending the harness cannot replace the exact execution
   revision and input fingerprints bound to earlier raw results

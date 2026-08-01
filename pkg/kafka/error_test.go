@@ -26,6 +26,7 @@ func TestDeliveryErrorClassifiesKafkaFailuresWithoutRenderingCause(t *testing.T)
 		{name: "authorization", cause: kerr.TopicAuthorizationFailed, category: ErrorAuthorization},
 		{name: "fenced", cause: kerr.ProducerFenced, category: ErrorFenced},
 		{name: "oversized", cause: kerr.MessageTooLarge, category: ErrorOversized},
+		{name: "oversized fetch batch", cause: ErrFetchBatchTooLarge, category: ErrorOversized},
 		{name: "timeout", cause: context.DeadlineExceeded, category: ErrorAmbiguous},
 		{name: "record timeout", cause: kgo.ErrRecordTimeout, category: ErrorAmbiguous},
 		{name: "retries exhausted", cause: kgo.ErrRecordRetries, category: ErrorAmbiguous},
@@ -183,6 +184,17 @@ func TestConsumerErrorClassifiesAndRedactsGroupFailures(t *testing.T) {
 		consumerErr.Category() != ErrorPermanent ||
 		consumerErr.Retryable() {
 		t.Fatalf("permanent consumer error = %#v / %v", consumerErr, permanent)
+	}
+}
+
+func TestConsumerErrorClassifiesAnOversizedFetchBatch(t *testing.T) {
+	err := newConsumerError(ConsumerOperationPoll, ErrFetchBatchTooLarge)
+	var consumerErr *ConsumerError
+	if !errors.As(err, &consumerErr) ||
+		consumerErr.Category() != ErrorOversized ||
+		consumerErr.Retryable() ||
+		!errors.Is(err, ErrFetchBatchTooLarge) {
+		t.Fatalf("consumer fetch error = %#v / %v", consumerErr, err)
 	}
 }
 

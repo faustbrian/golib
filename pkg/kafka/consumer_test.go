@@ -48,6 +48,9 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.MaxConcurrentHandlers != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
+		config.BrokerMaxReadBytes != 64<<20 ||
+		config.MaxDecompressedBatchBytes != 8<<20 ||
+		config.MaxBufferedDecompressedBytes != 64<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||
 		config.SessionTimeout != 45*time.Second ||
 		config.RebalanceTimeout != 60*time.Second ||
@@ -70,6 +73,9 @@ func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	minimum.MaxConcurrentHandlers = 1
 	minimum.FetchMaxBytes = 1 << 20
 	minimum.FetchMaxPartitionBytes = 1 << 20
+	minimum.BrokerMaxReadBytes = 1 << 20
+	minimum.MaxDecompressedBatchBytes = maximumRecordPolicyBytes(DefaultMessageLimits())
+	minimum.MaxBufferedDecompressedBytes = minimum.MaxDecompressedBatchBytes
 	minimum.FetchMaxWait = time.Millisecond
 	minimum.SessionTimeout = time.Second
 	minimum.RebalanceTimeout = 2 * time.Second
@@ -95,6 +101,9 @@ func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	maximum.MaxConcurrentHandlers = 64
 	maximum.FetchMaxBytes = 100 << 20
 	maximum.FetchMaxPartitionBytes = 100 << 20
+	maximum.BrokerMaxReadBytes = 512 << 20
+	maximum.MaxDecompressedBatchBytes = 512 << 20
+	maximum.MaxBufferedDecompressedBytes = 1 << 30
 	maximum.FetchMaxWait = 30 * time.Second
 	maximum.SessionTimeout = 6 * time.Minute
 	maximum.RebalanceTimeout = 10 * time.Minute
@@ -210,6 +219,9 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	config.MaxConcurrentFetches = 3
 	config.MaxConcurrentHandlers = 3
 	config.FetchMaxPartitionBytes = 2 << 20
+	config.BrokerMaxReadBytes = 70 << 20
+	config.MaxDecompressedBatchBytes = 9 << 20
+	config.MaxBufferedDecompressedBytes = 10 << 20
 	config.ResetOffset = OffsetLatest
 	var franzClient *kgo.Client
 	consumer, err := newConsumer(config, func(options ...kgo.Opt) (*kgo.Client, error) {
@@ -227,6 +239,16 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	}
 	if got := franzClient.OptValue(kgo.MaxConcurrentFetches); got != 3 {
 		t.Fatalf("MaxConcurrentFetches option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.BrokerMaxReadBytes); got != int32(70<<20) {
+		t.Fatalf("BrokerMaxReadBytes option = %#v", got)
+	}
+	decompressor, ok := franzClient.OptValue(kgo.WithDecompressor).(*boundedDecompressor)
+	if !ok || decompressor.maximumBytes != 9<<20 {
+		t.Fatalf("WithDecompressor option = %#v", decompressor)
+	}
+	if budget := fetchBudgetFromClient(t, franzClient); budget.maximumBytes != 10<<20 {
+		t.Fatalf("decompression budget = %#v", budget)
 	}
 	if consumer.maxConcurrentHandlers != 3 {
 		t.Fatalf(
@@ -815,6 +837,26 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "partition fetch exceeds aggregate", change: func(config *ConsumerConfig) {
 			config.FetchMaxBytes = 2 << 20
 			config.FetchMaxPartitionBytes = 3 << 20
+		}},
+		{name: "broker read below fetch", change: func(config *ConsumerConfig) {
+			config.FetchMaxBytes = 2 << 20
+			config.BrokerMaxReadBytes = 1 << 20
+		}},
+		{name: "excessive broker read", change: func(config *ConsumerConfig) {
+			config.BrokerMaxReadBytes = 512<<20 + 1
+		}},
+		{name: "decoded batch below record policy", change: func(config *ConsumerConfig) {
+			config.MaxDecompressedBatchBytes = maximumRecordPolicyBytes(DefaultMessageLimits()) - 1
+		}},
+		{name: "excessive decoded batch", change: func(config *ConsumerConfig) {
+			config.MaxDecompressedBatchBytes = 512<<20 + 1
+		}},
+		{name: "decoded buffer below batch", change: func(config *ConsumerConfig) {
+			config.MaxDecompressedBatchBytes = 9 << 20
+			config.MaxBufferedDecompressedBytes = 8 << 20
+		}},
+		{name: "excessive decoded buffer", change: func(config *ConsumerConfig) {
+			config.MaxBufferedDecompressedBytes = 1<<30 + 1
 		}},
 		{name: "negative fetch wait", change: func(config *ConsumerConfig) { config.FetchMaxWait = -1 }},
 		{name: "excessive fetch wait", change: func(config *ConsumerConfig) { config.FetchMaxWait = 31 * time.Second }},

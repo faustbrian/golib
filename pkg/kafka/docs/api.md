@@ -181,7 +181,20 @@ cycle. Handler errors remain application errors and are not converted to
 `ConsumerConfig.MaxConcurrentFetches`, `FetchMaxBytes`, and
 `FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
-still be returned.
+still be returned. `BrokerMaxReadBytes` separately rejects an encoded response
+above its hard limit before franz-go allocates the response body.
+`MaxDecompressedBatchBytes` rejects an individual batch that expands beyond
+policy, while `MaxBufferedDecompressedBytes` bounds decoded compressed-batch
+memory retained across active and prefetched responses. An overflow preserves
+`ErrFetchBatchTooLarge` or `ErrFetchDecompressedBufferFull`; consumer errors
+classify both as `ErrorOversized`. The rejected batch reaches no handler and
+advances no source offset. If a response contains earlier complete batches,
+franz-go may return that contiguous prefix and retry the rejected trailing
+batch on a later poll; the package may handle and settle only that prefix.
+The reclaimable active-buffer lifecycle applies to Kafka record batches
+(magic 2). Legacy compressed message sets retain the response and per-batch
+limits but are unsupported because franz-go does not attach their decoded
+allocation to returned records for recycling.
 `MaxPollRecords` is enforced again at the package boundary; a backend response
 above it fails with `ErrTooManyFetchedRecords` before any handler runs.
 `ConsumerConfig.Limits` defaults to `DefaultMessageLimits` and bounds fetched
@@ -296,6 +309,10 @@ consumer-group `Handler`. Each borrowed `ReplayRecord` carries the requested
 application can preserve replay provenance with its side effects.
 `ReplayRecord.Retain` deep-copies the embedded consumed-record bytes.
 `ReplayConfig.MaxConcurrentFetches` independently bounds broker fetch requests.
+Replay applies the same encoded response, decoded batch, and active decoded
+buffer limits as consumer groups. A decompression failure returns its stable
+sentinel before replay handler admission and leaves every range checkpoint
+unchanged.
 `MaxConcurrentHandlers` defaults to one and permits 1 through 64 fixed workers.
 Values above one process one sequential batch per partition concurrently. All
 partition batches returned by one bounded poll are admitted together; after a

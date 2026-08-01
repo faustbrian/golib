@@ -430,7 +430,9 @@ func isFencingError(err error) bool {
 }
 
 func isOversizedError(err error) bool {
-	return errors.Is(err, kerr.MessageTooLarge) ||
+	return errors.Is(err, ErrFetchBatchTooLarge) ||
+		errors.Is(err, ErrFetchDecompressedBufferFull) ||
+		errors.Is(err, kerr.MessageTooLarge) ||
 		errors.Is(err, kerr.RecordListTooLarge) ||
 		errors.Is(err, kerr.TelemetryTooLarge)
 }

@@ -67,8 +67,9 @@ The zero `MessageLimits` value becomes `DefaultMessageLimits`:
 Every value must be positive. Aggregate header bytes include every header key
 and value. Producer records are checked before admission. Consumer records are
 checked before the package copies header metadata or invokes the handler.
-Broker fetch decoding happens below this policy, so fetch byte limits remain a
-separate and necessary bound.
+Broker fetch decoding happens below record validation. Every read client
+therefore applies separate hard encoded-response, decoded-batch, and active
+decoded-buffer limits before a record reaches this policy.
 
 ## Producer
 
@@ -123,6 +124,9 @@ caller-configurable.
 | `Group.MaxConcurrentFetches` | 4 | 1 to 64. |
 | `Group.FetchMaxBytes` | 50 MiB | 1 to 100 MiB. |
 | `Group.FetchMaxPartitionBytes` | 1 MiB | 1 MiB through the aggregate fetch maximum. |
+| `Group.BrokerMaxReadBytes` | 64 MiB | At least `FetchMaxBytes` and at most 512 MiB; franz-go rejects a larger encoded response before allocating its body. |
+| `Group.MaxDecompressedBatchBytes` | 8 MiB | At least one maximum policy record and at most 512 MiB. A compressed Kafka record batch that expands beyond it fails before source handlers or a transaction begin. |
+| `Group.MaxBufferedDecompressedBytes` | 64 MiB | At least the decoded-batch limit and at most 1 GiB across active and prefetched compressed batches. |
 | `Group.FetchMaxWait` | 500 milliseconds | 1 millisecond to 30 seconds. |
 | `Group.SessionTimeout` | 45 seconds | 1 second to 6 minutes. |
 | `Group.RebalanceTimeout` | 60 seconds | 1 second to 10 minutes. |
@@ -166,6 +170,9 @@ caller-configurable.
 | `MaxConcurrentHandlers` | 1 | 1 to 64 callbacks across independent partitions; one partition always remains sequential. |
 | `FetchMaxBytes` | 50 MiB | 1 to 100 MiB compressed fetch bytes. |
 | `FetchMaxPartitionBytes` | 1 MiB | At least 1 MiB and no greater than `FetchMaxBytes`. Kafka may return one larger record batch to make progress. |
+| `BrokerMaxReadBytes` | 64 MiB | At least `FetchMaxBytes` and at most 512 MiB; this is the hard encoded broker-response read limit. |
+| `MaxDecompressedBatchBytes` | 8 MiB | At least one maximum policy record and at most 512 MiB; zero derives the larger of 8 MiB and that record bound. |
+| `MaxBufferedDecompressedBytes` | 64 MiB | At least the decoded-batch limit and at most 1 GiB across active and prefetched compressed batches. |
 | `FetchMaxWait` | 500 milliseconds | 1 millisecond to 30 seconds. |
 | `SessionTimeout` | 45 seconds | 1 second to 6 minutes. |
 | `RebalanceTimeout` | 60 seconds | At most 10 minutes and strictly greater than the heartbeat, handler, and commit timeout sum below. |
@@ -252,8 +259,10 @@ The request partition slice is copied before sorting or broker use.
 to `DefaultMessageLimits` and must also admit every configured topic. Replay
 defaults to 100 poll records, one concurrent fetch, one handler, 50 MiB
 aggregate fetch bytes, 1 MiB per-partition fetch bytes, 500 millisecond fetch
-wait, a 10 second broker-bound planning timeout, 30 second handler and shutdown
-timeouts, and a 10 second dial timeout. `MaxConcurrentFetches` and
+wait, a 64 MiB encoded broker-response cap, an 8 MiB decoded-batch cap, a
+64 MiB active decoded-buffer budget, a 10 second broker-bound planning timeout,
+30 second handler and shutdown timeouts, and a 10 second dial timeout.
+`MaxConcurrentFetches` and
 `MaxConcurrentHandlers` each accept 1 through 64. Fetch concurrency bounds
 franz-go broker requests independently of handler concurrency. Handler values
 above one require a concurrency-safe callback and overlap only independent
@@ -262,6 +271,9 @@ The planning timeout accepts 100 milliseconds through 2 minutes.
 `ProgressTimeout` defaults to 30 seconds, accepts 100 milliseconds through 30
 minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the
 corresponding consumer bounds.
+`BrokerMaxReadBytes`, `MaxDecompressedBatchBytes`, and
+`MaxBufferedDecompressedBytes` use the same relationships and maxima as the
+consumer group policy.
 `Observers` uses the same copied 1 to 16 callback policy and shared
 1 millisecond to 5 second cooperative timeout as producer and consumer
 configuration. Replay partition workers and franz-go broker goroutines can

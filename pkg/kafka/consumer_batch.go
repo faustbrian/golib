@@ -98,6 +98,7 @@ func (consumer *Consumer) runBatchOnce(
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
+	defer recycleFetchedRecords(records)
 	if consumer.observers.enabled() {
 		defer func() {
 			consumer.observeConsumerPoll(

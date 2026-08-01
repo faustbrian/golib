@@ -102,6 +102,13 @@ delivery failure, handler error, panic, processing timeout, or cancellation
 aborts all outputs and leaves all source offsets for redelivery. The package
 detects a delivery
 failure even if a handler ignores the error returned by `Transaction.Publish`.
+The source group also applies a hard encoded broker-response cap, a decoded
+record-batch cap, and an active decoded-buffer budget. A decompression failure
+occurs before transaction begin or handler admission and therefore produces no
+Kafka output and settles no source offset.
+Reclaimable active-buffer accounting requires Kafka record batches (magic 2);
+legacy compressed message sets are unsupported as documented in the
+[compatibility matrix](compatibility.md).
 An ambiguous output deadline is terminal rather than an ordinary handler
 failure: the processor closes its combined client, returns
 `ErrTransactionProcessorFatal`, leaves every source offset unsettled, and

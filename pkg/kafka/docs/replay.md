@@ -83,6 +83,14 @@ policy without constructing a client. Replay operations and `Close` fail with
 Replay is sequential by default. `MaxConcurrentFetches` bounds franz-go broker
 fetch requests and `MaxConcurrentHandlers` bounds application callbacks; both
 accept 1 through 64 and default to one. They are independent limits.
+`BrokerMaxReadBytes` additionally caps an encoded response before its body is
+allocated. `MaxDecompressedBatchBytes` and
+`MaxBufferedDecompressedBytes` bound individual and active decoded compressed
+batches. Either decoded limit fails before replay handler admission and leaves
+the external checkpoint unchanged.
+Reclaimable active-buffer accounting requires Kafka record batches (magic 2);
+legacy compressed message sets are unsupported as documented in the
+[compatibility matrix](compatibility.md).
 
 When handler concurrency exceeds one, a bounded poll is grouped by
 topic-partition in first-seen order. A fixed worker set processes those

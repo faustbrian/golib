@@ -25,6 +25,9 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 		config.MaxConcurrentHandlers != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
+		config.BrokerMaxReadBytes != 64<<20 ||
+		config.MaxDecompressedBatchBytes != 8<<20 ||
+		config.MaxBufferedDecompressedBytes != 64<<20 ||
 		config.FetchMaxWait != 500*time.Millisecond ||
 		config.PlanningTimeout != 10*time.Second ||
 		config.ProgressTimeout != 30*time.Second ||
@@ -47,6 +50,9 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	minimum.MaxConcurrentHandlers = 1
 	minimum.FetchMaxBytes = 1 << 20
 	minimum.FetchMaxPartitionBytes = 1 << 20
+	minimum.BrokerMaxReadBytes = 1 << 20
+	minimum.MaxDecompressedBatchBytes = maximumRecordPolicyBytes(DefaultMessageLimits())
+	minimum.MaxBufferedDecompressedBytes = minimum.MaxDecompressedBatchBytes
 	minimum.FetchMaxWait = time.Millisecond
 	minimum.PlanningTimeout = 100 * time.Millisecond
 	minimum.ProgressTimeout = 100 * time.Millisecond
@@ -63,6 +69,9 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	maximum.MaxConcurrentHandlers = 64
 	maximum.FetchMaxBytes = 100 << 20
 	maximum.FetchMaxPartitionBytes = 100 << 20
+	maximum.BrokerMaxReadBytes = 512 << 20
+	maximum.MaxDecompressedBatchBytes = 512 << 20
+	maximum.MaxBufferedDecompressedBytes = 1 << 30
 	maximum.FetchMaxWait = 30 * time.Second
 	maximum.PlanningTimeout = 2 * time.Minute
 	maximum.ProgressTimeout = 30 * time.Minute
@@ -179,6 +188,26 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 		{name: "excessive partition fetch bytes", change: func(config *ReplayConfig) {
 			config.FetchMaxPartitionBytes = 51 << 20
 			config.FetchMaxBytes = 50 << 20
+		}, want: ErrInvalidReplayConfig},
+		{name: "broker read below fetch", change: func(config *ReplayConfig) {
+			config.FetchMaxBytes = 2 << 20
+			config.BrokerMaxReadBytes = 1 << 20
+		}, want: ErrInvalidReplayConfig},
+		{name: "excessive broker read", change: func(config *ReplayConfig) {
+			config.BrokerMaxReadBytes = 512<<20 + 1
+		}, want: ErrInvalidReplayConfig},
+		{name: "decoded batch below record policy", change: func(config *ReplayConfig) {
+			config.MaxDecompressedBatchBytes = maximumRecordPolicyBytes(DefaultMessageLimits()) - 1
+		}, want: ErrInvalidReplayConfig},
+		{name: "excessive decoded batch", change: func(config *ReplayConfig) {
+			config.MaxDecompressedBatchBytes = 512<<20 + 1
+		}, want: ErrInvalidReplayConfig},
+		{name: "decoded buffer below batch", change: func(config *ReplayConfig) {
+			config.MaxDecompressedBatchBytes = 9 << 20
+			config.MaxBufferedDecompressedBytes = 8 << 20
+		}, want: ErrInvalidReplayConfig},
+		{name: "excessive decoded buffer", change: func(config *ReplayConfig) {
+			config.MaxBufferedDecompressedBytes = 1<<30 + 1
 		}, want: ErrInvalidReplayConfig},
 		{name: "excessive fetch wait", change: func(config *ReplayConfig) { config.FetchMaxWait = 31 * time.Second }, want: ErrInvalidReplayConfig},
 		{name: "short planning timeout", change: func(config *ReplayConfig) {
@@ -693,6 +722,34 @@ func TestReplayReaderConstructsClosesAndPreservesFactoryFailure(t *testing.T) {
 	}
 	if !errors.Is(err, factoryErr) {
 		t.Fatalf("newReplayReader() error = %v, want %v", err, factoryErr)
+	}
+}
+
+func TestReplayReaderAppliesFetchSafetyOptions(t *testing.T) {
+	config := validReplayConfig()
+	config.BrokerMaxReadBytes = 70 << 20
+	config.MaxDecompressedBatchBytes = 9 << 20
+	config.MaxBufferedDecompressedBytes = 10 << 20
+	var franzClient *kgo.Client
+	reader, err := newReplayReader(config, func(options ...kgo.Opt) (*kgo.Client, error) {
+		client, clientErr := kgo.NewClient(options...)
+		franzClient = client
+
+		return client, clientErr
+	})
+	if err != nil {
+		t.Fatalf("newReplayReader() error = %v", err)
+	}
+	defer closeReplayReaderForTest(t, reader)
+	if got := franzClient.OptValue(kgo.BrokerMaxReadBytes); got != int32(70<<20) {
+		t.Fatalf("BrokerMaxReadBytes option = %#v", got)
+	}
+	decompressor, ok := franzClient.OptValue(kgo.WithDecompressor).(*boundedDecompressor)
+	if !ok || decompressor.maximumBytes != 9<<20 {
+		t.Fatalf("WithDecompressor option = %#v", decompressor)
+	}
+	if budget := fetchBudgetFromClient(t, franzClient); budget.maximumBytes != 10<<20 {
+		t.Fatalf("decompression budget = %#v", budget)
 	}
 }
 

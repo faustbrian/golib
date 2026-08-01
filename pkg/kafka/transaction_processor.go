@@ -70,11 +70,20 @@ type TransactionGroupConfig struct {
 	MaxConcurrentFetches   int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
-	FetchMaxWait           time.Duration
-	SessionTimeout         time.Duration
-	RebalanceTimeout       time.Duration
-	HeartbeatInterval      time.Duration
-	ProcessingTimeout      time.Duration
+	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
+	// from one broker connection. It must be at least FetchMaxBytes.
+	BrokerMaxReadBytes int32
+	// MaxDecompressedBatchBytes is the hard decoded-byte limit for one Kafka
+	// source record batch.
+	MaxDecompressedBatchBytes int64
+	// MaxBufferedDecompressedBytes bounds decoded compressed-batch memory held
+	// across active and prefetched source responses.
+	MaxBufferedDecompressedBytes int64
+	FetchMaxWait                 time.Duration
+	SessionTimeout               time.Duration
+	RebalanceTimeout             time.Duration
+	HeartbeatInterval            time.Duration
+	ProcessingTimeout            time.Duration
 }
 
 // TransactionOutputConfig defines bounded transactional production policy.
@@ -266,6 +275,10 @@ func newTransactionProcessor(
 		resetOffset = kgo.NewOffset().AtEnd()
 	}
 	clientCtx, cancelClient := context.WithCancel(context.Background())
+	decompressor, decompressionBudget := newFetchDecompressionPolicy(
+		config.Group.MaxDecompressedBatchBytes,
+		config.Group.MaxBufferedDecompressedBytes,
+	)
 	options := []kgo.Opt{
 		kgo.WithContext(clientCtx),
 		kgo.SeedBrokers(config.Connection.Brokers...),
@@ -280,6 +293,9 @@ func newTransactionProcessor(
 		kgo.MaxConcurrentFetches(config.Group.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.Group.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.Group.FetchMaxPartitionBytes),
+		kgo.BrokerMaxReadBytes(config.Group.BrokerMaxReadBytes),
+		kgo.WithDecompressor(decompressor),
+		kgo.WithPools(decompressionBudget),
 		kgo.FetchMaxWait(config.Group.FetchMaxWait),
 		kgo.SessionTimeout(config.Group.SessionTimeout),
 		kgo.RebalanceTimeout(config.Group.RebalanceTimeout),
@@ -433,29 +449,32 @@ func normalizeTransactionProcessorConfig(
 		return TransactionProcessorConfig{}, ErrInvalidTransactionProcessorConfig
 	}
 	consumer, err := normalizeConsumerConfig(ConsumerConfig{
-		Brokers:                config.Connection.Brokers,
-		ClientID:               config.Connection.ClientID,
-		Protocol:               config.Connection.Protocol,
-		GroupID:                config.Group.GroupID,
-		InstanceID:             config.Group.InstanceID,
-		Rack:                   config.Group.Rack,
-		Topics:                 config.Group.Topics,
-		ResetOffset:            config.Group.ResetOffset,
-		BalancePolicy:          config.Group.BalancePolicy,
-		Limits:                 config.Limits,
-		MaxPollRecords:         config.Group.MaxPollRecords,
-		MaxConcurrentFetches:   config.Group.MaxConcurrentFetches,
-		FetchMaxBytes:          config.Group.FetchMaxBytes,
-		FetchMaxPartitionBytes: config.Group.FetchMaxPartitionBytes,
-		FetchMaxWait:           config.Group.FetchMaxWait,
-		SessionTimeout:         config.Group.SessionTimeout,
-		RebalanceTimeout:       config.Group.RebalanceTimeout,
-		HeartbeatInterval:      config.Group.HeartbeatInterval,
-		HandlerTimeout:         config.Group.ProcessingTimeout,
-		CommitTimeout:          producer.TransactionEndTimeout,
-		ShutdownTimeout:        config.ShutdownTimeout,
-		DialTimeout:            config.Connection.DialTimeout,
-		Security:               config.Connection.Security,
+		Brokers:                      config.Connection.Brokers,
+		ClientID:                     config.Connection.ClientID,
+		Protocol:                     config.Connection.Protocol,
+		GroupID:                      config.Group.GroupID,
+		InstanceID:                   config.Group.InstanceID,
+		Rack:                         config.Group.Rack,
+		Topics:                       config.Group.Topics,
+		ResetOffset:                  config.Group.ResetOffset,
+		BalancePolicy:                config.Group.BalancePolicy,
+		Limits:                       config.Limits,
+		MaxPollRecords:               config.Group.MaxPollRecords,
+		MaxConcurrentFetches:         config.Group.MaxConcurrentFetches,
+		FetchMaxBytes:                config.Group.FetchMaxBytes,
+		FetchMaxPartitionBytes:       config.Group.FetchMaxPartitionBytes,
+		BrokerMaxReadBytes:           config.Group.BrokerMaxReadBytes,
+		MaxDecompressedBatchBytes:    config.Group.MaxDecompressedBatchBytes,
+		MaxBufferedDecompressedBytes: config.Group.MaxBufferedDecompressedBytes,
+		FetchMaxWait:                 config.Group.FetchMaxWait,
+		SessionTimeout:               config.Group.SessionTimeout,
+		RebalanceTimeout:             config.Group.RebalanceTimeout,
+		HeartbeatInterval:            config.Group.HeartbeatInterval,
+		HandlerTimeout:               config.Group.ProcessingTimeout,
+		CommitTimeout:                producer.TransactionEndTimeout,
+		ShutdownTimeout:              config.ShutdownTimeout,
+		DialTimeout:                  config.Connection.DialTimeout,
+		Security:                     config.Connection.Security,
 	})
 	if err != nil {
 		return TransactionProcessorConfig{}, errors.Join(
@@ -485,21 +504,24 @@ func normalizeTransactionProcessorConfig(
 		Security:    consumer.Security,
 	}
 	config.Group = TransactionGroupConfig{
-		GroupID:                consumer.GroupID,
-		InstanceID:             consumer.InstanceID,
-		Rack:                   consumer.Rack,
-		Topics:                 append([]string(nil), consumer.Topics...),
-		ResetOffset:            consumer.ResetOffset,
-		BalancePolicy:          consumer.BalancePolicy,
-		MaxPollRecords:         consumer.MaxPollRecords,
-		MaxConcurrentFetches:   consumer.MaxConcurrentFetches,
-		FetchMaxBytes:          consumer.FetchMaxBytes,
-		FetchMaxPartitionBytes: consumer.FetchMaxPartitionBytes,
-		FetchMaxWait:           consumer.FetchMaxWait,
-		SessionTimeout:         consumer.SessionTimeout,
-		RebalanceTimeout:       consumer.RebalanceTimeout,
-		HeartbeatInterval:      consumer.HeartbeatInterval,
-		ProcessingTimeout:      consumer.HandlerTimeout,
+		GroupID:                      consumer.GroupID,
+		InstanceID:                   consumer.InstanceID,
+		Rack:                         consumer.Rack,
+		Topics:                       append([]string(nil), consumer.Topics...),
+		ResetOffset:                  consumer.ResetOffset,
+		BalancePolicy:                consumer.BalancePolicy,
+		MaxPollRecords:               consumer.MaxPollRecords,
+		MaxConcurrentFetches:         consumer.MaxConcurrentFetches,
+		FetchMaxBytes:                consumer.FetchMaxBytes,
+		FetchMaxPartitionBytes:       consumer.FetchMaxPartitionBytes,
+		BrokerMaxReadBytes:           consumer.BrokerMaxReadBytes,
+		MaxDecompressedBatchBytes:    consumer.MaxDecompressedBatchBytes,
+		MaxBufferedDecompressedBytes: consumer.MaxBufferedDecompressedBytes,
+		FetchMaxWait:                 consumer.FetchMaxWait,
+		SessionTimeout:               consumer.SessionTimeout,
+		RebalanceTimeout:             consumer.RebalanceTimeout,
+		HeartbeatInterval:            consumer.HeartbeatInterval,
+		ProcessingTimeout:            consumer.HandlerTimeout,
 	}
 	config.Output = TransactionOutputConfig{
 		AllowedTopics:      append([]string(nil), producer.AllowedTopics...),
@@ -560,6 +582,7 @@ func (processor *TransactionProcessor) runOnce(
 ) (TransactionPollResult, error) {
 	fetches := processor.client.PollRecords(ctx, processor.maxPollRecords)
 	records := fetches.Records()
+	defer recycleFetchedRecords(records)
 	result := TransactionPollResult{Polled: len(records)}
 	if err := fetches.Err(); err != nil {
 		if len(records) == 0 {

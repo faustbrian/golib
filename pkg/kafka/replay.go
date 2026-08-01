@@ -155,12 +155,21 @@ type ReplayConfig struct {
 	MaxConcurrentHandlers  int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
-	FetchMaxWait           time.Duration
-	PlanningTimeout        time.Duration
-	ProgressTimeout        time.Duration
-	HandlerTimeout         time.Duration
-	ShutdownTimeout        time.Duration
-	DialTimeout            time.Duration
+	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
+	// from one broker connection. It must be at least FetchMaxBytes.
+	BrokerMaxReadBytes int32
+	// MaxDecompressedBatchBytes is the hard decoded-byte limit for one Kafka
+	// record batch.
+	MaxDecompressedBatchBytes int64
+	// MaxBufferedDecompressedBytes bounds decoded compressed-batch memory held
+	// across active and prefetched replay responses.
+	MaxBufferedDecompressedBytes int64
+	FetchMaxWait                 time.Duration
+	PlanningTimeout              time.Duration
+	ProgressTimeout              time.Duration
+	HandlerTimeout               time.Duration
+	ShutdownTimeout              time.Duration
+	DialTimeout                  time.Duration
 }
 
 // Validate reports whether the replay policy is explicit, compatible, and
@@ -325,6 +334,10 @@ func newReplayReader(
 	}
 
 	nextOffsets := replayNextOffsets(config.Ranges, config.Checkpoint)
+	decompressor, decompressionBudget := newFetchDecompressionPolicy(
+		config.MaxDecompressedBatchBytes,
+		config.MaxBufferedDecompressedBytes,
+	)
 	partitions := make(map[string]map[int32]kgo.Offset)
 	for _, replayRange := range config.Ranges {
 		if partitions[replayRange.Topic] == nil {
@@ -343,6 +356,9 @@ func newReplayReader(
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
+		kgo.BrokerMaxReadBytes(config.BrokerMaxReadBytes),
+		kgo.WithDecompressor(decompressor),
+		kgo.WithPools(decompressionBudget),
 		kgo.FetchMaxWait(config.FetchMaxWait),
 		kgo.DialTimeout(config.DialTimeout),
 	}
@@ -456,6 +472,21 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	if config.FetchMaxPartitionBytes == 0 {
 		config.FetchMaxPartitionBytes = 1 << 20
 	}
+	brokerMaximumBytes, decompressedMaximumBytes,
+		bufferedDecompressedMaximumBytes, validFetchSafety :=
+		normalizeFetchSafety(
+			config.FetchMaxBytes,
+			config.Limits,
+			config.BrokerMaxReadBytes,
+			config.MaxDecompressedBatchBytes,
+			config.MaxBufferedDecompressedBytes,
+		)
+	if !validFetchSafety {
+		return ReplayConfig{}, ErrInvalidReplayConfig
+	}
+	config.BrokerMaxReadBytes = brokerMaximumBytes
+	config.MaxDecompressedBatchBytes = decompressedMaximumBytes
+	config.MaxBufferedDecompressedBytes = bufferedDecompressedMaximumBytes
 	if config.FetchMaxWait == 0 {
 		config.FetchMaxWait = 500 * time.Millisecond
 	}
@@ -701,8 +732,10 @@ func (reader *ReplayReader) Replay(
 			earliestReplayProgressDeadline(progressDeadlines),
 		)
 		fetches := reader.client.PollRecords(progressCtx, reader.maxPollRecords)
+		records := fetches.Records()
 		if cause := context.Cause(progressCtx); cause != nil {
 			cancelProgress()
+			recycleFetchedRecords(records)
 			if replayCause := context.Cause(ctx); replayCause != nil {
 				return result, replayCause
 			}
@@ -711,19 +744,22 @@ func (reader *ReplayReader) Replay(
 		}
 		cancelProgress()
 		if err := fetches.Err(); err != nil {
+			recycleFetchedRecords(records)
 			if errors.Is(err, kerr.OffsetOutOfRange) {
 				return result, errors.Join(ErrReplayOffsetOutOfRange, err)
 			}
 
 			return result, err
 		}
-		records := fetches.Records()
 		result.Polled += int64(len(records))
 		if len(records) > reader.maxPollRecords {
+			recycleFetchedRecords(records)
+
 			return result, ErrTooManyFetchedRecords
 		}
+		var processingErr error
 		if reader.maxConcurrentHandlers == 1 {
-			if err := reader.processReplayRecordsSerial(
+			processingErr = reader.processReplayRecordsSerial(
 				ctx,
 				handler,
 				records,
@@ -731,22 +767,21 @@ func (reader *ReplayReader) Replay(
 				indexes,
 				metadata,
 				progressDeadlines,
-			); err != nil {
-				return result, err
-			}
-
-			continue
+			)
+		} else {
+			processingErr = reader.processReplayRecordsParallel(
+				ctx,
+				handler,
+				records,
+				&result,
+				indexes,
+				metadata,
+				progressDeadlines,
+			)
 		}
-		if err := reader.processReplayRecordsParallel(
-			ctx,
-			handler,
-			records,
-			&result,
-			indexes,
-			metadata,
-			progressDeadlines,
-		); err != nil {
-			return result, err
+		recycleFetchedRecords(records)
+		if processingErr != nil {
+			return result, processingErr
 		}
 	}
 

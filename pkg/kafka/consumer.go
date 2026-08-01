@@ -141,7 +141,16 @@ type ConsumerConfig struct {
 	MaxConcurrentHandlers  int
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
-	FetchMaxWait           time.Duration
+	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
+	// from one broker connection. It must be at least FetchMaxBytes.
+	BrokerMaxReadBytes int32
+	// MaxDecompressedBatchBytes is the hard decoded-byte limit for one Kafka
+	// record batch before records are admitted to package handlers.
+	MaxDecompressedBatchBytes int64
+	// MaxBufferedDecompressedBytes bounds decoded compressed-batch memory held
+	// across active and prefetched Kafka responses.
+	MaxBufferedDecompressedBytes int64
+	FetchMaxWait                 time.Duration
 
 	SessionTimeout    time.Duration
 	RebalanceTimeout  time.Duration
@@ -265,6 +274,10 @@ func newConsumer(
 		config.Topics,
 	)
 	rebalance := newConsumerRebalanceState(config.RebalanceHandler)
+	decompressor, decompressionBudget := newFetchDecompressionPolicy(
+		config.MaxDecompressedBatchBytes,
+		config.MaxBufferedDecompressedBytes,
+	)
 	var consumer *Consumer
 	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
@@ -304,6 +317,9 @@ func newConsumer(
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
+		kgo.BrokerMaxReadBytes(config.BrokerMaxReadBytes),
+		kgo.WithDecompressor(decompressor),
+		kgo.WithPools(decompressionBudget),
 		kgo.FetchMaxWait(config.FetchMaxWait),
 		kgo.SessionTimeout(config.SessionTimeout),
 		kgo.RebalanceTimeout(config.RebalanceTimeout),
@@ -462,6 +478,21 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.FetchMaxPartitionBytes == 0 {
 		config.FetchMaxPartitionBytes = 1 << 20
 	}
+	brokerMaximumBytes, decompressedMaximumBytes,
+		bufferedDecompressedMaximumBytes, validFetchSafety :=
+		normalizeFetchSafety(
+			config.FetchMaxBytes,
+			config.Limits,
+			config.BrokerMaxReadBytes,
+			config.MaxDecompressedBatchBytes,
+			config.MaxBufferedDecompressedBytes,
+		)
+	if !validFetchSafety {
+		return ConsumerConfig{}, ErrInvalidConsumerConfig
+	}
+	config.BrokerMaxReadBytes = brokerMaximumBytes
+	config.MaxDecompressedBatchBytes = decompressedMaximumBytes
+	config.MaxBufferedDecompressedBytes = bufferedDecompressedMaximumBytes
 	if config.FetchMaxWait == 0 {
 		config.FetchMaxWait = 500 * time.Millisecond
 	}
@@ -567,6 +598,7 @@ func (consumer *Consumer) runOnce(
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
+	defer recycleFetchedRecords(records)
 	if consumer.observers.enabled() {
 		defer func() {
 			consumer.observeConsumerPoll(
