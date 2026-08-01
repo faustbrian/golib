@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add pinned three-broker Kafka 4.3.1 evidence that a partial cooperative
+  revocation drains and settles both in-flight partitions before transferring
+  exactly one, while administrative removal of a static member rejects its
+  stale-generation commit, reports ownership loss, and redelivers the record
 - add `Consumer.Drain` as a bounded, retriable lifecycle operation that
   interrupts an idle poll without canceling admitted handlers, preserves their
   contiguous settlement, fences new work after an incomplete drain, and lets

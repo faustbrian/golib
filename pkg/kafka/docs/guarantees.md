@@ -227,6 +227,12 @@ returned in the active poll, and they do not establish assignment ownership.
 Broker-controlled assignment state is bounded by `MaxAssignedPartitions`.
 Assigned, revoked, and lost callbacks advance a package-local epoch that fences
 handler admission and settlement; it is not Kafka's broker generation ID.
+With poll-gated rebalances, Kafka may reject a commit before the loss callback
+can advance that local epoch. The pinned three-broker fixture removes an active
+static member administratively and proves the stale-generation commit returns
+`UNKNOWN_MEMBER_ID`, the later loss callback clears local ownership, and the
+unsettled record is redelivered. A handler side effect completed before that
+rejection remains the application's duplicate-handling responsibility.
 
 Replay never joins a consumer group or commits group offsets. Its zero-value
 side-effect policy permits planning but rejects handler execution. An explicit

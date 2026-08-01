@@ -55,8 +55,19 @@ blocked rebalance, cancels both active handlers, commits neither partition, and
 redelivers both offset-zero records to the replacement member. Drain mode
 observes the same blocked boundary, releases both active handlers, commits
 offset one for each partition before ownership transfer, and lets the
-replacement begin at offset one on both partitions. Broker-forced ownership
-loss and partial cooperative revocation interleavings remain unverified.
+replacement begin at offset one on both partitions.
+
+The same pinned three-broker runtime now proves two additional ownership
+boundaries. During a cooperative join, the original member drains and commits
+both in-flight partitions before Kafka revokes exactly one; the retained and
+replacement members then independently process offset one on their disjoint
+partitions. When an administrator removes an active static member while its
+handler is in flight, the blocked drain can finish its application work but
+Kafka rejects the stale-generation offset commit with `UNKNOWN_MEMBER_ID`.
+The package reports the one-partition ownership-loss callback, clears the
+assignment, leaves the offset unsettled, and a replacement receives offset
+zero. This is at-least-once behavior: the completed application work can be
+duplicated after broker-forced loss.
 
 ## Configuration
 
