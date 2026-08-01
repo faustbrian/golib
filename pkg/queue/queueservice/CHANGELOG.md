@@ -15,3 +15,6 @@ versioning once released.
 
 - Correlation-aware producer, delivery-handler, and worker lifecycle adapters
   for the owned queue and service modules.
+- Hostile-input fuzz and deterministic lifecycle coverage proving transport
+  metadata never aliases caller-owned state and asynchronous failures cannot
+  hang the verification suite.

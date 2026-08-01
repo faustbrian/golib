@@ -10,6 +10,8 @@ github.com/faustbrian/golib/pkg/correlation v0.0.0-20260729185016-600a2ffaf74d h
 github.com/faustbrian/golib/pkg/correlation v0.0.0-20260729185016-600a2ffaf74d/go.mod h1:YvhaIU4Xk+eAiMHwhL3QDh+SIL1C7Ti3EhPFsVXAIzw=
 github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5 h1:+nBHwq3IWtPWEm18gBz57ChjJ75V+FX++BpurXEYMrY=
 github.com/faustbrian/golib/pkg/identifier v0.0.0-20260729183302-ac9562ceb0b5/go.mod h1:MgEu9PtjFwf/1X5txqpBtgtCxcFOoggzoW0qqN6uqAM=
+github.com/faustbrian/golib/pkg/queue v0.0.0-20260729185654-5b77ff282cbc h1:sKABgjzArRgiR3fsUVMRNN9V+rYYCXzRtaYPywThW4Q=
+github.com/faustbrian/golib/pkg/queue v0.0.0-20260729185654-5b77ff282cbc/go.mod h1:KbJMlejVIlYDawQ0ErQ3enpEnCeKzrDLrWmTJrpErtc=
 github.com/faustbrian/golib/pkg/service v0.0.0-20260729185121-c56b7cb53124 h1:+mOHJhA2sw1ZNhFN4Wi0oCI5r/Tzl5CdF0/eS/pnj1k=
 github.com/faustbrian/golib/pkg/service v0.0.0-20260729185121-c56b7cb53124/go.mod h1:4aWY016FtoXq/E2/pHj+L5f5L3igdFjiqxNh9Xowvv4=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=

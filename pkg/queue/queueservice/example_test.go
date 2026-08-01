@@ -3,6 +3,7 @@ package queueservice_test
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/faustbrian/golib/pkg/correlation"
 	queue "github.com/faustbrian/golib/pkg/queue"
@@ -17,6 +18,9 @@ type payload string
 func (value payload) Bytes() []byte { return []byte(value) }
 
 func ExampleNewWorker() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	factory, _ := correlation.NewFactory(correlation.FactoryOptions{})
 	handled := make(chan string, 1)
 	handler, err := queueservice.NewHandler(queueservice.HandlerOptions{
@@ -66,24 +70,29 @@ func ExampleNewWorker() {
 
 	workerComponent := worker.Component()
 	producerComponent := producer.Component()
-	if err = workerComponent.Start(context.Background()); err != nil {
+	if err = workerComponent.Start(ctx); err != nil {
 		return
 	}
-	if err = producerComponent.Start(context.Background()); err != nil {
+	if err = producerComponent.Start(ctx); err != nil {
 		return
 	}
 	parent, _ := factory.Start()
 	if _, err = producer.Publish(
-		correlation.WithValues(context.Background(), parent),
+		correlation.WithValues(ctx, parent),
 		payload("delivery"),
 	); err != nil {
 		return
 	}
-	fmt.Println(<-handled)
-	if err = producerComponent.Stop(context.Background()); err != nil {
+	select {
+	case value := <-handled:
+		fmt.Println(value)
+	case <-ctx.Done():
 		return
 	}
-	if err = workerComponent.Stop(context.Background()); err != nil {
+	if err = producerComponent.Stop(ctx); err != nil {
+		return
+	}
+	if err = workerComponent.Stop(ctx); err != nil {
 		return
 	}
 

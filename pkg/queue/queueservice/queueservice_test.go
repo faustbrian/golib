@@ -12,6 +12,7 @@ import (
 	queue "github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
+	"github.com/faustbrian/golib/pkg/service"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -491,10 +492,10 @@ func TestProducerDrainsPublishersBeforeOwnedShutdown(t *testing.T) {
 		_, publishErr := producer.Publish(producerContext(), queuedPayload("work"))
 		published <- publishErr
 	}()
-	<-entered
+	awaitValue(t, entered)
 
 	stopped := make(chan error, 1)
-	go func() { stopped <- component.Stop(context.Background()) }()
+	go func() { stopped <- stopWithin(component) }()
 	for {
 		_, err = producer.Publish(producerContext(), queuedPayload("late"))
 		if errors.Is(err, ErrUnavailable) {
@@ -511,10 +512,10 @@ func TestProducerDrainsPublishersBeforeOwnedShutdown(t *testing.T) {
 	}
 
 	close(release)
-	if err = <-published; err != nil {
+	if err = awaitValue(t, published); err != nil {
 		t.Fatalf("Publish() error = %v", err)
 	}
-	if err = <-stopped; err != nil {
+	if err = awaitValue(t, stopped); err != nil {
 		t.Fatalf("Stop() error = %v", err)
 	}
 	select {
@@ -522,6 +523,105 @@ func TestProducerDrainsPublishersBeforeOwnedShutdown(t *testing.T) {
 	default:
 		t.Fatal("owned producer was not shut down after drain")
 	}
+}
+
+func TestProducerShutdownWaitsForEveryAdmittedPublisher(t *testing.T) {
+	t.Parallel()
+
+	entered := make(chan string, 2)
+	firstRelease := make(chan struct{})
+	secondRelease := make(chan struct{})
+	shutdown := make(chan struct{})
+	producer, err := NewProducer(ProducerOptions[*producerResource]{
+		Name: "jobs-producer", Resource: &producerResource{},
+		Correlation: mustFactory(t),
+		Publish: func(
+			_ context.Context,
+			_ *producerResource,
+			message core.QueuedMessage,
+			_ ...job.AllowOption,
+		) error {
+			payload := string(message.Bytes())
+			switch payload {
+			case "first":
+				entered <- payload
+				<-firstRelease
+			case "second":
+				entered <- payload
+				<-secondRelease
+			}
+
+			return nil
+		},
+		Shutdown: func(context.Context, *producerResource) error {
+			close(shutdown)
+
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewProducer() error = %v", err)
+	}
+	component := producer.Component()
+	if err = component.Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	published := make(chan error, 2)
+	for _, payload := range []queuedPayload{"first", "second"} {
+		go func() {
+			_, publishErr := producer.Publish(producerContext(), payload)
+			published <- publishErr
+		}()
+	}
+	seen := map[string]bool{
+		awaitValue(t, entered): true,
+		awaitValue(t, entered): true,
+	}
+	if !seen["first"] || !seen["second"] {
+		t.Fatalf("entered publishers = %v", seen)
+	}
+
+	stopped := make(chan error, 1)
+	go func() { stopped <- stopWithin(component) }()
+	drainStarted := time.After(500 * time.Millisecond)
+	for {
+		_, publishErr := producer.Publish(
+			producerContext(),
+			queuedPayload("late"),
+		)
+		if errors.Is(publishErr, ErrUnavailable) {
+			break
+		}
+		if publishErr != nil {
+			t.Fatalf("Publish() during drain error = %v", publishErr)
+		}
+		select {
+		case <-drainStarted:
+			t.Fatal("producer did not begin draining")
+		default:
+		}
+	}
+	close(firstRelease)
+	if err = awaitValue(t, published); err != nil {
+		t.Fatalf("first Publish() error = %v", err)
+	}
+	select {
+	case <-shutdown:
+		t.Fatal("resource shut down before every publisher drained")
+	case err = <-stopped:
+		t.Fatalf("Stop() returned before every publisher drained: %v", err)
+	default:
+	}
+
+	close(secondRelease)
+	if err = awaitValue(t, published); err != nil {
+		t.Fatalf("second Publish() error = %v", err)
+	}
+	if err = awaitValue(t, stopped); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+	awaitValue(t, shutdown)
 }
 
 func TestProducerRejectsPrepopulatedCorrelationMetadata(t *testing.T) {
@@ -601,7 +701,7 @@ func TestCanceledProducerDrainCanBeResumed(t *testing.T) {
 		_, _ = producer.Publish(producerContext(), queuedPayload("work"))
 		close(published)
 	}()
-	<-entered
+	awaitValue(t, entered)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -612,8 +712,8 @@ func TestCanceledProducerDrainCanBeResumed(t *testing.T) {
 		t.Fatalf("Shutdown() calls = %d before drain, want 0", shutdownCalls)
 	}
 	close(release)
-	<-published
-	if err = component.Stop(context.Background()); err != nil {
+	awaitValue(t, published)
+	if err = stopWithin(component); err != nil {
 		t.Fatalf("resumed Stop() error = %v", err)
 	}
 	if shutdownCalls != 1 {
@@ -649,8 +749,8 @@ func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
 		t.Fatalf("Start() error = %v", err)
 	}
 	first := make(chan error, 1)
-	go func() { first <- component.Stop(context.Background()) }()
-	<-shutdownStarted
+	go func() { first <- stopWithin(component) }()
+	awaitValue(t, shutdownStarted)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -658,10 +758,10 @@ func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
 		t.Fatalf("concurrent Stop() error = %v, want context cancellation", err)
 	}
 	close(releaseShutdown)
-	if err = <-first; !errors.Is(err, shutdownErr) {
+	if err = awaitValue(t, first); !errors.Is(err, shutdownErr) {
 		t.Fatalf("first Stop() error = %v, want shutdown failure", err)
 	}
-	if err = component.Stop(context.Background()); !errors.Is(err, shutdownErr) {
+	if err = stopWithin(component); !errors.Is(err, shutdownErr) {
 		t.Fatalf("repeated Stop() error = %v, want shutdown failure", err)
 	}
 	if err = component.Start(context.Background()); !errors.Is(err, ErrUnavailable) {
@@ -697,10 +797,10 @@ func TestSharedProducerAndPublishFailuresRemainExplicit(t *testing.T) {
 	if _, err = producer.Publish(context.Background(), queuedPayload("work")); !errors.Is(err, ErrMissingCorrelation) {
 		t.Fatalf("Publish() without parent error = %v", err)
 	}
-	if err = component.Stop(context.Background()); err != nil {
+	if err = stopWithin(component); err != nil {
 		t.Fatalf("Stop() error = %v", err)
 	}
-	if err = component.Stop(context.Background()); err != nil {
+	if err = stopWithin(component); err != nil {
 		t.Fatalf("repeated Stop() error = %v", err)
 	}
 }
@@ -718,7 +818,7 @@ func TestWorkerComponentUsesConcreteQueueLifecycle(t *testing.T) {
 	if err = component.Start(context.Background()); err != nil {
 		t.Fatalf("Start() error = %v", err)
 	}
-	if err = component.Stop(context.Background()); err != nil {
+	if err = stopWithin(component); err != nil {
 		t.Fatalf("Stop() error = %v", err)
 	}
 }
@@ -799,6 +899,37 @@ func TestAdaptersRejectInvalidOptions(t *testing.T) {
 	}
 }
 
+func TestProducerRejectsPublishBeforeStart(t *testing.T) {
+	t.Parallel()
+
+	producer, err := NewProducer(ProducerOptions[*producerResource]{
+		Name: "jobs-producer", Resource: &producerResource{},
+		Correlation: mustFactory(t), Publish: noPublish,
+	})
+	if err != nil {
+		t.Fatalf("NewProducer() error = %v", err)
+	}
+	if _, err = producer.Publish(
+		producerContext(),
+		queuedPayload("work"),
+	); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("Publish() before Start error = %v, want unavailable", err)
+	}
+}
+
+func TestCloneMetadataPreservesAbsentTraceContext(t *testing.T) {
+	t.Parallel()
+
+	metadata := &job.Metadata{Tags: map[string]string{"source": "test"}}
+	clone := cloneMetadata(metadata)
+	if clone == nil || clone == metadata {
+		t.Fatalf("cloneMetadata() = %#v", clone)
+	}
+	if clone.TraceContext != nil {
+		t.Fatalf("clone trace context = %v, want nil", clone.TraceContext)
+	}
+}
+
 func mustFactory(t *testing.T) *correlation.Factory {
 	t.Helper()
 	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
@@ -823,4 +954,25 @@ func producerContext() context.Context {
 		CorrelationID: correlation.MustCorrelationID("workflow", correlation.Policy{}),
 		RequestID:     correlation.MustRequestID("parent-request", correlation.Policy{}),
 	})
+}
+
+func stopWithin(component service.Component) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	return component.Stop(ctx)
+}
+
+func awaitValue[T any](t *testing.T, channel <-chan T) T {
+	t.Helper()
+
+	select {
+	case value := <-channel:
+		return value
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for asynchronous lifecycle event")
+		var zero T
+
+		return zero
+	}
 }

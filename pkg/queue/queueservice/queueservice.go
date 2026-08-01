@@ -226,10 +226,14 @@ func (producer *Producer[R]) finishPublish() {
 	producer.mu.Lock()
 	defer producer.mu.Unlock()
 	producer.inflight--
-	if producer.stopping && producer.inflight == 0 && producer.drained != nil {
-		close(producer.drained)
-		producer.drained = nil
+	if !producer.stopping {
+		return
 	}
+	if producer.inflight != 0 {
+		return
+	}
+	close(producer.drained)
+	producer.drained = nil
 }
 
 func (producer *Producer[R]) stop(ctx context.Context) error {
