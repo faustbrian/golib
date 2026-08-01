@@ -9,3 +9,5 @@
 - Add the MIT license for source distribution and dependency review.
 - Use the canonical `math:` prefix for exported sentinel error messages after
   migration from the former standalone repository.
+- Harden decimal exponent, scaling, normalization, and rounding boundaries so
+  malformed limits and extreme intermediate values fail without runaway work.

@@ -108,11 +108,13 @@ func ParseWithOptions(input string, options ParseOptions) (Decimal, error) {
 	if err := options.Limits.Validate(); err != nil {
 		return Decimal{}, err
 	}
-	if input == "" || (!options.AllowWhitespace && strings.TrimSpace(input) != input) {
+	if input == "" {
 		return Decimal{}, ErrInvalid
 	}
 	if options.AllowWhitespace {
 		input = strings.TrimSpace(input)
+	} else if strings.TrimSpace(input) != input {
+		return Decimal{}, ErrInvalid
 	}
 	if input == "" {
 		return Decimal{}, ErrInvalid
@@ -157,8 +159,9 @@ func ParseWithOptions(input string, options ParseOptions) (Decimal, error) {
 		return Decimal{}, fmt.Errorf("%w: decimal input digits", ErrLimit)
 	}
 	exponent64 := int64(parsedExponent) - int64(fractionCount)
-	if exponent64 < -int64(options.Limits.MaxExponentMagnitude) || exponent64 > int64(options.Limits.MaxExponentMagnitude) {
-		return Decimal{}, fmt.Errorf("%w: decimal exponent", ErrLimit)
+	exponent, err := checkedExponent(exponent64, options.Limits.MaxExponentMagnitude)
+	if err != nil {
+		return Decimal{}, err
 	}
 	var coefficient big.Int
 	coefficient.SetString(integerDigits+fractionDigits, 10)
@@ -166,7 +169,7 @@ func ParseWithOptions(input string, options ParseOptions) (Decimal, error) {
 		coefficient.Neg(&coefficient)
 	}
 
-	return FromBig(&coefficient, int32(exponent64), options.Limits)
+	return FromBig(&coefficient, exponent, options.Limits)
 }
 
 // MustParse parses a trusted constant and panics on invalid input.
@@ -210,11 +213,15 @@ func (d Decimal) String() string {
 
 // BigRat returns the exact value as a mutable rational copy.
 func (d Decimal) BigRat() *big.Rat {
-	if d.exponent >= 0 {
-		return new(big.Rat).SetInt(new(big.Int).Mul(&d.coefficient, pow10(uint32(d.exponent))))
+	if d.exponent == 0 {
+		return new(big.Rat).SetInt(&d.coefficient)
+	}
+	magnitude := exponentMagnitude(d.exponent)
+	if uint32(d.exponent)>>31 == 0 {
+		return new(big.Rat).SetInt(new(big.Int).Mul(&d.coefficient, pow10(magnitude)))
 	}
 
-	return new(big.Rat).SetFrac(&d.coefficient, pow10(uint32(-d.exponent)))
+	return new(big.Rat).SetFrac(&d.coefficient, pow10(magnitude))
 }
 
 // Sign returns -1, 0, or +1.
@@ -241,10 +248,13 @@ func (d Decimal) Cmp(other Decimal) int {
 	oAdjusted := int64(decimalDigits(&other.coefficient)) + int64(other.exponent)
 	if dAdjusted != oAdjusted {
 		comparison := compareInt64(dAdjusted, oAdjusted)
-		if d.Sign() < 0 {
+
+		switch d.Sign() {
+		case -1:
 			return -comparison
+		default:
+			return comparison
 		}
-		return comparison
 	}
 	left, right, _ := align(d, other)
 
@@ -301,7 +311,7 @@ func (d Decimal) QuoExact(ctx context.Context, other Decimal, limits gomath.Limi
 	}
 	numerator := new(big.Int).Set(&d.coefficient)
 	denominator := new(big.Int).Set(&other.coefficient)
-	if denominator.Sign() < 0 {
+	if denominator.Sign() == -1 {
 		numerator.Neg(numerator)
 		denominator.Neg(denominator)
 	}
@@ -314,20 +324,16 @@ func (d Decimal) QuoExact(ctx context.Context, other Decimal, limits gomath.Limi
 		return Decimal{}, ErrNonTerminating
 	}
 	scale := max(twos, fives)
-	if twos < scale {
-		scaled, err := multiplyPowerLimited(numerator, 2, scale-twos, limits)
-		if err != nil {
-			return Decimal{}, err
-		}
-		numerator = scaled
+	scaled, err := multiplyPowerLimited(numerator, 2, scale-twos, limits)
+	if err != nil {
+		return Decimal{}, err
 	}
-	if fives < scale {
-		scaled, err := multiplyPowerLimited(numerator, 5, scale-fives, limits)
-		if err != nil {
-			return Decimal{}, err
-		}
-		numerator = scaled
+	numerator = scaled
+	scaled, err = multiplyPowerLimited(numerator, 5, scale-fives, limits)
+	if err != nil {
+		return Decimal{}, err
 	}
+	numerator = scaled
 	exponent := int64(d.exponent) - int64(other.exponent) - int64(scale)
 	if exponent < -int64(limits.MaxExponentMagnitude) || exponent > int64(limits.MaxExponentMagnitude) {
 		return Decimal{}, fmt.Errorf("%w: quotient exponent", ErrLimit)
@@ -437,20 +443,16 @@ func (d Decimal) Quantize(
 		return Result{}, fmt.Errorf("%w: rounding mode", gomath.ErrInvalidArgument)
 	}
 	targetExponent64 := -int64(scale)
-	if targetExponent64 < -int64(limits.MaxExponentMagnitude) ||
-		targetExponent64 > int64(limits.MaxExponentMagnitude) {
+	targetExponent, err := checkedExponent(targetExponent64, limits.MaxExponentMagnitude)
+	if err != nil {
 		return Result{}, fmt.Errorf("%w: quantize exponent", ErrLimit)
 	}
-	targetExponent := int32(targetExponent64)
 	if d.IsZero() {
 		value, err := FromBig(new(big.Int), targetExponent, limits)
 
 		return Result{Value: value}, err
 	}
-	if d.exponent == targetExponent {
-		return Result{Value: d}, nil
-	}
-	if d.exponent > targetExponent {
+	if d.exponent >= targetExponent {
 		shift := uint32(d.exponent - targetExponent)
 		if shift > uint32(limits.MaxExponentMagnitude) {
 			return Result{}, fmt.Errorf("%w: quantize padding", ErrLimit)
@@ -500,12 +502,12 @@ func QuantizedQuo(
 		return Result{Conditions: gomath.ConditionDivisionByZero}, ErrDivisionByZero
 	}
 	targetExponent64 := -int64(scale)
-	if targetExponent64 < -int64(limits.MaxExponentMagnitude) ||
-		targetExponent64 > int64(limits.MaxExponentMagnitude) {
+	targetExponent, err := checkedExponent(targetExponent64, limits.MaxExponentMagnitude)
+	if err != nil {
 		return Result{}, fmt.Errorf("%w: quotient exponent", ErrLimit)
 	}
 	if numerator.IsZero() {
-		value, err := FromBig(new(big.Int), int32(targetExponent64), limits)
+		value, err := FromBig(new(big.Int), targetExponent, limits)
 
 		return Result{Value: value}, err
 	}
@@ -516,10 +518,10 @@ func QuantizedQuo(
 	if shift > int64(limits.MaxExponentMagnitude) || shift < -int64(limits.MaxExponentMagnitude) {
 		return Result{}, fmt.Errorf("%w: quotient scale", ErrLimit)
 	}
-	var err error
-	if shift >= 0 {
+	switch compareInt64(shift, 0) {
+	case 1:
 		n, err = scaleCoefficient(n, uint32(shift), limits)
-	} else {
+	case -1:
 		d, err = scaleCoefficient(d, uint32(-shift), limits)
 	}
 	if err != nil {
@@ -529,17 +531,21 @@ func QuantizedQuo(
 	quotient, remainder := new(big.Int), new(big.Int)
 	quotient.QuoRem(n, d, remainder)
 	conditions := gomath.Condition(0)
-	sign := numerator.Sign() * denominator.Sign()
+	negative := numerator.Sign() != denominator.Sign()
+	sign := 1
+	if negative {
+		sign = -1
+	}
 	if remainder.Sign() != 0 {
 		conditions = gomath.ConditionRounded | gomath.ConditionInexact
 		if shouldIncrement(quotient, remainder, d, sign, mode) {
 			quotient.Add(quotient, big.NewInt(1))
 		}
 	}
-	if sign < 0 {
+	if negative {
 		quotient.Neg(quotient)
 	}
-	value, err := FromBig(quotient, int32(targetExponent64), limits)
+	value, err := FromBig(quotient, targetExponent, limits)
 	if err != nil {
 		return Result{}, err
 	}
@@ -603,8 +609,10 @@ func (d *Decimal) UnmarshalJSON(data []byte) error {
 }
 
 func (d Decimal) canonicalText() string {
-	if d.IsZero() && d.exponent > 0 {
-		return "0"
+	if d.IsZero() {
+		zeroText := [2]string{"0", d.String()}
+
+		return zeroText[uint32(d.exponent)>>31]
 	}
 
 	return d.String()
@@ -630,9 +638,16 @@ func (c Context) validate(ctx context.Context) (gomath.Limits, error) {
 	if uint64(c.Precision) > uint64(limits.MaxIntermediateBits) {
 		return gomath.Limits{}, fmt.Errorf("%w: decimal precision", ErrLimit)
 	}
-	if !c.Rounding.Valid() || c.MinExponent > c.MaxExponent ||
-		exponentMagnitude(c.MinExponent) > uint32(limits.MaxExponentMagnitude) ||
-		exponentMagnitude(c.MaxExponent) > uint32(limits.MaxExponentMagnitude) {
+	if !c.Rounding.Valid() {
+		return gomath.Limits{}, fmt.Errorf("%w: decimal context", gomath.ErrInvalidArgument)
+	}
+	if c.MinExponent > c.MaxExponent {
+		return gomath.Limits{}, fmt.Errorf("%w: decimal context", gomath.ErrInvalidArgument)
+	}
+	if exponentMagnitude(c.MinExponent) > uint32(limits.MaxExponentMagnitude) {
+		return gomath.Limits{}, fmt.Errorf("%w: decimal context", gomath.ErrInvalidArgument)
+	}
+	if exponentMagnitude(c.MaxExponent) > uint32(limits.MaxExponentMagnitude) {
 		return gomath.Limits{}, fmt.Errorf("%w: decimal context", gomath.ErrInvalidArgument)
 	}
 
@@ -642,14 +657,18 @@ func (c Context) validate(ctx context.Context) (gomath.Limits, error) {
 func (c Context) apply(value Decimal, limits gomath.Limits) (Result, error) {
 	conditions := gomath.Condition(0)
 	digits := decimalDigits(&value.coefficient)
-	if value.Sign() != 0 && digits > int(c.Precision) {
-		drop := uint32(digits - int(c.Precision))
-		coefficient, rounded := roundCoefficient(&value.coefficient, drop, c.Rounding)
-		conditions |= rounded
-		value = fromBig(coefficient, value.exponent+int32(drop))
-		if decimalDigits(&value.coefficient) > int(c.Precision) {
-			value = fromBig(new(big.Int).Quo(&value.coefficient, big.NewInt(10)), value.exponent+1)
-		}
+	if value.Sign() == 0 {
+		return c.finish(value, conditions, limits)
+	}
+	if digits <= int(c.Precision) {
+		return c.finish(value, conditions, limits)
+	}
+	drop := uint32(digits - int(c.Precision))
+	coefficient, rounded := roundCoefficient(&value.coefficient, drop, c.Rounding)
+	conditions = rounded
+	value = fromBig(coefficient, value.exponent+int32(drop))
+	if decimalDigits(&value.coefficient) > int(c.Precision) {
+		value = fromBig(new(big.Int).Quo(&value.coefficient, big.NewInt(10)), value.exponent+1)
 	}
 
 	return c.finish(value, conditions, limits)
@@ -661,15 +680,15 @@ func (c Context) finish(value Decimal, conditions gomath.Condition, limits gomat
 		if adjusted > int64(c.MaxExponent) {
 			conditions |= gomath.ConditionOverflow | gomath.ConditionRounded | gomath.ConditionInexact
 			coefficient := new(big.Int).Sub(pow10(c.Precision), big.NewInt(1))
-			if value.Sign() < 0 {
+			if value.Sign() == -1 {
 				coefficient.Neg(coefficient)
 			}
 			value = fromBig(coefficient, c.MaxExponent-int32(c.Precision)+1)
 		} else if adjusted < int64(c.MinExponent) {
-			conditions |= gomath.ConditionSubnormal
+			conditions = conditions | gomath.ConditionSubnormal
 			minimumExponent := c.MinExponent - int32(c.Precision) + 1
 			if value.exponent < minimumExponent {
-				drop := uint32(minimumExponent - value.exponent)
+				drop := exponentDifference(minimumExponent, value.exponent)
 				coefficient, rounded := roundCoefficient(&value.coefficient, drop, c.Rounding)
 				conditions |= rounded
 				if rounded.Has(gomath.ConditionInexact) {
@@ -748,7 +767,8 @@ func divide(
 	}
 	resultExponent := adjusted - int64(precision) + 1
 	scale := exponentShift - resultExponent
-	if scale >= 0 {
+	switch compareInt64(scale, 0) {
+	case 1:
 		if scale > int64(limits.MaxExponentMagnitude) {
 			return Decimal{}, 0, fmt.Errorf("%w: division scale", ErrLimit)
 		}
@@ -757,7 +777,7 @@ func divide(
 		if err != nil {
 			return Decimal{}, 0, err
 		}
-	} else {
+	case -1:
 		if -scale > int64(limits.MaxExponentMagnitude) {
 			return Decimal{}, 0, fmt.Errorf("%w: division scale", ErrLimit)
 		}
@@ -772,7 +792,12 @@ func divide(
 	conditions := gomath.Condition(0)
 	if remainder.Sign() != 0 {
 		conditions = gomath.ConditionRounded | gomath.ConditionInexact
-		if shouldIncrement(quotient, remainder, d, numerator.Sign()*denominator.Sign(), mode) {
+		negative := numerator.Sign() != denominator.Sign()
+		sign := 1
+		if negative {
+			sign = -1
+		}
+		if shouldIncrement(quotient, remainder, d, sign, mode) {
 			quotient.Add(quotient, big.NewInt(1))
 		}
 		if decimalDigits(quotient) > int(precision) {
@@ -780,24 +805,24 @@ func divide(
 			resultExponent++
 		}
 	} else if !preservePrecision {
-		for quotient.Sign() != 0 && new(big.Int).Mod(quotient, big.NewInt(10)).Sign() == 0 {
-			quotient.Quo(quotient, big.NewInt(10))
-			resultExponent++
-		}
+		resultExponent += int64(removeFactor(quotient, 10))
 	} else {
-		conditions |= gomath.ConditionRounded
+		conditions = gomath.ConditionRounded
 	}
-	if numerator.Sign()*denominator.Sign() < 0 {
+	if numerator.Sign() != denominator.Sign() {
 		quotient.Neg(quotient)
 	}
 	return fromBig(quotient, int32(resultExponent)), conditions, nil
 }
 
 func scaleCoefficient(coefficient *big.Int, shift uint32, limits gomath.Limits) (*big.Int, error) {
-	if coefficient.Sign() == 0 || shift == 0 {
+	if coefficient.Sign() == 0 {
 		return new(big.Int).Set(coefficient), nil
 	}
-	growth := uint64(shift) * 3_321_928_094 / 1_000_000_000
+	if shift == 0 {
+		return new(big.Int).Set(coefficient), nil
+	}
+	growth := estimatedBitGrowth(shift, 3_321_928_094)
 	if uint64(coefficient.BitLen())+growth > uint64(limits.MaxIntermediateBits) {
 		return nil, fmt.Errorf("%w: scaled coefficient", ErrLimit)
 	}
@@ -814,7 +839,7 @@ func multiplyPowerLimited(coefficient *big.Int, base int64, exponent uint32, lim
 	if base == 5 {
 		growthPerBillion = 2_321_928_094
 	}
-	growth := uint64(exponent) * growthPerBillion / 1_000_000_000
+	growth := estimatedBitGrowth(exponent, growthPerBillion)
 	if uint64(coefficient.BitLen())+growth > uint64(limits.MaxIntermediateBits) {
 		return nil, fmt.Errorf("%w: quotient coefficient", ErrLimit)
 	}
@@ -839,7 +864,7 @@ func roundCoefficient(coefficient *big.Int, drop uint32, mode RoundingMode) (*bi
 			quotient.Add(quotient, big.NewInt(1))
 		}
 	}
-	if coefficient.Sign() < 0 {
+	if coefficient.Sign() == -1 {
 		quotient.Neg(quotient)
 	}
 
@@ -895,8 +920,8 @@ func fromBig(coefficient *big.Int, exponent int32) Decimal {
 
 func align(left, right Decimal) (*big.Int, *big.Int, int32) {
 	exponent := min(left.exponent, right.exponent)
-	l := new(big.Int).Mul(&left.coefficient, pow10(uint32(left.exponent-exponent)))
-	r := new(big.Int).Mul(&right.coefficient, pow10(uint32(right.exponent-exponent)))
+	l := new(big.Int).Mul(&left.coefficient, pow10(exponentDifference(left.exponent, exponent)))
+	r := new(big.Int).Mul(&right.coefficient, pow10(exponentDifference(right.exponent, exponent)))
 
 	return l, r, exponent
 }
@@ -938,11 +963,12 @@ func splitExponent(input string, options ParseOptions) (string, int32, error) {
 		}
 		return "", 0, ErrInvalid
 	}
-	if exponent < -int64(options.Limits.MaxExponentMagnitude) || exponent > int64(options.Limits.MaxExponentMagnitude) {
-		return "", 0, fmt.Errorf("%w: decimal exponent", ErrLimit)
+	checked, err := checkedExponent(exponent, options.Limits.MaxExponentMagnitude)
+	if err != nil {
+		return "", 0, err
 	}
 
-	return mantissa, int32(exponent), nil
+	return mantissa, checked, nil
 }
 
 func cleanDigits(input string, allowUnderscores bool) (string, int, bool) {
@@ -976,39 +1002,60 @@ func errorsIsRange(err error) bool {
 func decimalDigits(value *big.Int) int { return len(new(big.Int).Abs(value).String()) }
 
 func outputDigits(coefficient *big.Int, exponent int32) int {
-	if exponent > 0 {
-		return decimalDigits(coefficient) + int(exponent)
+	digits := decimalDigits(coefficient)
+	if exponent == 0 {
+		return digits
 	}
-	if exponent < 0 && int64(-exponent) >= int64(decimalDigits(coefficient)) {
-		return int(-exponent) + 1
+	magnitude := exponentMagnitude(exponent)
+	if uint32(exponent)>>31 == 0 {
+		return digits + int(magnitude)
+	}
+	if int64(magnitude) >= int64(digits) {
+		return int(magnitude) + 1
 	}
 
-	return decimalDigits(coefficient)
+	return digits
 }
 
 func exponentMagnitude(exponent int32) uint32 {
-	if exponent >= 0 {
-		return uint32(exponent)
-	}
-
-	return uint32(-(int64(exponent)))
+	return uint32(integerMagnitude(int64(exponent)))
 }
 
 func exponentDifference(left, right int32) uint32 {
 	difference := int64(left) - int64(right)
-	if difference < 0 {
-		difference = -difference
+
+	return uint32(integerMagnitude(difference))
+}
+
+func integerMagnitude(value int64) uint64 {
+	mask := uint64(value >> 63)
+
+	return (uint64(value) ^ mask) - mask
+}
+
+func estimatedBitGrowth(exponent uint32, bitsPerBillion uint64) uint64 {
+	return uint64(exponent) * bitsPerBillion / 1_000_000_000
+}
+
+func checkedExponent(exponent int64, maximum int32) (int32, error) {
+	if exponent < -int64(maximum) {
+		return 0, fmt.Errorf("%w: decimal exponent", ErrLimit)
+	}
+	if exponent > int64(maximum) {
+		return 0, fmt.Errorf("%w: decimal exponent", ErrLimit)
 	}
 
-	return uint32(difference)
+	return int32(exponent), nil
 }
 
 func compareRatioPower10(numerator, denominator *big.Int, exponent int64) int {
-	if exponent >= 0 {
-		return numerator.Cmp(new(big.Int).Mul(denominator, pow10(uint32(exponent))))
+	magnitude := uint32(integerMagnitude(exponent))
+	switch compareInt64(exponent, 0) {
+	case 0, 1:
+		return numerator.Cmp(new(big.Int).Mul(denominator, pow10(magnitude)))
+	default:
+		return new(big.Int).Mul(numerator, pow10(magnitude)).Cmp(denominator)
 	}
-
-	return new(big.Int).Mul(numerator, pow10(uint32(-exponent))).Cmp(denominator)
 }
 
 func compareInts(left, right int) int {
