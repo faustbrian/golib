@@ -282,3 +282,298 @@ func TestRootRegistryRecognizesWebhooksByDialect(t *testing.T) {
 		t.Fatal("OpenAPI 3.0 accepted webhooks")
 	}
 }
+
+func TestMergeObjectFallsBackWhenOnlyIncomingValueIsNotAnObject(t *testing.T) {
+	t.Parallel()
+
+	existing := testObject(t, jsonvalue.Member{Name: "kept", Value: jsonvalue.Null()})
+	merger := documentMerger{
+		ctx:     context.Background(),
+		options: DefaultMergeOptions(),
+		owners:  map[string]int{"/value": 0},
+	}
+	merger.options.ResolveConflict = func(Conflict) (ConflictDecision, error) {
+		return UseIncoming, nil
+	}
+
+	merged, err := merger.mergeObject(existing, jsonvalue.Boolean(true), "/value", 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, ok := merged.Bool()
+	if !ok || !value {
+		t.Fatalf("merged value = %#v, want incoming boolean", merged)
+	}
+}
+
+func TestPrepareIncomingSkipsInapplicableDocumentsWithoutChargingEntries(t *testing.T) {
+	t.Parallel()
+
+	components := testObject(t, jsonvalue.Member{
+		Name:  "schemas",
+		Value: testObject(t, jsonvalue.Member{Name: "Pet", Value: jsonvalue.Null()}),
+	})
+	withComponents := testObject(t, jsonvalue.Member{Name: "components", Value: components})
+	withoutComponents := testObject(t, jsonvalue.Member{Name: "paths", Value: testObject(t)})
+	nonObjectComponents := testObject(t, jsonvalue.Member{
+		Name: "components", Value: jsonvalue.Boolean(false),
+	})
+
+	tests := []struct {
+		name     string
+		dialect  specversion.Dialect
+		resolver ConflictResolver
+		existing jsonvalue.Value
+		incoming jsonvalue.Value
+	}{
+		{
+			name:    "Swagger document",
+			dialect: specversion.DialectSwagger20,
+			resolver: func(Conflict) (ConflictDecision, error) {
+				return KeepExisting, nil
+			},
+			existing: withComponents,
+			incoming: withComponents,
+		},
+		{
+			name:     "no conflict resolver",
+			dialect:  specversion.DialectOAS32,
+			existing: withComponents,
+			incoming: withComponents,
+		},
+		{
+			name:    "missing existing components",
+			dialect: specversion.DialectOAS32,
+			resolver: func(Conflict) (ConflictDecision, error) {
+				return KeepExisting, nil
+			},
+			existing: withoutComponents,
+			incoming: withComponents,
+		},
+		{
+			name:    "non-object existing components",
+			dialect: specversion.DialectOAS32,
+			resolver: func(Conflict) (ConflictDecision, error) {
+				return KeepExisting, nil
+			},
+			existing: nonObjectComponents,
+			incoming: withComponents,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			merger := newPreparationMerger(test.dialect, test.resolver)
+			if _, err := merger.prepareIncoming(test.existing, test.incoming, 1); err != nil {
+				t.Fatal(err)
+			}
+			if merger.preparedEntries != 0 {
+				t.Fatalf("prepared entries = %d, want 0", merger.preparedEntries)
+			}
+		})
+	}
+}
+
+func TestPrepareIncomingContinuesPastNonConflictingEntries(t *testing.T) {
+	t.Parallel()
+
+	different := jsonvalue.Boolean(true)
+	equal := jsonvalue.Null()
+	tests := []struct {
+		name      string
+		existing  jsonvalue.Value
+		incoming  jsonvalue.Value
+		wantCalls int
+	}{
+		{
+			name: "unknown registry before collision",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "x-unknown", Value: testObject(t)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: equal},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "x-unknown", Value: testObject(t)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: different},
+				)},
+			),
+			wantCalls: 1,
+		},
+		{
+			name: "new registry before collision",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: equal},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "responses", Value: testObject(t)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: different},
+				)},
+			),
+			wantCalls: 1,
+		},
+		{
+			name: "new member before collision",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: equal},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "New", Value: equal},
+					jsonvalue.Member{Name: "Pet", Value: different},
+				)},
+			),
+			wantCalls: 1,
+		},
+		{
+			name: "equal member before collision",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: equal},
+					jsonvalue.Member{Name: "Order", Value: equal},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: equal},
+					jsonvalue.Member{Name: "Order", Value: different},
+				)},
+			),
+			wantCalls: 1,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			merger := newPreparationMerger(
+				specversion.DialectOAS32,
+				func(Conflict) (ConflictDecision, error) {
+					calls++
+					return KeepExisting, nil
+				},
+			)
+			if _, err := merger.prepareIncoming(test.existing, test.incoming, 1); err != nil {
+				t.Fatal(err)
+			}
+			if calls != test.wantCalls {
+				t.Fatalf("resolver calls = %d, want %d", calls, test.wantCalls)
+			}
+		})
+	}
+}
+
+func TestPrepareIncomingProcessesEveryNonRenameDecision(t *testing.T) {
+	t.Parallel()
+
+	existing := testComponentsRoot(t, jsonvalue.Member{
+		Name: "schemas",
+		Value: testObject(t,
+			jsonvalue.Member{Name: "Pet", Value: jsonvalue.Null()},
+			jsonvalue.Member{Name: "Order", Value: jsonvalue.Null()},
+		),
+	})
+	incoming := testComponentsRoot(t, jsonvalue.Member{
+		Name: "schemas",
+		Value: testObject(t,
+			jsonvalue.Member{Name: "Pet", Value: jsonvalue.Boolean(true)},
+			jsonvalue.Member{Name: "Order", Value: jsonvalue.Boolean(true)},
+		),
+	})
+	calls := 0
+	merger := newPreparationMerger(
+		specversion.DialectOAS32,
+		func(Conflict) (ConflictDecision, error) {
+			calls++
+			return KeepExisting, nil
+		},
+	)
+	if _, err := merger.prepareIncoming(existing, incoming, 1); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("resolver calls = %d, want 2", calls)
+	}
+}
+
+func TestRewriteIncomingAppliesOnlyTheFirstMatchingReferenceRename(t *testing.T) {
+	t.Parallel()
+
+	reference, _ := jsonvalue.String("#/components/schemas/Pet")
+	incoming := testObject(t, jsonvalue.Member{Name: "$ref", Value: reference})
+	merger := newPreparationMerger(specversion.DialectOAS32, nil)
+	rewritten, err := merger.rewriteIncoming(
+		incoming,
+		"",
+		1,
+		nil,
+		[]referenceRename{
+			{oldPrefix: "/components/schemas/Pet", newPrefix: "/components/schemas/Pet_2"},
+			{oldPrefix: "/components/schemas/Pet_2", newPrefix: "/components/schemas/Pet_3"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, ok := rewritten.Lookup("$ref")
+	if !ok {
+		t.Fatal("rewritten reference is missing")
+	}
+	text, ok := value.Text()
+	if !ok || text != "#/components/schemas/Pet_2" {
+		t.Fatalf("rewritten reference = %q, want first target", text)
+	}
+}
+
+func TestSemanticEqualContinuesAfterEqualNullElements(t *testing.T) {
+	t.Parallel()
+
+	left, _ := jsonvalue.Array([]jsonvalue.Value{jsonvalue.Null(), jsonvalue.Boolean(true)})
+	right, _ := jsonvalue.Array([]jsonvalue.Value{jsonvalue.Null(), jsonvalue.Boolean(false)})
+	merger := newPreparationMerger(specversion.DialectOAS32, nil)
+	equal, err := merger.semanticEqual(left, right)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if equal {
+		t.Fatal("arrays with different trailing values compare equal")
+	}
+}
+
+func newPreparationMerger(
+	dialect specversion.Dialect,
+	resolver ConflictResolver,
+) *documentMerger {
+	options := DefaultMergeOptions()
+	options.ResolveConflict = resolver
+	return &documentMerger{
+		ctx:            context.Background(),
+		dialect:        dialect,
+		options:        options,
+		owners:         map[string]int{"": 0},
+		decisions:      make(map[mergeDecisionKey]ConflictDecision),
+		sourcePointers: make(map[mergeDecisionKey]string),
+	}
+}
+
+func testComponentsRoot(t *testing.T, registries ...jsonvalue.Member) jsonvalue.Value {
+	t.Helper()
+	return testObject(t, jsonvalue.Member{Name: "components", Value: testObject(t, registries...)})
+}
+
+func testObject(t *testing.T, members ...jsonvalue.Member) jsonvalue.Value {
+	t.Helper()
+	value, err := jsonvalue.Object(members)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}

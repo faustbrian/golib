@@ -68,6 +68,9 @@
 
 ### Tooling
 
+- Verify composition fallback, resource accounting, conflict traversal,
+  reference rewriting, and null comparison semantics against every viable
+  mutation.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of
