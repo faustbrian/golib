@@ -1185,6 +1185,139 @@ func TestSwaggerReusableAndFormParameterEdges(t *testing.T) {
 	}
 }
 
+func TestSwaggerUpgradePreservesMembersAfterSkippedInputs(t *testing.T) {
+	t.Parallel()
+
+	target, _ := openapi.ParseVersion("3.0.4")
+	converted, _, err := convertSwagger20Root(
+		context.Background(),
+		conversionValue(t, `{
+			"swagger":"2.0",
+			"host":"api.example.test",
+			"components":{},
+			"paths":{"/pets":{"x-before":true,"get":{"responses":{}}}}
+		}`),
+		target,
+		1_000,
+		1_000,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberAt(t, converted, "paths", "/pets", "get")
+
+	converter := &swagger20Converter{
+		ctx: context.Background(), maxDocumentNodes: 1_000,
+		maxSchemaNodes: 1_000,
+		bodyRefs:       map[string]struct{}{"#/parameters/Body": {}},
+		formRefs: map[string]jsonvalue.Value{
+			"#/parameters/Form": conversionValue(t, `{"name":"form","in":"formData","type":"string"}`),
+		},
+		parameterRefs: map[string]jsonvalue.Value{},
+	}
+
+	servers, exists := converter.servers(conversionValue(t, `{
+		"host":"api.example.test","schemes":[true,"https"]
+	}`))
+	if !exists {
+		t.Fatal("valid scheme after malformed scheme produced no server")
+	}
+	serverValues, _ := servers.Elements()
+	if len(serverValues) != 1 || textValue(t, memberAt(t, serverValues[0], "url")) != "https://api.example.test" {
+		t.Fatalf("servers = %#v", servers)
+	}
+
+	regular, special, err := converter.splitPathParameters(
+		conversionValue(t, `[
+			{"$ref":"#/parameters/Body"},
+			{"name":"trace","in":"query","type":"string"}
+		]`),
+		"/parameters",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	regularValues, _ := regular.Elements()
+	if len(special) != 1 || len(regularValues) != 1 {
+		t.Fatalf("split parameters = %#v, %#v", regular, special)
+	}
+
+	for _, raw := range []string{
+		`[
+			{"$ref":"#/parameters/Body"},
+			{"$ref":"#/parameters/Body"},
+			{"name":"trace","in":"query","type":"string"}
+		]`,
+		`[
+			{"$ref":"#/parameters/Form"},
+			{"name":"trace","in":"query","type":"string"}
+		]`,
+	} {
+		parameters, _, operationErr := converter.operationParameters(
+			conversionValue(t, raw), nil, "/parameters", nil,
+		)
+		if operationErr != nil {
+			t.Fatal(operationErr)
+		}
+		values, _ := parameters.Elements()
+		if len(values) != 1 || textValue(t, memberAt(t, values[0], "name")) != "trace" {
+			t.Fatalf("operation parameters = %#v", parameters)
+		}
+	}
+}
+
+func TestSwaggerUpgradePreservesReusableAndParameterMembersAfterSkippedInputs(t *testing.T) {
+	t.Parallel()
+
+	converter := &swagger20Converter{
+		ctx: context.Background(), maxDocumentNodes: 1_000, maxSchemaNodes: 1_000,
+	}
+	parameters, bodies, err := converter.reusableParameters(
+		conversionValue(t, `{
+			"Body":{"name":"body","in":"body","schema":{"type":"string"}},
+			"Form":{"name":"form","in":"formData","type":"string"},
+			"Trace":{"name":"trace","in":"query","type":"string"}
+		}`),
+		nil,
+		"/parameters",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberAt(t, parameters, "Trace")
+	memberAt(t, bodies, "Body")
+
+	parameter, err := converter.parameter(
+		conversionValue(t, `{
+			"name":"tags","in":"query","collectionFormat":"csv",
+			"type":"array","items":{"type":"string"}
+		}`),
+		"/parameter",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if textValue(t, memberAt(t, parameter, "schema", "type")) != "array" {
+		t.Fatalf("parameter schema = %#v", parameter)
+	}
+
+	oauth, err := converter.oauth2SecurityScheme(
+		conversionValue(t, `{
+			"type":"oauth2","flow":"password",
+			"authUrl":"https://auth.example.test/authorize",
+			"tokenUrl":"https://auth.example.test/token","scopes":{},
+			"x-after":true
+		}`),
+		"/security",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after, exists := oauth.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+		t.Fatalf("OAuth member after Swagger fields = %#v", oauth)
+	}
+}
+
 func TestSwaggerDowngradePureClassificationEdges(t *testing.T) {
 	t.Parallel()
 

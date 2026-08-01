@@ -193,7 +193,17 @@ func (converter *swagger20Converter) servers(
 		servers, _ := jsonvalue.Array([]jsonvalue.Value{server})
 		return servers, true
 	}
-	if !hasSchemes || !validSchemes || len(schemes) == 0 {
+	if !hasSchemes {
+		server := serverValue("//" + host + basePath)
+		servers, _ := jsonvalue.Array([]jsonvalue.Value{server})
+		return servers, true
+	}
+	if !validSchemes {
+		server := serverValue("//" + host + basePath)
+		servers, _ := jsonvalue.Array([]jsonvalue.Value{server})
+		return servers, true
+	}
+	if len(schemes) == 0 {
 		server := serverValue("//" + host + basePath)
 		servers, _ := jsonvalue.Array([]jsonvalue.Value{server})
 		return servers, true
@@ -313,7 +323,10 @@ func (converter *swagger20Converter) indexBodyParameters(root jsonvalue.Value) {
 	converter.formRefs = make(map[string]jsonvalue.Value)
 	converter.parameterRefs = make(map[string]jsonvalue.Value)
 	parameters, exists := root.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return
+	}
+	if parameters.Kind() != jsonvalue.ObjectKind {
 		return
 	}
 	members, _ := parameters.Members()
@@ -1316,8 +1329,12 @@ func (converter *swagger20Converter) oauth2SecurityScheme(
 			Name: "tokenUrl", Value: tokenURL,
 		})
 	}
-	if (swaggerFlow == "password" || swaggerFlow == "application" ||
-		swaggerFlow == "accessCode") && !hasMember(value, "tokenUrl") {
+	requiresTokenURL := false
+	switch swaggerFlow {
+	case "password", "application", "accessCode":
+		requiresTokenURL = true
+	}
+	if requiresTokenURL && !hasMember(value, "tokenUrl") {
 		converter.loss(
 			pointer+"/tokenUrl",
 			"openapi.convert.swagger-oauth-token-url",
