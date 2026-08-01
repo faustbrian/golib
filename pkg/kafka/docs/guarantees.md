@@ -140,6 +140,13 @@ A nil callback result does not settle a record when its handler context already
 has a timeout, cancellation, or rebalance cause. A canceled runner does not
 admit another record or batch callback from already-buffered fetch results.
 
+`Consumer.Drain` fences new runners, cancels only an idle broker poll, and
+allows every handler already admitted from the current bounded poll to finish
+and submit its contiguous settlement. It does not leave the group or close the
+client. A context failure returns `ErrConsumerDrainIncomplete` and retains the
+fence for a retry. `Shutdown` uses the same boundary before dynamic group leave
+and close; neither operation cancels an admitted handler.
+
 Application callbacks default to sequential execution. An explicit
 `MaxConcurrentHandlers` from 2 through 64 permits overlap only across
 independent partitions. Each partition remains sequential, worker count never

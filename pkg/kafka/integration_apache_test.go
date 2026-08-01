@@ -871,12 +871,22 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		!errors.Is(assignmentErr, context.Canceled) {
 		t.Fatalf("stop rebalance child assignment poll: %v", assignmentErr)
 	}
+	assignedPartitions := []kafka.TopicPartition{
+		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 0},
+		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 1},
+	}
+	if err := consumer.PausePartitions(assignedPartitions...); err != nil {
+		t.Fatalf("pause rebalance child partitions: %v", err)
+	}
 	if err := report(apacheKafkaConsumerReady); err != nil {
 		t.Fatalf("report rebalance child assignment: %v", err)
 	}
 	var startSignal [1]byte
 	if _, err := io.ReadFull(os.Stdin, startSignal[:]); err != nil {
 		t.Fatalf("start rebalance consumer child handling: %v", err)
+	}
+	if err := consumer.ResumePartitions(assignedPartitions...); err != nil {
+		t.Fatalf("resume rebalance child partitions: %v", err)
 	}
 
 	release := make(chan struct{})
@@ -893,6 +903,7 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		45*time.Second,
 	)
 	defer cancelChild()
+	waitForApacheKafkaBufferedConsumerRecords(t, childCtx, consumer, 2)
 	result, runErr := consumer.RunOnce(
 		childCtx,
 		kafka.HandlerFunc(func(
@@ -934,6 +945,37 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 	}
 	if err := report(apacheKafkaConsumerResult + ":" + scenario); err != nil {
 		t.Fatalf("report rebalance consumer child result: %v", err)
+	}
+}
+
+func waitForApacheKafkaBufferedConsumerRecords(
+	t *testing.T,
+	ctx context.Context,
+	consumer *kafka.Consumer,
+	want int64,
+) {
+	t.Helper()
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		buffered := kafka.BufferedConsumerRecordsForTest(consumer)
+		if buffered < 0 {
+			t.Fatal("consumer backend does not expose buffered records")
+		}
+		if buffered >= want {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for %d buffered consumer records (have %d): %v",
+				want,
+				buffered,
+				context.Cause(ctx),
+			)
+		case <-ticker.C:
+		}
 	}
 }
 

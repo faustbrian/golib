@@ -220,14 +220,18 @@ stops every worker from admitting another callback from that poll. The explicit
 `RebalanceDrainHandler` alternative lets only already-active handlers finish
 and settles successful results. Both policies commit safe earlier prefixes
 before releasing franz-go's poll gate. Handler cancellation is cooperative.
-`Consumer.Run` and `Consumer.RunOnce` are mutually exclusive. `Shutdown`
-atomically fences new runs, waits for an active runner, explicitly leaves a
-dynamic group membership, and then closes the client. A deadline or leave
-failure returns `ErrConsumerShutdownIncomplete` and leaves shutdown retriable.
+`Consumer.Run`, `RunOnce`, and `RunBatchOnce` are mutually exclusive. `Drain`
+atomically fences new work, interrupts an idle broker poll, lets already
+admitted handlers and contiguous settlement finish, and returns without
+leaving the group or closing the client. A deadline returns
+`ErrConsumerDrainIncomplete` and leaves the drain fenced and retriable.
+`Shutdown` applies the same boundary before explicitly leaving a dynamic group
+membership and closing the client. A deadline or leave failure returns
+`ErrConsumerShutdownIncomplete` and leaves shutdown retriable.
 Static membership deliberately skips the leave request. `Close` applies the
 configured `ConsumerConfig.ShutdownTimeout` and returns its shutdown error.
-`Run`, `RunOnce`, `RunBatchOnce`, and `Shutdown` reject a nil context with
-`ErrContextRequired` before polling or changing lifecycle state.
+`Run`, `RunOnce`, `RunBatchOnce`, `Drain`, and `Shutdown` reject a nil context
+with `ErrContextRequired` before polling or changing lifecycle state.
 `Consumer.PausePartitions` and `ResumePartitions` accept owned
 `TopicPartition` values only for configured subscriptions. Each request and
 the accumulated pause set are bounded by `MaxPausedPartitions`.

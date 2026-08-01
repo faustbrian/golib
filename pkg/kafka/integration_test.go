@@ -72,6 +72,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	membershipTopic := topic + "-membership"
 	staticFencingTopic := topic + "-static-fencing"
 	pauseTopic := topic + "-pause"
+	drainTopic := topic + "-drain"
+	shutdownDrainTopic := topic + "-shutdown-drain"
 	rebalanceTopic := topic + "-rebalance"
 	rebalanceDrainTopic := topic + "-rebalance-drain"
 	batchTopic := topic + "-batch"
@@ -95,7 +97,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
-			staticFencingTopic, rebalanceTopic, rebalanceDrainTopic, batchTopic,
+			staticFencingTopic, drainTopic, rebalanceTopic, rebalanceDrainTopic, batchTopic,
 			producerModesTopic,
 			batchFailureTopic,
 			transactionSourceTopic,
@@ -160,6 +162,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, membershipTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, staticFencingTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, drainTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, shutdownDrainTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceDrainTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
@@ -283,6 +287,14 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	proveMembershipPolicy(t, ctx, brokers, producer, membershipTopic)
 	proveStaticMemberFencing(t, ctx, brokers, producer, staticFencingTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
+	proveConsumerDrainLifecycle(
+		t,
+		ctx,
+		brokers,
+		producer,
+		drainTopic,
+		shutdownDrainTopic,
+	)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
 	proveDrainingRebalancePolicy(
 		t,
@@ -2524,6 +2536,159 @@ func provePauseResumePolicy(
 		}
 
 		break
+	}
+}
+
+func proveConsumerDrainLifecycle(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	drainTopic string,
+	shutdownTopic string,
+) {
+	t.Helper()
+
+	const drainGroup = "golib-compatibility-consumer-drain"
+	consumer := newIntegrationConsumer(t, brokers, drainTopic, drainGroup)
+	defer closeIntegrationConsumer(t, consumer)
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- consumer.Run(ctx, kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedMessage,
+		) error {
+			return errors.New("idle drain consumer unexpectedly handled a record")
+		}))
+	}()
+	assignment := waitForIntegrationConsumerAssignment(t, ctx, consumer)
+	drainCtx, cancelDrain := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelDrain()
+	if err := consumer.Drain(drainCtx); err != nil {
+		t.Fatalf("drain assigned idle consumer: %v", err)
+	}
+	select {
+	case err := <-runDone:
+		if err != nil {
+			t.Fatalf("drained consumer run: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("wait for drained consumer run: %v", context.Cause(ctx))
+	}
+	drainedAssignment, err := consumer.Assignment()
+	if err != nil || !slices.Equal(
+		drainedAssignment.Partitions,
+		assignment.Partitions,
+	) {
+		t.Fatalf(
+			"drained consumer assignment/error = %#v/%v",
+			drainedAssignment,
+			err,
+		)
+	}
+
+	if result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: drainTopic,
+		Key:   []byte("drain"),
+		Value: []byte("after-drain"),
+	}); result.Err != nil {
+		t.Fatalf("publish after consumer drain: %v", result.Err)
+	}
+	for {
+		result, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(
+			_ context.Context,
+			record kafka.ConsumedMessage,
+		) error {
+			if string(record.Value) != "after-drain" {
+				return fmt.Errorf("unexpected post-drain value %q", record.Value)
+			}
+
+			return nil
+		}))
+		if runErr != nil {
+			t.Fatalf("consume after drain: %v", runErr)
+		}
+		if result.Polled == 0 {
+			continue
+		}
+		if result != (kafka.PollResult{Polled: 1, Processed: 1, Committed: 1}) {
+			t.Fatalf("post-drain result = %#v", result)
+		}
+
+		break
+	}
+	assertPartitionCommits(
+		t,
+		ctx,
+		brokers,
+		drainTopic,
+		drainGroup,
+		map[int32]int64{0: 1},
+	)
+
+	shutdownConsumer := newIntegrationConsumer(
+		t,
+		brokers,
+		shutdownTopic,
+		"golib-compatibility-consumer-shutdown-drain",
+	)
+	defer closeIntegrationConsumer(t, shutdownConsumer)
+	shutdownDone := make(chan error, 1)
+	go func() {
+		shutdownDone <- shutdownConsumer.Run(ctx, kafka.HandlerFunc(func(
+			context.Context,
+			kafka.ConsumedMessage,
+		) error {
+			return errors.New("idle shutdown consumer unexpectedly handled a record")
+		}))
+	}()
+	waitForIntegrationConsumerAssignment(t, ctx, shutdownConsumer)
+	shutdownCtx, cancelShutdown := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelShutdown()
+	if err := shutdownConsumer.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("shutdown assigned idle consumer: %v", err)
+	}
+	select {
+	case err := <-shutdownDone:
+		if err != nil {
+			t.Fatalf("shutdown consumer run: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("wait for shutdown consumer run: %v", context.Cause(ctx))
+	}
+	if _, err := shutdownConsumer.RunOnce(
+		ctx,
+		kafka.HandlerFunc(func(context.Context, kafka.ConsumedMessage) error {
+			return nil
+		}),
+	); !errors.Is(err, kafka.ErrConsumerClosed) {
+		t.Fatalf("runner after drained shutdown error = %v", err)
+	}
+}
+
+func waitForIntegrationConsumerAssignment(
+	t *testing.T,
+	ctx context.Context,
+	consumer *kafka.Consumer,
+) kafka.ConsumerAssignment {
+	t.Helper()
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		assignment, err := consumer.Assignment()
+		if err != nil {
+			t.Fatalf("inspect consumer assignment: %v", err)
+		}
+		if len(assignment.Partitions) > 0 {
+			return assignment
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for consumer assignment: %v", context.Cause(ctx))
+		case <-ticker.C:
+		}
 	}
 }
 

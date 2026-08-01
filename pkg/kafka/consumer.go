@@ -23,14 +23,19 @@ var (
 	ErrInvalidRebalanceHandlerPolicy = errors.New(
 		"kafka: consumer rebalance handler policy is invalid",
 	)
-	ErrTopicsRequired         = errors.New("kafka: at least one topic is required")
-	ErrTooManyTopics          = errors.New("kafka: topic count exceeds configured limit")
-	ErrDuplicateTopic         = errors.New("kafka: topic is duplicated")
-	ErrInvalidOffsetPolicy    = errors.New("kafka: consumer offset policy is invalid")
-	ErrHandlerRequired        = errors.New("kafka: consumer handler is required")
-	ErrBatchHandlerRequired   = errors.New("kafka: consumer batch handler is required")
-	ErrHandlerPanic           = errors.New("kafka: consumer handler panicked")
-	ErrConsumerBusy           = errors.New("kafka: consumer runner is already active")
+	ErrTopicsRequired          = errors.New("kafka: at least one topic is required")
+	ErrTooManyTopics           = errors.New("kafka: topic count exceeds configured limit")
+	ErrDuplicateTopic          = errors.New("kafka: topic is duplicated")
+	ErrInvalidOffsetPolicy     = errors.New("kafka: consumer offset policy is invalid")
+	ErrHandlerRequired         = errors.New("kafka: consumer handler is required")
+	ErrBatchHandlerRequired    = errors.New("kafka: consumer batch handler is required")
+	ErrHandlerPanic            = errors.New("kafka: consumer handler panicked")
+	ErrConsumerBusy            = errors.New("kafka: consumer runner is already active")
+	ErrConsumerDraining        = errors.New("kafka: consumer is draining")
+	ErrConsumerDrainActive     = errors.New("kafka: consumer drain is already active")
+	ErrConsumerDrainIncomplete = errors.New(
+		"kafka: consumer drain is incomplete",
+	)
 	ErrConsumerClosing        = errors.New("kafka: consumer is shutting down")
 	ErrConsumerClosed         = errors.New("kafka: consumer is closed")
 	ErrConsumerFatal          = errors.New("kafka: consumer entered a fatal state")
@@ -77,6 +82,8 @@ var (
 		"kafka: consumer configuration is outside bounded limits",
 	)
 )
+
+var errConsumerDrainRequested = errors.New("kafka: consumer drain requested")
 
 // OffsetPolicy controls the first offset used when no committed group offset
 // exists.
@@ -244,6 +251,9 @@ type Consumer struct {
 	lifecycleMu       sync.Mutex
 	running           bool
 	runDone           chan struct{}
+	drainRequested    bool
+	drainActive       bool
+	pollCancel        context.CancelCauseFunc
 	closing           bool
 	closed            bool
 	shutdownActive    bool
@@ -604,7 +614,16 @@ func (consumer *Consumer) runOnce(
 	consumer.rebalance.beginPoll()
 	defer consumer.rebalance.endPoll()
 
-	fetches := consumer.client.PollRecords(ctx, consumer.maxPollRecords)
+	pollCtx, finishPoll, admitted := consumer.beginPoll(ctx)
+	if !admitted {
+		return PollResult{}, nil
+	}
+	fetches := consumer.client.PollRecords(pollCtx, consumer.maxPollRecords)
+	drainInterrupted := errors.Is(
+		context.Cause(pollCtx),
+		errConsumerDrainRequested,
+	)
+	finishPoll()
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
@@ -631,6 +650,9 @@ func (consumer *Consumer) runOnce(
 		)
 	}
 	if err := fetches.Err(); err != nil {
+		if drainInterrupted && errors.Is(err, context.Canceled) {
+			return PollResult{}, nil
+		}
 		return PollResult{}, consumer.groupError(
 			newConsumerError(ConsumerOperationPoll, err),
 		)
@@ -842,6 +864,9 @@ func (consumer *Consumer) Run(ctx context.Context, handler Handler) error {
 
 			return err
 		}
+		if consumer.drainPending() {
+			return nil
+		}
 	}
 
 	return consumer.groupError(nil)
@@ -863,6 +888,33 @@ func (consumer *Consumer) beginRun() error {
 	return nil
 }
 
+func (consumer *Consumer) beginPoll(
+	ctx context.Context,
+) (context.Context, func(), bool) {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	if consumer.drainRequested || consumer.closing || consumer.closed {
+		return nil, nil, false
+	}
+	pollCtx, cancel := context.WithCancelCause(ctx)
+	consumer.pollCancel = cancel
+
+	return pollCtx, func() {
+		consumer.lifecycleMu.Lock()
+		consumer.pollCancel = nil
+		consumer.lifecycleMu.Unlock()
+		cancel(nil)
+	}, true
+}
+
+func (consumer *Consumer) drainPending() bool {
+	consumer.lifecycleMu.Lock()
+	defer consumer.lifecycleMu.Unlock()
+
+	return consumer.drainRequested
+}
+
 func (consumer *Consumer) lifecycleErrorLocked() error {
 	if consumer.closed {
 		return ErrConsumerClosed
@@ -873,8 +925,81 @@ func (consumer *Consumer) lifecycleErrorLocked() error {
 	if consumer.fatalErr != nil {
 		return errors.Join(ErrConsumerFatal, consumer.fatalErr)
 	}
+	if consumer.drainRequested {
+		return ErrConsumerDraining
+	}
 
 	return nil
+}
+
+// Drain stops an idle poll, lets an admitted poll finish processing and
+// settlement, and waits for the active runner without leaving the group or
+// closing the client. New runs are fenced until a successful drain completes.
+// A context failure returns ErrConsumerDrainIncomplete and leaves the drain
+// retriable. Concurrent drains return ErrConsumerDrainActive.
+func (consumer *Consumer) Drain(ctx context.Context) error {
+	if ctx == nil {
+		return ErrContextRequired
+	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
+
+	consumer.lifecycleMu.Lock()
+	if consumer.observerCallbacks != 0 {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrObserverReentry
+	}
+	if consumer.closed {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrConsumerClosed
+	}
+	if consumer.closing {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrConsumerClosing
+	}
+	if consumer.fatalErr != nil {
+		err := errors.Join(ErrConsumerFatal, consumer.fatalErr)
+		consumer.lifecycleMu.Unlock()
+
+		return err
+	}
+	if consumer.drainActive {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrConsumerDrainActive
+	}
+	consumer.drainRequested = true
+	consumer.drainActive = true
+	done := consumer.runDone
+	cancelPoll := consumer.pollCancel
+	consumer.lifecycleMu.Unlock()
+
+	if cancelPoll != nil {
+		cancelPoll(errConsumerDrainRequested)
+	}
+	complete := false
+	defer func() {
+		consumer.lifecycleMu.Lock()
+		consumer.drainActive = false
+		if complete {
+			consumer.drainRequested = false
+		}
+		consumer.lifecycleMu.Unlock()
+	}()
+	if done != nil {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return errors.Join(ErrConsumerDrainIncomplete, ctx.Err())
+		}
+	}
+	complete = true
+
+	return consumer.groupError(nil)
 }
 
 type consumerGroupManageErrorHook struct {
@@ -1088,12 +1213,14 @@ func consumedMessageWithinLimits(
 	return message, nil
 }
 
-// Shutdown fences new runs, waits for the active runner, and closes the Kafka
-// client. Dynamic members leave the group before close; static members preserve
-// their membership window. A context or leave failure is joined with
+// Shutdown fences new runs, interrupts an idle poll without canceling admitted
+// handlers, waits for their settlement, and closes the Kafka client. Dynamic
+// members leave the group before close; static members preserve their
+// membership window. A context or leave failure is joined with
 // ErrConsumerShutdownIncomplete and leaves the consumer fenced so Shutdown can
 // be retried. A nil context returns ErrContextRequired without fencing the
-// consumer. Concurrent Shutdown calls return ErrConsumerShutdownActive.
+// consumer. Concurrent shutdown calls return ErrConsumerShutdownActive;
+// shutdown during Drain returns ErrConsumerDrainActive.
 func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 	if ctx == nil {
 		return ErrContextRequired
@@ -1118,11 +1245,21 @@ func (consumer *Consumer) Shutdown(ctx context.Context) (err error) {
 
 		return ErrConsumerShutdownActive
 	}
+	if consumer.drainActive {
+		consumer.lifecycleMu.Unlock()
+
+		return ErrConsumerDrainActive
+	}
 	consumer.closing = true
+	consumer.drainRequested = true
 	consumer.shutdownActive = true
 	done := consumer.runDone
+	cancelPoll := consumer.pollCancel
 	staticMembership := consumer.staticMembership
 	consumer.lifecycleMu.Unlock()
+	if cancelPoll != nil {
+		cancelPoll(errConsumerDrainRequested)
+	}
 	var startedAt time.Time
 	if consumer.observers.enabled() {
 		startedAt = time.Now()

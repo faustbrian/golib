@@ -36,3 +36,16 @@ func NewTransactionProcessorWithDialerForTest(
 		},
 	)
 }
+
+// BufferedConsumerRecordsForTest reports franz-go's current consumer buffer
+// count for broker-test synchronization without adding it to the public API.
+func BufferedConsumerRecordsForTest(consumer *Consumer) int64 {
+	backend, ok := consumer.client.(interface {
+		BufferedFetchRecords() int64
+	})
+	if !ok {
+		return -1
+	}
+
+	return backend.BufferedFetchRecords()
+}

@@ -94,7 +94,16 @@ func (consumer *Consumer) runBatchOnce(
 	consumer.rebalance.beginPoll()
 	defer consumer.rebalance.endPoll()
 
-	fetches := consumer.client.PollRecords(ctx, consumer.maxPollRecords)
+	pollCtx, finishPoll, admitted := consumer.beginPoll(ctx)
+	if !admitted {
+		return PollResult{}, nil
+	}
+	fetches := consumer.client.PollRecords(pollCtx, consumer.maxPollRecords)
+	drainInterrupted := errors.Is(
+		context.Cause(pollCtx),
+		errConsumerDrainRequested,
+	)
+	finishPoll()
 	defer consumer.client.AllowRebalance()
 
 	records := fetches.Records()
@@ -121,6 +130,9 @@ func (consumer *Consumer) runBatchOnce(
 		)
 	}
 	if err := fetches.Err(); err != nil {
+		if drainInterrupted && errors.Is(err, context.Canceled) {
+			return PollResult{}, nil
+		}
 		return PollResult{}, consumer.groupError(
 			newConsumerError(ConsumerOperationPoll, err),
 		)

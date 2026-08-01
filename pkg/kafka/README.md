@@ -261,10 +261,12 @@ Application callbacks default to one at a time. Set
 `MaxConcurrentHandlers` explicitly, up to 64, to process independent
 partitions concurrently; records inside each partition remain sequential and
 the handler must then be concurrency-safe. Only one `Run`, `RunOnce`, or
-`RunBatchOnce` call may be active. Graceful shutdown fences new runs, waits for
-the active runner, and leaves dynamic group membership before closing. Cancel
-the runner context first, then call `Shutdown` with a bounded context or handle
-the error returned by `Close`. Each admitted shutdown attempt emits one
+`RunBatchOnce` call may be active. `Drain` interrupts an idle poll, lets an
+already-admitted poll finish handling and contiguous settlement, and returns
+without leaving the group or closing the client. An incomplete drain fences
+new work until a successful retry. Graceful shutdown uses the same drain
+boundary before leaving dynamic group membership and closing, so caller-owned
+runner cancellation is optional. Each admitted shutdown attempt emits one
 payload-free observation, so an incomplete attempt and its successful retry
 remain distinct.
 

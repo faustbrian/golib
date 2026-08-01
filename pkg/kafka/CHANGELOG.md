@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add `Consumer.Drain` as a bounded, retriable lifecycle operation that
+  interrupts an idle poll without canceling admitted handlers, preserves their
+  contiguous settlement, fences new work after an incomplete drain, and lets
+  graceful shutdown stop a running consumer without caller-owned cancellation
 - expose bounded `FetchMinBytes` policy for consumer groups, transactional
   source groups, and replay so applications can request larger broker fetch
   batches without an unbounded wait; multi-process Apache Kafka evidence now

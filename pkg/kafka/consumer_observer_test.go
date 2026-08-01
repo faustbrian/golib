@@ -463,6 +463,7 @@ func TestConsumerObserverContextFencesConsumerReentry(t *testing.T) {
 						func(context.Context, ConsumedMessage) error { return nil },
 					)),
 					consumer.Shutdown(ctx),
+					consumer.Drain(ctx),
 					consumer.PausePartitions(TopicPartition{
 						Topic: "events", Partition: 1,
 					}),
@@ -502,8 +503,8 @@ func TestConsumerObserverContextFencesConsumerReentry(t *testing.T) {
 		result != (PollResult{Polled: 1, Processed: 1, Committed: 1}) {
 		t.Fatalf("RunOnce() = %#v, %v", result, err)
 	}
-	if len(reentryErrors) != 7 {
-		t.Fatalf("reentry errors = %d, want 7", len(reentryErrors))
+	if len(reentryErrors) != 8 {
+		t.Fatalf("reentry errors = %d, want 8", len(reentryErrors))
 	}
 	for index, reentryErr := range reentryErrors {
 		if !errors.Is(reentryErr, ErrObserverReentry) {

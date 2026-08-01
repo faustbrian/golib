@@ -257,8 +257,7 @@ ignores its context. Such a handler can still exhaust the broker rebalance
 timeout and lose ownership. A context cause observed after callback return
 overrides a nil handler result and prevents settlement. A canceled runner
 admits no new callback even if the backend returns already-buffered records.
-Retain a consumed record before storing its bytes beyond the handler call. A
-separate public drain operation remains pre-v1 completion work.
+Retain a consumed record before storing its bytes beyond the handler call.
 
 ### Retry, retry topics, and dead letters
 
@@ -299,16 +298,32 @@ as authority for an external commit. `PausedPartitions` returns a sorted copied
 snapshot and remains diagnostic after close. Pause and resume reject calls once
 shutdown begins.
 
-## Runner and shutdown lifecycle
+## Runner, drain, and shutdown lifecycle
 
 One consumer permits one active `Run`, `RunOnce`, or `RunBatchOnce` call. A
 concurrent runner fails with `ErrConsumerBusy`. Within that one runner,
 callbacks may overlap only across partitions and only up to
 `MaxConcurrentHandlers`.
-Cancel the runner context to stop polling. `Shutdown` then fences new runners,
-waits for the active runner to finish processing and settlement, and closes the
-client without calling franz-go `Close` while a blocked rebalance poll remains
-active.
+`Drain` fences new runners and pause/resume mutations, interrupts an idle
+broker poll, and waits for an active poll to finish handling and contiguous
+settlement. It does not cancel an admitted handler, leave the group, or close
+the client. A successful drain removes the fence so another runner can start.
+A deadline or cancellation returns both `ErrConsumerDrainIncomplete` and the
+context cause; the fence remains until the active runner stops and a later
+`Drain` succeeds. Concurrent drains, and shutdown started during a drain,
+return `ErrConsumerDrainActive` without changing lifecycle ownership. A fatal
+consumer state reached while waiting remains present in the drain result.
+
+`Shutdown` requests the same drain boundary, waits for the active runner, and
+closes the client without calling franz-go `Close` while a poll or handler is
+active. Applications may still cancel the runner context directly when they
+want handler cancellation rather than draining.
+
+The pinned broker fixture starts a continuously polling dynamic member on an
+empty assigned partition. `Drain` stops that idle runner, preserves the active
+assignment, and permits a later runner to consume and commit the next record.
+A separate assigned idle member exits through `Shutdown` without external
+runner cancellation and rejects reuse after the group leave and close.
 
 For dynamic members, shutdown performs a context-bounded group leave before
 closing the client. Static members intentionally skip that leave so a restart
@@ -324,11 +339,11 @@ Each attempt that acquires shutdown ownership emits one payload-free
 incomplete attempt and its successful retry are separate observations;
 concurrent, observer-reentrant, and already-completed calls emit nothing.
 
-Shutdown never cancels a handler on its own. A pending Kafka rebalance can
-cancel it only under `RebalanceCancelHandler`; otherwise the application owns
-the runner context and must arrange for its handlers to stop. A handler,
-commit, or rebalance outcome interrupted before completion can be redelivered; an
-application side effect may already have occurred.
+Drain and shutdown never cancel an admitted handler on their own. A pending
+Kafka rebalance can cancel it only under `RebalanceCancelHandler`; otherwise
+the handler deadline and application-owned runner context remain its bounds. A
+handler, commit, or rebalance outcome interrupted before completion can be
+redelivered; an application side effect may already have occurred.
 
 ## Ownership boundaries
 
