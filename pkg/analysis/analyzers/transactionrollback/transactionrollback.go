@@ -104,49 +104,70 @@ func analyzeBlock(
 	transactions map[symbolKey]Transaction,
 ) {
 	for index, statement := range block.List {
-		assignment, ok := statement.(*ast.AssignStmt)
-		if !ok || len(assignment.Rhs) != 1 {
-			continue
+		analyzeStatement(pass, block, index, statement, transactions)
+	}
+}
+
+func analyzeStatement(
+	pass *analysis.Pass,
+	block *ast.BlockStmt,
+	index int,
+	statement ast.Stmt,
+	transactions map[symbolKey]Transaction,
+) {
+	assignment, ok := statement.(*ast.AssignStmt)
+	if !ok || len(assignment.Rhs) != 1 {
+		return
+	}
+	call, ok := assignment.Rhs[0].(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	function, ok := calledObject(pass, call.Fun).(*types.Func)
+	if !ok {
+		return
+	}
+	if function.Pkg() == nil {
+		return
+	}
+	key := symbolKey{function.Pkg().Path(), functionSymbol(function)}
+	transaction, configured := transactions[key]
+	if !configured {
+		return
+	}
+	if transaction.Result >= len(assignment.Lhs) {
+		return
+	}
+	identifier, ok := assignment.Lhs[transaction.Result].(*ast.Ident)
+	if !ok {
+		return
+	}
+	if identifier.Name == "_" {
+		report(pass, call, key, transaction)
+		return
+	}
+	transactionObject := assignedObject(pass, identifier)
+	next := index + 1
+	if next < len(block.List) {
+		if isRollbackDefer(pass, block.List[next], transactionObject, transaction) {
+			return
 		}
-		call, ok := assignment.Rhs[0].(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-		function, ok := calledObject(pass, call.Fun).(*types.Func)
-		if !ok || function.Pkg() == nil {
-			continue
-		}
-		key := symbolKey{function.Pkg().Path(), functionSymbol(function)}
-		transaction, configured := transactions[key]
-		if !configured || transaction.Result >= len(assignment.Lhs) {
-			continue
-		}
-		identifier, ok := assignment.Lhs[transaction.Result].(*ast.Ident)
-		if !ok {
-			continue
-		}
-		if identifier.Name == "_" {
-			report(pass, call, key, transaction)
-			continue
-		}
-		transactionObject := assignedObject(pass, identifier)
-		next := index + 1
-		if next < len(block.List) &&
-			isRollbackDefer(pass, block.List[next], transactionObject, transaction) {
-			continue
-		}
-		errorObject := assignedError(pass, assignment, transaction.Result)
-		if errorObject != nil && next < len(block.List) &&
-			isTerminatingErrorGuard(pass, block.List[next], errorObject) {
+	}
+	errorObject := assignedError(pass, assignment, transaction.Result)
+	if errorObject != nil && next < len(block.List) {
+		if isTerminatingErrorGuard(pass, block.List[next], errorObject) {
 			next++
 		}
-		if next < len(block.List) &&
-			(isRollbackDefer(pass, block.List[next], transactionObject, transaction) ||
-				isOwnershipReturn(pass, block.List[next], transactionObject)) {
-			continue
-		}
-		report(pass, call, key, transaction)
 	}
+	if next < len(block.List) {
+		if isRollbackDefer(pass, block.List[next], transactionObject, transaction) {
+			return
+		}
+		if isOwnershipReturn(pass, block.List[next], transactionObject) {
+			return
+		}
+	}
+	report(pass, call, key, transaction)
 }
 
 func report(
@@ -179,16 +200,18 @@ func assignedError(
 ) types.Object {
 	errorType := types.Universe.Lookup("error").Type()
 	for index, expression := range assignment.Lhs {
-		if index == transactionResult {
-			continue
-		}
-		identifier, ok := expression.(*ast.Ident)
-		if !ok || identifier.Name == "_" {
-			continue
-		}
-		object := assignedObject(pass, identifier)
-		if object != nil && types.AssignableTo(object.Type(), errorType) {
-			return object
+		if index != transactionResult {
+			identifier, ok := expression.(*ast.Ident)
+			if ok {
+				if identifier.Name != "_" {
+					object := assignedObject(pass, identifier)
+					if object != nil {
+						if types.AssignableTo(object.Type(), errorType) {
+							return object
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -205,11 +228,17 @@ func isRollbackDefer(
 		return false
 	}
 	selector, ok := deferred.Call.Fun.(*ast.SelectorExpr)
-	if !ok || selector.Sel.Name != transaction.RollbackMethod {
+	if !ok {
+		return false
+	}
+	if selector.Sel.Name != transaction.RollbackMethod {
 		return false
 	}
 	receiver, ok := selector.X.(*ast.Ident)
-	return ok && pass.TypesInfo.Uses[receiver] == transactionObject
+	if !ok {
+		return false
+	}
+	return pass.TypesInfo.Uses[receiver] == transactionObject
 }
 
 func isTerminatingErrorGuard(
@@ -218,16 +247,31 @@ func isTerminatingErrorGuard(
 	errorObject types.Object,
 ) bool {
 	guard, ok := statement.(*ast.IfStmt)
-	if !ok || guard.Init != nil || guard.Else != nil ||
-		!isNonNilCondition(pass, guard.Cond, errorObject) || len(guard.Body.List) == 0 {
+	if !ok {
+		return false
+	}
+	if guard.Init != nil {
+		return false
+	}
+	if guard.Else != nil {
+		return false
+	}
+	if !isNonNilCondition(pass, guard.Cond, errorObject) {
+		return false
+	}
+	if len(guard.Body.List) == 0 {
 		return false
 	}
 	switch final := guard.Body.List[len(guard.Body.List)-1].(type) {
 	case *ast.ReturnStmt:
 		return true
 	case *ast.BranchStmt:
-		return final.Tok == token.BREAK || final.Tok == token.CONTINUE ||
-			final.Tok == token.GOTO
+		switch final.Tok {
+		case token.BREAK, token.CONTINUE, token.GOTO:
+			return true
+		default:
+			return false
+		}
 	default:
 		return false
 	}
@@ -239,11 +283,16 @@ func isNonNilCondition(
 	errorObject types.Object,
 ) bool {
 	binary, ok := unparen(expression).(*ast.BinaryExpr)
-	if !ok || binary.Op != token.NEQ {
+	if !ok {
 		return false
 	}
-	return isObjectAndNil(pass, binary.X, binary.Y, errorObject) ||
-		isObjectAndNil(pass, binary.Y, binary.X, errorObject)
+	if binary.Op != token.NEQ {
+		return false
+	}
+	if isObjectAndNil(pass, binary.X, binary.Y, errorObject) {
+		return true
+	}
+	return isObjectAndNil(pass, binary.Y, binary.X, errorObject)
 }
 
 func isObjectAndNil(
@@ -253,12 +302,20 @@ func isObjectAndNil(
 	object types.Object,
 ) bool {
 	identifier, ok := unparen(objectExpression).(*ast.Ident)
-	if !ok || pass.TypesInfo.Uses[identifier] != object {
+	if !ok {
+		return false
+	}
+	if pass.TypesInfo.Uses[identifier] != object {
 		return false
 	}
 	nilIdentifier, ok := unparen(nilExpression).(*ast.Ident)
-	return ok && nilIdentifier.Name == "nil" &&
-		pass.TypesInfo.Uses[nilIdentifier] == types.Universe.Lookup("nil")
+	if !ok {
+		return false
+	}
+	if nilIdentifier.Name != "nil" {
+		return false
+	}
+	return pass.TypesInfo.Uses[nilIdentifier] == types.Universe.Lookup("nil")
 }
 
 func isOwnershipReturn(
@@ -272,8 +329,10 @@ func isOwnershipReturn(
 	}
 	for _, result := range returned.Results {
 		identifier, ok := unparen(result).(*ast.Ident)
-		if ok && pass.TypesInfo.Uses[identifier] == transactionObject {
-			return true
+		if ok {
+			if pass.TypesInfo.Uses[identifier] == transactionObject {
+				return true
+			}
 		}
 	}
 	return false
@@ -320,9 +379,16 @@ func functionSymbol(function *types.Func) string {
 }
 
 func exactPackage(packagePath string) bool {
-	return packagePath != "" && packagePath != "." &&
-		!strings.HasPrefix(packagePath, "/") && path.Clean(packagePath) == packagePath &&
-		!strings.Contains(packagePath, "*") && !strings.Contains(packagePath, "...")
+	if packagePath == "" || packagePath == "." {
+		return false
+	}
+	if strings.HasPrefix(packagePath, "/") || path.Clean(packagePath) != packagePath {
+		return false
+	}
+	if strings.Contains(packagePath, "*") || strings.Contains(packagePath, "...") {
+		return false
+	}
+	return true
 }
 
 func validSymbol(symbol string) bool {

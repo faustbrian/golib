@@ -64,3 +64,31 @@ func TestGeneratedPolicyEnforcesPathLimit(t *testing.T) {
 		t.Fatal("Validate() accepted generated paths above limit")
 	}
 }
+
+func TestConfigAllowsExceptionsDifferingByRuleOrPackage(t *testing.T) {
+	t.Parallel()
+
+	config := Config{
+		Version: 1,
+		Exceptions: []PolicyException{
+			{
+				Rule: "security/no-unsafe", Package: "example.com/service/a",
+				Path: "internal/bridge.go", Reason: "reviewed bridge",
+			},
+			{
+				Rule: "context/no-background", Package: "example.com/service/a",
+				Path: "internal/bridge.go", Reason: "reviewed worker",
+			},
+			{
+				Rule: "security/no-unsafe", Package: "example.com/service/b",
+				Path: "internal/bridge.go", Reason: "reviewed bridge",
+			},
+		},
+	}
+	if err := config.Validate([]string{
+		"security/no-unsafe",
+		"context/no-background",
+	}); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}

@@ -59,6 +59,20 @@ func TestLockOperationRejectsNonLockForms(t *testing.T) {
 	}
 }
 
+func TestLockOperationRejectsSelectorResolvingToNonFunction(t *testing.T) {
+	t.Parallel()
+
+	receiver := ast.NewIdent("value")
+	selector := ast.NewIdent("Lock")
+	pass := &analysis.Pass{TypesInfo: &types.Info{Uses: map[*ast.Ident]types.Object{
+		selector: types.NewVar(token.NoPos, types.NewPackage("sync", "sync"), "Lock", types.Typ[types.Int]),
+	}}}
+	node := &ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: receiver, Sel: selector}}}
+	if _, action, _ := lockOperation(pass, node); action != lockNone {
+		t.Fatalf("lockOperation(non-function selector) action = %d", action)
+	}
+}
+
 func TestSyncLockMethodRejectsUnrelatedFunctions(t *testing.T) {
 	t.Parallel()
 
@@ -80,6 +94,35 @@ func TestSyncLockMethodRejectsUnrelatedFunctions(t *testing.T) {
 	} {
 		if syncLockMethod(function) {
 			t.Fatalf("syncLockMethod(%s) = true", function.Name())
+		}
+	}
+}
+
+func TestSyncLockMethodRejectsUnnamedReceiver(t *testing.T) {
+	t.Parallel()
+
+	packageValue := types.NewPackage("sync", "sync")
+	receiver := types.NewVar(token.NoPos, packageValue, "receiver", types.NewStruct(nil, nil))
+	function := types.NewFunc(
+		token.NoPos,
+		packageValue,
+		"Lock",
+		types.NewSignatureType(receiver, nil, nil, nil, nil, false),
+	)
+	if syncLockMethod(function) {
+		t.Fatal("syncLockMethod() accepted an unnamed receiver")
+	}
+}
+
+func TestExactPackageRequiresNonEmptyCleanPathWithoutGlob(t *testing.T) {
+	t.Parallel()
+
+	if !exactPackage("example.com/service") {
+		t.Fatal("exactPackage() rejected a clean import path")
+	}
+	for _, packagePath := range []string{"", "example.com/../service", "example.com/service/", "example.com/*"} {
+		if exactPackage(packagePath) {
+			t.Errorf("exactPackage(%q) = true", packagePath)
 		}
 	}
 }

@@ -20,13 +20,44 @@ func TestAnalyzerToleratesMissingDefinition(t *testing.T) {
 	}
 	_, err = analyzer.Run(&analysis.Pass{
 		Pkg: types.NewPackage("example.com/p", "p"),
-		Files: []*ast.File{{Decls: []ast.Decl{&ast.FuncDecl{
-			Name: ast.NewIdent("Fetch"),
-		}}}},
+		Files: []*ast.File{{Decls: []ast.Decl{
+			&ast.GenDecl{},
+			&ast.FuncDecl{Name: ast.NewIdent("Fetch")},
+		}}},
 		TypesInfo: &types.Info{Defs: map[*ast.Ident]types.Object{}},
 	})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
+	}
+}
+
+func TestAnalyzerContinuesAfterMissingFunctionDefinition(t *testing.T) {
+	t.Parallel()
+
+	analyzer, err := New(Options{Policies: []Policy{{
+		Package: "example.com/p", Functions: []string{"Fetch"},
+	}}})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	missing := ast.NewIdent("Missing")
+	fetch := ast.NewIdent("Fetch")
+	signature := types.NewSignatureType(nil, nil, nil, nil, nil, false)
+	function := types.NewFunc(token.NoPos, nil, "Fetch", signature)
+	reported := false
+	_, err = analyzer.Run(&analysis.Pass{
+		Pkg: types.NewPackage("example.com/p", "p"),
+		Files: []*ast.File{{Decls: []ast.Decl{
+			&ast.FuncDecl{Name: missing},
+			&ast.FuncDecl{Name: fetch},
+		}}},
+		TypesInfo: &types.Info{Defs: map[*ast.Ident]types.Object{
+			fetch: function,
+		}},
+		Report: func(analysis.Diagnostic) { reported = true },
+	})
+	if err != nil || !reported {
+		t.Fatalf("Run() reported = %t, error = %v", reported, err)
 	}
 }
 
@@ -50,6 +81,35 @@ func TestContextContractRejectsInvalidPackages(t *testing.T) {
 	owner := types.NewPackage("example.com/p", "p")
 	if contextType, contract := contextContract(&analysis.Pass{Pkg: owner}); contextType != nil || contract != nil {
 		t.Fatalf("contextContract(empty) = %v, %v", contextType, contract)
+	}
+	owner.SetImports([]*types.Package{other, contextPackage(types.NewInterfaceType(nil, nil))})
+	if contextType, contract := contextContract(&analysis.Pass{Pkg: owner}); contextType == nil || contract == nil {
+		t.Fatalf("contextContract(after unrelated import) = %v, %v", contextType, contract)
+	}
+}
+
+func TestHasContextAcceptsAssignableParameter(t *testing.T) {
+	t.Parallel()
+
+	parameterType := types.Typ[types.Int]
+	parameter := types.NewVar(token.NoPos, nil, "value", parameterType)
+	signature := types.NewSignatureType(
+		nil,
+		nil,
+		nil,
+		types.NewTuple(parameter),
+		nil,
+		false,
+	)
+	requiredMethod := types.NewFunc(
+		token.NoPos,
+		nil,
+		"ContextMethod",
+		types.NewSignatureType(nil, nil, nil, nil, nil, false),
+	)
+	contextInterface := types.NewInterfaceType([]*types.Func{requiredMethod}, nil).Complete()
+	if !hasContext(signature, parameterType, contextInterface) {
+		t.Fatal("hasContext() rejected a parameter assignable to the context type")
 	}
 }
 

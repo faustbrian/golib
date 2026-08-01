@@ -86,6 +86,45 @@ func TestWalkerRejectsNonLoopAndMalformedStarts(t *testing.T) {
 	}
 }
 
+func TestForIterationsRejectsNonBinaryCondition(t *testing.T) {
+	t.Parallel()
+
+	variableName := ast.NewIdent("index")
+	start := &ast.BasicLit{Kind: token.INT, Value: "0"}
+	variable := types.NewVar(token.NoPos, nil, variableName.Name, types.Typ[types.Int])
+	current := walker{pass: &analysis.Pass{TypesInfo: &types.Info{
+		Defs: map[*ast.Ident]types.Object{variableName: variable},
+		Types: map[ast.Expr]types.TypeAndValue{
+			start: {Type: types.Typ[types.UntypedInt], Value: constant.MakeInt64(0)},
+		},
+	}}}
+	loop := &ast.ForStmt{
+		Init: &ast.AssignStmt{
+			Lhs: []ast.Expr{variableName},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{start},
+		},
+		Cond: ast.NewIdent("condition"),
+	}
+	if count, known := current.forIterations(loop); known || count != 0 {
+		t.Fatalf("forIterations(non-binary condition) = %d, %t", count, known)
+	}
+}
+
+func TestRangeIterationsRejectsNegativeIntegerConstant(t *testing.T) {
+	t.Parallel()
+
+	expression := &ast.BasicLit{Kind: token.INT, Value: "-1"}
+	current := walker{pass: &analysis.Pass{TypesInfo: &types.Info{
+		Types: map[ast.Expr]types.TypeAndValue{
+			expression: {Type: types.Typ[types.UntypedInt], Value: constant.MakeInt64(-1)},
+		},
+	}}}
+	if count, known := current.rangeIterations(expression); known || count != -1 {
+		t.Fatalf("rangeIterations(-1) = %d, %t", count, known)
+	}
+}
+
 func TestIdentityHelpersRejectAmbiguousExpressions(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +132,7 @@ func TestIdentityHelpersRejectAmbiguousExpressions(t *testing.T) {
 type inner struct { field chan struct{} }
 type outer struct { nested inner }
 func (inner) Method() {}
+func makeInner() inner { return inner{} }
 func use() {
     var value inner
     _ = ((value))
@@ -102,6 +142,7 @@ func use() {
     _ = value.Method
     var outerValue outer
     _ = outerValue.nested.field
+	_ = makeInner().field
     _ = !true
 }
 `
@@ -121,19 +162,88 @@ func use() {
 		t.Fatalf("Check() error = %v", err)
 	}
 	pass := &analysis.Pass{Pkg: checked, TypesInfo: information}
+	var nestedField *ast.SelectorExpr
+	var callRootField *ast.SelectorExpr
 	ast.Inspect(file, func(node ast.Node) bool {
 		if expression, ok := node.(ast.Expr); ok {
 			_, _ = valueIdentity(pass, expression)
 			_ = objectOf(pass, expression)
 		}
+		if selector, ok := node.(*ast.SelectorExpr); ok && selector.Sel.Name == "field" {
+			if _, nested := selector.X.(*ast.SelectorExpr); nested {
+				nestedField = selector
+			}
+			if _, called := selector.X.(*ast.CallExpr); called {
+				callRootField = selector
+			}
+		}
 		return true
 	})
+	if nestedField == nil {
+		t.Fatal("nested field selection not found")
+	}
+	if _, ok := valueIdentity(pass, nestedField); ok {
+		t.Fatal("valueIdentity() accepted a nested field")
+	}
+	if callRootField == nil {
+		t.Fatal("call-root field selection not found")
+	}
+	if _, ok := valueIdentity(pass, callRootField); ok {
+		t.Fatal("valueIdentity() accepted a call-root field")
+	}
 	missing := &ast.SelectorExpr{X: ast.NewIdent("missing"), Sel: ast.NewIdent("field")}
 	if _, ok := valueIdentity(pass, missing); ok {
 		t.Fatal("valueIdentity() accepted a selector without type selection")
 	}
 	if isBuiltin(pass, &ast.BasicLit{Kind: token.INT, Value: "1"}, "make") {
 		t.Fatal("isBuiltin() accepted a basic literal")
+	}
+	nonBuiltin := ast.NewIdent("make")
+	pass.TypesInfo.Uses[nonBuiltin] = types.NewVar(token.NoPos, checked, "make", types.Typ[types.Int])
+	if isBuiltin(pass, nonBuiltin, "make") {
+		t.Fatal("isBuiltin() accepted a non-builtin identifier")
+	}
+}
+
+func TestRecordChannelCapacityIgnoresIdentifiedNonChannel(t *testing.T) {
+	t.Parallel()
+
+	identifier := ast.NewIdent("count")
+	variable := types.NewVar(token.NoPos, nil, "count", types.Typ[types.Int])
+	pass := &analysis.Pass{TypesInfo: &types.Info{
+		Defs: map[*ast.Ident]types.Object{identifier: variable},
+		Types: map[ast.Expr]types.TypeAndValue{
+			identifier: {Type: types.Typ[types.Int]},
+		},
+	}}
+	capacities := make(map[valueKey]int64)
+	seen := make(map[valueKey]struct{})
+	recordChannelCapacity(pass, capacities, seen, identifier, &ast.BasicLit{})
+	if len(capacities) != 0 || len(seen) != 0 {
+		t.Fatalf("recordChannelCapacity() = capacities %#v, seen %#v", capacities, seen)
+	}
+}
+
+func TestPackagePatternsRejectEveryMalformedDimension(t *testing.T) {
+	t.Parallel()
+
+	for _, packagePath := range []string{
+		"", ".", "/example.com/service", "example.com/../service",
+		"example.com/service/", "example.com/*", "example.com/.../service",
+	} {
+		if exactPackage(packagePath) {
+			t.Errorf("exactPackage(%q) = true", packagePath)
+		}
+	}
+	for _, pattern := range []string{"/ ...", "/...", "example.com/../...", "example.com/*/..."} {
+		if validPattern(pattern) {
+			t.Errorf("validPattern(%q) = true", pattern)
+		}
+	}
+	for _, pattern := range []string{"example.com/service", "example.com/service/..."} {
+		if !validPattern(pattern) {
+			t.Errorf("validPattern(%q) = false", pattern)
+		}
 	}
 }
 

@@ -202,7 +202,10 @@ func newMetricAnalyzer(
 		Name: name,
 		Doc:  rule.Rationale,
 		Run: func(pass *analysis.Pass) (any, error) {
-			if len(highCardinality) == 0 || len(sinks) == 0 {
+			if len(highCardinality) == 0 {
+				return nil, nil
+			}
+			if len(sinks) == 0 {
 				return nil, nil
 			}
 			for _, file := range pass.Files {

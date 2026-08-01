@@ -154,13 +154,12 @@ func analyzeBody(
 	outputs := make([]lockSet, len(graph.Blocks))
 	predecessors := make([][]*cfg.Block, len(graph.Blocks))
 	for _, block := range graph.Blocks {
-		if !block.Live {
-			continue
-		}
-		inputs[block.Index] = cloneLocks(universe)
-		outputs[block.Index] = cloneLocks(universe)
-		for _, successor := range block.Succs {
-			predecessors[successor.Index] = append(predecessors[successor.Index], block)
+		if block.Live {
+			inputs[block.Index] = cloneLocks(universe)
+			outputs[block.Index] = cloneLocks(universe)
+			for _, successor := range block.Succs {
+				predecessors[successor.Index] = append(predecessors[successor.Index], block)
+			}
 		}
 	}
 	inputs[0] = make(lockSet)
@@ -169,21 +168,20 @@ func analyzeBody(
 	for changed {
 		changed = false
 		for _, block := range graph.Blocks {
-			if !block.Live {
-				continue
-			}
-			var input lockSet
-			if block.Index == 0 {
-				input = make(lockSet)
-			} else {
-				input = intersectPredecessors(predecessors[block.Index], outputs, universe)
-			}
-			output := transferBlock(pass, block, input, calls, false)
-			if !maps.Equal(inputs[block.Index], input) ||
-				!maps.Equal(outputs[block.Index], output) {
-				inputs[block.Index] = input
-				outputs[block.Index] = output
-				changed = true
+			if block.Live {
+				var input lockSet
+				if block.Index == 0 {
+					input = make(lockSet)
+				} else {
+					input = intersectPredecessors(predecessors[block.Index], outputs, universe)
+				}
+				output := transferBlock(pass, block, input, calls, false)
+				if !maps.Equal(inputs[block.Index], input) ||
+					!maps.Equal(outputs[block.Index], output) {
+					inputs[block.Index] = input
+					outputs[block.Index] = output
+					changed = true
+				}
 			}
 		}
 	}
@@ -347,7 +345,10 @@ func syncLockMethod(function *types.Func) bool {
 		receiver = pointer.Elem()
 	}
 	named, ok := receiver.(*types.Named)
-	return ok && (named.Obj().Name() == "Mutex" || named.Obj().Name() == "RWMutex")
+	if !ok {
+		return false
+	}
+	return named.Obj().Name() == "Mutex" || named.Obj().Name() == "RWMutex"
 }
 
 func lockIdentity(pass *analysis.Pass, expression ast.Expr) (lockKey, bool) {

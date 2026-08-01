@@ -264,7 +264,10 @@ func (current walker) forIterations(loop *ast.ForStmt) (int64, bool) {
 		return 0, false
 	}
 	condition, ok := loop.Cond.(*ast.BinaryExpr)
-	if !ok || objectOf(current.pass, condition.X) != variable {
+	if !ok {
+		return 0, false
+	}
+	if objectOf(current.pass, condition.X) != variable {
 		return 0, false
 	}
 	limit, ok := integerConstant(current.pass, condition.Y)
@@ -351,16 +354,14 @@ func (current walker) channelSynchronized(
 ) bool {
 	for _, candidate := range before {
 		send, ok := candidate.(*ast.SendStmt)
-		if !ok {
-			continue
-		}
-		channel, identified := valueIdentity(current.pass, send.Chan)
-		if !identified {
-			continue
-		}
-		capacity, known := current.channelCapacities[channel]
-		if known && capacity <= current.maxStatic && deferredReceive(current.pass, function, channel) {
-			return true
+		if ok {
+			channel, identified := valueIdentity(current.pass, send.Chan)
+			if identified {
+				capacity, known := current.channelCapacities[channel]
+				if known && capacity <= current.maxStatic && deferredReceive(current.pass, function, channel) {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -379,24 +380,29 @@ func (current walker) waitGroupSynchronized(
 		call := expressionCall(candidate)
 		group, ok := waitGroupReceiver(current.pass, call, "Add")
 		increment, positive := waitGroupIncrement(current.pass, call)
-		if ok && positive && increment > 0 {
-			groups[group] = struct{}{}
+		if ok {
+			if positive {
+				if increment > 0 {
+					groups[group] = struct{}{}
+				}
+			}
 		}
 	}
 	for group := range groups {
-		if !containsWaitGroupCall(current.pass, function.Body, group, "Done") {
-			continue
-		}
-		afterLaunch := false
-		for _, candidate := range statements {
-			if !afterLaunch {
-				afterLaunch = candidate == launch
-				continue
-			}
-			call := expressionCall(candidate)
-			waited, ok := waitGroupReceiver(current.pass, call, "Wait")
-			if ok && waited == group {
-				return true
+		if containsWaitGroupCall(current.pass, function.Body, group, "Done") {
+			afterLaunch := false
+			for _, candidate := range statements {
+				if !afterLaunch {
+					afterLaunch = candidate == launch
+				} else {
+					call := expressionCall(candidate)
+					waited, ok := waitGroupReceiver(current.pass, call, "Wait")
+					if ok {
+						if waited == group {
+							return true
+						}
+					}
+				}
 			}
 		}
 	}
@@ -436,7 +442,10 @@ func recordChannelCapacity(
 	right ast.Expr,
 ) {
 	identity, identified := valueIdentity(pass, left)
-	if !identified || !isChannel(pass.TypesInfo.TypeOf(left)) {
+	if !identified {
+		return
+	}
+	if !isChannel(pass.TypesInfo.TypeOf(left)) {
 		return
 	}
 	if _, duplicate := seen[identity]; duplicate {
@@ -497,7 +506,9 @@ func containsWaitGroupCall(
 		call, ok := node.(*ast.CallExpr)
 		if ok {
 			calledReceiver, matches := waitGroupReceiver(pass, call, method)
-			found = matches && calledReceiver == receiver
+			if matches {
+				found = calledReceiver == receiver
+			}
 		}
 		return !found
 	})
@@ -572,7 +583,10 @@ func isBuiltin(pass *analysis.Pass, expression ast.Expr, name string) bool {
 		return false
 	}
 	builtin, ok := pass.TypesInfo.Uses[identifier].(*types.Builtin)
-	return ok && builtin.Name() == name
+	if !ok {
+		return false
+	}
+	return builtin.Name() == name
 }
 
 func objectOf(pass *analysis.Pass, expression ast.Expr) types.Object {
@@ -614,7 +628,10 @@ func valueIdentity(pass *analysis.Pass, expression ast.Expr) (valueKey, bool) {
 			return valueKey{}, false
 		}
 		root, ok := valueIdentity(pass, expression.X)
-		if !ok || root.field != nil {
+		if !ok {
+			return valueKey{}, false
+		}
+		if root.field != nil {
 			return valueKey{}, false
 		}
 		root.field = field
@@ -674,14 +691,24 @@ func patternsOverlap(left, right string) bool {
 }
 
 func exactPackage(packagePath string) bool {
-	return packagePath != "" && packagePath != "." && !strings.HasPrefix(packagePath, "/") &&
-		path.Clean(packagePath) == packagePath && !strings.Contains(packagePath, "*") &&
-		!strings.Contains(packagePath, "...")
+	if packagePath == "" || packagePath == "." {
+		return false
+	}
+	if strings.HasPrefix(packagePath, "/") || path.Clean(packagePath) != packagePath {
+		return false
+	}
+	if strings.Contains(packagePath, "*") || strings.Contains(packagePath, "...") {
+		return false
+	}
+	return true
 }
 
 func validPattern(pattern string) bool {
 	if exactPackage(pattern) {
 		return true
 	}
-	return strings.HasSuffix(pattern, "/...") && exactPackage(strings.TrimSuffix(pattern, "/..."))
+	if !strings.HasSuffix(pattern, "/...") {
+		return false
+	}
+	return exactPackage(strings.TrimSuffix(pattern, "/..."))
 }

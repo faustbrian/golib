@@ -86,8 +86,10 @@ func reportComposite(pass *analysis.Pass, literal *ast.CompositeLit) {
 			return
 		}
 		identifier, ok := keyed.Key.(*ast.Ident)
-		if ok && identifier.Name == "Timeout" {
-			timeout = keyed.Value
+		if ok {
+			if identifier.Name == "Timeout" {
+				timeout = keyed.Value
+			}
 		}
 	}
 	if timeout == nil {
@@ -110,7 +112,10 @@ func reportComposite(pass *analysis.Pass, literal *ast.CompositeLit) {
 
 func reportNew(pass *analysis.Pass, call *ast.CallExpr) {
 	identifier, ok := call.Fun.(*ast.Ident)
-	if !ok || len(call.Args) != 1 {
+	if !ok {
+		return
+	}
+	if len(call.Args) != 1 {
 		return
 	}
 	builtin, ok := pass.TypesInfo.Uses[identifier].(*types.Builtin)
@@ -125,8 +130,13 @@ func reportNew(pass *analysis.Pass, call *ast.CallExpr) {
 }
 
 func reportZeroValue(pass *analysis.Pass, specification *ast.ValueSpec) {
-	if specification.Type == nil || len(specification.Values) != 0 ||
-		!isHTTPClient(pass.TypesInfo.TypeOf(specification.Type)) {
+	if specification.Type == nil {
+		return
+	}
+	if len(specification.Values) != 0 {
+		return
+	}
+	if !isHTTPClient(pass.TypesInfo.TypeOf(specification.Type)) {
 		return
 	}
 	for _, name := range specification.Names {
@@ -144,7 +154,10 @@ func isHTTPClient(value types.Type) bool {
 	if !ok || named.Obj().Pkg() == nil {
 		return false
 	}
-	return named.Obj().Pkg().Path() == "net/http" && named.Obj().Name() == "Client"
+	if named.Obj().Pkg().Path() != "net/http" {
+		return false
+	}
+	return named.Obj().Name() == "Client"
 }
 
 func exactPackage(packagePath string) bool {

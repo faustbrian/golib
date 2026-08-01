@@ -39,7 +39,8 @@ var items [1]int                 // want `safety/no-mutable-global: package vari
 var generic stateapi.Box[int]    // want `safety/no-mutable-global: package variable generic holds shared mutable state`
 var raw unsafe.Pointer           // want `safety/no-mutable-global: package variable raw holds shared mutable state`
 
-var mixed, accepted = []int{}, 1 // want `safety/no-mutable-global: package variable mixed holds shared mutable state`
+var mixed, accepted = []int{}, 1              // want `safety/no-mutable-global: package variable mixed holds shared mutable state`
+var acceptedFirst, mutableSecond = 1, []int{} // want `safety/no-mutable-global: package variable mutableSecond holds shared mutable state`
 var _, tupleScalar = pair()
 
 func pair() ([]int, int) { return nil, 0 }

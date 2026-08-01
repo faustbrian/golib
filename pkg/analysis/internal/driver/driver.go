@@ -258,15 +258,24 @@ func run(ctx context.Context, options Options, dependencies dependencies) (Resul
 		Exceptions:   exceptions,
 		Suppressions: suppressions,
 	}
-	result := Result{Report: report}
-	for _, diagnostic := range diagnostics {
-		if statusByRule[diagnostic.Rule] == shared.StatusBlocking {
-			result.Blocking = true
-			break
-		}
+	result := Result{
+		Report:   report,
+		Blocking: hasBlockingDiagnostic(diagnostics, statusByRule),
 	}
 
 	return result, nil
+}
+
+func hasBlockingDiagnostic(
+	diagnostics []shared.Diagnostic,
+	statusByRule map[string]shared.Status,
+) bool {
+	for _, diagnostic := range diagnostics {
+		if statusByRule[diagnostic.Rule] == shared.StatusBlocking {
+			return true
+		}
+	}
+	return false
 }
 
 func buildSpecs(config *shared.Config) ([]analyzerSpec, error) {
@@ -431,17 +440,18 @@ func buildSpecs(config *shared.Config) ([]analyzerSpec, error) {
 		})
 	}
 	for _, packagePolicy := range config.Packages {
+		hasClassification := packagePolicyHasClassification(packagePolicy)
 		if len(packagePolicy.AllowImports) > 0 && len(packagePolicy.DenyImports) == 0 {
 			return nil, fmt.Errorf("package policy %q allows imports without a deny policy",
 				packagePolicy.Pattern)
 		}
-		if packagePolicy.Layer == "" && packagePolicy.Context == "" &&
+		if !hasClassification &&
 			len(packagePolicy.DenyImports) == 0 &&
 			len(packagePolicy.BlockingFunctions) == 0 {
 			return nil, fmt.Errorf("package policy %q has no enforceable policy",
 				packagePolicy.Pattern)
 		}
-		if packagePolicy.Layer != "" || packagePolicy.Context != "" {
+		if hasClassification {
 			packageClasses = append(packageClasses, importboundary.PackageClass{
 				Package: packagePolicy.Pattern,
 				Layer:   packagePolicy.Layer,
@@ -636,6 +646,13 @@ func buildSpecs(config *shared.Config) ([]analyzerSpec, error) {
 	}
 
 	return specs, nil
+}
+
+func packagePolicyHasClassification(policy shared.PackagePolicy) bool {
+	if policy.Layer != "" {
+		return true
+	}
+	return policy.Context != ""
 }
 
 func directions(configured []shared.DirectionPolicy) []importboundary.Direction {

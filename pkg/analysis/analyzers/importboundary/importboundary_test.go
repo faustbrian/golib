@@ -25,6 +25,7 @@ func TestAnalyzer(t *testing.T) {
 			{Package: "arch/application/...", Layer: "application", Context: "orders"},
 			{Package: "arch/catalog/...", Layer: "domain", Context: "catalog"},
 			{Package: "arch/contextonly/...", Context: "orders"},
+			{Package: "arch/domain/...", Context: "orders"},
 			{Package: "arch/infra/...", Layer: "infrastructure", Context: "orders"},
 			{Package: "arch/layeronly/...", Layer: "application"},
 			{Package: "arch/shared/...", Layer: "shared", Context: "shared"},

@@ -74,13 +74,6 @@ func inspectExecuted(node ast.Node, report func(*ast.GoStmt)) {
 }
 
 func calledLiteral(expression ast.Expr) *ast.FuncLit {
-	for {
-		parenthesized, ok := expression.(*ast.ParenExpr)
-		if !ok {
-			break
-		}
-		expression = parenthesized.X
-	}
-	literal, _ := expression.(*ast.FuncLit)
+	literal, _ := ast.Unparen(expression).(*ast.FuncLit)
 	return literal
 }

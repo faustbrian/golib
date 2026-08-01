@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/analysis/analyzers/metriccardinality"
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
@@ -20,6 +21,7 @@ func TestAnalyzer(t *testing.T) {
 		Sinks: []metriccardinality.Sink{
 			{Package: "metricsink", Symbol: "Label", Arguments: []int{0}},
 			{Package: "metricsink", Symbol: "Positioned", Arguments: []int{0}},
+			{Package: "metricsink", Symbol: "Pair", Arguments: []int{0, 1}},
 			{Package: "metricsink", Symbol: "Variadic", VariadicFrom: &variadicFrom},
 			{Package: "metricsink", Symbol: "All", VariadicFrom: &variadicFromStart},
 			{Package: "metricsink", Symbol: "Meter.Record", Arguments: []int{1}},
@@ -32,6 +34,22 @@ func TestAnalyzer(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	analysistest.Run(t, analysistest.TestData(), analyzer, "metricconsumer")
+}
+
+func TestAnalyzerWithTypesButNoSinksIsInactive(t *testing.T) {
+	t.Parallel()
+
+	analyzer, err := metriccardinality.New(metriccardinality.Options{
+		HighCardinalityTypes: []metriccardinality.HighCardinalityType{{
+			Package: "labelmodel", Name: "UserID",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := analyzer.Run(&analysis.Pass{}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
 }
 
 func TestUnconfiguredAnalyzerIsInactive(t *testing.T) {
@@ -91,6 +109,10 @@ func TestNewRejectsMalformedPolicy(t *testing.T) {
 		Package: "metricsink", Symbol: "Label", Arguments: []int{0},
 	}}
 	tests := []metriccardinality.Options{
+		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: ".", Name: "UserID"}}, Sinks: validSink},
+		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: "/labelmodel", Name: "UserID"}}, Sinks: validSink},
+		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: "labelmodel/../other", Name: "UserID"}}, Sinks: validSink},
+		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: "labelmodel/...", Name: "UserID"}}, Sinks: validSink},
 		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: "labelmodel/*", Name: "UserID"}}, Sinks: validSink},
 		{HighCardinalityTypes: []metriccardinality.HighCardinalityType{{Package: "labelmodel", Name: "bad-name"}}, Sinks: validSink},
 		{HighCardinalityTypes: append(validType, validType...), Sinks: validSink},

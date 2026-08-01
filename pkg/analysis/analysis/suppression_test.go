@@ -46,6 +46,38 @@ func TestParseSuppressionsIgnoresOrdinaryComments(t *testing.T) {
 	}
 }
 
+func TestParseSuppressionsProcessesDirectiveAfterOrdinaryComment(t *testing.T) {
+	t.Parallel()
+
+	fset, file := parseGo(t, `package p
+// ordinary context
+//analysis:ignore architecture/import-boundary -- reviewed exception
+var Value int
+`)
+	suppressions, err := shared.ParseSuppressions(
+		fset,
+		file,
+		[]string{"architecture/import-boundary"},
+		time.Time{},
+	)
+	if err != nil || len(suppressions) != 1 || suppressions[0].TargetLine != 4 {
+		t.Fatalf("ParseSuppressions() = %#v, %v", suppressions, err)
+	}
+}
+
+func TestParseSuppressionsRejectsEmptyKnownRule(t *testing.T) {
+	t.Parallel()
+
+	fset, file := parseGo(t, `package p
+//analysis:ignore  -- reviewed exception
+var Value int
+`)
+	_, err := shared.ParseSuppressions(fset, file, []string{""}, time.Time{})
+	if err == nil {
+		t.Fatal("ParseSuppressions() accepted an empty rule identity")
+	}
+}
+
 func TestParseSuppressionsRejectsInvalidDirective(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +143,61 @@ func TestApplySuppressionsRejectsStaleAndFiltersExactLocation(t *testing.T) {
 		[]shared.Suppression{suppression},
 	); err == nil {
 		t.Fatal("ApplySuppressions() error = nil, want stale rejection")
+	}
+}
+
+func TestApplySuppressionsRequiresEveryMatchDimension(t *testing.T) {
+	t.Parallel()
+
+	suppression := shared.Suppression{
+		Rule:       "architecture/import-boundary",
+		Filename:   "p.go",
+		TargetLine: 4,
+		Reason:     "reviewed exception",
+	}
+	tests := map[string]shared.Diagnostic{
+		"rule": {
+			Rule: "security/no-unsafe", Filename: "p.go", Line: 4,
+		},
+		"filename": {
+			Rule: suppression.Rule, Filename: "other.go", Line: 4,
+		},
+		"line": {
+			Rule: suppression.Rule, Filename: "p.go", Line: 5,
+		},
+	}
+	for name, diagnostic := range tests {
+		diagnostic := diagnostic
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, _, err := shared.ApplySuppressions(
+				[]shared.Diagnostic{diagnostic},
+				[]shared.Suppression{suppression},
+			); err == nil {
+				t.Fatal("ApplySuppressions() accepted a partial match")
+			}
+		})
+	}
+}
+
+func TestApplySuppressionsLeavesDuplicateMatchStale(t *testing.T) {
+	t.Parallel()
+
+	suppression := shared.Suppression{
+		Rule:       "architecture/import-boundary",
+		Filename:   "p.go",
+		TargetLine: 4,
+		Reason:     "reviewed exception",
+	}
+	_, inventory, err := shared.ApplySuppressions(
+		[]shared.Diagnostic{{
+			Rule: suppression.Rule, Filename: suppression.Filename, Line: 4,
+		}},
+		[]shared.Suppression{suppression, suppression},
+	)
+	if err == nil || len(inventory) != 2 ||
+		!inventory[0].Used || inventory[1].Used {
+		t.Fatalf("ApplySuppressions() inventory = %#v, error = %v", inventory, err)
 	}
 }
 

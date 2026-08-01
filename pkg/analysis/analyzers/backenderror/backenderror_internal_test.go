@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"testing"
 
+	toolanalysis "golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -42,5 +43,50 @@ func TestSortFlowsUsesStableDescriptions(t *testing.T) {
 	sortFlows(flows)
 	if flows[0].symbol != "Load" || flows[1].symbol != "Save" {
 		t.Fatalf("sortFlows() = %#v", flows)
+	}
+}
+
+func TestAnalyzerDoesNotBuildSSAWithoutSources(t *testing.T) {
+	t.Parallel()
+
+	analyzer, err := New(Options{Boundaries: []string{"boundary"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := analyzer.Run(&toolanalysis.Pass{
+		Pkg: types.NewPackage("boundary", "boundary"),
+	})
+	if err != nil || result != nil {
+		t.Fatalf("Run() = %#v, %v", result, err)
+	}
+}
+
+func TestPackageAndPatternValidationRequiresEveryConstraint(t *testing.T) {
+	t.Parallel()
+
+	if !exactPackage("example.com/service") ||
+		!validPattern("example.com/service/...") {
+		t.Fatal("exact package or package tree was rejected")
+	}
+	for _, packagePath := range []string{
+		"",
+		".",
+		"/absolute",
+		"example.com/../service",
+		"example.com/*",
+		"example.com/service/...",
+	} {
+		if exactPackage(packagePath) {
+			t.Fatalf("exactPackage(%q) = true", packagePath)
+		}
+	}
+	for _, pattern := range []string{
+		"bad/*/...",
+		"/absolute/...",
+		"example.com/../service/...",
+	} {
+		if validPattern(pattern) {
+			t.Fatalf("validPattern(%q) = true", pattern)
+		}
 	}
 }

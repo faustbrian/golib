@@ -9,7 +9,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-func TestAnalyzerAllowsTestFileBoundary(t *testing.T) {
+func TestAnalyzerSkipsTestFileAndContinuesWithProduction(t *testing.T) {
 	t.Parallel()
 
 	fset := token.NewFileSet()
@@ -27,6 +27,22 @@ func TestAnalyzerAllowsTestFileBoundary(t *testing.T) {
 			Body: &ast.BlockStmt{List: []ast.Stmt{&ast.ExprStmt{X: call}}},
 		},
 	}}
+	productionToken := fset.AddFile("service.go", -1, 100)
+	productionToken.SetLines([]int{0})
+	productionSelector := ast.NewIdent("Background")
+	productionSelector.NamePos = token.Pos(productionToken.Base() + 10)
+	productionCall := &ast.CallExpr{Fun: &ast.SelectorExpr{
+		X: ast.NewIdent("context"), Sel: productionSelector,
+	}}
+	productionFile := &ast.File{
+		Package: token.Pos(productionToken.Base() + 1),
+		Name:    ast.NewIdent("service"),
+		Decls: []ast.Decl{&ast.FuncDecl{
+			Name: ast.NewIdent("productionContext"),
+			Type: &ast.FuncType{Params: &ast.FieldList{}},
+			Body: &ast.BlockStmt{List: []ast.Stmt{&ast.ExprStmt{X: productionCall}}},
+		}},
+	}
 	contextPackage := types.NewPackage("context", "context")
 	background := types.NewFunc(
 		token.NoPos,
@@ -39,17 +55,18 @@ func TestAnalyzerAllowsTestFileBoundary(t *testing.T) {
 	reported := 0
 	pass := &analysis.Pass{
 		Fset:  fset,
-		Files: []*ast.File{file},
+		Files: []*ast.File{file, productionFile},
 		Pkg:   owner,
 		TypesInfo: &types.Info{Uses: map[*ast.Ident]types.Object{
-			selector: background,
+			selector:           background,
+			productionSelector: background,
 		}},
 		Report: func(analysis.Diagnostic) { reported++ },
 	}
 	if _, err := Analyzer.Run(pass); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if reported != 0 {
-		t.Fatalf("reported = %d, want 0", reported)
+	if reported != 1 {
+		t.Fatalf("reported = %d, want 1", reported)
 	}
 }

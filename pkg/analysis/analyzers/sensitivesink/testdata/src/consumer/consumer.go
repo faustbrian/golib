@@ -17,6 +17,7 @@ func Direct(token secrets.Token, credentials secrets.Credentials) {
 	logger.Log("token", token)                 // want `security/sensitive-sink: secretmodel.Token flows to sinkapi.Logger.Log argument 2`
 	sinkapi.All(token)                         // want `security/sensitive-sink: secretmodel.Token flows to sinkapi.All argument 1`
 	sinkapi.RecordThree("safe", "safe", token) // want `security/sensitive-sink: secretmodel.Token flows to sinkapi.RecordThree argument 3`
+	sinkapi.RecordPair("safe", token)          // want `security/sensitive-sink: secretmodel.Token flows to sinkapi.RecordPair argument 2`
 }
 
 func NearMiss(token secrets.Token) {

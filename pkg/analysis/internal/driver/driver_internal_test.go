@@ -716,8 +716,14 @@ func TestEnsureReportCapacityBoundsEntries(t *testing.T) {
 		!strings.Contains(err.Error(), "diagnostics exceed") {
 		t.Fatalf("ensureReportCapacity(over limit) error = %v", err)
 	}
-	if err := ensureReportCapacity(maxReportEntries, 0, -1, "diagnostics"); err == nil {
-		t.Fatal("ensureReportCapacity() accepted a negative addition")
+	for _, values := range [][3]int{
+		{-1, 0, 0},
+		{maxReportEntries, -1, 0},
+		{maxReportEntries, 0, -1},
+	} {
+		if err := ensureReportCapacity(values[0], values[1], values[2], "diagnostics"); err == nil {
+			t.Fatalf("ensureReportCapacity(%d, %d, %d) accepted a negative value", values[0], values[1], values[2])
+		}
 	}
 }
 
@@ -739,6 +745,85 @@ var Value int
 	}}, []string{"security/test"}, time.Now(), nil, 0)
 	if err == nil || !strings.Contains(err.Error(), "suppressions exceed") {
 		t.Fatalf("collectSuppressionsLimited() error = %v", err)
+	}
+}
+
+func TestRunSkipsDisabledAnalyzerWithoutStoppingLaterAnalyzers(t *testing.T) {
+	t.Parallel()
+
+	config := writeInternalPolicy(t, `version: 1
+rules:
+  api/backend-error-boundary:
+    status: disabled
+`)
+	var analyzerNames []string
+	dependencies := dependencies{
+		registry: policy.Builtin,
+		load: func(*packages.Config, ...string) ([]*packages.Package, error) {
+			return []*packages.Package{{PkgPath: "example.com/p"}}, nil
+		},
+		analyze: func(analyzers []*toolanalysis.Analyzer, _ []*packages.Package, _ *checker.Options) (*checker.Graph, error) {
+			for _, analyzer := range analyzers {
+				analyzerNames = append(analyzerNames, analyzer.Name)
+			}
+			return &checker.Graph{}, nil
+		},
+		now:      time.Now,
+		relative: repositoryPath,
+	}
+	if _, err := run(context.Background(), Options{ConfigPath: config}, dependencies); err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	joined := strings.Join(analyzerNames, ",")
+	if strings.Contains(joined, "backenderror") || !strings.Contains(joined, "nounsafe") {
+		t.Fatalf("enabled analyzers = %q", joined)
+	}
+}
+
+func TestPackagePolicyClassificationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	if packagePolicyHasClassification(shared.PackagePolicy{}) {
+		t.Fatal("empty policy has a classification")
+	}
+	for _, packagePolicy := range []shared.PackagePolicy{
+		{Layer: "domain"},
+		{Context: "orders"},
+		{Layer: "domain", Context: "orders"},
+	} {
+		if !packagePolicyHasClassification(packagePolicy) {
+			t.Fatalf("policy %#v has no classification", packagePolicy)
+		}
+	}
+}
+
+func TestCollectSuppressionsContinuesAfterExcludedFile(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	excluded, err := parser.ParseFile(fset, "/repo/excluded.go", "package p\n", parser.ParseComments)
+	if err != nil {
+		t.Fatalf("ParseFile(excluded) error = %v", err)
+	}
+	included, err := parser.ParseFile(fset, "/repo/included.go", `package p
+//analysis:ignore security/test -- reviewed boundary
+var Value int
+`, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("ParseFile(included) error = %v", err)
+	}
+	suppressions, err := collectSuppressionsLimited([]*packages.Package{{
+		PkgPath: "example.com/p",
+		Fset:    fset,
+		Syntax:  []*ast.File{excluded, included},
+	}}, []string{"security/test"}, time.Now(), map[string]struct{}{
+		"/repo/excluded.go": {},
+	}, maxReportEntries)
+	if err != nil {
+		t.Fatalf("collectSuppressionsLimited() error = %v", err)
+	}
+	if len(suppressions) != 1 || suppressions[0].Filename != "/repo/included.go" {
+		t.Fatalf("collectSuppressionsLimited() = %#v", suppressions)
 	}
 }
 

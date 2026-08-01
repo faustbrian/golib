@@ -146,6 +146,68 @@ func TestApplyPolicyExceptionsRejectsUnmatchedAndExpiredEntries(t *testing.T) {
 	}
 }
 
+func TestApplyPolicyExceptionsChecksExpiryAfterUnboundedEntry(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	diagnostics := []shared.Diagnostic{
+		{
+			Rule: "security/no-unsafe", Package: "example.com/service/a",
+			Filename: filepath.Join(root, "a.go"),
+		},
+		{
+			Rule: "security/no-unsafe", Package: "example.com/service/b",
+			Filename: filepath.Join(root, "b.go"),
+		},
+	}
+	exceptions := []shared.PolicyException{
+		{
+			Rule: "security/no-unsafe", Package: "example.com/service/a",
+			Reason: "reviewed bridge",
+		},
+		{
+			Rule: "security/no-unsafe", Package: "example.com/service/b",
+			Reason: "temporary bridge", Expires: "2026-07-15",
+		},
+	}
+	_, _, err := shared.ApplyPolicyExceptions(
+		root,
+		diagnostics,
+		exceptions,
+		time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
+	)
+	if err == nil || !strings.Contains(err.Error(), "expired on 2026-07-15") {
+		t.Fatalf("ApplyPolicyExceptions() error = %v", err)
+	}
+}
+
+func TestApplyPolicyExceptionsLeavesDuplicateMatchStale(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	exception := shared.PolicyException{
+		Rule: "security/no-unsafe", Package: "example.com/service",
+		Reason: "reviewed bridge",
+	}
+	_, inventory, err := shared.ApplyPolicyExceptions(
+		root,
+		[]shared.Diagnostic{{
+			Rule: exception.Rule, Package: exception.Package,
+			Filename: filepath.Join(root, "unsafe.go"),
+		}},
+		[]shared.PolicyException{exception, exception},
+		time.Time{},
+	)
+	if err == nil || len(inventory) != 2 ||
+		!inventory[0].Used || inventory[1].Used {
+		t.Fatalf(
+			"ApplyPolicyExceptions() inventory = %#v, error = %v",
+			inventory,
+			err,
+		)
+	}
+}
+
 func TestApplyPolicyExceptionsRejectsDiagnosticOutsideRoot(t *testing.T) {
 	t.Parallel()
 

@@ -12,8 +12,8 @@ func TestRunReportsCAndIgnoresMalformedImportLiteral(t *testing.T) {
 	t.Parallel()
 
 	file := &ast.File{Imports: []*ast.ImportSpec{
-		{Path: &ast.BasicLit{Kind: token.STRING, Value: `"C"`}},
 		{Path: &ast.BasicLit{Kind: token.STRING, Value: `"`}},
+		{Path: &ast.BasicLit{Kind: token.STRING, Value: `"C"`}},
 	}}
 	var diagnostics []analysis.Diagnostic
 	pass := &analysis.Pass{

@@ -2,6 +2,8 @@ package sinkapi
 
 func Record(any) {}
 
+func RecordPair(any, any) {}
+
 func Format(string, ...any) string { return "" }
 
 func All(...any) {}

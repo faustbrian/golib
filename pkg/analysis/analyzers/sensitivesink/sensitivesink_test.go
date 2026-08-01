@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/analysis/analyzers/sensitivesink"
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
@@ -18,6 +19,7 @@ func TestAnalyzer(t *testing.T) {
 		},
 		Sinks: []sensitivesink.Sink{
 			{Package: "sinkapi", Symbol: "Record", Arguments: []int{0}},
+			{Package: "sinkapi", Symbol: "RecordPair", Arguments: []int{0, 1}},
 			{Package: "sinkapi", Symbol: "RecordThree", Arguments: []int{2}},
 			{Package: "sinkapi", Symbol: "Format", VariadicFrom: &variadicFrom},
 			{Package: "sinkapi", Symbol: "All", VariadicFrom: new(int)},
@@ -28,6 +30,22 @@ func TestAnalyzer(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 	analysistest.Run(t, analysistest.TestData(), analyzer, "consumer")
+}
+
+func TestAnalyzerWithSensitiveTypesButNoSinksIsInactive(t *testing.T) {
+	t.Parallel()
+
+	analyzer, err := sensitivesink.New(sensitivesink.Options{
+		SensitiveTypes: []sensitivesink.SensitiveType{{
+			Package: "secretmodel", Name: "Token",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := analyzer.Run(&analysis.Pass{}); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
 }
 
 func TestAnalyzerIgnoresUnconfiguredPolicy(t *testing.T) {
@@ -71,6 +89,7 @@ func TestNewRejectsMalformedPolicy(t *testing.T) {
 		Package: "sinkapi", Symbol: "Record", Arguments: []int{0},
 	}}
 	tests := []sensitivesink.Options{
+		{SensitiveTypes: []sensitivesink.SensitiveType{{Package: "secretmodel/../model", Name: "Token"}}, Sinks: validSink},
 		{SensitiveTypes: []sensitivesink.SensitiveType{{Package: "secretmodel/*", Name: "Token"}}, Sinks: validSink},
 		{SensitiveTypes: []sensitivesink.SensitiveType{{Package: "secretmodel", Name: "bad-name"}}, Sinks: validSink},
 		{SensitiveTypes: append(validType, validType...), Sinks: validSink},

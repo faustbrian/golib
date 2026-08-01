@@ -434,7 +434,10 @@ func reportDirection(
 ) {
 	source, sourceFound := classify(classes, pass.Pkg.Path())
 	target, targetFound := classify(classes, importPath)
-	if !sourceFound || !targetFound {
+	if !sourceFound {
+		return
+	}
+	if !targetFound {
 		return
 	}
 	if !allows(layers, source.layer, target.layer) {

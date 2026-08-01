@@ -25,6 +25,68 @@ func fixture() { panic("expected test fixture") }
 	}
 }
 
+func TestAnalyzerContinuesAfterTestFile(t *testing.T) {
+	t.Parallel()
+
+	files := token.NewFileSet()
+	testFile, err := parser.ParseFile(
+		files,
+		"fixture_test.go",
+		"package sample\nfunc fixture() { panic(\"test fixture\") }\n",
+		0,
+	)
+	if err != nil {
+		t.Fatalf("ParseFile(test) error = %v", err)
+	}
+	productionFile, err := parser.ParseFile(
+		files,
+		"fixture.go",
+		"package sample\nfunc run() { panic(\"production\") }\n",
+		0,
+	)
+	if err != nil {
+		t.Fatalf("ParseFile(production) error = %v", err)
+	}
+	information := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
+	checked, err := (&types.Config{Importer: importer.Default()}).Check(
+		"example.com/sample",
+		files,
+		[]*ast.File{testFile, productionFile},
+		information,
+	)
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	reported := 0
+	_, err = Analyzer.Run(&analysis.Pass{
+		Analyzer:  Analyzer,
+		Fset:      files,
+		Files:     []*ast.File{testFile, productionFile},
+		Pkg:       checked,
+		TypesInfo: information,
+		Report:    func(analysis.Diagnostic) { reported++ },
+	})
+	if err != nil || reported != 1 {
+		t.Fatalf("Run() reported = %d, error = %v", reported, err)
+	}
+}
+
+func TestAnalyzerAllowsNonExitOSCalls(t *testing.T) {
+	t.Parallel()
+
+	const source = `package sample
+import "os"
+func pid() int { return os.Getpid() }
+`
+	if got := reportedCalls(t, "fixture.go", source); got != 0 {
+		t.Fatalf("diagnostics = %d, want 0", got)
+	}
+}
+
 func reportedCalls(t *testing.T, filename, source string) int {
 	t.Helper()
 

@@ -98,6 +98,8 @@ func TestNewRejectsMalformedPolicy(t *testing.T) {
 		{Boundaries: validBoundary, Sources: []backenderror.Flow{{Package: "backend", Symbol: "Load", Result: -1}}},
 		{Boundaries: validBoundary, Sources: append(validSource, validSource...)},
 		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "fmt", Symbol: "Errorf", Result: 0}}},
+		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "bad/*", Symbol: "Errorf", Result: 0, Arguments: []int{1}}}},
+		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "fmt", Symbol: "bad-name", Result: 0, Arguments: []int{1}}}},
 		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "fmt", Symbol: "Errorf", Result: -1, Arguments: []int{1}}}},
 		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "fmt", Symbol: "Errorf", Result: 0, Arguments: []int{-1}}}},
 		{Boundaries: validBoundary, Sources: validSource, Passthroughs: []backenderror.Passthrough{{Package: "fmt", Symbol: "Errorf", Result: 0, Arguments: []int{1, 1}}}},

@@ -26,8 +26,11 @@ func TestNewRejectsInvalidPolicy(t *testing.T) {
 	tests := []blockingcontext.Policy{
 		{},
 		{Package: "blockingapi"},
+		{Package: "blocking/../api", Functions: []string{"Fetch"}},
+		{Package: "blocking*api", Functions: []string{"Fetch"}},
 		{Package: "blockingapi", Functions: []string{"fetch"}},
 		{Package: "blockingapi", Functions: []string{"Client.load"}},
+		{Package: "blockingapi", Functions: []string{"client.Load"}},
 	}
 	for _, policy := range tests {
 		if _, err := blockingcontext.New(blockingcontext.Options{

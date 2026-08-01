@@ -9,6 +9,7 @@ import (
 func Record(user labels.UserID, requestPath labels.RequestPath, low labels.LowCardinality) {
 	metric.Label(string(user)) // want `observability/high-cardinality-label: labelmodel.UserID flows to metric label metricsink.Label argument 1`
 	metric.Positioned("bounded", user)
+	metric.Pair("bounded", user)                               // want `observability/high-cardinality-label: labelmodel.UserID flows to metric label metricsink.Pair argument 2`
 	metric.Generic(user)                                       // want `observability/high-cardinality-label: labelmodel.UserID flows to metric label metricsink.Generic argument 1`
 	metric.Generic[labels.RequestPath](requestPath)            // want `observability/high-cardinality-label: labelmodel.RequestPath flows to metric label metricsink.Generic argument 1`
 	metric.GenericPair[string, labels.UserID]("bounded", user) // want `observability/high-cardinality-label: labelmodel.UserID flows to metric label metricsink.GenericPair argument 2`

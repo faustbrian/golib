@@ -20,6 +20,14 @@ type Alias = interface{ Close() } // want `api/interface-placement: exported int
 
 type internal interface{ hidden() }
 
+type (
+	groupInternal interface{ hidden() }
+	// GroupClient proves later declarations in a type group remain checked.
+	GroupClient interface { // want `api/interface-placement: exported interface GroupClient is declared in a configured provider package`
+		Call()
+	}
+)
+
 // Numeric is a constraint, not a runtime value interface.
 type Numeric interface {
 	~int | ~int64

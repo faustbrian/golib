@@ -50,7 +50,7 @@ func New(options Options) *analysis.Analyzer {
 			if _, ok := allowed[pass.Pkg.Path()]; ok {
 				return nil, nil
 			}
-			contextType, contextInterface := resolveContext(pass)
+			_, contextInterface := resolveContext(pass)
 			if contextInterface == nil {
 				return nil, nil
 			}
@@ -63,8 +63,7 @@ func New(options Options) *analysis.Analyzer {
 					for _, field := range structure.Fields.List {
 						fieldType := pass.TypesInfo.TypeOf(field.Type)
 						if fieldType == nil ||
-							(!types.AssignableTo(fieldType, contextType) &&
-								!types.Implements(fieldType, contextInterface)) {
+							!types.Implements(fieldType, contextInterface) {
 							continue
 						}
 						pass.Reportf(

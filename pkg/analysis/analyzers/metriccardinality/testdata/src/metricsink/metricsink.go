@@ -2,6 +2,7 @@ package metricsink
 
 func Label(string)               {}
 func Positioned(any, any)        {}
+func Pair(any, any)              {}
 func Variadic(any, ...any)       {}
 func All(...any)                 {}
 func Generic[T any](T)           {}

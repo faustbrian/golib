@@ -55,6 +55,7 @@ func TestNewRejectsMalformedPolicy(t *testing.T) {
 	t.Parallel()
 
 	tests := []cleanupownership.Options{
+		{Constructors: []cleanupownership.Constructor{{Package: "resourceapi/../api", Symbol: "Open", CleanupResult: 1}}},
 		{Constructors: []cleanupownership.Constructor{{Package: "resourceapi/*", Symbol: "Open", CleanupResult: 1}}},
 		{Constructors: []cleanupownership.Constructor{{Package: "resourceapi", Symbol: "bad-name", CleanupResult: 1}}},
 		{Constructors: []cleanupownership.Constructor{{Package: "resourceapi", Symbol: "A.B.C", CleanupResult: 1}}},

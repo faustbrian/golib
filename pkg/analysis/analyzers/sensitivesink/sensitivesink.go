@@ -130,7 +130,10 @@ func New(options Options) (*analysis.Analyzer, error) {
 		Name: "sensitivesink",
 		Doc:  Rule.Rationale,
 		Run: func(pass *analysis.Pass) (any, error) {
-			if len(sensitive) == 0 || len(sinks) == 0 {
+			if len(sensitive) == 0 {
+				return nil, nil
+			}
+			if len(sinks) == 0 {
 				return nil, nil
 			}
 			for _, file := range pass.Files {

@@ -330,6 +330,18 @@ func WaitBeforeLaunch(items []int) {
 	}
 }
 
+func AddAfterLaunch(items []int) {
+	var group sync.WaitGroup
+	for range items {
+		go func() { // want `lifecycle/unbounded-goroutine-fanout: goroutine launch is repeated without a proven limit of 8`
+			defer group.Done()
+			work()
+		}()
+		group.Add(1)
+		group.Wait()
+	}
+}
+
 func ZeroWaitGroup(items []int) {
 	var group sync.WaitGroup
 	for range items {

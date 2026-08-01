@@ -46,6 +46,69 @@ func TestReportDeclarationIgnoresMissingTypeInformation(t *testing.T) {
 	}
 }
 
+func TestReportDeclarationContinuesAfterMissingTypeInformation(t *testing.T) {
+	t.Parallel()
+
+	missing := ast.NewIdent("Missing")
+	client := ast.NewIdent("Client")
+	declaration := &ast.GenDecl{Tok: token.TYPE, Specs: []ast.Spec{
+		&ast.TypeSpec{Name: missing, Type: &ast.InterfaceType{Methods: &ast.FieldList{}}},
+		&ast.TypeSpec{Name: client, Type: &ast.InterfaceType{Methods: &ast.FieldList{}}},
+	}}
+	interfaceType := types.NewInterfaceType(nil, nil).Complete()
+	reported := 0
+	reportDeclaration(&analysis.Pass{
+		TypesInfo: &types.Info{Defs: map[*ast.Ident]types.Object{
+			client: types.NewTypeName(token.NoPos, nil, client.Name, interfaceType),
+		}},
+		Report: func(analysis.Diagnostic) { reported++ },
+	}, declaration, compiledPolicy{suffix: "Port"})
+	if reported != 1 {
+		t.Fatalf("reportDeclaration() reports = %d, want 1", reported)
+	}
+}
+
+func TestPackagePatternValidationDimensions(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{"", ".", "interfaces/*", `interfaces\provider`, "interfaces/.../provider"} {
+		if _, _, valid := packagePattern(pattern); valid {
+			t.Errorf("packagePattern(%q) valid = true", pattern)
+		}
+	}
+	base, tree, valid := packagePattern("interfaces/provider/...")
+	if base != "interfaces/provider" || !tree || !valid {
+		t.Fatalf("packagePattern(tree) = (%q, %t, %t)", base, tree, valid)
+	}
+}
+
+func TestPoliciesOverlapOnlyForExactOrTreeDescendantPaths(t *testing.T) {
+	t.Parallel()
+
+	policy := func(packagePath string, tree bool) compiledPolicy {
+		return compiledPolicy{packagePath: packagePath, tree: tree}
+	}
+	tests := []struct {
+		name  string
+		left  compiledPolicy
+		right compiledPolicy
+		want  bool
+	}{
+		{name: "exact", left: policy("example.com/ports", false), right: policy("example.com/ports", false), want: true},
+		{name: "left tree", left: policy("example.com/ports", true), right: policy("example.com/ports/http", false), want: true},
+		{name: "right tree", left: policy("example.com/ports/http", false), right: policy("example.com/ports", true), want: true},
+		{name: "left exact parent", left: policy("example.com/ports", false), right: policy("example.com/ports/http", false), want: false},
+		{name: "right exact parent", left: policy("example.com/ports/http", false), right: policy("example.com/ports", false), want: false},
+		{name: "path prefix only", left: policy("example.com/port", true), right: policy("example.com/ports/http", false), want: false},
+		{name: "disjoint", left: policy("example.com/ports", true), right: policy("example.com/adapters", true), want: false},
+	}
+	for _, test := range tests {
+		if got := policiesOverlap(test.left, test.right); got != test.want {
+			t.Errorf("%s: policiesOverlap() = %t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
 func TestCompilePolicyAcceptsAndRejectsAllowedNameBoundaries(t *testing.T) {
 	t.Parallel()
 

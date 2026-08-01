@@ -47,6 +47,7 @@ func TestNewRejectsMalformedPolicies(t *testing.T) {
 	t.Parallel()
 
 	tests := []constructorgoroutine.Policy{
+		{Package: "constructors/../service", Symbols: []string{"New"}},
 		{Package: "constructors/*", Symbols: []string{"New"}},
 		{Package: "constructors"},
 		{Package: "constructors", Symbols: []string{"new-value"}},

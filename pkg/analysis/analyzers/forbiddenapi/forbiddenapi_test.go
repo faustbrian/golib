@@ -40,6 +40,7 @@ func TestNewRejectsMalformedPolicies(t *testing.T) {
 	t.Parallel()
 
 	tests := []forbiddenapi.Policy{
+		{Package: "legacy/../modern", Symbol: "Old", Replacement: "modern.New"},
 		{Package: "legacy/*", Symbol: "Old", Replacement: "modern.New"},
 		{Package: "legacy", Symbol: "bad-name", Replacement: "modern.New"},
 		{Package: "legacy", Symbol: "Type.bad-name", Replacement: "modern.New"},
