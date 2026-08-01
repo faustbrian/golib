@@ -333,6 +333,31 @@ func TestPutVersionRejectsInvalidRequests(t *testing.T) {
 	}
 }
 
+func TestValidationAcceptsExactLimitsAndASCIIEndpoints(t *testing.T) {
+	t.Parallel()
+
+	request := PutVersionRequest{
+		Name:      strings.Repeat("n", maximumSecretNameBytes),
+		VersionID: strings.Repeat("v", minimumVersionIDBytes),
+		Stage:     strings.Repeat("s", maximumStageBytes),
+		Value:     make([]byte, maximumSecretBytes),
+	}
+	if err := validateRequest(context.Background(), request); err != nil {
+		t.Fatalf("validateRequest() at exact limits error = %v", err)
+	}
+	if !validVersionID(strings.Repeat("v", maximumVersionIDBytes)) {
+		t.Fatal("maximum-length version ID was rejected")
+	}
+	if !validKMSKeyID(strings.Repeat("k", maximumKMSKeyIDBytes)) {
+		t.Fatal("maximum-length KMS key ID was rejected")
+	}
+	for _, value := range []byte{'a', 'z', 'A', 'Z', '0', '9'} {
+		if !asciiLetterOrDigit(value) {
+			t.Fatalf("ASCII range endpoint %q was rejected", value)
+		}
+	}
+}
+
 func TestPutVersionContainsSecretSafeFailures(t *testing.T) {
 	t.Parallel()
 
