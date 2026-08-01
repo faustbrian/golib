@@ -11,3 +11,5 @@
   migration from the former standalone repository.
 - Harden decimal exponent, scaling, normalization, and rounding boundaries so
   malformed limits and extreme intermediate values fail without runaway work.
+- Reject malformed deterministic binary frames at exact payload, header, sign,
+  length, and exponent boundaries.

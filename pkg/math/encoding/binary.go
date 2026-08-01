@@ -38,7 +38,10 @@ func UnmarshalInteger(data []byte, limits gomath.Limits) (integer.Integer, error
 		return integer.Integer{}, err
 	}
 	value, err := reader.signed()
-	if err != nil || !reader.done() {
+	if err != nil {
+		return integer.Integer{}, invalidEncoding(err)
+	}
+	if !reader.done() {
 		return integer.Integer{}, invalidEncoding(err)
 	}
 
@@ -72,7 +75,13 @@ func UnmarshalRational(data []byte, limits gomath.Limits) (rational.Rational, er
 		return rational.Rational{}, invalidEncoding(err)
 	}
 	denominator, err := reader.magnitude()
-	if err != nil || denominator.Sign() == 0 || !reader.done() {
+	if err != nil {
+		return rational.Rational{}, invalidEncoding(err)
+	}
+	if denominator.Sign() == 0 {
+		return rational.Rational{}, invalidEncoding(nil)
+	}
+	if !reader.done() {
 		return rational.Rational{}, invalidEncoding(err)
 	}
 
@@ -108,7 +117,16 @@ func UnmarshalDecimal(data []byte, limits gomath.Limits) (decimal.Decimal, error
 		return decimal.Decimal{}, invalidEncoding(err)
 	}
 	exponent, err := reader.varint()
-	if err != nil || exponent < -1<<31 || exponent > 1<<31-1 || !reader.done() {
+	if err != nil {
+		return decimal.Decimal{}, invalidEncoding(err)
+	}
+	if exponent < -1<<31 {
+		return decimal.Decimal{}, invalidEncoding(nil)
+	}
+	if exponent > 1<<31-1 {
+		return decimal.Decimal{}, invalidEncoding(nil)
+	}
+	if !reader.done() {
 		return decimal.Decimal{}, invalidEncoding(err)
 	}
 
@@ -155,7 +173,10 @@ func UnmarshalFloat(data []byte, limits gomath.Limits) (bigfloat.Float, error) {
 		return bigfloat.Float{}, invalidEncoding(err)
 	}
 	payload, err := reader.bytes()
-	if err != nil || !reader.done() {
+	if err != nil {
+		return bigfloat.Float{}, invalidEncoding(err)
+	}
+	if !reader.done() {
 		return bigfloat.Float{}, invalidEncoding(err)
 	}
 	var decoded big.Float
@@ -188,10 +209,22 @@ func newReader(data []byte, kind byte, limits gomath.Limits) (*reader, error) {
 		return nil, err
 	}
 	maximumBytes := limits.MaxIntermediateBits/8 + 64
-	if len(data) < 4 || len(data) > maximumBytes {
+	if len(data) < 4 {
 		return nil, fmt.Errorf("%w: binary payload size", gomath.ErrLimitExceeded)
 	}
-	if data[0] != magic[0] || data[1] != magic[1] || data[2] != version || data[3] != kind {
+	if len(data) > maximumBytes {
+		return nil, fmt.Errorf("%w: binary payload size", gomath.ErrLimitExceeded)
+	}
+	if data[0] != magic[0] {
+		return nil, gomath.ErrInvalidSyntax
+	}
+	if data[1] != magic[1] {
+		return nil, gomath.ErrInvalidSyntax
+	}
+	if data[2] != version {
+		return nil, gomath.ErrInvalidSyntax
+	}
+	if data[3] != kind {
 		return nil, gomath.ErrInvalidSyntax
 	}
 
@@ -200,15 +233,25 @@ func newReader(data []byte, kind byte, limits gomath.Limits) (*reader, error) {
 
 func (r *reader) signed() (*big.Int, error) {
 	sign, err := r.byte()
-	if err != nil || sign > 2 {
+	if err != nil {
+		return nil, gomath.ErrInvalidSyntax
+	}
+	if sign > 2 {
 		return nil, gomath.ErrInvalidSyntax
 	}
 	magnitude, err := r.magnitude()
 	if err != nil {
 		return nil, err
 	}
-	if sign == 0 && magnitude.Sign() != 0 || sign != 0 && magnitude.Sign() == 0 {
-		return nil, gomath.ErrInvalidSyntax
+	switch sign {
+	case 0:
+		if magnitude.Sign() != 0 {
+			return nil, gomath.ErrInvalidSyntax
+		}
+	default:
+		if magnitude.Sign() == 0 {
+			return nil, gomath.ErrInvalidSyntax
+		}
 	}
 	if sign == 2 {
 		magnitude.Neg(magnitude)
