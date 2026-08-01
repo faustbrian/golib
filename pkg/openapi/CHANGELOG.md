@@ -81,6 +81,8 @@
   reusable component, scheme, and OAuth members.
 - Preserve Swagger downgrade traversal after discarded parameters, request
   bodies, path fields, media types, security schemes, and schema keywords.
+- Verify operation diff traversal across mixed skipped, equal, changed,
+  removed, and added security, metadata, operation, and parameter entries.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of

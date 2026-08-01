@@ -1109,6 +1109,201 @@ func TestCircularComparableReferenceIsInvalid(t *testing.T) {
 	}
 }
 
+func TestDiffPreservesSecurityAndMetadataTraversalAfterSkippedEntries(t *testing.T) {
+	t.Parallel()
+
+	left := testValue(t, `{"components":{"securitySchemes":{
+		"Removed":{"type":"apiKey","in":"header","name":"X-Removed"},
+		"Equal":{"type":"apiKey","in":"header","name":"X-Equal"},
+		"Changed":{"type":"apiKey","in":"header","name":"X-Old"},
+		"InvalidEqual":{"$ref":"#/components/securitySchemes/Missing"},
+		"InvalidChanged":{"$ref":"#/components/securitySchemes/LeftMissing"}
+	}}}`)
+	right := testValue(t, `{"components":{"securitySchemes":{
+		"Equal":{"type":"apiKey","in":"header","name":"X-Equal"},
+		"Changed":{"type":"apiKey","in":"header","name":"X-New"},
+		"InvalidEqual":{"$ref":"#/components/securitySchemes/Missing"},
+		"InvalidChanged":{"$ref":"#/components/securitySchemes/RightMissing"},
+		"Added":{"type":"apiKey","in":"header","name":"X-Added"}
+	}}}`)
+	collector := changeCollector{ctx: context.Background(), maximum: 16}
+	if err := compareSecuritySchemes(
+		&collector, left, right, openapi.DialectOAS31,
+	); err != nil {
+		t.Fatal(err)
+	}
+	want := []struct {
+		kind           Kind
+		classification Classification
+		pointer        string
+	}{
+		{SecuritySchemeRemoved, Breaking, "/components/securitySchemes/Removed"},
+		{SecuritySchemeChanged, Conditional, "/components/securitySchemes/Changed"},
+		{SecuritySchemeChanged, Unknown, "/components/securitySchemes/InvalidChanged"},
+		{SecuritySchemeAdded, Additive, "/components/securitySchemes/Added"},
+	}
+	if len(collector.changes) != len(want) {
+		t.Fatalf("security changes = %#v", collector.changes)
+	}
+	for index, expected := range want {
+		change := collector.changes[index]
+		if change.kind != expected.kind ||
+			change.classification != expected.classification ||
+			change.pointer != expected.pointer {
+			t.Fatalf("security change %d = %#v, want %#v", index, change, expected)
+		}
+	}
+
+	for _, raw := range []string{
+		`{"tags":[{"description":"missing"}]}`,
+		`{"tags":[{"name":1}]}`,
+		`{"tags":[{"name":"one"},{"name":"one"}]}`,
+	} {
+		if _, present, valid := documentTags(testValue(t, raw)); !present || valid {
+			t.Fatalf("invalid tags accepted for %s", raw)
+		}
+	}
+
+	tags, present, valid := documentTags(testValue(t, `{"tags":[
+		{"name":"one"},{"name":"two"},{"name":"three"}
+	]}`))
+	if !present || !valid || len(tags) != 3 || tags[2].name != "three" ||
+		tags[2].index != 2 {
+		t.Fatalf("ordered tags = %#v, %t, %t", tags, present, valid)
+	}
+
+	schemes, present, valid := swaggerSchemes(testValue(t, `{"schemes":[
+		"https","https","http"
+	]}`))
+	if !present || !valid || len(schemes) != 2 || schemes[0].name != "https" ||
+		schemes[1].name != "http" || schemes[1].index != 2 {
+		t.Fatalf("deduplicated schemes = %#v, %t, %t", schemes, present, valid)
+	}
+	if _, present, valid := swaggerSchemes(testValue(t, `{"schemes":["https",1]}`)); !present || valid {
+		t.Fatal("non-string Swagger scheme was accepted")
+	}
+}
+
+func TestDiffPreservesOperationAndParameterTraversalAfterSkippedEntries(t *testing.T) {
+	t.Parallel()
+
+	empty := testValue(t, `{}`)
+	collector := changeCollector{ctx: context.Background(), maximum: 32}
+	leftPaths := testValue(t, `{
+		"/missing":{"get":{}},
+		"/common":{"get":{},"post":{"operationId":"old"}}
+	}`)
+	rightPaths := testValue(t, `{
+		"/common":{"post":{"operationId":"new"}}
+	}`)
+	leftMembers, _ := leftPaths.Members()
+	rightMembers, _ := rightPaths.Members()
+	if err := collectCommonOperationContent(
+		&collector, empty, empty, leftMembers, rightMembers,
+		"/paths", openapi.DialectOAS31,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(collector.changes) != 1 ||
+		collector.changes[0].kind != OperationIDChanged ||
+		collector.changes[0].pointer != "/paths/~1common/post/operationId" {
+		t.Fatalf("common operation changes = %#v", collector.changes)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 32}
+	leftOperation := testValue(t, `{"parameters":[
+		{"name":"removed","in":"query"},
+		{"name":"equal","in":"query","required":false},
+		{"name":"required","in":"query","required":false},
+		{"name":"invalid","in":"query","required":"yes"},
+		{"$ref":"#/missing/equal"},
+		{"$ref":"#/missing/left"}
+	]}`)
+	rightOperation := testValue(t, `{"parameters":[
+		{"name":"equal","in":"query","required":false},
+		{"name":"required","in":"query","required":true},
+		{"name":"invalid","in":"query","required":false},
+		{"name":"added","in":"query","required":true},
+		{"$ref":"#/missing/equal"},
+		{"$ref":"#/missing/right"}
+	]}`)
+	if err := compareParameters(
+		&collector, empty, empty, empty, leftOperation, empty, rightOperation,
+		"/path", "/operation", openapi.DialectOAS31,
+	); err != nil {
+		t.Fatal(err)
+	}
+	wantKinds := []Kind{
+		ParameterRequired, ParameterChanged, ParameterRemoved,
+		ParameterAdded, ParameterChanged,
+	}
+	if len(collector.changes) != len(wantKinds) {
+		t.Fatalf("parameter changes = %#v", collector.changes)
+	}
+	for index, kind := range wantKinds {
+		if collector.changes[index].kind != kind {
+			t.Fatalf("parameter change %d = %#v, want %s", index, collector.changes[index], kind)
+		}
+	}
+
+	set := parameterSet{}
+	appendParameters(
+		&collector, empty, &set, make(map[string]int),
+		testValue(t, `{"parameters":[
+			{"name":"value","in":"query","description":"first"},
+			{"name":"value","in":"query","description":"replacement"},
+			{"name":"later","in":"query"}
+		]}`), "/operation/parameters", openapi.DialectOAS31, leftComparison,
+	)
+	if len(set.identified) != 2 {
+		t.Fatalf("deduplicated parameters = %#v", set.identified)
+	}
+	text, _, _ := optionalText(set.identified[0].value, "description")
+	if text != "replacement" || set.identified[1].key != "query\x00later" {
+		t.Fatalf("deduplicated parameters = %#v", set.identified)
+	}
+
+	for _, test := range []struct {
+		name string
+		raw  string
+	}{
+		{name: "missing name", raw: `{"in":"query"}`},
+		{name: "invalid name", raw: `{"name":1,"in":"query"}`},
+		{name: "missing location", raw: `{"name":"value"}`},
+		{name: "invalid location", raw: `{"name":"value","in":1}`},
+	} {
+		if _, _, identified := parameterIdentity(testValue(t, test.raw)); identified {
+			t.Fatalf("%s parameter was identified", test.name)
+		}
+	}
+	key, location, identified := parameterIdentity(testValue(t, `{"name":"X-ID","in":"header"}`))
+	if !identified || key != "header\x00x-id" || location != "header" {
+		t.Fatalf("header identity = %q, %q, %t", key, location, identified)
+	}
+
+	for _, test := range []struct {
+		name  string
+		left  string
+		right string
+	}{
+		{name: "presence", left: `{}`, right: `{"operationId":"one"}`},
+		{name: "validity", left: `{"operationId":1}`, right: `{"operationId":"one"}`},
+		{name: "value", left: `{"operationId":"one"}`, right: `{"operationId":"two"}`},
+	} {
+		collector = changeCollector{ctx: context.Background(), maximum: 8}
+		if err := compareOperationContent(
+			&collector, empty, empty, empty, empty,
+			testValue(t, test.left), testValue(t, test.right),
+			"/operation", openapi.DialectOAS31,
+		); err != nil {
+			t.Fatal(err)
+		}
+		if len(collector.changes) != 1 || collector.changes[0].kind != OperationIDChanged {
+			t.Fatalf("%s operation ID changes = %#v", test.name, collector.changes)
+		}
+	}
+}
+
 type valueResolver struct{}
 
 func (valueResolver) Resolve(context.Context, string) (reference.Resource, error) {
