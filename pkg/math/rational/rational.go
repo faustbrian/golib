@@ -33,7 +33,10 @@ func NewChecked(numerator, denominator *big.Int, limits gomath.Limits) (Rational
 	if err := limits.Validate(); err != nil {
 		return Rational{}, err
 	}
-	if numerator.BitLen() > limits.MaxIntermediateBits || denominator.BitLen() > limits.MaxIntermediateBits {
+	if numerator.BitLen() > limits.MaxIntermediateBits {
+		return Rational{}, fmt.Errorf("%w: rational magnitude", gomath.ErrLimitExceeded)
+	}
+	if denominator.BitLen() > limits.MaxIntermediateBits {
 		return Rational{}, fmt.Errorf("%w: rational magnitude", gomath.ErrLimitExceeded)
 	}
 
@@ -54,7 +57,13 @@ func Parse(text string, limits gomath.Limits) (Rational, error) {
 	if err := limits.Validate(); err != nil {
 		return Rational{}, err
 	}
-	if text == "" || strings.TrimSpace(text) != text || strings.Count(text, "/") > 1 {
+	if text == "" {
+		return Rational{}, gomath.ErrInvalidSyntax
+	}
+	if strings.TrimSpace(text) != text {
+		return Rational{}, gomath.ErrInvalidSyntax
+	}
+	if strings.Count(text, "/") > 1 {
 		return Rational{}, gomath.ErrInvalidSyntax
 	}
 	parts := strings.Split(text, "/")
@@ -145,16 +154,18 @@ func (r Rational) Pow(ctx context.Context, exponent int64, limits gomath.Limits)
 	if magnitude > limits.MaxPowerExponent {
 		return Rational{}, fmt.Errorf("%w: power exponent", gomath.ErrLimitExceeded)
 	}
-	if exponent < 0 && r.Sign() == 0 {
+	if isNegative(exponent) && r.Sign() == 0 {
 		return Rational{}, gomath.ErrDivisionByZero
 	}
-	if powerExceedsBits(r.value.Num(), magnitude, limits.MaxIntermediateBits) ||
-		powerExceedsBits(r.value.Denom(), magnitude, limits.MaxIntermediateBits) {
+	if powerExceedsBits(r.value.Num(), magnitude, limits.MaxIntermediateBits) {
+		return Rational{}, fmt.Errorf("%w: rational power", gomath.ErrLimitExceeded)
+	}
+	if powerExceedsBits(r.value.Denom(), magnitude, limits.MaxIntermediateBits) {
 		return Rational{}, fmt.Errorf("%w: rational power", gomath.ErrLimitExceeded)
 	}
 	numerator := new(big.Int).Exp(r.value.Num(), new(big.Int).SetUint64(magnitude), nil)
 	denominator := new(big.Int).Exp(r.value.Denom(), new(big.Int).SetUint64(magnitude), nil)
-	if exponent < 0 {
+	if isNegative(exponent) {
 		numerator, denominator = denominator, numerator
 	}
 
@@ -163,7 +174,10 @@ func (r Rational) Pow(ctx context.Context, exponent int64, limits gomath.Limits)
 
 func powerExceedsBits(value *big.Int, exponent uint64, maximum int) bool {
 	bits := value.BitLen()
-	if exponent == 0 || bits <= 1 {
+	if exponent == 0 {
+		return false
+	}
+	if bits == 0 {
 		return false
 	}
 
@@ -175,15 +189,22 @@ func (r Rational) Decimal(scale int, mode gomath.RoundingMode, limits gomath.Lim
 	if err := limits.Validate(); err != nil {
 		return "", 0, err
 	}
-	if scale < 0 || scale > limits.MaxDecimalExpansion {
+	if scale < 0 {
+		return "", 0, fmt.Errorf("%w: decimal expansion", gomath.ErrLimitExceeded)
+	}
+	if scale > limits.MaxDecimalExpansion {
 		return "", 0, fmt.Errorf("%w: decimal expansion", gomath.ErrLimitExceeded)
 	}
 	if !mode.Valid() {
 		return "", 0, fmt.Errorf("%w: rounding mode", gomath.ErrInvalidArgument)
 	}
-	if r.value.Num().BitLen() > limits.MaxIntermediateBits ||
-		r.value.Denom().BitLen() > limits.MaxIntermediateBits ||
-		uint64(r.value.Num().BitLen())+uint64(scale)*3 > uint64(limits.MaxIntermediateBits) {
+	if r.value.Num().BitLen() > limits.MaxIntermediateBits {
+		return "", 0, fmt.Errorf("%w: decimal expansion intermediate", gomath.ErrLimitExceeded)
+	}
+	if r.value.Denom().BitLen() > limits.MaxIntermediateBits {
+		return "", 0, fmt.Errorf("%w: decimal expansion intermediate", gomath.ErrLimitExceeded)
+	}
+	if decimalExpansionBits(r.value.Num().BitLen(), scale) > uint64(limits.MaxIntermediateBits) {
 		return "", 0, fmt.Errorf("%w: decimal expansion intermediate", gomath.ErrLimitExceeded)
 	}
 	absNumerator := new(big.Int).Abs(r.value.Num())
@@ -204,7 +225,7 @@ func (r Rational) Decimal(scale int, mode gomath.RoundingMode, limits gomath.Lim
 		}
 		text = text[:len(text)-scale] + "." + text[len(text)-scale:]
 	}
-	if r.Sign() < 0 && quotient.Sign() != 0 {
+	if r.Sign() == -1 && quotient.Sign() != 0 {
 		text = "-" + text
 	}
 	if len(text) > limits.MaxOutputDigits+2 {
@@ -216,20 +237,22 @@ func (r Rational) Decimal(scale int, mode gomath.RoundingMode, limits gomath.Lim
 
 // Min returns the lesser operand.
 func Min(left, right Rational) Rational {
-	if left.Cmp(right) <= 0 {
+	switch left.Cmp(right) {
+	case -1:
 		return left
+	default:
+		return right
 	}
-
-	return right
 }
 
 // Max returns the greater operand.
 func Max(left, right Rational) Rational {
-	if left.Cmp(right) >= 0 {
+	switch left.Cmp(right) {
+	case 1:
 		return left
+	default:
+		return right
 	}
-
-	return right
 }
 
 // Clamp restricts value to the inclusive interval [minimum, maximum].
@@ -261,7 +284,10 @@ func binary(ctx context.Context, left, right *big.Rat, limits gomath.Limits, ope
 
 func checkRationalOperands(limits gomath.Limits, values ...*big.Rat) error {
 	for _, value := range values {
-		if value.Num().BitLen() > limits.MaxIntermediateBits || value.Denom().BitLen() > limits.MaxIntermediateBits {
+		if value.Num().BitLen() > limits.MaxIntermediateBits {
+			return fmt.Errorf("%w: rational operand", gomath.ErrLimitExceeded)
+		}
+		if value.Denom().BitLen() > limits.MaxIntermediateBits {
 			return fmt.Errorf("%w: rational operand", gomath.ErrLimitExceeded)
 		}
 	}
@@ -270,7 +296,10 @@ func checkRationalOperands(limits gomath.Limits, values ...*big.Rat) error {
 }
 
 func checked(value *big.Rat, limits gomath.Limits) (Rational, error) {
-	if value.Num().BitLen() > limits.MaxIntermediateBits || value.Denom().BitLen() > limits.MaxIntermediateBits {
+	if value.Num().BitLen() > limits.MaxIntermediateBits {
+		return Rational{}, fmt.Errorf("%w: rational result", gomath.ErrLimitExceeded)
+	}
+	if value.Denom().BitLen() > limits.MaxIntermediateBits {
 		return Rational{}, fmt.Errorf("%w: rational result", gomath.ErrLimitExceeded)
 	}
 
@@ -295,11 +324,20 @@ func validInteger(text string, maximumDigits int) bool {
 	if text[0] == '-' {
 		text = text[1:]
 	}
-	if text == "" || len(text) > maximumDigits || (len(text) > 1 && text[0] == '0') {
+	if text == "" {
+		return false
+	}
+	if len(text) > maximumDigits {
+		return false
+	}
+	if len(text) > 1 && text[0] == '0' {
 		return false
 	}
 	for _, character := range text {
-		if character < '0' || character > '9' {
+		if character < '0' {
+			return false
+		}
+		if character > '9' {
 			return false
 		}
 	}
@@ -308,11 +346,15 @@ func validInteger(text string, maximumDigits int) bool {
 }
 
 func exponentMagnitude(exponent int64) uint64 {
-	if exponent >= 0 {
-		return uint64(exponent)
-	}
+	mask := uint64(exponent >> 63)
 
-	return uint64(-(exponent + 1)) + 1
+	return (uint64(exponent) ^ mask) - mask
+}
+
+func isNegative(value int64) bool { return uint64(value)>>63 == 1 }
+
+func decimalExpansionBits(numeratorBits, scale int) uint64 {
+	return uint64(numeratorBits) + uint64(scale)*3
 }
 
 func pow10(exponent int) *big.Int {

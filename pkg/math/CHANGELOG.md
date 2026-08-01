@@ -15,3 +15,5 @@
   length, and exponent boundaries.
 - Harden integer parsing, arithmetic preflights, random range limits, and root
   search boundaries against overflow and runaway work.
+- Harden rational construction, powers, decimal expansion, parsing, and
+  rounding at exact resource boundaries.
