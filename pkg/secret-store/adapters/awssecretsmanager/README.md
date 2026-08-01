@@ -43,6 +43,8 @@ derivation, plaintext lifecycle, and persistence of the returned reference.
 - An existing name receives `PutSecretValue` with the exact caller-supplied
   `ClientRequestToken`.
 - Exact retries are idempotent under AWS Secrets Manager semantics.
+- Providers that report an existing exact version are verified through one
+  version-pinned read before the existing reference is returned.
 - Reusing a version token with different material fails instead of mutating the
   existing version.
 - Historical writes use a unique staging label and never move a shared label
@@ -56,9 +58,12 @@ derivation, plaintext lifecycle, and persistence of the returned reference.
 ## Tradeoffs
 
 The adapter performs create-then-put-on-existence because AWS has distinct APIs
-for creating a secret container and adding a version. It does not compare or
-order application versions, rotate secrets, update staging labels, read secret
-values, delete versions, or manage IAM and KMS policy.
+for creating a secret container and adding a version. When a provider reports
+that the requested version already exists, the adapter reads only that exact
+version and compares its binary material in constant time before confirming the
+reference. It does not order application versions, rotate secrets, update
+staging labels, expose read values, delete versions, or manage IAM and KMS
+policy.
 
 ## Documentation
 

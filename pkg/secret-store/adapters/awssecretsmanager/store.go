@@ -4,6 +4,7 @@ package awssecretsmanager
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"reflect"
 	"strings"
@@ -43,6 +44,11 @@ var (
 	ErrInvalidResponse = errors.New(
 		"AWS Secrets Manager response is invalid",
 	)
+	// ErrVersionConflict identifies reuse of an immutable version identity with
+	// different secret material.
+	ErrVersionConflict = errors.New(
+		"AWS Secrets Manager version conflicts with existing material",
+	)
 )
 
 // Client is the least-privilege AWS Secrets Manager surface used by Store.
@@ -57,6 +63,14 @@ type Client interface {
 		*secretsmanager.PutSecretValueInput,
 		...func(*secretsmanager.Options),
 	) (*secretsmanager.PutSecretValueOutput, error)
+}
+
+type existingVersionClient interface {
+	GetSecretValue(
+		context.Context,
+		*secretsmanager.GetSecretValueInput,
+		...func(*secretsmanager.Options),
+	) (*secretsmanager.GetSecretValueOutput, error)
 }
 
 // PutVersionRequest names one immutable secret value and its unique staging
@@ -149,6 +163,17 @@ func (store *Store) PutVersion(
 			VersionStages:      []string{request.Stage},
 		},
 	)
+	if err != nil && resourceExists(err) {
+		reader, supported := store.client.(existingVersionClient)
+		if !supported {
+			return Reference{}, operationError{
+				operation: "put",
+				cause:     err,
+			}
+		}
+
+		return store.confirmExistingVersion(ctx, reader, request, value)
+	}
 	if err != nil {
 		return Reference{}, operationError{
 			operation: "put",
@@ -157,6 +182,41 @@ func (store *Store) PutVersion(
 	}
 
 	return putReference(putOutput, request.VersionID)
+}
+
+func (store *Store) confirmExistingVersion(
+	ctx context.Context,
+	reader existingVersionClient,
+	request PutVersionRequest,
+	value []byte,
+) (Reference, error) {
+	output, err := reader.GetSecretValue(
+		ctx,
+		&secretsmanager.GetSecretValueInput{
+			SecretId:  aws.String(request.Name),
+			VersionId: aws.String(request.VersionID),
+		},
+	)
+	if err != nil {
+		return Reference{}, operationError{
+			operation: "get",
+			cause:     err,
+		}
+	}
+	if output == nil ||
+		aws.ToString(output.ARN) == "" ||
+		aws.ToString(output.VersionId) != request.VersionID {
+		return Reference{}, ErrInvalidResponse
+	}
+	if output.SecretString != nil ||
+		subtle.ConstantTimeCompare(output.SecretBinary, value) != 1 {
+		return Reference{}, ErrVersionConflict
+	}
+
+	return Reference{
+		ARN:       aws.ToString(output.ARN),
+		VersionID: request.VersionID,
+	}, nil
 }
 
 func validateRequest(

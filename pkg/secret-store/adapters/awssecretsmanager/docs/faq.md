@@ -18,7 +18,10 @@ It rejects reuse of the token with different material.
 
 ## Does the adapter read or compare secret values?
 
-No. It exposes no read operation. AWS enforces immutable token semantics.
+Only when a provider reports that the exact requested version already exists.
+The adapter then reads that version, compares its binary material in constant
+time, and returns only the ARN and version identifier. It exposes no general
+read operation.
 
 ## Does it manage rotation or deletion?
 

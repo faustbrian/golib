@@ -17,7 +17,13 @@ For a new name, the adapter calls `CreateSecret`. If AWS reports
 `VersionID`, value, and unique stage. A success is accepted only when AWS
 returns a nonempty ARN and the exact requested version identifier.
 
+If `PutSecretValue` reports `ResourceExistsException`, the adapter reads the
+exact requested version. It returns the existing reference only when the ARN,
+version identifier, binary representation, and constant-time material
+comparison all agree. Different existing material returns
+`ErrVersionConflict`.
+
 `ErrClientRequired`, `ErrInvalidKMSKey`, `ErrInvalidRequest`,
-`ErrOperation`, and `ErrInvalidResponse` support `errors.Is`. Operational
-failures retain their original cause through `errors.Is` and `errors.As`
-without rendering the cause in the formatted error.
+`ErrOperation`, `ErrInvalidResponse`, and `ErrVersionConflict` support
+`errors.Is`. Operational failures retain their original cause through
+`errors.Is` and `errors.As` without rendering the cause in the formatted error.

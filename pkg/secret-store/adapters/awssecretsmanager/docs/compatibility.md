@@ -9,5 +9,6 @@ Callers can upgrade AWS transport behavior independently while the returned
 `Reference` remains limited to ARN and version identifier.
 
 Changes to validation bounds, accepted name characters, staging semantics,
-error classification, or returned reference fields are compatibility-sensitive
-and require explicit release notes and regression coverage.
+error classification, the write-only `Client` contract, or returned reference
+fields are compatibility-sensitive and require explicit release notes and
+regression coverage.

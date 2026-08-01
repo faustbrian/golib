@@ -43,6 +43,17 @@ func TestPutVersionCreatesOrIdempotentlyAddsImmutableVersion(t *testing.T) {
 				},
 			},
 		},
+		"existing exact retry": {
+			client: &stubClient{
+				createErr: &types.ResourceExistsException{},
+				putErr:    &types.ResourceExistsException{},
+				getOutput: &secretsmanager.GetSecretValueOutput{
+					ARN:          aws.String(secretARN),
+					SecretBinary: append([]byte(nil), value...),
+					VersionId:    aws.String(versionID),
+				},
+			},
+		},
 	}
 	for name, testCase := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -84,7 +95,7 @@ func TestPutVersionCreatesOrIdempotentlyAddsImmutableVersion(t *testing.T) {
 				)
 			}
 
-			if name == "existing" {
+			if name == "existing" || name == "existing exact retry" {
 				if testCase.client.putInput == nil {
 					t.Fatal("PutSecretValue() was not called")
 				}
@@ -102,7 +113,128 @@ func TestPutVersionCreatesOrIdempotentlyAddsImmutableVersion(t *testing.T) {
 					)
 				}
 			}
+			if name == "existing exact retry" {
+				if testCase.client.getInput == nil ||
+					aws.ToString(testCase.client.getInput.SecretId) !=
+						secretName ||
+					aws.ToString(testCase.client.getInput.VersionId) !=
+						versionID {
+					t.Fatalf(
+						"GetSecretValue() input = %#v",
+						testCase.client.getInput,
+					)
+				}
+			}
 		})
+	}
+}
+
+func TestPutVersionRejectsUnverifiedExistingVersion(t *testing.T) {
+	t.Parallel()
+
+	const sensitive = "TRACK_SECRET_RETRY_CANARY_NEVER_EMIT"
+	request := validPutVersionRequest()
+	request.Value = []byte(sensitive)
+	validARN := aws.String(
+		"arn:aws:secretsmanager:eu-north-1:000000000000:secret:synthetic",
+	)
+	validVersionID := aws.String(request.VersionID)
+	getFailure := errors.New("synthetic get failure")
+	tests := map[string]struct {
+		output *secretsmanager.GetSecretValueOutput
+		err    error
+		want   error
+		cause  error
+	}{
+		"get failure": {
+			err:   getFailure,
+			want:  ErrOperation,
+			cause: getFailure,
+		},
+		"nil response": {
+			want: ErrInvalidResponse,
+		},
+		"missing ARN": {
+			output: &secretsmanager.GetSecretValueOutput{
+				SecretBinary: append([]byte(nil), request.Value...),
+				VersionId:    validVersionID,
+			},
+			want: ErrInvalidResponse,
+		},
+		"mismatched version": {
+			output: &secretsmanager.GetSecretValueOutput{
+				ARN:          validARN,
+				SecretBinary: append([]byte(nil), request.Value...),
+				VersionId: aws.String(
+					strings.Repeat("f", maximumVersionIDBytes),
+				),
+			},
+			want: ErrInvalidResponse,
+		},
+		"string material": {
+			output: &secretsmanager.GetSecretValueOutput{
+				ARN:          validARN,
+				SecretString: aws.String(sensitive),
+				VersionId:    validVersionID,
+			},
+			want: ErrVersionConflict,
+		},
+		"different binary material": {
+			output: &secretsmanager.GetSecretValueOutput{
+				ARN:          validARN,
+				SecretBinary: []byte("different"),
+				VersionId:    validVersionID,
+			},
+			want: ErrVersionConflict,
+		},
+	}
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			store, err := New(&stubClient{
+				createErr: &types.ResourceExistsException{},
+				putErr:    &types.ResourceExistsException{},
+				getOutput: testCase.output,
+				getErr:    testCase.err,
+			}, "")
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+			reference, err := store.PutVersion(context.Background(), request)
+			if reference != (Reference{}) || !errors.Is(err, testCase.want) {
+				t.Fatalf("PutVersion() = %#v, %v", reference, err)
+			}
+			if testCase.cause != nil && !errors.Is(err, testCase.cause) {
+				t.Fatalf("PutVersion() error = %v, want cause", err)
+			}
+			if strings.Contains(err.Error(), sensitive) {
+				t.Fatalf("error exposes secret material: %v", err)
+			}
+		})
+	}
+}
+
+func TestPutVersionPreservesConflictWithoutReadCapability(t *testing.T) {
+	t.Parallel()
+
+	conflict := &types.ResourceExistsException{}
+	client := &writeOnlyStubClient{
+		createErr: conflict,
+		putErr:    conflict,
+	}
+	store, err := New(client, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	reference, err := store.PutVersion(
+		context.Background(),
+		validPutVersionRequest(),
+	)
+	if reference != (Reference{}) ||
+		!errors.Is(err, ErrOperation) ||
+		!errors.Is(err, conflict) {
+		t.Fatalf("PutVersion() = %#v, %v", reference, err)
 	}
 }
 
@@ -547,6 +679,9 @@ type stubClient struct {
 	putValue     []byte
 	putOutput    *secretsmanager.PutSecretValueOutput
 	putErr       error
+	getInput     *secretsmanager.GetSecretValueInput
+	getOutput    *secretsmanager.GetSecretValueOutput
+	getErr       error
 }
 
 func (client *stubClient) CreateSecret(
@@ -569,4 +704,35 @@ func (client *stubClient) PutSecretValue(
 	client.putValue = append([]byte(nil), input.SecretBinary...)
 
 	return client.putOutput, client.putErr
+}
+
+func (client *stubClient) GetSecretValue(
+	_ context.Context,
+	input *secretsmanager.GetSecretValueInput,
+	_ ...func(*secretsmanager.Options),
+) (*secretsmanager.GetSecretValueOutput, error) {
+	client.getInput = input
+
+	return client.getOutput, client.getErr
+}
+
+type writeOnlyStubClient struct {
+	createErr error
+	putErr    error
+}
+
+func (client *writeOnlyStubClient) CreateSecret(
+	context.Context,
+	*secretsmanager.CreateSecretInput,
+	...func(*secretsmanager.Options),
+) (*secretsmanager.CreateSecretOutput, error) {
+	return nil, client.createErr
+}
+
+func (client *writeOnlyStubClient) PutSecretValue(
+	context.Context,
+	*secretsmanager.PutSecretValueInput,
+	...func(*secretsmanager.Options),
+) (*secretsmanager.PutSecretValueOutput, error) {
+	return nil, client.putErr
 }
