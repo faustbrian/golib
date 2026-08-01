@@ -56,6 +56,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real-broker eager-rebalance evidence proving the cancel policy leaves an
+  interrupted handler unsettled for redelivery while the drain policy commits
+  an active successful handler before releasing the blocked rebalance, so the
+  joining member begins at the next source offset
 - exact runtime-version rejection for the digest-pinned Confluent Local
   compatibility fixture
 - an independently versioned client benchmark harness with real-broker

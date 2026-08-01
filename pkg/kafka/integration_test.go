@@ -73,6 +73,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	staticFencingTopic := topic + "-static-fencing"
 	pauseTopic := topic + "-pause"
 	rebalanceTopic := topic + "-rebalance"
+	rebalanceDrainTopic := topic + "-rebalance-drain"
 	batchTopic := topic + "-batch"
 	batchFailureTopic := topic + "-batch-failure-v1"
 	producerModesTopic := topic + "-producer-modes"
@@ -92,7 +93,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 		ClientID: "golib-compatibility-producer",
 		AllowedTopics: []string{
 			topic, explicitTopic, settlementTopic, membershipTopic, pauseTopic,
-			staticFencingTopic, rebalanceTopic, batchTopic, producerModesTopic,
+			staticFencingTopic, rebalanceTopic, rebalanceDrainTopic, batchTopic,
+			producerModesTopic,
 			batchFailureTopic,
 			transactionSourceTopic,
 			retrySourceTopic, retryTopic, deadLetterSourceTopic, deadLetterTopic,
@@ -157,6 +159,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	createIntegrationTopic(t, ctx, brokers, staticFencingTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, pauseTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, rebalanceTopic, 1)
+	createIntegrationTopic(t, ctx, brokers, rebalanceDrainTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, batchTopic, 2)
 	createIntegrationTopic(t, ctx, brokers, batchFailureTopic, 1)
 	createIntegrationTopic(t, ctx, brokers, producerModesTopic, 1)
@@ -277,6 +280,13 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	proveStaticMemberFencing(t, ctx, brokers, producer, staticFencingTopic)
 	provePauseResumePolicy(t, ctx, brokers, producer, pauseTopic)
 	proveBlockedRebalancePolicy(t, ctx, brokers, producer, rebalanceTopic)
+	proveDrainingRebalancePolicy(
+		t,
+		ctx,
+		brokers,
+		producer,
+		rebalanceDrainTopic,
+	)
 	proveBatchPolicy(t, ctx, brokers, producer, batchTopic, batchFailureTopic)
 	proveProducerTransactionVisibility(t, ctx, brokers, transactionTopic)
 	proveConsumeTransformProduce(
@@ -2016,6 +2026,190 @@ func proveBlockedRebalancePolicy(
 	}
 }
 
+func proveDrainingRebalancePolicy(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	producer *kafka.Producer,
+	topic string,
+) {
+	t.Helper()
+
+	if result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic, Key: []byte("aggregate-1"), Value: []byte("drained"),
+	}); result.Err != nil {
+		t.Fatalf("publish draining rebalance fixture: %v", result.Err)
+	}
+
+	const groupID = "golib-compatibility-draining-rebalance"
+	blocked := make(chan struct{}, 1)
+	first := newIntegrationRebalanceConsumer(
+		t,
+		brokers,
+		topic,
+		groupID,
+		"golib-compatibility-draining-rebalance-first",
+		kafka.RebalanceDrainHandler,
+		kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{func(
+				_ context.Context,
+				observation kafka.Observation,
+			) error {
+				if observation.Kind == kafka.ObservationConsumeBlocked {
+					select {
+					case blocked <- struct{}{}:
+					default:
+					}
+				}
+
+				return nil
+			}},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
+	)
+	t.Cleanup(func() {
+		closeIntegrationConsumer(t, first)
+	})
+	handlerStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	firstDone := make(chan struct {
+		result kafka.PollResult
+		err    error
+	}, 1)
+	go func() {
+		result, err := first.RunOnce(ctx, kafka.HandlerFunc(func(
+			handlerCtx context.Context,
+			record kafka.ConsumedMessage,
+		) error {
+			if record.Offset != 0 || string(record.Value) != "drained" {
+				return fmt.Errorf("unexpected draining record %#v", record)
+			}
+			close(handlerStarted)
+			select {
+			case <-releaseHandler:
+			case <-handlerCtx.Done():
+				return context.Cause(handlerCtx)
+			}
+			if cause := context.Cause(handlerCtx); cause != nil {
+				return cause
+			}
+
+			return nil
+		}))
+		firstDone <- struct {
+			result kafka.PollResult
+			err    error
+		}{result: result, err: err}
+	}()
+	select {
+	case <-handlerStarted:
+	case <-ctx.Done():
+		t.Fatalf("wait for draining rebalance handler: %v", ctx.Err())
+	}
+
+	second := newIntegrationRebalanceConsumer(
+		t,
+		brokers,
+		topic,
+		groupID,
+		"golib-compatibility-draining-rebalance-second",
+		kafka.RebalanceCancelHandler,
+		kafka.ObserverPolicy{},
+	)
+	t.Cleanup(func() {
+		closeIntegrationConsumer(t, second)
+	})
+	secondCtx, cancelSecond := context.WithCancel(ctx)
+	secondRecords := make(chan kafka.ConsumedRecord, 1)
+	secondDone := make(chan error, 1)
+	go func() {
+		secondDone <- second.Run(secondCtx, kafka.HandlerFunc(func(
+			_ context.Context,
+			record kafka.ConsumedMessage,
+		) error {
+			select {
+			case secondRecords <- record.Retain():
+			default:
+			}
+
+			return nil
+		}))
+	}()
+	select {
+	case <-blocked:
+	case early := <-firstDone:
+		cancelSecond()
+		t.Fatalf(
+			"draining handler ended before blocked rebalance = %#v/%v",
+			early.result,
+			early.err,
+		)
+	case err := <-secondDone:
+		cancelSecond()
+		t.Fatalf("joining consumer ended before blocked rebalance: %v", err)
+	case <-ctx.Done():
+		cancelSecond()
+		t.Fatalf("wait for draining blocked rebalance: %v", ctx.Err())
+	}
+	close(releaseHandler)
+
+	var firstResult struct {
+		result kafka.PollResult
+		err    error
+	}
+	select {
+	case firstResult = <-firstDone:
+	case <-ctx.Done():
+		cancelSecond()
+		t.Fatalf("wait for draining rebalance settlement: %v", ctx.Err())
+	}
+	if firstResult.err != nil ||
+		firstResult.result != (kafka.PollResult{
+			Polled: 1, Processed: 1, Committed: 1,
+		}) {
+		cancelSecond()
+		t.Fatalf(
+			"draining rebalance result/error = %#v/%v",
+			firstResult.result,
+			firstResult.err,
+		)
+	}
+	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 1})
+	closeIntegrationConsumer(t, first)
+
+	if result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic, Key: []byte("aggregate-1"), Value: []byte("after-drain"),
+	}); result.Err != nil {
+		cancelSecond()
+		t.Fatalf("publish post-drain fixture: %v", result.Err)
+	}
+	var received kafka.ConsumedRecord
+	select {
+	case received = <-secondRecords:
+	case err := <-secondDone:
+		cancelSecond()
+		t.Fatalf("joining consumer ended before post-drain record: %v", err)
+	case <-ctx.Done():
+		cancelSecond()
+		t.Fatalf("wait for post-drain record: %v", ctx.Err())
+	}
+	if received.Offset != 1 || string(received.Value) != "after-drain" {
+		cancelSecond()
+		t.Fatalf("post-drain record = %#v", received)
+	}
+	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 2})
+	cancelSecond()
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("stop post-drain consumer: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("wait for post-drain consumer stop: %v", ctx.Err())
+	}
+	closeIntegrationConsumer(t, second)
+}
+
 func provePauseResumePolicy(
 	t *testing.T,
 	ctx context.Context,
@@ -2593,6 +2787,44 @@ func newIntegrationConsumer(
 		groupID,
 		1,
 	)
+}
+
+func newIntegrationRebalanceConsumer(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	groupID string,
+	clientID string,
+	rebalanceHandler kafka.RebalanceHandlerPolicy,
+	observers kafka.ObserverPolicy,
+) *kafka.Consumer {
+	t.Helper()
+
+	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
+		Brokers:               brokers,
+		ClientID:              clientID,
+		GroupID:               groupID,
+		Topics:                []string{topic},
+		ResetOffset:           kafka.OffsetEarliest,
+		BalancePolicy:         kafka.BalanceEagerSticky,
+		RebalanceHandler:      rebalanceHandler,
+		MaxPollRecords:        1,
+		MaxConcurrentHandlers: 1,
+		FetchMaxWait:          100 * time.Millisecond,
+		SessionTimeout:        10 * time.Second,
+		RebalanceTimeout:      10 * time.Second,
+		HeartbeatInterval:     time.Second,
+		HandlerTimeout:        3 * time.Second,
+		CommitTimeout:         2 * time.Second,
+		DialTimeout:           10 * time.Second,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
+		Observers:             observers,
+	})
+	if err != nil {
+		t.Fatalf("construct rebalance consumer: %v", err)
+	}
+
+	return consumer
 }
 
 func newIntegrationConsumerWithHandlerConcurrency(

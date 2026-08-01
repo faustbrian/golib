@@ -39,6 +39,17 @@ another callback after the signal. Earlier successful contiguous prefixes
 remain committable because franz-go still holds the poll's rebalance gate until
 the commit attempt completes.
 
+The pinned Confluent Local 7.5.0 fixture exercises both policies with eager
+members and a handler already in flight. Under `RebalanceCancelHandler`, the
+joining member causes the active handler to return `ErrConsumerRebalance`, the
+source offset remains unsettled, and a replacement member receives the record
+again. Under `RebalanceDrainHandler`, the blocked-rebalance observation occurs
+while the first handler remains active; releasing that handler lets it finish
+and commit offset 1 before the poll gate opens, and the joining member then
+receives only the subsequently published record at offset 1. This evidence is
+limited to one partition and the exercised join timing; it does not generalize
+to every multi-partition revocation or ownership-loss interleaving.
+
 ## Configuration
 
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest
