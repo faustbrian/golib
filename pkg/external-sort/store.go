@@ -498,14 +498,14 @@ func merge(
 		}
 		next, err := readers[current.reader].next()
 		switch {
-		case err == nil:
+		case errors.Is(err, io.EOF):
+		case err != nil:
+			return err
+		default:
 			heap.Push(
 				&queue,
 				heapRecord{record: next, reader: current.reader},
 			)
-		case errors.Is(err, io.EOF):
-		default:
-			return err
 		}
 	}
 
@@ -691,7 +691,7 @@ func (records recordHeap) Less(left int, right int) bool {
 		return records[left].reader < records[right].reader
 	}
 
-	return comparison < 0
+	return comparison == -1
 }
 
 func (records recordHeap) Swap(left int, right int) {

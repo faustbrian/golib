@@ -11,3 +11,5 @@
 - Owner-only temporary storage, typed fail-closed errors, duplicate
   preservation, deterministic cleanup, fuzzing, benchmarks, and exact
   statement-coverage evidence.
+- Exact boundary and mutation coverage for resource ceilings, merge
+  termination, authenticated framing, and ordering helpers.
