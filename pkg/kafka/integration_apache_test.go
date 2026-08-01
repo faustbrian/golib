@@ -39,12 +39,13 @@ const (
 		"sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837"
 	apacheKafkaMinimumImage = "apache/kafka:3.7.2@" +
 		"sha256:8bd63e1bd445e5e19427a4bdbcc3d23bf6efd774b058a41b36ba87fda7623e34"
-	apacheKafkaClusterID  = "4L6g3nShT-eMCtK--X86sw"
-	apacheKafkaClientPort = "9092/tcp"
-	apacheKafkaStartFile  = "/tmp/golib-kafka-start.sh"
-	apacheKafkaPIDFile    = "/tmp/golib-kafka.pid"
-	apacheKafkaStopFile   = "/tmp/golib-kafka.stop"
-	apacheKafkaSubnetPool = 4_096
+	apacheKafkaClusterID      = "4L6g3nShT-eMCtK--X86sw"
+	apacheKafkaClientPort     = "9092/tcp"
+	apacheKafkaControllerPort = "9093/tcp"
+	apacheKafkaStartFile      = "/tmp/golib-kafka-start.sh"
+	apacheKafkaPIDFile        = "/tmp/golib-kafka.pid"
+	apacheKafkaStopFile       = "/tmp/golib-kafka.stop"
+	apacheKafkaSubnetPool     = 4_096
 
 	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
 	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
@@ -199,6 +200,204 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		outputTopic,
 		"golib-apache-minimum-transaction-source",
 	)
+}
+
+func TestApacheKafkaReplayFailsClosedAfterUncleanElectionTruncation(
+	t *testing.T,
+) {
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaSeparatedCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokerEndpoints(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf(
+		"golib-apache-replay-unclean-election-%d",
+		time.Now().UnixNano(),
+	)
+	createIntegrationTopicWithReplication(
+		t,
+		ctx,
+		brokers,
+		topic,
+		1,
+		3,
+		map[string]*string{
+			"min.insync.replicas":            kadm.StringPtr("2"),
+			"unclean.leader.election.enable": kadm.StringPtr("true"),
+		},
+	)
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-replay-unclean-election-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct unclean-election replay inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	state := waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			allPartitionsMatch(state, 3, 3) &&
+			state.UncleanLeaderElectionEnabled
+	})
+	partition := state.Partitions[0]
+	staleBroker := int32(0)
+	for _, replica := range partition.Replicas {
+		if replica != partition.Leader {
+			staleBroker = replica
+
+			break
+		}
+	}
+	if staleBroker == 0 {
+		t.Fatalf("unclean-election topic has no follower: %#v", partition)
+	}
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-replay-unclean-election-producer",
+		AllowedTopics: []string{topic},
+		KeyPolicy:     kafka.KeyRequired,
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct unclean-election replay producer: %v", err)
+	}
+	baseline := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte("retained"),
+		Value: []byte("retained"),
+	})
+	if baseline.Err != nil || baseline.Partition != 0 || baseline.Offset != 0 {
+		_ = producer.Close()
+		t.Fatalf("unclean-election baseline delivery = %#v", baseline)
+	}
+	waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].EndOffset == 1 &&
+			state.Partitions[0].InSyncReplicas == 3
+	})
+
+	cluster.stopBroker(t, ctx, staleBroker)
+	state = waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].EndOffset == 1 &&
+			state.Partitions[0].InSyncReplicas == 2 &&
+			!slices.Contains(
+				state.Partitions[0].InSyncReplicaIDs,
+				staleBroker,
+			)
+	})
+	partition = state.Partitions[0]
+	lost := producer.PublishRecord(ctx, kafka.ProducerRecord{
+		Topic: topic,
+		Key:   []byte("lost"),
+		Value: []byte("lost"),
+	})
+	if lost.Err != nil || lost.Partition != 0 || lost.Offset != 1 {
+		_ = producer.Close()
+		t.Fatalf("unclean-election lost delivery = %#v", lost)
+	}
+	if err = producer.Close(); err != nil {
+		t.Fatalf("close unclean-election replay producer: %v", err)
+	}
+	waitForApacheTopicState(t, ctx, inspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].EndOffset == 2 &&
+			state.Partitions[0].InSyncReplicas == 2
+	})
+	if err = inspector.Close(); err != nil {
+		t.Fatalf("close pre-election replay inspector: %v", err)
+	}
+
+	if len(partition.InSyncReplicaIDs) != 2 {
+		t.Fatalf("unclean-election live ISR = %#v", partition)
+	}
+	recoveringBroker := partition.InSyncReplicaIDs[0]
+	for _, brokerID := range partition.InSyncReplicaIDs {
+		cluster.stopBroker(t, ctx, brokerID)
+	}
+	cluster.startBroker(t, ctx, staleBroker)
+	cluster.triggerUncleanElection(t, ctx, staleBroker, topic, 0)
+	cluster.startBroker(t, ctx, recoveringBroker)
+	recoveryInspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:        []string{cluster.brokerEndpoint(t, ctx, staleBroker)},
+		ClientID:       "golib-apache-replay-unclean-election-recovery-inspector",
+		DialTimeout:    2 * time.Second,
+		RequestTimeout: 3 * time.Second,
+		Security:       kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct unclean-election recovery inspector: %v", err)
+	}
+	defer recoveryInspector.Close()
+	state = waitForApacheTopicState(t, ctx, recoveryInspector, topic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].Leader == staleBroker &&
+			state.Partitions[0].BeginningOffset == 0 &&
+			state.Partitions[0].EndOffset == 1 &&
+			state.Partitions[0].InSyncReplicas == 2
+	})
+	if state.Partitions[0].ReplicationFactor != 3 {
+		t.Fatalf("unclean-election replay state = %#v", state)
+	}
+
+	reader, err := kafka.NewReplayReader(kafka.ReplayConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-replay-unclean-election-reader",
+		Ranges: []kafka.ReplayRange{{
+			Topic: topic, Partition: 0, StartOffset: 0, EndOffset: 2,
+		}},
+		SideEffects: kafka.ReplaySideEffectsAllowed,
+		Security:    kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct unclean-election replay reader: %v", err)
+	}
+	handlerCalled := false
+	result, replayErr := reader.Replay(ctx, kafka.ReplayHandlerFunc(func(
+		context.Context,
+		kafka.ReplayRecord,
+	) error {
+		handlerCalled = true
+
+		return nil
+	}))
+	if closeErr := reader.Close(); closeErr != nil {
+		t.Fatalf("close unclean-election replay reader: %v", closeErr)
+	}
+	if !errors.Is(replayErr, kafka.ErrReplayOffsetOutOfRange) ||
+		handlerCalled ||
+		result.Polled != 0 ||
+		result.Processed != 0 ||
+		result.Failed != 0 ||
+		result.CompletedRanges != 0 ||
+		result.IncompleteRanges != 1 ||
+		len(result.Ranges) != 1 ||
+		result.Ranges[0].NextOffset != 0 ||
+		result.Ranges[0].Complete {
+		t.Fatalf(
+			"unclean-election replay result/error/handler = %#v/%v/%t",
+			result,
+			replayErr,
+			handlerCalled,
+		)
+	}
 }
 
 func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
@@ -3195,6 +3394,11 @@ type apacheKafkaCluster struct {
 	nodes []apacheKafkaNode
 }
 
+type apacheKafkaSeparatedCluster struct {
+	controllers []apacheKafkaNode
+	brokers     []apacheKafkaNode
+}
+
 type apacheKafkaNode struct {
 	id        int32
 	alias     string
@@ -3204,13 +3408,28 @@ type apacheKafkaNode struct {
 func (cluster *apacheKafkaCluster) observeFailureState(t *testing.T) {
 	t.Helper()
 
+	observeApacheKafkaFailureState(t, cluster.nodes)
+}
+
+func (cluster *apacheKafkaSeparatedCluster) observeFailureState(t *testing.T) {
+	t.Helper()
+
+	nodes := make([]apacheKafkaNode, 0, len(cluster.controllers)+len(cluster.brokers))
+	nodes = append(nodes, cluster.controllers...)
+	nodes = append(nodes, cluster.brokers...)
+	observeApacheKafkaFailureState(t, nodes)
+}
+
+func observeApacheKafkaFailureState(t *testing.T, nodes []apacheKafkaNode) {
+	t.Helper()
+
 	t.Cleanup(func() {
 		if !t.Failed() {
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		for _, node := range cluster.nodes {
+		for _, node := range nodes {
 			state, err := node.container.State(ctx)
 			if err != nil {
 				t.Logf("inspect failed Apache Kafka node %d: %v", node.id, err)
@@ -3298,32 +3517,10 @@ func startApacheKafkaClusterWithImage(
 		if err != nil {
 			t.Fatalf("resolve Apache Kafka node %d endpoint: %v", node.id, err)
 		}
-		script := fmt.Sprintf(
-			"#!/bin/bash\n"+
-				"export KAFKA_ADVERTISED_LISTENERS="+
-				"'PLAINTEXT://%s:19092,PLAINTEXT_HOST://%s'\n"+
-				"shutdown() {\n"+
-				"  if [ -s %[3]s ]; then\n"+
-				"    pid=\"$(cat %[3]s)\"\n"+
-				"    kill -TERM \"$pid\" 2>/dev/null\n"+
-				"    wait \"$pid\" 2>/dev/null\n"+
-				"  fi\n"+
-				"  exit 0\n"+
-				"}\n"+
-				"trap shutdown TERM INT\n"+
-				"while true; do\n"+
-				"  while [ -f %[4]s ]; do sleep 0.05; done\n"+
-				"  /etc/kafka/docker/run &\n"+
-				"  pid=\"$!\"\n"+
-				"  printf '%%s\\n' \"$pid\" > %[3]s\n"+
-				"  wait \"$pid\"\n"+
-				"  rm -f %[3]s\n"+
-				"  touch %[4]s\n"+
-				"done\n",
+		script := apacheKafkaRunLoopScript(
 			node.alias,
 			endpoint,
-			apacheKafkaPIDFile,
-			apacheKafkaStopFile,
+			"PLAINTEXT",
 		)
 		if err := node.container.CopyToContainer(
 			ctx,
@@ -3339,6 +3536,163 @@ func startApacheKafkaClusterWithImage(
 	}
 
 	return cluster
+}
+
+func startApacheKafkaSeparatedCluster(
+	t *testing.T,
+	ctx context.Context,
+) *apacheKafkaSeparatedCluster {
+	t.Helper()
+
+	dockerNetwork := newApacheKafkaNetwork(t, ctx)
+	testcontainers.CleanupNetwork(t, dockerNetwork)
+
+	cluster := &apacheKafkaSeparatedCluster{
+		controllers: make([]apacheKafkaNode, 0, 3),
+		brokers:     make([]apacheKafkaNode, 0, 3),
+	}
+	for nodeID := int32(1); nodeID <= 3; nodeID++ {
+		alias := fmt.Sprintf("controller-%d", nodeID)
+		container := createApacheKafkaContainer(t, ctx, testcontainers.ContainerRequest{
+			Image:        apacheKafkaImage,
+			ExposedPorts: []string{apacheKafkaControllerPort},
+			Env:          apacheKafkaControllerEnvironment(nodeID),
+			Networks:     []string{dockerNetwork.Name},
+			NetworkAliases: map[string][]string{
+				dockerNetwork.Name: {alias},
+			},
+		}, "controller", nodeID)
+		cluster.controllers = append(cluster.controllers, apacheKafkaNode{
+			id: nodeID, alias: alias, container: container,
+		})
+	}
+	for nodeID := int32(4); nodeID <= 6; nodeID++ {
+		alias := fmt.Sprintf("broker-%d", nodeID)
+		container := createApacheKafkaContainer(t, ctx, testcontainers.ContainerRequest{
+			Image:        apacheKafkaImage,
+			ExposedPorts: []string{apacheKafkaClientPort},
+			Env:          apacheKafkaBrokerEnvironment(nodeID),
+			Networks:     []string{dockerNetwork.Name},
+			NetworkAliases: map[string][]string{
+				dockerNetwork.Name: {alias},
+			},
+			Entrypoint: []string{"sh"},
+			Cmd: []string{
+				"-c",
+				"while [ ! -f " + apacheKafkaStartFile +
+					" ]; do sleep 0.05; done; exec /bin/bash " +
+					apacheKafkaStartFile,
+			},
+		}, "broker", nodeID)
+		cluster.brokers = append(cluster.brokers, apacheKafkaNode{
+			id: nodeID, alias: alias, container: container,
+		})
+	}
+
+	for _, node := range cluster.controllers {
+		if err := node.container.Start(ctx); err != nil {
+			t.Fatalf("start Apache Kafka controller %d: %v", node.id, err)
+		}
+	}
+	for _, node := range cluster.controllers {
+		waitForApacheKafkaNodeWithTimeout(
+			t,
+			ctx,
+			node,
+			apacheKafkaControllerPort,
+			3*time.Minute,
+		)
+	}
+	for _, node := range cluster.brokers {
+		if err := node.container.Start(ctx); err != nil {
+			t.Fatalf("start Apache Kafka broker %d: %v", node.id, err)
+		}
+		endpoint, err := node.container.PortEndpoint(
+			ctx,
+			apacheKafkaClientPort,
+			"",
+		)
+		if err != nil {
+			t.Fatalf("resolve Apache Kafka broker %d endpoint: %v", node.id, err)
+		}
+		if err := node.container.CopyToContainer(
+			ctx,
+			[]byte(apacheKafkaRunLoopScript(node.alias, endpoint, "INTERNAL")),
+			apacheKafkaStartFile,
+			0o755,
+		); err != nil {
+			t.Fatalf("configure Apache Kafka broker %d: %v", node.id, err)
+		}
+	}
+	for _, node := range cluster.brokers {
+		waitForApacheKafkaNodeWithTimeout(
+			t,
+			ctx,
+			node,
+			apacheKafkaClientPort,
+			3*time.Minute,
+		)
+	}
+
+	return cluster
+}
+
+func createApacheKafkaContainer(
+	t *testing.T,
+	ctx context.Context,
+	request testcontainers.ContainerRequest,
+	role string,
+	nodeID int32,
+) testcontainers.Container {
+	t.Helper()
+
+	container, err := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{ContainerRequest: request},
+	)
+	if container != nil {
+		testcontainers.CleanupContainer(t, container)
+	}
+	if err != nil {
+		t.Fatalf("create Apache Kafka %s %d: %v", role, nodeID, err)
+	}
+
+	return container
+}
+
+func apacheKafkaRunLoopScript(
+	alias string,
+	endpoint string,
+	interBrokerListener string,
+) string {
+	return fmt.Sprintf(
+		"#!/bin/bash\n"+
+			"export KAFKA_ADVERTISED_LISTENERS="+
+			"'%s://%s:19092,PLAINTEXT_HOST://%s'\n"+
+			"shutdown() {\n"+
+			"  if [ -s %[4]s ]; then\n"+
+			"    pid=\"$(cat %[4]s)\"\n"+
+			"    kill -TERM \"$pid\" 2>/dev/null\n"+
+			"    wait \"$pid\" 2>/dev/null\n"+
+			"  fi\n"+
+			"  exit 0\n"+
+			"}\n"+
+			"trap shutdown TERM INT\n"+
+			"while true; do\n"+
+			"  while [ -f %[5]s ]; do sleep 0.05; done\n"+
+			"  /etc/kafka/docker/run &\n"+
+			"  pid=\"$!\"\n"+
+			"  printf '%%s\\n' \"$pid\" > %[4]s\n"+
+			"  wait \"$pid\"\n"+
+			"  rm -f %[4]s\n"+
+			"  touch %[5]s\n"+
+			"done\n",
+		interBrokerListener,
+		alias,
+		endpoint,
+		apacheKafkaPIDFile,
+		apacheKafkaStopFile,
+	)
 }
 
 func newApacheKafkaNetwork(
@@ -3417,6 +3771,45 @@ func apacheKafkaEnvironment(
 	return environment
 }
 
+func apacheKafkaControllerEnvironment(nodeID int32) map[string]string {
+	return map[string]string{
+		"KAFKA_NODE_ID":                        fmt.Sprint(nodeID),
+		"KAFKA_PROCESS_ROLES":                  "controller",
+		"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT",
+		"KAFKA_CONTROLLER_QUORUM_VOTERS":       "1@controller-1:9093,2@controller-2:9093,3@controller-3:9093",
+		"KAFKA_LISTENERS":                      "CONTROLLER://:9093",
+		"KAFKA_INTER_BROKER_LISTENER_NAME":     "INTERNAL",
+		"KAFKA_CONTROLLER_LISTENER_NAMES":      "CONTROLLER",
+		"CLUSTER_ID":                           apacheKafkaClusterID,
+		"KAFKA_LOG_DIRS":                       "/tmp/kraft-controller-logs",
+	}
+}
+
+func apacheKafkaBrokerEnvironment(nodeID int32) map[string]string {
+	return map[string]string{
+		"KAFKA_NODE_ID":                                          fmt.Sprint(nodeID),
+		"KAFKA_BROKER_RACK":                                      fmt.Sprintf("rack-%d", nodeID),
+		"KAFKA_REPLICA_SELECTOR_CLASS":                           "org.apache.kafka.common.replica.RackAwareReplicaSelector",
+		"KAFKA_PROCESS_ROLES":                                    "broker",
+		"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":                   "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT",
+		"KAFKA_CONTROLLER_QUORUM_VOTERS":                         "1@controller-1:9093,2@controller-2:9093,3@controller-3:9093",
+		"KAFKA_LISTENERS":                                        "INTERNAL://:19092,PLAINTEXT_HOST://:9092",
+		"KAFKA_INTER_BROKER_LISTENER_NAME":                       "INTERNAL",
+		"KAFKA_CONTROLLER_LISTENER_NAMES":                        "CONTROLLER",
+		"CLUSTER_ID":                                             apacheKafkaClusterID,
+		"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR":                 "3",
+		"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR":                    "2",
+		"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR":         "3",
+		"KAFKA_DEFAULT_REPLICATION_FACTOR":                       "3",
+		"KAFKA_MIN_INSYNC_REPLICAS":                              "2",
+		"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS":                 "0",
+		"KAFKA_AUTO_CREATE_TOPICS_ENABLE":                        "false",
+		"KAFKA_LOG_DIRS":                                         "/tmp/kraft-broker-logs",
+		"KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR": "3",
+		"KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR":            "2",
+	}
+}
+
 func (cluster *apacheKafkaCluster) brokers(
 	t *testing.T,
 	ctx context.Context,
@@ -3437,6 +3830,35 @@ func (cluster *apacheKafkaCluster) brokers(
 	}
 
 	return brokers
+}
+
+func (cluster *apacheKafkaSeparatedCluster) brokerEndpoints(
+	t *testing.T,
+	ctx context.Context,
+) []string {
+	t.Helper()
+
+	return (&apacheKafkaCluster{nodes: cluster.brokers}).brokers(t, ctx)
+}
+
+func (cluster *apacheKafkaSeparatedCluster) brokerEndpoint(
+	t *testing.T,
+	ctx context.Context,
+	nodeID int32,
+) string {
+	t.Helper()
+
+	node := (&apacheKafkaCluster{nodes: cluster.brokers}).node(t, nodeID)
+	endpoint, err := node.container.PortEndpoint(
+		ctx,
+		apacheKafkaClientPort,
+		"",
+	)
+	if err != nil {
+		t.Fatalf("resolve Apache Kafka broker %d endpoint: %v", node.id, err)
+	}
+
+	return endpoint
 }
 
 func (cluster *apacheKafkaCluster) assertRuntimeVersion(
@@ -3464,6 +3886,77 @@ func (cluster *apacheKafkaCluster) assertRuntimeVersion(
 			strings.TrimSpace(string(data)),
 			exitCode,
 			want,
+		)
+	}
+}
+
+func (cluster *apacheKafkaSeparatedCluster) assertRuntimeVersion(
+	t *testing.T,
+	ctx context.Context,
+	want string,
+) {
+	t.Helper()
+
+	(&apacheKafkaCluster{nodes: cluster.brokers}).assertRuntimeVersion(
+		t,
+		ctx,
+		want,
+	)
+}
+
+func (cluster *apacheKafkaSeparatedCluster) stopBroker(
+	t *testing.T,
+	ctx context.Context,
+	nodeID int32,
+) {
+	t.Helper()
+
+	(&apacheKafkaCluster{nodes: cluster.brokers}).stopNode(t, ctx, nodeID)
+}
+
+func (cluster *apacheKafkaSeparatedCluster) startBroker(
+	t *testing.T,
+	ctx context.Context,
+	nodeID int32,
+) {
+	t.Helper()
+
+	(&apacheKafkaCluster{nodes: cluster.brokers}).startNode(t, ctx, nodeID)
+}
+
+func (cluster *apacheKafkaSeparatedCluster) triggerUncleanElection(
+	t *testing.T,
+	ctx context.Context,
+	nodeID int32,
+	topic string,
+	partition int32,
+) {
+	t.Helper()
+
+	node := (&apacheKafkaCluster{nodes: cluster.brokers}).node(t, nodeID)
+	exitCode, output, err := node.container.Exec(
+		ctx,
+		[]string{
+			"/opt/kafka/bin/kafka-leader-election.sh",
+			"--bootstrap-server", node.alias + ":19092",
+			"--election-type", "unclean",
+			"--topic", topic,
+			"--partition", strconv.FormatInt(int64(partition), 10),
+		},
+		tcexec.Multiplexed(),
+	)
+	if err != nil {
+		t.Fatalf("trigger Apache Kafka unclean election: %v", err)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(output, 4<<10))
+	if readErr != nil {
+		t.Fatalf("read Apache Kafka unclean election result: %v", readErr)
+	}
+	if exitCode != 0 {
+		t.Fatalf(
+			"trigger Apache Kafka unclean election: exit %d: %s",
+			exitCode,
+			strings.TrimSpace(string(data)),
 		)
 	}
 }
@@ -3605,8 +4098,31 @@ func (cluster *apacheKafkaCluster) waitForNode(
 ) {
 	t.Helper()
 
-	if err := wait.ForListeningPort(apacheKafkaClientPort).
-		WithStartupTimeout(2*time.Minute).
+	waitForApacheKafkaNode(t, ctx, node, apacheKafkaClientPort)
+}
+
+func waitForApacheKafkaNode(
+	t *testing.T,
+	ctx context.Context,
+	node apacheKafkaNode,
+	port string,
+) {
+	t.Helper()
+
+	waitForApacheKafkaNodeWithTimeout(t, ctx, node, port, 2*time.Minute)
+}
+
+func waitForApacheKafkaNodeWithTimeout(
+	t *testing.T,
+	ctx context.Context,
+	node apacheKafkaNode,
+	port string,
+	startupTimeout time.Duration,
+) {
+	t.Helper()
+
+	if err := wait.ForListeningPort(port).
+		WithStartupTimeout(startupTimeout).
 		WithPollInterval(100*time.Millisecond).
 		WaitUntilReady(ctx, node.container); err != nil {
 		t.Fatalf("wait for Apache Kafka node %d: %v", node.id, err)

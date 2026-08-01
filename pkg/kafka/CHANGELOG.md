@@ -160,6 +160,10 @@ All notable changes to this module are documented here.
   original `[0,3)` range as `ErrReplayOffsetOutOfRange` before handler admission
   and preserves next offset 0 after offline segment-tail truncation reduces the
   recovered log end to 2
+- pinned Apache Kafka 4.3.1 separated-role KRaft evidence proving replay rejects
+  an original `[0,2)` range as `ErrReplayOffsetOutOfRange` before handler
+  admission and preserves next offset 0 after an unclean election truncates an
+  acknowledged tail to end offset 1
 - replay execution now accepts `ReplayHandler` instead of the consumer-group
   `Handler` and supplies each `ReplayRecord` with its complete requested range
   and checkpoint-derived effective start; callers must migrate

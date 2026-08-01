@@ -146,8 +146,18 @@ Kafka recovery discards the incomplete final batch and reports log start 0 plus
 log end 2. Replaying the original `[0,3)` range returns
 `ErrReplayOffsetOutOfRange` before polling or handler admission, reports the
 range incomplete, and preserves next offset 0. This proves fail-closed replay
-after broker log recovery; unclean leader election remains separate unverified
-evidence.
+after broker log recovery.
+
+A separate-role Apache Kafka 4.3.1 fixture keeps three controller-only nodes
+available while faulting three broker-only nodes. After a follower leaves the
+ISR, the remaining ISR acknowledges offset 1 at `min.insync.replicas=2`; both
+current ISR brokers then stop, the stale follower is restarted and elected
+unclean, and one former ISR broker rejoins by truncating to that leader. Kafka
+reports log start 0 plus log end 1. Replaying the original `[0,2)` range returns
+`ErrReplayOffsetOutOfRange` before polling or handler admission, reports the
+range incomplete, and preserves next offset 0. This proves fail-closed replay
+after acknowledged data loss from an unclean leader election without treating
+the package as the source of that loss.
 
 Already-buffered offsets before an explicit resume position are counted as
 skipped. Records beyond a completed end can also be observed from the final
