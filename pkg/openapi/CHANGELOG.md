@@ -85,6 +85,8 @@
   removed, and added security, metadata, operation, and parameter entries.
 - Verify every relative, absolute, fragment, and URI-shaped discriminator
   mapping target independently.
+- Terminate literal-only runtime-expression templates directly and defer
+  malformed nested expressions to the normative expression parser.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of

@@ -207,7 +207,7 @@ func ParseTemplate(raw string) (Template, error) {
 		opening := strings.IndexByte(remaining, '{')
 		if opening < 0 {
 			parts = append(parts, Part{literal: remaining})
-			break
+			return Template{parts: parts}, nil
 		}
 		if opening > 0 {
 			parts = append(parts, Part{literal: remaining[:opening]})
@@ -218,7 +218,7 @@ func ParseTemplate(raw string) (Template, error) {
 			return Template{}, fmt.Errorf("%w: unmatched opening brace", ErrInvalid)
 		}
 		candidate := remaining[:closing]
-		if candidate == "" || strings.ContainsAny(candidate, "{}") {
+		if candidate == "" {
 			return Template{}, fmt.Errorf("%w: malformed embedding", ErrInvalid)
 		}
 		parsed, err := Parse(candidate)
