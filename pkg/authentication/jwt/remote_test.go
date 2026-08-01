@@ -153,8 +153,20 @@ func TestRemoteBoundsConfigurationAndLifecycle(t *testing.T) {
 	if _, err := authjwt.NewRemote(context.Background(), server.URL); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("NewRemote(http) error = %v", err)
 	}
-	if _, err := authjwt.NewRemote(context.Background(), "https://user:password@example.test/keys"); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+	userinfoRequested := false
+	userinfoClient := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		userinfoRequested = true
+		return nil, errors.New("userinfo URL reached transport")
+	})}
+	if _, err := authjwt.NewRemote(
+		context.Background(),
+		"https://user:password@example.test/keys",
+		authjwt.WithHTTPClient(userinfoClient),
+	); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("NewRemote(userinfo) error = %v", err)
+	}
+	if userinfoRequested {
+		t.Fatal("NewRemote(userinfo) made an HTTP request")
 	}
 	if _, err := authjwt.NewRemote(context.Background(), server.URL,
 		authjwt.WithInsecureHTTP(), authjwt.WithHTTPClient(server.Client()),
@@ -238,7 +250,7 @@ func TestRemoteReportsCacheStartupCancellation(t *testing.T) {
 
 	keys, _ := rsaKeys(t, "key", jwa.RS256())
 	body := marshalJWKSet(t, keys)
-	lifecycle, cancel := context.WithCancel(context.Background())
+	lifecycle, cancel := context.WithTimeout(context.Background(), time.Second)
 	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
