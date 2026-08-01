@@ -75,6 +75,8 @@
   media indexing and example-member traversal under mutation.
 - Preserve OpenAPI 3.0 schema and media traversal after skipped or malformed
   members, with explicit defensive branches for malformed object shapes.
+- Preserve OpenAPI 3.1 downgrade traversal after removed schema, XML,
+  discriminator, security, and type-array members.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of

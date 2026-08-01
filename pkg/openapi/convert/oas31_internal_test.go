@@ -339,3 +339,89 @@ func TestConvertOpenAPI31ConstEnumSemanticEquality(t *testing.T) {
 	}
 	memberAt(t, schemas, "Different", "not")
 }
+
+func TestConvertOpenAPI31ContinuesAfterRemovedSchemaMembers(t *testing.T) {
+	t.Parallel()
+
+	tests := []string{
+		`{"const":1,"enum":[2],"x-after":true}`,
+		`{"example":1,"examples":[2],"x-after":true}`,
+		`{"examples":true,"x-after":true}`,
+		`{"examples":[1],"x-after":true}`,
+		`{"$schema":"https://json-schema.org/draft/2020-12/schema","x-after":true}`,
+	}
+	for _, raw := range tests {
+		converter := &oas31SchemaConverter{ctx: context.Background(), maxNodes: 100}
+		converted, err := converter.schema(conversionValue(t, raw), "/schema")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if after, exists := converted.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+			t.Fatalf("schema member after removed keyword = %#v", converted)
+		}
+	}
+}
+
+func TestConvertOpenAPI31ContinuesAfterRemovedObjectMembers(t *testing.T) {
+	t.Parallel()
+
+	converter := &oas31SchemaConverter{ctx: context.Background(), maxNodes: 100}
+	xml := converter.downgradeXML(
+		conversionValue(t, `{"nodeType":"element","attribute":false,"x-after":true}`),
+		"/xml",
+	)
+	if after, exists := xml.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+		t.Fatalf("XML member after node type = %#v", xml)
+	}
+	attribute, exists := xml.Lookup("attribute")
+	if enabled, valid := attribute.Bool(); !exists || !valid || enabled {
+		t.Fatalf("XML attribute = %#v", attribute)
+	}
+
+	discriminator := converter.withoutObjectField(
+		conversionValue(t, `{"defaultMapping":"Pet","x-after":true}`),
+		"/discriminator",
+		"defaultMapping",
+		"unsupported",
+	)
+	if after, exists := discriminator.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+		t.Fatalf("discriminator member after removed field = %#v", discriminator)
+	}
+
+	typeValue, additions, err := converter.schemaType(
+		conversionValue(t, `{}`),
+		conversionValue(t, `[true,"null","string"]`),
+		"/type",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name, valid := typeValue.Text(); !valid || name != "string" {
+		t.Fatalf("converted type = %#v", typeValue)
+	}
+	if len(additions) != 1 || additions[0].Name != "nullable" {
+		t.Fatalf("type additions = %#v", additions)
+	}
+}
+
+func TestConvertOpenAPI31SecurityTraversalDoesNotStopAtMutualTLS(t *testing.T) {
+	t.Parallel()
+
+	converter := &oas31SchemaConverter{ctx: context.Background(), maxNodes: 100}
+	converted, err := converter.document(
+		conversionValue(t, `{
+			"Mutual":{"type":"mutualTLS"},
+			"ApiKey":{"type":"apiKey","x-after":true}
+		}`),
+		"/components/securitySchemes",
+		map[string]struct{}{},
+		map[string]struct{}{},
+		map[string]struct{}{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := converted.Lookup("ApiKey"); !exists {
+		t.Fatalf("security schemes = %#v", converted)
+	}
+}

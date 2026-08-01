@@ -362,8 +362,11 @@ func (converter *oas31SchemaConverter) downgradeXML(
 		}
 		result = append(result, member)
 	}
-	if hasNodeType && validNodeType &&
-		(nodeType == "element" || nodeType == "attribute") {
+	if hasNodeType && validNodeType {
+		if nodeType != "element" && nodeType != "attribute" {
+			converted, _ := jsonvalue.Object(result)
+			return converted
+		}
 		result = append(result, jsonvalue.Member{
 			Name: "attribute", Value: jsonvalue.Boolean(nodeType == "attribute"),
 		})
@@ -405,11 +408,17 @@ func downgradeExclusiveBound(
 	lower bool,
 ) (jsonvalue.Value, bool, bool) {
 	exclusive, exists := value.Lookup(exclusiveName)
-	if !exists || exclusive.Kind() != jsonvalue.NumberKind {
+	if !exists {
+		return jsonvalue.Value{}, false, false
+	}
+	if exclusive.Kind() != jsonvalue.NumberKind {
 		return jsonvalue.Value{}, false, false
 	}
 	bound, hasBound := value.Lookup(boundName)
-	if !hasBound || bound.Kind() != jsonvalue.NumberKind {
+	if !hasBound {
+		return exclusive, true, true
+	}
+	if bound.Kind() != jsonvalue.NumberKind {
 		return exclusive, true, true
 	}
 	exclusiveNumber, exclusiveValid := exactNumber(exclusive)
@@ -440,8 +449,14 @@ func exactNumber(value jsonvalue.Value) (*big.Rat, bool) {
 
 func isSecurityType(value jsonvalue.Value, expected string) bool {
 	typeValue, exists := value.Lookup("type")
+	if !exists {
+		return false
+	}
 	typeName, valid := typeValue.Text()
-	return exists && valid && typeName == expected
+	if !valid {
+		return false
+	}
+	return typeName == expected
 }
 
 func schemaTypeContainsNull(value jsonvalue.Value) bool {
@@ -491,7 +506,10 @@ func schemaTypeNeedsAllOf(value jsonvalue.Value) bool {
 func constEnumConflict(value jsonvalue.Value) bool {
 	constant, hasConst := value.Lookup("const")
 	enumeration, hasEnum := value.Lookup("enum")
-	if !hasConst || !hasEnum {
+	if !hasConst {
+		return false
+	}
+	if !hasEnum {
 		return false
 	}
 	elements, valid := enumeration.Elements()
@@ -520,7 +538,10 @@ func conversionValueEqual(left jsonvalue.Value, right jsonvalue.Value) bool {
 	case jsonvalue.NumberKind:
 		leftValue, leftValid := exactNumber(left)
 		rightValue, rightValid := exactNumber(right)
-		return leftValid && rightValid && leftValue.Cmp(rightValue) == 0
+		if !leftValid || !rightValid {
+			return false
+		}
+		return leftValue.Cmp(rightValue) == 0
 	case jsonvalue.StringKind:
 		leftValue, _ := left.Text()
 		rightValue, _ := right.Text()
@@ -612,10 +633,12 @@ func (converter *oas31SchemaConverter) schemaType(
 		alternatives := make([]jsonvalue.Value, 0, len(nonNull))
 		for index, typeValue := range nonNull {
 			members := []jsonvalue.Member{{Name: "type", Value: typeValue}}
-			if nullable && index == 0 {
-				members = append(members, jsonvalue.Member{
-					Name: "nullable", Value: jsonvalue.Boolean(true),
-				})
+			if nullable {
+				if index == 0 {
+					members = append(members, jsonvalue.Member{
+						Name: "nullable", Value: jsonvalue.Boolean(true),
+					})
+				}
 			}
 			alternative, _ := jsonvalue.Object(members)
 			alternatives = append(alternatives, alternative)
