@@ -930,21 +930,27 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`execution_revisions`,
 		`gate_input_digests`,
 		`mutation-legacy`,
-		`historical_package_digest`,
-		`historically identical mutation evidence`,
-		`mutation-history-migrations.json`,
-		`checkpoint_report_digest`,
-		`current_gate_input_digest`,
-		`.replacement_gate_input_digest //`,
 		`GOLIB_MUTATION_DIGEST_RESOLUTION=caller`,
+		`GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable`,
+		`migrated module-wide mutation identity`,
+		`identity_lineage`,
 		`migrated caller-dependent mutation identity`,
-		`migrated reset-safe mutation evidence`,
 		`write_aggregate`,
 		`mv "${checkpoint_tmp}" "${checkpoint}"`,
 		`.complete == true`,
 	} {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("mutation evidence contract lacks %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		`historical_package_digest`,
+		`checkpoint revision is unavailable`,
+		`git archive`,
+		`git cat-file`,
+	} {
+		if strings.Contains(contract, forbidden) {
+			t.Fatalf("mutation evidence contract depends on repository history through %q", forbidden)
 		}
 	}
 	if strings.Index(contract, `execution_revision="$(git -C "${root}" rev-parse HEAD)"`) >
@@ -1081,6 +1087,7 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 	for _, directory := range []string{
 		".golib",
 		"pkg/dependency",
+		"pkg/dependency/testdata",
 		"pkg/example",
 		"pkg/example/consumer",
 		"scripts/internal",
@@ -1135,8 +1142,10 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 	writeFile(t, dependencySum, "example.test/archive v0.1.0 h1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n")
 	dependencySource := filepath.Join(repository, "pkg", "dependency", "dependency.go")
 	dependencyTest := filepath.Join(repository, "pkg", "dependency", "dependency_test.go")
+	dependencyFixture := filepath.Join(repository, "pkg", "dependency", "testdata", "value.txt")
 	writeFile(t, dependencySource, "package dependency\n\nfunc Value() int { return 1 }\n")
 	writeFile(t, dependencyTest, "package dependency\n\n// Dependency tests are not observers of another module's mutants.\n")
+	writeFile(t, dependencyFixture, "one\n")
 	writeFile(t, filepath.Join(repository, "pkg", "example", "go.mod"), `module example.test/example
 
 go 1.26.5
@@ -1187,7 +1196,7 @@ func TestValue(t *testing.T) {
 		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
 	}
 
-	digest := func() string {
+	digestWithResolution := func(resolution string) string {
 		t.Helper()
 		command := exec.Command(
 			filepath.Join(repository, "scripts", "gate-input-digest.sh"),
@@ -1197,14 +1206,27 @@ func TestValue(t *testing.T) {
 		)
 		command.Dir = repository
 		command.Env = directGoEnvironment(t)
+		if resolution != "" {
+			command.Env = environmentWithValues(
+				command.Env,
+				"GOLIB_MUTATION_DIGEST_RESOLUTION",
+				resolution,
+			)
+		}
 		output, err := command.CombinedOutput()
 		if err != nil {
 			t.Fatalf("calculate mutation digest: %v\n%s", err, output)
 		}
 		return strings.TrimSpace(string(output))
 	}
+	digest := func() string {
+		t.Helper()
+
+		return digestWithResolution("")
+	}
 
 	initial := digest()
+	legacyInitial := digestWithResolution("legacy-stable")
 	moduleCatalog := filepath.Join(repository, "modules.json")
 	catalogContents, err := os.ReadFile(moduleCatalog)
 	if err != nil {
@@ -1265,14 +1287,22 @@ func TestValue(t *testing.T) {
 	if current := digest(); current != initial {
 		t.Fatalf("dependency tests changed mutation digest: %s != %s", current, initial)
 	}
+	writeFile(t, dependencyFixture, "two\n")
+	if current := digest(); current == initial {
+		t.Fatal("dependency fixture did not change mutation digest")
+	}
+	writeFile(t, dependencyFixture, "one\n")
 	writeFile(t, dependencySource, "package dependency\n\nfunc Value() int { return 2 }\n")
 	if current := digest(); current == initial {
 		t.Fatal("dependency production source did not change mutation digest")
 	}
 	writeFile(t, dependencySource, "package dependency\n\nfunc Value() int { return 1 }\n")
 	writeFile(t, sibling, "package sibling\n\nfunc Value() int { return 2 }\n")
-	if current := digest(); current == initial {
-		t.Fatal("integration-tested package did not change mutation digest")
+	if current := digest(); current != initial {
+		t.Fatalf("unrelated sibling changed mutation digest: %s != %s", current, initial)
+	}
+	if current := digestWithResolution("legacy-stable"); current == legacyInitial {
+		t.Fatal("legacy module-wide digest ignored an integration-tested sibling")
 	}
 	writeFile(t, sibling, "package sibling\n\nfunc Value() int { return 1 }\n")
 	writeFile(t, consumerTest, `package consumer

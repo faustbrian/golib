@@ -21,12 +21,14 @@ manifest="$(mktemp "${TMPDIR:-/tmp}/golib-gate-inputs.XXXXXX")"
 directories="$(mktemp "${TMPDIR:-/tmp}/golib-gate-directories.XXXXXX")"
 input_files="$(mktemp "${TMPDIR:-/tmp}/golib-gate-files.XXXXXX")"
 package_data="${manifest}.packages"
+relevant_package_data="${manifest}.relevant-packages"
 existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
 nested_directories="${manifest}.nested"
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
+        "${relevant_package_data}" \
         "${existing_files}" "${file_hashes}" "${nested_directories}"
 }
 trap cleanup EXIT HUP INT TERM
@@ -294,6 +296,7 @@ legacy_digest() {
 package_digest() {
     local data_name digest_go digest_go_flags digest_workspace flag
     local module_path module_root package_directory resolution tags
+    local target_import_path
     module_root="${root}/${module}"
     if ! jq -e --arg directory "${module}" --arg package "${package}" '
         .modules[]
@@ -376,7 +379,7 @@ package_digest() {
                 go list -deps -test -json ./...
             fi
         ) >"${package_data}"
-    elif [[ "${resolution}" != "stable" ]]; then
+    elif [[ "${resolution}" != "stable" && "${resolution}" != "legacy-stable" ]]; then
         printf 'unknown mutation digest resolution: %s\n' \
             "${resolution}" >&2
         exit 2
@@ -411,6 +414,51 @@ package_digest() {
     ) >"${package_data}"
     fi
 
+    if [[ "${resolution}" == "legacy-stable" ]]; then
+        jq -s \
+            --arg root "${root}/" \
+            --arg module_path "${module_path}" '
+            .[]
+            | select((.Dir // "") | startswith($root))
+            | . + {
+                GolibMutationObserver:
+                    ((.Module.Path // "") == $module_path)
+            }
+        ' "${package_data}" >"${relevant_package_data}"
+    else
+        target_import_path="${module_path}"
+        if [[ "${package}" != "." ]]; then
+            target_import_path="${module_path}/${package}"
+        fi
+        jq -s \
+            --arg root "${root}/" \
+            --arg target "${target_import_path}" '
+        def canonical_import:
+            (.ImportPath // "" | sub(" \\[.*$"; ""));
+        [.[] | select(
+            canonical_import == $target or
+            (.ForTest // "") == $target or
+            ((.Deps // []) | index($target)) != null
+        )] as $observers
+        | ([$observers[].Dir] | unique) as $observer_directories
+        | ([
+            $observers[]
+            | canonical_import, (.Deps // [])[]
+        ] | unique) as $relevant_imports
+        | .[]
+        | select((.Dir // "") | startswith($root))
+        | select(
+            canonical_import as $import
+            | ($relevant_imports | index($import)) != null
+        )
+        | .Dir as $directory
+        | . + {
+            GolibMutationObserver:
+                (($observer_directories | index($directory)) != null)
+        }
+        ' "${package_data}" >"${relevant_package_data}"
+    fi
+
     jq -r --arg root "${root}/" --arg module_path "${module_path}" '
         select(.Dir | startswith($root))
         | .Dir as $directory
@@ -430,7 +478,7 @@ package_digest() {
                 .EmbedFiles[]?
             ] +
             (
-                if (.Module.Path // "") == $module_path
+                if .GolibMutationObserver == true
                 then [
                     .TestGoFiles[]?,
                     .XTestGoFiles[]?,
@@ -443,7 +491,7 @@ package_digest() {
         )[]
         | if startswith("/") then . else "\($directory)/\(.)" end
         | select(startswith($root))
-    ' "${package_data}" >>"${input_files}"
+    ' "${relevant_package_data}" >>"${input_files}"
 
     jq -r --arg root "${root}/" '
         select(
@@ -451,7 +499,7 @@ package_digest() {
             ((.Module.GoMod // "") | startswith($root))
         )
         | .Module.GoMod
-    ' "${package_data}" | LC_ALL=C sort -u >>"${input_files}"
+    ' "${relevant_package_data}" | LC_ALL=C sort -u >>"${input_files}"
 
     while IFS= read -r package_directory; do
         [[ -n "${package_directory}" ]] || continue
@@ -462,13 +510,10 @@ package_digest() {
             fi
         done
     done < <(
-        jq -r --arg root "${root}/" --arg module_path "${module_path}" '
-            select(
-                (.Dir | startswith($root)) and
-                ((.Module.Path // "") == $module_path)
-            )
+        jq -r --arg root "${root}/" '
+            select(.Dir | startswith($root))
             | .Dir
-        ' "${package_data}" | LC_ALL=C sort -u
+        ' "${relevant_package_data}" | LC_ALL=C sort -u
     )
 
     while IFS= read -r file; do

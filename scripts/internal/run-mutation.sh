@@ -25,13 +25,11 @@ directory="${root}/${module}"
 artifact="${root}/.artifacts/${module}"
 report="${artifact}/mutation.json"
 checkpoint_directory="${artifact}/mutation-checkpoints"
-history_migrations="${root}/.golib/mutation-history-migrations.json"
 mkdir -p "${checkpoint_directory}"
 active_build_cache=""
 # shellcheck disable=SC1091
 source "${root}/scripts/internal/mutation-scratch.sh"
 mutation_scratch_initialize "${artifact}"
-historical_root_base="${run_directory}/historical-inputs"
 mutation_arguments=()
 execution_revision="$(git -C "${root}" rev-parse HEAD)"
 
@@ -42,6 +40,8 @@ source "${root}/scripts/internal/mutation-command.sh"
 gremlins_binary="$("${root}/scripts/build-golib-gremlins.sh")"
 environment_identity="$(go env -json GOVERSION GOOS GOARCH CGO_ENABLED)"
 legacy_gate_input_digest=""
+# run_directory is initialized by mutation_scratch_initialize.
+# shellcheck disable=SC2154
 shared_coverage="${run_directory}/integration.coverage"
 shared_coverage_elapsed=""
 modfile=""
@@ -110,77 +110,6 @@ ensure_shared_coverage() {
             "${module}" >&2
         exit 1
     }
-}
-
-historical_package_digest() {
-    local revision="$1"
-    local package_directory="$2"
-    local snapshot="${historical_root_base}/${revision}"
-    case "${revision}" in
-        *[!0-9a-f]*|"")
-            printf 'invalid checkpoint execution revision: %s\n' \
-                "${revision}" >&2
-            return 1
-            ;;
-    esac
-    if [[ ! -d "${snapshot}" ]]; then
-        mkdir -p "${snapshot}"
-        if ! git -C "${root}" cat-file -e "${revision}^{commit}" 2>/dev/null; then
-            printf 'checkpoint revision is unavailable: %s\n' \
-                "${revision}" >&2
-            find "${snapshot}" -depth -delete
-            return 1
-        fi
-        if ! git -C "${root}" archive "${revision}" | tar -x -C "${snapshot}"; then
-            find "${snapshot}" -depth -delete
-            return 1
-        fi
-        cp "${root}/scripts/gate-input-digest.sh" \
-            "${snapshot}/scripts/gate-input-digest.sh"
-        chmod +x "${snapshot}/scripts/gate-input-digest.sh"
-    fi
-    GOLIB_ROOT="${snapshot}" \
-        "${snapshot}/scripts/gate-input-digest.sh" \
-        mutation "${module}" "${package_directory}"
-}
-
-checkpoint_report_digest() {
-    jq -S -c '.report' "$1" | shasum -a 256 | awk '{print $1}'
-}
-
-approved_history_migration() {
-    local checkpoint="$1"
-    local current_package_digest="$2"
-    local report_digest
-    [[ -s "${history_migrations}" ]] || return 1
-    report_digest="$(checkpoint_report_digest "${checkpoint}")"
-    jq -e \
-        --arg module "${module}" \
-        --arg package "${package_directory}" \
-        --arg execution_revision "$(
-            jq -r '.execution_revision' "${checkpoint}"
-        )" \
-        --arg gate_input_digest "$(
-            jq -r '.gate_input_digest' "${checkpoint}"
-        )" \
-        --arg current_gate_input_digest "${current_package_digest}" \
-        --arg gremlins_version "${GREMLINS_VERSION}" \
-        --arg report_digest "${report_digest}" \
-        '
-            .schema_version == 2 and
-            ([.entries[] | select(
-                .module == $module and
-                .package == $package and
-                .execution_revision == $execution_revision and
-                .gate_input_digest == $gate_input_digest and
-                (
-                    .replacement_gate_input_digest //
-                    .gate_input_digest
-                ) == $current_gate_input_digest and
-                .gremlins_version == $gremlins_version and
-                .report_sha256 == $report_digest
-            )] | length == 1)
-        ' "${history_migrations}" >/dev/null
 }
 
 write_aggregate() {
@@ -280,6 +209,58 @@ for package_directory in "${packages[@]}"; do
         fi
     fi
 
+    legacy_stable_package_digest="$(
+        GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable \
+            "${root}/scripts/gate-input-digest.sh" \
+            mutation "${module}" "${package_directory}"
+    )"
+    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
+        jq -e \
+            --arg module "${module}" \
+            --arg package "${package_directory}" \
+            --arg digest "${legacy_stable_package_digest}" \
+            --arg version "${GREMLINS_VERSION}" '
+                .schema_version == 3 and
+                .module == $module and
+                .package == $package and
+                ((
+                    [.gate_input_digest] +
+                    (.identity_lineage // []) +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | index($digest)) != null and
+                .gremlins_version == $version and
+                (.report.files | type == "array") and
+                ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
+            ' "${checkpoint}" >/dev/null; then
+        checkpoint_total="$(
+            jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
+        )"
+        if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
+            checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
+            jq \
+                --arg revision "$(git -C "${root}" rev-parse HEAD)" \
+                --arg digest "${package_input_digest}" '
+                .identity_lineage = ((
+                    (.identity_lineage // []) +
+                    [.gate_input_digest] +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | map(select(length > 0)) | unique)
+                | .validated_revision = $revision
+                | .identity_migration = {
+                    reason: "target-observer-resolution",
+                    previous_gate_input_digest: .gate_input_digest
+                }
+                | .gate_input_digest = $digest
+            ' "${checkpoint}" >"${checkpoint_tmp}"
+            mv "${checkpoint_tmp}" "${checkpoint}"
+            reports+=("${checkpoint}")
+            write_aggregate
+            printf '[%s] %s migrated module-wide mutation identity\n' \
+                "${module}" "${target}"
+            continue
+        fi
+    fi
+
     legacy_package_digest="$(
         GOLIB_MUTATION_DIGEST_RESOLUTION=caller \
             "${root}/scripts/gate-input-digest.sh" \
@@ -294,7 +275,11 @@ for package_directory in "${packages[@]}"; do
                 .schema_version == 3 and
                 .module == $module and
                 .package == $package and
-                .gate_input_digest == $digest and
+                ((
+                    [.gate_input_digest] +
+                    (.identity_lineage // []) +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | index($digest)) != null and
                 .gremlins_version == $version and
                 (.report.files | type == "array") and
                 ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
@@ -307,7 +292,12 @@ for package_directory in "${packages[@]}"; do
             jq \
                 --arg revision "$(git -C "${root}" rev-parse HEAD)" \
                 --arg digest "${package_input_digest}" '
-                .validated_revision = $revision
+                .identity_lineage = ((
+                    (.identity_lineage // []) +
+                    [.gate_input_digest] +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | map(select(length > 0)) | unique)
+                | .validated_revision = $revision
                 | .identity_migration = {
                     reason: "canonical-workspace-resolution",
                     previous_gate_input_digest: .gate_input_digest
@@ -320,89 +310,6 @@ for package_directory in "${packages[@]}"; do
             printf '[%s] %s migrated caller-dependent mutation identity\n' \
                 "${module}" "${target}"
             continue
-        fi
-    fi
-
-    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
-        jq -e \
-            --arg module "${module}" \
-            --arg package "${package_directory}" \
-            --arg version "${GREMLINS_VERSION}" '
-                .schema_version == 3 and
-                .module == $module and
-                .package == $package and
-                .gremlins_version == $version and
-                (.report.files | type == "array") and
-                ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null &&
-        approved_history_migration \
-            "${checkpoint}" "${package_input_digest}"; then
-        checkpoint_total="$(
-            jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
-        )"
-        if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
-            checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
-            jq \
-                --arg revision "$(git -C "${root}" rev-parse HEAD)" \
-                --arg replacement_scope_sha256 "$(
-                    jq -r '.replacement_scope_sha256' "${history_migrations}"
-                )" \
-                --arg digest "${package_input_digest}" '
-                .validated_revision = $revision
-                | .history_migration = {
-                    replacement_scope_sha256: $replacement_scope_sha256,
-                    previous_gate_input_digest: .gate_input_digest
-                }
-                | .gate_input_digest = $digest
-            ' "${checkpoint}" >"${checkpoint_tmp}"
-            mv "${checkpoint_tmp}" "${checkpoint}"
-            reports+=("${checkpoint}")
-            write_aggregate
-            printf '[%s] %s migrated reset-safe mutation evidence\n' \
-                "${module}" "${target}"
-            continue
-        fi
-    fi
-
-    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
-        jq -e \
-            --arg module "${module}" \
-            --arg package "${package_directory}" \
-            --arg version "${GREMLINS_VERSION}" '
-                .schema_version == 3 and
-                .module == $module and
-                .package == $package and
-                .gremlins_version == $version and
-                (.report.files | type == "array") and
-                ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
-            ' "${checkpoint}" >/dev/null; then
-        checkpoint_revision="$(
-            jq -r '.validated_revision // .execution_revision' "${checkpoint}"
-        )"
-        if historical_input_digest="$(
-            historical_package_digest \
-                "${checkpoint_revision}" "${package_directory}"
-        )" && [[ "${historical_input_digest}" == "${package_input_digest}" ]]; then
-            checkpoint_total="$(
-                jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
-            )"
-            if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
-                checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
-                jq \
-                    --arg revision "$(git -C "${root}" rev-parse HEAD)" \
-                    --arg digest "${package_input_digest}" '
-                    .validated_revision = $revision
-                    | .previous_gate_input_digest = .gate_input_digest
-                    | .historical_package_input_digest = $digest
-                    | .gate_input_digest = $digest
-                ' "${checkpoint}" >"${checkpoint_tmp}"
-                mv "${checkpoint_tmp}" "${checkpoint}"
-                reports+=("${checkpoint}")
-                write_aggregate
-                printf '[%s] %s migrated historically identical mutation evidence\n' \
-                    "${module}" "${target}"
-                continue
-            fi
         fi
     fi
 
@@ -443,33 +350,6 @@ for package_directory in "${packages[@]}"; do
                 reports+=("${checkpoint}")
                 write_aggregate
                 printf '[%s] %s migrated content-identical mutation evidence\n' \
-                    "${module}" "${target}"
-                continue
-            fi
-        fi
-        checkpoint_revision="$(jq -r '.execution_revision' "${checkpoint}")"
-        if historical_input_digest="$(
-            historical_package_digest \
-                "${checkpoint_revision}" "${package_directory}"
-        )" && [[ "${historical_input_digest}" == "${package_input_digest}" ]]; then
-            checkpoint_total="$(
-                jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
-            )"
-            if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
-                checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
-                jq \
-                    --arg revision "$(git -C "${root}" rev-parse HEAD)" \
-                    --arg digest "${package_input_digest}" '
-                    .schema_version = 3
-                    | .validated_revision = $revision
-                    | .legacy_module_gate_input_digest = .gate_input_digest
-                    | .historical_package_input_digest = $digest
-                    | .gate_input_digest = $digest
-                ' "${checkpoint}" >"${checkpoint_tmp}"
-                mv "${checkpoint_tmp}" "${checkpoint}"
-                reports+=("${checkpoint}")
-                write_aggregate
-                printf '[%s] %s migrated historically identical mutation evidence\n' \
                     "${module}" "${target}"
                 continue
             fi
