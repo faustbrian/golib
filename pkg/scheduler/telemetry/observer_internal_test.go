@@ -17,7 +17,8 @@ func TestObserverContextAndLogLevelContracts(t *testing.T) {
 	if eventContext(ctx) != ctx {
 		t.Fatal("eventContext() replaced a supplied context")
 	}
-	if eventContext(nil) == nil {
+	var nilContext context.Context
+	if eventContext(nilContext) == nil {
 		t.Fatal("eventContext(nil) returned nil")
 	}
 

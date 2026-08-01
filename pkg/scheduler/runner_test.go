@@ -620,7 +620,7 @@ func TestTimedOutTaskRetainsOverlapLeaseUntilItReturns(t *testing.T) {
 	schedule, _ := scheduler.NewSchedule(
 		"timed-out-overlap", "task.timed-out-overlap", scheduler.EveryMinute(),
 		scheduler.WithMissedRuns(scheduler.MissedRunOnce, 0),
-		scheduler.WithoutOverlap(scheduler.OverlapSkip, 15*time.Millisecond),
+		scheduler.WithoutOverlap(scheduler.OverlapSkip, time.Minute),
 		scheduler.WithRunTimeout(10*time.Millisecond),
 	)
 	registry, _ := scheduler.Compile(schedule)
@@ -655,7 +655,6 @@ func TestTimedOutTaskRetainsOverlapLeaseUntilItReturns(t *testing.T) {
 		close(release)
 		t.Fatalf("first Tick() error = %v", err)
 	}
-	time.Sleep(30 * time.Millisecond)
 	if err := second.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
 		close(release)
 		t.Fatalf("second Tick() error = %v", err)
@@ -669,5 +668,11 @@ func TestTimedOutTaskRetainsOverlapLeaseUntilItReturns(t *testing.T) {
 	defer cancel()
 	if err := first.Drain(drainCtx); err != nil {
 		t.Fatalf("Drain() error = %v", err)
+	}
+	if err := second.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
+		t.Fatalf("second Tick(after release) error = %v", err)
+	}
+	if !secondCalled {
+		t.Fatal("second runner did not execute after timed-out task returned")
 	}
 }
