@@ -6,9 +6,12 @@ Secrets Manager version identifier.
 
 The module targets AWS SDK for Go v2 and does not expose SDK response objects.
 Callers can upgrade AWS transport behavior independently while the returned
-`Reference` remains limited to ARN and version identifier.
+`Reference` remains limited to ARN and version identifier. Exact reads return
+the separate `Version` type so existing write-only consumers remain source
+compatible.
 
 Changes to validation bounds, accepted name characters, staging semantics,
 error classification, the write-only `Client` contract, or returned reference
 fields are compatibility-sensitive and require explicit release notes and
-regression coverage.
+regression coverage. The optional `VersionReader` capability and returned
+binary ownership are also compatibility-sensitive.

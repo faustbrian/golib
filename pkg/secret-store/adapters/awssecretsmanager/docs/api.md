@@ -23,7 +23,16 @@ version identifier, binary representation, and constant-time material
 comparison all agree. Different existing material returns
 `ErrVersionConflict`.
 
+`Store.GetVersion` accepts a `SecretID` containing either the full ARN returned
+by `PutVersion` or an AWS-compatible secret name, plus the exact 32–64 byte
+`VersionID`. It sends `VersionId` rather than a staging label and accepts only
+a nonempty binary response whose ARN or name and version identity match the
+request.
+The returned `Version.Value` is a caller-owned copy containing at most 65,536
+bytes. The caller must zero it after use.
+
 `ErrClientRequired`, `ErrInvalidKMSKey`, `ErrInvalidRequest`,
-`ErrOperation`, `ErrInvalidResponse`, and `ErrVersionConflict` support
+`ErrReadCapabilityRequired`, `ErrOperation`, `ErrInvalidResponse`, and
+`ErrVersionConflict` support
 `errors.Is`. Operational failures retain their original cause through
 `errors.Is` and `errors.As` without rendering the cause in the formatted error.

@@ -6,6 +6,9 @@ All notable changes follow Keep a Changelog and semantic versioning.
 
 ### Added
 
+- Exact version-pinned binary reads by secret ARN or name, with bounded
+  responses, defensive copying, secret-safe failures, and explicit read
+  capability detection.
 - Immutable AWS Secrets Manager version creation with stable idempotency
   tokens, version-unique staging labels, bounded binary payloads, redacted
   failures, and exact verification gates.

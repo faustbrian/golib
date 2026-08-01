@@ -18,10 +18,10 @@ It rejects reuse of the token with different material.
 
 ## Does the adapter read or compare secret values?
 
-Only when a provider reports that the exact requested version already exists.
-The adapter then reads that version, compares its binary material in constant
-time, and returns only the ARN and version identifier. It exposes no general
-read operation.
+Yes, but only by an exact immutable version identifier. Retry confirmation
+compares the binary material in constant time and returns only the reference.
+`GetVersion` returns a caller-owned copy for the exact persisted ARN or name
+and version; it never resolves `AWSCURRENT` or another movable label.
 
 ## Does it manage rotation or deletion?
 

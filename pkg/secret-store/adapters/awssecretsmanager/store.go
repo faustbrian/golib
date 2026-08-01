@@ -16,6 +16,7 @@ import (
 
 const (
 	maximumSecretNameBytes = 512
+	maximumSecretIDBytes   = 2_048
 	maximumVersionIDBytes  = 64
 	minimumVersionIDBytes  = 32
 	maximumStageBytes      = 256
@@ -27,6 +28,11 @@ var (
 	// ErrClientRequired identifies missing AWS Secrets Manager composition.
 	ErrClientRequired = errors.New(
 		"AWS Secrets Manager client is required",
+	)
+	// ErrReadCapabilityRequired identifies a client that cannot retrieve an
+	// exact immutable version.
+	ErrReadCapabilityRequired = errors.New(
+		"AWS Secrets Manager read capability is required",
 	)
 	// ErrInvalidKMSKey identifies an unsafe configured KMS key identifier.
 	ErrInvalidKMSKey = errors.New(
@@ -65,12 +71,30 @@ type Client interface {
 	) (*secretsmanager.PutSecretValueOutput, error)
 }
 
-type existingVersionClient interface {
+// VersionReader is the least-privilege AWS surface required by GetVersion.
+type VersionReader interface {
 	GetSecretValue(
 		context.Context,
 		*secretsmanager.GetSecretValueInput,
 		...func(*secretsmanager.Options),
 	) (*secretsmanager.GetSecretValueOutput, error)
+}
+
+type existingVersionClient = VersionReader
+
+// GetVersionRequest identifies one exact immutable secret version. SecretID
+// may be the full ARN returned by PutVersion or an AWS-compatible secret name.
+type GetVersionRequest struct {
+	SecretID  string
+	VersionID string
+}
+
+// Version contains caller-owned binary secret material from one exact AWS
+// version. The caller is responsible for zeroing Value after use.
+type Version struct {
+	ARN       string
+	VersionID string
+	Value     []byte
 }
 
 // PutVersionRequest names one immutable secret value and its unique staging
@@ -184,6 +208,49 @@ func (store *Store) PutVersion(
 	return putReference(putOutput, request.VersionID)
 }
 
+// GetVersion retrieves one exact immutable binary version. It never resolves
+// AWSCURRENT or another movable staging label. The returned Value is a copy
+// owned by the caller.
+func (store *Store) GetVersion(
+	ctx context.Context,
+	request GetVersionRequest,
+) (Version, error) {
+	if store == nil || nilLike(store.client) {
+		return Version{}, ErrClientRequired
+	}
+	if err := validateGetRequest(ctx, request); err != nil {
+		return Version{}, err
+	}
+	reader, supported := store.client.(VersionReader)
+	if !supported {
+		return Version{}, ErrReadCapabilityRequired
+	}
+
+	output, err := reader.GetSecretValue(
+		ctx,
+		&secretsmanager.GetSecretValueInput{
+			SecretId:  aws.String(request.SecretID),
+			VersionId: aws.String(request.VersionID),
+		},
+	)
+	if err != nil {
+		return Version{}, operationError{operation: "get", cause: err}
+	}
+	if output != nil {
+		defer zero(output.SecretBinary)
+	}
+	if !validGetResponse(output, request) {
+		return Version{}, ErrInvalidResponse
+	}
+	value := append([]byte(nil), output.SecretBinary...)
+
+	return Version{
+		ARN:       aws.ToString(output.ARN),
+		VersionID: request.VersionID,
+		Value:     value,
+	}, nil
+}
+
 func (store *Store) confirmExistingVersion(
 	ctx context.Context,
 	reader existingVersionClient,
@@ -238,6 +305,56 @@ func validateRequest(
 	}
 
 	return nil
+}
+
+func validateGetRequest(ctx context.Context, request GetVersionRequest) error {
+	if ctx == nil {
+		return ErrInvalidRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !validSecretID(request.SecretID) || !validVersionID(request.VersionID) {
+		return ErrInvalidRequest
+	}
+
+	return nil
+}
+
+func validSecretID(value string) bool {
+	if validSecretName(value) {
+		return true
+	}
+	if !strings.HasPrefix(value, "arn:") || len(value) > maximumSecretIDBytes {
+		return false
+	}
+	for index := range len(value) {
+		if value[index] < '!' || value[index] > '~' {
+			return false
+		}
+	}
+
+	return true
+}
+
+func validGetResponse(
+	output *secretsmanager.GetSecretValueOutput,
+	request GetVersionRequest,
+) bool {
+	if output == nil ||
+		aws.ToString(output.ARN) == "" ||
+		aws.ToString(output.VersionId) != request.VersionID ||
+		output.SecretString != nil ||
+		len(output.SecretBinary) == 0 ||
+		len(output.SecretBinary) > maximumSecretBytes {
+		return false
+	}
+
+	if strings.HasPrefix(request.SecretID, "arn:") {
+		return aws.ToString(output.ARN) == request.SecretID
+	}
+
+	return aws.ToString(output.Name) == request.SecretID
 }
 
 func validSecretName(value string) bool {

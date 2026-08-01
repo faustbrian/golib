@@ -129,6 +129,298 @@ func TestPutVersionCreatesOrIdempotentlyAddsImmutableVersion(t *testing.T) {
 	}
 }
 
+func TestGetVersionReadsExactImmutableBinaryVersion(t *testing.T) {
+	t.Parallel()
+
+	const (
+		secretARN = "arn:aws:secretsmanager:eu-north-1:123456789012:secret:track/carrier-account/example-AbCdEf"
+		versionID = "6e45f31f4601a3af2e99f2f479d691650fb71cd2d93a76872f4e9f5fa7b42135"
+	)
+	providerValue := []byte(`{"client_id":"synthetic"}`)
+	client := &stubClient{
+		getOutput: &secretsmanager.GetSecretValueOutput{
+			ARN:          aws.String(secretARN),
+			SecretBinary: providerValue,
+			VersionId:    aws.String(versionID),
+		},
+	}
+	store, err := New(client, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	version, err := store.GetVersion(
+		context.Background(),
+		GetVersionRequest{SecretID: secretARN, VersionID: versionID},
+	)
+	if err != nil {
+		t.Fatalf("GetVersion() error = %v", err)
+	}
+	if version.ARN != secretARN || version.VersionID != versionID ||
+		!bytes.Equal(version.Value, []byte(`{"client_id":"synthetic"}`)) {
+		t.Fatal("GetVersion() returned unexpected metadata or value")
+	}
+	if client.getInput == nil ||
+		aws.ToString(client.getInput.SecretId) != secretARN ||
+		aws.ToString(client.getInput.VersionId) != versionID {
+		t.Fatalf("GetSecretValue() input = %#v", client.getInput)
+	}
+	if !bytes.Equal(providerValue, make([]byte, len(providerValue))) {
+		t.Fatal("GetVersion() did not zero provider-owned secret memory")
+	}
+}
+
+func TestGetVersionReadsByExactSecretName(t *testing.T) {
+	t.Parallel()
+
+	request := GetVersionRequest{
+		SecretID:  "track/carrier-account/example",
+		VersionID: strings.Repeat("v", minimumVersionIDBytes),
+	}
+	client := &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+		ARN:          aws.String("arn:aws:secretsmanager:eu-north-1:123456789012:secret:track/carrier-account/example-AbCdEf"),
+		Name:         aws.String(request.SecretID),
+		SecretBinary: []byte("value"),
+		VersionId:    aws.String(request.VersionID),
+	}}
+	store, err := New(client, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	version, err := store.GetVersion(context.Background(), request)
+	if err != nil {
+		t.Fatalf("GetVersion() error = %v", err)
+	}
+	if version.ARN == "" || version.VersionID != request.VersionID ||
+		!bytes.Equal(version.Value, []byte("value")) {
+		t.Fatal("GetVersion() returned unexpected metadata or value")
+	}
+}
+
+func TestGetVersionContainsSecretSafeFailures(t *testing.T) {
+	t.Parallel()
+
+	const sensitive = "TRACK_SECRET_READ_CANARY_NEVER_EMIT"
+	cause := errors.New(sensitive)
+	request := GetVersionRequest{
+		SecretID:  "track/carrier-account/example",
+		VersionID: strings.Repeat("v", minimumVersionIDBytes),
+	}
+	store := &Store{client: &stubClient{getErr: cause}}
+
+	version, err := store.GetVersion(context.Background(), request)
+	if !errors.Is(err, ErrOperation) || !errors.Is(err, cause) {
+		t.Fatalf("GetVersion() error classification is incomplete")
+	}
+	if strings.Contains(err.Error(), sensitive) {
+		t.Fatal("GetVersion() error disclosed provider details")
+	}
+	if version.ARN != "" || version.VersionID != "" || version.Value != nil {
+		t.Fatal("GetVersion() returned a version after failure")
+	}
+}
+
+func TestGetVersionZeroesRejectedProviderResponse(t *testing.T) {
+	t.Parallel()
+
+	providerValue := []byte("sensitive")
+	request := GetVersionRequest{
+		SecretID:  "track/carrier-account/example",
+		VersionID: strings.Repeat("v", minimumVersionIDBytes),
+	}
+	store := &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+		ARN: aws.String("arn"), Name: aws.String("wrong"),
+		SecretBinary: providerValue, VersionId: aws.String(request.VersionID),
+	}}}
+
+	_, err := store.GetVersion(context.Background(), request)
+	if !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("GetVersion() error = %v", err)
+	}
+	if !bytes.Equal(providerValue, make([]byte, len(providerValue))) {
+		t.Fatal("GetVersion() did not zero rejected provider secret memory")
+	}
+}
+
+func TestGetVersionAcceptsDocumentedBoundaries(t *testing.T) {
+	t.Parallel()
+
+	versionID := strings.Repeat("v", minimumVersionIDBytes)
+	testCases := map[string]string{
+		"maximum arn length":       "arn:" + strings.Repeat("a", maximumSecretIDBytes-4),
+		"lowest visible arn byte":  "arn:!",
+		"highest visible arn byte": "arn:~",
+	}
+	for name, secretID := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN:          aws.String(secretID),
+				SecretBinary: make([]byte, maximumSecretBytes),
+				VersionId:    aws.String(versionID),
+			}}
+			store, err := New(client, "")
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			version, err := store.GetVersion(
+				context.Background(),
+				GetVersionRequest{SecretID: secretID, VersionID: versionID},
+			)
+			if err != nil {
+				t.Fatalf("GetVersion() error = %v", err)
+			}
+			if len(version.Value) != maximumSecretBytes {
+				t.Fatalf("GetVersion() value length = %d", len(version.Value))
+			}
+		})
+	}
+}
+
+func TestGetVersionRejectsInvalidRequestsAndResponses(t *testing.T) {
+	t.Parallel()
+
+	valid := GetVersionRequest{
+		SecretID:  "track/carrier-account/example",
+		VersionID: strings.Repeat("v", minimumVersionIDBytes),
+	}
+	canceledContext, cancel := context.WithCancel(context.Background())
+	cancel()
+	operationCause := errors.New("provider unavailable")
+	secretString := "not-supported"
+
+	testCases := map[string]struct {
+		store   *Store
+		ctx     context.Context
+		request GetVersionRequest
+		wantErr error
+	}{
+		"nil store": {
+			ctx: context.Background(), request: valid,
+			wantErr: ErrClientRequired,
+		},
+		"read capability missing": {
+			store: &Store{client: &writeOnlyStubClient{}},
+			ctx:   context.Background(), request: valid,
+			wantErr: ErrReadCapabilityRequired,
+		},
+		"nil context": {
+			store: validStore(t), request: valid,
+			wantErr: ErrInvalidRequest,
+		},
+		"canceled context": {
+			store: validStore(t), ctx: canceledContext, request: valid,
+			wantErr: context.Canceled,
+		},
+		"invalid secret id": {
+			store: validStore(t), ctx: context.Background(),
+			request: GetVersionRequest{SecretID: "invalid secret", VersionID: valid.VersionID},
+			wantErr: ErrInvalidRequest,
+		},
+		"printable non-arn secret id": {
+			store: validStore(t), ctx: context.Background(),
+			request: GetVersionRequest{SecretID: "not:an:arn", VersionID: valid.VersionID},
+			wantErr: ErrInvalidRequest,
+		},
+		"oversized arn": {
+			store: validStore(t), ctx: context.Background(),
+			request: GetVersionRequest{
+				SecretID:  "arn:" + strings.Repeat("a", maximumSecretIDBytes-3),
+				VersionID: valid.VersionID,
+			},
+			wantErr: ErrInvalidRequest,
+		},
+		"invalid arn byte": {
+			store: validStore(t), ctx: context.Background(),
+			request: GetVersionRequest{SecretID: "arn:aws:secret\ninvalid", VersionID: valid.VersionID},
+			wantErr: ErrInvalidRequest,
+		},
+		"invalid version id": {
+			store: validStore(t), ctx: context.Background(),
+			request: GetVersionRequest{SecretID: valid.SecretID, VersionID: "short"},
+			wantErr: ErrInvalidRequest,
+		},
+		"provider failure": {
+			store: &Store{client: &stubClient{getErr: operationCause}},
+			ctx:   context.Background(), request: valid,
+			wantErr: operationCause,
+		},
+		"nil response": {
+			store: &Store{client: &stubClient{}},
+			ctx:   context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+		"wrong arn": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN:          aws.String("arn:aws:secretsmanager:eu-north-1:123456789012:secret:wrong"),
+				SecretBinary: []byte("value"), VersionId: aws.String(valid.VersionID),
+			}}},
+			ctx: context.Background(),
+			request: GetVersionRequest{
+				SecretID:  "arn:aws:secretsmanager:eu-north-1:123456789012:secret:expected",
+				VersionID: valid.VersionID,
+			},
+			wantErr: ErrInvalidResponse,
+		},
+		"wrong version": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN: aws.String("arn"), SecretBinary: []byte("value"),
+				VersionId: aws.String(strings.Repeat("x", minimumVersionIDBytes)),
+			}}},
+			ctx: context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+		"wrong name": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN: aws.String("arn"), Name: aws.String("wrong"),
+				SecretBinary: []byte("value"), VersionId: aws.String(valid.VersionID),
+			}}},
+			ctx: context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+		"string representation": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN: aws.String("arn"), SecretString: &secretString,
+				VersionId: aws.String(valid.VersionID),
+			}}},
+			ctx: context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+		"empty binary": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN: aws.String("arn"), VersionId: aws.String(valid.VersionID),
+			}}},
+			ctx: context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+		"oversized binary": {
+			store: &Store{client: &stubClient{getOutput: &secretsmanager.GetSecretValueOutput{
+				ARN: aws.String("arn"), SecretBinary: make([]byte, maximumSecretBytes+1),
+				VersionId: aws.String(valid.VersionID),
+			}}},
+			ctx: context.Background(), request: valid,
+			wantErr: ErrInvalidResponse,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			version, err := testCase.store.GetVersion(testCase.ctx, testCase.request)
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("GetVersion() error = %v, want %v", err, testCase.wantErr)
+			}
+			if version.ARN != "" || version.VersionID != "" || version.Value != nil {
+				t.Fatal("GetVersion() returned a version after failure")
+			}
+		})
+	}
+}
+
 func TestPutVersionRejectsUnverifiedExistingVersion(t *testing.T) {
 	t.Parallel()
 

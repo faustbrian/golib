@@ -18,6 +18,9 @@ copy afterward. Go cannot guarantee memory erasure, and the caller remains
 responsible for its original slice and any upstream decrypted representation.
 An existing-version retry temporarily reads that exact binary version solely
 for constant-time equality verification; it is not returned to the caller.
+`GetVersion` copies the exact binary response, best-effort zeroizes the SDK
+response buffer, and transfers ownership of the copy to the caller. The caller
+must zero that returned slice after materialization.
 
 Use a unique stage for every version. Reusing `AWSCURRENT`, `AWSPREVIOUS`, or
 another shared stage could move that label and invalidate historical ordering.

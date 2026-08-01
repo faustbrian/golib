@@ -13,6 +13,10 @@ Before adoption:
 6. persist both returned fields atomically with the application state that
    refers to them.
 
+For runtime retrieval, compose a client that implements `VersionReader`, pass
+the persisted ARN and version identifier to `GetVersion`, and zero the returned
+caller-owned value immediately after materialization.
+
 Do not adopt this module for ordinary application configuration delivered
 through environment variables or mounted files, for mutable rotation
 workflows, or as a substitute for authorization and data-retention policy.
