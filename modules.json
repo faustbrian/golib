@@ -3847,6 +3847,7 @@
         "github.com/faustbrian/golib/pkg/service"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
         "github.com/faustbrian/golib/pkg/international",
         "github.com/faustbrian/golib/pkg/localized",
         "github.com/faustbrian/golib/pkg/opening-hours",
@@ -3978,6 +3979,61 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/config/adapters/awssecretsmanager",
+      "module_path": "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/config/adapters/awssecretsmanager",
+          "directory": ".",
+          "name": "awssecretsmanager",
+          "import_path": "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This adapter loads one bounded JSON configuration document from AWS Secrets Manager into a sensitive `golib/config` source. It leaves AWS credential resolution, retries, IAM, secret creation, and rotation to the caller.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/config/adapters/awssecretsmanager/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/config"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -8015,7 +8071,9 @@
         "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
+        "github.com/klauspost/compress",
         "github.com/moby/moby/api",
+        "github.com/pierrec/lz4/v4",
         "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/kafka",
         "github.com/twmb/franz-go",
