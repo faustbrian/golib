@@ -42,7 +42,10 @@ func (converter *oas32DocumentConverter) indexMediaTypes(root jsonvalue.Value) {
 		return
 	}
 	mediaTypes, exists := components.Lookup("mediaTypes")
-	if !exists || mediaTypes.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return
+	}
+	if mediaTypes.Kind() != jsonvalue.ObjectKind {
 		return
 	}
 	members, _ := mediaTypes.Members()

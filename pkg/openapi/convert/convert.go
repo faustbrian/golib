@@ -128,21 +128,17 @@ func To(
 	sourceDialect := source.SpecificationVersion().Dialect()
 	swaggerUpgrade := sourceDialect == openapi.DialectSwagger20 &&
 		target.Dialect() != openapi.DialectSwagger20
-	oas30Upgrade := sourceDialect == openapi.DialectOAS30 &&
-		(target.Dialect() == openapi.DialectOAS31 ||
-			target.Dialect() == openapi.DialectOAS32)
 	oas31Downgrade := sourceDialect == openapi.DialectOAS31 &&
 		target.Dialect() == openapi.DialectOAS30
-	oas31Upgrade := sourceDialect == openapi.DialectOAS31 &&
-		target.Dialect() == openapi.DialectOAS32
 	oas32Downgrade := sourceDialect == openapi.DialectOAS32 &&
 		(target.Dialect() == openapi.DialectOAS31 ||
 			target.Dialect() == openapi.DialectOAS30)
 	openAPISwaggerDowngrade := sourceDialect != openapi.DialectSwagger20 &&
 		target.Dialect() == openapi.DialectSwagger20
-	if sourceDialect != target.Dialect() && !swaggerUpgrade &&
-		!oas30Upgrade && !oas31Downgrade && !oas32Downgrade &&
-		!openAPISwaggerDowngrade && !oas31Upgrade {
+	switch sourceDialect {
+	case openapi.DialectSwagger20, openapi.DialectOAS30,
+		openapi.DialectOAS31, openapi.DialectOAS32:
+	default:
 		return Result{}, fmt.Errorf(
 			"%w: %s to %s",
 			ErrUnsupportedConversion,

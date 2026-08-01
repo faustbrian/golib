@@ -239,7 +239,7 @@ func TestConvertOpenAPI32MediaReferenceFailuresAndExamples(t *testing.T) {
 			},
 			"examples":{
 				"Serialized":{"serializedValue":"id=1"},
-				"Collision":{"value":"old","dataValue":"new"}
+				"Collision":{"value":"old","dataValue":"new","x-after":true}
 			}
 		}
 	}`)
@@ -267,6 +267,9 @@ func TestConvertOpenAPI32MediaReferenceFailuresAndExamples(t *testing.T) {
 	collision := memberAt(t, converted, "components", "examples", "Collision")
 	if textValue(t, memberAt(t, collision, "value")) != "old" {
 		t.Fatalf("example collision = %#v", collision)
+	}
+	if after, exists := collision.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
+		t.Fatalf("example member after collision = %#v", collision)
 	}
 	want := map[string]DiagnosticKind{
 		"/components/mediaTypes":                                           Loss,

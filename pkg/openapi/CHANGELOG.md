@@ -71,6 +71,8 @@
 - Verify composition fallback, resource accounting, conflict traversal,
   reference rewriting, and null comparison semantics against every viable
   mutation.
+- Make supported conversion source dialects explicit and verify OpenAPI 3.2
+  media indexing and example-member traversal under mutation.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of
