@@ -227,13 +227,7 @@ func (converter *oas30SwaggerConverter) indexRequestBodyNames(
 			base := member.Name + "RequestBody"
 			target = base
 			if _, taken := used[target]; taken {
-				for suffix := 2; ; suffix++ {
-					candidate := base + strconv.Itoa(suffix)
-					if _, candidateTaken := used[candidate]; !candidateTaken {
-						target = candidate
-						break
-					}
-				}
+				target = availableSwaggerParameterName(base, used)
 			}
 			converter.diagnostics = append(converter.diagnostics, Diagnostic{
 				Code: "openapi.convert.component-renamed", Kind: ManualAction,
@@ -243,6 +237,15 @@ func (converter *oas30SwaggerConverter) indexRequestBodyNames(
 		}
 		used[target] = struct{}{}
 		converter.requestBodyNames[reference] = target
+	}
+}
+
+func availableSwaggerParameterName(base string, used map[string]struct{}) string {
+	for suffix := 2; ; suffix++ {
+		candidate := base + strconv.Itoa(suffix)
+		if _, taken := used[candidate]; !taken {
+			return candidate
+		}
 	}
 }
 
@@ -293,7 +296,15 @@ func (converter *oas30SwaggerConverter) server(
 			)
 		}
 	}
-	if !ok || strings.Contains(raw, "{") {
+	if !ok {
+		converter.loss(
+			pointer+"/0/url",
+			"openapi.convert.server-removed",
+			"Swagger 2.0 cannot represent this server URL",
+		)
+		return nil, nil
+	}
+	if strings.Contains(raw, "{") {
 		converter.loss(
 			pointer+"/0/url",
 			"openapi.convert.server-removed",
@@ -302,10 +313,7 @@ func (converter *oas30SwaggerConverter) server(
 		return nil, nil
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.User != nil || parsed.RawQuery != "" ||
-		parsed.Fragment != "" || (parsed.Host == "" && parsed.Scheme != "") ||
-		(parsed.Host == "" && parsed.Path != "" &&
-			!strings.HasPrefix(parsed.Path, "/")) {
+	if err != nil || unsupportedSwaggerServerURL(parsed) {
 		converter.loss(
 			pointer+"/0/url",
 			"openapi.convert.server-removed",
@@ -330,12 +338,26 @@ func (converter *oas30SwaggerConverter) server(
 	return result, nil
 }
 
+func unsupportedSwaggerServerURL(parsed *url.URL) bool {
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return true
+	}
+	if parsed.Host == "" && parsed.Scheme != "" {
+		return true
+	}
+	return parsed.Host == "" && parsed.Path != "" &&
+		!strings.HasPrefix(parsed.Path, "/")
+}
+
 func expandServerURL(raw string, variables jsonvalue.Value) string {
 	members, _ := variables.Members()
 	for _, member := range members {
 		defaultValue, exists := member.Value.Lookup("default")
 		defaultText, valid := defaultValue.Text()
-		if exists && valid {
+		if exists {
+			if !valid {
+				continue
+			}
 			raw = strings.ReplaceAll(raw, "{"+member.Name+"}", defaultText)
 		}
 	}
@@ -730,8 +752,15 @@ func (converter *oas30SwaggerConverter) operationFormRequestBody(
 	content, _ := value.Lookup("content")
 	members, _ := content.Members()
 	for _, member := range members[1:] {
-		if isSwaggerFormMediaType(member.Name) &&
-			sameJSONValue(selected.Value, member.Value) {
+		if isSwaggerFormMediaType(member.Name) {
+			if !sameJSONValue(selected.Value, member.Value) {
+				converter.loss(
+					pointer+"/content/"+escapePointer(member.Name),
+					"openapi.convert.request-media-type-removed",
+					"Swagger 2.0 cannot combine this media type with formData parameters",
+				)
+				continue
+			}
 			mediaType, _ := jsonvalue.String(member.Name)
 			mediaTypes = append(mediaTypes, mediaType)
 			continue
@@ -747,8 +776,14 @@ func (converter *oas30SwaggerConverter) operationFormRequestBody(
 
 func swaggerFormMediaType(value jsonvalue.Value) (jsonvalue.Member, bool) {
 	content, exists := value.Lookup("content")
+	if !exists {
+		return jsonvalue.Member{}, false
+	}
 	members, _ := content.Members()
-	if !exists || len(members) == 0 || !isSwaggerFormMediaType(members[0].Name) {
+	if len(members) == 0 {
+		return jsonvalue.Member{}, false
+	}
+	if !isSwaggerFormMediaType(members[0].Name) {
 		return jsonvalue.Member{}, false
 	}
 	return members[0], true
@@ -788,7 +823,16 @@ func (converter *oas30SwaggerConverter) formRequestBody(
 	schema, exists := mediaType.Value.Lookup("schema")
 	properties, hasProperties := schema.Lookup("properties")
 	propertyMembers, _ := properties.Members()
-	if !exists || !hasProperties {
+	if !exists {
+		converter.loss(
+			mediaPointer+"/schema",
+			"openapi.convert.form-schema-removed",
+			"Swagger 2.0 form conversion requires an object property schema",
+		)
+		mediaValue, _ := jsonvalue.String(mediaType.Name)
+		return nil, []jsonvalue.Value{mediaValue}, nil
+	}
+	if !hasProperties {
 		converter.loss(
 			mediaPointer+"/schema",
 			"openapi.convert.form-schema-removed",
@@ -1031,10 +1075,12 @@ func (converter *oas30SwaggerConverter) parameter(
 	_, hasExplode := value.Lookup("explode")
 	schemaValue, _ := value.Lookup("schema")
 	contentValue, hasContent := value.Lookup("content")
-	if schemaValue.Kind() == jsonvalue.InvalidKind && hasContent {
-		contentMembers, _ := contentValue.Members()
-		if len(contentMembers) > 0 {
-			schemaValue, _ = contentMembers[0].Value.Lookup("schema")
+	if schemaValue.Kind() == jsonvalue.InvalidKind {
+		if hasContent {
+			contentMembers, _ := contentValue.Members()
+			if len(contentMembers) > 0 {
+				schemaValue, _ = contentMembers[0].Value.Lookup("schema")
+			}
 		}
 	}
 	schemaType, _ := stringMember(schemaValue, "type")
@@ -1159,15 +1205,24 @@ func swaggerCollectionFormat(
 		}
 		return "csv", true
 	case "spaceDelimited":
-		if location == "query" && !explode {
+		if location == "query" {
+			if explode {
+				return "", false
+			}
 			return "ssv", true
 		}
 	case "pipeDelimited":
-		if location == "query" && !explode {
+		if location == "query" {
+			if explode {
+				return "", false
+			}
 			return "pipes", true
 		}
 	case "simple":
-		if (location == "path" || location == "header") && !explode {
+		if location == "path" || location == "header" {
+			if explode {
+				return "", false
+			}
 			return "csv", true
 		}
 	}
@@ -1214,7 +1269,11 @@ func (converter *oas30SwaggerConverter) requestBody(
 	}
 	content, exists := value.Lookup("content")
 	contentMembers, ok := content.Members()
-	if !exists || !ok {
+	if !exists {
+		body, err := jsonvalue.Object(result)
+		return body, nil, err
+	}
+	if !ok {
 		body, err := jsonvalue.Object(result)
 		return body, nil, err
 	}
@@ -1454,7 +1513,10 @@ func withoutNamedFields(
 func sameJSONValue(left jsonvalue.Value, right jsonvalue.Value) bool {
 	leftJSON, leftErr := left.MarshalJSON()
 	rightJSON, rightErr := right.MarshalJSON()
-	return leftErr == nil && rightErr == nil && bytes.Equal(leftJSON, rightJSON)
+	if leftErr != nil || rightErr != nil {
+		return false
+	}
+	return bytes.Equal(leftJSON, rightJSON)
 }
 
 func (converter *oas30SwaggerConverter) schemaMap(
@@ -1656,7 +1718,15 @@ func (converter *oas30SwaggerConverter) oauth2SecurityScheme(
 ) (jsonvalue.Value, bool, error) {
 	flows, exists := value.Lookup("flows")
 	flowMembers, ok := flows.Members()
-	if !exists || !ok || len(flowMembers) == 0 {
+	if !exists || !ok {
+		converter.loss(
+			pointer+"/flows",
+			"openapi.convert.security-scheme-removed",
+			"Swagger 2.0 requires one OAuth flow",
+		)
+		return jsonvalue.Value{}, false, nil
+	}
+	if len(flowMembers) == 0 {
 		converter.loss(
 			pointer+"/flows",
 			"openapi.convert.security-scheme-removed",
@@ -1695,8 +1765,11 @@ func (converter *oas30SwaggerConverter) oauth2SecurityScheme(
 	}
 	schemeFields, _ := value.Members()
 	for _, field := range schemeFields {
-		if field.Name == "description" ||
-			strings.HasPrefix(strings.ToLower(field.Name), "x-") {
+		if field.Name == "description" {
+			result = append(result, field)
+			continue
+		}
+		if strings.HasPrefix(strings.ToLower(field.Name), "x-") {
 			result = append(result, field)
 		}
 	}

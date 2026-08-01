@@ -79,6 +79,8 @@
   discriminator, security, and type-array members.
 - Preserve Swagger upgrade traversal after skipped root, path, parameter,
   reusable component, scheme, and OAuth members.
+- Preserve Swagger downgrade traversal after discarded parameters, request
+  bodies, path fields, media types, security schemes, and schema keywords.
 - Cover the unsupported Swagger 2.0 API-key cookie location explicitly in the
   downgrade decision matrix.
 - Reject mutation reports containing timed-out or skipped mutants instead of

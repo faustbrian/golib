@@ -2028,6 +2028,181 @@ func TestSwaggerDowngradeSecurityAndSchemaEdges(t *testing.T) {
 	}
 }
 
+func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
+	t.Parallel()
+
+	newConverter := func(maxNodes int) *oas30SwaggerConverter {
+		return &oas30SwaggerConverter{
+			ctx: context.Background(), maxNodes: maxNodes,
+			requestBodyNames: map[string]string{}, requestBodies: map[string]jsonvalue.Value{},
+			securitySchemes: map[string]bool{}, parameters: map[string]bool{},
+		}
+	}
+
+	if got := availableSwaggerParameterName("Body", map[string]struct{}{
+		"Body2": {}, "Body3": {},
+	}); got != "Body4" {
+		t.Fatalf("available request body name = %q", got)
+	}
+
+	parameterConverter := newConverter(100)
+	parameters, err := parameterConverter.parameterMap(conversionValue(t, `{
+		"discarded":{"in":"query","schema":{"type":"object"}},
+		"retained":{"name":"value","in":"query","schema":{"type":"string"}}
+	}`), "/parameters")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := parameters.Lookup("discarded"); exists {
+		t.Fatal("unsupported parameter was retained")
+	}
+	if _, exists := parameters.Lookup("retained"); !exists {
+		t.Fatalf("parameter after discarded input = %#v", parameters)
+	}
+
+	bodyConverter := newConverter(100)
+	bodies, mediaTypes, err := bodyConverter.requestBodyMap(conversionValue(t, `{
+		"Form":{"content":{"multipart/form-data":{"schema":{"type":"object","properties":{}}}}},
+		"Payload":{"content":{"application/json":{"schema":{"type":"string"}}}}
+	}`), "/requestBodies")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := bodies.Lookup("Form"); exists {
+		t.Fatal("reusable form body was retained")
+	}
+	if _, exists := bodies.Lookup("Payload"); !exists || len(mediaTypes) != 1 ||
+		textValue(t, mediaTypes[0]) != "application/json" {
+		t.Fatalf("body after inlined form body = %#v, %#v", bodies, mediaTypes)
+	}
+
+	pathConverter := newConverter(100)
+	path, err := pathConverter.pathItem(conversionValue(t, `{
+		"servers":[],"summary":"discarded",
+		"get":{"responses":{"204":{"description":"retained"}}}
+	}`), "/path")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := path.Lookup("servers"); exists {
+		t.Fatal("path servers were retained")
+	}
+	if textValue(t, memberAt(t, path, "get", "responses", "204", "description")) != "retained" {
+		t.Fatalf("operation after discarded path members = %#v", path)
+	}
+
+	operationConverter := newConverter(100)
+	operation, err := operationConverter.operation(conversionValue(t, `{
+		"servers":[],"callbacks":{},
+		"responses":{"200":{"description":"retained"}}
+	}`), "/operation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := operation.Lookup("servers"); exists {
+		t.Fatal("operation servers were retained")
+	}
+	if textValue(t, memberAt(t, operation, "responses", "200", "description")) != "retained" {
+		t.Fatalf("response after discarded operation members = %#v", operation)
+	}
+
+	formConverter := newConverter(100)
+	formValue := conversionValue(t, `{"content":{
+		"multipart/form-data":{"schema":{"type":"object","properties":{}}},
+		"application/x-www-form-urlencoded":{"schema":{"type":"object","properties":{"different":{"type":"string"}}}},
+		"application/json":{"schema":{"type":"object"}}
+	}}`)
+	selected, _ := swaggerFormMediaType(formValue)
+	_, formMediaTypes, err := formConverter.operationFormRequestBody(
+		formValue, selected, "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(formMediaTypes) != 1 || textValue(t, formMediaTypes[0]) != "multipart/form-data" ||
+		len(formConverter.diagnostics) != 2 {
+		t.Fatalf("form media after incompatible entries = %#v, %#v", formMediaTypes, formConverter.diagnostics)
+	}
+
+	requestConverter := newConverter(100)
+	request, requestMediaTypes, err := requestConverter.requestBody(conversionValue(t, `{
+		"content":{"text/plain":{},"application/json":{"schema":{"type":"string"}}}
+	}`), "/body")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if textValue(t, memberAt(t, request, "schema", "type")) != "string" ||
+		len(requestMediaTypes) != 2 {
+		t.Fatalf("request schema after schemaless media = %#v, %#v", request, requestMediaTypes)
+	}
+
+	responseConverter := newConverter(100)
+	response, responseMediaTypes, err := responseConverter.response(conversionValue(t, `{
+		"content":{"text/plain":{},"application/json":{"schema":{"type":"string"}}}
+	}`), "/response")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if textValue(t, memberAt(t, response, "schema", "type")) != "string" ||
+		len(responseMediaTypes) != 2 {
+		t.Fatalf("response schema after schemaless media = %#v, %#v", response, responseMediaTypes)
+	}
+
+	securityConverter := newConverter(100)
+	security, err := securityConverter.securitySchemeMap(conversionValue(t, `{
+		"Bearer":{"type":"http","scheme":"bearer"},
+		"Basic":{"type":"http","scheme":"basic","bearerFormat":"discarded","x-retained":true}
+	}`), "/securitySchemes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := security.Lookup("Bearer"); exists {
+		t.Fatal("unsupported security scheme was retained")
+	}
+	if _, exists := memberAt(t, security, "Basic").Lookup("x-retained"); !exists {
+		t.Fatalf("security scheme after discarded fields = %#v", security)
+	}
+
+	securityConverter.securitySchemes["Bearer"] = false
+	securityConverter.securitySchemes["Basic"] = true
+	requirements := securityConverter.securityRequirements(conversionValue(t, `[
+		true,{"Bearer":[]},{"Basic":[]}
+	]`), "/security")
+	elements, _ := requirements.Elements()
+	if len(elements) != 2 || elements[0].Kind() != jsonvalue.BooleanKind {
+		t.Fatalf("security alternatives after discarded requirement = %#v", requirements)
+	}
+	if _, exists := elements[1].Lookup("Basic"); !exists {
+		t.Fatalf("supported security requirement = %#v", requirements)
+	}
+
+	schemaConverter := newConverter(100)
+	schema, err := schemaConverter.schema(conversionValue(t, `{
+		"discriminator":{"mapping":{}},"nullable":true,"x-retained":true
+	}`), "/schema")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := schema.Lookup("discriminator"); exists {
+		t.Fatal("invalid discriminator was retained")
+	}
+	if _, exists := schema.Lookup("nullable"); exists {
+		t.Fatal("unsupported schema keyword was retained")
+	}
+	if _, exists := schema.Lookup("x-retained"); !exists {
+		t.Fatalf("schema member after discarded keywords = %#v", schema)
+	}
+
+	strings := uniqueStrings([]jsonvalue.Value{
+		jsonvalue.Boolean(true), conversionValue(t, `"one"`),
+		conversionValue(t, `"one"`), conversionValue(t, `"two"`),
+	})
+	if len(strings) != 2 || textValue(t, strings[0]) != "one" ||
+		textValue(t, strings[1]) != "two" {
+		t.Fatalf("unique strings after discarded values = %#v", strings)
+	}
+}
+
 func TestSwaggerDowngradePipelinePropagatesIntermediateFailures(t *testing.T) {
 	t.Parallel()
 
