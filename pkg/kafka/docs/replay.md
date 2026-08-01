@@ -83,6 +83,8 @@ policy without constructing a client. Replay operations and `Close` fail with
 Replay is sequential by default. `MaxConcurrentFetches` bounds franz-go broker
 fetch requests and `MaxConcurrentHandlers` bounds application callbacks; both
 accept 1 through 64 and default to one. They are independent limits.
+`FetchMinBytes` defaults to one byte and may increase broker-side batching only
+through `FetchMaxBytes`; `FetchMaxWait` remains the hard batching delay.
 `BrokerMaxReadBytes` additionally caps an encoded response before its body is
 allocated. `MaxDecompressedBatchBytes` and
 `MaxBufferedDecompressedBytes` bound individual and active decoded compressed

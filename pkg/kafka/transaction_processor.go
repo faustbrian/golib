@@ -60,14 +60,18 @@ type TransactionConnectionConfig struct {
 // TransactionGroupConfig defines the bounded read-committed consumer-group
 // side of one consume-transform-produce client.
 type TransactionGroupConfig struct {
-	GroupID                string
-	InstanceID             string
-	Rack                   string
-	Topics                 []string
-	ResetOffset            OffsetPolicy
-	BalancePolicy          GroupBalancePolicy
-	MaxPollRecords         int
-	MaxConcurrentFetches   int
+	GroupID              string
+	InstanceID           string
+	Rack                 string
+	Topics               []string
+	ResetOffset          OffsetPolicy
+	BalancePolicy        GroupBalancePolicy
+	MaxPollRecords       int
+	MaxConcurrentFetches int
+	// FetchMinBytes is the minimum encoded record bytes a broker tries to
+	// collect before answering a fetch. Zero defaults to one byte, values must
+	// not exceed FetchMaxBytes, and FetchMaxWait bounds the wait.
+	FetchMinBytes          int32
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
 	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
@@ -291,6 +295,7 @@ func newTransactionProcessor(
 		kgo.FetchIsolationLevel(kgo.ReadCommitted()),
 		kgo.Balancers(consumerGroupBalancers(config.Group.BalancePolicy)...),
 		kgo.MaxConcurrentFetches(config.Group.MaxConcurrentFetches),
+		kgo.FetchMinBytes(config.Group.FetchMinBytes),
 		kgo.FetchMaxBytes(config.Group.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.Group.FetchMaxPartitionBytes),
 		kgo.BrokerMaxReadBytes(config.Group.BrokerMaxReadBytes),
@@ -461,6 +466,7 @@ func normalizeTransactionProcessorConfig(
 		Limits:                       config.Limits,
 		MaxPollRecords:               config.Group.MaxPollRecords,
 		MaxConcurrentFetches:         config.Group.MaxConcurrentFetches,
+		FetchMinBytes:                config.Group.FetchMinBytes,
 		FetchMaxBytes:                config.Group.FetchMaxBytes,
 		FetchMaxPartitionBytes:       config.Group.FetchMaxPartitionBytes,
 		BrokerMaxReadBytes:           config.Group.BrokerMaxReadBytes,
@@ -512,6 +518,7 @@ func normalizeTransactionProcessorConfig(
 		BalancePolicy:                consumer.BalancePolicy,
 		MaxPollRecords:               consumer.MaxPollRecords,
 		MaxConcurrentFetches:         consumer.MaxConcurrentFetches,
+		FetchMinBytes:                consumer.FetchMinBytes,
 		FetchMaxBytes:                consumer.FetchMaxBytes,
 		FetchMaxPartitionBytes:       consumer.FetchMaxPartitionBytes,
 		BrokerMaxReadBytes:           consumer.BrokerMaxReadBytes,

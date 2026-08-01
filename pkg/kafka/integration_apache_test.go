@@ -72,10 +72,16 @@ const (
 	apacheKafkaConsumerBalance        = "GOLIB_KAFKA_CONSUMER_BALANCE"
 	apacheKafkaConsumerRack           = "GOLIB_KAFKA_CONSUMER_RACK"
 	apacheKafkaConsumerFetchBroker    = "GOLIB_KAFKA_CONSUMER_FETCH_BROKER"
+	apacheKafkaConsumerScenario       = "GOLIB_KAFKA_CONSUMER_SCENARIO"
 	apacheKafkaConsumerBalanceEager   = "eager"
 	apacheKafkaConsumerBalanceMigrate = "eager-to-cooperative"
 	apacheKafkaConsumerBalanceCoop    = "cooperative"
+	apacheKafkaConsumerScenarioCancel = "rebalance-cancel"
+	apacheKafkaConsumerScenarioDrain  = "rebalance-drain"
 	apacheKafkaConsumerReady          = "golib-kafka-consumer-assigned"
+	apacheKafkaConsumerHandling       = "golib-kafka-consumer-handling"
+	apacheKafkaConsumerBlocked        = "golib-kafka-consumer-rebalance-blocked"
+	apacheKafkaConsumerResult         = "golib-kafka-consumer-rebalance-result"
 	apacheKafkaConsumerRackFetch      = "golib-kafka-consumer-rack-fetch"
 	apacheKafkaConsumerRackArmed      = "golib-kafka-consumer-rack-armed"
 	apacheKafkaConsumerRackRecord     = "golib-kafka-consumer-rack-record"
@@ -131,6 +137,11 @@ func TestApacheKafkaConsumerChild(t *testing.T) {
 		t.Skip("subprocess helper")
 	}
 
+	if os.Getenv(apacheKafkaConsumerScenario) != "" {
+		runApacheKafkaConsumerRebalanceChild(t)
+
+		return
+	}
 	runApacheKafkaConsumerChild(t)
 }
 
@@ -767,6 +778,165 @@ func waitForApacheKafkaConsumerAssignment(
 	}
 }
 
+func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
+	t.Helper()
+
+	scenario := os.Getenv(apacheKafkaConsumerScenario)
+	var rebalancePolicy kafka.RebalanceHandlerPolicy
+	switch scenario {
+	case apacheKafkaConsumerScenarioCancel:
+		rebalancePolicy = kafka.RebalanceCancelHandler
+	case apacheKafkaConsumerScenarioDrain:
+		rebalancePolicy = kafka.RebalanceDrainHandler
+	default:
+		t.Fatal("unknown consumer child rebalance scenario")
+	}
+
+	var outputMu sync.Mutex
+	report := func(marker string, arguments ...any) error {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+
+		_, err := fmt.Fprintf(os.Stdout, marker+"\n", arguments...)
+
+		return err
+	}
+	blocked := make(chan struct{})
+	var blockedOnce sync.Once
+	config := kafka.ConsumerConfig{
+		Brokers:               strings.Split(os.Getenv(apacheKafkaConsumerBrokers), ","),
+		ClientID:              os.Getenv(apacheKafkaConsumerClient),
+		GroupID:               os.Getenv(apacheKafkaConsumerGroup),
+		Topics:                []string{os.Getenv(apacheKafkaConsumerTopic)},
+		ResetOffset:           kafka.OffsetEarliest,
+		BalancePolicy:         kafka.BalanceEagerSticky,
+		RebalanceHandler:      rebalancePolicy,
+		MaxPollRecords:        2,
+		MaxConcurrentHandlers: 2,
+		MaxAssignedPartitions: 2,
+		FetchMinBytes:         1 << 20,
+		FetchMaxWait:          100 * time.Millisecond,
+		SessionTimeout:        10 * time.Second,
+		HeartbeatInterval:     2 * time.Second,
+		RebalanceTimeout:      30 * time.Second,
+		HandlerTimeout:        20 * time.Second,
+		CommitTimeout:         3 * time.Second,
+		ShutdownTimeout:       10 * time.Second,
+		Security:              kafka.DevelopmentPlaintextSecurity(),
+		Observers: kafka.ObserverPolicy{
+			Observers: []kafka.ObserverFunc{func(
+				_ context.Context,
+				observation kafka.Observation,
+			) error {
+				switch observation.Kind {
+				case kafka.ObservationConsumeBlocked:
+					var reportErr error
+					blockedOnce.Do(func() {
+						reportErr = report(apacheKafkaConsumerBlocked)
+						close(blocked)
+					})
+
+					return reportErr
+				default:
+					return nil
+				}
+			}},
+			FailureHandler: func(context.Context, kafka.ObservationFailure) {},
+		},
+	}
+	consumer, err := kafka.NewConsumer(config)
+	if err != nil {
+		t.Fatalf("construct rebalance consumer child: %v", err)
+	}
+	defer func() {
+		if closeErr := consumer.Close(); closeErr != nil {
+			t.Errorf("close rebalance consumer child: %v", closeErr)
+		}
+	}()
+
+	assignmentCtx, cancelAssignment := context.WithCancel(context.Background())
+	assignmentResult := make(chan error, 1)
+	go func() {
+		_, assignmentErr := consumer.RunOnce(
+			assignmentCtx,
+			kafka.HandlerFunc(func(context.Context, kafka.ConsumedRecord) error {
+				return nil
+			}),
+		)
+		assignmentResult <- assignmentErr
+	}()
+	waitForApacheKafkaConsumerAssignment(t, consumer, assignmentResult)
+	cancelAssignment()
+	if assignmentErr := <-assignmentResult; assignmentErr != nil &&
+		!errors.Is(assignmentErr, context.Canceled) {
+		t.Fatalf("stop rebalance child assignment poll: %v", assignmentErr)
+	}
+	if err := report(apacheKafkaConsumerReady); err != nil {
+		t.Fatalf("report rebalance child assignment: %v", err)
+	}
+	var startSignal [1]byte
+	if _, err := io.ReadFull(os.Stdin, startSignal[:]); err != nil {
+		t.Fatalf("start rebalance consumer child handling: %v", err)
+	}
+
+	release := make(chan struct{})
+	if scenario == apacheKafkaConsumerScenarioDrain {
+		go func() {
+			var signal [1]byte
+			if _, readErr := io.ReadFull(os.Stdin, signal[:]); readErr == nil {
+				close(release)
+			}
+		}()
+	}
+	childCtx, cancelChild := context.WithTimeout(
+		context.Background(),
+		45*time.Second,
+	)
+	defer cancelChild()
+	result, runErr := consumer.RunOnce(
+		childCtx,
+		kafka.HandlerFunc(func(
+			handlerCtx context.Context,
+			record kafka.ConsumedRecord,
+		) error {
+			if err := report(
+				apacheKafkaConsumerHandling+"=%d",
+				record.Partition,
+			); err != nil {
+				return err
+			}
+			if scenario == apacheKafkaConsumerScenarioDrain {
+				select {
+				case <-release:
+					return nil
+				case <-handlerCtx.Done():
+					return context.Cause(handlerCtx)
+				}
+			}
+
+			<-handlerCtx.Done()
+			select {
+			case <-blocked:
+				return context.Cause(handlerCtx)
+			case <-childCtx.Done():
+				return context.Cause(childCtx)
+			}
+		}),
+	)
+	if scenario == apacheKafkaConsumerScenarioCancel {
+		if !errors.Is(runErr, kafka.ErrConsumerRebalance) ||
+			result != (kafka.PollResult{Polled: 2}) {
+			t.Fatalf("cancel rebalance child result = (%#v, %v)", result, runErr)
+		}
+	} else if runErr != nil ||
+		result != (kafka.PollResult{Polled: 2, Processed: 2, Committed: 2}) {
+		t.Fatalf("drain rebalance child result = (%#v, %v)", result, runErr)
+	}
+	if err := report(apacheKafkaConsumerResult + ":" + scenario); err != nil {
+		t.Fatalf("report rebalance consumer child result: %v", err)
+	}
+}
+
 func runApacheKafkaTerminationChild(t *testing.T) {
 	t.Helper()
 
@@ -1003,6 +1173,199 @@ func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
 		[]string{cooperativeClient},
 	)
 	cooperative.releaseConsumerAndWait(t)
+}
+
+func TestApacheKafkaConsumerMultiPartitionRebalance(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-consumer-rebalance-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct rebalance inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	for _, scenario := range []string{
+		apacheKafkaConsumerScenarioCancel,
+		apacheKafkaConsumerScenarioDrain,
+	} {
+		t.Run(scenario, func(t *testing.T) {
+			topic := fmt.Sprintf(
+				"golib-apache-consumer-%s-%d",
+				scenario,
+				time.Now().UnixNano(),
+			)
+			groupID := topic + "-group"
+			createApacheKafkaCoLocatedTopic(t, ctx, brokers, topic)
+			waitForApacheTopicState(t, ctx, inspector, topic, func(
+				state kafka.TopicState,
+			) bool {
+				if len(state.Partitions) != 2 ||
+					!allPartitionsMatch(state, 3, 3) {
+					return false
+				}
+				for _, partition := range state.Partitions {
+					if partition.Leader != 1 {
+						return false
+					}
+				}
+
+				return true
+			})
+
+			producer, err := kafka.NewProducer(kafka.ProducerConfig{
+				Brokers:       brokers,
+				ClientID:      "golib-apache-consumer-rebalance-producer",
+				AllowedTopics: []string{topic},
+				Security:      kafka.DevelopmentPlaintextSecurity(),
+			})
+			if err != nil {
+				t.Fatalf("construct rebalance source producer: %v", err)
+			}
+			defer func() {
+				if closeErr := producer.Close(); closeErr != nil {
+					t.Errorf("close rebalance source producer: %v", closeErr)
+				}
+			}()
+			child := startApacheKafkaRebalanceConsumerChild(
+				t,
+				ctx,
+				brokers,
+				topic,
+				groupID,
+				"golib-apache-consumer-rebalance-child",
+				scenario,
+			)
+			publishApacheKafkaPartitionRecords(t, ctx, producer, topic, 0)
+			child.beginConsumerRebalanceHandling(t)
+			replacement, err := kafka.NewConsumer(kafka.ConsumerConfig{
+				Brokers:               brokers,
+				ClientID:              "golib-apache-consumer-rebalance-replacement",
+				GroupID:               groupID,
+				Topics:                []string{topic},
+				ResetOffset:           kafka.OffsetEarliest,
+				BalancePolicy:         kafka.BalanceEagerSticky,
+				MaxPollRecords:        2,
+				MaxConcurrentHandlers: 2,
+				MaxAssignedPartitions: 2,
+				FetchMaxWait:          100 * time.Millisecond,
+				SessionTimeout:        10 * time.Second,
+				HeartbeatInterval:     2 * time.Second,
+				RebalanceTimeout:      30 * time.Second,
+				HandlerTimeout:        5 * time.Second,
+				CommitTimeout:         3 * time.Second,
+				ShutdownTimeout:       10 * time.Second,
+				Security:              kafka.DevelopmentPlaintextSecurity(),
+			})
+			if err != nil {
+				t.Fatalf("construct rebalance replacement consumer: %v", err)
+			}
+			defer func() {
+				if closeErr := replacement.Close(); closeErr != nil {
+					t.Errorf("close rebalance replacement consumer: %v", closeErr)
+				}
+			}()
+
+			type replacementRun struct {
+				result  kafka.PollResult
+				offsets map[int32]int64
+				err     error
+			}
+			replacementDone := make(chan replacementRun, 1)
+			go func() {
+				var run replacementRun
+				run.offsets = make(map[int32]int64, 2)
+				var offsetsMu sync.Mutex
+				for run.result.Processed < 2 && run.err == nil {
+					result, runErr := replacement.RunOnce(
+						ctx,
+						kafka.HandlerFunc(func(
+							_ context.Context,
+							record kafka.ConsumedRecord,
+						) error {
+							offsetsMu.Lock()
+							run.offsets[record.Partition] = record.Offset
+							offsetsMu.Unlock()
+
+							return nil
+						}),
+					)
+					run.result.Polled += result.Polled
+					run.result.Processed += result.Processed
+					run.result.Committed += result.Committed
+					run.err = runErr
+				}
+				replacementDone <- run
+			}()
+
+			waitForApacheKafkaProcessorMarker(
+				t,
+				child.scanner,
+				apacheKafkaConsumerBlocked,
+				&child.stderr,
+			)
+			if scenario == apacheKafkaConsumerScenarioDrain {
+				if _, err := child.stdin.Write([]byte{1}); err != nil {
+					t.Fatalf("release draining consumer child: %v", err)
+				}
+			}
+			child.waitForConsumerRebalanceResult(t, scenario)
+			if scenario == apacheKafkaConsumerScenarioDrain {
+				assertApacheKafkaGroupCommits(
+					t,
+					ctx,
+					brokers,
+					groupID,
+					map[kafka.TopicPartition]int64{
+						{Topic: topic, Partition: 0}: 1,
+						{Topic: topic, Partition: 1}: 1,
+					},
+				)
+				publishApacheKafkaPartitionRecords(t, ctx, producer, topic, 1)
+			}
+
+			var run replacementRun
+			select {
+			case run = <-replacementDone:
+			case <-ctx.Done():
+				t.Fatalf("wait for rebalance replacement: %v", context.Cause(ctx))
+			}
+			wantOffset := int64(0)
+			wantCommit := int64(1)
+			if scenario == apacheKafkaConsumerScenarioDrain {
+				wantOffset = 1
+				wantCommit = 2
+			}
+			if run.err != nil ||
+				run.result != (kafka.PollResult{
+					Polled: 2, Processed: 2, Committed: 2,
+				}) ||
+				len(run.offsets) != 2 ||
+				run.offsets[0] != wantOffset ||
+				run.offsets[1] != wantOffset {
+				t.Fatalf("rebalance replacement result = %#v", run)
+			}
+			assertApacheKafkaGroupCommits(
+				t,
+				ctx,
+				brokers,
+				groupID,
+				map[kafka.TopicPartition]int64{
+					{Topic: topic, Partition: 0}: wantCommit,
+					{Topic: topic, Partition: 1}: wantCommit,
+				},
+			)
+		})
+	}
 }
 
 func TestApacheKafkaRackLocalConsumerCompatibility(t *testing.T) {
@@ -2264,6 +2627,145 @@ func startApacheKafkaConsumerChild(
 	)
 }
 
+func startApacheKafkaRebalanceConsumerChild(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	groupID string,
+	clientID string,
+	scenario string,
+) *apacheKafkaProcessorChildProcess {
+	t.Helper()
+
+	command := exec.CommandContext(
+		ctx,
+		os.Args[0],
+		"-test.run=^TestApacheKafkaConsumerChild$",
+	)
+	command.Env = append(
+		os.Environ(),
+		apacheKafkaConsumerChildMode+"=1",
+		apacheKafkaConsumerBrokers+"="+strings.Join(brokers, ","),
+		apacheKafkaConsumerTopic+"="+topic,
+		apacheKafkaConsumerGroup+"="+groupID,
+		apacheKafkaConsumerClient+"="+clientID,
+		apacheKafkaConsumerScenario+"="+scenario,
+	)
+	stdin, err := command.StdinPipe()
+	if err != nil {
+		t.Fatalf("open rebalance consumer child stdin: %v", err)
+	}
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		t.Fatalf("open rebalance consumer child stdout: %v", err)
+	}
+	child := &apacheKafkaProcessorChildProcess{
+		command: command,
+		stdin:   stdin,
+		scanner: bufio.NewScanner(stdout),
+	}
+	command.Stderr = &child.stderr
+	if err := command.Start(); err != nil {
+		_ = stdin.Close()
+		t.Fatalf("start rebalance consumer child: %v", err)
+	}
+	t.Cleanup(child.stop)
+	waitForApacheKafkaProcessorMarker(
+		t,
+		child.scanner,
+		apacheKafkaConsumerReady,
+		&child.stderr,
+	)
+
+	return child
+}
+
+func (child *apacheKafkaProcessorChildProcess) beginConsumerRebalanceHandling(
+	t *testing.T,
+) {
+	t.Helper()
+
+	if _, err := child.stdin.Write([]byte{1}); err != nil {
+		t.Fatalf("start rebalance consumer child handling: %v", err)
+	}
+	partitions := map[int32]bool{}
+	for len(partitions) < 2 {
+		partitionText := waitForApacheKafkaProcessorMarkerPrefix(
+			t,
+			child.scanner,
+			apacheKafkaConsumerHandling+"=",
+			&child.stderr,
+		)
+		partition, parseErr := strconv.ParseInt(partitionText, 10, 32)
+		if parseErr != nil || partition < 0 || partition > 1 || partitions[int32(partition)] {
+			t.Fatalf("rebalance consumer child partition = %q", partitionText)
+		}
+		partitions[int32(partition)] = true
+	}
+}
+
+func (child *apacheKafkaProcessorChildProcess) waitForConsumerRebalanceResult(
+	t *testing.T,
+	scenario string,
+) {
+	t.Helper()
+
+	waitForApacheKafkaProcessorMarker(
+		t,
+		child.scanner,
+		apacheKafkaConsumerResult+":"+scenario,
+		&child.stderr,
+	)
+	if err := child.stdin.Close(); err != nil {
+		t.Fatalf("close rebalance consumer child stdin: %v", err)
+	}
+	if err := child.command.Wait(); err != nil {
+		t.Fatalf(
+			"wait for rebalance consumer child: %v: %s",
+			err,
+			strings.TrimSpace(child.stderr.String()),
+		)
+	}
+	child.exited = true
+}
+
+func publishApacheKafkaPartitionRecords(
+	t *testing.T,
+	ctx context.Context,
+	producer *kafka.Producer,
+	topic string,
+	offset int64,
+) {
+	t.Helper()
+
+	records := make([]kafka.ProducerRecord, 0, 2)
+	for partition := int32(0); partition < 2; partition++ {
+		records = append(records, kafka.ProducerRecord{
+			Topic:     topic,
+			Partition: kafka.ExplicitPartition(partition),
+			Key:       []byte(fmt.Sprintf("partition-%d-offset-%d", partition, offset)),
+			Value:     []byte(fmt.Sprintf("partition-%d-offset-%d", partition, offset)),
+		})
+	}
+	results, err := producer.PublishBatch(ctx, records)
+	if err != nil || len(results) != 2 {
+		t.Fatalf("publish partition batch offset %d = %#v, %v", offset, results, err)
+	}
+	for partition, result := range results {
+		wantPartition := int32(partition)
+		if result.Err != nil || result.Partition != wantPartition || result.Offset != offset {
+			t.Fatalf(
+				"publish partition %d offset %d = %#v",
+				wantPartition,
+				offset,
+				result,
+			)
+		}
+	}
+}
+
 func startApacheKafkaRackConsumerChild(
 	t *testing.T,
 	ctx context.Context,
@@ -2982,9 +3484,11 @@ func waitForApacheKafkaProcessorMarker(
 	t.Helper()
 
 	for scanner.Scan() {
-		if scanner.Text() == marker {
+		line := scanner.Text()
+		if line == marker {
 			return
 		}
+		_, _ = stderr.Write([]byte("stdout: " + line + "\n"))
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("read transaction processor child stdout: %v", err)
@@ -3009,6 +3513,7 @@ func waitForApacheKafkaProcessorMarkerPrefix(
 		if strings.HasPrefix(line, prefix) {
 			return strings.TrimPrefix(line, prefix)
 		}
+		_, _ = stderr.Write([]byte("stdout: " + line + "\n"))
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("read transaction processor child stdout: %v", err)
@@ -4434,6 +4939,47 @@ func createApacheKafkaTopic(
 ) {
 	t.Helper()
 	createApacheKafkaTopicWithConfigs(t, ctx, brokers, topic, partitions, nil)
+}
+
+func createApacheKafkaCoLocatedTopic(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct co-located topic administrator: %v", err)
+	}
+	defer client.Close()
+
+	request := kmsg.NewPtrCreateTopicsRequest()
+	request.Topics = []kmsg.CreateTopicsRequestTopic{{
+		Topic:             topic,
+		NumPartitions:     -1,
+		ReplicationFactor: -1,
+		ReplicaAssignment: []kmsg.CreateTopicsRequestTopicReplicaAssignment{
+			{Partition: 0, Replicas: []int32{1, 2, 3}},
+			{Partition: 1, Replicas: []int32{1, 2, 3}},
+		},
+		Configs: []kmsg.CreateTopicsRequestTopicConfig{
+			{Name: "min.insync.replicas", Value: kadm.StringPtr("2")},
+			{Name: "unclean.leader.election.enable", Value: kadm.StringPtr("false")},
+		},
+	}}
+	response, err := client.Request(ctx, request)
+	if err != nil {
+		t.Fatalf("create co-located topic: %v", err)
+	}
+	created, ok := response.(*kmsg.CreateTopicsResponse)
+	if !ok || len(created.Topics) != 1 || created.Topics[0].Topic != topic {
+		t.Fatalf("co-located topic response = %#v", response)
+	}
+	if topicErr := kerr.ErrorForCode(created.Topics[0].ErrorCode); topicErr != nil {
+		t.Fatalf("create co-located topic %q: %v", topic, topicErr)
+	}
 }
 
 func createApacheKafkaTopicWithConfigs(

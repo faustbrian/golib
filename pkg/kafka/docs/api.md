@@ -179,7 +179,9 @@ unbounded retry loop. `Run` returns the first such exhausted internal retry
 cycle. Handler errors remain application errors and are not converted to
 `ConsumerError`.
 `ConsumerConfig.MaxConcurrentFetches`, `FetchMaxBytes`, and
-`FetchMaxPartitionBytes` jointly bound compressed fetch buffering. The
+`FetchMaxPartitionBytes` jointly bound compressed fetch buffering.
+`FetchMinBytes` controls broker-side response batching from one byte through
+the aggregate maximum; `FetchMaxWait` keeps that batching delay bounded. The
 per-partition limit follows Kafka's progress rule: one larger record batch may
 still be returned. `BrokerMaxReadBytes` separately rejects an encoded response
 above its hard limit before franz-go allocates the response body.

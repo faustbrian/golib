@@ -51,6 +51,7 @@ func TestTransactionProcessorConfigNormalizesAndOwnsPolicy(t *testing.T) {
 		t.Fatalf("normalized config aliases caller data: %#v", normalized)
 	}
 	if normalized.Group.MaxPollRecords != 100 ||
+		normalized.Group.FetchMinBytes != 1 ||
 		normalized.Group.ProcessingTimeout != 30*time.Second ||
 		normalized.Group.BrokerMaxReadBytes != 64<<20 ||
 		normalized.Group.MaxDecompressedBatchBytes != 8<<20 ||
@@ -73,6 +74,7 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 	config.Group.ResetOffset = OffsetLatest
 	config.Group.InstanceID = "transaction-worker-instance"
 	config.Group.Rack = "rack-a"
+	config.Group.FetchMinBytes = 2 << 20
 	config.Group.BrokerMaxReadBytes = 70 << 20
 	config.Group.MaxDecompressedBatchBytes = 9 << 20
 	config.Group.MaxBufferedDecompressedBytes = 10 << 20
@@ -94,6 +96,7 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 				client.OptValue(kgo.AlwaysRetryEOF) != true ||
 				client.OptValue(kgo.StopProducerOnDataLossDetected) != true ||
 				client.OptValue(kgo.AllowIdempotentProduceCancellation) != false ||
+				client.OptValue(kgo.FetchMinBytes) != int32(2<<20) ||
 				client.OptValue(kgo.BrokerMaxReadBytes) != int32(70<<20) ||
 				client.OptValue(kgo.MetadataMinAge) != 250*time.Millisecond ||
 				!ok || !minimum.Equal(kversion.FromString("2.5")) {

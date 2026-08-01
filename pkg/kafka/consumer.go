@@ -138,7 +138,11 @@ type ConsumerConfig struct {
 	// MaxConcurrentHandlers bounds simultaneous callbacks across independent
 	// topic partitions. One partition always remains sequential. The zero
 	// value defaults to one.
-	MaxConcurrentHandlers  int
+	MaxConcurrentHandlers int
+	// FetchMinBytes is the minimum encoded record bytes a broker tries to
+	// collect before answering a fetch. Zero defaults to one byte, values must
+	// not exceed FetchMaxBytes, and FetchMaxWait bounds the wait.
+	FetchMinBytes          int32
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
 	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
@@ -315,6 +319,7 @@ func newConsumer(
 		}),
 		kgo.Balancers(consumerGroupBalancers(config.BalancePolicy)...),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
+		kgo.FetchMinBytes(config.FetchMinBytes),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
 		kgo.BrokerMaxReadBytes(config.BrokerMaxReadBytes),
@@ -472,6 +477,9 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 	if config.MaxConcurrentHandlers == 0 {
 		config.MaxConcurrentHandlers = 1
 	}
+	if config.FetchMinBytes == 0 {
+		config.FetchMinBytes = 1
+	}
 	if config.FetchMaxBytes == 0 {
 		config.FetchMaxBytes = 50 << 20
 	}
@@ -527,6 +535,8 @@ func normalizeConsumerConfig(config ConsumerConfig) (ConsumerConfig, error) {
 		config.MaxConcurrentFetches > 64 ||
 		config.MaxConcurrentHandlers < 1 ||
 		config.MaxConcurrentHandlers > 64 ||
+		config.FetchMinBytes < 1 ||
+		config.FetchMinBytes > config.FetchMaxBytes ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
 		config.FetchMaxPartitionBytes > config.FetchMaxBytes ||

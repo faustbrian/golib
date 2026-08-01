@@ -496,9 +496,7 @@ func TestInspectorWiresBrokerObserversAndFencesLifecycleReentry(t *testing.T) {
 		t.Fatalf("NewInspector() error = %v", err)
 	}
 	t.Cleanup(func() {
-		if closeErr := inspector.Close(); closeErr != nil {
-			t.Errorf("Close() error = %v", closeErr)
-		}
+		closeObservedClientForTest(t, inspector.Close)
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()

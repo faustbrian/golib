@@ -46,15 +46,24 @@ source offset remains unsettled, and a replacement member receives the record
 again. Under `RebalanceDrainHandler`, the blocked-rebalance observation occurs
 while the first handler remains active; releasing that handler lets it finish
 and commit offset 1 before the poll gate opens, and the joining member then
-receives only the subsequently published record at offset 1. This evidence is
-limited to one partition and the exercised join timing; it does not generalize
-to every multi-partition revocation or ownership-loss interleaving.
+receives only the subsequently published record at offset 1.
+
+A pinned three-broker Apache Kafka 4.3.1 fixture extends this boundary across
+two co-located partition leaders and two operating-system processes. A bounded
+minimum fetch admits both partitions into one poll. Cancel mode observes the
+blocked rebalance, cancels both active handlers, commits neither partition, and
+redelivers both offset-zero records to the replacement member. Drain mode
+observes the same blocked boundary, releases both active handlers, commits
+offset one for each partition before ownership transfer, and lets the
+replacement begin at offset one on both partitions. Broker-forced ownership
+loss and partial cooperative revocation interleavings remain unverified.
 
 ## Configuration
 
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest
 or latest reset policy. Construction validates all policy before franz-go
-allocates the client. Fetch concurrency, aggregate bytes, per-partition bytes,
+allocates the client. Fetch concurrency, minimum, aggregate, and per-partition
+bytes,
 the hard encoded broker response, each decoded record batch, active decoded
 buffers, poll records, fetch wait, session, rebalance, heartbeat, handler,
 commit, and dial durations are bounded.

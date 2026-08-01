@@ -46,6 +46,7 @@ func TestConsumerConfigAppliesBoundedDefaults(t *testing.T) {
 		config.RebalanceHandler != RebalanceCancelHandler ||
 		config.MaxConcurrentFetches != 4 ||
 		config.MaxConcurrentHandlers != 1 ||
+		config.FetchMinBytes != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.BrokerMaxReadBytes != 64<<20 ||
@@ -71,6 +72,7 @@ func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	minimum.MaxAssignedPartitions = 1
 	minimum.MaxConcurrentFetches = 1
 	minimum.MaxConcurrentHandlers = 1
+	minimum.FetchMinBytes = 1
 	minimum.FetchMaxBytes = 1 << 20
 	minimum.FetchMaxPartitionBytes = 1 << 20
 	minimum.BrokerMaxReadBytes = 1 << 20
@@ -99,6 +101,7 @@ func TestConsumerConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	maximum.MaxAssignedPartitions = 65_536
 	maximum.MaxConcurrentFetches = 64
 	maximum.MaxConcurrentHandlers = 64
+	maximum.FetchMinBytes = 100 << 20
 	maximum.FetchMaxBytes = 100 << 20
 	maximum.FetchMaxPartitionBytes = 100 << 20
 	maximum.BrokerMaxReadBytes = 512 << 20
@@ -218,6 +221,7 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	config.BalancePolicy = BalanceEagerToCooperative
 	config.MaxConcurrentFetches = 3
 	config.MaxConcurrentHandlers = 3
+	config.FetchMinBytes = 2 << 20
 	config.FetchMaxPartitionBytes = 2 << 20
 	config.BrokerMaxReadBytes = 70 << 20
 	config.MaxDecompressedBatchBytes = 9 << 20
@@ -236,6 +240,9 @@ func TestNewConsumerAppliesConsumerPolicyOptions(t *testing.T) {
 	defer closeConsumerForTest(t, consumer)
 	if got := franzClient.OptValue(kgo.FetchMaxPartitionBytes); got != int32(2<<20) {
 		t.Fatalf("FetchMaxPartitionBytes option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.FetchMinBytes); got != int32(2<<20) {
+		t.Fatalf("FetchMinBytes option = %#v", got)
 	}
 	if got := franzClient.OptValue(kgo.MaxConcurrentFetches); got != 3 {
 		t.Fatalf("MaxConcurrentFetches option = %#v", got)
@@ -830,6 +837,11 @@ func TestNewConsumerRejectsUnboundedConfiguration(t *testing.T) {
 		{name: "excessive assigned partitions", change: func(config *ConsumerConfig) { config.MaxAssignedPartitions = 65_537 }},
 		{name: "negative concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = -1 }},
 		{name: "excessive concurrent fetches", change: func(config *ConsumerConfig) { config.MaxConcurrentFetches = 65 }},
+		{name: "negative minimum fetch bytes", change: func(config *ConsumerConfig) { config.FetchMinBytes = -1 }},
+		{name: "minimum fetch exceeds aggregate", change: func(config *ConsumerConfig) {
+			config.FetchMinBytes = 2 << 20
+			config.FetchMaxBytes = 1 << 20
+		}},
 		{name: "negative fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = -1 }},
 		{name: "small fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = 1<<20 - 1 }},
 		{name: "excessive fetch bytes", change: func(config *ConsumerConfig) { config.FetchMaxBytes = 101 << 20 }},

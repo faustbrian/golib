@@ -122,6 +122,7 @@ caller-configurable.
 | `Group.BalancePolicy` | cooperative-sticky | Cooperative, eager, or reviewed eager-to-cooperative migration. |
 | `Group.MaxPollRecords` | 100 | 1 to 1,000; this is the maximum all-or-nothing transaction input count. |
 | `Group.MaxConcurrentFetches` | 4 | 1 to 64. |
+| `Group.FetchMinBytes` | 1 byte | 1 byte through `FetchMaxBytes`; the broker may wait up to `FetchMaxWait` to collect this encoded response size. |
 | `Group.FetchMaxBytes` | 50 MiB | 1 to 100 MiB. |
 | `Group.FetchMaxPartitionBytes` | 1 MiB | 1 MiB through the aggregate fetch maximum. |
 | `Group.BrokerMaxReadBytes` | 64 MiB | At least `FetchMaxBytes` and at most 512 MiB; franz-go rejects a larger encoded response before allocating its body. |
@@ -168,6 +169,7 @@ caller-configurable.
 | `MaxAssignedPartitions` | 1,024 | 1 to 65,536; bounds broker-controlled assignment callback state and copied diagnostics. |
 | `MaxConcurrentFetches` | 4 | 1 to 64. |
 | `MaxConcurrentHandlers` | 1 | 1 to 64 callbacks across independent partitions; one partition always remains sequential. |
+| `FetchMinBytes` | 1 byte | 1 byte through `FetchMaxBytes`; higher values trade bounded fetch latency for larger broker responses. |
 | `FetchMaxBytes` | 50 MiB | 1 to 100 MiB compressed fetch bytes. |
 | `FetchMaxPartitionBytes` | 1 MiB | At least 1 MiB and no greater than `FetchMaxBytes`. Kafka may return one larger record batch to make progress. |
 | `BrokerMaxReadBytes` | 64 MiB | At least `FetchMaxBytes` and at most 512 MiB; this is the hard encoded broker-response read limit. |
@@ -257,9 +259,9 @@ The request partition slice is copied before sorting or broker use.
 `SideEffects` defaults to `ReplaySideEffectsDenied`; only the explicit
 `ReplaySideEffectsAllowed` value permits handler execution. `Limits` defaults
 to `DefaultMessageLimits` and must also admit every configured topic. Replay
-defaults to 100 poll records, one concurrent fetch, one handler, 50 MiB
-aggregate fetch bytes, 1 MiB per-partition fetch bytes, 500 millisecond fetch
-wait, a 64 MiB encoded broker-response cap, an 8 MiB decoded-batch cap, a
+defaults to 100 poll records, one concurrent fetch, one handler, a one-byte
+minimum fetch, 50 MiB aggregate fetch bytes, 1 MiB per-partition fetch bytes,
+500 millisecond fetch wait, a 64 MiB encoded broker-response cap, an 8 MiB decoded-batch cap, a
 64 MiB active decoded-buffer budget, a 10 second broker-bound planning timeout,
 30 second handler and shutdown timeouts, and a 10 second dial timeout.
 `MaxConcurrentFetches` and
@@ -267,6 +269,8 @@ wait, a 64 MiB encoded broker-response cap, an 8 MiB decoded-batch cap, a
 franz-go broker requests independently of handler concurrency. Handler values
 above one require a concurrency-safe callback and overlap only independent
 partitions; each partition remains sequential.
+`FetchMinBytes` accepts 1 byte through `FetchMaxBytes`; Kafka may hold a fetch
+until this encoded size is available, but never beyond `FetchMaxWait`.
 The planning timeout accepts 100 milliseconds through 2 minutes.
 `ProgressTimeout` defaults to 30 seconds, accepts 100 milliseconds through 30
 minutes, and cannot be shorter than `FetchMaxWait`. Other ranges match the

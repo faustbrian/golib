@@ -4,6 +4,13 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Added
+
+- expose bounded `FetchMinBytes` policy for consumer groups, transactional
+  source groups, and replay so applications can request larger broker fetch
+  batches without an unbounded wait; multi-process Apache Kafka evidence now
+  proves two-partition cancel and drain rebalance settlement
+
 ### Fixed
 
 - bound encoded broker responses, individual decompressed Kafka record

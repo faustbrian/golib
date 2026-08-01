@@ -152,7 +152,11 @@ type ReplayConfig struct {
 	MaxConcurrentFetches int
 	// MaxConcurrentHandlers bounds simultaneous callbacks across independent
 	// partitions. Records within one partition always remain sequential.
-	MaxConcurrentHandlers  int
+	MaxConcurrentHandlers int
+	// FetchMinBytes is the minimum encoded record bytes a broker tries to
+	// collect before answering a fetch. Zero defaults to one byte, values must
+	// not exceed FetchMaxBytes, and FetchMaxWait bounds the wait.
+	FetchMinBytes          int32
 	FetchMaxBytes          int32
 	FetchMaxPartitionBytes int32
 	// BrokerMaxReadBytes is the hard maximum encoded Kafka response accepted
@@ -354,6 +358,7 @@ func newReplayReader(
 		kgo.ClientID(config.ClientID),
 		kgo.ConsumePartitions(partitions),
 		kgo.MaxConcurrentFetches(config.MaxConcurrentFetches),
+		kgo.FetchMinBytes(config.FetchMinBytes),
 		kgo.FetchMaxBytes(config.FetchMaxBytes),
 		kgo.FetchMaxPartitionBytes(config.FetchMaxPartitionBytes),
 		kgo.BrokerMaxReadBytes(config.BrokerMaxReadBytes),
@@ -466,6 +471,9 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 	if config.MaxConcurrentHandlers == 0 {
 		config.MaxConcurrentHandlers = 1
 	}
+	if config.FetchMinBytes == 0 {
+		config.FetchMinBytes = 1
+	}
 	if config.FetchMaxBytes == 0 {
 		config.FetchMaxBytes = 50 << 20
 	}
@@ -511,6 +519,8 @@ func normalizeReplayConfig(config ReplayConfig) (ReplayConfig, error) {
 		config.MaxConcurrentFetches > 64 ||
 		config.MaxConcurrentHandlers < 1 ||
 		config.MaxConcurrentHandlers > 64 ||
+		config.FetchMinBytes < 1 ||
+		config.FetchMinBytes > config.FetchMaxBytes ||
 		config.FetchMaxBytes > 100<<20 ||
 		config.FetchMaxPartitionBytes < 1<<20 ||
 		config.FetchMaxPartitionBytes > config.FetchMaxBytes ||

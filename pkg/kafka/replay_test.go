@@ -23,6 +23,7 @@ func TestReplayConfigAppliesBoundedDefaults(t *testing.T) {
 	if config.MaxPollRecords != 100 ||
 		config.MaxConcurrentFetches != 1 ||
 		config.MaxConcurrentHandlers != 1 ||
+		config.FetchMinBytes != 1 ||
 		config.FetchMaxBytes != 50<<20 ||
 		config.FetchMaxPartitionBytes != 1<<20 ||
 		config.BrokerMaxReadBytes != 64<<20 ||
@@ -48,6 +49,7 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	minimum.MaxPollRecords = 1
 	minimum.MaxConcurrentFetches = 1
 	minimum.MaxConcurrentHandlers = 1
+	minimum.FetchMinBytes = 1
 	minimum.FetchMaxBytes = 1 << 20
 	minimum.FetchMaxPartitionBytes = 1 << 20
 	minimum.BrokerMaxReadBytes = 1 << 20
@@ -67,6 +69,7 @@ func TestReplayConfigAcceptsInclusivePolicyBoundaries(t *testing.T) {
 	maximum.MaxPollRecords = 1_000
 	maximum.MaxConcurrentFetches = 64
 	maximum.MaxConcurrentHandlers = 64
+	maximum.FetchMinBytes = 100 << 20
 	maximum.FetchMaxBytes = 100 << 20
 	maximum.FetchMaxPartitionBytes = 100 << 20
 	maximum.BrokerMaxReadBytes = 512 << 20
@@ -184,6 +187,11 @@ func TestReplayConfigRejectsInvalidRangesAndBounds(t *testing.T) {
 			config.Security.TLS = insecureTLSConfig()
 		}, want: ErrInvalidSecurityConfig},
 		{name: "excessive poll records", change: func(config *ReplayConfig) { config.MaxPollRecords = 1_001 }, want: ErrInvalidReplayConfig},
+		{name: "negative minimum fetch bytes", change: func(config *ReplayConfig) { config.FetchMinBytes = -1 }, want: ErrInvalidReplayConfig},
+		{name: "minimum fetch exceeds aggregate", change: func(config *ReplayConfig) {
+			config.FetchMinBytes = 51 << 20
+			config.FetchMaxBytes = 50 << 20
+		}, want: ErrInvalidReplayConfig},
 		{name: "excessive fetch bytes", change: func(config *ReplayConfig) { config.FetchMaxBytes = 101 << 20 }, want: ErrInvalidReplayConfig},
 		{name: "excessive partition fetch bytes", change: func(config *ReplayConfig) {
 			config.FetchMaxPartitionBytes = 51 << 20
@@ -727,6 +735,7 @@ func TestReplayReaderConstructsClosesAndPreservesFactoryFailure(t *testing.T) {
 
 func TestReplayReaderAppliesFetchSafetyOptions(t *testing.T) {
 	config := validReplayConfig()
+	config.FetchMinBytes = 2 << 20
 	config.BrokerMaxReadBytes = 70 << 20
 	config.MaxDecompressedBatchBytes = 9 << 20
 	config.MaxBufferedDecompressedBytes = 10 << 20
@@ -743,6 +752,9 @@ func TestReplayReaderAppliesFetchSafetyOptions(t *testing.T) {
 	defer closeReplayReaderForTest(t, reader)
 	if got := franzClient.OptValue(kgo.BrokerMaxReadBytes); got != int32(70<<20) {
 		t.Fatalf("BrokerMaxReadBytes option = %#v", got)
+	}
+	if got := franzClient.OptValue(kgo.FetchMinBytes); got != int32(2<<20) {
+		t.Fatalf("FetchMinBytes option = %#v", got)
 	}
 	decompressor, ok := franzClient.OptValue(kgo.WithDecompressor).(*boundedDecompressor)
 	if !ok || decompressor.maximumBytes != 9<<20 {

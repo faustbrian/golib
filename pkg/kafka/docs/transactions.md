@@ -106,6 +106,9 @@ The source group also applies a hard encoded broker-response cap, a decoded
 record-batch cap, and an active decoded-buffer budget. A decompression failure
 occurs before transaction begin or handler admission and therefore produces no
 Kafka output and settles no source offset.
+`Group.FetchMinBytes` defaults to one byte and can request larger encoded fetch
+responses through `Group.FetchMaxBytes`; `Group.FetchMaxWait` bounds the added
+broker-side batching delay.
 Reclaimable active-buffer accounting requires Kafka record batches (magic 2);
 legacy compressed message sets are unsupported as documented in the
 [compatibility matrix](compatibility.md).

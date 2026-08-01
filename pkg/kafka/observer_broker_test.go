@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"net"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -331,9 +332,7 @@ func TestProducerWiresBrokerObserversIntoFranzClient(t *testing.T) {
 		t.Fatalf("NewProducer() error = %v", err)
 	}
 	t.Cleanup(func() {
-		if closeErr := producer.Close(); closeErr != nil {
-			t.Errorf("Close() error = %v", closeErr)
-		}
+		closeObservedClientForTest(t, producer.Close)
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
@@ -410,9 +409,7 @@ func TestConsumerWiresBrokerObserversWithGroupIdentity(t *testing.T) {
 		t.Fatalf("NewConsumer() error = %v", err)
 	}
 	t.Cleanup(func() {
-		if closeErr := consumer.Close(); closeErr != nil {
-			t.Errorf("Close() error = %v", closeErr)
-		}
+		closeObservedClientForTest(t, consumer.Close)
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
@@ -468,4 +465,30 @@ func newTestFranzObserverHook(
 		groupID,
 		newObserverDispatcher(policy),
 	)
+}
+
+func closeObservedClientForTest(t *testing.T, closeClient func() error) {
+	t.Helper()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	for {
+		err := closeClient()
+		if err == nil {
+			return
+		}
+		if !errors.Is(err, ErrObserverReentry) {
+			t.Errorf("Close() error = %v", err)
+
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Errorf("Close() remained observer-reentrant: %v", err)
+
+			return
+		default:
+			runtime.Gosched()
+		}
+	}
 }
