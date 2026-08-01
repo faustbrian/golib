@@ -1,6 +1,10 @@
 package breaker
 
-import "github.com/faustbrian/golib/pkg/circuit-breaker/window"
+import (
+	"slices"
+
+	"github.com/faustbrian/golib/pkg/circuit-breaker/window"
+)
 
 func openingDecision(
 	rules OpeningRules,
@@ -31,19 +35,9 @@ func openingDecision(
 	}
 
 	if rules.Combination == OpenWhenAll {
-		for _, decision := range decisions {
-			if !decision {
-				return false
-			}
-		}
-		return len(decisions) > 0
+		return len(decisions) > 0 && !slices.Contains(decisions, false)
 	}
-	for _, decision := range decisions {
-		if decision {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(decisions, true)
 }
 
 func ratio(numerator, denominator uint64) float64 {

@@ -86,9 +86,13 @@ func (w *Time) Snapshot(at time.Time) Snapshot {
 
 func (w *Time) observe(at time.Time) bucketID {
 	id := bucketIDAt(at, w.bucketDuration)
-	if !w.initialized || id.compare(w.lastBucketID) > 0 {
+	if !w.initialized {
 		w.lastBucketID = id
 		w.initialized = true
+		return w.lastBucketID
+	}
+	if id.compare(w.lastBucketID) == 1 {
+		w.lastBucketID = id
 	}
 	return w.lastBucketID
 }
@@ -98,46 +102,58 @@ func bucketIDAt(at time.Time, duration time.Duration) bucketID {
 
 	if nanoseconds, ok := exactUnixNanoseconds(at); ok {
 		bucket := nanoseconds / int64(duration)
-		if nanoseconds < 0 && nanoseconds%int64(duration) != 0 {
-			bucket--
+		switch uint64(nanoseconds) >> 63 {
+		case 1:
+			if nanoseconds%int64(duration) != 0 {
+				bucket--
+			}
 		}
 		return bucketIDFromInt64(bucket)
 	}
 
 	seconds := at.Unix()
 	nanoseconds := uint64(at.Nanosecond())
-	negative := seconds < 0
+	negative := false
+	switch uint64(seconds) >> 63 {
+	case 1:
+		negative = true
+	}
 	magnitudeSeconds := uint64(seconds)
 	if negative {
 		magnitudeSeconds = uint64(-(seconds + 1)) + 1
 	}
 	high, low := bits.Mul64(magnitudeSeconds, nanosecondsPerSecond)
 	if negative {
-		var borrow uint64
-		low, borrow = bits.Sub64(low, nanoseconds, 0)
-		high -= borrow
+		high, low = subtract128(high, low, nanoseconds)
 	} else {
-		var carry uint64
-		low, carry = bits.Add64(low, nanoseconds, 0)
-		high += carry
+		high, low = add128(high, low, nanoseconds)
 	}
 
 	divisor := uint64(duration)
 	quotientHigh := high / divisor
 	quotientLow, remainder := bits.Div64(high%divisor, low, divisor)
 	if negative && remainder != 0 {
-		var carry uint64
-		quotientLow, carry = bits.Add64(quotientLow, 1, 0)
-		quotientHigh += carry
+		quotientHigh, quotientLow = add128(quotientHigh, quotientLow, 1)
 	}
 	return bucketID{negative: negative, high: quotientHigh, low: quotientLow}
 }
 
 func bucketIDFromInt64(value int64) bucketID {
-	if value >= 0 {
+	switch uint64(value) >> 63 {
+	case 0:
 		return bucketID{low: uint64(value)}
 	}
 	return bucketID{negative: true, low: uint64(-(value + 1)) + 1}
+}
+
+func add128(high, low, value uint64) (uint64, uint64) {
+	low, carry := bits.Add64(low, value, 0)
+	return high + carry, low
+}
+
+func subtract128(high, low, value uint64) (uint64, uint64) {
+	low, borrow := bits.Sub64(low, value, 0)
+	return high - borrow, low
 }
 
 func (id bucketID) compare(other bucketID) int {

@@ -105,7 +105,7 @@ func TestAdministrativeModesAreExplicitAndReversible(t *testing.T) {
 		t.Fatalf("Complete() disabled error = %v", err)
 	}
 	if got := b.Snapshot(); got.WindowClassified != 0 || got.Ignored != 0 ||
-		got.Completed != 1 || got.TotalFailures != 1 {
+		got.Admitted != 1 || got.Completed != 1 || got.TotalFailures != 1 {
 		t.Fatalf("Snapshot() disabled recorded outcome = %+v", got)
 	}
 

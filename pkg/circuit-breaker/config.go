@@ -174,6 +174,7 @@ type normalizedConfig struct {
 	clock              Clock
 	classifier         Classifier
 	permitTTL          time.Duration
+	halfOpenWait       bool
 	halfOpenMaxWait    time.Duration
 	observer           observerRuntime
 	openDurationJitter float64
@@ -192,23 +193,23 @@ func normalizeConfig(config Config) (normalizedConfig, error) {
 	if err != nil {
 		return normalizedConfig{}, err
 	}
+	if config.MinimumThroughput < 0 {
+		return normalizedConfig{}, invalidConfig("MinimumThroughput", "must not be negative")
+	}
 	minimumThroughput := config.MinimumThroughput
 	if minimumThroughput == 0 {
 		minimumThroughput = defaultMinimumThroughput
-	}
-	if minimumThroughput < 0 {
-		return normalizedConfig{}, invalidConfig("MinimumThroughput", "must not be negative")
 	}
 	if timeWindow == nil && minimumThroughput > windowSize {
 		return normalizedConfig{}, invalidConfig("MinimumThroughput", "must not exceed count window size")
 	}
 
+	if config.SlowCallDuration < 0 {
+		return normalizedConfig{}, invalidConfig("SlowCallDuration", "must not be negative")
+	}
 	slowCallDuration := config.SlowCallDuration
 	if slowCallDuration == 0 {
 		slowCallDuration = defaultSlowCallDuration
-	}
-	if slowCallDuration < 0 {
-		return normalizedConfig{}, invalidConfig("SlowCallDuration", "must not be negative")
 	}
 
 	opening, err := normalizeOpening(config.Opening)
@@ -241,14 +242,14 @@ func normalizeConfig(config Config) (normalizedConfig, error) {
 	if classifier == nil {
 		classifier = defaultClassifier
 	}
+	if config.PermitTTL < 0 {
+		return normalizedConfig{}, invalidConfig("PermitTTL", "must not be negative")
+	}
 	permitTTL := config.PermitTTL
 	if permitTTL == 0 {
 		permitTTL = defaultPermitTTL
 	}
-	if permitTTL < 0 {
-		return normalizedConfig{}, invalidConfig("PermitTTL", "must not be negative")
-	}
-	halfOpenMaxWait, err := normalizeHalfOpenAdmission(config.HalfOpenAdmission)
+	halfOpenWait, halfOpenMaxWait, err := normalizeHalfOpenAdmission(config.HalfOpenAdmission)
 	if err != nil {
 		return normalizedConfig{}, err
 	}
@@ -279,6 +280,7 @@ func normalizeConfig(config Config) (normalizedConfig, error) {
 		clock:              clock,
 		classifier:         classifier,
 		permitTTL:          permitTTL,
+		halfOpenWait:       halfOpenWait,
 		halfOpenMaxWait:    halfOpenMaxWait,
 		observer:           observer,
 		openDurationJitter: config.OpenDurationJitter,
@@ -296,13 +298,14 @@ func normalizeObserver(observer Observer, delivery EventDeliveryPolicy) (observe
 	if delivery == nil {
 		return observerRuntime{
 			observer: observer,
+			mode:     observerAsynchronous,
 			buffer:   64,
 			overflow: DropNewestEvent,
 		}, nil
 	}
 	switch policy := delivery.(type) {
 	case SynchronousEvents:
-		return observerRuntime{observer: observer, sync: true}, nil
+		return observerRuntime{observer: observer, mode: observerSynchronous}, nil
 	case AsynchronousEvents:
 		if policy.Buffer <= 0 {
 			return observerRuntime{}, invalidConfig("EventDelivery.Buffer", "must be greater than zero")
@@ -315,6 +318,7 @@ func normalizeObserver(observer Observer, delivery EventDeliveryPolicy) (observe
 		}
 		return observerRuntime{
 			observer: observer,
+			mode:     observerAsynchronous,
 			buffer:   policy.Buffer,
 			overflow: policy.Overflow,
 		}, nil
@@ -323,17 +327,17 @@ func normalizeObserver(observer Observer, delivery EventDeliveryPolicy) (observe
 	}
 }
 
-func normalizeHalfOpenAdmission(config HalfOpenAdmissionPolicy) (time.Duration, error) {
+func normalizeHalfOpenAdmission(config HalfOpenAdmissionPolicy) (bool, time.Duration, error) {
 	switch policy := config.(type) {
 	case nil, RejectExcessProbes:
-		return 0, nil
+		return false, 0, nil
 	case WaitForProbe:
 		if policy.MaxWait <= 0 {
-			return 0, invalidConfig("HalfOpenAdmission.MaxWait", "must be greater than zero")
+			return false, 0, invalidConfig("HalfOpenAdmission.MaxWait", "must be greater than zero")
 		}
-		return policy.MaxWait, nil
+		return true, policy.MaxWait, nil
 	default:
-		return 0, invalidConfig("HalfOpenAdmission", "unsupported admission policy")
+		return false, 0, invalidConfig("HalfOpenAdmission", "unsupported admission policy")
 	}
 }
 
@@ -403,11 +407,11 @@ func normalizeOpening(config *OpeningRules) (OpeningRules, error) {
 		rules.IgnoredBehavior != ResetConsecutiveFailures {
 		return OpeningRules{}, invalidConfig("Opening.IgnoredBehavior", "is unknown")
 	}
-	if !finite(rules.FailureRatio) || rules.FailureRatio < 0 || rules.FailureRatio > 1 {
-		return OpeningRules{}, invalidConfig("Opening.FailureRatio", "must be in the range [0, 1]")
+	if err := validateRatio("Opening.FailureRatio", rules.FailureRatio); err != nil {
+		return OpeningRules{}, err
 	}
-	if !finite(rules.SlowRatio) || rules.SlowRatio < 0 || rules.SlowRatio > 1 {
-		return OpeningRules{}, invalidConfig("Opening.SlowRatio", "must be in the range [0, 1]")
+	if err := validateRatio("Opening.SlowRatio", rules.SlowRatio); err != nil {
+		return OpeningRules{}, err
 	}
 	if rules.ConsecutiveFailures == 0 && rules.FailureCount == 0 &&
 		rules.FailureRatio == 0 && rules.SlowCount == 0 && rules.SlowRatio == 0 {
@@ -451,7 +455,7 @@ func normalizeHalfOpen(config *HalfOpenPolicy) (HalfOpenPolicy, error) {
 		}, nil
 	}
 	policy := *config
-	if policy.MaxProbes <= 0 {
+	if policy.MaxProbes < 1 {
 		return HalfOpenPolicy{}, invalidConfig("HalfOpen.MaxProbes", "must be greater than zero")
 	}
 	if policy.MaxProbes > MaxHalfOpenProbes {
@@ -460,8 +464,8 @@ func normalizeHalfOpen(config *HalfOpenPolicy) (HalfOpenPolicy, error) {
 	if policy.FailureAction != ReopenImmediately && policy.FailureAction != ReopenAfterSample {
 		return HalfOpenPolicy{}, invalidConfig("HalfOpen.FailureAction", "is unknown")
 	}
-	if !finite(policy.SuccessRatio) || policy.SuccessRatio < 0 || policy.SuccessRatio > 1 {
-		return HalfOpenPolicy{}, invalidConfig("HalfOpen.SuccessRatio", "must be in the range [0, 1]")
+	if err := validateRatio("HalfOpen.SuccessRatio", policy.SuccessRatio); err != nil {
+		return HalfOpenPolicy{}, err
 	}
 	if policy.RequiredSuccesses > 0 && policy.SuccessRatio > 0 {
 		return HalfOpenPolicy{}, invalidConfig("HalfOpen", "must select one recovery threshold")
@@ -473,6 +477,19 @@ func normalizeHalfOpen(config *HalfOpenPolicy) (HalfOpenPolicy, error) {
 		return HalfOpenPolicy{}, invalidConfig("HalfOpen.RequiredSuccesses", "must not exceed MaxProbes")
 	}
 	return policy, nil
+}
+
+func validateRatio(field string, value float64) error {
+	if !finite(value) {
+		return invalidConfig(field, "must be in the range [0, 1]")
+	}
+	if value < 0 {
+		return invalidConfig(field, "must be in the range [0, 1]")
+	}
+	if value > 1 {
+		return invalidConfig(field, "must be in the range [0, 1]")
+	}
+	return nil
 }
 
 func finite(value float64) bool {

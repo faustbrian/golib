@@ -216,7 +216,8 @@ func (b *Breaker) tryAcquireLocked(now time.Time) (*Permit, error, bool) {
 	}
 	if b.state == StateHalfOpen &&
 		b.halfOpenCompleted+b.halfOpenActive >= b.config.halfOpen.MaxProbes {
-		if b.config.halfOpenMaxWait > 0 {
+		switch b.config.halfOpenWait {
+		case true:
 			return nil, nil, true
 		}
 		return nil, b.rejectLocked(ErrHalfOpenExhausted), false
@@ -290,13 +291,13 @@ func (p *Permit) completeAt(outcome Outcome, slow bool, now time.Time, jitterSam
 	}
 	p.status = permitCompleted
 	p.recordLifetimeLocked(outcome)
-	if p.state == StateHalfOpen && p.generation == b.generation && b.state == StateHalfOpen {
+	if p.belongsToCurrentHalfOpenLocked() {
 		delete(b.halfOpenPermits, p)
 	}
 	if !p.recording {
 		return nil
 	}
-	if p.generation != b.generation || p.state != b.state {
+	if !p.belongsToCurrentStateLocked() {
 		return nil
 	}
 
@@ -389,7 +390,7 @@ func (p *Permit) expireLocked() {
 
 func (p *Permit) releaseHalfOpenLocked() {
 	b := p.breaker
-	if p.state != StateHalfOpen || p.generation != b.generation || b.state != StateHalfOpen {
+	if !p.belongsToCurrentHalfOpenLocked() {
 		return
 	}
 	if _, exists := b.halfOpenPermits[p]; !exists {
@@ -398,6 +399,23 @@ func (p *Permit) releaseHalfOpenLocked() {
 	delete(b.halfOpenPermits, p)
 	b.halfOpenActive--
 	b.signalLocked()
+}
+
+func (p *Permit) belongsToCurrentStateLocked() bool {
+	b := p.breaker
+	type epoch struct {
+		generation uint64
+		state      State
+	}
+	return epoch{generation: p.generation, state: p.state} ==
+		epoch{generation: b.generation, state: b.state}
+}
+
+func (p *Permit) belongsToCurrentHalfOpenLocked() bool {
+	if p.state != StateHalfOpen {
+		return false
+	}
+	return p.belongsToCurrentStateLocked()
 }
 
 func (b *Breaker) expireHalfOpenLocked(now time.Time) {
@@ -486,7 +504,8 @@ func (b *Breaker) signalLocked() {
 }
 
 func (b *Breaker) recordEventLocked(before Snapshot, reason TransitionReason, now time.Time) {
-	if b.config.observer.observer == nil {
+	switch b.config.observer.mode {
+	case observerDisabled:
 		return
 	}
 	after := b.snapshotLocked(now)
@@ -507,7 +526,8 @@ func (b *Breaker) SetMode(mode Mode) error {
 	now := b.config.clock.Now()
 	b.mu.Lock()
 	defer b.unlockAndDispatch()
-	if b.mode == mode {
+	switch b.mode {
+	case mode:
 		return nil
 	}
 	before := b.snapshotLocked(now)
@@ -579,11 +599,13 @@ func (b *Breaker) openDurationLocked(jitterSample float64) time.Duration {
 		}
 		for attempt := uint64(1); attempt < b.openCount; attempt++ {
 			next := time.Duration(float64(duration) * policy.Multiplier)
-			if next <= duration || next >= policy.Maximum {
-				duration = policy.Maximum
-				break
+			if next <= duration {
+				return b.jitterDuration(policy.Maximum, jitterSample)
 			}
-			duration = next
+			duration = min(next, policy.Maximum)
+			if duration == policy.Maximum {
+				return b.jitterDuration(policy.Maximum, jitterSample)
+			}
 		}
 	default:
 		panic("breaker: unreachable open duration policy")
@@ -609,7 +631,11 @@ func safeRandomSample(random Random) (sample float64) {
 		}
 	}()
 	sample = random.Float64()
-	if !finite(sample) || sample < 0 || sample >= 1 {
+	if !finite(sample) {
+		return 0
+	}
+	sample = max(sample, 0)
+	if sample >= 1 {
 		return 0
 	}
 	return sample
@@ -656,7 +682,8 @@ func (b *Breaker) Snapshot() Snapshot {
 	now := b.config.clock.Now()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.state == StateHalfOpen {
+	switch b.state {
+	case StateHalfOpen:
 		b.expireHalfOpenLocked(now)
 	}
 	return b.snapshotLocked(now)

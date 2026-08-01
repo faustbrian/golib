@@ -85,10 +85,18 @@ func (AsynchronousEvents) eventDeliveryPolicy() {}
 
 type observerRuntime struct {
 	observer Observer
-	sync     bool
+	mode     observerMode
 	buffer   int
 	overflow EventOverflowPolicy
 }
+
+type observerMode uint8
+
+const (
+	observerDisabled observerMode = iota
+	observerSynchronous
+	observerAsynchronous
+)
 
 type observerCounters struct {
 	failures atomic.Uint64
@@ -97,7 +105,8 @@ type observerCounters struct {
 
 func (b *Breaker) startObserver() {
 	policy := b.config.observer
-	if policy.observer == nil || policy.sync {
+	switch policy.mode {
+	case observerDisabled, observerSynchronous:
 		return
 	}
 	b.eventChannel = make(chan TransitionEvent, policy.buffer)
@@ -144,11 +153,12 @@ func (b *Breaker) observe(event TransitionEvent) {
 
 func (b *Breaker) dispatch(events []TransitionEvent) {
 	for _, event := range events {
-		if b.config.observer.sync {
+		switch b.config.observer.mode {
+		case observerSynchronous:
 			b.observe(event)
-			continue
+		case observerAsynchronous:
+			b.enqueue(event)
 		}
-		b.enqueue(event)
 	}
 }
 
@@ -164,7 +174,8 @@ func (b *Breaker) enqueue(event TransitionEvent) {
 		return
 	default:
 	}
-	if b.config.observer.overflow == DropNewestEvent {
+	switch b.config.observer.overflow {
+	case DropNewestEvent:
 		b.observerCounters.dropped.Add(1)
 		return
 	}
@@ -191,7 +202,8 @@ func (b *Breaker) unlockAndDispatch() {
 // Close requests asynchronous observer shutdown without waiting for callbacks.
 // It is idempotent, callback-safe, and does not change breaker admission or state.
 func (b *Breaker) Close() error {
-	if b.eventStop == nil {
+	switch b.config.observer.mode {
+	case observerDisabled, observerSynchronous:
 		return nil
 	}
 	b.eventCloseOnce.Do(func() {

@@ -123,6 +123,43 @@ func TestExponentialMultiplierOneRemainsAtInitialDuration(t *testing.T) {
 	}
 }
 
+func TestExponentialOpenDurationHandlesExactAndTruncatedCaps(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		initial    time.Duration
+		multiplier float64
+		maximum    time.Duration
+	}{
+		{name: "exact cap", initial: time.Second, multiplier: 2, maximum: 2 * time.Second},
+		{name: "truncated growth", initial: time.Nanosecond, multiplier: 1.1, maximum: 10 * time.Nanosecond},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			clock := &fakeClock{now: time.Unix(100, 0)}
+			b := mustBreaker(t, breaker.Config{
+				Name:              "inventory",
+				Clock:             clock,
+				MinimumThroughput: 1,
+				Opening:           &breaker.OpeningRules{FailureCount: 1},
+				OpenDuration: breaker.ExponentialOpenDuration{
+					Initial: test.initial, Multiplier: test.multiplier, Maximum: test.maximum,
+				},
+				HalfOpen: &breaker.HalfOpenPolicy{MaxProbes: 1, RequiredSuccesses: 1},
+			})
+			completeOutcome(t, b, breaker.OutcomeFailure)
+			clock.Advance(test.initial)
+			completeOutcome(t, b, breaker.OutcomeFailure)
+			if got := b.Snapshot().CurrentOpenDuration; got != test.maximum {
+				t.Fatalf("second open duration = %v, want %v", got, test.maximum)
+			}
+		})
+	}
+}
+
 func completeOutcome(t *testing.T, b *breaker.Breaker, outcome breaker.Outcome) {
 	t.Helper()
 	permit, err := b.Acquire(context.Background())

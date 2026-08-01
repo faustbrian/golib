@@ -74,9 +74,5 @@ func safeClockNow(clock Clock) (now time.Time, panicValue any) {
 }
 
 func elapsed(finished, started time.Time) time.Duration {
-	duration := finished.Sub(started)
-	if duration < 0 {
-		return 0
-	}
-	return duration
+	return max(finished.Sub(started), 0)
 }
