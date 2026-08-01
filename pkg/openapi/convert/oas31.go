@@ -362,7 +362,7 @@ func (converter *oas31SchemaConverter) downgradeXML(
 		}
 		result = append(result, member)
 	}
-	if hasNodeType && validNodeType {
+	if validNodeType {
 		if nodeType != "element" && nodeType != "attribute" {
 			converted, _ := jsonvalue.Object(result)
 			return converted

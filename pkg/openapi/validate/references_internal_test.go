@@ -11,6 +11,40 @@ import (
 	"github.com/faustbrian/golib/pkg/openapi/specversion"
 )
 
+func TestReferenceTraversalIdentityPrefersCanonicalResourceURI(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name     string
+		resource reference.Resource
+		want     string
+	}{
+		{
+			name: "canonical",
+			resource: reference.Resource{
+				CanonicalURI: "https://example.test/canonical.json",
+				RetrievalURI: "https://example.test/retrieval.json",
+			},
+			want: "https://example.test/canonical.json\x00#/value",
+		},
+		{
+			name: "retrieval fallback",
+			resource: reference.Resource{
+				RetrievalURI: "https://example.test/retrieval.json",
+			},
+			want: "https://example.test/retrieval.json\x00#/value",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := referenceTraversalIdentity(test.resource, "#/value"); got != test.want {
+				t.Fatalf("reference traversal identity = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestReferenceValidationAcceptsExactResourceRootKinds(t *testing.T) {
 	t.Parallel()
 

@@ -148,16 +148,15 @@ func (validator *linkValidator) visitDocumentPathItems(
 ) {
 	for _, collection := range []string{"paths", "webhooks"} {
 		items, ok := objectMember(root, collection)
-		if !ok {
-			continue
-		}
-		members, _ := items.Members()
-		for _, member := range members {
-			validator.visitPathItem(
-				member.Value,
-				"/"+collection+"/"+escapePointer(member.Name),
-				visit,
-			)
+		if ok {
+			members, _ := items.Members()
+			for _, member := range members {
+				validator.visitPathItem(
+					member.Value,
+					"/"+collection+"/"+escapePointer(member.Name),
+					visit,
+				)
+			}
 		}
 	}
 	components, ok := objectMember(root, "components")
@@ -183,7 +182,10 @@ func (validator *linkValidator) visitPathItem(
 	pointer string,
 	visit func(operationLocation),
 ) {
-	if pathItem.Kind() != jsonvalue.ObjectKind || isReference(pathItem) {
+	if pathItem.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(pathItem) {
 		return
 	}
 	for _, operation := range operationsAt(pathItem, pointer, validator.dialect) {
@@ -214,21 +216,22 @@ func (validator *linkValidator) declaredParametersFrom(
 	result := make(map[string]struct{})
 	for _, owner := range []jsonvalue.Value{pathItem, operation} {
 		parameters, exists := owner.Lookup("parameters")
-		if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-			continue
-		}
-		elements, _ := parameters.Elements()
-		for _, parameter := range elements {
-			resolved, _, ok := validator.resolveObjectFrom(resource, parameter)
-			if !ok {
-				continue
+		if exists {
+			if parameters.Kind() == jsonvalue.ArrayKind {
+				elements, _ := parameters.Elements()
+				for _, parameter := range elements {
+					resolved, _, ok := validator.resolveObjectFrom(resource, parameter)
+					if ok {
+						location, hasLocation := stringMember(resolved, "in")
+						if hasLocation {
+							name, hasName := stringMember(resolved, "name")
+							if hasName {
+								result[requestParameterKey(location, name)] = struct{}{}
+							}
+						}
+					}
+				}
 			}
-			location, hasLocation := stringMember(resolved, "in")
-			name, hasName := stringMember(resolved, "name")
-			if !hasLocation || !hasName {
-				continue
-			}
-			result[requestParameterKey(location, name)] = struct{}{}
 		}
 	}
 	return result
@@ -266,14 +269,24 @@ func (validator *linkValidator) visitOperationResponses(
 }
 
 func (validator *linkValidator) visitCallback(callback jsonvalue.Value, pointer string) {
-	if callback.Kind() != jsonvalue.ObjectKind || isReference(callback) {
+	if callback.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(callback) {
 		return
 	}
 	members, _ := callback.Members()
 	for _, member := range members {
 		memberPointer := pointer + "/" + escapePointer(member.Name)
 		template, err := expression.ParseTemplate(member.Name)
-		if err != nil || !singleExpression(template) {
+		if err != nil {
+			validator.add(
+				"openapi.callback.expression.invalid",
+				memberPointer,
+				"callback key is not a valid runtime expression template",
+				"callback-object",
+			)
+		} else if !singleExpression(template) {
 			validator.add(
 				"openapi.callback.expression.invalid",
 				memberPointer,
@@ -360,14 +373,13 @@ func (validator *linkValidator) validateResponseLinkExpressionsAtUse(
 			resource,
 			member.Value,
 		)
-		if !ok {
-			continue
+		if ok {
+			validator.validateLinkExpressionsAtUse(
+				resolved,
+				pointer,
+				parameters,
+			)
 		}
-		validator.validateLinkExpressionsAtUse(
-			resolved,
-			pointer,
-			parameters,
-		)
 	}
 }
 
@@ -429,20 +441,24 @@ func (validator *linkValidator) visitLinkWithParameters(
 	pointer string,
 	parameters map[string]struct{},
 ) {
-	if link.Kind() != jsonvalue.ObjectKind || isReference(link) {
+	if link.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(link) {
 		return
 	}
 	operationRef, hasOperationRef := stringMember(link, "operationRef")
 	operationID, hasOperationID := stringMember(link, "operationId")
-	switch {
-	case hasOperationRef && hasOperationID:
-		validator.add(
-			"openapi.link.operation.conflict",
-			pointer,
-			"link must not define both operationRef and operationId",
-			"link-object",
-		)
-	case !hasOperationRef && !hasOperationID:
+	if hasOperationRef {
+		if hasOperationID {
+			validator.add(
+				"openapi.link.operation.conflict",
+				pointer,
+				"link must not define both operationRef and operationId",
+				"link-object",
+			)
+		}
+	} else if !hasOperationID {
 		validator.add(
 			"openapi.link.operation.missing",
 			pointer,
@@ -511,11 +527,16 @@ func (validator *linkValidator) linkTargetParameters(
 	operationID string,
 	hasOperationID bool,
 ) (map[string]struct{}, bool) {
-	if hasOperationID && validator.operationIDs[operationID] == 1 {
-		pointer := validator.operationPointers[operationID][0]
-		return validator.parameters[pointer], true
+	if hasOperationID {
+		if validator.operationIDs[operationID] == 1 {
+			pointer := validator.operationPointers[operationID][0]
+			return validator.parameters[pointer], true
+		}
 	}
-	if !hasOperationRef || !strings.HasPrefix(operationRef, "#") {
+	if !hasOperationRef {
+		return nil, false
+	}
+	if !strings.HasPrefix(operationRef, "#") {
 		return nil, false
 	}
 	pointer, valid := internalOperationPointer(operationRef)
@@ -588,19 +609,18 @@ func (validator *linkValidator) validateLinkParameterName(
 	matched := false
 	for parameter := range targetParameters {
 		location, candidate, _ := strings.Cut(parameter, "\x00")
-		if !linkParameterNameMatches(location, candidate, name) {
-			continue
+		if linkParameterNameMatches(location, candidate, name) {
+			if matched {
+				validator.add(
+					"openapi.link.parameter.ambiguous",
+					pointer,
+					"link parameter name matches more than one target parameter",
+					"link-object",
+				)
+				return
+			}
+			matched = true
 		}
-		if matched {
-			validator.add(
-				"openapi.link.parameter.ambiguous",
-				pointer,
-				"link parameter name matches more than one target parameter",
-				"link-object",
-			)
-			return
-		}
-		matched = true
 	}
 }
 
@@ -631,7 +651,10 @@ func (validator *linkValidator) validateLinkExpression(
 	parameters map[string]struct{},
 ) {
 	raw, ok := value.Text()
-	if !ok || !strings.HasPrefix(raw, "$") {
+	if !ok {
+		return
+	}
+	if !strings.HasPrefix(raw, "$") {
 		return
 	}
 	if _, err := expression.Parse(raw); err != nil {
@@ -644,7 +667,10 @@ func (validator *linkValidator) validateLinkExpression(
 		return
 	}
 	location, name, requestParameter := requestParameterExpression(raw)
-	if !requestParameter || parameters == nil {
+	if !requestParameter {
+		return
+	}
+	if parameters == nil {
 		return
 	}
 	if _, declared := parameters[requestParameterKey(location, name)]; !declared {
@@ -711,7 +737,10 @@ func (validator *linkValidator) add(
 
 func objectMember(value jsonvalue.Value, name string) (jsonvalue.Value, bool) {
 	member, exists := value.Lookup(name)
-	return member, exists && member.Kind() == jsonvalue.ObjectKind
+	if !exists {
+		return member, false
+	}
+	return member, member.Kind() == jsonvalue.ObjectKind
 }
 
 func isReference(value jsonvalue.Value) bool {
@@ -721,5 +750,8 @@ func isReference(value jsonvalue.Value) bool {
 
 func singleExpression(template expression.Template) bool {
 	parts := template.Parts()
-	return len(parts) == 1 && parts[0].Dynamic()
+	if len(parts) != 1 {
+		return false
+	}
+	return parts[0].Dynamic()
 }

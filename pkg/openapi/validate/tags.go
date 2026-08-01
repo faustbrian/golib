@@ -15,61 +15,56 @@ type tagDefinition struct {
 }
 
 func validateTags(document openapi.Document) []Diagnostic {
-	tags, exists := document.Raw().Lookup("tags")
-	if !exists || tags.Kind() != jsonvalue.ArrayKind {
+	tags, _ := document.Raw().Lookup("tags")
+	elements, valid := tags.Elements()
+	if !valid {
 		return nil
 	}
 	version := document.SpecificationVersion().String()
-	elements, _ := tags.Elements()
 	definitions := make(map[string]tagDefinition)
 	ordered := make([]tagDefinition, 0, len(elements))
 	var diagnostics []Diagnostic
 	for index, element := range elements {
-		if element.Kind() != jsonvalue.ObjectKind {
-			continue
+		if element.Kind() == jsonvalue.ObjectKind {
+			name, ok := stringMember(element, "name")
+			if ok {
+				pointer := "/tags/" + strconv.Itoa(index)
+				if prior, duplicate := definitions[name]; duplicate {
+					diagnostics = append(diagnostics, tagDiagnostic(
+						version,
+						"openapi.tag.name.duplicate",
+						pointer+"/name",
+						"tag name is already used at "+safeValue(prior.pointer+"/name"),
+					))
+				} else {
+					parent, _ := stringMember(element, "parent")
+					definition := tagDefinition{name: name, parent: parent, pointer: pointer}
+					definitions[name] = definition
+					ordered = append(ordered, definition)
+				}
+			}
 		}
-		name, ok := stringMember(element, "name")
-		if !ok {
-			continue
-		}
-		pointer := "/tags/" + strconv.Itoa(index)
-		if prior, duplicate := definitions[name]; duplicate {
-			diagnostics = append(diagnostics, tagDiagnostic(
-				version,
-				"openapi.tag.name.duplicate",
-				pointer+"/name",
-				"tag name is already used at "+safeValue(prior.pointer+"/name"),
-			))
-			continue
-		}
-		parent, _ := stringMember(element, "parent")
-		definition := tagDefinition{name: name, parent: parent, pointer: pointer}
-		definitions[name] = definition
-		ordered = append(ordered, definition)
 	}
 	if document.SpecificationVersion().Dialect() != specversion.DialectOAS32 {
 		return diagnostics
 	}
 	for _, definition := range ordered {
-		if definition.parent == "" {
-			continue
-		}
-		if _, exists := definitions[definition.parent]; !exists {
-			diagnostics = append(diagnostics, tagDiagnostic(
-				version,
-				"openapi.tag.parent.unknown",
-				definition.pointer+"/parent",
-				"tag parent does not name a declared tag",
-			))
-			continue
-		}
-		if tagParentCycle(definition.name, definitions) {
-			diagnostics = append(diagnostics, tagDiagnostic(
-				version,
-				"openapi.tag.parent.cycle",
-				definition.pointer+"/parent",
-				"tag parent hierarchy contains a cycle",
-			))
+		if definition.parent != "" {
+			if _, exists := definitions[definition.parent]; !exists {
+				diagnostics = append(diagnostics, tagDiagnostic(
+					version,
+					"openapi.tag.parent.unknown",
+					definition.pointer+"/parent",
+					"tag parent does not name a declared tag",
+				))
+			} else if tagParentCycle(definition.name, definitions) {
+				diagnostics = append(diagnostics, tagDiagnostic(
+					version,
+					"openapi.tag.parent.cycle",
+					definition.pointer+"/parent",
+					"tag parent hierarchy contains a cycle",
+				))
+			}
 		}
 	}
 	return diagnostics

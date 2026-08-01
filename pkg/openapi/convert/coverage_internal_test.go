@@ -2,6 +2,7 @@ package convert
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -24,6 +25,8 @@ func TestOAS31PureHelpersCoverCompleteValueAlgebra(t *testing.T) {
 		{`true`, `false`, false},
 		{`1e-2`, `0.01`, true},
 		{`1`, `2`, false},
+		{`1e999999999999999999999999`, `1`, false},
+		{`1`, `1e999999999999999999999999`, false},
 		{`"one"`, `"one"`, true},
 		{`"one"`, `"two"`, false},
 		{`[1]`, `[1,2]`, false},
@@ -369,16 +372,56 @@ func TestOAS30ConversionContinuesAfterSkippedSchemaAndMediaMembers(t *testing.T)
 	t.Parallel()
 
 	converter := &oas30SchemaConverter{ctx: context.Background(), maxNodes: 100}
-	for _, raw := range []string{
-		`{"maximum":2,"exclusiveMaximum":true,"x-after":true}`,
-		`{"exclusiveMinimum":false,"x-after":true}`,
+	nullableNull, err := converter.schema(
+		conversionValue(t, `{"type":"null","nullable":true,"x-after":true}`),
+		"/schema",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := textValue(t, memberAt(t, nullableNull, "type")); got != "null" {
+		t.Fatalf("nullable null type = %q", got)
+	}
+	for _, test := range []struct {
+		raw    string
+		absent []string
+	}{
+		{
+			raw:    `{"maximum":2,"exclusiveMaximum":true,"x-after":true}`,
+			absent: []string{"maximum"},
+		},
+		{
+			raw:    `{"exclusiveMinimum":false,"x-after":true}`,
+			absent: []string{"exclusiveMinimum"},
+		},
+		{
+			raw:    `{"exclusiveMinimum":true,"x-after":true}`,
+			absent: []string{"exclusiveMinimum"},
+		},
+		{
+			raw: `{"minimum":"invalid","exclusiveMinimum":true,"x-after":true}`,
+			absent: []string{
+				"minimum", "exclusiveMinimum",
+			},
+		},
+		{
+			raw: `{"maximum":"invalid","exclusiveMaximum":true,"x-after":true}`,
+			absent: []string{
+				"maximum", "exclusiveMaximum",
+			},
+		},
 	} {
-		converted, err := converter.schema(conversionValue(t, raw), "/schema")
+		converted, err := converter.schema(conversionValue(t, test.raw), "/schema")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if after, exists := converted.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
 			t.Fatalf("schema member after skipped keyword = %#v", converted)
+		}
+		for _, name := range test.absent {
+			if _, exists := converted.Lookup(name); exists {
+				t.Fatalf("skipped schema keyword %q was retained in %#v", name, converted)
+			}
 		}
 	}
 
@@ -394,6 +437,15 @@ func TestOAS30ConversionContinuesAfterSkippedSchemaAndMediaMembers(t *testing.T)
 	}`), "/request")
 	if _, exists := collector.locations["/request/application~1json/schema"]; !exists {
 		t.Fatalf("schema locations = %#v", collector.locations)
+	}
+	collector.pathItem(conversionValue(t, `{
+		"get":true,
+		"put":{"requestBody":{"content":{"application/json":{
+			"schema":{"type":"string"}
+		}}}}
+	}`), "/path")
+	if _, exists := collector.locations["/path/put/requestBody/content/application~1json/schema"]; !exists {
+		t.Fatalf("operation after malformed method = %#v", collector.locations)
 	}
 }
 
@@ -1205,6 +1257,14 @@ func TestSwaggerUpgradePreservesMembersAfterSkippedInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	memberAt(t, converted, "paths", "/pets", "get")
+	for _, name := range []string{"host", "components"} {
+		if _, exists := converted.Lookup(name); exists {
+			t.Fatalf("discarded Swagger root member %q was retained in %#v", name, converted)
+		}
+	}
+	if _, exists := memberAt(t, converted, "paths", "/pets").Lookup("x-before"); !exists {
+		t.Fatalf("custom path member was discarded in %#v", converted)
+	}
 
 	converter := &swagger20Converter{
 		ctx: context.Background(), maxDocumentNodes: 1_000,
@@ -1300,6 +1360,9 @@ func TestSwaggerUpgradePreservesReusableAndParameterMembersAfterSkippedInputs(t 
 	if textValue(t, memberAt(t, parameter, "schema", "type")) != "array" {
 		t.Fatalf("parameter schema = %#v", parameter)
 	}
+	if _, exists := parameter.Lookup("collectionFormat"); exists {
+		t.Fatalf("Swagger collection format was retained in %#v", parameter)
+	}
 
 	oauth, err := converter.oauth2SecurityScheme(
 		conversionValue(t, `{
@@ -1315,6 +1378,11 @@ func TestSwaggerUpgradePreservesReusableAndParameterMembersAfterSkippedInputs(t 
 	}
 	if after, exists := oauth.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
 		t.Fatalf("OAuth member after Swagger fields = %#v", oauth)
+	}
+	for _, name := range []string{"flow", "authUrl", "tokenUrl", "scopes"} {
+		if _, exists := oauth.Lookup(name); exists {
+			t.Fatalf("Swagger OAuth field %q was retained in %#v", name, oauth)
+		}
 	}
 }
 
@@ -2203,6 +2271,194 @@ func TestSwaggerDowngradePreservesMembersAfterDiscardedInputs(t *testing.T) {
 	}
 }
 
+func TestSwaggerDowngradeMutationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	newConverter := func() *oas30SwaggerConverter {
+		return &oas30SwaggerConverter{
+			ctx: context.Background(), maxNodes: 10_000,
+			requestBodyNames: map[string]string{}, requestBodies: map[string]jsonvalue.Value{},
+			securitySchemes: map[string]bool{}, parameters: map[string]bool{},
+		}
+	}
+
+	for _, test := range []struct {
+		raw  string
+		want bool
+	}{
+		{"https://user@example.test/path", true},
+		{"https://example.test/path?query=1", true},
+		{"https://example.test/path#fragment", true},
+		{"https:/missing-host", true},
+		{"relative", true},
+		{"/relative", false},
+		{"https://example.test/path", false},
+	} {
+		parsed, err := url.Parse(test.raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := unsupportedSwaggerServerURL(parsed); got != test.want {
+			t.Errorf("unsupported server URL %q = %t", test.raw, got)
+		}
+	}
+	if got := expandServerURL(
+		"/{invalid}/{valid}",
+		conversionValue(t, `{
+			"invalid":{"default":true},
+			"valid":{"default":"expanded"}
+		}`),
+	); got != "/{invalid}/expanded" {
+		t.Fatalf("expanded server URL = %q", got)
+	}
+
+	nameConverter := newConverter()
+	nameConverter.indexRequestBodyNames(conversionValue(t, `{
+		"components":{"requestBodies":{
+			"Form":{"content":{"multipart/form-data":{
+				"schema":{"type":"object","properties":{}}
+			}}},
+			"Payload":{"content":{"application/json":{
+				"schema":{"type":"string"}
+			}}}
+		}}
+	}`))
+	if _, exists := nameConverter.requestBodyNames["#/components/requestBodies/Form"]; exists {
+		t.Fatal("form request body received a reusable parameter name")
+	}
+	if got := nameConverter.requestBodyNames["#/components/requestBodies/Payload"]; got != "Payload" {
+		t.Fatalf("request body after form body = %q", got)
+	}
+
+	formMediaConverter := newConverter()
+	formBody := conversionValue(t, `{"content":{
+		"multipart/form-data":{"schema":{"type":"object","properties":{}}},
+		"application/x-www-form-urlencoded":{"schema":{"type":"object","properties":{}}},
+		"application/json":{"schema":{"type":"string"}}
+	}}`)
+	selected, _ := swaggerFormMediaType(formBody)
+	_, mediaTypes, err := formMediaConverter.operationFormRequestBody(
+		formBody, selected, "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mediaTypes) != 2 ||
+		textValue(t, mediaTypes[0]) != "multipart/form-data" ||
+		textValue(t, mediaTypes[1]) != "application/x-www-form-urlencoded" ||
+		len(formMediaConverter.diagnostics) != 1 {
+		t.Fatalf("compatible form media types = %#v, %#v", mediaTypes, formMediaConverter.diagnostics)
+	}
+
+	for _, test := range []struct {
+		name       string
+		schema     string
+		wantType   string
+		wantFormat string
+	}{
+		{
+			name:     "binary file",
+			schema:   `{"type":"string","format":"binary","description":"file"}`,
+			wantType: "file",
+		},
+		{
+			name:     "formatted string",
+			schema:   `{"type":"string","format":"uuid"}`,
+			wantType: "string", wantFormat: "uuid",
+		},
+		{
+			name:     "formatted integer",
+			schema:   `{"type":"integer","format":"binary"}`,
+			wantType: "integer", wantFormat: "binary",
+		},
+	} {
+		converted, conversionErr := newConverter().formParameter(
+			test.name, conversionValue(t, test.schema), conversionValue(t, `{}`),
+			"/property", false,
+		)
+		if conversionErr != nil {
+			t.Fatal(conversionErr)
+		}
+		if got := textValue(t, memberAt(t, converted, "type")); got != test.wantType {
+			t.Errorf("%s type = %q", test.name, got)
+		}
+		format, exists := converted.Lookup("format")
+		if test.wantFormat == "" {
+			if exists {
+				t.Errorf("%s retained format %#v", test.name, format)
+			}
+		} else if got := textValue(t, format); !exists || got != test.wantFormat {
+			t.Errorf("%s format = %q, %t", test.name, got, exists)
+		}
+		if test.name == "binary file" &&
+			textValue(t, memberAt(t, converted, "description")) != "file" {
+			t.Errorf("binary file discarded member after format: %#v", converted)
+		}
+	}
+	filtered, err := newConverter().formParameter(
+		"value",
+		conversionValue(t, `{"type":"string","title":"discarded","x-after":true}`),
+		conversionValue(t, `{}`), "/property", false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := filtered.Lookup("title"); exists {
+		t.Fatalf("unsupported form property field was retained in %#v", filtered)
+	}
+	if _, exists := filtered.Lookup("x-after"); !exists {
+		t.Fatalf("form property field after discarded field = %#v", filtered)
+	}
+
+	requestConverter := newConverter()
+	request, requestMediaTypes, err := requestConverter.requestBody(
+		conversionValue(t, `{"content":{
+			"application/json":{"schema":{"type":"string"}},
+			"text/plain":{"schema":{"type":"string"}},
+			"application/xml":{"schema":{"type":"integer"}}
+		}}`), "/body",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(requestMediaTypes) != 3 ||
+		textValue(t, memberAt(t, request, "schema", "type")) != "string" ||
+		len(requestConverter.diagnostics) != 1 {
+		t.Fatalf("request media traversal = %#v, %#v, %#v", request, requestMediaTypes, requestConverter.diagnostics)
+	}
+
+	responseConverter := newConverter()
+	response, responseMediaTypes, err := responseConverter.response(
+		conversionValue(t, `{
+			"x-meta":{"fake":{"schema":{"type":"integer"}}},
+			"content":{"application/json":{"schema":{"type":"string"}}}
+		}`), "/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(responseMediaTypes) != 1 ||
+		textValue(t, responseMediaTypes[0]) != "application/json" ||
+		textValue(t, memberAt(t, response, "schema", "type")) != "string" {
+		t.Fatalf("response extension traversal = %#v, %#v", response, responseMediaTypes)
+	}
+	memberAt(t, response, "x-meta")
+	response, _, err = newConverter().response(
+		conversionValue(t, `{"content":true,"x-after":true}`), "/response",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := response.Lookup("x-after"); !exists {
+		t.Fatalf("response member after malformed content = %#v", response)
+	}
+
+	if sameJSONValue(jsonvalue.Value{}, conversionValue(t, `null`)) ||
+		sameJSONValue(conversionValue(t, `null`), jsonvalue.Value{}) {
+		t.Fatal("invalid JSON values compared equal to valid values")
+	}
+}
+
 func TestSwaggerDowngradePipelinePropagatesIntermediateFailures(t *testing.T) {
 	t.Parallel()
 
@@ -2317,6 +2573,107 @@ func TestTopLevelConversionPropagatesEveryStageFailure(t *testing.T) {
 		version30, DefaultOptions(),
 	); err == nil || !strings.Contains(err.Error(), ErrUnsupportedConversion.Error()) {
 		t.Fatalf("unsupported conversion error = %v", err)
+	}
+}
+
+func TestConversionDefensiveGuardsRejectMalformedShapes(t *testing.T) {
+	t.Parallel()
+
+	if enabledBoolean(conversionValue(t, `{"enabled":1}`), "enabled") {
+		t.Fatal("numeric boolean member was enabled")
+	}
+	if _, flag, present := downgradeExclusiveBound(
+		conversionValue(t, `{"minimum":true,"exclusiveMinimum":1}`),
+		"minimum", "exclusiveMinimum", true,
+	); !flag || !present {
+		t.Fatalf("malformed bound result = %t, %t", flag, present)
+	}
+	if isSecurityType(conversionValue(t, `{"type":true}`), "oauth2") {
+		t.Fatal("non-string security type matched")
+	}
+	if isSecurityType(conversionValue(t, `{}`), "oauth2") {
+		t.Fatal("missing security type matched")
+	}
+
+	collector := oas30SchemaCollector{}
+	collector.parameters(conversionValue(t, `{"parameters":true}`), "/parameters")
+	collector.requestBody(jsonvalue.Boolean(true), "/requestBody")
+	collector.requestBody(
+		conversionValue(t, `{"$ref":"#/components/requestBodies/Value"}`),
+		"/requestBody",
+	)
+
+	mediaConverter := &oas32DocumentConverter{mediaTypes: map[string]jsonvalue.Value{}}
+	mediaConverter.indexMediaTypes(conversionValue(t, `{"components":{"mediaTypes":true}}`))
+	if len(mediaConverter.mediaTypes) != 0 {
+		t.Fatalf("malformed media types were indexed: %#v", mediaConverter.mediaTypes)
+	}
+
+	upgrade := &swagger20Converter{}
+	upgrade.indexBodyParameters(conversionValue(t, `{"parameters":true}`))
+	for _, raw := range []string{
+		`{"host":"example.test","schemes":true}`,
+		`{"host":"example.test","schemes":[]}`,
+	} {
+		servers, exists := upgrade.servers(conversionValue(t, raw))
+		if !exists || servers.Kind() != jsonvalue.ArrayKind {
+			t.Fatalf("fallback servers for %s = %#v, %t", raw, servers, exists)
+		}
+	}
+}
+
+func TestSwaggerDowngradeDefensiveGuardsPreserveLosses(t *testing.T) {
+	t.Parallel()
+
+	newConverter := func() *oas30SwaggerConverter {
+		return &oas30SwaggerConverter{
+			ctx: context.Background(), maxNodes: 100,
+			requestBodyNames: map[string]string{}, requestBodies: map[string]jsonvalue.Value{},
+			securitySchemes: map[string]bool{}, parameters: map[string]bool{},
+		}
+	}
+	converter := newConverter()
+	if members, err := converter.server(
+		conversionValue(t, `[{"url":true}]`), "/servers",
+	); err != nil || members != nil {
+		t.Fatalf("malformed server = %#v, %v", members, err)
+	}
+	for _, raw := range []string{`{}`, `{"content":{}}`} {
+		if _, ok := swaggerFormMediaType(conversionValue(t, raw)); ok {
+			t.Fatalf("malformed form content %s selected a media type", raw)
+		}
+	}
+	media := jsonvalue.Member{
+		Name: "multipart/form-data", Value: conversionValue(t, `{}`),
+	}
+	if parameters, mediaTypes, err := converter.formRequestBody(
+		conversionValue(t, `{}`), media, "/body",
+	); err != nil || len(parameters) != 0 || len(mediaTypes) != 1 {
+		t.Fatalf("missing form schema = %#v, %#v, %v", parameters, mediaTypes, err)
+	}
+	if body, mediaTypes, err := converter.requestBody(
+		conversionValue(t, `{"content":true}`), "/body",
+	); err != nil || body.Kind() != jsonvalue.ObjectKind || len(mediaTypes) != 0 {
+		t.Fatalf("malformed request content = %#v, %#v, %v", body, mediaTypes, err)
+	}
+	if _, ok, err := converter.oauth2SecurityScheme(
+		conversionValue(t, `{"flows":{}}`), "/security",
+	); err != nil || ok {
+		t.Fatalf("empty OAuth flows = %t, %v", ok, err)
+	}
+	for _, test := range []struct {
+		style    string
+		location string
+	}{
+		{style: "spaceDelimited", location: "query"},
+		{style: "pipeDelimited", location: "query"},
+		{style: "simple", location: "path"},
+	} {
+		if format, ok := swaggerCollectionFormat(
+			test.location, test.style, true, true, true,
+		); ok || format != "" {
+			t.Errorf("exploded %s format = %q, %t", test.style, format, ok)
+		}
 	}
 }
 

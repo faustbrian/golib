@@ -63,13 +63,12 @@ func validateSwaggerParameters(
 			options.ReferenceResolver,
 			options.ReferenceLimits,
 		)
-		if !ok {
-			continue
+		if ok {
+			diagnostics = append(
+				diagnostics,
+				validateSwaggerParameter(resolved, parameter.pointer, version)...,
+			)
 		}
-		diagnostics = append(
-			diagnostics,
-			validateSwaggerParameter(resolved, parameter.pointer, version)...,
-		)
 	}
 	diagnostics = append(
 		diagnostics,
@@ -84,43 +83,38 @@ func validateSwaggerParameters(
 
 func swaggerParameterObjects(root jsonvalue.Value) []locatedParameter {
 	var result []locatedParameter
-	definitions, exists := root.Lookup("parameters")
-	if exists && definitions.Kind() == jsonvalue.ObjectKind {
-		members, _ := definitions.Members()
-		for _, member := range members {
-			result = appendSwaggerParameter(
-				result,
-				member.Value,
-				"/parameters/"+escapePointer(member.Name),
-			)
-		}
-	}
-	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
-		return result
-	}
-	members, _ := paths.Members()
-	for _, member := range members {
-		if !strings.HasPrefix(member.Name, "/") ||
-			member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(member.Name)
-		result = appendSwaggerParameterArray(
+	definitions, _ := root.Lookup("parameters")
+	definitionMembers, _ := definitions.Members()
+	for _, member := range definitionMembers {
+		result = appendSwaggerParameter(
 			result,
 			member.Value,
-			pathPointer+"/parameters",
+			"/parameters/"+escapePointer(member.Name),
 		)
-		for _, operation := range operationsAt(
-			member.Value,
-			pathPointer,
-			specversion.DialectSwagger20,
-		) {
-			result = appendSwaggerParameterArray(
-				result,
-				operation.value,
-				operation.pointer+"/parameters",
-			)
+	}
+	paths, _ := root.Lookup("paths")
+	members, _ := paths.Members()
+	for _, member := range members {
+		if strings.HasPrefix(member.Name, "/") {
+			if member.Value.Kind() == jsonvalue.ObjectKind {
+				pathPointer := "/paths/" + escapePointer(member.Name)
+				result = appendSwaggerParameterArray(
+					result,
+					member.Value,
+					pathPointer+"/parameters",
+				)
+				for _, operation := range operationsAt(
+					member.Value,
+					pathPointer,
+					specversion.DialectSwagger20,
+				) {
+					result = appendSwaggerParameterArray(
+						result,
+						operation.value,
+						operation.pointer+"/parameters",
+					)
+				}
+			}
 		}
 	}
 	return result
@@ -131,10 +125,7 @@ func appendSwaggerParameterArray(
 	container jsonvalue.Value,
 	pointer string,
 ) []locatedParameter {
-	parameters, exists := container.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-		return result
-	}
+	parameters, _ := container.Lookup("parameters")
 	elements, _ := parameters.Elements()
 	for index, element := range elements {
 		result = appendSwaggerParameter(
@@ -253,100 +244,96 @@ func validateSwaggerFileParameterConsumes(
 ) []Diagnostic {
 	root := document.Raw()
 	resource := validationResource(document, options.ReferenceResourceURI)
-	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
-		return nil
-	}
+	paths, _ := root.Lookup("paths")
 	rootConsumes, _ := swaggerConsumes(root)
 	version := document.SpecificationVersion().String()
 	var diagnostics []Diagnostic
 	pathMembers, _ := paths.Members()
 	for _, path := range pathMembers {
-		if !strings.HasPrefix(path.Name, "/") ||
-			path.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(path.Name)
-		pathItem, pathItemResource, resolved :=
-			resolveReferencedObjectResourceWithPolicy(
-				ctx,
-				resource,
-				path.Value,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-		if !resolved {
-			continue
-		}
-		inherited := resolvedSwaggerParameters(
-			ctx,
-			pathItemResource,
-			pathItem,
-			pathPointer+"/parameters",
-			options.ReferenceResolver,
-			options.ReferenceLimits,
-		)
-		for _, operation := range operationsAt(
-			pathItem, pathPointer, specversion.DialectSwagger20,
-		) {
-			consumes, overridden := swaggerConsumes(operation.value)
-			if !overridden {
-				consumes = rootConsumes
-			}
-			effective := append([]locatedParameter(nil), inherited...)
-			overrides := resolvedSwaggerParameters(
-				ctx,
-				pathItemResource,
-				operation.value,
-				operation.pointer+"/parameters",
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-			effective = mergeSwaggerParameters(effective, overrides)
-			bodyCount := 0
-			hasFormData := false
-			for _, parameter := range effective {
-				location, _ := stringMember(parameter.value, "in")
-				if location == "body" {
-					bodyCount++
+		if strings.HasPrefix(path.Name, "/") {
+			if path.Value.Kind() == jsonvalue.ObjectKind {
+				pathPointer := "/paths/" + escapePointer(path.Name)
+				pathItem, pathItemResource, resolved :=
+					resolveReferencedObjectResourceWithPolicy(
+						ctx,
+						resource,
+						path.Value,
+						options.ReferenceResolver,
+						options.ReferenceLimits,
+					)
+				if resolved {
+					inherited := resolvedSwaggerParameters(
+						ctx,
+						pathItemResource,
+						pathItem,
+						pathPointer+"/parameters",
+						options.ReferenceResolver,
+						options.ReferenceLimits,
+					)
+					for _, operation := range operationsAt(
+						pathItem, pathPointer, specversion.DialectSwagger20,
+					) {
+						consumes, overridden := swaggerConsumes(operation.value)
+						if !overridden {
+							consumes = rootConsumes
+						}
+						effective := append([]locatedParameter(nil), inherited...)
+						overrides := resolvedSwaggerParameters(
+							ctx,
+							pathItemResource,
+							operation.value,
+							operation.pointer+"/parameters",
+							options.ReferenceResolver,
+							options.ReferenceLimits,
+						)
+						effective = mergeSwaggerParameters(effective, overrides)
+						bodyCount := 0
+						hasFormData := false
+						for _, parameter := range effective {
+							location, _ := stringMember(parameter.value, "in")
+							if location == "body" {
+								bodyCount++
+							}
+							hasFormData = hasFormData || location == "formData"
+						}
+						if effectiveSwaggerBodyConflict(
+							bodyCount,
+							countSwaggerParametersAt(inherited, "body"),
+							countSwaggerParametersAt(overrides, "body"),
+						) {
+							diagnostics = append(diagnostics, swaggerParameterDiagnostic(
+								version,
+								"swagger.parameter.body.multiple",
+								operation.pointer+"/parameters",
+								"effective operation parameters must not contain more than one body parameter",
+							))
+						}
+						if bodyCount > 0 && hasFormData {
+							diagnostics = append(diagnostics, swaggerParameterDiagnostic(
+								version,
+								"swagger.parameter.body-and-form-data",
+								operation.pointer+"/parameters",
+								"body and formData parameters must not share an operation",
+							))
+						}
+						if !validSwaggerFileConsumes(consumes) {
+							for _, parameter := range effective {
+								parameterType, _ := stringMember(parameter.value, "type")
+								location, _ := stringMember(parameter.value, "in")
+								if parameterType == "file" {
+									if location == "formData" {
+										diagnostics = append(diagnostics, swaggerParameterDiagnostic(
+											version,
+											"swagger.parameter.file.consumes",
+											parameter.pointer,
+											"file parameters require only multipart/form-data or application/x-www-form-urlencoded consumes values",
+										))
+									}
+								}
+							}
+						}
+					}
 				}
-				hasFormData = hasFormData || location == "formData"
-			}
-			if effectiveSwaggerBodyConflict(
-				bodyCount,
-				countSwaggerParametersAt(inherited, "body"),
-				countSwaggerParametersAt(overrides, "body"),
-			) {
-				diagnostics = append(diagnostics, swaggerParameterDiagnostic(
-					version,
-					"swagger.parameter.body.multiple",
-					operation.pointer+"/parameters",
-					"effective operation parameters must not contain more than one body parameter",
-				))
-			}
-			if bodyCount > 0 && hasFormData {
-				diagnostics = append(diagnostics, swaggerParameterDiagnostic(
-					version,
-					"swagger.parameter.body-and-form-data",
-					operation.pointer+"/parameters",
-					"body and formData parameters must not share an operation",
-				))
-			}
-			if validSwaggerFileConsumes(consumes) {
-				continue
-			}
-			for _, parameter := range effective {
-				parameterType, _ := stringMember(parameter.value, "type")
-				location, _ := stringMember(parameter.value, "in")
-				if parameterType != "file" || location != "formData" {
-					continue
-				}
-				diagnostics = append(diagnostics, swaggerParameterDiagnostic(
-					version,
-					"swagger.parameter.file.consumes",
-					parameter.pointer,
-					"file parameters require only multipart/form-data or application/x-www-form-urlencoded consumes values",
-				))
 			}
 		}
 	}
@@ -374,23 +361,19 @@ func resolvedSwaggerParameters(
 	resolver reference.Resolver,
 	limits reference.Limits,
 ) []locatedParameter {
-	parameters, exists := container.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-		return nil
-	}
+	parameters, _ := container.Lookup("parameters")
 	elements, _ := parameters.Elements()
 	result := make([]locatedParameter, 0, len(elements))
 	for index, parameter := range elements {
 		resolved, ok := resolveReferencedObjectWithPolicy(
 			ctx, resource, parameter, resolver, limits,
 		)
-		if !ok {
-			continue
+		if ok {
+			result = append(result, locatedParameter{
+				value:   resolved,
+				pointer: pointer + "/" + strconv.Itoa(index),
+			})
 		}
-		result = append(result, locatedParameter{
-			value:   resolved,
-			pointer: pointer + "/" + strconv.Itoa(index),
-		})
 	}
 	return result
 }
@@ -424,10 +407,10 @@ func mergeSwaggerParameters(
 		identity := swaggerParameterIdentity(parameter.value)
 		if index, exists := positions[identity]; exists {
 			inherited[index] = parameter
-			continue
+		} else {
+			positions[identity] = len(inherited)
+			inherited = append(inherited, parameter)
 		}
-		positions[identity] = len(inherited)
-		inherited = append(inherited, parameter)
 	}
 	return inherited
 }
@@ -485,56 +468,52 @@ func validateParameterIdentityUniqueness(
 	version := document.SpecificationVersion().String()
 	dialect := document.SpecificationVersion().Dialect()
 	resource := validationResource(document, options.ReferenceResourceURI)
-	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
-		return nil
-	}
+	paths, _ := root.Lookup("paths")
 	var diagnostics []Diagnostic
 	members, _ := paths.Members()
 	for _, member := range members {
-		if !strings.HasPrefix(member.Name, "/") ||
-			member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(member.Name)
-		pathItem, pathItemResource, resolved :=
-			resolveReferencedObjectResourceWithPolicy(
-				ctx,
-				resource,
-				member.Value,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-		if !resolved {
-			continue
-		}
-		diagnostics = append(
-			diagnostics,
-			parameterIdentityDiagnostics(
-				ctx,
-				pathItemResource,
-				pathItem,
-				pathPointer+"/parameters",
-				version,
-				dialect,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)...,
-		)
-		for _, operation := range operationsAt(pathItem, pathPointer, dialect) {
-			diagnostics = append(
-				diagnostics,
-				parameterIdentityDiagnostics(
-					ctx,
-					pathItemResource,
-					operation.value,
-					operation.pointer+"/parameters",
-					version,
-					dialect,
-					options.ReferenceResolver,
-					options.ReferenceLimits,
-				)...,
-			)
+		if strings.HasPrefix(member.Name, "/") {
+			if member.Value.Kind() == jsonvalue.ObjectKind {
+				pathPointer := "/paths/" + escapePointer(member.Name)
+				pathItem, pathItemResource, resolved :=
+					resolveReferencedObjectResourceWithPolicy(
+						ctx,
+						resource,
+						member.Value,
+						options.ReferenceResolver,
+						options.ReferenceLimits,
+					)
+				if resolved {
+					diagnostics = append(
+						diagnostics,
+						parameterIdentityDiagnostics(
+							ctx,
+							pathItemResource,
+							pathItem,
+							pathPointer+"/parameters",
+							version,
+							dialect,
+							options.ReferenceResolver,
+							options.ReferenceLimits,
+						)...,
+					)
+					for _, operation := range operationsAt(pathItem, pathPointer, dialect) {
+						diagnostics = append(
+							diagnostics,
+							parameterIdentityDiagnostics(
+								ctx,
+								pathItemResource,
+								operation.value,
+								operation.pointer+"/parameters",
+								version,
+								dialect,
+								options.ReferenceResolver,
+								options.ReferenceLimits,
+							)...,
+						)
+					}
+				}
+			}
 		}
 	}
 	return diagnostics
@@ -550,62 +529,53 @@ func parameterIdentityDiagnostics(
 	resolver reference.Resolver,
 	limits reference.Limits,
 ) []Diagnostic {
-	parameters, exists := container.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-		return nil
-	}
+	parameters, _ := container.Lookup("parameters")
 	seen := make(map[string]struct{})
 	bodySeen := false
 	var diagnostics []Diagnostic
 	elements, _ := parameters.Elements()
 	for index, parameter := range elements {
-		if parameter.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
 		resolved, ok := resolveReferencedObjectWithPolicy(
 			ctx, resource, parameter, resolver, limits,
 		)
-		if !ok {
-			continue
-		}
-		location, hasLocation := stringMember(resolved, "in")
-		name, hasName := stringMember(resolved, "name")
-		if !hasLocation || !hasName {
-			continue
-		}
-		if location == "header" && ignoredHeaderParameter(name) {
-			continue
-		}
-		if dialect == specversion.DialectSwagger20 && location == "body" {
-			if bodySeen {
-				diagnostics = append(diagnostics, swaggerParameterDiagnostic(
-					version,
-					"swagger.parameter.body.multiple",
-					pointer+"/"+strconv.Itoa(index),
-					"parameter list must not contain more than one body parameter",
-				))
+		if ok {
+			location, hasLocation := stringMember(resolved, "in")
+			if hasLocation {
+				name, hasName := stringMember(resolved, "name")
+				if hasName && !ignoredHeaderParameterObject(resolved) {
+					if dialect == specversion.DialectSwagger20 {
+						if location == "body" {
+							if bodySeen {
+								diagnostics = append(diagnostics, swaggerParameterDiagnostic(
+									version,
+									"swagger.parameter.body.multiple",
+									pointer+"/"+strconv.Itoa(index),
+									"parameter list must not contain more than one body parameter",
+								))
+							}
+							bodySeen = true
+						}
+					}
+					if location != "path" {
+						switch location {
+						case "header":
+							name = strings.ToLower(name)
+						}
+						identity := location + "\x00" + name
+						if _, duplicate := seen[identity]; duplicate {
+							diagnostics = append(diagnostics, parameterDiagnostic(
+								version,
+								"openapi.parameter.duplicate",
+								pointer+"/"+strconv.Itoa(index),
+								"parameter list contains a duplicate name and location",
+							))
+						} else {
+							seen[identity] = struct{}{}
+						}
+					}
+				}
 			}
-			bodySeen = true
 		}
-		if location == "path" {
-			// validatePaths reports path-specific duplicate diagnostics.
-			continue
-		}
-		switch location {
-		case "header":
-			name = strings.ToLower(name)
-		}
-		identity := location + "\x00" + name
-		if _, duplicate := seen[identity]; duplicate {
-			diagnostics = append(diagnostics, parameterDiagnostic(
-				version,
-				"openapi.parameter.duplicate",
-				pointer+"/"+strconv.Itoa(index),
-				"parameter list contains a duplicate name and location",
-			))
-			continue
-		}
-		seen[identity] = struct{}{}
 	}
 	return diagnostics
 }
@@ -617,39 +587,36 @@ func validateQueryStringScopes(
 	version string,
 	dialect specversion.Dialect,
 ) []Diagnostic {
-	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
-		return nil
-	}
+	paths, _ := root.Lookup("paths")
 	var diagnostics []Diagnostic
 	members, _ := paths.Members()
 	for _, member := range members {
-		if !strings.HasPrefix(member.Name, "/") ||
-			member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(member.Name)
-		pathScope := parameterLocations(member.Value)
-		diagnostics = append(
-			diagnostics,
-			queryStringScopeDiagnostics(version, pathPointer+"/parameters", pathScope)...,
-		)
-		for _, operation := range operationsAt(member.Value, pathPointer, dialect) {
-			effective := make(parameterScope, len(pathScope))
-			for identity, location := range pathScope {
-				effective[identity] = location
+		if strings.HasPrefix(member.Name, "/") {
+			if member.Value.Kind() == jsonvalue.ObjectKind {
+				pathPointer := "/paths/" + escapePointer(member.Name)
+				pathScope := parameterLocations(member.Value)
+				diagnostics = append(
+					diagnostics,
+					queryStringScopeDiagnostics(version, pathPointer+"/parameters", pathScope)...,
+				)
+				for _, operation := range operationsAt(member.Value, pathPointer, dialect) {
+					effective := make(parameterScope, len(pathScope))
+					for identity, location := range pathScope {
+						effective[identity] = location
+					}
+					for identity, location := range parameterLocations(operation.value) {
+						effective[identity] = location
+					}
+					diagnostics = append(
+						diagnostics,
+						queryStringScopeDiagnostics(
+							version,
+							operation.pointer+"/parameters",
+							effective,
+						)...,
+					)
+				}
 			}
-			for identity, location := range parameterLocations(operation.value) {
-				effective[identity] = location
-			}
-			diagnostics = append(
-				diagnostics,
-				queryStringScopeDiagnostics(
-					version,
-					operation.pointer+"/parameters",
-					effective,
-				)...,
-			)
 		}
 	}
 	return diagnostics
@@ -657,30 +624,23 @@ func validateQueryStringScopes(
 
 func parameterLocations(container jsonvalue.Value) parameterScope {
 	result := make(parameterScope)
-	parameters, exists := container.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-		return result
-	}
+	parameters, _ := container.Lookup("parameters")
 	elements, _ := parameters.Elements()
 	for _, parameter := range elements {
-		if parameter.Kind() != jsonvalue.ObjectKind {
-			continue
+		if parameter.Kind() == jsonvalue.ObjectKind {
+			if _, reference := parameter.Lookup("$ref"); !reference {
+				location, hasLocation := stringMember(parameter, "in")
+				if hasLocation {
+					name, hasName := stringMember(parameter, "name")
+					if hasName {
+						if location == "header" {
+							name = strings.ToLower(name)
+						}
+						result[location+"\x00"+name] = location
+					}
+				}
+			}
 		}
-		if _, reference := parameter.Lookup("$ref"); reference {
-			continue
-		}
-		location, exists := stringMember(parameter, "in")
-		if !exists {
-			continue
-		}
-		name, exists := stringMember(parameter, "name")
-		if !exists {
-			continue
-		}
-		if location == "header" {
-			name = strings.ToLower(name)
-		}
-		result[location+"\x00"+name] = location
 	}
 	return result
 }
@@ -724,10 +684,9 @@ func parameterObjects(document openapi.Document) []locatedParameter {
 	all := allParameterObjects(document)
 	result := make([]locatedParameter, 0, len(all))
 	for _, parameter := range all {
-		if ignoredHeaderParameterObject(parameter.value) {
-			continue
+		if !ignoredHeaderParameterObject(parameter.value) {
+			result = append(result, parameter)
 		}
-		result = append(result, parameter)
 	}
 	return result
 }
@@ -735,19 +694,15 @@ func parameterObjects(document openapi.Document) []locatedParameter {
 func allParameterObjects(document openapi.Document) []locatedParameter {
 	root := document.Raw()
 	var result []locatedParameter
-	components, exists := root.Lookup("components")
-	if exists && components.Kind() == jsonvalue.ObjectKind {
-		parameters, exists := components.Lookup("parameters")
-		if exists && parameters.Kind() == jsonvalue.ObjectKind {
-			members, _ := parameters.Members()
-			for _, member := range members {
-				result = appendParameter(
-					result,
-					member.Value,
-					"/components/parameters/"+escapePointer(member.Name),
-				)
-			}
-		}
+	components, _ := root.Lookup("components")
+	parameters, _ := components.Lookup("parameters")
+	members, _ := parameters.Members()
+	for _, member := range members {
+		result = appendParameter(
+			result,
+			member.Value,
+			"/components/parameters/"+escapePointer(member.Name),
+		)
 	}
 	for _, pathItem := range documentPathItems(document) {
 		result = appendParameterArray(
@@ -771,10 +726,7 @@ func appendParameterArray(
 	container jsonvalue.Value,
 	pointer string,
 ) []locatedParameter {
-	parameters, exists := container.Lookup("parameters")
-	if !exists || parameters.Kind() != jsonvalue.ArrayKind {
-		return result
-	}
+	parameters, _ := container.Lookup("parameters")
 	elements, _ := parameters.Elements()
 	for index, element := range elements {
 		result = appendParameter(
@@ -891,15 +843,18 @@ func validateParameter(
 			"parameter must define schema or content",
 		))
 	}
-	if hasContent && content.Kind() == jsonvalue.ObjectKind {
-		members, _ := content.Members()
-		if len(members) != 1 {
-			diagnostics = append(diagnostics, parameterDiagnostic(
-				version,
-				"openapi.parameter.content.multiple",
-				pointer+"/content",
-				"parameter content must contain exactly one media type",
-			))
+	if hasContent {
+		switch content.Kind() {
+		case jsonvalue.ObjectKind:
+			members, _ := content.Members()
+			if len(members) != 1 {
+				diagnostics = append(diagnostics, parameterDiagnostic(
+					version,
+					"openapi.parameter.content.multiple",
+					pointer+"/content",
+					"parameter content must contain exactly one media type",
+				))
+			}
 		}
 	}
 	if _, hasAllowReserved := parameter.Lookup("allowReserved"); hasAllowReserved &&
@@ -965,9 +920,17 @@ func ignoredHeaderParameter(name string) bool {
 
 func ignoredHeaderParameterObject(parameter jsonvalue.Value) bool {
 	location, hasLocation := stringMember(parameter, "in")
+	if !hasLocation {
+		return false
+	}
 	name, hasName := stringMember(parameter, "name")
-	return hasLocation && hasName && location == "header" &&
-		ignoredHeaderParameter(name)
+	if !hasName {
+		return false
+	}
+	if location != "header" {
+		return false
+	}
+	return ignoredHeaderParameter(name)
 }
 
 func validStyle(location string, style string, dialect specversion.Dialect) bool {

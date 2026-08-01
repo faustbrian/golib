@@ -48,23 +48,21 @@ func validateComponentNames(document openapi.Document) []Diagnostic {
 			}
 		}
 		registry, ok := objectMember(components, registryName)
-		if !ok {
-			continue
-		}
-		members, _ := registry.Members()
-		for _, member := range members {
-			if validComponentName(member.Name) {
-				continue
+		if ok {
+			members, _ := registry.Members()
+			for _, member := range members {
+				if !validComponentName(member.Name) {
+					diagnostics = append(diagnostics, Diagnostic{
+						Code:                 "openapi.component.name.invalid",
+						Message:              "component name may contain only ASCII letters, digits, period, hyphen, or underscore",
+						Severity:             SeverityError,
+						Source:               SourceDocument,
+						InstanceLocation:     "/components/" + registryName + "/" + escapePointer(member.Name),
+						SpecificationVersion: version,
+						SpecificationSection: "components-object",
+					})
+				}
 			}
-			diagnostics = append(diagnostics, Diagnostic{
-				Code:                 "openapi.component.name.invalid",
-				Message:              "component name may contain only ASCII letters, digits, period, hyphen, or underscore",
-				Severity:             SeverityError,
-				Source:               SourceDocument,
-				InstanceLocation:     "/components/" + registryName + "/" + escapePointer(member.Name),
-				SpecificationVersion: version,
-				SpecificationSection: "components-object",
-			})
 		}
 	}
 	return diagnostics

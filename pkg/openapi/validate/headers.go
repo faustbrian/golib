@@ -30,22 +30,22 @@ func validateHeaders(document openapi.Document) []Diagnostic {
 			validateHeaderTraits(header, version)...,
 		)
 		content, exists := header.value.Lookup("content")
-		if !exists || content.Kind() != jsonvalue.ObjectKind {
-			continue
+		if exists {
+			if content.Kind() == jsonvalue.ObjectKind {
+				members, _ := content.Members()
+				if len(members) != 1 {
+					diagnostics = append(diagnostics, Diagnostic{
+						Code:                 "openapi.header.content.multiple",
+						Message:              "header content must contain exactly one media type",
+						Severity:             SeverityError,
+						Source:               SourceDocument,
+						InstanceLocation:     header.pointer + "/content",
+						SpecificationVersion: version,
+						SpecificationSection: "header-object",
+					})
+				}
+			}
 		}
-		members, _ := content.Members()
-		if len(members) == 1 {
-			continue
-		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Code:                 "openapi.header.content.multiple",
-			Message:              "header content must contain exactly one media type",
-			Severity:             SeverityError,
-			Source:               SourceDocument,
-			InstanceLocation:     header.pointer + "/content",
-			SpecificationVersion: version,
-			SpecificationSection: "header-object",
-		})
 	}
 	return diagnostics
 }
@@ -54,13 +54,15 @@ func validateHeaderTraits(header locatedParameter, version string) []Diagnostic 
 	var diagnostics []Diagnostic
 	_, hasExample := header.value.Lookup("example")
 	_, hasExamples := header.value.Lookup("examples")
-	if hasExample && hasExamples {
-		diagnostics = append(diagnostics, headerDiagnostic(
-			version,
-			"openapi.header.examples.conflict",
-			header.pointer,
-			"header must not define both example and examples",
-		))
+	if hasExample {
+		if hasExamples {
+			diagnostics = append(diagnostics, headerDiagnostic(
+				version,
+				"openapi.header.examples.conflict",
+				header.pointer,
+				"header must not define both example and examples",
+			))
+		}
 	}
 	for _, field := range []struct {
 		name    string
@@ -72,23 +74,24 @@ func validateHeaderTraits(header locatedParameter, version string) []Diagnostic 
 		{"allowEmptyValue", "openapi.header.allow-empty.invalid", "allowEmptyValue does not apply to headers"},
 		{"allowReserved", "openapi.header.allow-reserved.invalid", "allowReserved does not apply to headers"},
 	} {
-		if _, exists := header.value.Lookup(field.name); !exists {
-			continue
+		if _, exists := header.value.Lookup(field.name); exists {
+			diagnostics = append(diagnostics, headerDiagnostic(
+				version,
+				field.code,
+				header.pointer+"/"+field.name,
+				field.message,
+			))
 		}
-		diagnostics = append(diagnostics, headerDiagnostic(
-			version,
-			field.code,
-			header.pointer+"/"+field.name,
-			field.message,
-		))
 	}
-	if style, exists := stringMember(header.value, "style"); exists && style != "simple" {
-		diagnostics = append(diagnostics, headerDiagnostic(
-			version,
-			"openapi.header.style.invalid",
-			header.pointer+"/style",
-			"header style must be simple",
-		))
+	if style, exists := stringMember(header.value, "style"); exists {
+		if style != "simple" {
+			diagnostics = append(diagnostics, headerDiagnostic(
+				version,
+				"openapi.header.style.invalid",
+				header.pointer+"/style",
+				"header style must be simple",
+			))
+		}
 	}
 	return diagnostics
 }
@@ -143,26 +146,26 @@ func headerObjects(document openapi.Document) []locatedParameter {
 	contentContainers = append(contentContainers, requestBodyObjects(document)...)
 	for _, operation := range documentOperations(document) {
 		responses, exists := objectMember(operation.value, "responses")
-		if !exists {
-			continue
-		}
-		members, _ := responses.Members()
-		for _, member := range members {
-			if member.Value.Kind() != jsonvalue.ObjectKind || isReference(member.Value) {
-				continue
+		if exists {
+			members, _ := responses.Members()
+			for _, member := range members {
+				if member.Value.Kind() == jsonvalue.ObjectKind {
+					if !isReference(member.Value) {
+						response := locatedParameter{
+							value:   member.Value,
+							pointer: operation.pointer + "/responses/" + escapePointer(member.Name),
+						}
+						contentContainers = append(contentContainers, response)
+						headers, contentContainers = appendHeaderMap(
+							headers,
+							contentContainers,
+							response.value,
+							"headers",
+							response.pointer+"/headers",
+						)
+					}
+				}
 			}
-			response := locatedParameter{
-				value:   member.Value,
-				pointer: operation.pointer + "/responses/" + escapePointer(member.Name),
-			}
-			contentContainers = append(contentContainers, response)
-			headers, contentContainers = appendHeaderMap(
-				headers,
-				contentContainers,
-				response.value,
-				"headers",
-				response.pointer+"/headers",
-			)
 		}
 	}
 	if hasComponents {
@@ -185,17 +188,16 @@ func headerObjects(document openapi.Document) []locatedParameter {
 	for index := 0; index < len(contentContainers); index++ {
 		container := contentContainers[index]
 		content, exists := objectMember(container.value, "content")
-		if !exists {
-			continue
-		}
-		mediaTypes, _ := content.Members()
-		for _, mediaType := range mediaTypes {
-			headers, contentContainers = appendEncodingHeaders(
-				headers,
-				contentContainers,
-				mediaType.Value,
-				container.pointer+"/content/"+escapePointer(mediaType.Name),
-			)
+		if exists {
+			mediaTypes, _ := content.Members()
+			for _, mediaType := range mediaTypes {
+				headers, contentContainers = appendEncodingHeaders(
+					headers,
+					contentContainers,
+					mediaType.Value,
+					container.pointer+"/content/"+escapePointer(mediaType.Name),
+				)
+			}
 		}
 	}
 	return headers
@@ -213,13 +215,14 @@ func componentObjects(
 	var result []locatedParameter
 	members, _ := objects.Members()
 	for _, member := range members {
-		if member.Value.Kind() != jsonvalue.ObjectKind || isReference(member.Value) {
-			continue
+		if member.Value.Kind() == jsonvalue.ObjectKind {
+			if !isReference(member.Value) {
+				result = append(result, locatedParameter{
+					value:   member.Value,
+					pointer: pointer + "/" + escapePointer(member.Name),
+				})
+			}
 		}
-		result = append(result, locatedParameter{
-			value:   member.Value,
-			pointer: pointer + "/" + escapePointer(member.Name),
-		})
 	}
 	return result
 }
@@ -237,16 +240,17 @@ func appendHeaderMap(
 	}
 	members, _ := headerMap.Members()
 	for _, member := range members {
-		if member.Value.Kind() != jsonvalue.ObjectKind || isReference(member.Value) {
-			continue
+		if member.Value.Kind() == jsonvalue.ObjectKind {
+			if !isReference(member.Value) {
+				header := locatedParameter{
+					value:   member.Value,
+					pointer: pointer + "/" + escapePointer(member.Name),
+					name:    member.Name,
+				}
+				headers = append(headers, header)
+				contentContainers = append(contentContainers, header)
+			}
 		}
-		header := locatedParameter{
-			value:   member.Value,
-			pointer: pointer + "/" + escapePointer(member.Name),
-			name:    member.Name,
-		}
-		headers = append(headers, header)
-		contentContainers = append(contentContainers, header)
 	}
 	return headers, contentContainers
 }
@@ -257,7 +261,10 @@ func appendEncodingHeaders(
 	mediaType jsonvalue.Value,
 	pointer string,
 ) ([]locatedParameter, []locatedParameter) {
-	if mediaType.Kind() != jsonvalue.ObjectKind || isReference(mediaType) {
+	if mediaType.Kind() != jsonvalue.ObjectKind {
+		return headers, contentContainers
+	}
+	if isReference(mediaType) {
 		return headers, contentContainers
 	}
 	encodings, exists := objectMember(mediaType, "encoding")

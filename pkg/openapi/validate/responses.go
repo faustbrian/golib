@@ -15,67 +15,58 @@ func validateResponses(document openapi.Document) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, operation := range documentOperations(document) {
 		responses, exists := objectMember(operation.value, "responses")
-		if !exists {
-			continue
-		}
-		members, _ := responses.Members()
-		for _, member := range members {
-			switch member.Name {
-			case "default":
-				continue
+		if exists {
+			members, _ := responses.Members()
+			for _, member := range members {
+				if member.Name != "default" &&
+					!strings.HasPrefix(member.Name, "x-") {
+					location := operation.pointer + "/responses/" + escapePointer(member.Name)
+					if !validResponseCode(member.Name, dialect) {
+						diagnostics = append(diagnostics, Diagnostic{
+							Code:                 "openapi.responses.code.invalid",
+							Message:              "response key must be an HTTP status code, range, default, or extension",
+							Severity:             SeverityError,
+							Source:               SourceDocument,
+							InstanceLocation:     location,
+							SpecificationVersion: version,
+							SpecificationSection: "responses-object",
+						})
+					} else if recommendsRegisteredStatusCodes(version) &&
+						!isRegisteredHTTPStatusCode(member.Name) &&
+						member.Name[1:] != "XX" {
+						diagnostics = append(diagnostics, Diagnostic{
+							Code:                 "openapi.responses.code.unregistered",
+							Message:              "response status code should be registered with IANA",
+							Severity:             SeverityWarning,
+							Source:               SourceDocument,
+							InstanceLocation:     location,
+							SpecificationVersion: version,
+							SpecificationSection: "http-status-codes",
+						})
+					}
+				}
 			}
-			if strings.HasPrefix(member.Name, "x-") {
-				continue
-			}
-			location := operation.pointer + "/responses/" + escapePointer(member.Name)
-			if !validResponseCode(member.Name, dialect) {
+			if !hasResponseCode(responses, dialect) {
 				diagnostics = append(diagnostics, Diagnostic{
-					Code:                 "openapi.responses.code.invalid",
-					Message:              "response key must be an HTTP status code, range, default, or extension",
+					Code:                 "openapi.responses.code.missing",
+					Message:              "responses must contain at least one response code or default response",
 					Severity:             SeverityError,
 					Source:               SourceDocument,
-					InstanceLocation:     location,
+					InstanceLocation:     operation.pointer + "/responses",
 					SpecificationVersion: version,
 					SpecificationSection: "responses-object",
 				})
-				continue
-			}
-			if recommendsRegisteredStatusCodes(version) &&
-				!isRegisteredHTTPStatusCode(member.Name) &&
-				member.Name[1:] != "XX" {
+			} else if !hasSuccessfulResponse(responses, dialect) {
 				diagnostics = append(diagnostics, Diagnostic{
-					Code:                 "openapi.responses.code.unregistered",
-					Message:              "response status code should be registered with IANA",
+					Code:                 "openapi.responses.success.missing",
+					Message:              "responses should contain a successful response code",
 					Severity:             SeverityWarning,
 					Source:               SourceDocument,
-					InstanceLocation:     location,
+					InstanceLocation:     operation.pointer + "/responses",
 					SpecificationVersion: version,
-					SpecificationSection: "http-status-codes",
+					SpecificationSection: "responses-object",
 				})
 			}
-		}
-		if !hasResponseCode(responses, dialect) {
-			diagnostics = append(diagnostics, Diagnostic{
-				Code:                 "openapi.responses.code.missing",
-				Message:              "responses must contain at least one response code or default response",
-				Severity:             SeverityError,
-				Source:               SourceDocument,
-				InstanceLocation:     operation.pointer + "/responses",
-				SpecificationVersion: version,
-				SpecificationSection: "responses-object",
-			})
-			continue
-		}
-		if !hasSuccessfulResponse(responses, dialect) {
-			diagnostics = append(diagnostics, Diagnostic{
-				Code:                 "openapi.responses.success.missing",
-				Message:              "responses should contain a successful response code",
-				Severity:             SeverityWarning,
-				Source:               SourceDocument,
-				InstanceLocation:     operation.pointer + "/responses",
-				SpecificationVersion: version,
-				SpecificationSection: "responses-object",
-			})
 		}
 	}
 	return diagnostics

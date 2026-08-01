@@ -204,6 +204,47 @@ func TestSwaggerDefaultsConformToDeclaredTypes(t *testing.T) {
 	}
 }
 
+func TestSwaggerHeaderDefaultsIgnoreNonPathAndNonResponseObjects(t *testing.T) {
+	t.Parallel()
+
+	document := mustDocument(t, `{
+		"swagger":"2.0","info":{"title":"API","version":"1"},
+		"responses":{
+			"Referenced":{"$ref":"#/responses/Valid","headers":{"X-Ignored":{"type":"integer","default":1.5}}},
+			"Scalar":true,
+			"Valid":{"description":"ok","headers":{"X-Root":{"type":"integer","default":1.5}}}
+		},
+		"paths":{
+			"x-not-path":{"get":{"responses":{"200":{"description":"ok","headers":{"X-Ignored":{"type":"integer","default":1.5}}}}}},
+			"/scalar":true,
+			"/valid":{"get":{"responses":{"200":{"description":"ok","headers":{"X-Path":{"type":"integer","default":1.5}}}}}}
+		}
+	}`)
+	report, err := validate.Document(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"/responses/Valid/headers/X-Root/default":                 false,
+		"/paths/~1valid/get/responses/200/headers/X-Path/default": false,
+	}
+	for _, diagnostic := range report.Diagnostics() {
+		if diagnostic.Code != "openapi.swagger.default.type" {
+			continue
+		}
+		if _, exists := want[diagnostic.InstanceLocation]; !exists {
+			t.Errorf("unexpected Swagger default diagnostic: %#v", diagnostic)
+			continue
+		}
+		want[diagnostic.InstanceLocation] = true
+	}
+	for pointer, found := range want {
+		if !found {
+			t.Errorf("missing Swagger default diagnostic at %s: %#v", pointer, report.Diagnostics())
+		}
+	}
+}
+
 func TestSwaggerAcceptsDefaultsOfDeclaredTypes(t *testing.T) {
 	t.Parallel()
 

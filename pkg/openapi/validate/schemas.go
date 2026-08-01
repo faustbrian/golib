@@ -64,49 +64,49 @@ func validateSchemas(
 	diagnostics := proseDiagnostics
 	validated := make(map[string]openapischema.OutputUnit)
 	for _, location := range collector.locations {
-		switch dialect {
-		case specversion.DialectSwagger20:
-			if swaggerFileResponseSchema(location) {
-				continue
-			}
+		validateLocation := true
+		if dialect == specversion.DialectSwagger20 {
+			validateLocation = !swaggerFileResponseSchema(location)
 		}
-		marshaller := options.schemaMarshaller
-		if marshaller == nil {
-			marshaller = func(value jsonvalue.Value) ([]byte, error) {
-				return value.MarshalJSON()
-			}
-		}
-		raw, err := marshaller(location.value)
-		if err != nil {
-			return nil, fmt.Errorf("marshal Schema Object: %w", err)
-		}
-		key := string(raw)
-		output, exists := validated[key]
-		if !exists {
-			validator := options.schemaValidator
-			if validator == nil {
-				validator = func(
-					compiler *openapischema.Compiler,
-					ctx context.Context,
-					value jsonvalue.Value,
-				) (openapischema.OutputUnit, error) {
-					return compiler.ValidateSchema(ctx, value)
+		if validateLocation {
+			marshaller := options.schemaMarshaller
+			if marshaller == nil {
+				marshaller = func(value jsonvalue.Value) ([]byte, error) {
+					return value.MarshalJSON()
 				}
 			}
-			output, err = validator(compiler, ctx, location.value)
+			raw, err := marshaller(location.value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("marshal Schema Object: %w", err)
 			}
-			validated[key] = output
+			key := string(raw)
+			output, exists := validated[key]
+			if !exists {
+				validator := options.schemaValidator
+				if validator == nil {
+					validator = func(
+						compiler *openapischema.Compiler,
+						ctx context.Context,
+						value jsonvalue.Value,
+					) (openapischema.OutputUnit, error) {
+						return compiler.ValidateSchema(ctx, value)
+					}
+				}
+				output, err = validator(compiler, ctx, location.value)
+				if err != nil {
+					return nil, err
+				}
+				validated[key] = output
+			}
+			diagnostics = append(
+				diagnostics,
+				schemaObjectDiagnostics(
+					output,
+					location.pointer,
+					document.SpecificationVersion().String(),
+				)...,
+			)
 		}
-		diagnostics = append(
-			diagnostics,
-			schemaObjectDiagnostics(
-				output,
-				location.pointer,
-				document.SpecificationVersion().String(),
-			)...,
-		)
 	}
 	return diagnostics, nil
 }
@@ -143,9 +143,13 @@ func validSchemaBaseURI(value string) bool {
 }
 
 func swaggerFileResponseSchema(location schemaLocation) bool {
-	return strings.Contains(location.pointer, "/responses/") &&
-		strings.HasSuffix(location.pointer, "/schema") &&
-		schemaHasType(location.value, "file")
+	if !strings.Contains(location.pointer, "/responses/") {
+		return false
+	}
+	if !strings.HasSuffix(location.pointer, "/schema") {
+		return false
+	}
+	return schemaHasType(location.value, "file")
 }
 
 func validateSchemaProse(document openapi.Document) []Diagnostic {
@@ -162,18 +166,20 @@ func validateSchemaProse(document openapi.Document) []Diagnostic {
 					swaggerRequiredReadOnlyDiagnostics(schema, version)...,
 				)
 			}
-			if dialect == specversion.DialectOAS30 &&
-				trueMember(schema.value, "readOnly") &&
-				trueMember(schema.value, "writeOnly") {
-				diagnostics = append(diagnostics, Diagnostic{
-					Code:                 "openapi.schema.read-write-only",
-					Message:              "a schema must not be both read-only and write-only",
-					Severity:             SeverityError,
-					Source:               SourceSchema,
-					InstanceLocation:     schema.pointer,
-					SpecificationVersion: version,
-					SpecificationSection: "schema-object",
-				})
+			if dialect == specversion.DialectOAS30 {
+				if trueMember(schema.value, "readOnly") {
+					if trueMember(schema.value, "writeOnly") {
+						diagnostics = append(diagnostics, Diagnostic{
+							Code:                 "openapi.schema.read-write-only",
+							Message:              "a schema must not be both read-only and write-only",
+							Severity:             SeverityError,
+							Source:               SourceSchema,
+							InstanceLocation:     schema.pointer,
+							SpecificationVersion: version,
+							SpecificationSection: "schema-object",
+						})
+					}
+				}
 			}
 			diagnostics = append(
 				diagnostics,
@@ -196,7 +202,13 @@ func swaggerRequiredReadOnlyDiagnostics(
 ) []Diagnostic {
 	properties, hasProperties := objectMember(schema.value, "properties")
 	required, hasRequired := schema.value.Lookup("required")
-	if !hasProperties || !hasRequired || required.Kind() != jsonvalue.ArrayKind {
+	if !hasProperties {
+		return nil
+	}
+	if !hasRequired {
+		return nil
+	}
+	if required.Kind() != jsonvalue.ArrayKind {
 		return nil
 	}
 	requiredNames := make(map[string]struct{})
@@ -210,17 +222,17 @@ func swaggerRequiredReadOnlyDiagnostics(
 	members, _ := properties.Members()
 	var diagnostics []Diagnostic
 	for _, property := range members {
-		if _, isRequired := requiredNames[property.Name]; !isRequired ||
-			!trueMember(property.Value, "readOnly") {
-			continue
+		if _, isRequired := requiredNames[property.Name]; isRequired {
+			if trueMember(property.Value, "readOnly") {
+				diagnostics = append(diagnostics, schemaProseDiagnostic(
+					version,
+					"openapi.schema.read-only.required",
+					schema.pointer+"/properties/"+escapePointer(property.Name)+"/readOnly",
+					SeverityWarning,
+					"read-only properties should not be required",
+				))
+			}
 		}
-		diagnostics = append(diagnostics, schemaProseDiagnostic(
-			version,
-			"openapi.schema.read-only.required",
-			schema.pointer+"/properties/"+escapePointer(property.Name)+"/readOnly",
-			SeverityWarning,
-			"read-only properties should not be required",
-		))
 	}
 	return diagnostics
 }
@@ -292,15 +304,14 @@ func validateSchemaXML(
 	nodeType, hasNodeType := stringMember(xml, "nodeType")
 	if hasNodeType {
 		for _, field := range []string{"attribute", "wrapped"} {
-			if _, exists := xml.Lookup(field); !exists {
-				continue
+			if _, exists := xml.Lookup(field); exists {
+				diagnostics = append(diagnostics, xmlDiagnostic(
+					version,
+					"openapi.xml.node-type.conflict",
+					pointer+"/"+field,
+					field+" must not be present with nodeType",
+				))
 			}
-			diagnostics = append(diagnostics, xmlDiagnostic(
-				version,
-				"openapi.xml.node-type.conflict",
-				pointer+"/"+field,
-				field+" must not be present with nodeType",
-			))
 		}
 	} else {
 		switch {
@@ -597,15 +608,13 @@ func openAPIDiscriminatorAlternatives(
 		changed = false
 		for _, member := range members {
 			reference := "#/components/schemas/" + escapePointer(member.Name)
-			if _, exists := known[reference]; exists {
-				continue
+			if _, exists := known[reference]; !exists {
+				if schemaAllOfReferencesAny(member.Value, known) {
+					known[reference] = struct{}{}
+					alternatives[reference] = struct{}{}
+					changed = true
+				}
 			}
-			if !schemaAllOfReferencesAny(member.Value, known) {
-				continue
-			}
-			known[reference] = struct{}{}
-			alternatives[reference] = struct{}{}
-			changed = true
 		}
 	}
 	return alternatives, baseReference
@@ -623,13 +632,14 @@ func directDiscriminatorAlternatives(schema jsonvalue.Value) map[string]struct{}
 	alternatives := make(map[string]struct{})
 	for _, keyword := range []string{"oneOf", "anyOf"} {
 		values, exists := schema.Lookup(keyword)
-		if !exists || values.Kind() != jsonvalue.ArrayKind {
-			continue
-		}
-		elements, _ := values.Elements()
-		for _, element := range elements {
-			if target, valid := stringMember(element, "$ref"); valid {
-				alternatives[target] = struct{}{}
+		if exists {
+			if values.Kind() == jsonvalue.ArrayKind {
+				elements, _ := values.Elements()
+				for _, element := range elements {
+					if target, valid := stringMember(element, "$ref"); valid {
+						alternatives[target] = struct{}{}
+					}
+				}
 			}
 		}
 	}
@@ -640,9 +650,13 @@ func componentSchemaName(schemas jsonvalue.Value, schema schemaLocation) string 
 	members, _ := schemas.Members()
 	for _, member := range members {
 		pointer := "/components/schemas/" + escapePointer(member.Name)
-		if schema.pointer == pointer ||
-			(schema.pointer == "" && equalJSONValues(member.Value, schema.value)) {
+		if schema.pointer == pointer {
 			return member.Name
+		}
+		if schema.pointer == "" {
+			if equalJSONValues(member.Value, schema.value) {
+				return member.Name
+			}
 		}
 	}
 	return ""
@@ -653,17 +667,19 @@ func schemaAllOfReferencesAny(
 	references map[string]struct{},
 ) bool {
 	allOf, exists := schema.Lookup("allOf")
-	if !exists || allOf.Kind() != jsonvalue.ArrayKind {
+	if !exists {
+		return false
+	}
+	if allOf.Kind() != jsonvalue.ArrayKind {
 		return false
 	}
 	branches, _ := allOf.Elements()
 	for _, branch := range branches {
 		target, exists := stringMember(branch, "$ref")
-		if !exists {
-			continue
-		}
-		if _, included := references[target]; included {
-			return true
+		if exists {
+			if _, included := references[target]; included {
+				return true
+			}
 		}
 	}
 	return false
@@ -671,14 +687,19 @@ func schemaAllOfReferencesAny(
 
 func schemaRequiresProperty(schema jsonvalue.Value, propertyName string) bool {
 	required, exists := schema.Lookup("required")
-	if !exists || required.Kind() != jsonvalue.ArrayKind {
+	if !exists {
+		return false
+	}
+	if required.Kind() != jsonvalue.ArrayKind {
 		return false
 	}
 	elements, _ := required.Elements()
 	for _, element := range elements {
 		name, valid := element.Text()
-		if valid && name == propertyName {
-			return true
+		if valid {
+			if name == propertyName {
+				return true
+			}
 		}
 	}
 	return false
@@ -708,7 +729,10 @@ func trueMember(object jsonvalue.Value, name string) bool {
 		return false
 	}
 	value, valid := member.Bool()
-	return valid && value
+	if !valid {
+		return false
+	}
+	return value
 }
 
 func schemaObjectDiagnostics(
@@ -725,24 +749,26 @@ func schemaObjectDiagnostics(
 	}
 	result := make([]Diagnostic, 0, len(units))
 	for _, unit := range units {
-		if unit.KeywordLocation == "" || hiddenApplicatorBranch(unit, units) {
-			continue
+		if unit.KeywordLocation != "" {
+			if !hiddenApplicatorBranch(unit, units) {
+				keyword := keywordName(unit.KeywordLocation)
+				if keyword != "$ref" {
+					if keyword != "allOf" {
+						result = append(result, Diagnostic{
+							Code:                    "openapi.schema." + keyword,
+							Message:                 unit.Error,
+							Severity:                SeverityError,
+							Source:                  SourceSchema,
+							InstanceLocation:        basePointer + unit.InstanceLocation,
+							KeywordLocation:         unit.KeywordLocation,
+							AbsoluteKeywordLocation: unit.AbsoluteKeywordLocation,
+							SpecificationVersion:    version,
+							SpecificationSection:    "schema-object",
+						})
+					}
+				}
+			}
 		}
-		keyword := keywordName(unit.KeywordLocation)
-		if keyword == "$ref" || keyword == "allOf" {
-			continue
-		}
-		result = append(result, Diagnostic{
-			Code:                    "openapi.schema." + keyword,
-			Message:                 unit.Error,
-			Severity:                SeverityError,
-			Source:                  SourceSchema,
-			InstanceLocation:        basePointer + unit.InstanceLocation,
-			KeywordLocation:         unit.KeywordLocation,
-			AbsoluteKeywordLocation: unit.AbsoluteKeywordLocation,
-			SpecificationVersion:    version,
-			SpecificationSection:    "schema-object",
-		})
 	}
 	if len(result) == 0 {
 		result = append(result, Diagnostic{
@@ -806,9 +832,10 @@ func (collector *schemaCollector) operation(
 	method string,
 ) {
 	collector.parameters(value, pointer+"/parameters")
-	if requestBody, ok := objectMember(value, "requestBody"); ok &&
-		!consumerIgnoresRequestBody(collector.dialect, method) {
-		collector.requestBody(requestBody, pointer+"/requestBody")
+	if requestBody, ok := objectMember(value, "requestBody"); ok {
+		if !consumerIgnoresRequestBody(collector.dialect, method) {
+			collector.requestBody(requestBody, pointer+"/requestBody")
+		}
 	}
 	if responses, ok := objectMember(value, "responses"); ok {
 		members, _ := responses.Members()
@@ -845,7 +872,10 @@ func (collector *schemaCollector) parameters(value jsonvalue.Value, pointer stri
 }
 
 func (collector *schemaCollector) parameter(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	if ignoredHeaderParameterObject(value) {
@@ -858,14 +888,20 @@ func (collector *schemaCollector) parameter(value jsonvalue.Value, pointer strin
 }
 
 func (collector *schemaCollector) requestBody(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	collector.content(value, pointer+"/content")
 }
 
 func (collector *schemaCollector) response(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	if schema, exists := value.Lookup("schema"); exists {
@@ -887,7 +923,10 @@ func (collector *schemaCollector) content(value jsonvalue.Value, pointer string)
 }
 
 func (collector *schemaCollector) mediaType(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	if schema, exists := value.Lookup("schema"); exists {

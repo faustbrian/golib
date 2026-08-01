@@ -268,6 +268,9 @@ func TestConvertOpenAPI32MediaReferenceFailuresAndExamples(t *testing.T) {
 	if textValue(t, memberAt(t, collision, "value")) != "old" {
 		t.Fatalf("example collision = %#v", collision)
 	}
+	if _, exists := collision.Lookup("dataValue"); exists {
+		t.Fatalf("colliding data value was retained = %#v", collision)
+	}
 	if after, exists := collision.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
 		t.Fatalf("example member after collision = %#v", collision)
 	}

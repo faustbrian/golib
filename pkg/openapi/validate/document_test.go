@@ -136,18 +136,51 @@ func TestDocumentValidationAcceptsExactDocumentBounds(t *testing.T) {
 	}
 }
 
-func TestDocumentValidationRejectsNegativeExternalExampleLimit(t *testing.T) {
+func TestDocumentValidationRejectsEveryInvalidOptionBoundary(t *testing.T) {
 	t.Parallel()
 
 	document := mustDocument(t, `{
 		"openapi":"3.2.0","info":{"title":"API","version":"1"},"paths":{}
 	}`)
-	options := validate.DefaultOptions()
-	options.MaxExternalExampleBytes = -1
-	if _, err := validate.DocumentWithOptions(
-		context.Background(), document, options,
-	); err == nil {
-		t.Fatal("negative external example byte limit was accepted")
+	tests := map[string]func(*validate.Options){
+		"document nodes": func(options *validate.Options) {
+			options.MaxDocumentNodes = -1
+		},
+		"document depth": func(options *validate.Options) {
+			options.MaxDocumentDepth = -1
+		},
+		"references": func(options *validate.Options) {
+			options.MaxReferences = -1
+		},
+		"external example bytes": func(options *validate.Options) {
+			options.MaxExternalExampleBytes = -1
+		},
+		"reference traversal depth": func(options *validate.Options) {
+			options.ReferenceLimits.MaxTraversalDepth = -1
+		},
+		"reference traversal nodes": func(options *validate.Options) {
+			options.ReferenceLimits.MaxTraversalNodes = -1
+		},
+		"reference depth": func(options *validate.Options) {
+			options.ReferenceLimits.MaxReferenceDepth = -1
+		},
+		"reference resource fragment": func(options *validate.Options) {
+			options.ReferenceResourceURI = "https://api.example.test/openapi.json#fragment"
+		},
+	}
+	for name, invalidate := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			options := validate.DefaultOptions()
+			invalidate(&options)
+			_, err := validate.DocumentWithOptions(
+				context.Background(), document, options,
+			)
+			if err == nil || err.Error() != "validate OpenAPI document: invalid options" {
+				t.Fatalf("invalid options error = %v", err)
+			}
+		})
 	}
 }
 

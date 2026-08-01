@@ -106,13 +106,15 @@ func validateAmbiguousLegacyExamples(
 	}
 	for _, mediaType := range mediaTypeObjects(document) {
 		name := baseMediaType(mediaType.name)
-		if name == "application/json" || strings.HasSuffix(name, "+json") ||
-			plainStringMediaType(ctx, root, mediaType) {
-			continue
+		if name != "application/json" {
+			if !strings.HasSuffix(name, "+json") {
+				if !plainStringMediaType(ctx, root, mediaType) {
+					diagnostics = appendAmbiguousLegacyExampleWarnings(
+						ctx, diagnostics, root, mediaType.value, mediaType.pointer, version,
+					)
+				}
+			}
 		}
-		diagnostics = appendAmbiguousLegacyExampleWarnings(
-			ctx, diagnostics, root, mediaType.value, mediaType.pointer, version,
-		)
 	}
 	return diagnostics
 }
@@ -130,7 +132,10 @@ func plainStringMediaType(
 		return false
 	}
 	resolved, ok := resolveReferencedSchema(ctx, root, schema)
-	return ok && schemaHasType(resolved, "string")
+	if !ok {
+		return false
+	}
+	return schemaHasType(resolved, "string")
 }
 
 func appendAmbiguousLegacyExampleWarnings(
@@ -153,21 +158,19 @@ func appendAmbiguousLegacyExampleWarnings(
 	members, _ := examples.Members()
 	for _, member := range members {
 		example, resolved := resolveReferencedObject(ctx, root, member.Value)
-		if !resolved {
-			continue
+		if resolved {
+			if _, hasValue := example.Lookup("value"); hasValue {
+				examplePointer := pointer + "/examples/" +
+					escapePointer(member.Name) + "/value"
+				if isReference(member.Value) {
+					examplePointer = pointer + "/examples/" +
+						escapePointer(member.Name) + "/$ref"
+				}
+				diagnostics = append(diagnostics, ambiguousLegacyExampleDiagnostic(
+					examplePointer, version,
+				))
+			}
 		}
-		if _, hasValue := example.Lookup("value"); !hasValue {
-			continue
-		}
-		examplePointer := pointer + "/examples/" +
-			escapePointer(member.Name) + "/value"
-		if isReference(member.Value) {
-			examplePointer = pointer + "/examples/" +
-				escapePointer(member.Name) + "/$ref"
-		}
-		diagnostics = append(diagnostics, ambiguousLegacyExampleDiagnostic(
-			examplePointer, version,
-		))
 	}
 	return diagnostics
 }
@@ -189,61 +192,74 @@ func validateParameterExampleSerializations(
 	document openapi.Document,
 	options Options,
 ) []Diagnostic {
-	version := document.SpecificationVersion()
 	resource := validationResource(document, options.ReferenceResourceURI)
 	var diagnostics []Diagnostic
 	for _, owner := range parameterObjects(document) {
-		schema, exists := owner.value.Lookup("schema")
-		if !exists {
-			continue
+		diagnostics = append(diagnostics, validateParameterOwnerExamples(
+			ctx, document, resource, owner, options,
+		)...)
+	}
+	return diagnostics
+}
+
+func validateParameterOwnerExamples(
+	ctx context.Context,
+	document openapi.Document,
+	resource reference.Resource,
+	owner locatedParameter,
+	options Options,
+) []Diagnostic {
+	schema, exists := owner.value.Lookup("schema")
+	if !exists {
+		return nil
+	}
+	resolved, _, ok := resolveReferencedSchemaResourceWithPolicy(
+		ctx,
+		resource,
+		schema,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+	)
+	if !ok {
+		return nil
+	}
+	shape, ok := parameterShape(resolved)
+	if !ok {
+		return nil
+	}
+	version := document.SpecificationVersion()
+	parameterOptions, err := parameter.OptionsForResolvedSchema(
+		version,
+		owner.value,
+		resolved,
+	)
+	if err != nil {
+		return nil
+	}
+	name, exists := stringMember(owner.value, "name")
+	if !exists {
+		return nil
+	}
+	var diagnostics []Diagnostic
+	for _, example := range parameterExamples(
+		ctx,
+		document.Raw(),
+		owner.value,
+		owner.pointer,
+		version.String(),
+	) {
+		valid := false
+		if !example.serialized {
+			_, err = parameter.Encode(name, example.value, parameterOptions)
+			valid = err == nil
 		}
-		resolved, _, ok := resolveReferencedSchemaResourceWithPolicy(
-			ctx,
-			resource,
-			schema,
-			options.ReferenceResolver,
-			options.ReferenceLimits,
-		)
-		if !ok {
-			continue
-		}
-		shape, ok := parameterShape(resolved)
-		if !ok {
-			continue
-		}
-		parameterOptions, err := parameter.OptionsForResolvedSchema(
-			version,
-			owner.value,
-			resolved,
-		)
-		if err != nil {
-			continue
-		}
-		name, exists := stringMember(owner.value, "name")
-		if !exists {
-			continue
-		}
-		for _, example := range parameterExamples(
-			ctx,
-			document.Raw(),
-			owner.value,
-			owner.pointer,
-			version.String(),
-		) {
-			valid := false
-			if !example.serialized {
-				_, err = parameter.Encode(name, example.value, parameterOptions)
+		if !valid {
+			if raw, text := example.value.Text(); text {
+				_, err = parameter.Decode(name, raw, shape, parameterOptions)
 				valid = err == nil
 			}
-			if !valid {
-				if raw, text := example.value.Text(); text {
-					_, err = parameter.Decode(name, raw, shape, parameterOptions)
-					valid = err == nil
-				}
-			}
-			if valid {
-				continue
-			}
+		}
+		if !valid {
 			diagnostics = append(diagnostics, serializedExampleDiagnostic(
 				"openapi.example.parameter-serialization",
 				"example does not follow the parameter serialization strategy",
@@ -251,23 +267,20 @@ func validateParameterExampleSerializations(
 				version.String(),
 			))
 		}
-		if version.Dialect() == specversion.DialectOAS32 {
-			diagnostics = append(
-				diagnostics,
-				validateParameterSerializedPairs(
-					ctx,
-					resource,
-					owner,
-					name,
-					shape,
-					parameterOptions,
-					version.String(),
-					options,
-				)...,
-			)
-		}
 	}
-	return diagnostics
+	if version.Dialect() != specversion.DialectOAS32 {
+		return diagnostics
+	}
+	return append(diagnostics, validateParameterSerializedPairs(
+		ctx,
+		resource,
+		owner,
+		name,
+		shape,
+		parameterOptions,
+		version.String(),
+		options,
+	)...)
 }
 
 func validateParameterSerializedPairs(
@@ -337,58 +350,87 @@ func validateParameterSerializedPairs(
 				)
 			}
 		}
-		external, hasExternal := example.Lookup("externalValue")
-		if !hasExternal || options.ExternalExampleResolver == nil {
-			continue
-		}
-		diagnosticPointer := pointer + "/externalValue"
-		if isReference(member.Value) {
-			diagnosticPointer = pointer + "/$ref"
-		}
-		rawIdentifier, valid := external.Text()
-		if !valid {
-			continue
-		}
-		identifier, valid := externalExampleIdentifier(
-			options.ReferenceResourceURI,
-			rawIdentifier,
-		)
-		if !valid {
-			continue
-		}
-		externalResource, resolveErr :=
-			options.ExternalExampleResolver.ResolveExternalExample(ctx, identifier)
-		if resolveErr != nil {
-			diagnostics = append(diagnostics, serializedJSONDiagnostic(
-				"openapi.example.external-value.unresolved",
-				"externalValue could not be resolved by the configured resolver",
-				diagnosticPointer,
+		if external, hasExternal := example.Lookup("externalValue"); hasExternal {
+			diagnostics = appendParameterExternalSerializedPairDiagnostics(
+				ctx,
+				diagnostics,
+				member,
+				external,
+				pointer,
+				name,
+				shape,
+				parameterOptions,
+				normalizedData,
+				hasNormalizedData,
 				version,
-			))
-			continue
+				options,
+			)
 		}
-		if len(externalResource.Data) > options.MaxExternalExampleBytes {
-			diagnostics = append(diagnostics, serializedJSONDiagnostic(
-				"openapi.example.external-value.limit",
-				"externalValue exceeds the configured byte limit",
-				diagnosticPointer,
-				version,
-			))
-			continue
-		}
-		diagnostics = appendParameterSerializedPairDiagnostics(
-			diagnostics,
-			name,
-			string(externalResource.Data),
-			shape,
-			parameterOptions,
-			normalizedData,
-			hasNormalizedData,
-			diagnosticPointer,
-			version,
-		)
 	}
 	return diagnostics
+}
+
+func appendParameterExternalSerializedPairDiagnostics(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	member jsonvalue.Member,
+	external jsonvalue.Value,
+	pointer string,
+	name string,
+	shape parameter.Shape,
+	parameterOptions parameter.Options,
+	normalizedData jsonvalue.Value,
+	hasNormalizedData bool,
+	version string,
+	options Options,
+) []Diagnostic {
+	if options.ExternalExampleResolver == nil {
+		return diagnostics
+	}
+	diagnosticPointer := pointer + "/externalValue"
+	if isReference(member.Value) {
+		diagnosticPointer = pointer + "/$ref"
+	}
+	rawIdentifier, valid := external.Text()
+	if !valid {
+		return diagnostics
+	}
+	identifier, valid := externalExampleIdentifier(
+		options.ReferenceResourceURI,
+		rawIdentifier,
+	)
+	if !valid {
+		return diagnostics
+	}
+	externalResource, resolveErr :=
+		options.ExternalExampleResolver.ResolveExternalExample(ctx, identifier)
+	if resolveErr != nil {
+		return append(diagnostics, serializedJSONDiagnostic(
+			"openapi.example.external-value.unresolved",
+			"externalValue could not be resolved by the configured resolver",
+			diagnosticPointer,
+			version,
+		))
+	}
+	if len(externalResource.Data) > options.MaxExternalExampleBytes {
+		return append(diagnostics, serializedJSONDiagnostic(
+			"openapi.example.external-value.limit",
+			"externalValue exceeds the configured byte limit",
+			diagnosticPointer,
+			version,
+		))
+	}
+	return appendParameterSerializedPairDiagnostics(
+		diagnostics,
+		name,
+		string(externalResource.Data),
+		shape,
+		parameterOptions,
+		normalizedData,
+		hasNormalizedData,
+		diagnosticPointer,
+		version,
+	)
 }
 
 func appendParameterSerializedPairDiagnostics(
@@ -444,31 +486,29 @@ func parameterExamples(
 	members, _ := examples.Members()
 	for _, member := range members {
 		example, resolved := resolveReferencedObject(ctx, root, member.Value)
-		if !resolved {
-			continue
-		}
-		field := "value"
-		serialized := false
-		if version == "3.2.0" {
-			field = "dataValue"
-			if _, exists := example.Lookup(field); !exists {
-				field = "serializedValue"
-				serialized = true
+		if resolved {
+			field := "value"
+			serialized := false
+			if version == "3.2.0" {
+				field = "dataValue"
+				if _, exists := example.Lookup(field); !exists {
+					field = "serializedValue"
+					serialized = true
+				}
+			}
+			value, exists := example.Lookup(field)
+			if exists {
+				examplePointer := pointer + "/examples/" +
+					escapePointer(member.Name) + "/" + field
+				if isReference(member.Value) {
+					examplePointer = pointer + "/examples/" +
+						escapePointer(member.Name) + "/$ref"
+				}
+				result = append(result, parameterExample{
+					value: value, pointer: examplePointer, serialized: serialized,
+				})
 			}
 		}
-		value, exists := example.Lookup(field)
-		if !exists {
-			continue
-		}
-		examplePointer := pointer + "/examples/" +
-			escapePointer(member.Name) + "/" + field
-		if isReference(member.Value) {
-			examplePointer = pointer + "/examples/" +
-				escapePointer(member.Name) + "/$ref"
-		}
-		result = append(result, parameterExample{
-			value: value, pointer: examplePointer, serialized: serialized,
-		})
 	}
 	return result
 }
@@ -518,21 +558,20 @@ func validateSerializedExampleFraming(
 		)...,
 	)
 	for _, mediaType := range mediaTypeObjects(document) {
-		if baseMediaType(mediaType.name) != "application/x-www-form-urlencoded" {
-			continue
-		}
-		for _, example := range serializedExamples(
-			ctx,
-			root,
-			mediaType.value,
-			mediaType.pointer,
-			version,
-		) {
-			diagnostics = appendLeadingDelimiterDiagnostic(
-				diagnostics,
-				example,
+		if baseMediaType(mediaType.name) == "application/x-www-form-urlencoded" {
+			for _, example := range serializedExamples(
+				ctx,
+				root,
+				mediaType.value,
+				mediaType.pointer,
 				version,
-			)
+			) {
+				diagnostics = appendLeadingDelimiterDiagnostic(
+					diagnostics,
+					example,
+					version,
+				)
+			}
 		}
 	}
 	return diagnostics
@@ -556,13 +595,14 @@ func validateSerializedParameterExamples(
 			parameter.pointer,
 			version,
 		) {
-			if validateQueryDelimiter &&
-				(location == "query" || location == "cookie") {
-				diagnostics = appendLeadingDelimiterDiagnostic(
-					diagnostics,
-					example,
-					version,
-				)
+			if validateQueryDelimiter {
+				if location == "query" || location == "cookie" {
+					diagnostics = appendLeadingDelimiterDiagnostic(
+						diagnostics,
+						example,
+						version,
+					)
+				}
 			}
 			if location == "header" {
 				diagnostics = appendHeaderNameDiagnostic(
@@ -621,26 +661,23 @@ func serializedExamples(
 	members, _ := examples.Members()
 	for _, member := range members {
 		example, resolved := resolveReferencedObject(ctx, root, member.Value)
-		if !resolved {
-			continue
+		if resolved {
+			fieldValue, exists := example.Lookup(field)
+			if exists {
+				value, ok := fieldValue.Text()
+				if ok {
+					examplePointer := pointer + "/examples/" +
+						escapePointer(member.Name) + "/" + field
+					if isReference(member.Value) {
+						examplePointer = pointer + "/examples/" +
+							escapePointer(member.Name) + "/$ref"
+					}
+					result = append(result, serializedExample{
+						value: value, pointer: examplePointer,
+					})
+				}
+			}
 		}
-		fieldValue, exists := example.Lookup(field)
-		if !exists {
-			continue
-		}
-		value, ok := fieldValue.Text()
-		if !ok {
-			continue
-		}
-		examplePointer := pointer + "/examples/" +
-			escapePointer(member.Name) + "/" + field
-		if isReference(member.Value) {
-			examplePointer = pointer + "/examples/" +
-				escapePointer(member.Name) + "/$ref"
-		}
-		result = append(result, serializedExample{
-			value: value, pointer: examplePointer,
-		})
 	}
 	return result
 }
@@ -764,8 +801,13 @@ func validateMediaTypeCodecExamples(
 	options Options,
 ) []Diagnostic {
 	name := baseMediaType(mediaType.name)
-	if name == "application/json" || strings.HasSuffix(name, "+json") ||
-		options.MediaTypeExampleCodecResolver == nil {
+	if name == "application/json" {
+		return nil
+	}
+	if strings.HasSuffix(name, "+json") {
+		return nil
+	}
+	if options.MediaTypeExampleCodecResolver == nil {
 		return nil
 	}
 	codec, err := options.MediaTypeExampleCodecResolver.
@@ -815,58 +857,84 @@ func validateMediaTypeCodecExamples(
 	}
 	members, _ := examples.Members()
 	for _, member := range members {
-		pointer := mediaType.pointer + "/examples/" + escapePointer(member.Name)
-		example, ok := resolveReferencedObjectWithPolicy(
+		diagnostics = appendMediaTypeCodecExampleDiagnostics(
 			ctx,
-			mediaType.resource,
-			member.Value,
-			options.ReferenceResolver,
-			options.ReferenceLimits,
+			diagnostics,
+			document,
+			mediaType,
+			member,
+			codec,
+			compiled,
+			version,
+			options,
 		)
-		if !ok {
-			continue
-		}
-		field := "value"
-		if document.SpecificationVersion().Dialect() == specversion.DialectOAS32 {
-			field = "dataValue"
-		}
-		data, hasData := example.Lookup(field)
-		dataPointer := pointer + "/" + field
+	}
+	return diagnostics
+}
+
+func appendMediaTypeCodecExampleDiagnostics(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	document openapi.Document,
+	mediaType mediaTypeLocation,
+	member jsonvalue.Member,
+	codec MediaTypeExampleCodec,
+	compiled *openapischema.Schema,
+	version string,
+	options Options,
+) []Diagnostic {
+	pointer := mediaType.pointer + "/examples/" + escapePointer(member.Name)
+	example, ok := resolveReferencedObjectWithPolicy(
+		ctx,
+		mediaType.resource,
+		member.Value,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+	)
+	if !ok {
+		return diagnostics
+	}
+	field := "value"
+	if document.SpecificationVersion().Dialect() == specversion.DialectOAS32 {
+		field = "dataValue"
+	}
+	data, hasData := example.Lookup(field)
+	dataPointer := pointer + "/" + field
+	if isReference(member.Value) {
+		dataPointer = pointer + "/$ref"
+	}
+	if hasData {
+		diagnostics = appendCodecDataExample(
+			ctx,
+			diagnostics,
+			codec,
+			compiled,
+			data,
+			dataPointer,
+			version,
+			options.MaxExternalExampleBytes,
+		)
+	}
+	if serialized, hasSerialized := example.Lookup("serializedValue"); hasSerialized {
+		serializedPointer := pointer + "/serializedValue"
 		if isReference(member.Value) {
-			dataPointer = pointer + "/$ref"
+			serializedPointer = pointer + "/$ref"
 		}
-		if hasData {
-			diagnostics = appendCodecDataExample(
-				ctx,
-				diagnostics,
-				codec,
-				compiled,
-				data,
-				dataPointer,
-				version,
-				options.MaxExternalExampleBytes,
-			)
-		}
-		if serialized, hasSerialized := example.Lookup("serializedValue"); hasSerialized {
-			serializedPointer := pointer + "/serializedValue"
-			if isReference(member.Value) {
-				serializedPointer = pointer + "/$ref"
-			}
-			diagnostics = appendCodecSerializedExample(
-				ctx,
-				diagnostics,
-				codec,
-				compiled,
-				serialized,
-				data,
-				hasData,
-				serializedPointer,
-				version,
-				options.MaxExternalExampleBytes,
-			)
-		}
-		if external, hasExternal := example.Lookup("externalValue"); hasExternal &&
-			options.ExternalExampleResolver != nil {
+		diagnostics = appendCodecSerializedExample(
+			ctx,
+			diagnostics,
+			codec,
+			compiled,
+			serialized,
+			data,
+			hasData,
+			serializedPointer,
+			version,
+			options.MaxExternalExampleBytes,
+		)
+	}
+	if external, hasExternal := example.Lookup("externalValue"); hasExternal {
+		if options.ExternalExampleResolver != nil {
 			externalPointer := pointer + "/externalValue"
 			if isReference(member.Value) {
 				externalPointer = pointer + "/$ref"
@@ -1081,8 +1149,26 @@ func appendCodecSchemaDiagnostic(
 	if err != nil {
 		return diagnostics
 	}
+	return appendRawSchemaDiagnostic(
+		ctx, diagnostics, compiled, raw, code, message, pointer, version,
+	)
+}
+
+func appendRawSchemaDiagnostic(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	compiled *openapischema.Schema,
+	raw []byte,
+	code string,
+	message string,
+	pointer string,
+	version string,
+) []Diagnostic {
 	result, err := compiled.Validate(ctx, raw)
-	if err != nil || result.Valid {
+	if err != nil {
+		return diagnostics
+	}
+	if result.Valid {
 		return diagnostics
 	}
 	return append(diagnostics, serializedJSONDiagnostic(
@@ -1124,20 +1210,44 @@ func validateSerializedJSONExamples(
 		}
 	}
 	for _, member := range members {
-		example, resolved := resolveReferencedObjectWithPolicy(
+		diagnostics = appendSerializedJSONExampleDiagnostics(
 			ctx,
+			diagnostics,
 			resource,
-			member.Value,
-			options.ReferenceResolver,
-			options.ReferenceLimits,
+			mediaType,
+			member,
+			compiled,
+			version,
+			options,
 		)
-		if !resolved {
-			continue
-		}
-		examplePointer := mediaType.pointer + "/examples/" +
-			escapePointer(member.Name)
-		if external, exists := example.Lookup("externalValue"); exists &&
-			options.ExternalExampleResolver != nil {
+	}
+	return diagnostics
+}
+
+func appendSerializedJSONExampleDiagnostics(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	resource reference.Resource,
+	mediaType mediaTypeLocation,
+	member jsonvalue.Member,
+	compiled *openapischema.Schema,
+	version string,
+	options Options,
+) []Diagnostic {
+	example, resolved := resolveReferencedObjectWithPolicy(
+		ctx,
+		resource,
+		member.Value,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+	)
+	if !resolved {
+		return diagnostics
+	}
+	examplePointer := mediaType.pointer + "/examples/" +
+		escapePointer(member.Name)
+	if external, exists := example.Lookup("externalValue"); exists {
+		if options.ExternalExampleResolver != nil {
 			externalPointer := examplePointer + "/externalValue"
 			if isReference(member.Value) {
 				externalPointer = examplePointer + "/$ref"
@@ -1152,41 +1262,39 @@ func validateSerializedJSONExamples(
 				options,
 			)...)
 		}
-		serialized, exists := example.Lookup("serializedValue")
-		if !exists {
-			continue
-		}
-		pointer := mediaType.pointer + "/examples/" +
-			escapePointer(member.Name) + "/serializedValue"
-		if isReference(member.Value) {
-			pointer = mediaType.pointer + "/examples/" +
-				escapePointer(member.Name) + "/$ref"
-		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Code:     "openapi.example.serialized-json",
-			Message:  "serializedValue should not be used for JSON examples",
-			Severity: SeverityWarning, Source: SourceDocument,
-			InstanceLocation: pointer, SpecificationVersion: version,
-			SpecificationSection: "example-object",
-		})
-		raw, valid := serialized.Text()
-		if !valid {
-			continue
-		}
-		parsed, err := parse.JSON(
-			ctx, strings.NewReader(raw), parse.DefaultLimits(),
-		)
-		if err != nil {
-			diagnostics = append(diagnostics, serializedJSONDiagnostic(
-				"openapi.example.serialized-invalid",
-				"serializedValue is not valid JSON",
-				pointer,
-				version,
-			))
-			continue
-		}
-		if data, hasData := example.Lookup("dataValue"); hasData &&
-			!equalJSONValues(parsed, data) {
+	}
+	serialized, exists := example.Lookup("serializedValue")
+	if !exists {
+		return diagnostics
+	}
+	pointer := examplePointer + "/serializedValue"
+	if isReference(member.Value) {
+		pointer = examplePointer + "/$ref"
+	}
+	diagnostics = append(diagnostics, Diagnostic{
+		Code:     "openapi.example.serialized-json",
+		Message:  "serializedValue should not be used for JSON examples",
+		Severity: SeverityWarning, Source: SourceDocument,
+		InstanceLocation: pointer, SpecificationVersion: version,
+		SpecificationSection: "example-object",
+	})
+	raw, valid := serialized.Text()
+	if !valid {
+		return diagnostics
+	}
+	parsed, err := parse.JSON(
+		ctx, strings.NewReader(raw), parse.DefaultLimits(),
+	)
+	if err != nil {
+		return append(diagnostics, serializedJSONDiagnostic(
+			"openapi.example.serialized-invalid",
+			"serializedValue is not valid JSON",
+			pointer,
+			version,
+		))
+	}
+	if data, hasData := example.Lookup("dataValue"); hasData {
+		if !equalJSONValues(parsed, data) {
 			diagnostics = append(diagnostics, serializedJSONDiagnostic(
 				"openapi.example.serialized-data-mismatch",
 				"serializedValue does not represent dataValue",
@@ -1194,19 +1302,20 @@ func validateSerializedJSONExamples(
 				version,
 			))
 		}
-		if compiled != nil {
-			result, validationErr := compiled.Validate(ctx, []byte(raw))
-			if validationErr == nil && !result.Valid {
-				diagnostics = append(diagnostics, serializedJSONDiagnostic(
-					"openapi.example.serialized-schema",
-					"serializedValue does not represent schema-valid data",
-					pointer,
-					version,
-				))
-			}
-		}
 	}
-	return diagnostics
+	if compiled == nil {
+		return diagnostics
+	}
+	return appendRawSchemaDiagnostic(
+		ctx,
+		diagnostics,
+		compiled,
+		[]byte(raw),
+		"openapi.example.serialized-schema",
+		"serializedValue does not represent schema-valid data",
+		pointer,
+		version,
+	)
 }
 
 func validateExternalJSONExample(
@@ -1273,15 +1382,16 @@ func validateExternalJSONExample(
 		))
 	}
 	if compiled != nil {
-		result, validationErr := compiled.Validate(ctx, resource.Data)
-		if validationErr == nil && !result.Valid {
-			diagnostics = append(diagnostics, serializedJSONDiagnostic(
-				"openapi.example.external-schema",
-				"externalValue does not represent schema-valid data",
-				pointer,
-				version,
-			))
-		}
+		diagnostics = appendRawSchemaDiagnostic(
+			ctx,
+			diagnostics,
+			compiled,
+			resource.Data,
+			"openapi.example.external-schema",
+			"externalValue does not represent schema-valid data",
+			pointer,
+			version,
+		)
 	}
 	return diagnostics
 }
@@ -1329,9 +1439,9 @@ func equalJSONValues(left jsonvalue.Value, right jsonvalue.Value) bool {
 	case jsonvalue.NumberKind:
 		leftText, _ := left.NumberText()
 		rightText, _ := right.NumberText()
-		leftNumber, leftValid := new(big.Rat).SetString(leftText)
-		rightNumber, rightValid := new(big.Rat).SetString(rightText)
-		return leftValid && rightValid && leftNumber.Cmp(rightNumber) == 0
+		leftNumber, _ := new(big.Rat).SetString(leftText)
+		rightNumber, _ := new(big.Rat).SetString(rightText)
+		return leftNumber.Cmp(rightNumber) == 0
 	case jsonvalue.StringKind:
 		leftText, _ := left.Text()
 		rightText, _ := right.Text()
@@ -1403,10 +1513,7 @@ func validateExampleOwnerSchema(
 			version,
 		)
 	}
-	examples, exists := owner.value.Lookup("examples")
-	if !exists || examples.Kind() != jsonvalue.ObjectKind {
-		return diagnostics
-	}
+	examples, _ := owner.value.Lookup("examples")
 	members, _ := examples.Members()
 	for _, member := range members {
 		pointer := owner.pointer + "/examples/" + escapePointer(member.Name)
@@ -1419,30 +1526,28 @@ func validateExampleOwnerSchema(
 			document.Raw(),
 			member.Value,
 		)
-		if !resolved {
-			continue
-		}
-		value, exists := exampleObject.Lookup("value")
-		if document.SpecificationVersion().Dialect() == specversion.DialectOAS32 {
-			if dataValue, hasDataValue := exampleObject.Lookup("dataValue"); hasDataValue {
-				value = dataValue
-				exists = true
-				if !isReference(member.Value) {
-					diagnosticPointer = pointer + "/dataValue"
+		if resolved {
+			value, exists := exampleObject.Lookup("value")
+			if document.SpecificationVersion().Dialect() == specversion.DialectOAS32 {
+				if dataValue, hasDataValue := exampleObject.Lookup("dataValue"); hasDataValue {
+					value = dataValue
+					exists = true
+					if !isReference(member.Value) {
+						diagnosticPointer = pointer + "/dataValue"
+					}
 				}
 			}
+			if exists {
+				diagnostics = appendInvalidExample(
+					ctx,
+					diagnostics,
+					compiled,
+					value,
+					diagnosticPointer,
+					version,
+				)
+			}
 		}
-		if !exists {
-			continue
-		}
-		diagnostics = appendInvalidExample(
-			ctx,
-			diagnostics,
-			compiled,
-			value,
-			diagnosticPointer,
-			version,
-		)
 	}
 	return diagnostics
 }
@@ -1491,101 +1596,188 @@ func validateSwaggerExampleMediaTypes(
 		externalDocumentOperations(ctx, document, options)...,
 	)
 	for _, operation := range operations {
-		operationResource := resource
-		if operation.resource.Root.Kind() == jsonvalue.ObjectKind {
-			operationResource = operation.resource
-		}
-		produces, overridden := swaggerProduces(operation.value)
-		if !overridden {
-			produces = rootProduces
-		}
-		allowed := make(map[string]struct{}, len(produces))
-		for _, mediaType := range produces {
-			allowed[mediaType] = struct{}{}
-		}
-		responses, exists := operation.value.Lookup("responses")
-		if !exists || responses.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		responseMembers, _ := responses.Members()
-		for _, response := range responseMembers {
-			responsePointer := operation.pointer + "/responses/" +
-				escapePointer(response.Name)
-			diagnosticPointer := ""
-			if isReference(response.Value) {
-				diagnosticPointer = responsePointer + "/$ref"
+		diagnostics = append(diagnostics, validateSwaggerOperationExamples(
+			ctx,
+			resource,
+			operation,
+			rootProduces,
+			compiler,
+			version,
+			options,
+		)...)
+	}
+	return diagnostics
+}
+
+func validateSwaggerOperationExamples(
+	ctx context.Context,
+	resource reference.Resource,
+	operation operationLocation,
+	rootProduces []string,
+	compiler *openapischema.Compiler,
+	version string,
+	options Options,
+) []Diagnostic {
+	operationResource := resource
+	if operation.resource.Root.Kind() == jsonvalue.ObjectKind {
+		operationResource = operation.resource
+	}
+	produces, overridden := swaggerProduces(operation.value)
+	if !overridden {
+		produces = rootProduces
+	}
+	allowed := make(map[string]struct{}, len(produces))
+	for _, mediaType := range produces {
+		allowed[mediaType] = struct{}{}
+	}
+	responses, exists := operation.value.Lookup("responses")
+	if !exists {
+		return nil
+	}
+	if responses.Kind() != jsonvalue.ObjectKind {
+		return nil
+	}
+	responseMembers, _ := responses.Members()
+	var diagnostics []Diagnostic
+	for _, response := range responseMembers {
+		diagnostics = appendSwaggerResponseExampleDiagnostics(
+			ctx,
+			diagnostics,
+			operationResource,
+			operation.pointer,
+			response,
+			produces,
+			allowed,
+			compiler,
+			version,
+			options,
+		)
+	}
+	return diagnostics
+}
+
+func appendSwaggerResponseExampleDiagnostics(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	resource reference.Resource,
+	operationPointer string,
+	response jsonvalue.Member,
+	produces []string,
+	allowed map[string]struct{},
+	compiler *openapischema.Compiler,
+	version string,
+	options Options,
+) []Diagnostic {
+	responsePointer := operationPointer + "/responses/" +
+		escapePointer(response.Name)
+	diagnosticPointer := ""
+	if isReference(response.Value) {
+		diagnosticPointer = responsePointer + "/$ref"
+	}
+	resolved, _, ok := resolveReferencedObjectResourceWithPolicy(
+		ctx,
+		resource,
+		response.Value,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+	)
+	if !ok {
+		return diagnostics
+	}
+	schema, hasSchema := resolved.Lookup("schema")
+	if hasSchema {
+		if schemaHasType(schema, "file") && len(produces) == 0 {
+			pointer := diagnosticPointer
+			if pointer == "" {
+				pointer = responsePointer + "/schema"
 			}
-			resolved, _, ok := resolveReferencedObjectResourceWithPolicy(
-				ctx,
-				operationResource,
-				response.Value,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-			if !ok {
-				continue
-			}
-			schema, hasSchema := resolved.Lookup("schema")
-			if hasSchema && schemaHasType(schema, "file") && len(produces) == 0 {
-				pointer := diagnosticPointer
-				if pointer == "" {
-					pointer = responsePointer + "/schema"
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Code:     "openapi.swagger.response.file.produces",
-					Message:  "file response schemas should have an effective produces media type",
-					Severity: SeverityWarning, Source: SourceDocument,
-					InstanceLocation: pointer, SpecificationVersion: version,
-					SpecificationSection: "response-object",
-				})
-			}
-			examples, exists := resolved.Lookup("examples")
-			if !exists || examples.Kind() != jsonvalue.ObjectKind {
-				continue
-			}
-			exampleMembers, _ := examples.Members()
-			for _, example := range exampleMembers {
-				if hasSchema && compiler != nil {
-					compiled, compileErr := compiler.Compile(ctx, schema)
-					if compileErr == nil {
-						rawExample, marshalErr := example.Value.MarshalJSON()
-						if marshalErr == nil {
-							result, validateErr := compiled.Validate(ctx, rawExample)
-							if validateErr == nil && !result.Valid {
-								diagnostics = append(diagnostics, Diagnostic{
-									Code:     "openapi.swagger.example.schema",
-									Message:  "response example should conform to the response schema",
-									Severity: SeverityWarning, Source: SourceDocument,
-									InstanceLocation: responsePointer + "/examples/" +
-										escapePointer(example.Name),
-									SpecificationVersion: version,
-									SpecificationSection: "examples-object",
-								})
-							}
+			diagnostics = append(diagnostics, Diagnostic{
+				Code:     "openapi.swagger.response.file.produces",
+				Message:  "file response schemas should have an effective produces media type",
+				Severity: SeverityWarning, Source: SourceDocument,
+				InstanceLocation: pointer, SpecificationVersion: version,
+				SpecificationSection: "response-object",
+			})
+		}
+	}
+	examples, exists := resolved.Lookup("examples")
+	if !exists {
+		return diagnostics
+	}
+	if examples.Kind() != jsonvalue.ObjectKind {
+		return diagnostics
+	}
+	exampleMembers, _ := examples.Members()
+	for _, example := range exampleMembers {
+		diagnostics = appendSwaggerExampleDiagnostics(
+			ctx,
+			diagnostics,
+			example,
+			responsePointer,
+			diagnosticPointer,
+			schema,
+			hasSchema,
+			allowed,
+			compiler,
+			version,
+		)
+	}
+	return diagnostics
+}
+
+func appendSwaggerExampleDiagnostics(
+	ctx context.Context,
+	diagnostics []Diagnostic,
+	example jsonvalue.Member,
+	responsePointer string,
+	diagnosticPointer string,
+	schema jsonvalue.Value,
+	hasSchema bool,
+	allowed map[string]struct{},
+	compiler *openapischema.Compiler,
+	version string,
+) []Diagnostic {
+	if hasSchema {
+		if compiler != nil {
+			compiled, compileErr := compiler.Compile(ctx, schema)
+			if compileErr == nil {
+				rawExample, marshalErr := example.Value.MarshalJSON()
+				if marshalErr == nil {
+					result, validateErr := compiled.Validate(ctx, rawExample)
+					if validateErr == nil {
+						if !result.Valid {
+							diagnostics = append(diagnostics, Diagnostic{
+								Code:     "openapi.swagger.example.schema",
+								Message:  "response example should conform to the response schema",
+								Severity: SeverityWarning, Source: SourceDocument,
+								InstanceLocation: responsePointer + "/examples/" +
+									escapePointer(example.Name),
+								SpecificationVersion: version,
+								SpecificationSection: "examples-object",
+							})
 						}
 					}
 				}
-				if _, valid := allowed[example.Name]; valid {
-					continue
-				}
-				pointer := diagnosticPointer
-				if pointer == "" {
-					pointer = responsePointer + "/examples/" +
-						escapePointer(example.Name)
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Code:                 "openapi.swagger.example.media-type",
-					Message:              "response example media type must appear in effective produces",
-					Severity:             SeverityError,
-					Source:               SourceDocument,
-					InstanceLocation:     pointer,
-					SpecificationVersion: version,
-					SpecificationSection: "examples-object",
-				})
 			}
 		}
 	}
-	return diagnostics
+	if _, valid := allowed[example.Name]; valid {
+		return diagnostics
+	}
+	pointer := diagnosticPointer
+	if pointer == "" {
+		pointer = responsePointer + "/examples/" +
+			escapePointer(example.Name)
+	}
+	return append(diagnostics, Diagnostic{
+		Code:                 "openapi.swagger.example.media-type",
+		Message:              "response example media type must appear in effective produces",
+		Severity:             SeverityError,
+		Source:               SourceDocument,
+		InstanceLocation:     pointer,
+		SpecificationVersion: version,
+		SpecificationSection: "examples-object",
+	})
 }
 
 func swaggerProduces(owner jsonvalue.Value) ([]string, bool) {
@@ -1653,13 +1845,14 @@ func appendExampleMap(
 	}
 	members, _ := examples.Members()
 	for _, member := range members {
-		if member.Value.Kind() != jsonvalue.ObjectKind || isReference(member.Value) {
-			continue
+		if member.Value.Kind() == jsonvalue.ObjectKind {
+			if !isReference(member.Value) {
+				result = append(result, locatedParameter{
+					value:   member.Value,
+					pointer: pointer + "/" + escapePointer(member.Name),
+				})
+			}
 		}
-		result = append(result, locatedParameter{
-			value:   member.Value,
-			pointer: pointer + "/" + escapePointer(member.Name),
-		})
 	}
 	return result
 }

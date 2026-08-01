@@ -152,7 +152,7 @@ func TestFieldTypeHelpersCoverSupportedModelSurface(t *testing.T) {
 	}
 	for _, raw := range []string{
 		"Map[string]", "Map[, string]", "Map[number, string]", "Map[string, Mystery]",
-		"[Mystery]", "Info Object | string", "Mystery",
+		"[Mystery]", "[stringx", "xstring]", "Info Object | string", "Mystery",
 	} {
 		if _, err := parseFieldType(raw, "OpenAPI Object"); err == nil {
 			t.Fatalf("parseFieldType(%q) error = nil", raw)
@@ -263,6 +263,8 @@ func TestGenerateCoversInventoryFilteringAndConfigurationFailures(t *testing.T) 
 	for _, config := range []Config{
 		{}, {Package: "oas32"},
 		{Package: "oas32", Version: "3.2.0"},
+		{Package: "oas32", RootObject: "OpenAPI Object"},
+		{Version: "3.2.0", RootObject: "OpenAPI Object"},
 	} {
 		if _, err := Generate(config, nil); err == nil {
 			t.Fatalf("Generate(%#v) error = nil", config)

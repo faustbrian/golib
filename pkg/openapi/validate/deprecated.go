@@ -91,22 +91,24 @@ func deprecatedSecuritySchemeDiagnostics(
 	definitions, pointer, exists := securitySchemeDefinitions(
 		document.Raw(), specversion.DialectOAS32,
 	)
-	if !exists || definitions.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if definitions.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	members, _ := definitions.Members()
 	var diagnostics []Diagnostic
 	for _, member := range members {
-		if !trueMember(member.Value, "deprecated") {
-			continue
+		if trueMember(member.Value, "deprecated") {
+			diagnostics = append(diagnostics, deprecatedDiagnostic(
+				version,
+				"openapi.security-scheme.deprecated",
+				pointer+"/"+escapePointer(member.Name)+"/deprecated",
+				"security-scheme-object",
+				"consumers should refrain from using this deprecated security scheme",
+			))
 		}
-		diagnostics = append(diagnostics, deprecatedDiagnostic(
-			version,
-			"openapi.security-scheme.deprecated",
-			pointer+"/"+escapePointer(member.Name)+"/deprecated",
-			"security-scheme-object",
-			"consumers should refrain from using this deprecated security scheme",
-		))
 	}
 	return diagnostics
 }

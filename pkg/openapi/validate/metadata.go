@@ -83,7 +83,13 @@ func validMetadataURL(value string, dialect specversion.Dialect) bool {
 
 func validEmailAddress(value string) bool {
 	address, err := mail.ParseAddress(value)
-	return err == nil && address.Name == "" && address.Address == value
+	if err != nil {
+		return false
+	}
+	if address.Name != "" {
+		return false
+	}
+	return address.Address == value
 }
 
 func metadataDiagnostic(

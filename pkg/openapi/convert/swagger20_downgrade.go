@@ -345,8 +345,10 @@ func unsupportedSwaggerServerURL(parsed *url.URL) bool {
 	if parsed.Host == "" && parsed.Scheme != "" {
 		return true
 	}
-	return parsed.Host == "" && parsed.Path != "" &&
-		!strings.HasPrefix(parsed.Path, "/")
+	if parsed.Host != "" {
+		return false
+	}
+	return parsed.Path != "" && !strings.HasPrefix(parsed.Path, "/")
 }
 
 func expandServerURL(raw string, variables jsonvalue.Value) string {
@@ -354,10 +356,7 @@ func expandServerURL(raw string, variables jsonvalue.Value) string {
 	for _, member := range members {
 		defaultValue, exists := member.Value.Lookup("default")
 		defaultText, valid := defaultValue.Text()
-		if exists {
-			if !valid {
-				continue
-			}
+		if exists && valid {
 			raw = strings.ReplaceAll(raw, "{"+member.Name+"}", defaultText)
 		}
 	}
@@ -954,7 +953,7 @@ func (converter *oas30SwaggerConverter) formParameter(
 		format, representable := swaggerCollectionFormat(
 			"query", style, explode, hasExplode, true,
 		)
-		if representable && format != "" {
+		if format != "" {
 			formatValue, _ := jsonvalue.String(format)
 			result = append(result, jsonvalue.Member{
 				Name: "collectionFormat", Value: formatValue,
@@ -1128,24 +1127,20 @@ func (converter *oas30SwaggerConverter) parameter(
 			schemaMembers, _ := converted.Members()
 			result = append(result, schemaMembers...)
 		case "style", "explode":
-			continue
 		case "deprecated", "allowReserved":
-			if enabled, valid := member.Value.Bool(); valid && !enabled {
-				continue
+			if enabled, valid := member.Value.Bool(); !valid || enabled {
+				converter.loss(
+					memberPointer,
+					"openapi.convert.parameter-field-removed",
+					"Swagger 2.0 cannot represent this Parameter Object field",
+				)
 			}
-			converter.loss(
-				memberPointer,
-				"openapi.convert.parameter-field-removed",
-				"Swagger 2.0 cannot represent this Parameter Object field",
-			)
-			continue
 		case "example", "examples":
 			converter.loss(
 				memberPointer,
 				"openapi.convert.parameter-field-removed",
 				"Swagger 2.0 cannot represent this Parameter Object field",
 			)
-			continue
 		default:
 			result = append(result, member)
 		}
@@ -1512,8 +1507,11 @@ func withoutNamedFields(
 
 func sameJSONValue(left jsonvalue.Value, right jsonvalue.Value) bool {
 	leftJSON, leftErr := left.MarshalJSON()
+	if leftErr != nil {
+		return false
+	}
 	rightJSON, rightErr := right.MarshalJSON()
-	if leftErr != nil || rightErr != nil {
+	if rightErr != nil {
 		return false
 	}
 	return bytes.Equal(leftJSON, rightJSON)
@@ -1628,7 +1626,6 @@ func (converter *oas30SwaggerConverter) securityScheme(
 			member.Value = basic
 			result = append(result, member)
 		case "scheme", "bearerFormat":
-			continue
 		default:
 			result = append(result, member)
 		}
@@ -1716,9 +1713,9 @@ func (converter *oas30SwaggerConverter) oauth2SecurityScheme(
 	value jsonvalue.Value,
 	pointer string,
 ) (jsonvalue.Value, bool, error) {
-	flows, exists := value.Lookup("flows")
+	flows, _ := value.Lookup("flows")
 	flowMembers, ok := flows.Members()
-	if !exists || !ok {
+	if !ok {
 		converter.loss(
 			pointer+"/flows",
 			"openapi.convert.security-scheme-removed",
@@ -1767,9 +1764,7 @@ func (converter *oas30SwaggerConverter) oauth2SecurityScheme(
 	for _, field := range schemeFields {
 		if field.Name == "description" {
 			result = append(result, field)
-			continue
-		}
-		if strings.HasPrefix(strings.ToLower(field.Name), "x-") {
+		} else if strings.HasPrefix(strings.ToLower(field.Name), "x-") {
 			result = append(result, field)
 		}
 	}

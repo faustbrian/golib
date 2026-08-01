@@ -41,23 +41,21 @@ func validateAdditionalOperations(document openapi.Document) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, pathItem := range documentPathItems(document) {
 		additional, exists := objectMember(pathItem.value, "additionalOperations")
-		if !exists {
-			continue
-		}
-		members, _ := additional.Members()
-		for _, member := range members {
-			if _, fixed := fixedOperationMethods[member.Name]; !fixed {
-				continue
+		if exists {
+			members, _ := additional.Members()
+			for _, member := range members {
+				if _, fixed := fixedOperationMethods[member.Name]; fixed {
+					diagnostics = append(diagnostics, Diagnostic{
+						Code:                 "openapi.path.additional-operation.fixed",
+						Message:              "additionalOperations must not redefine a fixed operation method",
+						Severity:             SeverityError,
+						Source:               SourceDocument,
+						InstanceLocation:     pathItem.pointer + "/additionalOperations/" + escapePointer(member.Name),
+						SpecificationVersion: version,
+						SpecificationSection: "path-item-object",
+					})
+				}
 			}
-			diagnostics = append(diagnostics, Diagnostic{
-				Code:                 "openapi.path.additional-operation.fixed",
-				Message:              "additionalOperations must not redefine a fixed operation method",
-				Severity:             SeverityError,
-				Source:               SourceDocument,
-				InstanceLocation:     pathItem.pointer + "/additionalOperations/" + escapePointer(member.Name),
-				SpecificationVersion: version,
-				SpecificationSection: "path-item-object",
-			})
 		}
 	}
 	return diagnostics
@@ -71,7 +69,10 @@ func validatePaths(
 	root := document.Raw()
 	resource := validationResource(document, options.ReferenceResourceURI)
 	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if paths.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	version := document.SpecificationVersion().String()
@@ -80,95 +81,110 @@ func validatePaths(
 	var diagnostics []Diagnostic
 	normalizedPaths := make(map[string]string)
 	for _, member := range members {
-		if !strings.HasPrefix(member.Name, "/") {
-			if !strings.HasPrefix(member.Name, "x-") {
-				diagnostics = append(diagnostics, pathDiagnostic(
-					version,
-					"openapi.path.key.invalid",
-					"/paths/"+escapePointer(member.Name),
-					"path field name must begin with a slash",
-				))
-			}
-			continue
-		}
-		if member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(member.Name)
-		pathItem, pathItemResource, resolved :=
-			resolveReferencedObjectResourceWithPolicy(
-				ctx,
-				resource,
-				member.Value,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-			)
-		if !resolved {
-			continue
-		}
-		templateNames, normalized, repeated, templateErr := parsePathTemplate(member.Name)
-		if templateErr != nil {
-			diagnostics = append(diagnostics, pathDiagnostic(
-				version,
-				"openapi.path.template.invalid",
-				pathPointer,
-				"path template has unmatched or empty braces",
-			))
-		} else if prior, duplicate := normalizedPaths[normalized]; duplicate && prior != member.Name {
-			diagnostics = append(diagnostics, pathDiagnostic(
-				version,
-				"openapi.path.template.ambiguous",
-				pathPointer,
-				"path template has the same hierarchy as "+safeValue(prior),
-			))
-		} else {
-			normalizedPaths[normalized] = member.Name
-		}
-		if templateErr == nil && repeated && dialect == specversion.DialectOAS32 {
-			diagnostics = append(diagnostics, pathDiagnostic(
-				version,
-				"openapi.path.template.duplicate",
-				pathPointer,
-				"path template must not repeat a template expression",
-			))
-		}
+		diagnostics = append(diagnostics, validatePathMember(
+			ctx, member, resource, options, version, dialect, normalizedPaths,
+		)...)
+	}
+	return diagnostics
+}
 
-		inherited, inheritedDiagnostics := parametersAt(
+func validatePathMember(
+	ctx context.Context,
+	member jsonvalue.Member,
+	resource reference.Resource,
+	options Options,
+	version string,
+	dialect specversion.Dialect,
+	normalizedPaths map[string]string,
+) []Diagnostic {
+	if !strings.HasPrefix(member.Name, "/") {
+		if strings.HasPrefix(member.Name, "x-") {
+			return nil
+		}
+		return []Diagnostic{pathDiagnostic(
+			version,
+			"openapi.path.key.invalid",
+			"/paths/"+escapePointer(member.Name),
+			"path field name must begin with a slash",
+		)}
+	}
+	if member.Value.Kind() != jsonvalue.ObjectKind {
+		return nil
+	}
+	pathPointer := "/paths/" + escapePointer(member.Name)
+	pathItem, pathItemResource, resolved := resolveReferencedObjectResourceWithPolicy(
+		ctx,
+		resource,
+		member.Value,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+	)
+	if !resolved {
+		return nil
+	}
+	templateNames, normalized, repeated, templateErr := parsePathTemplate(member.Name)
+	var diagnostics []Diagnostic
+	if templateErr != nil {
+		diagnostics = append(diagnostics, pathDiagnostic(
+			version,
+			"openapi.path.template.invalid",
+			pathPointer,
+			"path template has unmatched or empty braces",
+		))
+	} else if prior, duplicate := normalizedPaths[normalized]; duplicate && prior != member.Name {
+		diagnostics = append(diagnostics, pathDiagnostic(
+			version,
+			"openapi.path.template.ambiguous",
+			pathPointer,
+			"path template has the same hierarchy as "+safeValue(prior),
+		))
+	} else {
+		normalizedPaths[normalized] = member.Name
+	}
+	if templateErr == nil && repeated && dialect == specversion.DialectOAS32 {
+		diagnostics = append(diagnostics, pathDiagnostic(
+			version,
+			"openapi.path.template.duplicate",
+			pathPointer,
+			"path template must not repeat a template expression",
+		))
+	}
+
+	inherited, inheritedDiagnostics := parametersAt(
+		ctx,
+		pathItemResource,
+		options.ReferenceResolver,
+		options.ReferenceLimits,
+		pathItem,
+		pathPointer+"/parameters",
+		version,
+	)
+	diagnostics = append(diagnostics, inheritedDiagnostics...)
+	for _, operation := range operationsAt(pathItem, pathPointer, dialect) {
+		operationParameters, parameterDiagnostics := parametersAt(
 			ctx,
 			pathItemResource,
 			options.ReferenceResolver,
 			options.ReferenceLimits,
-			pathItem,
-			pathPointer+"/parameters",
+			operation.value,
+			operation.pointer+"/parameters",
 			version,
 		)
-		diagnostics = append(diagnostics, inheritedDiagnostics...)
-		for _, operation := range operationsAt(pathItem, pathPointer, dialect) {
-			operationParameters, parameterDiagnostics := parametersAt(
-				ctx,
-				pathItemResource,
-				options.ReferenceResolver,
-				options.ReferenceLimits,
-				operation.value,
-				operation.pointer+"/parameters",
-				version,
+		diagnostics = append(diagnostics, parameterDiagnostics...)
+		effective := make(map[string]pathParameter, len(inherited))
+		for _, parameter := range inherited {
+			effective[parameter.name] = parameter
+		}
+		for _, parameter := range operationParameters {
+			effective[parameter.name] = parameter
+		}
+		if templateErr == nil {
+			diagnostics = append(
+				diagnostics,
+				validateOperationPathParameters(
+					templateNames, effective, operation.pointer, version,
+				)...,
 			)
-			diagnostics = append(diagnostics, parameterDiagnostics...)
-			effective := make(map[string]pathParameter, len(inherited))
-			for _, parameter := range inherited {
-				effective[parameter.name] = parameter
-			}
-			for _, parameter := range operationParameters {
-				effective[parameter.name] = parameter
-			}
-			if templateErr == nil {
-				diagnostics = append(
-					diagnostics,
-					validateOperationPathParameters(
-						templateNames, effective, operation.pointer, version,
-					)...,
-				)
-			}
 		}
 	}
 	return diagnostics
@@ -210,9 +226,9 @@ func validateOperationIDs(
 				pointer,
 				"operationId is already used at "+safeValue(prior),
 			))
-			continue
+		} else {
+			identifiers[identifier] = pointer
 		}
-		identifiers[identifier] = pointer
 	}
 	return diagnostics
 }
@@ -255,7 +271,10 @@ func parsePathTemplate(path string) (map[string]struct{}, string, bool, error) {
 }
 
 func validTemplateName(name string) bool {
-	if name == "" || !utf8.ValidString(name) {
+	if name == "" {
+		return false
+	}
+	if !utf8.ValidString(name) {
 		return false
 	}
 	for _, character := range name {
@@ -280,7 +299,10 @@ func parametersAt(
 	version string,
 ) ([]pathParameter, []Diagnostic) {
 	raw, exists := container.Lookup("parameters")
-	if !exists || raw.Kind() != jsonvalue.ArrayKind {
+	if !exists {
+		return nil, nil
+	}
+	if raw.Kind() != jsonvalue.ArrayKind {
 		return nil, nil
 	}
 	elements, _ := raw.Elements()
@@ -288,44 +310,45 @@ func parametersAt(
 	var parameters []pathParameter
 	var diagnostics []Diagnostic
 	for index, element := range elements {
-		if element.Kind() != jsonvalue.ObjectKind {
-			continue
+		if element.Kind() == jsonvalue.ObjectKind {
+			resolved, ok := resolveReferencedObjectWithPolicy(
+				ctx, resource, element, resolver, limits,
+			)
+			if ok {
+				name, hasName := stringMember(resolved, "name")
+				if hasName {
+					location, hasLocation := stringMember(resolved, "in")
+					if hasLocation {
+						if location == "path" {
+							parameterPointer := pointer + "/" + strconv.Itoa(index)
+							key := location + "\x00" + name
+							if _, duplicate := seen[key]; duplicate {
+								diagnostics = append(diagnostics, pathDiagnostic(
+									version,
+									"openapi.path.parameter.duplicate",
+									parameterPointer,
+									"parameter duplicates name and location "+safeValue(name),
+								))
+							} else {
+								seen[key] = struct{}{}
+							}
+							required, _ := booleanMember(resolved, "required")
+							if !required {
+								diagnostics = append(diagnostics, pathDiagnostic(
+									version,
+									"openapi.path.parameter.not-required",
+									parameterPointer+"/required",
+									"path parameter must set required to true",
+								))
+							}
+							parameters = append(parameters, pathParameter{
+								name: name, pointer: parameterPointer,
+							})
+						}
+					}
+				}
+			}
 		}
-		resolved, ok := resolveReferencedObjectWithPolicy(
-			ctx, resource, element, resolver, limits,
-		)
-		if !ok {
-			continue
-		}
-		name, hasName := stringMember(resolved, "name")
-		location, hasLocation := stringMember(resolved, "in")
-		if !hasName || !hasLocation || location != "path" {
-			continue
-		}
-		parameterPointer := pointer + "/" + strconv.Itoa(index)
-		key := location + "\x00" + name
-		if _, duplicate := seen[key]; duplicate {
-			diagnostics = append(diagnostics, pathDiagnostic(
-				version,
-				"openapi.path.parameter.duplicate",
-				parameterPointer,
-				"parameter duplicates name and location "+safeValue(name),
-			))
-		} else {
-			seen[key] = struct{}{}
-		}
-		required, _ := booleanMember(resolved, "required")
-		if !required {
-			diagnostics = append(diagnostics, pathDiagnostic(
-				version,
-				"openapi.path.parameter.not-required",
-				parameterPointer+"/required",
-				"path parameter must set required to true",
-			))
-		}
-		parameters = append(parameters, pathParameter{
-			name: name, pointer: parameterPointer,
-		})
 	}
 	return parameters, diagnostics
 }
@@ -392,24 +415,28 @@ func operationsAt(
 	var operations []operationLocation
 	for _, method := range methods {
 		operation, exists := pathItem.Lookup(method)
-		if exists && operation.Kind() == jsonvalue.ObjectKind {
-			operations = append(operations, operationLocation{
-				value: operation, pointer: pointer + "/" + method, method: method,
-			})
+		if exists {
+			if operation.Kind() == jsonvalue.ObjectKind {
+				operations = append(operations, operationLocation{
+					value: operation, pointer: pointer + "/" + method, method: method,
+				})
+			}
 		}
 	}
 	switch dialect {
 	case specversion.DialectOAS32:
 		additional, exists := pathItem.Lookup("additionalOperations")
-		if exists && additional.Kind() == jsonvalue.ObjectKind {
-			members, _ := additional.Members()
-			for _, member := range members {
-				if member.Value.Kind() == jsonvalue.ObjectKind {
-					operations = append(operations, operationLocation{
-						value:   member.Value,
-						pointer: pointer + "/additionalOperations/" + escapePointer(member.Name),
-						method:  member.Name,
-					})
+		if exists {
+			if additional.Kind() == jsonvalue.ObjectKind {
+				members, _ := additional.Members()
+				for _, member := range members {
+					if member.Value.Kind() == jsonvalue.ObjectKind {
+						operations = append(operations, operationLocation{
+							value:   member.Value,
+							pointer: pointer + "/additionalOperations/" + escapePointer(member.Name),
+							method:  member.Name,
+						})
+					}
 				}
 			}
 		}

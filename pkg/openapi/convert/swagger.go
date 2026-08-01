@@ -130,14 +130,12 @@ func (converter *swagger20Converter) document(
 			})
 		case "host", "basePath", "schemes", "consumes", "produces",
 			"definitions", "parameters", "responses", "securityDefinitions":
-			continue
 		case "components":
 			converter.loss(
 				"/components",
 				"openapi.convert.swagger-component-collision",
 				"the non-standard Swagger components member was replaced",
 			)
-			continue
 		case "paths":
 			converted, err := converter.paths(member.Value, root, "/paths")
 			if err != nil {
@@ -414,7 +412,6 @@ func (converter *swagger20Converter) pathItem(
 			)
 		default:
 			result = append(result, member)
-			continue
 		}
 		if err != nil {
 			return jsonvalue.Value{}, err
@@ -759,7 +756,6 @@ func (converter *swagger20Converter) parameter(
 		case "name", "in", "description", "required", "allowEmptyValue":
 			result = append(result, member)
 		case "collectionFormat":
-			continue
 		default:
 			if strings.HasPrefix(strings.ToLower(member.Name), "x-") {
 				result = append(result, member)
@@ -1293,7 +1289,6 @@ func (converter *swagger20Converter) oauth2SecurityScheme(
 	for _, member := range members {
 		switch member.Name {
 		case "flow", "authUrl", "tokenUrl", "scopes":
-			continue
 		default:
 			result = append(result, member)
 		}

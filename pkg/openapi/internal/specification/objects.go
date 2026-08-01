@@ -79,7 +79,7 @@ func ExtractObjectFields(version string, source string, reader io.Reader) ([]Obj
 				object = ""
 				objectLevel = 0
 				variant = ""
-			} else if object != "" && strings.Contains(heading, "Fields") {
+			} else if strings.Contains(heading, "Fields") {
 				variant = normalizeMarkdownText(heading)
 			}
 			continue

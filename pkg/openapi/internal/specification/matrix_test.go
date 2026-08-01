@@ -83,6 +83,19 @@ func TestNormativeInventoryValidatesInputsAndPropagatesIO(t *testing.T) {
 	}
 }
 
+func TestMarkdownHeadingRequiresMarkerContentAndSeparator(t *testing.T) {
+	t.Parallel()
+
+	if heading, ok := markdownHeading("## Heading"); !ok || heading != "Heading" {
+		t.Fatalf("valid heading = %q, %t", heading, ok)
+	}
+	for _, line := range []string{" Heading", "#", "#Heading"} {
+		if heading, ok := markdownHeading(line); ok || heading != "" {
+			t.Errorf("invalid heading %q = %q, %t", line, heading, ok)
+		}
+	}
+}
+
 type errorWriter struct{ err error }
 
 func (writer errorWriter) Write([]byte) (int, error) { return 0, writer.err }

@@ -343,21 +343,27 @@ func TestConvertOpenAPI31ConstEnumSemanticEquality(t *testing.T) {
 func TestConvertOpenAPI31ContinuesAfterRemovedSchemaMembers(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{
-		`{"const":1,"enum":[2],"x-after":true}`,
-		`{"example":1,"examples":[2],"x-after":true}`,
-		`{"examples":true,"x-after":true}`,
-		`{"examples":[1],"x-after":true}`,
-		`{"$schema":"https://json-schema.org/draft/2020-12/schema","x-after":true}`,
+	tests := []struct {
+		raw    string
+		absent string
+	}{
+		{`{"const":1,"enum":[2],"x-after":true}`, "const"},
+		{`{"example":1,"examples":[2],"x-after":true}`, "examples"},
+		{`{"examples":true,"x-after":true}`, "examples"},
+		{`{"examples":[1],"x-after":true}`, "examples"},
+		{`{"$schema":"https://json-schema.org/draft/2020-12/schema","x-after":true}`, "$schema"},
 	}
-	for _, raw := range tests {
+	for _, test := range tests {
 		converter := &oas31SchemaConverter{ctx: context.Background(), maxNodes: 100}
-		converted, err := converter.schema(conversionValue(t, raw), "/schema")
+		converted, err := converter.schema(conversionValue(t, test.raw), "/schema")
 		if err != nil {
 			t.Fatal(err)
 		}
 		if after, exists := converted.Lookup("x-after"); !exists || after.Kind() != jsonvalue.BooleanKind {
 			t.Fatalf("schema member after removed keyword = %#v", converted)
+		}
+		if _, exists := converted.Lookup(test.absent); exists {
+			t.Fatalf("removed schema keyword %q was retained in %#v", test.absent, converted)
 		}
 	}
 }

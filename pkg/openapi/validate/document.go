@@ -89,12 +89,7 @@ func (validator *Validator) DocumentWithOptions(
 	if options.MaxDiagnostics < 1 {
 		return Report{}, fmt.Errorf("validate OpenAPI document: diagnostic limit must be positive")
 	}
-	if options.MaxDocumentNodes < 0 || options.MaxDocumentDepth < 0 ||
-		options.MaxReferences < 0 || options.MaxExternalExampleBytes < 0 ||
-		options.ReferenceLimits.MaxTraversalDepth < 0 ||
-		options.ReferenceLimits.MaxTraversalNodes < 0 ||
-		options.ReferenceLimits.MaxReferenceDepth < 0 ||
-		!validReferenceResourceURI(options.ReferenceResourceURI) {
+	if invalidOptions(options) {
 		return Report{}, fmt.Errorf("validate OpenAPI document: invalid options")
 	}
 	if options.MaxReferences == 0 {
@@ -464,13 +459,23 @@ func pruneStructuralSummaries(diagnostics []Diagnostic) []Diagnostic {
 		}
 		key := diagnostic.Code + "\x00" + diagnostic.InstanceLocation + "\x00" +
 			diagnostic.KeywordLocation + "\x00" + diagnostic.Message
-		if _, duplicate := seen[key]; duplicate {
-			continue
+		if _, duplicate := seen[key]; !duplicate {
+			seen[key] = struct{}{}
+			result = append(result, diagnostic)
 		}
-		seen[key] = struct{}{}
-		result = append(result, diagnostic)
 	}
 	return result
+}
+
+func invalidOptions(options Options) bool {
+	return options.MaxDocumentNodes < 0 ||
+		options.MaxDocumentDepth < 0 ||
+		options.MaxReferences < 0 ||
+		options.MaxExternalExampleBytes < 0 ||
+		options.ReferenceLimits.MaxTraversalDepth < 0 ||
+		options.ReferenceLimits.MaxTraversalNodes < 0 ||
+		options.ReferenceLimits.MaxReferenceDepth < 0 ||
+		!validReferenceResourceURI(options.ReferenceResourceURI)
 }
 
 func hasDiagnosticCodeAt(

@@ -48,79 +48,92 @@ func validateSecurity(
 			for _, member := range members {
 				pointer := located.pointer + "/" + strconv.Itoa(index) + "/" +
 					escapePointer(member.Name)
-				scheme, exists := schemes[member.Name]
-				if !exists {
-					if dialect == specversion.DialectOAS32 {
-						var valid bool
-						scheme, valid = securitySchemeURI(
-							ctx,
-							resource,
-							member.Name,
-							dialect,
-							options.ReferenceResolver,
-							options.ReferenceLimits,
-						)
-						if !valid {
-							diagnostics = append(diagnostics, securityDiagnostic(
-								version,
-								"openapi.security.scheme-uri.invalid",
-								pointer,
-								"security requirement name is not a valid security scheme URI",
-							))
-						}
-						exists = valid
-					} else {
-						diagnostics = append(diagnostics, securityDiagnostic(
-							version,
-							"openapi.security.scheme.unknown",
-							pointer,
-							"security requirement does not match a declared scheme",
-						))
-					}
-					if !exists {
-						continue
-					}
-				}
-				scopes, ok := member.Value.Elements()
-				if !ok {
-					continue
-				}
-				if !scheme.resolved {
-					continue
-				}
-				if scheme.kind != "oauth2" && scheme.kind != "openIdConnect" {
-					if len(scopes) > 0 &&
-						(dialect == specversion.DialectSwagger20 || dialect == specversion.DialectOAS30) {
-						diagnostics = append(diagnostics, securityDiagnostic(
-							version,
-							"openapi.security.roles.not-allowed",
-							pointer,
-							"this specification version requires an empty role list",
-						))
-					}
-					continue
-				}
-				if scheme.kind != "oauth2" {
-					continue
-				}
-				for scopeIndex, rawScope := range scopes {
-					scope, ok := rawScope.Text()
-					if !ok {
-						continue
-					}
-					if _, exists := scheme.scopes[scope]; !exists {
-						diagnostics = append(diagnostics, securityDiagnostic(
-							version,
-							"openapi.security.oauth-scope.unknown",
-							pointer+"/"+strconv.Itoa(scopeIndex),
-							"OAuth2 scope is not declared by the security scheme",
-						))
-					}
-				}
+				diagnostics = append(diagnostics, validateSecurityRequirementMember(
+					ctx, resource, member, pointer, version, dialect, schemes,
+					options.ReferenceResolver, options.ReferenceLimits,
+				)...)
 			}
 		}
 	}
 	return diagnostics
+}
+
+func validateSecurityRequirementMember(
+	ctx context.Context,
+	resource reference.Resource,
+	member jsonvalue.Member,
+	pointer string,
+	version string,
+	dialect specversion.Dialect,
+	schemes map[string]securityScheme,
+	resolver reference.Resolver,
+	limits reference.Limits,
+) []Diagnostic {
+	scheme, exists := schemes[member.Name]
+	if !exists {
+		if dialect != specversion.DialectOAS32 {
+			return []Diagnostic{securityDiagnostic(
+				version,
+				"openapi.security.scheme.unknown",
+				pointer,
+				"security requirement does not match a declared scheme",
+			)}
+		}
+		var valid bool
+		scheme, valid = securitySchemeURI(
+			ctx, resource, member.Name, dialect, resolver, limits,
+		)
+		if !valid {
+			return []Diagnostic{securityDiagnostic(
+				version,
+				"openapi.security.scheme-uri.invalid",
+				pointer,
+				"security requirement name is not a valid security scheme URI",
+			)}
+		}
+	}
+	scopes, valid := member.Value.Elements()
+	if !valid {
+		return nil
+	}
+	if !scheme.resolved {
+		return nil
+	}
+	switch scheme.kind {
+	case "oauth2":
+		var diagnostics []Diagnostic
+		for scopeIndex, rawScope := range scopes {
+			scope, valid := rawScope.Text()
+			if valid {
+				if _, declared := scheme.scopes[scope]; !declared {
+					diagnostics = append(diagnostics, securityDiagnostic(
+						version,
+						"openapi.security.oauth-scope.unknown",
+						pointer+"/"+strconv.Itoa(scopeIndex),
+						"OAuth2 scope is not declared by the security scheme",
+					))
+				}
+			}
+		}
+		return diagnostics
+	case "openIdConnect":
+		return nil
+	default:
+		if len(scopes) == 0 {
+			return nil
+		}
+		switch dialect {
+		case specversion.DialectSwagger20, specversion.DialectOAS30:
+			return []Diagnostic{securityDiagnostic(
+				version,
+				"openapi.security.roles.not-allowed",
+				pointer,
+				"this specification version requires an empty role list",
+			)}
+		default:
+			return nil
+		}
+	}
 }
 
 func securitySchemeURI(
@@ -131,7 +144,10 @@ func securitySchemeURI(
 	resolver reference.Resolver,
 	limits reference.Limits,
 ) (securityScheme, bool) {
-	if identifier == "" || !validURIReference(identifier) {
+	if identifier == "" {
+		return securityScheme{}, false
+	}
+	if !validURIReference(identifier) {
 		return securityScheme{}, false
 	}
 	if identifier[0] != '#' && resolver == nil {
@@ -155,7 +171,10 @@ func validateSecuritySchemeURLs(document openapi.Document) []Diagnostic {
 	dialect := document.SpecificationVersion().Dialect()
 	version := document.SpecificationVersion().String()
 	definitions, pointer, exists := securitySchemeDefinitions(root, dialect)
-	if !exists || definitions.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if definitions.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	severity := SeverityError
@@ -165,78 +184,77 @@ func validateSecuritySchemeURLs(document openapi.Document) []Diagnostic {
 	var diagnostics []Diagnostic
 	members, _ := definitions.Members()
 	for _, member := range members {
-		if member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		schemePointer := pointer + "/" + escapePointer(member.Name)
-		if dialect == specversion.DialectOAS32 &&
-			securityComponentNameLooksLikeURI(member.Name) {
-			diagnostics = append(diagnostics, Diagnostic{
-				Code:                 "openapi.security.component-name.uri-like",
-				Message:              "security scheme component names that resemble URIs are discouraged",
-				Severity:             SeverityWarning,
-				Source:               SourceDocument,
-				InstanceLocation:     schemePointer,
-				SpecificationVersion: version,
-				SpecificationSection: "security-requirement-object",
-			})
-		}
-		kind, _ := stringMember(member.Value, "type")
-		if dialect == specversion.DialectSwagger20 {
-			if kind == "oauth2" {
-				diagnostics = append(diagnostics, validateSecurityURLFields(
-					member.Value,
-					schemePointer,
-					version,
-					severity,
-					"authorizationUrl",
-					"tokenUrl",
-				)...)
+		if member.Value.Kind() == jsonvalue.ObjectKind {
+			schemePointer := pointer + "/" + escapePointer(member.Name)
+			if dialect == specversion.DialectOAS32 {
+				if securityComponentNameLooksLikeURI(member.Name) {
+					diagnostics = append(diagnostics, Diagnostic{
+						Code:                 "openapi.security.component-name.uri-like",
+						Message:              "security scheme component names that resemble URIs are discouraged",
+						Severity:             SeverityWarning,
+						Source:               SourceDocument,
+						InstanceLocation:     schemePointer,
+						SpecificationVersion: version,
+						SpecificationSection: "security-requirement-object",
+					})
+				}
 			}
-			continue
-		}
-		if kind == "http" {
-			scheme, exists := stringMember(member.Value, "scheme")
-			if exists && !isRegisteredHTTPAuthenticationScheme(scheme) {
-				diagnostics = append(diagnostics, Diagnostic{
-					Code:                 "openapi.security.http-scheme.unregistered",
-					Message:              "HTTP authentication scheme should be registered with IANA",
-					Severity:             SeverityWarning,
-					Source:               SourceDocument,
-					InstanceLocation:     schemePointer + "/scheme",
-					SpecificationVersion: version,
-					SpecificationSection: "security-scheme-object",
-				})
+			kind, _ := stringMember(member.Value, "type")
+			if dialect == specversion.DialectSwagger20 {
+				if kind == "oauth2" {
+					diagnostics = append(diagnostics, validateSecurityURLFields(
+						member.Value,
+						schemePointer,
+						version,
+						severity,
+						"authorizationUrl",
+						"tokenUrl",
+					)...)
+				}
+			} else {
+				if kind == "http" {
+					scheme, exists := stringMember(member.Value, "scheme")
+					if exists {
+						if !isRegisteredHTTPAuthenticationScheme(scheme) {
+							diagnostics = append(diagnostics, Diagnostic{
+								Code:                 "openapi.security.http-scheme.unregistered",
+								Message:              "HTTP authentication scheme should be registered with IANA",
+								Severity:             SeverityWarning,
+								Source:               SourceDocument,
+								InstanceLocation:     schemePointer + "/scheme",
+								SpecificationVersion: version,
+								SpecificationSection: "security-scheme-object",
+							})
+						}
+					}
+				}
+				if kind == "openIdConnect" {
+					diagnostics = append(diagnostics, validateSecurityURLFields(
+						member.Value,
+						schemePointer,
+						version,
+						severity,
+						"openIdConnectUrl",
+					)...)
+				}
+				if kind == "oauth2" {
+					if flows, hasFlows := objectMember(member.Value, "flows"); hasFlows {
+						flowMembers, _ := flows.Members()
+						for _, flow := range flowMembers {
+							diagnostics = append(diagnostics, validateSecurityURLFields(
+								flow.Value,
+								schemePointer+"/flows/"+escapePointer(flow.Name),
+								version,
+								severity,
+								"authorizationUrl",
+								"deviceAuthorizationUrl",
+								"tokenUrl",
+								"refreshUrl",
+							)...)
+						}
+					}
+				}
 			}
-		}
-		if kind == "openIdConnect" {
-			diagnostics = append(diagnostics, validateSecurityURLFields(
-				member.Value,
-				schemePointer,
-				version,
-				severity,
-				"openIdConnectUrl",
-			)...)
-		}
-		if kind != "oauth2" {
-			continue
-		}
-		flows, hasFlows := objectMember(member.Value, "flows")
-		if !hasFlows {
-			continue
-		}
-		flowMembers, _ := flows.Members()
-		for _, flow := range flowMembers {
-			diagnostics = append(diagnostics, validateSecurityURLFields(
-				flow.Value,
-				schemePointer+"/flows/"+escapePointer(flow.Name),
-				version,
-				severity,
-				"authorizationUrl",
-				"deviceAuthorizationUrl",
-				"tokenUrl",
-				"refreshUrl",
-			)...)
 		}
 	}
 	return diagnostics
@@ -256,7 +274,10 @@ func isRegisteredHTTPAuthenticationScheme(scheme string) bool {
 }
 
 func securityComponentNameLooksLikeURI(name string) bool {
-	return strings.ContainsAny(name, ":/?#") && validURIReference(name)
+	if !strings.ContainsAny(name, ":/?#") {
+		return false
+	}
+	return validURIReference(name)
 }
 
 func securitySchemeDefinitions(
@@ -288,18 +309,19 @@ func validateSecurityURLFields(
 	var diagnostics []Diagnostic
 	for _, field := range fields {
 		target, exists := stringMember(container, field)
-		if !exists || validURIReference(target) {
-			continue
+		if exists {
+			if !validURIReference(target) {
+				diagnostics = append(diagnostics, Diagnostic{
+					Code:                 "openapi.security.url.invalid",
+					Message:              field + " must be a valid URI reference",
+					Severity:             severity,
+					Source:               SourceDocument,
+					InstanceLocation:     pointer + "/" + field,
+					SpecificationVersion: version,
+					SpecificationSection: "security-scheme-object",
+				})
+			}
 		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Code:                 "openapi.security.url.invalid",
-			Message:              field + " must be a valid URI reference",
-			Severity:             severity,
-			Source:               SourceDocument,
-			InstanceLocation:     pointer + "/" + field,
-			SpecificationVersion: version,
-			SpecificationSection: "security-scheme-object",
-		})
 	}
 	return diagnostics
 }
@@ -313,26 +335,25 @@ func securitySchemes(
 ) map[string]securityScheme {
 	result := make(map[string]securityScheme)
 	definitions, _, exists := securitySchemeDefinitions(resource.Root, dialect)
-	if !exists || definitions.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return result
+	}
+	if definitions.Kind() != jsonvalue.ObjectKind {
 		return result
 	}
 	members, _ := definitions.Members()
 	for _, member := range members {
-		if member.Value.Kind() != jsonvalue.ObjectKind {
-			continue
+		if member.Value.Kind() == jsonvalue.ObjectKind {
+			result[member.Name] = securityScheme{}
+			resolved, ok := resolveReferencedObjectWithPolicy(
+				ctx, resource, member.Value, resolver, limits,
+			)
+			if ok {
+				if scheme, valid := securitySchemeValue(resolved, dialect); valid {
+					result[member.Name] = scheme
+				}
+			}
 		}
-		result[member.Name] = securityScheme{}
-		resolved, ok := resolveReferencedObjectWithPolicy(
-			ctx, resource, member.Value, resolver, limits,
-		)
-		if !ok {
-			continue
-		}
-		scheme, ok := securitySchemeValue(resolved, dialect)
-		if !ok {
-			continue
-		}
-		result[member.Name] = scheme
 	}
 	return result
 }
@@ -342,7 +363,10 @@ func securitySchemeValue(
 	dialect specversion.Dialect,
 ) (securityScheme, bool) {
 	kind, ok := stringMember(value, "type")
-	if !ok || !validSecuritySchemeType(kind, dialect) {
+	if !ok {
+		return securityScheme{}, false
+	}
+	if !validSecuritySchemeType(kind, dialect) {
 		return securityScheme{}, false
 	}
 	return securityScheme{
@@ -376,7 +400,10 @@ func oauthScopes(
 		return result
 	}
 	flows, exists := scheme.Lookup("flows")
-	if !exists || flows.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return result
+	}
+	if flows.Kind() != jsonvalue.ObjectKind {
 		return result
 	}
 	members, _ := flows.Members()
@@ -391,7 +418,10 @@ func collectScopeNames(result map[string]struct{}, container jsonvalue.Value) {
 		return
 	}
 	scopes, exists := container.Lookup("scopes")
-	if !exists || scopes.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return
+	}
+	if scopes.Kind() != jsonvalue.ObjectKind {
 		return
 	}
 	members, _ := scopes.Members()
@@ -403,16 +433,19 @@ func collectScopeNames(result map[string]struct{}, container jsonvalue.Value) {
 func securityArrays(document openapi.Document) []securityArray {
 	root := document.Raw()
 	var result []securityArray
-	if security, exists := root.Lookup("security"); exists &&
-		security.Kind() == jsonvalue.ArrayKind {
-		result = append(result, securityArray{value: security, pointer: "/security"})
+	if security, exists := root.Lookup("security"); exists {
+		if security.Kind() == jsonvalue.ArrayKind {
+			result = append(result, securityArray{value: security, pointer: "/security"})
+		}
 	}
 	for _, operation := range documentOperations(document) {
 		security, exists := operation.value.Lookup("security")
-		if exists && security.Kind() == jsonvalue.ArrayKind {
-			result = append(result, securityArray{
-				value: security, pointer: operation.pointer + "/security",
-			})
+		if exists {
+			if security.Kind() == jsonvalue.ArrayKind {
+				result = append(result, securityArray{
+					value: security, pointer: operation.pointer + "/security",
+				})
+			}
 		}
 	}
 	return result

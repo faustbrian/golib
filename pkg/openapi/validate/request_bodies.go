@@ -33,22 +33,20 @@ func validateRequestBodies(document openapi.Document) []Diagnostic {
 	}
 	for _, requestBody := range requestBodyObjects(document) {
 		content, exists := requestBody.value.Lookup("content")
-		if !exists || content.Kind() != jsonvalue.ObjectKind {
-			continue
+		if exists && content.Kind() == jsonvalue.ObjectKind {
+			members, _ := content.Members()
+			if len(members) == 0 {
+				diagnostics = append(diagnostics, Diagnostic{
+					Code:                 "openapi.request-body.content.empty",
+					Message:              "request body content should contain at least one media type",
+					Severity:             SeverityWarning,
+					Source:               SourceDocument,
+					InstanceLocation:     requestBody.pointer + "/content",
+					SpecificationVersion: version,
+					SpecificationSection: "request-body-object",
+				})
+			}
 		}
-		members, _ := content.Members()
-		if len(members) != 0 {
-			continue
-		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Code:                 "openapi.request-body.content.empty",
-			Message:              "request body content should contain at least one media type",
-			Severity:             SeverityWarning,
-			Source:               SourceDocument,
-			InstanceLocation:     requestBody.pointer + "/content",
-			SpecificationVersion: version,
-			SpecificationSection: "request-body-object",
-		})
 	}
 	return diagnostics
 }
@@ -91,20 +89,20 @@ func requestBodyObjects(document openapi.Document) []locatedParameter {
 		)
 	}
 	for _, operation := range documentOperations(document) {
-		if consumerIgnoresRequestBody(
+		if !consumerIgnoresRequestBody(
 			document.SpecificationVersion().Dialect(),
 			operation.method,
 		) {
-			continue
+			requestBody, exists := objectMember(operation.value, "requestBody")
+			if exists {
+				if !isReference(requestBody) {
+					result = append(result, locatedParameter{
+						value:   requestBody,
+						pointer: operation.pointer + "/requestBody",
+					})
+				}
+			}
 		}
-		requestBody, exists := operation.value.Lookup("requestBody")
-		if !exists || requestBody.Kind() != jsonvalue.ObjectKind || isReference(requestBody) {
-			continue
-		}
-		result = append(result, locatedParameter{
-			value:   requestBody,
-			pointer: operation.pointer + "/requestBody",
-		})
 	}
 	return result
 }

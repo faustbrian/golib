@@ -121,19 +121,10 @@ func ResolveComponent(
 	if !exists {
 		return Match{}, ErrNotFound
 	}
-	componentMaps, valid := components.Members()
-	if !valid {
+	if _, valid := components.Members(); !valid {
 		return Match{}, ErrInvalidInput
 	}
-	var selected jsonvalue.Value
-	foundSection := false
-	for _, componentMap := range componentMaps {
-		if componentMap.Name == section {
-			selected = componentMap.Value
-			foundSection = true
-			break
-		}
-	}
+	selected, foundSection := components.Lookup(section)
 	if !foundSection {
 		return Match{}, ErrNotFound
 	}

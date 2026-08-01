@@ -133,7 +133,6 @@ func BinaryMediaLengthWithOptions(
 	for _, limit := range constraints {
 		if length.Cmp(limit) > 0 {
 			exceeded = true
-			break
 		}
 	}
 	if !exceeded {
@@ -208,24 +207,23 @@ func MultipartBinaryMediaLengths(
 			)
 		}
 		property, exists := properties[part.Name]
-		if !exists {
-			continue
-		}
-		exceeded, err := binaryPartLengthExceeded(
-			ctx,
-			document,
-			[]binaryPartSchema{{value: property.value, resource: property.resource}},
-			part.Octets,
-			options,
-		)
-		if err != nil {
-			return Report{}, err
-		}
-		if exceeded {
-			diagnostics = append(diagnostics, binaryPartLengthDiagnostic(
+		if exists {
+			exceeded, err := binaryPartLengthExceeded(
+				ctx,
 				document,
-				"/"+escapePointer(part.Name),
-			))
+				[]binaryPartSchema{{value: property.value, resource: property.resource}},
+				part.Octets,
+				options,
+			)
+			if err != nil {
+				return Report{}, err
+			}
+			if exceeded {
+				diagnostics = append(diagnostics, binaryPartLengthDiagnostic(
+					document,
+					"/"+escapePointer(part.Name),
+				))
+			}
 		}
 	}
 	for _, part := range positional {
@@ -374,11 +372,7 @@ func collectPositionalBinaryPartSchemas(
 	}
 	(*remaining)--
 	if rawReference, referenced := stringMember(schema, "$ref"); referenced {
-		identity := resource.CanonicalURI
-		if identity == "" {
-			identity = resource.RetrievalURI
-		}
-		identity += "\x00" + rawReference
+		identity := referenceTraversalIdentity(resource, rawReference)
 		if _, seen := visited[identity]; !seen {
 			visited[identity] = struct{}{}
 			target, err := reference.Resolve(
@@ -487,12 +481,7 @@ func binaryMaxLengthConstraints(
 	}
 	var constraints []*big.Int
 	if rawReference, exists := stringMember(schema, "$ref"); exists {
-		identity := resource.CanonicalURI
-		switch identity {
-		case "":
-			identity = resource.RetrievalURI
-		}
-		identity += "\x00" + rawReference
+		identity := referenceTraversalIdentity(resource, rawReference)
 		if _, seen := visited[identity]; !seen {
 			visited[identity] = struct{}{}
 			target, err := reference.Resolve(
@@ -521,12 +510,22 @@ func binaryMaxLengthConstraints(
 	if maximum, exists := schema.Lookup("maxLength"); exists {
 		text, number := maximum.NumberText()
 		limit, valid := new(big.Rat).SetString(text)
-		if !number || !valid {
+		if !number {
 			return nil, fmt.Errorf(
 				"validate binary media length: maxLength is not a non-negative integer",
 			)
 		}
-		if limit.Sign() < 0 || !limit.IsInt() {
+		if !valid {
+			return nil, fmt.Errorf(
+				"validate binary media length: maxLength is not a non-negative integer",
+			)
+		}
+		if limit.Sign() < 0 {
+			return nil, fmt.Errorf(
+				"validate binary media length: maxLength is not a non-negative integer",
+			)
+		}
+		if !limit.IsInt() {
 			return nil, fmt.Errorf(
 				"validate binary media length: maxLength is not a non-negative integer",
 			)
@@ -788,7 +787,10 @@ func openAPIDiscriminatorInstanceDiagnostics(
 	version string,
 ) []Diagnostic {
 	discriminator, exists := objectMember(schema, "discriminator")
-	if !exists || instance.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if instance.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	propertyName, exists := stringMember(discriminator, "propertyName")
@@ -826,7 +828,10 @@ func openAPIDiscriminatorInstanceDiagnostics(
 	alternatives, baseReference := openAPIDiscriminatorAlternatives(
 		root, schemaLocation{value: schema},
 	)
-	if len(alternatives) == 0 || target == baseReference {
+	if len(alternatives) == 0 {
+		return nil
+	}
+	if target == baseReference {
 		return nil
 	}
 	if _, exists := alternatives[target]; exists {
@@ -840,11 +845,20 @@ func localComponentSchemaName(target string) string {
 		return ""
 	}
 	fragment, err := reference.ParseFragment(strings.TrimPrefix(target, "#"))
-	if err != nil || fragment.Kind() != reference.FragmentPointer {
+	if err != nil {
+		return ""
+	}
+	if fragment.Kind() != reference.FragmentPointer {
 		return ""
 	}
 	tokens := fragment.Pointer().Tokens()
-	if len(tokens) != 3 || tokens[0] != "components" || tokens[1] != "schemas" {
+	if len(tokens) != 3 {
+		return ""
+	}
+	if tokens[0] != "components" {
+		return ""
+	}
+	if tokens[1] != "schemas" {
 		return ""
 	}
 	return tokens[2]
@@ -897,72 +911,72 @@ func schemaDirectionDiagnostics(
 		pair := pending[last]
 		pending = pending[:last]
 		resolved, ok := resolveReferencedObject(ctx, root, pair.schema)
-		if !ok {
-			continue
-		}
-		rawSchema, err := marshaller(resolved)
-		if err != nil {
-			return nil, fmt.Errorf("validate schema instance direction: %w", err)
-		}
-		key := string(rawSchema) + "\x00" + pair.pointer
-		if _, duplicate := seen[key]; duplicate {
-			continue
-		}
-		seen[key] = struct{}{}
-		for _, field := range []string{"allOf", "anyOf", "oneOf"} {
-			branches, exists := resolved.Lookup(field)
-			if !exists {
-				continue
+		if ok {
+			rawSchema, err := marshaller(resolved)
+			if err != nil {
+				return nil, fmt.Errorf("validate schema instance direction: %w", err)
 			}
-			elements, _ := branches.Elements()
-			for _, branch := range elements {
-				pending = append(pending, schemaInstancePair{
-					schema: branch, instance: pair.instance, pointer: pair.pointer,
-				})
-			}
-		}
-		properties, hasProperties := objectMember(resolved, "properties")
-		if hasProperties && pair.instance.Kind() == jsonvalue.ObjectKind {
-			members, _ := properties.Members()
-			for _, property := range members {
-				value, present := pair.instance.Lookup(property.Name)
-				if !present {
-					continue
-				}
-				pointer := pair.pointer + "/" + escapePointer(property.Name)
-				propertySchema, ok := resolveReferencedObject(ctx, root, property.Value)
-				if !ok {
-					continue
-				}
-				field := "readOnly"
-				code := "openapi.schema.read-only.request"
-				message := "read-only property should not be present in a request"
-				if direction == DirectionResponse {
-					field = "writeOnly"
-					code = "openapi.schema.write-only.response"
-					message = "write-only property should not be present in a response"
-				}
-				if trueMember(propertySchema, field) {
-					diagnostic := instanceDiagnostic(version, code, pointer, message)
-					if dialect != specversion.DialectSwagger20 {
-						diagnostic.Severity = SeverityWarning
+			key := string(rawSchema) + "\x00" + pair.pointer
+			if _, duplicate := seen[key]; !duplicate {
+				seen[key] = struct{}{}
+				for _, field := range []string{"allOf", "anyOf", "oneOf"} {
+					branches, exists := resolved.Lookup(field)
+					if exists {
+						elements, _ := branches.Elements()
+						for _, branch := range elements {
+							pending = append(pending, schemaInstancePair{
+								schema: branch, instance: pair.instance, pointer: pair.pointer,
+							})
+						}
 					}
-					diagnostics = append(diagnostics, diagnostic)
 				}
-				pending = append(pending, schemaInstancePair{
-					schema: propertySchema, instance: value, pointer: pointer,
-				})
-			}
-		}
-		if items, exists := resolved.Lookup("items"); exists &&
-			pair.instance.Kind() == jsonvalue.ArrayKind {
-			values, _ := pair.instance.Elements()
-			for index, value := range values {
-				pending = append(pending, schemaInstancePair{
-					schema:   items,
-					instance: value,
-					pointer:  fmt.Sprintf("%s/%d", pair.pointer, index),
-				})
+				properties, hasProperties := objectMember(resolved, "properties")
+				if hasProperties {
+					if pair.instance.Kind() == jsonvalue.ObjectKind {
+						members, _ := properties.Members()
+						for _, property := range members {
+							value, present := pair.instance.Lookup(property.Name)
+							if present {
+								pointer := pair.pointer + "/" + escapePointer(property.Name)
+								propertySchema, resolvedProperty := resolveReferencedObject(
+									ctx, root, property.Value,
+								)
+								if resolvedProperty {
+									field := "readOnly"
+									code := "openapi.schema.read-only.request"
+									message := "read-only property should not be present in a request"
+									if direction == DirectionResponse {
+										field = "writeOnly"
+										code = "openapi.schema.write-only.response"
+										message = "write-only property should not be present in a response"
+									}
+									if trueMember(propertySchema, field) {
+										diagnostic := instanceDiagnostic(version, code, pointer, message)
+										if dialect != specversion.DialectSwagger20 {
+											diagnostic.Severity = SeverityWarning
+										}
+										diagnostics = append(diagnostics, diagnostic)
+									}
+									pending = append(pending, schemaInstancePair{
+										schema: propertySchema, instance: value, pointer: pointer,
+									})
+								}
+							}
+						}
+					}
+				}
+				if items, exists := resolved.Lookup("items"); exists {
+					if pair.instance.Kind() == jsonvalue.ArrayKind {
+						values, _ := pair.instance.Elements()
+						for index, value := range values {
+							pending = append(pending, schemaInstancePair{
+								schema:   items,
+								instance: value,
+								pointer:  fmt.Sprintf("%s/%d", pair.pointer, index),
+							})
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1064,7 +1078,10 @@ func directionalRequired(
 	direction InstanceDirection,
 ) (jsonvalue.Value, error) {
 	elements, ok := required.Elements()
-	if !ok || properties.Kind() != jsonvalue.ObjectKind {
+	if !ok {
+		return required, nil
+	}
+	if properties.Kind() != jsonvalue.ObjectKind {
 		return required, nil
 	}
 	field := "readOnly"
@@ -1075,10 +1092,15 @@ func directionalRequired(
 	for _, element := range elements {
 		name, valid := element.Text()
 		property, exists := properties.Lookup(name)
-		if valid && exists && trueMember(property, field) {
-			continue
+		excluded := false
+		if valid {
+			if exists {
+				excluded = trueMember(property, field)
+			}
 		}
-		filtered = append(filtered, element)
+		if !excluded {
+			filtered = append(filtered, element)
+		}
 	}
 	return jsonvalue.Array(filtered)
 }
@@ -1091,7 +1113,10 @@ func swaggerDiscriminatorInstanceDiagnostics(
 	version string,
 ) []Diagnostic {
 	propertyName, exists := stringMember(schema, "discriminator")
-	if !exists || instance.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if instance.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	value, exists := instance.Lookup(propertyName)
@@ -1128,8 +1153,10 @@ func swaggerDefinitionName(root jsonvalue.Value, schema jsonvalue.Value) string 
 	members, _ := definitions.Members()
 	for _, member := range members {
 		rawCandidate, err := member.Value.MarshalJSON()
-		if err == nil && string(rawCandidate) == string(rawSchema) {
-			return member.Name
+		if err == nil {
+			if string(rawCandidate) == string(rawSchema) {
+				return member.Name
+			}
 		}
 	}
 	return ""
@@ -1149,13 +1176,14 @@ func swaggerDiscriminatorNames(root jsonvalue.Value, schemaName string) map[stri
 	members, _ := definitions.Members()
 	for _, member := range members {
 		allOf, exists := member.Value.Lookup("allOf")
-		if !exists || allOf.Kind() != jsonvalue.ArrayKind {
-			continue
-		}
-		branches, _ := allOf.Elements()
-		for _, branch := range branches {
-			if parent := swaggerDefinitionReferenceName(branch); parent != "" {
-				parents[member.Name] = append(parents[member.Name], parent)
+		if exists {
+			if allOf.Kind() == jsonvalue.ArrayKind {
+				branches, _ := allOf.Elements()
+				for _, branch := range branches {
+					if parent := swaggerDefinitionReferenceName(branch); parent != "" {
+						parents[member.Name] = append(parents[member.Name], parent)
+					}
+				}
 			}
 		}
 	}
@@ -1163,14 +1191,12 @@ func swaggerDiscriminatorNames(root jsonvalue.Value, schemaName string) map[stri
 	for changed {
 		changed = false
 		for child, directParents := range parents {
-			if _, included := allowed[child]; included {
-				continue
-			}
-			for _, parent := range directParents {
-				if _, included := allowed[parent]; included {
-					allowed[child] = struct{}{}
-					changed = true
-					break
+			if _, included := allowed[child]; !included {
+				for _, parent := range directParents {
+					if _, included := allowed[parent]; included {
+						allowed[child] = struct{}{}
+						changed = true
+					}
 				}
 			}
 		}
@@ -1180,15 +1206,21 @@ func swaggerDiscriminatorNames(root jsonvalue.Value, schemaName string) map[stri
 
 func swaggerDefinitionReferenceName(value jsonvalue.Value) string {
 	raw, exists := stringMember(value, "$ref")
-	if !exists || !strings.HasPrefix(raw, "#/") {
+	if !exists {
+		return ""
+	}
+	if !strings.HasPrefix(raw, "#/") {
 		return ""
 	}
 	fragment, err := reference.ParseFragment(strings.TrimPrefix(raw, "#"))
-	if err != nil || fragment.Kind() != reference.FragmentPointer {
+	if err != nil {
 		return ""
 	}
 	tokens := fragment.Pointer().Tokens()
-	if len(tokens) != 2 || tokens[0] != "definitions" {
+	if len(tokens) != 2 {
+		return ""
+	}
+	if tokens[0] != "definitions" {
 		return ""
 	}
 	return tokens[1]
@@ -1213,11 +1245,10 @@ func deduplicateInstanceDiagnostics(diagnostics []Diagnostic) []Diagnostic {
 	seen := make(map[string]struct{}, len(diagnostics))
 	for _, diagnostic := range diagnostics {
 		key := diagnostic.Code + "\x00" + diagnostic.InstanceLocation
-		if _, exists := seen[key]; exists {
-			continue
+		if _, exists := seen[key]; !exists {
+			seen[key] = struct{}{}
+			result = append(result, diagnostic)
 		}
-		seen[key] = struct{}{}
-		result = append(result, diagnostic)
 	}
 	return result
 }

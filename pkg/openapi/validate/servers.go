@@ -25,29 +25,28 @@ func validateServers(document openapi.Document) []Diagnostic {
 		servers, _ := located.value.Elements()
 		names := make(map[string]string)
 		for index, server := range servers {
-			if server.Kind() != jsonvalue.ObjectKind {
-				continue
-			}
-			pointer := located.pointer + "/" + strconv.Itoa(index)
-			if dialect == specversion.DialectOAS32 {
-				if name, ok := stringMember(server, "name"); ok {
-					if prior, duplicate := names[name]; duplicate {
-						diagnostics = append(diagnostics, serverDiagnostic(
-							version,
-							SeverityError,
-							"openapi.server.name.duplicate",
-							pointer+"/name",
-							"server name is already used at "+safeValue(prior),
-						))
-					} else {
-						names[name] = pointer + "/name"
+			if server.Kind() == jsonvalue.ObjectKind {
+				pointer := located.pointer + "/" + strconv.Itoa(index)
+				if dialect == specversion.DialectOAS32 {
+					if name, ok := stringMember(server, "name"); ok {
+						if prior, duplicate := names[name]; duplicate {
+							diagnostics = append(diagnostics, serverDiagnostic(
+								version,
+								SeverityError,
+								"openapi.server.name.duplicate",
+								pointer+"/name",
+								"server name is already used at "+safeValue(prior),
+							))
+						} else {
+							names[name] = pointer + "/name"
+						}
 					}
 				}
+				diagnostics = append(
+					diagnostics,
+					validateServer(server, pointer, version, dialect)...,
+				)
 			}
-			diagnostics = append(
-				diagnostics,
-				validateServer(server, pointer, version, dialect)...,
-			)
 		}
 	}
 	return diagnostics
@@ -56,24 +55,27 @@ func validateServers(document openapi.Document) []Diagnostic {
 func serverArrays(document openapi.Document) []serverArray {
 	root := document.Raw()
 	var arrays []serverArray
-	if servers, exists := root.Lookup("servers"); exists &&
-		servers.Kind() == jsonvalue.ArrayKind {
-		arrays = append(arrays, serverArray{value: servers, pointer: "/servers"})
+	if servers, exists := root.Lookup("servers"); exists {
+		if servers.Kind() == jsonvalue.ArrayKind {
+			arrays = append(arrays, serverArray{value: servers, pointer: "/servers"})
+		}
 	}
 	for _, pathItem := range documentPathItems(document) {
-		if servers, exists := pathItem.value.Lookup("servers"); exists &&
-			servers.Kind() == jsonvalue.ArrayKind {
-			arrays = append(arrays, serverArray{
-				value: servers, pointer: pathItem.pointer + "/servers",
-			})
+		if servers, exists := pathItem.value.Lookup("servers"); exists {
+			if servers.Kind() == jsonvalue.ArrayKind {
+				arrays = append(arrays, serverArray{
+					value: servers, pointer: pathItem.pointer + "/servers",
+				})
+			}
 		}
 	}
 	for _, operation := range documentOperations(document) {
-		if servers, exists := operation.value.Lookup("servers"); exists &&
-			servers.Kind() == jsonvalue.ArrayKind {
-			arrays = append(arrays, serverArray{
-				value: servers, pointer: operation.pointer + "/servers",
-			})
+		if servers, exists := operation.value.Lookup("servers"); exists {
+			if servers.Kind() == jsonvalue.ArrayKind {
+				arrays = append(arrays, serverArray{
+					value: servers, pointer: operation.pointer + "/servers",
+				})
+			}
 		}
 	}
 	return arrays
@@ -93,7 +95,9 @@ func validateServer(
 	variables, valid := serverTemplateVariables(url)
 	switch dialect {
 	case specversion.DialectOAS32:
-		valid = valid && validServerURLTemplate32(url)
+		if valid {
+			valid = validServerURLTemplate32(url)
+		}
 	}
 	if !valid {
 		diagnostics = append(diagnostics, serverDiagnostic(
@@ -120,11 +124,13 @@ func validateServer(
 	declared := make(map[string]jsonvalue.Value)
 	var declaredNames []string
 	variableMap, hasVariables := server.Lookup("variables")
-	if hasVariables && variableMap.Kind() == jsonvalue.ObjectKind {
-		members, _ := variableMap.Members()
-		for _, member := range members {
-			declared[member.Name] = member.Value
-			declaredNames = append(declaredNames, member.Name)
+	if hasVariables {
+		if variableMap.Kind() == jsonvalue.ObjectKind {
+			members, _ := variableMap.Members()
+			for _, member := range members {
+				declared[member.Name] = member.Value
+				declaredNames = append(declaredNames, member.Name)
+			}
 		}
 	}
 	used := make(map[string]int)
@@ -182,7 +188,10 @@ func validateServerVariable(
 		return nil
 	}
 	enumeration, hasEnumeration := variable.Lookup("enum")
-	if !hasEnumeration || enumeration.Kind() != jsonvalue.ArrayKind {
+	if !hasEnumeration {
+		return nil
+	}
+	if enumeration.Kind() != jsonvalue.ArrayKind {
 		return nil
 	}
 	severity := SeverityError
@@ -205,8 +214,10 @@ func validateServerVariable(
 		return diagnostics
 	}
 	for _, element := range elements {
-		if value, ok := element.Text(); ok && value == defaultValue {
-			return diagnostics
+		if value, ok := element.Text(); ok {
+			if value == defaultValue {
+				return diagnostics
+			}
 		}
 	}
 	return append(diagnostics, serverDiagnostic(
@@ -231,7 +242,10 @@ func serverTemplateVariables(value string) ([]string, bool) {
 			}
 			closing += index + 1
 			name := value[index+1 : closing]
-			if name == "" || strings.ContainsAny(name, "{}") {
+			if name == "" {
+				return nil, false
+			}
+			if strings.ContainsAny(name, "{}") {
 				return nil, false
 			}
 			variables = append(variables, name)
@@ -269,22 +283,24 @@ func validServerURLTemplate32(value string) bool {
 		switch character {
 		case '{':
 			insideVariable = true
-			continue
 		case '}':
 			insideVariable = false
-			continue
-		}
-		if insideVariable {
-			continue
-		}
-		if character == '%' {
-			if index+2 >= len(value) || !hexDigit(value[index+1]) || !hexDigit(value[index+2]) {
-				return false
+		default:
+			if !insideVariable {
+				if character == '%' {
+					if index+2 >= len(value) {
+						return false
+					}
+					if !hexDigit(value[index+1]) {
+						return false
+					}
+					if !hexDigit(value[index+2]) {
+						return false
+					}
+				} else if !validServerLiteralRune(character) {
+					return false
+				}
 			}
-			continue
-		}
-		if !validServerLiteralRune(character) {
-			return false
 		}
 	}
 	return !insideVariable

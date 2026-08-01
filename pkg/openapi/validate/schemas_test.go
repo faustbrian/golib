@@ -79,6 +79,32 @@ func TestDocumentValidatesOpenAPI30SchemaObjects(t *testing.T) {
 	t.Fatalf("missing OpenAPI 3.0 schema diagnostic: %#v", report.Diagnostics())
 }
 
+func TestDocumentRejectsSwaggerFileResponseSchemaInOpenAPI30(t *testing.T) {
+	t.Parallel()
+
+	document := mustDocument(t, `{
+		"openapi":"3.0.4",
+		"info":{"title":"API","version":"1"},
+		"paths":{"/download":{"get":{"responses":{"200":{
+			"description":"download",
+			"content":{"application/octet-stream":{"schema":{"type":"file"}}}
+		}}}}}
+	}`)
+	report, err := validate.Document(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, diagnostic := range report.Diagnostics() {
+		if diagnostic.Source == validate.SourceSchema &&
+			diagnostic.Code == "openapi.schema.enum" &&
+			diagnostic.InstanceLocation ==
+				"/paths/~1download/get/responses/200/content/application~1octet-stream/schema/type" {
+			return
+		}
+	}
+	t.Fatalf("missing OpenAPI 3.0 file-type diagnostic: %#v", report.Diagnostics())
+}
+
 func TestDocumentTreatsOpenAPI30SchemaReferencesAsReferences(t *testing.T) {
 	t.Parallel()
 

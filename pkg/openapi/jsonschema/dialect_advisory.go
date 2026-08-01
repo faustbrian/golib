@@ -51,7 +51,10 @@ func NeedsExplicitDialect(
 		return true, nil
 	}
 	identifier, text := declaration.Text()
-	if !text || identifier == "" {
+	if !text {
+		return false, fmt.Errorf("%w: $schema must be a non-empty string", ErrInvalidDialectAdvisory)
+	}
+	if identifier == "" {
 		return false, fmt.Errorf("%w: $schema must be a non-empty string", ErrInvalidDialectAdvisory)
 	}
 	parsed, err := url.Parse(identifier)

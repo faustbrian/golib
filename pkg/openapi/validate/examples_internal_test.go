@@ -301,6 +301,33 @@ func TestMediaTypeExampleCodecHelpersCoverInvalidInputs(t *testing.T) {
 	); len(got) != 0 {
 		t.Fatalf("unmarshalable schema diagnostics = %#v", got)
 	}
+	version, err := openapi.ParseVersion("3.1.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler, err := openSchemaCompiler(validationDocument{
+		version: version,
+		raw: testValidationValue(t, `{
+			"openapi":"3.1.2","info":{"title":"API","version":"1"},"paths":{}
+		}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := compiler.Compile(
+		context.Background(), testValidationValue(t, `{"type":"integer"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := appendCodecSchemaDiagnostic(
+		canceled, nil, compiled, testValidationValue(t, `1`),
+		"code", "message", "/schema", "3.2.0",
+	); len(got) != 0 {
+		t.Fatalf("canceled schema diagnostics = %#v", got)
+	}
 }
 
 func TestMediaTypeExternalCodecExamplesCoverFailures(t *testing.T) {

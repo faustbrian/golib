@@ -16,6 +16,14 @@ import (
 
 var errInvalidOADResourceRoot = errors.New("invalid OpenAPI description document root")
 
+func referenceTraversalIdentity(resource reference.Resource, rawReference string) string {
+	identity := resource.CanonicalURI
+	if identity == "" {
+		identity = resource.RetrievalURI
+	}
+	return strings.Join([]string{identity, rawReference}, "\x00")
+}
+
 type validationReferenceResolver struct {
 	resolver  reference.Resolver
 	resources map[string]reference.Resource
@@ -136,34 +144,37 @@ func validateReferenceTargets(
 			}
 			continue
 		}
-		if errors.Is(err, reference.ErrExternalResolutionDisabled) {
-			continue
+		if !errors.Is(err, reference.ErrExternalResolutionDisabled) {
+			if errors.Is(err, context.Canceled) {
+				return nil, fmt.Errorf("validate OpenAPI references: %w", err)
+			}
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("validate OpenAPI references: %w", err)
+			}
+			if errors.Is(err, reference.ErrLimitExceeded) {
+				return nil, fmt.Errorf("validate OpenAPI references: %w", err)
+			}
+			code := "openapi.reference.unresolved"
+			message := "the reference target could not be resolved"
+			if errors.Is(err, reference.ErrTargetNotFound) {
+				code = "openapi.reference.target.missing"
+				message = "the reference target does not exist"
+			} else if errors.Is(err, reference.ErrInvalidReference) ||
+				errors.Is(err, reference.ErrInvalidFragment) {
+				code = "openapi.reference.invalid"
+				message = "the reference is not a valid URI-reference target"
+			} else if errors.Is(err, errInvalidOADResourceRoot) {
+				code = "openapi.reference.document-root.invalid"
+				message = "referenced OpenAPI 3.2 documents must contain an OpenAPI or Schema Object"
+			}
+			diagnostics = append(diagnostics, Diagnostic{
+				Code: code, Message: message,
+				Severity: SeverityError, Source: SourceReference,
+				InstanceLocation:     occurrence.Pointer().String(),
+				SpecificationVersion: document.SpecificationVersion().String(),
+				SpecificationSection: "reference-object",
+			})
 		}
-		if errors.Is(err, context.Canceled) ||
-			errors.Is(err, context.DeadlineExceeded) ||
-			errors.Is(err, reference.ErrLimitExceeded) {
-			return nil, fmt.Errorf("validate OpenAPI references: %w", err)
-		}
-		code := "openapi.reference.unresolved"
-		message := "the reference target could not be resolved"
-		if errors.Is(err, reference.ErrTargetNotFound) {
-			code = "openapi.reference.target.missing"
-			message = "the reference target does not exist"
-		} else if errors.Is(err, reference.ErrInvalidReference) ||
-			errors.Is(err, reference.ErrInvalidFragment) {
-			code = "openapi.reference.invalid"
-			message = "the reference is not a valid URI-reference target"
-		} else if errors.Is(err, errInvalidOADResourceRoot) {
-			code = "openapi.reference.document-root.invalid"
-			message = "referenced OpenAPI 3.2 documents must contain an OpenAPI or Schema Object"
-		}
-		diagnostics = append(diagnostics, Diagnostic{
-			Code: code, Message: message,
-			Severity: SeverityError, Source: SourceReference,
-			InstanceLocation:     occurrence.Pointer().String(),
-			SpecificationVersion: document.SpecificationVersion().String(),
-			SpecificationSection: "reference-object",
-		})
 	}
 	return diagnostics, nil
 }
@@ -316,8 +327,10 @@ func referenceDataPointer(tokens []string, dialect openapi.Dialect) bool {
 					return true
 				}
 			case "examples":
-				if dialect == openapi.DialectSwagger20 && ancestor == "responses" {
-					return true
+				if dialect == openapi.DialectSwagger20 {
+					if ancestor == "responses" {
+						return true
+					}
 				}
 			}
 		}

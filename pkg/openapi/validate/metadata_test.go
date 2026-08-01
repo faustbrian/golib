@@ -143,3 +143,27 @@ func TestDocumentAcceptsValidInfoMetadata(t *testing.T) {
 		}
 	}
 }
+
+func TestDocumentRejectsMalformedAndNonCanonicalContactEmails(t *testing.T) {
+	t.Parallel()
+
+	for _, email := range []string{"not an email", " team@example.test"} {
+		document := mustDocument(t, `{
+			"openapi":"3.2.0","info":{"title":"API","version":"1",
+				"contact":{"email":"`+email+`"}},"paths":{}
+		}`)
+		report, err := validate.Document(context.Background(), document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, diagnostic := range report.Diagnostics() {
+			if diagnostic.Code == "openapi.contact.email.invalid" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("email %q was accepted: %#v", email, report.Diagnostics())
+		}
+	}
+}

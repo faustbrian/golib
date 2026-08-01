@@ -76,11 +76,17 @@ func (collector *externalOperationCollector) pathItemReference(
 	pointer string,
 ) {
 	rawReference, referenced := stringMember(value, "$ref")
-	if !referenced || strings.HasPrefix(rawReference, "#") {
+	if !referenced {
+		return
+	}
+	if strings.HasPrefix(rawReference, "#") {
 		return
 	}
 	target, ok := collector.resolve(resource, rawReference)
-	if !ok || collector.visited(target) {
+	if !ok {
+		return
+	}
+	if collector.visited(target) {
 		return
 	}
 	for _, operation := range operationsAt(
@@ -130,7 +136,10 @@ func (collector *externalOperationCollector) callback(
 			return
 		}
 		target, ok := collector.resolve(resource, rawReference)
-		if !ok || collector.visited(target) {
+		if !ok {
+			return
+		}
+		if collector.visited(target) {
 			return
 		}
 		callback = target.Value
@@ -148,21 +157,21 @@ func (collector *externalOperationCollector) callback(
 				member.Value,
 				memberPointer,
 			)
-			continue
-		}
-		for _, operation := range operationsAt(
-			member.Value,
-			memberPointer,
-			collector.dialect,
-		) {
-			operation.pathItem = member.Value
-			operation.resource = callbackResource
-			collector.operations = append(collector.operations, operation)
-			collector.operationCallbacks(
-				callbackResource,
-				operation.value,
-				operation.pointer,
-			)
+		} else {
+			for _, operation := range operationsAt(
+				member.Value,
+				memberPointer,
+				collector.dialect,
+			) {
+				operation.pathItem = member.Value
+				operation.resource = callbackResource
+				collector.operations = append(collector.operations, operation)
+				collector.operationCallbacks(
+					callbackResource,
+					operation.value,
+					operation.pointer,
+				)
+			}
 		}
 	}
 }
@@ -279,7 +288,10 @@ func (inventory *operationInventory) pathItem(value jsonvalue.Value, pointer str
 }
 
 func (inventory *operationInventory) callback(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	members, _ := value.Members()

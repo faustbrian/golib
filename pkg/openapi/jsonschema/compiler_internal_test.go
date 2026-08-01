@@ -647,6 +647,13 @@ func TestSchemaValueFactoriesPropagateImmutableConstructionFailures(t *testing.T
 	); !errors.Is(err, want) {
 		t.Fatalf("nullable child error = %v", err)
 	}
+	converted, err := applyOpenAPI30NullableUsing(
+		mustInternalValue(t, `{"type":[],"nullable":true}`),
+		immutableValueFactory(),
+	)
+	if err != nil || converted.Kind() != jsonvalue.ObjectKind {
+		t.Fatalf("non-string nullable type = %#v, %v", converted, err)
+	}
 
 	factory = immutableValueFactory()
 	factory.arrayValue = failArray

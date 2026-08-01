@@ -118,8 +118,9 @@ func TestObjectInventoryValidatesInputsAndMarkdownEdges(t *testing.T) {
 | Field Name | Type | Description |
 | --- | --- | --- |
 | <a name="empty"></a> | string | empty normalized name |
+| retained | string | field after empty normalized name |
 `))
-	if err != nil || len(edges) != 0 {
+	if err != nil || len(edges) != 1 || edges[0].Name != "retained" {
 		t.Fatalf("edge table fields = %#v, error = %v", edges, err)
 	}
 	trailing, err := ExtractObjectFields(

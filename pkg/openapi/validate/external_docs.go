@@ -22,14 +22,12 @@ func validateExternalDocumentation(document openapi.Document) []Diagnostic {
 			diagnostics, operation.value, operation.pointer, version, dialect,
 		)
 	}
-	if tags, exists := document.Raw().Lookup("tags"); exists &&
-		tags.Kind() == jsonvalue.ArrayKind {
-		elements, _ := tags.Elements()
-		for index, tag := range elements {
-			diagnostics = appendExternalDocumentationDiagnostics(
-				diagnostics, tag, "/tags/"+strconv.Itoa(index), version, dialect,
-			)
-		}
+	tags, _ := document.Raw().Lookup("tags")
+	elements, _ := tags.Elements()
+	for index, tag := range elements {
+		diagnostics = appendExternalDocumentationDiagnostics(
+			diagnostics, tag, "/tags/"+strconv.Itoa(index), version, dialect,
+		)
 	}
 	collector := schemaCollector{dialect: document.SpecificationVersion().Dialect()}
 	collector.document(document.Raw())

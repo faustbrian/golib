@@ -295,7 +295,10 @@ func (compiler *Compiler) applyDocumentSelf(root jsonvalue.Value) {
 		return
 	}
 	raw, valid := self.Text()
-	if !valid || raw == "" {
+	if !valid {
+		return
+	}
+	if raw == "" {
 		return
 	}
 	referenceURI, err := url.Parse(raw)
@@ -485,31 +488,26 @@ func swagger20SchemaErrors(
 			))
 		}
 	}
-	for _, name := range []string{"items", "additionalProperties"} {
-		child, exists := value.Lookup(name)
-		if !exists {
-			continue
-		}
+	if child, exists := value.Lookup("items"); exists {
 		if child.Kind() == jsonvalue.ObjectKind {
 			errors = append(
 				errors,
-				swagger20SchemaErrors(child, pointer+"/"+name)...,
+				swagger20SchemaErrors(child, pointer+"/items")...,
 			)
-			continue
+		} else if elements, ok := child.Elements(); ok {
+			for index, item := range elements {
+				errors = append(errors, swagger20SchemaErrors(
+					item,
+					pointer+"/items/"+strconv.Itoa(index),
+				)...)
+			}
 		}
-		if name != "items" {
-			continue
-		}
-		elements, ok := child.Elements()
-		if !ok {
-			continue
-		}
-		for index, item := range elements {
-			errors = append(errors, swagger20SchemaErrors(
-				item,
-				pointer+"/items/"+strconv.Itoa(index),
-			)...)
-		}
+	}
+	if child, _ := value.Lookup("additionalProperties"); child.Kind() == jsonvalue.ObjectKind {
+		errors = append(
+			errors,
+			swagger20SchemaErrors(child, pointer+"/additionalProperties")...,
+		)
 	}
 	allOf, exists := value.Lookup("allOf")
 	if exists {
@@ -599,19 +597,15 @@ func openAPI30SchemaErrors(
 		}
 	}
 	for _, name := range []string{"allOf", "oneOf", "anyOf"} {
-		children, exists := value.Lookup(name)
-		if !exists {
-			continue
-		}
-		elements, ok := children.Elements()
-		if !ok {
-			continue
-		}
-		for index, child := range elements {
-			errors = append(errors, openAPI30SchemaErrors(
-				child,
-				pointer+"/"+name+"/"+strconv.Itoa(index),
-			)...)
+		if children, exists := value.Lookup(name); exists {
+			if elements, ok := children.Elements(); ok {
+				for index, child := range elements {
+					errors = append(errors, openAPI30SchemaErrors(
+						child,
+						pointer+"/"+name+"/"+strconv.Itoa(index),
+					)...)
+				}
+			}
 		}
 	}
 	properties, exists := value.Lookup("properties")
@@ -934,7 +928,10 @@ func withSchemaBaseURIUsing(
 	baseURI string,
 	factory valueFactory,
 ) (jsonvalue.Value, error) {
-	if baseURI == "" || value.Kind() != jsonvalue.ObjectKind {
+	if baseURI == "" {
+		return value, nil
+	}
+	if value.Kind() != jsonvalue.ObjectKind {
 		return value, nil
 	}
 	members, _ := value.Members()
@@ -958,7 +955,6 @@ func withSchemaBaseURIUsing(
 		for index := range members {
 			if members[index].Name == "$id" {
 				members[index].Value = absolute
-				break
 			}
 		}
 		return factory.objectValue(members)
@@ -1008,12 +1004,14 @@ func applyOpenAPI30NullableUsing(
 			return jsonvalue.Value{}, err
 		}
 	}
-	nullable, hasNullable := value.Lookup("nullable")
+	nullable, _ := value.Lookup("nullable")
 	allowsNull, _ := nullable.Bool()
-	typeValue, hasType := value.Lookup("type")
-	if hasNullable && allowsNull && hasType {
-		typeName, stringType := typeValue.Text()
-		if stringType {
+	if allowsNull {
+		if typeValue, hasType := value.Lookup("type"); hasType {
+			typeName, stringType := typeValue.Text()
+			if !stringType {
+				return factory.objectValue(members)
+			}
 			nullName, err := factory.stringValue("null")
 			if err != nil {
 				return jsonvalue.Value{}, err
@@ -1029,7 +1027,6 @@ func applyOpenAPI30NullableUsing(
 			for index := range members {
 				if members[index].Name == "type" {
 					members[index].Value = types
-					break
 				}
 			}
 		}
@@ -1185,8 +1182,12 @@ func (loader *resourceLoader) prepareLegacyResource(
 	ctx context.Context,
 	raw []byte,
 ) ([]byte, error) {
-	if loader.metaSchema == nil ||
-		(loader.dialect != DialectSwagger20 && loader.dialect != DialectOAS30) {
+	if loader.metaSchema == nil {
+		return raw, nil
+	}
+	switch loader.dialect {
+	case DialectSwagger20, DialectOAS30:
+	default:
 		return raw, nil
 	}
 	value, err := parse.JSON(ctx, bytes.NewReader(raw), parse.DefaultLimits())

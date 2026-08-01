@@ -70,20 +70,22 @@ func validateMediaTypes(
 		}
 		_, hasSchema := mediaType.value.Lookup("schema")
 		_, hasItemSchema := mediaType.value.Lookup("itemSchema")
-		if mediaType.requestBody && hasSchema &&
-			!isMultipartMediaType(mediaType.name) &&
-			describesMultipleBinaryFiles(
-				ctx,
-				mediaResource,
-				mediaType.value,
-				options,
-			) {
-			diagnostics = append(diagnostics, mediaTypeDiagnostic(
-				version,
-				"openapi.media-type.multiple-files.non-multipart",
-				mediaType.pointer,
-				"multiple binary files require a multipart request media type",
-			))
+		if mediaType.requestBody {
+			if hasSchema {
+				if !isMultipartMediaType(mediaType.name) && describesMultipleBinaryFiles(
+					ctx,
+					mediaResource,
+					mediaType.value,
+					options,
+				) {
+					diagnostics = append(diagnostics, mediaTypeDiagnostic(
+						version,
+						"openapi.media-type.multiple-files.non-multipart",
+						mediaType.pointer,
+						"multiple binary files require a multipart request media type",
+					))
+				}
+			}
 		}
 		switch dialect {
 		case specversion.DialectSwagger20, specversion.DialectOAS30, specversion.DialectOAS31:
@@ -152,37 +154,40 @@ func validateMediaTypes(
 			members, _ := encoding.Members()
 			for _, member := range members {
 				_, hasContentType := member.Value.Lookup("contentType")
-				if !hasContentType || !hasEncodingSerializationOverride(member.Value) {
-					continue
+				if hasContentType {
+					if hasEncodingSerializationOverride(member.Value) {
+						diagnostic := mediaTypeDiagnostic(
+							version,
+							"openapi.encoding.content-type.ignored",
+							mediaType.pointer+"/encoding/"+
+								escapePointer(member.Name)+"/contentType",
+							"contentType is ignored when encoding serialization fields are explicit",
+						)
+						diagnostic.Severity = SeverityWarning
+						diagnostics = append(diagnostics, diagnostic)
+					}
 				}
-				diagnostic := mediaTypeDiagnostic(
-					version,
-					"openapi.encoding.content-type.ignored",
-					mediaType.pointer+"/encoding/"+
-						escapePointer(member.Name)+"/contentType",
-					"contentType is ignored when encoding serialization fields are explicit",
-				)
-				diagnostic.Severity = SeverityWarning
-				diagnostics = append(diagnostics, diagnostic)
 			}
 		}
-		if hasEncoding && dialect == specversion.DialectOAS30 &&
-			baseMediaType(mediaType.name) != "application/x-www-form-urlencoded" {
-			members, _ := encoding.Members()
-			for _, member := range members {
-				for _, field := range []string{"style", "explode", "allowReserved"} {
-					if _, exists := member.Value.Lookup(field); !exists {
-						continue
+		if hasEncoding {
+			if dialect == specversion.DialectOAS30 {
+				if baseMediaType(mediaType.name) != "application/x-www-form-urlencoded" {
+					members, _ := encoding.Members()
+					for _, member := range members {
+						for _, field := range []string{"style", "explode", "allowReserved"} {
+							if _, exists := member.Value.Lookup(field); exists {
+								diagnostic := mediaTypeDiagnostic(
+									version,
+									"openapi.encoding.serialization.ignored",
+									mediaType.pointer+"/encoding/"+
+										escapePointer(member.Name)+"/"+field,
+									field+" is ignored outside form-urlencoded media types",
+								)
+								diagnostic.Severity = SeverityWarning
+								diagnostics = append(diagnostics, diagnostic)
+							}
+						}
 					}
-					diagnostic := mediaTypeDiagnostic(
-						version,
-						"openapi.encoding.serialization.ignored",
-						mediaType.pointer+"/encoding/"+
-							escapePointer(member.Name)+"/"+field,
-						field+" is ignored outside form-urlencoded media types",
-					)
-					diagnostic.Severity = SeverityWarning
-					diagnostics = append(diagnostics, diagnostic)
 				}
 			}
 		}
@@ -222,21 +227,22 @@ func validateMediaTypes(
 				diagnostic.Severity = SeverityWarning
 				diagnostics = append(diagnostics, diagnostic)
 			}
-			if hasEncoding && !isMultipartMediaType(mediaType.name) {
-				members, _ := encoding.Members()
-				for _, member := range members {
-					if _, hasHeaders := member.Value.Lookup("headers"); !hasHeaders {
-						continue
+			if hasEncoding {
+				if !isMultipartMediaType(mediaType.name) {
+					members, _ := encoding.Members()
+					for _, member := range members {
+						if _, hasHeaders := member.Value.Lookup("headers"); hasHeaders {
+							diagnostic := mediaTypeDiagnostic(
+								version,
+								"openapi.encoding.headers.ignored",
+								mediaType.pointer+"/encoding/"+
+									escapePointer(member.Name)+"/headers",
+								"encoding headers are ignored outside multipart media types",
+							)
+							diagnostic.Severity = SeverityWarning
+							diagnostics = append(diagnostics, diagnostic)
+						}
 					}
-					diagnostic := mediaTypeDiagnostic(
-						version,
-						"openapi.encoding.headers.ignored",
-						mediaType.pointer+"/encoding/"+
-							escapePointer(member.Name)+"/headers",
-						"encoding headers are ignored outside multipart media types",
-					)
-					diagnostic.Severity = SeverityWarning
-					diagnostics = append(diagnostics, diagnostic)
 				}
 			}
 		}
@@ -277,15 +283,17 @@ func validateFormDataPositionalContentDisposition(
 			}
 		}
 	}
-	if item, exists := mediaType.Lookup("itemEncoding"); exists &&
-		item.Kind() == jsonvalue.ObjectKind &&
-		!encodingHasHeader(item, "Content-Disposition") {
-		diagnostics = append(diagnostics, mediaTypeDiagnostic(
-			version,
-			"openapi.encoding.content-disposition.missing",
-			pointer+"/itemEncoding/headers",
-			"positional form-data encoding must provide a Content-Disposition header",
-		))
+	if item, exists := mediaType.Lookup("itemEncoding"); exists {
+		if item.Kind() == jsonvalue.ObjectKind {
+			if !encodingHasHeader(item, "Content-Disposition") {
+				diagnostics = append(diagnostics, mediaTypeDiagnostic(
+					version,
+					"openapi.encoding.content-disposition.missing",
+					pointer+"/itemEncoding/headers",
+					"positional form-data encoding must provide a Content-Disposition header",
+				))
+			}
+		}
 	}
 	return diagnostics
 }
@@ -344,7 +352,10 @@ func describesMultipleBinaryFiles(
 	options Options,
 ) bool {
 	schema, exists := mediaType.Lookup("schema")
-	if !exists || schema.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return false
+	}
+	if schema.Kind() != jsonvalue.ObjectKind {
 		return false
 	}
 	visitedReferences := make(map[string]struct{})
@@ -382,12 +393,7 @@ func schemaContainsBinaryFileArray(
 	}
 	(*remaining)--
 	if rawReference, hasReference := stringMember(schema, "$ref"); hasReference {
-		identity := resource.CanonicalURI
-		switch identity {
-		case "":
-			identity = resource.RetrievalURI
-		}
-		identity += "\x00" + rawReference
+		identity := referenceTraversalIdentity(resource, rawReference)
 		if _, visited := visitedReferences[identity]; visited {
 			return false
 		}
@@ -405,10 +411,14 @@ func schemaContainsBinaryFileArray(
 			item, itemResource, itemOK := resolveReferencedObjectResourceWithPolicy(
 				ctx, resolvedResource, items, resolver, limits,
 			)
-			if itemOK && schemaHasType(item, "string") {
+			if itemOK {
 				format, hasFormat := stringMember(item, "format")
-				if hasFormat && format == "binary" {
-					return true
+				if schemaHasType(item, "string") {
+					if hasFormat {
+						if format == "binary" {
+							return true
+						}
+					}
 				}
 			}
 			if schemaContainsBinaryFileArray(
@@ -421,31 +431,31 @@ func schemaContainsBinaryFileArray(
 	}
 	for _, name := range []string{"properties", "$defs", "definitions"} {
 		members, exists := objectMember(resolved, name)
-		if !exists {
-			continue
-		}
-		entries, _ := members.Members()
-		for _, member := range entries {
-			if schemaContainsBinaryFileArray(
-				ctx, resolvedResource, member.Value, resolver, limits,
-				visitedReferences, remaining, nextSchemaTraversalDepth(depth),
-			) {
-				return true
+		if exists {
+			entries, _ := members.Members()
+			for _, member := range entries {
+				if schemaContainsBinaryFileArray(
+					ctx, resolvedResource, member.Value, resolver, limits,
+					visitedReferences, remaining, nextSchemaTraversalDepth(depth),
+				) {
+					return true
+				}
 			}
 		}
 	}
 	for _, name := range []string{"allOf", "anyOf", "oneOf", "prefixItems"} {
 		values, exists := resolved.Lookup(name)
-		if !exists || values.Kind() != jsonvalue.ArrayKind {
-			continue
-		}
-		elements, _ := values.Elements()
-		for _, element := range elements {
-			if schemaContainsBinaryFileArray(
-				ctx, resolvedResource, element, resolver, limits,
-				visitedReferences, remaining, nextSchemaTraversalDepth(depth),
-			) {
-				return true
+		if exists {
+			if values.Kind() == jsonvalue.ArrayKind {
+				elements, _ := values.Elements()
+				for _, element := range elements {
+					if schemaContainsBinaryFileArray(
+						ctx, resolvedResource, element, resolver, limits,
+						visitedReferences, remaining, nextSchemaTraversalDepth(depth),
+					) {
+						return true
+					}
+				}
 			}
 		}
 	}
@@ -499,7 +509,10 @@ func validateEncodingProperties(
 	options Options,
 ) []Diagnostic {
 	schema, exists := mediaType.value.Lookup("schema")
-	if !exists || schema.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if schema.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	properties, complete := encodingSchemaProperties(
@@ -535,17 +548,14 @@ func validateEncodingProperties(
 					}
 				}
 			}
-			continue
+		} else if complete {
+			diagnostics = append(diagnostics, mediaTypeDiagnostic(
+				version,
+				"openapi.media-type.encoding.property-missing",
+				mediaType.pointer+"/encoding/"+escapePointer(member.Name),
+				"encoding name does not match a schema property",
+			))
 		}
-		if !complete {
-			continue
-		}
-		diagnostics = append(diagnostics, mediaTypeDiagnostic(
-			version,
-			"openapi.media-type.encoding.property-missing",
-			mediaType.pointer+"/encoding/"+escapePointer(member.Name),
-			"encoding name does not match a schema property",
-		))
 	}
 	return diagnostics
 }
@@ -591,7 +601,11 @@ func collectEncodingSchemaProperties(
 	properties map[string]encodingSchemaProperty,
 	complete *bool,
 ) {
-	if *remaining < 1 || depth >= limits.MaxTraversalDepth {
+	if *remaining < 1 {
+		*complete = false
+		return
+	}
+	if depth >= limits.MaxTraversalDepth {
 		*complete = false
 		return
 	}
@@ -606,44 +620,40 @@ func collectEncodingSchemaProperties(
 	if direct, exists := objectMember(schema, "properties"); exists {
 		members, _ := direct.Members()
 		for _, member := range members {
-			if _, known := properties[member.Name]; known {
-				continue
-			}
-			properties[member.Name] = encodingSchemaProperty{
-				value: member.Value, resource: resource,
+			if _, known := properties[member.Name]; !known {
+				properties[member.Name] = encodingSchemaProperty{
+					value: member.Value, resource: resource,
+				}
 			}
 		}
 	}
 	for _, keyword := range []string{"allOf", "anyOf", "oneOf"} {
 		composition, exists := schema.Lookup(keyword)
-		if !exists || composition.Kind() != jsonvalue.ArrayKind {
-			continue
-		}
-		elements, _ := composition.Elements()
-		for _, element := range elements {
-			collectEncodingSchemaProperties(
-				ctx,
-				resource,
-				element,
-				resolver,
-				limits,
-				visitedReferences,
-				remaining,
-				nextSchemaTraversalDepth(depth),
-				properties,
-				complete,
-			)
+		if exists {
+			if composition.Kind() == jsonvalue.ArrayKind {
+				elements, _ := composition.Elements()
+				for _, element := range elements {
+					collectEncodingSchemaProperties(
+						ctx,
+						resource,
+						element,
+						resolver,
+						limits,
+						visitedReferences,
+						remaining,
+						nextSchemaTraversalDepth(depth),
+						properties,
+						complete,
+					)
+				}
+			}
 		}
 	}
 	rawReference, referenced := stringMember(schema, "$ref")
 	if !referenced {
 		return
 	}
-	identity := resource.CanonicalURI
-	if identity == "" {
-		identity = resource.RetrievalURI
-	}
-	identity += "\x00" + rawReference
+	identity := referenceTraversalIdentity(resource, rawReference)
 	if _, visited := visitedReferences[identity]; visited {
 		return
 	}
@@ -674,7 +684,10 @@ func collectEncodingSchemaProperties(
 }
 
 func supportsNamedEncoding(value string) bool {
-	return isMultipartMediaType(value) || baseMediaType(value) == "application/x-www-form-urlencoded"
+	if isMultipartMediaType(value) {
+		return true
+	}
+	return baseMediaType(value) == "application/x-www-form-urlencoded"
 }
 
 func isMultipartMediaType(value string) bool {
@@ -698,8 +711,13 @@ func validLinksetMediaTypeSchema(
 		options.ReferenceResolver,
 		options.ReferenceLimits,
 	)
-	if !ok || !schemaHasType(root, "object") ||
-		!resolvedSchemaRequiresProperty(ctx, rootResource, root, "linkset", options) {
+	if !ok {
+		return false
+	}
+	if !schemaHasType(root, "object") {
+		return false
+	}
+	if !resolvedSchemaRequiresProperty(ctx, rootResource, root, "linkset", options) {
 		return false
 	}
 	rootProperties, complete := encodingSchemaProperties(
@@ -709,7 +727,10 @@ func validLinksetMediaTypeSchema(
 		options,
 	)
 	linkset, exists := rootProperties["linkset"]
-	if !complete || !exists {
+	if !complete {
+		return false
+	}
+	if !exists {
 		return false
 	}
 	linksetSchema, linksetResource, ok :=
@@ -720,7 +741,10 @@ func validLinksetMediaTypeSchema(
 			options.ReferenceResolver,
 			options.ReferenceLimits,
 		)
-	if !ok || !schemaHasType(linksetSchema, "array") {
+	if !ok {
+		return false
+	}
+	if !schemaHasType(linksetSchema, "array") {
 		return false
 	}
 	contexts, exists := linksetSchema.Lookup("items")
@@ -735,7 +759,10 @@ func validLinksetMediaTypeSchema(
 			options.ReferenceResolver,
 			options.ReferenceLimits,
 		)
-	if !ok || !schemaHasType(contextSchema, "object") {
+	if !ok {
+		return false
+	}
+	if !schemaHasType(contextSchema, "object") {
 		return false
 	}
 	properties, complete := encodingSchemaProperties(
@@ -757,7 +784,10 @@ func validLinksetMediaTypeSchema(
 				options.ReferenceResolver,
 				options.ReferenceLimits,
 			)
-			if !resolvedOK || !schemaHasType(resolved, "string") {
+			if !resolvedOK {
+				return false
+			}
+			if !schemaHasType(resolved, "string") {
 				return false
 			}
 			continue
@@ -772,16 +802,17 @@ func validLinksetMediaTypeSchema(
 			return false
 		}
 	}
-	if additional, exists := contextSchema.Lookup("additionalProperties"); exists &&
-		additional.Kind() != jsonvalue.BooleanKind {
-		hasRelation = true
-		if !validLinksetRelationSchema(
-			ctx,
-			contextResource,
-			additional,
-			options,
-		) {
-			return false
+	if additional, exists := contextSchema.Lookup("additionalProperties"); exists {
+		if additional.Kind() != jsonvalue.BooleanKind {
+			hasRelation = true
+			if !validLinksetRelationSchema(
+				ctx,
+				contextResource,
+				additional,
+				options,
+			) {
+				return false
+			}
 		}
 	}
 	return hasRelation
@@ -800,7 +831,10 @@ func validLinksetRelationSchema(
 		options.ReferenceResolver,
 		options.ReferenceLimits,
 	)
-	if !ok || !schemaHasType(relation, "array") {
+	if !ok {
+		return false
+	}
+	if !schemaHasType(relation, "array") {
 		return false
 	}
 	items, exists := relation.Lookup("items")
@@ -814,8 +848,13 @@ func validLinksetRelationSchema(
 		options.ReferenceResolver,
 		options.ReferenceLimits,
 	)
-	if !ok || !schemaHasType(target, "object") ||
-		!resolvedSchemaRequiresProperty(ctx, targetResource, target, "href", options) {
+	if !ok {
+		return false
+	}
+	if !schemaHasType(target, "object") {
+		return false
+	}
+	if !resolvedSchemaRequiresProperty(ctx, targetResource, target, "href", options) {
 		return false
 	}
 	properties, complete := encodingSchemaProperties(
@@ -825,7 +864,10 @@ func validLinksetRelationSchema(
 		options,
 	)
 	href, exists := properties["href"]
-	if !complete || !exists {
+	if !complete {
+		return false
+	}
+	if !exists {
 		return false
 	}
 	resolved, _, ok := resolveReferencedSchemaResourceWithPolicy(
@@ -835,7 +877,10 @@ func validLinksetRelationSchema(
 		options.ReferenceResolver,
 		options.ReferenceLimits,
 	)
-	return ok && schemaHasType(resolved, "string")
+	if !ok {
+		return false
+	}
+	return schemaHasType(resolved, "string")
 }
 
 func resolvedSchemaRequiresProperty(
@@ -856,14 +901,19 @@ func resolvedSchemaRequiresProperty(
 		return false
 	}
 	required, exists := resolved.Lookup("required")
-	if !exists || required.Kind() != jsonvalue.ArrayKind {
+	if !exists {
+		return false
+	}
+	if required.Kind() != jsonvalue.ArrayKind {
 		return false
 	}
 	members, _ := required.Elements()
 	for _, member := range members {
 		value, valid := member.Text()
-		if valid && value == name {
-			return true
+		if valid {
+			if value == name {
+				return true
+			}
 		}
 	}
 	return false
@@ -1000,14 +1050,20 @@ func (collector *mediaTypeCollector) parameter(value jsonvalue.Value, pointer st
 }
 
 func (collector *mediaTypeCollector) requestBody(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	collector.content(value, pointer+"/content", true)
 }
 
 func (collector *mediaTypeCollector) response(value jsonvalue.Value, pointer string) {
-	if value.Kind() != jsonvalue.ObjectKind || isReference(value) {
+	if value.Kind() != jsonvalue.ObjectKind {
+		return
+	}
+	if isReference(value) {
 		return
 	}
 	collector.content(value, pointer+"/content", false)

@@ -49,19 +49,20 @@ func validateSwaggerTypedDefaults(
 			})
 		}
 	}
-	items, exists := value.Lookup("items")
-	if !exists || items.Kind() != jsonvalue.ObjectKind {
-		return diagnostics
+	items, _ := value.Lookup("items")
+	switch items.Kind() {
+	case jsonvalue.ObjectKind:
+		diagnostics = append(
+			diagnostics,
+			validateSwaggerTypedDefaults(
+				items,
+				pointer+"/items",
+				version,
+				"items-object",
+			)...,
+		)
 	}
-	return append(
-		diagnostics,
-		validateSwaggerTypedDefaults(
-			items,
-			pointer+"/items",
-			version,
-			"items-object",
-		)...,
-	)
+	return diagnostics
 }
 
 func validSwaggerCollectionType(typeName string) bool {
@@ -108,29 +109,25 @@ func validateSwaggerHeaders(document openapi.Document) []Diagnostic {
 		"/responses",
 		version,
 	)
-	paths, exists := root.Lookup("paths")
-	if !exists || paths.Kind() != jsonvalue.ObjectKind {
-		return diagnostics
-	}
+	paths, _ := root.Lookup("paths")
 	pathMembers, _ := paths.Members()
 	for _, path := range pathMembers {
-		if !strings.HasPrefix(path.Name, "/") ||
-			path.Value.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		pathPointer := "/paths/" + escapePointer(path.Name)
-		for _, operation := range operationsAt(
-			path.Value,
-			pathPointer,
-			openapi.DialectSwagger20,
-		) {
-			diagnostics = appendSwaggerResponseHeaderDefaults(
-				diagnostics,
-				operation.value,
-				"responses",
-				operation.pointer+"/responses",
-				version,
-			)
+		if strings.HasPrefix(path.Name, "/") &&
+			path.Value.Kind() == jsonvalue.ObjectKind {
+			pathPointer := "/paths/" + escapePointer(path.Name)
+			for _, operation := range operationsAt(
+				path.Value,
+				pathPointer,
+				openapi.DialectSwagger20,
+			) {
+				diagnostics = appendSwaggerResponseHeaderDefaults(
+					diagnostics,
+					operation.value,
+					"responses",
+					operation.pointer+"/responses",
+					version,
+				)
+			}
 		}
 	}
 	return diagnostics
@@ -143,29 +140,22 @@ func appendSwaggerResponseHeaderDefaults(
 	pointer string,
 	version string,
 ) []Diagnostic {
-	responses, exists := owner.Lookup(field)
-	if !exists || responses.Kind() != jsonvalue.ObjectKind {
-		return diagnostics
-	}
+	responses, _ := owner.Lookup(field)
 	responseMembers, _ := responses.Members()
 	for _, response := range responseMembers {
-		if response.Value.Kind() != jsonvalue.ObjectKind ||
-			isReference(response.Value) {
-			continue
-		}
-		headers, exists := response.Value.Lookup("headers")
-		if !exists || headers.Kind() != jsonvalue.ObjectKind {
-			continue
-		}
-		headerMembers, _ := headers.Members()
-		for _, header := range headerMembers {
-			diagnostics = append(diagnostics, validateSwaggerTypedDefaults(
-				header.Value,
-				pointer+"/"+escapePointer(response.Name)+"/headers/"+
-					escapePointer(header.Name),
-				version,
-				"header-object",
-			)...)
+		if response.Value.Kind() == jsonvalue.ObjectKind &&
+			!isReference(response.Value) {
+			headers, _ := response.Value.Lookup("headers")
+			headerMembers, _ := headers.Members()
+			for _, header := range headerMembers {
+				diagnostics = append(diagnostics, validateSwaggerTypedDefaults(
+					header.Value,
+					pointer+"/"+escapePointer(response.Name)+"/headers/"+
+						escapePointer(header.Name),
+					version,
+					"header-object",
+				)...)
+			}
 		}
 	}
 	return diagnostics

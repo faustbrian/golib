@@ -43,6 +43,46 @@ func TestDocumentRecommendsNonEmptyRequestBodyContent(t *testing.T) {
 	}
 }
 
+func TestRequestBodyRecommendationIgnoresAbsentMalformedAndReferencedBodies(t *testing.T) {
+	t.Parallel()
+
+	document := mustDocument(t, `{
+		"openapi":"3.2.0","info":{"title":"API","version":"1"},
+		"paths":{
+			"/missing":{"post":{"responses":{"204":{"description":"ok"}}}},
+			"/scalar":{"post":{"requestBody":true,"responses":{"204":{"description":"ok"}}}},
+			"/reference":{"post":{"requestBody":{"$ref":"#/components/requestBodies/Empty"},"responses":{"204":{"description":"ok"}}}},
+			"/empty":{"post":{"requestBody":{"content":{}},"responses":{"204":{"description":"ok"}}}}
+		},
+		"components":{"requestBodies":{
+			"Missing":{},"Scalar":{"content":true},"Empty":{"content":{}}
+		}}
+	}`)
+	report, err := validate.Document(context.Background(), document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"/paths/~1empty/post/requestBody/content": false,
+		"/components/requestBodies/Empty/content": false,
+	}
+	for _, diagnostic := range report.Diagnostics() {
+		if diagnostic.Code != "openapi.request-body.content.empty" {
+			continue
+		}
+		if _, exists := want[diagnostic.InstanceLocation]; !exists {
+			t.Errorf("unexpected empty-content recommendation: %#v", diagnostic)
+			continue
+		}
+		want[diagnostic.InstanceLocation] = true
+	}
+	for pointer, found := range want {
+		if !found {
+			t.Errorf("missing recommendation at %s: %#v", pointer, report.Diagnostics())
+		}
+	}
+}
+
 func TestDocumentDoesNotApplyRequestBodyContentRecommendationBefore31Patch2(t *testing.T) {
 	t.Parallel()
 

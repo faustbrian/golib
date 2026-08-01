@@ -1,9 +1,11 @@
 package validate
 
 import (
+	"context"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/openapi/reference"
+	"github.com/faustbrian/golib/pkg/openapi/specversion"
 )
 
 func TestExternalOperationCollectorDeduplicatesAnchorTargets(t *testing.T) {
@@ -33,6 +35,37 @@ func TestExternalOperationCollectorDeduplicatesAnchorTargets(t *testing.T) {
 	}
 	if !collector.visited(target) {
 		t.Fatal("repeated anchor target was not deduplicated")
+	}
+}
+
+func TestExternalOperationCollectorSkipsRepeatedPathItemTarget(t *testing.T) {
+	t.Parallel()
+
+	target := reference.Resource{
+		CanonicalURI: "https://example.test/path-item.json",
+		Root:         testValidationValue(t, `{"get":{"responses":{}}}`),
+	}
+	collector := externalOperationCollector{
+		ctx:     context.Background(),
+		dialect: specversion.DialectOAS31,
+		resolver: reference.ResolverFunc(func(
+			context.Context, string,
+		) (reference.Resource, error) {
+			return target, nil
+		}),
+		limits: reference.DefaultLimits(),
+		seen:   make(map[string]struct{}),
+	}
+	pathItem := testValidationValue(t, `{"$ref":"https://example.test/path-item.json"}`)
+	base := reference.Resource{Root: testValidationValue(t, `{}`)}
+	collector.pathItemReference(base, pathItem, "/paths/~1value")
+	count := len(collector.operations)
+	collector.pathItemReference(base, pathItem, "/paths/~1value")
+	if len(collector.operations) != count {
+		t.Fatalf("repeated path item added operations: %d -> %d", count, len(collector.operations))
+	}
+	if count == 0 {
+		t.Fatal("first path item did not add an operation")
 	}
 }
 

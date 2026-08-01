@@ -68,6 +68,9 @@
 
 ### Tooling
 
+- Exercise every OpenAPI and Swagger validator branch with mutation-effective
+  assertions, including malformed collections, external references, callbacks,
+  security requirements, and dialect-specific schema behavior.
 - Verify composition fallback, resource accounting, conflict traversal,
   reference rewriting, and null comparison semantics against every viable
   mutation.
