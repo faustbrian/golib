@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -82,6 +83,58 @@ func TestEncodingInternalInvariantsAndDelimiterValidation(t *testing.T) {
 	}
 	if err := validateClosingDelimiter('{', json.Delim(']')); !errors.Is(err, ErrInvalidEncoding) {
 		t.Fatalf("mismatched closing delimiter error = %v", err)
+	}
+}
+
+func TestDecoderBoundsAndNestedTraversalAreExact(t *testing.T) {
+	t.Parallel()
+
+	if _, err := UnmarshalJSON(nil); err != ErrInvalidEncoding {
+		t.Fatalf("UnmarshalJSON(nil) error = %#v, want direct sentinel", err)
+	}
+
+	euro, _ := currency.Parse("EUR")
+	defaultContext, _ := money.DefaultContext(euro)
+	value, _ := money.Parse("1.00", euro, defaultContext)
+	data, err := MarshalJSON(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append(data, strings.Repeat(" ", MaxEncodedBytes-len(data))...)
+	if len(data) != MaxEncodedBytes {
+		t.Fatalf("maximum JSON length = %d", len(data))
+	}
+	if _, err := UnmarshalJSON(data); err != nil {
+		t.Fatalf("UnmarshalJSON(MaxEncodedBytes) error = %v", err)
+	}
+
+	arrayDecoder := json.NewDecoder(strings.NewReader(`[1,2]`))
+	if err := scanJSONValue(arrayDecoder); err != nil {
+		t.Fatalf("scanJSONValue(array) error = %v", err)
+	}
+	if err := requireEOF(arrayDecoder); err != nil {
+		t.Fatalf("scanJSONValue(array) left trailing input: %v", err)
+	}
+
+	malformedDecoder := json.NewDecoder(strings.NewReader(`[`))
+	if err := scanJSONValue(malformedDecoder); !errors.Is(err, io.EOF) {
+		t.Fatalf("scanJSONValue(unclosed array) error = %v, want EOF", err)
+	}
+
+	if _, err := decodeContext(wireContext{
+		Kind:  "default",
+		Scale: defaultContext.Scale() + 1,
+	}, euro); err != ErrInvalidEncoding {
+		t.Fatalf("decodeContext(mismatched default scale) error = %#v", err)
+	}
+
+	custom, _ := money.CustomContext(1)
+	exactLimit := "-" + strings.Repeat("9", money.MaxAmountDigits-1) + ".0"
+	if len(exactLimit) != money.MaxAmountDigits+2 {
+		t.Fatalf("numeric boundary length = %d", len(exactLimit))
+	}
+	if _, err := ScanNumeric(exactLimit, euro, custom); err != nil {
+		t.Fatalf("ScanNumeric(exact encoded bound) error = %v", err)
 	}
 }
 

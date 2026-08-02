@@ -155,7 +155,7 @@ func (money Money) Allocate(ctx context.Context, ratios []integer.Integer) (Allo
 
 	parts := make([]Money, len(ratios))
 	for index, partUnits := range units {
-		if total.Sign() < 0 {
+		if total.Sign() == -1 {
 			partUnits = partUnits.Neg()
 		}
 		parts[index], err = FromMinorUnits(partUnits, money.currency, money.context)

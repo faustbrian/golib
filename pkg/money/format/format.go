@@ -189,7 +189,9 @@ func group(integer, separator string, primary, secondary int) string {
 	}
 	var builder strings.Builder
 	builder.WriteString(integer[:first])
-	for index := first; index < prefixLength; index += secondary {
+	groups := (prefixLength - first) / secondary
+	for offset := range groups {
+		index := first + offset*secondary
 		builder.WriteString(separator)
 		builder.WriteString(integer[index : index+secondary])
 	}

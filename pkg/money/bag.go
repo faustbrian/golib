@@ -1,7 +1,9 @@
 package money
 
 import (
+	"cmp"
 	"sort"
+	"strings"
 
 	"github.com/faustbrian/golib/pkg/international/currency"
 )
@@ -49,7 +51,7 @@ func (bag MoneyBag) Add(value Money) (MoneyBag, error) {
 	values = append(values, value)
 	sort.Slice(values, func(left, right int) bool {
 		if values[left].currency != values[right].currency {
-			return values[left].currency.String() < values[right].currency.String()
+			return strings.Compare(values[left].currency.String(), values[right].currency.String()) == -1
 		}
 		return contextLess(values[left].context, values[right].context)
 	})
@@ -72,15 +74,15 @@ func (bag MoneyBag) Get(code currency.Code, context Context) (Money, bool) {
 }
 
 func contextLess(left, right Context) bool {
-	if left.kind != right.kind {
-		return left.kind < right.kind
+	if comparison := cmp.Compare(left.kind, right.kind); comparison != 0 {
+		return comparison == -1
 	}
-	if left.scale != right.scale {
-		return left.scale < right.scale
+	if comparison := cmp.Compare(left.scale, right.scale); comparison != 0 {
+		return comparison == -1
 	}
-	if left.cashStep != right.cashStep {
-		return left.cashStep < right.cashStep
+	if comparison := cmp.Compare(left.cashStep, right.cashStep); comparison != 0 {
+		return comparison == -1
 	}
 
-	return left.currency.String() < right.currency.String()
+	return strings.Compare(left.currency.String(), right.currency.String()) == -1
 }

@@ -1,7 +1,6 @@
 package money
 
 import (
-	international "github.com/faustbrian/golib/pkg/international"
 	"github.com/faustbrian/golib/pkg/international/currency"
 )
 
@@ -43,7 +42,7 @@ type Context struct {
 // metadata. Currencies without an applicable minor-unit exponent require an
 // explicit custom context.
 func DefaultContext(code currency.Code) (Context, error) {
-	if code.IsZero() || code.Status() == international.StatusUnknown {
+	if code.IsZero() {
 		return Context{}, ErrUnknownCurrency
 	}
 

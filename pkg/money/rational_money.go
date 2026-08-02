@@ -92,34 +92,28 @@ func (money RationalMoney) Round(target Context, mode gomath.RoundingMode) (Mone
 
 func terminatingScale(value rational.Rational) (uint8, error) {
 	denominator := value.Denominator()
-	two := big.NewInt(2)
-	five := big.NewInt(5)
-	remainder := new(big.Int)
-	twos, fives := uint8(0), uint8(0)
-	for twos <= MaxScale {
-		quotient, _ := new(big.Int).QuoRem(denominator, two, remainder)
-		if remainder.Sign() != 0 {
-			break
-		}
-		denominator = quotient
-		twos++
-	}
-	for fives <= MaxScale {
-		quotient, _ := new(big.Int).QuoRem(denominator, five, remainder)
-		if remainder.Sign() != 0 {
-			break
-		}
-		denominator = quotient
-		fives++
-	}
+	denominator, twos := removeFactor(denominator, 2)
+	denominator, fives := removeFactor(denominator, 5)
 	if denominator.Cmp(big.NewInt(1)) != 0 || twos > MaxScale || fives > MaxScale {
 		return 0, ErrPrecisionLoss
 	}
-	if fives > twos {
-		return fives, nil
+	return max(twos, fives), nil
+}
+
+func removeFactor(denominator *big.Int, factor int64) (*big.Int, uint8) {
+	remainder := new(big.Int)
+	divisor := big.NewInt(factor)
+	count := uint8(0)
+	for range MaxScale + 1 {
+		quotient, _ := new(big.Int).QuoRem(denominator, divisor, remainder)
+		if remainder.Sign() != 0 {
+			return denominator, count
+		}
+		denominator = quotient
+		count++
 	}
 
-	return twos, nil
+	return denominator, count
 }
 
 func roundedDecimal(amount rational.Rational, target Context, mode gomath.RoundingMode) (string, gomath.Condition, error) {

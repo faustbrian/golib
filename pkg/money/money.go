@@ -4,7 +4,6 @@ import (
 	stdcontext "context"
 	"fmt"
 
-	international "github.com/faustbrian/golib/pkg/international"
 	"github.com/faustbrian/golib/pkg/international/currency"
 	"github.com/faustbrian/golib/pkg/math/decimal"
 )
@@ -23,7 +22,7 @@ type Money struct {
 // places beyond their scale, including trailing zeroes, rather than silently
 // normalizing a context difference.
 func Parse(input string, code currency.Code, context Context) (Money, error) {
-	if code.IsZero() || code.Status() == international.StatusUnknown {
+	if code.IsZero() {
 		return Money{}, ErrUnknownCurrency
 	}
 	if context.IsZero() || context.scale > MaxScale {

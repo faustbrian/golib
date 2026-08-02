@@ -8,7 +8,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	international "github.com/faustbrian/golib/pkg/international"
 	"github.com/faustbrian/golib/pkg/international/currency"
 	gomath "github.com/faustbrian/golib/pkg/math"
 )
@@ -28,7 +27,7 @@ type ExchangeRate struct {
 
 // NewExchangeRate validates a directed rate and its observation metadata.
 func NewExchangeRate(base, quote currency.Code, rate Rate, observedAt time.Time, source string) (ExchangeRate, error) {
-	if base.IsZero() || quote.IsZero() || base.Status() == international.StatusUnknown || quote.Status() == international.StatusUnknown {
+	if base.IsZero() || quote.IsZero() {
 		return ExchangeRate{}, ErrUnknownCurrency
 	}
 	if base == quote {
