@@ -143,10 +143,13 @@ HTTP calls, object storage, email, or other external effects. See the
 transaction lifecycle plus shutdown attempts and broker activity with copied
 client and group identity.
 
-Use `ClientSecurity{TLS: tlsConfig}` for caller-provided roots or static mTLS
-material. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, and OAUTHBEARER use the package's
-bounded credential-provider contracts; no franz-go authentication type appears
-in the public API. Unencrypted connections require the visibly development-only
+Use `ClientSecurity{TLS: tlsConfig}` for caller-provided static roots or mTLS
+material. Use `TrustAnchorProvider` for bounded overlap-first server trust
+rotation; it supplies the complete root set for each new TLS connection and
+cannot be combined with static `TLS.RootCAs`. PLAIN, SCRAM-SHA-256,
+SCRAM-SHA-512, and OAUTHBEARER use the package's bounded credential-provider
+contracts; no franz-go authentication type appears in the public API.
+Unencrypted connections require the visibly development-only
 `DevelopmentPlaintextSecurity()` policy and cannot be combined with
 authentication. The independently versioned
 [`adapters/mskiam`](adapters/mskiam) module supplies AWS's supported

@@ -348,7 +348,7 @@ func newConsumer(
 		options = append(options, kgo.Rack(config.Rack))
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
-	options = append(options, clientSecurityOptions(config.Security)...)
+	options = append(options, clientSecurityOptions(config.Security, config.DialTimeout)...)
 	dispatcher := newObserverDispatcher(config.Observers)
 	subscribedTopics := make(map[string]struct{}, len(config.Topics))
 	for _, topic := range config.Topics {

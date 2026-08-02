@@ -382,7 +382,7 @@ func newProducer(
 		options = append(options, kgo.AllowIdempotentProduceCancellation())
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
-	options = append(options, clientSecurityOptions(config.Security)...)
+	options = append(options, clientSecurityOptions(config.Security, config.DialTimeout)...)
 	dispatcher := newObserverDispatcher(config.Observers)
 	allowedTopics := make(map[string]struct{}, len(config.AllowedTopics))
 	for _, topic := range config.AllowedTopics {

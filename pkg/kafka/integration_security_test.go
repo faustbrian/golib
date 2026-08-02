@@ -3,6 +3,7 @@
 package kafka_test
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rand"
@@ -55,9 +56,10 @@ const (
 )
 
 type secureKafkaBroker struct {
-	container testcontainers.Container
-	endpoint  string
-	pki       secureKafkaPKI
+	container     testcontainers.Container
+	endpoint      string
+	pki           secureKafkaPKI
+	storePassword string
 
 	plainPassword    string
 	limitedPassword  string
@@ -67,7 +69,9 @@ type secureKafkaBroker struct {
 }
 
 type secureKafkaPKI struct {
+	caDER                 []byte
 	caPEM                 []byte
+	serverDER             []byte
 	serverPEM             []byte
 	serverKeyPEM          []byte
 	clientPEM             []byte
@@ -203,14 +207,7 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 	}
 	baselineCertificateCalls := certificateCalls.Load()
 	currentCertificate.Store(&broker.pki.rotatedClientIdentity)
-	idleExpiry := time.NewTimer(3 * time.Second)
-	defer idleExpiry.Stop()
-	select {
-	case <-idleExpiry.C:
-	case <-ctx.Done():
-		_ = rotationProducer.Close()
-		t.Fatal("mTLS certificate rotation context expired before idle expiry")
-	}
+	waitForSecureKafkaIdleExpiry(t, ctx)
 
 	rotationCtx, cancelRotation := context.WithTimeout(ctx, 10*time.Second)
 	defer cancelRotation()
@@ -268,6 +265,106 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		kafka.ClientSecurity{TLS: wrongHostname},
 		nil,
 	)
+
+	host, _, err := net.SplitHostPort(broker.endpoint)
+	if err != nil {
+		t.Fatalf("parse secured Kafka endpoint for certificate rotation: %v", err)
+	}
+	rotatedPKI := newSecureKafkaPKI(t, host)
+	var currentTrustAnchors atomic.Value
+	currentTrustAnchors.Store(kafka.TrustAnchors{Certificates: [][]byte{
+		append([]byte(nil), broker.pki.caDER...),
+	}})
+	var trustAnchorCalls atomic.Int64
+	trustSecurity := kafka.ClientSecurity{
+		TLS:                       &tls.Config{MinVersion: tls.VersionTLS12},
+		ClientCertificateProvider: security.ClientCertificateProvider,
+		TrustAnchorProvider: kafka.TrustAnchorProviderFunc(func(
+			context.Context,
+		) (kafka.TrustAnchors, error) {
+			trustAnchorCalls.Add(1)
+			current := currentTrustAnchors.Load().(kafka.TrustAnchors)
+			certificates := make([][]byte, len(current.Certificates))
+			for index := range current.Certificates {
+				certificates[index] = append([]byte(nil), current.Certificates[index]...)
+			}
+
+			return kafka.TrustAnchors{Certificates: certificates}, nil
+		}),
+		CredentialTimeout: time.Second,
+	}
+	trustProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:         []string{broker.endpoint},
+		ClientID:        "golib-server-trust-rotation-producer",
+		AllowedTopics:   []string{topic},
+		DeliveryTimeout: 5 * time.Second,
+		RequestTimeout:  2 * time.Second,
+		ShutdownTimeout: 6 * time.Second,
+		Security:        trustSecurity,
+	})
+	if err != nil {
+		t.Fatalf("construct trust-anchor rotation producer: %v", err)
+	}
+	publishTrustRotation := func(value string) {
+		t.Helper()
+		result := trustProducer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte(value),
+			Value: []byte(value),
+		})
+		if result.Err != nil {
+			_ = trustProducer.Close()
+			t.Fatalf("trust-anchor rotation delivery %q: %v", value, result.Err)
+		}
+	}
+	publishTrustRotation("before-server-certificate-rotation")
+	baselineTrustAnchorCalls := trustAnchorCalls.Load()
+	if baselineTrustAnchorCalls == 0 {
+		_ = trustProducer.Close()
+		t.Fatal("initial trust-anchor provider was not used")
+	}
+
+	currentTrustAnchors.Store(kafka.TrustAnchors{Certificates: [][]byte{
+		append([]byte(nil), broker.pki.caDER...),
+		append([]byte(nil), rotatedPKI.caDER...),
+	}})
+	rotateSecureKafkaServerCertificate(t, ctx, broker, rotatedPKI)
+	waitForSecureKafkaServerCertificate(t, ctx, broker, rotatedPKI)
+	assertSecureKafkaHealthFailure(
+		t,
+		ctx,
+		broker.endpoint,
+		kafka.ClientSecurity{TLS: broker.staticMutualTLSConfig()},
+		nil,
+	)
+	waitForSecureKafkaIdleExpiry(t, ctx)
+	publishTrustRotation("after-server-certificate-rotation")
+	if trustAnchorCalls.Load() <= baselineTrustAnchorCalls {
+		_ = trustProducer.Close()
+		t.Fatalf(
+			"trust-anchor provider calls after server rotation = %d, want greater than %d",
+			trustAnchorCalls.Load(),
+			baselineTrustAnchorCalls,
+		)
+	}
+
+	rotatedTrustAnchorCalls := trustAnchorCalls.Load()
+	currentTrustAnchors.Store(kafka.TrustAnchors{Certificates: [][]byte{
+		append([]byte(nil), rotatedPKI.caDER...),
+	}})
+	waitForSecureKafkaIdleExpiry(t, ctx)
+	publishTrustRotation("after-retired-trust-anchor-removal")
+	if trustAnchorCalls.Load() <= rotatedTrustAnchorCalls {
+		_ = trustProducer.Close()
+		t.Fatalf(
+			"trust-anchor provider calls after retired anchor removal = %d, want greater than %d",
+			trustAnchorCalls.Load(),
+			rotatedTrustAnchorCalls,
+		)
+	}
+	if err := trustProducer.Close(); err != nil {
+		t.Fatalf("close trust-anchor rotation producer: %v", err)
+	}
 }
 
 func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
@@ -927,6 +1024,7 @@ func startSecureKafkaBroker(
 		scram512Password: randomSecureKafkaCredential(t),
 	}
 	storePassword := randomSecureKafkaCredential(t)
+	broker.storePassword = storePassword
 	copySecureKafkaFile(t, ctx, container, "/tmp/ca.pem", pki.caPEM, 0o644)
 	copySecureKafkaFile(t, ctx, container, "/tmp/server.pem", pki.serverPEM, 0o644)
 	copySecureKafkaFile(t, ctx, container, "/tmp/server-key.pem", pki.serverKeyPEM, 0o600)
@@ -1323,7 +1421,9 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 	}
 
 	return secureKafkaPKI{
+		caDER:                 append([]byte(nil), caDER...),
 		caPEM:                 caPEM,
+		serverDER:             append([]byte(nil), serverDER...),
 		serverPEM:             serverPEM,
 		serverKeyPEM:          serverKeyPEM,
 		clientPEM:             clientPEM,
@@ -1782,6 +1882,162 @@ func alterSecureKafkaSCRAMCredential(
 	}
 	if response.Err != nil {
 		t.Fatalf("alter secured Kafka SCRAM credential for %q: %v", username, response.Err)
+	}
+}
+
+func rotateSecureKafkaServerCertificate(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	pki secureKafkaPKI,
+) {
+	t.Helper()
+
+	copySecureKafkaFile(t, ctx, broker.container, "/tmp/rotated-ca.pem", pki.caPEM, 0o644)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		broker.container,
+		"/tmp/rotated-server.pem",
+		pki.serverPEM,
+		0o644,
+	)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		broker.container,
+		"/tmp/rotated-server-key.pem",
+		pki.serverKeyPEM,
+		0o600,
+	)
+	exitCode, output, err := broker.container.Exec(
+		ctx,
+		[]string{
+			"sh",
+			"-c",
+			"openssl pkcs12 -export -name broker " +
+				"-inkey /tmp/rotated-server-key.pem " +
+				"-in /tmp/rotated-server.pem -certfile /tmp/rotated-ca.pem " +
+				"-out /tmp/rotated-server.p12 " +
+				"-passout file:/tmp/store-password >/dev/null 2>&1 && " +
+				"chown 1000:1000 /tmp/rotated-server.p12 && " +
+				"chmod 0600 /tmp/rotated-server.p12",
+		},
+		tcexec.Multiplexed(),
+	)
+	if err != nil {
+		t.Fatalf("create rotated secured Kafka keystore: %v", err)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(output, 1024))
+	if readErr != nil {
+		t.Fatalf("read rotated secured Kafka keystore command: %v", readErr)
+	}
+	if exitCode != 0 {
+		diagnostic := strings.ReplaceAll(
+			string(data),
+			broker.storePassword,
+			"[redacted]",
+		)
+		t.Fatalf(
+			"create rotated secured Kafka keystore: exit %d: %s",
+			exitCode,
+			strings.TrimSpace(diagnostic),
+		)
+	}
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(broker.endpoint),
+		kgo.ClientID("golib-secure-certificate-rotation-admin"),
+		kgo.DialTLSConfig(broker.staticMutualTLSConfig()),
+	)
+	if err != nil {
+		t.Fatalf("construct secured Kafka certificate rotation admin: %v", err)
+	}
+	defer client.Close()
+	responses, err := kadm.NewClient(client).AlterBrokerConfigs(
+		ctx,
+		[]kadm.AlterConfig{{
+			Op:    kadm.SetConfig,
+			Name:  "listener.name.ssl.ssl.keystore.location",
+			Value: kadm.StringPtr("/tmp/rotated-server.p12"),
+		}},
+		1,
+	)
+	if err != nil {
+		t.Fatalf("alter secured Kafka listener keystore: %v", err)
+	}
+	response, responseErr := responses.On("1", nil)
+	if responseErr != nil {
+		t.Fatalf("secured Kafka listener keystore response: %v", responseErr)
+	}
+	if response.Err != nil {
+		t.Fatalf("alter secured Kafka listener keystore: %v", response.Err)
+	}
+}
+
+func waitForSecureKafkaServerCertificate(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	pki secureKafkaPKI,
+) {
+	t.Helper()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	host, _, err := net.SplitHostPort(broker.endpoint)
+	if err != nil {
+		t.Fatalf("parse secured Kafka endpoint for certificate verification: %v", err)
+	}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		connection, dialErr := (&tls.Dialer{
+			NetDialer: &net.Dialer{Timeout: time.Second},
+			Config: &tls.Config{
+				MinVersion:   tls.VersionTLS12,
+				RootCAs:      pki.roots.Clone(),
+				Certificates: []tls.Certificate{broker.pki.clientIdentity},
+				ServerName:   host,
+			},
+		}).DialContext(waitCtx, "tcp", broker.endpoint)
+		if dialErr == nil {
+			state := connection.(*tls.Conn).ConnectionState()
+			closeErr := connection.Close()
+			if closeErr != nil {
+				t.Fatalf("close rotated secured Kafka TLS connection: %v", closeErr)
+			}
+			if len(state.PeerCertificates) != 0 &&
+				bytes.Equal(state.PeerCertificates[0].Raw, pki.serverDER) {
+				return
+			}
+			lastErr = errors.New("secured Kafka returned the previous certificate")
+		} else {
+			lastErr = dialErr
+		}
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf(
+				"wait for rotated secured Kafka server certificate: %v; last error: %v",
+				context.Cause(waitCtx),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForSecureKafkaIdleExpiry(t *testing.T, ctx context.Context) {
+	t.Helper()
+
+	idleExpiry := time.NewTimer(3 * time.Second)
+	defer idleExpiry.Stop()
+	select {
+	case <-idleExpiry.C:
+	case <-ctx.Done():
+		t.Fatal("secured Kafka context expired before idle connection expiry")
 	}
 }
 

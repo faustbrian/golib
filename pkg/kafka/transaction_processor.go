@@ -339,7 +339,10 @@ func newTransactionProcessor(
 		options = append(options, kgo.Rack(config.Group.Rack))
 	}
 	options = append(options, clientProtocolOptions(config.Connection.Protocol)...)
-	options = append(options, clientSecurityOptions(config.Connection.Security)...)
+	options = append(options, clientSecurityOptions(
+		config.Connection.Security,
+		config.Connection.DialTimeout,
+	)...)
 
 	dispatcher := newObserverDispatcher(config.Observers)
 	allowedTopics := make(map[string]struct{}, len(config.Output.AllowedTopics))

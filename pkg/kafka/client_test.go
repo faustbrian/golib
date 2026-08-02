@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,6 +50,16 @@ func (stub clientCertificateProviderStub) ClientCertificate(
 	return stub.provider(ctx, request)
 }
 
+type trustAnchorProviderStub struct {
+	provider TrustAnchorProviderFunc
+}
+
+func (stub trustAnchorProviderStub) TrustAnchors(
+	ctx context.Context,
+) (TrustAnchors, error) {
+	return stub.provider(ctx)
+}
+
 func newTestTLSCertificate(t *testing.T) tls.Certificate {
 	t.Helper()
 
@@ -58,6 +71,54 @@ func newTestTLSCertificate(t *testing.T) tls.Certificate {
 	}))
 	certificate := server.TLS.Certificates[0]
 	server.Close()
+
+	return certificate
+}
+
+func newTestTrustAnchor(t *testing.T, serial int64) *x509.Certificate {
+	return newTestTrustAnchorWithExtension(t, serial, 0)
+}
+
+func newTestTrustAnchorWithExtension(
+	t *testing.T,
+	serial int64,
+	extensionBytes int,
+) *x509.Certificate {
+	t.Helper()
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate trust-anchor key: %v", err)
+	}
+	now := time.Now()
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(serial),
+		NotBefore:             now.Add(-time.Minute),
+		NotAfter:              now.Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	if extensionBytes > 0 {
+		template.ExtraExtensions = []pkix.Extension{{
+			Id:    []int{1, 3, 6, 1, 4, 1, 55555, 1},
+			Value: make([]byte, extensionBytes),
+		}}
+	}
+	encoded, err := x509.CreateCertificate(
+		rand.Reader,
+		template,
+		template,
+		publicKey,
+		privateKey,
+	)
+	if err != nil {
+		t.Fatalf("create trust anchor: %v", err)
+	}
+	certificate, err := x509.ParseCertificate(encoded)
+	if err != nil {
+		t.Fatalf("parse trust anchor: %v", err)
+	}
 
 	return certificate
 }
@@ -120,7 +181,7 @@ func TestClientSecurityOptionsApplyTLSAndSASL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize security: %v", err)
 	}
-	options := clientSecurityOptions(security)
+	options := clientSecurityOptions(security, time.Second)
 
 	if len(options) != 2 {
 		t.Fatalf("clientSecurityOptions() length = %d, want 2", len(options))
@@ -490,11 +551,17 @@ func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
 	var nilUsernameProvider UsernamePasswordProviderFunc
 	var nilOAuthProvider OAuthBearerProviderFunc
 	var nilCertificateProvider ClientCertificateProviderFunc
+	var nilTrustAnchorProvider TrustAnchorProviderFunc
+	var nilTrustAnchorProviderStub *trustAnchorProviderStub
 	validCertificate := newTestTLSCertificate(t)
+	staticRoots := x509.NewCertPool()
 
 	tests := []ClientSecurity{
 		{Transport: TransportSecurity(255)},
 		{CredentialTimeout: time.Second},
+		{TLS: &tls.Config{ServerName: " "}},
+		{TLS: &tls.Config{ServerName: string([]byte{0xff})}},
+		{TLS: &tls.Config{ServerName: strings.Repeat("a", 256)}},
 		{Authentication: NewPlainAuthentication(nil)},
 		{Authentication: NewSCRAMSHA256Authentication(nil)},
 		{Authentication: NewSCRAMSHA512Authentication(nil)},
@@ -502,6 +569,26 @@ func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
 		{Authentication: NewPlainAuthentication(nilUsernameProvider)},
 		{Authentication: NewOAuthBearerAuthentication(nilOAuthProvider)},
 		{ClientCertificateProvider: nilCertificateProvider},
+		{TrustAnchorProvider: nilTrustAnchorProvider},
+		{TrustAnchorProvider: nilTrustAnchorProviderStub},
+		{
+			Transport: TransportDevelopmentPlaintext,
+			TrustAnchorProvider: TrustAnchorProviderFunc(func(
+				context.Context,
+			) (TrustAnchors, error) {
+				return TrustAnchors{}, nil
+			}),
+		},
+		{
+			TLS:                 &tls.Config{RootCAs: staticRoots},
+			TrustAnchorProvider: trustAnchorProviderStub{},
+		},
+		{
+			TLS: &tls.Config{
+				ClientSessionCache: tls.NewLRUClientSessionCache(1),
+			},
+			TrustAnchorProvider: trustAnchorProviderStub{},
+		},
 		{
 			Authentication: NewPlainAuthentication(UsernamePasswordProviderFunc(func(
 				context.Context,
@@ -548,6 +635,219 @@ func TestClientSecurityRejectsInvalidPolicyCombinations(t *testing.T) {
 	token := OAuthBearerToken{Token: []byte("secret-token")}
 	if strings.Contains(token.String()+token.GoString(), "secret-token") {
 		t.Fatal("OAuthBearerToken formatting disclosed token")
+	}
+}
+
+func TestTrustAnchorProviderIsBoundedOwnedRotatingAndPanicSafe(t *testing.T) {
+	firstCertificate := newTestTrustAnchor(t, 1)
+	secondCertificate := newTestTrustAnchor(t, 2)
+
+	current := atomic.Value{}
+	current.Store([][]byte{append([]byte(nil), firstCertificate.Raw...)})
+	var calls atomic.Int64
+	provider := trustAnchorProviderStub{provider: TrustAnchorProviderFunc(func(
+		ctx context.Context,
+	) (TrustAnchors, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > time.Second {
+			t.Fatalf("trust-anchor provider deadline = %v, %t", deadline, ok)
+		}
+		calls.Add(1)
+
+		return TrustAnchors{Certificates: current.Load().([][]byte)}, nil
+	})}
+	security, err := normalizeClientSecurity(ClientSecurity{
+		TrustAnchorProvider: provider,
+		CredentialTimeout:   time.Second,
+	})
+	if err != nil {
+		t.Fatalf("normalize trust-anchor provider: %v", err)
+	}
+	firstRoots, err := callTrustAnchorProvider(
+		context.Background(),
+		security.CredentialTimeout,
+		security.TrustAnchorProvider,
+	)
+	if err != nil {
+		t.Fatalf("load first trust anchors: %v", err)
+	}
+	current.Load().([][]byte)[0][0] ^= 0xff
+	if _, err := firstCertificate.Verify(x509.VerifyOptions{Roots: firstRoots}); err != nil {
+		t.Fatalf("verify first certificate after provider result mutation: %v", err)
+	}
+
+	current.Store([][]byte{append([]byte(nil), secondCertificate.Raw...)})
+	secondRoots, err := callTrustAnchorProvider(
+		context.Background(),
+		security.CredentialTimeout,
+		security.TrustAnchorProvider,
+	)
+	if err != nil {
+		t.Fatalf("load rotated trust anchors: %v", err)
+	}
+	if _, err := secondCertificate.Verify(x509.VerifyOptions{Roots: secondRoots}); err != nil {
+		t.Fatalf("verify rotated certificate: %v", err)
+	}
+	if _, err := firstCertificate.Verify(x509.VerifyOptions{Roots: secondRoots}); err == nil {
+		t.Fatal("rotated trust anchors still accepted the retired certificate")
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("trust-anchor provider calls = %d, want 2", calls.Load())
+	}
+
+	formatted := TrustAnchors{Certificates: [][]byte{[]byte("secret-root")}}
+	if strings.Contains(formatted.String()+formatted.GoString(), "secret-root") {
+		t.Fatal("trust-anchor formatting disclosed certificate material")
+	}
+
+	secretCause := errors.New("secret trust provider failure")
+	_, err = callTrustAnchorProvider(
+		context.Background(),
+		time.Second,
+		TrustAnchorProviderFunc(func(context.Context) (TrustAnchors, error) {
+			return TrustAnchors{}, secretCause
+		}),
+	)
+	if !errors.Is(err, ErrCredentialProviderFailed) ||
+		!errors.Is(err, secretCause) || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("trust-anchor provider error = %v", err)
+	}
+
+	_, err = callTrustAnchorProvider(
+		context.Background(),
+		time.Second,
+		TrustAnchorProviderFunc(func(context.Context) (TrustAnchors, error) {
+			panic("secret trust provider panic")
+		}),
+	)
+	if !errors.Is(err, ErrCredentialProviderPanic) ||
+		strings.Contains(err.Error(), "secret") {
+		t.Fatalf("panicking trust-anchor provider error = %v", err)
+	}
+}
+
+func TestTrustAnchorProviderRejectsInvalidMaterial(t *testing.T) {
+	certificate := newTestTLSCertificate(t).Certificate[0]
+	firstLarge := newTestTrustAnchorWithExtension(t, 10, maxTrustAnchorBytes/2).Raw
+	secondLarge := newTestTrustAnchorWithExtension(t, 11, maxTrustAnchorBytes/2).Raw
+	if len(firstLarge) > maxTrustAnchorBytes || len(secondLarge) > maxTrustAnchorBytes ||
+		len(firstLarge)+len(secondLarge) <= maxTrustAnchorBytes {
+		t.Fatalf("large trust-anchor sizes = %d + %d", len(firstLarge), len(secondLarge))
+	}
+	cumulative := [][]byte{
+		newTestTrustAnchorWithExtension(t, 12, maxTrustAnchorBytes/3).Raw,
+		newTestTrustAnchorWithExtension(t, 13, maxTrustAnchorBytes/3).Raw,
+		newTestTrustAnchorWithExtension(t, 14, maxTrustAnchorBytes/3).Raw,
+	}
+	if len(cumulative[0])+len(cumulative[1]) > maxTrustAnchorBytes ||
+		len(cumulative[0])+len(cumulative[1])+len(cumulative[2]) <= maxTrustAnchorBytes {
+		t.Fatalf(
+			"cumulative trust-anchor sizes = %d + %d + %d",
+			len(cumulative[0]), len(cumulative[1]), len(cumulative[2]),
+		)
+	}
+	tooMany := make([][]byte, maxTrustAnchorCertificates+1)
+	for index := range tooMany {
+		tooMany[index] = certificate
+	}
+	tests := []TrustAnchors{
+		{},
+		{Certificates: [][]byte{nil}},
+		{Certificates: [][]byte{[]byte("not a certificate")}},
+		{Certificates: [][]byte{certificate, certificate}},
+		{Certificates: tooMany},
+		{Certificates: [][]byte{make([]byte, maxTrustAnchorBytes+1)}},
+		{Certificates: [][]byte{firstLarge, secondLarge}},
+		{Certificates: cumulative},
+	}
+	for index, anchors := range tests {
+		_, err := callTrustAnchorProvider(
+			context.Background(),
+			time.Second,
+			TrustAnchorProviderFunc(func(context.Context) (TrustAnchors, error) {
+				return anchors, nil
+			}),
+		)
+		if !errors.Is(err, ErrInvalidTrustAnchors) {
+			t.Fatalf("case %d trust-anchor error = %v", index, err)
+		}
+	}
+	if !validTrustAnchorCount(maxTrustAnchorCertificates) ||
+		validTrustAnchorCount(0) ||
+		validTrustAnchorCount(maxTrustAnchorCertificates+1) {
+		t.Fatal("trust-anchor count boundaries are invalid")
+	}
+	if !trustAnchorBytesFit(maxTrustAnchorBytes-1, 1) ||
+		trustAnchorBytesFit(maxTrustAnchorBytes, 1) ||
+		trustAnchorBytesFit(-1, 1) ||
+		trustAnchorBytesFit(0, 0) {
+		t.Fatal("trust-anchor byte boundaries are invalid")
+	}
+}
+
+func TestTrustAnchorDialerLoadsRootsForEveryConnection(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(
+		response http.ResponseWriter,
+		_ *http.Request,
+	) {
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+	address := strings.TrimPrefix(server.URL, "https://")
+	var current atomic.Value
+	current.Store(TrustAnchors{Certificates: [][]byte{
+		append([]byte(nil), server.Certificate().Raw...),
+	}})
+	var calls atomic.Int64
+	security, err := normalizeClientSecurity(ClientSecurity{
+		TrustAnchorProvider: TrustAnchorProviderFunc(func(
+			ctx context.Context,
+		) (TrustAnchors, error) {
+			deadline, ok := ctx.Deadline()
+			if !ok || time.Until(deadline) > 100*time.Millisecond {
+				t.Fatalf("trust-anchor dial deadline = %v, %t", deadline, ok)
+			}
+			calls.Add(1)
+
+			return current.Load().(TrustAnchors), nil
+		}),
+		CredentialTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("normalize trust-anchor dialer: %v", err)
+	}
+	dial := trustAnchorDialer(security, 100*time.Millisecond)
+	connection, err := dial(context.Background(), "tcp", address)
+	if err != nil {
+		t.Fatalf("dial trusted TLS server: %v", err)
+	}
+	if closeErr := connection.Close(); closeErr != nil {
+		t.Fatalf("close trusted TLS connection: %v", closeErr)
+	}
+
+	current.Store(TrustAnchors{})
+	_, err = dial(context.Background(), "tcp", address)
+	if !errors.Is(err, ErrInvalidTrustAnchors) {
+		t.Fatalf("dial after invalid trust rotation error = %v", err)
+	}
+	current.Store(TrustAnchors{Certificates: [][]byte{
+		append([]byte(nil), server.Certificate().Raw...),
+	}})
+	invalidAddresses := []string{
+		"invalid-address",
+		" padded.example:9092",
+		":9092",
+		strings.Repeat("a", 256) + ":9092",
+		string([]byte{0xff}) + ":9092",
+	}
+	for _, address := range invalidAddresses {
+		_, err = dial(context.Background(), "tcp", address)
+		if !errors.Is(err, ErrInvalidBroker) {
+			t.Fatalf("dial invalid broker %q error = %v", address, err)
+		}
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("trust-anchor dial calls = %d, want 2", calls.Load())
 	}
 }
 
@@ -618,6 +918,7 @@ func TestClientSecurityAcceptsTLSMaterialLimits(t *testing.T) {
 	security, err := normalizeClientSecurity(ClientSecurity{TLS: &tls.Config{
 		MinVersion:       tls.VersionTLS12,
 		MaxVersion:       tls.VersionTLS12,
+		ServerName:       strings.Repeat("s", 255),
 		Certificates:     certificates,
 		NextProtos:       nextProtocols,
 		CipherSuites:     cipherSuites,
@@ -627,6 +928,7 @@ func TestClientSecurityAcceptsTLSMaterialLimits(t *testing.T) {
 		t.Fatalf("normalize inclusive TLS material limits: %v", err)
 	}
 	if len(security.TLS.Certificates) != len(certificates) ||
+		len(security.TLS.ServerName) != 255 ||
 		len(security.TLS.NextProtos) != len(nextProtocols) ||
 		len(security.TLS.CipherSuites) != len(cipherSuites) ||
 		len(security.TLS.CurvePreferences) != len(curves) {

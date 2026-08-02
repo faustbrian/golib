@@ -7,6 +7,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"net"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -39,6 +41,14 @@ var (
 	ErrInvalidClientCertificateRequest = errors.New(
 		"kafka: TLS client certificate request exceeds policy limits",
 	)
+	ErrInvalidTrustAnchors = errors.New(
+		"kafka: trust-anchor provider returned invalid certificates",
+	)
+)
+
+const (
+	maxTrustAnchorCertificates = 64
+	maxTrustAnchorBytes        = 1 << 20
 )
 
 // TransportSecurity selects verified TLS or an explicitly development-only
@@ -168,6 +178,41 @@ func (provider ClientCertificateProviderFunc) ClientCertificate(
 	return provider(ctx, request)
 }
 
+// TrustAnchors contains one complete result from a TrustAnchorProvider. Each
+// certificate must be one DER-encoded X.509 trust anchor. Ownership of the
+// returned slice structure and certificate bytes transfers to the package; a
+// provider must not mutate or reuse them after returning. The package retains
+// only owned copies. String formatting is always redacted.
+type TrustAnchors struct {
+	Certificates [][]byte
+}
+
+// String returns a stable redacted representation.
+func (anchors TrustAnchors) String() string {
+	return "kafka.TrustAnchors{redacted}"
+}
+
+// GoString returns a stable redacted representation for %#v formatting.
+func (anchors TrustAnchors) GoString() string {
+	return anchors.String()
+}
+
+// TrustAnchorProvider returns the complete root set for one new TLS
+// connection. Implementations must be concurrency-safe and honor ctx.
+type TrustAnchorProvider interface {
+	TrustAnchors(context.Context) (TrustAnchors, error)
+}
+
+// TrustAnchorProviderFunc adapts a function to TrustAnchorProvider.
+type TrustAnchorProviderFunc func(context.Context) (TrustAnchors, error)
+
+// TrustAnchors invokes provider.
+func (provider TrustAnchorProviderFunc) TrustAnchors(
+	ctx context.Context,
+) (TrustAnchors, error) {
+	return provider(ctx)
+}
+
 // Authentication is an immutable, redacted authentication policy constructed
 // by one of the New*Authentication functions.
 type Authentication struct {
@@ -261,6 +306,7 @@ type ClientSecurity struct {
 	TLS                       *tls.Config
 	Authentication            Authentication
 	ClientCertificateProvider ClientCertificateProvider
+	TrustAnchorProvider       TrustAnchorProvider
 	CredentialTimeout         time.Duration
 }
 
@@ -311,6 +357,7 @@ func normalizeClientSecurity(security ClientSecurity) (ClientSecurity, error) {
 		if security.TLS != nil ||
 			security.Authentication.Method() != AuthenticationNone ||
 			security.ClientCertificateProvider != nil ||
+			security.TrustAnchorProvider != nil ||
 			security.CredentialTimeout != 0 {
 			return ClientSecurity{}, ErrInvalidSecurityConfig
 		}
@@ -360,13 +407,20 @@ func normalizeClientSecurity(security ClientSecurity) (ClientSecurity, error) {
 	if !validClientCertificateProvider(security.ClientCertificateProvider) {
 		return ClientSecurity{}, ErrInvalidSecurityConfig
 	}
+	if !validTrustAnchorProvider(security.TrustAnchorProvider) {
+		return ClientSecurity{}, ErrInvalidSecurityConfig
+	}
 	if security.ClientCertificateProvider != nil &&
 		(len(security.TLS.Certificates) != 0 ||
 			security.TLS.GetClientCertificate != nil) {
 		return ClientSecurity{}, ErrInvalidSecurityConfig
 	}
+	if security.TrustAnchorProvider != nil &&
+		(security.TLS.RootCAs != nil || security.TLS.ClientSessionCache != nil) {
+		return ClientSecurity{}, ErrInvalidSecurityConfig
+	}
 	usesCredentialProvider := security.Authentication.Method() != AuthenticationNone ||
-		security.ClientCertificateProvider != nil
+		security.ClientCertificateProvider != nil || security.TrustAnchorProvider != nil
 	if usesCredentialProvider {
 		if security.CredentialTimeout == 0 {
 			security.CredentialTimeout = 5 * time.Second
@@ -392,36 +446,38 @@ func normalizeClientSecurity(security ClientSecurity) (ClientSecurity, error) {
 }
 
 func validUsernamePasswordProvider(provider UsernamePasswordProvider) bool {
-	if provider == nil {
-		return false
-	}
-	if function, ok := provider.(UsernamePasswordProviderFunc); ok {
-		return function != nil
-	}
-
-	return true
+	return provider != nil && !typedNilProvider(provider)
 }
 
 func validOAuthBearerProvider(provider OAuthBearerProvider) bool {
-	if provider == nil {
-		return false
-	}
-	if function, ok := provider.(OAuthBearerProviderFunc); ok {
-		return function != nil
-	}
-
-	return true
+	return provider != nil && !typedNilProvider(provider)
 }
 
 func validClientCertificateProvider(provider ClientCertificateProvider) bool {
 	if provider == nil {
 		return true
 	}
-	if function, ok := provider.(ClientCertificateProviderFunc); ok {
-		return function != nil
+
+	return !typedNilProvider(provider)
+}
+
+func validTrustAnchorProvider(provider TrustAnchorProvider) bool {
+	if provider == nil {
+		return true
 	}
 
-	return true
+	return !typedNilProvider(provider)
+}
+
+func typedNilProvider(provider any) bool {
+	value := reflect.ValueOf(provider)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func cloneTLSConfig(source *tls.Config) *tls.Config {
@@ -444,7 +500,8 @@ func cloneTLSConfig(source *tls.Config) *tls.Config {
 }
 
 func validTLSConfigMaterial(config *tls.Config) bool {
-	if config.GetClientCertificate != nil || len(config.Certificates) > 16 ||
+	if (config.ServerName != "" && !validTLSServerName(config.ServerName)) ||
+		config.GetClientCertificate != nil || len(config.Certificates) > 16 ||
 		len(config.NextProtos) > 16 ||
 		len(config.CipherSuites) > tls12CipherSuiteCount() ||
 		len(config.CurvePreferences) > 7 ||
@@ -575,10 +632,20 @@ func cloneByteSlices(source [][]byte) [][]byte {
 	return cloned
 }
 
-func clientSecurityOptions(security ClientSecurity) []kgo.Opt {
+func clientSecurityOptions(
+	security ClientSecurity,
+	dialTimeout time.Duration,
+) []kgo.Opt {
 	options := make([]kgo.Opt, 0, 2)
 	if security.Transport == TransportTLS {
-		options = append(options, kgo.DialTLSConfig(security.TLS))
+		if security.TrustAnchorProvider == nil {
+			options = append(options, kgo.DialTLSConfig(security.TLS))
+		} else {
+			options = append(options, kgo.Dialer(trustAnchorDialer(
+				security,
+				dialTimeout,
+			)))
+		}
 	}
 	if mechanism := security.Authentication.saslMechanism(
 		security.CredentialTimeout,
@@ -587,6 +654,46 @@ func clientSecurityOptions(security ClientSecurity) []kgo.Opt {
 	}
 
 	return options
+}
+
+func trustAnchorDialer(
+	security ClientSecurity,
+	dialTimeout time.Duration,
+) func(context.Context, string, string) (net.Conn, error) {
+	baseTLSConfig := security.TLS
+	provider := security.TrustAnchorProvider
+	providerTimeout := security.CredentialTimeout
+	netDialer := &net.Dialer{Timeout: dialTimeout}
+
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialCtx, cancel := context.WithTimeout(ctx, dialTimeout)
+		defer cancel()
+		serverName := baseTLSConfig.ServerName
+		if serverName == "" {
+			var splitErr error
+			serverName, _, splitErr = net.SplitHostPort(address)
+			if splitErr != nil || !validTLSServerName(serverName) {
+				return nil, ErrInvalidBroker
+			}
+		}
+		roots, err := callTrustAnchorProvider(dialCtx, providerTimeout, provider)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig := cloneTLSConfig(baseTLSConfig)
+		tlsConfig.RootCAs = roots
+		tlsConfig.ServerName = serverName
+
+		return (&tls.Dialer{
+			NetDialer: netDialer,
+			Config:    tlsConfig,
+		}).DialContext(dialCtx, network, address)
+	}
+}
+
+func validTLSServerName(serverName string) bool {
+	return serverName != "" && serverName == strings.TrimSpace(serverName) &&
+		validKafkaText(serverName, 255)
 }
 
 func (authentication Authentication) saslMechanism(
@@ -767,6 +874,70 @@ func validOAuthAuthorizationID(value string) bool {
 	}
 
 	return true
+}
+
+func callTrustAnchorProvider(
+	ctx context.Context,
+	timeout time.Duration,
+	provider TrustAnchorProvider,
+) (roots *x509.CertPool, err error) {
+	providerCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	defer func() {
+		if recover() != nil {
+			roots = nil
+			err = newCredentialProviderError(ErrCredentialProviderPanic)
+		}
+	}()
+
+	anchors, providerErr := provider.TrustAnchors(providerCtx)
+	if providerErr != nil {
+		return nil, newCredentialProviderError(providerErr)
+	}
+	roots, valid := trustAnchorPool(anchors)
+	if !valid {
+		return nil, newCredentialProviderError(ErrInvalidTrustAnchors)
+	}
+
+	return roots, nil
+}
+
+func trustAnchorPool(anchors TrustAnchors) (*x509.CertPool, bool) {
+	if !validTrustAnchorCount(len(anchors.Certificates)) {
+		return nil, false
+	}
+
+	roots := x509.NewCertPool()
+	seen := make(map[string]struct{}, len(anchors.Certificates))
+	totalBytes := 0
+	for _, encoded := range anchors.Certificates {
+		if !trustAnchorBytesFit(totalBytes, len(encoded)) {
+			return nil, false
+		}
+		owned := append([]byte(nil), encoded...)
+		key := string(owned)
+		if _, exists := seen[key]; exists {
+			return nil, false
+		}
+		seen[key] = struct{}{}
+		certificate, parseErr := x509.ParseCertificate(owned)
+		if parseErr != nil {
+			return nil, false
+		}
+		roots.AddCert(certificate)
+		totalBytes += len(owned)
+	}
+
+	return roots, true
+}
+
+func validTrustAnchorCount(count int) bool {
+	return count > 0 && count <= maxTrustAnchorCertificates
+}
+
+func trustAnchorBytesFit(totalBytes, certificateBytes int) bool {
+	return certificateBytes > 0 && totalBytes >= 0 &&
+		certificateBytes <= maxTrustAnchorBytes-totalBytes
 }
 
 func callClientCertificateProvider(

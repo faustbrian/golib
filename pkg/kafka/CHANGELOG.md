@@ -6,6 +6,12 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add a bounded `TrustAnchorProvider` that supplies 1 to 64 owned DER-encoded
+  roots for each new TLS connection, rejects ambiguous static-plus-dynamic root
+  configuration, and supports overlap-first trust rotation; pinned Apache Kafka
+  4.3.1 evidence dynamically replaces the broker certificate under a new CA,
+  reconnects an existing producer, removes the retired CA, and rejects a new
+  client that still trusts only the retired anchor
 - add pinned Apache Kafka 4.3.1 evidence that live SCRAM-SHA-256 and
   SCRAM-SHA-512 producers refresh their credential providers after
   broker-enforced reauthentication and reject the retired secrets
@@ -30,6 +36,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- reject typed-nil custom security-provider interface values during
+  construction instead of deferring failure to a runtime callback panic
+- reject invalid configured TLS server names during construction and malformed
+  broker-advertised names before invoking a rotating trust-anchor provider
 - wait within a bounded deadline for secured Kafka fixture port publication
   before resolving the broker endpoint
 - stabilize pinned Apache Kafka evidence by retrying bounded retryable consumer

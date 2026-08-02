@@ -351,7 +351,7 @@ func newInspector(
 		kgo.DialTimeout(config.DialTimeout),
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
-	options = append(options, clientSecurityOptions(config.Security)...)
+	options = append(options, clientSecurityOptions(config.Security, config.DialTimeout)...)
 	dispatcher := newObserverDispatcher(config.Observers)
 	inspector := &Inspector{
 		clientID:              strings.Clone(config.ClientID),

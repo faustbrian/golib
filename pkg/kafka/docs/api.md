@@ -11,6 +11,15 @@ request-version downgrade floor without exposing franz-go version types. It is
 not a broker release check or compatibility claim. See the
 [configuration reference](configuration.md).
 
+All client roles also accept the same `ClientSecurity` contract. Static
+`TLS.RootCAs` and a rotating `TrustAnchorProvider` are mutually exclusive. A
+provider supplies the complete bounded DER-encoded root set for each new TLS
+connection, must be concurrency-safe, and shares `CredentialTimeout` with the
+authentication and client-certificate providers. Existing connections retain
+their negotiated trust state; use overlap-first rotation and force bounded
+reconnection before retiring an old root. See the [security guide](security.md)
+for ownership, redaction, failure, and rollout semantics.
+
 Broker addresses and Kafka client, group, transactional, instance, and rack
 identifiers must be valid UTF-8 without control characters or surrounding
 whitespace. Identifiers are bounded to 255 bytes. Empty required client and

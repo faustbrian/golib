@@ -12,7 +12,7 @@ control surface. Invalid combinations fail closed; there is no unrestricted
 | `Brokers` | none | Required ordered list of 1 to 32 unique seed addresses. Empty, padded, oversized, invalid UTF-8, or control-containing values are rejected. Seeds are discovery inputs, not a complete broker allowlist. |
 | `ClientID` | none | Required valid UTF-8 identifier of at most 255 bytes without padding or control characters. |
 | `Protocol.MinimumVersion` | empty | Uses franz-go `ApiVersions` negotiation with no package-imposed downgrade floor. A configured value must be a Kafka release recognized by the pinned franz-go version table. |
-| `Security` | verified TLS | TLS 1.2 minimum with system roots. Plaintext requires `DevelopmentPlaintextSecurity`. See the [security guide](security.md). |
+| `Security` | verified TLS | TLS 1.2 minimum with system roots. Plaintext requires `DevelopmentPlaintextSecurity`. Static caller roots and a rotating `TrustAnchorProvider` are mutually exclusive. See the [security guide](security.md). |
 | `DialTimeout` | 10 seconds | 100 milliseconds to 2 minutes. |
 
 Every package-owned franz-go client retries an EOF received before the first
@@ -23,6 +23,19 @@ request, delivery, transaction, planning, handler, or shutdown deadline. This
 policy can delay diagnosis of a broker-side TLS, SASL, listener, or endpoint
 mismatch until that bound expires, so deployments must validate security and
 listener configuration before rollout.
+
+`TrustAnchorProvider`, authentication providers, and
+`ClientCertificateProvider` share `Security.CredentialTimeout`, which defaults
+to five seconds and permits 100 milliseconds through one minute. A trust
+provider returns the complete set of 1 to 64 distinct DER-encoded X.509 roots
+for one new TLS connection, with at most 1 MiB of aggregate certificate data.
+Ownership of the returned slice structure and bytes transfers to the package;
+the provider must not mutate or reuse them after returning. The package retains
+only parsed owned copies before dialing. Existing connections retain the roots
+used for their handshake, so deployments must add the new CA, rotate the broker
+certificate and force bounded reconnection, then remove the retired CA. Client
+session caches are incompatible with a rotating trust provider, and provider
+plus network work share the configured dial deadline.
 
 Kafka brokers advertise supported request versions per connection through
 `ApiVersions`. franz-go normally selects the newest request version supported

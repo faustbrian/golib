@@ -368,7 +368,7 @@ func newReplayReader(
 		kgo.DialTimeout(config.DialTimeout),
 	}
 	options = append(options, clientProtocolOptions(config.Protocol)...)
-	options = append(options, clientSecurityOptions(config.Security)...)
+	options = append(options, clientSecurityOptions(config.Security, config.DialTimeout)...)
 	dispatcher := newObserverDispatcher(config.Observers)
 	reader := &ReplayReader{
 		clientID:              strings.Clone(config.ClientID),

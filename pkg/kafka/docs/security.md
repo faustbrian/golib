@@ -9,10 +9,13 @@ version bounds.
 Custom TLS configuration is fail-closed. Key logging, renegotiation, raw
 `GetClientCertificate` callbacks, unreviewed ECH configuration, insecure or
 TLS-1.3-only entries in the TLS-1.2 cipher-suite field, unknown curves,
-duplicates, unsupported TLS versions, and server-only TLS fields are rejected.
+duplicates, unsupported TLS versions, invalid configured server names, and
+server-only TLS fields are rejected. A rotating trust provider also rejects an
+invalid broker-advertised server name before invoking the provider.
 Static client certificates must contain parseable bounded chains and a matching
 signing key. Use `ClientCertificateProvider` instead of a raw TLS callback for
-rotation.
+client-identity rotation. Use `TrustAnchorProvider` instead of mutating
+`tls.Config.RootCAs` for server trust rotation.
 
 Unencrypted transport is available only through
 `DevelopmentPlaintextSecurity()`. It is intended for isolated local fixtures;
@@ -24,13 +27,14 @@ The root module owns provider contracts for:
 
 - SASL/PLAIN;
 - SCRAM-SHA-256 and SCRAM-SHA-512;
-- OAUTHBEARER tokens with a required future expiry; and
-- mTLS client certificates.
+- OAUTHBEARER tokens with a required future expiry;
+- mTLS client certificates; and
+- server trust anchors for each new TLS connection.
 
-Authentication constructors retain the supplied provider. Providers may be
-called concurrently, must honor their context, and must return before
-`CredentialTimeout`, which defaults to five seconds and is bounded from 100
-milliseconds to one minute. Cancellation bounds the package's request; Go
+Authentication constructors and `ClientSecurity` retain supplied providers.
+Providers may be called concurrently, must honor their context, and must return
+before `CredentialTimeout`, which defaults to five seconds and is bounded from
+100 milliseconds to one minute. Cancellation bounds the package's request; Go
 cannot forcibly stop a provider that ignores its context. Provider panics and
 failures become classifiable, redacted errors. Username, password, token,
 authorization ID, extension, certificate, and request metadata are validated
@@ -45,10 +49,24 @@ authorization IDs reject unescaped GS2 separators and control characters.
 
 Use a static certificate in `tls.Config.Certificates` or a rotating
 `ClientCertificateProvider`, but not both. The package clones TLS slice and
-certificate bytes and caller root pools. Private-key implementations, TLS
-callbacks, client-session caches, and provider interface values cannot be
-deep-copied; callers own them for the client lifetime and must keep them
-immutable or concurrency-safe.
+certificate bytes and caller root pools. Use static `tls.Config.RootCAs` or a
+rotating `TrustAnchorProvider`, but not both. A trust provider returns the
+complete root set for one new connection as 1 to 64 distinct DER-encoded X.509
+certificates totaling at most 1 MiB. Ownership of the returned slices and bytes
+transfers to the package, so providers must not mutate or reuse them after
+returning; the package retains only parsed owned copies. Client session caches
+are rejected with a rotating trust provider so a resumed session cannot retain
+certificate state from the previous root set.
+Private-key implementations, TLS callbacks, client-session caches, and provider
+interface values cannot be deep-copied; callers own them for the client
+lifetime and must keep them immutable or concurrency-safe.
+
+Trust rotation is overlap-first: publish both old and new roots, rotate the
+broker certificate, ensure old connections reconnect within a reviewed bound,
+then publish only the new roots. Changing a provider result does not alter an
+existing TLS connection. Provider failure, panic, invalid or duplicate roots,
+and missing roots fail the new connection with a classifiable redacted error;
+the package never disables hostname or chain verification.
 
 A TLS configuration may contain at most 16 client identities, 16 ALPN values,
 every distinct safe TLS-1.2 cipher suite exposed by the selected Go toolchain,
@@ -100,16 +118,20 @@ The fixtures prove:
 - live mTLS client-certificate renewal: one producer observes Kafka's
   broker-enforced idle disconnect, invokes the package provider with a
   separately issued replacement certificate signed by the same CA, reconnects,
-  and resumes delivery.
+  and resumes delivery; and
+- live server-certificate and trust-anchor rotation: Apache Kafka dynamically
+  replaces the client-listener keystore with a certificate under a separately
+  generated CA, an existing producer reconnects using overlapping roots, then
+  reconnects again after the retired root is removed; a new client trusting
+  only the retired root is rejected.
 
 This proves interoperability only with the pinned Apache fixture. Prolonged
 multi-client credential-rotation stress, PLAIN replacement, JWKS refresh and
-signing-key rollover, server-certificate and trust-anchor rollover,
-consumer-group and transactional-ID authorization failures, ACL changes during
-live traffic, and managed-service authentication remain separate required
-evidence. The fixture does not use Kafka's non-production
-unsecured OAUTHBEARER implementation and does not claim compatibility with a
-particular OAuth identity provider.
+signing-key rollover, consumer-group and transactional-ID authorization
+failures, ACL changes during live traffic, and managed-service authentication
+remain separate required evidence. The fixture does not use Kafka's
+non-production unsecured OAUTHBEARER implementation and does not claim
+compatibility with a particular OAuth identity provider.
 
 MSK IAM authentication and OpenTelemetry remain absent from the root module.
 The independently versioned [`adapters/mskiam`](../adapters/mskiam) module uses

@@ -44,6 +44,28 @@ func FuzzFetchDecompression(f *testing.F) {
 	})
 }
 
+func FuzzTrustAnchors(f *testing.F) {
+	f.Add([]byte{}, false)
+	f.Add([]byte("not a certificate"), true)
+
+	f.Fuzz(func(t *testing.T, encoded []byte, duplicate bool) {
+		if len(encoded) > maxTrustAnchorBytes+1 {
+			encoded = encoded[:maxTrustAnchorBytes+1]
+		}
+		certificates := [][]byte{append([]byte(nil), encoded...)}
+		if duplicate {
+			certificates = append(certificates, append([]byte(nil), encoded...))
+		}
+		pool, valid := trustAnchorPool(TrustAnchors{Certificates: certificates})
+		if valid && pool == nil {
+			t.Fatal("valid trust anchors returned a nil pool")
+		}
+		if !valid && pool != nil {
+			t.Fatal("invalid trust anchors returned a pool")
+		}
+	})
+}
+
 func FuzzConsumerConfig(f *testing.F) {
 	f.Add(
 		"events",
