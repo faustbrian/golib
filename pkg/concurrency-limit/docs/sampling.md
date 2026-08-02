@@ -2,8 +2,9 @@
 
 Execution starts when a permit is granted, so local queue wait is never part of
 the measured RTT. Go `time.Time` subtraction preserves the monotonic component
-from `time.Now`; a backward or invalid injected clock produces zero duration
-and increments `ClockErrors` instead of corrupting state.
+from `time.Now`; a backward injected clock produces zero duration and
+increments `ClockErrors`. A failed completion clock releases capacity and
+queued callers without adding a learning sample.
 
 The recent estimator retains at most `Capacity` durations in a ring. It sorts a
 copy only when closing a window and uses the exact nearest-rank quantile over

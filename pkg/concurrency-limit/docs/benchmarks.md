@@ -43,7 +43,8 @@ per-workload SVG convergence plots, utilization, goodput, rejection, modeled que
 latency, collapse/recovery adaptation, and raw five-run CPU, bytes, and
 allocation benchmarks.
 
-The report preserves semantic differences: Netflix is a transparent Go
-equation port rather than a JVM benchmark, Failsafe-Go owns wall-clock sampling,
-and only this limiter accepts an explicit overload outcome. Treat the results
-as bounded implementation evidence, not a universal performance ranking.
+The normalized report uses one successful aggregate RTT observation per
+candidate and excludes implementation-specific overload/drop signals. Netflix
+is a transparent Go equation port rather than a JVM benchmark, and Failsafe-Go
+still owns wall-clock sampling. Treat the results as bounded implementation
+evidence, not a universal performance ranking.

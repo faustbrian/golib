@@ -347,6 +347,22 @@ func (limiter *Limiter) grantQueuedLocked(now time.Time) []Event {
 	return events
 }
 
+func (limiter *Limiter) rejectQueuedLocked(now time.Time, cause error) []Event {
+	events := make([]Event, 0, len(limiter.queue))
+	for len(limiter.queue) > 0 {
+		before := limiter.snapshotLocked()
+		wait := limiter.queue[0]
+		limiter.queue = limiter.queue[1:]
+		saturatingIncrement(&limiter.rejections)
+		wait.result <- acquireResult{err: cause}
+		events = append(events, Event{
+			Type: EventRejected, Metadata: wait.metadata,
+			Before: before, After: limiter.snapshotLocked(), Timestamp: now,
+		})
+	}
+	return events
+}
+
 func (limiter *Limiter) reapExpiredLocked(now time.Time) []Event {
 	events := make([]Event, 0)
 	for id, permit := range limiter.permits {

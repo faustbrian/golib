@@ -45,24 +45,32 @@ func (limiter *Limiter) complete(permit *Permit, outcome Outcome) error {
 	delete(limiter.permits, permit.id)
 	limiter.inFlight--
 	duration := now.Sub(state.started)
+	var queueEvents []Event
+	var window *Window
 	if !ok {
 		duration = 0
 		saturatingIncrement(&limiter.clockErrors)
+		queueEvents = limiter.rejectQueuedLocked(now, ErrClock)
 	} else if duration < 0 {
 		duration = 0
 		saturatingIncrement(&limiter.clockErrors)
 	}
 	incrementOutcome(&limiter.outcomes, outcome)
-	window := limiter.addSampleLocked(now, duration, outcome)
-	grantEvents := limiter.grantQueuedLocked(now)
+	if ok {
+		window = limiter.addSampleLocked(now, duration, outcome)
+		queueEvents = limiter.grantQueuedLocked(now)
+	}
 	after := limiter.snapshotLocked()
 	limiter.mu.Unlock()
 
 	events := []Event{{Type: EventCompleted, Outcome: outcome, Duration: duration, Metadata: state.metadata, Before: before, After: after, Timestamp: now}}
-	events = append(events, grantEvents...)
+	events = append(events, queueEvents...)
 	if window != nil {
 		events = append(events, limiter.applyWindow(*window, now)...)
 	}
 	limiter.dispatch(events)
+	if !ok {
+		return ErrClock
+	}
 	return nil
 }

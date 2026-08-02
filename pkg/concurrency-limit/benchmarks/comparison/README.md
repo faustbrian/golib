@@ -16,9 +16,12 @@ The candidates are:
 The candidates do not expose identical sampling contracts. The local and
 Netflix reference algorithms consume aggregate windows. Platinum consumes one
 RTT sample per update. Failsafe-Go measures wall-clock permit duration and owns
-its quantile, correlation, and windowing implementation. The report therefore
-separates normalized control-model results from implementation-specific runtime
-benchmarks and does not present the Netflix Go port as JVM performance.
+its quantile, correlation, and windowing implementation. The normalized
+control model therefore gives every candidate one successful aggregate RTT
+sample per window and never injects an implementation-specific overload or
+drop outcome. The report separates that common contract from
+implementation-specific runtime benchmarks and does not present the Netflix Go
+port as JVM performance.
 
 Pinned source and license details are in [PROVENANCE.md](PROVENANCE.md) and
 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Checked-in metrics, raw

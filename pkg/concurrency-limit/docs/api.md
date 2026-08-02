@@ -33,7 +33,9 @@ after a terminal queue result.
 `Acquire(ctx, optionalMetadata...)` returns a `Permit` or a stable sentinel
 error. Supply at most one `Metadata`. `Permit.Complete` accepts exactly one
 valid `Outcome`; concurrent or later duplicate completion returns
-`ErrPermitCompleted`. An invalid outcome does not consume the permit.
+`ErrPermitCompleted`. An invalid outcome does not consume the permit. If the
+completion clock fails, capacity and queued callers are released without a
+learning sample and completion returns `ErrClock`.
 The process-local permit identifier is monotonic and never wraps; after the
 full `uint64` sequence is exhausted, admission returns
 `ErrIdentifierExhausted` until a new limiter is constructed.

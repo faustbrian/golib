@@ -2,7 +2,7 @@
 
 Generated on 2026-08-02 with Go 1.26.5 on Darwin arm64 and an Apple M4 Max.
 The benchmark execution revision was
-`bb1074c973883115f00a416194a3f350647745ad`; the complete behavior-affecting
+`e1e1e3c029139c40fd64271710867fb9b13b9a5a`; the complete behavior-affecting
 source identity is the per-file fingerprint below rather than that revision.
 The benchmark used `GOMAXPROCS=16`, the default Go garbage-collector settings,
 and no intentionally concurrent benchmark workload; the host was not otherwise
@@ -45,18 +45,21 @@ moves at window 50 from demand/capacity 16/12 and 7-10 ms latency to 40/24 and
 window at limit 8 or lower; recovery is the first post-restoration window at
 limit 15 or higher after a measured collapse.
 
-The local limiter is the only candidate in this harness with an explicit
-overload outcome. Netflix Gradient2 and Platinum's Gradient2 do not use their
-drop argument in the update equation; Failsafe-Go's `Drop` excludes the permit
-duration from learning. These semantic differences are retained rather than
-translated into behavior favorable to any candidate. Failsafe-Go also owns a
-wall-clock quantile and correlation window, so its generated values are a
-measured run and can vary with scheduling even though workload inputs and seeds
-are fixed. It is configured with limits 1/64/16 and a zero-duration,
-one-sample recent window so each measured batch can adapt. Gradient2 candidates
-use a 20-sample long window, 0.2 smoothing, queue allowance 4, and bounds 1/64;
-Netflix and the local implementation use the pinned 1.5 RTT tolerance, while
-Platinum v1.0.0 has no corresponding tolerance setting.
+The normalized comparison never injects an explicit overload or drop outcome:
+capacity pressure is represented only by the same modeled queue latency and
+successful aggregate RTT observation for every candidate. Explicit overload
+classification remains covered by the local behavioral campaigns rather than
+being translated into incompatible competitor signals. Failsafe-Go receives
+one recorded representative permit per window; companion permits establish the
+same in-flight saturation and are dropped only to release them without adding
+samples. It owns a wall-clock quantile and correlation window, so its generated
+values are a measured run and can vary with scheduling even though workload
+inputs and seeds are fixed. It is configured with limits 1/64/16 and a
+zero-duration, one-sample recent window so each measured batch can adapt.
+Gradient2 candidates use a 20-sample long window, 0.2 smoothing, queue
+allowance 4, and bounds 1/64; Netflix and the local implementation use the
+pinned 1.5 RTT tolerance, while Platinum v1.0.0 has no corresponding tolerance
+setting.
 
 ## Runtime results
 

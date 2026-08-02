@@ -3,7 +3,7 @@ SHELL := /bin/sh
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: api-compat benchmark conformance coverage docs fuzz leak race stress test
+.PHONY: api-compat benchmark conformance coverage docs fault fuzz leak race stress test
 
 test:
 	go test ./... -count=1
@@ -21,7 +21,10 @@ fuzz:
 leak:
 	go test -run='^TestCanceledWaitersTerminateWithoutBackgroundWorkers$$' -count=20 .
 
-conformance:
+fault:
+	go test -run='Test(CompletionClockFailureReleasesCapacityWithoutLearningOrGrantingInvalidPermits|ClockMetadataSamplingAndAlgorithmFaultBoundaries|ExecuteContainsClassifierPanicAndOperationPanicReleasesPermit|LimiterFaultAndEventMutationBoundaries|NewRejectsAlgorithmLifecyclePanicsAndInvalidState|QueuedAcquireContainsTimerStopPanic)$$' -count=20 .
+
+conformance: fault leak stress
 	go test -run='Test(AIMDReferenceEquation|VegasReferenceQueueEquationAndThroughputSignal|Gradient2ReferenceEquation|EveryAlgorithmUpdateMatchesDeterministicReference|VegasSimulationConvergesAndRecoversWithReproducibleWorkloads|AlgorithmsRemainDeterministicAcrossNoisyWorkloadClasses|SeededWorkloadCampaignsRemainBoundedAndDeterministic)$$' -count=1 .
 
 stress:

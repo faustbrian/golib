@@ -351,6 +351,51 @@ func TestClockMetadataSamplingAndAlgorithmFaultBoundaries(t *testing.T) {
 	}
 }
 
+func TestCompletionClockFailureReleasesCapacityWithoutLearningOrGrantingInvalidPermits(t *testing.T) {
+	t.Parallel()
+
+	clock := &queueClock{now: time.Unix(0, 100)}
+	limiter := mustInternalLimiter(t, Config{
+		MinLimit: 1, MaxLimit: 1, InitialLimit: 1,
+		Algorithm: NewFixedAlgorithm(), Clock: clock, PermitTTL: time.Nanosecond,
+		Queue: QueueConfig{MaxQueued: 1, MaxWait: time.Hour},
+	})
+	active, err := limiter.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued := make(chan acquireResult, 1)
+	go func() {
+		permit, acquireErr := limiter.Acquire(context.Background())
+		queued <- acquireResult{permit: permit, err: acquireErr}
+	}()
+	waitInternalQueued(t, limiter, 1)
+
+	clock.panicNow = true
+	if err = active.Complete(OutcomeSuccess); !errors.Is(err, ErrClock) {
+		t.Fatalf("Complete() error = %v, want ErrClock", err)
+	}
+	select {
+	case result := <-queued:
+		if result.permit != nil || !errors.Is(result.err, ErrClock) {
+			t.Fatalf("queued result = %+v, want ErrClock without permit", result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("queued admission was not released after clock failure")
+	}
+	if snapshot := limiter.Snapshot(); snapshot.InFlight != 0 || snapshot.Queued != 0 ||
+		snapshot.Samples != 0 || snapshot.RecentSamples != 0 || snapshot.Baseline != 0 ||
+		snapshot.Rejections != 1 || snapshot.ClockErrors != 1 || snapshot.Outcomes.Success != 1 {
+		t.Fatalf("clock-failure snapshot = %+v", snapshot)
+	}
+
+	clock.panicNow = false
+	clock.now = time.Unix(0, 101)
+	if reaped := limiter.ReapExpired(); reaped != 0 {
+		t.Fatalf("reaped permits created from invalid completion time = %d", reaped)
+	}
+}
+
 func TestInternalSamplingRingSparseResetBaselineAndOutcomeCounters(t *testing.T) {
 	t.Parallel()
 

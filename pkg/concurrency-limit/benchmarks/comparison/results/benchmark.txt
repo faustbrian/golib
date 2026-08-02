@@ -2,30 +2,30 @@ goos: darwin
 goarch: arm64
 pkg: github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison
 cpu: Apple M4 Max
-BenchmarkGradientUpdate/LocalGradient2-16         63027000        25.59 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/LocalGradient2-16         59607705        19.52 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/LocalGradient2-16         56216512        33.58 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/LocalGradient2-16         62598625        24.92 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/LocalGradient2-16         61207444        20.12 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/NetflixReferencePort-16  276334430        4.159 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/NetflixReferencePort-16  310734920        4.216 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/NetflixReferencePort-16  410135938        4.138 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/NetflixReferencePort-16  353320345        4.641 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/NetflixReferencePort-16  407066965        4.036 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/PlatinumGradient2-16      48170120        30.24 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/PlatinumGradient2-16      46548387        26.65 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/PlatinumGradient2-16      42951033        29.64 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/PlatinumGradient2-16      50347627        30.16 ns/op       0 B/op       0 allocs/op
-BenchmarkGradientUpdate/PlatinumGradient2-16      43687330        27.10 ns/op       0 B/op       0 allocs/op
-BenchmarkPermitLifecycle/Local-16                  1000000         1067 ns/op     708 B/op       4 allocs/op
-BenchmarkPermitLifecycle/Local-16                  2318406        700.3 ns/op     708 B/op       4 allocs/op
-BenchmarkPermitLifecycle/Local-16                  2210834        780.5 ns/op     708 B/op       4 allocs/op
-BenchmarkPermitLifecycle/Local-16                  1643083        723.6 ns/op     708 B/op       4 allocs/op
-BenchmarkPermitLifecycle/Local-16                  1407504        866.2 ns/op     708 B/op       4 allocs/op
-BenchmarkPermitLifecycle/FailsafeGo-16             4212100        380.5 ns/op      96 B/op       1 allocs/op
-BenchmarkPermitLifecycle/FailsafeGo-16             3862218        411.3 ns/op      96 B/op       1 allocs/op
-BenchmarkPermitLifecycle/FailsafeGo-16             4326057        359.8 ns/op      96 B/op       1 allocs/op
-BenchmarkPermitLifecycle/FailsafeGo-16             3077029        428.3 ns/op      96 B/op       1 allocs/op
-BenchmarkPermitLifecycle/FailsafeGo-16             3724572        300.7 ns/op      96 B/op       1 allocs/op
+BenchmarkGradientUpdate/LocalGradient2-16          64290738        34.99 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/LocalGradient2-16          61862978        25.17 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/LocalGradient2-16          59032603        24.70 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/LocalGradient2-16          66407032        29.78 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/LocalGradient2-16          63903856        24.38 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/NetflixReferencePort-16   301773105         4.259 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/NetflixReferencePort-16   336333316         3.466 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/NetflixReferencePort-16   362615408         7.417 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/NetflixReferencePort-16   389159738         3.343 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/NetflixReferencePort-16   319465002         4.104 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/PlatinumGradient2-16       46523424        27.20 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/PlatinumGradient2-16       43469401        36.00 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/PlatinumGradient2-16       44688644        26.41 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/PlatinumGradient2-16       47919176        46.23 ns/op       0 B/op       0 allocs/op
+BenchmarkGradientUpdate/PlatinumGradient2-16       37199353        33.01 ns/op       0 B/op       0 allocs/op
+BenchmarkPermitLifecycle/Local-16                    1000000         1046 ns/op     708 B/op       4 allocs/op
+BenchmarkPermitLifecycle/Local-16                    1000000         2827 ns/op     708 B/op       4 allocs/op
+BenchmarkPermitLifecycle/Local-16                     895592         1319 ns/op     708 B/op       4 allocs/op
+BenchmarkPermitLifecycle/Local-16                     844839         2654 ns/op     708 B/op       4 allocs/op
+BenchmarkPermitLifecycle/Local-16                     835672         1561 ns/op     708 B/op       4 allocs/op
+BenchmarkPermitLifecycle/FailsafeGo-16               2638272        516.9 ns/op      96 B/op       1 allocs/op
+BenchmarkPermitLifecycle/FailsafeGo-16               1504070        670.7 ns/op      96 B/op       1 allocs/op
+BenchmarkPermitLifecycle/FailsafeGo-16               2141758        585.2 ns/op      96 B/op       1 allocs/op
+BenchmarkPermitLifecycle/FailsafeGo-16               2534337        815.5 ns/op      96 B/op       1 allocs/op
+BenchmarkPermitLifecycle/FailsafeGo-16               2683645        542.3 ns/op      96 B/op       1 allocs/op
 PASS
-ok  github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison  44.511s
+ok  github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison  46.135s

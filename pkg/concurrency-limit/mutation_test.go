@@ -402,8 +402,8 @@ func TestSamplingMutationBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = clockPermit.Complete(OutcomeIgnored); err != nil {
-		t.Fatal(err)
+	if err = clockPermit.Complete(OutcomeIgnored); !errors.Is(err, ErrClock) {
+		t.Fatalf("clock failure completion error = %v", err)
 	}
 	if snapshot := clockLimiter.Snapshot(); snapshot.ClockErrors != 1 {
 		t.Fatalf("clock-only failure snapshot = %+v", snapshot)

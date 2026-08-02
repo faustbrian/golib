@@ -31,7 +31,7 @@ type workload struct {
 	name    string
 	seed    int64
 	windows int
-	model   func(*rand.Rand, int) (demand, capacity int, baseRTT time.Duration, explicitOverload bool)
+	model   func(*rand.Rand, int) (demand, capacity int, baseRTT time.Duration)
 }
 
 type result struct {
@@ -52,7 +52,7 @@ type result struct {
 type driver interface {
 	name() string
 	limit() int
-	observe(time.Duration, int, bool)
+	observe(time.Duration, int)
 }
 
 func main() {
@@ -108,7 +108,7 @@ func run(candidate workload, implementation driver) result {
 		collapseAdapt: -1, recoveryAdapt: -1,
 	}
 	for window := range candidate.windows {
-		demand, capacity, baseRTT, explicitOverload := candidate.model(random, window)
+		demand, capacity, baseRTT := candidate.model(random, window)
 		limit := implementation.limit()
 		admitted := min(demand, limit)
 		queue := time.Duration(max(admitted-capacity, 0)) * 4 * time.Millisecond
@@ -122,7 +122,7 @@ func run(candidate workload, implementation driver) result {
 		for range admitted {
 			measurement.latencies = append(measurement.latencies, rtt)
 		}
-		implementation.observe(rtt, admitted, explicitOverload || admitted > capacity)
+		implementation.observe(rtt, admitted)
 		measurement.limits = append(measurement.limits, implementation.limit())
 		if candidate.name == "capacity-collapse" {
 			if window >= 40 && window < 80 && measurement.collapseAdapt < 0 && implementation.limit() <= 8 {
@@ -136,69 +136,69 @@ func run(candidate workload, implementation driver) result {
 	return measurement
 }
 
-func constantWorkload(_ *rand.Rand, window int) (int, int, time.Duration, bool) {
-	return 28, 18, 10 * time.Millisecond, window%41 == 0
+func constantWorkload(_ *rand.Rand, _ int) (int, int, time.Duration) {
+	return 28, 18, 10 * time.Millisecond
 }
 
-func burstyWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func burstyWorkload(random *rand.Rand, window int) (int, int, time.Duration) {
 	demand := 14
 	if window%8 == 0 {
 		demand = 48
 	}
-	return demand, 18, time.Duration(8+random.Intn(8)) * time.Millisecond, window%43 == 0
+	return demand, 18, time.Duration(8+random.Intn(8)) * time.Millisecond
 }
 
-func rampWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
-	return 4 + window/2, 18, time.Duration(8+random.Intn(5)) * time.Millisecond, window%46 == 0
+func rampWorkload(random *rand.Rand, window int) (int, int, time.Duration) {
+	return 4 + window/2, 18, time.Duration(8+random.Intn(5)) * time.Millisecond
 }
 
-func bimodalWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func bimodalWorkload(random *rand.Rand, _ int) (int, int, time.Duration) {
 	rtt := time.Duration(7+random.Intn(4)) * time.Millisecond
 	if random.Intn(2) == 0 {
 		rtt = time.Duration(38+random.Intn(15)) * time.Millisecond
 	}
-	return 28, 18, rtt, window%44 == 0
+	return 28, 18, rtt
 }
 
-func heavyTailWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func heavyTailWorkload(random *rand.Rand, _ int) (int, int, time.Duration) {
 	rtt := time.Duration(7+random.Intn(5)) * time.Millisecond
 	if random.Intn(12) == 0 {
 		rtt = time.Duration(80+random.Intn(80)) * time.Millisecond
 	}
-	return 28, 18, rtt, window%47 == 0
+	return 28, 18, rtt
 }
 
-func periodicWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func periodicWorkload(random *rand.Rand, window int) (int, int, time.Duration) {
 	demand := 12
 	if window%20 < 5 {
 		demand = 44
 	}
-	return demand, 18, time.Duration(8+random.Intn(6)) * time.Millisecond, window%45 == 0
+	return demand, 18, time.Duration(8+random.Intn(6)) * time.Millisecond
 }
 
-func sparseWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func sparseWorkload(random *rand.Rand, window int) (int, int, time.Duration) {
 	demand := 1
 	if window%17 == 0 {
 		demand = 20
 	}
-	return demand, 18, time.Duration(8+random.Intn(4)) * time.Millisecond, window%51 == 0
+	return demand, 18, time.Duration(8+random.Intn(4)) * time.Millisecond
 }
 
-func collapseWorkload(_ *rand.Rand, window int) (int, int, time.Duration, bool) {
+func collapseWorkload(_ *rand.Rand, window int) (int, int, time.Duration) {
 	capacity := 18
 	if window >= 40 && window < 80 {
 		capacity = 5
 	} else if window >= 80 {
 		capacity = 20
 	}
-	return 32, capacity, 10 * time.Millisecond, window%37 == 0
+	return 32, capacity, 10 * time.Millisecond
 }
 
-func classShiftWorkload(random *rand.Rand, window int) (int, int, time.Duration, bool) {
+func classShiftWorkload(random *rand.Rand, window int) (int, int, time.Duration) {
 	if window < 50 {
-		return 16, 12, time.Duration(7+random.Intn(4)) * time.Millisecond, window%43 == 0
+		return 16, 12, time.Duration(7+random.Intn(4)) * time.Millisecond
 	}
-	return 40, 24, time.Duration(18+random.Intn(9)) * time.Millisecond, window%43 == 0
+	return 40, 24, time.Duration(18+random.Intn(9)) * time.Millisecond
 }
 
 func newDrivers() []driver {
@@ -223,13 +223,10 @@ func newLocal() *localDriver {
 
 func (*localDriver) name() string      { return "local-gradient2" }
 func (driver *localDriver) limit() int { return driver.current }
-func (driver *localDriver) observe(rtt time.Duration, inflight int, overload bool) {
+func (driver *localDriver) observe(rtt time.Duration, inflight int) {
 	window := concurrencylimit.Window{
 		CurrentLimit: driver.current, Samples: max(inflight, 1), MaxInFlight: inflight,
 		RecentLatency: rtt, BaselineLatency: 10 * time.Millisecond,
-	}
-	if overload {
-		window.Overloads = 1
 	}
 	driver.current = clamp(driver.algorithm.Update(window).Limit)
 }
@@ -241,7 +238,7 @@ func newNetflix() *netflixDriver {
 }
 func (*netflixDriver) name() string      { return "netflix-reference" }
 func (driver *netflixDriver) limit() int { return driver.algorithm.Limit() }
-func (driver *netflixDriver) observe(rtt time.Duration, inflight int, _ bool) {
+func (driver *netflixDriver) observe(rtt time.Duration, inflight int) {
 	driver.algorithm.Update(float64(rtt), inflight)
 }
 
@@ -261,8 +258,8 @@ func newPlatinum() *platinumDriver {
 
 func (*platinumDriver) name() string      { return "platinum-gradient2" }
 func (driver *platinumDriver) limit() int { return driver.algorithm.EstimatedLimit() }
-func (driver *platinumDriver) observe(rtt time.Duration, inflight int, overload bool) {
-	driver.algorithm.OnSample(time.Now().UnixNano(), int64(rtt), inflight, overload)
+func (driver *platinumDriver) observe(rtt time.Duration, inflight int) {
+	driver.algorithm.OnSample(time.Now().UnixNano(), int64(rtt), inflight, false)
 }
 
 type failsafeDriver struct {
@@ -278,7 +275,7 @@ func newFailsafe() *failsafeDriver {
 
 func (*failsafeDriver) name() string      { return "failsafe-go" }
 func (driver *failsafeDriver) limit() int { return driver.limiter.Limit() }
-func (driver *failsafeDriver) observe(rtt time.Duration, inflight int, overload bool) {
+func (driver *failsafeDriver) observe(rtt time.Duration, inflight int) {
 	permits := make([]adaptivelimiter.Permit, 0, inflight)
 	for range inflight {
 		permit, ok := driver.limiter.TryAcquirePermit()
@@ -288,12 +285,16 @@ func (driver *failsafeDriver) observe(rtt time.Duration, inflight int, overload 
 		permits = append(permits, permit)
 	}
 	time.Sleep(rtt)
-	for _, permit := range permits {
-		if overload {
+	finishFailsafeAggregate(permits)
+}
+
+func finishFailsafeAggregate(permits []adaptivelimiter.Permit) {
+	for index, permit := range permits {
+		if index != len(permits)-1 {
 			permit.Drop()
-		} else {
-			permit.Record()
+			continue
 		}
+		permit.Record()
 	}
 }
 

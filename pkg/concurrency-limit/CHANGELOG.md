@@ -27,3 +27,5 @@
   campaigns, metadata fairness checks, and lifecycle race stress coverage.
 - Publish pinned comparative workload, convergence, CPU, memory, and allocation
   evidence, plus cross-package retry/hedge and pod lifecycle simulations.
+- Release capacity without learning and fail queued admission explicitly when
+  permit completion cannot obtain a valid clock timestamp.
