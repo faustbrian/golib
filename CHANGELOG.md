@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Ignore unrelated workspace membership changes when validating isolated
+  module gates while retaining them for workspace-backed benchmarks.
 - Resolve explicit module selections from the registered catalog so scoped
   gates are not blocked by unrelated incomplete module work.
 - Track shared runners and gate-specific helpers independently so changes to

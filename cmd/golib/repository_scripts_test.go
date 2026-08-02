@@ -1409,6 +1409,8 @@ func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
 
 go 1.26.5
 `)
+	workspace := filepath.Join(root, "go.work")
+	writeTestFile(t, workspace, "go 1.26.5\n")
 	writeTestFile(
 		t,
 		filepath.Join(root, "pkg", "example", "example.go"),
@@ -1466,9 +1468,22 @@ go 1.26.5
 	}
 
 	testBefore := digest("test")
+	benchmarkBefore := digest("benchmark")
 	fuzzBefore := digest("fuzz")
 	docsBefore := digest("docs")
 	secretsBefore := digest("secrets")
+	writeTestFile(t, workspace, "go 1.26.5\n\nuse ./pkg/unrelated\n")
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"unrelated workspace change altered isolated test digest: %s != %s",
+			current,
+			testBefore,
+		)
+	}
+	if current := digest("benchmark"); current == benchmarkBefore {
+		t.Fatal("workspace change did not alter workspace-backed benchmark digest")
+	}
+	writeTestFile(t, workspace, "go 1.26.5\n")
 	writeTestFile(t, mutationInventory, "{\"packages\":[\"unrelated\"]}\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(

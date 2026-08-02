@@ -205,6 +205,15 @@ append_verification_tool_files() {
 
 verification_digest() {
     local directory file
+    local repository_paths=(
+        .github/workflows/ci.yml
+        .go-version
+        .gitleaks.toml
+        AGENTS.md
+        Makefile
+        go.mod
+        go.sum
+    )
     append_value gate "${gate}"
     append_value module "${module}"
     append_verification_environment
@@ -242,15 +251,13 @@ verification_digest() {
         append_module_files "${directory}"
     done < <(LC_ALL=C sort -u "${directories}")
     append_verification_tool_files
+    case "${gate}" in
+        benchmark|workspace-test)
+            repository_paths+=(go.work)
+            ;;
+    esac
     git -C "${root}" ls-files -co --exclude-standard -- \
-        .github/workflows/ci.yml \
-        .go-version \
-        .gitleaks.toml \
-        AGENTS.md \
-        Makefile \
-        go.mod \
-        go.sum \
-        go.work >>"${input_files}"
+        "${repository_paths[@]}" >>"${input_files}"
 
     LC_ALL=C sort -u "${input_files}" | append_repository_files
 }
