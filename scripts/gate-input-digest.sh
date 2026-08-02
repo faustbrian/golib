@@ -411,6 +411,9 @@ package_digest() {
             )]
         ' "${root}/.golib/mutation-zero-inventory.json"
     )"
+    if [[ "${module}" == "pkg/ecma-regexp" ]]; then
+        append_value mutation-test-environment "TEST262_ROOT=unset"
+    fi
     # Evidence orchestration does not affect which mutants execute or which
     # tests observe them. Campaign semantics are captured by append_tool_inputs.
     append_tool_inputs

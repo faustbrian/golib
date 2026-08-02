@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reuse ECMA regexp's external Test262 coverage baseline without launching the
+  corpus runner for every mutant, preventing concurrent Node and bridge trees
+  from multiplying campaign memory.
 - Bound Apache Kafka fixture cleanup and give Go test, race, coverage, and the
   complete broker-backed interoperability suite explicit execution deadlines.
 - Ignore unrelated workspace membership changes when validating isolated

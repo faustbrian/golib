@@ -69,6 +69,10 @@ tags="$(jq -r --arg directory "${module}" \
     '.modules[] | select(.directory == $directory)
     | .test_tags | map(select(. != "interoperability")) | join(",")' \
     "${root}/modules.json")"
+mutation_environment=(env)
+if [[ "${module}" == "pkg/ecma-regexp" ]]; then
+    mutation_environment+=( -u TEST262_ROOT)
+fi
 packages=()
 while IFS= read -r package_directory; do
     [[ -n "${package_directory}" ]] && packages+=("${package_directory}")
@@ -362,27 +366,31 @@ for package_directory in "${packages[@]}"; do
     status=0
     if [[ "${discover_only}" -eq 1 ]]; then
         if [[ -n "${modfile}" ]]; then
-            GOCACHE="${active_build_cache}" GOWORK=off \
+            "${mutation_environment[@]}" \
+                GOCACHE="${active_build_cache}" GOWORK=off \
                 GOLIB_GREMLINS_COVERAGE_PROFILE="${shared_coverage}" \
                 GOLIB_GREMLINS_COVERAGE_ELAPSED="${shared_coverage_elapsed}" \
                 GOFLAGS="-modfile=${modfile} -mod=mod" \
                 "${gremlins_binary}" "${mutation_arguments[@]}" \
                 >"${run_directory}/${slug}.log" 2>&1 || status=$?
         else
-            GOCACHE="${active_build_cache}" GOWORK=off \
+            "${mutation_environment[@]}" \
+                GOCACHE="${active_build_cache}" GOWORK=off \
                 GOLIB_GREMLINS_COVERAGE_PROFILE="${shared_coverage}" \
                 GOLIB_GREMLINS_COVERAGE_ELAPSED="${shared_coverage_elapsed}" \
                 "${gremlins_binary}" "${mutation_arguments[@]}" \
                 >"${run_directory}/${slug}.log" 2>&1 || status=$?
         fi
     elif [[ -n "${modfile}" ]]; then
-        GOCACHE="${active_build_cache}" GOWORK=off \
+        "${mutation_environment[@]}" \
+            GOCACHE="${active_build_cache}" GOWORK=off \
             GOLIB_GREMLINS_COVERAGE_PROFILE="${shared_coverage}" \
             GOLIB_GREMLINS_COVERAGE_ELAPSED="${shared_coverage_elapsed}" \
             GOFLAGS="-modfile=${modfile} -mod=mod" \
             "${gremlins_binary}" "${mutation_arguments[@]}" || status=$?
     else
-        GOCACHE="${active_build_cache}" GOWORK=off \
+        "${mutation_environment[@]}" \
+            GOCACHE="${active_build_cache}" GOWORK=off \
             GOLIB_GREMLINS_COVERAGE_PROFILE="${shared_coverage}" \
             GOLIB_GREMLINS_COVERAGE_ELAPSED="${shared_coverage_elapsed}" \
             "${gremlins_binary}" "${mutation_arguments[@]}" || status=$?

@@ -9,6 +9,8 @@ and this project intends to use semantic versioning after its first release.
 
 ### Changed
 
+- Mutation campaigns reuse the external Test262 coverage baseline while
+  exercising each mutant without reinvoking the external corpus.
 - Provision pinned Node and Deno runtimes for the required multi-engine
   differential test in repository CI.
 

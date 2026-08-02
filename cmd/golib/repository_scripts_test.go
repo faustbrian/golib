@@ -877,7 +877,14 @@ func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	contract := string(mutationRunner) + string(mutationCommand) + string(mutationScratch)
+	mutationDigest, err := os.ReadFile(
+		filepath.Join(root, "scripts", "gate-input-digest.sh"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract := string(mutationRunner) + string(mutationCommand) +
+		string(mutationScratch) + string(mutationDigest)
 	for _, required := range []string{
 		`build-golib-gremlins.sh`,
 		`mutation-coverage.sh`,
@@ -893,6 +900,8 @@ func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) 
 		`--threshold-efficacy 100`,
 		`--threshold-mcover 100`,
 		`GOCACHE="${active_build_cache}"`,
+		`mutation_environment+=( -u TEST262_ROOT)`,
+		`append_value mutation-test-environment "TEST262_ROOT=unset"`,
 		`mutation_scratch_initialize "${artifact}"`,
 		`mutation_scratch_package_cache "${slug}"`,
 		`trap 'mutation_scratch_on_signal 129' HUP`,
