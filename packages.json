@@ -1035,6 +1035,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/bulkhead",
+      "directory": ".",
+      "name": "bulkhead",
+      "import_path": "github.com/faustbrian/golib/pkg/bulkhead",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/cache",
       "directory": ".",
       "name": "cache",

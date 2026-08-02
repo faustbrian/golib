@@ -1,0 +1,30 @@
+command: GOWORK=off go test -run '^$' -bench 'Benchmark(Bulkhead|XSync|Failsafe)' -benchmem -benchtime=1s -count=5
+goos: darwin
+goarch: arm64
+go: 1.26.5
+cpu: Apple M4 Max
+GOMAXPROCS: 16
+GOGC: default
+failsafe-go: v0.9.6
+x/sync: v0.22.0
+
+BenchmarkBulkheadAcquireRelease-16           9967328  129.6 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadAcquireRelease-16           9480038  141.1 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadAcquireRelease-16           8527869  124.5 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadAcquireRelease-16           9986164  136.4 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadAcquireRelease-16          10125663  125.7 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadRejected-16                20716785   61.77 ns/op   0 B/op  0 allocs/op
+BenchmarkBulkheadRejected-16                20525948   61.15 ns/op   0 B/op  0 allocs/op
+BenchmarkBulkheadRejected-16                20323882   59.16 ns/op   0 B/op  0 allocs/op
+BenchmarkBulkheadRejected-16                20775112   59.99 ns/op   0 B/op  0 allocs/op
+BenchmarkBulkheadRejected-16                21047016   57.90 ns/op   0 B/op  0 allocs/op
+BenchmarkXSyncSemaphoreAcquireRelease-16   129683989    9.199 ns/op  0 B/op  0 allocs/op
+BenchmarkXSyncSemaphoreAcquireRelease-16   130675644    9.271 ns/op  0 B/op  0 allocs/op
+BenchmarkXSyncSemaphoreAcquireRelease-16   126206780    9.439 ns/op  0 B/op  0 allocs/op
+BenchmarkXSyncSemaphoreAcquireRelease-16   128873718    9.302 ns/op  0 B/op  0 allocs/op
+BenchmarkXSyncSemaphoreAcquireRelease-16   132747278    9.045 ns/op  0 B/op  0 allocs/op
+BenchmarkFailsafeGoAcquireRelease-16        41677399   28.95 ns/op   0 B/op  0 allocs/op
+BenchmarkFailsafeGoAcquireRelease-16        39773856   32.11 ns/op   0 B/op  0 allocs/op
+BenchmarkFailsafeGoAcquireRelease-16        41716519   30.28 ns/op   0 B/op  0 allocs/op
+BenchmarkFailsafeGoAcquireRelease-16        39375784   31.50 ns/op   0 B/op  0 allocs/op
+BenchmarkFailsafeGoAcquireRelease-16        38976805   31.79 ns/op   0 B/op  0 allocs/op

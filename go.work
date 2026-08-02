@@ -12,6 +12,7 @@ use (
 	./pkg/authorization
 	./pkg/authorization/integration/contracts
 	./pkg/barcode
+	./pkg/bulkhead
 	./pkg/cache
 	./pkg/calendar
 	./pkg/circuit-breaker
@@ -130,6 +131,8 @@ replace github.com/faustbrian/golib/pkg/authorization v0.0.0 => ./pkg/authorizat
 replace github.com/faustbrian/golib/pkg/authorization/integration/contracts v0.0.0 => ./pkg/authorization/integration/contracts
 
 replace github.com/faustbrian/golib/pkg/barcode v0.0.0 => ./pkg/barcode
+
+replace github.com/faustbrian/golib/pkg/bulkhead v0.0.0 => ./pkg/bulkhead
 
 replace github.com/faustbrian/golib/pkg/cache v0.0.0 => ./pkg/cache
 

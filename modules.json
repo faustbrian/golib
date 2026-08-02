@@ -2850,6 +2850,141 @@
       }
     },
     {
+      "directory": "pkg/bulkhead",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/bulkhead",
+          "directory": ".",
+          "name": "bulkhead",
+          "import_path": "github.com/faustbrian/golib/pkg/bulkhead",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`bulkhead` is a process-local, fixed-capacity isolation policy for finite resources. It combines caller-owned resource identity, weighted concurrency, immediate rejection or strict FIFO bounded waiting, bounded explicit partitions, lifecycle observations, and graceful drain.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/bulkhead/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/failsafe-go/failsafe-go",
+        "go.uber.org/goleak",
+        "golang.org/x/sync"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/bulkhead/.ai/GOAL.md",
+        "pkg/bulkhead/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/bulkhead/.ai/GOAL.md",
+          "requirements_sha256": "fae5d82e8196abea3400fdbb743261dd2358dd8e5fe6fd7ca7df0e709aeec5bd",
+          "implementation_evidence": [
+            "pkg/bulkhead/CHANGELOG.md",
+            "pkg/bulkhead/README.md",
+            "pkg/bulkhead/docs/README.md",
+            "pkg/bulkhead/docs/api.md",
+            "pkg/bulkhead/docs/architecture.md",
+            "pkg/bulkhead/docs/hardening-audit.md",
+            "pkg/bulkhead/docs/performance.md",
+            "pkg/bulkhead/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/bulkhead/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "2a39503da04d97a222b9e63addd1d9e13129cb4e5a7e7f17eeaa0f24ad3442be",
+          "implementation_evidence": [
+            "pkg/bulkhead/CHANGELOG.md",
+            "pkg/bulkhead/README.md",
+            "pkg/bulkhead/docs/README.md",
+            "pkg/bulkhead/docs/api.md",
+            "pkg/bulkhead/docs/architecture.md",
+            "pkg/bulkhead/docs/hardening-audit.md",
+            "pkg/bulkhead/docs/performance.md",
+            "pkg/bulkhead/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/cache",
       "module_path": "github.com/faustbrian/golib/pkg/cache",
       "go_version": "1.26.5",
