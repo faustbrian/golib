@@ -146,14 +146,15 @@ already authenticated vector positions, strict decoding of the fixed 576-byte
 aggregate-opening proof, and fixed-profile aggregate opening and verification.
 It binds the `verkle` transcript and pinned generators and rejects duplicate or
 conflicting update and opening identities. Sparse commitment arithmetic does
-not authenticate the supplied old scalars; the future witness layer must do so
-through verified openings before calling it. The decoder alone does not bind a
+not authenticate the supplied old scalars by itself. The internal authenticated
+stateless updater now verifies the complete tree proof before using those old
+scalars for present-stem `Set` operations. The decoder alone does not bind a
 root, key set, claim, path, transcript, or verification result. The boundary
 remains internal. Snapshot and proof functionality is exposed only through
-fixed-profile facades; sparse commitment updates are not yet connected to a
-public tree or witness operation. The package does not provide generic
-cryptographic composition or dependency-level cancellation during proof
-arithmetic.
+fixed-profile facades; stateless post-state calculation is not yet connected
+to a public or canonically encoded witness operation. The package does not
+provide generic cryptographic composition or dependency-level cancellation
+during proof arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused
@@ -238,6 +239,15 @@ package exposes it through a fixed-profile facade that owns canonical proof
 bytes and independently verifies decoded proofs. The API remains experimental
 while the backend cannot stop proof arithmetic after cancellation and witness
 and storage contracts remain incomplete.
+
+The internal stateless updater verifies that proof first, requires one exact
+authenticated old claim for every distinct update, and accepts only `Set`
+operations whose stem path is present. It updates the selected C1/C2
+commitment, then the stem commitment, then every authenticated ancestor in
+descending depth order. Update order cannot change the result. Explicit limits
+cover updates, commitment changes, commitment-to-field mappings, path lookups,
+and temporary bytes. Deletion, missing/different-stem insertion, canonical
+witness bytes, and the public witness/application boundary remain proposed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

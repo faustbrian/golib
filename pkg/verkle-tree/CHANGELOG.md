@@ -66,6 +66,12 @@ All notable changes to `verkle-tree` will be documented in this file.
   rejection, identity handling, explicit resource bounds, cancellation, and
   agreement with the pinned independent Rust commitment corpus. This internal
   primitive does not authenticate old values or expose stateless witnesses.
+- Add an internal bounded stateless post-state calculator that verifies the
+  complete aggregate tree proof, authenticates old membership or absent-suffix
+  values, applies canonical `Set` batches to stems proven present, and
+  propagates shared commitment changes deterministically to a pinned post-state
+  root. Deletion, new-stem topology changes, witness encoding, and a public
+  stateless API remain unsupported.
 - Add a bounded immutable committed-tree builder that combines canonical leaf,
   stem, and internal commitments into deterministic roots, with reusable
   concurrent construction, aggregate cryptographic-work limits, and six

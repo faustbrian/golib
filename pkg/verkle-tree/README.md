@@ -14,7 +14,7 @@ snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. The
 public surface is experimental, rebuilds the complete tree for every update,
 persisted load, and maintained publication, and does not yet provide crash
-repair, adapter implementations, or stateless witnesses. It is not a
+repair, adapter implementations, or public stateless witnesses. It is not a
 production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
@@ -172,7 +172,14 @@ encodings, crash-repair semantics, stable proof and witness semantics,
 tree-level incremental update semantics, and complete dependency-level
 cancellation are not yet frozen. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it
-does not authenticate old values or establish witness completeness. Canonical
+does not authenticate old values by itself. An internal stateless updater now
+cryptographically verifies the complete tree proof before applying bounded
+`Set` operations to suffixes whose stems are proven present, then derives the
+post-state root bottom-up from authenticated old scalars. It handles existing
+values and absent suffixes, canonicalizes update order, rejects duplicate or
+unproven keys, and is deterministic across shared paths. It deliberately does
+not support deletion, missing/different-stem insertion, canonical witness
+encoding, or a public witness API yet. Canonical
 stored-node bytes, atomic write publication, isolated persisted reconstruction,
 and atomic retention/pruning now have one package-owned experimental contract,
 but none is a stable interoperability surface.
@@ -279,6 +286,16 @@ backend blocker. The root package exposes this engine through a fixed-profile
 experimental facade with opaque proofs and typed resource errors. It does not
 establish a stable proof API, witness semantics, storage durability, or
 Ethereum compatibility.
+
+The internal stateless updater composes that verified proof with sparse
+commitment changes. Every requested key must have an authenticated membership
+or absence claim and a present-stem path. Existing-value replacement and
+absent-suffix insertion are supported, including multi-stem batches and shared
+ancestors; the result is checked against pinned and stateful post-state roots.
+Explicit limits bound updates, commitment changes, commitment-to-field maps,
+path lookups, and temporary bytes. This is a post-state calculation primitive,
+not a public or canonically encoded witness format. Deletion and topology
+creation/collapse remain unsupported until completeness rules are specified.
 
 ## Experimental storage boundary
 

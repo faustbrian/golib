@@ -762,6 +762,32 @@ experimental profile and proof system. It does not establish storage
 durability, snapshot retention, witness completeness for updates, execution
 validity, Ethereum protocol compatibility, or authorization to mutate state.
 
+## Internal Stateless Post-State Calculation
+
+The internal stateless updater MUST cryptographically verify the complete tree
+proof before using any opened value or commitment for a state transition. It
+MUST accept only non-empty, duplicate-free `Set` batches whose exact keys are
+present in the canonical claim set and whose terminal topology is
+`StemPathPresent`. A membership claim supplies the authenticated old value; an
+absence claim supplies the canonical zero pair for an absent suffix. Present
+all-zero values MUST remain distinct from absence.
+
+For each changed suffix half, the updater MUST apply both authenticated leaf
+scalar changes to C1 or C2, map the old and new half commitments into the
+field, update stem position 2 or 3, and propagate old/new child-commitment
+images through every authenticated ancestor to the root. It MUST combine
+shared ancestors from deepest to shallowest so mixed-depth and multi-stem
+batches cannot omit a descendant change. Update order MUST NOT affect the
+post-state root.
+
+The operation MUST bound update count, commitment updates,
+commitment-to-field mappings, authenticated path lookups, and conservative
+temporary bytes, and MUST observe cancellation throughout owned work and
+around backend calls. Missing claims or path commitments MUST fail closed.
+Deletion, insertion at a missing or different stem, extension creation or
+collapse, canonical witness encoding, and a public stateless API remain
+unsupported in this phase.
+
 ## Committed Tree Construction
 
 The internal committed-tree builder MUST accept fixed 32-byte keys and values,
@@ -860,9 +886,10 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
-encoding, crash-repair application, tree-level incremental updates, witness
-verification, or stateless updates. The backend's authenticated-position
-sparse-update primitive is not yet connected to tree paths. The storage
+encoding, crash-repair application, general tree-level incremental updates, or
+a canonical/public witness format. The limited internal stateless updater is
+connected to authenticated tree paths only for `Set` operations on stems proven
+present; deletion and topology changes remain unsupported. The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained
 publications plus prune nodes through a capability-checked caller-owned adapter.
