@@ -1,0 +1,35 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/resilience
+cpu: Apple M4 Max
+                                                     │ docs/benchmarks/raw/2026-08-02-darwin-arm64.txt │
+                                                     │                     sec/op                      │
+ExecutionComposition/direct_function-16                                                   3.301n ± 91%
+ExecutionComposition/failsafe_no_policy-16                                                604.9n ± 23%
+ExecutionComposition/resilience_no_policy-16                                              473.1n ± 57%
+ExecutionComposition/resilience_two_pass_policies-16                                      247.8n ± 64%
+ExecutionComposition/resilience_observed-16                                               3.940µ ± 23%
+BudgetAdmission-16                                                                        551.6n ± 33%
+geomean                                                                                   282.5n
+
+                                                     │ docs/benchmarks/raw/2026-08-02-darwin-arm64.txt │
+                                                     │                      B/op                       │
+ExecutionComposition/direct_function-16                                                   0.000 ± 0%
+ExecutionComposition/failsafe_no_policy-16                                                288.0 ± 0%
+ExecutionComposition/resilience_no_policy-16                                              0.000 ± 0%
+ExecutionComposition/resilience_two_pass_policies-16                                      0.000 ± 0%
+ExecutionComposition/resilience_observed-16                                             1.750Ki ± 0%
+BudgetAdmission-16                                                                        267.0 ± 2%
+geomean                                                                                              ¹
+¹ summaries must be >0 to compute geomean
+
+                                                     │ docs/benchmarks/raw/2026-08-02-darwin-arm64.txt │
+                                                     │                    allocs/op                    │
+ExecutionComposition/direct_function-16                                                   0.000 ± 0%
+ExecutionComposition/failsafe_no_policy-16                                                11.00 ± 0%
+ExecutionComposition/resilience_no_policy-16                                              0.000 ± 0%
+ExecutionComposition/resilience_two_pass_policies-16                                      0.000 ± 0%
+ExecutionComposition/resilience_observed-16                                               5.000 ± 0%
+BudgetAdmission-16                                                                        1.000 ± 0%
+geomean                                                                                              ¹
+¹ summaries must be >0 to compute geomean

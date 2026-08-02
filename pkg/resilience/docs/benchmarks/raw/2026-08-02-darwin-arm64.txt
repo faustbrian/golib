@@ -1,0 +1,66 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/resilience
+cpu: Apple M4 Max
+BenchmarkExecutionComposition/direct_function-16         	274385851	         3.135 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	171045465	         6.302 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	273545524	         2.652 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	238870896	         2.681 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	200114120	         2.642 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	147523827	         3.490 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	184387122	         3.468 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	221735737	         2.845 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	174872943	         4.427 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/direct_function-16         	100000000	         6.851 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1000000	       637.0 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1004737	       658.2 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	  759039	       682.2 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1376007	       595.6 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1384362	       574.1 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1000000	       638.2 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1397738	       462.8 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1000000	       614.1 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1000000	       566.3 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/failsafe_no_policy-16      	 1349017	       463.9 ns/op	     288 B/op	      11 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 2125705	       287.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 2817415	       439.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 1000000	       542.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	  957427	       681.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 1000000	       768.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 1000000	       741.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 1000000	       507.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 2121774	       299.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 3371119	       313.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_no_policy-16    	 3823760	       229.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 2016099	       317.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 3554564	       258.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 2775721	       210.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 2838768	       202.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 3649064	       183.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 3112384	       197.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 3381032	       356.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 1968714	       405.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 2468792	       237.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_two_pass_policies-16         	 2724278	       615.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  161844	      3741 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  137700	      4143 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  102055	      5157 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  202830	      4586 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  217464	      4784 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  565158	      2659 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  134644	      4138 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  295624	      3454 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  181286	      3038 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkExecutionComposition/resilience_observed-16                  	  300212	      3223 ns/op	    1792 B/op	       5 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	      1121 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       527.6 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       543.4 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       547.0 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1439914	       418.6 ns/op	     255 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	  708292	       731.9 ns/op	     261 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	  959336	       556.3 ns/op	     273 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       525.3 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       600.8 ns/op	     267 B/op	       1 allocs/op
+BenchmarkBudgetAdmission-16                                           	 1000000	       617.3 ns/op	     267 B/op	       1 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/resilience	45.547s
