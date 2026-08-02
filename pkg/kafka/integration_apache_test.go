@@ -876,9 +876,7 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 0},
 		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 1},
 	}
-	if err := consumer.PausePartitions(assignedPartitions...); err != nil {
-		t.Fatalf("pause rebalance child partitions: %v", err)
-	}
+	pauseApacheKafkaConsumerPartitions(t, consumer, assignedPartitions...)
 	if err := report(apacheKafkaConsumerReady); err != nil {
 		t.Fatalf("report rebalance child assignment: %v", err)
 	}
@@ -886,9 +884,7 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 	if _, err := io.ReadFull(os.Stdin, startSignal[:]); err != nil {
 		t.Fatalf("start rebalance consumer child handling: %v", err)
 	}
-	if err := consumer.ResumePartitions(assignedPartitions...); err != nil {
-		t.Fatalf("resume rebalance child partitions: %v", err)
-	}
+	resumeApacheKafkaConsumerPartitions(t, consumer, assignedPartitions...)
 
 	release := make(chan struct{})
 	if scenario == apacheKafkaConsumerScenarioDrain {

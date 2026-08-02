@@ -198,9 +198,7 @@ func runApacheKafkaSessionTimeoutConsumerChild(t *testing.T) {
 	partition := kafka.TopicPartition{
 		Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 0,
 	}
-	if err := consumer.PausePartitions(partition); err != nil {
-		t.Fatalf("pause session-timeout child partition: %v", err)
-	}
+	pauseApacheKafkaConsumerPartitions(t, consumer, partition)
 	if err := report(apacheKafkaSessionTimeoutReady); err != nil {
 		t.Fatalf("report session-timeout child readiness: %v", err)
 	}
@@ -208,9 +206,7 @@ func runApacheKafkaSessionTimeoutConsumerChild(t *testing.T) {
 	if _, err := io.ReadFull(os.Stdin, start[:]); err != nil {
 		t.Fatalf("start session-timeout child handling: %v", err)
 	}
-	if err := consumer.ResumePartitions(partition); err != nil {
-		t.Fatalf("resume session-timeout child partition: %v", err)
-	}
+	resumeApacheKafkaConsumerPartitions(t, consumer, partition)
 	childCtx, cancelChild := context.WithTimeout(
 		context.Background(),
 		90*time.Second,

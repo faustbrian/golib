@@ -2486,9 +2486,7 @@ func provePauseResumePolicy(
 	}
 
 	partition := kafka.TopicPartition{Topic: topic, Partition: 0}
-	if err := consumer.PausePartitions(partition); err != nil {
-		t.Fatalf("pause partition: %v", err)
-	}
+	pauseApacheKafkaConsumerPartitions(t, consumer, partition)
 	publish("paused")
 
 	pauseCtx, cancelPause := context.WithTimeout(ctx, time.Second)
@@ -2510,9 +2508,7 @@ func provePauseResumePolicy(
 	if !errors.Is(pauseCtx.Err(), context.DeadlineExceeded) {
 		t.Fatalf("paused poll context error = %v", pauseCtx.Err())
 	}
-	if err := consumer.ResumePartitions(partition); err != nil {
-		t.Fatalf("resume partition: %v", err)
-	}
+	resumeApacheKafkaConsumerPartitions(t, consumer, partition)
 
 	for {
 		resumedResult, runErr := consumer.RunOnce(ctx, kafka.HandlerFunc(func(

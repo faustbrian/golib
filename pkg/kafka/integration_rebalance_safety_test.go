@@ -102,13 +102,9 @@ func proveApacheKafkaPartialCooperativeRevocation(
 		{Topic: topic, Partition: 0},
 		{Topic: topic, Partition: 1},
 	}
-	if err := original.PausePartitions(partitions...); err != nil {
-		t.Fatalf("pause partial cooperative partitions: %v", err)
-	}
+	pauseApacheKafkaConsumerPartitions(t, original, partitions...)
 	publishApacheKafkaPartitionRecords(t, ctx, producer, topic, 0)
-	if err := original.ResumePartitions(partitions...); err != nil {
-		t.Fatalf("resume partial cooperative partitions: %v", err)
-	}
+	resumeApacheKafkaConsumerPartitions(t, original, partitions...)
 	waitForApacheKafkaBufferedConsumerRecords(t, ctx, original, 2)
 
 	handling := make(chan int32, 2)
@@ -308,9 +304,7 @@ func proveApacheKafkaForcedOwnershipLoss(
 	}()
 	waitForApacheKafkaConsumerPartitions(t, ctx, original, topic, 1)
 	partition := kafka.TopicPartition{Topic: topic, Partition: 0}
-	if err := original.PausePartitions(partition); err != nil {
-		t.Fatalf("pause forced-loss partition: %v", err)
-	}
+	pauseApacheKafkaConsumerPartitions(t, original, partition)
 	if result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 		Topic:     topic,
 		Partition: kafka.ExplicitPartition(0),
@@ -319,9 +313,7 @@ func proveApacheKafkaForcedOwnershipLoss(
 	}); result.Err != nil {
 		t.Fatalf("publish forced-loss record: %v", result.Err)
 	}
-	if err := original.ResumePartitions(partition); err != nil {
-		t.Fatalf("resume forced-loss partition: %v", err)
-	}
+	resumeApacheKafkaConsumerPartitions(t, original, partition)
 	waitForApacheKafkaBufferedConsumerRecords(t, ctx, original, 1)
 
 	handling := make(chan struct{})
@@ -493,6 +485,50 @@ func closeApacheKafkaConsumer(t *testing.T, consumer *kafka.Consumer) {
 			t.Errorf("close ownership consumer: %v", err)
 
 			return
+		}
+		<-ticker.C
+	}
+}
+
+func pauseApacheKafkaConsumerPartitions(
+	t *testing.T,
+	consumer *kafka.Consumer,
+	partitions ...kafka.TopicPartition,
+) {
+	t.Helper()
+	retryApacheKafkaConsumerMutation(t, "pause", func() error {
+		return consumer.PausePartitions(partitions...)
+	})
+}
+
+func resumeApacheKafkaConsumerPartitions(
+	t *testing.T,
+	consumer *kafka.Consumer,
+	partitions ...kafka.TopicPartition,
+) {
+	t.Helper()
+	retryApacheKafkaConsumerMutation(t, "resume", func() error {
+		return consumer.ResumePartitions(partitions...)
+	})
+}
+
+func retryApacheKafkaConsumerMutation(
+	t *testing.T,
+	operation string,
+	mutate func() error,
+) {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		err := mutate()
+		if err == nil {
+			return
+		}
+		if !errors.Is(err, kafka.ErrObserverReentry) || time.Now().After(deadline) {
+			t.Fatalf("%s Apache Kafka consumer partitions: %v", operation, err)
 		}
 		<-ticker.C
 	}
