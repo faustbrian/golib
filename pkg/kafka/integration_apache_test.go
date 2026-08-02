@@ -43,6 +43,7 @@ const (
 	apacheKafkaClientPort     = "9092/tcp"
 	apacheKafkaControllerPort = "9093/tcp"
 	apacheKafkaStartFile      = "/tmp/golib-kafka-start.sh"
+	apacheKafkaReadyFile      = "/tmp/golib-kafka-ready"
 	apacheKafkaPIDFile        = "/tmp/golib-kafka.pid"
 	apacheKafkaStopFile       = "/tmp/golib-kafka.stop"
 	apacheKafkaSubnetPool     = 4_096
@@ -4032,7 +4033,7 @@ func startApacheKafkaClusterWithImage(
 				Entrypoint: []string{"sh"},
 				Cmd: []string{
 					"-c",
-					"while [ ! -f " + apacheKafkaStartFile +
+					"while [ ! -f " + apacheKafkaReadyFile +
 						" ]; do sleep 0.05; done; exec /bin/bash " +
 						apacheKafkaStartFile,
 				},
@@ -4056,27 +4057,18 @@ func startApacheKafkaClusterWithImage(
 		}
 	}
 	for _, node := range cluster.nodes {
-		endpoint, err := node.container.PortEndpoint(
+		endpoint := waitForApacheKafkaPortEndpoint(
+			t,
 			ctx,
+			node,
 			apacheKafkaClientPort,
-			"",
 		)
-		if err != nil {
-			t.Fatalf("resolve Apache Kafka node %d endpoint: %v", node.id, err)
-		}
 		script := apacheKafkaRunLoopScript(
 			node.alias,
 			endpoint,
 			"PLAINTEXT",
 		)
-		if err := node.container.CopyToContainer(
-			ctx,
-			[]byte(script),
-			apacheKafkaStartFile,
-			0o755,
-		); err != nil {
-			t.Fatalf("configure Apache Kafka node %d: %v", node.id, err)
-		}
+		configureApacheKafkaNode(t, ctx, node, script)
 	}
 	for _, node := range cluster.nodes {
 		cluster.waitForNode(t, ctx, node)
@@ -4126,7 +4118,7 @@ func startApacheKafkaSeparatedCluster(
 			Entrypoint: []string{"sh"},
 			Cmd: []string{
 				"-c",
-				"while [ ! -f " + apacheKafkaStartFile +
+				"while [ ! -f " + apacheKafkaReadyFile +
 					" ]; do sleep 0.05; done; exec /bin/bash " +
 					apacheKafkaStartFile,
 			},
@@ -4154,22 +4146,18 @@ func startApacheKafkaSeparatedCluster(
 		if err := node.container.Start(ctx); err != nil {
 			t.Fatalf("start Apache Kafka broker %d: %v", node.id, err)
 		}
-		endpoint, err := node.container.PortEndpoint(
+		endpoint := waitForApacheKafkaPortEndpoint(
+			t,
 			ctx,
+			node,
 			apacheKafkaClientPort,
-			"",
 		)
-		if err != nil {
-			t.Fatalf("resolve Apache Kafka broker %d endpoint: %v", node.id, err)
-		}
-		if err := node.container.CopyToContainer(
+		configureApacheKafkaNode(
+			t,
 			ctx,
-			[]byte(apacheKafkaRunLoopScript(node.alias, endpoint, "INTERNAL")),
-			apacheKafkaStartFile,
-			0o755,
-		); err != nil {
-			t.Fatalf("configure Apache Kafka broker %d: %v", node.id, err)
-		}
+			node,
+			apacheKafkaRunLoopScript(node.alias, endpoint, "INTERNAL"),
+		)
 	}
 	for _, node := range cluster.brokers {
 		waitForApacheKafkaNodeWithTimeout(
@@ -4182,6 +4170,74 @@ func startApacheKafkaSeparatedCluster(
 	}
 
 	return cluster
+}
+
+func waitForApacheKafkaPortEndpoint(
+	t *testing.T,
+	ctx context.Context,
+	node apacheKafkaNode,
+	port string,
+) string {
+	t.Helper()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		endpoint, err := node.container.PortEndpoint(waitCtx, port, "")
+		if err == nil {
+			return endpoint
+		}
+		lastErr = err
+		state, stateErr := node.container.State(waitCtx)
+		if stateErr == nil && !state.Running {
+			t.Fatalf(
+				"resolve Apache Kafka node %d endpoint: container %s, exit %d",
+				node.id,
+				state.Status,
+				state.ExitCode,
+			)
+		}
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf(
+				"resolve Apache Kafka node %d endpoint: %v; last error: %v",
+				node.id,
+				context.Cause(waitCtx),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func configureApacheKafkaNode(
+	t *testing.T,
+	ctx context.Context,
+	node apacheKafkaNode,
+	script string,
+) {
+	t.Helper()
+
+	if err := node.container.CopyToContainer(
+		ctx,
+		[]byte(script),
+		apacheKafkaStartFile,
+		0o755,
+	); err != nil {
+		t.Fatalf("configure Apache Kafka node %d: %v", node.id, err)
+	}
+	if err := node.container.CopyToContainer(
+		ctx,
+		[]byte("ready\n"),
+		apacheKafkaReadyFile,
+		0o644,
+	); err != nil {
+		t.Fatalf("release Apache Kafka node %d startup: %v", node.id, err)
+	}
 }
 
 func createApacheKafkaContainer(
