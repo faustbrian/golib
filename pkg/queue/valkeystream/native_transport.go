@@ -776,14 +776,26 @@ func parseReplayLineage(fields map[string]string) (string, string, uint32, error
 	if !originalOK && !priorOK && !generationOK {
 		return "", "", 0, nil
 	}
-	if !originalOK || !priorOK || !generationOK {
-		return "", "", 0, errors.New("incomplete replay lineage")
+	if !originalOK {
+		return "", "", 0, errors.New("replay original identifier is missing")
 	}
-	if strings.TrimSpace(original) == "" || strings.TrimSpace(prior) == "" {
-		return "", "", 0, errors.New("incomplete replay lineage")
+	if !priorOK {
+		return "", "", 0, errors.New("replay prior identifier is missing")
 	}
-	if len(original) > management.MaxIdentityBytes || len(prior) > management.MaxIdentityBytes {
-		return "", "", 0, errors.New("incomplete replay lineage")
+	if !generationOK {
+		return "", "", 0, errors.New("replay generation is missing")
+	}
+	if strings.TrimSpace(original) == "" {
+		return "", "", 0, errors.New("replay original identifier is blank")
+	}
+	if strings.TrimSpace(prior) == "" {
+		return "", "", 0, errors.New("replay prior identifier is blank")
+	}
+	if len(original) > management.MaxIdentityBytes {
+		return "", "", 0, errors.New("replay original identifier is too long")
+	}
+	if len(prior) > management.MaxIdentityBytes {
+		return "", "", 0, errors.New("replay prior identifier is too long")
 	}
 	generation, err := strconv.ParseUint(generationText, 10, 32)
 	if err != nil {

@@ -144,23 +144,29 @@ func TestReplayLineageRequiresCompleteBoundedMetadata(t *testing.T) {
 	assert.Len(t, prior, management.MaxIdentityBytes)
 	assert.Equal(t, uint32(1), generation)
 
-	for name, mutate := range map[string]func(map[string]string){
-		"missing original":   func(fields map[string]string) { delete(fields, replayOriginalDeadLetterField) },
-		"missing prior":      func(fields map[string]string) { delete(fields, replayPriorDeadLetterField) },
-		"missing generation": func(fields map[string]string) { delete(fields, replayGenerationField) },
-		"blank original":     func(fields map[string]string) { fields[replayOriginalDeadLetterField] = " " },
-		"blank prior":        func(fields map[string]string) { fields[replayPriorDeadLetterField] = " " },
-		"long original":      func(fields map[string]string) { fields[replayOriginalDeadLetterField] += "x" },
-		"long prior":         func(fields map[string]string) { fields[replayPriorDeadLetterField] += "x" },
+	for _, test := range []struct {
+		name   string
+		want   string
+		mutate func(map[string]string)
+	}{
+		{name: "missing original", want: "replay original identifier is missing", mutate: func(fields map[string]string) { delete(fields, replayOriginalDeadLetterField) }},
+		{name: "missing prior", want: "replay prior identifier is missing", mutate: func(fields map[string]string) { delete(fields, replayPriorDeadLetterField) }},
+		{name: "missing generation", want: "replay generation is missing", mutate: func(fields map[string]string) { delete(fields, replayGenerationField) }},
+		{name: "blank original", want: "replay original identifier is blank", mutate: func(fields map[string]string) { fields[replayOriginalDeadLetterField] = " " }},
+		{name: "blank prior", want: "replay prior identifier is blank", mutate: func(fields map[string]string) { fields[replayPriorDeadLetterField] = " " }},
+		{name: "long original", want: "replay original identifier is too long", mutate: func(fields map[string]string) { fields[replayOriginalDeadLetterField] += "x" }},
+		{name: "long prior", want: "replay prior identifier is too long", mutate: func(fields map[string]string) { fields[replayPriorDeadLetterField] += "x" }},
+		{name: "invalid generation", want: "invalid replay generation", mutate: func(fields map[string]string) { fields[replayGenerationField] = "invalid" }},
+		{name: "zero generation", want: "invalid replay generation", mutate: func(fields map[string]string) { fields[replayGenerationField] = "0" }},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			fields := make(map[string]string, len(valid))
 			for key, value := range valid {
 				fields[key] = value
 			}
-			mutate(fields)
+			test.mutate(fields)
 			_, _, _, err := parseReplayLineage(fields)
-			assert.Error(t, err)
+			assert.EqualError(t, err, test.want)
 		})
 	}
 
@@ -185,7 +191,7 @@ func TestNativeRecordPaginationAndConversionExactBounds(t *testing.T) {
 	page, err := worker.ListFailures(t.Context(), request)
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)
-	assert.Equal(t, int64(valkeyRecordSearchFactor), transport.lastLimit)
+	assert.Equal(t, valkeyRecordSearchFactor, transport.lastLimit)
 
 	transport.records = records
 	request.Search = ""
