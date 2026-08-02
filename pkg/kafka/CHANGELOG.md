@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add pinned Apache Kafka 4.3.1 evidence that live SCRAM-SHA-256 and
+  SCRAM-SHA-512 producers refresh their credential providers after
+  broker-enforced reauthentication and reject the retired secrets
 - add pinned Apache Kafka 4.3.1 evidence that a live mTLS producer observes a
   broker-enforced idle disconnect, obtains a separately issued replacement
   client certificate from its provider, reconnects, and resumes delivery
@@ -27,6 +30,8 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- wait within a bounded deadline for secured Kafka fixture port publication
+  before resolving the broker endpoint
 - stabilize pinned Apache Kafka evidence by retrying bounded retryable consumer
   startup failures and waiting for broker quota propagation before asserting
   producer throttling
@@ -138,8 +143,8 @@ All notable changes to this module are documented here.
   hostname failure cases without emitting generated test credentials; an
   authenticated ACL-denied principal additionally proves producer and
   inspector authorization errors preserve their broker identity, while a live
-  SCRAM-SHA-256 producer refreshes its provider after broker-enforced
-  reauthentication and rejects the retired credential
+  SCRAM-SHA-256 and SCRAM-SHA-512 producers refresh their providers after
+  broker-enforced reauthentication and reject their retired credentials
 - explicit bounded producer and transactional-output retry-backoff ranges with
   per-client jitter, plus three-broker evidence that drops every matching
   `Produce` response and returns within the reviewed delivery bound

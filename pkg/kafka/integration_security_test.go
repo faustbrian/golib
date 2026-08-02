@@ -476,11 +476,60 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 
 	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
 	broker.assertRuntimeVersions(t, ctx)
-	topic := fmt.Sprintf("golib-scram-rotation-%d", time.Now().UnixNano())
 	adminMechanism := franzplain.Auth{
 		User: "plain-user",
 		Pass: broker.plainPassword,
 	}.AsMechanism()
+	for _, test := range []struct {
+		name                string
+		username            string
+		initialPassword     string
+		mechanism           kadm.ScramMechanism
+		buildAuthentication func(kafka.UsernamePasswordProvider) kafka.Authentication
+	}{
+		{
+			name:                "SHA-256",
+			username:            "scram256-user",
+			initialPassword:     broker.scram256Password,
+			mechanism:           kadm.ScramSha256,
+			buildAuthentication: kafka.NewSCRAMSHA256Authentication,
+		},
+		{
+			name:                "SHA-512",
+			username:            "scram512-user",
+			initialPassword:     broker.scram512Password,
+			mechanism:           kadm.ScramSha512,
+			buildAuthentication: kafka.NewSCRAMSHA512Authentication,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			proveApacheKafkaLiveSCRAMCredentialRotation(
+				t,
+				ctx,
+				broker,
+				adminMechanism,
+				test.username,
+				test.initialPassword,
+				test.mechanism,
+				test.buildAuthentication,
+			)
+		})
+	}
+}
+
+func proveApacheKafkaLiveSCRAMCredentialRotation(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	adminMechanism sasl.Mechanism,
+	username string,
+	initialPassword string,
+	mechanism kadm.ScramMechanism,
+	buildAuthentication func(kafka.UsernamePasswordProvider) kafka.Authentication,
+) {
+	t.Helper()
+
+	topic := fmt.Sprintf("golib-scram-rotation-%s-%d", username, time.Now().UnixNano())
 	createSecureKafkaTopic(
 		t,
 		ctx,
@@ -491,17 +540,17 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 	)
 
 	var currentPassword atomic.Value
-	currentPassword.Store(broker.scram256Password)
+	currentPassword.Store(initialPassword)
 	var providerCalls atomic.Int64
 	security := kafka.ClientSecurity{
 		TLS: broker.serverTLSConfig(),
-		Authentication: kafka.NewSCRAMSHA256Authentication(
+		Authentication: buildAuthentication(
 			kafka.UsernamePasswordProviderFunc(func(
 				context.Context,
 			) (kafka.UsernamePassword, error) {
 				providerCalls.Add(1)
 				return kafka.UsernamePassword{
-					Username: "scram256-user",
+					Username: username,
 					Password: []byte(currentPassword.Load().(string)),
 				}, nil
 			}),
@@ -510,7 +559,7 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 	}
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:         []string{broker.endpoint},
-		ClientID:        "golib-scram-rotation-producer",
+		ClientID:        "golib-scram-rotation-producer-" + username,
 		AllowedTopics:   []string{topic},
 		DeliveryTimeout: 3 * time.Second,
 		RequestTimeout:  2 * time.Second,
@@ -535,15 +584,16 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 		t.Fatal("initial SCRAM credential provider was not used")
 	}
 
-	oldPassword := broker.scram256Password
+	oldPassword := initialPassword
 	newPassword := randomSecureKafkaCredential(t)
 	alterSecureKafkaSCRAMCredential(
 		t,
 		ctx,
 		broker,
 		adminMechanism,
-		"scram256-user",
+		username,
 		newPassword,
+		mechanism,
 	)
 	currentPassword.Store(newPassword)
 
@@ -579,9 +629,9 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 
 	retiredSecurity, _ := usernamePasswordSecurity(
 		broker,
-		"scram256-user",
+		username,
 		oldPassword,
-		kafka.NewSCRAMSHA256Authentication,
+		buildAuthentication,
 	)
 	assertSecureKafkaHealthFailure(
 		t,
@@ -861,10 +911,7 @@ func startSecureKafkaBroker(
 		)
 	})
 
-	endpoint, err := container.PortEndpoint(ctx, secureKafkaClientPort, "")
-	if err != nil {
-		t.Fatalf("resolve secured Apache Kafka endpoint: %v", err)
-	}
+	endpoint := waitForSecureKafkaPortEndpoint(t, ctx, container)
 	host, _, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		t.Fatalf("parse secured Apache Kafka endpoint: %v", err)
@@ -1019,6 +1066,45 @@ func secureKafkaStartupDiagnostic(
 	return diagnostic, nil
 }
 
+func waitForSecureKafkaPortEndpoint(
+	t *testing.T,
+	ctx context.Context,
+	container testcontainers.Container,
+) string {
+	t.Helper()
+
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		endpoint, err := container.PortEndpoint(waitCtx, secureKafkaClientPort, "")
+		if err == nil {
+			return endpoint
+		}
+		lastErr = err
+		state, stateErr := container.State(waitCtx)
+		if stateErr == nil && !state.Running {
+			t.Fatalf(
+				"resolve secured Apache Kafka endpoint: container %s, exit %d",
+				state.Status,
+				state.ExitCode,
+			)
+		}
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf(
+				"resolve secured Apache Kafka endpoint: %v; last error: %v",
+				context.Cause(waitCtx),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
 func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 	listener := "SSL"
 	if mode != secureKafkaMutualTLS {
@@ -1076,6 +1162,8 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"User:scram256-user;User:scram512-user\n" +
 			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n" +
 			"listener.name.sasl_ssl.scram-sha-256." +
+			"connections.max.reauth.ms=3000\n" +
+			"listener.name.sasl_ssl.scram-sha-512." +
 			"connections.max.reauth.ms=3000\n" +
 			"listener.name.sasl_ssl.plain.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.plain.PlainLoginModule required " +
@@ -1661,6 +1749,7 @@ func alterSecureKafkaSCRAMCredential(
 	adminMechanism sasl.Mechanism,
 	username string,
 	password string,
+	mechanism kadm.ScramMechanism,
 ) {
 	t.Helper()
 
@@ -1679,7 +1768,7 @@ func alterSecureKafkaSCRAMCredential(
 		nil,
 		[]kadm.UpsertSCRAM{{
 			User:       username,
-			Mechanism:  kadm.ScramSha256,
+			Mechanism:  mechanism,
 			Iterations: 4096,
 			Password:   password,
 		}},
