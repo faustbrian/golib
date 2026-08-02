@@ -75,7 +75,7 @@ package commands:
 
 ```text
 make inventory
-make workspace-check
+make workspace-test
 make repository-check
 make ci
 make release-dry-run MODULES=<module-or-selection>
