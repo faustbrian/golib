@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Track shared runners and gate-specific helpers independently so changes to
+  mutation-only tooling cannot invalidate unrelated test, race, coverage, or
+  fuzz evidence.
 - Scope verification-gate fingerprints to the selected module and its owned
   dependencies so unrelated manifest registrations cannot invalidate
   long-running package evidence.

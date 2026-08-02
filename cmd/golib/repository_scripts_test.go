@@ -1358,8 +1358,14 @@ func Value() int { return example.Value() }
 func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
 	repositoryRoot := testRepositoryRoot(t)
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "pkg", "example"), 0o700); err != nil {
-		t.Fatal(err)
+	for _, directory := range []string{
+		filepath.Join(root, ".golib"),
+		filepath.Join(root, "pkg", "example"),
+		filepath.Join(root, "scripts", "internal"),
+	} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
 	}
 	writeTestFile(t, filepath.Join(root, "modules.json"), `{
   "modules": [
@@ -1420,6 +1426,21 @@ go 1.26.5
 		t.Fatal(err)
 	}
 	writeTestFile(t, fixture, "# Fixture\n")
+	checkModuleScript := filepath.Join(root, "scripts", "check-module.sh")
+	checkFuzzScript := filepath.Join(root, "scripts", "check-fuzz.sh")
+	mutationCommandScript := filepath.Join(
+		root,
+		"scripts",
+		"internal",
+		"mutation-command.sh",
+	)
+	writeTestFile(t, checkModuleScript, "check module\n")
+	writeTestFile(t, checkFuzzScript, "check fuzz\n")
+	writeTestFile(t, mutationCommandScript, "mutation command\n")
+	versionsFile := filepath.Join(root, ".golib", "versions.env")
+	mutationInventory := filepath.Join(root, ".golib", "mutation-zero-inventory.json")
+	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.0\n")
+	writeTestFile(t, mutationInventory, "{\"packages\":[]}\n")
 
 	initialize := exec.Command("git", "init", "--quiet")
 	initialize.Dir = root
@@ -1445,8 +1466,54 @@ go 1.26.5
 	}
 
 	testBefore := digest("test")
+	fuzzBefore := digest("fuzz")
 	docsBefore := digest("docs")
 	secretsBefore := digest("secrets")
+	writeTestFile(t, mutationInventory, "{\"packages\":[\"unrelated\"]}\n")
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"mutation inventory changed test digest: %s != %s",
+			current,
+			testBefore,
+		)
+	}
+	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.1\n")
+	if current := digest("test"); current == testBefore {
+		t.Fatal("tool versions did not change test digest")
+	}
+	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.0\n")
+	writeTestFile(t, mutationCommandScript, "revised mutation command\n")
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"mutation-only tooling changed test digest: %s != %s",
+			current,
+			testBefore,
+		)
+	}
+	if current := digest("fuzz"); current != fuzzBefore {
+		t.Fatalf(
+			"mutation-only tooling changed fuzz digest: %s != %s",
+			current,
+			fuzzBefore,
+		)
+	}
+	writeTestFile(t, checkFuzzScript, "revised check fuzz\n")
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"fuzz-only tooling changed test digest: %s != %s",
+			current,
+			testBefore,
+		)
+	}
+	if current := digest("fuzz"); current == fuzzBefore {
+		t.Fatal("fuzz tooling did not change fuzz digest")
+	}
+	writeTestFile(t, checkFuzzScript, "check fuzz\n")
+	writeTestFile(t, checkModuleScript, "revised check module\n")
+	if current := digest("test"); current == testBefore {
+		t.Fatal("shared gate tooling did not change test digest")
+	}
+	writeTestFile(t, checkModuleScript, "check module\n")
 	moduleCatalog := filepath.Join(root, "modules.json")
 	catalogContents, err := os.ReadFile(moduleCatalog)
 	if err != nil {

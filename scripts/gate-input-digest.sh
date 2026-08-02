@@ -155,6 +155,54 @@ append_verification_environment() {
     fi
 }
 
+append_verification_tool_files() {
+    local paths=(
+        .golib/versions.env
+        scripts/check-module.sh
+        scripts/create-verification-snapshot.sh
+        scripts/run-modules.sh
+        scripts/start-services.sh
+        scripts/stop-services.sh
+    )
+    case "${gate}" in
+        format-check|workspace-test|safety|benchmark|release-public) ;;
+        *)
+            paths+=(
+                scripts/build-local-proxy.sh
+                scripts/internal/isolated-go.sh
+            )
+            ;;
+    esac
+    case "${gate}" in
+        coverage)
+            paths+=(scripts/check-coverage.sh)
+            ;;
+        fuzz)
+            paths+=(scripts/check-fuzz.sh)
+            ;;
+        safety)
+            paths+=(scripts/check-go-safety.sh)
+            ;;
+        api)
+            paths+=(scripts/check-api-baseline.sh)
+            ;;
+        api-update)
+            paths+=(scripts/update-api-baseline.sh)
+            ;;
+        licenses)
+            paths+=(LICENSE)
+            ;;
+        release-dry-run|release-public)
+            paths+=(
+                scripts/filter-releasable-modules.sh
+                scripts/release.sh
+            )
+            ;;
+    esac
+    git -C "${root}" ls-files -co --exclude-standard -- \
+        "${paths[@]}" >>"${input_files}"
+}
+
 verification_digest() {
     local directory file
     append_value gate "${gate}"
@@ -193,17 +241,16 @@ verification_digest() {
         )"
         append_module_files "${directory}"
     done < <(LC_ALL=C sort -u "${directories}")
+    append_verification_tool_files
     git -C "${root}" ls-files -co --exclude-standard -- \
         .github/workflows/ci.yml \
         .go-version \
-        .golib \
         .gitleaks.toml \
         AGENTS.md \
         Makefile \
         go.mod \
         go.sum \
-        go.work \
-        scripts >>"${input_files}"
+        go.work >>"${input_files}"
 
     LC_ALL=C sort -u "${input_files}" | append_repository_files
 }
