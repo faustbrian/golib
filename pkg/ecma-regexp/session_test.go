@@ -49,6 +49,22 @@ func TestSessionImplementsStickyLastIndex(t *testing.T) {
 	}
 }
 
+func TestSessionAllowsEmptyMatchAtInputEnd(t *testing.T) {
+	t.Parallel()
+
+	program, err := ecmascript.Compile("", "g", ecmascript.DefaultCompileOptions())
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	session := ecmascript.NewSession(program)
+	session.SetLastIndex(1)
+
+	result, matched, err := session.Exec(context.Background(), "a", ecmascript.DefaultMatchOptions().Limits)
+	if err != nil || !matched || result.Full().Span().Start.UTF16 != 1 || result.Full().Span().End.UTF16 != 1 {
+		t.Fatalf("Exec(at end) = %#v, %t, %v; lastIndex=%d", result, matched, err, session.LastIndex())
+	}
+}
+
 func TestSessionIgnoresLastIndexWithoutGlobalOrSticky(t *testing.T) {
 	t.Parallel()
 

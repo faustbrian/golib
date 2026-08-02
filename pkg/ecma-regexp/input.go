@@ -45,10 +45,7 @@ func makeInputView(source string, limits MatchLimits) (*inputView, error) {
 	view.codePointBoundary[0] = true
 	runeOffset := 0
 	for byteOffset, char := range source {
-		size := 1
-		if char != utf8.RuneError || source[byteOffset] >= utf8.RuneSelf {
-			_, size = utf8.DecodeRuneInString(source[byteOffset:])
-		}
+		_, size := utf8.DecodeRuneInString(source[byteOffset:])
 		encoded := utf16.Encode([]rune{char})
 		for unitIndex, unit := range encoded {
 			view.units = append(view.units, unit)

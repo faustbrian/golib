@@ -16,10 +16,7 @@ func NewSession(program *Program) *Session {
 func (s *Session) LastIndex() int { return s.lastIndex }
 
 func (s *Session) SetLastIndex(index int) {
-	if index < 0 {
-		index = 0
-	}
-	s.lastIndex = index
+	s.lastIndex = max(index, 0)
 }
 
 // Exec applies RegExpBuiltinExec lastIndex, global, and sticky behavior. Limit

@@ -133,9 +133,8 @@ func (p *Pattern) CaptureCount() int { return p.captureCount }
 func (p *Pattern) CaptureNames() map[string]int {
 	names := make(map[string]int, len(p.captureNames))
 	for name, indices := range p.captureNames {
-		if len(indices) > 0 {
-			names[name] = indices[0]
-		}
+		// The parser records a name only when it appends its capture index.
+		names[name] = indices[0]
 	}
 	return names
 }

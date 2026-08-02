@@ -128,7 +128,9 @@ func unicodeCanonical(char rune) rune {
 
 func legacyCanonical(char rune) rune {
 	upper := lookupFold(generatedLegacyUpper[:], char)
-	if char >= 0x80 && upper < 0x80 {
+	const asciiMask rune = 0x7F
+	// Legacy canonicalization must not map a non-ASCII code point into ASCII.
+	if char&^asciiMask != 0 && upper&^asciiMask == 0 {
 		return char
 	}
 	return upper
