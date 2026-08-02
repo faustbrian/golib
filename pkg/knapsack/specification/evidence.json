@@ -2,22 +2,22 @@
   "schema_version": "v1",
   "generated": {
     "package_commit": "129e137b63d83c978f5f87ba7bc1e533ef79d5c6",
-    "source_sha256": "84cf98f8f421f3dc2d2ae7b3d2551391c5f739c8df06db7a9648a0d3f3779300",
+    "source_sha256": "a8fed6eebccefb4ca5bae49a109f072cbbbe1874e24895dcbaab239c86a30e1e",
     "go_version": "go1.26.5",
     "environment": "darwin/arm64",
-    "date": "2026-07-29",
+    "date": "2026-08-02",
     "commands": [
       "make check",
       "make release-check"
     ],
     "dependencies": {
-      "github.com/faustbrian/golib/pkg/math": "v0.1.0",
-      "github.com/faustbrian/golib/pkg/measurement": "v0.1.0"
+      "github.com/faustbrian/golib/pkg/math": "v1.0.0",
+      "github.com/faustbrian/golib/pkg/measurement": "v1.0.0"
     },
     "fixtures": {
-      "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json": "3baca039421c665a61350a5c3fa5fc83e40c36bddb9dbac848ab2c3628c28fde",
-      "docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv": "dd005f5579613265682dcf8ca1a0072182df524d8765270fe68350f2a7651a0f",
-      "docs/benchmarks/raw/2026-07-29-darwin-arm64.txt": "1f55b7cdf3ef06d0843dad505afb5854b424c68b52e9c117d13fb5315d886a99",
+      "docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json": "7cdce7d2ba92cf849c4c8fbbd32405d3bc2f5af33bd143a738425b8b5b88664b",
+      "docs/benchmarks/raw/2026-08-02-darwin-arm64-rss.tsv": "41ad3df907cb714571c7f55e5a06f1bab96c9b28b14ec19b37b17e2b0fa29a4b",
+      "docs/benchmarks/raw/2026-08-02-darwin-arm64.txt": "c799148f5bd2cfb19e66d067ba74fe4400e1d418cfec3d50b2e4ca17654ed533",
       "docs/mutation/raw/adapter.json": "7a81464a367db04aebf01b23691e61d40f46694ea1a5eb0e8bb064ad148959b4",
       "docs/mutation/raw/gomoney.json": "e4c972d7db9a5a53dfdddedcb81bdbc1e262abf02ebe79d434f64672784147c6",
       "docs/mutation/raw/root.json": "83c654d9ed2bcb7d5fff9f6aff9aa40bf9a9def9df78a0304795db672a1f5f75",
@@ -3231,7 +3231,7 @@
     {
       "feature": "fresh-process runtime comparison",
       "semantic_scope": "identical verified common subset with startup, serialization, RSS, and deadline treatment",
-      "status": "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json"
+      "status": "docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json"
     },
     {
       "feature": "single-pass online packing",
@@ -3375,13 +3375,13 @@
   },
   "benchmarks": {
     "boxpacker_runtime_command": "scripts/benchmark-boxpacker.sh",
-    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json",
+    "boxpacker_runtime_raw_output": "docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json",
     "command": "make benchmark",
     "comparison_command": "make benchmark-compare",
-    "environment": "docs/benchmarks/2026-07-29-darwin-arm64.md",
-    "raw_output": "docs/benchmarks/raw/2026-07-29-darwin-arm64.txt",
+    "environment": "docs/benchmarks/2026-08-02-darwin-arm64.md",
+    "raw_output": "docs/benchmarks/raw/2026-08-02-darwin-arm64.txt",
     "rss_command": "make benchmark-rss",
-    "rss_raw_output": "docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv",
+    "rss_raw_output": "docs/benchmarks/raw/2026-08-02-darwin-arm64-rss.tsv",
     "rss_thresholds": "specification/benchmark-rss-thresholds.tsv",
     "semantic_normalization": "identical lattice, weights, rotations, stock, constraints, and objectives",
     "thresholds": "specification/benchmark-thresholds.tsv"

@@ -548,9 +548,9 @@ func generatedEvidenceForTree(t *testing.T) generatedEvidence {
 	}
 	fixtures := map[string]string{}
 	for _, path := range []string{
-		"docs/benchmarks/raw/2026-07-29-darwin-arm64.txt",
-		"docs/benchmarks/raw/2026-07-29-darwin-arm64-rss.tsv",
-		"docs/benchmarks/raw/2026-07-29-boxpacker-runtime.json",
+		"docs/benchmarks/raw/2026-08-02-darwin-arm64.txt",
+		"docs/benchmarks/raw/2026-08-02-darwin-arm64-rss.tsv",
+		"docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json",
 		"docs/mutation/raw/gomoney.json",
 		"docs/mutation/raw/adapter.json",
 		"docs/mutation/raw/root.json",
@@ -582,8 +582,8 @@ func generatedEvidenceForTree(t *testing.T) generatedEvidence {
 		Date:          benchmarkEvidenceDate,
 		Commands:      []string{"make check", "make release-check"},
 		Dependencies: map[string]string{
-			"github.com/faustbrian/golib/pkg/math":        "v0.1.0",
-			"github.com/faustbrian/golib/pkg/measurement": "v0.1.0",
+			"github.com/faustbrian/golib/pkg/math":        "v1.0.0",
+			"github.com/faustbrian/golib/pkg/measurement": "v1.0.0",
 		},
 		Fixtures: fixtures,
 	}

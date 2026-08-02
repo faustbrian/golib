@@ -1,8 +1,8 @@
 {
   "schema_version": "v1",
   "package_commit": "129e137b63d83c978f5f87ba7bc1e533ef79d5c6",
-  "input_sha256": "b4d451526078665f8ae8eba1fbd5d6afbf6b37185b999832b77d087683acbda7",
-  "date": "2026-07-29",
+  "input_sha256": "9c8e46bd03f19f783a747dd46eb57890340769f16a1191a7186028bed25803ff",
+  "date": "2026-08-02",
   "environment": "darwin/arm64",
   "processor": "Apple M4 Max",
   "command": "make benchmark-compare",
@@ -29,9 +29,9 @@
       "implementation": "dvdoug/BoxPacker",
       "runtime_version": "8.5.8",
       "sample": 1,
-      "wall_nanoseconds": 36582292,
-      "solve_nanoseconds": 2331291,
-      "peak_rss_bytes": 48431104,
+      "wall_nanoseconds": 53182000,
+      "solve_nanoseconds": 4216708,
+      "peak_rss_bytes": 48332800,
       "container_count": 1,
       "packed_items": 2
     },
@@ -39,9 +39,9 @@
       "implementation": "github.com/faustbrian/golib/pkg/knapsack",
       "runtime_version": "go1.26.5",
       "sample": 1,
-      "wall_nanoseconds": 3984583,
-      "solve_nanoseconds": 153166,
-      "peak_rss_bytes": 5554176,
+      "wall_nanoseconds": 11770541,
+      "solve_nanoseconds": 163125,
+      "peak_rss_bytes": 5586944,
       "container_count": 1,
       "packed_items": 2
     },
@@ -49,9 +49,9 @@
       "implementation": "github.com/faustbrian/golib/pkg/knapsack",
       "runtime_version": "go1.26.5",
       "sample": 2,
-      "wall_nanoseconds": 4001209,
-      "solve_nanoseconds": 158417,
-      "peak_rss_bytes": 5767168,
+      "wall_nanoseconds": 10021084,
+      "solve_nanoseconds": 164958,
+      "peak_rss_bytes": 5619712,
       "container_count": 1,
       "packed_items": 2
     },
@@ -59,169 +59,169 @@
       "implementation": "dvdoug/BoxPacker",
       "runtime_version": "8.5.8",
       "sample": 2,
-      "wall_nanoseconds": 36049292,
-      "solve_nanoseconds": 2740458,
+      "wall_nanoseconds": 56171583,
+      "solve_nanoseconds": 3176125,
+      "peak_rss_bytes": 48267264,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 3,
+      "wall_nanoseconds": 55014917,
+      "solve_nanoseconds": 3094291,
       "peak_rss_bytes": 48283648,
       "container_count": 1,
       "packed_items": 2
     },
     {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
       "sample": 3,
-      "wall_nanoseconds": 37451250,
-      "solve_nanoseconds": 2353625,
-      "peak_rss_bytes": 48365568,
+      "wall_nanoseconds": 5233792,
+      "solve_nanoseconds": 168375,
+      "peak_rss_bytes": 5554176,
       "container_count": 1,
       "packed_items": 2
     },
     {
       "implementation": "github.com/faustbrian/golib/pkg/knapsack",
       "runtime_version": "go1.26.5",
-      "sample": 3,
-      "wall_nanoseconds": 5020666,
-      "solve_nanoseconds": 143291,
+      "sample": 4,
+      "wall_nanoseconds": 9907292,
+      "solve_nanoseconds": 152875,
+      "peak_rss_bytes": 5570560,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 4,
+      "wall_nanoseconds": 69021750,
+      "solve_nanoseconds": 3007625,
+      "peak_rss_bytes": 48349184,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 5,
+      "wall_nanoseconds": 52480917,
+      "solve_nanoseconds": 2466042,
+      "peak_rss_bytes": 48513024,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 5,
+      "wall_nanoseconds": 5862375,
+      "solve_nanoseconds": 173292,
+      "peak_rss_bytes": 5701632,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 6,
+      "wall_nanoseconds": 5726959,
+      "solve_nanoseconds": 190250,
+      "peak_rss_bytes": 5554176,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 6,
+      "wall_nanoseconds": 58224000,
+      "solve_nanoseconds": 3577042,
+      "peak_rss_bytes": 48332800,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 7,
+      "wall_nanoseconds": 47397625,
+      "solve_nanoseconds": 2464458,
+      "peak_rss_bytes": 48627712,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 7,
+      "wall_nanoseconds": 11237375,
+      "solve_nanoseconds": 163125,
+      "peak_rss_bytes": 5537792,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 8,
+      "wall_nanoseconds": 11962292,
+      "solve_nanoseconds": 160792,
+      "peak_rss_bytes": 5799936,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 8,
+      "wall_nanoseconds": 52459791,
+      "solve_nanoseconds": 2570208,
+      "peak_rss_bytes": 48611328,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "dvdoug/BoxPacker",
+      "runtime_version": "8.5.8",
+      "sample": 9,
+      "wall_nanoseconds": 65058375,
+      "solve_nanoseconds": 3175833,
+      "peak_rss_bytes": 48562176,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 9,
+      "wall_nanoseconds": 11622209,
+      "solve_nanoseconds": 180458,
+      "peak_rss_bytes": 5799936,
+      "container_count": 1,
+      "packed_items": 2
+    },
+    {
+      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
+      "runtime_version": "go1.26.5",
+      "sample": 10,
+      "wall_nanoseconds": 15619000,
+      "solve_nanoseconds": 166541,
       "peak_rss_bytes": 5668864,
       "container_count": 1,
       "packed_items": 2
     },
     {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 4,
-      "wall_nanoseconds": 4571375,
-      "solve_nanoseconds": 168000,
-      "peak_rss_bytes": 5718016,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
       "implementation": "dvdoug/BoxPacker",
       "runtime_version": "8.5.8",
-      "sample": 4,
-      "wall_nanoseconds": 38076875,
-      "solve_nanoseconds": 2387625,
+      "sample": 10,
+      "wall_nanoseconds": 55736417,
+      "solve_nanoseconds": 2594833,
       "peak_rss_bytes": 48414720,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 5,
-      "wall_nanoseconds": 43021209,
-      "solve_nanoseconds": 2298333,
-      "peak_rss_bytes": 48463872,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 5,
-      "wall_nanoseconds": 4898792,
-      "solve_nanoseconds": 148458,
-      "peak_rss_bytes": 5570560,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 6,
-      "wall_nanoseconds": 5122250,
-      "solve_nanoseconds": 149584,
-      "peak_rss_bytes": 5554176,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 6,
-      "wall_nanoseconds": 39017542,
-      "solve_nanoseconds": 2320875,
-      "peak_rss_bytes": 48578560,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 7,
-      "wall_nanoseconds": 41530208,
-      "solve_nanoseconds": 3987000,
-      "peak_rss_bytes": 48447488,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 7,
-      "wall_nanoseconds": 6043625,
-      "solve_nanoseconds": 157083,
-      "peak_rss_bytes": 5767168,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 8,
-      "wall_nanoseconds": 4749250,
-      "solve_nanoseconds": 145917,
-      "peak_rss_bytes": 5570560,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 8,
-      "wall_nanoseconds": 39110291,
-      "solve_nanoseconds": 2425834,
-      "peak_rss_bytes": 48316416,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 9,
-      "wall_nanoseconds": 36686791,
-      "solve_nanoseconds": 2312542,
-      "peak_rss_bytes": 48578560,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 9,
-      "wall_nanoseconds": 4561125,
-      "solve_nanoseconds": 153542,
-      "peak_rss_bytes": 5718016,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "github.com/faustbrian/golib/pkg/knapsack",
-      "runtime_version": "go1.26.5",
-      "sample": 10,
-      "wall_nanoseconds": 4269792,
-      "solve_nanoseconds": 143750,
-      "peak_rss_bytes": 5554176,
-      "container_count": 1,
-      "packed_items": 2
-    },
-    {
-      "implementation": "dvdoug/BoxPacker",
-      "runtime_version": "8.5.8",
-      "sample": 10,
-      "wall_nanoseconds": 36699125,
-      "solve_nanoseconds": 2264709,
-      "peak_rss_bytes": 48545792,
       "container_count": 1,
       "packed_items": 2
     }
@@ -230,22 +230,22 @@
     {
       "implementation": "dvdoug/BoxPacker",
       "runtime_version": "8.5.8",
-      "wall_p50_nanoseconds": 37451250,
-      "wall_p95_nanoseconds": 43021209,
-      "solve_p50_nanoseconds": 2331291,
-      "solve_p95_nanoseconds": 3987000,
-      "maximum_peak_rss_bytes": 48578560,
+      "wall_p50_nanoseconds": 55014917,
+      "wall_p95_nanoseconds": 69021750,
+      "solve_p50_nanoseconds": 3007625,
+      "solve_p95_nanoseconds": 4216708,
+      "maximum_peak_rss_bytes": 48627712,
       "container_count": 1,
       "packed_items": 2
     },
     {
       "implementation": "github.com/faustbrian/golib/pkg/knapsack",
       "runtime_version": "go1.26.5",
-      "wall_p50_nanoseconds": 4571375,
-      "wall_p95_nanoseconds": 6043625,
-      "solve_p50_nanoseconds": 149584,
-      "solve_p95_nanoseconds": 168000,
-      "maximum_peak_rss_bytes": 5767168,
+      "wall_p50_nanoseconds": 10021084,
+      "wall_p95_nanoseconds": 15619000,
+      "solve_p50_nanoseconds": 164958,
+      "solve_p95_nanoseconds": 190250,
+      "maximum_peak_rss_bytes": 5799936,
       "container_count": 1,
       "packed_items": 2
     }
@@ -254,13 +254,13 @@
     {
       "implementation": "dvdoug/BoxPacker",
       "deadline_nanoseconds": 50000000,
-      "return_nanoseconds": 51194375,
+      "return_nanoseconds": 53238208,
       "process_stopped": true
     },
     {
       "implementation": "github.com/faustbrian/golib/pkg/knapsack",
       "deadline_nanoseconds": 50000000,
-      "return_nanoseconds": 50635625,
+      "return_nanoseconds": 52619625,
       "process_stopped": true
     }
   ]

@@ -20,6 +20,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Refresh benchmark and clean-consumer evidence after owned dependency changes,
+  recording the planned stable `v1.0.0` dependency versions.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

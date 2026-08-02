@@ -168,6 +168,22 @@ func baseInternalItem() knapsack.NormalizedItem {
 	}
 }
 
+func TestExactSearchHonorsConstraintRejection(t *testing.T) {
+	t.Parallel()
+	request := internalRequest(t)
+	instances := []knapsack.ContainerInstance{{ID: "box#1", TypeID: "box"}}
+
+	plan, err := (Exact{}).PackFixed(
+		context.Background(),
+		request,
+		instances,
+		Options{Constraints: []constraint.Placement{internalReject{}}},
+	)
+	if !errors.Is(err, knapsack.ErrProvenInfeasible) || plan.Status() != knapsack.StatusInfeasible {
+		t.Fatalf("rejected plan=%s error=%v", plan.CanonicalString(), err)
+	}
+}
+
 func TestExactPlacementRejectsEveryFeasibilityBoundary(t *testing.T) {
 	t.Parallel()
 	item := baseInternalItem()
@@ -474,19 +490,15 @@ func TestExactSolverReportsPointMemoryExhaustion(t *testing.T) {
 	}
 }
 
-func TestExactSearchHonorsConstraintRejectionPanicAndCancellation(t *testing.T) {
+func TestExactSearchHonorsConstraintPanicAndCancellation(t *testing.T) {
 	t.Parallel()
 	request := internalRequest(t)
 	instances := []knapsack.ContainerInstance{{ID: "box#1", TypeID: "box"}}
-	plan, err := (Exact{}).PackFixed(context.Background(), request, instances, Options{Constraints: []constraint.Placement{internalReject{}}})
-	if !errors.Is(err, knapsack.ErrProvenInfeasible) || plan.Status() != knapsack.StatusInfeasible {
-		t.Fatalf("rejected plan=%s error=%v", plan.CanonicalString(), err)
-	}
-	if _, err = (Exact{}).PackFixed(context.Background(), request, instances, Options{Constraints: []constraint.Placement{internalPanic{}}}); !errors.Is(err, constraint.ErrCallbackPanic) {
+	if _, err := (Exact{}).PackFixed(context.Background(), request, instances, Options{Constraints: []constraint.Placement{internalPanic{}}}); !errors.Is(err, constraint.ErrCallbackPanic) {
 		t.Fatalf("panic error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	plan, err = (Exact{}).PackFixed(ctx, request, instances, Options{Constraints: []constraint.Placement{internalCancel{cancel: cancel}}})
+	plan, err := (Exact{}).PackFixed(ctx, request, instances, Options{Constraints: []constraint.Placement{internalCancel{cancel: cancel}}})
 	if !errors.Is(err, context.Canceled) || plan.Termination() != knapsack.TerminationCancelled {
 		t.Fatalf("cancelled plan=%s error=%v", plan.CanonicalString(), err)
 	}

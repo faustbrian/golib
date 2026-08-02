@@ -43,8 +43,8 @@ SHA-256, Apache-2.0 license, and conversion notice are recorded in
 
 Checked-in raw evidence:
 
-- [2026-07-29 Apple M4 Max](benchmarks/2026-07-29-darwin-arm64.md)
-- [BoxPacker fresh-process comparison](benchmarks/raw/2026-07-29-boxpacker-runtime.json)
+- [2026-08-02 Apple M4 Max](benchmarks/2026-08-02-darwin-arm64.md)
+- [BoxPacker fresh-process comparison](benchmarks/raw/2026-08-02-boxpacker-runtime.json)
 
 `benchmark-compare` collects ten fresh samples for tiny exact, ordinary,
 orientation-heavy, weight-limited, stability-heavy, finite-stock, impossible,

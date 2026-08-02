@@ -1,0 +1,150 @@
+package_commit	129e137b63d83c978f5f87ba7bc1e533ef79d5c6
+input_sha256	c9ae34d567ac5177f2d6f6f07f1345fc014e54b3c909bb5569d033428343f37d
+go_version	go1.26.5
+environment	darwin/arm64
+processor	Apple M4 Max
+date	2026-08-02
+command	BENCH_RAW_OUTPUT=docs/benchmarks/raw/2026-08-02-darwin-arm64.txt ./scripts/benchmark-compare.sh 1s
+duration	1s
+samples	10
+seed	0
+solver_parallelism	1
+gate_status	pass
+semantic_normalization	verified integer lattice and exact constraints defined by each benchmark fixture
+benchmark_source_sha256	f2883846ba6e27a14952e34cee3451394fc56ce2764f93f6e61cf3b442de46e6
+generator_sha256	44cdb09a0fea29d76ebf3031e8c166d9c79c1129f46438579f63f82cd7a5d768
+threshold_sha256	6c55cc0ebf4a2bc170c9099f26203d6d1dd43b5a8886fd51a3536e3db04b2584
+raw_format	go_test_benchmark
+go_test_output
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack	0.196s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/constraint	0.185s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/encoding	0.193s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/geometry	0.201s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/knapsacktest	0.189s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/objective	0.198s
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/knapsack/solver
+cpu: Apple M4 Max
+BenchmarkHeuristicOrdinaryOrder-16              	     174	   6103267 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5962726 B/op	   64180 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     181	   6099166 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5964845 B/op	   64180 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     153	   7000469 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5963563 B/op	   64177 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     206	   5193452 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5963999 B/op	   64178 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     273	   4496217 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5965048 B/op	   64179 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     249	   4505461 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5966105 B/op	   64179 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     264	   4751969 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5964792 B/op	   64179 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     244	   4695203 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5964860 B/op	   64179 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     246	   6922470 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5963465 B/op	   64178 allocs/op
+BenchmarkHeuristicOrdinaryOrder-16              	     219	   5839121 ns/op	         1.000 boxes/op	      1330 candidates/op	       100.0 util_pct	 5965600 B/op	   64181 allocs/op
+BenchmarkExactTinyFixed-16                      	    6852	    171434 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	     93330 nodes/s	       100.0 util_pct	  199209 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	    5772	    187413 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	     85373 nodes/s	       100.0 util_pct	  199199 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	    5652	    193807 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	     82556 nodes/s	       100.0 util_pct	  199191 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	    5299	    203100 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	     78779 nodes/s	       100.0 util_pct	  199146 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	    7722	    151101 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    105890 nodes/s	       100.0 util_pct	  199179 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	   10000	    119047 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    134401 nodes/s	       100.0 util_pct	  199202 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	   10000	    129750 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    123314 nodes/s	       100.0 util_pct	  199184 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	   10000	    136269 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    117415 nodes/s	       100.0 util_pct	  199184 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	   10000	    124245 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    128777 nodes/s	       100.0 util_pct	  199184 B/op	    1088 allocs/op
+BenchmarkExactTinyFixed-16                      	   10000	    144811 ns/op	         1.000 boxes/op	       123.0 candidates/op	        16.00 nodes/op	    110489 nodes/s	       100.0 util_pct	  199189 B/op	    1088 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   31003	     41022 ns/op	   74564 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   27580	     44222 ns/op	   74565 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   30884	     38673 ns/op	   74564 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   28339	     53140 ns/op	   74565 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   25626	     49906 ns/op	   74567 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   31378	     42663 ns/op	   74565 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   30472	     37703 ns/op	   74563 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   27294	     40065 ns/op	   74563 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   36890	     36495 ns/op	   74562 B/op	     621 allocs/op
+BenchmarkVerifyOrdinaryOrder-16                 	   12625	     83914 ns/op	   74561 B/op	     621 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     823	   1724002 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1818102 B/op	   18689 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     676	   1761575 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1817988 B/op	   18689 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     627	   1766020 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1818272 B/op	   18690 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     723	   1770980 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1818012 B/op	   18689 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     403	   2764240 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1817886 B/op	   18689 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     829	   3192420 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1816607 B/op	   18687 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     291	   3681477 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1816789 B/op	   18687 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     518	   2458912 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1817854 B/op	   18689 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     651	   2031514 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1818334 B/op	   18690 allocs/op
+BenchmarkHeuristicOrientationHeavy-16           	     564	   2324050 ns/op	         1.000 boxes/op	      2184 candidates/op	       100.0 util_pct	 1817701 B/op	   18688 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     562	   1994699 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2097339 B/op	    6347 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     620	   1831455 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2099110 B/op	    6350 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     757	   1818893 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2098370 B/op	    6349 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     588	   1910156 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2099445 B/op	    6351 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     799	   1533649 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2099646 B/op	    6351 allocs/op
+BenchmarkHeuristicWeightLimited-16              	    1040	   1579263 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2098410 B/op	    6349 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     730	   1686522 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2097995 B/op	    6348 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     703	   1800629 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2098135 B/op	    6349 allocs/op
+BenchmarkHeuristicWeightLimited-16              	     819	   1592480 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2099016 B/op	    6350 allocs/op
+BenchmarkHeuristicWeightLimited-16              	    1135	   1696465 ns/op	         4.000 boxes/op	       200.0 candidates/op	        50.00 util_pct	 2098672 B/op	    6350 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     400	   2655081 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2346670 B/op	   27219 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     540	   2296347 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2346773 B/op	   27219 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     374	   3023935 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2345958 B/op	   27218 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     486	   2198177 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2347402 B/op	   27220 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     423	   2425871 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2347038 B/op	   27220 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     714	   1848559 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2346702 B/op	   27219 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     506	   2454348 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2347151 B/op	   27220 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     644	   2651251 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2346634 B/op	   27219 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     472	   2403781 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2347223 B/op	   27220 allocs/op
+BenchmarkHeuristicStabilityHeavy-16             	     408	   2618314 ns/op	         1.000 boxes/op	       356.0 candidates/op	       100.0 util_pct	 2347504 B/op	   27220 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1452	    780263 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816594 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    2636	    780500 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816503 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    2553	    870430 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816485 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1695	    948929 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816105 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1430	   1605435 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  815680 B/op	    5222 allocs/op
+BenchmarkHeuristicFiniteStock-16                	     546	   1930956 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  813326 B/op	    5218 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1005	   1166791 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816526 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1086	    959080 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816606 B/op	    5223 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1557	    732381 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816840 B/op	    5224 allocs/op
+BenchmarkHeuristicFiniteStock-16                	    1650	    733048 ns/op	         1.000 boxes/op	       369.0 candidates/op	       100.0 util_pct	  816661 B/op	    5223 allocs/op
+BenchmarkHeuristicImpossible-16                 	   35970	     33953 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25968 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   43999	     28036 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25966 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   42686	     25587 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25968 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   46195	     24289 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25966 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   56086	     21470 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25965 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   58227	     22250 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25966 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   60740	     23133 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25968 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   63682	     20505 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25967 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   66296	     19695 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25965 B/op	     146 allocs/op
+BenchmarkHeuristicImpossible-16                 	   56727	     23687 ns/op	         2.000 candidates/op	         1.000 unpacked/op	   25967 B/op	     146 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1378	   1042722 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410342 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1279	    909637 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410496 B/op	    7323 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1425	    779292 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410183 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1573	    909855 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410241 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1442	    812847 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410150 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1561	   1033234 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410132 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1460	    865388 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410216 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1341	   1155830 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410203 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1039	   1167855 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410192 B/op	    7322 allocs/op
+BenchmarkHeuristicFragmentedReservedSpace-16    	    1351	   1184280 ns/op	         1.000 boxes/op	       425.0 candidates/op	        37.50 util_pct	 1410376 B/op	    7322 allocs/op
+BenchmarkHeuristicLargeBounded-16               	      12	 120460254 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	82948612 B/op	  818514 allocs/op
+BenchmarkHeuristicLargeBounded-16               	       9	 126238796 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83133899 B/op	  818639 allocs/op
+BenchmarkHeuristicLargeBounded-16               	       9	 143822750 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83012184 B/op	  818558 allocs/op
+BenchmarkHeuristicLargeBounded-16               	       8	 161127146 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83063834 B/op	  818609 allocs/op
+BenchmarkHeuristicLargeBounded-16               	       9	 120726282 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	82981384 B/op	  818543 allocs/op
+BenchmarkHeuristicLargeBounded-16               	      10	 117677679 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83071580 B/op	  818591 allocs/op
+BenchmarkHeuristicLargeBounded-16               	      10	 104985521 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83033242 B/op	  818552 allocs/op
+BenchmarkHeuristicLargeBounded-16               	      13	 109098487 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83023765 B/op	  818557 allocs/op
+BenchmarkHeuristicLargeBounded-16               	      12	 114274378 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83034544 B/op	  818578 allocs/op
+BenchmarkHeuristicLargeBounded-16               	       9	 112791315 ns/op	         1.000 boxes/op	     22808 candidates/op	       100.0 util_pct	83026630 B/op	  818573 allocs/op
+BenchmarkCancellationLatency-16                 	61330879	        22.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	62582418	        19.44 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	58457452	        19.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	58873672	        20.04 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	58900162	        20.33 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	59117546	        21.91 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	56458299	        22.54 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	57598963	        21.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	55981678	        21.38 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCancellationLatency-16                 	57251454	        21.63 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/solver	142.066s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/verify	0.219s
+PASS
+ok  	github.com/faustbrian/golib/pkg/knapsack/visualize	0.188s
