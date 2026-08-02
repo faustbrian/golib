@@ -4504,7 +4504,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "This non-releasable module isolates comparison dependencies from the public `concurrency-limit` module. It compares bounded Gradient2 update and permit paths with:",
+      "purpose": "This non-releasable module isolates comparison dependencies from the public `concurrency-limit` module. It compares bounded Gradient2 update and permit paths across pinned local and external implementations.",
       "lifecycle": "internal",
       "kind": "benchmark harness",
       "releasable": false,

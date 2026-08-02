@@ -2,7 +2,9 @@
 
 This non-releasable module isolates comparison dependencies from the public
 `concurrency-limit` module. It compares bounded Gradient2 update and permit
-paths with:
+paths across pinned local and external implementations.
+
+The candidates are:
 
 - Netflix `concurrency-limits` commit
   `78a74b9878d38c4c048b0304ce12a162ab7b7222`, represented by a transparent Go
