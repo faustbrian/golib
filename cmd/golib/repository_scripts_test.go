@@ -1559,22 +1559,42 @@ go 1.26.5
 	if result, err := initialize.CombinedOutput(); err != nil {
 		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
 	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = root
+	if result, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, result)
+	}
+	commit := exec.Command(
+		"git",
+		"-c", "user.name=Test",
+		"-c", "user.email=test@example.test",
+		"commit", "--quiet", "-m", "fixture",
+	)
+	commit.Dir = root
+	if result, err := commit.CombinedOutput(); err != nil {
+		t.Fatalf("commit fixture repository: %v\n%s", err, result)
+	}
 
-	digest := func(gate string) string {
+	digestAt := func(repository, gate string) string {
 		t.Helper()
 		command := exec.Command(
 			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
 			gate,
 			"pkg/example",
 		)
-		command.Dir = root
-		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		command.Dir = repository
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", repository)
 		result, err := command.CombinedOutput()
 		if err != nil {
 			t.Fatalf("digest %s: %v\n%s", gate, err, result)
 		}
 
 		return strings.TrimSpace(string(result))
+	}
+	digest := func(gate string) string {
+		t.Helper()
+
+		return digestAt(root, gate)
 	}
 
 	testBefore := digest("test")
@@ -1782,6 +1802,25 @@ go 1.26.5
 	writeTestFile(t, fixture, "# Revised fixture\n")
 	if testAfter := digest("test"); testAfter == testBefore {
 		t.Fatal("Markdown test fixture did not change test digest")
+	}
+	if err := os.Remove(fixture); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := filepath.Join(t.TempDir(), "repository")
+	create := exec.Command(
+		filepath.Join(repositoryRoot, "scripts", "create-verification-snapshot.sh"),
+		root,
+		snapshot,
+	)
+	if output, err := create.CombinedOutput(); err != nil {
+		t.Fatalf("create verification snapshot: %v\n%s", err, output)
+	}
+	if sourceDigest, snapshotDigest := digest("test"), digestAt(snapshot, "test"); sourceDigest != snapshotDigest {
+		t.Fatalf(
+			"deleted tracked input changed verification snapshot digest: %s != %s",
+			sourceDigest,
+			snapshotDigest,
+		)
 	}
 }
 

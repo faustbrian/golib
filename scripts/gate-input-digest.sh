@@ -119,7 +119,12 @@ append_module_files() {
                 }
                 print
             }
-        ' "${nested_directories}" - >>"${input_files}"
+        ' "${nested_directories}" - |
+        while IFS= read -r file; do
+            if [[ -e "${root}/${file}" || -L "${root}/${file}" ]]; then
+                printf '%s\n' "${file}"
+            fi
+        done >>"${input_files}"
 }
 
 append_tool_inputs() {
