@@ -1124,6 +1124,7 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 		"scripts/check-mutation.sh",
 		"scripts/internal/run-mutation.sh",
 		"scripts/internal/mutation-command.sh",
+		"scripts/internal/mutation-coverage.sh",
 		"scripts/package-source-digest.sh",
 		"scripts/patches/gremlins-run-all-mutants.patch",
 		"scripts/patches/gremlins-shared-coverage.patch",
@@ -1263,6 +1264,12 @@ func TestValue(t *testing.T) {
 		t.Fatal("mutation command did not change mutation digest")
 	}
 	writeFile(t, mutationCommand, "scripts/internal/mutation-command.sh\n")
+	mutationCoverage := filepath.Join(repository, "scripts", "internal", "mutation-coverage.sh")
+	writeFile(t, mutationCoverage, "revised mutation coverage command\n")
+	if current := digest(); current == initial {
+		t.Fatal("mutation coverage command did not change mutation digest")
+	}
+	writeFile(t, mutationCoverage, "scripts/internal/mutation-coverage.sh\n")
 	coveragePatch := filepath.Join(
 		repository,
 		"scripts",
@@ -2374,6 +2381,43 @@ printf 'gate passed\n'
 	if len(report.GateEvidence) != 1 ||
 		report.GateEvidence[0].InputDigest != "input-a" {
 		t.Fatalf("goal audit gate evidence = %+v, want input-a", report.GateEvidence)
+	}
+}
+
+func TestMutationCoverageUsesBoundedGoDeadline(t *testing.T) {
+	root := testRepositoryRoot(t)
+	bin := t.TempDir()
+	invocation := filepath.Join(t.TempDir(), "go-invocation")
+	fakeGo := filepath.Join(bin, "go")
+	writeTestFile(t, fakeGo, `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >"$GOLIB_FAKE_GO_OUTPUT"
+`)
+	if err := os.Chmod(fakeGo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "internal", "mutation-coverage.sh"),
+		filepath.Join(t.TempDir(), "coverage.out"),
+		"integration",
+	)
+	command.Dir = root
+	command.Env = environmentWithValues(
+		environmentWithValues(os.Environ(), "PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH")),
+		"GOLIB_FAKE_GO_OUTPUT",
+		invocation,
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("run mutation coverage: %v\n%s", err, output)
+	}
+
+	arguments, err := os.ReadFile(invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(arguments), "-timeout=20m") {
+		t.Fatalf("mutation coverage Go invocation is unbounded: %s", arguments)
 	}
 }
 

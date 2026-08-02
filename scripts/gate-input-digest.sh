@@ -125,6 +125,7 @@ append_module_files() {
 append_tool_inputs() {
     append_file "${root}/.golib/versions.env"
     append_file "${root}/scripts/internal/mutation-command.sh"
+    append_file "${root}/scripts/internal/mutation-coverage.sh"
     append_file "${root}/scripts/patches/gremlins-run-all-mutants.patch"
     append_file "${root}/scripts/patches/gremlins-shared-coverage.patch"
     append_file "${root}/scripts/start-services.sh"

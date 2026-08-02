@@ -12,6 +12,7 @@ started="$(date +%s)"
 arguments=(
     test
     -count=1
+    -timeout=20m
     -cover
     -coverpkg=./...
     "-coverprofile=${profile}"
