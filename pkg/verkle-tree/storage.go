@@ -50,6 +50,11 @@ const (
 	// StoreCapabilityNodeInventory means OpenAudit returns an isolated,
 	// canonically ordered view of every retained publication and stored node.
 	StoreCapabilityNodeInventory
+
+	// StoreCapabilityAtomicMaintenance means ApplyMaintenance atomically
+	// compares the complete observed publication set, installs the requested
+	// retained subset, and deletes exactly the supplied unreachable nodes.
+	StoreCapabilityAtomicMaintenance
 )
 
 // RequiredWriteStoreCapabilities is the complete guarantee set required by
@@ -69,6 +74,11 @@ const RequiredReadStoreCapabilities = StoreCapabilityImmutableNodes |
 const RequiredAuditStoreCapabilities = StoreCapabilityImmutableNodes |
 	StoreCapabilitySnapshotReads |
 	StoreCapabilityNodeInventory
+
+// RequiredMaintenanceStoreCapabilities is the complete guarantee set required
+// by MaintainStorage.
+const RequiredMaintenanceStoreCapabilities = RequiredAuditStoreCapabilities |
+	StoreCapabilityAtomicMaintenance
 
 // Supports reports whether capabilities contains every required bit.
 func (capabilities StoreCapabilities) Supports(

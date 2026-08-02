@@ -22,14 +22,19 @@ All notable changes to `verkle-tree` will be documented in this file.
   views. The loader strictly decodes every reachable canonical node, verifies
   content addresses, topology, profile, mathematical root, and canonical root
   node independently, closes the view atomically, and distinguishes missing,
-  corrupt, resource-exhausted, cancelled, and adapter-failure states. Recovery,
-  retention, and pruning remain unavailable.
+  corrupt, resource-exhausted, cancelled, and adapter-failure states. Concrete
+  adapters and crash repair remain unavailable.
 - Add a bounded caller-owned storage audit boundary that verifies the current
   and every retained publication before canonically inventorying stored node
   identifiers. It reports only nodes unreachable from all verified roots,
   rejects omitted, duplicated, reordered, or unbounded inventory pages, and
-  performs no deletion. Atomic retention changes and pruning remain
-  unavailable.
+  performs no deletion.
+- Add a bounded caller-owned atomic maintenance boundary that independently
+  requires an exact profile-bound namespace, verifies the complete current and
+  retained publication set, accepts only a canonical retained subset, derives
+  pruning from a complete inventory, closes the audit view before mutation, and
+  requires one compare/retain/delete operation that preserves pre-existing read
+  snapshots and leaves storage unchanged on stale state or failure.
 
 - Add the experimental public immutable snapshot, profile-bound root, canonical
   batch-update transition, and aggregate proof APIs with explicit cancellation,

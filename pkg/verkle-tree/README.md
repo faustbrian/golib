@@ -10,10 +10,11 @@ package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
 immutable snapshots, canonical set/delete transitions, profile-bound roots,
 bounded aggregate membership and non-membership proofs, atomic caller-owned
 storage writes, and bounded reconstruction from isolated caller-owned read
-snapshots, plus bounded recovery audits over current and retained roots. The
+snapshots, plus bounded recovery audits and atomic retention/pruning plans over
+current and retained roots. The
 public surface is experimental, rebuilds the complete tree for every update,
-persisted load, and audited publication, and does not yet apply recovery,
-prune nodes, change retention, or provide stateless witnesses. It is not a
+persisted load, and maintained publication, and does not yet provide crash
+repair, adapter implementations, or stateless witnesses. It is not a
 production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
@@ -167,11 +168,12 @@ Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
 The profile remains incomplete: canonical witness and whole-snapshot
-encodings, recovery semantics, stable proof and witness semantics,
-commitment-level deletion, and complete dependency-level cancellation are not
-yet frozen. Canonical stored-node bytes, atomic write publication, and isolated
-persisted reconstruction now have one package-owned experimental contract, but
-none is a stable interoperability surface.
+encodings, crash-repair semantics, stable proof and witness semantics,
+incremental commitment updates, and complete dependency-level cancellation are
+not yet frozen. Canonical stored-node bytes, atomic write publication, isolated
+persisted reconstruction, and atomic retention/pruning now have one
+package-owned experimental contract, but none is a stable interoperability
+surface.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 
@@ -321,9 +323,33 @@ before I/O, reserves the peak old/new result-buffer growth and defensive-copy
 cost, and rejects hidden publication or node-ID slice capacity, omitted,
 duplicated, or reordered node IDs.
 
-The audit is read-only. This boundary does not change retention or prune
-unreachable nodes, and no database, filesystem, or object-storage adapter is
-part of the root module yet.
+The audit remains read-only and its report is never deletion authority.
+`MaintainStorage` independently repeats the isolated verification and inventory
+work, canonicalizes a caller-selected subset of the observed retained
+publications, and closes that view before mutation. It then supplies one opaque
+`StoreMaintenance` to a `NodeMaintenanceStore`. The request binds the exact
+observed current publication, complete previous retained set, desired retained
+subset, and ascending deletion set. The deletion set contains every inventoried
+node outside the current and desired retained roots, including nodes used only
+by dropped publications and debris from interrupted unpublished writes.
+
+The adapter must bind its maintenance namespace exclusively to the requested
+profile, assert atomic-maintenance capability, and atomically compare the
+complete expected publication set, install the desired retained subset, and
+delete exactly the supplied nodes. A missing or mismatched namespace profile
+fails before the audit opens. A stale comparison or any failure must leave
+publications and nodes unchanged. Deletion must not invalidate a read or audit
+view opened before the operation; an adapter may defer physical reclamation
+until those views close. The core invokes the atomic operation even for a no-op
+plan, so the comparison is the linearization point. Invalid, duplicate,
+current, or unobserved retained publications fail before mutation. Every
+observed publication is fully verified even when it will be dropped, and all
+publication, reachability-map, inventory-page, deletion-result, and defensive-
+copy allocations remain bounded.
+
+No database, filesystem, or object-storage adapter is part of the root module
+yet. Adapter crash recovery and proof of its asserted atomicity, isolation, and
+durability remain adapter responsibilities.
 
 ## Development rule
 

@@ -62,6 +62,14 @@ var (
 	// lifecycle failure.
 	ErrStorageAudit = errors.New("verkle storage audit failed")
 
+	// ErrStorageMaintenance identifies an unusable opaque maintenance request
+	// or a caller-owned maintenance adapter failure.
+	ErrStorageMaintenance = errors.New("verkle storage maintenance failed")
+
+	// ErrInvalidRetention identifies a requested retained-publication set that
+	// is malformed, duplicated, current, or absent from the audited store view.
+	ErrInvalidRetention = errors.New("invalid Verkle retained publication set")
+
 	// ErrStorageInventory identifies an incomplete, duplicated, reordered, or
 	// otherwise inconsistent immutable node inventory.
 	ErrStorageInventory = errors.New("invalid Verkle storage inventory")

@@ -82,9 +82,9 @@ func (limits StorageAuditLimits) validate() error {
 }
 
 // StorageAudit is one immutable, deterministic inventory result. Unreachable
-// nodes are ordered by content address. A future prune operation must
-// independently revalidate them against an atomic store view; the audit itself
-// never mutates storage.
+// nodes are ordered by content address. The report is not deletion authority;
+// MaintainStorage independently revalidates a fresh atomic store view. The
+// audit itself never mutates storage.
 type StorageAudit struct {
 	publications uint32
 	reachable    uint32
@@ -226,7 +226,9 @@ func AuditStorage(
 						Actual:   actual,
 					}
 				}
-				if err := checkAuditTemporary(limits, len(publications), int(actual), 0, 0); err != nil {
+				if err := checkAuditTemporary(
+					limits, uint64(len(publications)), actual, 0, 0,
+				); err != nil {
 					return err
 				}
 				reachable[id] = struct{}{}
@@ -260,30 +262,40 @@ func auditPublications(
 	view NodeAuditSnapshot,
 	limits StorageAuditLimits,
 ) ([]StorePublication, error) {
+	publications, _, err := auditPublicationSet(ctx, view, limits)
+
+	return publications, err
+}
+
+func auditPublicationSet(
+	ctx context.Context,
+	view NodeAuditSnapshot,
+	limits StorageAuditLimits,
+) ([]StorePublication, bool, error) {
 	if err := checkPublicContext(ctx); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	current, present, err := view.CurrentPublication(ctx)
 	if err != nil {
-		return nil, wrapStorageAuditError("read current publication", err)
+		return nil, false, wrapStorageAuditError("read current publication", err)
 	}
 	count := uint32(0)
 	if present {
 		if _, _, err := current.values(); err != nil {
-			return nil, fmt.Errorf("read current publication: %w", ErrStorageInventory)
+			return nil, false, fmt.Errorf("read current publication: %w", ErrStorageInventory)
 		}
 		count = 1
 	}
 	if err := checkPublicContext(ctx); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	remainingPublications := limits.MaxPublications - count
 	retained, err := view.RetainedPublications(ctx, remainingPublications)
 	if err != nil {
-		return nil, wrapStorageAuditError("read retained publications", err)
+		return nil, false, wrapStorageAuditError("read retained publications", err)
 	}
 	if cap(retained) > int(remainingPublications) {
-		return nil, &ResourceError{
+		return nil, false, &ResourceError{
 			Resource: ResourcePublications,
 			Limit:    uint64(limits.MaxPublications),
 			Actual:   uint64(count) + uint64(cap(retained)),
@@ -294,9 +306,9 @@ func auditPublications(
 	// copy is allocated. Charging it as additional publication slots is
 	// deliberately conservative and prevents hidden capacity from bypassing the
 	// temporary-memory budget.
-	workingPublications := int(actual) + cap(retained)
+	workingPublications := actual + uint64(cap(retained))
 	if err := checkAuditTemporary(limits, workingPublications, 0, 0, 0); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	publications := make([]StorePublication, 0, int(actual))
 	if present {
@@ -304,20 +316,20 @@ func auditPublications(
 	}
 	for index := range retained {
 		if err := checkPublicContext(ctx); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if _, _, err := retained[index].values(); err != nil {
-			return nil, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
+			return nil, false, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
 		}
 		if index > 0 && compareStorePublication(retained[index-1], retained[index]) >= 0 {
-			return nil, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
+			return nil, false, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
 		}
 		if present && compareStorePublication(current, retained[index]) == 0 {
-			return nil, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
+			return nil, false, fmt.Errorf("read retained publications: %w", ErrStorageInventory)
 		}
 		publications = append(publications, retained[index])
 	}
-	return publications, nil
+	return publications, present, nil
 }
 
 func auditInventory(
@@ -358,8 +370,8 @@ func auditInventory(
 		))
 		maxIDs, limitErr := storageAuditPageLimit(
 			limits,
-			publicationCount,
-			reachableCount,
+			uint64(publicationCount),
+			uint64(reachableCount),
 			len(unreachable),
 			cap(unreachable),
 			declaredPageLimit,
@@ -441,8 +453,8 @@ func compareStorePublication(left StorePublication, right StorePublication) int 
 
 func storageAuditPageLimit(
 	limits StorageAuditLimits,
-	publications int,
-	reachable int,
+	publications uint64,
+	reachable uint64,
 	unreachableLength int,
 	unreachableCapacity int,
 	declared uint32,
@@ -462,8 +474,8 @@ func storageAuditPageLimit(
 			unreachableCapacity,
 			capacity,
 		)
-		workingSlots := capacity + previousCapacity + int(count)
-		copySlots := capacity + resultLength
+		workingSlots := uint64(capacity) + uint64(previousCapacity) + uint64(count)
+		copySlots := uint64(capacity) + uint64(resultLength)
 		actual := storageAuditTemporaryBytes(
 			publications, reachable, max(workingSlots, copySlots), 0,
 		)
@@ -519,10 +531,10 @@ func storageAuditResultCapacity(
 
 func checkAuditTemporary(
 	limits StorageAuditLimits,
-	publications int,
-	reachable int,
-	unreachable int,
-	page int,
+	publications uint64,
+	reachable uint64,
+	unreachable uint64,
+	page uint64,
 ) error {
 	actual := storageAuditTemporaryBytes(
 		publications, reachable, unreachable, page,
@@ -539,14 +551,14 @@ func checkAuditTemporary(
 }
 
 func storageAuditTemporaryBytes(
-	publications int,
-	reachable int,
-	unreachable int,
-	page int,
+	publications uint64,
+	reachable uint64,
+	unreachable uint64,
+	page uint64,
 ) uint64 {
-	return uint64(publications)*storageAuditPublicationBytes +
-		uint64(reachable)*storageAuditReachableBytes +
-		uint64(unreachable+page)*storageAuditNodeIDBytes
+	return publications*storageAuditPublicationBytes +
+		reachable*storageAuditReachableBytes +
+		(unreachable+page)*storageAuditNodeIDBytes
 }
 
 func wrapStorageAuditError(operation string, err error) error {

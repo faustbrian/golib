@@ -20,8 +20,10 @@ storage writes, and bounded isolated persisted reconstruction. Internal
 research boundaries implement the fixed
 topology, leaf field inputs, vector commitments, complete mathematical root
 construction, and encodings below. A bounded read-only recovery audit covers
-current and retained publications plus complete node-ID inventory. Retention
-mutation, pruning, recovery application, stateless witnesses, and stable APIs
+current and retained publications plus complete node-ID inventory. A separate
+bounded atomic maintenance operation replaces the retained-publication set and
+prunes only nodes outside the current and desired retained roots. Crash-repair
+application, concrete storage adapters, stateless witnesses, and stable APIs
 remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
@@ -66,8 +68,8 @@ The following parts of the profile are deliberately not frozen:
 - aggregate-proof and batch-verification failure semantics;
 - commitment and witness update ordering, conflicting old-value claims,
   stateless witness completeness, and post-state calculation;
-- durable snapshot naming beyond the root publication pair, recovery,
-  retention, and pruning;
+- durable snapshot naming beyond the root publication pair, adapter-specific
+  retention policy, and crash repair;
   and
 - operation budgets, cancellation checkpoints, and resource accounting.
 
@@ -379,9 +381,49 @@ MUST NOT be read or point-decoded. A successful report MUST own its ascending
 unreachable identifiers and MUST NOT mutate the adapter. Failure or close
 failure MUST return no usable report.
 
-These write, read, and audit boundaries do not define retention mutation,
-atomic pruning, deletion, or crash repair. They do not establish storage-adapter
-correctness, snapshot availability, or Ethereum compatibility.
+An audit report MUST NOT authorize deletion. Atomic maintenance MUST require the
+store to bind its complete maintenance namespace exclusively to the requested
+profile and MUST reject a missing or mismatched binding before opening a view.
+It MUST then open and independently verify a fresh isolated audit view under
+the complete audit contract. The requested retained publications MUST be
+copied, treated as a set, canonically ordered, and required to be an exact
+subset of the observed retained publications. The current publication MUST NOT
+appear in that set and MUST remain retained. A malformed, duplicate, current,
+or unobserved requested publication MUST fail before mutation. Every observed
+publication, including one that will be dropped, MUST be fully verified.
+
+Maintenance MUST prove that the complete inventory contains every node
+reachable from every observed publication. Its deletion set MUST then contain
+exactly the inventoried nodes that are not reachable from the current
+publication or any desired retained publication. This includes nodes reachable
+only from dropped publications and nodes outside every publication. The
+operation MUST bound publication copies, reachability maps, inventory pages,
+deletion results, and returned defensive copies before allocation or I/O.
+Deleting logical entries from a map MUST NOT reduce the charged allocation for
+that map while its backing storage remains live.
+
+The audit view MUST be closed exactly once before mutation. Close failure,
+cancellation observed after close, invalid input, corrupt or missing reachable
+state, incomplete or malformed inventory, or resource exhaustion MUST prevent
+mutation and return no usable result. After a successful close, the core MUST
+invoke exactly one atomic maintenance call even when the desired retained and
+deletion sets make no logical change. That call is the linearization point.
+
+The opaque maintenance request MUST bind the exact profile, optional current
+publication, complete previous retained-publication set, desired canonical
+retained subset, and ascending deletion identifiers observed and derived by the
+core. The adapter MUST atomically compare the complete current and previous
+retained set, install the desired retained subset, and delete exactly the
+supplied nodes. A mismatch or any failure MUST leave every publication and node
+unchanged. Deletion MUST NOT invalidate a read or audit snapshot opened before
+the operation; an adapter MAY defer physical reclamation until all such views
+close. A successful adapter return is the adapter's assertion that the complete
+operation occurred. The generic package cannot independently prove that
+assertion.
+
+These write, read, audit, and maintenance boundaries do not define crash repair
+or a concrete persistence adapter. They do not establish storage-adapter
+correctness, long-term snapshot availability, or Ethereum compatibility.
 
 ## Immutable Proof-Path Extraction
 
@@ -802,10 +844,11 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
-encoding, retention mutation, pruning, recovery application, incremental
-commitment updates, witness verification, or stateless updates. The storage
-boundaries publish and verify the complete canonical node image defined above
-and can audit reachability without mutation.
+encoding, crash-repair application, incremental commitment updates, witness
+verification, or stateless updates. The storage boundaries publish and verify
+the complete canonical node image defined above, audit reachability without
+mutation, and atomically replace retained publications plus prune nodes through
+a capability-checked caller-owned adapter.
 
 ## Compatibility Boundary
 

@@ -2,10 +2,10 @@
 
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
-canonical storage-write and isolated storage-read, limit, resource, and
-typed-error identifiers, plus read-only storage audit identifiers, form the
-current experimental public contract. Witnesses, retention mutation, pruning,
-and recovery-application identifiers described here remain proposed.
+canonical storage-write and isolated storage-read, limit, resource, typed-error,
+read-only storage-audit, and atomic storage-maintenance identifiers form the
+current experimental public contract. Witnesses and crash-repair identifiers
+described here remain proposed.
 
 ## Public concepts
 
@@ -20,11 +20,12 @@ The current public API exposes opaque, profile-bound forms of:
   publication;
 - capability-checked isolated persisted snapshot reconstruction;
 - capability-checked bounded current/retained-root and node-inventory audit;
+- capability-checked atomic retained-publication replacement and safe pruning;
 - verifier;
 - resource limits and typed errors.
 
 A future public API is expected to add stateless witnesses, verified post-state
-results, atomic retention changes, and pruning.
+results, and crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -96,8 +97,37 @@ their untrusted bytes are not read or decoded. Missing reachable IDs,
 duplicates, reordering, invalid continuation, resource exhaustion,
 cancellation, adapter failure, and close failure produce no usable audit.
 
-The audit is intentionally read-only. Atomic retention mutation, deletion,
-pruning, and crash repair remain future boundaries.
+The audit is intentionally read-only and its result is not accepted as deletion
+authority. `MaintainStorage` instead opens and independently verifies a fresh
+isolated audit view. The caller's requested retained publications are copied,
+canonicalized as a set, and required to be an exact subset of the observed
+retained publications; the current publication is always retained and cannot
+appear in that set. Duplicate, malformed, current, and unobserved requests fail
+with `ErrInvalidRetention` before mutation. Every observed publication is fully
+verified even when it will be dropped.
+
+After proving that the canonical inventory includes every node reachable from
+every observed publication, the operation computes deletion as every
+inventoried node outside the current publication and desired retained subset.
+It accounts for the complete live reachability-map allocation even after map
+entries are logically removed. The audit view must close successfully before
+the core calls `ApplyMaintenance`; cancellation after close prevents that call.
+The opaque request exposes owned copies of the exact current expectation, the
+complete previous retained set, the desired canonical subset, and ascending
+deletion IDs.
+
+`NodeMaintenanceStore` must bind its complete maintenance namespace exclusively
+to one profile and assert atomic-maintenance capability. A missing or mismatched
+profile fails before opening the audit view. Its one apply call is the
+linearization point and must compare the complete expected current and retained
+publication set, install the desired retained subset, and delete exactly the
+supplied nodes as one atomic operation. The opaque request repeats the profile
+binding for adapter validation. It is invoked even for a no-op plan. A mismatch
+or failure must leave all publications and nodes unchanged. Deletion must not
+invalidate read or audit snapshots opened before the operation; adapters may
+defer physical reclamation until those views close. The generic package cannot
+prove an adapter honors those assertions, and crash repair remains an adapter-
+specific future boundary.
 
 Database, filesystem, and object-storage adapters belong in additive nested
 modules and must not become root-package dependencies.
@@ -131,9 +161,9 @@ commitment, path-byte, and result-storage limits. The public facade exposes
 profile-bound roots and aggregate proof operations while keeping topology,
 points, vectors, and commitments internal. It produces and strictly decodes the
 complete canonical content-addressed nodes used by the public atomic write and
-isolated read boundaries. The audit facade uses those same nodes for bounded
-reachability verification, but provides no retention mutation, pruning, or
-incremental update seam.
+isolated read boundaries. The audit and maintenance facades use those same
+nodes for bounded reachability verification and atomic pruning, but provide no
+incremental commitment-update or crash-repair seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch
@@ -216,6 +246,7 @@ Typed errors must preserve `errors.Is` and `errors.As` behavior and distinguish:
 - malformed input from a well-formed invalid proof;
 - profile or version mismatch;
 - corrupt or missing persisted state;
+- invalid retained-publication requests;
 - resource exhaustion;
 - cancellation or deadline;
 - storage failure;

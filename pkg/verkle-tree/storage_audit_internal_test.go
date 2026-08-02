@@ -960,6 +960,7 @@ type internalAuditStore struct {
 	returnNil               bool
 	openCalls               int
 	cancelAfterCapabilities context.CancelFunc
+	beforeOpen              func()
 }
 
 type auditCancelContext struct {
@@ -987,6 +988,9 @@ func (store *internalAuditStore) Capabilities() StoreCapabilities {
 
 func (store *internalAuditStore) OpenAudit(context.Context) (NodeAuditSnapshot, error) {
 	store.openCalls++
+	if store.beforeOpen != nil {
+		store.beforeOpen()
+	}
 	if store.openErr != nil {
 		return nil, store.openErr
 	}
@@ -1012,10 +1016,12 @@ type internalAuditSnapshot struct {
 	nodeIDsErr         error
 	closeErr           error
 	nodeIDsFn          func(*NodeID, uint32) ([]NodeID, bool, error)
+	nodeIDsCalls       int
 	closeCalls         int
 	currentCalls       int
 	retainedCalls      int
 	cancelAfterCurrent context.CancelFunc
+	cancelAfterClose   context.CancelFunc
 }
 
 func (snapshot *internalAuditSnapshot) CurrentPublication(
@@ -1066,6 +1072,7 @@ func (snapshot *internalAuditSnapshot) NodeIDs(
 	after *NodeID,
 	maxIDs uint32,
 ) ([]NodeID, bool, error) {
+	snapshot.nodeIDsCalls++
 	if snapshot.nodeIDsErr != nil {
 		return nil, false, snapshot.nodeIDsErr
 	}
@@ -1095,6 +1102,9 @@ func (snapshot *internalAuditSnapshot) NodeIDs(
 
 func (snapshot *internalAuditSnapshot) Close(context.Context) error {
 	snapshot.closeCalls++
+	if snapshot.cancelAfterClose != nil {
+		snapshot.cancelAfterClose()
+	}
 
 	return snapshot.closeErr
 }

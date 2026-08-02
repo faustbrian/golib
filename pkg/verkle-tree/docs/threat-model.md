@@ -19,9 +19,10 @@ decoder, and public fixed-profile aggregate tree-proof generation and
 verification, plus canonical content-addressed storage writes,
 capability-checked atomic root publication, and bounded isolated persisted
 snapshot reconstruction, plus bounded read-only auditing of current and
-retained roots against a canonical complete node inventory. Stateless
-witnesses, retention mutation, pruning, recovery application, dependency-level
-cancellation, and complete side-channel controls remain unimplemented.
+retained roots against a canonical complete node inventory and bounded atomic
+retention/pruning requests. Stateless witnesses, crash-repair application,
+dependency-level cancellation, concrete storage adapters, and complete
+side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -113,9 +114,26 @@ hidden returned capacity is rejected. This limits
 attacker-controlled amplification while
 identifying debris outside all valid snapshots. A dishonest adapter can still
 omit inventory entries unless its asserted complete-inventory capability is
-independently tested. The package does not change retained roots or delete
-nodes, so the audit alone cannot recover interrupted adapter work or establish
-safe pruning.
+independently tested. The audit alone never authorizes deletion.
+
+The maintenance boundary mitigates stale-audit deletion and retained-root loss
+by rejecting a missing or mismatched store-namespace profile before audit I/O,
+independently reopening and verifying the complete isolated view, accepting
+only a canonical subset of observed retained publications, retaining the
+current publication unconditionally, and deriving deletion from the complete
+inventory against the current plus desired roots. The store contract requires
+that the entire inventory namespace belong exclusively to that profile, so
+another profile's nodes cannot legitimately enter the deletion calculation. It
+verifies dropped roots before planning, closes the view before mutation, and
+sends the exact profile, current publication, previous retained set, desired
+retained set, and deletion IDs through one opaque atomic request. The adapter
+must compare the complete publication set and either apply the entire request
+or leave storage unchanged, including for a no-op plan. It must preserve nodes
+needed by pre-existing read snapshots, potentially through deferred
+reclamation. The package cannot detect an adapter that lies about namespace
+scope, inventory completeness, atomic compare/delete behavior, or snapshot
+lifetime; adapter crash-point, concurrency, and recovery tests remain required
+before its guarantees can be trusted.
 
 The canonical claim-set boundary additionally rejects duplicate and conflicting
 claimed keys, preserves present-zero and claimed-absence distinctions, and

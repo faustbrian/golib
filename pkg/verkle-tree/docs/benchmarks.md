@@ -38,6 +38,15 @@ transaction, crash-recovery, retention-mutation, or deletion cost. The result
 measures only package-owned validation, reconstruction, and inventory
 classification.
 
+One public storage-maintenance benchmark verifies the same current and retained
+snapshots, drops the retained publication, classifies its exclusive nodes plus
+one unpublished node for deletion, closes the isolated view, and hands the
+opaque request to an in-memory atomic-maintenance mock. The mock records but
+does not apply the request. The result includes package-owned validation,
+inventory, canonical retention, deletion planning, ownership, and call-handoff
+cost; it excludes transaction, compare-and-swap, locking, physical deletion,
+deferred reclamation, durability, and crash-recovery cost.
+
 Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
 already initialized snapshot builder. They exclude snapshot construction,
@@ -89,7 +98,7 @@ GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^BenchmarkProofEngine$' -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
-  -bench '^(BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots)$' \
+  -bench '^(BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune)$' \
   -benchmem -count=5
 ```
 
@@ -135,6 +144,7 @@ nanoseconds per operation.
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
 | Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
 | Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
+| Drop one retained snapshot and plan pruning plus atomic handoff | 17571147, 18097936, 16915685, 18563534, 18791243 | 339257-339375 | 7180-7181 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |
