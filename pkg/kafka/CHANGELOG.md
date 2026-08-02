@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add pinned Apache Kafka 4.3.1 evidence that a live mTLS producer observes a
+  broker-enforced idle disconnect, obtains a separately issued replacement
+  client certificate from its provider, reconnects, and resumes delivery
 - add pinned three-broker Kafka 4.3.1 evidence that suspending a live consumer
   past its broker session timeout transfers the same unsettled record to a
   replacement and fences the resumed member's stale commit

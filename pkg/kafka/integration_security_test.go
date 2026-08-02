@@ -67,13 +67,14 @@ type secureKafkaBroker struct {
 }
 
 type secureKafkaPKI struct {
-	caPEM          []byte
-	serverPEM      []byte
-	serverKeyPEM   []byte
-	clientPEM      []byte
-	clientKeyPEM   []byte
-	clientIdentity tls.Certificate
-	roots          *x509.CertPool
+	caPEM                 []byte
+	serverPEM             []byte
+	serverKeyPEM          []byte
+	clientPEM             []byte
+	clientKeyPEM          []byte
+	clientIdentity        tls.Certificate
+	rotatedClientIdentity tls.Certificate
+	roots                 *x509.CertPool
 }
 
 func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
@@ -95,7 +96,10 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		topic,
 	)
 
+	var currentCertificate atomic.Pointer[tls.Certificate]
+	currentCertificate.Store(&broker.pki.clientIdentity)
 	var certificateCalls atomic.Int64
+	var rotatedCertificateCalls atomic.Int64
 	security := kafka.ClientSecurity{
 		TLS: broker.serverTLSConfig(),
 		ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
@@ -103,7 +107,12 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 			kafka.ClientCertificateRequest,
 		) (tls.Certificate, error) {
 			certificateCalls.Add(1)
-			return broker.pki.clientIdentity, nil
+			certificate := currentCertificate.Load()
+			if certificate == &broker.pki.rotatedClientIdentity {
+				rotatedCertificateCalls.Add(1)
+			}
+
+			return *certificate, nil
 		}),
 		CredentialTimeout: time.Second,
 	}
@@ -138,6 +147,100 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 	}
 	if err := inspector.Close(); err != nil {
 		t.Fatalf("close mTLS inspector: %v", err)
+	}
+
+	disconnects := make(chan struct{}, 1)
+	rotationProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:         []string{broker.endpoint},
+		ClientID:        "golib-mtls-rotation-producer",
+		AllowedTopics:   []string{topic},
+		DeliveryTimeout: 5 * time.Second,
+		RequestTimeout:  2 * time.Second,
+		ShutdownTimeout: 6 * time.Second,
+		Security:        security,
+		Observers: kafka.ObserverPolicy{
+			Timeout: time.Second,
+			FailureHandler: func(
+				context.Context,
+				kafka.ObservationFailure,
+			) {
+			},
+			Observers: []kafka.ObserverFunc{func(
+				_ context.Context,
+				observation kafka.Observation,
+			) error {
+				if observation.Kind == kafka.ObservationBrokerDisconnect {
+					select {
+					case disconnects <- struct{}{}:
+					default:
+					}
+				}
+
+				return nil
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct rotating mTLS producer: %v", err)
+	}
+	initialRotationResult := rotationProducer.PublishRecord(
+		ctx,
+		kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte("before-certificate-rotation"),
+			Value: []byte("before-certificate-rotation"),
+		},
+	)
+	if initialRotationResult.Err != nil {
+		_ = rotationProducer.Close()
+		t.Fatalf("initial rotating mTLS delivery: %v", initialRotationResult.Err)
+	}
+	select {
+	case <-disconnects:
+		_ = rotationProducer.Close()
+		t.Fatal("mTLS producer disconnected before certificate rotation")
+	default:
+	}
+	baselineCertificateCalls := certificateCalls.Load()
+	currentCertificate.Store(&broker.pki.rotatedClientIdentity)
+	idleExpiry := time.NewTimer(3 * time.Second)
+	defer idleExpiry.Stop()
+	select {
+	case <-idleExpiry.C:
+	case <-ctx.Done():
+		_ = rotationProducer.Close()
+		t.Fatal("mTLS certificate rotation context expired before idle expiry")
+	}
+
+	rotationCtx, cancelRotation := context.WithTimeout(ctx, 10*time.Second)
+	defer cancelRotation()
+	rotationResult := rotationProducer.PublishRecord(
+		rotationCtx,
+		kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte("after-certificate-rotation"),
+			Value: []byte("after-certificate-rotation"),
+		},
+	)
+	disconnected := false
+	select {
+	case <-disconnects:
+		disconnected = true
+	default:
+	}
+	if rotationResult.Err != nil || !disconnected ||
+		certificateCalls.Load() <= baselineCertificateCalls ||
+		rotatedCertificateCalls.Load() == 0 {
+		_ = rotationProducer.Close()
+		t.Fatalf(
+			"mTLS certificate rotation result/calls = %#v/%d/%d",
+			rotationResult,
+			certificateCalls.Load(),
+			rotatedCertificateCalls.Load(),
+		)
+	}
+	if err := rotationProducer.Close(); err != nil {
+		t.Fatalf("close rotating mTLS producer: %v", err)
 	}
 
 	assertSecureKafkaHealthFailure(
@@ -962,7 +1065,8 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 	case secureKafkaMutualTLS:
 		properties += "ssl.truststore.location=/tmp/ca.pem\n" +
 			"ssl.truststore.type=PEM\n" +
-			"ssl.client.auth=required\n"
+			"ssl.client.auth=required\n" +
+			"connections.max.idle.ms=2000\n"
 	case secureKafkaSASL:
 		properties += "ssl.client.auth=none\n" +
 			"authorizer.class.name=" +
@@ -1103,10 +1207,59 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 		t.Fatalf("create secured Kafka server certificate: %v", err)
 	}
 
+	clientPEM, clientKeyPEM, clientIdentity := newSecureKafkaClientIdentity(
+		t,
+		now,
+		caTemplate,
+		caKey,
+		3,
+		"golib-kafka-client",
+	)
+	_, _, rotatedClientIdentity := newSecureKafkaClientIdentity(
+		t,
+		now,
+		caTemplate,
+		caKey,
+		4,
+		"golib-kafka-client-rotated",
+	)
+
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
+	serverPEM := pem.EncodeToMemory(&pem.Block{
+		Type: "CERTIFICATE", Bytes: serverDER,
+	})
+	serverKeyPEM := secureKafkaPrivateKeyPEM(t, serverKey)
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(caPEM) {
+		t.Fatal("append secured Kafka CA")
+	}
+
+	return secureKafkaPKI{
+		caPEM:                 caPEM,
+		serverPEM:             serverPEM,
+		serverKeyPEM:          serverKeyPEM,
+		clientPEM:             clientPEM,
+		clientKeyPEM:          clientKeyPEM,
+		clientIdentity:        clientIdentity,
+		rotatedClientIdentity: rotatedClientIdentity,
+		roots:                 roots,
+	}
+}
+
+func newSecureKafkaClientIdentity(
+	t *testing.T,
+	now time.Time,
+	caTemplate *x509.Certificate,
+	caKey *rsa.PrivateKey,
+	serialNumber int64,
+	commonName string,
+) ([]byte, []byte, tls.Certificate) {
+	t.Helper()
+
 	clientKey := newSecureKafkaRSAKey(t)
 	clientTemplate := &x509.Certificate{
-		SerialNumber: big.NewInt(3),
-		Subject:      pkix.Name{CommonName: "golib-kafka-client"},
+		SerialNumber: big.NewInt(serialNumber),
+		Subject:      pkix.Name{CommonName: commonName},
 		NotBefore:    now.Add(-time.Minute),
 		NotAfter:     now.Add(time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
@@ -1123,11 +1276,6 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 		t.Fatalf("create secured Kafka client certificate: %v", err)
 	}
 
-	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
-	serverPEM := pem.EncodeToMemory(&pem.Block{
-		Type: "CERTIFICATE", Bytes: serverDER,
-	})
-	serverKeyPEM := secureKafkaPrivateKeyPEM(t, serverKey)
 	clientPEM := pem.EncodeToMemory(&pem.Block{
 		Type: "CERTIFICATE", Bytes: clientDER,
 	})
@@ -1136,20 +1284,7 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 	if err != nil {
 		t.Fatalf("parse secured Kafka client identity: %v", err)
 	}
-	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(caPEM) {
-		t.Fatal("append secured Kafka CA")
-	}
-
-	return secureKafkaPKI{
-		caPEM:          caPEM,
-		serverPEM:      serverPEM,
-		serverKeyPEM:   serverKeyPEM,
-		clientPEM:      clientPEM,
-		clientKeyPEM:   clientKeyPEM,
-		clientIdentity: clientIdentity,
-		roots:          roots,
-	}
+	return clientPEM, clientKeyPEM, clientIdentity
 }
 
 func newSecureKafkaRSAKey(t *testing.T) *rsa.PrivateKey {
