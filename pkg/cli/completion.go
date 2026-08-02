@@ -306,7 +306,7 @@ func (application *Application) boundCandidates(
 		}
 		size := len(candidate.Value) + len(candidate.Description)
 		if len(result) >= limit {
-			break
+			return result
 		}
 		if bytes+size > application.limits.MaximumCompletionBytes {
 			continue

@@ -72,9 +72,6 @@ func (output *Output) SetData(value any) error {
 		return newClassifiedError(ErrorKindOutput, "encode structured output", err, true)
 	}
 	human := fmt.Sprint(value)
-	if len(encoded) > maximumOutputBytes || len(human) > maximumOutputBytes {
-		return newClassifiedError(ErrorKindOutput, "output exceeds configured limit", nil, false)
-	}
 	output.mu.Lock()
 	defer output.mu.Unlock()
 	dataBytes := max(len(encoded), len(human))

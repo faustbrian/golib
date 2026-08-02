@@ -61,6 +61,7 @@ func TestParseBuildsFreshTreesAndClassifiesTerminalActions(t *testing.T) {
 		{"inherited long", []string{"child", "--verbose"}, 2, ActionRun, nil, map[int][]string{2: {"true"}}},
 		{"inherited short", []string{"child", "-v"}, 2, ActionRun, nil, map[int][]string{2: {"true"}}},
 		{"alias", []string{"alias"}, 2, ActionRun, nil, map[int][]string{}},
+		{"single dash", []string{"-"}, 1, ActionRun, []string{"-"}, map[int][]string{}},
 		{"help", []string{"child", "--help"}, 2, ActionHelp, nil, map[int][]string{}},
 		{"version", []string{"--version"}, 1, ActionVersion, nil, map[int][]string{}},
 	}
@@ -118,10 +119,56 @@ func TestParseErrorMessagesRemainEngineLocal(t *testing.T) {
 func TestNegativeValueRecognition(t *testing.T) {
 	t.Parallel()
 
-	for token, expected := range map[string]bool{"": false, "x": false, "-": false, "-x": false, "-1": true, "-.5": true, "-.x": false} {
+	for token, expected := range map[string]bool{
+		"": false, "x": false, "-": false, "-x": false,
+		"-0": true, "-1": true, "-9": true, "-:": false,
+		"-.": false, "-.0": true, "-.5": true, "-.9": true, "-./": false, "-.:": false, "-.x": false,
+	} {
 		if actual := looksNegativeValue(token); actual != expected {
 			t.Fatalf("looksNegativeValue(%q) = %v", token, actual)
 		}
+	}
+}
+
+func TestVersionRecognitionStaysAtConfiguredRootBoundary(t *testing.T) {
+	t.Parallel()
+
+	withoutVersion := testCommand()
+	withoutVersion.Version = ""
+	if _, err := Parse(context.Background(), withoutVersion, []string{"--version"}); err == nil {
+		t.Fatal("unconfigured --version succeeded")
+	}
+
+	withoutChildren := testCommand()
+	withoutChildren.Children = nil
+	result, err := Parse(context.Background(), withoutChildren, []string{"version"})
+	if err != nil || result.Action != ActionRun || !equalStrings(result.Arguments, []string{"version"}) {
+		t.Fatalf("childless version token result = %#v, error = %v", result, err)
+	}
+
+	if _, err := Parse(context.Background(), testCommand(), []string{"child", "--version"}); err == nil {
+		t.Fatal("child --version succeeded")
+	}
+
+	result, err = Parse(context.Background(), testCommand(), []string{"version"})
+	if err != nil || result.Action != ActionVersion || result.CommandID != 1 {
+		t.Fatalf("root version command result = %#v, error = %v", result, err)
+	}
+}
+
+func TestChildSelectionRejectsUsedNonPersistentOptionsAfterPersistentOptions(t *testing.T) {
+	t.Parallel()
+
+	root := Command{
+		ID: 1, Name: "tool",
+		Options: []Option{
+			{Key: 1, Name: "verbose", Persistent: true, Boolean: true},
+			{Key: 2, Name: "local", Boolean: true},
+		},
+		Children: []Command{{ID: 2, Name: "child"}},
+	}
+	if _, err := Parse(context.Background(), root, []string{"--local", "child"}); err == nil {
+		t.Fatal("child selection accepted a used non-persistent option")
 	}
 }
 

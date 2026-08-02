@@ -184,17 +184,20 @@ func wrapHelp(value string, width int) string {
 }
 
 func wrapHelpLine(line string, width int) []string {
-	if len([]rune(line)) <= width {
-		return []string{line}
-	}
 	indent := len(line) - len(strings.TrimLeft(line, " "))
-	if separator := strings.Index(line, "  "); separator > 0 && strings.HasPrefix(line, "-") {
-		indent = separator + 2
+	if strings.HasPrefix(line, "-") {
+		if strings.Contains(line, "  ") {
+			separator := strings.Index(line, "  ")
+			indent = separator + 2
+		}
 	}
 	continuation := strings.Repeat(" ", min(indent, width-1))
 	remaining := line
 	var result []string
-	for len([]rune(remaining)) > width {
+	for range len([]rune(line)) {
+		if len([]rune(remaining)) <= width {
+			return append(result, remaining)
+		}
 		runes := []rune(remaining)
 		breakAt := width
 		leading := len(runes) - len([]rune(strings.TrimLeft(remaining, " ")))
@@ -207,8 +210,8 @@ func wrapHelpLine(line string, width int) []string {
 		result = append(result, strings.TrimRight(string(runes[:breakAt]), " "))
 		remaining = continuation + strings.TrimLeft(string(runes[breakAt:]), " ")
 	}
-	result = append(result, remaining)
-	return result
+
+	return append(result, remaining)
 }
 
 // ManifestJSON returns an indented deterministic machine manifest.
@@ -315,13 +318,7 @@ func (application *Application) findCommand(path []string) (*compiledCommand, st
 	command := application.root
 	canonical := command.name
 	for _, token := range path {
-		var found *compiledCommand
-		for _, child := range command.children {
-			if child.name == token || contains(child.aliases, token) {
-				found = child
-				break
-			}
-		}
+		found := findCompletionChild(command, token)
 		if found == nil {
 			return nil, "", newClassifiedError(ErrorKindUsage, "unknown command "+safeToken(token), nil, false)
 		}

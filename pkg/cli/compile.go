@@ -693,34 +693,34 @@ func validateGroupSatisfiability(groups []optionGroupSpec, options []optionSpec)
 		parents[option.binding] = option.binding
 		forced[option.binding] = option.required || option.hasDefault
 	}
-	find := func(binding any) any {
+	findRoot := func(binding any) any {
+		path := make([]any, 0, len(parents))
 		root := binding
-		for parents[root] != root {
+		for range parents {
+			path = append(path, root)
 			root = parents[root]
 		}
-		for parents[binding] != binding {
-			next := parents[binding]
-			parents[binding] = root
-			binding = next
+		for _, current := range path {
+			parents[current] = root
 		}
+
 		return root
 	}
 	for _, group := range groups {
-		if group.kind != optionGroupTogether {
-			continue
-		}
-		root := find(group.bindings[0])
-		for _, binding := range group.bindings[1:] {
-			other := find(binding)
-			if root != other {
-				parents[other] = root
+		if group.kind == optionGroupTogether {
+			root := findRoot(group.bindings[0])
+			for _, binding := range group.bindings[1:] {
+				other := findRoot(binding)
+				if root != other {
+					parents[other] = root
+				}
 			}
 		}
 	}
 	forcedComponents := make(map[any]bool, len(options))
 	for binding, required := range forced {
 		if required {
-			forcedComponents[find(binding)] = true
+			forcedComponents[findRoot(binding)] = true
 		}
 	}
 	for _, group := range groups {
@@ -730,16 +730,14 @@ func validateGroupSatisfiability(groups []optionGroupSpec, options []optionSpec)
 		seen := make(map[any]struct{}, len(group.bindings))
 		forcedCount := 0
 		for _, binding := range group.bindings {
-			root := find(binding)
-			if _, exists := seen[root]; exists {
+			root := findRoot(binding)
+			if _, exists := seen[root]; !exists {
+				seen[root] = struct{}{}
 				if forcedComponents[root] {
-					return newInternalError("option groups cannot be satisfied", nil)
+					forcedCount++
 				}
-				continue
-			}
-			seen[root] = struct{}{}
-			if forcedComponents[root] {
-				forcedCount++
+			} else if forcedComponents[root] {
+				return newInternalError("option groups cannot be satisfied", nil)
 			}
 		}
 		if forcedCount > 1 {

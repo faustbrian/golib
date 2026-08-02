@@ -433,6 +433,115 @@ func TestCommandSetBoundsGeneratedHelpAndVersionOutput(t *testing.T) {
 	}
 }
 
+func TestCommandSetAcceptsExactCompilationLimits(t *testing.T) {
+	t.Parallel()
+
+	rootOnly := cli.CommandSet{Name: "t"}
+	if _, err := cli.CompileCommandSet(rootOnly,
+		nil,
+		cli.WithLimits(cli.Limits{MaximumCommands: 1, MaximumCommandDepth: 1}),
+	); err != nil {
+		t.Fatalf("CompileCommandSet(root exact limits) error = %v", err)
+	}
+	if _, err := cli.CompileCommandSet(rootOnly,
+		nil,
+		cli.WithLimits(cli.Limits{MaximumCommands: -1}),
+	); !errors.Is(err, cli.ErrInternal) {
+		t.Fatalf("CompileCommandSet(nil then invalid option) error = %v", err)
+	}
+	rootMetadata := cli.CommandSet{Name: "tt"}
+	if _, err := cli.CompileCommandSet(rootMetadata, cli.WithLimits(cli.Limits{
+		MaximumCommands: 1, MaximumCommandDepth: 1, MaximumMetadataBytes: 2,
+	})); err != nil {
+		t.Fatalf("CompileCommandSet(root exact metadata limit) error = %v", err)
+	}
+	if _, err := cli.CompileCommandSet(rootMetadata, cli.WithLimits(cli.Limits{
+		MaximumMetadataBytes: 1,
+	})); !errors.Is(err, cli.ErrInternal) {
+		t.Fatalf("CompileCommandSet(root over metadata limit) error = %v", err)
+	}
+
+	command := cli.CommandSet{
+		Name: "t",
+		Commands: []cli.CommandSpec{{
+			Name: "run", Summary: "go", Handler: commandSetNoop,
+		}},
+	}
+	if _, err := cli.CompileCommandSet(command, cli.WithLimits(cli.Limits{
+		MaximumCommands: 2, MaximumCommandDepth: 2, MaximumMetadataBytes: 6,
+	})); err != nil {
+		t.Fatalf("CompileCommandSet(command exact limits) error = %v", err)
+	}
+	if _, err := cli.CompileCommandSet(command, cli.WithLimits(cli.Limits{
+		MaximumMetadataBytes: 5,
+	})); !errors.Is(err, cli.ErrInternal) {
+		t.Fatalf("CompileCommandSet(command over metadata limit) error = %v", err)
+	}
+
+	withOption := command
+	withOption.Commands = append([]cli.CommandSpec(nil), command.Commands...)
+	withOption.Commands[0].Options = []cli.OptionDefinition{cli.BoolOption("verbose")}
+	if _, err := cli.CompileCommandSet(withOption, cli.WithLimits(cli.Limits{
+		MaximumOptionsPerCommand: 1,
+	})); err != nil {
+		t.Fatalf("CompileCommandSet(option exact limit) error = %v", err)
+	}
+}
+
+func TestCommandSetHelpPreservesExactSpacingAndEmptyDescriptions(t *testing.T) {
+	t.Parallel()
+
+	application, err := cli.CompileCommandSet(cli.CommandSet{
+		Name: "tool",
+		Commands: []cli.CommandSpec{
+			{
+				Name: "run", Summary: "execute", Handler: commandSetNoop,
+				Options: []cli.OptionDefinition{
+					cli.BoolOption("plain"),
+					cli.BoolOption("described").Description("text"),
+				},
+			},
+			{Name: "thirteenchars", Handler: commandSetNoop},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CompileCommandSet() error = %v", err)
+	}
+	var stdout bytes.Buffer
+	result := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"--help"}, Stdout: &stdout,
+	})
+	if !errors.Is(result.Err, cli.ErrHelp) {
+		t.Fatalf("RunCommand(help) = %#v", result)
+	}
+	want := "Usage:\n  tool <command>\n\nCommands:\n" +
+		"  run          execute\n" +
+		"  thirteenchars \n"
+	if stdout.String() != want {
+		t.Fatalf("help = %q, want %q", stdout.String(), want)
+	}
+	stdout.Reset()
+	result = application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"run", "--help"}, Stdout: &stdout,
+	})
+	if !errors.Is(result.Err, cli.ErrHelp) {
+		t.Fatalf("RunCommand(command help) = %#v", result)
+	}
+	want = "execute\n\nUsage:\n  tool run\n\nOptions:\n" +
+		"  --plain\n" +
+		"  --described  text\n"
+	if stdout.String() != want {
+		t.Fatalf("command help = %q, want %q", stdout.String(), want)
+	}
+
+	quiet := application.RunCommand(t.Context(), cli.Request{
+		Args: []string{"run"}, Output: cli.OutputPolicy{Mode: cli.OutputQuiet},
+	})
+	if quiet.Err != nil || quiet.ExitCode != 0 {
+		t.Fatalf("RunCommand(quiet) = %#v", quiet)
+	}
+}
+
 type cancelKey struct{}
 
 func commandSetNoop(context.Context, cli.Invocation) error {

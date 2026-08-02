@@ -253,8 +253,10 @@ type invocationParser struct {
 
 func (parser *invocationParser) parse(argv []string) (Result, error) {
 	parser.root = parser.current
-	for index := 0; index < len(argv); index++ {
-		token := argv[index]
+	remaining := argv
+	for len(remaining) > 0 {
+		token := remaining[0]
+		remaining = remaining[1:]
 		if parser.positional {
 			parser.result.Arguments = append(parser.result.Arguments, token)
 			continue
@@ -278,21 +280,21 @@ func (parser *invocationParser) parse(argv []string) (Result, error) {
 			return parser.result, nil
 		}
 		if strings.HasPrefix(token, "--") {
-			consumed, err := parser.longOption(token, argv[index+1:])
+			consumed, err := parser.longOption(token, remaining)
 			if err != nil {
 				return Result{}, err
 			}
-			index += consumed
+			remaining = remaining[consumed:]
 			continue
 		}
 		if len(token) > 1 && token[0] == '-' &&
 			(!looksNegativeValue(token) ||
 				parser.optionByShort(rune(token[1])) != nil) {
-			consumed, err := parser.shortOptions(token[1:], argv[index+1:])
+			consumed, err := parser.shortOptions(token[1:], remaining)
 			if err != nil {
 				return Result{}, err
 			}
-			index += consumed
+			remaining = remaining[consumed:]
 			continue
 		}
 		if child := commandChild(parser.current, token); child != nil {

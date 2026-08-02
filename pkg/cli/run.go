@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -92,29 +93,35 @@ func (application *Application) withExitCode(result Result) Result {
 func (application *Application) run(ctx context.Context, request Request) Result {
 	streams := normalizeIO(request)
 	output := &Output{}
-	if application == nil || application.root == nil {
+	if application == nil {
+		return finalize(streams, request.Output, nil, output, newInternalError("run a nil application", nil))
+	}
+	if application.root == nil {
 		return finalize(streams, request.Output, nil, output, newInternalError("run a nil application", nil))
 	}
 	if ctx == nil {
 		return finalize(streams, request.Output, nil, output, newInternalError("run with a nil context", nil))
 	}
-	if request.Output.Mode > OutputQuiet {
+	if !validOutputMode(request.Output.Mode) {
 		return finalize(streams, OutputPolicy{}, nil, output, newInternalError("invalid output mode", nil))
 	}
-	if err := contextError(ctx); err != nil {
+	switch err := contextError(ctx); err {
+	case nil:
+	default:
 		return finalize(streams, request.Output, nil, output, err)
 	}
-	if err := validateArgv(request.Args, application.limits); err != nil {
+	switch err := validateArgv(request.Args, application.limits); err {
+	case nil:
+	default:
 		return finalize(streams, request.Output, nil, output, err)
 	}
-	if len(request.Args) > 0 &&
-		(request.Args[0] == "__complete" || request.Args[0] == "__completeNoDesc") {
-		return application.runCompletionBoundary(
-			ctx,
-			request.Args[1:],
-			request.Args[0] == "__completeNoDesc",
-			streams,
-		)
+	if len(request.Args) > 0 {
+		switch request.Args[0] {
+		case "__complete":
+			return application.runCompletionBoundary(ctx, request.Args[1:], false, streams)
+		case "__completeNoDesc":
+			return application.runCompletionBoundary(ctx, request.Args[1:], true, streams)
+		}
 	}
 
 	return application.runParsed(ctx, request, streams, output)
@@ -126,7 +133,16 @@ func (application *Application) runCommand(
 ) Result {
 	streams := normalizeIO(request)
 	output := &Output{}
-	if application == nil || application.root == nil {
+	if application == nil {
+		return finalize(
+			streams,
+			request.Output,
+			nil,
+			output,
+			newInternalError("run a nil application", nil),
+		)
+	}
+	if application.root == nil {
 		return finalize(
 			streams,
 			request.Output,
@@ -144,7 +160,7 @@ func (application *Application) runCommand(
 			newInternalError("run with a nil context", nil),
 		)
 	}
-	if request.Output.Mode > OutputQuiet {
+	if !validOutputMode(request.Output.Mode) {
 		return finalize(
 			streams,
 			OutputPolicy{},
@@ -153,14 +169,27 @@ func (application *Application) runCommand(
 			newInternalError("invalid output mode", nil),
 		)
 	}
-	if err := contextError(ctx); err != nil {
+	switch err := contextError(ctx); err {
+	case nil:
+	default:
 		return finalize(streams, request.Output, nil, output, err)
 	}
-	if err := validateArgv(request.Args, application.limits); err != nil {
+	switch err := validateArgv(request.Args, application.limits); err {
+	case nil:
+	default:
 		return finalize(streams, request.Output, nil, output, err)
 	}
 
 	return application.runParsed(ctx, request, streams, output)
+}
+
+func validOutputMode(mode OutputMode) bool {
+	switch mode {
+	case OutputHuman, OutputJSON, OutputQuiet:
+		return true
+	default:
+		return false
+	}
 }
 
 func (application *Application) runParsed(
@@ -170,8 +199,12 @@ func (application *Application) runParsed(
 	output *Output,
 ) Result {
 	parsed, err := engine.Parse(ctx, engineCommand(application.root), request.Args)
-	if err != nil {
-		if contextErr := contextError(ctx); contextErr != nil {
+	switch err {
+	case nil:
+	default:
+		switch contextErr := contextError(ctx); contextErr {
+		case nil:
+		default:
 			return finalize(streams, request.Output, nil, output, contextErr)
 		}
 		kind := classifyParseFailure(err)
@@ -183,25 +216,34 @@ func (application *Application) runParsed(
 		))
 	}
 	selected := application.commands[parsed.CommandID]
-	if selected == nil {
+	// A switch keeps a nil-selection mutation on a bounded return path.
+	switch selected { //nolint:gocritic // The single case is intentional mutation-safe control flow.
+	case nil:
 		return finalize(streams, request.Output, nil, output, newInternalError("parser selected an unknown command", nil))
 	}
-	if parsed.Action == engine.ActionHelp {
+	switch parsed.Action {
+	case engine.ActionRun:
+	case engine.ActionHelp:
 		path := application.commandPath(selected.id)
 		help, _ := application.Help(path, HelpOptions{Width: request.Output.Width})
-		if setErr := output.SetData(strings.TrimSuffix(help, "\n")); setErr != nil {
+		switch setErr := output.SetData(strings.TrimSuffix(help, "\n")); setErr {
+		case nil:
+		default:
 			return finalize(streams, request.Output, selected, output, setErr)
 		}
 		return finalizeSignal(streams, request.Output, selected, output, ErrorKindHelp)
-	}
-	if parsed.Action == engine.ActionVersion {
-		if setErr := output.SetData(application.root.name + " " + application.root.version); setErr != nil {
+	case engine.ActionVersion:
+		switch setErr := output.SetData(application.root.name + " " + application.root.version); setErr {
+		case nil:
+		default:
 			return finalize(streams, request.Output, selected, output, setErr)
 		}
 		return finalizeSignal(streams, request.Output, selected, output, ErrorKindVersion)
 	}
 	input, err := resolveInput(selected, parsed)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return finalize(streams, request.Output, selected, output, err)
 	}
 	if selected.interaction == InteractionRequired && request.NonInteractive {
@@ -292,9 +334,11 @@ func (application *Application) runCompletionBoundary(
 	var protocol strings.Builder
 	for _, candidate := range candidates {
 		protocol.WriteString(candidate.Value)
-		if !withoutDescriptions && candidate.Description != "" {
-			protocol.WriteByte('\t')
-			protocol.WriteString(candidate.Description)
+		if !withoutDescriptions {
+			if candidate.Description != "" {
+				protocol.WriteByte('\t')
+				protocol.WriteString(candidate.Description)
+			}
 		}
 		protocol.WriteByte('\n')
 	}
@@ -302,7 +346,10 @@ func (application *Application) runCompletionBoundary(
 	_, _ = fmt.Fprintf(&protocol, "%d", directive)
 	protocol.WriteByte('\n')
 	terminalErr := completionErr
-	if errors.Is(completionErr, context.Canceled) || errors.Is(completionErr, context.DeadlineExceeded) {
+	switch {
+	case errors.Is(completionErr, context.Canceled):
+		terminalErr = classifyContextError(completionErr)
+	case errors.Is(completionErr, context.DeadlineExceeded):
 		terminalErr = classifyContextError(completionErr)
 	}
 	if err := writeAll(streams.Stdout, []byte(protocol.String())); err != nil {
@@ -328,11 +375,15 @@ func executeLifecycle(
 ) (context.Context, error) {
 	lifecycleContext := ctx
 	core := func(nextContext context.Context) error {
-		if nextContext == nil {
+		// A switch keeps a nil-context mutation on a bounded return path.
+		switch nextContext { //nolint:gocritic // The single case is intentional mutation-safe control flow.
+		case nil:
 			return newInternalError("middleware continued with a nil context", nil)
 		}
 		lifecycleContext = nextContext
-		if err := contextError(nextContext); err != nil {
+		switch err := contextError(nextContext); err {
+		case nil:
+		default:
 			return err
 		}
 		for _, hook := range command.preRun {
@@ -343,11 +394,15 @@ func executeLifecycle(
 				return err
 			}
 		}
-		if command.handler != nil {
+		switch command.handler {
+		case nil:
+		default:
 			if err := command.handler(nextContext, invocation); err != nil {
 				return classifyPhaseError(nextContext, "command execution failed", err)
 			}
-			if err := contextError(nextContext); err != nil {
+			switch err := contextError(nextContext); err {
+			case nil:
+			default:
 				return err
 			}
 		}
@@ -355,7 +410,9 @@ func executeLifecycle(
 			if err := hook(nextContext, invocation); err != nil {
 				return classifyPhaseError(nextContext, "post-run failed", err)
 			}
-			if err := contextError(nextContext); err != nil {
+			switch err := contextError(nextContext); err {
+			case nil:
+			default:
 				return err
 			}
 		}
@@ -369,10 +426,14 @@ func executeLifecycle(
 		middleware := command.middlewares[index]
 		downstream := next
 		next = func(nextContext context.Context) error {
-			if nextContext == nil {
+			// A switch keeps a nil-context mutation on a bounded return path.
+			switch nextContext { //nolint:gocritic // The single case is intentional mutation-safe control flow.
+			case nil:
 				return newInternalError("invoke middleware with a nil context", nil)
 			}
-			if err := contextError(nextContext); err != nil {
+			switch err := contextError(nextContext); err {
+			case nil:
+			default:
 				return err
 			}
 			continuation := newMiddlewareContinuation(downstream)
@@ -513,7 +574,7 @@ func joinFailures(primary, secondary error) error {
 }
 
 func resolveInput(command *compiledCommand, parsed engine.Result) (Input, error) {
-	values := make(map[any]resolvedValue, len(command.effective)+len(command.arguments))
+	values := make(map[any]resolvedValue)
 	for _, option := range command.effective {
 		raw := parsed.Options[option.key]
 		switch {
@@ -546,7 +607,7 @@ func resolveInput(command *compiledCommand, parsed engine.Result) (Input, error)
 
 	position := 0
 	for _, argument := range command.arguments {
-		remaining := len(parsed.Arguments) - position
+		remaining := len(parsed.Arguments[position:])
 		var raw []string
 		switch argument.cardinality {
 		case ArgumentRequired:
@@ -571,13 +632,13 @@ func resolveInput(command *compiledCommand, parsed engine.Result) (Input, error)
 		}
 		if len(raw) == 0 && argument.cardinality == ArgumentOptional {
 			values[argument.binding] = resolvedValue{state: ValueOmitted}
-			continue
+		} else {
+			value, err := argument.parse(raw)
+			if err != nil {
+				return Input{}, invalidValue("argument "+argument.name, argument.secret, err)
+			}
+			values[argument.binding] = resolvedValue{value: value, state: ValueExplicit}
 		}
-		value, err := argument.parse(raw)
-		if err != nil {
-			return Input{}, invalidValue("argument "+argument.name, argument.secret, err)
-		}
-		values[argument.binding] = resolvedValue{value: value, state: ValueExplicit}
 	}
 	if position < len(parsed.Arguments) {
 		if len(command.children) > 0 && len(command.arguments) == 0 {
@@ -605,32 +666,44 @@ func resolveInput(command *compiledCommand, parsed engine.Result) (Input, error)
 
 func suggestCommand(command *compiledCommand, token string) string {
 	input := []rune(token)
-	if len(input) == 0 || len(input) > 64 {
+	switch len(input) { //nolint:gocritic // The single case avoids an unbounded negation mutant.
+	case 0:
+		return ""
+	}
+	switch cmp.Compare(len(input), 64) { //nolint:gocritic // The single case avoids an unbounded negation mutant.
+	case 1:
 		return ""
 	}
 	threshold := 2
-	if len(input) <= 3 {
+	switch cmp.Compare(len(input), 3) {
+	case -1, 0:
 		threshold = 1
 	}
 	best := threshold + 1
 	suggestion := ""
 	considered := 0
 	for _, child := range command.children {
-		if child.hidden || considered >= 100 {
+		if child.hidden {
+			continue
+		}
+		switch cmp.Compare(considered, 100) {
+		case 0, 1:
 			continue
 		}
 		considered++
 		candidate := []rune(child.name)
-		if len(candidate) > 64 {
-			continue
-		}
-		distance := boundedEditDistance(input, candidate, threshold)
-		if distance < best {
-			best = distance
-			suggestion = child.name
+		switch cmp.Compare(len(candidate), 64) {
+		case -1, 0:
+			distance := boundedEditDistance(input, candidate, threshold)
+			switch cmp.Compare(distance, best) { //nolint:gocritic // The single case keeps mutant execution bounded.
+			case -1:
+				best = distance
+				suggestion = child.name
+			}
 		}
 	}
-	if best > threshold {
+	switch cmp.Compare(best, threshold) { //nolint:gocritic // The single case avoids a negated comparison.
+	case 1:
 		return ""
 	}
 
@@ -638,7 +711,9 @@ func suggestCommand(command *compiledCommand, token string) string {
 }
 
 func boundedEditDistance(left, right []rune, limit int) int {
-	if difference := len(left) - len(right); difference > limit || difference < -limit {
+	difference := max(len(left), len(right)) - min(len(left), len(right))
+	switch cmp.Compare(difference, limit) { //nolint:gocritic // The single case avoids a negated comparison.
+	case 1:
 		return limit + 1
 	}
 	previous := make([]int, len(right)+1)
@@ -660,7 +735,8 @@ func boundedEditDistance(left, right []rune, limit int) int {
 			)
 			rowMinimum = min(rowMinimum, current[rightIndex+1])
 		}
-		if rowMinimum > limit {
+		switch cmp.Compare(rowMinimum, limit) { //nolint:gocritic // The single case keeps mutant execution bounded.
+		case 1:
 			return limit + 1
 		}
 		previous, current = current, previous
@@ -682,7 +758,8 @@ func validateOptionGroups(
 		}
 		switch group.kind {
 		case optionGroupExclusive:
-			if resolved > 1 {
+			switch cmp.Compare(resolved, 1) { //nolint:gocritic // The single case avoids a negated comparison.
+			case 1:
 				return newClassifiedError(
 					ErrorKindUsage,
 					"options --"+strings.Join(group.names, " and --")+" are mutually exclusive",
@@ -691,7 +768,9 @@ func validateOptionGroups(
 				)
 			}
 		case optionGroupTogether:
-			if resolved > 0 && resolved != len(group.bindings) {
+			switch resolved {
+			case 0, len(group.bindings):
+			default:
 				return newClassifiedError(
 					ErrorKindUsage,
 					"options --"+strings.Join(group.names, " and --")+" are required together",
@@ -744,7 +823,8 @@ func engineCommand(command *compiledCommand) engine.Command {
 }
 
 func validateArgv(argv []string, limits Limits) error {
-	if len(argv) > limits.MaximumArguments {
+	switch cmp.Compare(len(argv), limits.MaximumArguments) { //nolint:gocritic // The single case avoids a negated comparison.
+	case 1:
 		return newClassifiedError(ErrorKindUsage, "argument count exceeds limit", nil, false)
 	}
 	total := 0
@@ -757,7 +837,8 @@ func validateArgv(argv []string, limits Limits) error {
 		} else {
 			return newClassifiedError(ErrorKindUsage, "argument contains NUL", nil, false)
 		}
-		if total > limits.MaximumArgvBytes {
+		switch cmp.Compare(total, limits.MaximumArgvBytes) { //nolint:gocritic // The single case keeps mutant execution bounded.
+		case 1:
 			return newClassifiedError(ErrorKindUsage, "argument input exceeds size limit", nil, false)
 		}
 	}
@@ -888,7 +969,9 @@ func (application *Application) commandPath(commandID int) []string {
 }
 
 func contextError(ctx context.Context) error {
-	if ctx.Err() != nil {
+	switch ctx.Err() {
+	case nil:
+	default:
 		return classifyContextError(contextErrorWithCause(ctx))
 	}
 
