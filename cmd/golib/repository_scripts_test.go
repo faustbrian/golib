@@ -310,6 +310,92 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	}
 }
 
+func TestLocalProxyUsesPlannedStableVersionForOwnedDependencies(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	output := t.TempDir()
+	command := exec.Command(
+		filepath.Join(root, "scripts", "build-local-proxy.sh"),
+		output,
+		"v1.0.0",
+		"pkg/authentication/authotel",
+	)
+	command.Dir = root
+	if result, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build stable local proxy: %v\n%s", err, result)
+	}
+
+	manifest, err := os.ReadFile(filepath.Join(
+		output,
+		filepath.FromSlash(
+			"github.com/faustbrian/golib/pkg/authentication/authotel/@v/v1.0.0.mod",
+		),
+	))
+	if err != nil {
+		t.Fatalf("read stable authotel manifest: %v", err)
+	}
+	if !strings.Contains(
+		string(manifest),
+		"github.com/faustbrian/golib/pkg/authentication v1.0.0",
+	) {
+		t.Fatalf("stable proxy manifest does not use planned dependency version:\n%s", manifest)
+	}
+}
+
+func TestReleasePlanDefaultsUnreleasedModulesToV1(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	command := exec.Command(
+		"bash",
+		filepath.Join(root, "scripts", "release.sh"),
+		"--plan",
+		"pkg/retry",
+	)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("plan initial release: %v\n%s", err, output)
+	}
+
+	var plan struct {
+		Module          string `json:"module"`
+		CurrentVersion  string `json:"current_version"`
+		ProposedVersion string `json:"proposed_version"`
+		Tag             string `json:"tag"`
+	}
+	if err := json.Unmarshal(output, &plan); err != nil {
+		t.Fatalf("decode release plan: %v\n%s", err, output)
+	}
+	if plan.Module != "pkg/retry" || plan.CurrentVersion != "unreleased" ||
+		plan.ProposedVersion != "v1.0.0" || plan.Tag != "pkg/retry/v1.0.0" {
+		t.Fatalf("unexpected initial release plan: %+v", plan)
+	}
+}
+
+func TestReleasePlanRejectsPreV1InitialVersion(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	command := exec.Command(
+		"bash",
+		filepath.Join(root, "scripts", "release.sh"),
+		"--plan",
+		"--version",
+		"v0.9.0",
+		"pkg/retry",
+	)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("release plan accepted pre-v1 initial version:\n%s", output)
+	}
+	if !strings.Contains(string(output), "initial release must be v1.0.0") {
+		t.Fatalf("release plan returned the wrong initial-version failure:\n%s", output)
+	}
+}
+
 func TestIsolatedGoUsesTemporarySumsForOwnedModules(t *testing.T) {
 	root := testRepositoryRoot(t)
 	module := t.TempDir()

@@ -45,6 +45,9 @@ documented in each module's changelog.
 
 ### Changed
 
+- Plan every unpublished module's first public release as stable `v1.0.0`, and
+  verify dry-run consumers against that exact version while keeping `v0.0.0`
+  strictly internal to unpublished workspace checks.
 - Generalize the worker-balancing goal for applications with 30--40 queues,
   bounded per-queue scaling demand, and a small number of autoscaled worker
   groups instead of one Kubernetes workload per queue.

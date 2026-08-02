@@ -36,8 +36,8 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 rewrite_owned_dependencies() {
-    perl -pi -e \
-        's#(github\.com/faustbrian/golib/pkg/[a-z0-9/-]+) v0\.0\.0(?:-[0-9]{14}-[0-9a-f]{12})?#$1 v0.0.0#g' \
+    GOLIB_PROXY_VERSION="${version}" perl -pi -e \
+        's#(github\.com/faustbrian/golib/pkg/[a-z0-9/-]+) v0\.0\.0(?:-[0-9]{14}-[0-9a-f]{12})?#$1 $ENV{GOLIB_PROXY_VERSION}#g' \
         "$1"
 }
 

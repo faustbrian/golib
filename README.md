@@ -66,7 +66,9 @@ Full policies are documented in [quality](docs/quality.md),
 ## Versioning
 
 Modules are released independently with directory-prefixed tags such as
-`pkg/jsonrpc/v0.1.0`. Owned dependency releases follow the dependency graph in
+`pkg/jsonrpc/v1.0.0`. Every module's first public release is stable `v1.0.0`;
+the internal `v0.0.0` version exists only for unpublished source-proxy checks.
+Owned dependency releases follow the dependency graph in
 `modules.json`. See [release policy](docs/releases.md).
 
 ## Governance
