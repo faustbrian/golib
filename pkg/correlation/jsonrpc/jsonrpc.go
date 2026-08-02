@@ -94,7 +94,10 @@ func (adapter *Adapter) Receive(metadata Metadata, trusted bool) (correlation.Va
 		}
 		for _, raw := range metadata[field] {
 			var value string
-			if len(raw) > maxEncodedIDBytes || json.Unmarshal(raw, &value) != nil {
+			if len(raw) > maxEncodedIDBytes {
+				return correlation.Values{}, fmt.Errorf("%w: %s", ErrMalformedMetadata, field)
+			}
+			if json.Unmarshal(raw, &value) != nil {
 				return correlation.Values{}, fmt.Errorf("%w: %s", ErrMalformedMetadata, field)
 			}
 		}

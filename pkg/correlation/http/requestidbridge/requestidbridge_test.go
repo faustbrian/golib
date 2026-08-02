@@ -40,9 +40,13 @@ func TestAdoptRejectsMissingMalformedAndNilLookups(t *testing.T) {
 	if _, _, err := requestidbridge.Adopt(context.Background(), correlation.Values{}, nil, requestidbridge.Options{Trusted: true}); !errors.Is(err, requestidbridge.ErrInvalidLookup) {
 		t.Fatalf("nil lookup error = %v", err)
 	}
-	missing := func(context.Context) (string, bool) { return "", false }
-	if _, _, err := requestidbridge.Adopt(context.Background(), correlation.Values{}, missing, requestidbridge.Options{Trusted: true}); !errors.Is(err, requestidbridge.ErrMissing) {
-		t.Fatalf("missing lookup error = %v", err)
+	for _, missing := range []requestidbridge.Lookup{
+		func(context.Context) (string, bool) { return "", true },
+		func(context.Context) (string, bool) { return "ignored", false },
+	} {
+		if _, _, err := requestidbridge.Adopt(context.Background(), correlation.Values{}, missing, requestidbridge.Options{Trusted: true}); !errors.Is(err, requestidbridge.ErrMissing) {
+			t.Fatalf("missing lookup error = %v", err)
+		}
 	}
 	malformed := func(context.Context) (string, bool) { return "bad value", true }
 	if _, _, err := requestidbridge.Adopt(context.Background(), correlation.Values{}, malformed, requestidbridge.Options{Trusted: true}); !errors.Is(err, requestidbridge.ErrInvalidLookup) {

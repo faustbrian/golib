@@ -34,8 +34,22 @@ type Deterministic struct {
 func NewDeterministic(options DeterministicOptions) (*Deterministic, error) {
 	prefix := fmt.Sprintf("d%d_", options.Version)
 	maximum := len(prefix) + base64.RawURLEncoding.EncodedLen(sha256.Size)
-	if options.Domain == "" || len(options.Domain) > 128 || options.Version == 0 ||
-		options.Length < len(prefix)+16 || options.Length > maximum || len(options.Key) > 1024 {
+	if options.Domain == "" {
+		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
+	}
+	if len(options.Domain) > 128 {
+		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
+	}
+	if options.Version == 0 {
+		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
+	}
+	if options.Length < len(prefix)+16 {
+		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
+	}
+	if options.Length > maximum {
+		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
+	}
+	if len(options.Key) > 1024 {
 		return nil, fmt.Errorf("%w: configuration", ErrInvalidDerivation)
 	}
 	if err := validate(options.Domain, Policy{MaxLength: 128}); err != nil {

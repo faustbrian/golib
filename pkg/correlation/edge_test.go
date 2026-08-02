@@ -65,6 +65,69 @@ func TestPolicyAndTypedIDFailureBoundaries(t *testing.T) {
 	}
 }
 
+func TestExactValidationAndGenerationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		value  string
+		policy Policy
+	}{
+		{value: "a", policy: Policy{MaxLength: 1}},
+		{value: strings.Repeat("a", 1024), policy: Policy{MaxLength: 1024}},
+		{value: "azAZ09_-", policy: Policy{MaxLength: 8}},
+	} {
+		if err := validate(test.value, test.policy); err != nil {
+			t.Fatalf("validate(exact boundary %d) error = %v", test.policy.MaxLength, err)
+		}
+	}
+	for _, maximum := range []int{1, 1024} {
+		if err := validatePolicy(Policy{MaxLength: maximum}); err != nil {
+			t.Fatalf("validatePolicy(%d) error = %v", maximum, err)
+		}
+	}
+	if err := validate("a", Policy{MaxLength: 1025}); !errors.Is(err, ErrInvalidID) {
+		t.Fatalf("validate(over maximum policy) error = %v", err)
+	}
+
+	lower, err := NewDeterministic(DeterministicOptions{
+		Domain: strings.Repeat("a", 128), Version: 1, Length: 19, Key: make([]byte, 1024),
+	})
+	if err != nil {
+		t.Fatalf("NewDeterministic(exact lower bounds) error = %v", err)
+	}
+	if _, err := NewDeterministic(DeterministicOptions{Domain: "domain", Version: 1, Length: 46}); err != nil {
+		t.Fatalf("NewDeterministic(exact maximum length) error = %v", err)
+	}
+	if _, err := NewDeterministic(DeterministicOptions{
+		Domain: strings.Repeat("a", 129), Version: 1, Length: 19,
+	}); !errors.Is(err, ErrInvalidDerivation) {
+		t.Fatalf("NewDeterministic(over domain limit) error = %v", err)
+	}
+	if _, err := NewDeterministic(DeterministicOptions{
+		Domain: "domain", Length: 19,
+	}); !errors.Is(err, ErrInvalidDerivation) {
+		t.Fatalf("NewDeterministic(zero version) error = %v", err)
+	}
+	if _, err := lower.Derive(make([]byte, 1<<20)); err != nil {
+		t.Fatalf("Derive(exact input limit) error = %v", err)
+	}
+	if value, err := Disclose("correlation.id", "value", DisclosurePolicy{
+		Mode: RedactDisclosure, Key: make([]byte, 1024),
+	}); err != nil || value != "[redacted]" {
+		t.Fatalf("Disclose(exact key limit) = %q, %v", value, err)
+	}
+
+	codec, err := NewCodec(CodecOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	carrier := edgeCarrier{}
+	values := Values{RequestID: "request", CausationID: "bad value"}
+	if err := codec.Inject(carrier, values); !errors.Is(err, ErrInvalidCarrier) || len(carrier) != 0 {
+		t.Fatalf("Inject(after empty field) = %#v, %v", carrier, err)
+	}
+}
+
 func TestCodecRejectsInvalidConfigurationAndNilCarriers(t *testing.T) {
 	for _, options := range []CodecOptions{
 		{Policy: Policy{MaxLength: -1}},

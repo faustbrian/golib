@@ -122,6 +122,45 @@ func TestCustomMetadataFieldsRemainTypeAndSizeBounded(t *testing.T) {
 	}
 }
 
+func TestAdapterAppliesIndependentDefaultsAndAcceptsExactEncodedLimit(t *testing.T) {
+	t.Parallel()
+
+	factory, _ := correlation.NewFactory(correlation.FactoryOptions{
+		Generator: &generator{values: []string{"request", "server-request"}},
+		Policy:    correlation.Policy{MaxLength: 1024},
+	})
+	adapter, err := jsonrpccorrelation.New(factory, jsonrpccorrelation.Options{
+		Codec: correlation.CodecOptions{
+			CorrelationField: "workflow",
+			Policy:           correlation.Policy{MaxLength: 1024},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := jsonrpccorrelation.Metadata{}
+	parent := correlation.Values{CorrelationID: "flow", RequestID: "parent"}
+	if _, err := adapter.Send(metadata, parent); err != nil {
+		t.Fatal(err)
+	}
+	if len(metadata[jsonrpccorrelation.RequestField]) != 1 ||
+		len(metadata[jsonrpccorrelation.CausationField]) != 1 {
+		t.Fatalf("default metadata fields = %#v", metadata)
+	}
+	for _, field := range []string{jsonrpccorrelation.RequestField, jsonrpccorrelation.CausationField} {
+		if _, err := adapter.Receive(jsonrpccorrelation.Metadata{
+			field: {json.RawMessage("123")},
+		}, true); !errors.Is(err, jsonrpccorrelation.ErrMalformedMetadata) {
+			t.Fatalf("Receive(malformed default field %q) error = %v", field, err)
+		}
+	}
+
+	exact := json.RawMessage("\"" + strings.Repeat("a", 1024) + "\"")
+	if _, err := adapter.Receive(jsonrpccorrelation.Metadata{"workflow": {exact}}, true); err != nil {
+		t.Fatalf("Receive(exact encoded limit) error = %v", err)
+	}
+}
+
 func FuzzCustomMetadataCarrier(fuzz *testing.F) {
 	fuzz.Add(`"flow"`, `"request"`, `"flow"`, uint8(1), true)
 	fuzz.Add(`123`, `"control\n"`, `null`, uint8(9), false)

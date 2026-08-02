@@ -100,6 +100,39 @@ func TestHTTPAdapterDoesNotTrustInboundByDefault(t *testing.T) {
 	})).ServeHTTP(response, request)
 }
 
+func TestRejectPolicyAcceptsValidMetadataAndHeadersTrackCausation(t *testing.T) {
+	t.Parallel()
+
+	factory, _ := correlation.NewFactory(correlation.FactoryOptions{
+		Generator: &edgeGenerator{values: []string{"fresh-request"}},
+	})
+	middleware, _ := New(factory, Options{
+		Invalid: RejectInvalid,
+		Trust:   func(*http.Request) bool { return true },
+	})
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set(CorrelationHeader, "flow")
+	request.Header.Set(RequestHeader, "parent")
+	response := httptest.NewRecorder()
+	called := false
+	middleware.Wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	})).ServeHTTP(response, request)
+	if !called || response.Code != http.StatusOK {
+		t.Fatalf("valid reject-policy request called = %v, status = %d", called, response.Code)
+	}
+
+	header := http.Header{CausationHeader: {"stale"}}
+	setHeaders(header, correlation.Values{CorrelationID: "flow", RequestID: "request"})
+	if header.Get(CausationHeader) != "" {
+		t.Fatalf("empty causation header = %q", header.Get(CausationHeader))
+	}
+	setHeaders(header, correlation.Values{CorrelationID: "flow", RequestID: "request", CausationID: "parent"})
+	if header.Get(CausationHeader) != "parent" {
+		t.Fatalf("non-empty causation header = %q", header.Get(CausationHeader))
+	}
+}
+
 func TestHeaderCarrierBoundsDuplicateCollectionBeforeCodecParsing(t *testing.T) {
 	header := make(http.Header)
 	header[CorrelationHeader] = make([]string, 4096)

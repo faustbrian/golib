@@ -40,6 +40,9 @@ func TestTelemetryRejectsInvalidTraceAndDisclosure(t *testing.T) {
 	if _, err := correlationtelemetry.Attributes(values, policy); !errors.Is(err, correlation.ErrInvalidDisclosure) {
 		t.Fatalf("Attributes() error = %v", err)
 	}
+	if _, err := correlationtelemetry.Attributes(correlation.Values{RequestID: "request"}, policy); !errors.Is(err, correlation.ErrInvalidDisclosure) {
+		t.Fatalf("Attributes(after empty correlation) error = %v", err)
+	}
 	if _, err := correlationtelemetry.Link(spanContext, values, policy); !errors.Is(err, correlation.ErrInvalidDisclosure) {
 		t.Fatalf("Link() error = %v", err)
 	}
@@ -58,6 +61,13 @@ func TestMetricAttributesNeverContainRawIdentifiers(t *testing.T) {
 	}
 	if !boolValue(attributes, "correlation.present") {
 		t.Fatalf("metric attributes = %v", attributes)
+	}
+	if !boolValue(attributes, "request.present") || boolValue(attributes, "causation.present") {
+		t.Fatalf("request-only metric presence = %v", attributes)
+	}
+	causationOnly := correlationtelemetry.MetricAttributes(correlation.Values{CausationID: "cause"})
+	if boolValue(causationOnly, "request.present") || !boolValue(causationOnly, "causation.present") {
+		t.Fatalf("causation-only metric presence = %v", causationOnly)
 	}
 }
 

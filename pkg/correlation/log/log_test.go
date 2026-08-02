@@ -46,6 +46,10 @@ func TestAttrsRejectInvalidDisclosure(t *testing.T) {
 	if !errors.Is(err, correlation.ErrInvalidDisclosure) {
 		t.Fatalf("Attrs() error = %v", err)
 	}
+	_, err = correlationlog.Attrs(correlation.Values{RequestID: "request"}, correlation.DisclosurePolicy{Mode: correlation.HashDisclosure})
+	if !errors.Is(err, correlation.ErrInvalidDisclosure) {
+		t.Fatalf("Attrs(after empty correlation) error = %v", err)
+	}
 }
 
 func attrValue(attrs []slog.Attr, key string) string {

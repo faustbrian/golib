@@ -114,7 +114,13 @@ func validate(value string, policy Policy) error {
 	if maximum == 0 {
 		maximum = defaultMaxLength
 	}
-	if maximum < 1 || maximum > 1024 || len(value) == 0 || len(value) > maximum {
+	if maximum > 1024 {
+		return fmt.Errorf("%w: length", ErrInvalidID)
+	}
+	if len(value) == 0 {
+		return fmt.Errorf("%w: length", ErrInvalidID)
+	}
+	if len(value) > maximum {
 		return fmt.Errorf("%w: length", ErrInvalidID)
 	}
 	for index := range len(value) {
