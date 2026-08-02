@@ -1662,9 +1662,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/authentication/authotel/.ai/GOAL.md",
+        "pkg/authentication/authotel/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/authentication/authotel/.ai/GOAL.md",
+          "requirements_sha256": "cb6dfb02c33498a456b6dff276898ce91e4a11bc5286ab07e122a4d86d04e0b5",
+          "implementation_evidence": [
+            "pkg/authentication/authotel/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/authentication/authotel/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "7b824c0b437c4276c2ad3f25404f870b887b25933d99769fa760336100a49b5c",
+          "implementation_evidence": [
+            "pkg/authentication/authotel/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -1719,9 +1785,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/authentication/jwt/.ai/GOAL.md",
+        "pkg/authentication/jwt/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/authentication/jwt/.ai/GOAL.md",
+          "requirements_sha256": "f2b8dafe3904e29726eb104b11056e3f79d87d38fbcf9488978f3cdfbc840f3c",
+          "implementation_evidence": [
+            "pkg/authentication/jwt/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/authentication/jwt/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "023f5d82bbe76023d9665cb9b79e5c89da1b3712f051d50df5a8f0afd95b7e26",
+          "implementation_evidence": [
+            "pkg/authentication/jwt/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -1776,9 +1908,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/authentication/oidc/.ai/GOAL.md",
+        "pkg/authentication/oidc/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/authentication/oidc/.ai/GOAL.md",
+          "requirements_sha256": "605322fd930835382dab2fd1178eeb20fecc31d145af302a6edd91fe0606c481",
+          "implementation_evidence": [
+            "pkg/authentication/oidc/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/authentication/oidc/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "8ef6d81bad586eef5726d80042c8c5c399dabadcfe7fef7c75b301a17fc602bd",
+          "implementation_evidence": [
+            "pkg/authentication/oidc/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -4946,9 +5144,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/gokafka/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/gokafka/.ai/GOAL.md",
+          "requirements_sha256": "417ab5d46f5c77107bb3dc1c42181ea78f3ea5d08990176af568e05e084c103a",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gokafka/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gokafka/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "048e40d6dfcabc576ed649676bc6de05cd02762e5fb09a73aa06fd573e2a7cb9",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gokafka/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gokafka/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -5006,9 +5272,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md",
+          "requirements_sha256": "dc4cd0e27c2111c10d8ddf952853661ed4837c8f067398e5af6a7302779ffcea",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gooutbox/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gooutbox/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "6ad71d4626faae1318fde87c103db7c789812798c418806bb8e22166fd2cd22e",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gooutbox/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gooutbox/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -5064,9 +5398,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md",
+          "requirements_sha256": "de210d254953e0d68865e2c252d61f16d5ea0d7cc243b442d10d5da35f38f5ce",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/goqueue/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "4c025a6d652317785babf76f26b5faa987b6e8672d68acb49d5b0743f53f85ee",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/goqueue/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -5124,9 +5526,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL.md",
+          "requirements_sha256": "d54cb8b2a027c0b5ed2ffb630a29e7857abd1abcc5f753ddebfd76fe050ee9a4",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gotelemetry/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "08a27dd16e3c98905341670ac1910eaeba3b10e25406330634bc96dc7d53aae1",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/gotelemetry/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -5230,9 +5700,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/event-sourcing/postgres/.ai/GOAL.md",
+        "pkg/event-sourcing/postgres/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/postgres/.ai/GOAL.md",
+          "requirements_sha256": "5f0f506ba1702d6fcb491d09abe4b6458f2bcdbf2147817246ce7f128ac87a3a",
+          "implementation_evidence": [
+            "pkg/event-sourcing/postgres/CHANGELOG.md",
+            "pkg/event-sourcing/postgres/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/postgres/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "d394f3f624dc35a2c86dd146233ea5da5eeb993de8c11b42456c7e3faf1a920f",
+          "implementation_evidence": [
+            "pkg/event-sourcing/postgres/CHANGELOG.md",
+            "pkg/event-sourcing/postgres/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -5282,13 +5820,51 @@
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
-        "pkg/external-sort/.ai/GOAL.md"
+        "pkg/external-sort/.ai/GOAL.md",
+        "pkg/external-sort/.ai/GOAL_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
         {
           "file": "pkg/external-sort/.ai/GOAL.md",
           "requirements_sha256": "c67bd6bb233cb76c96e31400f955b3fa95f4e4ded32d9e8790bc610ef98597b9",
+          "implementation_evidence": [
+            "pkg/external-sort/CHANGELOG.md",
+            "pkg/external-sort/README.md",
+            "pkg/external-sort/docs/api.md",
+            "pkg/external-sort/docs/architecture.md",
+            "pkg/external-sort/docs/compatibility.md",
+            "pkg/external-sort/docs/performance.md",
+            "pkg/external-sort/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/external-sort/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "c6de120d87effa2d2cf96cafab6e4c5c6993d375266e142d338b6ed13159cd33",
           "implementation_evidence": [
             "pkg/external-sort/CHANGELOG.md",
             "pkg/external-sort/README.md",
@@ -5432,7 +6008,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/feature-flags/.ai/GOAL.md",
-        "pkg/feature-flags/.ai/GOAL_HARDEN.md"
+        "pkg/feature-flags/.ai/GOAL_HARDEN.md",
+        "pkg/feature-flags/.ai/GOAL_RESILIENCE.md",
+        "pkg/feature-flags/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -5473,6 +6051,74 @@
         {
           "file": "pkg/feature-flags/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "2b70ed82d15b82f44c24249194e8709b8e0939eb6f68cd20a8a89966cac220b6",
+          "implementation_evidence": [
+            "pkg/feature-flags/CHANGELOG.md",
+            "pkg/feature-flags/README.md",
+            "pkg/feature-flags/docs/compatibility.md",
+            "pkg/feature-flags/docs/hardening.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/feature-flags/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "57e3bc6518cac91151ffbc7b26b78027eb25784b2e40e89eaf96da22c7d43703",
+          "implementation_evidence": [
+            "pkg/feature-flags/CHANGELOG.md",
+            "pkg/feature-flags/README.md",
+            "pkg/feature-flags/docs/compatibility.md",
+            "pkg/feature-flags/docs/hardening.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/feature-flags/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "a3688266739e0212ec1d0d02792ae5b6659415969c9a74e04c162058994adbf1",
           "implementation_evidence": [
             "pkg/feature-flags/CHANGELOG.md",
             "pkg/feature-flags/README.md",
@@ -8516,9 +9162,77 @@
       "provenance": [
         "pkg/kafka/adapters/gotelemetry/specification/manifest.json"
       ],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/kafka/adapters/gotelemetry/.ai/GOAL.md",
+        "pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/kafka/adapters/gotelemetry/.ai/GOAL.md",
+          "requirements_sha256": "84cfff1193c185c5f71e158002afb8a02caec1a7b2c30b795710c3ffcb3bd7e9",
+          "implementation_evidence": [
+            "pkg/kafka/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/kafka/adapters/gotelemetry/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "88b278a9c11e200cee3dfde24ff80618c96aaa922d305bea41a05b6ce4c4e597",
+          "implementation_evidence": [
+            "pkg/kafka/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/kafka/adapters/gotelemetry/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -8575,9 +9289,77 @@
       "provenance": [
         "pkg/kafka/adapters/mskiam/specification/manifest.json"
       ],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/kafka/adapters/mskiam/.ai/GOAL.md",
+        "pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/kafka/adapters/mskiam/.ai/GOAL.md",
+          "requirements_sha256": "4a968518658302f2e039c28f682493d11487616ab19127252f6cc7c2ab96a1d8",
+          "implementation_evidence": [
+            "pkg/kafka/adapters/mskiam/CHANGELOG.md",
+            "pkg/kafka/adapters/mskiam/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "3fcd52386568df72965fa4dd05205b66f8653c2ab49c7c106bddd58c03f4233c",
+          "implementation_evidence": [
+            "pkg/kafka/adapters/mskiam/CHANGELOG.md",
+            "pkg/kafka/adapters/mskiam/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -8699,9 +9481,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/kafka/kafkaservice/.ai/GOAL.md",
+        "pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/kafka/kafkaservice/.ai/GOAL.md",
+          "requirements_sha256": "02ae293a6a772ac7bac19ee68eb1de32ccbef482aa29ff8cebc8fdbc7ca74b06",
+          "implementation_evidence": [
+            "pkg/kafka/kafkaservice/CHANGELOG.md",
+            "pkg/kafka/kafkaservice/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "0b8b4b89bd532a20a85a3f826545a7368f47a76f45c5a85431e626e46d52cb42",
+          "implementation_evidence": [
+            "pkg/kafka/kafkaservice/CHANGELOG.md",
+            "pkg/kafka/kafkaservice/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -9238,9 +10088,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/knapsack/objective/gomoney/.ai/GOAL.md",
+        "pkg/knapsack/objective/gomoney/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/knapsack/objective/gomoney/.ai/GOAL.md",
+          "requirements_sha256": "b6546bfe34afe254068c79e2ef55a1b3dae416e7918d86072d3acd7b90f0d1c9",
+          "implementation_evidence": [
+            "pkg/knapsack/objective/gomoney/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/knapsack/objective/gomoney/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "83771d1e88b49866a7ab0a6fc8efaab284eb5d0efdcaf709078d42ef01262ebe",
+          "implementation_evidence": [
+            "pkg/knapsack/objective/gomoney/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -12567,9 +13483,77 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/outbox/adapters/gokafka/.ai/GOAL.md",
+        "pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/outbox/adapters/gokafka/.ai/GOAL.md",
+          "requirements_sha256": "0d859bdfb27f242b55db0b5d40634e5b0ed4f039926dd7d1304914206e9a268f",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/gokafka/CHANGELOG.md",
+            "pkg/outbox/adapters/gokafka/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "429d85feeaed50c4a37bc054fd331a242ea9b8a7db50c0f775b477134c42fbaa",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/gokafka/CHANGELOG.md",
+            "pkg/outbox/adapters/gokafka/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -12623,9 +13607,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/outbox/adapters/goqueue/.ai/GOAL.md",
+        "pkg/outbox/adapters/goqueue/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/outbox/adapters/goqueue/.ai/GOAL.md",
+          "requirements_sha256": "38365e426b33cd1f806deaa5c2c64da9ade566ec17d24dc697f04d6991128ce8",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/goqueue/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/outbox/adapters/goqueue/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "307ff602816ecf36bc739474ca2e69f132f0647cecc9299da50cf1ed57eaa996",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/goqueue/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -12684,9 +13734,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/outbox/adapters/gotelemetry/.ai/GOAL.md",
+        "pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL.md",
+          "requirements_sha256": "8eb9a5c82bff1be4287f8da231019859c016025192dc8c802893501aa53fd190",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "b7bb6f51a4882f9523aacc5d1f618f079ea4b5d250ae6292728fa04c60cc7fff",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -14373,9 +15489,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/queue/queueservice/.ai/GOAL.md",
+        "pkg/queue/queueservice/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/queue/queueservice/.ai/GOAL.md",
+          "requirements_sha256": "228328089362ceea6d1a05107e6a628d33b1a49b5ada456ef38eb398b43bd02f",
+          "implementation_evidence": [
+            "pkg/queue/queueservice/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/queue/queueservice/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "81f5b32d2d9a7d4315a7cdb53910aa15027e0c5b189fdd54ad599f059f263f01",
+          "implementation_evidence": [
+            "pkg/queue/queueservice/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15354,9 +16536,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/rule-engine/adapters/gomath/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL.md",
+          "requirements_sha256": "220bc542fc10ba57bb678e29e066521608e86c0019c7e116456b73df3cc2cb6a",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gomath/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "16c00312d8f1e926984f2f61396b609371ab51f6beec1f56b7b1ac4771e6f139",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gomath/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15409,9 +16657,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL.md",
+          "requirements_sha256": "dd36c8e75e9e5edfd142c8ea28002d5fae38ab97c26fba86ceb124122671068d",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "f5f21f9821822563e6a80e4fd9c1652832272a5effa7baa0b0032ed7a5925a52",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15464,9 +16778,75 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/rule-engine/adapters/gotemporal/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/gotemporal/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL.md",
+          "requirements_sha256": "25fa67e8e71e4a8f082cc3cf9a0a9470dd27e04c30e388e69377147caefbfb15",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "3b716edb8cccb702a5952d6e575041bc91d54d3c30f77119e6b0145c25a00be3",
+          "implementation_evidence": [
+            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15923,9 +17303,85 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/secret-envelope/.ai/GOAL.md",
+        "pkg/secret-envelope/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/secret-envelope/.ai/GOAL.md",
+          "requirements_sha256": "a570bd8a8494cf6789491a0848a650a3c09c9231562d6b8aa34db94bad6621ee",
+          "implementation_evidence": [
+            "pkg/secret-envelope/CHANGELOG.md",
+            "pkg/secret-envelope/README.md",
+            "pkg/secret-envelope/docs/api.md",
+            "pkg/secret-envelope/docs/architecture.md",
+            "pkg/secret-envelope/docs/compatibility.md",
+            "pkg/secret-envelope/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/secret-envelope/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "17f5a34fd2f75d7620aef5eb00198d74d3a4d04f02052eaaf4f113fdcbdddc08",
+          "implementation_evidence": [
+            "pkg/secret-envelope/CHANGELOG.md",
+            "pkg/secret-envelope/README.md",
+            "pkg/secret-envelope/docs/api.md",
+            "pkg/secret-envelope/docs/architecture.md",
+            "pkg/secret-envelope/docs/compatibility.md",
+            "pkg/secret-envelope/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -15978,9 +17434,85 @@
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
-      "goal_files": [],
-      "goal_status": "not-applicable",
-      "goal_evidence": [],
+      "goal_files": [
+        "pkg/secret-store/adapters/awssecretsmanager/.ai/GOAL.md",
+        "pkg/secret-store/adapters/awssecretsmanager/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/secret-store/adapters/awssecretsmanager/.ai/GOAL.md",
+          "requirements_sha256": "4cba7ff9f9eb66e71956749f02b81eb3583b2868600ef6bedcccbf2e1b453829",
+          "implementation_evidence": [
+            "pkg/secret-store/adapters/awssecretsmanager/CHANGELOG.md",
+            "pkg/secret-store/adapters/awssecretsmanager/README.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/api.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/architecture.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/compatibility.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/secret-store/adapters/awssecretsmanager/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "27bd8c2d373cf0d532eb9252f294955f87428d2d15900195cd22930418639461",
+          "implementation_evidence": [
+            "pkg/secret-store/adapters/awssecretsmanager/CHANGELOG.md",
+            "pkg/secret-store/adapters/awssecretsmanager/README.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/api.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/architecture.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/compatibility.md",
+            "pkg/secret-store/adapters/awssecretsmanager/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -16159,7 +17691,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/sequencer/.ai/GOAL.md",
-        "pkg/sequencer/.ai/GOAL_HARDEN.md"
+        "pkg/sequencer/.ai/GOAL_HARDEN.md",
+        "pkg/sequencer/.ai/GOAL_RESILIENCE.md",
+        "pkg/sequencer/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -16203,6 +17737,80 @@
         {
           "file": "pkg/sequencer/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "ddaab8dbe58ad4ebf4d478c5eb0861f382d1fe14ca41fdbbbd93c6f588342c62",
+          "implementation_evidence": [
+            "pkg/sequencer/CHANGELOG.md",
+            "pkg/sequencer/README.md",
+            "pkg/sequencer/docs/README.md",
+            "pkg/sequencer/docs/api.md",
+            "pkg/sequencer/docs/compatibility.md",
+            "pkg/sequencer/docs/performance.md",
+            "pkg/sequencer/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/sequencer/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "3f4b63d72a99b536d72ba8dd20d64493354f5ffcf1bdf72d8cded899af47a8bd",
+          "implementation_evidence": [
+            "pkg/sequencer/CHANGELOG.md",
+            "pkg/sequencer/README.md",
+            "pkg/sequencer/docs/README.md",
+            "pkg/sequencer/docs/api.md",
+            "pkg/sequencer/docs/compatibility.md",
+            "pkg/sequencer/docs/performance.md",
+            "pkg/sequencer/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/sequencer/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "11a4d274c816f98827d02d154b0809e61684a85ed97e0f882e8bd27078a5125e",
           "implementation_evidence": [
             "pkg/sequencer/CHANGELOG.md",
             "pkg/sequencer/README.md",
@@ -16452,7 +18060,9 @@
         "pkg/service/.ai/GOAL.md",
         "pkg/service/.ai/GOAL_HARDEN.md",
         "pkg/service/.ai/GOAL_PLATFORM.md",
-        "pkg/service/.ai/GOAL_POLISH.md"
+        "pkg/service/.ai/GOAL_POLISH.md",
+        "pkg/service/.ai/GOAL_RESILIENCE.md",
+        "pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -16581,6 +18191,82 @@
         {
           "file": "pkg/service/.ai/GOAL_POLISH.md",
           "requirements_sha256": "ee4988c3f14acf85c9de37d3660cabcfa92e924d3f8e07f99127c8429fdfd398",
+          "implementation_evidence": [
+            "pkg/service/CHANGELOG.md",
+            "pkg/service/README.md",
+            "pkg/service/docs/api.md",
+            "pkg/service/docs/architecture.md",
+            "pkg/service/docs/compatibility.md",
+            "pkg/service/docs/hardening.md",
+            "pkg/service/docs/performance.md",
+            "pkg/service/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/service/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "e6588929d95a98c0a13919c438e1e7093024789bdc4027c52a84b17d7cc33439",
+          "implementation_evidence": [
+            "pkg/service/CHANGELOG.md",
+            "pkg/service/README.md",
+            "pkg/service/docs/api.md",
+            "pkg/service/docs/architecture.md",
+            "pkg/service/docs/compatibility.md",
+            "pkg/service/docs/hardening.md",
+            "pkg/service/docs/performance.md",
+            "pkg/service/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "3e2176d0292957378bb3240f534a054abaac85800e255cb282458b854ff05fde",
           "implementation_evidence": [
             "pkg/service/CHANGELOG.md",
             "pkg/service/README.md",
@@ -17087,7 +18773,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/settings/.ai/GOAL.md",
-        "pkg/settings/.ai/GOAL_HARDEN.md"
+        "pkg/settings/.ai/GOAL_HARDEN.md",
+        "pkg/settings/.ai/GOAL_RESILIENCE.md",
+        "pkg/settings/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -17127,6 +18815,72 @@
         {
           "file": "pkg/settings/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "a0d8e7a6a2e18353cf7fc9802f9030819b4470dd1fdce979d470ceb7e21054ca",
+          "implementation_evidence": [
+            "pkg/settings/CHANGELOG.md",
+            "pkg/settings/README.md",
+            "pkg/settings/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/settings/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "bfb01750b6ff1693af7169512a77f6d5636fd805974e41f95c7ad047c7c81124",
+          "implementation_evidence": [
+            "pkg/settings/CHANGELOG.md",
+            "pkg/settings/README.md",
+            "pkg/settings/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/settings/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "dd5d154916d43d3a1a9f11406ee7b593b413bd447ae3120d1c794df8c9112da8",
           "implementation_evidence": [
             "pkg/settings/CHANGELOG.md",
             "pkg/settings/README.md",
