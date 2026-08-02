@@ -209,6 +209,12 @@ func TestScanMessageRejectsCorruptStoredRows(t *testing.T) {
 				!errors.Is(err, eventsourcing.ErrCorruptHistory) {
 				t.Fatalf("scanMessage() = %v", err)
 			}
+			switch name {
+			case "position", "stream version", "schema version", "schema version overflow":
+				if err != eventsourcing.ErrCorruptHistory {
+					t.Fatalf("scanMessage() classified stored envelope corruption as %v", err)
+				}
+			}
 			if strings.Contains(err.Error(), "account-1") {
 				t.Fatalf("scan error disclosed stored identity: %v", err)
 			}

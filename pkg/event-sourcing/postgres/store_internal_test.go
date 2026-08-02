@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
@@ -63,6 +64,7 @@ func TestTransactionStoreAppendsAndClassifiesExpectedVersions(t *testing.T) {
 		"existing": {eventsourcing.ExpectExistingStream(), 2},
 		"exact":    {eventsourcing.ExpectExactVersion(2), 2},
 		"any":      {eventsourcing.ExpectAnyVersion(), 7},
+		"maximum":  {eventsourcing.ExpectAnyVersion(), math.MaxInt64 - 1},
 	} {
 		testCase := testCase
 		t.Run(name, func(t *testing.T) {
@@ -94,6 +96,23 @@ func TestTransactionStoreAppendsAndClassifiesExpectedVersions(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestInsertMessageRejectsZeroAssignedPosition(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	_, err := insertMessage(
+		context.Background(),
+		&fakeDatabase{rowScans: []scanFunc{scanValues(int64(0))}},
+		"messages",
+		testPending(t, stream, "message-1"),
+		1,
+		0,
+	)
+	if err != eventsourcing.ErrCorruptHistory {
+		t.Fatalf("insertMessage(zero position) error = %v", err)
 	}
 }
 
@@ -360,6 +379,42 @@ func TestAppendRejectsInvalidInputBeforeDatabaseUse(t *testing.T) {
 	cancel()
 	var nilContext context.Context
 	var nilStore *Store
+	if err := validateAppend(
+		&Store{},
+		context.Background(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{message},
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("validateAppend(nil database) error = %v", err)
+	}
+	validStore := &Store{database: &fakeDatabase{}}
+	if err := validateAppend(
+		validStore,
+		context.Background(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{foreign},
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("validateAppend(foreign stream) error = %v", err)
+	}
+	maximum := make([]eventsourcing.PendingMessage, eventsourcing.MaxAppendMessages)
+	for index := range maximum {
+		maximum[index] = testPending(
+			t,
+			stream,
+			fmt.Sprintf("message-%d", index+1),
+		)
+	}
+	if err := validateAppend(
+		validStore,
+		context.Background(),
+		stream,
+		eventsourcing.ExpectAnyVersion(),
+		maximum,
+	); err != nil {
+		t.Fatalf("validateAppend(maximum batch) error = %v", err)
+	}
 	tests := map[string]func() error{
 		"nil store": func() error {
 			_, appendErr := nilStore.Append(
@@ -618,6 +673,9 @@ func TestAppendPreservesDatabaseAndIntegrityFailures(t *testing.T) {
 					eventsourcing.CommitNotCommitted {
 				t.Fatalf("Append() = %v, want %v", err, testCase.want)
 			}
+			if name == "invalid position" && testCase.db.rowCalls != 2 {
+				t.Fatalf("Append(invalid position) row calls = %d", testCase.db.rowCalls)
+			}
 		})
 	}
 }
@@ -820,6 +878,11 @@ func TestReadBoundariesPreserveStoreSemantics(t *testing.T) {
 
 func TestReadsMapUint64RangesWithoutOverflow(t *testing.T) {
 	t.Parallel()
+
+	bounded, possible := postgresBound(math.MaxInt64)
+	if !possible || bounded != math.MaxInt64 {
+		t.Fatalf("postgresBound(maximum) = %d, %t", bounded, possible)
+	}
 
 	stream := testStream(t)
 	from := uint64(^uint64(0)>>1) + 1

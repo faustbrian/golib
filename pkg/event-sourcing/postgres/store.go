@@ -546,7 +546,10 @@ func validateAppend(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if stream.IsZero() || !expected.Valid() ||
+	if stream.IsZero() {
+		return eventsourcing.ErrInvalidArgument
+	}
+	if !expected.Valid() ||
 		len(pending) == 0 || len(pending) > eventsourcing.MaxAppendMessages {
 		return eventsourcing.ErrInvalidArgument
 	}

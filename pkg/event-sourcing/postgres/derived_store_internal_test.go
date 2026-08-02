@@ -118,6 +118,113 @@ func TestSnapshotStoreLoadsAndDeletes(t *testing.T) {
 	}
 }
 
+func TestSnapshotStoreValidatesEachInputIndependently(t *testing.T) {
+	t.Parallel()
+
+	snapshot := derivedSnapshot(t, 1, 1, `{}`)
+	validStream := snapshot.Stream()
+	validDatabase := &fakeDatabase{}
+	validBeginner := &fakeBeginner{}
+	var nilContext context.Context
+
+	loadCases := map[string]struct {
+		store  *SnapshotStore
+		ctx    context.Context
+		stream eventsourcing.StreamID
+	}{
+		"nil store": {
+			ctx:    context.Background(),
+			stream: validStream,
+		},
+		"nil database": {
+			store:  &SnapshotStore{},
+			ctx:    context.Background(),
+			stream: validStream,
+		},
+		"nil context": {
+			store:  &SnapshotStore{database: validDatabase},
+			ctx:    nilContext,
+			stream: validStream,
+		},
+		"zero stream": {
+			store: &SnapshotStore{database: validDatabase},
+			ctx:   context.Background(),
+		},
+	}
+	for name, testCase := range loadCases {
+		testCase := testCase
+		t.Run("load "+name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := testCase.store.Load(testCase.ctx, testCase.stream); !errors.Is(
+				err,
+				eventsourcing.ErrInvalidArgument,
+			) {
+				t.Fatalf("Load() error = %v", err)
+			}
+		})
+		t.Run("delete "+name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := testCase.store.Delete(testCase.ctx, testCase.stream); !errors.Is(
+				err,
+				eventsourcing.ErrInvalidArgument,
+			) {
+				t.Fatalf("Delete() error = %v", err)
+			}
+		})
+	}
+
+	saveCases := map[string]struct {
+		store    *SnapshotStore
+		ctx      context.Context
+		snapshot eventsourcing.Snapshot
+	}{
+		"nil store": {
+			ctx:      context.Background(),
+			snapshot: snapshot,
+		},
+		"nil beginner": {
+			store:    &SnapshotStore{database: validDatabase},
+			ctx:      context.Background(),
+			snapshot: snapshot,
+		},
+		"nil database": {
+			store:    &SnapshotStore{beginner: validBeginner},
+			ctx:      context.Background(),
+			snapshot: snapshot,
+		},
+		"nil context": {
+			store: &SnapshotStore{
+				beginner: validBeginner,
+				database: validDatabase,
+			},
+			ctx:      nilContext,
+			snapshot: snapshot,
+		},
+		"zero snapshot": {
+			store: &SnapshotStore{
+				beginner: validBeginner,
+				database: validDatabase,
+			},
+			ctx: context.Background(),
+		},
+	}
+	for name, testCase := range saveCases {
+		testCase := testCase
+		t.Run("save "+name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := testCase.store.Save(testCase.ctx, testCase.snapshot); !errors.Is(
+				err,
+				eventsourcing.ErrInvalidArgument,
+			) {
+				t.Fatalf("Save() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestSnapshotStoreOwnsAtomicSaveTransaction(t *testing.T) {
 	t.Parallel()
 
@@ -132,6 +239,16 @@ func TestSnapshotStoreOwnsAtomicSaveTransaction(t *testing.T) {
 	}{
 		"insert": {
 			snapshot: current,
+			beginner: snapshotBeginner(
+				[]scanFunc{scanValues(true)},
+				nil,
+				[]pgconn.CommandTag{},
+				nil,
+			),
+			wantCommit: true,
+		},
+		"maximum aggregate version": {
+			snapshot: derivedSnapshot(t, math.MaxInt64, 1, `{}`),
 			beginner: snapshotBeginner(
 				[]scanFunc{scanValues(true)},
 				nil,
@@ -218,6 +335,32 @@ func TestSnapshotStoreOwnsAtomicSaveTransaction(t *testing.T) {
 		},
 		"update": {
 			snapshot: newer,
+			beginner: snapshotBeginner(
+				[]scanFunc{
+					scanError(pgx.ErrNoRows),
+					snapshotScan(current),
+				},
+				nil,
+				[]pgconn.CommandTag{pgconn.NewCommandTag("UPDATE 1")},
+				nil,
+			),
+			wantCommit: true,
+		},
+		"aggregate-only update": {
+			snapshot: derivedSnapshot(t, 8, 2, `{"owner":"Ada","closed":true}`),
+			beginner: snapshotBeginner(
+				[]scanFunc{
+					scanError(pgx.ErrNoRows),
+					snapshotScan(current),
+				},
+				nil,
+				[]pgconn.CommandTag{pgconn.NewCommandTag("UPDATE 1")},
+				nil,
+			),
+			wantCommit: true,
+		},
+		"schema-only update": {
+			snapshot: derivedSnapshot(t, 7, 3, `{"owner":"Ada","closed":true}`),
 			beginner: snapshotBeginner(
 				[]scanFunc{
 					scanError(pgx.ErrNoRows),
@@ -373,7 +516,24 @@ func TestScanSnapshotRejectsCorruptStoredValues(t *testing.T) {
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("scanSnapshot() error = %v", err)
 			}
+			switch name {
+			case "aggregate version", "schema version", "schema overflow":
+				if err != eventsourcing.ErrSnapshotCorrupt {
+					t.Fatalf("scanSnapshot() classified stored envelope corruption as %v", err)
+				}
+			}
 		})
+	}
+
+	maximum := derivedSnapshot(
+		t,
+		7,
+		eventsourcing.SchemaVersion(math.MaxUint32),
+		`{"owner":"Ada"}`,
+	)
+	scanned, err := scanSnapshot(fakeRow{scan: snapshotScan(maximum)})
+	if err != nil || !scanned.Equal(maximum) {
+		t.Fatalf("scanSnapshot(maximum schema version) = %#v, %v", scanned, err)
 	}
 }
 
@@ -907,6 +1067,16 @@ func TestProjectionStatusValidationAndCheckpointInput(t *testing.T) {
 		unsupported,
 	); !errors.Is(err, eventsourcing.ErrVersionOverflow) {
 		t.Fatalf("Save(overflow) error = %v", err)
+	}
+	maximum := eventsourcing.GlobalPosition(math.MaxInt64)
+	if err := validateCheckpoint(
+		store,
+		context.Background(),
+		"summary",
+		maximum-1,
+		maximum,
+	); err != nil {
+		t.Fatalf("validateCheckpoint(maximum) error = %v", err)
 	}
 	if validProjectionName("") || !validProjectionName("summary") {
 		t.Fatal("projection name validation is inconsistent")
