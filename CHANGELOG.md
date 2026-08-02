@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Resolve explicit module selections from the registered catalog so scoped
+  gates are not blocked by unrelated incomplete module work.
 - Track shared runners and gate-specific helpers independently so changes to
   mutation-only tooling cannot invalidate unrelated test, race, coverage, or
   fuzz evidence.

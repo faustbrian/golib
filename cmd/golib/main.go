@@ -215,7 +215,10 @@ func selectModules(root string, arguments []string) {
 		fatal("parse selection: %v", err)
 	}
 
-	current, err := discover(root)
+	current, err := catalogForSelection(
+		root,
+		*explicit != "" && !*all && *changed == "",
+	)
 	if err != nil {
 		fatal("discover modules: %v", err)
 	}
@@ -1300,6 +1303,23 @@ func gates(kind string, hasPackages bool) map[string]bool {
 		"security":          kind != "fixture" && hasPackages,
 		"tests":             kind != "fixture" && hasPackages,
 	}
+}
+
+func catalogForSelection(root string, explicitOnly bool) (catalog, error) {
+	if !explicitOnly {
+		return discover(root)
+	}
+
+	contents, err := os.ReadFile(filepath.Join(root, "modules.json"))
+	if err != nil {
+		return catalog{}, fmt.Errorf("read registered modules: %w", err)
+	}
+	current := catalog{}
+	if err := json.Unmarshal(contents, &current); err != nil {
+		return catalog{}, fmt.Errorf("decode registered modules: %w", err)
+	}
+
+	return current, nil
 }
 
 func validateWorkspace(root string, current catalog) {

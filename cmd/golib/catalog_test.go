@@ -304,6 +304,36 @@ func TestValidateModuleLicense(t *testing.T) {
 	}
 }
 
+func TestCatalogForExplicitSelectionUsesRegisteredModules(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "modules.json"), `{
+  "schema_version": 1,
+  "repository": "github.com/faustbrian/golib",
+  "modules": [{
+    "directory": "pkg/kafka",
+    "module_path": "github.com/faustbrian/golib/pkg/kafka",
+    "owned_dependencies": []
+  }]
+}
+`)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg", "unfinished", "go.mod"),
+		"module github.com/faustbrian/golib/pkg/unfinished\n",
+	)
+
+	current, err := catalogForSelection(root, true)
+	if err != nil {
+		t.Fatalf("catalogForSelection() error = %v", err)
+	}
+	if len(current.Modules) != 1 ||
+		current.Modules[0].Directory != "pkg/kafka" {
+		t.Fatalf("catalogForSelection() modules = %#v", current.Modules)
+	}
+}
+
 func TestModuleDirectoriesExcludeGeneratedCaches(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
