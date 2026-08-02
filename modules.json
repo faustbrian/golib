@@ -47,6 +47,7 @@
         ".ai/GOAL_HARDEN.md",
         ".ai/GOAL_MAINTENANCE.md",
         ".ai/GOAL_MONOREPO_REMEDIATION.md",
+        ".ai/GOAL_OPERATIONAL_ASSURANCE.md",
         ".ai/GOAL_PERFORMANCE.md",
         ".ai/GOAL_POLISH.md",
         ".ai/GOAL_QUEUE_WORKER_BALANCING.md",
@@ -324,6 +325,39 @@
           "implementation_status": "implemented-requires-fresh-verification"
         },
         {
+          "file": ".ai/GOAL_OPERATIONAL_ASSURANCE.md",
+          "requirements_sha256": "2c979e70fbaee650c29f29fd964678742546647a602a07a440aa26de14772c2a",
+          "implementation_evidence": [
+            "CHANGELOG.md",
+            "README.md",
+            "docs/architecture.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
           "file": ".ai/GOAL_PERFORMANCE.md",
           "requirements_sha256": "1919fd3313d47083c3b58541d2c35502c97da5003421eacce6a082eb300f5881",
           "implementation_evidence": [
@@ -424,7 +458,7 @@
         },
         {
           "file": ".ai/GOAL_RELEASE.md",
-          "requirements_sha256": "e25f23bc9fb116c4656f55db8c5bdf636ae8e8e1aa428a89397bac2be280359f",
+          "requirements_sha256": "3be68c9a21046cfb7d180168faf8449f47f8bf69a7eb70a8b7a583a798abf0b7",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
