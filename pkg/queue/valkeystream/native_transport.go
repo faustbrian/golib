@@ -776,13 +776,20 @@ func parseReplayLineage(fields map[string]string) (string, string, uint32, error
 	if !originalOK && !priorOK && !generationOK {
 		return "", "", 0, nil
 	}
-	if !originalOK || !priorOK || !generationOK || strings.TrimSpace(original) == "" ||
-		strings.TrimSpace(prior) == "" || len(original) > management.MaxIdentityBytes ||
-		len(prior) > management.MaxIdentityBytes {
+	if !originalOK || !priorOK || !generationOK {
+		return "", "", 0, errors.New("incomplete replay lineage")
+	}
+	if strings.TrimSpace(original) == "" || strings.TrimSpace(prior) == "" {
+		return "", "", 0, errors.New("incomplete replay lineage")
+	}
+	if len(original) > management.MaxIdentityBytes || len(prior) > management.MaxIdentityBytes {
 		return "", "", 0, errors.New("incomplete replay lineage")
 	}
 	generation, err := strconv.ParseUint(generationText, 10, 32)
-	if err != nil || generation == 0 {
+	if err != nil {
+		return "", "", 0, errors.New("invalid replay generation")
+	}
+	if generation == 0 {
 		return "", "", 0, errors.New("invalid replay generation")
 	}
 	return original, prior, uint32(generation), nil
@@ -798,7 +805,10 @@ func parsePendingAttempts(value any) (int64, error) {
 		return 0, malformedResponse("invalid pending delivery")
 	}
 	attempts, ok := pending[3].(int64)
-	if !ok || attempts < 1 {
+	if !ok {
+		return 0, malformedResponse("invalid delivery attempts")
+	}
+	if attempts < 1 {
 		return 0, malformedResponse("invalid delivery attempts")
 	}
 	return attempts, nil
@@ -852,8 +862,9 @@ func alternatingFields(value any) (map[string]string, bool) {
 	if !ok || len(values)%2 != 0 {
 		return nil, false
 	}
-	fields := make(map[string]string, len(values)/2)
-	for index := 0; index < len(values); index += 2 {
+	fields := make(map[string]string)
+	for pair := range len(values) / 2 {
+		index := pair * 2
 		field, fieldOK := values[index].(string)
 		value, valueOK := values[index+1].(string)
 		if !fieldOK || !valueOK || field == "" {

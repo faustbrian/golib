@@ -797,13 +797,17 @@ type recordTransportStub struct {
 
 type recordPageTransportStub struct {
 	recordTransportStub
-	readErr error
-	found   bool
+	readErr       error
+	found         bool
+	lastLimit     int64
+	lastDirection management.SortDirection
 }
 
 func (s *recordPageTransportStub) ReadRecordPage(
-	context.Context, string, string, int64, management.SortDirection,
+	_ context.Context, _, _ string, limit int64, direction management.SortDirection,
 ) ([]nativeRecord, error) {
+	s.lastLimit = limit
+	s.lastDirection = direction
 	return s.records, s.err
 }
 

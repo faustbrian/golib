@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -105,13 +104,8 @@ func (w *Worker) listRecords(
 	if err != nil {
 		return management.RecordPage{}, err
 	}
-	if offset >= len(items) {
-		return management.RecordPage{Items: []management.JobRecord{}}, nil
-	}
-	end := offset
-	for remaining := request.Limit; end < len(items) && remaining > 0; remaining-- {
-		end++
-	}
+	offset = min(offset, len(items))
+	end := min(offset+int(request.Limit), len(items))
 	page := management.RecordPage{Items: items[offset:end]}
 	if end < len(items) {
 		page.NextCursor = encodeRecordCursor(end)
@@ -132,7 +126,7 @@ func (w *Worker) listNativeRecordPage(
 	}
 	scanLimit := int64(request.Limit)
 	if request.Search != "" {
-		scanLimit *= valkeyRecordSearchFactor
+		scanLimit = int64(request.Limit) * valkeyRecordSearchFactor
 	}
 	records, err := transport.ReadRecordPage(
 		ctx, stream, cursor, scanLimit, request.Direction,
@@ -207,8 +201,11 @@ func (w *Worker) nativeRecords(ctx context.Context, stream string) ([]nativeReco
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	if stream == "" {
+		return nil, ErrManagementRecordsDisabled
+	}
 	transport, ok := w.transport.(nativeRecordTransport)
-	if !ok || stream == "" {
+	if !ok {
 		return nil, ErrManagementRecordsDisabled
 	}
 	return transport.ReadRecords(ctx, stream)
@@ -219,7 +216,8 @@ func (w *Worker) managementRecords(
 ) ([]management.JobRecord, error) {
 	items := make([]management.JobRecord, 0, len(records))
 	for _, record := range records {
-		if record.Attempts < 1 || record.Attempts > math.MaxUint32 {
+		attempts := uint32(record.Attempts)
+		if attempts == 0 || int64(attempts) != record.Attempts {
 			return nil, fmt.Errorf("valkeystream: invalid management record attempts")
 		}
 		payload := management.Payload{Visibility: visibility, Size: int64(len(record.Body))}
@@ -233,7 +231,7 @@ func (w *Worker) managementRecords(
 		}
 		item := management.JobRecord{
 			Kind: kind, ID: record.ID, Backend: w.BackendName(), Queue: w.opts.stream,
-			OccurredAt: record.OccurredAt, Attempts: uint32(record.Attempts),
+			OccurredAt: record.OccurredAt, Attempts: attempts,
 			FailureCode: failureCode, Payload: payload,
 		}
 		if record.EnvelopeVersion == management.CurrentEnvelopeVersion {
@@ -291,13 +289,20 @@ func convertNativeRecords(entries []valkey.XRangeEntry) ([]nativeRecord, error) 
 			continue
 		}
 		version, versionErr := strconv.ParseUint(versionText, 10, 16)
+		if versionErr != nil {
+			return nil, fmt.Errorf("valkeystream: malformed management record")
+		}
+		if uint16(version) != management.CurrentEnvelopeVersion {
+			return nil, fmt.Errorf("valkeystream: malformed management record")
+		}
 		classification := management.Classification(entry.FieldValues[classificationField])
 		failureCode := entry.FieldValues[failureCodeField]
 		source := entry.FieldValues[sourceStreamField]
 		group := entry.FieldValues[consumerGroupField]
-		if versionErr != nil || uint16(version) != management.CurrentEnvelopeVersion ||
-			management.NewFailure(classification, failureCode, nil).Validate() != nil ||
-			source == "" || group == "" {
+		if management.NewFailure(classification, failureCode, nil).Validate() != nil {
+			return nil, fmt.Errorf("valkeystream: malformed management record")
+		}
+		if source == "" || group == "" {
 			return nil, fmt.Errorf("valkeystream: malformed management record")
 		}
 		current := &records[len(records)-1]
@@ -374,14 +379,26 @@ func decodeRecordCursor(cursor string) (int, error) {
 		return 0, nil
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil || base64.RawURLEncoding.EncodeToString(decoded) != cursor {
+	if err != nil {
+		return 0, fmt.Errorf(
+			"valkeystream: invalid management record cursor: %w",
+			management.ErrMalformedCursor,
+		)
+	}
+	if base64.RawURLEncoding.EncodeToString(decoded) != cursor {
 		return 0, fmt.Errorf(
 			"valkeystream: invalid management record cursor: %w",
 			management.ErrMalformedCursor,
 		)
 	}
 	offset, err := strconv.Atoi(string(decoded))
-	if err != nil || offset < 0 {
+	if err != nil {
+		return 0, fmt.Errorf(
+			"valkeystream: invalid management record cursor: %w",
+			management.ErrMalformedCursor,
+		)
+	}
+	if offset < 0 {
 		return 0, fmt.Errorf(
 			"valkeystream: invalid management record cursor: %w",
 			management.ErrMalformedCursor,
@@ -399,8 +416,13 @@ func decodeNativeRecordCursor(cursor string) (string, error) {
 		return "", nil
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil || base64.RawURLEncoding.EncodeToString(decoded) != cursor ||
-		len(decoded) == 0 || len(decoded) > management.MaxIdentityBytes {
+	if err != nil {
+		return "", management.ErrMalformedCursor
+	}
+	if base64.RawURLEncoding.EncodeToString(decoded) != cursor {
+		return "", management.ErrMalformedCursor
+	}
+	if len(decoded) > management.MaxIdentityBytes {
 		return "", management.ErrMalformedCursor
 	}
 	if _, err := recordTime(string(decoded)); err != nil {

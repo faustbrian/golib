@@ -357,6 +357,7 @@ type mutationTransportStub struct {
 	replayDestinations []string
 	replayOutcome      nativeReplayOutcome
 	replayErr          error
+	failureTargets     []bool
 }
 
 func (s *mutationTransportStub) ReplayRecord(
@@ -374,9 +375,10 @@ func (s *mutationTransportStub) ReplayRecord(
 }
 
 func (s *mutationTransportStub) RetryRecord(
-	_ context.Context, _ string, id, destination, _, _ string, _ bool,
+	_ context.Context, _ string, id, destination, _, _ string, failure bool,
 ) (nativeRetryOutcome, error) {
 	s.destinations = append(s.destinations, destination)
+	s.failureTargets = append(s.failureTargets, failure)
 	s.retryCalls++
 	if s.err != nil {
 		return "", s.err
