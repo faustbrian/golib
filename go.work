@@ -34,6 +34,9 @@ use (
 	./pkg/event-sourcing/benchmarks/competitors
 	./pkg/event-sourcing/postgres
 	./pkg/external-sort
+	./pkg/fault-injection
+	./pkg/fault-injection/benchmarks/comparison
+	./pkg/fault-injection/integration/resilience
 	./pkg/feature-flags
 	./pkg/filesystem
 	./pkg/geo
@@ -176,6 +179,8 @@ replace github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors v0
 replace github.com/faustbrian/golib/pkg/event-sourcing/postgres v0.0.0 => ./pkg/event-sourcing/postgres
 
 replace github.com/faustbrian/golib/pkg/external-sort v0.0.0 => ./pkg/external-sort
+
+replace github.com/faustbrian/golib/pkg/fault-injection v0.0.0 => ./pkg/fault-injection
 
 replace github.com/faustbrian/golib/pkg/feature-flags v0.0.0 => ./pkg/feature-flags
 
@@ -330,3 +335,7 @@ replace github.com/faustbrian/golib/pkg/queue/queueservice v0.0.0 => ./pkg/queue
 replace github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager v0.0.0 => ./pkg/secret-store/adapters/awssecretsmanager
 
 replace github.com/faustbrian/golib/pkg/semaphore v0.0.0 => ./pkg/semaphore
+
+replace github.com/faustbrian/golib/pkg/fault-injection/benchmarks/comparison v0.0.0 => ./pkg/fault-injection/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/fault-injection/integration/resilience v0.0.0 => ./pkg/fault-injection/integration/resilience
