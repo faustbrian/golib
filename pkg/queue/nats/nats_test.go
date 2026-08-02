@@ -21,7 +21,13 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+	goleak.VerifyTestMain(
+		m,
+		// Testcontainers owns this process-wide cleanup connection.
+		goleak.IgnoreTopFunction(
+			"github.com/testcontainers/testcontainers-go.(*Reaper).connect.func1",
+		),
+	)
 }
 
 type mockMessage struct {
