@@ -47,6 +47,19 @@ Build tooling that determines:
 The default operation MUST be a non-mutating dry run. Release order MUST be
 derived from the owned-module dependency graph.
 
+## Operational Assurance Prerequisite
+
+`.ai/GOAL_OPERATIONAL_ASSURANCE.md` MUST complete with a `ready` verdict, or a
+`ready with named accepted risks` verdict whose residual risks have each been
+explicitly accepted by the user, before any mutating release operation. A
+`not ready` verdict, incomplete evidence matrix, unaccepted risk, missing
+platform/service exercise, or stale affected evidence MUST block release.
+
+Release tooling MUST consume the assurance verdict and its content-scoped
+evidence rather than infer readiness from Git history, package-local green
+checks, or the presence of reports. A change after the verdict invalidates only
+the affected evidence, scenarios, modules, and reverse dependants.
+
 ## Release Gates
 
 Before tagging a module, require:
@@ -57,6 +70,9 @@ Before tagging a module, require:
   documentation, conformance, API, and benchmark gates;
 - an accurate changelog and migration guide for breaking changes;
 - dependency and license review;
+- a current operational-assurance verdict covering the module, its adapters,
+  composed production paths, supported deployment platforms, and affected
+  reverse dependants;
 - a valid directory-prefixed tag;
 - clean external-consumer resolution;
 - explicit approval required by repository policy.

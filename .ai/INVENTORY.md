@@ -105,19 +105,29 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 38 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 39 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 40 | Hardening | `pending` | `pkg/external-sort/.ai/GOAL_HARDEN.md` | Existing external-sort implementation |
-| 41 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-40 |
-| 42 | Repository audit | `pending-reexecution` | `.ai/GOAL_COMPATIBILITY.md` | 3-41 |
-| 43 | Repository audit | `pending-reexecution` | `.ai/GOAL_SECURITY.md` | 3-42 |
-| 44 | Repository audit | `pending-reexecution` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-43 |
-| 45 | Repository audit | `pending-reexecution` | `.ai/GOAL_BENCHMARKS.md` | 3-44 |
-| 46 | Repository audit | `pending-reexecution` | `.ai/GOAL_PERFORMANCE.md` | 45 |
-| 47 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-46 |
-| 48 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 3-47 |
-| 49 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-48 |
-| 50 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-49 |
-| 51 | Repository audit | `pending-reexecution` | `.ai/GOAL_HARDEN.md` | 3-50 |
-| 52 | Repository audit | `pending-reexecution` | `.ai/GOAL.md` | 3-51 |
-| 53 | Release | `pending` | `.ai/GOAL_RELEASE.md` | 3-52 and explicit release authority |
+| 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
+| 42 | Security | `pending` | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19, 21-23, 41 |
+| 43 | Isolation | `pending` | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 21-23 |
+| 44 | Audit | `pending` | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 29-32, 43 |
+| 45 | Event contracts | `pending` | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26 |
+| 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
+| 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
+| 48 | Search | `pending` | `pkg/search/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 29-32, 43 |
+| 49 | Search adapter | `pending` | `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` | 48 |
+| 50 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-49 |
+| 51 | Repository audit | `pending-reexecution` | `.ai/GOAL_COMPATIBILITY.md` | 3-50 |
+| 52 | Repository audit | `pending-reexecution` | `.ai/GOAL_SECURITY.md` | 3-51 |
+| 53 | Repository audit | `pending-reexecution` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-52 |
+| 54 | Repository audit | `pending-reexecution` | `.ai/GOAL_BENCHMARKS.md` | 3-53 |
+| 55 | Repository audit | `pending-reexecution` | `.ai/GOAL_PERFORMANCE.md` | 54 |
+| 56 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-55 |
+| 57 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 3-56 |
+| 58 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-57 |
+| 59 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-58 |
+| 60 | Repository audit | `pending-reexecution` | `.ai/GOAL_HARDEN.md` | 3-59 |
+| 61 | Repository audit | `pending-reexecution` | `.ai/GOAL.md` | 3-60 |
+| 62 | Operational assurance | `pending` | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` | 3-61 |
+| 63 | Release | `pending` | `.ai/GOAL_RELEASE.md` | 3-62 and explicit release authority |
 
 ## Recurring And Previously Executed Goals
 
