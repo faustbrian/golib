@@ -88,6 +88,10 @@ func TestParseEmptyAndOffsetComponents(t *testing.T) {
 	if _, err := Parse("", 1); err != nil {
 		t.Fatalf("Parse(empty) error = %v", err)
 	}
+	exact := "fields=id"
+	if _, err := Parse(exact, len(exact)); err != nil {
+		t.Fatalf("Parse(exact byte limit) error = %v", err)
+	}
 	if _, valid := sortList("id,,status"); valid {
 		t.Fatal("sortList accepted an empty member")
 	}

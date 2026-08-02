@@ -106,6 +106,9 @@ func TestIdentifierValidationMatrix(t *testing.T) {
 			t.Fatalf("NewCompiler() accepted %q", identifier)
 		}
 	}
+	if _, err := apiquerypgx.NewCompiler(apiquerypgx.Mapping{Fields: map[string]string{"id": "catalog.records.id"}}); err != nil {
+		t.Fatalf("NewCompiler() rejected three-part identifier: %v", err)
+	}
 	if _, err := apiquerypgx.NewCompiler(apiquerypgx.Mapping{Fields: map[string]string{"": "records.id"}}); err == nil {
 		t.Fatal("NewCompiler() accepted empty capability name")
 	}

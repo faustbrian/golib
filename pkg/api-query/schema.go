@@ -307,7 +307,7 @@ func indexRelationships(schema *Schema, relationships []RelationshipDefinition, 
 			collector.add(CodeConflict, path, "relationship creates a resource cycle")
 			continue
 		}
-		nextAncestors := make(map[string]struct{}, len(ancestors)+1)
+		nextAncestors := make(map[string]struct{})
 		for resource := range ancestors {
 			nextAncestors[resource] = struct{}{}
 		}

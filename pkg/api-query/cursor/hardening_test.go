@@ -91,6 +91,11 @@ func TestEncodePayloadBoundMatrix(t *testing.T) {
 		t.Fatalf("Encode(random failure) error = %v", err)
 	}
 	codec.random = bytes.NewReader(make([]byte, 12))
+	codec.maxEncodedBytes = 1
+	if _, err := codec.Encode(valid); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Encode(plain size) error = %v", err)
+	}
+	codec.random = bytes.NewReader(make([]byte, 12))
 	codec.maxEncodedBytes = 220
 	if _, err := codec.Encode(valid); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("Encode(size) error = %v", err)
@@ -118,6 +123,43 @@ func TestEncodePayloadBoundMatrix(t *testing.T) {
 	}
 }
 
+func TestExactCursorAndKeyBoundariesAreAccepted(t *testing.T) {
+	t.Parallel()
+
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	for _, keyID := range []string{strings.Repeat("a", 64), "azAZ09_-"} {
+		if _, err := NewKeyring(Key{ID: keyID, Secret: secret}); err != nil {
+			t.Fatalf("NewKeyring(exact key %q) error = %v", keyID, err)
+		}
+	}
+
+	now := time.Date(2026, 7, 16, 12, 0, 0, 0, time.UTC)
+	codec := internalCodec(t, now, Config{})
+	codec.maxEncodedBytes = 2048
+	payload := Payload{
+		SchemaRevision: strings.Repeat("s", codec.maxStringBytes),
+		Policy:         strings.Repeat("p", codec.maxStringBytes),
+		Direction:      Backward,
+		Sorts: []apiquery.SortTerm{{
+			Name: strings.Repeat("n", codec.maxStringBytes), Direction: apiquery.Descending, Nulls: apiquery.NullsFirst,
+		}},
+		Positions: []apiquery.Value{apiquery.StringValue(strings.Repeat("v", codec.maxStringBytes))},
+		ExpiresAt: now.Add(codec.maxTTL),
+	}
+	token, err := codec.Encode(payload)
+	if err != nil {
+		t.Fatalf("Encode(exact payload boundaries) error = %v", err)
+	}
+	codec.maxEncodedBytes = len(token)
+	codec.random = bytes.NewReader(make([]byte, 12))
+	if _, err := codec.Encode(payload); err != nil {
+		t.Fatalf("Encode(exact token boundary) error = %v", err)
+	}
+	if _, err := codec.Decode(token, payload.SchemaRevision, payload.Sorts); err != nil {
+		t.Fatalf("Decode(exact token boundary) error = %v", err)
+	}
+}
+
 func TestDecodeEnvelopeFailureMatrix(t *testing.T) {
 	t.Parallel()
 
@@ -139,6 +181,15 @@ func TestDecodeEnvelopeFailureMatrix(t *testing.T) {
 	if _, err := codec.Decode(token, "v1", append(sorts, sorts...)); !errors.Is(err, ErrSort) {
 		t.Fatalf("Decode(sort length) error = %v", err)
 	}
+	codec.keys.mu.Lock()
+	codec.keys.keys["primary"] = []byte("short")
+	codec.keys.mu.Unlock()
+	if _, err := codec.Decode(token, "v1", sorts); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("Decode(invalid key) error = %v", err)
+	}
+	codec.keys.mu.Lock()
+	codec.keys.keys["primary"] = []byte("0123456789abcdef0123456789abcdef")
+	codec.keys.mu.Unlock()
 
 	validWire := wirePayload{Version: "v1", SchemaRevision: "v1", Direction: Forward,
 		Sorts: sorts, Positions: payload.Positions, ExpiresAt: payload.ExpiresAt}

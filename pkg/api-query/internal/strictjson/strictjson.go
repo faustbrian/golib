@@ -15,7 +15,10 @@ const maxDepth = 64
 // Decode validates size, syntax, duplicate members, unknown fields, and trailing
 // data before populating target.
 func Decode(data []byte, maxBytes int, target any) error {
-	if maxBytes <= 0 || len(data) == 0 || len(data) > maxBytes {
+	if len(data) == 0 {
+		return errors.New("JSON size is outside its bounds")
+	}
+	if len(data) > maxBytes {
 		return errors.New("JSON size is outside its bounds")
 	}
 	validator := json.NewDecoder(bytes.NewReader(data))

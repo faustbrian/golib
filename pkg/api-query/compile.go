@@ -1,6 +1,7 @@
 package apiquery
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"math"
@@ -497,7 +498,7 @@ func filterCost(schema *Schema, filter *FilterExpr) int {
 	cost := 0
 	for index := range filter.Children {
 		childCost := filterCost(schema, &filter.Children[index])
-		if childCost > math.MaxInt-cost {
+		if cmp.Compare(childCost, math.MaxInt-cost) == 1 {
 			return math.MaxInt
 		}
 		cost += childCost

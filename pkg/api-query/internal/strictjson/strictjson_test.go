@@ -1,6 +1,7 @@
 package strictjson
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -51,5 +52,43 @@ func TestDecodeRejectsExcessiveNesting(t *testing.T) {
 	var target any
 	if err := Decode([]byte(data), len(data), &target); err == nil {
 		t.Fatal("Decode accepted excessive nesting")
+	}
+}
+
+func TestDecodeHonorsExactSizeAndDepthBoundaries(t *testing.T) {
+	t.Parallel()
+
+	exact := []byte("{\"name\":\"ok\"}")
+	var decoded struct {
+		Name string
+	}
+	if err := Decode(exact, len(exact), &decoded); err != nil || decoded.Name != "ok" {
+		t.Fatalf("Decode(exact size) = %#v, error = %v", decoded, err)
+	}
+	if err := Decode(exact, 0, &decoded); err == nil {
+		t.Fatal("Decode accepted a disabled size limit")
+	}
+
+	exactArrays := strings.Repeat("[", maxDepth-1) + "0" + strings.Repeat("]", maxDepth-1)
+	var value any
+	if err := Decode([]byte(exactArrays), len(exactArrays), &value); err != nil {
+		t.Fatalf("Decode(exact array depth) error = %v", err)
+	}
+	excessiveObjects := strings.Repeat("{\"x\":", maxDepth) + "0" + strings.Repeat("}", maxDepth)
+	if err := Decode([]byte(excessiveObjects), len(excessiveObjects), &value); err == nil {
+		t.Fatal("Decode accepted excessive object nesting")
+	}
+}
+
+func TestRequireEndDistinguishesTrailingValuesFromMalformedData(t *testing.T) {
+	t.Parallel()
+
+	if err := requireEnd(json.NewDecoder(strings.NewReader("true"))); err == nil ||
+		!strings.Contains(err.Error(), "trailing data") {
+		t.Fatalf("requireEnd(trailing value) error = %v", err)
+	}
+	if err := requireEnd(json.NewDecoder(strings.NewReader("#"))); err == nil ||
+		!strings.Contains(err.Error(), "finish JSON") {
+		t.Fatalf("requireEnd(malformed data) error = %v", err)
 	}
 }

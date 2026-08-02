@@ -4,6 +4,7 @@ package cursor
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -78,7 +79,7 @@ func NewKeyring(active Key, retained ...Key) (*Keyring, error) {
 
 // Rotate replaces the active and retained key snapshot atomically.
 func (k *Keyring) Rotate(active Key, retained ...Key) error {
-	keys := make(map[string][]byte, len(retained)+1)
+	keys := make(map[string][]byte)
 	all := append([]Key{active}, retained...)
 	for _, key := range all {
 		if !validKeyID(key.ID) || len(key.Secret) != 32 {
@@ -199,7 +200,10 @@ func (c *Codec) Encode(payload Payload) (string, error) {
 		Positions: append([]apiquery.Value(nil), payload.Positions...),
 		ExpiresAt: payload.ExpiresAt.UTC(), Policy: payload.Policy}
 	plain, err := json.Marshal(wire)
-	if err != nil || len(plain) > c.maxEncodedBytes {
+	if err != nil {
+		return "", ErrInvalid
+	}
+	if cmp.Compare(len(plain), c.maxEncodedBytes) == 1 {
 		return "", ErrInvalid
 	}
 	aead, err := newAEAD(secret)
@@ -225,7 +229,10 @@ func (c *Codec) Encode(payload Payload) (string, error) {
 // Decode authenticates, decrypts, and binds a cursor to the expected schema
 // revision and exact ordered sort definition.
 func (c *Codec) Decode(token, expectedSchema string, expectedSorts []apiquery.SortTerm) (Payload, error) {
-	if len(token) == 0 || len(token) > c.maxEncodedBytes {
+	if token == "" {
+		return Payload{}, ErrInvalid
+	}
+	if cmp.Compare(len(token), c.maxEncodedBytes) == 1 {
 		return Payload{}, ErrInvalid
 	}
 	parts := strings.Split(token, ".")
@@ -244,12 +251,15 @@ func (c *Codec) Decode(token, expectedSchema string, expectedSorts []apiquery.So
 		return Payload{}, ErrInvalid
 	}
 	aead, err := newAEAD(secret)
-	if err != nil || len(sealed) < aead.NonceSize()+aead.Overhead() {
+	if err != nil {
+		return Payload{}, ErrInvalid
+	}
+	if cmp.Compare(len(sealed), aead.NonceSize()+aead.Overhead()) == -1 {
 		return Payload{}, ErrInvalid
 	}
 	nonce, ciphertext := sealed[:aead.NonceSize()], sealed[aead.NonceSize():]
 	plain, err := aead.Open(nil, nonce, ciphertext, []byte(parts[0]+"."+parts[1]))
-	if err != nil || len(plain) > c.maxEncodedBytes {
+	if err != nil {
 		return Payload{}, ErrInvalid
 	}
 	var wire wirePayload

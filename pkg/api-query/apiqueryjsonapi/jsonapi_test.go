@@ -69,6 +69,27 @@ func TestBridgeRefusesToInterpretJSONAPIFamilies(t *testing.T) {
 	}
 }
 
+func TestBridgeSkipsAbsentFamilies(t *testing.T) {
+	t.Parallel()
+
+	filterCalled := false
+	pageCalled := false
+	_, err := apiqueryjsonapi.FromQuery(jsonapi.Query{}, apiqueryjsonapi.Config{
+		Resource: "orders",
+		DecodeFilter: func(jsonapi.ParameterFamily) (*apiquery.FilterExpr, error) {
+			filterCalled = true
+			return nil, nil
+		},
+		DecodePage: func(jsonapi.ParameterFamily) (apiquery.PageRequest, error) {
+			pageCalled = true
+			return apiquery.PageRequest{}, nil
+		},
+	})
+	if err != nil || filterCalled || pageCalled {
+		t.Fatalf("absent families: filter called = %v, page called = %v, error = %v", filterCalled, pageCalled, err)
+	}
+}
+
 func TestBridgeFailureMatrix(t *testing.T) {
 	t.Parallel()
 
