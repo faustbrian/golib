@@ -72,8 +72,11 @@ func setupNSQContainer(ctx context.Context, t *testing.T) (testcontainers.Contai
 	})
 	require.NoError(t, err)
 
-	endpoint, err := nsqC.PortEndpoint(ctx, "4150/tcp", "")
-	require.NoError(t, err)
+	var endpoint string
+	require.Eventually(t, func() bool {
+		endpoint, err = nsqC.PortEndpoint(ctx, "4150/tcp", "")
+		return err == nil
+	}, 5*time.Second, 25*time.Millisecond, "NSQ port mapping did not become visible")
 
 	return nsqC, endpoint
 }

@@ -64,8 +64,11 @@ func setupNatsContainer(ctx context.Context, t *testing.T) (testcontainers.Conta
 	})
 	require.NoError(t, err)
 
-	endpoint, err := natsC.Endpoint(ctx, "")
-	require.NoError(t, err)
+	var endpoint string
+	require.Eventually(t, func() bool {
+		endpoint, err = natsC.PortEndpoint(ctx, "4222/tcp", "")
+		return err == nil
+	}, 5*time.Second, 25*time.Millisecond, "NATS port mapping did not become visible")
 
 	return natsC, endpoint
 }

@@ -57,7 +57,8 @@ func setupRabbitMQContainer(ctx context.Context, t *testing.T) (testcontainers.C
 			"4369/tcp", // epmd
 			"5672/tcp", // amqp
 		},
-		WaitingFor: wait.ForLog("Server startup complete"),
+		WaitingFor: wait.ForLog("Server startup complete").
+			WithStartupTimeout(2 * time.Minute),
 		Env: map[string]string{
 			"RABBITMQ_DEFAULT_USER": "guest",
 			"RABBITMQ_DEFAULT_PASS": "guest",

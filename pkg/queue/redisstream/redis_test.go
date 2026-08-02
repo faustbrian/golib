@@ -109,8 +109,12 @@ func setupRedisClusterContainer(ctx context.Context, t *testing.T) (testcontaine
 		return readErr == nil && strings.Contains(string(body), "cluster_state:ok")
 	}, 5*time.Second, 100*time.Millisecond)
 
-	endpoint, err := redisC.Endpoint(ctx, "")
-	require.NoError(t, err)
+	var endpoint string
+	var endpointErr error
+	require.Eventually(t, func() bool {
+		endpoint, endpointErr = redisC.PortEndpoint(ctx, "6379/tcp", "")
+		return endpointErr == nil
+	}, 5*time.Second, 25*time.Millisecond, "Redis cluster port mapping did not become visible")
 
 	return redisC, endpoint
 }
@@ -133,8 +137,12 @@ func setupRedisContainer(ctx context.Context, t *testing.T) (testcontainers.Cont
 	})
 	require.NoError(t, err)
 
-	endpoint, err := redisC.PortEndpoint(ctx, "6379/tcp", "")
-	require.NoError(t, err)
+	var endpoint string
+	var endpointErr error
+	require.Eventually(t, func() bool {
+		endpoint, endpointErr = redisC.PortEndpoint(ctx, "6379/tcp", "")
+		return endpointErr == nil
+	}, 5*time.Second, 25*time.Millisecond, "Redis port mapping did not become visible")
 
 	return redisC, endpoint
 }
