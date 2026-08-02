@@ -1,0 +1,359 @@
+PACKAGE github.com/faustbrian/golib/pkg/hedge
+package hedge // import "github.com/faustbrian/golib/pkg/hedge"
+
+Package hedge executes explicitly replay-safe operations with bounded, delayed
+concurrent attempts. It does not infer idempotency or clone request state; an
+AttemptFactory must create independently owned mutable state for every attempt.
+
+CONSTANTS
+
+const MaxBudgetCapacity uint = 1_000_000
+    MaxBudgetCapacity prevents a nominally finite budget from acting as an
+    operationally unbounded admission policy.
+
+const MaxHedges uint = 64
+    MaxHedges bounds policy allocation, retained failure metadata, and fan-out.
+
+const MaxResourceLength = 128
+    MaxResourceLength bounds endpoint-safe resource identity used by budgets and
+    observations.
+
+
+VARIABLES
+
+var ErrInvalidBudget = errors.New("hedge: invalid budget")
+    ErrInvalidBudget identifies a zero or otherwise unusable shared-work bound.
+
+var ErrInvalidPolicy = errors.New("hedge: invalid policy")
+    ErrInvalidPolicy identifies implicit, contradictory, or unbounded policy
+    configuration.
+
+
+TYPES
+
+type Attempt[T any] func(context.Context) (T, error)
+    Attempt performs one independently owned execution. Cancellation is
+    cooperative; implementations must return promptly when ctx is canceled.
+
+type AttemptFactory[T any] interface {
+	NewAttempt(context.Context, AttemptInfo) (Attempt[T], string, error)
+}
+    AttemptFactory creates independently owned mutable state for every attempt.
+    Construction must honor the context, return promptly, and avoid starting
+    the external operation. Endpoint must be a bounded, credential-free identity
+    suitable for labels.
+
+type AttemptFactoryFunc[T any] func(AttemptInfo) (Attempt[T], string, error)
+    AttemptFactoryFunc adapts a non-blocking factory function. Use a concrete
+    AttemptFactory when construction itself needs the logical context.
+
+func (function AttemptFactoryFunc[T]) NewAttempt(_ context.Context, info AttemptInfo) (Attempt[T], string, error)
+    NewAttempt invokes the adapted function.
+
+type AttemptInfo struct {
+	Ordinal uint
+	Hedge   bool
+	Delay   time.Duration
+}
+    AttemptInfo identifies an original or additional execution. Ordinal zero is
+    always the original; positive ordinals are hedges.
+
+type AttemptResult[T any] struct {
+	Value      T
+	Err        error
+	ContextErr error
+	Ordinal    uint
+	Hedge      bool
+}
+    AttemptResult is passed to a Classifier. Value and Err are never included in
+    observations or error strings.
+
+type Budget interface {
+	Capacity() uint
+	TryAcquire(resource string) (Permit, bool)
+}
+    Budget bounds shared additional work. Implementations may account globally,
+    per resource, or over a documented recent-work window. Capacity must be
+    immutable, finite, and consistent with non-blocking, panic-free TryAcquire.
+
+type CanceledError struct {
+	// Has unexported fields.
+}
+    CanceledError distinguishes caller cancellation from downstream failure.
+
+func (err *CanceledError) Error() string
+
+func (err *CanceledError) Unwrap() error
+
+type Classification uint8
+    Classification is the explicit policy decision for one completed attempt.
+
+const (
+	// ClassificationSuccess selects the attempt as the winner.
+	ClassificationSuccess Classification = iota + 1
+	// ClassificationFailure retains the failure and permits active or scheduled
+	// attempts to continue.
+	ClassificationFailure
+	// ClassificationCanceled records a non-downstream cancellation and permits
+	// other attempts to continue.
+	ClassificationCanceled
+	// ClassificationTerminal stops the logical operation without a winner.
+	ClassificationTerminal
+)
+type Classifier[T any] interface {
+	Classify(context.Context, AttemptResult[T]) (Classification, error)
+}
+    Classifier decides whether one result wins, fails, was canceled, or
+    terminally stops the logical operation. It must be safe for concurrent use.
+
+type ClassifyFunc[T any] func(context.Context, AttemptResult[T]) (Classification, error)
+    ClassifyFunc adapts a function to Classifier.
+
+func (function ClassifyFunc[T]) Classify(ctx context.Context, result AttemptResult[T]) (Classification, error)
+    Classify invokes the adapted function.
+
+type CleanupError struct{ Failures uint }
+    CleanupError reports how many result disposals failed.
+
+func (err *CleanupError) Error() string
+
+type Clock interface {
+	Now() time.Time
+	NewTimer(time.Duration) Timer
+	WithTimeout(context.Context, time.Duration) (context.Context, context.CancelFunc)
+}
+    Clock supplies monotonic policy time, timers, and deadline contexts so
+    scheduling can be tested deterministically. Implementations must be safe for
+    concurrent use and must not panic.
+
+type Config[T any] struct {
+	MaxHedges          uint
+	ReplaySafe         bool
+	Delay              time.Duration
+	Schedule           []time.Duration
+	DynamicDelay       DelayFunc
+	TotalTimeout       time.Duration
+	AttemptTimeout     time.Duration
+	CleanupTimeout     time.Duration
+	Clock              Clock
+	Budget             Budget
+	Classifier         Classifier[T]
+	Disposer           Disposer[T]
+	Observer           Observer
+	Resource           string
+	FactoryFailureMode FactoryFailureMode
+}
+    Config defines every safety decision and dependency for a Policy. Exactly
+    one of Delay, Schedule, or DynamicDelay must be configured.
+
+type DeadlineError struct{}
+    DeadlineError distinguishes the total policy deadline from downstream
+    failure.
+
+func (*DeadlineError) Error() string
+
+func (*DeadlineError) Unwrap() error
+
+type DelayFunc func(DelayInput) (time.Duration, error)
+    DelayFunc returns the delay after the preceding attempt launch.
+
+type DelayInput struct {
+	Hedge    uint
+	Previous time.Duration
+}
+    DelayInput gives a dynamic delay policy bounded metadata. Dynamic functions
+    must not retain hidden unbounded latency history.
+
+type DisposeFunc[T any] func(context.Context, T) error
+    DisposeFunc adapts a function to Disposer.
+
+func (function DisposeFunc[T]) Dispose(ctx context.Context, value T) error
+    Dispose invokes the adapted function.
+
+type Disposer[T any] interface {
+	Dispose(context.Context, T) error
+}
+    Disposer releases resources owned by every non-winning result. It must be
+    concurrency-safe and honor its cleanup context.
+
+type ExecutionError struct {
+	// Has unexported fields.
+}
+    ExecutionError reports deterministic all-attempt failure. Its message never
+    contains downstream errors; Unwrap exposes only the documented selected
+    cause, which is the lowest ordinal failure.
+
+func (err *ExecutionError) Error() string
+
+func (err *ExecutionError) Unwrap() error
+
+type FactoryFailureMode uint8
+    FactoryFailureMode defines what happens when a hedge attempt cannot be
+    constructed. Original-attempt factory failure always stops execution.
+
+const (
+	// FactoryFailureStop stops the logical operation and cancels active attempts.
+	FactoryFailureStop FactoryFailureMode = iota + 1
+	// FactoryFailureContinue records the failed hedge and permits later work.
+	FactoryFailureContinue
+)
+type Failure struct {
+	Ordinal        uint
+	Hedge          bool
+	Delay          time.Duration
+	Duration       time.Duration
+	Endpoint       string
+	Classification Classification
+}
+    Failure retains bounded attempt metadata without retaining or joining raw
+    error messages.
+
+type Observation struct {
+	Outcome  Outcome
+	Ordinal  uint
+	Delay    time.Duration
+	Duration time.Duration
+	Resource string
+	Endpoint string
+	// Classification is set for OutcomeAttemptCompleted and zero otherwise.
+	Classification Classification
+	Winner         bool
+	Loser          bool
+}
+    Observation contains bounded metadata and deliberately excludes results,
+    request data, URLs, and raw errors.
+
+type Observer interface {
+	TryObserve(Observation) bool
+}
+    Observer receives bounded lifecycle metadata through a non-blocking method.
+    TryObserve must return immediately and must not call back into an execution.
+
+type Outcome uint8
+    Outcome identifies one bounded lifecycle event. It is safe to use as a
+    metric label after mapping unknown values to a bounded fallback.
+
+const (
+	// OutcomeNoHedgeNeeded records an original winner before any hedge started.
+	OutcomeNoHedgeNeeded Outcome = iota + 1
+	// OutcomeHedgeStarted records one admitted additional attempt.
+	OutcomeHedgeStarted
+	// OutcomeBudgetDenied records rejected additional work.
+	OutcomeBudgetDenied
+	// OutcomeWinnerSelected records a winner after additional work started.
+	OutcomeWinnerSelected
+	// OutcomeAllAttemptsFailed records deterministic failed-result selection.
+	OutcomeAllAttemptsFailed
+	// OutcomeCallerCanceled records caller cancellation.
+	OutcomeCallerCanceled
+	// OutcomeTotalDeadline records total timeout expiry.
+	OutcomeTotalDeadline
+	// OutcomeAttemptCompleted records one result published to the coordinator.
+	OutcomeAttemptCompleted
+	// OutcomeCleanupFailed records one disposer failure.
+	OutcomeCleanupFailed
+)
+func (outcome Outcome) String() string
+    String returns a bounded label; unknown values collapse to "unknown".
+
+type OutstandingBudget struct {
+	// Has unexported fields.
+}
+    OutstandingBudget bounds concurrent additional attempts across every policy
+    and execution sharing the instance. Use one instance per resource when
+    resources require independent limits; doing so avoids an unbounded hidden
+    resource-key registry.
+
+func NewOutstandingBudget(limit uint) (*OutstandingBudget, error)
+    NewOutstandingBudget constructs a finite shared concurrency budget.
+
+func (budget *OutstandingBudget) Capacity() uint
+    Capacity returns the immutable maximum number of outstanding hedges.
+
+func (budget *OutstandingBudget) Outstanding() uint64
+    Outstanding returns the number of currently admitted additional attempts.
+
+func (budget *OutstandingBudget) TryAcquire(_ string) (Permit, bool)
+    TryAcquire reserves one additional attempt without blocking. A policy holds
+    the permit until the completed result is consumed or reclaimed. Resource is
+    accepted for the Budget contract but this implementation deliberately has a
+    single bounded scope.
+
+type Permit interface{ Release() }
+    Permit accounts for one additional attempt. Release must be idempotent,
+    concurrency-safe, non-blocking, and must not panic.
+
+type Policy[T any] struct {
+	// Has unexported fields.
+}
+    Policy is immutable and safe for concurrent execution. Its Budget,
+    Classifier, Disposer, Clock, and Observer dependencies must also be safe for
+    concurrent use.
+
+func NewPolicy[T any](config Config[T]) (*Policy[T], error)
+    NewPolicy validates finite amplification, time, replay, ownership, and
+    dependency contracts and copies mutable configuration.
+
+type RealClock struct{}
+    RealClock uses the standard library's monotonic clock and timers.
+
+func (RealClock) NewTimer(delay time.Duration) Timer
+    NewTimer starts a standard-library timer.
+
+func (RealClock) Now() time.Time
+    Now returns the current time.
+
+func (RealClock) WithTimeout(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc)
+    WithTimeout derives a standard-library timeout context.
+
+type Reason uint8
+    Reason identifies the terminal logical outcome.
+
+const (
+	// ReasonNoHedgeNeeded means the original won before additional work started.
+	ReasonNoHedgeNeeded Reason = iota + 1
+	// ReasonWinnerSelected means one of multiple started attempts won.
+	ReasonWinnerSelected
+	// ReasonAllAttemptsFailed means every admitted attempt completed unsuccessfully.
+	ReasonAllAttemptsFailed
+	// ReasonCallerCanceled means the caller canceled the logical operation.
+	ReasonCallerCanceled
+	// ReasonTotalDeadline means the configured total timeout elapsed.
+	ReasonTotalDeadline
+	// ReasonTerminalFailure means classification stopped the logical operation.
+	ReasonTerminalFailure
+	// ReasonFactoryFailure means attempt construction stopped the operation.
+	ReasonFactoryFailure
+	// ReasonDelayFailure means dynamic delay selection failed validation.
+	ReasonDelayFailure
+)
+type Report struct {
+	Reason          Reason
+	AttemptsStarted uint
+	HedgesStarted   uint
+	BudgetDenied    uint
+	WinnerOrdinal   uint
+	SelectedOrdinal uint
+	Failures        []Failure
+	// Has unexported fields.
+}
+    Report describes one logical execution. Wait lets callers and graceful
+    shutdown code wait for cooperative loser cleanup without delaying winner
+    delivery.
+
+func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]) (T, Report, error)
+    Do executes one original attempt and at most MaxHedges delayed concurrent
+    attempts. The factory is required to create independently owned mutable
+    state; Do never clones or interprets application requests.
+
+func (report Report) Wait(ctx context.Context) error
+    Wait waits for all started attempt functions to return and for every
+    non-winning returned value to be disposed. It reports cleanup failures by
+    count without exposing raw disposer messages.
+
+type Timer interface {
+	C() <-chan time.Time
+	Stop() bool
+}
+    Timer is owned by one execution. Stop releases its resources; callers must
+    not close C.

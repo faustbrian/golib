@@ -34,6 +34,7 @@ use (
 	./pkg/feature-flags
 	./pkg/filesystem
 	./pkg/geo
+	./pkg/hedge
 	./pkg/http-client
 	./pkg/http-middleware
 	./pkg/http-middleware/integration/siblings
@@ -171,6 +172,8 @@ replace github.com/faustbrian/golib/pkg/feature-flags v0.0.0 => ./pkg/feature-fl
 replace github.com/faustbrian/golib/pkg/filesystem v0.0.0 => ./pkg/filesystem
 
 replace github.com/faustbrian/golib/pkg/geo v0.0.0 => ./pkg/geo
+
+replace github.com/faustbrian/golib/pkg/hedge v0.0.0 => ./pkg/hedge
 
 replace github.com/faustbrian/golib/pkg/http-client v0.0.0 => ./pkg/http-client
 
