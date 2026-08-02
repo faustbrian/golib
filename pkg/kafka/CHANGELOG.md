@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add pinned three-broker Kafka 4.3.1 evidence that suspending a live consumer
+  past its broker session timeout transfers the same unsettled record to a
+  replacement and fences the resumed member's stale commit
 - add pinned three-broker Kafka 4.3.1 evidence that a partial cooperative
   revocation drains and settles both in-flight partitions before transferring
   exactly one, while administrative removal of a static member rejects its

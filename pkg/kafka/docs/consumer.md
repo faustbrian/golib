@@ -69,6 +69,15 @@ assignment, leaves the offset unsettled, and a replacement receives offset
 zero. This is at-least-once behavior: the completed application work can be
 duplicated after broker-forced loss.
 
+The process-suspension fixture separately proves classic-group session expiry
+rather than administrative removal. It suspends a dynamic consumer only after
+offset zero enters its handler, waits for the six-second broker session timeout
+to let a replacement receive and commit that same offset, then resumes the
+original handler. The original application work can finish, but Kafka rejects
+its stale offset commit with `UNKNOWN_MEMBER_ID`; the package reports ownership
+loss and clears the assignment. This is the failure window applications must
+expect after process pauses, host suspension, or equivalent heartbeat loss.
+
 ## Configuration
 
 `ConsumerConfig` requires brokers, client ID, group ID, topics, and an earliest

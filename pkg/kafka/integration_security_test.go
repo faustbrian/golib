@@ -723,7 +723,7 @@ func startSecureKafkaBroker(
 			Entrypoint:   []string{"sh"},
 			Cmd: []string{
 				"-c",
-				"while [ ! -f /tmp/golib-kafka-secure-start.sh ]; do " +
+				"while [ ! -f /tmp/golib-kafka-secure-ready ]; do " +
 					"sleep 0.05; done; exec /bin/bash " +
 					"/tmp/golib-kafka-secure-start.sh",
 			},
@@ -856,6 +856,14 @@ func startSecureKafkaBroker(
 		"/tmp/golib-kafka-secure-start.sh",
 		[]byte(secureKafkaStartScript(mode)),
 		0o755,
+	)
+	copySecureKafkaFile(
+		t,
+		ctx,
+		container,
+		"/tmp/golib-kafka-secure-ready",
+		[]byte("ready\n"),
+		0o644,
 	)
 
 	if err := wait.ForLog("Transition from STARTING to STARTED").

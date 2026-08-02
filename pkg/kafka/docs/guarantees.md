@@ -233,6 +233,10 @@ static member administratively and proves the stale-generation commit returns
 `UNKNOWN_MEMBER_ID`, the later loss callback clears local ownership, and the
 unsettled record is redelivered. A handler side effect completed before that
 rejection remains the application's duplicate-handling responsibility.
+The separate process-suspension fixture proves the same boundary after actual
+classic-group session expiry: the replacement handles and settles the in-flight
+offset after six seconds without heartbeats, and the resumed original member's
+completed handler cannot commit its stale generation.
 
 Replay never joins a consumer group or commits group offsets. Its zero-value
 side-effect policy permits planning but rejects handler execution. An explicit
