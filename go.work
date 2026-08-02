@@ -91,6 +91,7 @@ use (
 	./pkg/scheduler
 	./pkg/secret-envelope
 	./pkg/secret-store/adapters/awssecretsmanager
+	./pkg/semaphore
 	./pkg/sequencer
 	./pkg/service
 	./pkg/service/benchmarks/platform
@@ -318,3 +319,5 @@ replace github.com/faustbrian/golib/pkg/verkle-tree v0.0.0 => ./pkg/verkle-tree
 replace github.com/faustbrian/golib/pkg/queue/queueservice v0.0.0 => ./pkg/queue/queueservice
 
 replace github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager v0.0.0 => ./pkg/secret-store/adapters/awssecretsmanager
+
+replace github.com/faustbrian/golib/pkg/semaphore v0.0.0 => ./pkg/semaphore

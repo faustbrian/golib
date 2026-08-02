@@ -17655,6 +17655,131 @@
       }
     },
     {
+      "directory": "pkg/semaphore",
+      "module_path": "github.com/faustbrian/golib/pkg/semaphore",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/semaphore",
+          "directory": ".",
+          "name": "semaphore",
+          "import_path": "github.com/faustbrian/golib/pkg/semaphore",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`semaphore` is a process-local, FIFO weighted counting semaphore for Go 1.26.5 and newer. It adds bounded waiting, owned exactly-once permits, deterministic shutdown, immutable snapshots, and bounded observation events to the basic counting-semaphore pattern.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/semaphore/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "golang.org/x/sync"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/semaphore/.ai/GOAL.md",
+        "pkg/semaphore/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/semaphore/.ai/GOAL.md",
+          "requirements_sha256": "79bb82546c6c06c85a676fd4b2b2d2d66a4deda64df4b901235c3da037103dca",
+          "implementation_evidence": [
+            "pkg/semaphore/CHANGELOG.md",
+            "pkg/semaphore/README.md",
+            "pkg/semaphore/docs/api.md",
+            "pkg/semaphore/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/semaphore/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "17cd4a44c166344e6833e89e3cc7d0871ba6e6ad80ec1536c7e9e2959484267a",
+          "implementation_evidence": [
+            "pkg/semaphore/CHANGELOG.md",
+            "pkg/semaphore/README.md",
+            "pkg/semaphore/docs/api.md",
+            "pkg/semaphore/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/sequencer",
       "module_path": "github.com/faustbrian/golib/pkg/sequencer",
       "go_version": "1.26.5",
