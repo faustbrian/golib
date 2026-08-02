@@ -187,7 +187,7 @@ func (p *parser) term(depth uint64) (Node, error) {
 	if !quantified {
 		return atom, nil
 	}
-	if atom.kind == NodeLookaround && (atom.behind || p.options.Flags.Unicode() || p.options.Flags.UnicodeSets()) {
+	if atom.kind == NodeLookaround && (atom.behind || p.options.Flags.unicodeMode()) {
 		return Node{}, p.syntax(SyntaxInvalidQuantifier, atom.span, "assertion cannot be quantified")
 	}
 	greedy := true
@@ -289,12 +289,12 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		if !p.isDecimal(p.current()) {
 			return p.literal(token.span, 0)
 		}
-		if p.options.Flags.Unicode() || p.options.Flags.UnicodeSets() || !p.options.AnnexB {
+		if p.options.Flags.unicodeMode() || !p.options.AnnexB {
 			return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "legacy octal escape is not enabled")
 		}
 		return p.legacyOctalEscape(token, '0')
 	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if inClass && (p.options.Flags.Unicode() || p.options.Flags.UnicodeSets()) {
+		if inClass && (p.options.Flags.unicodeMode()) {
 			return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "decimal escapes are invalid in a character class")
 		}
 		valueText := string(char)
@@ -306,7 +306,7 @@ func (p *parser) escape(inClass bool) (Node, error) {
 			end := p.consumeDecimalEscape(token.span.End)
 			return p.node(Node{kind: NodeBackreference, span: Span{Start: token.span.Start, End: end}, capture: value})
 		}
-		if p.options.Flags.Unicode() || p.options.Flags.UnicodeSets() {
+		if p.options.Flags.unicodeMode() {
 			end := p.consumeDecimalEscape(token.span.End)
 			if valueErr != nil {
 				return Node{}, p.syntax(SyntaxInvalidBackreference, Span{Start: token.span.Start, End: end}, "backreference is too large")
@@ -325,7 +325,7 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		return p.hexEscape(token, 2)
 	case 'u':
 		if p.current().kind == TokenLeftBrace {
-			if !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() {
+			if !p.options.Flags.unicodeMode() {
 				return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "code point escape requires u or v mode")
 			}
 			return p.codePointEscape(token)
@@ -352,7 +352,7 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		return p.literal(Span{Start: token.span.Start, End: letter.span.End}, rune(letter.text[0]&31))
 	case 'k':
 		if !inClass && p.current().kind == TokenCharacter && p.current().text == "<" &&
-			(p.namedCaptureGroups || p.options.Flags.Unicode() || p.options.Flags.UnicodeSets()) {
+			(p.namedCaptureGroups || p.options.Flags.unicodeMode()) {
 			name, end, err := p.captureName()
 			if err != nil {
 				return Node{}, err
@@ -369,7 +369,7 @@ func (p *parser) escape(inClass bool) (Node, error) {
 	default:
 		unicodeIdentity := strings.ContainsRune("^$\\.*+?()[]{}|/", char)
 		unicodeSetIdentity := inClass && p.options.Flags.UnicodeSets() && strings.ContainsRune("!#%&,-:;<=>@`~", char)
-		if (p.options.Flags.Unicode() || p.options.Flags.UnicodeSets()) && !unicodeIdentity && !unicodeSetIdentity {
+		if (p.options.Flags.unicodeMode()) && !unicodeIdentity && !unicodeSetIdentity {
 			return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "identity escape is invalid in Unicode mode")
 		}
 		return p.literal(token.span, char)
@@ -467,7 +467,7 @@ func (p *parser) characterClass(depth uint64) (Node, error) {
 			startIsSet := term.builtin != classBuiltinNone || term.property > 0
 			endIsSet := endTerm.builtin != classBuiltinNone || endTerm.property > 0
 			if startIsSet || endIsSet {
-				if !p.options.AnnexB || p.options.Flags.Unicode() || p.options.Flags.UnicodeSets() {
+				if !p.options.AnnexB || p.options.Flags.unicodeMode() {
 					return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: span.Start, End: endSpan.End}, "character class range contains a set escape")
 				}
 				terms = append(terms, term, classTerm{start: '-', end: '-'}, endTerm)
@@ -702,7 +702,7 @@ func classHasStrings(node Node) bool {
 }
 
 func (p *parser) propertyEscape(prefix Token, negated bool) (Node, error) {
-	if !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() {
+	if !p.options.Flags.unicodeMode() {
 		return Node{}, p.syntax(SyntaxInvalidEscape, prefix.span, "Unicode property escape requires u or v mode")
 	}
 	if p.current().kind != TokenLeftBrace {
@@ -756,7 +756,7 @@ func (p *parser) classItem() (classTerm, Span, error) {
 		if node.kind == NodeCharacterClass {
 			return node.class[0], node.span, nil
 		}
-		if (p.options.Flags.Unicode() || p.options.Flags.UnicodeSets()) &&
+		if (p.options.Flags.unicodeMode()) &&
 			len(node.literalUnits) == 1 && isHighSurrogate(node.literalUnits[0]) &&
 			p.current().kind == TokenEscape && p.current().text == `\u` {
 			position := p.position

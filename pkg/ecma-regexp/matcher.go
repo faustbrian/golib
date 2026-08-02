@@ -126,7 +126,7 @@ func (e *executor) find(start int, sticky bool) (Result, bool, error) {
 		return e.at(start)
 	}
 	for ; start <= len(e.input.units); start++ {
-		if (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && !e.input.codePointBoundary[start] {
+		if (e.program.flags.unicodeMode()) && !e.input.codePointBoundary[start] {
 			continue
 		}
 		result, matched, err := e.at(start)
@@ -489,11 +489,11 @@ func (e *executor) anyWidth(position, direction int, flags Flags) int {
 	if unitPosition < 0 || unitPosition >= len(e.input.units) || (!flags.DotAll() && isLineTerminator(e.input.units[unitPosition])) {
 		return 0
 	}
-	if direction > 0 && (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && position+1 < len(e.input.units) &&
+	if direction > 0 && (e.program.flags.unicodeMode()) && position+1 < len(e.input.units) &&
 		isHighSurrogate(e.input.units[position]) && isLowSurrogate(e.input.units[position+1]) {
 		return 2
 	}
-	if direction < 0 && (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && position > 1 &&
+	if direction < 0 && (e.program.flags.unicodeMode()) && position > 1 &&
 		isHighSurrogate(e.input.units[position-2]) && isLowSurrogate(e.input.units[position-1]) {
 		return 2
 	}
@@ -530,7 +530,7 @@ func (e *executor) backreference(current thread, captures []int, direction int, 
 	}
 	start := current.captures[capture*2]
 	end := current.captures[capture*2+1]
-	if e.program.flags.Unicode() || e.program.flags.UnicodeSets() {
+	if e.program.flags.unicodeMode() {
 		return e.unicodeBackreference(current.position, start, end, direction, flags)
 	}
 	width := end - start
@@ -609,22 +609,22 @@ func (e *executor) wordAt(position int, previous bool, flags Flags) bool {
 		if position < 0 {
 			return false
 		}
-		if (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && position > 0 &&
+		if (e.program.flags.unicodeMode()) && position > 0 &&
 			isLowSurrogate(e.input.units[position]) && isHighSurrogate(e.input.units[position-1]) {
 			char := utf16.DecodeRune(rune(e.input.units[position-1]), rune(e.input.units[position]))
 			return builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), true)
 		}
-		return builtinMatches(classBuiltinWord, rune(e.input.units[position]), flags.IgnoreCase(), flags.Unicode() || flags.UnicodeSets())
+		return builtinMatches(classBuiltinWord, rune(e.input.units[position]), flags.IgnoreCase(), flags.unicodeMode())
 	}
 	char, _, ok := e.codePointAt(position)
-	return ok && builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), flags.Unicode() || flags.UnicodeSets())
+	return ok && builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), flags.unicodeMode())
 }
 
 func (e *executor) codePointAt(position int) (rune, int, bool) {
 	if position < 0 || position >= len(e.input.units) {
 		return 0, 0, false
 	}
-	if (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && position+1 < len(e.input.units) &&
+	if (e.program.flags.unicodeMode()) && position+1 < len(e.input.units) &&
 		isHighSurrogate(e.input.units[position]) && isLowSurrogate(e.input.units[position+1]) {
 		return utf16.DecodeRune(rune(e.input.units[position]), rune(e.input.units[position+1])), 2, true
 	}
@@ -636,7 +636,7 @@ func (e *executor) codePointBefore(position int) (rune, int, bool) {
 	if position <= 0 || position > len(e.input.units) {
 		return 0, 0, false
 	}
-	if (e.program.flags.Unicode() || e.program.flags.UnicodeSets()) && position > 1 &&
+	if (e.program.flags.unicodeMode()) && position > 1 &&
 		isHighSurrogate(e.input.units[position-2]) && isLowSurrogate(e.input.units[position-1]) {
 		return utf16.DecodeRune(rune(e.input.units[position-2]), rune(e.input.units[position-1])), 2, true
 	}
@@ -699,7 +699,7 @@ func classNodeMatches(node Node, char rune, flags Flags) bool {
 		} else if term.property > 0 {
 			termMatch = unicodePropertyMatches(int(term.property-1), char, flags.IgnoreCase())
 		} else if term.builtin != classBuiltinNone {
-			termMatch = builtinMatches(term.builtin, char, flags.IgnoreCase(), flags.Unicode() || flags.UnicodeSets())
+			termMatch = builtinMatches(term.builtin, char, flags.IgnoreCase(), flags.unicodeMode())
 		} else {
 			termMatch = rangeMatches(term.start, term.end, char, flags)
 		}
@@ -765,7 +765,7 @@ func rangeMatches(start, end, char rune, flags Flags) bool {
 	if !flags.IgnoreCase() {
 		return false
 	}
-	if flags.Unicode() || flags.UnicodeSets() {
+	if flags.unicodeMode() {
 		for _, folded := range unicodeFoldVariants(char) {
 			if folded >= start && folded <= end {
 				return true

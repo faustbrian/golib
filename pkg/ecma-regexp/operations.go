@@ -50,7 +50,7 @@ func (p *Program) findAll(ctx context.Context, view *inputView, options MatchOpt
 			if end == len(view.units) {
 				break
 			}
-			search = advanceStringIndex(view, end, p.flags.Unicode() || p.flags.UnicodeSets())
+			search = advanceStringIndex(view, end, p.flags.unicodeMode())
 		} else {
 			search = end
 		}
@@ -113,7 +113,7 @@ func (p *Program) replace(ctx context.Context, view *inputView, replacement UTF1
 			if end == len(view.units) {
 				break
 			}
-			search = advanceStringIndex(view, end, p.flags.Unicode() || p.flags.UnicodeSets())
+			search = advanceStringIndex(view, end, p.flags.unicodeMode())
 		} else {
 			search = end
 		}
@@ -167,7 +167,8 @@ func (p *Program) appendSubstitution(output *outputUnits, input, replacement []u
 			}
 			if end < len(replacement) && len(p.captureNames) > 0 {
 				name := utf16ASCII(replacement[index+2 : end])
-				if capture, ok := result.Named(name); ok && capture.participated {
+				capture, _ := result.Named(name)
+				if capture.participated {
 					if err := output.append(capture.value.units); err != nil {
 						return err
 					}
@@ -179,14 +180,16 @@ func (p *Program) appendSubstitution(output *outputUnits, input, replacement []u
 				}
 			}
 		default:
-			if next >= '0' && next <= '9' {
-				captureIndex := int(next - '0')
+			if captureIndex, ok := decimalDigit(next); ok {
 				consumed := 1
-				if index+2 < len(replacement) && replacement[index+2] >= '0' && replacement[index+2] <= '9' {
-					twoDigits := captureIndex*10 + int(replacement[index+2]-'0')
-					if twoDigits >= 1 && twoDigits <= p.captures {
-						captureIndex = twoDigits
-						consumed = 2
+				if index+2 < len(replacement) {
+					secondDigit, secondOK := decimalDigit(replacement[index+2])
+					twoDigits := captureIndex*10 + secondDigit
+					if secondOK {
+						if twoDigits >= 1 && twoDigits <= p.captures {
+							captureIndex = twoDigits
+							consumed = 2
+						}
 					}
 				}
 				if captureIndex >= 1 && captureIndex <= p.captures {
@@ -267,13 +270,13 @@ func (p *Program) split(ctx context.Context, view *inputView, options MatchOptio
 			return nil, err
 		}
 		if !matched {
-			search = advanceStringIndex(view, search, p.flags.Unicode() || p.flags.UnicodeSets())
+			search = advanceStringIndex(view, search, p.flags.unicodeMode())
 			continue
 		}
 		start := result.Full().span.Start.UTF16
 		end := result.Full().span.End.UTF16
 		if start == end && start == lastEnd {
-			search = advanceStringIndex(view, end, p.flags.Unicode() || p.flags.UnicodeSets())
+			search = advanceStringIndex(view, end, p.flags.unicodeMode())
 			continue
 		}
 		if err := appendSplitValue(&parts, newUTF16String(view.units[lastEnd:start]), true, &totalUnits, options.Limits); err != nil {
@@ -286,17 +289,29 @@ func (p *Program) split(ctx context.Context, view *inputView, options MatchOptio
 			}
 		}
 		lastEnd = end
-		if start == end {
-			search = advanceStringIndex(view, end, p.flags.Unicode() || p.flags.UnicodeSets())
-		} else {
-			search = end
-		}
+		search = nextSplitSearch(view, start, end, p.flags.unicodeMode())
 	}
 	if err := appendSplitValue(&parts, newUTF16String(view.units[lastEnd:]), true, &totalUnits, options.Limits); err != nil {
 		return nil, err
 	}
 
 	return parts, nil
+}
+
+func nextSplitSearch(view *inputView, start, end int, unicodeMode bool) int {
+	if start != end {
+		return end
+	}
+	return advanceStringIndex(view, end, unicodeMode)
+}
+
+func decimalDigit(unit uint16) (int, bool) {
+	switch unit {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return int(unit - '0'), true
+	default:
+		return 0, false
+	}
 }
 
 func appendSplitValue(parts *[]SplitValue, value UTF16String, defined bool, total *uint64, limits MatchLimits) error {

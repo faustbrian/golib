@@ -83,6 +83,10 @@ func (f Flags) UnicodeSets() bool {
 }
 func (f Flags) Sticky() bool { return f.bits&flagSticky != 0 }
 
+func (f Flags) unicodeMode() bool {
+	return f.bits&(flagUnicode|flagUnicodeSets) != 0
+}
+
 func (f Flags) String() string {
 	var result strings.Builder
 	for _, flag := range "dgimsuvy" {

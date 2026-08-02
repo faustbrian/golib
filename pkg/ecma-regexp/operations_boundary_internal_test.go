@@ -84,6 +84,15 @@ func TestReplacementTokenBoundaries(t *testing.T) {
 	if err != nil || replaced.LossyString() != "j-i-a" {
 		t.Fatalf("Replace(captures) = %q, %v", replaced.LossyString(), err)
 	}
+	replaced, err = program.Replace(
+		context.Background(),
+		"abcdefghij",
+		UTF16FromString("$1x"),
+		DefaultMatchOptions(),
+	)
+	if err != nil || replaced.LossyString() != "ax" {
+		t.Fatalf("Replace(single capture and literal) = %q, %v", replaced.LossyString(), err)
+	}
 
 	middle, err := Compile("b", "", DefaultCompileOptions())
 	if err != nil {
@@ -97,6 +106,30 @@ func TestReplacementTokenBoundaries(t *testing.T) {
 	)
 	if err != nil || replaced.LossyString() != "aa-b-cc" {
 		t.Fatalf("Replace(context tokens) = %q, %v", replaced.LossyString(), err)
+	}
+	replaced, err = middle.Replace(
+		context.Background(),
+		"abc",
+		UTF16FromString("$'x"),
+		DefaultMatchOptions(),
+	)
+	if err != nil || replaced.LossyString() != "acxc" {
+		t.Fatalf("Replace(suffix and literal) = %q, %v", replaced.LossyString(), err)
+	}
+}
+
+func TestSplitSearchDistinguishesEmptyAndConsumedMatches(t *testing.T) {
+	t.Parallel()
+
+	view, err := makeInputView("ab", DefaultMatchOptions().Limits)
+	if err != nil {
+		t.Fatalf("makeInputView() error = %v", err)
+	}
+	if got := nextSplitSearch(view, 0, 1, false); got != 1 {
+		t.Fatalf("nextSplitSearch(consumed) = %d", got)
+	}
+	if got := nextSplitSearch(view, 1, 1, false); got != 2 {
+		t.Fatalf("nextSplitSearch(empty) = %d", got)
 	}
 }
 
@@ -113,6 +146,11 @@ func TestOperationLimitsAllowExactResultsAndOutput(t *testing.T) {
 	results, err := program.FindAll(context.Background(), "a", options)
 	if err != nil || len(results) != 1 {
 		t.Fatalf("FindAll() = %#v, %v", results, err)
+	}
+	zeroResults := options
+	zeroResults.Limits.Results = 0
+	if _, err := program.FindAll(context.Background(), "a", zeroResults); !limitErrorIs(err, LimitResults, 1) {
+		t.Fatalf("FindAll(result limit) error = %v", err)
 	}
 	replaced, err := program.Replace(context.Background(), "a", UTF16FromString("x"), options)
 	if err != nil || replaced.LossyString() != "x" {

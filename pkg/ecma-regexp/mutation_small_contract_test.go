@@ -81,3 +81,17 @@ func TestUnicodeIdentifierAndFoldBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestUnicodeModeAcceptsEitherUnicodeFlagOnly(t *testing.T) {
+	t.Parallel()
+
+	if !(Flags{bits: flagUnicode}).unicodeMode() {
+		t.Fatal("Unicode mode rejected u")
+	}
+	if !(Flags{bits: flagUnicodeSets}).unicodeMode() {
+		t.Fatal("Unicode mode rejected v")
+	}
+	if (Flags{bits: flagGlobal}).unicodeMode() {
+		t.Fatal("Unicode mode accepted an unrelated flag")
+	}
+}

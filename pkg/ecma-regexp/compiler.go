@@ -1,9 +1,10 @@
 package ecmascript
 
 import (
+	"cmp"
+	"encoding/binary"
 	"fmt"
 	"slices"
-	"sort"
 	"unicode/utf16"
 )
 
@@ -126,7 +127,7 @@ func (c *compiler) compile(node Node, reverse bool) error {
 	case NodeEmpty:
 		return nil
 	case NodeLiteral:
-		if c.flags.Unicode() || c.flags.UnicodeSets() {
+		if c.flags.unicodeMode() {
 			characters := decodePatternUnits(node.literalUnits)
 			for index := range characters {
 				characterIndex := index
@@ -223,12 +224,14 @@ func (c *compiler) compile(node Node, reverse bool) error {
 			return err
 		}
 		c.code[look].y = len(c.code)
+		value := uint16(0)
 		if node.negated {
-			c.code[look].value |= 1
+			value = 1
 		}
 		if node.behind {
-			c.code[look].value |= 2
+			value += 2
 		}
+		c.code[look].value = value
 		return nil
 	case NodeQuantifier:
 		return c.quantifier(node, reverse)
@@ -243,11 +246,8 @@ func (c *compiler) compileCharacterClass(node Node, reverse bool) error {
 	for index, sequence := range classStrings {
 		sequences[index] = append([]uint16(nil), sequence...)
 	}
-	sort.Slice(sequences, func(left, right int) bool {
-		if len(sequences[left]) != len(sequences[right]) {
-			return len(sequences[left]) > len(sequences[right])
-		}
-		return slices.Compare(sequences[left], sequences[right]) < 0
+	slices.SortStableFunc(sequences, func(left, right []uint16) int {
+		return cmp.Compare(len(right), len(left))
 	})
 	jumps := make([]int, 0, len(sequences))
 	for _, sequence := range sequences {
@@ -300,10 +300,9 @@ func (c *compiler) evaluateClassStrings(node Node) [][]uint16 {
 func stringSet(values [][]uint16) map[string][]uint16 {
 	result := make(map[string][]uint16, len(values))
 	for _, value := range values {
-		bytes := make([]byte, len(value)*2)
-		for index, unit := range value {
-			bytes[index*2] = byte(unit >> 8)
-			bytes[index*2+1] = byte(unit)
+		var bytes []byte
+		for _, unit := range value {
+			bytes = binary.BigEndian.AppendUint16(bytes, unit)
 		}
 		result[string(bytes)] = value
 	}
@@ -385,28 +384,28 @@ func decodePatternUnits(units []uint16) []rune {
 }
 
 func (c *compiler) alternation(branches []Node, reverse bool) error {
-	jumps := make([]int, 0, len(branches)-1)
+	jumps := make([]int, 0, len(branches))
 	for index, branch := range branches {
 		if index == len(branches)-1 {
 			if err := c.compile(branch, reverse); err != nil {
 				return err
 			}
-			break
+		} else {
+			split, err := c.emit(instruction{op: opSplit})
+			if err != nil {
+				return err
+			}
+			c.code[split].x = len(c.code)
+			if err := c.compile(branch, reverse); err != nil {
+				return err
+			}
+			jump, err := c.emit(instruction{op: opJump})
+			if err != nil {
+				return err
+			}
+			jumps = append(jumps, jump)
+			c.code[split].y = len(c.code)
 		}
-		split, err := c.emit(instruction{op: opSplit})
-		if err != nil {
-			return err
-		}
-		c.code[split].x = len(c.code)
-		if err := c.compile(branch, reverse); err != nil {
-			return err
-		}
-		jump, err := c.emit(instruction{op: opJump})
-		if err != nil {
-			return err
-		}
-		jumps = append(jumps, jump)
-		c.code[split].y = len(c.code)
 	}
 	end := len(c.code)
 	for _, jump := range jumps {
@@ -426,7 +425,7 @@ func (c *compiler) quantifier(node Node, reverse bool) error {
 	if node.max == node.min {
 		return nil
 	}
-	if node.max < 0 {
+	if node.max == -1 {
 		return c.unbounded(child, node.greedy, reverse)
 	}
 	for count := node.min; count < node.max; count++ {
@@ -489,13 +488,12 @@ func captureBounds(node Node) (int, int, bool) {
 		if !childFound {
 			continue
 		}
-		if !found || childMinimum < minimum {
-			minimum = childMinimum
+		if !found {
+			minimum, maximum, found = childMinimum, childMaximum, true
+			continue
 		}
-		if !found || childMaximum > maximum {
-			maximum = childMaximum
-		}
-		found = true
+		minimum = min(minimum, childMinimum)
+		maximum = max(maximum, childMaximum)
 	}
 	return minimum, maximum, found
 }
