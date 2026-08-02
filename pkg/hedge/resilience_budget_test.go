@@ -67,17 +67,17 @@ func TestHedgeConsumesAttachedResilienceBudget(t *testing.T) {
 		_, report, _ := hedge.Do(ctx, policy, factory)
 		done <- report
 	}()
-	<-started
+	receiveWithin(t, started)
 	clock.WaitTimers(2)
 	clock.Advance(time.Millisecond)
-	<-started
+	receiveWithin(t, started)
 	clock.WaitTimers(3)
 	clock.Advance(time.Millisecond)
-	if outcome := <-budgetDenied; outcome != hedge.OutcomeBudgetDenied {
+	if outcome := receiveWithin(t, budgetDenied); outcome != hedge.OutcomeBudgetDenied {
 		t.Fatalf("outcome = %s", outcome.String())
 	}
 	close(releaseOriginal)
-	report := <-done
+	report := receiveWithin(t, done)
 	if report.HedgesStarted != 1 || report.BudgetDenied != 1 || report.AttemptsStarted != 2 {
 		t.Fatalf("report = %+v", report)
 	}
@@ -179,7 +179,7 @@ func TestHedgeSharedBudgetDistinguishesCancellationFromInvalidLineage(t *testing
 			cancel()
 			return context.Canceled
 		}}
-		_, report, err := executeWithScriptedScope(t, ctx, scope)
+		_, report, err := executeWithScriptedScope(ctx, t, scope)
 		if !errors.Is(err, context.Canceled) || report.Reason != hedge.ReasonCallerCanceled {
 			t.Fatalf("report = %+v, error = %v", report, err)
 		}
@@ -188,14 +188,14 @@ func TestHedgeSharedBudgetDistinguishesCancellationFromInvalidLineage(t *testing
 	t.Run("invalid lineage", func(t *testing.T) {
 		t.Parallel()
 		rejection := &resilience.BudgetRejectionError{Reason: resilience.ReasonUnknownParent}
-		_, report, err := executeWithScriptedScope(t, context.Background(), &scriptedWorkScope{second: func() error { return rejection }})
+		_, report, err := executeWithScriptedScope(context.Background(), t, &scriptedWorkScope{second: func() error { return rejection }})
 		if !errors.Is(err, resilience.ErrBudgetRejected) || report.Reason != hedge.ReasonBudgetFailure {
 			t.Fatalf("report = %+v, error = %v", report, err)
 		}
 	})
 }
 
-func executeWithScriptedScope(t *testing.T, ctx context.Context, scope *scriptedWorkScope) (string, hedge.Report, error) {
+func executeWithScriptedScope(ctx context.Context, t *testing.T, scope *scriptedWorkScope) (string, hedge.Report, error) {
 	t.Helper()
 	attached, err := resilience.WithBudgetScope(ctx, scope)
 	if err != nil {
@@ -228,8 +228,20 @@ func executeWithScriptedScope(t *testing.T, ctx context.Context, scope *scripted
 	}()
 	clock.WaitTimers(2)
 	clock.Advance(time.Millisecond)
-	got := <-done
+	got := receiveWithin(t, done)
 	return got.value, got.report, got.err
+}
+
+func receiveWithin[T any](t *testing.T, values <-chan T) T {
+	t.Helper()
+	select {
+	case value := <-values:
+		return value
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for hedge test event")
+		var zero T
+		return zero
+	}
 }
 
 type scriptedWorkScope struct {

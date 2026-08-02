@@ -290,9 +290,7 @@ func reserveOrdinal(state *budgetExecutionState) (uint64, error) {
 func advanceOrdinal(state *budgetExecutionState, ordinal uint64) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	if ordinal > state.next {
-		state.next = ordinal
-	}
+	state.next = max(state.next, ordinal)
 }
 
 func (budget *Budget) reapLocked(now time.Time) {

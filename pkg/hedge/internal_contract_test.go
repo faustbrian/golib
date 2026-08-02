@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/faustbrian/golib/pkg/resilience"
 )
 
 func TestInternalDeterministicSelectionAndCauses(t *testing.T) {
@@ -100,6 +102,28 @@ func TestInternalNilPermitAndTypedNilObserver(t *testing.T) {
 	}
 	var shared *sharedWorkPermit
 	shared.Release()
+}
+
+func TestSharedBudgetCapacityReasonsAreExplicit(t *testing.T) {
+	t.Parallel()
+
+	tests := map[resilience.RejectionReason]bool{
+		resilience.ReasonExecutionLimit:   true,
+		resilience.ReasonConcurrentLimit:  true,
+		resilience.ReasonWindowLimit:      true,
+		resilience.ReasonResourceLimit:    false,
+		resilience.ReasonDuplicateWork:    false,
+		resilience.ReasonOriginalRequired: false,
+		resilience.ReasonUnknownParent:    false,
+		"":                                false,
+		"hostile":                         false,
+	}
+	for reason, want := range tests {
+		err := &resilience.BudgetRejectionError{Reason: reason}
+		if got := isCapacityDenial(err); got != want {
+			t.Fatalf("reason %q capacity denial = %v, want %v", reason, got, want)
+		}
+	}
 }
 
 type testNilObserver struct{}

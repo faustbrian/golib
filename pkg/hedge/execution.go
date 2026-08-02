@@ -488,6 +488,9 @@ func isCapacityDenial(err error) bool {
 	switch resilience.RejectionReasonOf(err) {
 	case resilience.ReasonExecutionLimit, resilience.ReasonConcurrentLimit, resilience.ReasonWindowLimit:
 		return true
+	case "", resilience.ReasonResourceLimit, resilience.ReasonDuplicateWork,
+		resilience.ReasonOriginalRequired, resilience.ReasonUnknownParent:
+		return false
 	default:
 		return false
 	}
