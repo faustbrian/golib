@@ -4255,6 +4255,131 @@
       }
     },
     {
+      "directory": "pkg/concurrency-limit",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/concurrency-limit",
+          "directory": ".",
+          "name": "concurrencylimit",
+          "import_path": "github.com/faustbrian/golib/pkg/concurrency-limit",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`concurrency-limit` is a bounded, process-local adaptive in-flight concurrency limiter for Go. It learns a safe local limit from execution latency, achieved throughput, utilization, and explicit overload outcomes before queues grow into widespread timeouts.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/concurrency-limit/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/concurrency-limit/.ai/GOAL.md",
+        "pkg/concurrency-limit/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/concurrency-limit/.ai/GOAL.md",
+          "requirements_sha256": "1d576fccfdf7b750dd1a75454c11ac9d8bb43092f14554d42905d4497a8fb65e",
+          "implementation_evidence": [
+            "pkg/concurrency-limit/CHANGELOG.md",
+            "pkg/concurrency-limit/README.md",
+            "pkg/concurrency-limit/docs/README.md",
+            "pkg/concurrency-limit/docs/api.md",
+            "pkg/concurrency-limit/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/concurrency-limit/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "8b4d66068686ea59f920f1c47c690f54746c9945ac523e402ef153eb73bde58e",
+          "implementation_evidence": [
+            "pkg/concurrency-limit/CHANGELOG.md",
+            "pkg/concurrency-limit/README.md",
+            "pkg/concurrency-limit/docs/README.md",
+            "pkg/concurrency-limit/docs/api.md",
+            "pkg/concurrency-limit/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/config",
       "module_path": "github.com/faustbrian/golib/pkg/config",
       "go_version": "1.26.5",

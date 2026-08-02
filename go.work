@@ -20,6 +20,7 @@ use (
 	./pkg/cli
 	./pkg/cli/benchmarks
 	./pkg/clock
+	./pkg/concurrency-limit
 	./pkg/config
 	./pkg/config/adapters/awssecretsmanager
 	./pkg/correlation
@@ -151,6 +152,8 @@ replace github.com/faustbrian/golib/pkg/clock v0.0.0 => ./pkg/clock
 replace github.com/faustbrian/golib/pkg/config v0.0.0 => ./pkg/config
 
 replace github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager v0.0.0 => ./pkg/config/adapters/awssecretsmanager
+
+replace github.com/faustbrian/golib/pkg/concurrency-limit v0.0.0 => ./pkg/concurrency-limit
 
 replace github.com/faustbrian/golib/pkg/correlation v0.0.0 => ./pkg/correlation
 
