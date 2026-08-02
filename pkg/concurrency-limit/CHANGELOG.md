@@ -19,3 +19,7 @@
   tuning against portable arithmetic bounds.
 - Serialize lifecycle reset with algorithm decisions so a pre-reset window
   cannot overwrite cold-start state.
+- Match Netflix Gradient2 warm-up averaging and preserve its fractional limit
+  between updates instead of truncating adaptation on every window.
+- Contain caller-supplied timer cleanup panics so queued admission still
+  returns its terminal permit or error without corrupting limiter state.

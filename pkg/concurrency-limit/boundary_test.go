@@ -202,6 +202,50 @@ func TestQueueTimeoutCancellationResetDrainAndGrantRace(t *testing.T) {
 	}
 }
 
+func TestQueuedAcquireContainsTimerStopPanic(t *testing.T) {
+	t.Parallel()
+
+	clock := &queueClock{now: time.Unix(0, 0), panicStop: true}
+	limiter := mustInternalLimiter(t, Config{
+		MinLimit: 1, MaxLimit: 1, InitialLimit: 1, Algorithm: NewFixedAlgorithm(), Clock: clock,
+		Queue: QueueConfig{MaxQueued: 1, MaxWait: time.Second},
+	})
+	active, err := limiter.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	type acquireOutcome struct {
+		permit *Permit
+		err    error
+		panic  any
+	}
+	result := make(chan acquireOutcome, 1)
+	go func() {
+		outcome := acquireOutcome{}
+		defer func() {
+			outcome.panic = recover()
+			result <- outcome
+		}()
+		outcome.permit, outcome.err = limiter.Acquire(context.Background())
+	}()
+	waitInternalQueued(t, limiter, 1)
+	if err = active.Complete(OutcomeSuccess); err != nil {
+		t.Fatal(err)
+	}
+	var outcome acquireOutcome
+	select {
+	case outcome = <-result:
+	case <-time.After(time.Second):
+		t.Fatal("queued Acquire() did not terminate")
+	}
+	if outcome.panic != nil || outcome.err != nil || outcome.permit == nil {
+		t.Fatalf("queued Acquire() = permit %v, error %v, panic %v", outcome.permit, outcome.err, outcome.panic)
+	}
+	if err = outcome.permit.Complete(OutcomeSuccess); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestClockMetadataSamplingAndAlgorithmFaultBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -255,6 +299,13 @@ func TestClockMetadataSamplingAndAlgorithmFaultBoundaries(t *testing.T) {
 	nilTimerClock := &queueClock{nilTimer: true}
 	if _, ok := safeTimer(nilTimerClock, time.Second); ok {
 		t.Fatal("nil timer accepted")
+	}
+	if _, ok := safeTimer(&testClock{}, time.Second); ok {
+		t.Fatal("nil Timer interface accepted")
+	}
+	guarded, ok := safeTimer(&queueClock{}, time.Second)
+	if !ok || !guarded.Stop() {
+		t.Fatal("healthy timer cleanup was not preserved")
 	}
 	cancelClock := &queueClock{panicNow: true}
 	cancelLimiter := mustInternalLimiter(t, Config{MinLimit: 1, MaxLimit: 1, InitialLimit: 1, Algorithm: NewFixedAlgorithm(), Clock: &queueClock{}})
@@ -381,6 +432,7 @@ type queueClock struct {
 	fire       bool
 	panicNow   bool
 	panicTimer bool
+	panicStop  bool
 	nilTimer   bool
 }
 
@@ -401,13 +453,21 @@ func (clock *queueClock) NewTimer(time.Duration) Timer {
 	if clock.fire {
 		channel <- clock.now
 	}
-	return &queueTimer{channel: channel}
+	return &queueTimer{channel: channel, panicStop: clock.panicStop}
 }
 
-type queueTimer struct{ channel chan time.Time }
+type queueTimer struct {
+	channel   chan time.Time
+	panicStop bool
+}
 
 func (timer *queueTimer) C() <-chan time.Time { return timer.channel }
-func (*queueTimer) Stop() bool                { return true }
+func (timer *queueTimer) Stop() bool {
+	if timer.panicStop {
+		panic("timer stop")
+	}
+	return true
+}
 
 type sequenceClock struct {
 	times      []time.Time

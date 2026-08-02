@@ -45,8 +45,11 @@ algorithm microbenchmarks in this module.
 
 ## Gradient2
 
-The long RTT is an exponential average with `alpha = 2/(LongWindow+1)`. For an
-utilized window:
+As in Netflix's `ExpAvgMeasurement`, the long RTT is the arithmetic mean during
+the first ten updates and then an exponential average with
+`alpha = 2/(LongWindow+1)`. The internal estimate retains its fractional part
+between updates; the public admission limit is its integer floor after limiter
+bounds are applied. For a utilized window:
 
 `gradient = clamp(tolerance * longRTT / recentRTT, MinGradient, 1)`
 

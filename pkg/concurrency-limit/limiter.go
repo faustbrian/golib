@@ -20,8 +20,12 @@ type Limiter struct {
 	queue       []*waiter
 	permits     map[uint64]*permitState
 	nextID      uint64
-	generation  uint64
-	draining    bool
+	// generation and generationToken are written only while both mu and
+	// algorithmMu are held, so lifecycle and algorithm paths may read them
+	// while holding either lock.
+	generation      uint64
+	generationToken *lifecycleGeneration
+	draining        bool
 
 	recent              []time.Duration
 	recentIndex         int
@@ -62,6 +66,8 @@ type permitState struct {
 	metadata   Metadata
 }
 
+type lifecycleGeneration struct{ marker byte }
+
 // New validates config and constructs an independent process-local limiter.
 func New(config Config) (*Limiter, error) {
 	normalized, err := normalizeConfig(config)
@@ -71,6 +77,7 @@ func New(config Config) (*Limiter, error) {
 	limiter := &Limiter{
 		config: normalized, limit: normalized.initialLimit,
 		permits: make(map[uint64]*permitState), generation: 1,
+		generationToken: &lifecycleGeneration{},
 	}
 	limiter.algorithmMu.Lock()
 	resetOK := safeAlgorithmReset(normalized.algorithm, normalized.initialLimit)
@@ -215,6 +222,7 @@ func (limiter *Limiter) Reset() {
 	limiter.mu.Lock()
 	before := limiter.snapshotLocked()
 	saturatingIncrement(&limiter.generation)
+	limiter.generationToken = &lifecycleGeneration{}
 	limiter.limit = limiter.config.initialLimit
 	limiter.inFlight = 0
 	limiter.permits = make(map[uint64]*permitState)
@@ -400,6 +408,7 @@ func (limiter *Limiter) addSampleLocked(now time.Time, duration time.Duration, o
 		Throughput:         float64(len(values)) / seconds,
 		PreviousThroughput: limiter.previousThroughput, PreviousMaxInFlight: limiter.previousMaxInFlight,
 		Overloads: limiter.windowOutcomes.Overload, DependencyFailures: limiter.windowOutcomes.DependencyFailure,
+		generationToken: limiter.generationToken,
 	}
 	limiter.previousThroughput = window.Throughput
 	limiter.previousMaxInFlight = window.MaxInFlight
@@ -414,6 +423,10 @@ func (limiter *Limiter) addSampleLocked(now time.Time, duration time.Duration, o
 
 func (limiter *Limiter) applyWindow(window Window, now time.Time) []Event {
 	limiter.algorithmMu.Lock()
+	if window.generationToken != nil && window.generationToken != limiter.generationToken {
+		limiter.algorithmMu.Unlock()
+		return nil
+	}
 	decision, ok := safeAlgorithmUpdate(limiter.config.algorithm, window)
 	state, stateOK := safeAlgorithmState(limiter.config.algorithm)
 	limiter.mu.Lock()

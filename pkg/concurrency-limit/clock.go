@@ -15,6 +15,22 @@ type systemTimer struct{ timer *time.Timer }
 func (timer systemTimer) C() <-chan time.Time { return timer.timer.C }
 func (timer systemTimer) Stop() bool          { return timer.timer.Stop() }
 
+type guardedTimer struct {
+	timer   Timer
+	channel <-chan time.Time
+}
+
+func (timer guardedTimer) C() <-chan time.Time { return timer.channel }
+
+func (timer guardedTimer) Stop() (stopped bool) {
+	defer func() {
+		if recover() != nil {
+			stopped = false
+		}
+	}()
+	return timer.timer.Stop()
+}
+
 func safeNow(clock Clock) (now time.Time, ok bool) {
 	defer func() {
 		if recover() != nil {
@@ -31,8 +47,12 @@ func safeTimer(clock Clock, duration time.Duration) (timer Timer, ok bool) {
 		}
 	}()
 	timer = clock.NewTimer(duration)
-	if nilInterface(timer) || timer.C() == nil {
+	if nilInterface(timer) {
 		return nil, false
 	}
-	return timer, true
+	channel := timer.C()
+	if channel == nil {
+		return nil, false
+	}
+	return guardedTimer{timer: timer, channel: channel}, true
 }

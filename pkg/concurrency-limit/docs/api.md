@@ -24,6 +24,9 @@ Zero sampling values normalize to:
 Queueing is disabled by default. Enabling it requires both a positive absolute
 `MaxQueued` and `MaxWait`. Metadata priority defaults to the single value zero;
 partitions must be predeclared.
+Injected clocks and timers are treated as fault boundaries: constructor,
+channel, and cleanup panics become bounded clock failures or are contained
+after a terminal queue result.
 
 ## Admission and completion
 

@@ -18,6 +18,7 @@ type Window struct {
 	PreviousMaxInFlight int
 	Overloads           uint64
 	DependencyFailures  uint64
+	generationToken     *lifecycleGeneration
 }
 
 // Decision is an algorithm's requested next limit and diagnostic state. The
@@ -226,9 +227,11 @@ type Gradient2Config struct {
 }
 
 type gradient2Algorithm struct {
-	config  Gradient2Config
-	longRTT float64
-	state   AlgorithmState
+	config        Gradient2Config
+	longRTT       float64
+	warmupSamples int
+	estimate      float64
+	state         AlgorithmState
 }
 
 // NewGradient2Algorithm validates and constructs a Gradient2 algorithm.
@@ -256,13 +259,16 @@ func (*gradient2Algorithm) algorithm()   {}
 
 func (algorithm *gradient2Algorithm) Reset(initialLimit int) {
 	algorithm.longRTT = 0
+	algorithm.warmupSamples = 0
+	algorithm.estimate = float64(initialLimit)
 	algorithm.state = AlgorithmState{Name: algorithm.Name(), Reason: "reset", Estimate: float64(initialLimit)}
 }
 
 func (algorithm *gradient2Algorithm) Update(window Window) Decision {
 	shortRTT := float64(window.RecentLatency)
-	if algorithm.longRTT == 0 {
-		algorithm.longRTT = shortRTT
+	if algorithm.warmupSamples < 10 {
+		algorithm.warmupSamples++
+		algorithm.longRTT += (shortRTT - algorithm.longRTT) / float64(algorithm.warmupSamples)
 	} else {
 		alpha := 2 / float64(algorithm.config.LongWindow+1)
 		algorithm.longRTT += alpha * (shortRTT - algorithm.longRTT)
@@ -271,13 +277,17 @@ func (algorithm *gradient2Algorithm) Update(window Window) Decision {
 		algorithm.longRTT *= 0.95
 	}
 
-	next := float64(window.CurrentLimit)
+	estimate := algorithm.estimate
+	if int(math.Floor(estimate)) != window.CurrentLimit {
+		estimate = float64(window.CurrentLimit)
+	}
+	next := estimate
 	gradient := 1.0
 	reason := "application-limited"
-	if window.MaxInFlight >= (window.CurrentLimit+1)/2 && shortRTT > 0 {
+	if float64(window.MaxInFlight) >= estimate/2 && shortRTT > 0 {
 		gradient = clampFloat(algorithm.config.Tolerance*algorithm.longRTT/shortRTT, algorithm.config.MinGradient, 1)
-		target := float64(window.CurrentLimit)*gradient + float64(algorithm.config.QueueSize)
-		next = float64(window.CurrentLimit)*(1-algorithm.config.Smoothing) + target*algorithm.config.Smoothing
+		target := estimate*gradient + float64(algorithm.config.QueueSize)
+		next = estimate*(1-algorithm.config.Smoothing) + target*algorithm.config.Smoothing
 		reason = "latency-gradient"
 	}
 	if window.Overloads > 0 && next >= float64(window.CurrentLimit) {
@@ -295,6 +305,7 @@ func (algorithm *gradient2Algorithm) Update(window Window) Decision {
 		QueueEstimate: float64(algorithm.config.QueueSize),
 		Throughput:    window.Throughput,
 	}
+	algorithm.estimate = next
 	return Decision{Limit: int(math.Floor(next)), State: algorithm.state}
 }
 

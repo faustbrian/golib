@@ -76,23 +76,32 @@ func TestAlgorithmMutationBoundaries(t *testing.T) {
 	if first.Limit != 10 || second.Limit != 7 || implementation.longRTT != 150 {
 		t.Fatalf("Gradient2 EWMA decisions = %+v, %+v; long RTT = %v", first, second, implementation.longRTT)
 	}
+	implementation.warmupSamples = 10
+	implementation.longRTT = 100
+	implementation.Update(Window{CurrentLimit: 10, MaxInFlight: 10, RecentLatency: 200})
+	if implementation.longRTT != 150 {
+		t.Fatalf("Gradient2 post-warmup long RTT = %v, want 150", implementation.longRTT)
+	}
+	implementation.warmupSamples = 2
 	implementation.longRTT = 100
 	corrected := implementation.Update(Window{CurrentLimit: 10, MaxInFlight: 10, RecentLatency: 10})
-	if implementation.longRTT != 52.25 || corrected.Limit != 10 {
+	if implementation.longRTT != 66.5 || corrected.Limit != 10 {
 		t.Fatalf("Gradient2 fast correction = %+v, long RTT = %v", corrected, implementation.longRTT)
 	}
 	implementation.longRTT = 100
 	zeroRTT := implementation.Update(Window{CurrentLimit: 5, MaxInFlight: 3, RecentLatency: 0})
-	if implementation.longRTT != 50 || zeroRTT.State.Reason != "application-limited" {
+	if implementation.longRTT != 75 || zeroRTT.State.Reason != "application-limited" {
 		t.Fatalf("Gradient2 zero RTT = %+v, long RTT = %v", zeroRTT, implementation.longRTT)
 	}
+	implementation.warmupSamples = 10
 	implementation.longRTT = 30
 	ratioBoundary := implementation.Update(Window{CurrentLimit: 5, MaxInFlight: 2, RecentLatency: 10})
 	if implementation.longRTT != 20 || ratioBoundary.State.Reason != "application-limited" {
 		t.Fatalf("Gradient2 correction boundary = %+v, long RTT = %v", ratioBoundary, implementation.longRTT)
 	}
+	implementation.estimate = 6
 	implementation.longRTT = 100
-	utilizationBoundary := implementation.Update(Window{CurrentLimit: 5, MaxInFlight: 3, RecentLatency: 100})
+	utilizationBoundary := implementation.Update(Window{CurrentLimit: 6, MaxInFlight: 3, RecentLatency: 100})
 	if utilizationBoundary.State.Reason != "latency-gradient" {
 		t.Fatalf("Gradient2 utilization boundary = %+v", utilizationBoundary)
 	}
@@ -479,7 +488,12 @@ func TestResetCannotInterleaveBetweenAlgorithmDecisionAndApplication(t *testing.
 		_ = limiter.applyWindow(Window{CurrentLimit: 1}, time.Time{})
 		close(applyDone)
 	}()
-	<-algorithm.updateState
+	select {
+	case <-algorithm.updateState:
+	case <-time.After(time.Second):
+		limiter.mu.Unlock()
+		t.Fatal("algorithm update did not start")
+	}
 	resetDone := make(chan struct{})
 	go func() {
 		limiter.Reset()
@@ -496,6 +510,63 @@ func TestResetCannotInterleaveBetweenAlgorithmDecisionAndApplication(t *testing.
 	limiter.mu.Unlock()
 	<-applyDone
 	<-resetDone
+}
+
+func TestResetDiscardsCompletedWindowFromPreviousGeneration(t *testing.T) {
+	t.Parallel()
+
+	algorithm, err := NewAIMDAlgorithm(AIMDConfig{Increase: 1, DecreaseFactor: 0.5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limiter := mustInternalLimiter(t, Config{
+		MinLimit: 1, MaxLimit: 4, InitialLimit: 1, Algorithm: algorithm,
+		Sampling: SamplingConfig{
+			MinDuration: time.Nanosecond, MaxDuration: time.Second,
+			MinSamples: 2, Capacity: 2, Quantile: 1,
+			BaselineSmoothing: 1, MaxIncrease: 1, MaxDecrease: 1,
+		},
+	})
+
+	started := time.Unix(0, 1)
+	limiter.mu.Lock()
+	limiter.generation = math.MaxUint64
+	limiter.windowMax = 1
+	if window := limiter.addSampleLocked(started, time.Nanosecond, OutcomeSuccess); window != nil {
+		limiter.mu.Unlock()
+		t.Fatal("first sample unexpectedly closed the window")
+	}
+	window := limiter.addSampleLocked(started.Add(time.Nanosecond), time.Nanosecond, OutcomeSuccess)
+	limiter.mu.Unlock()
+	if window == nil {
+		t.Fatal("second sample did not close the window")
+	}
+
+	limiter.Reset()
+	events := limiter.applyWindow(*window, started.Add(time.Nanosecond))
+	snapshot := limiter.Snapshot()
+	if len(events) != 0 || snapshot.Limit != 1 || snapshot.Algorithm.Reason != "reset" {
+		t.Fatalf("stale window changed reset state: events = %+v snapshot = %+v", events, snapshot)
+	}
+}
+
+func TestCurrentGenerationWindowCanAdapt(t *testing.T) {
+	t.Parallel()
+
+	algorithm, err := NewAIMDAlgorithm(AIMDConfig{Increase: 1, DecreaseFactor: 0.5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limiter := mustInternalLimiter(t, Config{MinLimit: 1, MaxLimit: 2, InitialLimit: 1, Algorithm: algorithm})
+	window := Window{
+		CurrentLimit:    1,
+		MaxInFlight:     1,
+		generationToken: limiter.generationToken,
+	}
+	events := limiter.applyWindow(window, time.Time{})
+	if len(events) != 1 || limiter.Snapshot().Limit != 2 {
+		t.Fatalf("current generation did not adapt: events = %+v snapshot = %+v", events, limiter.Snapshot())
+	}
 }
 
 type orderingAlgorithm struct {

@@ -1,6 +1,7 @@
 package concurrencylimit_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -95,6 +96,35 @@ func TestGradient2ReferenceEquation(t *testing.T) {
 	})
 	if second.Limit != 9 || second.State.Gradient <= 0.5 || second.State.Gradient >= 1 {
 		t.Fatalf("loaded decision = %+v", second)
+	}
+}
+
+func TestGradient2MatchesNetflixWarmupAndFractionalEstimate(t *testing.T) {
+	t.Parallel()
+
+	algorithm, err := concurrencylimit.NewGradient2Algorithm(concurrencylimit.Gradient2Config{
+		LongWindow: 10, Smoothing: 0.2, Tolerance: 1, MinGradient: 0.5, QueueSize: 0,
+	})
+	if err != nil {
+		t.Fatalf("NewGradient2Algorithm() error = %v", err)
+	}
+	algorithm.Reset(10)
+
+	windows := []concurrencylimit.Window{
+		{CurrentLimit: 10, MaxInFlight: 10, RecentLatency: 100 * time.Millisecond},
+		{CurrentLimit: 10, MaxInFlight: 10, RecentLatency: 200 * time.Millisecond},
+		{CurrentLimit: 9, MaxInFlight: 9, RecentLatency: 200 * time.Millisecond},
+	}
+	wantLimits := []int{10, 9, 9}
+	wantEstimates := []float64{10, 9.5, 9.183333333333334}
+	for index, window := range windows {
+		decision := algorithm.Update(window)
+		if decision.Limit != wantLimits[index] {
+			t.Fatalf("update %d limit = %d, want %d", index, decision.Limit, wantLimits[index])
+		}
+		if math.Abs(decision.State.Estimate-wantEstimates[index]) > 1e-9 {
+			t.Fatalf("update %d estimate = %.12f, want %.12f", index, decision.State.Estimate, wantEstimates[index])
+		}
 	}
 }
 
