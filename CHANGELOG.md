@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Scope verification-gate fingerprints to the selected module and its owned
+  dependencies so unrelated manifest registrations cannot invalidate
+  long-running package evidence.
 - Restrict package mutation fingerprints to the target package's compiled
   tests and dependency closure so unrelated reverse dependants cannot trigger
   redundant mutation campaigns they do not observe.

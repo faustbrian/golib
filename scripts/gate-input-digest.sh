@@ -103,7 +103,11 @@ append_module_files() {
                 in_documentation = relative ~ /^(docs|\.ai)\//
                 in_test_data = relative ~ /(^|\/)(testdata|fixtures|corpus)\//
                 is_named_documentation = relative ~ /(^|\/)(readme|changelog|contributing|security|code_of_conduct|support)\.(md|markdown)$/
+                is_repository_catalog = relative == "modules.json" || relative == "packages.json"
                 skip_documentation = !include_documentation && is_markdown && (in_documentation || (!in_test_data && is_named_documentation))
+                if (is_repository_catalog) {
+                    next
+                }
                 for (position = 1; position <= count; position++) {
                     prefix = nested[position] "/"
                     if ($0 == nested[position] || substr($0, 1, length(prefix)) == prefix) {
@@ -156,16 +160,6 @@ verification_digest() {
     append_value gate "${gate}"
     append_value module "${module}"
     append_verification_environment
-    append_value module-policy "$(
-        jq -S -c --arg directory "${module}" \
-            '.modules[] | select(.directory == $directory)' \
-            "${root}/modules.json"
-    )"
-    append_value package-policy "$(
-        jq -S -c --arg directory "${module}" \
-            '[.packages[] | select(.module_directory == $directory)]' \
-            "${root}/packages.json"
-    )"
 
     printf '%s\n' "${module}" >"${directories}"
     jq -r --arg directory "${module}" '
@@ -187,6 +181,16 @@ verification_digest() {
 
     while IFS= read -r directory; do
         [[ -n "${directory}" ]] || continue
+        append_value "module-policy:${directory}" "$(
+            jq -S -c --arg directory "${directory}" \
+                '.modules[] | select(.directory == $directory)' \
+                "${root}/modules.json"
+        )"
+        append_value "package-policy:${directory}" "$(
+            jq -S -c --arg directory "${directory}" \
+                '[.packages[] | select(.module_directory == $directory)]' \
+                "${root}/packages.json"
+        )"
         append_module_files "${directory}"
     done < <(LC_ALL=C sort -u "${directories}")
     git -C "${root}" ls-files -co --exclude-standard -- \
@@ -199,8 +203,6 @@ verification_digest() {
         go.mod \
         go.sum \
         go.work \
-        modules.json \
-        packages.json \
         scripts >>"${input_files}"
 
     LC_ALL=C sort -u "${input_files}" | append_repository_files

@@ -1362,20 +1362,43 @@ func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestFile(t, filepath.Join(root, "modules.json"), `{
-  "modules": [{
-    "directory": "pkg/example",
-    "module_path": "example.test/example",
-    "owned_dependencies": [],
-    "gates": {
-      "documentation": true,
-      "security": true,
-      "tests": true
+  "modules": [
+    {
+      "directory": "pkg/example",
+      "module_path": "example.test/example",
+      "owned_dependencies": [],
+      "gates": {
+        "documentation": true,
+        "security": true,
+        "tests": true
+      },
+      "packages": []
     },
-    "packages": []
-  }]
+    {
+      "directory": "pkg/unrelated",
+      "module_path": "example.test/unrelated",
+      "owned_dependencies": [],
+      "gates": {
+        "tests": true
+      },
+      "packages": []
+    }
+  ]
 }
 `)
-	writeTestFile(t, filepath.Join(root, "packages.json"), "{\"packages\":[]}\n")
+	writeTestFile(t, filepath.Join(root, "packages.json"), `{
+  "packages": [
+    {
+      "module_directory": "pkg/example",
+      "name": "example"
+    },
+    {
+      "module_directory": "pkg/unrelated",
+      "name": "unrelated"
+    }
+  ]
+}
+`)
 	writeTestFile(t, filepath.Join(root, "pkg", "example", "go.mod"), `module example.test/example
 
 go 1.26.5
@@ -1424,6 +1447,96 @@ go 1.26.5
 	testBefore := digest("test")
 	docsBefore := digest("docs")
 	secretsBefore := digest("secrets")
+	moduleCatalog := filepath.Join(root, "modules.json")
+	catalogContents, err := os.ReadFile(moduleCatalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		moduleCatalog,
+		strings.Replace(
+			string(catalogContents),
+			`"module_path": "example.test/unrelated"`,
+			`"module_path": "example.test/revised-unrelated"`,
+			1,
+		),
+	)
+	for _, gate := range []struct {
+		name string
+		want string
+	}{
+		{name: "test", want: testBefore},
+		{name: "docs", want: docsBefore},
+		{name: "secrets", want: secretsBefore},
+	} {
+		if current := digest(gate.name); current != gate.want {
+			t.Fatalf(
+				"unrelated module policy changed %s digest: %s != %s",
+				gate.name,
+				current,
+				gate.want,
+			)
+		}
+	}
+	unrelatedCatalogContents, err := os.ReadFile(moduleCatalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		moduleCatalog,
+		strings.Replace(
+			string(unrelatedCatalogContents),
+			`"module_path": "example.test/example"`,
+			`"module_path": "example.test/revised-example"`,
+			1,
+		),
+	)
+	if current := digest("test"); current == testBefore {
+		t.Fatal("selected module policy did not change test digest")
+	}
+	writeTestFile(t, moduleCatalog, string(unrelatedCatalogContents))
+	packageCatalog := filepath.Join(root, "packages.json")
+	packageCatalogContents, err := os.ReadFile(packageCatalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		packageCatalog,
+		strings.Replace(
+			string(packageCatalogContents),
+			`"name": "unrelated"`,
+			`"name": "revised-unrelated"`,
+			1,
+		),
+	)
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"unrelated package policy changed test digest: %s != %s",
+			current,
+			testBefore,
+		)
+	}
+	unrelatedPackageCatalogContents, err := os.ReadFile(packageCatalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		packageCatalog,
+		strings.Replace(
+			string(unrelatedPackageCatalogContents),
+			`"name": "example"`,
+			`"name": "revised-example"`,
+			1,
+		),
+	)
+	if current := digest("test"); current == testBefore {
+		t.Fatal("selected package policy did not change test digest")
+	}
+	writeTestFile(t, packageCatalog, string(unrelatedPackageCatalogContents))
 	writeTestFile(t, readme, "# Revised example\n")
 	if testAfter := digest("test"); testAfter != testBefore {
 		t.Fatalf(
