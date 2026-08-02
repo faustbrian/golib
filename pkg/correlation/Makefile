@@ -39,7 +39,7 @@ staticcheck:
 	$(STATICCHECK) ./...
 
 actionlint:
-	$(ACTIONLINT) ../.github/workflows/correlation-ci.yml
+	$(ACTIONLINT) ../../.github/workflows/ci.yml
 
 fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"

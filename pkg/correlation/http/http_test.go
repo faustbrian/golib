@@ -54,7 +54,7 @@ func TestMiddlewareTrustsOnlyDeclaredProxyAndCreatesRequestHop(t *testing.T) {
 
 	untrusted := httptest.NewRequest(http.MethodGet, "/", nil)
 	untrusted.RemoteAddr = "internet:443"
-	untrusted.Header.Set(httpcorrelation.CorrelationHeader, "spoofed-flow")
+	untrusted.Header[httpcorrelation.CorrelationHeader] = []string{"spoofed-flow", "conflicting-flow"}
 	untrustedResponse := httptest.NewRecorder()
 	handler.ServeHTTP(untrustedResponse, untrusted)
 	if untrustedResponse.Body.String() != "new-flow/untrusted-request/" {

@@ -42,7 +42,7 @@ run_mutant carrier_overwrite carrier.go \
 	'len(carrier.Values(field.name)) == 0' .
 run_mutant proxy_trust http/http.go \
 	'middleware.options.Trust != nil && middleware.options.Trust(request)' \
-	'middleware.options.Trust == nil || middleware.options.Trust(request)' ./http
+	'middleware.options.Trust != nil && !middleware.options.Trust(request)' ./http
 run_mutant deterministic_version deterministic.go \
 	'binary.BigEndian.PutUint32(encoded[:], strategy.version)' \
 	'binary.BigEndian.PutUint32(encoded[:], strategy.version+1)' .

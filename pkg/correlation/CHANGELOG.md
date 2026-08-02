@@ -9,6 +9,9 @@ versioning once released.
 
 - Amortize system entropy reads through a bounded factory-owned buffer while
   preserving cryptographic UUIDv4 request identities.
+- Skip inbound carrier parsing when the default HTTP policy replaces all
+  untrusted metadata, and write canonical response headers without reparsing
+  their names.
 - Trust the canonical default UUID generator while validating custom generator
   output once with a byte-oriented ASCII policy scan.
 - Return fresh correlation and request identifiers on explicitly rejected

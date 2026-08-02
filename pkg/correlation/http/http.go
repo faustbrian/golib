@@ -17,8 +17,11 @@ const (
 	// RequestHeader carries the current HTTP hop identifier.
 	RequestHeader = "X-Request-ID"
 	// CausationHeader carries the immediate parent identifier.
-	CausationHeader = "X-Causation-ID"
-	maxHeaderValues = 8
+	CausationHeader   = "X-Causation-ID"
+	correlationMapKey = "X-Correlation-Id"
+	requestMapKey     = "X-Request-Id"
+	causationMapKey   = "X-Causation-Id"
+	maxHeaderValues   = 8
 )
 
 // InvalidPolicy controls malformed or ambiguous inbound metadata.
@@ -73,27 +76,15 @@ func (middleware *Middleware) Wrap(next http.Handler) http.Handler {
 			http.Error(writer, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		inbound, err := middleware.codec.Extract(headerCarrier{request.Header})
-		if err != nil && middleware.options.Invalid == RejectInvalid {
-			values, generationErr := middleware.factory.Start()
-			if generationErr != nil {
-				http.Error(writer, "internal server error", http.StatusInternalServerError)
-				return
-			}
+		values, rejected, err := middleware.receive(request)
+		if err != nil {
+			http.Error(writer, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if rejected {
 			setHeaders(request.Header, values)
 			setHeaders(writer.Header(), values)
 			http.Error(writer, "invalid correlation metadata", http.StatusBadRequest)
-			return
-		}
-		if err != nil {
-			inbound = correlation.Values{}
-		}
-		trusted := middleware.options.Trust != nil && middleware.options.Trust(request)
-		values, err := middleware.factory.Accept(inbound, correlation.InboundPolicy{
-			TrustCorrelation: trusted, TrustRequestAsCausation: trusted,
-		})
-		if err != nil {
-			http.Error(writer, "internal server error", http.StatusInternalServerError)
 			return
 		}
 
@@ -102,6 +93,35 @@ func (middleware *Middleware) Wrap(next http.Handler) http.Handler {
 		ctx := correlation.WithValues(request.Context(), values)
 		next.ServeHTTP(writer, request.WithContext(ctx))
 	})
+}
+
+func (middleware *Middleware) receive(
+	request *http.Request,
+) (correlation.Values, bool, error) {
+	if middleware.options.Invalid == ReplaceInvalid && middleware.options.Trust == nil {
+		values, err := middleware.factory.Start()
+
+		return values, false, err
+	}
+	inbound, err := middleware.codec.Extract(headerCarrier{request.Header})
+	if err != nil && middleware.options.Invalid == RejectInvalid {
+		values, generationErr := middleware.factory.Start()
+		if generationErr != nil {
+			return correlation.Values{}, false, generationErr
+		}
+
+		return values, true, nil
+	}
+	if err != nil {
+		inbound = correlation.Values{}
+	}
+	trusted := middleware.options.Trust != nil && middleware.options.Trust(request)
+
+	values, err := middleware.factory.Accept(inbound, correlation.InboundPolicy{
+		TrustCorrelation: trusted, TrustRequestAsCausation: trusted,
+	})
+
+	return values, false, err
 }
 
 // Inject creates and injects the next outbound HTTP hop.
@@ -135,11 +155,11 @@ func (carrier headerCarrier) Values(key string) []string {
 func (carrier headerCarrier) Set(key, value string) { carrier.header.Set(key, value) }
 
 func setHeaders(header http.Header, values correlation.Values) {
-	header.Set(CorrelationHeader, values.CorrelationID.String())
-	header.Set(RequestHeader, values.RequestID.String())
+	header[correlationMapKey] = []string{values.CorrelationID.String()}
+	header[requestMapKey] = []string{values.RequestID.String()}
 	if values.CausationID != "" {
-		header.Set(CausationHeader, values.CausationID.String())
+		header[causationMapKey] = []string{values.CausationID.String()}
 	} else {
-		header.Del(CausationHeader)
+		delete(header, causationMapKey)
 	}
 }
