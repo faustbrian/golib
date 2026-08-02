@@ -729,6 +729,7 @@ func proveProducerThrottle(
 			Value: 1024,
 		},
 	)
+	waitForClientQuota(t, ctx, admin, clientID, "producer_byte_rate", 1024)
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(
 			context.Background(),
@@ -790,7 +791,11 @@ func proveProducerThrottle(
 		}
 	}()
 
-	for attempt := 0; attempt < 10 && !throttleObserved.Load(); attempt++ {
+	const maximumThrottleAttempts = 50
+	throttleProbe := time.NewTicker(200 * time.Millisecond)
+	defer throttleProbe.Stop()
+	for attempt := 0; attempt < maximumThrottleAttempts &&
+		!throttleObserved.Load(); attempt++ {
 		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
 			Topic:     topic,
 			Partition: kafka.ExplicitPartition(0),
@@ -799,6 +804,14 @@ func proveProducerThrottle(
 		})
 		if result.Err != nil || result.Topic != topic || result.Partition != 0 {
 			t.Fatalf("throttled producer result = %#v", result)
+		}
+		if throttleObserved.Load() {
+			break
+		}
+		select {
+		case <-throttleProbe.C:
+		case <-ctx.Done():
+			t.Fatalf("wait for broker throttle observation: %v", ctx.Err())
 		}
 	}
 	if duration := time.Duration(throttleDuration.Load()); duration <= 0 ||
@@ -810,6 +823,47 @@ func proveProducerThrottle(
 			throttledAfterResponse.Load(),
 			throttleBrokerKnown.Load(),
 		)
+	}
+}
+
+func waitForClientQuota(
+	t *testing.T,
+	ctx context.Context,
+	admin *kadm.Client,
+	clientID string,
+	key string,
+	want float64,
+) {
+	t.Helper()
+
+	quotaCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	quotaProbe := time.NewTicker(100 * time.Millisecond)
+	defer quotaProbe.Stop()
+	for {
+		quotas, err := admin.DescribeClientQuotas(
+			quotaCtx,
+			true,
+			[]kadm.DescribeClientQuotaComponent{{
+				Type:      "client-id",
+				MatchName: kadm.StringPtr(clientID),
+			}},
+		)
+		if err == nil {
+			for _, quota := range quotas {
+				for _, value := range quota.Values {
+					if value.Key == key && value.Value == want {
+						return
+					}
+				}
+			}
+		}
+
+		select {
+		case <-quotaProbe.C:
+		case <-quotaCtx.Done():
+			t.Fatal("client quota did not become observable before deadline")
+		}
 	}
 }
 

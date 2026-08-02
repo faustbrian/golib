@@ -651,30 +651,31 @@ func runApacheKafkaConsumerChild(t *testing.T) {
 	runCtx, cancelRun := context.WithCancel(context.Background())
 	defer cancelRun()
 	runResult := make(chan error, 1)
-	go func() {
-		runResult <- consumer.Run(runCtx, kafka.HandlerFunc(func(
-			context.Context,
-			kafka.ConsumedRecord,
-		) error {
-			if expectedFetchBroker != 0 {
-				rackState.Lock()
-				armed := rackState.armed
-				fetchBroker := rackState.lastFetchBroker
-				rackState.Unlock()
-				if armed && fetchBroker != expectedFetchBroker {
-					return fmt.Errorf(
-						"record followed fetch from broker %d, want %d",
-						fetchBroker,
-						expectedFetchBroker,
-					)
-				}
-				if armed {
-					rackRecordOnce.Do(func() { close(rackRecord) })
-				}
+	handler := kafka.HandlerFunc(func(
+		context.Context,
+		kafka.ConsumedRecord,
+	) error {
+		if expectedFetchBroker != 0 {
+			rackState.Lock()
+			armed := rackState.armed
+			fetchBroker := rackState.lastFetchBroker
+			rackState.Unlock()
+			if armed && fetchBroker != expectedFetchBroker {
+				return fmt.Errorf(
+					"record followed fetch from broker %d, want %d",
+					fetchBroker,
+					expectedFetchBroker,
+				)
 			}
+			if armed {
+				rackRecordOnce.Do(func() { close(rackRecord) })
+			}
+		}
 
-			return nil
-		}))
+		return nil
+	})
+	go func() {
+		runResult <- runApacheKafkaConsumerWithRetry(runCtx, consumer, handler)
 	}()
 	waitForApacheKafkaConsumerAssignment(t, consumer, runResult)
 	if expectedFetchBroker != 0 {
@@ -751,6 +752,45 @@ func runApacheKafkaConsumerChild(t *testing.T) {
 	if _, err := fmt.Fprintln(os.Stdout, apacheKafkaConsumerStopped); err != nil {
 		t.Fatalf("report consumer child shutdown: %v", err)
 	}
+}
+
+func runApacheKafkaConsumerWithRetry(
+	ctx context.Context,
+	consumer *kafka.Consumer,
+	handler kafka.Handler,
+) error {
+	const maximumAttempts = 10
+	for attempt := 0; attempt < maximumAttempts; attempt++ {
+		err := consumer.Run(ctx, handler)
+		if ctx.Err() != nil {
+			return nil
+		}
+		if err == nil {
+			return err
+		}
+		var retryable interface{ Retryable() bool }
+		if !errors.As(err, &retryable) || !retryable.Retryable() {
+			return err
+		}
+		if attempt == maximumAttempts-1 {
+			return err
+		}
+
+		retryDelay := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-retryDelay.C:
+		case <-ctx.Done():
+			if !retryDelay.Stop() {
+				select {
+				case <-retryDelay.C:
+				default:
+				}
+			}
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func waitForApacheKafkaConsumerAssignment(

@@ -27,6 +27,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- stabilize pinned Apache Kafka evidence by retrying bounded retryable consumer
+  startup failures and waiting for broker quota propagation before asserting
+  producer throttling
 - bound encoded broker responses, individual decompressed Kafka record
   batches, and aggregate active decoded buffers across consumer groups,
   consume-transform-produce, and replay; oversized compressed input now fails
