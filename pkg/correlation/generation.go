@@ -5,6 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 
 	identifieruuid "github.com/faustbrian/golib/pkg/identifier/uuid"
 )
@@ -57,9 +58,7 @@ func NewFactory(options FactoryOptions) (*Factory, error) {
 	}
 	validateGenerated := options.Generator != nil
 	if options.Generator == nil {
-		options.Generator = &uuidGenerator{generator: identifieruuid.NewV4Generator(
-			bufio.NewReaderSize(cryptorand.Reader, defaultEntropyBufferSize),
-		)}
+		options.Generator = newBufferedUUIDGenerator(cryptorand.Reader)
 	}
 	return &Factory{
 		policy:            options.Policy,
@@ -69,6 +68,12 @@ func NewFactory(options FactoryOptions) (*Factory, error) {
 }
 
 type uuidGenerator struct{ generator *identifieruuid.V4Generator }
+
+func newBufferedUUIDGenerator(reader io.Reader) *uuidGenerator {
+	return &uuidGenerator{generator: identifieruuid.NewV4Generator(
+		bufio.NewReaderSize(reader, defaultEntropyBufferSize),
+	)}
+}
 
 func (generator *uuidGenerator) New() (string, error) {
 	id, err := generator.generator.New()

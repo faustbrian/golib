@@ -27,6 +27,15 @@ type errorReader struct{}
 
 func (errorReader) Read([]byte) (int, error) { return 0, errors.New("entropy") }
 
+type countingReader struct{ reads int }
+
+func (reader *countingReader) Read(buffer []byte) (int, error) {
+	reader.reads++
+	clear(buffer)
+
+	return len(buffer), nil
+}
+
 func (generator *failingGenerator) New() (string, error) {
 	if generator.err != nil {
 		return "", generator.err
@@ -272,6 +281,21 @@ func TestFactoryReportsEveryGenerationFailure(t *testing.T) {
 	identifierGenerator := &uuidGenerator{generator: identifieruuid.NewV4Generator(errorReader{})}
 	if _, err := identifierGenerator.New(); err == nil {
 		t.Fatal("UUID entropy failure was hidden")
+	}
+}
+
+func TestDefaultGeneratorAmortizesEntropyReads(t *testing.T) {
+	t.Parallel()
+
+	reader := &countingReader{}
+	generator := newBufferedUUIDGenerator(reader)
+	for range 4 {
+		if _, err := generator.New(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if reader.reads != 1 {
+		t.Fatalf("entropy reads = %d, want 1", reader.reads)
 	}
 }
 
