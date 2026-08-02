@@ -34,10 +34,10 @@ race:
 	$(GO) test -race ./... -count=1
 
 stress:
-	$(GO) test -race ./... -run 'Concurrent|FIFO|Cancellation|Close' -count=20
+	$(GO) test -race ./... -run 'Concurrent|Generated|FIFO|WeightedHead|Cancellation|Close' -count=20
 
 leak:
-	$(GO) test -race ./... -run 'Cancellation|Close|Panic|Wait' -count=20
+	$(GO) test -race ./... -run 'Cancellation|Close|Panic|Wait|TerminalWaiters|ReleasedPermit|HiddenGoroutine' -count=20
 
 fuzz:
 	$(GO) test ./... -run '^$$' -fuzz=FuzzConfigAndTryAcquire \

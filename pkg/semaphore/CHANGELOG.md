@@ -16,3 +16,9 @@
   guidance.
 - Race, fuzz, conservation, lifecycle, benchmark, coverage, mutation, API,
   documentation, and clean-consumer gate definitions.
+- Generated concurrent reference histories, deterministic cancellation and
+  shutdown races, queue-node and permit-retention checks, and source-owned
+  goroutine/timer/finalizer guards.
+- Equivalent benchmark dimensions for strict FIFO handoff, cancellation queue
+  depth, mixed weights, observer overhead, x/sync v0.22.0, and the actively
+  released kit4go v0.9.0 semaphore, with semantic differences disclosed.
