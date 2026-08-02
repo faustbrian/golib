@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-go test ./queueservice ./redisstream ./valkeystream \
+go test ./redisstream ./valkeystream \
   -run 'Test(RedisStreamStatsRemainSourceCompatible|ValkeyStreamStatsRemainPackageOwned)$'
