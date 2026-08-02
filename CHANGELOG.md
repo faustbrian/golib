@@ -45,6 +45,9 @@ documented in each module's changelog.
 
 ### Changed
 
+- Add the repository-wide hardening report that records the canonical
+  contract, pinned toolchain, package-attributable evidence, interoperability
+  scope, and final release-readiness boundary.
 - Expand release selections to every transitive owned dependency and verify
   them in dependency-first order before the requested module.
 - Plan every unpublished module's first public release as stable `v1.0.0`, and

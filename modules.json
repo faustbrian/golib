@@ -66,7 +66,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -99,7 +100,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -132,7 +134,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -165,7 +168,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -198,7 +202,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -231,7 +236,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -264,7 +270,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -297,7 +304,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -330,7 +338,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -363,7 +372,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -396,7 +406,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -429,7 +440,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -463,6 +475,7 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/hardening-report.md",
             "docs/releases.md"
           ],
           "verification_gates": [
@@ -496,7 +509,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -529,7 +543,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -562,7 +577,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -595,7 +611,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
@@ -628,7 +645,8 @@
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
-            "docs/architecture.md"
+            "docs/architecture.md",
+            "docs/hardening-report.md"
           ],
           "verification_gates": [
             "format-check",
