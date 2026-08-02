@@ -23,3 +23,5 @@
   between updates instead of truncating adaptation on every window.
 - Contain caller-supplied timer cleanup panics so queued admission still
   returns its terminal permit or error without corrupting limiter state.
+- Add per-update reference equations, reproducible adversarial workload
+  campaigns, metadata fairness checks, and lifecycle race stress coverage.
