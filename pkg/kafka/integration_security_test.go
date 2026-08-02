@@ -731,7 +731,7 @@ func startSecureKafkaBroker(
 	}
 	container, err := testcontainers.GenericContainer(ctx, request)
 	if container != nil {
-		testcontainers.CleanupContainer(t, container)
+		cleanupApacheKafkaContainer(t, container)
 	}
 	if err != nil {
 		t.Fatalf("create secured Apache Kafka broker: %v", err)

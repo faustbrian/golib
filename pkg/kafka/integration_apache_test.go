@@ -4009,7 +4009,7 @@ func startApacheKafkaClusterWithImage(
 	t.Helper()
 
 	dockerNetwork := newApacheKafkaNetwork(t, ctx)
-	testcontainers.CleanupNetwork(t, dockerNetwork)
+	cleanupApacheKafkaNetwork(t, dockerNetwork)
 
 	cluster := &apacheKafkaCluster{nodes: make([]apacheKafkaNode, 0, 3)}
 	for nodeID := int32(1); nodeID <= 3; nodeID++ {
@@ -4037,7 +4037,7 @@ func startApacheKafkaClusterWithImage(
 		}
 		container, err := testcontainers.GenericContainer(ctx, request)
 		if container != nil {
-			testcontainers.CleanupContainer(t, container)
+			cleanupApacheKafkaContainer(t, container)
 		}
 		if err != nil {
 			t.Fatalf("create Apache Kafka node %d: %v", nodeID, err)
@@ -4080,7 +4080,7 @@ func startApacheKafkaSeparatedCluster(
 	t.Helper()
 
 	dockerNetwork := newApacheKafkaNetwork(t, ctx)
-	testcontainers.CleanupNetwork(t, dockerNetwork)
+	cleanupApacheKafkaNetwork(t, dockerNetwork)
 
 	cluster := &apacheKafkaSeparatedCluster{
 		controllers: make([]apacheKafkaNode, 0, 3),
@@ -4250,13 +4250,43 @@ func createApacheKafkaContainer(
 		testcontainers.GenericContainerRequest{ContainerRequest: request},
 	)
 	if container != nil {
-		testcontainers.CleanupContainer(t, container)
+		cleanupApacheKafkaContainer(t, container)
 	}
 	if err != nil {
 		t.Fatalf("create Apache Kafka %s %d: %v", role, nodeID, err)
 	}
 
 	return container
+}
+
+func cleanupApacheKafkaContainer(
+	t *testing.T,
+	container testcontainers.Container,
+) {
+	t.Helper()
+
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := container.Terminate(ctx, testcontainers.StopTimeout(0)); err != nil {
+			t.Errorf("terminate Apache Kafka container: %v", err)
+		}
+	})
+}
+
+func cleanupApacheKafkaNetwork(
+	t *testing.T,
+	dockerNetwork testcontainers.Network,
+) {
+	t.Helper()
+
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := dockerNetwork.Remove(ctx); err != nil {
+			t.Errorf("remove Apache Kafka network: %v", err)
+		}
+	})
 }
 
 func apacheKafkaRunLoopScript(

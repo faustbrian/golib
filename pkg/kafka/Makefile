@@ -23,7 +23,7 @@ fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"
 
 integration:
-	$(GO) test -tags=integration -count=1 ./...
+	$(GO) test -tags=integration -count=1 -timeout=20m ./...
 
 benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem -benchtime="$(BENCH_TIME)"
