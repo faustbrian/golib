@@ -637,6 +637,127 @@
       }
     },
     {
+      "directory": "pkg/adaptive-throttle",
+      "module_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/adaptive-throttle",
+          "directory": ".",
+          "name": "throttle",
+          "import_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`adaptive-throttle` is a process-local probabilistic load shedder for Go. It uses recent downstream admission signals to reject a bounded share of new work before network execution while always preserving probabilistic probe flow.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/adaptive-throttle/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/adaptive-throttle/.ai/GOAL.md",
+        "pkg/adaptive-throttle/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/adaptive-throttle/.ai/GOAL.md",
+          "requirements_sha256": "4139fa9a7ddad596a37386ca4139086fa3e7535d4f5be5bb52692f7c1f76580a",
+          "implementation_evidence": [
+            "pkg/adaptive-throttle/CHANGELOG.md",
+            "pkg/adaptive-throttle/README.md",
+            "pkg/adaptive-throttle/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/adaptive-throttle/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "32e1df3ae7fe7f99d09ecb1d411d3de51181db1d0d988415d8e247eecaba3358",
+          "implementation_evidence": [
+            "pkg/adaptive-throttle/CHANGELOG.md",
+            "pkg/adaptive-throttle/README.md",
+            "pkg/adaptive-throttle/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/analysis",
       "module_path": "github.com/faustbrian/golib/pkg/analysis",
       "go_version": "1.26.5",

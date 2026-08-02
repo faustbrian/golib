@@ -2,6 +2,7 @@ go 1.26.5
 
 use (
 	.
+	./pkg/adaptive-throttle
 	./pkg/analysis
 	./pkg/api-query
 	./pkg/authentication
@@ -109,6 +110,8 @@ use (
 	./pkg/wsdl
 	./pkg/xsd
 )
+
+replace github.com/faustbrian/golib/pkg/adaptive-throttle v0.0.0 => ./pkg/adaptive-throttle
 
 replace github.com/faustbrian/golib/pkg/analysis v0.0.0 => ./pkg/analysis
 

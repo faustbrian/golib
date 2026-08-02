@@ -27,6 +27,18 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/adaptive-throttle",
+      "directory": ".",
+      "name": "throttle",
+      "import_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/analysis",
       "directory": "analysis",
       "name": "analysis",
