@@ -147,7 +147,8 @@ type attemptContextKey struct{}
 
 type budgetExecutionState struct {
 	scope WorkBudgetScope
-	next  atomic.Uint64
+	mu    sync.Mutex
+	next  uint64
 }
 
 // Start creates one logical scope and attaches it to a derived context.
@@ -213,7 +214,13 @@ func BudgetScopeFromContext(ctx context.Context) (WorkBudgetScope, bool) {
 		return nil, false
 	}
 	state, ok := ctx.Value(budgetContextKey{}).(*budgetExecutionState)
-	if !ok || state == nil || nilInterface(state.scope) {
+	if !ok {
+		return nil, false
+	}
+	if state == nil {
+		return nil, false
+	}
+	if nilInterface(state.scope) {
 		return nil, false
 	}
 	return state.scope, true
@@ -241,10 +248,16 @@ func AdmitAttempt(ctx context.Context, origin AttemptOrigin, parent uint64, star
 		return nil, Attempt{}, nil, invalid(ErrInvalidMetadata, "context", "must not be nil")
 	}
 	state, ok := ctx.Value(budgetContextKey{}).(*budgetExecutionState)
-	if !ok || state == nil || nilInterface(state.scope) {
+	if !ok {
 		return nil, Attempt{}, nil, ErrBudgetScopeRequired
 	}
-	ordinal, err := reserveOrdinal(&state.next)
+	if state == nil {
+		return nil, Attempt{}, nil, ErrBudgetScopeRequired
+	}
+	if nilInterface(state.scope) {
+		return nil, Attempt{}, nil, ErrBudgetScopeRequired
+	}
+	ordinal, err := reserveOrdinal(state)
 	if err != nil {
 		return nil, Attempt{}, nil, err
 	}
@@ -256,7 +269,7 @@ func AdmitAttempt(ctx context.Context, origin AttemptOrigin, parent uint64, star
 }
 
 func admitKnownAttempt(ctx context.Context, state *budgetExecutionState, attempt Attempt) (context.Context, Attempt, Permit, error) {
-	advanceOrdinal(&state.next, attempt.Ordinal)
+	advanceOrdinal(state, attempt.Ordinal)
 	permit, err := state.scope.Acquire(ctx, attempt)
 	if err != nil {
 		return nil, Attempt{}, nil, err
@@ -264,24 +277,21 @@ func admitKnownAttempt(ctx context.Context, state *budgetExecutionState, attempt
 	return context.WithValue(ctx, attemptContextKey{}, attempt), attempt, permit, nil
 }
 
-func reserveOrdinal(next *atomic.Uint64) (uint64, error) {
-	for {
-		current := next.Load()
-		if current == ^uint64(0) {
-			return 0, invalid(ErrInvalidAttempt, "ordinal", "exhausted")
-		}
-		if next.CompareAndSwap(current, current+1) {
-			return current + 1, nil
-		}
+func reserveOrdinal(state *budgetExecutionState) (uint64, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.next == ^uint64(0) {
+		return 0, invalid(ErrInvalidAttempt, "ordinal", "exhausted")
 	}
+	state.next++
+	return state.next, nil
 }
 
-func advanceOrdinal(next *atomic.Uint64, ordinal uint64) {
-	for {
-		current := next.Load()
-		if current >= ordinal || next.CompareAndSwap(current, ordinal) {
-			return
-		}
+func advanceOrdinal(state *budgetExecutionState, ordinal uint64) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if ordinal > state.next {
+		state.next = ordinal
 	}
 }
 

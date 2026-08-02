@@ -16,6 +16,25 @@ func TestBudgetScopeFromContextRejectsTypedNilScope(t *testing.T) {
 	if got, ok := BudgetScopeFromContext(ctx); ok {
 		t.Fatalf("scope = %#v, ok = %t", got, ok)
 	}
+	if _, _, _, err := AdmitAttempt(ctx, OriginOriginal, 0, time.Unix(1, 0)); !errors.Is(err, ErrBudgetScopeRequired) {
+		t.Fatalf("typed nil scope admission error = %v", err)
+	}
+}
+
+func TestBudgetContextRejectsEveryInvalidStateShape(t *testing.T) {
+	t.Parallel()
+
+	wrongType := context.WithValue(context.Background(), budgetContextKey{}, "not a budget state")
+	var nilState *budgetExecutionState
+	typedNil := context.WithValue(context.Background(), budgetContextKey{}, nilState)
+	for name, ctx := range map[string]context.Context{"wrong type": wrongType, "typed nil state": typedNil} {
+		if scope, ok := BudgetScopeFromContext(ctx); ok || scope != nil {
+			t.Fatalf("%s scope = (%v, %v)", name, scope, ok)
+		}
+		if _, _, _, err := AdmitAttempt(ctx, OriginOriginal, 0, time.Unix(1, 0)); !errors.Is(err, ErrBudgetScopeRequired) {
+			t.Fatalf("%s admission error = %v", name, err)
+		}
+	}
 }
 
 func TestAttemptContextRejectsInvalidStateAndExhaustedOrdinals(t *testing.T) {
@@ -34,15 +53,37 @@ func TestAttemptContextRejectsInvalidStateAndExhaustedOrdinals(t *testing.T) {
 	}
 
 	state := &budgetExecutionState{scope: &BudgetScope{}}
-	state.next.Store(math.MaxUint64)
+	state.next = math.MaxUint64
 	exhaustedCtx := context.WithValue(context.Background(), budgetContextKey{}, state)
 	if _, _, _, err := AdmitAttempt(exhaustedCtx, OriginRetry, 1, time.Unix(1, 0)); !errors.Is(err, ErrInvalidAttempt) {
 		t.Fatalf("exhausted admission error = %v", err)
 	}
 
-	state.next.Store(1)
+	state.next = 1
 	if _, _, _, err := AdmitAttempt(exhaustedCtx, OriginOriginal, 0, time.Time{}); !errors.Is(err, ErrInvalidAttempt) {
 		t.Fatalf("invalid attempt error = %v", err)
+	}
+}
+
+func TestAttemptOrdinalSequencerAdvancesOnlyForward(t *testing.T) {
+	t.Parallel()
+
+	state := &budgetExecutionState{next: 2}
+	advanceOrdinal(state, 3)
+	if state.next != 3 {
+		t.Fatalf("advanced ordinal = %d", state.next)
+	}
+	advanceOrdinal(state, 3)
+	if state.next != 3 {
+		t.Fatalf("equal ordinal changed to %d", state.next)
+	}
+	advanceOrdinal(state, 2)
+	if state.next != 3 {
+		t.Fatalf("older ordinal changed to %d", state.next)
+	}
+	ordinal, err := reserveOrdinal(state)
+	if err != nil || ordinal != 4 {
+		t.Fatalf("reserved ordinal = %d, error = %v", ordinal, err)
 	}
 }
 
