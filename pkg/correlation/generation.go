@@ -1,11 +1,15 @@
 package correlation
 
 import (
+	"bufio"
+	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
 
 	identifieruuid "github.com/faustbrian/golib/pkg/identifier/uuid"
 )
+
+const defaultEntropyBufferSize = 4 << 10
 
 var (
 	// ErrInvalidFactory reports invalid factory configuration.
@@ -53,7 +57,9 @@ func NewFactory(options FactoryOptions) (*Factory, error) {
 	}
 	validateGenerated := options.Generator != nil
 	if options.Generator == nil {
-		options.Generator = &uuidGenerator{generator: identifieruuid.NewV4Generator(nil)}
+		options.Generator = &uuidGenerator{generator: identifieruuid.NewV4Generator(
+			bufio.NewReaderSize(cryptorand.Reader, defaultEntropyBufferSize),
+		)}
 	}
 	return &Factory{
 		policy:            options.Policy,

@@ -7,6 +7,8 @@ versioning once released.
 
 ### Fixed
 
+- Amortize system entropy reads through a bounded factory-owned buffer while
+  preserving cryptographic UUIDv4 request identities.
 - Trust the canonical default UUID generator while validating custom generator
   output once with a byte-oriented ASCII policy scan.
 - Return fresh correlation and request identifiers on explicitly rejected

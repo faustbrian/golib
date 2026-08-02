@@ -1,7 +1,9 @@
 # Generation
 
 The zero-option factory creates canonical UUIDv4 values through
-`identifier/uuid`, whose generator owns `crypto/rand.Reader`. There is no
+`identifier/uuid`. Each factory owns a bounded buffer over
+`crypto/rand.Reader` so concurrent request identity generation amortizes
+system entropy reads without global mutable state. There is no
 ambient generator and callers may inject an instance-scoped generator for
 testing or a different identifier family.
 

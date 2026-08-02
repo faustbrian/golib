@@ -31,8 +31,9 @@ if err != nil {
 child, err := factory.Next(root)
 ```
 
-The default factory uses the explicitly owned cryptographic UUIDv4 generator
-from `identifier`. A caller-supplied generator remains instance scoped and
+The default factory uses an explicitly owned, bounded entropy buffer around the
+cryptographic UUIDv4 generator from `identifier`. A caller-supplied generator
+remains instance scoped and
 must return canonical text accepted by the configured policy.
 
 Inbound metadata is never trusted by extraction alone:

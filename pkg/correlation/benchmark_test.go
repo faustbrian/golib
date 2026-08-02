@@ -40,6 +40,27 @@ func BenchmarkFactoryNext(b *testing.B) {
 	}
 }
 
+func BenchmarkDefaultFactoryStart(b *testing.B) {
+	factory, _ := correlation.NewFactory(correlation.FactoryOptions{})
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := factory.Start(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDefaultFactoryNext(b *testing.B) {
+	factory, _ := correlation.NewFactory(correlation.FactoryOptions{})
+	parent := correlation.Values{CorrelationID: "flow", RequestID: "parent"}
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := factory.Next(parent); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkCarrierRoundTrip(b *testing.B) {
 	codec, _ := correlation.NewCodec(correlation.CodecOptions{})
 	values := correlation.Values{CorrelationID: "flow", RequestID: "request", CausationID: "parent"}
