@@ -327,6 +327,40 @@ func TestQueueAppliesDesiredStateAndDelegatesNativeStatus(t *testing.T) {
 	queue.Shutdown()
 }
 
+func TestQueueResumesAfterCompletedDrainWithoutShuttingDown(t *testing.T) {
+	t.Parallel()
+
+	worker := newManagedQueueWorker()
+	lifecycle := managedQueueLifecycle(t)
+	queue, err := NewQueue(WithWorker(worker), WithWorkerLifecycle(lifecycle))
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	draining := management.DesiredRecord{
+		Target: management.Target{Kind: management.TargetWorkerGroup, Name: "payments"},
+		State:  management.DesiredDraining, Revision: 1,
+		ChangedAt: time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC),
+		CommandID: "drain-before-resume",
+	}
+	if err = queue.ApplyDesiredState(context.Background(), draining); err != nil {
+		t.Fatalf("ApplyDesiredState(draining) error = %v", err)
+	}
+	if stopped := atomic.LoadInt32(&queue.stopFlag); stopped != 0 {
+		t.Fatalf("queue stop flag after drain = %d, want 0", stopped)
+	}
+	active := draining
+	active.State = management.DesiredActive
+	active.Revision = 2
+	active.CommandID = "resume-after-drain"
+	if err = queue.ApplyDesiredState(context.Background(), active); err != nil {
+		t.Fatalf("ApplyDesiredState(active) error = %v", err)
+	}
+	if stopped := atomic.LoadInt32(&queue.stopFlag); stopped != 0 {
+		t.Fatalf("queue stop flag after resume = %d, want 0", stopped)
+	}
+	queue.Shutdown()
+}
+
 func TestQueueDesiredTerminationAndManagementErrorsFailClosed(t *testing.T) {
 	t.Parallel()
 

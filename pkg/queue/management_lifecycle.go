@@ -76,8 +76,12 @@ func (q *Queue) ApplyDesiredState(
 	snapshot := q.lifecycle.Snapshot()
 	if snapshot.Terminating && snapshot.DrainStatus == management.DrainCompleted {
 		q.Shutdown()
-	} else if snapshot.State == management.WorkerRunning {
-		q.schedule()
+	} else {
+		switch snapshot.State {
+		case management.WorkerRunning:
+			q.schedule()
+		default:
+		}
 	}
 
 	return nil

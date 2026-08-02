@@ -84,6 +84,62 @@ func TestRingShrinksAfterDequeue(t *testing.T) {
 	}
 }
 
+func TestRingZeroCapacityIsUnlimitedAndDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	var ring *Ring
+	func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				t.Fatalf("NewRing(WithQueueSize(0)) panic = %v", recovered)
+			}
+		}()
+		ring = NewRing(WithQueueSize(0))
+	}()
+	for index := 0; index < 3; index++ {
+		if err := ring.Queue(&job.Message{}); err != nil {
+			t.Fatalf("Queue(%d) error = %v", index, err)
+		}
+	}
+}
+
+func TestRingDoesNotSignalShutdownWhileIntakeIsOpen(t *testing.T) {
+	t.Parallel()
+
+	ring := NewRing()
+	if err := ring.Queue(&job.Message{}); err != nil {
+		t.Fatalf("Queue() error = %v", err)
+	}
+	if _, err := ring.Request(); err != nil {
+		t.Fatalf("Request() error = %v", err)
+	}
+	select {
+	case <-ring.exit:
+		t.Fatal("Ring signaled shutdown while intake remained open")
+	default:
+	}
+}
+
+func TestRingDoesNotSignalShutdownWhileStoppedWorkRemains(t *testing.T) {
+	t.Parallel()
+
+	ring := NewRing()
+	for index := 0; index < 2; index++ {
+		if err := ring.Queue(&job.Message{}); err != nil {
+			t.Fatalf("Queue(%d) error = %v", index, err)
+		}
+	}
+	atomic.StoreInt32(&ring.stopFlag, 1)
+	if _, err := ring.Request(); err != nil {
+		t.Fatalf("Request() error = %v", err)
+	}
+	select {
+	case <-ring.exit:
+		t.Fatal("Ring signaled shutdown with queued work remaining")
+	default:
+	}
+}
+
 func TestStackCaptureReturnsWithinBound(t *testing.T) {
 	const helperEnvironment = "GOLIB_QUEUE_STACK_HELPER"
 	if os.Getenv(helperEnvironment) == "1" {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
@@ -13,7 +14,6 @@ const (
 	dunno     = "???"
 	centerDot = "·"
 	dot       = "."
-	slash     = "/"
 )
 
 var readSourceFile = os.ReadFile
@@ -94,12 +94,9 @@ func function(pc uintptr) []byte {
 	if fn == nil {
 		return []byte(dunno)
 	}
-	name := fn.Name()
-	if lastSlash := strings.LastIndex(name, slash); lastSlash >= 0 {
-		name = name[lastSlash+1:]
-	}
-	if period := strings.Index(name, dot); period >= 0 {
-		name = name[period+1:]
+	name := path.Base(fn.Name())
+	if _, shortName, found := strings.Cut(name, dot); found {
+		name = shortName
 	}
 	name = strings.ReplaceAll(name, centerDot, dot)
 	return []byte(name)

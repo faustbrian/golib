@@ -197,12 +197,17 @@ func TestShutdownPropagatesHandlerPanicAfterCancellation(t *testing.T) {
 func TestRecoveryHelpersHandleBoundaries(t *testing.T) {
 	assert.Equal(t, []byte("???"), source(nil, -1))
 	assert.Equal(t, []byte("???"), source(nil, 0))
+	lines := [][]byte{[]byte(" first "), []byte("second"), []byte(" third ")}
+	assert.Equal(t, []byte("first"), source(lines, 1))
+	assert.Equal(t, []byte("second"), source(lines, 2))
+	assert.Equal(t, []byte("third"), source(lines, 3))
+	assert.Equal(t, []byte("???"), source(lines, 4))
 	assert.Equal(t, []byte("???"), function(0))
 	assert.NotEmpty(t, stack(0))
 
 	pc, _, _, ok := runtime.Caller(0)
 	require.True(t, ok)
-	assert.True(t, strings.Contains(string(function(pc)), "TestRecoveryHelpersHandleBoundaries"))
+	assert.Equal(t, "TestRecoveryHelpersHandleBoundaries", string(function(pc)))
 }
 
 func TestRingRejectsQueueAndSecondShutdownAfterClosing(t *testing.T) {
@@ -229,5 +234,26 @@ func TestStackContinuesWhenSourceCannotBeRead(t *testing.T) {
 	}
 	t.Cleanup(func() { readSourceFile = original })
 
-	assert.NotEmpty(t, stack(0))
+	trace := stack(0)
+	assert.Greater(t, strings.Count(string(trace), " (0x"), 1)
+}
+
+func TestStackReadsEachConsecutiveSourceFileOnce(t *testing.T) {
+	original := readSourceFile
+	reads := make(map[string]int)
+	readSourceFile = func(name string) ([]byte, error) {
+		reads[name]++
+		return original(name)
+	}
+	t.Cleanup(func() { readSourceFile = original })
+
+	trace := captureRecoveryStack()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	assert.Equal(t, 1, reads[file])
+	assert.Contains(t, string(trace), "captureRecoveryStack")
+}
+
+func captureRecoveryStack() []byte {
+	return stack(1)
 }

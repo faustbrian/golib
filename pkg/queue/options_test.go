@@ -65,6 +65,26 @@ func TestNewOptionsUsesBoundedAndNilSafeDefaults(t *testing.T) {
 	assert.NoError(t, opts.fn(context.Background(), nil))
 }
 
+func TestNewOptionsAppliesOptionsAfterNilEntries(t *testing.T) {
+	t.Parallel()
+
+	const queueSize = 37
+	opts := NewOptions(nil, WithQueueSize(queueSize))
+	if opts.queueSize != queueSize {
+		t.Fatalf("queue size = %d, want %d", opts.queueSize, queueSize)
+	}
+}
+
+func TestWithWorkerCountFallsBackForZeroAndNegativeCounts(t *testing.T) {
+	t.Parallel()
+
+	for _, count := range []int64{0, -1} {
+		if actual := NewOptions(WithWorkerCount(count)).workerCount; actual != defaultWorkerCount {
+			t.Errorf("worker count for %d = %d, want %d", count, actual, defaultWorkerCount)
+		}
+	}
+}
+
 func TestNewQueueRejectsUnsafeSchedulerConfiguration(t *testing.T) {
 	worker := &optionTestWorker{}
 
