@@ -7,6 +7,8 @@ semantic versioning after the first tagged release.
 
 ### Changed
 
+- Reuse the repository-provided API compatibility tool during isolated checks
+  so mutable local dependency archives never conflict with source checksums.
 - Pin unpublished owned modules to exact resolvable revisions so clean
   consumers no longer depend on nonexistent `v0.1.0` tags.
 - Refresh owned-module checksums against the final consolidated archives.
