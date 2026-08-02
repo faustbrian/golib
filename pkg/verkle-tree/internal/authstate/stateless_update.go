@@ -160,8 +160,7 @@ func (updater *StatelessUpdater) Apply(
 	if err := proof.validate(); err != nil {
 		return backend.Root{}, err
 	}
-	if uint64(len(proof.commitments)) > uint64(maxTreeProofPathCommitments) ||
-		uint64(len(proof.stemPaths)) > uint64(maxTreeProofStemPaths) {
+	if !statelessProofCountsWithinLimits(proof) {
 		return backend.Root{}, errInvalidTreeProof
 	}
 	if len(updates) == 0 {
@@ -205,7 +204,7 @@ func (updater *StatelessUpdater) Apply(
 	}
 
 	root, _ := proof.root.Commitment()
-	commitments := make(map[statelessPath]backend.VectorCommitment, len(proof.commitments)+1)
+	commitments := make(map[statelessPath]backend.VectorCommitment)
 	commitments[statelessPath{}] = root
 	for index := range proof.commitments {
 		path := statelessPath{
@@ -236,6 +235,11 @@ func statelessTemporaryBytes(proof TreeProof, updateCount uint64) uint64 {
 		uint64(len(proof.commitments))*statelessCommitmentPathWorkingBytes +
 		uint64(len(proof.stemPaths))*statelessStemPathWorkingBytes +
 		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes
+}
+
+func statelessProofCountsWithinLimits(proof TreeProof) bool {
+	return uint64(len(proof.commitments)) <= uint64(maxTreeProofPathCommitments) &&
+		uint64(len(proof.stemPaths)) <= uint64(maxTreeProofStemPaths)
 }
 
 func (updater *StatelessUpdater) updateStems(
@@ -350,12 +354,13 @@ func (updater *StatelessUpdater) updateAncestors(
 	changed map[statelessPath]statelessChangedCommitment,
 	budget *statelessUpdateBudget,
 ) (backend.VectorCommitment, error) {
-	for len(changed) > 0 {
+	if len(changed) == 0 {
+		return backend.VectorCommitment{}, errInvalidStatelessUpdate
+	}
+	for {
 		maxDepth := uint8(0)
 		for path := range changed {
-			if path.length > maxDepth {
-				maxDepth = path.length
-			}
+			maxDepth = max(maxDepth, path.length)
 		}
 		if maxDepth == 0 {
 			if root, exists := changed[statelessPath{}]; exists && len(changed) == 1 {
@@ -369,24 +374,23 @@ func (updater *StatelessUpdater) updateAncestors(
 			if err := checkTreeProofContext(ctx); err != nil {
 				return backend.VectorCommitment{}, err
 			}
-			if path.length != maxDepth {
-				continue
+			if path.length == maxDepth {
+				parent := path
+				parent.length--
+				index := path.path[parent.length]
+				parent.path[parent.length] = 0
+				oldScalar, err := budget.mapCommitment(value.old)
+				if err != nil {
+					return backend.VectorCommitment{}, err
+				}
+				newScalar, err := budget.mapCommitment(value.new)
+				if err != nil {
+					return backend.VectorCommitment{}, err
+				}
+				parents[parent] = append(parents[parent], backend.VectorUpdate{Index: index, Old: oldScalar, New: newScalar})
 			}
-			parent := path
-			parent.length--
-			index := path.path[parent.length]
-			parent.path[parent.length] = 0
-			oldScalar, err := budget.mapCommitment(value.old)
-			if err != nil {
-				return backend.VectorCommitment{}, err
-			}
-			newScalar, err := budget.mapCommitment(value.new)
-			if err != nil {
-				return backend.VectorCommitment{}, err
-			}
-			parents[parent] = append(parents[parent], backend.VectorUpdate{Index: index, Old: oldScalar, New: newScalar})
 		}
-		next := make(map[statelessPath]statelessChangedCommitment, len(changed)+len(parents))
+		next := make(map[statelessPath]statelessChangedCommitment)
 		for path, value := range changed {
 			if path.length != maxDepth {
 				next[path] = value
@@ -411,8 +415,6 @@ func (updater *StatelessUpdater) updateAncestors(
 		}
 		changed = next
 	}
-
-	return backend.VectorCommitment{}, errInvalidStatelessUpdate
 }
 
 func makeStatelessPath(path []byte) statelessPath {

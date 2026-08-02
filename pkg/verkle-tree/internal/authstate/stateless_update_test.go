@@ -342,6 +342,43 @@ func TestStatelessUpdaterAccountsForProofAndPropagationScratch(t *testing.T) {
 	}
 }
 
+func TestStatelessUpdateProofCountAndScratchBoundaries(t *testing.T) {
+	t.Parallel()
+	limits := testStatelessUpdateLimits()
+	limits.MaxUpdates = maxStatelessUpdates
+	if err := limits.validate(); err != nil {
+		t.Fatalf("exact maximum update limit: %v", err)
+	}
+
+	proof := TreeProof{
+		commitments: make([]PathCommitment, int(maxTreeProofPathCommitments)),
+		stemPaths:   make([]StemPath, int(maxTreeProofStemPaths)),
+	}
+	if !statelessProofCountsWithinLimits(proof) {
+		t.Fatal("exact proof component maxima were rejected")
+	}
+	proof.commitments = append(proof.commitments, PathCommitment{})
+	if statelessProofCountsWithinLimits(proof) {
+		t.Fatal("excessive proof commitment count was accepted")
+	}
+	proof.commitments = proof.commitments[:maxTreeProofPathCommitments]
+	proof.stemPaths = append(proof.stemPaths, StemPath{})
+	if statelessProofCountsWithinLimits(proof) {
+		t.Fatal("excessive proof stem-path count was accepted")
+	}
+
+	proof.commitments = make([]PathCommitment, 2)
+	proof.stemPaths = make([]StemPath, 3)
+	const updateCount = uint64(4)
+	want := updateCount*statelessUpdateWorkingBytes +
+		2*statelessCommitmentPathWorkingBytes +
+		3*statelessStemPathWorkingBytes +
+		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes
+	if got := statelessTemporaryBytes(proof, updateCount); got != want {
+		t.Fatalf("stateless scratch bytes = %d, want %d", got, want)
+	}
+}
+
 func TestStatelessUpdaterHonorsCancellationAndConcurrentUse(t *testing.T) {
 	t.Parallel()
 
