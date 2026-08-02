@@ -32,3 +32,18 @@ The conservative Vegas default was selected because its equation is
 explainable, its queue target detects latency growth before widespread timeout,
 its application-limited guard prevents idle drift, and the throughput signal
 prevents growth when added in-flight work no longer increases goodput.
+
+## Comparative evidence
+
+The non-releasable [comparison harness](../benchmarks/comparison/README.md)
+pins Netflix `concurrency-limits`, Failsafe-Go, and Platinum sources separately
+from this public module. Its checked-in [results](../benchmarks/comparison/results/README.md)
+include all nine fixed-seed workload classes, every limit and modeled capacity,
+per-workload SVG convergence plots, utilization, goodput, rejection, modeled queue and p99
+latency, collapse/recovery adaptation, and raw five-run CPU, bytes, and
+allocation benchmarks.
+
+The report preserves semantic differences: Netflix is a transparent Go
+equation port rather than a JVM benchmark, Failsafe-Go owns wall-clock sampling,
+and only this limiter accepts an explicit overload outcome. Treat the results
+as bounded implementation evidence, not a universal performance ranking.

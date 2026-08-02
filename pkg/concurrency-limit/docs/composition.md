@@ -27,3 +27,9 @@ the dependency must cross it.
 Classify caller cancellation, breaker-open, rate-limit rejection, cache
 short-circuit, and other local drops as ignored or local drop. Use overload only
 for a credible capacity signal from an admitted downstream attempt.
+
+The non-releasable `integration/resilience` module executes these public
+contracts with the repository retry and hedge modules. It proves a local
+admission rejection is not retried, each hedge attempt crosses admission, a
+rejected hedge does not invoke downstream work or become a learning sample, and
+all permits and the shared hedge budget are released.

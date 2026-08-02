@@ -26,6 +26,12 @@ and fail to scale, or scale down while demand is being shed. Alert and scale on
 request demand, local rejection, queue depth, current limit saturation, and
 downstream signals in addition to CPU. Do not tune the limiter as an HPA.
 
+The deterministic lifecycle tests cover independent cold scale-up, mixed
+algorithm rollout, bounded scale-down drain, abrupt cold replacement, and a
+CPU-only feedback model that scales from four replicas to one while rejection
+increases. The model demonstrates the caveat; it is not an HPA configuration or
+production sizing recommendation.
+
 A distributed adaptive limit is not implemented: safe coordination requires a
 coherent control plane with membership, leases, failure handling, propagation
 delay, consistency, and partition semantics. A shared counter alone would turn

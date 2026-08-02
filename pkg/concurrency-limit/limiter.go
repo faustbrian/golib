@@ -66,7 +66,7 @@ type permitState struct {
 	metadata   Metadata
 }
 
-type lifecycleGeneration struct{ marker byte }
+type lifecycleGeneration byte
 
 // New validates config and constructs an independent process-local limiter.
 func New(config Config) (*Limiter, error) {
@@ -77,7 +77,7 @@ func New(config Config) (*Limiter, error) {
 	limiter := &Limiter{
 		config: normalized, limit: normalized.initialLimit,
 		permits: make(map[uint64]*permitState), generation: 1,
-		generationToken: &lifecycleGeneration{},
+		generationToken: new(lifecycleGeneration),
 	}
 	limiter.algorithmMu.Lock()
 	resetOK := safeAlgorithmReset(normalized.algorithm, normalized.initialLimit)
@@ -222,7 +222,7 @@ func (limiter *Limiter) Reset() {
 	limiter.mu.Lock()
 	before := limiter.snapshotLocked()
 	saturatingIncrement(&limiter.generation)
-	limiter.generationToken = &lifecycleGeneration{}
+	limiter.generationToken = new(lifecycleGeneration)
 	limiter.limit = limiter.config.initialLimit
 	limiter.inFlight = 0
 	limiter.permits = make(map[uint64]*permitState)

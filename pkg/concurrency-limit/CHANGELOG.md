@@ -25,3 +25,5 @@
   returns its terminal permit or error without corrupting limiter state.
 - Add per-update reference equations, reproducible adversarial workload
   campaigns, metadata fairness checks, and lifecycle race stress coverage.
+- Publish pinned comparative workload, convergence, CPU, memory, and allocation
+  evidence, plus cross-package retry/hedge and pod lifecycle simulations.
