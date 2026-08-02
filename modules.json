@@ -51,6 +51,8 @@
         ".ai/GOAL_POLISH.md",
         ".ai/GOAL_QUEUE_WORKER_BALANCING.md",
         ".ai/GOAL_RELEASE.md",
+        ".ai/GOAL_RESILIENCE.md",
+        ".ai/GOAL_RESILIENCE_HARDEN.md",
         ".ai/GOAL_SECURITY.md",
         ".ai/GOAL_SPECIFICATION_DECISIONS.md",
         ".ai/GOAL_SUPPLY_CHAIN.md"
@@ -428,6 +430,72 @@
             "README.md",
             "docs/architecture.md",
             "docs/releases.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": ".ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "db051b3abe49ca532ed633531415bbde61563b9b39ccaa6d159bac394cf12b14",
+          "implementation_evidence": [
+            "CHANGELOG.md",
+            "README.md",
+            "docs/architecture.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": ".ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "3f4c0535c308b376457218fe3a1c8910236f31cee0a4ff099afcf77bdb93a713",
+          "implementation_evidence": [
+            "CHANGELOG.md",
+            "README.md",
+            "docs/architecture.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2634,7 +2702,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/cache/.ai/GOAL.md",
-        "pkg/cache/.ai/GOAL_HARDEN.md"
+        "pkg/cache/.ai/GOAL_HARDEN.md",
+        "pkg/cache/.ai/GOAL_RESILIENCE.md",
+        "pkg/cache/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -2677,6 +2747,78 @@
         {
           "file": "pkg/cache/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "8b416f5b9532a8ad52d5f1fb6e45811ed92a41d684e07f102fd7cc452dba93e4",
+          "implementation_evidence": [
+            "pkg/cache/CHANGELOG.md",
+            "pkg/cache/README.md",
+            "pkg/cache/docs/api.md",
+            "pkg/cache/docs/compatibility.md",
+            "pkg/cache/docs/hardening.md",
+            "pkg/cache/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/cache/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "2fa943c624ff6293ee2e9b55e23e2e502805fb7dc3535662f36a371098eb7ee9",
+          "implementation_evidence": [
+            "pkg/cache/CHANGELOG.md",
+            "pkg/cache/README.md",
+            "pkg/cache/docs/api.md",
+            "pkg/cache/docs/compatibility.md",
+            "pkg/cache/docs/hardening.md",
+            "pkg/cache/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/cache/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "0f8e8e0dcaf76ec255c8053448ffde12fceb6cbcc0fae3af23b4ccbb4598527a",
           "implementation_evidence": [
             "pkg/cache/CHANGELOG.md",
             "pkg/cache/README.md",
@@ -3051,7 +3193,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/circuit-breaker/.ai/GOAL.md",
-        "pkg/circuit-breaker/.ai/GOAL_HARDEN.md"
+        "pkg/circuit-breaker/.ai/GOAL_HARDEN.md",
+        "pkg/circuit-breaker/.ai/GOAL_RESILIENCE.md",
+        "pkg/circuit-breaker/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -3092,6 +3236,74 @@
         {
           "file": "pkg/circuit-breaker/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "1aa707fd21e25d2deb2a1053f3be55ae389e4431836e226e974fd96c33f07229",
+          "implementation_evidence": [
+            "pkg/circuit-breaker/CHANGELOG.md",
+            "pkg/circuit-breaker/README.md",
+            "pkg/circuit-breaker/docs/api.md",
+            "pkg/circuit-breaker/docs/hardening-audit.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/circuit-breaker/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "3f78437d5d56228cc22028219a6b503e688419261f685002d16226fce10933ce",
+          "implementation_evidence": [
+            "pkg/circuit-breaker/CHANGELOG.md",
+            "pkg/circuit-breaker/README.md",
+            "pkg/circuit-breaker/docs/api.md",
+            "pkg/circuit-breaker/docs/hardening-audit.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/circuit-breaker/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "87f1c342fae0ccca5f00d0032c0c61f5562594443d84aaa90943e1ee67bd8342",
           "implementation_evidence": [
             "pkg/circuit-breaker/CHANGELOG.md",
             "pkg/circuit-breaker/README.md",
@@ -5933,7 +6145,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/http-client/.ai/GOAL.md",
-        "pkg/http-client/.ai/GOAL_HARDEN.md"
+        "pkg/http-client/.ai/GOAL_HARDEN.md",
+        "pkg/http-client/.ai/GOAL_RESILIENCE.md",
+        "pkg/http-client/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -5976,6 +6190,78 @@
         {
           "file": "pkg/http-client/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "bf396cd1676b1ac545a21e7f27f55495b201e7181e5370294683651a79ce6894",
+          "implementation_evidence": [
+            "pkg/http-client/CHANGELOG.md",
+            "pkg/http-client/README.md",
+            "pkg/http-client/docs/compatibility.md",
+            "pkg/http-client/docs/hardening.md",
+            "pkg/http-client/docs/performance.md",
+            "pkg/http-client/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/http-client/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "5599d23188a965288bf475ee2d2b1645b145ed752a78a106ba0d07467bc47749",
+          "implementation_evidence": [
+            "pkg/http-client/CHANGELOG.md",
+            "pkg/http-client/README.md",
+            "pkg/http-client/docs/compatibility.md",
+            "pkg/http-client/docs/hardening.md",
+            "pkg/http-client/docs/performance.md",
+            "pkg/http-client/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/http-client/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "a4f4b31b1eceb3492dd6fb3433bc41ab62e3f4c6250bf36dec4b5fa0ca45ce70",
           "implementation_evidence": [
             "pkg/http-client/CHANGELOG.md",
             "pkg/http-client/README.md",
@@ -14271,7 +14557,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/rate-limit/.ai/GOAL.md",
-        "pkg/rate-limit/.ai/GOAL_HARDEN.md"
+        "pkg/rate-limit/.ai/GOAL_HARDEN.md",
+        "pkg/rate-limit/.ai/GOAL_RESILIENCE.md",
+        "pkg/rate-limit/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -14316,6 +14604,82 @@
         {
           "file": "pkg/rate-limit/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "9749c6a282db174b20e2d701fc4019f23f44a2fcb9c6e45f67d802e8f946bc0a",
+          "implementation_evidence": [
+            "pkg/rate-limit/CHANGELOG.md",
+            "pkg/rate-limit/README.md",
+            "pkg/rate-limit/docs/README.md",
+            "pkg/rate-limit/docs/api.md",
+            "pkg/rate-limit/docs/audit-report.md",
+            "pkg/rate-limit/docs/hardening.md",
+            "pkg/rate-limit/docs/performance.md",
+            "pkg/rate-limit/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/rate-limit/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "cb26a5cffc465ca9f30ed2d891a3b93dd6f61bf6482d53ae048c32a96f732e97",
+          "implementation_evidence": [
+            "pkg/rate-limit/CHANGELOG.md",
+            "pkg/rate-limit/README.md",
+            "pkg/rate-limit/docs/README.md",
+            "pkg/rate-limit/docs/api.md",
+            "pkg/rate-limit/docs/audit-report.md",
+            "pkg/rate-limit/docs/hardening.md",
+            "pkg/rate-limit/docs/performance.md",
+            "pkg/rate-limit/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/rate-limit/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "0d4ba6a69bc3842f852844cae88924b2669ff5687548c7ba1aadacf9f3d4e457",
           "implementation_evidence": [
             "pkg/rate-limit/CHANGELOG.md",
             "pkg/rate-limit/README.md",
@@ -14470,7 +14834,9 @@
       "provenance": [],
       "goal_files": [
         "pkg/retry/.ai/GOAL.md",
-        "pkg/retry/.ai/GOAL_HARDEN.md"
+        "pkg/retry/.ai/GOAL_HARDEN.md",
+        "pkg/retry/.ai/GOAL_RESILIENCE.md",
+        "pkg/retry/.ai/GOAL_RESILIENCE_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -14511,6 +14877,74 @@
         {
           "file": "pkg/retry/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "5537afa37c0214aeaeb92a2ef741593d7ac8bfdb60bf56dd5793c5b63ea52bbc",
+          "implementation_evidence": [
+            "pkg/retry/CHANGELOG.md",
+            "pkg/retry/README.md",
+            "pkg/retry/docs/README.md",
+            "pkg/retry/docs/compatibility.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/retry/.ai/GOAL_RESILIENCE.md",
+          "requirements_sha256": "f2824f4ed3855ec42b313533829690ea4d33a7aa5d3d94e22edc51437d5e9bef",
+          "implementation_evidence": [
+            "pkg/retry/CHANGELOG.md",
+            "pkg/retry/README.md",
+            "pkg/retry/docs/README.md",
+            "pkg/retry/docs/compatibility.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/retry/.ai/GOAL_RESILIENCE_HARDEN.md",
+          "requirements_sha256": "1c0c31d3774b0f6472239ddf0f3d663631b0e5d55dfefb6de6f0a150b9726329",
           "implementation_evidence": [
             "pkg/retry/CHANGELOG.md",
             "pkg/retry/README.md",
