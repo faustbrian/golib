@@ -65,15 +65,22 @@ func (factory *injectedTimerFactory) NewTimer(ctx context.Context, delay time.Du
 	if err := faultPhaseError(ctx, decision.faults, PhaseBefore, factory.injector.sleeper); err != nil {
 		return nil, err
 	}
-	if err := faultPhaseError(ctx, decision.faults, PhaseDuring, factory.injector.sleeper); err != nil {
-		return nil, err
+	operationContext, cleanup, duringError := prepareDuring(ctx, factory.injector.sleeper, decision.faults)
+	defer cleanup()
+	timer, organicError := factory.base.NewTimer(operationContext, delay)
+	if duringError != nil {
+		stopTimer(timer)
+		return nil, duringError
 	}
-	timer, organicError := factory.base.NewTimer(ctx, delay)
 	if err := faultPhaseError(ctx, decision.faults, PhaseAfter, factory.injector.sleeper); err != nil {
-		if timer != nil {
-			timer.Stop()
-		}
+		stopTimer(timer)
 		return nil, err
 	}
 	return timer, organicError
+}
+
+func stopTimer(timer Timer) {
+	if timer != nil {
+		timer.Stop()
+	}
 }

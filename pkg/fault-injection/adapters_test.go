@@ -100,6 +100,30 @@ func TestSleeperAndTimerFactoryUseExplicitClockBoundary(t *testing.T) {
 	}
 }
 
+func TestTimerFactoryDuringCancellationDelegatesWithEndedContextAndCleansUp(t *testing.T) {
+	t.Parallel()
+
+	baseTimer := &stubTimer{channel: make(chan time.Time)}
+	called := false
+	base := timerFactoryFunc(func(ctx context.Context, _ time.Duration) (faultinject.Timer, error) {
+		called = true
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			t.Fatalf("factory context error = %v", ctx.Err())
+		}
+		return baseTimer, nil
+	})
+	wrapped, err := faultinject.WrapTimerFactory(base, scopedInjector(t, faultinject.BoundaryClock,
+		faultinject.CancelFault(faultinject.PhaseDuring)), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	timer, err := wrapped.NewTimer(context.Background(), time.Second)
+	if timer != nil || !errors.Is(err, context.Canceled) || !called || !baseTimer.stopped {
+		t.Fatalf("NewTimer() = %v, %v; called=%t, stopped=%t", timer, err, called, baseTimer.stopped)
+	}
+}
+
 type stubListener struct {
 	connection net.Conn
 	closed     bool
@@ -143,6 +167,12 @@ type stubTimerFactory struct{ timer *stubTimer }
 
 func (factory *stubTimerFactory) NewTimer(context.Context, time.Duration) (faultinject.Timer, error) {
 	return factory.timer, nil
+}
+
+type timerFactoryFunc func(context.Context, time.Duration) (faultinject.Timer, error)
+
+func (function timerFactoryFunc) NewTimer(ctx context.Context, delay time.Duration) (faultinject.Timer, error) {
+	return function(ctx, delay)
 }
 
 type stubTimer struct {

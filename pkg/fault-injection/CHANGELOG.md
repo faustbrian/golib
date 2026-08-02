@@ -26,3 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   breaker campaign integrations without downstream production dependencies.
 - Adoption, API, adapter, operations, security, Kubernetes, infrastructure
   comparison, extension, and FAQ documentation.
+
+### Fixed
+
+- Timer-factory during-phase cancellation now reaches the factory with an
+  ended context and stops any timer returned before the injected error.
