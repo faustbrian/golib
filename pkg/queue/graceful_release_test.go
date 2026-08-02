@@ -7,10 +7,19 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	queue "github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/core"
 )
+
+func boundedReleaseContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(cancel)
+
+	return ctx
+}
 
 type releaseMessage string
 
@@ -107,7 +116,7 @@ func TestReleaseContextStopsAdmissionAndDrainsHandlersBeforeShutdown(t *testing.
 	<-entered
 
 	stopped := make(chan error, 1)
-	go func() { stopped <- coordinator.ReleaseContext(context.Background()) }()
+	go func() { stopped <- coordinator.ReleaseContext(boundedReleaseContext(t)) }()
 	for {
 		err = coordinator.Queue(releaseMessage("late"))
 		if errors.Is(err, queue.ErrQueueShutdown) {
@@ -171,7 +180,7 @@ func TestReleaseContextCanResumeAfterCallerCancellation(t *testing.T) {
 	}
 
 	close(release)
-	if err = coordinator.ReleaseContext(context.Background()); err != nil {
+	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("resumed ReleaseContext() error = %v", err)
 	}
 }
@@ -198,7 +207,7 @@ func TestReleaseContextDrainsPendingInMemoryWork(t *testing.T) {
 		t.Fatalf("Queue(second) error = %v", err)
 	}
 
-	if err := coordinator.ReleaseContext(context.Background()); err != nil {
+	if err := coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("ReleaseContext() error = %v", err)
 	}
 	mu.Lock()
@@ -235,7 +244,7 @@ func TestReleaseContextWaitsForAnAcceptedPublishBeforeShutdown(t *testing.T) {
 	go func() { published <- coordinator.Queue(releaseMessage("work")) }()
 	<-entered
 	stopped := make(chan error, 1)
-	go func() { stopped <- coordinator.ReleaseContext(context.Background()) }()
+	go func() { stopped <- coordinator.ReleaseContext(boundedReleaseContext(t)) }()
 	for {
 		err = coordinator.Queue(releaseMessage("late"))
 		if errors.Is(err, queue.ErrQueueShutdown) {
@@ -333,7 +342,7 @@ func TestReleaseContextFinishesATaskReturnedWithARequestError(t *testing.T) {
 	<-worker.requestEntered
 
 	stopped := make(chan error, 1)
-	go func() { stopped <- coordinator.ReleaseContext(context.Background()) }()
+	go func() { stopped <- coordinator.ReleaseContext(boundedReleaseContext(t)) }()
 	for {
 		err = coordinator.Queue(releaseMessage("late"))
 		if errors.Is(err, queue.ErrQueueShutdown) {
@@ -369,7 +378,7 @@ func TestReleaseContextReturnsWorkerShutdownFailure(t *testing.T) {
 		t.Fatalf("NewQueue() error = %v", err)
 	}
 
-	if err = coordinator.ReleaseContext(context.Background()); !errors.Is(err, shutdownErr) {
+	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); !errors.Is(err, shutdownErr) {
 		t.Fatalf("ReleaseContext() error = %v, want shutdown failure", err)
 	}
 }
@@ -412,7 +421,7 @@ func TestReleaseContextHonorsCancellationWhileAnAdmissionIsActive(t *testing.T) 
 	if err = <-published; err != nil {
 		t.Fatalf("Queue() error = %v", err)
 	}
-	if err = coordinator.ReleaseContext(context.Background()); err != nil {
+	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("resumed ReleaseContext() error = %v", err)
 	}
 }
@@ -452,7 +461,7 @@ func TestReleaseContextStartsAnUnstartedInMemoryQueue(t *testing.T) {
 	if err = coordinator.Queue(releaseMessage("work")); err != nil {
 		t.Fatalf("Queue() error = %v", err)
 	}
-	if err = coordinator.ReleaseContext(context.Background()); err != nil {
+	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("ReleaseContext() error = %v", err)
 	}
 	if handled != 1 {
@@ -493,7 +502,7 @@ func TestReleaseContextBoundsAZeroWorkerInMemoryDrainAndCanResume(t *testing.T) 
 
 	coordinator.UpdateWorkerCount(1)
 	coordinator.Start()
-	if err := coordinator.ReleaseContext(context.Background()); err != nil {
+	if err := coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("resumed ReleaseContext() error = %v", err)
 	}
 	if handled != 1 {

@@ -108,5 +108,9 @@ func TestObserverReceivesRetryAndFailure(t *testing.T) {
 		}
 		require.Equal(t, management.ClassificationRetryable, event.Classification)
 		require.Equal(t, "handler_failed", event.FailureCode)
+		if event.Kind == EventRetryScheduled {
+			require.Equal(t, time.Millisecond, event.RetryDelay)
+			require.Equal(t, int64(0), event.RetryRemaining)
+		}
 	}
 }

@@ -321,6 +321,25 @@ func TestDeliveryAttemptLimitResolverRejectsUnsafeRuntimeLimit(t *testing.T) {
 	}
 }
 
+func TestDeliveryAttemptLimitResolverAcceptsExactBounds(t *testing.T) {
+	t.Parallel()
+
+	for name, limit := range map[string]int64{
+		"minimum": 2,
+		"maximum": maxResolvedDeliveryAttempts,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			opts := defaultWorkerOptions(t)
+			opts.deliveryAttemptLimit = func(core.TaskMessage) int64 { return limit }
+			worker := &Worker{opts: opts}
+			resolved, err := worker.resolveDeliveryAttemptLimit(nil)
+			require.NoError(t, err)
+			assert.Equal(t, limit, resolved)
+		})
+	}
+}
+
 func TestWorkerStatsReportsOutstandingWorkAndLifecycleCounters(t *testing.T) {
 	server := miniredis.RunT(t)
 	now := time.Now().UTC().Truncate(time.Millisecond)
@@ -558,6 +577,42 @@ func TestWorkerReclaimFailureCursorAndCancellationPaths(t *testing.T) {
 	cancel()
 	stopped := &Worker{ctx: cancelled, tasks: make(chan streamqueue.Delivery)}
 	assert.False(t, stopped.deliver(streamqueue.Delivery{}))
+}
+
+func TestWorkerUsesExactBufferCapacityAndReclaimCursorTransitions(t *testing.T) {
+	opts := defaultWorkerOptions(t)
+	opts.readBatchSize = 3
+	opts.reclaimInterval = time.Millisecond
+	message := job.NewMessage(rawMessage("reclaimed"))
+	requests := make(chan streamqueue.ClaimRequest, 4)
+	logger := &countingLogger{}
+	opts.logger = logger
+	transport := &scriptedTransport{
+		read: make(chan scriptedRead), claim: make(chan scriptedClaim, 4),
+		claimRequests: requests,
+	}
+	transport.claim <- scriptedClaim{err: errors.New("claim failed")}
+	transport.claim <- scriptedClaim{result: streamqueue.ClaimResult{Next: "5-0"}}
+	transport.claim <- scriptedClaim{result: streamqueue.ClaimResult{
+		Next: "", Deliveries: []streamqueue.Delivery{{
+			ID: "1-0", Body: message.Bytes(), Attempts: 2, Reclaimed: true,
+		}},
+	}}
+	worker := newWorkerForTransport(opts, transport)
+	if capacity := cap(worker.tasks); capacity != 6 {
+		t.Fatalf("task buffer capacity = %d, want 6", capacity)
+	}
+	received, err := worker.Request()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("reclaimed"), received.Payload())
+	first := <-requests
+	second := <-requests
+	third := <-requests
+	assert.Equal(t, "0-0", first.Start)
+	assert.Equal(t, "0-0", second.Start)
+	assert.Equal(t, "5-0", third.Start)
+	assert.Equal(t, int32(1), logger.errors.Load())
+	require.NoError(t, worker.Shutdown())
 }
 
 func TestWorkerTimeoutAndSettlementFailures(t *testing.T) {
@@ -832,15 +887,25 @@ type scriptedClaim struct {
 }
 
 type scriptedTransport struct {
-	read         chan scriptedRead
-	claim        chan scriptedClaim
-	addErr       error
-	readGate     <-chan struct{}
-	claimGate    <-chan struct{}
-	readCalled   chan<- struct{}
-	claimCalled  chan<- struct{}
-	readReturned chan<- struct{}
+	read          chan scriptedRead
+	claim         chan scriptedClaim
+	addErr        error
+	readGate      <-chan struct{}
+	claimGate     <-chan struct{}
+	readCalled    chan<- struct{}
+	claimCalled   chan<- struct{}
+	claimRequests chan<- streamqueue.ClaimRequest
+	readReturned  chan<- struct{}
 }
+
+type countingLogger struct{ errors atomic.Int32 }
+
+func (*countingLogger) Infof(string, ...any)  {}
+func (*countingLogger) Errorf(string, ...any) {}
+func (*countingLogger) Fatalf(string, ...any) {}
+func (*countingLogger) Info(...any)           {}
+func (logger *countingLogger) Error(...any)   { logger.errors.Add(1) }
+func (*countingLogger) Fatal(...any)          {}
 
 func (*scriptedTransport) EnsureGroup(context.Context, string, string) error { return nil }
 func (t *scriptedTransport) Add(context.Context, streamqueue.AddRequest) (string, error) {
@@ -863,9 +928,12 @@ func (t *scriptedTransport) Read(ctx context.Context, _ streamqueue.ReadRequest)
 		return nil, ctx.Err()
 	}
 }
-func (t *scriptedTransport) Claim(ctx context.Context, _ streamqueue.ClaimRequest) (streamqueue.ClaimResult, error) {
+func (t *scriptedTransport) Claim(ctx context.Context, request streamqueue.ClaimRequest) (streamqueue.ClaimResult, error) {
 	select {
 	case response := <-t.claim:
+		if t.claimRequests != nil {
+			t.claimRequests <- request
+		}
 		if t.claimCalled != nil {
 			t.claimCalled <- struct{}{}
 		}

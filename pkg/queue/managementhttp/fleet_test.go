@@ -318,10 +318,41 @@ func TestFleetClientPreservesCancellationDuringFanout(t *testing.T) {
 		_, executeErr := fleet.Execute(ctx, command)
 		result <- executeErr
 	}()
-	<-requestStarted
+	select {
+	case <-requestStarted:
+	case err := <-result:
+		t.Fatalf("Execute() returned before issuing the request: %v", err)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Execute() did not issue the request")
+	}
 	cancel()
-	if err := <-result; !errors.Is(err, context.Canceled) {
-		t.Fatalf("Execute(canceled fanout) error = %v", err)
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Execute(canceled fanout) error = %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Execute(canceled fanout) did not return")
+	}
+}
+
+func TestFleetClientAcceptsExactEndpointAndIdentityBounds(t *testing.T) {
+	t.Parallel()
+
+	endpoints := make([]Endpoint, MaxFleetEndpoints)
+	for index := range endpoints {
+		endpoints[index] = Endpoint{
+			ID:      fmt.Sprintf("endpoint-%03d-%s", index, strings.Repeat("x", 243)),
+			BaseURL: fmt.Sprintf("https://worker-%03d.example", index),
+		}
+		if len(endpoints[index].ID) != 256 {
+			t.Fatalf("fixture endpoint ID length = %d, want 256", len(endpoints[index].ID))
+		}
+	}
+	fleet := mustFleetClient(t, endpoints)
+	remotes, err := fleet.resolve(context.Background())
+	if err != nil || len(remotes) != MaxFleetEndpoints {
+		t.Fatalf("resolve(exact bounds) = (%d, %v)", len(remotes), err)
 	}
 }
 
@@ -607,12 +638,16 @@ func TestFleetClientBoundsRemoteStatusPagination(t *testing.T) {
 	t.Parallel()
 
 	for name, status := range map[string]*pagedFleetStatusReader{
-		"workers paginate": {workerPages: 2},
-		"workers repeat":   {workerPages: -1},
-		"workers overflow": {workerPages: MaxFleetEndpoints + 1},
-		"queues paginate":  {queuePages: 2},
-		"queues repeat":    {queuePages: -1},
-		"queues overflow":  {queuePages: MaxFleetEndpoints + 1},
+		"workers paginate":            {workerPages: 2},
+		"workers repeat":              {workerPages: -1},
+		"workers exact":               {workerPages: MaxFleetEndpoints},
+		"workers cumulative overflow": {workerPages: MaxFleetEndpoints + 2},
+		"workers overflow":            {workerPages: MaxFleetEndpoints + 1},
+		"queues paginate":             {queuePages: 2},
+		"queues repeat":               {queuePages: -1},
+		"queues exact":                {queuePages: MaxFleetEndpoints},
+		"queues cumulative overflow":  {queuePages: MaxFleetEndpoints + 2},
+		"queues overflow":             {queuePages: MaxFleetEndpoints + 1},
 	} {
 		server := newFleetStatusServer(t, status)
 		client, err := NewClient(ClientConfig{
@@ -624,8 +659,12 @@ func TestFleetClientBoundsRemoteStatusPagination(t *testing.T) {
 		switch {
 		case strings.HasPrefix(name, "workers"):
 			items, readErr := readAllFleetWorkers(context.Background(), client)
-			if strings.HasSuffix(name, "paginate") {
-				if readErr != nil || len(items) != 2 {
+			if strings.HasSuffix(name, "paginate") || strings.HasSuffix(name, "exact") {
+				want := 2
+				if strings.HasSuffix(name, "exact") {
+					want = MaxFleetEndpoints
+				}
+				if readErr != nil || len(items) != want {
 					t.Fatalf("readAllFleetWorkers(%s) = (%d, %v)", name, len(items), readErr)
 				}
 			} else if !errors.Is(readErr, ErrInvalidFleetEndpoints) {
@@ -633,14 +672,82 @@ func TestFleetClientBoundsRemoteStatusPagination(t *testing.T) {
 			}
 		case strings.HasPrefix(name, "queues"):
 			items, readErr := readAllFleetQueues(context.Background(), client)
-			if strings.HasSuffix(name, "paginate") {
-				if readErr != nil || len(items) != 2 {
+			if strings.HasSuffix(name, "paginate") || strings.HasSuffix(name, "exact") {
+				want := 2
+				if strings.HasSuffix(name, "exact") {
+					want = MaxFleetEndpoints
+				}
+				if readErr != nil || len(items) != want {
 					t.Fatalf("readAllFleetQueues(%s) = (%d, %v)", name, len(items), readErr)
 				}
 			} else if !errors.Is(readErr, ErrInvalidFleetEndpoints) {
 				t.Fatalf("readAllFleetQueues(%s) error = %v", name, readErr)
 			}
 		}
+	}
+}
+
+func TestFleetClientKeepsNewestQueueSnapshot(t *testing.T) {
+	t.Parallel()
+
+	older := validQueueStatus()
+	newer := older
+	older.ObservedAt = older.ObservedAt.Add(-time.Minute)
+	newer.ObservedAt = newer.ObservedAt.Add(time.Minute)
+	older.Backend = "older-backend"
+	newer.Backend = "newer-backend"
+	first := newFleetStatusServer(t, &splitFleetStatusReader{
+		queues: management.QueueStatusPage{Items: []management.QueueStatus{older}},
+	})
+	second := newFleetStatusServer(t, &splitFleetStatusReader{
+		queues: management.QueueStatusPage{Items: []management.QueueStatus{newer}},
+	})
+	fleet := mustFleetClient(t, []Endpoint{
+		{ID: "a-older", BaseURL: first.URL},
+		{ID: "b-newer", BaseURL: second.URL},
+	})
+	page, err := fleet.ListQueues(context.Background(), management.StatusPageRequest{Limit: 1})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Backend != "newer-backend" ||
+		!page.Items[0].ObservedAt.Equal(newer.ObservedAt) {
+		t.Fatalf("ListQueues(newest) = (%+v, %v)", page, err)
+	}
+}
+
+func TestFleetClientTreatsFailureCodeDisagreementAsPartial(t *testing.T) {
+	t.Parallel()
+
+	firstController := &controllerStub{}
+	secondController := &controllerStub{}
+	first := newFleetWorkerServer(t, "worker-a", firstController)
+	second := newFleetWorkerServer(t, "worker-b", secondController)
+	for code, controller := range map[string]*controllerStub{
+		"first_reason":  firstController,
+		"second_reason": secondController,
+	} {
+		failureCode := code
+		controller.execute = func(
+			_ context.Context,
+			command management.Command,
+		) (management.CommandResult, error) {
+			return management.CommandResult{
+				CommandID: command.ID, IdempotencyKey: command.IdempotencyKey,
+				WorkerID: "worker", Protocol: command.Protocol,
+				Status: management.CommandRejected, FailureCode: failureCode,
+				CompletedAt: command.RequestedAt.Add(time.Second),
+			}, nil
+		}
+	}
+	fleet := mustFleetClient(t, []Endpoint{
+		{ID: "first", BaseURL: first.URL},
+		{ID: "second", BaseURL: second.URL},
+	})
+	command := validCommand()
+	command.Action = management.CommandPause
+	command.Target = management.Target{Kind: management.TargetQueue, Name: "critical"}
+	result, err := fleet.Execute(context.Background(), command)
+	if err != nil || result.Status != management.CommandPartial ||
+		result.FailureCode != "fleet_partial" {
+		t.Fatalf("Execute(disagreeing failure codes) = (%+v, %v)", result, err)
 	}
 }
 
@@ -698,7 +805,20 @@ func (reader *pagedFleetStatusReader) ListWorkers(
 	_ context.Context,
 	request management.StatusPageRequest,
 ) (management.WorkerStatusPage, error) {
-	if reader.workerPages > MaxFleetEndpoints {
+	if reader.workerPages == MaxFleetEndpoints+2 {
+		item := validWorkerStatus()
+		if request.Cursor != "" {
+			item.ID = "worker-overflow"
+			return management.WorkerStatusPage{Items: []management.WorkerStatus{item}}, nil
+		}
+		items := make([]management.WorkerStatus, MaxFleetEndpoints)
+		for index := range items {
+			items[index] = item
+			items[index].ID = fmt.Sprintf("worker-%03d", index)
+		}
+		return management.WorkerStatusPage{Items: items, NextCursor: "next"}, nil
+	}
+	if reader.workerPages >= MaxFleetEndpoints {
 		items := make([]management.WorkerStatus, reader.workerPages)
 		for index := range items {
 			items[index] = validWorkerStatus()
@@ -730,7 +850,20 @@ func (reader *pagedFleetStatusReader) ListQueues(
 	_ context.Context,
 	request management.StatusPageRequest,
 ) (management.QueueStatusPage, error) {
-	if reader.queuePages > MaxFleetEndpoints {
+	if reader.queuePages == MaxFleetEndpoints+2 {
+		item := validQueueStatus()
+		if request.Cursor != "" {
+			item.Queue = "queue-overflow"
+			return management.QueueStatusPage{Items: []management.QueueStatus{item}}, nil
+		}
+		items := make([]management.QueueStatus, MaxFleetEndpoints)
+		for index := range items {
+			items[index] = item
+			items[index].Queue = fmt.Sprintf("queue-%03d", index)
+		}
+		return management.QueueStatusPage{Items: items, NextCursor: "next"}, nil
+	}
+	if reader.queuePages >= MaxFleetEndpoints {
 		items := make([]management.QueueStatus, reader.queuePages)
 		for index := range items {
 			items[index] = validQueueStatus()

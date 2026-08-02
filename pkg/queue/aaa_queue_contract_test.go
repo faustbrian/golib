@@ -15,6 +15,14 @@ import (
 	"github.com/faustbrian/golib/pkg/queue/management"
 )
 
+func boundedReleaseContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(cancel)
+
+	return ctx
+}
+
 func TestWithWorkerCountPreservesPositiveCount(t *testing.T) {
 	requested := defaultWorkerCount + 1
 	if actual := NewOptions(WithWorkerCount(requested)).workerCount; actual != requested {
@@ -222,6 +230,86 @@ func TestQueueReleaseDoesNotStartExternalWorker(t *testing.T) {
 	case <-worker.shutdown:
 	default:
 		t.Fatal("Release() did not shut down the external worker")
+	}
+}
+
+func TestQueueReleaseContextDoesNotStartExternalWorker(t *testing.T) {
+	t.Parallel()
+
+	worker := newStartContractWorker()
+	queue, err := NewQueue(WithWorker(worker), WithWorkerCount(1))
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	if err = queue.ReleaseContext(boundedReleaseContext(t)); err != nil {
+		t.Fatalf("ReleaseContext() error = %v", err)
+	}
+	if started := atomic.LoadInt32(&queue.started); started != 0 {
+		t.Fatalf("ReleaseContext() started external worker: flag = %d", started)
+	}
+}
+
+func TestQueueScheduleHonorsExactWorkerCapacity(t *testing.T) {
+	t.Parallel()
+
+	queue, err := NewQueue(
+		WithWorker(newStartContractWorker()),
+		WithWorkerCount(1),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	atomic.StoreInt64(&queue.activeWorkers, 1)
+	queue.schedule()
+	if ready := len(queue.ready); ready != 0 {
+		t.Fatalf("ready signals at capacity = %d, want 0", ready)
+	}
+	atomic.StoreInt64(&queue.activeWorkers, 0)
+	queue.schedule()
+	if ready := len(queue.ready); ready != 1 {
+		t.Fatalf("ready signals below capacity = %d, want 1", ready)
+	}
+	queue.Shutdown()
+}
+
+func TestQueueSchedulerRecoversAfterCapacityBecomesAvailable(t *testing.T) {
+	t.Parallel()
+
+	worker := newStartContractWorker()
+	queue, err := NewQueue(
+		WithWorker(worker), WithWorkerCount(1), WithLogger(NewEmptyLogger()),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	atomic.StoreInt64(&queue.activeWorkers, 1)
+	queue.ready <- struct{}{}
+	queue.Start()
+	deadline := time.Now().Add(time.Second)
+	for len(queue.ready) != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if ready := len(queue.ready); ready != 0 {
+		queue.Shutdown()
+		t.Fatalf("initial ready signal was not consumed: %d", ready)
+	}
+	select {
+	case <-worker.requested:
+		queue.Shutdown()
+		t.Fatal("scheduler requested work while worker capacity was full")
+	case <-time.After(20 * time.Millisecond):
+	}
+	atomic.StoreInt64(&queue.activeWorkers, 0)
+	queue.schedule()
+	select {
+	case <-worker.requested:
+	case <-time.After(time.Second):
+		queue.Shutdown()
+		t.Fatal("scheduler stopped after encountering full worker capacity")
+	}
+	queue.Shutdown()
+	if err = queue.WaitContext(context.Background()); err != nil {
+		t.Fatalf("WaitContext() error = %v", err)
 	}
 }
 
@@ -493,6 +581,35 @@ func TestQueueDelaysTaskReturnedWithRequestErrorUntilNotification(t *testing.T) 
 	}
 }
 
+func TestQueueImmediatelyRetriesNilTaskWithoutRequestError(t *testing.T) {
+	t.Parallel()
+
+	executed := make(chan struct{}, 1)
+	message := job.NewTask(func(context.Context) error {
+		executed <- struct{}{}
+		return nil
+	})
+	worker := newNilThenTaskContractWorker(&message)
+	queue, err := NewQueue(
+		WithWorker(worker), WithWorkerCount(1),
+		WithRetryInterval(time.Hour), WithLogger(NewEmptyLogger()),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	queue.Start()
+	select {
+	case <-executed:
+	case <-time.After(time.Second):
+		queue.Shutdown()
+		t.Fatal("nil task without an error delayed the next request")
+	}
+	queue.Shutdown()
+	if err = queue.WaitContext(context.Background()); err != nil {
+		t.Fatalf("WaitContext() error = %v", err)
+	}
+}
+
 func TestQueueStartAdmitsConfiguredWorker(t *testing.T) {
 	worker := newStartContractWorker()
 	queue, err := NewQueue(WithWorker(worker), WithWorkerCount(1))
@@ -583,6 +700,35 @@ type taskErrorContractWorker struct {
 	shutdown     chan struct{}
 	shutdownOnce sync.Once
 	delivered    atomic.Int32
+}
+
+type nilThenTaskContractWorker struct {
+	task         core.TaskMessage
+	calls        atomic.Int32
+	shutdown     chan struct{}
+	shutdownOnce sync.Once
+}
+
+func newNilThenTaskContractWorker(task core.TaskMessage) *nilThenTaskContractWorker {
+	return &nilThenTaskContractWorker{task: task, shutdown: make(chan struct{})}
+}
+
+func (*nilThenTaskContractWorker) Run(context.Context, core.TaskMessage) error { return nil }
+func (*nilThenTaskContractWorker) Queue(core.TaskMessage) error                { return nil }
+func (worker *nilThenTaskContractWorker) Shutdown() error {
+	worker.shutdownOnce.Do(func() { close(worker.shutdown) })
+	return nil
+}
+func (worker *nilThenTaskContractWorker) Request() (core.TaskMessage, error) {
+	switch worker.calls.Add(1) {
+	case 1:
+		return nil, nil
+	case 2:
+		return worker.task, nil
+	default:
+		<-worker.shutdown
+		return nil, ErrQueueShutdown
+	}
 }
 
 func newTaskErrorContractWorker(task core.TaskMessage) *taskErrorContractWorker {

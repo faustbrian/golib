@@ -397,12 +397,17 @@ func managementMeasured[T any](value measurement[T]) management.Measurement[T] {
 func (h *handler) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		provided, found := strings.CutPrefix(request.Header.Get("Authorization"), "Bearer ")
-		if !found || len(provided) != len(h.token) ||
-			subtle.ConstantTimeCompare([]byte(provided), []byte(h.token)) != 1 {
+		switch found {
+		case false:
 			writeProblem(writer, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-		next.ServeHTTP(writer, request)
+		switch subtle.ConstantTimeCompare([]byte(provided), []byte(h.token)) {
+		case 1:
+			next.ServeHTTP(writer, request)
+		default:
+			writeProblem(writer, http.StatusUnauthorized, "unauthorized")
+		}
 	})
 }
 
@@ -471,13 +476,11 @@ func invalidToken(token string) bool {
 }
 
 func nilInterface(value any) bool {
-	if value == nil {
-		return true
-	}
 	reflected := reflect.ValueOf(value)
 	switch reflected.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
-		reflect.Pointer, reflect.Slice:
+	case reflect.Invalid:
+		return true
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return reflected.IsNil()
 	default:
 		return false

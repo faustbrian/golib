@@ -113,9 +113,7 @@ func WithTLSConfig(config *tls.Config) Option {
 			return invalidOption("tls", errors.New("TLS configuration is required"))
 		}
 		opts.tlsConfig = config.Clone()
-		if opts.tlsConfig.MinVersion < tls.VersionTLS12 {
-			opts.tlsConfig.MinVersion = tls.VersionTLS12
-		}
+		opts.tlsConfig.MinVersion = max(opts.tlsConfig.MinVersion, tls.VersionTLS12)
 		return nil
 	}
 }

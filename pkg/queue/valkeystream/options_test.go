@@ -128,6 +128,50 @@ func TestOptionsRaiseTLSMinimum(t *testing.T) {
 	assert.Equal(t, uint16(tls.VersionTLS12), opts.tlsConfig.MinVersion)
 }
 
+func TestOptionsAcceptExactSafetyBounds(t *testing.T) {
+	canceledCodes := make([]string, maxCanceledDeadLetterCodes)
+	for index := range canceledCodes {
+		canceledCodes[index] = fmt.Sprintf("canceled-%03d", index)
+	}
+	canceledCodes[0] = strings.Repeat("c", management.MaxIdentityBytes)
+	replayDestinations := make([]string, maxReplayDestinations)
+	for index := range replayDestinations {
+		replayDestinations[index] = fmt.Sprintf("replay-%03d", index)
+	}
+	replayDestinations[0] = strings.Repeat("r", management.MaxIdentityBytes)
+
+	opts, err := newOptions(
+		WithAddress("127.0.0.1:6379"),
+		WithTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12}),
+		WithRequestTimeout(time.Nanosecond),
+		WithBlockTime(time.Nanosecond),
+		WithBlockingPool(maxBlockingPoolSize, maxBlockingPoolSize, time.Nanosecond),
+		WithMaxLength(1),
+		WithReadBatchSize(maxReadBatchSize),
+		WithReclaim(time.Nanosecond, time.Nanosecond, maxReclaimBatchSize),
+		WithDeadLetter("jobs-dead", 2),
+		WithCanceledDeadLetterCodes(canceledCodes...),
+		WithReplayDestinations(replayDestinations...),
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, uint16(tls.VersionTLS12), opts.tlsConfig.MinVersion)
+	assert.Equal(t, maxBlockingPoolSize, opts.blockingPoolMinSize)
+	assert.Equal(t, maxBlockingPoolSize, opts.blockingPoolSize)
+	assert.Equal(t, maxReadBatchSize, opts.readBatchSize)
+	assert.Equal(t, maxReclaimBatchSize, opts.reclaimBatchSize)
+	assert.Equal(t, int64(2), opts.maxDeliveryAttempts)
+	assert.Len(t, opts.canceledDeadLetterCodes, maxCanceledDeadLetterCodes)
+	assert.Len(t, opts.replayDestinations, maxReplayDestinations)
+
+	zeroMinimum, err := newOptions(
+		WithAddress("127.0.0.1:6379"),
+		WithBlockingPool(0, maxBlockingPoolSize, time.Nanosecond),
+	)
+	require.NoError(t, err)
+	assert.Zero(t, zeroMinimum.blockingPoolMinSize)
+}
+
 func TestOptionsRejectNilAndPreserveOptionErrors(t *testing.T) {
 	_, err := newOptions(WithAddress("127.0.0.1:6379"), nil)
 	assert.ErrorIs(t, err, ErrInvalidConfiguration)
@@ -161,12 +205,15 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 		"non-positive shutdown":    WithShutdownTimeout(0),
 		"invalid pool minimum":     WithBlockingPool(-1, 8, time.Minute),
 		"invalid pool maximum":     WithBlockingPool(2, 0, time.Minute),
+		"zero pool":                WithBlockingPool(0, 0, time.Minute),
 		"pool minimum exceeds max": WithBlockingPool(9, 8, time.Minute),
 		"invalid pool cleanup":     WithBlockingPool(2, 8, -time.Second),
+		"zero pool cleanup":        WithBlockingPool(2, 8, 0),
 		"empty stream":             WithStreamName(" "),
 		"empty group":              WithGroup(" "),
 		"empty consumer":           WithConsumer(" "),
 		"negative max length":      WithMaxLength(-1),
+		"zero max length":          WithMaxLength(0),
 		"invalid record retention": WithRecordRetention(0),
 		"invalid read batch":       WithReadBatchSize(0),
 		"oversized read batch":     WithReadBatchSize(maxReadBatchSize + 1),
@@ -224,5 +271,17 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 			assert.NotEmpty(t, configErr.Field)
 			assert.NotContains(t, err.Error(), "secret")
 		})
+	}
+}
+
+func TestOptionsIdentifyNonPositiveRequestTimeout(t *testing.T) {
+	for _, timeout := range []time.Duration{-time.Nanosecond, 0} {
+		_, err := newOptions(
+			WithAddress("127.0.0.1:6379"),
+			WithRequestTimeout(timeout),
+		)
+		var configurationError *ConfigurationError
+		require.ErrorAs(t, err, &configurationError)
+		assert.Equal(t, "request timeout", configurationError.Field)
 	}
 }

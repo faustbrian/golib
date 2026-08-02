@@ -442,7 +442,7 @@ func (q *Queue) handle(m *job.Message) error {
 	case <-q.quit: // Queue is shutting down
 		// Cancel job and wait for remaining time or job completion
 		cancel()
-		leftTime := m.Timeout - time.Since(startTime)
+		leftTime := time.Until(startTime.Add(m.Timeout))
 		select {
 		case <-time.After(leftTime):
 			return context.DeadlineExceeded
@@ -665,8 +665,7 @@ func (q *Queue) start() {
 					}
 				}
 				if q.lifecycle != nil {
-					if q.lifecycle.Snapshot().State != management.WorkerRunning ||
-						!q.lifecycle.BeginAdmission() {
+					if !q.lifecycle.BeginAdmission() {
 						tasks <- admittedTask{}
 						return
 					}
@@ -691,15 +690,14 @@ func (q *Queue) start() {
 			if atomic.LoadInt32(&q.drainFlag) == 1 {
 				return
 			}
-			continue
+		} else {
+			// Start processing the new task in a separate goroutine.
+			atomic.AddInt64(&q.activeWorkers, 1)
+			q.safeMetricUpdate("increment busy worker count", q.metric.IncBusyWorker)
+			q.routineGroup.Run(func() {
+				q.workManaged(admitted.task, admitted.tracked)
+			})
 		}
-
-		// Start processing the new task in a separate goroutine.
-		atomic.AddInt64(&q.activeWorkers, 1)
-		q.safeMetricUpdate("increment busy worker count", q.metric.IncBusyWorker)
-		q.routineGroup.Run(func() {
-			q.workManaged(admitted.task, admitted.tracked)
-		})
 	}
 }
 

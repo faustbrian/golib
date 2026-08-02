@@ -1,8 +1,10 @@
 package queue
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -126,10 +128,15 @@ func (panickingMetric) CompletedTasks() uint64 {
 }
 
 func TestObserverPanicDoesNotCorruptWorkerAccounting(t *testing.T) {
+	var output bytes.Buffer
 	q, err := NewQueue(
 		WithWorker(NewRing()),
 		WithObserver(ObserverFunc(func(Event) { panic("observer") })),
-		WithLogger(NewEmptyLogger()),
+		WithLogger(defaultLogger{
+			infoLogger:  log.New(&output, "", 0),
+			errorLogger: log.New(&output, "", 0),
+			fatalLogger: log.New(&output, "", 0),
+		}),
 	)
 	require.NoError(t, err)
 	atomic.StoreInt64(&q.activeWorkers, 1)
@@ -139,7 +146,28 @@ func TestObserverPanicDoesNotCorruptWorkerAccounting(t *testing.T) {
 	assert.NotPanics(t, func() { q.work(&message) })
 	assert.Equal(t, int64(0), q.BusyWorkers())
 	assert.Equal(t, uint64(1), q.SuccessTasks())
+	assert.Contains(t, output.String(), "observer panic")
 	q.Release()
+}
+
+func TestAfterCallbackPanicIsReportedAndContained(t *testing.T) {
+	var output bytes.Buffer
+	q, err := NewQueue(
+		WithWorker(NewRing()),
+		WithAfterFn(func() { panic("after") }),
+		WithLogger(defaultLogger{
+			infoLogger:  log.New(&output, "", 0),
+			errorLogger: log.New(&output, "", 0),
+			fatalLogger: log.New(&output, "", 0),
+		}),
+	)
+	require.NoError(t, err)
+	atomic.StoreInt64(&q.activeWorkers, 1)
+	q.metric.IncBusyWorker()
+	message := job.NewTask(func(context.Context) error { return nil })
+
+	assert.NotPanics(t, func() { q.work(&message) })
+	assert.Contains(t, output.String(), "after callback panic")
 }
 
 func TestLoggerAndAfterCallbackPanicsDoNotEscape(t *testing.T) {
@@ -159,10 +187,15 @@ func TestLoggerAndAfterCallbackPanicsDoNotEscape(t *testing.T) {
 }
 
 func TestMetricPanicsDoNotEscapeQueueLifecycle(t *testing.T) {
+	var output bytes.Buffer
 	q, err := NewQueue(
 		WithWorker(&controlledWorker{}),
 		WithMetric(panickingMetric{}),
-		WithLogger(NewEmptyLogger()),
+		WithLogger(defaultLogger{
+			infoLogger:  log.New(&output, "", 0),
+			errorLogger: log.New(&output, "", 0),
+			fatalLogger: log.New(&output, "", 0),
+		}),
 	)
 	require.NoError(t, err)
 
@@ -177,4 +210,26 @@ func TestMetricPanicsDoNotEscapeQueueLifecycle(t *testing.T) {
 		assert.Zero(t, q.CompletedTasks())
 	})
 	assert.NotPanics(t, q.Shutdown)
+	assert.Contains(t, output.String(), "metric panic")
+}
+
+func TestMetricPanicsAreReportedAtUpdateAndReadBoundaries(t *testing.T) {
+	var output bytes.Buffer
+	q, err := NewQueue(
+		WithWorker(&controlledWorker{}),
+		WithLogger(defaultLogger{
+			infoLogger:  log.New(&output, "", 0),
+			errorLogger: log.New(&output, "", 0),
+			fatalLogger: log.New(&output, "", 0),
+		}),
+	)
+	require.NoError(t, err)
+
+	q.safeMetricUpdate("update boundary", func() { panic("update") })
+	assert.Contains(t, output.String(), "metric panic during update boundary")
+	output.Reset()
+	value := q.safeMetricValue("read boundary", func() uint64 { panic("read") })
+	assert.Zero(t, value)
+	assert.Contains(t, output.String(), "metric panic during read boundary")
+	q.Shutdown()
 }

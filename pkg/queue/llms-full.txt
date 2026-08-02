@@ -1187,6 +1187,9 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Prove logger configuration, option ordering, lifecycle drain transitions,
+  stack recovery, and in-memory queue boundaries with mutation-effective
+  contracts.
 - Management HTTP handlers, single-endpoint clients, and fleet clients now
   reject bearer tokens containing ASCII control characters before transport.
 - Valkey Streams workers can now select a bounded terminal broker-delivery

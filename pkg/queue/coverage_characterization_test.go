@@ -24,6 +24,11 @@ type controlledWorker struct {
 	requests    atomic.Int64
 }
 
+type metadataControlledWorker struct{ controlledWorker }
+
+func (*metadataControlledWorker) BackendName() string { return "test-backend" }
+func (*metadataControlledWorker) QueueName() string   { return "critical" }
+
 func (w *controlledWorker) Run(context.Context, core.TaskMessage) error { return nil }
 func (w *controlledWorker) Shutdown() error                             { return w.shutdownErr }
 func (w *controlledWorker) Queue(core.TaskMessage) error                { return w.queueErr }
@@ -110,6 +115,51 @@ func TestRepeatedShutdownIsIdempotentAndLogsWorkerError(t *testing.T) {
 	q.Shutdown()
 
 	assert.Contains(t, output.String(), "shutdown failed")
+}
+
+func TestShutdownLogsOnlyPositiveBusyWorkerCounts(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		busy int64
+		want bool
+	}{
+		{name: "idle", busy: 0, want: false},
+		{name: "busy", busy: 1, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var output bytes.Buffer
+			q, err := NewQueue(
+				WithWorker(&controlledWorker{}),
+				WithLogger(defaultLogger{
+					infoLogger:  log.New(&output, "", 0),
+					errorLogger: log.New(&output, "", 0),
+					fatalLogger: log.New(&output, "", 0),
+				}),
+			)
+			require.NoError(t, err)
+			atomic.StoreInt64(&q.activeWorkers, test.busy)
+			q.Shutdown()
+			assert.Equal(t, test.want, strings.Contains(output.String(), "shutdown all tasks"))
+		})
+	}
+}
+
+func TestObserverMetadataDefaultsAndExplicitQueueArePreserved(t *testing.T) {
+	observer := &recordingObserver{}
+	q, err := NewQueue(
+		WithWorker(&metadataControlledWorker{}),
+		WithObserver(observer),
+	)
+	require.NoError(t, err)
+
+	q.observe(Event{Kind: EventEnqueued})
+	q.observe(Event{Kind: EventEnqueued, Queue: "explicit"})
+	events := observer.snapshot()
+	require.Len(t, events, 2)
+	assert.Equal(t, "test-backend", events[0].Backend)
+	assert.Equal(t, "critical", events[0].Queue)
+	assert.Equal(t, "explicit", events[1].Queue)
+	q.Shutdown()
 }
 
 func TestQueueReturnsBackendEnqueueFailureWithoutCountingSubmission(t *testing.T) {

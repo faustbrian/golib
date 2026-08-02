@@ -92,6 +92,29 @@ func TestHandlerRejectsUnauthorizedAndUnsafeStatusRequests(t *testing.T) {
 	}
 }
 
+func TestHandlerRejectsAmbiguousAuthorizationForms(t *testing.T) {
+	t.Parallel()
+
+	const token = "transport-secret"
+	for name, authorization := range map[string]string{
+		"missing bearer prefix": token,
+		"equal-length mismatch": "Bearer " + strings.Repeat("x", len(token)),
+	} {
+		source := &statusReaderStub{}
+		handler, err := NewHandler(HandlerConfig{Token: token, Status: source})
+		if err != nil {
+			t.Fatalf("NewHandler() error = %v", err)
+		}
+		request := httptest.NewRequest(http.MethodGet, "/v1/status/workers?limit=1", nil)
+		request.Header.Set("Authorization", authorization)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized || source.calls != 0 {
+			t.Fatalf("%s response = %d, calls = %d", name, response.Code, source.calls)
+		}
+	}
+}
+
 func TestHandlerUsesStableStatusWireNames(t *testing.T) {
 	t.Parallel()
 
@@ -153,6 +176,7 @@ func TestClientFailsClosedOnInvalidAndOversizedResponses(t *testing.T) {
 		"API error":      {body: `{"code":"internal_error"}`, status: http.StatusInternalServerError, wantErr: ErrRemoteFailure},
 		"invalid JSON":   {body: `{`, status: http.StatusOK, wantErr: ErrInvalidResponse},
 		"empty page":     {body: `{}`, status: http.StatusOK, wantErr: nil},
+		"exact response": {body: `{}`, status: http.StatusOK, maxResponse: 2, wantErr: nil},
 		"unknown field":  {body: `{"unexpected":true}`, status: http.StatusOK, wantErr: ErrInvalidResponse},
 		"invalid page":   {body: `{"Items":[{"Queue":"invalid"}]}`, status: http.StatusOK, wantErr: ErrInvalidResponse},
 		"trailing JSON":  {body: `{} {}`, status: http.StatusOK, wantErr: ErrInvalidResponse},
@@ -278,6 +302,26 @@ func TestTransportUsesSafeDefaultsAndValueReader(t *testing.T) {
 	}
 }
 
+func TestTransportAcceptsExactTokenBounds(t *testing.T) {
+	t.Parallel()
+
+	for name, token := range map[string]string{
+		"exact maximum":  strings.Repeat("x", maxTokenBytes),
+		"interior space": "fleet secret",
+	} {
+		client, err := NewClient(ClientConfig{
+			BaseURL: "https://worker.example", Token: token,
+		})
+		if err != nil || client == nil {
+			t.Fatalf("NewClient(%s) = (%v, %v)", name, client, err)
+		}
+		handler, err := NewHandler(HandlerConfig{Token: token, Status: valueStatusReader{}})
+		if err != nil || handler == nil {
+			t.Fatalf("NewHandler(%s) = (%v, %v)", name, handler, err)
+		}
+	}
+}
+
 func TestTransportRejectsInvalidConfiguration(t *testing.T) {
 	t.Parallel()
 
@@ -287,6 +331,7 @@ func TestTransportRejectsInvalidConfiguration(t *testing.T) {
 		{Token: "token"},
 		{Token: "token", Status: typedStatus},
 		{Token: "token\ninvalid", Status: &statusReaderStub{}},
+		{Token: "token\x7finvalid", Status: &statusReaderStub{}},
 	} {
 		if handler, err := NewHandler(config); handler != nil || !errors.Is(err, ErrInvalidConfiguration) {
 			t.Fatalf("NewHandler() = (%v, %v)", handler, err)
@@ -299,6 +344,7 @@ func TestTransportRejectsInvalidConfiguration(t *testing.T) {
 		{BaseURL: "https://worker.example/path", Token: "token"},
 		{BaseURL: "https://worker.example", Token: ""},
 		{BaseURL: "https://worker.example", Token: "token\ninvalid"},
+		{BaseURL: "https://worker.example", Token: "token\x7finvalid"},
 		{BaseURL: "https://worker.example", Token: "token", MaxResponseBytes: -1},
 	} {
 		if client, err := NewClient(config); client != nil || !errors.Is(err, ErrInvalidConfiguration) {

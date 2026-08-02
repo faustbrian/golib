@@ -87,8 +87,11 @@ func TestWithWorkerCountFallsBackForZeroAndNegativeCounts(t *testing.T) {
 
 func TestNewQueueRejectsUnsafeSchedulerConfiguration(t *testing.T) {
 	worker := &optionTestWorker{}
+	q, err := NewQueue(WithWorker(worker), WithQueueSize(0))
+	assert.NotNil(t, q)
+	assert.NoError(t, err)
 
-	q, err := NewQueue(WithWorker(worker), WithRetryInterval(0))
+	q, err = NewQueue(WithWorker(worker), WithRetryInterval(0))
 	assert.Nil(t, q)
 	assert.ErrorIs(t, err, ErrInvalidConfiguration)
 

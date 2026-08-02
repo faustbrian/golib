@@ -285,16 +285,16 @@ func (w *Worker) reclaimLoop() {
 				if w.ctx.Err() == nil {
 					w.opts.logger.Error("valkeystream: reclaim failed")
 				}
-				continue
-			}
-			if result.Next == "" || result.Next == "0-0" {
-				cursor = "0-0"
 			} else {
-				cursor = result.Next
-			}
-			for _, delivery := range result.Deliveries {
-				if !w.deliver(delivery) {
-					return
+				if result.Next == "" || result.Next == "0-0" {
+					cursor = "0-0"
+				} else {
+					cursor = result.Next
+				}
+				for _, delivery := range result.Deliveries {
+					if !w.deliver(delivery) {
+						return
+					}
 				}
 			}
 		}

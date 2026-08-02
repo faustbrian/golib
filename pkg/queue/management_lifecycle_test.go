@@ -162,7 +162,7 @@ func TestReleaseContextReleasesReservedManagementAdmission(t *testing.T) {
 	}
 	queue.ready <- struct{}{}
 
-	if err = queue.ReleaseContext(context.Background()); err != nil {
+	if err = queue.ReleaseContext(boundedReleaseContext(t)); err != nil {
 		t.Fatalf("ReleaseContext() error = %v", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
