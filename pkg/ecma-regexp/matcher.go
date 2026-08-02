@@ -67,7 +67,7 @@ func (r Result) Named(name string) (Capture, bool) {
 		return Capture{}, false
 	}
 	for _, index := range indices {
-		if index < len(r.captures) && r.captures[index].participated {
+		if r.captures[index].participated {
 			return r.captures[index], true
 		}
 	}
@@ -209,7 +209,7 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 		switch instruction.op {
 		case opChar:
 			unitPosition := current.position
-			if direction < 0 {
+			if direction == -1 {
 				unitPosition--
 			}
 			if unitPosition < 0 || unitPosition >= len(e.input.units) || !e.equal(e.input.units[unitPosition], instruction.value, instruction.flags) {
@@ -220,13 +220,13 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.position += direction
+				current.pc++
 			}
-			current.position += direction
-			current.pc++
 		case opCodePoint:
 			char, width, ok := e.codePointAt(current.position)
-			if direction < 0 {
+			if direction == -1 {
 				char, width, ok = e.codePointBefore(current.position)
 			}
 			if !ok || !e.equalCodePoint(char, instruction.runeValue, instruction.flags) {
@@ -237,10 +237,10 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.position += direction * width
+				current.pc++
 			}
-			current.position += direction * width
-			current.pc++
 		case opAny:
 			width := e.anyWidth(current.position, direction, instruction.flags)
 			if width == 0 {
@@ -251,10 +251,10 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.position += direction * width
+				current.pc++
 			}
-			current.position += direction * width
-			current.pc++
 		case opStart:
 			if !e.atStart(current.position, instruction.flags) {
 				resumed, err := e.backtrack(&current, &stack)
@@ -264,9 +264,9 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.pc++
 			}
-			current.pc++
 		case opEnd:
 			if !e.atEnd(current.position, instruction.flags) {
 				resumed, err := e.backtrack(&current, &stack)
@@ -276,9 +276,9 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.pc++
 			}
-			current.pc++
 		case opWordBoundary:
 			boundary := e.wordAt(current.position-1, true, instruction.flags) != e.wordAt(current.position, false, instruction.flags)
 			if boundary != (instruction.value == 1) {
@@ -289,9 +289,9 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.pc++
 			}
-			current.pc++
 		case opClass:
 			width := e.classWidth(current.position, direction, e.program.classSets[instruction.x], instruction.flags)
 			if width == 0 {
@@ -302,10 +302,10 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.position += direction * width
+				current.pc++
 			}
-			current.position += direction * width
-			current.pc++
 		case opBackreference:
 			width, matches := e.backreference(current, instruction.slots, direction, instruction.flags)
 			if !matches {
@@ -316,10 +316,10 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.position += direction * width
+				current.pc++
 			}
-			current.position += direction * width
-			current.pc++
 		case opLook:
 			lookDepth := depth + 1
 			if uint64(lookDepth) > e.limits.RecursionDepth {
@@ -352,13 +352,13 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				if !negative {
+					current.captures = lookOutcome.captures
+					current.guards = lookOutcome.guards
+				}
+				current.pc = instruction.y
 			}
-			if !negative {
-				current.captures = lookOutcome.captures
-				current.guards = lookOutcome.guards
-			}
-			current.pc = instruction.y
 		case opSplit:
 			if uint64(len(stack)+1) > e.limits.StackDepth {
 				return runOutcome{}, false, &LimitError{Kind: LimitStackDepth, Limit: e.limits.StackDepth, Used: uint64(len(stack) + 1)}
@@ -380,8 +380,7 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 			current.pc++
 		case opClear:
 			for capture := instruction.x; capture <= instruction.y; capture++ {
-				current.captures[capture*2] = -1
-				current.captures[capture*2+1] = -1
+				clearCapture(current.captures, capture)
 			}
 			current.pc++
 		case opGuard:
@@ -393,14 +392,20 @@ func (e *executor) run(pc, start int, captures, guards []int, direction, depth i
 				if !resumed {
 					return runOutcome{}, false, nil
 				}
-				continue
+			} else {
+				current.guards[instruction.slot] = current.position
+				current.pc++
 			}
-			current.guards[instruction.slot] = current.position
-			current.pc++
 		case opAccept, opMatch:
 			return runOutcome{position: current.position, captures: current.captures, guards: current.guards}, true, nil
 		}
 	}
+}
+
+func clearCapture(captures []int, capture int) {
+	startSlot := capture * 2
+	captures[startSlot] = -1
+	captures[startSlot+1] = -1
 }
 
 func (e *executor) backtrack(current *thread, stack *[]thread) (bool, error) {
@@ -421,13 +426,19 @@ func (e *executor) result(indices []int) Result {
 	captures := make([]Capture, len(indices)/2)
 	for index := range captures {
 		start, end := indices[index*2], indices[index*2+1]
-		if start < 0 || end < 0 {
-			continue
+		if captureParticipated(start, end) {
+			captures[index] = Capture{participated: true, value: newUTF16String(e.input.units[start:end]), span: e.input.span(start, end)}
 		}
-		captures[index] = Capture{participated: true, value: newUTF16String(e.input.units[start:end]), span: e.input.span(start, end)}
 	}
 
 	return Result{captures: captures, names: cloneCaptureNames(e.program.captureNames)}
+}
+
+func captureParticipated(start, end int) bool {
+	if start < 0 {
+		return false
+	}
+	return end >= 0
 }
 
 func (e *executor) allocate(count uint64) error {
@@ -444,11 +455,21 @@ func (e *executor) step() error {
 	if e.steps > e.limits.Steps {
 		return &LimitError{Kind: LimitMatchSteps, Limit: e.limits.Steps, Used: e.steps}
 	}
-	if e.steps == 1 || e.steps&255 == 0 {
+	if shouldCheckExecution(e.steps) {
 		return e.check()
 	}
 
 	return nil
+}
+
+func shouldCheckExecution(steps uint64) bool {
+	if steps == 1 {
+		return true
+	}
+	if steps < 256 {
+		return false
+	}
+	return steps%256 == 0
 }
 
 func (e *executor) check() error {
@@ -456,18 +477,28 @@ func (e *executor) check() error {
 		return err
 	}
 	elapsed := time.Since(e.started)
-	if elapsed > e.limits.WallTime {
+	if wallTimeExceeded(elapsed, e.limits.WallTime) {
 		return &TimeoutError{Limit: e.limits.WallTime, Elapsed: elapsed}
 	}
 
 	return nil
 }
 
+func wallTimeExceeded(elapsed, limit time.Duration) bool {
+	return elapsed > limit
+}
+
 func (e *executor) equal(left, right uint16, flags Flags) bool {
 	if left == right {
 		return true
 	}
-	if !flags.IgnoreCase() || utf16.IsSurrogate(rune(left)) || utf16.IsSurrogate(rune(right)) {
+	if !flags.IgnoreCase() {
+		return false
+	}
+	if utf16.IsSurrogate(rune(left)) {
+		return false
+	}
+	if utf16.IsSurrogate(rune(right)) {
 		return false
 	}
 
@@ -478,24 +509,33 @@ func (e *executor) equalCodePoint(left, right rune, flags Flags) bool {
 	if left == right {
 		return true
 	}
-	return flags.IgnoreCase() && unicodeCanonical(left) == unicodeCanonical(right)
+	if !flags.IgnoreCase() {
+		return false
+	}
+	return unicodeCanonical(left) == unicodeCanonical(right)
 }
 
 func (e *executor) anyWidth(position, direction int, flags Flags) int {
 	unitPosition := position
-	if direction < 0 {
+	if direction == -1 {
 		unitPosition--
 	}
-	if unitPosition < 0 || unitPosition >= len(e.input.units) || (!flags.DotAll() && isLineTerminator(e.input.units[unitPosition])) {
+	if unitPosition < 0 {
 		return 0
 	}
-	if direction > 0 && (e.program.flags.unicodeMode()) && position+1 < len(e.input.units) &&
-		isHighSurrogate(e.input.units[position]) && isLowSurrogate(e.input.units[position+1]) {
-		return 2
+	if unitPosition >= len(e.input.units) {
+		return 0
 	}
-	if direction < 0 && (e.program.flags.unicodeMode()) && position > 1 &&
-		isHighSurrogate(e.input.units[position-2]) && isLowSurrogate(e.input.units[position-1]) {
-		return 2
+	if !flags.DotAll() && isLineTerminator(e.input.units[unitPosition]) {
+		return 0
+	}
+	if e.program.flags.unicodeMode() {
+		if direction == 1 && codePointWidthAt(e.input.units, position) == 2 {
+			return 2
+		}
+		if direction == -1 && codePointWidthBefore(e.input.units, position) == 2 {
+			return 2
+		}
 	}
 
 	return 1
@@ -503,7 +543,7 @@ func (e *executor) anyWidth(position, direction int, flags Flags) int {
 
 func (e *executor) classWidth(position, direction int, class characterClass, flags Flags) int {
 	char, width, ok := e.codePointAt(position)
-	if direction < 0 {
+	if direction == -1 {
 		char, width, ok = e.codePointBefore(position)
 	}
 	if !ok {
@@ -518,13 +558,7 @@ func (e *executor) classWidth(position, direction int, class characterClass, fla
 }
 
 func (e *executor) backreference(current thread, captures []int, direction int, flags Flags) (int, bool) {
-	capture := 0
-	for _, candidate := range captures {
-		if current.captures[candidate*2] >= 0 && current.captures[candidate*2+1] >= 0 {
-			capture = candidate
-			break
-		}
-	}
+	capture := participatingCapture(current.captures, captures)
 	if capture == 0 {
 		return 0, true
 	}
@@ -535,10 +569,14 @@ func (e *executor) backreference(current thread, captures []int, direction int, 
 	}
 	width := end - start
 	inputStart := current.position
-	if direction < 0 {
+	if direction == -1 {
 		inputStart -= width
 	}
-	if inputStart < 0 || inputStart+width > len(e.input.units) {
+	if inputStart < 0 {
+		return 0, false
+	}
+	available := e.input.units[inputStart:]
+	if width > len(available) {
 		return 0, false
 	}
 	for offset := 0; offset < width; offset++ {
@@ -550,17 +588,32 @@ func (e *executor) backreference(current thread, captures []int, direction int, 
 	return width, true
 }
 
+func participatingCapture(captureSlots, candidates []int) int {
+	for _, candidate := range candidates {
+		if captureParticipated(captureSlots[candidate*2], captureSlots[candidate*2+1]) {
+			return candidate
+		}
+	}
+	return 0
+}
+
 func (e *executor) unicodeBackreference(inputPosition, captureStart, captureEnd, direction int, flags Flags) (int, bool) {
 	inputCursor := inputPosition
-	if direction > 0 {
+	if direction == 1 {
 		captureCursor := captureStart
 		for captureCursor < captureEnd {
 			captureChar, captureWidth, ok := codePointAtUnits(e.input.units, captureCursor)
-			if !ok || captureCursor+captureWidth > captureEnd {
+			if !ok {
+				return 0, false
+			}
+			if captureCursor+captureWidth > captureEnd {
 				return 0, false
 			}
 			inputChar, inputWidth, ok := codePointAtUnits(e.input.units, inputCursor)
-			if !ok || !e.equalCodePoint(captureChar, inputChar, flags) {
+			if !ok {
+				return 0, false
+			}
+			if !e.equalCodePoint(captureChar, inputChar, flags) {
 				return 0, false
 			}
 			captureCursor += captureWidth
@@ -571,37 +624,75 @@ func (e *executor) unicodeBackreference(inputPosition, captureStart, captureEnd,
 	captureCursor := captureEnd
 	for captureCursor > captureStart {
 		captureChar, captureWidth, ok := codePointBeforeUnits(e.input.units, captureCursor)
-		if !ok || captureCursor-captureWidth < captureStart {
+		if !ok {
+			return 0, false
+		}
+		if captureCursor-captureWidth < captureStart {
 			return 0, false
 		}
 		inputChar, inputWidth, ok := codePointBeforeUnits(e.input.units, inputCursor)
-		if !ok || !e.equalCodePoint(captureChar, inputChar, flags) {
+		if !ok {
+			return 0, false
+		}
+		if !e.equalCodePoint(captureChar, inputChar, flags) {
 			return 0, false
 		}
 		captureCursor -= captureWidth
-		inputCursor -= inputWidth
+		inputCursor = inputCursor - inputWidth
 	}
 	return inputPosition - inputCursor, true
 }
 
 func codePointAtUnits(units []uint16, position int) (rune, int, bool) {
-	if position < 0 || position >= len(units) {
+	if position < 0 {
 		return 0, 0, false
 	}
-	if position+1 < len(units) && isHighSurrogate(units[position]) && isLowSurrogate(units[position+1]) {
+	if position >= len(units) {
+		return 0, 0, false
+	}
+	if codePointWidthAt(units, position) == 2 {
 		return utf16.DecodeRune(rune(units[position]), rune(units[position+1])), 2, true
 	}
 	return rune(units[position]), 1, true
 }
 
 func codePointBeforeUnits(units []uint16, position int) (rune, int, bool) {
-	if position <= 0 || position > len(units) {
+	if position <= 0 {
 		return 0, 0, false
 	}
-	if position > 1 && isHighSurrogate(units[position-2]) && isLowSurrogate(units[position-1]) {
+	if position > len(units) {
+		return 0, 0, false
+	}
+	if codePointWidthBefore(units, position) == 2 {
 		return utf16.DecodeRune(rune(units[position-2]), rune(units[position-1])), 2, true
 	}
 	return rune(units[position-1]), 1, true
+}
+
+func codePointWidthAt(units []uint16, position int) int {
+	if position < 0 || position >= len(units) {
+		return 0
+	}
+	if position+1 == len(units) {
+		return 1
+	}
+	if isHighSurrogate(units[position]) && isLowSurrogate(units[position+1]) {
+		return 2
+	}
+	return 1
+}
+
+func codePointWidthBefore(units []uint16, position int) int {
+	if position <= 0 || position > len(units) {
+		return 0
+	}
+	if position == 1 {
+		return 1
+	}
+	if isHighSurrogate(units[position-2]) && isLowSurrogate(units[position-1]) {
+		return 2
+	}
+	return 1
 }
 
 func (e *executor) wordAt(position int, previous bool, flags Flags) bool {
@@ -609,54 +700,73 @@ func (e *executor) wordAt(position int, previous bool, flags Flags) bool {
 		if position < 0 {
 			return false
 		}
-		if (e.program.flags.unicodeMode()) && position > 0 &&
-			isLowSurrogate(e.input.units[position]) && isHighSurrogate(e.input.units[position-1]) {
-			char := utf16.DecodeRune(rune(e.input.units[position-1]), rune(e.input.units[position]))
-			return builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), true)
-		}
 		return builtinMatches(classBuiltinWord, rune(e.input.units[position]), flags.IgnoreCase(), flags.unicodeMode())
 	}
 	char, _, ok := e.codePointAt(position)
-	return ok && builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), flags.unicodeMode())
+	if !ok {
+		return false
+	}
+	return builtinMatches(classBuiltinWord, char, flags.IgnoreCase(), flags.unicodeMode())
 }
 
 func (e *executor) codePointAt(position int) (rune, int, bool) {
-	if position < 0 || position >= len(e.input.units) {
+	if position < 0 {
 		return 0, 0, false
 	}
-	if (e.program.flags.unicodeMode()) && position+1 < len(e.input.units) &&
-		isHighSurrogate(e.input.units[position]) && isLowSurrogate(e.input.units[position+1]) {
-		return utf16.DecodeRune(rune(e.input.units[position]), rune(e.input.units[position+1])), 2, true
+	if position >= len(e.input.units) {
+		return 0, 0, false
+	}
+	if e.program.flags.unicodeMode() {
+		return codePointAtUnits(e.input.units, position)
 	}
 
 	return rune(e.input.units[position]), 1, true
 }
 
 func (e *executor) codePointBefore(position int) (rune, int, bool) {
-	if position <= 0 || position > len(e.input.units) {
+	if position <= 0 {
 		return 0, 0, false
 	}
-	if (e.program.flags.unicodeMode()) && position > 1 &&
-		isHighSurrogate(e.input.units[position-2]) && isLowSurrogate(e.input.units[position-1]) {
-		return utf16.DecodeRune(rune(e.input.units[position-2]), rune(e.input.units[position-1])), 2, true
+	if position > len(e.input.units) {
+		return 0, 0, false
+	}
+	if e.program.flags.unicodeMode() {
+		return codePointBeforeUnits(e.input.units, position)
 	}
 	return rune(e.input.units[position-1]), 1, true
 }
 
 func (e *executor) atStart(position int, flags Flags) bool {
-	return position == 0 || (flags.Multiline() && position > 0 && isLineTerminator(e.input.units[position-1]))
+	if position == 0 {
+		return true
+	}
+	if !flags.Multiline() {
+		return false
+	}
+	return isLineTerminator(e.input.units[position-1])
 }
 
 func (e *executor) atEnd(position int, flags Flags) bool {
-	return position == len(e.input.units) || (flags.Multiline() && position < len(e.input.units) && isLineTerminator(e.input.units[position]))
+	if position == len(e.input.units) {
+		return true
+	}
+	if !flags.Multiline() {
+		return false
+	}
+	return isLineTerminator(e.input.units[position])
 }
 
 func isLineTerminator(unit uint16) bool {
-	return unit == '\n' || unit == '\r' || unit == 0x2028 || unit == 0x2029
+	switch unit {
+	case '\n', '\r', 0x2028, 0x2029:
+		return true
+	default:
+		return false
+	}
 }
 
-func isHighSurrogate(unit uint16) bool { return unit >= 0xD800 && unit <= 0xDBFF }
-func isLowSurrogate(unit uint16) bool  { return unit >= 0xDC00 && unit <= 0xDFFF }
+func isHighSurrogate(unit uint16) bool { return unit&0xFC00 == 0xD800 }
+func isLowSurrogate(unit uint16) bool  { return unit&0xFC00 == 0xDC00 }
 
 type characterClass struct {
 	node Node
@@ -677,45 +787,62 @@ func classNodeMatches(node Node, char rune, flags Flags) bool {
 	case classOperationComplement:
 		return !classNodeMatches(node.children[0], char, flags)
 	}
-	matched := false
 	for _, value := range node.classStrings {
-		decoded := utf16.Decode(value)
-		if len(decoded) == 1 && len(utf16.Encode(decoded)) == len(value) && decoded[0] == char {
-			matched = true
-			break
+		if classStringMatches(value, char) {
+			return !node.negated
 		}
 	}
 	for _, term := range node.class {
-		termMatch := false
-		negationApplied := false
-		if term.property > 0 && term.negated && flags.IgnoreCase() && flags.Unicode() {
-			for _, variant := range unicodeFoldVariants(char) {
-				if !unicodePropertyContains(int(term.property-1), variant) {
-					termMatch = true
-					break
+		if classTermMatches(term, char, flags) {
+			return !node.negated
+		}
+	}
+	return node.negated
+}
+
+func classStringMatches(value []uint16, char rune) bool {
+	decoded := utf16.Decode(value)
+	if len(decoded) != 1 {
+		return false
+	}
+	if len(utf16.Encode(decoded)) != len(value) {
+		return false
+	}
+	return decoded[0] == char
+}
+
+func classTermMatches(term classTerm, char rune, flags Flags) bool {
+	if term.property > 0 {
+		if term.negated {
+			if flags.IgnoreCase() {
+				if flags.Unicode() {
+					return negatedUnicodePropertyMatches(propertyTableIndex(term.property), char)
 				}
 			}
-			negationApplied = true
-		} else if term.property > 0 {
-			termMatch = unicodePropertyMatches(int(term.property-1), char, flags.IgnoreCase())
-		} else if term.builtin != classBuiltinNone {
-			termMatch = builtinMatches(term.builtin, char, flags.IgnoreCase(), flags.unicodeMode())
-		} else {
-			termMatch = rangeMatches(term.start, term.end, char, flags)
 		}
-		if term.negated && !negationApplied {
-			termMatch = !termMatch
-		}
-		if termMatch {
-			matched = true
-			break
-		}
+		matched := unicodePropertyMatches(propertyTableIndex(term.property), char, flags.IgnoreCase())
+		return matched != term.negated
 	}
-	if node.negated {
-		return !matched
+	matched := false
+	if term.builtin != classBuiltinNone {
+		matched = builtinMatches(term.builtin, char, flags.IgnoreCase(), flags.unicodeMode())
+	} else {
+		matched = rangeMatches(term.start, term.end, char, flags)
 	}
+	return matched != term.negated
+}
 
-	return matched
+func propertyTableIndex(property uint16) int {
+	return int(property) - 1
+}
+
+func negatedUnicodePropertyMatches(table int, char rune) bool {
+	for _, variant := range unicodeFoldVariants(char) {
+		if !unicodePropertyContains(table, variant) {
+			return true
+		}
+	}
+	return false
 }
 
 func unicodePropertyMatches(table int, char rune, ignoreCase bool) bool {
@@ -736,20 +863,21 @@ func unicodePropertyMatches(table int, char rune, ignoreCase bool) bool {
 func builtinMatches(builtin classBuiltin, char rune, ignoreCase, unicodeMode bool) bool {
 	switch builtin {
 	case classBuiltinDigit:
-		return char >= '0' && char <= '9'
+		return isASCIIDigit(char)
 	case classBuiltinSpace:
-		return char == '\t' || char == '\n' || char == '\v' || char == '\f' || char == '\r' ||
-			char == 0xFEFF || unicodeGeneralCategoryContains("Space_Separator", char) ||
-			char == 0x2028 || char == 0x2029
+		return isECMAScriptSpace(char)
 	case classBuiltinWord:
-		if char == '_' || char >= '0' && char <= '9' || char >= 'A' && char <= 'Z' || char >= 'a' && char <= 'z' {
+		if isASCIIWord(char) {
 			return true
 		}
-		if !ignoreCase || !unicodeMode {
+		if !ignoreCase {
+			return false
+		}
+		if !unicodeMode {
 			return false
 		}
 		for _, folded := range unicodeFoldVariants(char) {
-			if folded == '_' || folded >= '0' && folded <= '9' || folded >= 'A' && folded <= 'Z' || folded >= 'a' && folded <= 'z' {
+			if isASCIIWord(folded) {
 				return true
 			}
 		}
@@ -758,8 +886,29 @@ func builtinMatches(builtin classBuiltin, char rune, ignoreCase, unicodeMode boo
 	return false
 }
 
+func isASCIIDigit(char rune) bool { return char >= '0' && char <= '9' }
+
+func isASCIIWord(char rune) bool {
+	if char == '_' || isASCIIDigit(char) {
+		return true
+	}
+	if char >= 'A' && char <= 'Z' {
+		return true
+	}
+	return char >= 'a' && char <= 'z'
+}
+
+func isECMAScriptSpace(char rune) bool {
+	switch char {
+	case '\t', '\n', '\v', '\f', '\r', 0xFEFF, 0x2028, 0x2029:
+		return true
+	default:
+		return unicodeGeneralCategoryContains("Space_Separator", char)
+	}
+}
+
 func rangeMatches(start, end, char rune, flags Flags) bool {
-	if char >= start && char <= end {
+	if runeInRange(char, start, end) {
 		return true
 	}
 	if !flags.IgnoreCase() {
@@ -767,21 +916,25 @@ func rangeMatches(start, end, char rune, flags Flags) bool {
 	}
 	if flags.unicodeMode() {
 		for _, folded := range unicodeFoldVariants(char) {
-			if folded >= start && folded <= end {
+			if runeInRange(folded, start, end) {
 				return true
 			}
 		}
 		return false
 	}
 	canonical := legacyCanonical(char)
-	if canonical >= start && canonical <= end {
+	if runeInRange(canonical, start, end) {
 		return true
 	}
 	for _, fold := range generatedLegacyUpper {
-		if fold.to == canonical && fold.from >= start && fold.from <= end {
+		if fold.to == canonical && runeInRange(fold.from, start, end) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func runeInRange(char, start, end rune) bool {
+	return char >= start && char <= end
 }
