@@ -1457,6 +1457,30 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/concurrency-limit/benchmarks/comparison",
+      "directory": "cmd/report",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison/cmd/report",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/concurrency-limit/benchmarks/comparison",
+      "directory": "internal/netflix",
+      "name": "netflix",
+      "import_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison/internal/netflix",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/config",
       "directory": ".",
       "name": "config",
@@ -5843,6 +5867,18 @@
       "directory": "valkey",
       "name": "valkey",
       "import_path": "github.com/faustbrian/golib/pkg/rate-limit/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/resilience",
+      "directory": ".",
+      "name": "resilience",
+      "import_path": "github.com/faustbrian/golib/pkg/resilience",
       "kind": "public",
       "production": true,
       "executable": true,

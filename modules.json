@@ -662,7 +662,10 @@
       "tag_prefix": "pkg/adaptive-throttle/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/failsafe-go/failsafe-go",
+        "go.uber.org/goleak"
+      ],
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
@@ -4368,7 +4371,10 @@
       "version": "unreleased",
       "tag_prefix": "pkg/concurrency-limit/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
+        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience"
+      ],
       "external_runtime_dependencies": [],
       "required_services": [],
       "build_tags": [],
@@ -4464,6 +4470,114 @@
         "lint": true,
         "mutation": true,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/concurrency-limit/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/concurrency-limit/benchmarks/comparison",
+          "directory": "cmd/report",
+          "name": "main",
+          "import_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison/cmd/report",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/concurrency-limit/benchmarks/comparison",
+          "directory": "internal/netflix",
+          "name": "netflix",
+          "import_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison/internal/netflix",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This non-releasable module isolates comparison dependencies from the public `concurrency-limit` module. It compares bounded Gradient2 update and permit paths with:",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/concurrency-limit"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/failsafe-go/failsafe-go",
+        "github.com/platinummonkey/go-concurrency-limits"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/concurrency-limit/integration/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This non-releasable integration module proves application-owned composition through the public adaptive limiter, retry, and hedge contracts. Local admission rejection remains a permanent retry outcome, and every hedge attempt must acquire its own limiter permit before invoking downstream work.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/concurrency-limit",
+        "github.com/faustbrian/golib/pkg/hedge",
+        "github.com/faustbrian/golib/pkg/retry"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }
@@ -7452,7 +7566,9 @@
       "version": "unreleased",
       "tag_prefix": "pkg/hedge/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience"
+      ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go"
       ],
@@ -16721,6 +16837,133 @@
       }
     },
     {
+      "directory": "pkg/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/resilience",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/resilience",
+          "directory": ".",
+          "name": "resilience",
+          "import_path": "github.com/faustbrian/golib/pkg/resilience",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`resilience` is the small composition foundation for the focused resilience libraries in `golib`. It provides deterministic generic policy composition, typed outcomes, caller-owned total deadlines, bounded observation, and one process-local work budget shared by retry and hedge. It does not hide a default policy stack or implement focused resilience algorithms.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/resilience/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/failsafe-go/failsafe-go"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/resilience/.ai/GOAL.md",
+        "pkg/resilience/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/resilience/.ai/GOAL.md",
+          "requirements_sha256": "1a01e7f2816b91f1aa03fc0b327a05ac89e045084eb8c6ed11d82c6d4010fac9",
+          "implementation_evidence": [
+            "pkg/resilience/CHANGELOG.md",
+            "pkg/resilience/README.md",
+            "pkg/resilience/docs/api.md",
+            "pkg/resilience/docs/hardening.md",
+            "pkg/resilience/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/resilience/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "c32b86889c3f37c627044279341af28655485d33c262915ebd4e5dc64c222db0",
+          "implementation_evidence": [
+            "pkg/resilience/CHANGELOG.md",
+            "pkg/resilience/README.md",
+            "pkg/resilience/docs/api.md",
+            "pkg/resilience/docs/hardening.md",
+            "pkg/resilience/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/retry",
       "module_path": "github.com/faustbrian/golib/pkg/retry",
       "go_version": "1.26.5",
@@ -16807,6 +17050,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
+        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
         "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience"
       ],
       "external_runtime_dependencies": [
@@ -18365,6 +18609,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/v8fg/kit4go",
         "golang.org/x/sync"
       ],
       "required_services": [],

@@ -23,6 +23,8 @@ use (
 	./pkg/cli/benchmarks
 	./pkg/clock
 	./pkg/concurrency-limit
+	./pkg/concurrency-limit/benchmarks/comparison
+	./pkg/concurrency-limit/integration/resilience
 	./pkg/config
 	./pkg/config/adapters/awssecretsmanager
 	./pkg/correlation
@@ -89,6 +91,7 @@ use (
 	./pkg/queue-control-plane
 	./pkg/queue/queueservice
 	./pkg/rate-limit
+	./pkg/resilience
 	./pkg/retry
 	./pkg/router
 	./pkg/rule-engine
@@ -193,8 +196,6 @@ replace github.com/faustbrian/golib/pkg/feature-flags v0.0.0 => ./pkg/feature-fl
 replace github.com/faustbrian/golib/pkg/filesystem v0.0.0 => ./pkg/filesystem
 
 replace github.com/faustbrian/golib/pkg/geo v0.0.0 => ./pkg/geo
-
-replace github.com/faustbrian/golib/pkg/hedge v0.0.0 => ./pkg/hedge
 
 replace github.com/faustbrian/golib/pkg/http-client v0.0.0 => ./pkg/http-client
 
@@ -340,8 +341,16 @@ replace github.com/faustbrian/golib/pkg/queue/queueservice v0.0.0 => ./pkg/queue
 
 replace github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager v0.0.0 => ./pkg/secret-store/adapters/awssecretsmanager
 
+replace github.com/faustbrian/golib/pkg/hedge v0.0.0 => ./pkg/hedge
+
 replace github.com/faustbrian/golib/pkg/semaphore v0.0.0 => ./pkg/semaphore
 
 replace github.com/faustbrian/golib/pkg/fault-injection/benchmarks/comparison v0.0.0 => ./pkg/fault-injection/benchmarks/comparison
 
 replace github.com/faustbrian/golib/pkg/fault-injection/integration/resilience v0.0.0 => ./pkg/fault-injection/integration/resilience
+
+replace github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison v0.0.0 => ./pkg/concurrency-limit/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience v0.0.0 => ./pkg/concurrency-limit/integration/resilience
+
+replace github.com/faustbrian/golib/pkg/resilience v0.0.0 => ./pkg/resilience
