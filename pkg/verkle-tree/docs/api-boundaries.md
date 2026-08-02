@@ -141,14 +141,19 @@ and transcript construction.
 
 The current internal research engine implements canonical scalar input,
 fixed-width vector commitment, generator-set identity validation, opaque
-identity handling, commitment-to-field mapping, strict decoding of the fixed
-576-byte aggregate-opening proof, and fixed-profile aggregate opening and
-verification. It binds the `verkle` transcript and pinned generators and
-rejects duplicate or conflicting opening identities. The decoder alone does
-not bind a root, key set, claim, path, transcript, or verification result. The
-boundary is exposed only through the fixed experimental snapshot and proof
-facades and does not provide generic cryptographic composition, commitment
-updates, or dependency-level cancellation during proof arithmetic.
+identity handling, commitment-to-field mapping, bounded sparse changes to
+already authenticated vector positions, strict decoding of the fixed 576-byte
+aggregate-opening proof, and fixed-profile aggregate opening and verification.
+It binds the `verkle` transcript and pinned generators and rejects duplicate or
+conflicting update and opening identities. Sparse commitment arithmetic does
+not authenticate the supplied old scalars; the future witness layer must do so
+through verified openings before calling it. The decoder alone does not bind a
+root, key set, claim, path, transcript, or verification result. The boundary
+remains internal. Snapshot and proof functionality is exposed only through
+fixed-profile facades; sparse commitment updates are not yet connected to a
+public tree or witness operation. The package does not provide generic
+cryptographic composition or dependency-level cancellation during proof
+arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused

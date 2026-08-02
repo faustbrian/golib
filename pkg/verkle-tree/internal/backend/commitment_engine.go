@@ -17,6 +17,9 @@ const (
 	generatorWorkingBytes = uint64(256)
 	commitWorkingBytes    = uint64(VectorWidth*scalarSize) +
 		2*generatorWorkingBytes
+	commitmentUpdateWorkingBytes = uint64(
+		3*VectorWidth*scalarSize+2*VectorWidth,
+	) + 2*generatorWorkingBytes
 )
 
 var (
@@ -26,6 +29,7 @@ var (
 	errCommitmentCancelled      = errors.New("commitment operation cancelled")
 	errCommitmentResource       = errors.New("commitment resource limit exceeded")
 	errGeneratorMismatch        = errors.New("commitment generator set mismatch")
+	errInvalidCommitmentUpdate  = errors.New("invalid commitment update")
 )
 
 var pinnedGeneratorDigest = [sha256.Size]byte{
@@ -38,6 +42,14 @@ var pinnedGeneratorDigest = [sha256.Size]byte{
 // Vector is one complete width-256 vector of canonical little-endian scalar
 // encodings. Its array representation prevents caller-controlled vector sizes.
 type Vector [VectorWidth][scalarSize]byte
+
+// VectorUpdate replaces one authenticated canonical scalar at a fixed vector
+// position. Callers must authenticate Old before applying the update.
+type VectorUpdate struct {
+	Index uint8
+	Old   [scalarSize]byte
+	New   [scalarSize]byte
+}
 
 // CommitmentLimits bounds setup and commitment work. Zero values are invalid
 // and no field denotes an unbounded resource.
@@ -254,6 +266,111 @@ func (engine *CommitmentEngine) Commit(
 
 		var term banderwagon.Element
 		term.ScalarMul(&engine.generators[index], &decoded.element)
+		var sum banderwagon.Element
+		sum.Add(&result, &term)
+		result = sum
+	}
+	if err := checkCommitmentContext(ctx); err != nil {
+		return VectorCommitment{}, err
+	}
+
+	return VectorCommitment{
+		value: commitment{element: result},
+		valid: true,
+	}, nil
+}
+
+// UpdateCommitment applies a canonical set of authenticated scalar changes to
+// one opaque commitment. Input order does not affect the result. Duplicate
+// positions and non-canonical scalars fail before group arithmetic.
+func (engine *CommitmentEngine) UpdateCommitment(
+	ctx context.Context,
+	committed VectorCommitment,
+	updates []VectorUpdate,
+) (VectorCommitment, error) {
+	if engine == nil || !engine.valid || engine.limits.validate() != nil {
+		return VectorCommitment{}, errInvalidCommitmentEngine
+	}
+	if err := checkCommitmentContext(ctx); err != nil {
+		return VectorCommitment{}, err
+	}
+	if !committed.valid {
+		return VectorCommitment{}, errInvalidCommitment
+	}
+	if len(updates) > VectorWidth {
+		return VectorCommitment{}, errInvalidCommitmentUpdate
+	}
+	if len(updates) == 0 {
+		return committed, nil
+	}
+	if err := checkCommitmentResource(
+		CommitmentResourceTemporaryBytes,
+		engine.limits.MaxTemporaryBytes,
+		commitmentUpdateWorkingBytes,
+	); err != nil {
+		return VectorCommitment{}, err
+	}
+	scalarDecodes := uint64(len(updates)) * 2
+	if err := checkCommitmentResource(
+		CommitmentResourceScalarDecodes,
+		uint64(engine.limits.MaxScalarDecodes),
+		scalarDecodes,
+	); err != nil {
+		return VectorCommitment{}, err
+	}
+
+	var owned [VectorWidth]VectorUpdate
+	var present [VectorWidth]bool
+	for index := range updates {
+		if err := checkCommitmentContext(ctx); err != nil {
+			return VectorCommitment{}, err
+		}
+		position := updates[index].Index
+		if present[position] {
+			return VectorCommitment{}, errInvalidCommitmentUpdate
+		}
+		present[position] = true
+		owned[index] = updates[index]
+	}
+
+	var deltas [VectorWidth]scalar
+	terms := uint64(0)
+	for index := range updates {
+		if err := checkCommitmentContext(ctx); err != nil {
+			return VectorCommitment{}, err
+		}
+		oldValue, err := decodeScalar(owned[index].Old[:])
+		if err != nil {
+			return VectorCommitment{}, err
+		}
+		newValue, err := decodeScalar(owned[index].New[:])
+		if err != nil {
+			return VectorCommitment{}, err
+		}
+		position := owned[index].Index
+		deltas[position].element.Sub(&newValue.element, &oldValue.element)
+		if !deltas[position].element.IsZero() {
+			terms++
+		}
+	}
+	if err := checkCommitmentResource(
+		CommitmentResourceMSMTerms,
+		uint64(engine.limits.MaxMSMTerms),
+		terms,
+	); err != nil {
+		return VectorCommitment{}, err
+	}
+
+	result := committed.value.element
+	for position := range deltas {
+		if !present[position] || deltas[position].element.IsZero() {
+			continue
+		}
+		if err := checkCommitmentContext(ctx); err != nil {
+			return VectorCommitment{}, err
+		}
+		var term banderwagon.Element
+		term.ScalarMul(&engine.generators[position], &deltas[position].element)
 		var sum banderwagon.Element
 		sum.Add(&result, &term)
 		result = sum

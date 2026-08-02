@@ -169,11 +169,13 @@ the `verkle` transcript.
 
 The profile remains incomplete: canonical witness and whole-snapshot
 encodings, crash-repair semantics, stable proof and witness semantics,
-incremental commitment updates, and complete dependency-level cancellation are
-not yet frozen. Canonical stored-node bytes, atomic write publication, isolated
-persisted reconstruction, and atomic retention/pruning now have one
-package-owned experimental contract, but none is a stable interoperability
-surface.
+tree-level incremental update semantics, and complete dependency-level
+cancellation are not yet frozen. The internal backend can deterministically
+apply a bounded sparse change to already authenticated vector positions, but it
+does not authenticate old values or establish witness completeness. Canonical
+stored-node bytes, atomic write publication, isolated persisted reconstruction,
+and atomic retention/pruning now have one package-owned experimental contract,
+but none is a stable interoperability surface.
 The exact boundary is recorded in
 [`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
 

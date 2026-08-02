@@ -109,6 +109,104 @@ func TestCommitmentEngineChecksCancellationDuringCommitWork(t *testing.T) {
 	}
 }
 
+func TestCommitmentEngineUpdatesValidatedVectorPositions(t *testing.T) {
+	t.Parallel()
+
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	var before Vector
+	setVectorUint64(&before, 0, 5)
+	setVectorUint64(&before, 128, 9)
+	committedBefore, err := engine.Commit(context.Background(), before)
+	if err != nil {
+		t.Fatalf("commit pre-update vector: %v", err)
+	}
+	beforeKey, err := committedBefore.DeduplicationKey()
+	if err != nil {
+		t.Fatalf("pre-update commitment key: %v", err)
+	}
+
+	after := before
+	setVectorUint64(&after, 0, 7)
+	setVectorUint64(&after, 128, 0)
+	setVectorUint64(&after, 255, 11)
+	want, err := engine.Commit(context.Background(), after)
+	if err != nil {
+		t.Fatalf("commit expected post-update vector: %v", err)
+	}
+	updates := []VectorUpdate{
+		{Index: 255, Old: before[255], New: after[255]},
+		{Index: 0, Old: before[0], New: after[0]},
+		{Index: 128, Old: before[128], New: after[128]},
+	}
+	got, err := engine.UpdateCommitment(
+		context.Background(), committedBefore, updates,
+	)
+	if err != nil {
+		t.Fatalf("update commitment: %v", err)
+	}
+	gotKey, err := got.DeduplicationKey()
+	if err != nil {
+		t.Fatalf("updated commitment key: %v", err)
+	}
+	wantKey, err := want.DeduplicationKey()
+	if err != nil {
+		t.Fatalf("expected commitment key: %v", err)
+	}
+	if gotKey != wantKey {
+		t.Fatalf("updated commitment = %x, want %x", gotKey, wantKey)
+	}
+	again, err := committedBefore.DeduplicationKey()
+	if err != nil || again != beforeKey {
+		t.Fatalf("pre-update commitment mutated: key %x, error %v", again, err)
+	}
+}
+
+func TestCommitmentEngineOwnsUpdatesBeforeArithmetic(t *testing.T) {
+	t.Parallel()
+
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	var before Vector
+	setVectorUint64(&before, 7, 1)
+	committed, err := engine.Commit(context.Background(), before)
+	if err != nil {
+		t.Fatalf("commit pre-update vector: %v", err)
+	}
+	after := before
+	setVectorUint64(&after, 7, 2)
+	want, err := engine.Commit(context.Background(), after)
+	if err != nil {
+		t.Fatalf("commit expected post-update vector: %v", err)
+	}
+	updates := []VectorUpdate{{Index: 7, Old: before[7], New: after[7]}}
+	ctx := &commitUpdateMutationContext{
+		Context: context.Background(),
+		at:      3,
+		mutate: func() {
+			setVectorUint64(&after, 7, 3)
+			updates[0].New = after[7]
+		},
+	}
+
+	got, err := engine.UpdateCommitment(ctx, committed, updates)
+	if err != nil {
+		t.Fatalf("update commitment: %v", err)
+	}
+	gotKey, err := got.DeduplicationKey()
+	if err != nil {
+		t.Fatalf("updated commitment key: %v", err)
+	}
+	wantKey, err := want.DeduplicationKey()
+	if err != nil || gotKey != wantKey {
+		t.Fatalf("owned update = %x, want %x, error %v", gotKey, wantKey, err)
+	}
+}
+
 func TestCommitmentEngineRejectsGeneratorSubstitution(t *testing.T) {
 	t.Parallel()
 
@@ -371,6 +469,22 @@ func assertCommitmentResourceError(
 type commitCancelContext struct {
 	calls    int
 	cancelAt int
+}
+
+type commitUpdateMutationContext struct {
+	context.Context
+	calls  int
+	at     int
+	mutate func()
+}
+
+func (ctx *commitUpdateMutationContext) Err() error {
+	ctx.calls++
+	if ctx.calls == ctx.at {
+		ctx.mutate()
+	}
+
+	return ctx.Context.Err()
 }
 
 func (*commitCancelContext) Deadline() (time.Time, bool) {

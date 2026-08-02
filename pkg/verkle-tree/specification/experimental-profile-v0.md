@@ -669,11 +669,27 @@ be interrupted after it starts; construction checks cancellation immediately
 before and after that call. This remaining limitation prohibits production
 backend approval and MUST remain visible in the backend audit.
 
+The internal engine MAY update an opaque commitment only from a bounded list of
+fixed-position old and new canonical scalars. The caller MUST authenticate each
+old scalar before invoking this primitive. The engine MUST defensively copy the
+updates before arithmetic, reject more than 256 updates, reject duplicate
+positions and non-canonical scalars, preflight scalar-decoding, nonzero-term,
+and scratch-memory budgets, and apply deltas in ascending vector-index order.
+Input order MUST NOT affect the result. An empty update MUST preserve the input
+commitment, and a result equal to the mathematical identity MUST remain opaque
+and MUST NOT gain an accepted point encoding. Cancellation MUST be checked
+before ownership copying, during validation, before each nonzero group term,
+and after the final term. This primitive alone MUST NOT be treated as proof of
+an old scalar, tree-path completeness, a valid state transition, or a stateless
+witness.
+
 The independent Rust corpus fixes zero, first and last one-hot, sparse boundary,
 and dense incrementing vector commitments plus their commitment-to-field
-images. Agreement with that corpus proves only this bounded construction seam.
-It MUST NOT be interpreted as proof-opening, proof-verification, side-channel,
-or production-backend evidence.
+images. The sparse update from the one-hot-first vector to the sparse-boundary
+vector MUST reproduce the same independent commitment. Agreement with that
+corpus proves only this bounded construction and update seam. It MUST NOT be
+interpreted as proof-opening, proof-verification, witness, side-channel, or
+production-backend evidence.
 
 ## Raw Aggregate Opening Proof Encoding
 
@@ -844,11 +860,12 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
-encoding, crash-repair application, incremental commitment updates, witness
-verification, or stateless updates. The storage boundaries publish and verify
-the complete canonical node image defined above, audit reachability without
-mutation, and atomically replace retained publications plus prune nodes through
-a capability-checked caller-owned adapter.
+encoding, crash-repair application, tree-level incremental updates, witness
+verification, or stateless updates. The backend's authenticated-position
+sparse-update primitive is not yet connected to tree paths. The storage
+boundaries publish and verify the complete canonical node image defined above,
+audit reachability without mutation, and atomically replace retained
+publications plus prune nodes through a capability-checked caller-owned adapter.
 
 ## Compatibility Boundary
 

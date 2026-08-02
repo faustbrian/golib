@@ -61,6 +61,11 @@ All notable changes to `verkle-tree` will be documented in this file.
   canonical scalar inputs, pinned generator-set validation, deterministic
   resource limits, serial cancellation-aware arithmetic, and independent Rust
   vector agreement.
+- Add deterministic sparse updates for already authenticated vector positions,
+  with canonical scalar validation, caller-input ownership, duplicate
+  rejection, identity handling, explicit resource bounds, cancellation, and
+  agreement with the pinned independent Rust commitment corpus. This internal
+  primitive does not authenticate old values or expose stateless witnesses.
 - Add a bounded immutable committed-tree builder that combines canonical leaf,
   stem, and internal commitments into deterministic roots, with reusable
   concurrent construction, aggregate cryptographic-work limits, and six

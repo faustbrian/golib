@@ -79,6 +79,56 @@ func TestCommitmentEngineMatchesPinnedRustVectors(t *testing.T) {
 	}
 }
 
+func TestCommitmentEngineSparseUpdateMatchesPinnedRustVector(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("testdata/rust-verkle-vector-commitments.tsv")
+	if err != nil {
+		t.Fatalf("read Rust vector commitments: %v", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
+	if len(lines) != 6 {
+		t.Fatalf("fixture rows = %d, want 6", len(lines))
+	}
+	sparseFields := strings.Split(lines[4], "\t")
+	if len(sparseFields) != 4 || sparseFields[0] != "sparse-boundaries" {
+		t.Fatalf("sparse fixture row = %q", lines[4])
+	}
+	want := decodeInteropHex(t, 5, "commitment", sparseFields[2])
+
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	before, _ := commitmentFixtureVector(t, "one-hot-first")
+	after, _ := commitmentFixtureVector(t, "sparse-boundaries")
+	committed, err := engine.Commit(context.Background(), before)
+	if err != nil {
+		t.Fatalf("commit pre-update vector: %v", err)
+	}
+	updates := make([]VectorUpdate, 0, 4)
+	for _, index := range []uint8{1, 127, 128, 255} {
+		updates = append(updates, VectorUpdate{
+			Index: index,
+			Old:   before[index],
+			New:   after[index],
+		})
+	}
+	updated, err := engine.UpdateCommitment(
+		context.Background(), committed, updates,
+	)
+	if err != nil {
+		t.Fatalf("update commitment: %v", err)
+	}
+	got, err := updated.Bytes()
+	if err != nil {
+		t.Fatalf("encode updated commitment: %v", err)
+	}
+	if !bytes.Equal(got[:], want) {
+		t.Fatalf("updated commitment = %x, want Rust %x", got, want)
+	}
+}
+
 func commitmentFixtureVector(t testing.TB, name string) (Vector, int) {
 	t.Helper()
 

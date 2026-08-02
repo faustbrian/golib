@@ -164,6 +164,8 @@ The current internal boundary may:
   independent fixture;
 - commit a fixed-width vector of canonical scalar encodings through bounded,
   deterministic serial group operations;
+- apply a bounded, defensively owned, canonically ordered sparse scalar delta to
+  an opaque commitment after the caller has authenticated every old value;
 - retain the resulting identity only as an opaque in-memory commitment and
   map it to scalar zero;
 - return one canonical encoding for accepted commitments and scalars; and
@@ -186,9 +188,13 @@ has begun.
 
 The engine's generator, query, scalar, multi-scalar-multiplication, worker, and
 scratch-byte accounting is a deterministic conservative package budget. The
-pinned proof implementation uses `runtime.NumCPU()` internally and accepts no
-context, so the wrapper rejects insufficient worker budgets beforehand and can
-check cancellation only before and after the call. This does not prove the
+pinned independent sparse-boundary commitment is reproduced both through full
+commitment and through the sparse-update path. That agreement proves only the
+group-arithmetic update primitive: it does not authenticate supplied old
+scalars, establish tree-path completeness, or constitute a stateless witness.
+The pinned proof implementation uses `runtime.NumCPU()` internally and accepts
+no context, so the wrapper rejects insufficient worker budgets beforehand and
+can check cancellation only before and after the call. This does not prove the
 dependency's complete heap allocation profile or constant-time behavior. The
 engine therefore remains an experimental internal component rather than an
 approved production backend.
