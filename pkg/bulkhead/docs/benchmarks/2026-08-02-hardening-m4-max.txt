@@ -1,0 +1,85 @@
+comparison command: go test -run '^$' -bench . -benchmem -benchtime=500ms -count=5
+comparison package: github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison
+advanced command: GOWORK=off go test -run '^$' -bench 'BenchmarkBulkhead(ParallelThroughput|WaitWakeupLatency|CancellationChurn|FIFOFairness|Observer|Partitions)$' -benchmem -benchtime=500ms -count=5
+advanced package: github.com/faustbrian/golib/pkg/bulkhead
+goos: darwin
+goarch: arm64
+go: 1.26.5
+cpu: Apple M4 Max
+GOMAXPROCS: 16
+GOGC: default
+failsafe-go: v0.9.6
+fortify: v1.6.0
+x/sync: v0.22.0
+
+BenchmarkAdmittedFastPath/Bulkhead-16  2556110  237.2 ns/op  32 B/op  1 allocs/op
+BenchmarkAdmittedFastPath/Bulkhead-16  3682653  166.4 ns/op  32 B/op  1 allocs/op
+BenchmarkAdmittedFastPath/Bulkhead-16  4792090  173.4 ns/op  32 B/op  1 allocs/op
+BenchmarkAdmittedFastPath/Bulkhead-16  4752307  199.5 ns/op  32 B/op  1 allocs/op
+BenchmarkAdmittedFastPath/Bulkhead-16  4276540  205.6 ns/op  32 B/op  1 allocs/op
+BenchmarkAdmittedFastPath/XSyncSemaphore-16  62002954  15.03 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/XSyncSemaphore-16  61793289  17.52 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/XSyncSemaphore-16  60325503  28.00 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/XSyncSemaphore-16  57985020  27.86 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/XSyncSemaphore-16  54545245  19.85 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/FailsafeGo-16  18201627  56.82 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/FailsafeGo-16  13553871  126.2 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/FailsafeGo-16  9409194  90.40 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/FailsafeGo-16  21992119  106.2 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/FailsafeGo-16  19378957  94.52 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/Fortify-16  3250291  424.2 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/Fortify-16  1932339  317.4 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/Fortify-16  4332952  345.2 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/Fortify-16  11021931  109.0 ns/op  0 B/op  0 allocs/op
+BenchmarkAdmittedFastPath/Fortify-16  12114787  318.2 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Bulkhead-16  5254923  231.6 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Bulkhead-16  9777147  226.9 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Bulkhead-16  4070713  226.8 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Bulkhead-16  5078955  157.2 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Bulkhead-16  6452942  95.11 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/XSyncTryAcquire-16  187754715  4.229 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/XSyncTryAcquire-16  191912713  6.606 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/XSyncTryAcquire-16  100000000  6.992 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/XSyncTryAcquire-16  100000000  7.876 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/XSyncTryAcquire-16  100000000  6.055 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/FailsafeGo-16  100000000  8.023 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/FailsafeGo-16  100000000  6.690 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/FailsafeGo-16  100000000  7.343 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/FailsafeGo-16  164739405  6.209 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/FailsafeGo-16  100000000  6.197 ns/op  0 B/op  0 allocs/op
+BenchmarkRejectedFastPath/Fortify-16  6377370  125.4 ns/op  16 B/op  1 allocs/op
+BenchmarkRejectedFastPath/Fortify-16  7073976  118.8 ns/op  16 B/op  1 allocs/op
+BenchmarkRejectedFastPath/Fortify-16  9878080  86.76 ns/op  16 B/op  1 allocs/op
+BenchmarkRejectedFastPath/Fortify-16  4612161  117.5 ns/op  16 B/op  1 allocs/op
+BenchmarkRejectedFastPath/Fortify-16  8812416  105.9 ns/op  16 B/op  1 allocs/op
+
+BenchmarkBulkheadParallelThroughput-16  1763941  421.9 ns/op  2370451 admitted/s  0 rejected/op  32 B/op  1 allocs/op
+BenchmarkBulkheadParallelThroughput-16  1741876  493.2 ns/op  2027646 admitted/s  0 rejected/op  32 B/op  1 allocs/op
+BenchmarkBulkheadParallelThroughput-16  1961862  459.0 ns/op  2178448 admitted/s  0 rejected/op  32 B/op  1 allocs/op
+BenchmarkBulkheadParallelThroughput-16  1669431  490.4 ns/op  2039232 admitted/s  0 rejected/op  32 B/op  1 allocs/op
+BenchmarkBulkheadParallelThroughput-16  1434930  437.6 ns/op  2285391 admitted/s  0 rejected/op  32 B/op  1 allocs/op
+BenchmarkBulkheadWaitWakeupLatency-16  112227  7619 ns/op  459 p50-wait-ns  1459 p95-wait-ns  2417 p99-wait-ns  805 B/op  12 allocs/op
+BenchmarkBulkheadWaitWakeupLatency-16  132834  6311 ns/op  459 p50-wait-ns  1375 p95-wait-ns  2167 p99-wait-ns  809 B/op  12 allocs/op
+BenchmarkBulkheadWaitWakeupLatency-16  203476  6307 ns/op  458 p50-wait-ns  959 p95-wait-ns  2209 p99-wait-ns  811 B/op  12 allocs/op
+BenchmarkBulkheadWaitWakeupLatency-16  214318  7085 ns/op  458 p50-wait-ns  1000 p95-wait-ns  2459 p99-wait-ns  813 B/op  12 allocs/op
+BenchmarkBulkheadWaitWakeupLatency-16  93452  7412 ns/op  458 p50-wait-ns  875 p95-wait-ns  2000 p99-wait-ns  803 B/op  12 allocs/op
+BenchmarkBulkheadCancellationChurn-16  69898  9155 ns/op  1476 B/op  18 allocs/op
+BenchmarkBulkheadCancellationChurn-16  80882  11403 ns/op  1476 B/op  18 allocs/op
+BenchmarkBulkheadCancellationChurn-16  64952  9870 ns/op  1462 B/op  18 allocs/op
+BenchmarkBulkheadCancellationChurn-16  63363  10640 ns/op  1468 B/op  18 allocs/op
+BenchmarkBulkheadCancellationChurn-16  61197  12090 ns/op  1448 B/op  18 allocs/op
+BenchmarkBulkheadFIFOFairness-16  10000  68618 ns/op  0 fifo-violations/op  7666 B/op  120 allocs/op
+BenchmarkBulkheadFIFOFairness-16  10000  58258 ns/op  0 fifo-violations/op  7599 B/op  118 allocs/op
+BenchmarkBulkheadFIFOFairness-16  15624  58908 ns/op  0 fifo-violations/op  7609 B/op  119 allocs/op
+BenchmarkBulkheadFIFOFairness-16  8128  67922 ns/op  0 fifo-violations/op  7931 B/op  125 allocs/op
+BenchmarkBulkheadFIFOFairness-16  10000  68372 ns/op  0 fifo-violations/op  7644 B/op  119 allocs/op
+BenchmarkBulkheadObserver-16  1651622  415.4 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadObserver-16  1479055  373.3 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadObserver-16  1630713  444.4 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadObserver-16  1757788  338.3 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadObserver-16  2350222  240.2 ns/op  32 B/op  1 allocs/op
+BenchmarkBulkheadPartitions-16  69245746  10.09 ns/op  0 B/op  0 allocs/op
+BenchmarkBulkheadPartitions-16  68863282  10.37 ns/op  0 B/op  0 allocs/op
+BenchmarkBulkheadPartitions-16  66931290  8.856 ns/op  0 B/op  0 allocs/op
+BenchmarkBulkheadPartitions-16  63250826  11.66 ns/op  0 B/op  0 allocs/op
+BenchmarkBulkheadPartitions-16  61787193  12.37 ns/op  0 B/op  0 allocs/op

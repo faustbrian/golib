@@ -2874,7 +2874,10 @@
       "version": "unreleased",
       "tag_prefix": "pkg/bulkhead/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
+        "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience"
+      ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go",
         "go.uber.org/goleak",
@@ -2980,6 +2983,90 @@
         "lint": true,
         "mutation": true,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/bulkhead/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This non-releasable benchmark module isolates comparison dependencies from the public bulkhead module. It measures capacity-one admitted and saturated paths for the local bulkhead, direct `x/sync/semaphore`, Failsafe-Go, and Fortify.",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/bulkhead"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/failsafe-go/failsafe-go",
+        "go.klarlabs.de/fortify",
+        "golang.org/x/sync"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/bulkhead/integration/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This non-releasable integration module proves the application-owned resilience ordering through the public bulkhead, retry, and circuit-breaker contracts. Local bulkhead admission failure remains a permanent retry outcome and occurs before circuit-breaker admission, so it neither amplifies attempts nor records a downstream failure.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/bulkhead",
+        "github.com/faustbrian/golib/pkg/circuit-breaker",
+        "github.com/faustbrian/golib/pkg/retry"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }
@@ -3632,6 +3719,7 @@
       "tag_prefix": "pkg/circuit-breaker/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
         "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers",
         "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
         "github.com/faustbrian/golib/pkg/http-client",
@@ -16718,6 +16806,7 @@
       "tag_prefix": "pkg/retry/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
         "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience"
       ],
       "external_runtime_dependencies": [

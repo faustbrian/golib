@@ -18,3 +18,7 @@ All notable changes to this module are documented here.
 - Kubernetes sizing and shutdown guidance, resilience composition contracts,
   operations, migration, security, FAQ, hardening, fuzz, race, leak, mutation,
   compatibility, and comparative benchmark coverage.
+- Adversarial terminal-path, weighted-starvation, concurrent partition
+  replacement, Kubernetes lifecycle-model, and cross-package resilience
+  composition campaigns, plus wait-latency, fairness, cancellation, observer,
+  partition, throughput, and maintained-implementation benchmarks.

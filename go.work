@@ -13,6 +13,8 @@ use (
 	./pkg/authorization/integration/contracts
 	./pkg/barcode
 	./pkg/bulkhead
+	./pkg/bulkhead/benchmarks/comparison
+	./pkg/bulkhead/integration/resilience
 	./pkg/cache
 	./pkg/calendar
 	./pkg/circuit-breaker
@@ -137,6 +139,10 @@ replace github.com/faustbrian/golib/pkg/authorization/integration/contracts v0.0
 replace github.com/faustbrian/golib/pkg/barcode v0.0.0 => ./pkg/barcode
 
 replace github.com/faustbrian/golib/pkg/bulkhead v0.0.0 => ./pkg/bulkhead
+
+replace github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison v0.0.0 => ./pkg/bulkhead/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/bulkhead/integration/resilience v0.0.0 => ./pkg/bulkhead/integration/resilience
 
 replace github.com/faustbrian/golib/pkg/cache v0.0.0 => ./pkg/cache
 

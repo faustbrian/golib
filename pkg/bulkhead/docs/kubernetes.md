@@ -69,6 +69,11 @@ partition.
 Kubernetes may still terminate the process at the grace deadline. The package
 cannot report work completed after abrupt kill.
 
+`kubernetes_model_test.go` exercises readiness removal before close, bounded
+drain with live work, abrupt-kill ambiguity, cold scale-up state, active
+scale-down, and mixed policy revisions. This is a process-lifecycle model, not
+a claim that an in-memory policy coordinates Kubernetes or cluster capacity.
+
 ## Health and HPA
 
 Dependency saturation must not fail liveness; restarting healthy processes can

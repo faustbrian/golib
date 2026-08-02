@@ -33,6 +33,12 @@ overload. If a reviewed policy retries admission, every retry must share a
 finite attempt, elapsed, and queue-wait budget. A permit is normally acquired
 per downstream attempt so sleeps do not occupy resource capacity.
 
+The non-releasable
+[`integration/resilience`](../integration/resilience) module executes this
+ordering through the public bulkhead, retry, and circuit-breaker APIs. Its
+saturation test proves one local rejection produces one retry attempt, no
+breaker admission, and no downstream call.
+
 ## Circuit breaker
 
 The breaker owns dependency health; the bulkhead owns local capacity. Only a
