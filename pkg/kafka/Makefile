@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz integration race test vet
+.PHONY: benchmark check conformance coverage docs format format-check fuzz integration race test vet
 
 format:
 	gofmt -w .
@@ -24,6 +24,9 @@ fuzz:
 
 integration:
 	$(GO) test -tags=integration -count=1 -timeout=20m ./...
+
+conformance:
+	$(GO) test -tags=integration -run '^(TestPublicConformance|TestAuthenticationProviderFuncConformance|TestObserverPolicyConformance)$$' -count=1 -timeout=5m ./...
 
 benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem -benchtime="$(BENCH_TIME)"

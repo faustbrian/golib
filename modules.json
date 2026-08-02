@@ -9962,6 +9962,18 @@
           "coverage_required": true,
           "build_required": true,
           "build_tags": []
+        },
+        {
+          "module_directory": "pkg/kafka",
+          "directory": "kafkatest",
+          "name": "kafkatest",
+          "import_path": "github.com/faustbrian/golib/pkg/kafka/kafkatest",
+          "kind": "test support",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
         }
       ],
       "purpose": "`kafka` is the pre-v1 bounded first-party Apache Kafka client policy for Go services. The current implementation is being redesigned; existing draft APIs and passing checks are not a release-readiness claim.",
@@ -9997,7 +10009,10 @@
         "integration"
       ],
       "interoperability_tools": [],
-      "specifications": [],
+      "specifications": [
+        "Apache Kafka protocol and client semantics",
+        "implemented Kafka Improvement Proposals"
+      ],
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
@@ -10086,7 +10101,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

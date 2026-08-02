@@ -5,6 +5,14 @@ Use `NewProducer`, `NewConsumer`, `NewTransactionProcessor`,
 constructor validates identities and bounded resource policy before franz-go
 is configured.
 
+The public `kafkatest` test-support package provides broker-backed producer,
+consumer, transaction, replay, and inspector conformance suites plus
+deterministic authentication-provider and observer-policy suites. Its
+`BrokerHarness` exposes only Kafka broker addresses, security policy, isolated
+topic creation, bounded direct-partition reads, and committed-offset lookup; it
+does not expose franz-go clients, records, options, or administrative response
+types. See the [conformance guide](conformance.md).
+
 All five client roles accept `ProtocolPolicy`. Its zero value preserves
 per-connection `ApiVersions` negotiation. `MinimumVersion` applies an owned
 request-version downgrade floor without exposing franz-go version types. It is

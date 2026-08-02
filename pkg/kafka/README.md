@@ -364,12 +364,16 @@ quotas, ACLs, and destructive administrative operations.
 
 See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibility.md),
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
+[public conformance suites](docs/conformance.md),
 [observability](docs/observability.md), [performance evidence](docs/performance.md),
 [operations](docs/operations.md), and [security](docs/security.md).
 
 ## Development
 
-Run `make check`. With Docker available, `make integration` exercises the
+Run `make check`. `make conformance` exercises the public `kafkatest` producer,
+consumer, transaction, replay, inspector, authentication-provider, and observer
+contracts against the pinned single-broker fixture and deterministic provider
+implementations. With Docker available, `make integration` exercises the
 package against one pinned Confluent Local 7.5.0 broker and three pinned Apache
 Kafka 4.3.1 combined KRaft broker/controller nodes. Separate pinned Apache
 Kafka 4.3.1 fixtures prove verified TLS 1.2 and 1.3, mutual TLS, PLAIN,

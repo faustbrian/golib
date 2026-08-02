@@ -1097,6 +1097,12 @@ func interoperabilityTools(directory string) []string {
 }
 
 func specifications(directory string) []string {
+	if directory == "pkg/kafka" {
+		return []string{
+			"Apache Kafka protocol and client semantics",
+			"implemented Kafka Improvement Proposals",
+		}
+	}
 	prefix := libraryName(directory)
 	switch prefix {
 	case "json-schema":

@@ -6,6 +6,14 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add the public `kafkatest` package with reusable producer, consumer, Kafka
+  transaction, replay, inspector, authentication-provider, and observer
+  conformance suites; the dedicated gate proves delivery metadata and
+  ownership, partial-fetch-safe contiguous settlement and record or whole-batch
+  redelivery, transaction isolation and source-offset atomicity, exact replay
+  progress, read-only inspection,
+  credential refresh ownership, and bounded hook failure containment without
+  exporting franz-go implementation types
 - add a bounded `TrustAnchorProvider` that supplies 1 to 64 owned DER-encoded
   roots for each new TLS connection, rejects ambiguous static-plus-dynamic root
   configuration, and supports overlap-first trust rotation; pinned Apache Kafka

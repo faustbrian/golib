@@ -70,6 +70,16 @@ efficacy and mutator coverage. That result proves the deterministic package
 assertions detect the generated mutations; it does not substitute for the
 broker, authentication, and compatibility evidence listed above.
 
+The root module now publishes `kafkatest` conformance suites for producer,
+consumer, Kafka transaction, replay, inspector, authentication-provider, and
+observer seams. The dedicated gate runs the broker-backed suites against the
+digest-pinned single-node fixture and the provider/hook suites without a
+broker. This closes the missing public-suite surface; it does not extend the
+compatibility matrix beyond the exact fixture profile. The conformance run also
+confirmed that franz-go v1.21.5 ages delivery from an explicit record timestamp;
+the root policy still needs an explicit reviewed contract for historical event
+timestamps older than the configured delivery bound.
+
 Current post-baseline integration evidence additionally runs
 `apache/kafka:4.3.1` by immutable multi-platform digest, asserts `4.3.1` from
 the running container, and exercises three combined KRaft broker/controller

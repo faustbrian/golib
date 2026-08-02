@@ -4,6 +4,7 @@
 - [Pre-v1 implementation audit](audit.md)
 - [Production policy decision matrices](design/decision-matrices.md)
 - [Compatibility and execution matrix](compatibility.md)
+- [Public conformance suites](conformance.md)
 - [API](api.md)
 - [Configuration reference](configuration.md)
 - [Guarantees and failure model](guarantees.md)
