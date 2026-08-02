@@ -1,10 +1,11 @@
 package hedge
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 )
@@ -276,7 +277,7 @@ func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]
 	nextHedge := uint(1)
 	previousDelay := time.Duration(0)
 	active := uint(1)
-	failures := make([]attemptCompletion[T], 0, config.MaxHedges+1)
+	var failures []attemptCompletion[T]
 	var timer Timer
 	var timerC <-chan time.Time
 	var scheduledDelay time.Duration
@@ -594,13 +595,18 @@ func failureMetadata[T any](completions []attemptCompletion[T]) []Failure {
 	for _, completion := range completions {
 		metadata = append(metadata, Failure{Ordinal: completion.result.Ordinal, Hedge: completion.result.Hedge, Delay: completion.delay, Duration: completion.completed.Sub(completion.started), Endpoint: completion.endpoint, Classification: completion.classification})
 	}
-	sort.Slice(metadata, func(left, right int) bool { return metadata[left].Ordinal < metadata[right].Ordinal })
+	slices.SortFunc(metadata, func(left, right Failure) int {
+		return cmp.Compare(left.Ordinal, right.Ordinal)
+	})
 	return metadata
 }
 
 func deterministicSelection[T any](completions []attemptCompletion[T]) attemptCompletion[T] {
-	sort.Slice(completions, func(left, right int) bool {
-		return completions[left].result.Ordinal < completions[right].result.Ordinal
+	if len(completions) == 0 {
+		return attemptCompletion[T]{}
+	}
+	slices.SortFunc(completions, func(left, right attemptCompletion[T]) int {
+		return cmp.Compare(left.result.Ordinal, right.result.Ordinal)
 	})
 	return completions[0]
 }

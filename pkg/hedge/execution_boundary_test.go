@@ -152,6 +152,9 @@ func TestCleanupFailureAndUncooperativeAttemptRemainObservable(t *testing.T) {
 	close(release)
 	waitErr := report.Wait(context.Background())
 	var cleanupErr *hedge.CleanupError
+	if waitErr == nil {
+		t.Fatal("Wait() after release unexpectedly succeeded")
+	}
 	if !errors.As(waitErr, &cleanupErr) || cleanupErr.Failures != 1 || waitErr.Error() != "hedge: 1 cleanup operation(s) failed" {
 		t.Fatalf("Wait() after release = %v", waitErr)
 	}
