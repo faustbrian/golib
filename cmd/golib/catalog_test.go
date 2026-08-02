@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -432,6 +433,25 @@ func TestDependencyOrderedDirectories(t *testing.T) {
 	want := []string{"independent", "leaf", "middle", "consumer"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("dependencyOrderedDirectories() = %v, want %v", got, want)
+	}
+}
+
+func TestExpandOwnedDependenciesIncludesTransitiveClosure(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{
+		{Directory: "consumer", Path: "example.com/consumer", OwnedDependencies: []string{"example.com/middle"}},
+		{Directory: "independent", Path: "example.com/independent"},
+		{Directory: "leaf", Path: "example.com/leaf"},
+		{Directory: "middle", Path: "example.com/middle", OwnedDependencies: []string{"example.com/leaf"}},
+	}}
+	selected := map[string]bool{"consumer": true}
+
+	expandOwnedDependencies(current, selected)
+
+	want := map[string]bool{"consumer": true, "leaf": true, "middle": true}
+	if !maps.Equal(selected, want) {
+		t.Fatalf("expanded dependencies = %v, want %v", selected, want)
 	}
 }
 

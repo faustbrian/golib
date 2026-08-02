@@ -71,12 +71,18 @@ if [[ "${current_version}" == "unreleased" && "${release_version}" != "v1.0.0" ]
     exit 1
 fi
 tag="${tag_prefix}${release_version#v}"
+dependency_release_order="$(
+    cd "${root}"
+    go run ./cmd/golib select \
+        --modules "${module}" --dependencies --order dependency --format json
+)"
 plan="$(jq -n \
         --arg module "${module}" \
         --arg module_path "$(jq -r '.module_path' <<<"${entry}")" \
         --arg current_version "${current_version}" \
         --arg proposed_version "${release_version}" \
         --arg tag "${tag}" \
+        --argjson dependency_release_order "${dependency_release_order}" \
         --argjson owned_dependencies "$(jq '.owned_dependencies' <<<"${entry}")" \
         '{
             module: $module,
@@ -84,6 +90,7 @@ plan="$(jq -n \
             current_version: $current_version,
             proposed_version: $proposed_version,
             tag: $tag,
+            dependency_release_order: $dependency_release_order,
             owned_dependencies: $owned_dependencies,
             commands: [
                 "make check MODULES=" + $module,

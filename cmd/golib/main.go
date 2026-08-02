@@ -208,6 +208,7 @@ func selectModules(root string, arguments []string) {
 	flags := flag.NewFlagSet("select", flag.ExitOnError)
 	all := flags.Bool("all", false, "select every active module")
 	changed := flags.String("changed", "", "select changes since this git revision")
+	dependencies := flags.Bool("dependencies", false, "include transitive owned dependencies")
 	explicit := flags.String("modules", "", "comma-separated module directories or paths")
 	outputFormat := flags.String("format", "text", "output format: text, json, or matrix")
 	order := flags.String("order", "directory", "selection order: directory or dependency")
@@ -252,6 +253,9 @@ func selectModules(root string, arguments []string) {
 	if *changed != "" {
 		expandReverseDependencies(current, selected)
 	}
+	if *dependencies {
+		expandOwnedDependencies(current, selected)
+	}
 	result := make([]string, 0, len(selected))
 	for directory := range selected {
 		result = append(result, directory)
@@ -293,6 +297,32 @@ func selectModules(root string, arguments []string) {
 		fmt.Println(string(encoded))
 	default:
 		fatal("unsupported selection format %q", *outputFormat)
+	}
+}
+
+func expandOwnedDependencies(current catalog, selected map[string]bool) {
+	byDirectory := map[string]module{}
+	byPath := map[string]module{}
+	for _, item := range current.Modules {
+		byDirectory[item.Directory] = item
+		byPath[item.Path] = item
+	}
+
+	queue := make([]string, 0, len(selected))
+	for directory := range selected {
+		queue = append(queue, directory)
+	}
+	for len(queue) != 0 {
+		directory := queue[0]
+		queue = queue[1:]
+		for _, dependencyPath := range byDirectory[directory].OwnedDependencies {
+			dependency, exists := byPath[dependencyPath]
+			if !exists || selected[dependency.Directory] {
+				continue
+			}
+			selected[dependency.Directory] = true
+			queue = append(queue, dependency.Directory)
+		}
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -360,10 +361,11 @@ func TestReleasePlanDefaultsUnreleasedModulesToV1(t *testing.T) {
 	}
 
 	var plan struct {
-		Module          string `json:"module"`
-		CurrentVersion  string `json:"current_version"`
-		ProposedVersion string `json:"proposed_version"`
-		Tag             string `json:"tag"`
+		Module                 string   `json:"module"`
+		CurrentVersion         string   `json:"current_version"`
+		ProposedVersion        string   `json:"proposed_version"`
+		Tag                    string   `json:"tag"`
+		DependencyReleaseOrder []string `json:"dependency_release_order"`
 	}
 	if err := json.Unmarshal(output, &plan); err != nil {
 		t.Fatalf("decode release plan: %v\n%s", err, output)
@@ -371,6 +373,10 @@ func TestReleasePlanDefaultsUnreleasedModulesToV1(t *testing.T) {
 	if plan.Module != "pkg/retry" || plan.CurrentVersion != "unreleased" ||
 		plan.ProposedVersion != "v1.0.0" || plan.Tag != "pkg/retry/v1.0.0" {
 		t.Fatalf("unexpected initial release plan: %+v", plan)
+	}
+	wantOrder := []string{"pkg/resilience", "pkg/retry"}
+	if !slices.Equal(plan.DependencyReleaseOrder, wantOrder) {
+		t.Fatalf("dependency release order = %v, want %v", plan.DependencyReleaseOrder, wantOrder)
 	}
 }
 

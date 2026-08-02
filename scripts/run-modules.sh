@@ -27,6 +27,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+case "${gate}" in
+    release-dry-run|release-public)
+        selection_arguments+=(--dependencies)
+        ;;
+esac
 if [[ ! "${jobs}" =~ ^[1-9][0-9]*$ ]]; then
     printf 'invalid parallel job count: %s\n' "${jobs}" >&2
     exit 2
@@ -73,6 +78,7 @@ if [[ "${mutating_gate}" -eq 0 &&
     snapshot_parents=()
     snapshot_pids=()
     lane_files=()
+    # shellcheck disable=SC2329 # Invoked by the signal and exit trap.
     cleanup_snapshots() {
         local lane_file parent pid
         for pid in "${snapshot_pids[@]}"; do

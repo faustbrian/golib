@@ -45,6 +45,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Expand release selections to every transitive owned dependency and verify
+  them in dependency-first order before the requested module.
 - Plan every unpublished module's first public release as stable `v1.0.0`, and
   verify dry-run consumers against that exact version while keeping `v0.0.0`
   strictly internal to unpublished workspace checks.
