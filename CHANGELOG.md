@@ -7,8 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
-- Bound Apache Kafka fixture cleanup and give the complete broker-backed
-  interoperability suite an explicit execution deadline.
+- Bound Apache Kafka fixture cleanup and give Go test, race, coverage, and the
+  complete broker-backed interoperability suite explicit execution deadlines.
 - Ignore unrelated workspace membership changes when validating isolated
   module gates while retaining them for workspace-backed benchmarks.
 - Resolve explicit module selections from the registered catalog so scoped

@@ -31,7 +31,14 @@ jq -r --arg directory "${module}" '
 tags="$(jq -r --arg directory "${module}" \
     '.modules[] | select(.directory == $directory) | .test_tags | join(",")' \
     "${root}/modules.json")"
-test_arguments=(./... -count=1 -covermode=atomic -coverpkg=./... -coverprofile="${profile}")
+test_arguments=(
+    ./...
+    -count=1
+    -timeout=20m
+    -covermode=atomic
+    -coverpkg=./...
+    -coverprofile="${profile}"
+)
 if [[ -n "${tags}" ]]; then
     test_arguments=(-tags="${tags}" "${test_arguments[@]}")
 fi

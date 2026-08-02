@@ -275,15 +275,15 @@ run_gate() {
                 printf '[%s] no Go packages were executed\n' "${module}" >&2
                 exit 1
             }
-            go_test ./... -count=1
+            go_test ./... -count=1 -timeout=20m
             ;;
         workspace-test)
             applicable tests || { skip_not_applicable tests; return; }
-            go test ./... -count=1
+            go test ./... -count=1 -timeout=20m
             ;;
         race)
             applicable race || { skip_not_applicable race; return; }
-            go_test -race ./... -count=1
+            go_test -race ./... -count=1 -timeout=20m
             ;;
         coverage)
             applicable coverage || { skip_not_applicable coverage; return; }

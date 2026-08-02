@@ -47,6 +47,7 @@ const (
 	apacheKafkaPIDFile        = "/tmp/golib-kafka.pid"
 	apacheKafkaStopFile       = "/tmp/golib-kafka.stop"
 	apacheKafkaSubnetPool     = 4_096
+	apacheKafkaCleanupTimeout = 20 * time.Second
 
 	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
 	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
@@ -4266,7 +4267,10 @@ func cleanupApacheKafkaContainer(
 	t.Helper()
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			apacheKafkaCleanupTimeout,
+		)
 		defer cancel()
 		if err := container.Terminate(ctx, testcontainers.StopTimeout(0)); err != nil {
 			t.Errorf("terminate Apache Kafka container: %v", err)
@@ -4281,7 +4285,10 @@ func cleanupApacheKafkaNetwork(
 	t.Helper()
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			apacheKafkaCleanupTimeout,
+		)
 		defer cancel()
 		if err := dockerNetwork.Remove(ctx); err != nil {
 			t.Errorf("remove Apache Kafka network: %v", err)
