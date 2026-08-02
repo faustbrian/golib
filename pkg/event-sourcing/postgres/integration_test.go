@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	dockercontainer "github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/faustbrian/golib/pkg/event-sourcing/eventtest"
@@ -999,10 +1001,7 @@ func TestPostgreSQLReplicaPromotionPreservesHistoryAndOrdering(t *testing.T) {
 	if version == "" {
 		version = "18"
 	}
-	clusterNetwork, err := network.New(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	clusterNetwork := newPostgreSQLReplicaNetwork(t, ctx)
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(
 			context.Background(),
@@ -1226,6 +1225,51 @@ exec postgres -D "$PGDATA"`,
 	if promoted[0].StreamVersion() != 3 || !exists || position != 3 {
 		t.Fatalf("stored after promotion = %#v", promoted)
 	}
+}
+
+func newPostgreSQLReplicaNetwork(
+	t *testing.T,
+	ctx context.Context,
+) *testcontainers.DockerNetwork {
+	t.Helper()
+
+	const subnetPool = 4_096
+	start := int(time.Now().UnixNano() % subnetPool)
+	var lastErr error
+	for attempt := range subnetPool {
+		index := (start + attempt) % subnetPool
+		prefix := netip.PrefixFrom(
+			netip.AddrFrom4([4]byte{
+				10,
+				252,
+				byte(index / 16),
+				byte(index%16) * 16,
+			}),
+			28,
+		)
+		dockerNetwork, err := network.New(
+			ctx,
+			network.WithIPAM(&dockernetwork.IPAM{
+				Driver: "default",
+				Config: []dockernetwork.IPAMConfig{{Subnet: prefix}},
+			}),
+		)
+		if err == nil {
+			return dockerNetwork
+		}
+		if context.Cause(ctx) != nil ||
+			!strings.Contains(err.Error(), "Pool overlaps") {
+			t.Fatalf("create PostgreSQL replica network: %v", err)
+		}
+		lastErr = err
+	}
+
+	t.Fatalf(
+		"create PostgreSQL replica network from dedicated subnet pool: %v",
+		lastErr,
+	)
+
+	return nil
 }
 
 func TestPostgreSQLBackupRestoresAuthoritativeAndDerivedState(t *testing.T) {
