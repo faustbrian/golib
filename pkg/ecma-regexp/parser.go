@@ -1,6 +1,7 @@
 package ecmascript
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -103,26 +104,44 @@ func scanCaptureMetadata(tokens []Token, unicodeSets bool) (int, bool) {
 				classDepth++
 			}
 		case TokenRightBracket:
-			if classDepth > 0 {
+			if classDepth != 0 {
 				classDepth--
 			}
 		case TokenLeftParen:
-			if classDepth > 0 {
-				continue
-			}
-			if index+1 >= len(tokens) || tokens[index+1].kind != TokenQuestion {
-				captures++
-				continue
-			}
-			if index+3 < len(tokens) && tokens[index+2].kind == TokenCharacter && tokens[index+2].text == "<" &&
-				(tokens[index+3].kind != TokenCharacter ||
-					(tokens[index+3].text != "=" && tokens[index+3].text != "!")) {
-				captures++
-				named = true
+			if classDepth == 0 {
+				capturing, captureNamed := captureMetadataAt(tokens[index:])
+				if capturing {
+					captures++
+				}
+				if captureNamed {
+					named = true
+				}
 			}
 		}
 	}
 	return captures, named
+}
+
+func captureMetadataAt(tokens []Token) (bool, bool) {
+	if len(tokens) < 2 {
+		return true, false
+	}
+	if tokens[1].kind != TokenQuestion {
+		return true, false
+	}
+	if len(tokens) < 4 {
+		return false, false
+	}
+	if tokens[2].kind != TokenCharacter {
+		return false, false
+	}
+	if tokens[2].text != "<" {
+		return false, false
+	}
+	if tokens[3].kind == TokenCharacter && (tokens[3].text == "=" || tokens[3].text == "!") {
+		return false, false
+	}
+	return true, true
 }
 
 func (p *parser) disjunction(depth uint64, inGroup bool) (Node, error) {
@@ -224,19 +243,23 @@ func (p *parser) atom(depth uint64) (Node, error) {
 	case TokenStar, TokenPlus, TokenQuestion:
 		return Node{}, p.syntax(SyntaxInvalidQuantifier, token.span, "quantifier has no preceding atom")
 	case TokenLeftBrace:
-		if p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() && !p.looksLikeInvalidBracedQuantifier() {
-			p.advance()
-			return p.literalText(token.span, token.text)
+		if p.options.AnnexB {
+			if !p.options.Flags.unicodeMode() {
+				if !p.looksLikeInvalidBracedQuantifier() {
+					p.advance()
+					return p.literalText(token.span, token.text)
+				}
+			}
 		}
 		return Node{}, p.syntax(SyntaxInvalidQuantifier, token.span, "quantifier has no preceding atom")
 	case TokenRightBrace:
-		if p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() {
+		if p.options.AnnexB && !p.options.Flags.unicodeMode() {
 			p.advance()
 			return p.literalText(token.span, token.text)
 		}
 		return Node{}, p.syntax(SyntaxUnexpectedToken, token.span, "unexpected token")
 	case TokenRightBracket:
-		if p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() {
+		if p.options.AnnexB && !p.options.Flags.unicodeMode() {
 			p.advance()
 			return p.literalText(token.span, token.text)
 		}
@@ -264,7 +287,7 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		case 'w', 'W':
 			builtin = classBuiltinWord
 		}
-		return p.node(Node{kind: NodeCharacterClass, span: token.span, class: []classTerm{{builtin: builtin, negated: char == 'D' || char == 'S' || char == 'W'}}})
+		return p.node(Node{kind: NodeCharacterClass, span: token.span, class: []classTerm{{builtin: builtin, negated: isNegatedBuiltinEscape(char)}}})
 	case 'b':
 		if inClass {
 			return p.literal(token.span, '\b')
@@ -294,15 +317,19 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		}
 		return p.legacyOctalEscape(token, '0')
 	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if inClass && (p.options.Flags.unicodeMode()) {
+		if inClass && p.options.Flags.unicodeMode() {
 			return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "decimal escapes are invalid in a character class")
 		}
-		valueText := string(char)
-		for offset := p.position; offset < len(p.tokens) && p.isDecimal(p.tokens[offset]); offset++ {
-			valueText += p.tokens[offset].text
+		var valueText strings.Builder
+		valueText.WriteRune(char)
+		for _, following := range p.tokens[p.position:] {
+			if !p.isDecimal(following) {
+				break
+			}
+			valueText.WriteString(following.text)
 		}
-		value, valueErr := strconv.Atoi(valueText)
-		if !inClass && valueErr == nil && value > 0 && value <= p.totalCaptures {
+		value, valueErr := strconv.Atoi(valueText.String())
+		if validNumericBackreference(inClass, value, valueErr, p.totalCaptures) {
 			end := p.consumeDecimalEscape(token.span.End)
 			return p.node(Node{kind: NodeBackreference, span: Span{Start: token.span.Start, End: end}, capture: value})
 		}
@@ -332,16 +359,14 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		}
 		return p.hexEscape(token, 4)
 	case 'c':
-		validControl := p.current().kind == TokenCharacter && len(p.current().text) == 1 &&
-			((p.current().text[0] >= 'A' && p.current().text[0] <= 'Z') ||
-				(p.current().text[0] >= 'a' && p.current().text[0] <= 'z'))
-		if inClass && p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() &&
+		validControl := p.current().kind == TokenCharacter && isASCIIControlLetter(p.current().text)
+		if inClass && p.options.AnnexB && !p.options.Flags.unicodeMode() &&
 			p.current().kind == TokenCharacter && len(p.current().text) == 1 &&
 			(p.isDecimal(p.current()) || p.current().text == "_") {
 			validControl = true
 		}
 		if !validControl {
-			if p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() {
+			if p.options.AnnexB && !p.options.Flags.unicodeMode() {
 				p.insertEscapedCharacter(token, 'c')
 				return p.literal(Span{Start: token.span.Start, End: token.span.Start + 1}, '\\')
 			}
@@ -351,29 +376,91 @@ func (p *parser) escape(inClass bool) (Node, error) {
 		p.advance()
 		return p.literal(Span{Start: token.span.Start, End: letter.span.End}, rune(letter.text[0]&31))
 	case 'k':
-		if !inClass && p.current().kind == TokenCharacter && p.current().text == "<" &&
-			(p.namedCaptureGroups || p.options.Flags.unicodeMode()) {
+		if p.canParseNamedBackreference(inClass) {
 			name, end, err := p.captureName()
 			if err != nil {
 				return Node{}, err
 			}
 			return p.node(Node{kind: NodeBackreference, span: Span{Start: token.span.Start, End: end}, name: name})
 		}
-		if p.options.AnnexB && !p.options.Flags.Unicode() && !p.options.Flags.UnicodeSets() && !p.namedCaptureGroups {
+		if p.options.AnnexB && !p.options.Flags.unicodeMode() && !p.namedCaptureGroups {
 			return p.literal(token.span, 'k')
 		}
-		if inClass || p.current().kind != TokenCharacter || p.current().text != "<" {
+		if namedBackreferenceNeedsIdentifier(inClass, p.current()) {
 			return Node{}, p.syntax(SyntaxInvalidBackreference, token.span, "named backreference requires an identifier")
 		}
 		return Node{}, p.syntax(SyntaxInvalidBackreference, token.span, "named backreference is not enabled")
 	default:
-		unicodeIdentity := strings.ContainsRune("^$\\.*+?()[]{}|/", char)
-		unicodeSetIdentity := inClass && p.options.Flags.UnicodeSets() && strings.ContainsRune("!#%&,-:;<=>@`~", char)
-		if (p.options.Flags.unicodeMode()) && !unicodeIdentity && !unicodeSetIdentity {
+		if p.options.Flags.unicodeMode() && !allowsUnicodeIdentityEscape(inClass, p.options.Flags, char) {
 			return Node{}, p.syntax(SyntaxInvalidEscape, token.span, "identity escape is invalid in Unicode mode")
 		}
 		return p.literal(token.span, char)
 	}
+}
+
+func (p *parser) canParseNamedBackreference(inClass bool) bool {
+	if inClass {
+		return false
+	}
+	if p.current().kind != TokenCharacter {
+		return false
+	}
+	if p.current().text != "<" {
+		return false
+	}
+	return p.namedCaptureGroups || p.options.Flags.unicodeMode()
+}
+
+func namedBackreferenceNeedsIdentifier(inClass bool, token Token) bool {
+	if inClass {
+		return true
+	}
+	if token.kind != TokenCharacter {
+		return true
+	}
+	return token.text != "<"
+}
+
+func allowsUnicodeIdentityEscape(inClass bool, flags Flags, char rune) bool {
+	if strings.ContainsRune("^$\\.*+?()[]{}|/", char) {
+		return true
+	}
+	if !inClass {
+		return false
+	}
+	if !flags.UnicodeSets() {
+		return false
+	}
+	return strings.ContainsRune("!#%&,-:;<=>@`~", char)
+}
+
+func isASCIIControlLetter(text string) bool {
+	if len(text) != 1 {
+		return false
+	}
+	return strings.Contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", text)
+}
+
+func isNegatedBuiltinEscape(char rune) bool {
+	switch char {
+	case 'D', 'S', 'W':
+		return true
+	default:
+		return false
+	}
+}
+
+func validNumericBackreference(inClass bool, value int, err error, captures int) bool {
+	if inClass {
+		return false
+	}
+	if err != nil {
+		return false
+	}
+	if value == 0 {
+		return false
+	}
+	return value <= captures
 }
 
 func (p *parser) insertEscapedCharacter(token Token, char rune) {
@@ -382,15 +469,13 @@ func (p *parser) insertEscapedCharacter(token Token, char rune) {
 		text: string(char),
 		span: Span{Start: token.span.End - 1, End: token.span.End},
 	}
-	p.tokens = append(p.tokens, Token{})
-	copy(p.tokens[p.position+1:], p.tokens[p.position:])
-	p.tokens[p.position] = insert
+	p.tokens = slices.Insert(p.tokens, p.position, insert)
 }
 
 func (p *parser) looksLikeInvalidBracedQuantifier() bool {
 	position := p.position + 1
 	start := position
-	for position < len(p.tokens) && p.isDecimal(p.tokens[position]) {
+	for p.isDecimal(p.tokens[position]) {
 		position++
 	}
 	if position == start {
@@ -403,10 +488,10 @@ func (p *parser) looksLikeInvalidBracedQuantifier() bool {
 		return false
 	}
 	position++
-	for position < len(p.tokens) && p.isDecimal(p.tokens[position]) {
+	for p.isDecimal(p.tokens[position]) {
 		position++
 	}
-	return position < len(p.tokens) && p.tokens[position].kind == TokenRightBrace
+	return p.tokens[position].kind == TokenRightBrace
 }
 
 func (p *parser) consumeDecimalEscape(end int) int {
@@ -458,7 +543,7 @@ func (p *parser) characterClass(depth uint64) (Node, error) {
 		if err != nil {
 			return Node{}, err
 		}
-		if p.current().kind == TokenCharacter && p.current().text == "-" && p.peek().kind != TokenRightBracket {
+		if p.startsCharacterClassRange() {
 			p.advance()
 			endTerm, endSpan, err := p.classItem()
 			if err != nil {
@@ -471,19 +556,31 @@ func (p *parser) characterClass(depth uint64) (Node, error) {
 					return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: span.Start, End: endSpan.End}, "character class range contains a set escape")
 				}
 				terms = append(terms, term, classTerm{start: '-', end: '-'}, endTerm)
-				continue
+			} else {
+				if term.start > endTerm.start {
+					return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: span.Start, End: endSpan.End}, "invalid character class range")
+				}
+				term.end = endTerm.start
+				terms = append(terms, term)
 			}
-			if term.start > endTerm.start {
-				return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: span.Start, End: endSpan.End}, "invalid character class range")
-			}
-			term.end = endTerm.start
+		} else {
+			terms = append(terms, term)
 		}
-		terms = append(terms, term)
 	}
 	close := p.current()
 	p.advance()
 
 	return p.node(Node{kind: NodeCharacterClass, span: Span{Start: open.span.Start, End: close.span.End}, negated: negated, class: terms})
+}
+
+func (p *parser) startsCharacterClassRange() bool {
+	if p.current().kind != TokenCharacter {
+		return false
+	}
+	if p.current().text != "-" {
+		return false
+	}
+	return p.peek().kind != TokenRightBracket
 }
 
 func (p *parser) unicodeSetClass(depth uint64) (Node, error) {
@@ -570,7 +667,10 @@ func (p *parser) unicodeSetUnion(depth uint64) (Node, int, error) {
 			if err != nil {
 				return Node{}, 0, err
 			}
-			if !singleClassCharacter(end) || item.class[0].start > end.class[0].start {
+			if !singleClassCharacter(end) {
+				return Node{}, 0, p.syntax(SyntaxUnexpectedToken, Span{Start: item.span.Start, End: end.span.End}, "invalid Unicode Sets range")
+			}
+			if item.class[0].start > end.class[0].start {
 				return Node{}, 0, p.syntax(SyntaxUnexpectedToken, Span{Start: item.span.Start, End: end.span.End}, "invalid Unicode Sets range")
 			}
 			item.class[0].end = end.class[0].start
@@ -665,28 +765,45 @@ func (p *parser) classStringDisjunction() (Node, error) {
 }
 
 func (p *parser) unicodeSetOperator() classOperation {
-	if p.current().kind != TokenCharacter || p.peek().kind != TokenCharacter || p.current().text != p.peek().text {
+	if p.current().kind != TokenCharacter {
 		return classOperationNone
 	}
-	if p.current().text == "&" {
+	if p.peek().kind != TokenCharacter {
+		return classOperationNone
+	}
+	if p.current().text != p.peek().text {
+		return classOperationNone
+	}
+	switch p.current().text {
+	case "&":
 		return classOperationIntersection
-	}
-	if p.current().text == "-" {
+	case "-":
 		return classOperationSubtraction
+	default:
+		return classOperationNone
 	}
-	return classOperationNone
 }
 
 func (p *parser) isUnicodeSetDoubleReserved() bool {
-	return p.current().text == p.peek().text && strings.Contains("!#$%&*+,.:;<=>?@^`~", p.current().text)
+	if p.current().text != p.peek().text {
+		return false
+	}
+	return strings.Contains("!#$%&*+,.:;<=>?@^`~", p.current().text)
 }
 
 func isUnicodeSetReservedSingle(text string) bool {
-	return len(text) == 1 && strings.Contains("()[]{}/-|", text)
+	if len(text) != 1 {
+		return false
+	}
+	return strings.Contains("()[]{}/-|", text)
 }
 
 func singleClassCharacter(node Node) bool {
-	return node.classOp == classOperationNone && len(node.class) == 1 && node.class[0].builtin == classBuiltinNone && node.class[0].property == 0 && len(node.classStrings) == 0
+	if node.classOp != classOperationNone || len(node.class) != 1 {
+		return false
+	}
+	term := node.class[0]
+	return term.builtin == classBuiltinNone && term.property == 0 && len(node.classStrings) == 0
 }
 
 func classHasStrings(node Node) bool {
@@ -712,7 +829,7 @@ func (p *parser) propertyEscape(prefix Token, negated bool) (Node, error) {
 	var expression strings.Builder
 	for p.current().kind != TokenRightBrace {
 		token := p.current()
-		if token.kind == TokenEOF || token.kind == TokenEscape || len(token.text) != 1 {
+		if !isSingleCharacterToken(token) {
 			return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: token.span.End}, "invalid Unicode property expression")
 		}
 		expression.WriteString(token.text)
@@ -726,7 +843,10 @@ func (p *parser) propertyEscape(prefix Token, negated bool) (Node, error) {
 	table, ok := lookupUnicodeProperty(expression.String())
 	if !ok {
 		stringsInProperty, stringProperty := lookupUnicodeStringProperty(expression.String())
-		if !stringProperty || !p.options.Flags.UnicodeSets() {
+		if !stringProperty {
+			return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: end}, "unsupported Unicode property or value")
+		}
+		if !p.options.Flags.UnicodeSets() {
 			return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: end}, "unsupported Unicode property or value")
 		}
 		if negated {
@@ -756,16 +876,13 @@ func (p *parser) classItem() (classTerm, Span, error) {
 		if node.kind == NodeCharacterClass {
 			return node.class[0], node.span, nil
 		}
-		if (p.options.Flags.unicodeMode()) &&
-			len(node.literalUnits) == 1 && isHighSurrogate(node.literalUnits[0]) &&
-			p.current().kind == TokenEscape && p.current().text == `\u` {
+		if p.startsEscapedSurrogatePair(node) {
 			position := p.position
 			low, lowErr := p.escape(true)
 			if lowErr != nil {
 				return classTerm{}, Span{}, lowErr
 			}
-			if low.kind == NodeLiteral && len(low.literalUnits) == 1 &&
-				isLowSurrogate(low.literalUnits[0]) {
+			if isEscapedLowSurrogate(low) {
 				char := utf16.DecodeRune(
 					rune(node.literalUnits[0]),
 					rune(low.literalUnits[0]),
@@ -786,13 +903,39 @@ func (p *parser) classItem() (classTerm, Span, error) {
 	return classTerm{start: char, end: char}, token.span, nil
 }
 
+func (p *parser) startsEscapedSurrogatePair(node Node) bool {
+	if !p.options.Flags.unicodeMode() {
+		return false
+	}
+	if len(node.literalUnits) != 1 {
+		return false
+	}
+	if !isHighSurrogate(node.literalUnits[0]) {
+		return false
+	}
+	if p.current().kind != TokenEscape {
+		return false
+	}
+	return p.current().text == `\u`
+}
+
+func isEscapedLowSurrogate(node Node) bool {
+	if node.kind != NodeLiteral {
+		return false
+	}
+	if len(node.literalUnits) != 1 {
+		return false
+	}
+	return isLowSurrogate(node.literalUnits[0])
+}
+
 func (p *parser) hexEscape(prefix Token, digits int) (Node, error) {
 	start := prefix.span.Start
 	end := prefix.span.End
 	var text strings.Builder
 	for range digits {
 		token := p.current()
-		if token.kind != TokenCharacter || len(token.text) != 1 || !isHex(token.text[0]) {
+		if !isSingleHexToken(token) {
 			return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: end}, "hex escape has invalid digits")
 		}
 		text.WriteString(token.text)
@@ -810,7 +953,7 @@ func (p *parser) codePointEscape(prefix Token) (Node, error) {
 	var text strings.Builder
 	for p.current().kind != TokenRightBrace {
 		token := p.current()
-		if token.kind != TokenCharacter || len(token.text) != 1 || !isHex(token.text[0]) {
+		if !isSingleHexToken(token) {
 			return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: token.span.End}, "invalid Unicode code point escape")
 		}
 		text.WriteString(token.text)
@@ -822,7 +965,13 @@ func (p *parser) codePointEscape(prefix Token) (Node, error) {
 	end := p.current().span.End
 	p.advance()
 	value, valueErr := strconv.ParseUint(text.String(), 16, 32)
-	if valueErr != nil || value > utf8.MaxRune || value >= 0xD800 && value <= 0xDFFF {
+	if valueErr != nil {
+		return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: end}, "Unicode code point escape is out of range")
+	}
+	if value > utf8.MaxRune {
+		return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: end}, "Unicode code point escape is out of range")
+	}
+	if value >= 0xD800 && value <= 0xDFFF {
 		return Node{}, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: end}, "Unicode code point escape is out of range")
 	}
 
@@ -830,12 +979,26 @@ func (p *parser) codePointEscape(prefix Token) (Node, error) {
 }
 
 func (p *parser) literal(span Span, char rune) (Node, error) {
-	if char > 0xFFFF {
+	if char&^0xFFFF != 0 {
 		units := utf16.Encode([]rune{char})
 		return p.node(Node{kind: NodeLiteral, span: span, text: string(utf16.Decode(units)), literalUnits: units})
 	}
 	units := []uint16{uint16(char)}
 	return p.node(Node{kind: NodeLiteral, span: span, text: string(utf16.Decode(units)), literalUnits: units})
+}
+
+func isSingleHexToken(token Token) bool {
+	if !isSingleCharacterToken(token) {
+		return false
+	}
+	return isHex(token.text[0])
+}
+
+func isSingleCharacterToken(token Token) bool {
+	if token.kind != TokenCharacter {
+		return false
+	}
+	return len(token.text) == 1
 }
 
 func (p *parser) literalText(span Span, text string) (Node, error) {
@@ -854,7 +1017,15 @@ func nodeLiteralRune(node Node) rune {
 }
 
 func (p *parser) isDecimal(token Token) bool {
-	return token.kind == TokenCharacter && token.text >= "0" && token.text <= "9"
+	if token.kind != TokenCharacter {
+		return false
+	}
+	switch token.text {
+	case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *parser) peek() Token {
@@ -865,7 +1036,14 @@ func (p *parser) peek() Token {
 }
 
 func isHex(char byte) bool {
-	return char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F'
+	switch char {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+		'a', 'b', 'c', 'd', 'e', 'f',
+		'A', 'B', 'C', 'D', 'E', 'F':
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveBackreferences(node *Node, captures int, names map[string][]int) error {
@@ -893,20 +1071,22 @@ func resolveBackreferences(node *Node, captures int, names map[string][]int) err
 
 type namedCaptureOccurrence struct {
 	span    Span
-	choices map[int]int
+	choices map[*Node]int
 }
 
 func validateDuplicateCaptureNames(root Node) error {
 	byName := make(map[string][]namedCaptureOccurrence)
-	nextAlternation := 0
-	collectNamedCaptures(root, nil, &nextAlternation, byName)
+	collectNamedCaptures(&root, nil, byName)
 	for _, occurrences := range byName {
-		for left := 0; left < len(occurrences); left++ {
-			for right := left + 1; right < len(occurrences); right++ {
-				if namedCapturesMightBothParticipate(occurrences[left], occurrences[right]) {
+		remaining := occurrences
+		for len(remaining) != 0 {
+			left := remaining[0]
+			remaining = remaining[1:]
+			for _, right := range remaining {
+				if namedCapturesMightBothParticipate(left, right) {
 					return &SyntaxError{
 						Code:    SyntaxUnexpectedToken,
-						Span:    occurrences[right].span,
+						Span:    right.span,
 						Message: "duplicate capture names might both participate",
 					}
 				}
@@ -916,36 +1096,39 @@ func validateDuplicateCaptureNames(root Node) error {
 	return nil
 }
 
-func collectNamedCaptures(node Node, choices map[int]int, nextAlternation *int, byName map[string][]namedCaptureOccurrence) {
-	if node.kind == NodeGroup && node.name != "" {
-		byName[node.name] = append(byName[node.name], namedCaptureOccurrence{span: node.span, choices: cloneChoices(choices)})
+func collectNamedCaptures(node *Node, choices map[*Node]int, byName map[string][]namedCaptureOccurrence) {
+	if node.kind == NodeGroup {
+		if node.name != "" {
+			byName[node.name] = append(byName[node.name], namedCaptureOccurrence{span: node.span, choices: cloneChoices(choices)})
+		}
 	}
 	if node.kind == NodeAlternation {
-		alternation := *nextAlternation
-		(*nextAlternation)++
-		for branch, child := range node.children {
+		for branch := range node.children {
 			branchChoices := cloneChoices(choices)
-			branchChoices[alternation] = branch
-			collectNamedCaptures(child, branchChoices, nextAlternation, byName)
+			branchChoices[node] = branch
+			collectNamedCaptures(&node.children[branch], branchChoices, byName)
 		}
 		return
 	}
-	for _, child := range node.children {
-		collectNamedCaptures(child, choices, nextAlternation, byName)
+	for index := range node.children {
+		collectNamedCaptures(&node.children[index], choices, byName)
 	}
 }
 
 func namedCapturesMightBothParticipate(left, right namedCaptureOccurrence) bool {
 	for alternation, leftBranch := range left.choices {
-		if rightBranch, ok := right.choices[alternation]; ok && leftBranch != rightBranch {
-			return false
+		rightBranch, ok := right.choices[alternation]
+		if ok {
+			if leftBranch != rightBranch {
+				return false
+			}
 		}
 	}
 	return true
 }
 
-func cloneChoices(source map[int]int) map[int]int {
-	result := make(map[int]int, len(source))
+func cloneChoices(source map[*Node]int) map[*Node]int {
+	result := make(map[*Node]int, len(source))
 	for alternation, branch := range source {
 		result[alternation] = branch
 	}
@@ -1044,7 +1227,7 @@ func (p *parser) modifierFlags() (uint16, uint16, error) {
 	hasEnabled, hasDisabled := false, false
 	for p.current().kind != TokenCharacter || p.current().text != ":" {
 		token := p.current()
-		if token.kind != TokenCharacter || len(token.text) != 1 {
+		if !isSingleCharacterToken(token) {
 			return 0, 0, p.syntax(SyntaxUnexpectedToken, token.span, "invalid inline modifier")
 		}
 		if token.text == "-" {
@@ -1063,10 +1246,10 @@ func (p *parser) modifierFlags() (uint16, uint16, error) {
 			return 0, 0, p.syntax(SyntaxUnexpectedToken, token.span, "duplicate inline modifier flag")
 		}
 		if disabling {
-			disabled |= bit
+			disabled = disabled | bit
 			hasDisabled = true
 		} else {
-			enabled |= bit
+			enabled = enabled | bit
 			hasEnabled = true
 		}
 		p.advance()
@@ -1109,14 +1292,27 @@ func (p *parser) captureNameBody() (string, int, error) {
 	}
 	characters := decodePatternUnits(units)
 	for index, char := range characters {
-		if char >= 0xD800 && char <= 0xDFFF ||
-			index == 0 && !unicodeIdentifierStart(char) || index > 0 && !unicodeIdentifierContinue(char) {
+		if !validCaptureNameRune(index, char) {
 			return "", end, p.syntax(SyntaxInvalidEscape, Span{Start: start, End: end}, "invalid capture name")
 		}
 	}
 	end = p.current().span.End
 	p.advance()
 	return string(characters), end, nil
+}
+
+func validCaptureNameRune(index int, char rune) bool {
+	if isSurrogateRune(char) {
+		return false
+	}
+	if index == 0 {
+		return unicodeIdentifierStart(char)
+	}
+	return unicodeIdentifierContinue(char)
+}
+
+func isSurrogateRune(char rune) bool {
+	return char&0xF800 == 0xD800
 }
 
 func (p *parser) regexpIdentifierEscape() ([]uint16, int, error) {
@@ -1131,7 +1327,7 @@ func (p *parser) regexpIdentifierEscape() ([]uint16, int, error) {
 		p.advance()
 		for p.current().kind != TokenRightBrace {
 			token := p.current()
-			if token.kind != TokenCharacter || len(token.text) != 1 || !isHex(token.text[0]) {
+			if !isSingleHexToken(token) {
 				return nil, end, p.syntax(SyntaxInvalidEscape, token.span, "invalid capture name Unicode escape")
 			}
 			digits.WriteString(token.text)
@@ -1146,7 +1342,7 @@ func (p *parser) regexpIdentifierEscape() ([]uint16, int, error) {
 	} else {
 		for range 4 {
 			token := p.current()
-			if token.kind != TokenCharacter || len(token.text) != 1 || !isHex(token.text[0]) {
+			if !isSingleHexToken(token) {
 				return nil, end, p.syntax(SyntaxInvalidEscape, token.span, "invalid capture name Unicode escape")
 			}
 			digits.WriteString(token.text)
@@ -1155,10 +1351,13 @@ func (p *parser) regexpIdentifierEscape() ([]uint16, int, error) {
 		}
 	}
 	value, valueErr := strconv.ParseUint(digits.String(), 16, 32)
-	if valueErr != nil || value > utf8.MaxRune {
+	if valueErr != nil {
 		return nil, end, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: end}, "capture name Unicode escape is out of range")
 	}
-	if value <= 0xFFFF {
+	if value > utf8.MaxRune {
+		return nil, end, p.syntax(SyntaxInvalidEscape, Span{Start: prefix.span.Start, End: end}, "capture name Unicode escape is out of range")
+	}
+	if value&^0xFFFF == 0 {
 		return []uint16{uint16(value)}, end, nil
 	}
 	return utf16.Encode([]rune{rune(value)}), end, nil
@@ -1206,8 +1405,10 @@ func (p *parser) bracedQuantifier() (int, int, int, bool, error) {
 	}
 	close := p.current()
 	p.advance()
-	if maximum >= 0 && minimum > maximum {
-		return 0, 0, 0, false, p.syntax(SyntaxInvalidQuantifier, Span{Start: open.span.Start, End: close.span.End}, "quantifier minimum exceeds maximum")
+	if maximum != -1 {
+		if minimum > maximum {
+			return 0, 0, 0, false, p.syntax(SyntaxInvalidQuantifier, Span{Start: open.span.Start, End: close.span.End}, "quantifier minimum exceeds maximum")
+		}
 	}
 
 	return minimum, maximum, close.span.End, true, nil
@@ -1216,7 +1417,7 @@ func (p *parser) bracedQuantifier() (int, int, int, bool, error) {
 func (p *parser) decimal() (int, bool) {
 	start := p.position
 	var text strings.Builder
-	for p.current().kind == TokenCharacter && p.current().text >= "0" && p.current().text <= "9" {
+	for p.isDecimal(p.current()) {
 		text.WriteString(p.current().text)
 		p.advance()
 	}
@@ -1244,9 +1445,7 @@ func (p *parser) current() Token { return p.tokens[p.position] }
 func (p *parser) advance()       { p.position++ }
 
 func (p *parser) syntax(code SyntaxCode, span Span, message string) error {
-	if len(message) > 160 {
-		message = message[:160]
-	}
+	message = message[:min(len(message), 160)]
 
 	return &SyntaxError{Code: code, Span: span, Message: message}
 }
