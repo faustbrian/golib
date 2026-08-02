@@ -2,6 +2,8 @@ package resilience
 
 import (
 	"context"
+	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -10,9 +12,37 @@ func TestBudgetScopeFromContextRejectsTypedNilScope(t *testing.T) {
 	t.Parallel()
 
 	var scope *BudgetScope
-	ctx := context.WithValue(context.Background(), budgetContextKey{}, WorkBudgetScope(scope))
+	ctx := context.WithValue(context.Background(), budgetContextKey{}, &budgetExecutionState{scope: scope})
 	if got, ok := BudgetScopeFromContext(ctx); ok {
 		t.Fatalf("scope = %#v, ok = %t", got, ok)
+	}
+}
+
+func TestAttemptContextRejectsInvalidStateAndExhaustedOrdinals(t *testing.T) {
+	t.Parallel()
+
+	var nilContext context.Context
+	if attempt, ok := AttemptFromContext(nilContext); ok || attempt != (Attempt{}) {
+		t.Fatalf("nil context attempt = (%+v, %v)", attempt, ok)
+	}
+	invalidCtx := context.WithValue(context.Background(), attemptContextKey{}, Attempt{Ordinal: 1})
+	if attempt, ok := AttemptFromContext(invalidCtx); ok || attempt != (Attempt{}) {
+		t.Fatalf("invalid context attempt = (%+v, %v)", attempt, ok)
+	}
+	if _, _, _, err := AdmitAttempt(nilContext, OriginOriginal, 0, time.Unix(1, 0)); !errors.Is(err, ErrInvalidMetadata) {
+		t.Fatalf("nil admission error = %v", err)
+	}
+
+	state := &budgetExecutionState{scope: &BudgetScope{}}
+	state.next.Store(math.MaxUint64)
+	exhaustedCtx := context.WithValue(context.Background(), budgetContextKey{}, state)
+	if _, _, _, err := AdmitAttempt(exhaustedCtx, OriginRetry, 1, time.Unix(1, 0)); !errors.Is(err, ErrInvalidAttempt) {
+		t.Fatalf("exhausted admission error = %v", err)
+	}
+
+	state.next.Store(1)
+	if _, _, _, err := AdmitAttempt(exhaustedCtx, OriginOriginal, 0, time.Time{}); !errors.Is(err, ErrInvalidAttempt) {
+		t.Fatalf("invalid attempt error = %v", err)
 	}
 }
 

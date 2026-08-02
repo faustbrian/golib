@@ -142,6 +142,9 @@ type Config[T any] struct {
 	Observer           Observer
 	Resource           string
 	FactoryFailureMode FactoryFailureMode
+	// UseResilienceBudget consumes the shared work-amplification scope attached
+	// to the execution context instead of the compatibility Budget.
+	UseResilienceBudget bool
 }
     Config defines every safety decision and dependency for a Policy. Exactly
     one of Delay, Schedule, or DynamicDelay must be configured.
@@ -326,6 +329,8 @@ const (
 	ReasonFactoryFailure
 	// ReasonDelayFailure means dynamic delay selection failed validation.
 	ReasonDelayFailure
+	// ReasonBudgetFailure means shared budget setup or admission failed locally.
+	ReasonBudgetFailure
 )
 type Report struct {
 	Reason          Reason

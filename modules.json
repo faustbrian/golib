@@ -4588,6 +4588,7 @@
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/concurrency-limit",
         "github.com/faustbrian/golib/pkg/hedge",
+        "github.com/faustbrian/golib/pkg/resilience",
         "github.com/faustbrian/golib/pkg/retry"
       ],
       "reverse_owned_dependencies": null,
@@ -7599,7 +7600,9 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/hedge/v",
-      "owned_dependencies": [],
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/resilience"
+      ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience"
       ],
@@ -16895,7 +16898,11 @@
       "version": "unreleased",
       "tag_prefix": "pkg/resilience/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
+        "github.com/faustbrian/golib/pkg/hedge",
+        "github.com/faustbrian/golib/pkg/retry"
+      ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go"
       ],
@@ -17081,7 +17088,9 @@
       "releasable": true,
       "version": "unreleased",
       "tag_prefix": "pkg/retry/v",
-      "owned_dependencies": [],
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/resilience"
+      ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
         "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",

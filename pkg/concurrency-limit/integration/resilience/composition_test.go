@@ -3,14 +3,103 @@ package resilience_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	concurrencylimit "github.com/faustbrian/golib/pkg/concurrency-limit"
 	"github.com/faustbrian/golib/pkg/hedge"
+	"github.com/faustbrian/golib/pkg/resilience"
 	"github.com/faustbrian/golib/pkg/retry"
 )
+
+func TestRetryAndHedgeConsumeOneSharedAmplificationBudget(t *testing.T) {
+	t.Parallel()
+
+	budget, err := resilience.NewBudget(resilience.BudgetConfig{
+		MaxResources:              1,
+		MaxAdditionalPerExecution: 3,
+		MaxConcurrentAdditional:   3,
+		MaxAdditionalPerWindow:    3,
+		AdditionalWindow:          time.Minute,
+		PermitTTL:                 time.Minute,
+		Clock:                     retry.SystemClock{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := resilience.NewMetadata("logical", "lookup", "dependency")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, ctx, err := budget.Start(context.Background(), metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryPolicy, err := retry.NewPolicy(retry.Config{
+		Backoff: retry.Constant(0), MaxAttempts: 2,
+		Clock: retry.SystemClock{}, Sleeper: retry.SystemSleeper{},
+		Classifier: retry.RetryableClassifier(), UseResilienceBudget: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hedgePolicy, err := hedge.NewPolicy(hedge.Config[string]{
+		MaxHedges: 2, ReplaySafe: true, Delay: time.Millisecond,
+		TotalTimeout: time.Second, CleanupTimeout: time.Second,
+		Clock: hedge.RealClock{}, UseResilienceBudget: true, Resource: "dependency",
+		Classifier: hedge.ClassifyFunc[string](func(context.Context, hedge.AttemptResult[string]) (hedge.Classification, error) {
+			return hedge.ClassificationFailure, nil
+		}),
+		Disposer:           hedge.DisposeFunc[string](func(context.Context, string) error { return nil }),
+		FactoryFailureMode: hedge.FactoryFailureStop,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var invocations atomic.Uint64
+	var physical atomic.Uint64
+	firstHedgeStarted := make(chan struct{})
+	var firstHedgeSignal sync.Once
+	var secondReport hedge.Report
+	_, retryResult, executeErr := retry.Do(ctx, retryPolicy, func(ctx context.Context) (string, error) {
+		invocation := invocations.Add(1)
+		_, report, hedgeErr := hedge.Do(ctx, hedgePolicy, hedge.AttemptFactoryFunc[string](func(info hedge.AttemptInfo) (hedge.Attempt[string], string, error) {
+			return func(context.Context) (string, error) {
+				physical.Add(1)
+				if invocation == 1 && !info.Hedge {
+					<-firstHedgeStarted
+				}
+				if invocation == 1 && info.Hedge {
+					firstHedgeSignal.Do(func() { close(firstHedgeStarted) })
+				}
+				if invocation == 2 {
+					time.Sleep(5 * time.Millisecond)
+				}
+				return "failed", errors.New("downstream")
+			}, "dependency", nil
+		}))
+		if waitErr := report.Wait(context.Background()); waitErr != nil {
+			t.Fatalf("wait: %v", waitErr)
+		}
+		if invocation == 2 {
+			secondReport = report
+		}
+		return "", retry.Retryable(hedgeErr)
+	})
+	var exhausted *retry.ExhaustedError
+	if !errors.As(executeErr, &exhausted) || retryResult.Attempts != 2 {
+		t.Fatalf("retry result = %+v, error = %v", retryResult, executeErr)
+	}
+	if invocations.Load() != 2 || physical.Load() != 4 || secondReport.BudgetDenied != 2 || secondReport.HedgesStarted != 0 {
+		t.Fatalf("invocations = %d, physical = %d, second report = %+v", invocations.Load(), physical.Load(), secondReport)
+	}
+	if snapshot := scope.Snapshot(); snapshot.AdditionalAdmitted != 3 || snapshot.AdditionalActive != 0 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+}
 
 func TestLocalAdmissionRejectionIsNotRetried(t *testing.T) {
 	limiter := mustFixedLimiter(t)

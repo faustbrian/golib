@@ -20,7 +20,11 @@ Primary entry points:
 - `NewBudget`, `WorkBudget`, `WorkBudgetScope`, and `Permit` own shared retry
   and hedge accounting;
 - `WithBudgetScope` lets a custom budget implementation attach its scope;
-- `BudgetScopeFromContext` exposes only an explicitly attached logical scope.
+- `BudgetScopeFromContext` exposes only an explicitly attached logical scope;
+- `AdmitAttempt` coordinates unique retry and hedge lineage and returns its
+  exactly-once permit; and
+- `AttemptFromContext` exposes the physical attempt already owned by an outer
+  executor so an inner executor cannot double-account it.
 
 `Budget.Start` rejects an already scoped context with
 `ErrBudgetAlreadyAttached`; nested execution must reuse the attached scope

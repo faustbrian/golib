@@ -12,5 +12,7 @@
   extending or detaching deadlines without moving operations to goroutines.
 - Process-local retry-plus-hedge work budgets with per-execution, concurrent,
   rolling-window, resource-cardinality, expiry, and exact-completion bounds.
+- Context-coordinated physical-attempt admission for focused retry and hedge
+  executors, including unique ordinals and nested-attempt reuse.
 - Exact statement coverage, mutation, race, fuzz, model, lifecycle, benchmark,
   API, security, documentation, and clean-consumer gate definitions.

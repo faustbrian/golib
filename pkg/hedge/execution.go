@@ -8,6 +8,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/faustbrian/golib/pkg/resilience"
 )
 
 // Attempt performs one independently owned execution. Cancellation is
@@ -59,6 +61,8 @@ const (
 	ReasonFactoryFailure
 	// ReasonDelayFailure means dynamic delay selection failed validation.
 	ReasonDelayFailure
+	// ReasonBudgetFailure means shared budget setup or admission failed locally.
+	ReasonBudgetFailure
 )
 
 // Failure retains bounded attempt metadata without retaining or joining raw
@@ -245,8 +249,8 @@ func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]
 		cleanup.seal()
 	}
 
-	launch := func(info AttemptInfo, permit Permit) error {
-		attempt, endpoint, err := safeFactory(totalCtx, factory, info)
+	launch := func(attemptCtx context.Context, info AttemptInfo, permit Permit) error {
+		attempt, endpoint, err := safeFactory(attemptCtx, factory, info)
 		if err != nil {
 			if permit != nil {
 				permit.Release()
@@ -264,11 +268,29 @@ func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]
 			report.HedgesStarted++
 		}
 		cleanup.add()
-		go runAttempt(attemptsCtx, config, info, endpoint, attempt, permit, completions, publication, cleanup)
+		go runAttempt(attemptCtx, config, info, endpoint, attempt, permit, completions, publication, cleanup)
 		return nil
 	}
 
-	if err := launch(AttemptInfo{}, nil); err != nil {
+	originalCtx := attemptsCtx
+	var originalWork resilience.Attempt
+	var originalPermit Permit
+	if config.UseResilienceBudget {
+		if current, ok := resilience.AttemptFromContext(attemptsCtx); ok {
+			originalWork = current
+		} else {
+			admittedCtx, admitted, permit, err := resilience.AdmitAttempt(attemptsCtx, resilience.OriginOriginal, 0, config.Clock.Now())
+			if err != nil {
+				report.Reason = ReasonBudgetFailure
+				closeExecution()
+				return zero, report, &ExecutionError{cause: err}
+			}
+			originalCtx = admittedCtx
+			originalWork = admitted
+			originalPermit = wrapResiliencePermit(permit)
+		}
+	}
+	if err := launch(originalCtx, AttemptInfo{}, originalPermit); err != nil {
 		report.Reason = ReasonFactoryFailure
 		closeExecution()
 		return zero, report, &ExecutionError{cause: err}
@@ -369,13 +391,35 @@ func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]
 			}
 
 			timerDue = false
-			permit, admitted := config.Budget.TryAcquire(config.Resource)
+			attemptCtx := attemptsCtx
+			var permit Permit
+			admitted := false
+			var admissionErr error
+			if config.UseResilienceBudget {
+				var sharedPermit resilience.Permit
+				attemptCtx, _, sharedPermit, admissionErr = resilience.AdmitAttempt(attemptsCtx, resilience.OriginHedge, originalWork.Ordinal, config.Clock.Now())
+				if admissionErr == nil {
+					permit = wrapResiliencePermit(sharedPermit)
+					admitted = true
+				}
+			} else {
+				permit, admitted = config.Budget.TryAcquire(config.Resource)
+			}
+			if admissionErr != nil && (errors.Is(admissionErr, context.Canceled) || errors.Is(admissionErr, context.DeadlineExceeded)) {
+				continue
+			}
+			if admissionErr != nil && !isCapacityDenial(admissionErr) {
+				report.Reason = ReasonBudgetFailure
+				disposeAll(config, failures, cleanup)
+				closeExecution()
+				return zero, report, &ExecutionError{cause: admissionErr}
+			}
 			if !admitted || permit == nil {
 				report.BudgetDenied++
 				emit(config.Observer, Observation{Outcome: OutcomeBudgetDenied, Ordinal: nextHedge, Delay: scheduledDelay, Resource: config.Resource})
 			} else {
 				info := AttemptInfo{Ordinal: nextHedge, Hedge: true, Delay: scheduledDelay}
-				if err := launch(info, permit); err != nil {
+				if err := launch(attemptCtx, info, permit); err != nil {
 					if config.FactoryFailureMode == FactoryFailureStop {
 						report.Reason = ReasonFactoryFailure
 						disposeAll(config, failures, cleanup)
@@ -437,6 +481,15 @@ func Do[T any](ctx context.Context, policy *Policy[T], factory AttemptFactory[T]
 			timerC = nil
 			timerDue = true
 		}
+	}
+}
+
+func isCapacityDenial(err error) bool {
+	switch resilience.RejectionReasonOf(err) {
+	case resilience.ReasonExecutionLimit, resilience.ReasonConcurrentLimit, resilience.ReasonWindowLimit:
+		return true
+	default:
+		return false
 	}
 }
 

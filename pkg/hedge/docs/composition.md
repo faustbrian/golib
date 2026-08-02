@@ -17,7 +17,10 @@
   duplicate downstream work.
 - **Retry:** retry is sequential after completion; hedge is concurrent before
   completion. A composition needs one hard amplification budget and no preset
-  multiplies the two.
+  multiplies the two. Enable `UseResilienceBudget` on both policies and pass one
+  scoped context through the complete composition. The current attempt is
+  reused across the nested boundary and only newly created physical work draws
+  another permit.
 - **Adaptive throttle:** local throttle rejection is an admission decision, not
   a hedgeable downstream failure by default. Starting another attempt evades
   the protection and increases load.

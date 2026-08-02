@@ -30,3 +30,17 @@ does not persist accounting across restart and does not coordinate replicas.
 Custom process-local or distributed implementations attach their scope with
 `WithBudgetScope`; the context key remains private so callers cannot replace a
 scope without passing through the same ownership checks.
+
+## Focused executors
+
+`AdmitAttempt` is the compatibility seam for focused retry and hedge executors.
+It allocates one unique ordinal from context-shared state, validates the origin
+and parent ordinal, calls the attached `WorkBudgetScope`, and returns a child
+context containing the admitted attempt. The caller must complete the returned
+permit exactly once after physical work finishes.
+
+An inner executor first calls `AttemptFromContext`. If an attempt exists, that
+attempt is already owned by its outer executor and must not be admitted again.
+Additional work uses `AdmitAttempt` with that attempt or another previously
+admitted attempt as parent. Failed admissions may consume an ordinal but never
+consume budget capacity or invoke downstream work.

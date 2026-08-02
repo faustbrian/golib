@@ -95,6 +95,11 @@ func TestInternalNilPermitAndTypedNilObserver(t *testing.T) {
 	if err != nil || policy.config.Observer != nil {
 		t.Fatalf("typed nil observer policy = %+v, %v", policy, err)
 	}
+	if shared := wrapResiliencePermit(nil); shared != nil {
+		t.Fatalf("nil shared permit wrapped as %T", shared)
+	}
+	var shared *sharedWorkPermit
+	shared.Release()
 }
 
 type testNilObserver struct{}

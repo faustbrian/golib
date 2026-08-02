@@ -18,6 +18,8 @@ var (
 	ErrBudgetScopeMismatch = errors.New("resilience: budget scope mismatch")
 	// ErrBudgetAlreadyAttached identifies nested scope creation on a budget context.
 	ErrBudgetAlreadyAttached = errors.New("resilience: budget already attached")
+	// ErrBudgetScopeRequired identifies work admission without a shared scope.
+	ErrBudgetScopeRequired = errors.New("resilience: budget scope required")
 	// ErrPermitCompleted identifies duplicate permit completion.
 	ErrPermitCompleted = errors.New("resilience: permit already completed")
 	// ErrPermitExpired identifies completion after abandoned-capacity recovery.
@@ -141,6 +143,12 @@ func NewBudget(config BudgetConfig) (*Budget, error) {
 }
 
 type budgetContextKey struct{}
+type attemptContextKey struct{}
+
+type budgetExecutionState struct {
+	scope WorkBudgetScope
+	next  atomic.Uint64
+}
 
 // Start creates one logical scope and attaches it to a derived context.
 func (budget *Budget) Start(ctx context.Context, metadata Metadata) (WorkBudgetScope, context.Context, error) {
@@ -196,7 +204,7 @@ func WithBudgetScope(ctx context.Context, scope WorkBudgetScope) (context.Contex
 }
 
 func attachBudgetScope(ctx context.Context, scope WorkBudgetScope) context.Context {
-	return context.WithValue(ctx, budgetContextKey{}, scope)
+	return context.WithValue(ctx, budgetContextKey{}, &budgetExecutionState{scope: scope})
 }
 
 // BudgetScopeFromContext returns the explicitly attached logical budget scope.
@@ -204,8 +212,77 @@ func BudgetScopeFromContext(ctx context.Context) (WorkBudgetScope, bool) {
 	if ctx == nil {
 		return nil, false
 	}
-	scope, ok := ctx.Value(budgetContextKey{}).(WorkBudgetScope)
-	return scope, ok && !nilInterface(scope)
+	state, ok := ctx.Value(budgetContextKey{}).(*budgetExecutionState)
+	if !ok || state == nil || nilInterface(state.scope) {
+		return nil, false
+	}
+	return state.scope, true
+}
+
+// AttemptFromContext returns the physical attempt currently invoking work.
+func AttemptFromContext(ctx context.Context) (Attempt, bool) {
+	if ctx == nil {
+		return Attempt{}, false
+	}
+	attempt, ok := ctx.Value(attemptContextKey{}).(Attempt)
+	if !ok {
+		return Attempt{}, false
+	}
+	if _, err := NewAttempt(attempt.Ordinal, attempt.Origin, attempt.ParentOrdinal, attempt.StartedAt); err != nil {
+		return Attempt{}, false
+	}
+	return attempt, true
+}
+
+// AdmitAttempt allocates unique physical-attempt lineage, admits it through
+// the attached shared budget, and returns a context carrying that attempt.
+func AdmitAttempt(ctx context.Context, origin AttemptOrigin, parent uint64, startedAt time.Time) (context.Context, Attempt, Permit, error) {
+	if ctx == nil {
+		return nil, Attempt{}, nil, invalid(ErrInvalidMetadata, "context", "must not be nil")
+	}
+	state, ok := ctx.Value(budgetContextKey{}).(*budgetExecutionState)
+	if !ok || state == nil || nilInterface(state.scope) {
+		return nil, Attempt{}, nil, ErrBudgetScopeRequired
+	}
+	ordinal, err := reserveOrdinal(&state.next)
+	if err != nil {
+		return nil, Attempt{}, nil, err
+	}
+	attempt, err := NewAttempt(ordinal, origin, parent, startedAt)
+	if err != nil {
+		return nil, Attempt{}, nil, err
+	}
+	return admitKnownAttempt(ctx, state, attempt)
+}
+
+func admitKnownAttempt(ctx context.Context, state *budgetExecutionState, attempt Attempt) (context.Context, Attempt, Permit, error) {
+	advanceOrdinal(&state.next, attempt.Ordinal)
+	permit, err := state.scope.Acquire(ctx, attempt)
+	if err != nil {
+		return nil, Attempt{}, nil, err
+	}
+	return context.WithValue(ctx, attemptContextKey{}, attempt), attempt, permit, nil
+}
+
+func reserveOrdinal(next *atomic.Uint64) (uint64, error) {
+	for {
+		current := next.Load()
+		if current == ^uint64(0) {
+			return 0, invalid(ErrInvalidAttempt, "ordinal", "exhausted")
+		}
+		if next.CompareAndSwap(current, current+1) {
+			return current + 1, nil
+		}
+	}
+}
+
+func advanceOrdinal(next *atomic.Uint64, ordinal uint64) {
+	for {
+		current := next.Load()
+		if current >= ordinal || next.CompareAndSwap(current, ordinal) {
+			return
+		}
+	}
 }
 
 func (budget *Budget) reapLocked(now time.Time) {

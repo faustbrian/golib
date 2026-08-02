@@ -172,6 +172,9 @@ type Config[T any] struct {
 	Observer           Observer
 	Resource           string
 	FactoryFailureMode FactoryFailureMode
+	// UseResilienceBudget consumes the shared work-amplification scope attached
+	// to the execution context instead of the compatibility Budget.
+	UseResilienceBudget bool
 }
 
 // Policy is immutable and safe for concurrent execution. Its Budget,
@@ -210,7 +213,9 @@ func NewPolicy[T any](config Config[T]) (*Policy[T], error) {
 		return nil, fmt.Errorf("%w: cleanup timeout must be positive", ErrInvalidPolicy)
 	case nilLike(config.Clock):
 		return nil, fmt.Errorf("%w: clock is required", ErrInvalidPolicy)
-	case nilLike(config.Budget):
+	case config.UseResilienceBudget && !nilLike(config.Budget):
+		return nil, fmt.Errorf("%w: resilience and compatibility budgets cannot both own admission", ErrInvalidPolicy)
+	case !config.UseResilienceBudget && nilLike(config.Budget):
 		return nil, fmt.Errorf("%w: budget is required", ErrInvalidPolicy)
 	case nilLike(config.Classifier):
 		return nil, fmt.Errorf("%w: classifier is required", ErrInvalidPolicy)
@@ -221,9 +226,11 @@ func NewPolicy[T any](config Config[T]) (*Policy[T], error) {
 	case config.FactoryFailureMode != FactoryFailureStop && config.FactoryFailureMode != FactoryFailureContinue:
 		return nil, fmt.Errorf("%w: factory failure mode is required", ErrInvalidPolicy)
 	}
-	capacity := safeBudgetCapacity(config.Budget)
-	if capacity == 0 || capacity > MaxBudgetCapacity {
-		return nil, fmt.Errorf("%w: budget capacity must be between 1 and %d", ErrInvalidPolicy, MaxBudgetCapacity)
+	if !config.UseResilienceBudget {
+		capacity := safeBudgetCapacity(config.Budget)
+		if capacity == 0 || capacity > MaxBudgetCapacity {
+			return nil, fmt.Errorf("%w: budget capacity must be between 1 and %d", ErrInvalidPolicy, MaxBudgetCapacity)
+		}
 	}
 
 	if len(config.Schedule) != 0 {

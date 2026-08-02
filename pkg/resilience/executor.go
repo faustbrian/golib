@@ -282,12 +282,14 @@ func terminalStage[T any](ctx context.Context, execution Execution, operation Op
 		if !scope.Matches(execution.Metadata) {
 			return Result[T]{Err: ErrBudgetScopeMismatch, Outcome: Outcome{Kind: OutcomeLocalRejection, Attempt: execution.Attempt}}
 		}
-		permit, err := scope.Acquire(ctx, execution.Attempt)
+		state, _ := ctx.Value(budgetContextKey{}).(*budgetExecutionState)
+		attemptCtx, _, permit, err := admitKnownAttempt(ctx, state, execution.Attempt)
 		if err != nil {
 			var zero T
 			execution.Emit(EventWorkRejected, "", string(RejectionReasonOf(err)))
 			return Result[T]{Value: zero, Err: err, Outcome: Outcome{Kind: OutcomeLocalRejection, Attempt: execution.Attempt}}
 		}
+		ctx = attemptCtx
 		execution.Emit(EventWorkAdmitted, "", "")
 		defer func() { _ = permit.Complete() }()
 	}

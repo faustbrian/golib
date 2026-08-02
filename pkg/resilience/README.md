@@ -66,6 +66,12 @@ concurrent, and rolling-window limits. A policy cannot classify budget denial
 as downstream failure because it receives `OutcomeLocalRejection` and an error
 matching `ErrBudgetRejected`.
 
+Focused executors that do not run through `Executor` use `AdmitAttempt` before
+starting physical work. It allocates a unique ordinal across nested retry and
+hedge policies, validates parent lineage, admits the work, and returns a context
+carrying the current attempt. `AttemptFromContext` lets an inner policy reuse
+that current attempt instead of accounting for it twice.
+
 The built-in budget is process-local. `N` additional permits on each of `R`
 pods allow up to `N * R` concurrent additional attempts. Use a separate,
 explicit distributed implementation of `WorkBudget` only when cluster-wide

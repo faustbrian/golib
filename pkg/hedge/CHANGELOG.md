@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add opt-in consumption of the shared `resilience` budget with coordinated
+  nested attempt lineage and bounded retry-plus-hedge amplification.
 - Add an explicitly replay-safe, deadline-bounded hedged execution policy with
   fixed, scheduled, and dynamic delays.
 - Add shared outstanding-work budgets, deterministic result selection,

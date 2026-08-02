@@ -8,6 +8,11 @@ Budgets declare a positive finite `Capacity` no greater than
 `MaxBudgetCapacity`; admission behavior remains the budget implementation's
 contract.
 
+`UseResilienceBudget` selects the shared retry-plus-hedge budget carried by
+context. In this mode `Budget` must be nil and `Do` fails before constructing an
+attempt when no scope is attached. With the option disabled, `Budget` remains
+required and preserves the standalone compatibility contract.
+
 `Do` starts ordinal zero once. `AttemptFactory` owns construction of fresh
 mutable request state. Its endpoint identity must be credential-free and at
 most `MaxResourceLength`. `ClassificationSuccess` wins;

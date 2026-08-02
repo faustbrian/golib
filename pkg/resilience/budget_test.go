@@ -121,6 +121,69 @@ func TestBudgetSharesRetryAndHedgeAmplificationLimits(t *testing.T) {
 	}
 }
 
+func TestAdmitAttemptCoordinatesRetryAndHedgeLineageThroughContext(t *testing.T) {
+	t.Parallel()
+
+	clock := &manualClock{now: time.Unix(150, 0)}
+	budget, err := resilience.NewBudget(validBudgetConfig(clock))
+	if err != nil {
+		t.Fatalf("new budget: %v", err)
+	}
+	metadata := metadataFor(t, "logical", "resource")
+	scope, ctx, err := budget.Start(context.Background(), metadata)
+	if err != nil {
+		t.Fatalf("start budget: %v", err)
+	}
+
+	originalCtx, original, originalPermit, err := resilience.AdmitAttempt(ctx, resilience.OriginOriginal, 0, clock.Now())
+	if err != nil {
+		t.Fatalf("admit original: %v", err)
+	}
+	if current, ok := resilience.AttemptFromContext(originalCtx); !ok || current != original || original.Ordinal != 1 {
+		t.Fatalf("current original = (%+v, %v), admitted = %+v", current, ok, original)
+	}
+	if err := originalPermit.Complete(); err != nil {
+		t.Fatalf("complete original: %v", err)
+	}
+
+	retryCtx, retryAttempt, retryPermit, err := resilience.AdmitAttempt(ctx, resilience.OriginRetry, original.Ordinal, clock.Now())
+	if err != nil {
+		t.Fatalf("admit retry: %v", err)
+	}
+	if current, ok := resilience.AttemptFromContext(retryCtx); !ok || current != retryAttempt || retryAttempt.Ordinal != 2 || retryAttempt.ParentOrdinal != original.Ordinal {
+		t.Fatalf("current retry = (%+v, %v), admitted = %+v", current, ok, retryAttempt)
+	}
+	if err := retryPermit.Complete(); err != nil {
+		t.Fatalf("complete retry: %v", err)
+	}
+
+	hedgeCtx, hedgeAttempt, hedgePermit, err := resilience.AdmitAttempt(ctx, resilience.OriginHedge, original.Ordinal, clock.Now())
+	if err != nil {
+		t.Fatalf("admit hedge: %v", err)
+	}
+	if current, ok := resilience.AttemptFromContext(hedgeCtx); !ok || current != hedgeAttempt || hedgeAttempt.Ordinal != 3 || hedgeAttempt.ParentOrdinal != original.Ordinal {
+		t.Fatalf("current hedge = (%+v, %v), admitted = %+v", current, ok, hedgeAttempt)
+	}
+	if err := hedgePermit.Complete(); err != nil {
+		t.Fatalf("complete hedge: %v", err)
+	}
+	if snapshot := scope.Snapshot(); snapshot.AdditionalAdmitted != 2 || snapshot.AdditionalActive != 0 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+}
+
+func TestAdmitAttemptRequiresAnAttachedBudgetScope(t *testing.T) {
+	t.Parallel()
+
+	_, _, _, err := resilience.AdmitAttempt(context.Background(), resilience.OriginOriginal, 0, time.Unix(1, 0))
+	if !errors.Is(err, resilience.ErrBudgetScopeRequired) {
+		t.Fatalf("admit attempt error = %v", err)
+	}
+	if _, ok := resilience.AttemptFromContext(context.Background()); ok {
+		t.Fatal("background context unexpectedly has an attempt")
+	}
+}
+
 func TestBudgetRejectsNestedScopeCreation(t *testing.T) {
 	t.Parallel()
 
