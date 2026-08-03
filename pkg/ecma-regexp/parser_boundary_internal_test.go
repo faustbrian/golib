@@ -226,6 +226,10 @@ func TestNamedAndIdentityEscapePredicates(t *testing.T) {
 	if !p.canParseNamedBackreference(false) {
 		t.Fatal("Unicode pattern rejects named backreference syntax")
 	}
+	p.tokens[0] = character("x")
+	if p.canParseNamedBackreference(false) {
+		t.Fatal("named backreference accepted a non-delimiter character")
+	}
 	p.tokens[0] = Token{kind: TokenEOF}
 	if p.canParseNamedBackreference(false) || !namedBackreferenceNeedsIdentifier(false, p.tokens[0]) {
 		t.Fatal("EOF named backreference predicate is incorrect")
@@ -689,6 +693,7 @@ func TestIdentifierEscapeAndSyntaxMessageBoundaries(t *testing.T) {
 	}{
 		{escape: `\u{10FFFF}`, ok: true},
 		{escape: `\u{110000}`},
+		{escape: `\u{FFFFFFFFF}`},
 	} {
 		tokens, err := Tokenize(test.escape, DefaultParseOptions())
 		if err != nil {
@@ -710,6 +715,16 @@ func TestIdentifierEscapeAndSyntaxMessageBoundaries(t *testing.T) {
 		if !errors.As(err, &syntax) || len(syntax.Message) != min(length, 160) {
 			t.Errorf("syntax(message length %d) = %v", length, err)
 		}
+	}
+}
+
+func TestUnicodeSetRangeRejectsAStringEndpoint(t *testing.T) {
+	t.Parallel()
+
+	_, err := Compile(`[a-\q{ab}]`, "v", DefaultCompileOptions())
+	var syntax *SyntaxError
+	if !errors.As(err, &syntax) || syntax.Code != SyntaxUnexpectedToken {
+		t.Fatalf("Compile(string range endpoint) error = %v", err)
 	}
 }
 

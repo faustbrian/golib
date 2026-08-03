@@ -168,6 +168,9 @@ func TestMatcherDirectionalAndAnchorBoundaries(t *testing.T) {
 	if got := executor.anyWidth(3, -1, Flags{}); got != 2 {
 		t.Fatalf("anyWidth(reverse pair) = %d", got)
 	}
+	if got := executor.anyWidth(0, -1, Flags{}); got != 0 {
+		t.Fatalf("anyWidth(reverse start) = %d", got)
+	}
 	if got := executor.anyWidth(3, 1, Flags{}); got != 0 {
 		t.Fatalf("anyWidth(line terminator) = %d", got)
 	}
@@ -200,7 +203,8 @@ func TestMatcherDirectionalAndAnchorBoundaries(t *testing.T) {
 	}
 	if !executor.equal('a', 'a', Flags{}) || executor.equal('a', 'b', Flags{}) ||
 		!executor.equal('a', 'A', Flags{bits: flagIgnoreCase}) ||
-		executor.equal(0xD800, 0xD800+1, Flags{bits: flagIgnoreCase}) {
+		executor.equal(0xD800, 0xD800+1, Flags{bits: flagIgnoreCase}) ||
+		executor.equal('a', 0xD800, Flags{bits: flagIgnoreCase}) {
 		t.Fatal("legacy equality boundaries are incorrect")
 	}
 	if !executor.equalCodePoint('a', 'a', Flags{}) || executor.equalCodePoint('a', 'A', Flags{}) ||
@@ -259,6 +263,37 @@ func TestMatcherBackreferenceAndWordBoundaries(t *testing.T) {
 	}
 	if _, matched := emojiExecutor.unicodeBackreference(2, 0, 1, 1, Flags{}); matched {
 		t.Fatal("unicodeBackreference(partial capture) matched")
+	}
+	for _, test := range []struct {
+		input, captureStart, captureEnd, direction int
+	}{
+		{input: 0, captureStart: -1, captureEnd: 1, direction: 1},
+		{input: 4, captureStart: 0, captureEnd: 2, direction: 1},
+		{input: 4, captureStart: 0, captureEnd: 5, direction: -1},
+	} {
+		if _, matched := emojiExecutor.unicodeBackreference(
+			test.input,
+			test.captureStart,
+			test.captureEnd,
+			test.direction,
+			Flags{},
+		); matched {
+			t.Errorf("unicodeBackreference(%+v) matched invalid bounds", test)
+		}
+	}
+	bmpView, err := makeInputView("ab", DefaultMatchOptions().Limits)
+	if err != nil {
+		t.Fatalf("makeInputView(BMP) error = %v", err)
+	}
+	bmpExecutor := newExecutor(context.Background(), unicodeProgramForTest(t), bmpView, DefaultMatchOptions().Limits)
+	if _, matched := bmpExecutor.unicodeBackreference(2, 0, 1, -1, Flags{}); matched {
+		t.Fatal("unicodeBackreference(reverse mismatch) matched")
+	}
+	if _, _, ok := bmpExecutor.codePointAt(-1); ok {
+		t.Fatal("codePointAt(negative) succeeded")
+	}
+	if _, _, ok := bmpExecutor.codePointBefore(len(bmpView.units) + 1); ok {
+		t.Fatal("codePointBefore(past end) succeeded")
 	}
 
 	unicodeProgram, err := Compile(".", "iu", DefaultCompileOptions())
@@ -410,5 +445,12 @@ func TestMatcherPropertyIndexBoundaries(t *testing.T) {
 		if got := classTermMatches(test.term, test.char, test.flags); got != test.want {
 			t.Errorf("classTermMatches(property %#v, %U) = %t", test.term, test.char, got)
 		}
+	}
+	asciiTable, ok := lookupUnicodeProperty("ASCII")
+	if !ok || negatedUnicodePropertyMatches(asciiTable, 'A') {
+		t.Fatal("ASCII complement accepted an ASCII fold variant")
+	}
+	if builtinMatches(classBuiltinWord, 'K', true, false) {
+		t.Fatal("legacy word class accepted a Unicode-only fold")
 	}
 }

@@ -805,9 +805,6 @@ func classStringMatches(value []uint16, char rune) bool {
 	if len(decoded) != 1 {
 		return false
 	}
-	if len(utf16.Encode(decoded)) != len(value) {
-		return false
-	}
 	return decoded[0] == char
 }
 
