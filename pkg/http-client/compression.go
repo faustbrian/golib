@@ -186,10 +186,18 @@ func (policy resolvedCompressionOptions) execute(request *http.Request, next Nex
 }
 
 func compressibleRequest(request *http.Request, minimum int64) bool {
-	if request.Body == nil || request.Body == http.NoBody || request.Header.Get("Content-Encoding") != "" {
+	switch request.Body {
+	case nil, http.NoBody:
 		return false
 	}
-	return request.ContentLength < 0 || request.ContentLength >= minimum
+	if request.Header.Get("Content-Encoding") != "" {
+		return false
+	}
+	if request.ContentLength < 0 {
+		return true
+	}
+
+	return request.ContentLength >= minimum
 }
 
 func wrapCompressionCloseError(err error) error {
@@ -223,33 +231,44 @@ type decompressionBody struct {
 }
 
 func (body *decompressionBody) Read(buffer []byte) (int, error) {
-	if body.terminalError != nil {
+	switch body.terminalError {
+	case nil:
+	default:
 		return 0, body.terminalError
 	}
-	if len(buffer) == 0 {
+	switch len(buffer) {
+	case 0:
 		return 0, nil
 	}
 	if body.decompressed == body.maximumBytes {
 		var probe [1]byte
 		count, err := body.decoder.Read(probe[:])
-		if count > 0 {
+		if count != 0 {
 			body.terminalError = body.limitError(body.decompressed + int64(count))
 			return 0, body.terminalError
 		}
 		return 0, wrapCompressionReadError(err)
 	}
 	remaining := body.maximumBytes - body.decompressed
-	if int64(len(buffer)) > remaining {
-		buffer = buffer[:remaining]
-	}
+	buffer = buffer[:min(int64(len(buffer)), remaining)]
 	count, err := body.decoder.Read(buffer)
 	body.decompressed += int64(count)
-	if body.decompressed >= minimumRatioCheckBytes && body.compressed.bytes > 0 &&
-		float64(body.decompressed) > body.maximumRatio*float64(body.compressed.bytes) {
+	if exceedsExpansionRatio(body.decompressed, body.compressed.bytes, body.maximumRatio) {
 		body.terminalError = body.limitError(body.decompressed)
 		return 0, body.terminalError
 	}
 	return count, wrapCompressionReadError(err)
+}
+
+func exceedsExpansionRatio(decompressed, compressed int64, maximum float64) bool {
+	if decompressed < minimumRatioCheckBytes {
+		return false
+	}
+	if compressed == 0 {
+		return false
+	}
+
+	return float64(decompressed)/float64(compressed) > maximum
 }
 
 func (body *decompressionBody) limitError(decompressed int64) error {

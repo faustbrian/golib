@@ -264,7 +264,9 @@ func TestCompressionPolicyFailureAndLifecycleBoundaries(t *testing.T) {
 	for _, options := range []CompressionOptions{
 		{MinimumRequestBytes: -1},
 		{MaximumDecompressedBytes: -1},
+		{MaximumDecompressedBytes: maximumDecompressedBytes + 1},
 		{MaximumExpansionRatio: -1},
+		{MaximumExpansionRatio: maximumExpansionRatio + 1},
 	} {
 		if _, err := NewCompressionMiddleware(options); !errors.Is(err, ErrInvalidCompression) {
 			t.Fatalf("invalid options error = %v", err)
@@ -392,6 +394,104 @@ func TestCompressionPolicyFailureAndLifecycleBoundaries(t *testing.T) {
 	}
 }
 
+func TestCompressionConfigurationAndRequestBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, options := range []CompressionOptions{
+		{Name: "boundary", MaximumDecompressedBytes: 1, MaximumExpansionRatio: 1},
+		{
+			Name:                     "boundary",
+			MaximumDecompressedBytes: maximumDecompressedBytes,
+			MaximumExpansionRatio:    maximumExpansionRatio,
+		},
+	} {
+		middleware, err := NewCompressionMiddleware(options)
+		if err != nil {
+			t.Fatalf("construct boundary compression policy %#v: %v", options, err)
+		}
+		if middleware.information.Priority != compressionMiddlewarePriority {
+			t.Fatalf("boundary middleware priority = %d", middleware.information.Priority)
+		}
+	}
+	middleware, err := NewCompressionMiddleware(CompressionOptions{Name: "priority", Priority: 7})
+	if err != nil || middleware.information.Priority != compressionMiddlewarePriority+7 {
+		t.Fatalf("offset middleware priority = %d, %v", middleware.information.Priority, err)
+	}
+
+	requestWithBody := func(length int64, encoding string) *http.Request {
+		request := &http.Request{
+			Body: io.NopCloser(strings.NewReader("body")), Header: make(http.Header),
+			ContentLength: length,
+		}
+		request.Header.Set("Content-Encoding", encoding)
+
+		return request
+	}
+	for _, test := range []struct {
+		name    string
+		request *http.Request
+		minimum int64
+		want    bool
+	}{
+		{name: "nil body", request: &http.Request{Header: make(http.Header)}, want: false},
+		{name: "no body", request: &http.Request{Body: http.NoBody, Header: make(http.Header)}, want: false},
+		{name: "encoded", request: requestWithBody(8, "br"), minimum: 8, want: false},
+		{name: "unknown length", request: requestWithBody(-1, ""), minimum: 8, want: true},
+		{name: "zero length", request: requestWithBody(0, ""), minimum: 1, want: false},
+		{name: "below minimum", request: requestWithBody(7, ""), minimum: 8, want: false},
+		{name: "exact minimum", request: requestWithBody(8, ""), minimum: 8, want: true},
+	} {
+		if got := compressibleRequest(test.request, test.minimum); got != test.want {
+			t.Fatalf("%s compressible = %t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
+func TestDecompressionAccountingAndRatioBoundaries(t *testing.T) {
+	t.Parallel()
+
+	counter := &countingReader{reader: strings.NewReader("abc")}
+	content, err := io.ReadAll(counter)
+	if err != nil || string(content) != "abc" || counter.bytes != 3 {
+		t.Fatalf("counting reader = %q, bytes %d, %v", content, counter.bytes, err)
+	}
+
+	body := newTestDecompressionBody(t, []byte("123456"), 5, maximumExpansionRatio)
+	buffer := make([]byte, 3)
+	count, err := body.Read(buffer)
+	if count != 3 || err != nil || string(buffer) != "123" || body.decompressed != 3 {
+		t.Fatalf("first bounded read = %d, %q, decompressed %d, %v", count, buffer, body.decompressed, err)
+	}
+	count, err = body.Read(buffer)
+	if count != 2 || err != nil || string(buffer[:count]) != "45" || body.decompressed != 5 {
+		t.Fatalf("remaining bounded read = %d, %q, decompressed %d, %v", count, buffer[:count], body.decompressed, err)
+	}
+	count, err = body.Read(buffer)
+	var limitError *DecompressionLimitError
+	if count != 0 || !errors.As(err, &limitError) || limitError.MaximumBytes != 5 ||
+		limitError.DecompressedBytes != 6 || limitError.CompressedBytes < 1 {
+		t.Fatalf("decompression limit = %d, %#v, %v", count, limitError, err)
+	}
+
+	for _, test := range []struct {
+		name         string
+		decompressed int64
+		compressed   int64
+		maximum      float64
+		want         bool
+	}{
+		{name: "below check threshold", decompressed: 1023, compressed: 1, maximum: 1, want: false},
+		{name: "no compressed bytes", decompressed: 1024, compressed: 0, maximum: 1, want: false},
+		{name: "limit at check threshold", decompressed: 1024, compressed: 255, maximum: 4, want: true},
+		{name: "exact ratio", decompressed: 1024, compressed: 256, maximum: 4, want: false},
+		{name: "above ratio", decompressed: 1025, compressed: 256, maximum: 4, want: true},
+	} {
+		if got := exceedsExpansionRatio(test.decompressed, test.compressed, test.maximum); got != test.want {
+			t.Fatalf("%s exceeds ratio = %t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
 func TestCompressionRequestStreamPreservesSourceFailures(t *testing.T) {
 	t.Parallel()
 
@@ -494,6 +594,27 @@ func gzipBytes(t *testing.T, content []byte) []byte {
 		t.Fatalf("close gzip: %v", err)
 	}
 	return buffer.Bytes()
+}
+
+func newTestDecompressionBody(
+	t *testing.T,
+	content []byte,
+	maximumBytes int64,
+	maximumRatio float64,
+) *decompressionBody {
+	t.Helper()
+
+	source := io.NopCloser(bytes.NewReader(gzipBytes(t, content)))
+	compressed := &countingReader{reader: source}
+	decoder, err := gzip.NewReader(compressed)
+	if err != nil {
+		t.Fatalf("open test gzip: %v", err)
+	}
+
+	return &decompressionBody{
+		decoder: decoder, source: source, compressed: compressed,
+		maximumBytes: maximumBytes, maximumRatio: maximumRatio,
+	}
 }
 
 type compressionCloseBody struct {
