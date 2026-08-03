@@ -4,7 +4,7 @@ set -euo pipefail
 temporary="$(mktemp)"
 trap 'rm -f "$temporary"' EXIT
 
-for package in . ./adapters/awskms; do
+for package in . ./adapters/awskms ./adapters/keyring; do
   GOWORK=off go doc -all "$package"
 done >"$temporary"
 

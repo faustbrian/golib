@@ -17,8 +17,21 @@ bound plus the versioned header, key reference, wrapped key, nonce, and GCM
 authentication tag.
 
 The key reference is duplicated in the database as an operator-visible field
-when applications require rotation and IAM audits. The encoded envelope keeps
-its own copy so moving ciphertext without its exact wrapping key is rejected.
+when applications require rotation and custody audits. The encoded envelope
+keeps its own copy so moving ciphertext without its exact wrapping key is
+rejected.
+
+## Versioned keyring provider
+
+`keyring.New` copies one to 32 versioned 32-byte wrapping keys. New encryption
+selects an explicit reference; decryption selects the exact reference embedded
+in the envelope. The provider authenticates the reference and canonical
+context while wrapping each fresh data key with AES-256-GCM.
+
+The application owns decoding secret-manager values, selecting the active
+reference, retaining historical keys, and rolling out rotation. Removing a key
+while persisted ciphertext still references it makes that ciphertext
+unreadable.
 
 The format is not JSON. JSON, text, Go-syntax, and `slog` representations are
 redacted. Encrypted bytes are not plaintext secrets, but exposing them still

@@ -14,3 +14,9 @@ supports bounded raw-message authentication with explicitly selected
 RSASSA-PSS, ECDSA, or Ed25519 asymmetric KMS keys. It does not support signing,
 digest-mode verification, PKCS#1 v1.5, SM2, ML-DSA, Nitro recipient
 attestation, custom algorithms, or implicit key discovery.
+
+The keyring adapter's wrapped-data-key format is provider-private version 1:
+one version byte, a 12-byte AES-GCM nonce, and a 32-byte data key plus its
+16-byte authentication tag. The key reference and canonical context are AAD.
+Changing this representation, reference binding, or key size is a compatibility
+change for envelopes created through that adapter.

@@ -18413,9 +18413,21 @@
           "coverage_required": true,
           "build_required": true,
           "build_tags": []
+        },
+        {
+          "module_directory": "pkg/secret-envelope",
+          "directory": "adapters/keyring",
+          "name": "keyring",
+          "import_path": "github.com/faustbrian/golib/pkg/secret-envelope/adapters/keyring",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
         }
       ],
-      "purpose": "`secret-envelope` encrypts application-owned secret payloads with one-use AES-256-GCM data keys and delegates key wrapping to an explicit provider. The AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are best-effort zeroized after each local operation. The same adapter also exposes a verify-only asymmetric KMS boundary for bounded externally signed raw statements.",
+      "purpose": "`secret-envelope` encrypts application-owned secret payloads with one-use AES-256-GCM data keys and delegates key wrapping to an explicit provider. The provider-neutral keyring adapter wraps those keys with versioned AES-256 keys delivered through an application's secret-management boundary. The optional AWS KMS adapter uses `GenerateDataKey` and `Decrypt` and also exposes a verify-only asymmetric KMS boundary for bounded externally signed raw statements. Plaintext data keys are best-effort zeroized after each operation.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,

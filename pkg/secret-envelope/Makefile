@@ -72,6 +72,11 @@ mutation:
 		unleash ./adapters/awskms --coverpkg ./adapters/awskms --workers 2 \
 		--timeout-coefficient 10 --threshold-mcover 100 \
 		--threshold-efficacy 100 --output-statuses lct
+	GOWORK=off $(GO) run \
+		github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION) \
+		unleash ./adapters/keyring --coverpkg ./adapters/keyring --workers 2 \
+		--timeout-coefficient 10 --threshold-mcover 100 \
+		--threshold-efficacy 100 --output-statuses lct
 
 check: format-check module-check safety vet test race coverage fuzz benchmark \
 	staticcheck lint vuln docs api

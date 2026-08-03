@@ -4,7 +4,7 @@ set -euo pipefail
 required=(
   README.md CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md
   SUPPORT.md LICENSE docs/api.md docs/architecture.md docs/security.md
-  docs/aws-kms.md docs/compatibility.md
+  docs/aws-kms.md docs/keyring.md docs/compatibility.md
 )
 for path in "${required[@]}"; do
   test -s "$path"

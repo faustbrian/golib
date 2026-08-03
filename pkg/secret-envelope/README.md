@@ -2,17 +2,19 @@
 
 `secret-envelope` encrypts application-owned secret payloads with one-use
 AES-256-GCM data keys and delegates key wrapping to an explicit provider. The
-AWS KMS adapter uses `GenerateDataKey` and `Decrypt`; plaintext data keys are
-best-effort zeroized after each local operation. The same adapter also exposes
-a verify-only asymmetric KMS boundary for bounded externally signed raw
-statements.
+provider-neutral keyring adapter wraps those keys with versioned AES-256 keys
+delivered through an application's secret-management boundary. The optional
+AWS KMS adapter uses `GenerateDataKey` and `Decrypt` and also exposes a
+verify-only asymmetric KMS boundary for bounded externally signed raw
+statements. Plaintext data keys are best-effort zeroized after each operation.
 
 ## Boundary
 
 Use this module for bounded application payloads persisted in databases or
-object storage. Use AWS Secrets Manager for deployment and static service
-credentials. The module does not manage secret rotation workflows,
-authorization, persistence records, IAM policies, or logging.
+object storage. Deliver static service credentials and keyring material through
+the application's approved secret manager. The module does not manage secret
+delivery, rotation workflows, authorization, persistence records, cloud
+policies, or logging.
 
 Signature verification authenticates an exact message, key, and reviewed
 algorithm. It does not decide whether the signer may approve an action, fetch
@@ -60,6 +62,23 @@ persisted, err := encrypted.MarshalBinary()
 Applications must load AWS configuration with the SDK default credential
 chain. Static credentials are not required by this module.
 
+For secret-manager-delivered wrapping keys, construct a versioned keyring:
+
+```go
+keyProvider, err := keyring.New(map[string][]byte{
+    "metadata-v1": decodedVersionOneKey,
+    "metadata-v2": decodedVersionTwoKey,
+})
+if err != nil {
+    return err
+}
+envelopes, err := secretenvelope.NewService(keyProvider)
+```
+
+Applications select the active reference for new writes and retain every older
+key until no persisted envelope refers to it. Keyring values must come from the
+approved secret-delivery boundary and must never be committed or logged.
+
 For externally signed statements, construct a verify-only boundary:
 
 ```go
@@ -98,6 +117,7 @@ if err := verifier.Verify(
 - [API and persistence](docs/api.md)
 - [Architecture](docs/architecture.md)
 - [Security](docs/security.md)
+- [Versioned keyrings](docs/keyring.md)
 - [AWS KMS operations](docs/aws-kms.md)
 - [Compatibility](docs/compatibility.md)
 
