@@ -550,8 +550,10 @@ func (w *Worker) settleHandlerFailure(
 	if !redisTerminalFailure(handlerErr, attempts, w.opts.maxDeliveryAttempts) {
 		return nil
 	}
-	if attempts >= w.opts.maxDeliveryAttempts && failure.Code == "handler_failed" {
-		failure.Code = "attempts_exhausted"
+	if attempts >= w.opts.maxDeliveryAttempts {
+		if failure.Code == "handler_failed" {
+			failure.Code = "attempts_exhausted"
+		}
 	}
 	if err := w.appendRecordWithLineage(
 		ctx, w.opts.deadLetterStream, message.ID, body, attempts, failure,
