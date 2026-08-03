@@ -26,6 +26,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   Ethereum profile or a maintained interoperability target.
 - Pin the maintained MegaETH SALT and Lux IPA candidate scans, including their
   language, layout, lineage, worker-control, and license blockers.
+- Pin the maintained gnark, Go, and C KZG candidate scans and record why their
+  fixed proof APIs, setup ownership, and cancellation boundaries do not provide
+  the required compact Verkle multiproof backend.
 - Audit the complete experimental exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
 

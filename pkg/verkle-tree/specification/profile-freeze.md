@@ -155,6 +155,14 @@ No production backend is selected.
 candidate because it is the exact revision pinned by the reviewed
 `ethereum/go-verkle` revision. It MUST NOT cross the package's public API.
 
+Maintained BLS12-381 KZG libraries do not change this decision. The reviewed
+`gnark-crypto`, `go-eth-kzg`, and `c-kzg-4844` revisions provide useful audited
+commitment primitives, but their public APIs do not provide one compact proof
+for arbitrary positions across multiple tree-node polynomials under the
+required context, resource, initialization, and immutable-setup contract. The
+package MUST NOT invent that missing multipoint protocol or silently substitute
+a list of per-opening proofs and call it aggregation.
+
 Before selection for production use, the backend MUST pass a dedicated audit
 covering:
 

@@ -152,6 +152,9 @@ func resolveRetryOptions(options RetryOptions) (resolvedRetryOptions, error) {
 	if options.MaximumAttempts < 2 || options.MaximumAttempts > maximumRetryAttempts {
 		return resolvedRetryOptions{}, fmt.Errorf("%w: maximum attempts must be between 2 and 100", ErrInvalidRetryPolicy)
 	}
+	if options.MaximumElapsed < 0 || options.MaximumRetryAfter < 0 {
+		return resolvedRetryOptions{}, fmt.Errorf("%w: retry duration bounds are invalid", ErrInvalidRetryPolicy)
+	}
 	var delays []time.Duration
 	baseDelay := options.BaseDelay
 	maximumDelay := options.MaximumDelay
@@ -181,7 +184,7 @@ func resolveRetryOptions(options RetryOptions) (resolvedRetryOptions, error) {
 	if maximumRetryAfter == 0 {
 		maximumRetryAfter = defaultMaximumRetryAfter
 	}
-	if baseDelay < 0 || maximumDelay < baseDelay || maximumElapsed < 0 || maximumRetryAfter < 0 {
+	if baseDelay < 0 || maximumDelay < baseDelay {
 		return resolvedRetryOptions{}, fmt.Errorf("%w: retry duration bounds are invalid", ErrInvalidRetryPolicy)
 	}
 	clock := options.Clock
@@ -225,7 +228,11 @@ func executeRetry(request *http.Request, next Next, options resolvedRetryOptions
 	hasIdempotency := idempotencyPolicyApplied(request.Context())
 	current := request
 
-	for attempt := 1; ; attempt++ {
+	var attemptTokens [maximumRetryAttempts]struct{}
+	attempts := attemptTokens[:0]
+	for {
+		attempts = append(attempts, struct{}{})
+		attempt := len(attempts)
 		response, failure := next(current)
 		pendingResponse = response
 		metadata := RetryAttempt{
@@ -256,7 +263,7 @@ func executeRetry(request *http.Request, next Next, options resolvedRetryOptions
 
 		delay := retryDelay(response, attempt, options)
 		elapsed := options.clock.Now().Sub(started)
-		if options.maximumElapsed > 0 && (elapsed >= options.maximumElapsed || delay > options.maximumElapsed-elapsed) {
+		if retryElapsedBudgetExceeded(options.maximumElapsed, elapsed, delay) {
 			closeErr := drainAndCloseRetryResponse(response)
 			pendingResponse = nil
 
@@ -281,6 +288,19 @@ func executeRetry(request *http.Request, next Next, options resolvedRetryOptions
 
 func retryExhausted(attempts int, elapsed time.Duration, status int, cause error) *RetryExhaustedError {
 	return &RetryExhaustedError{Attempts: attempts, Elapsed: elapsed, StatusCode: status, Cause: cause}
+}
+
+func retryElapsedBudgetExceeded(maximumElapsed, elapsed, delay time.Duration) bool {
+	if maximumElapsed <= 0 {
+		return false
+	}
+	if elapsed < 0 {
+		return true
+	}
+	if elapsed >= maximumElapsed {
+		return true
+	}
+	return delay > maximumElapsed-elapsed
 }
 
 type defaultRetryPolicy struct{ unsafeIdempotency bool }
@@ -344,38 +364,31 @@ func replayRequest(original *http.Request) (*http.Request, error) {
 func retryDelay(response *http.Response, attempt int, options resolvedRetryOptions) time.Duration {
 	if response != nil {
 		if delay, ok := parseRetryAfter(response.Header.Get("Retry-After"), options.clock.Now()); ok {
-			if delay > options.maximumRetryAfter {
-				return options.maximumRetryAfter
-			}
-
-			return delay
+			return min(delay, options.maximumRetryAfter)
 		}
 	}
 	if len(options.delays) > 0 {
 		delay := options.delays[attempt-1]
-		jittered := options.jitter.Apply(delay)
-		if jittered < 0 || jittered > delay {
-			return delay
-		}
-		return jittered
+		return boundedRetryJitter(delay, options.jitter)
 	}
-	delay := options.baseDelay
-	for index := 1; index < attempt && delay < options.maximumDelay; index++ {
-		if delay > options.maximumDelay/2 {
-			delay = options.maximumDelay
-			break
-		}
-		delay *= 2
+	delay := exponentialRetryDelay(options.baseDelay, options.maximumDelay, attempt)
+	return boundedRetryJitter(delay, options.jitter)
+}
+
+func exponentialRetryDelay(baseDelay, maximumDelay time.Duration, attempt int) time.Duration {
+	scaled := new(big.Int).Lsh(big.NewInt(int64(baseDelay)), uint(attempt-1))
+	if !scaled.IsInt64() {
+		return maximumDelay
 	}
-	if delay > options.maximumDelay {
-		delay = options.maximumDelay
-	}
-	jittered := options.jitter.Apply(delay)
-	if jittered < 0 || jittered > delay {
+	return min(time.Duration(scaled.Int64()), maximumDelay)
+}
+
+func boundedRetryJitter(delay time.Duration, jitter RetryJitter) time.Duration {
+	jittered := jitter.Apply(delay)
+	if jittered < 0 {
 		return delay
 	}
-
-	return jittered
+	return min(jittered, delay)
 }
 
 func parseRetryAfter(value string, now time.Time) (time.Duration, bool) {
@@ -390,12 +403,7 @@ func parseRetryAfter(value string, now time.Time) (time.Duration, bool) {
 	if err != nil {
 		return 0, false
 	}
-	delay := date.Sub(now)
-	if delay < 0 {
-		delay = 0
-	}
-
-	return delay, true
+	return max(date.Sub(now), 0), true
 }
 
 func drainAndCloseRetryResponse(response *http.Response) error {
@@ -429,7 +437,7 @@ func (systemRetryClock) Wait(ctx context.Context, delay time.Duration) error {
 type cryptoRetryJitter struct{ reader io.Reader }
 
 func (jitter cryptoRetryJitter) Apply(delay time.Duration) time.Duration {
-	if delay <= 0 {
+	if delay < 1 {
 		return 0
 	}
 	upperBound := int64(delay)

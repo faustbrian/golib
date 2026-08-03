@@ -864,6 +864,90 @@
       "review_status": "rejected-verkle-ipa-unfinished-unaudited-and-not-exported-to-c-rust-or-go"
     },
     {
+      "id": "consensys-gnark-crypto-kzg-candidate-scan",
+      "kind": "git-repository-and-go-module-tag",
+      "role": "rejected-production-backend-candidate",
+      "url": "https://github.com/Consensys/gnark-crypto",
+      "revision": "49879afc0859220afd5165bc6cafc1ee0a6e987a",
+      "tree": "a75130e8befd2dc269158b6cb0176514abdc2be0",
+      "module": "github.com/consensys/gnark-crypto",
+      "version": "v0.20.1",
+      "reviewed_on": "2026-08-04",
+      "license": "Apache-2.0",
+      "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "source_files": {
+        "ecc/bls12-381/kzg/kzg.go": "5a72948f3add257e9032a3e6e5a6659e8bc27f72acec53d53dbc545fb7022b9a",
+        "ecc/bls12-381/kzg/marshal.go": "e6665298db972d21f3eda6c395249a249814f4fd88a3b96a6c13f97ce713293b",
+        "ecc/bls12-381/kzg/mpcsetup.go": "fa7de4116b397e746d712cafcc6f683bcee5398f9559dba883410f97074b8774",
+        "ecc/bls12-381/kzg/utils.go": "0d89bc736d6dc393697f42e39b50b7052e7d2214153b1a5098ccfadc711f73f3"
+      },
+      "review_procedure": "Pin the imported release and tree; inspect the complete BLS12-381 KZG commitment, opening, batch-opening, setup, serialization, Lagrange-conversion, worker, context, and unsafe-decoding paths; then compare the public proof shape with the package requirement for one compact arbitrary multi-position tree proof.",
+      "reproducible": true,
+      "review_status": "rejected-no-arbitrary-multipoint-aggregate-no-context-cpu-derived-workers-and-unsafe-public-surface"
+    },
+    {
+      "id": "crate-crypto-go-eth-kzg-candidate-scan",
+      "kind": "git-repository-and-go-module-release",
+      "role": "rejected-production-backend-candidate",
+      "url": "https://github.com/crate-crypto/go-eth-kzg",
+      "revision": "01d14404df5f295f5afb3cf6ca8839382a7243b7",
+      "tree": "c73a30b0d8828d28ea702f3a85a1cf706a2797f9",
+      "latest_release": "v1.5.0",
+      "latest_release_revision": "f9fee500d799048a92e0b50123d9ad3a533c76ca",
+      "latest_release_tree": "fbbe7a8d7366e91184997e2e32386f7680243cdf",
+      "reviewed_on": "2026-08-04",
+      "license": "Apache-2.0",
+      "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "audit": {
+        "path": "audits/Audit of PeerDAS KZG libraries.pdf",
+        "git_blob": "44fcbc6ca2488bdc52499beb9f6fec4bd1f17140",
+        "size": 1726737,
+        "status": "reviewed-upstream-artifact-not-imported"
+      },
+      "source_files": {
+        "readme.md": "b87e46213b80f8bdcdbad73718d6543bdcf63fda30f772f6d97f6003294d72fe",
+        "api.go": "dac8a950e16df2bed91979615b917e236b701930b0a7644fd72ebf0c38d467b0",
+        "prove.go": "caf9bf8b9e5e023a9f96b5ec4df83fe55f39601c4f621963b5f70e05b8515ffe",
+        "verify.go": "c635425fbd030014d0f386f21360e6cf849a29b47f026f9f351e22102cda7936",
+        "api_eip7594.go": "ba5f2a0739cb66f87f095ceb150fab1b6e4de1cbb3c32200ebd18a781fe2360d",
+        "trusted_setup.go": "8af40d50980dbe0f522fb0b292b712fbfb7ac7ce191c1b182cc1c9e3fc2410ce"
+      },
+      "review_procedure": "Pin the current head and latest release; inspect the EIP-4844 and EIP-7594 public APIs, proof cardinality, context construction, trusted-setup parsing, worker controls, panic paths, mutable exports, audit artifact, and head-to-release delta; then compare them with the fixed-profile compact multiproof and bounded-operation requirements.",
+      "reproducible": true,
+      "review_status": "rejected-fixed-4096-blob-and-cell-apis-per-opening-proofs-no-context-and-unbounded-setup-goroutines"
+    },
+    {
+      "id": "ethereum-c-kzg-4844-candidate-scan",
+      "kind": "git-repository-c-library-and-go-binding",
+      "role": "rejected-production-backend-candidate",
+      "url": "https://github.com/ethereum/c-kzg-4844",
+      "revision": "116d1125919203f55e03d548b93edd01de864029",
+      "tree": "b47cd495e70f07e2267004fda4bc1cd9e5fe2d7c",
+      "latest_release": "v2.1.8",
+      "latest_release_revision": "e125905e5e01186e6ccb7a0ced4845bf7eddbcfe",
+      "latest_release_tree": "8e6ce705f216b6d2bd5974e7832f5b4c379799af",
+      "reviewed_on": "2026-08-04",
+      "license": "Apache-2.0",
+      "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "audits": {
+        "2023_sigp.pdf": {
+          "git_blob": "d5427bf31dbe2f9c78181c4df19a3c2aee42afe3",
+          "size": 408251
+        },
+        "2025_zksec.pdf": {
+          "git_blob": "bda261fe29105ed795db895c06a65e3e3665aa53",
+          "size": 847802
+        }
+      },
+      "source_files": {
+        "README.md": "6da44f0d5002cff92c74fa1934f8c6c1e592975ce0b5dd02f18973cc02db4627",
+        "bindings/go/main.go": "c6b77da9bb22c81c5342ad90ea7de8da109dd1861e98d1b3d31f52f97b3c4ba1"
+      },
+      "review_procedure": "Pin the current head and latest release; inspect the documented EIP-4844 and EIP-7594 interfaces, proof cardinality, audit scope, single-threaded C core, Go binding setup lifecycle, mutable global state, cgo and unsafe boundary, panic behavior, and absence of context or operation budgets; then compare the exposed proof shape with the compact arbitrary tree multiproof requirement.",
+      "reproducible": true,
+      "review_status": "rejected-fixed-eip-proof-apis-process-global-go-setup-unsafe-cgo-no-context-and-no-compact-tree-multiproof"
+    },
+    {
       "id": "megaeth-salt-backend-candidate-scan",
       "kind": "git-repository",
       "role": "rejected-go-backend-and-independent-lineage-candidate",

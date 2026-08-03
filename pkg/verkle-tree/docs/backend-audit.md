@@ -67,6 +67,43 @@ licenses, source hashes, and review procedures in the source manifest. They
 remain useful research inputs, but neither is an adoptable production backend
 or the maintained independent implementation required to freeze v1.
 
+Three maintained BLS12-381 KZG implementations were reviewed as possible ways
+to leave the unmaintained Banderwagon IPA line. They improve maintenance and
+audit evidence, but none exposes the complete Verkle backend required here:
+
+- `gnark-crypto` v0.20.1 provides released Apache-2.0 KZG primitives and strict
+  checked decoding paths. Its public batch opener aggregates polynomials only
+  at one shared evaluation point, while tree queries require openings at many
+  positions. Producing one compact proof for those queries would require this
+  package to implement an additional multipoint polynomial-commitment protocol.
+  Its KZG paths also accept no context, start goroutines internally, derive
+  parallelism from `runtime.NumCPU`, and expose mutable SRS structures plus
+  explicitly unsafe decoders.
+- `crate-crypto/go-eth-kzg` is active, tagged, Apache-2.0, and carries a 2025
+  PeerDAS audit. Its API is fixed to 4096-evaluation EIP-4844 blobs and
+  EIP-7594 cells. Arbitrary-point proofs remain one proof per opening, and the
+  cell batch verifier consumes one proof per cell rather than one compact tree
+  multiproof. Public work accepts worker counts but no context; context setup
+  performs seconds of preprocessing, starts one goroutine per setup point, and
+  contains panic paths and mutable exported variables. The reviewed head is
+  newer than the latest v1.5.0 release, so its pooling changes also lack a
+  tagged release boundary.
+- `ethereum/c-kzg-4844` is active, tagged, Apache-2.0, single-threaded, and has
+  independent 2023 and 2025 audits. Its supported proof API is deliberately
+  fixed to EIP-4844 and EIP-7594 and likewise exposes no compact arbitrary
+  multi-position tree opening. The official Go binding uses process-global
+  mutable setup state, panics on setup lifecycle errors, crosses `unsafe` and
+  cgo, and accepts no context or per-operation resource budget.
+
+KZG therefore remains a viable construction family, not a selected backend.
+Adopting any reviewed implementation would require either changing to a
+different fully specified profile with independent tree interoperability or
+authoring the missing compact multipoint protocol, setup boundary, and
+cancellation semantics. The latter would violate the rule against implementing
+polynomial-commitment arithmetic in this tree package. Exact revisions,
+release deltas, source hashes, licenses, audits, and review procedures are
+pinned in the source manifest.
+
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict

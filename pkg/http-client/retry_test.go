@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -382,6 +383,97 @@ func TestRetryRejectsInvalidConfiguration(t *testing.T) {
 	}
 }
 
+func TestRetryConfigurationExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	resolved, err := resolveRetryOptions(RetryOptions{MaximumAttempts: maximumRetryAttempts})
+	if err != nil {
+		t.Fatalf("resolve exact maximum attempts: %v", err)
+	}
+	if resolved.maximumAttempts != 100 ||
+		resolved.baseDelay != 100*time.Millisecond ||
+		resolved.maximumDelay != 2*time.Second ||
+		resolved.maximumElapsed != 10*time.Second ||
+		resolved.maximumRetryAfter != 30*time.Second {
+		t.Fatalf("default retry options = %#v", resolved)
+	}
+
+	explicit, err := resolveRetryOptions(RetryOptions{
+		MaximumAttempts: 2,
+		Delays:          []time.Duration{time.Nanosecond},
+	})
+	if err != nil || explicit.baseDelay != 0 || explicit.maximumDelay != 0 {
+		t.Fatalf("exact explicit-delay bounds = %#v, %v", explicit, err)
+	}
+
+	middleware, err := NewRetryMiddleware(RetryOptions{
+		Name:            "priority-retry",
+		Priority:        7,
+		MaximumAttempts: 2,
+	})
+	if err != nil {
+		t.Fatalf("construct priority retry: %v", err)
+	}
+	if middleware.information.Priority != -493 {
+		t.Fatalf("retry middleware priority = %d", middleware.information.Priority)
+	}
+}
+
+func TestRetryAttemptNumbersAdvanceAndStop(t *testing.T) {
+	t.Parallel()
+
+	request, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	clock := &retryTestClock{now: time.Unix(1_700_000_000, 0)}
+	var attempts []int
+	options := resolvedRetryOptions{
+		maximumAttempts: 2,
+		baseDelay:       time.Nanosecond,
+		maximumDelay:    time.Nanosecond,
+		clock:           clock,
+		jitter:          RetryJitterFunc(func(delay time.Duration) time.Duration { return delay }),
+		policy: RetryPolicyFunc(func(attempt RetryAttempt) bool {
+			attempts = append(attempts, attempt.Attempt)
+			return len(attempts) == 1
+		}),
+	}
+	_, err := executeRetry(request, func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("temporary")
+	}, options)
+	var exhausted *RetryExhaustedError
+	if !errors.As(err, &exhausted) || exhausted.Attempts != 2 ||
+		!slices.Equal(attempts, []int{1, 2}) ||
+		!slices.Equal(clock.Delays(), []time.Duration{time.Nanosecond}) {
+		t.Fatalf("retry attempt sequence = %v, delays %v, error %#v", attempts, clock.Delays(), err)
+	}
+}
+
+func TestRetryElapsedBudgetExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		maximum, elapsed time.Duration
+		delay            time.Duration
+		want             bool
+	}{
+		{name: "disabled at zero", maximum: 0, elapsed: time.Hour, delay: time.Hour},
+		{name: "disabled below zero", maximum: -1, elapsed: time.Hour, delay: time.Hour},
+		{name: "backward clock", maximum: 10, elapsed: -1, want: true},
+		{name: "zero elapsed exact remainder", maximum: 10, elapsed: 0, delay: 10},
+		{name: "elapsed exact maximum", maximum: 10, elapsed: 10, want: true},
+		{name: "delay exact remainder", maximum: 10, elapsed: 1, delay: 9},
+		{name: "delay exceeds remainder", maximum: 10, elapsed: 1, delay: 10, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := retryElapsedBudgetExceeded(test.maximum, test.elapsed, test.delay); got != test.want {
+				t.Fatalf("retry elapsed budget = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestRetryPolicyAndDelayBoundaryHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -408,6 +500,15 @@ func TestRetryPolicyAndDelayBoundaryHelpers(t *testing.T) {
 	if defaultPolicy.ShouldRetry(RetryAttempt{Request: request, BodyReplayable: true, Failure: context.DeadlineExceeded}) {
 		t.Fatal("deadline failure was retryable")
 	}
+	for _, attempt := range []RetryAttempt{
+		{Request: request, Failure: errors.New("failure")},
+		{BodyReplayable: true, Failure: errors.New("failure")},
+		{Request: canceledRequest, BodyReplayable: true, Failure: errors.New("failure")},
+	} {
+		if defaultPolicy.ShouldRetry(attempt) {
+			t.Fatalf("unsafe retry attempt accepted: %#v", attempt)
+		}
+	}
 
 	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
 	for _, test := range []struct {
@@ -418,6 +519,7 @@ func TestRetryPolicyAndDelayBoundaryHelpers(t *testing.T) {
 		{value: "", ok: false},
 		{value: "malformed", ok: false},
 		{value: " 2 ", want: 2 * time.Second, ok: true},
+		{value: now.Format(http.TimeFormat), want: 0, ok: true},
 		{value: now.Add(-time.Second).Format(http.TimeFormat), want: 0, ok: true},
 	} {
 		got, ok := parseRetryAfter(test.value, now)
@@ -443,6 +545,79 @@ func TestRetryPolicyAndDelayBoundaryHelpers(t *testing.T) {
 	options.maximumDelay = 5 * time.Second
 	if got := retryDelay(nil, 1, options); got != 5*time.Second {
 		t.Fatalf("maximum delay clamp = %v", got)
+	}
+}
+
+func TestRetryDelayExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
+	options := resolvedRetryOptions{
+		baseDelay: 1, maximumDelay: 8, maximumRetryAfter: 5 * time.Second,
+		clock:  &retryTestClock{now: now},
+		jitter: RetryJitterFunc(func(delay time.Duration) time.Duration { return delay }),
+	}
+	response := &http.Response{Header: http.Header{"Retry-After": []string{"5"}}}
+	if got := retryDelay(response, 1, options); got != 5*time.Second {
+		t.Fatalf("exact Retry-After maximum = %v", got)
+	}
+
+	for _, test := range []struct {
+		name          string
+		base, maximum time.Duration
+		attempt       int
+		want          time.Duration
+	}{
+		{name: "first", base: 1, maximum: 8, attempt: 1, want: 1},
+		{name: "second", base: 1, maximum: 8, attempt: 2, want: 2},
+		{name: "third", base: 1, maximum: 8, attempt: 3, want: 4},
+		{name: "exact maximum", base: 1, maximum: 8, attempt: 4, want: 8},
+		{name: "exact half doubles", base: 4, maximum: 8, attempt: 2, want: 8},
+		{name: "above half clamps", base: 5, maximum: 8, attempt: 2, want: 8},
+		{name: "initial maximum", base: 8, maximum: 8, attempt: 3, want: 8},
+		{name: "initial overflow", base: 9, maximum: 8, attempt: 1, want: 8},
+		{name: "scaled overflow", base: 1, maximum: 8, attempt: 100, want: 8},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := options
+			candidate.baseDelay = test.base
+			candidate.maximumDelay = test.maximum
+			if got := retryDelay(nil, test.attempt, candidate); got != test.want {
+				t.Fatalf("retry delay = %v, want %v", got, test.want)
+			}
+		})
+	}
+
+	options.delays = []time.Duration{5}
+	for _, test := range []struct {
+		name   string
+		jitter time.Duration
+		want   time.Duration
+	}{
+		{name: "zero accepted", jitter: 0, want: 0},
+		{name: "exact accepted", jitter: 5, want: 5},
+		{name: "negative rejected", jitter: -1, want: 5},
+		{name: "overflow rejected", jitter: 6, want: 5},
+	} {
+		t.Run("explicit "+test.name, func(t *testing.T) {
+			candidate := options
+			candidate.jitter = RetryJitterFunc(func(time.Duration) time.Duration { return test.jitter })
+			if got := retryDelay(nil, 1, candidate); got != test.want {
+				t.Fatalf("explicit jitter delay = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestRetryDrainUsesExactBound(t *testing.T) {
+	t.Parallel()
+
+	body := &retryCountingBody{reader: bytes.NewReader(make([]byte, 70_000))}
+	if err := drainAndCloseRetryResponse(&http.Response{Body: body}); err != nil {
+		t.Fatalf("drain retry response: %v", err)
+	}
+	if body.read != 65_537 || !body.closed {
+		t.Fatalf("retry response drain = %d bytes, closed %t", body.read, body.closed)
 	}
 }
 
@@ -563,8 +738,17 @@ func TestSystemRetryClockAndCryptoJitter(t *testing.T) {
 	<-canceledDuring
 
 	jitter := cryptoRetryJitter{reader: bytes.NewReader(make([]byte, 32))}
+	if got := jitter.Apply(-1); got != 0 {
+		t.Fatalf("negative jitter = %v", got)
+	}
 	if got := jitter.Apply(0); got != 0 {
 		t.Fatalf("zero jitter = %v", got)
+	}
+	if got := (cryptoRetryJitter{reader: errorReader{err: errors.New("entropy failure")}}).Apply(1); got != 1 {
+		t.Fatalf("one-nanosecond jitter = %v", got)
+	}
+	if got := (cryptoRetryJitter{reader: bytes.NewReader([]byte{1})}).Apply(2); got != 1 {
+		t.Fatalf("two-nanosecond jitter = %v", got)
 	}
 	if got := jitter.Apply(time.Second); got < 0 || got > time.Second {
 		t.Fatalf("crypto jitter = %v", got)
@@ -639,6 +823,23 @@ type retryFailingBody struct{ closeErr error }
 
 func (retryFailingBody) Read([]byte) (int, error) { return 0, io.EOF }
 func (body retryFailingBody) Close() error        { return body.closeErr }
+
+type retryCountingBody struct {
+	reader *bytes.Reader
+	read   int
+	closed bool
+}
+
+func (body *retryCountingBody) Read(buffer []byte) (int, error) {
+	read, err := body.reader.Read(buffer)
+	body.read += read
+	return read, err
+}
+
+func (body *retryCountingBody) Close() error {
+	body.closed = true
+	return nil
+}
 
 func closeTestClient(t *testing.T, client *Client) {
 	t.Helper()
