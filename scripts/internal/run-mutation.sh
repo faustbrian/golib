@@ -37,6 +37,8 @@ execution_revision="$(git -C "${root}" rev-parse HEAD)"
 source "${root}/.golib/versions.env"
 # shellcheck disable=SC1091
 source "${root}/scripts/internal/mutation-command.sh"
+# shellcheck disable=SC1091
+source "${root}/scripts/internal/configure-mutation-workers.sh"
 gremlins_binary="$("${root}/scripts/build-golib-gremlins.sh")"
 environment_identity="$(go env -json GOVERSION GOOS GOARCH CGO_ENABLED)"
 legacy_gate_input_digest=""
@@ -69,6 +71,12 @@ tags="$(jq -r --arg directory "${module}" \
     '.modules[] | select(.directory == $directory)
     | .test_tags | map(select(. != "interoperability")) | join(",")' \
     "${root}/modules.json")"
+mutation_workers=4
+if grep -Eq \
+    'github\.com/testcontainers/testcontainers-go([/[:space:]])' \
+    "${directory}/go.mod"; then
+    mutation_workers=1
+fi
 mutation_environment=(env)
 if [[ "${module}" == "pkg/ecma-regexp" ]]; then
     mutation_environment+=( -u TEST262_ROOT)
@@ -97,6 +105,24 @@ ensure_shared_coverage() {
     if [[ -s "${shared_coverage}" && -n "${shared_coverage_elapsed}" ]]; then
         return
     fi
+    coverage_profile="${artifact}/coverage.out"
+    coverage_identity="${artifact}/coverage-profile.json"
+    coverage_input_digest="$(
+        "${root}/scripts/gate-input-digest.sh" coverage "${module}"
+    )"
+    if shared_coverage_elapsed="$(
+        "${root}/scripts/internal/reuse-mutation-coverage.sh" \
+            "${coverage_profile}" \
+            "${coverage_identity}" \
+            "${shared_coverage}" \
+            "${coverage_input_digest}" \
+            "${tags}" \
+            2>/dev/null
+    )"; then
+        printf '[%s] reused content-bound coverage for mutation\n' "${module}"
+        return
+    fi
+    shared_coverage_elapsed=""
     if [[ -n "${modfile}" ]]; then
         shared_coverage_elapsed="$(
             GOWORK=off GOFLAGS="-modfile=${modfile} -mod=mod" \
@@ -159,6 +185,7 @@ for package_directory in "${packages[@]}"; do
     )"
     build_mutation_arguments \
         "${target}" "${package_report}" "${tags}" "${discover_only}"
+    configure_mutation_workers "${mutation_workers}"
 
     reviewed_zero_mutant() {
         local source_directory source_digest reviewed

@@ -13,7 +13,9 @@ artifact="${root}/.artifacts/${module}"
 profile="${artifact}/coverage.out"
 packages="${artifact}/coverage-packages.txt"
 report="${artifact}/coverage-report.txt"
+identity="${artifact}/coverage-profile.json"
 mkdir -p "${artifact}"
+rm -f "${identity}"
 
 cd "${directory}"
 jq -r --arg directory "${module}" '
@@ -48,7 +50,16 @@ if [[ "${module}" == "pkg/xsd" ]]; then
     XSTS_ROOT="$(./scripts/prepare-xsts.sh "${xsts_work}")"
     export XSTS_ROOT
 fi
+input_digest="$(
+    "${root}/scripts/gate-input-digest.sh" coverage "${module}"
+)"
+started="$(date +%s)"
 GOWORK=off go test "${test_arguments[@]}"
+finished="$(date +%s)"
+elapsed=$((finished - started))
+if [[ "${elapsed}" -lt 1 ]]; then
+    elapsed=1
+fi
 [[ -s "${profile}" ]] || {
     printf 'coverage profile is missing for %s\n' "${module}" >&2
     exit 1
@@ -96,3 +107,27 @@ else
     printf 'one or more production packages are below exact 100%% coverage\n' >&2
     exit 1
 fi
+
+profile_sha256="$(shasum -a 256 "${profile}" | awk '{print $1}')"
+completed_input_digest="$(
+    "${root}/scripts/gate-input-digest.sh" coverage "${module}"
+)"
+if [[ "${completed_input_digest}" != "${input_digest}" ]]; then
+    printf 'coverage inputs changed during execution for %s\n' "${module}" >&2
+    exit 1
+fi
+identity_tmp="$(mktemp "${identity}.tmp.XXXXXX")"
+jq -n \
+    --arg input_digest "${input_digest}" \
+    --arg test_tags "${tags}" \
+    --arg profile_sha256 "${profile_sha256}" \
+    --arg elapsed "${elapsed}s" '
+        {
+            schema_version: 1,
+            input_digest: $input_digest,
+            test_tags: $test_tags,
+            profile_sha256: $profile_sha256,
+            elapsed: $elapsed
+        }
+    ' >"${identity_tmp}"
+mv "${identity_tmp}" "${identity}"

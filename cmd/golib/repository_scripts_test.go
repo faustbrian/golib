@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -979,7 +980,10 @@ func TestCanonicalMutationGateCannotDelegateToWeakerModuleTargets(t *testing.T) 
 		string(mutationScratch) + string(mutationDigest)
 	for _, required := range []string{
 		`build-golib-gremlins.sh`,
+		`configure-mutation-workers.sh`,
 		`mutation-coverage.sh`,
+		`reuse-mutation-coverage.sh`,
+		`coverage-profile.json`,
 		`GOLIB_GREMLINS_COVERAGE_PROFILE`,
 		`GOLIB_GREMLINS_COVERAGE_ELAPSED`,
 		`PATH="$(dirname "${GOLIB_REAL_GO}"):${PATH}"`,
@@ -2699,6 +2703,198 @@ printf '%s\n' "$*" >"$GOLIB_FAKE_GO_OUTPUT"
 	}
 	if !strings.Contains(string(arguments), "-timeout=20m") {
 		t.Fatalf("mutation coverage Go invocation is unbounded: %s", arguments)
+	}
+}
+
+func TestCoverageProfileIdentityRejectsInputsChangedDuringExecution(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	for _, directory := range []string{"scripts", "pkg/example", "bin"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	coverageScript, err := os.ReadFile(filepath.Join(root, "scripts", "check-coverage.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "scripts", "check-coverage.sh"), string(coverageScript))
+	if err := os.Chmod(filepath.Join(repository, "scripts", "check-coverage.sh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+cat "$root/input-digest"
+`)
+	if err := os.Chmod(filepath.Join(repository, "scripts", "gate-input-digest.sh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "test_tags": [],
+    "packages": [{
+      "coverage_required": true,
+      "import_path": "example.test/example"
+    }]
+  }]
+}
+`)
+	digestFile := filepath.Join(repository, "input-digest")
+	writeTestFile(t, digestFile, "before\n")
+	fakeGo := filepath.Join(repository, "bin", "go")
+	writeTestFile(t, fakeGo, `#!/bin/sh
+set -eu
+profile=
+for argument in "$@"; do
+    case "$argument" in
+        -coverprofile=*) profile=${argument#-coverprofile=} ;;
+    esac
+done
+test -n "$profile"
+printf 'mode: atomic\nexample.test/example/example.go:1.1,1.2 1 1\n' >"$profile"
+printf 'after\n' >"$GOLIB_COVERAGE_DIGEST_FILE"
+`)
+	if err := os.Chmod(fakeGo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize coverage fixture: %v\n%s", err, output)
+	}
+
+	command := exec.Command(
+		filepath.Join(repository, "scripts", "check-coverage.sh"),
+		"pkg/example",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		environmentWithValues(
+			os.Environ(),
+			"PATH",
+			filepath.Join(repository, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+		),
+		"GOLIB_COVERAGE_DIGEST_FILE",
+		digestFile,
+	)
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("coverage accepted inputs changed during execution:\n%s", output)
+	}
+	identity := filepath.Join(
+		repository,
+		".artifacts",
+		"pkg/example",
+		"coverage-profile.json",
+	)
+	if _, err := os.Stat(identity); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("invalidated coverage identity exists: %v", err)
+	}
+}
+
+func TestMutationCoverageReusesOnlyContentBoundCurrentProfile(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	directory := t.TempDir()
+	profile := filepath.Join(directory, "coverage.out")
+	identity := filepath.Join(directory, "coverage-profile.json")
+	destination := filepath.Join(directory, "mutation.coverage")
+	contents := []byte("mode: atomic\nexample.go:1.1,1.2 1 1\n")
+	writeTestFile(t, profile, string(contents))
+	digest := sha256.Sum256(contents)
+	writeTestFile(t, identity, fmt.Sprintf(`{
+  "schema_version": 1,
+  "input_digest": "current-input",
+  "test_tags": "integration",
+  "profile_sha256": "%x",
+  "elapsed": "7s"
+}
+`, digest))
+
+	command := exec.Command(
+		filepath.Join(root, "scripts", "internal", "reuse-mutation-coverage.sh"),
+		profile,
+		identity,
+		destination,
+		"current-input",
+		"integration",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("reuse current coverage profile: %v\n%s", err, output)
+	}
+
+	reused, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(reused, contents) {
+		t.Fatalf("reused coverage profile = %q, want %q", reused, contents)
+	}
+	assertRejected := func(name string, inputDigest string, tags string) {
+		t.Helper()
+		rejectedDestination := filepath.Join(directory, name+".coverage")
+		command := exec.Command(
+			filepath.Join(root, "scripts", "internal", "reuse-mutation-coverage.sh"),
+			profile,
+			identity,
+			rejectedDestination,
+			inputDigest,
+			tags,
+		)
+		if output, err := command.CombinedOutput(); err == nil {
+			t.Fatalf("reused %s coverage profile: %s", name, output)
+		}
+		if _, err := os.Stat(rejectedDestination); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s coverage destination exists: %v", name, err)
+		}
+	}
+	assertRejected("stale-input", "stale-input", "integration")
+	assertRejected("wrong-tags", "current-input", "unit")
+
+	writeTestFile(t, profile, string(append(contents, []byte("tampered\n")...)))
+	tamperedDestination := filepath.Join(directory, "tampered.coverage")
+	command = exec.Command(
+		filepath.Join(root, "scripts", "internal", "reuse-mutation-coverage.sh"),
+		profile,
+		identity,
+		tamperedDestination,
+		"current-input",
+		"integration",
+	)
+	if output, err := command.CombinedOutput(); err == nil {
+		t.Fatalf("reused tampered coverage profile: %s", output)
+	}
+	if _, err := os.Stat(tamperedDestination); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("tampered coverage destination exists: %v", err)
+	}
+}
+
+func TestMutationCommandHonorsBoundedWorkerCount(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	command := exec.Command(
+		"bash",
+		"-c",
+		`. "$1"
+. "$2"
+build_mutation_arguments . report.json integration 0
+configure_mutation_workers 1
+printf '%s\n' "${mutation_arguments[@]}"`,
+		"mutation-worker-test",
+		filepath.Join(root, "scripts", "internal", "mutation-command.sh"),
+		filepath.Join(root, "scripts", "internal", "configure-mutation-workers.sh"),
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build mutation command: %v\n%s", err, output)
+	}
+	arguments := strings.Split(strings.TrimSpace(string(output)), "\n")
+	workers := slices.Index(arguments, "--workers")
+	if workers < 0 || workers+1 >= len(arguments) || arguments[workers+1] != "1" {
+		t.Fatalf("mutation worker arguments = %q, want --workers 1", arguments)
 	}
 }
 
