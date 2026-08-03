@@ -42,7 +42,7 @@ func TestRemoteJWKRotationAndIssuerOutage(t *testing.T) {
 		t.Fatalf("NewRemote() error = %v", err)
 	}
 	t.Cleanup(func() {
-		if err := remote.Close(context.Background()); err != nil {
+		if err := closeRemote(t, remote); err != nil {
 			t.Errorf("Close() error = %v", err)
 		}
 	})
@@ -96,7 +96,11 @@ func TestRemoteRefreshAndAuthenticationAreRaceSafe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRemote() error = %v", err)
 	}
-	t.Cleanup(func() { _ = remote.Close(context.Background()) })
+	t.Cleanup(func() {
+		if err := closeRemote(t, remote); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
 	validator, err := authjwt.New(authjwt.Config{
 		Issuer: "https://issuer.example.test", Audience: "orders",
 		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Provider: remote,
@@ -208,10 +212,10 @@ func TestRemoteLifecycleRejectsClosedAndCanceledOperations(t *testing.T) {
 	if err := remote.Refresh(canceled); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("Refresh(canceled) error = %v", err)
 	}
-	if err := remote.Close(context.Background()); err != nil {
+	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
-	if err := remote.Close(context.Background()); err != nil {
+	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close(second) error = %v", err)
 	}
 	if _, err := remote.KeySet(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
@@ -286,7 +290,7 @@ func TestRemoteCloseReportsCanceledJoin(t *testing.T) {
 	if err := remote.Close(canceled); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Close(canceled) error = %v", err)
 	}
-	if err := remote.Close(context.Background()); err != nil {
+	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close(cleanup) error = %v", err)
 	}
 }
@@ -345,7 +349,7 @@ func TestRemoteCloseDeadlineIsNotBlockedByRefreshLock(t *testing.T) {
 	}
 	releaseOnce.Do(func() { close(release) })
 	<-refreshDone
-	if err := remote.Close(context.Background()); err != nil {
+	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close(cleanup) error = %v", err)
 	}
 }
@@ -374,6 +378,14 @@ func TestProviderFailureIsUnavailableAndSecretSafe(t *testing.T) {
 	if containsText(err.Error(), "secret-token") {
 		t.Fatalf("Authenticate() disclosed provider error: %q", err)
 	}
+}
+
+func closeRemote(t *testing.T, remote *authjwt.Remote) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	return remote.Close(ctx)
 }
 
 type jwkServerState struct {
