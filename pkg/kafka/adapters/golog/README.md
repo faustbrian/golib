@@ -44,6 +44,8 @@ remaining counts. They preserve exact replay progress without turning source
 coordinates or identities into unbounded fields.
 Inspector observations add fixed broker, topic, consumer-group, member, and
 partition counts plus dependency-health and readiness-hysteresis fields.
+Broker-connect observations add only the bounded configured
+`kafka.authentication.method`.
 Inspected identities, broker hosts, cluster IDs, assignments, and lag
 coordinates never enter adapter-generated fields.
 

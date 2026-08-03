@@ -34,6 +34,7 @@ func TestBrokerObserverReportsCopiedConnectionMetadata(t *testing.T) {
 	hook := newFranzObserverHook(
 		"producer-client",
 		"",
+		AuthenticationSCRAMSHA512,
 		newObserverDispatcher(policy),
 	)
 	hook.now = func() time.Time {
@@ -56,6 +57,7 @@ func TestBrokerObserverReportsCopiedConnectionMetadata(t *testing.T) {
 		got.GroupID != "" ||
 		got.BrokerID != 7 ||
 		!got.BrokerKnown ||
+		got.AuthenticationMethod != AuthenticationSCRAMSHA512 ||
 		!got.StartedAt.Equal(finishedAt.Add(-250*time.Millisecond)) ||
 		got.Duration != 250*time.Millisecond ||
 		!got.Succeeded ||
@@ -125,6 +127,7 @@ func TestBrokerObserverReportsThrottleAndDisconnect(t *testing.T) {
 	hook := newFranzObserverHook(
 		"consumer-client",
 		"projection-group",
+		AuthenticationNone,
 		newObserverDispatcher(policy),
 	)
 	hook.now = func() time.Time {
@@ -203,6 +206,7 @@ func TestBrokerObserverClipsInvalidHookMetadata(t *testing.T) {
 	hook := newFranzObserverHook(
 		"bounded-client",
 		"",
+		AuthenticationPlain,
 		newObserverDispatcher(policy),
 	)
 	hook.now = func() time.Time {
@@ -236,6 +240,7 @@ func TestBrokerObserverClipsInvalidHookMetadata(t *testing.T) {
 		!got[0].StartedAt.Equal(observedAt) ||
 		got[0].Succeeded ||
 		got[0].Category != ErrorAuthorization ||
+		got[0].AuthenticationMethod != AuthenticationPlain ||
 		!got[0].Truncated {
 		t.Fatalf("bounded connection observation = %#v", got[0])
 	}
@@ -463,6 +468,7 @@ func newTestFranzObserverHook(
 	return newFranzObserverHook(
 		clientID,
 		groupID,
+		AuthenticationNone,
 		newObserverDispatcher(policy),
 	)
 }

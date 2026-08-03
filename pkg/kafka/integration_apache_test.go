@@ -47,7 +47,7 @@ const (
 	apacheKafkaPIDFile        = "/tmp/golib-kafka.pid"
 	apacheKafkaStopFile       = "/tmp/golib-kafka.stop"
 	apacheKafkaSubnetPool     = 4_096
-	apacheKafkaCleanupTimeout = 20 * time.Second
+	apacheKafkaCleanupTimeout = time.Minute
 
 	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
 	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
@@ -148,6 +148,8 @@ func TestApacheKafkaConsumerChild(t *testing.T) {
 }
 
 func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 
@@ -218,6 +220,8 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 func TestApacheKafkaReplayFailsClosedAfterUncleanElectionTruncation(
 	t *testing.T,
 ) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
@@ -416,6 +420,8 @@ func TestApacheKafkaReplayFailsClosedAfterUncleanElectionTruncation(
 func TestApacheKafkaReplayFailsClosedAfterLogRecoveryTruncation(
 	t *testing.T,
 ) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -1090,43 +1096,58 @@ func runApacheKafkaRebalanceChild(t *testing.T) {
 		45*time.Second,
 	)
 	defer cancelChild()
-	result, err := processor.RunOnce(
-		childCtx,
-		kafka.TransactionHandlerFunc(func(
-			ctx context.Context,
-			record kafka.ConsumedRecord,
-			transaction kafka.Transaction,
-		) error {
-			if err := transaction.Publish(ctx, kafka.ProducerRecord{
-				Topic: os.Getenv(apacheKafkaProcessorOutput),
-				Key:   record.Key,
-				Value: append([]byte("rebalanced-"), record.Value...),
-			}); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintln(
-				os.Stdout,
-				apacheKafkaProcessorReady,
-			); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintf(
-				os.Stdout,
-				"%s=%d\n",
-				apacheKafkaProcessorPartition,
-				record.Partition,
-			); err != nil {
-				return err
-			}
-
-			release := []byte{0}
-			if _, err := io.ReadFull(os.Stdin, release); err != nil {
-				return err
-			}
-
-			return nil
-		}),
+	var (
+		result kafka.TransactionPollResult
+		err    error
 	)
+	for {
+		result, err = processor.RunOnce(
+			childCtx,
+			kafka.TransactionHandlerFunc(func(
+				ctx context.Context,
+				record kafka.ConsumedRecord,
+				transaction kafka.Transaction,
+			) error {
+				if err := transaction.Publish(ctx, kafka.ProducerRecord{
+					Topic: os.Getenv(apacheKafkaProcessorOutput),
+					Key:   record.Key,
+					Value: append([]byte("rebalanced-"), record.Value...),
+				}); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintln(
+					os.Stdout,
+					apacheKafkaProcessorReady,
+				); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(
+					os.Stdout,
+					"%s=%d\n",
+					apacheKafkaProcessorPartition,
+					record.Partition,
+				); err != nil {
+					return err
+				}
+
+				release := []byte{0}
+				if _, err := io.ReadFull(os.Stdin, release); err != nil {
+					return err
+				}
+
+				return nil
+			}),
+		)
+		var consumerErr *kafka.ConsumerError
+		if result == (kafka.TransactionPollResult{}) &&
+			errors.As(err, &consumerErr) &&
+			consumerErr.Operation() == kafka.ConsumerOperationPoll &&
+			consumerErr.Retryable() {
+			continue
+		}
+
+		break
+	}
 	if !errors.Is(err, kafka.ErrTransactionNotCommitted) ||
 		result != (kafka.TransactionPollResult{
 			Polled: 1, Processed: 1, Published: 1,
@@ -1139,6 +1160,8 @@ func runApacheKafkaRebalanceChild(t *testing.T) {
 }
 
 func TestApacheKafkaCooperativeTransactionRebalance(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -1166,6 +1189,8 @@ func TestApacheKafkaCooperativeTransactionRebalance(t *testing.T) {
 }
 
 func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	const (
 		eagerClient       = "golib-apache-consumer-eager"
 		migratingClient   = "golib-apache-consumer-migrating"
@@ -1256,6 +1281,8 @@ func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
 }
 
 func TestApacheKafkaConsumerMultiPartitionRebalance(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -1449,6 +1476,8 @@ func TestApacheKafkaConsumerMultiPartitionRebalance(t *testing.T) {
 }
 
 func TestApacheKafkaRackLocalConsumerCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -1495,6 +1524,8 @@ func TestApacheKafkaRackLocalConsumerCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
@@ -1758,6 +1789,8 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaTransactionTimeout(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -2323,22 +2356,34 @@ func proveTransactionProcessorProduceResponseLoss(
 	}
 
 	var handlerStartedAt time.Time
-	result, err := processor.RunOnce(
-		ctx,
-		kafka.TransactionHandlerFunc(func(
-			handlerCtx context.Context,
-			_ kafka.ConsumedRecord,
-			transaction kafka.Transaction,
-		) error {
-			handlerStartedAt = time.Now()
+	var result kafka.TransactionPollResult
+	for {
+		result, err = processor.RunOnce(
+			ctx,
+			kafka.TransactionHandlerFunc(func(
+				handlerCtx context.Context,
+				_ kafka.ConsumedRecord,
+				transaction kafka.Transaction,
+			) error {
+				handlerStartedAt = time.Now()
 
-			return transaction.Publish(handlerCtx, kafka.ProducerRecord{
-				Topic: outputTopic,
-				Key:   []byte("processor-response-loss"),
-				Value: []byte("processor-response-loss"),
-			})
-		}),
-	)
+				return transaction.Publish(handlerCtx, kafka.ProducerRecord{
+					Topic: outputTopic,
+					Key:   []byte("processor-response-loss"),
+					Value: []byte("processor-response-loss"),
+				})
+			}),
+		)
+		var consumerErr *kafka.ConsumerError
+		if result == (kafka.TransactionPollResult{}) &&
+			errors.As(err, &consumerErr) &&
+			consumerErr.Operation() == kafka.ConsumerOperationPoll &&
+			consumerErr.Retryable() {
+			continue
+		}
+
+		break
+	}
 	duration := time.Since(handlerStartedAt)
 	var deliveryErr *kafka.DeliveryError
 	if result.Polled != 1 || result.Processed != 0 ||

@@ -149,6 +149,9 @@ without exposing franz-go values or transaction payload counts. `RunOnce` polls 
 `Group.MaxPollRecords`, begins one transaction, calls the
 `TransactionHandler` sequentially for every fetched record, and commits only
 after all handlers and all synchronous output deliveries succeed.
+Source poll and group-join failures are returned as redacted `ConsumerError`
+values with `ConsumerOperationPoll`; retry decisions use their stable category
+rather than franz-go or Kafka protocol error types.
 `TransactionPollResult.Published` counts acknowledged records inside the open
 transaction; they are durable to `read_committed` consumers only when
 `Committed` is true. A false commit result returns
@@ -286,6 +289,10 @@ the producer. Consumer events report each record or partition-batch processing
 attempt, each offset-commit attempt, the final bounded poll result, assignment,
 revocation, ownership loss, blocked rebalances, group-management errors, and
 broker connection, Kafka request, throttle, and disconnect activity.
+Broker-connect observations identify the configured bounded
+`AuthenticationMethod`; success proves that franz-go completed API-version
+negotiation and that authentication flow, while failures retain only the stable
+redacted category.
 Validated single-topic metadata can include source coordinates and conservative
 record bytes; mixed-topic or invalid metadata is omitted. Observer failures do
 not change handler, commit, or poll outcomes. Consumer observers run before the

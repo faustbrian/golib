@@ -29,6 +29,19 @@ const integrationKafkaImage = "confluentinc/confluent-local:7.5.0@" +
 
 const integrationKafkaVersion = "7.5.0-ccs"
 
+const integrationBrokerConcurrency = 2
+
+var integrationBrokerSlots = make(chan struct{}, integrationBrokerConcurrency)
+
+func runKafkaBrokerIntegration(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	integrationBrokerSlots <- struct{}{}
+	t.Cleanup(func() {
+		<-integrationBrokerSlots
+	})
+}
+
 func TestIntegrationKafkaRuntimeVersionValidation(t *testing.T) {
 	t.Parallel()
 	if err := validateIntegrationKafkaVersion("7.5.0-ccs"); err != nil {
@@ -40,6 +53,8 @@ func TestIntegrationKafkaRuntimeVersionValidation(t *testing.T) {
 }
 
 func TestKafkaProducerConsumerCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -1644,11 +1659,14 @@ func proveConsumeTransformProduce(
 		}
 	}()
 
+	lastSourceOffset := int64(-1)
 	transform := func(
 		ctx context.Context,
 		record kafka.ConsumedRecord,
 		transaction kafka.Transaction,
 	) error {
+		lastSourceOffset = record.Offset
+
 		return transaction.Publish(ctx, kafka.ProducerRecord{
 			Topic: outputTopic,
 			Key:   record.Key,
@@ -1674,13 +1692,14 @@ func proveConsumeTransformProduce(
 
 		break
 	}
+	committedSourceOffset := lastSourceOffset + 1
 	assertPartitionCommits(
 		t,
 		ctx,
 		brokers,
 		sourceTopic,
 		groupID,
-		map[int32]int64{0: 4},
+		map[int32]int64{0: committedSourceOffset},
 	)
 	if values := consumeTransactionValues(
 		t,
@@ -1731,7 +1750,7 @@ func proveConsumeTransformProduce(
 		brokers,
 		sourceTopic,
 		groupID,
-		map[int32]int64{0: 4},
+		map[int32]int64{0: committedSourceOffset},
 	)
 	if values := consumeTransactionValues(
 		t,
@@ -1771,7 +1790,7 @@ func proveConsumeTransformProduce(
 		brokers,
 		sourceTopic,
 		groupID,
-		map[int32]int64{0: 5},
+		map[int32]int64{0: lastSourceOffset + 1},
 	)
 	if values := consumeTransactionValues(
 		t,

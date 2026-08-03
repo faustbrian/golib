@@ -406,7 +406,12 @@ func newProducer(
 		cancelClient:          cancelClient,
 	}
 	if dispatcher.enabled() {
-		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook := newFranzObserverHook(
+			config.ClientID,
+			"",
+			config.Security.Authentication.Method(),
+			dispatcher,
+		)
 		observerHook.before = producer.beginObservation
 		observerHook.after = producer.finishObservation
 		options = append(options, kgo.WithHooks(observerHook))

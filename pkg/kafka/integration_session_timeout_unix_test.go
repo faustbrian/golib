@@ -36,6 +36,8 @@ func TestApacheKafkaSessionTimeoutConsumerChild(t *testing.T) {
 }
 
 func TestApacheKafkaConsumerSessionTimeoutOwnershipLoss(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 

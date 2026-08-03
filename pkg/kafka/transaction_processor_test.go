@@ -367,6 +367,44 @@ func TestTransactionProcessorCommitsCompletePollAtomically(t *testing.T) {
 	}
 }
 
+func TestTransactionProcessorClassifiesSourcePollFailure(t *testing.T) {
+	t.Parallel()
+
+	backend := &recordingTransactionProcessorBackend{
+		fetches: []kgo.Fetches{kgo.NewErrFetch(kerr.NotCoordinator)},
+	}
+	processor := transactionProcessorForTest(t, backend)
+	result, err := processor.RunOnce(
+		context.Background(),
+		TransactionHandlerFunc(func(
+			context.Context,
+			ConsumedRecord,
+			Transaction,
+		) error {
+			t.Fatal("handler called for a failed source poll")
+
+			return nil
+		}),
+	)
+	var consumerErr *ConsumerError
+	if result != (TransactionPollResult{}) ||
+		!errors.Is(err, kerr.NotCoordinator) ||
+		!errors.As(err, &consumerErr) ||
+		consumerErr.Operation() != ConsumerOperationPoll ||
+		consumerErr.Category() != ErrorRetryable ||
+		!consumerErr.Retryable() ||
+		backend.beginCalls != 0 ||
+		len(backend.endTries) != 0 {
+		t.Fatalf(
+			"RunOnce() = (%#v, %v), consumer=%#v, backend=%#v",
+			result,
+			err,
+			consumerErr,
+			backend,
+		)
+	}
+}
+
 func TestTransactionProcessorAbortsWholePollOnHandlerFailure(t *testing.T) {
 
 	backend := &recordingTransactionProcessorBackend{
@@ -462,7 +500,12 @@ func TestTransactionProcessorAbortsPartialFetchError(t *testing.T) {
 			return nil
 		}),
 	)
+	var consumerErr *ConsumerError
 	if !errors.Is(err, fetchErr) ||
+		!errors.As(err, &consumerErr) ||
+		consumerErr.Operation() != ConsumerOperationPoll ||
+		consumerErr.Category() != ErrorPermanent ||
+		consumerErr.Retryable() ||
 		result != (TransactionPollResult{Polled: 1}) ||
 		!reflect.DeepEqual(
 			backend.endTries,

@@ -306,9 +306,29 @@ func assertConformanceCommittedOffset(
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), operationTimeout)
 	defer cancel()
-	got, err := harness.CommittedOffset(ctx, group, topic, partition)
-	if err != nil || got != want {
-		t.Fatalf("CommittedOffset() = %d, %v; want %d", got, err, want)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var (
+		got int64
+		err error
+	)
+	for {
+		got, err = harness.CommittedOffset(ctx, group, topic, partition)
+		if err == nil && got == want {
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for committed offset: %v; got %d, error = %v; want %d",
+				context.Cause(ctx),
+				got,
+				err,
+				want,
+			)
+		case <-ticker.C:
+		}
 	}
 }
 

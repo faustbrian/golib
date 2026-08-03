@@ -108,6 +108,10 @@ topic, consumer-group, member, and partition counts are present when non-zero;
 dependency and readiness spans include the fixed health, decision, and
 hysteresis fields. Inspected identities and broker-controlled descriptive
 metadata are never attributes.
+Broker-connect spans add the bounded adapter-owned
+`kafka.authentication.method` attribute. It identifies only the configured
+SASL method; no credential, token, username, certificate, endpoint, or distinct
+authentication latency is exported.
 
 ## Trace timing and propagation boundary
 

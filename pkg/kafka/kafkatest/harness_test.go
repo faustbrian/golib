@@ -2,10 +2,35 @@ package kafkatest
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/kafka"
 )
+
+func TestCommittedOffsetAssertionWaitsForBrokerVisibility(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	harness := BrokerHarness{
+		CommittedOffset: func(
+			context.Context,
+			string,
+			string,
+			int32,
+		) (int64, error) {
+			if calls.Add(1) < 3 {
+				return -1, nil
+			}
+
+			return 1, nil
+		},
+	}
+	assertConformanceCommittedOffset(t, harness, "group", "topic", 0, 1)
+	if calls.Load() != 3 {
+		t.Fatalf("committed-offset lookup count = %d", calls.Load())
+	}
+}
 
 func TestBrokerHarnessRejectsIncompleteOrUnsafeFixtures(t *testing.T) {
 	t.Parallel()

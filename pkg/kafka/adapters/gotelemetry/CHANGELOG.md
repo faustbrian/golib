@@ -11,6 +11,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- bounded `kafka.authentication.method` broker-connect span attributes that
+  identify the configured SASL flow without credentials or a fabricated
+  standalone authentication span
 - `CLIENT` spans for producer, consumer, and consume-transform-produce
   shutdown-attempt observations
 - `CLIENT` spans and bounded adapter-owned diagnostics for cluster, topic,

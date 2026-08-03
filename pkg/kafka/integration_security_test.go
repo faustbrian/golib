@@ -82,6 +82,8 @@ type secureKafkaPKI struct {
 }
 
 func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -120,7 +122,7 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		}),
 		CredentialTimeout: time.Second,
 	}
-	publishSecureRecord(t, ctx, broker.endpoint, topic, "mtls", security)
+	publishSecureRecord(t, ctx, broker.endpoint, topic, "mtls", security, kafka.ObserverPolicy{})
 	values := consumeSecureRecords(
 		t,
 		ctx,
@@ -368,6 +370,8 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -416,6 +420,32 @@ func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
 				test.password,
 				test.build,
 			)
+			var (
+				connected          atomic.Bool
+				observedAuthMethod atomic.Uint32
+			)
+			observerPolicy := kafka.ObserverPolicy{
+				Timeout: time.Second,
+				FailureHandler: func(
+					context.Context,
+					kafka.ObservationFailure,
+				) {
+				},
+				Observers: []kafka.ObserverFunc{func(
+					_ context.Context,
+					observation kafka.Observation,
+				) error {
+					if observation.Kind == kafka.ObservationBrokerConnect &&
+						observation.Succeeded {
+						observedAuthMethod.Store(uint32(
+							observation.AuthenticationMethod,
+						))
+						connected.Store(true)
+					}
+
+					return nil
+				}},
+			}
 			publishSecureRecord(
 				t,
 				ctx,
@@ -423,9 +453,20 @@ func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
 				topic,
 				test.name,
 				security,
+				observerPolicy,
 			)
 			if calls.Load() == 0 {
 				t.Fatalf("%s credential provider was not used", test.name)
+			}
+			if !connected.Load() ||
+				kafka.AuthenticationMethod(observedAuthMethod.Load()) !=
+					security.Authentication.Method() {
+				t.Fatalf(
+					"%s observed authentication = %s, connected=%t",
+					test.name,
+					kafka.AuthenticationMethod(observedAuthMethod.Load()),
+					connected.Load(),
+				)
 			}
 
 			badSecurity, _ := usernamePasswordSecurity(
@@ -493,6 +534,8 @@ func TestApacheKafkaSASLOverTLSCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -568,6 +611,8 @@ func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -740,6 +785,8 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 }
 
 func TestApacheKafkaReplayCompactionGapCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -849,6 +896,8 @@ func TestApacheKafkaReplayCompactionGapCompatibility(t *testing.T) {
 }
 
 func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -885,7 +934,7 @@ func TestApacheKafkaSignedJWTOAuthBearerCompatibility(t *testing.T) {
 		Authentication:    kafka.NewOAuthBearerAuthentication(provider),
 		CredentialTimeout: time.Second,
 	}
-	publishSecureRecord(t, ctx, broker.endpoint, topic, "oauth", security)
+	publishSecureRecord(t, ctx, broker.endpoint, topic, "oauth", security, kafka.ObserverPolicy{})
 	values := consumeSecureRecords(
 		t,
 		ctx,
@@ -2048,6 +2097,7 @@ func publishSecureRecord(
 	topic string,
 	value string,
 	security kafka.ClientSecurity,
+	observers kafka.ObserverPolicy,
 ) {
 	t.Helper()
 
@@ -2056,6 +2106,7 @@ func publishSecureRecord(
 		ClientID:      "golib-secure-producer-" + value,
 		AllowedTopics: []string{topic},
 		Security:      security,
+		Observers:     observers,
 	})
 	if err != nil {
 		t.Fatalf("construct secured Kafka producer: %v", err)

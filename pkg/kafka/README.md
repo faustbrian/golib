@@ -110,10 +110,13 @@ direct requirements.
 
 Optional `ProducerConfig.Observers` receive ordered synchronous completion
 events for record, batch, and asynchronous delivery plus broker connections,
-Kafka protocol requests, throttling, disconnects, and shutdown attempts. Events contain copied
-payload-free metadata and never broker endpoints; callback errors and panics
-cannot replace the delivery result. Callbacks are cooperatively deadline-bound
-and must not re-enter the producer. See the
+Kafka protocol requests, throttling, disconnects, and shutdown attempts.
+Broker-connect events identify only the configured bounded SASL method; a
+successful event covers API-version negotiation and that authentication flow.
+Events contain copied payload-free metadata and never broker endpoints or
+credentials; callback errors and panics cannot replace the delivery result.
+Callbacks are cooperatively deadline-bound and must not re-enter the producer.
+See the
 [observability guide](docs/observability.md).
 
 Set a unique `TransactionalID` to use `RunTransaction` for Kafka-only atomic

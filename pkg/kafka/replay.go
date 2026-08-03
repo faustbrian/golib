@@ -386,7 +386,12 @@ func newReplayReader(
 		observers:             dispatcher,
 	}
 	if dispatcher.enabled() {
-		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook := newFranzObserverHook(
+			config.ClientID,
+			"",
+			config.Security.Authentication.Method(),
+			dispatcher,
+		)
 		observerHook.before = reader.beginObservation
 		observerHook.after = reader.finishObservation
 		options = append(options, kgo.WithHooks(observerHook))

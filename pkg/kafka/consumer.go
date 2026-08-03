@@ -375,6 +375,7 @@ func newConsumer(
 		observerHook := newFranzObserverHook(
 			config.ClientID,
 			config.GroupID,
+			config.Security.Authentication.Method(),
 			dispatcher,
 		)
 		observerHook.before = consumer.beginObservation

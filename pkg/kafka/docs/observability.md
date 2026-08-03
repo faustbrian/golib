@@ -118,7 +118,8 @@ Every callback context is callback-scoped and must not be retained.
 - `ObservationTransactionProcessorShutdown` after an admitted
   consume-transform-produce shutdown completes or remains incomplete;
 - `ObservationBrokerConnect` after a connection initialization attempt,
-  including API-version negotiation and configured SASL;
+  including API-version negotiation and configured SASL; its bounded
+  `AuthenticationMethod` identifies the configured flow without credentials;
 - `ObservationBrokerRequest` after one Kafka protocol request fails during
   write or completes its response read;
 - `ObservationBrokerThrottle` when a broker reports a throttle interval; or
@@ -158,7 +159,7 @@ exporting a public observation rather than reimplementing these invariants.
 | Readiness | `DependencyHealthy`, `Ready`, `ConsecutiveFailures`, and `ConsecutiveSuccesses` are the conclusive post-probe state; operation success matches dependency health, not the stateful `Ready` decision |
 | Inspector shutdown | Reports one successful idempotent close transition; repeated closes emit nothing |
 | Producer/consumer/transaction-processor shutdown | Reports each attempt that acquires lifecycle ownership, including incomplete attempts and a later successful retry; invalid, observer-reentrant, concurrent, and already-completed calls emit nothing |
-| Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; a negative upstream duration is clipped and marked truncated |
+| Broker connect | `Duration` covers dial, API-version negotiation, and configured SASL initialization; `AuthenticationMethod` is the configured bounded method, including explicit `none`; a negative upstream duration is clipped and marked truncated |
 | Broker request | `APIKey` is Kafka's numeric protocol API key; `RequestBytes` and `ResponseBytes` exclude TLS framing; `QueueDuration` includes franz-go queue and throttle waiting; `Duration` covers that wait through response completion |
 | Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay. The event is request-level and deliberately omits topic, partition, and record coordinates because franz-go's throttle hook does not identify the request and one produce response can cover many records. |
 | Broker disconnect | Reports the connection close without inventing a cause because franz-go does not supply one to this hook |
@@ -168,9 +169,10 @@ Seed connections can be reported with `BrokerKnown=false`. Invalid negative
 byte counts and durations are clipped to zero; duration overflow saturates;
 all such cases set `Truncated`. Connection errors and request failures use only
 the package's stable redacted `ErrorCategory`. A successful broker connection
-proves that configured SASL initialization completed, but franz-go does not
-provide a separate successful-authentication hook, so the package does not
-invent an authentication event or distinct authentication latency.
+proves that the reported configured SASL method completed initialization.
+franz-go does not provide a separate successful-authentication hook, so the
+package does not invent a second authentication event or distinct
+authentication latency.
 The pinned single-broker fixture applies a client-ID producer-byte quota and
 proves a positive post-response throttle event alongside successful delivery.
 
@@ -248,8 +250,9 @@ outcomes, aggregate progress and shutdown, inspector read-only operations,
 dependency health, readiness, and shutdown, plus producer, consumer,
 transaction-processor, replay, and inspector broker activity. Producer,
 consumer, and transaction-processor shutdown attempts are also covered.
-Standalone authentication, retry, and complete broker rebalance timing remain
-unimplemented.
+Retry and complete broker rebalance timing remain unimplemented. Authentication
+state is reported honestly as part of broker connection initialization because
+that is the lifecycle boundary supplied by franz-go.
 
 The standard-library [`kafka/adapters/golog`](../adapters/golog) package
 translates every current stable root observation into one fixed `log/slog`

@@ -132,6 +132,35 @@ func TestObserverEmitsOnlyBoundedStructuredObservationMetadata(t *testing.T) {
 	}
 }
 
+func TestObserverEmitsConfiguredBrokerAuthenticationMethod(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	adapter, err := New(Config{
+		Logger: slog.New(slog.NewJSONHandler(&output, nil)),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observation := kafka.Observation{
+		Kind:                 kafka.ObservationBrokerConnect,
+		StartedAt:            time.Unix(1, 0),
+		AuthenticationMethod: kafka.AuthenticationSCRAMSHA512,
+		Succeeded:            true,
+	}
+	if err := adapter.Observer()(context.Background(), observation); err != nil {
+		t.Fatalf("Observer() error = %v", err)
+	}
+
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if got := record["kafka.authentication.method"]; got != "scram-sha-512" {
+		t.Fatalf("kafka.authentication.method = %#v", got)
+	}
+}
+
 func TestObserverEmitsBoundedInspectorAndReadinessState(t *testing.T) {
 	t.Parallel()
 

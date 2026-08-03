@@ -585,6 +585,15 @@ func appendObservationDiagnostics(
 			attribute.Int64("kafka.broker.id", int64(observation.BrokerID)),
 		)
 	}
+	if observation.Kind == kafka.ObservationBrokerConnect {
+		attributes = append(
+			attributes,
+			attribute.String(
+				"kafka.authentication.method",
+				observation.AuthenticationMethod.String(),
+			),
+		)
+	}
 	if observation.APIKeyKnown {
 		attributes = append(
 			attributes,

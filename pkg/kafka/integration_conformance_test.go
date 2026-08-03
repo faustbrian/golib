@@ -17,6 +17,8 @@ import (
 )
 
 func TestPublicConformance(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	defer cancel()
 	container, err := tckafka.Run(ctx, integrationKafkaImage)

@@ -57,6 +57,10 @@ Its protocol floor defaults to Kafka 2.5 and cannot be lowered because
 [`KIP-447`](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103093950/KIP-447%2BProducer%2Bscalability%2Bfor%2Bexactly%2Bonce%2Bsemantics)
 stable transactional offset fetching removes the older rebalance race;
 this is a protocol safety floor, not a tested broker support claim.
+Source poll and group-join failures return redacted `ConsumerError` values with
+`ConsumerOperationPoll`. A caller may retry only when `Retryable` is true and
+within its own bounded retry policy; no source record is handled or settled for
+an empty failed poll.
 
 ```go
 processor, err := kafka.NewTransactionProcessor(

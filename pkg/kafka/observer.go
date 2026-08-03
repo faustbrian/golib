@@ -209,6 +209,9 @@ type Observation struct {
 	BrokerID int32
 	// BrokerKnown reports whether BrokerID is authoritative.
 	BrokerKnown bool
+	// AuthenticationMethod is the configured SASL method for a broker-connect
+	// initialization. AuthenticationNone means no SASL flow was configured.
+	AuthenticationMethod AuthenticationMethod
 	// APIKey is the Kafka protocol request key when APIKeyKnown is true.
 	APIKey int16
 	// APIKeyKnown reports whether APIKey is authoritative.
@@ -330,6 +333,7 @@ func (observation Observation) Validate() error {
 		(observation.Succeeded && observation.Category != ErrorUnknown) ||
 		(!observation.Succeeded &&
 			!validErrorCategory(observation.Category)) ||
+		!validObservationAuthentication(observation) ||
 		!validObservationRecordCardinality(observation) ||
 		!validReplayObservationProgress(observation) ||
 		!validInspectorObservationMetadata(observation) {
@@ -337,6 +341,23 @@ func (observation Observation) Validate() error {
 	}
 
 	return nil
+}
+
+func validObservationAuthentication(observation Observation) bool {
+	if observation.Kind != ObservationBrokerConnect {
+		return observation.AuthenticationMethod == AuthenticationNone
+	}
+
+	switch observation.AuthenticationMethod {
+	case AuthenticationNone,
+		AuthenticationPlain,
+		AuthenticationSCRAMSHA256,
+		AuthenticationSCRAMSHA512,
+		AuthenticationOAuthBearer:
+		return true
+	default:
+		return false
+	}
 }
 
 func validInspectorObservationMetadata(observation Observation) bool {

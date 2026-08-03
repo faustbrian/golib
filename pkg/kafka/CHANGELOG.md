@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- expose the configured redacted SASL method on every broker-connect
+  observation; successful events prove that connection initialization,
+  API-version negotiation, and the configured authentication flow completed
 - add the public `kafkatest` package with reusable producer, consumer, Kafka
   transaction, replay, inspector, authentication-provider, and observer
   conformance suites; the dedicated gate proves delivery metadata and
@@ -44,6 +47,18 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- classify transaction-processor source poll and group-join failures as
+  redacted `ConsumerError` values so applications can distinguish bounded
+  retryable infrastructure failures without parsing franz-go errors
+- make public conformance offset assertions wait on bounded broker-visible
+  state so a committed Kafka transaction is not misreported during delayed
+  administrative offset visibility
+- make consume-transform-produce broker evidence compare the committed group
+  position with the last processed source record rather than a log end that can
+  include an invisible Kafka transaction control batch
+- make consumer and transaction-processor broker fixtures retry typed
+  recoverable assignment or source polls before exercising ownership-loss and
+  response-loss outcomes
 - preserve caller-supplied historical Kafka event timestamps across ordinary,
   producer-transaction, and consume-transform-produce delivery by measuring the
   bounded delivery deadline from package admission instead of allowing

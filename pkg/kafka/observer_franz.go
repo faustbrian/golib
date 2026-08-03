@@ -11,12 +11,13 @@ import (
 )
 
 type franzObserverHook struct {
-	clientID   string
-	groupID    string
-	dispatcher observerDispatcher
-	now        func() time.Time
-	before     func()
-	after      func()
+	clientID             string
+	groupID              string
+	authenticationMethod AuthenticationMethod
+	dispatcher           observerDispatcher
+	now                  func() time.Time
+	before               func()
+	after                func()
 }
 
 var (
@@ -30,13 +31,15 @@ var (
 func newFranzObserverHook(
 	clientID string,
 	groupID string,
+	authenticationMethod AuthenticationMethod,
 	dispatcher observerDispatcher,
 ) *franzObserverHook {
 	return &franzObserverHook{
-		clientID:   strings.Clone(clientID),
-		groupID:    strings.Clone(groupID),
-		dispatcher: dispatcher,
-		now:        time.Now,
+		clientID:             strings.Clone(clientID),
+		groupID:              strings.Clone(groupID),
+		authenticationMethod: authenticationMethod,
+		dispatcher:           dispatcher,
+		now:                  time.Now,
 	}
 }
 
@@ -50,15 +53,16 @@ func (hook *franzObserverHook) OnBrokerConnect(
 	brokerID, brokerKnown := observedBrokerID(meta.NodeID)
 	duration, truncated := observedDuration(duration)
 	observation := Observation{
-		Kind:        ObservationBrokerConnect,
-		StartedAt:   finishedAt.Add(-duration),
-		Duration:    duration,
-		ClientID:    hook.clientID,
-		GroupID:     hook.groupID,
-		BrokerID:    brokerID,
-		BrokerKnown: brokerKnown,
-		Succeeded:   err == nil,
-		Truncated:   truncated,
+		Kind:                 ObservationBrokerConnect,
+		StartedAt:            finishedAt.Add(-duration),
+		Duration:             duration,
+		ClientID:             hook.clientID,
+		GroupID:              hook.groupID,
+		BrokerID:             brokerID,
+		BrokerKnown:          brokerKnown,
+		AuthenticationMethod: hook.authenticationMethod,
+		Succeeded:            err == nil,
+		Truncated:            truncated,
 	}
 	if err != nil {
 		observation.Category = classifyError(err)

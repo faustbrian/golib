@@ -363,7 +363,12 @@ func newInspector(
 		observers:             dispatcher,
 	}
 	if dispatcher.enabled() {
-		observerHook := newFranzObserverHook(config.ClientID, "", dispatcher)
+		observerHook := newFranzObserverHook(
+			config.ClientID,
+			"",
+			config.Security.Authentication.Method(),
+			dispatcher,
+		)
 		observerHook.before = inspector.beginObservation
 		observerHook.after = inspector.finishObservation
 		options = append(options, kgo.WithHooks(observerHook))

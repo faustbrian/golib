@@ -227,6 +227,15 @@ func (adapter *Adapter) observe(
 			),
 		)
 	}
+	if observation.Kind == kafka.ObservationBrokerConnect {
+		attributes = append(
+			attributes,
+			slog.String(
+				"kafka.authentication.method",
+				observation.AuthenticationMethod.String(),
+			),
+		)
+	}
 	if observation.APIKeyKnown {
 		attributes = append(
 			attributes,

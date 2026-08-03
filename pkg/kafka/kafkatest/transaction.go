@@ -111,7 +111,6 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			sourceRecord.Offset != 0 {
 			t.Fatalf("RunOnce() = %#v, %v, source=%s/%d@%d", result, err, sourceRecord.Topic, sourceRecord.Partition, sourceRecord.Offset)
 		}
-		assertConformanceCommittedOffset(t, harness, group, source, 0, 1)
 		outputs := readConformanceRecords(t, harness, ReadRequest{
 			Topic: output, Partition: 0, StartOffset: 0, MaxRecords: 1,
 			Isolation: ReadCommitted,
@@ -120,6 +119,7 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			!outputs[0].Timestamp.Equal(historicalTimestamp) {
 			t.Fatalf("transactional output count = %d", len(outputs))
 		}
+		assertConformanceCommittedOffset(t, harness, group, source, 0, 1)
 	})
 }
 

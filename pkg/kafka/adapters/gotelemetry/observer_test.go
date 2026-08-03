@@ -709,6 +709,18 @@ func TestObserverReportsBoundedBrokerDiagnosticsWithoutEndpoints(t *testing.T) {
 
 	observer := instrumentation.Observer()
 	if err := observer(context.Background(), kafka.Observation{
+		Kind:                 kafka.ObservationBrokerConnect,
+		StartedAt:            time.Unix(99, 0),
+		Duration:             15 * time.Millisecond,
+		ClientID:             "secret-client",
+		BrokerID:             4,
+		BrokerKnown:          true,
+		AuthenticationMethod: kafka.AuthenticationOAuthBearer,
+		Succeeded:            true,
+	}); err != nil {
+		t.Fatalf("observe connection: %v", err)
+	}
+	if err := observer(context.Background(), kafka.Observation{
 		Kind:          kafka.ObservationBrokerRequest,
 		StartedAt:     time.Unix(100, 0),
 		Duration:      20 * time.Millisecond,
@@ -740,10 +752,15 @@ func TestObserverReportsBoundedBrokerDiagnosticsWithoutEndpoints(t *testing.T) {
 	}
 
 	ended := spans.Ended()
-	if len(ended) != 2 {
-		t.Fatalf("ended spans = %d, want 2", len(ended))
+	if len(ended) != 3 {
+		t.Fatalf("ended spans = %d, want 3", len(ended))
 	}
 	assertSpanAttributes(t, ended[0].Attributes(), map[string]any{
+		"kafka.operation":             "broker.connect",
+		"kafka.broker.id":             int64(4),
+		"kafka.authentication.method": "oauthbearer",
+	})
+	assertSpanAttributes(t, ended[1].Attributes(), map[string]any{
 		"kafka.operation":              "broker.request",
 		"kafka.broker.id":              int64(4),
 		"kafka.protocol.api_key":       int64(1),
@@ -752,7 +769,7 @@ func TestObserverReportsBoundedBrokerDiagnosticsWithoutEndpoints(t *testing.T) {
 		"kafka.request.queue.duration": 0.012,
 		"error.type":                   "authorization",
 	})
-	assertSpanAttributes(t, ended[1].Attributes(), map[string]any{
+	assertSpanAttributes(t, ended[2].Attributes(), map[string]any{
 		"kafka.operation":                "broker.throttle",
 		"kafka.broker.id":                int64(4),
 		"kafka.throttle.duration":        0.03,

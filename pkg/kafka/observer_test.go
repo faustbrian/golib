@@ -848,6 +848,48 @@ func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 	}
 }
 
+func TestObservationValidationBoundsAuthenticationMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, method := range []AuthenticationMethod{
+		AuthenticationNone,
+		AuthenticationPlain,
+		AuthenticationSCRAMSHA256,
+		AuthenticationSCRAMSHA512,
+		AuthenticationOAuthBearer,
+	} {
+		observation := Observation{
+			Kind:                 ObservationBrokerConnect,
+			StartedAt:            time.Unix(1, 0),
+			AuthenticationMethod: method,
+			Succeeded:            true,
+		}
+		if err := observation.Validate(); err != nil {
+			t.Fatalf("authentication method %d error = %v", method, err)
+		}
+	}
+
+	invalidMethod := Observation{
+		Kind:                 ObservationBrokerConnect,
+		StartedAt:            time.Unix(1, 0),
+		AuthenticationMethod: AuthenticationMethod(255),
+		Succeeded:            true,
+	}
+	if err := invalidMethod.Validate(); !errors.Is(err, ErrInvalidObservation) {
+		t.Fatalf("invalid authentication method error = %v", err)
+	}
+
+	nonConnection := Observation{
+		Kind:                 ObservationBrokerRequest,
+		StartedAt:            time.Unix(1, 0),
+		AuthenticationMethod: AuthenticationPlain,
+		Succeeded:            true,
+	}
+	if err := nonConnection.Validate(); !errors.Is(err, ErrInvalidObservation) {
+		t.Fatalf("non-connection authentication method error = %v", err)
+	}
+}
+
 func TestObservationValidationAcceptsInclusiveMetadataBoundaries(t *testing.T) {
 
 	startedAt := time.Unix(1, 0)

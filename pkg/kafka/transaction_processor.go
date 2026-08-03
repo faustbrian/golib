@@ -373,6 +373,7 @@ func newTransactionProcessor(
 		observerHook := newFranzObserverHook(
 			config.Connection.ClientID,
 			config.Group.GroupID,
+			config.Connection.Security.Authentication.Method(),
 			dispatcher,
 		)
 		observerHook.before = processor.beginObservation
@@ -566,7 +567,8 @@ func normalizeTransactionProcessorConfig(
 
 // RunOnce polls at most the configured source-record limit. Every fetched
 // record must complete successfully before output records and all source
-// offsets are committed in one Kafka transaction.
+// offsets are committed in one Kafka transaction. Source poll and group-join
+// failures return a ConsumerError with ConsumerOperationPoll.
 func (processor *TransactionProcessor) RunOnce(
 	ctx context.Context,
 	handler TransactionHandler,
@@ -597,20 +599,21 @@ func (processor *TransactionProcessor) runOnce(
 	defer recycleFetchedRecords(records)
 	result := TransactionPollResult{Polled: len(records)}
 	if err := fetches.Err(); err != nil {
+		pollErr := newConsumerError(ConsumerOperationPoll, err)
 		if len(records) == 0 {
-			return TransactionPollResult{}, err
+			return TransactionPollResult{}, pollErr
 		}
 		if transactionErr := processor.beginTransaction(ctx); transactionErr != nil {
 			processor.fence(transactionErr)
 
-			return result, errors.Join(err, transactionErr)
+			return result, errors.Join(pollErr, transactionErr)
 		}
 		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
 			processor.fence(abortErr)
 		}
 
-		return result, errors.Join(err, abortErr)
+		return result, errors.Join(pollErr, abortErr)
 	}
 	if len(records) == 0 {
 		return TransactionPollResult{}, nil
@@ -973,9 +976,9 @@ func (processor *TransactionProcessor) transactionEndContext(
 }
 
 // Run executes bounded all-or-nothing polls until cancellation or the first
-// processing or transaction failure. Caller cancellation is a clean stop only
-// after the active transaction aborts successfully; cleanup failure is
-// returned and fences the processor.
+// source-poll, processing, or transaction failure. Caller cancellation is a
+// clean stop only after the active transaction aborts successfully; cleanup
+// failure is returned and fences the processor.
 func (processor *TransactionProcessor) Run(
 	ctx context.Context,
 	handler TransactionHandler,

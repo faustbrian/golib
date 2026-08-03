@@ -17,6 +17,8 @@ import (
 )
 
 func TestApacheKafkaConsumerOwnershipTransitions(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -546,13 +548,22 @@ func waitForApacheKafkaConsumerPartitions(
 	runCtx, cancelRun := context.WithCancel(ctx)
 	runResult := make(chan error, 1)
 	go func() {
-		_, runErr := consumer.RunOnce(
-			runCtx,
-			kafka.HandlerFunc(func(context.Context, kafka.ConsumedRecord) error {
-				return nil
-			}),
-		)
-		runResult <- runErr
+		for {
+			_, runErr := consumer.RunOnce(
+				runCtx,
+				kafka.HandlerFunc(func(context.Context, kafka.ConsumedRecord) error {
+					return nil
+				}),
+			)
+			var consumerErr *kafka.ConsumerError
+			if runErr == nil ||
+				(errors.As(runErr, &consumerErr) && consumerErr.Retryable()) {
+				continue
+			}
+			runResult <- runErr
+
+			return
+		}
 	}()
 	partitions := waitForApacheKafkaOwnershipAssignment(
 		t,
