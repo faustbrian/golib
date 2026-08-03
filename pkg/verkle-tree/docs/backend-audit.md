@@ -42,6 +42,31 @@ source, tree, license, API, implementation, transcript, README, and planning
 checksums are recorded in the source manifest so this decision can be
 revisited without relying on a moving branch.
 
+Two newer maintained repositories also fail the selection boundary for
+different, independently verified reasons:
+
+- MegaETH's `salt` is an active, released Rust authenticated store with
+  Banderwagon and IPA multipoint code descended from the migrated
+  `rust-verkle` history. Its tree is SALT's fixed four-level trie over dynamic
+  hash-table buckets, not this package's profile, and the reviewed tree exports
+  no Go package, C header, or FFI binding for its commitment backend. Adopting
+  it would require designing and maintaining a new foreign-function boundary,
+  while counting it as independent interoperability would duplicate the Rust
+  cryptographic lineage.
+- `luxfi/crypto` actively develops a Go `verkle` package and Banderwagon code,
+  but that package identifies its tree logic as vendored from `go-verkle` and
+  the repository's Lux Ecosystem License 1.2 forbids general commercial use
+  and unauthorized forks. Its separately tagged `github.com/luxfi/crypto/ipa`
+  v1.2.4 module retains MIT/Apache licensing, but its parallel executor is
+  byte-for-byte identical to the reviewed `crate-crypto/go-ipa` executor and
+  does not remove the CPU-derived worker, cancellation, initialization, unsafe
+  surface, or independent-lineage blockers.
+
+Both scans are pinned with exact repository and module revisions, trees,
+licenses, source hashes, and review procedures in the source manifest. They
+remain useful research inputs, but neither is an adoptable production backend
+or the maintained independent implementation required to freeze v1.
+
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict

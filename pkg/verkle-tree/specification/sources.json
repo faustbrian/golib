@@ -864,6 +864,63 @@
       "review_status": "rejected-verkle-ipa-unfinished-unaudited-and-not-exported-to-c-rust-or-go"
     },
     {
+      "id": "megaeth-salt-backend-candidate-scan",
+      "kind": "git-repository",
+      "role": "rejected-go-backend-and-independent-lineage-candidate",
+      "url": "https://github.com/megaeth-labs/salt",
+      "revision": "b9b0f197e9960e05b76dcfeac01b155b1793de39",
+      "tree": "4187c58003ae8e20230f424fe72e7153200dfa57",
+      "latest_release": "v1.0.5",
+      "latest_release_revision": "b6b30e733276f50855a2d3c0781177803ba8f8d9",
+      "reviewed_on": "2026-08-04",
+      "license": "MIT OR Apache-2.0",
+      "license_files": {
+        "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
+        "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "source_files": {
+        "README.md": "bde951d57c5cba8f71cfe15c65628c43e72c4c56b4d1fc1584fcffb898db6c0c",
+        "Cargo.toml": "447a90ac5831723be69fb64d7d24fc456a093c3436495539807c5db29d91754e",
+        "banderwagon/src/element.rs": "7a9b81dc8241cd09f95a2a068e7155e70023b3c19e0deae4caad226786286810",
+        "ipa-multipoint/src/multiproof.rs": "63cab413908ccd40192ca48359d720982e0b9b61ba519615788a80af180e9214",
+        "ipa-multipoint/src/transcript.rs": "04e17d93e6b7bc3cc0ddfd42e11c43b72a8a38dc764b5b3bb6fcd151003b177e"
+      },
+      "review_procedure": "Pin the current tree and release; inspect the complete tree for Go, C, Rust, header, binding, and FFI entry points; trace the Banderwagon and ipa-multipoint file history to the migrated rust-verkle lineage; and compare SALT's documented static-trie and bucket layout with the package-owned profile.",
+      "reproducible": true,
+      "review_status": "rejected-rust-only-no-ffi-different-tree-and-shared-rust-verkle-lineage"
+    },
+    {
+      "id": "luxfi-crypto-ipa-backend-candidate-scan",
+      "kind": "git-repository-and-go-submodule-tag",
+      "role": "rejected-backend-and-independent-lineage-candidate",
+      "url": "https://github.com/luxfi/crypto",
+      "revision": "61d19507d61518f745bb3727ae88e0c42a9b5bfe",
+      "tree": "a4f3086aa8af5f68192fee61f95667aff99c7426",
+      "ipa_module": "github.com/luxfi/crypto/ipa",
+      "ipa_version": "v1.2.4",
+      "ipa_tag_object": "56d851db89eea9b985dfca0cd535f7bd3388ce0f",
+      "ipa_revision": "25f1e2506705fc083d7832597be25fdbf25ba4bf",
+      "ipa_tree": "55c889de82acaca8b98847bc30471c6e44fd1f3c",
+      "reviewed_on": "2026-08-04",
+      "repository_license": "Lux Ecosystem License 1.2",
+      "repository_license_sha256": "35ad98f8c14e080d1aed491065b873e01fce1ce639e5923d3fc405e18f144d93",
+      "ipa_license": "MIT OR Apache-2.0",
+      "ipa_license_files": {
+        "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
+        "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "source_files": {
+        "README.md": "ab86607ada017d833a12d35b6ce7dc1289ce4575734f63026103ea41e8580fcf",
+        "go.mod": "3e97bbabe6a17acb71d2cedc1786223b36b0cf5a72e94679a6ba1ed358a68024",
+        "verkle/config_ipa.go": "0a3801adc4390ef9efad1bcf40e9290d549109e9fc85bdbcc327ff69ac089d3d",
+        "ipa/multiproof.go@v1.2.4": "b1659a61cff8b7f25c22b1cd1b5b1f010cb0357cdd681ee8078c8afbe5ffabbf",
+        "ipa/common/parallel/execute.go@v1.2.4": "693ee8aa7dcbc7333410ac5e2d7e4d900821bbb98a8a2933b959d6bfb15f3c26"
+      },
+      "review_procedure": "Pin the active repository and separately tagged Go IPA module; inspect license scopes, module provenance, vendoring comments, initialization, transcript and worker paths; and compare the tagged parallel executor byte-for-byte with the reviewed crate-crypto/go-ipa source.",
+      "reproducible": true,
+      "review_status": "rejected-restricted-root-license-vendored-go-verkle-lineage-and-unchanged-ipa-worker-blocker"
+    },
+    {
       "id": "crate-crypto-go-ipa-candidate",
       "kind": "git-repository",
       "role": "candidate-commitment-backend",

@@ -24,6 +24,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Pin Geth's binary-tree replacement direction and the exact removal of the
   independent TypeScript Verkle candidate so neither is mistaken for a stable
   Ethereum profile or a maintained interoperability target.
+- Pin the maintained MegaETH SALT and Lux IPA candidate scans, including their
+  language, layout, lineage, worker-control, and license blockers.
 - Audit the complete experimental exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
 
