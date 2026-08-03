@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove Kafka 3.7.2 transaction-processor recovery after an in-flight child
+  process terminates without committing its source offset or output
 - prove Kafka 3.7.2 eager and cooperative transaction-processor rebalance
   recovery without committing the interrupted transaction
 - prove Kafka 3.7.2 committed `EndTxn` response loss and bounded ambiguous

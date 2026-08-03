@@ -183,6 +183,8 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 	rebalanceTriggerTopic := prefix + "-rebalance-trigger"
 	cooperativeSourceTopic := prefix + "-cooperative-source"
 	cooperativeOutputTopic := prefix + "-cooperative-output"
+	terminationSourceTopic := prefix + "-termination-source"
+	terminationOutputTopic := prefix + "-termination-output"
 	failureTopic := prefix + "-producer-failure"
 	recoveryTopic := prefix + "-producer-recovery"
 	sourceTopic := prefix + "-source"
@@ -198,6 +200,8 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		rebalanceSourceTopic,
 		rebalanceOutputTopic,
 		rebalanceTriggerTopic,
+		terminationSourceTopic,
+		terminationOutputTopic,
 		failureTopic,
 		recoveryTopic,
 		sourceTopic,
@@ -347,6 +351,13 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		brokers,
 		cooperativeSourceTopic,
 		cooperativeOutputTopic,
+	)
+	proveTransactionProcessorTerminationRecovery(
+		t,
+		ctx,
+		brokers,
+		terminationSourceTopic,
+		terminationOutputTopic,
 	)
 }
 
