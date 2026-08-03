@@ -148,7 +148,7 @@ func snapshotMultipartPart(part MultipartPart) (multipartPart, error) {
 		return multipartPart{}, fmt.Errorf("%w: part body metadata is malformed", ErrInvalidMultipart)
 	}
 
-	header := make(textproto.MIMEHeader, len(part.Header)+2)
+	header := make(textproto.MIMEHeader)
 	disposition := map[string]string{"name": part.Name}
 	if part.FileName != "" {
 		disposition["filename"] = part.FileName
@@ -221,10 +221,12 @@ func measureMultipartContentLength(
 		}
 		if part.length < 0 {
 			known = false
-		} else if length > math.MaxInt64-part.length {
-			return 0, fmt.Errorf("%w: declared body is too large", ErrMultipartLimit)
 		} else {
-			length += part.length
+			var lengthErr error
+			length, lengthErr = addMultipartLength(length, part.length)
+			if lengthErr != nil {
+				return 0, lengthErr
+			}
 		}
 	}
 	if err := writer.Close(); err != nil {
@@ -233,10 +235,15 @@ func measureMultipartContentLength(
 	if !known {
 		return -1, nil
 	}
-	if length > math.MaxInt64-counter.count {
+	return addMultipartLength(length, counter.count)
+}
+
+func addMultipartLength(current, additional int64) (int64, error) {
+	if current > math.MaxInt64-additional {
 		return 0, fmt.Errorf("%w: declared body is too large", ErrMultipartLimit)
 	}
-	return length + counter.count, nil
+
+	return current + additional, nil
 }
 
 type multipartCountingWriter struct {
@@ -323,27 +330,16 @@ func writeMultipartBody(
 ) error {
 	limited := &multipartLimitWriter{destination: destination, remaining: maximum}
 	writer := multipart.NewWriter(limited)
-	if err := writer.SetBoundary(boundary); err != nil {
+	switch err := writer.SetBoundary(boundary); err {
+	case nil:
+	default:
 		return &MultipartError{
 			Operation: "encoding",
 			Cause:     errors.Join(ErrInvalidMultipart, err),
 		}
 	}
 
-	var result error
-	for index, part := range parts {
-		partWriter, err := writer.CreatePart(part.header)
-		if err == nil {
-			err = copyMultipartPart(partWriter, sources[index], part.length)
-		}
-		if closeErr := sources[index].Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-		if err != nil {
-			result = &MultipartError{Operation: "part streaming", Cause: err}
-			break
-		}
-	}
+	result := writeMultipartParts(writer, parts, sources)
 	if result == nil {
 		if err := writer.Close(); err != nil {
 			result = &MultipartError{Operation: "encoding", Cause: err}
@@ -357,18 +353,44 @@ func writeMultipartBody(
 	return result
 }
 
+func writeMultipartParts(
+	writer *multipart.Writer,
+	parts []multipartPart,
+	sources []*onceReadCloser,
+) error {
+	for index, part := range parts {
+		partWriter, err := writer.CreatePart(part.header)
+		if err == nil {
+			err = copyMultipartPart(partWriter, sources[index], part.length)
+		}
+		switch closeErr := sources[index].Close(); closeErr {
+		case nil:
+		default:
+			err = errors.Join(err, closeErr)
+		}
+		if err != nil {
+			return &MultipartError{Operation: "part streaming", Cause: err}
+		}
+	}
+
+	return nil
+}
+
 func copyMultipartPart(destination io.Writer, source io.Reader, length int64) error {
 	if length < 0 {
 		_, err := io.Copy(destination, source)
 		return err
 	}
-	written, err := io.CopyN(destination, source, length)
-	if err != nil || written != length {
+	_, err := io.CopyN(destination, source, length)
+	if err != nil {
 		return errors.Join(ErrMultipartPartLength, err)
 	}
 	var probe [1]byte
 	count, err := source.Read(probe[:])
-	if count != 0 || err == nil {
+	if count != 0 {
+		return ErrMultipartPartLength
+	}
+	if err == nil {
 		return ErrMultipartPartLength
 	}
 	if !errors.Is(err, io.EOF) {

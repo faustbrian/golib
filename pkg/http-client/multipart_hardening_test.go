@@ -1,10 +1,12 @@
 package httpclient
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"math"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -88,6 +90,84 @@ func TestMultipartBodyDefaultsLimitAndSnapshotsHeaders(t *testing.T) {
 	}
 	if (&MultipartError{}).Error() != "multipart body failed" {
 		t.Fatalf("empty multipart error = %q", (&MultipartError{}).Error())
+	}
+}
+
+func TestMultipartPolicyAndAccountingBoundaries(t *testing.T) {
+	t.Parallel()
+
+	empty, _ := NewBytesBody("", nil)
+	maximumParts := make([]MultipartPart, maximumMultipartParts)
+	for index := range maximumParts {
+		maximumParts[index] = MultipartPart{Name: "part", Body: empty}
+	}
+	if _, err := NewMultipartBody(MultipartOptions{
+		Boundary: "maximum-parts", MaximumBytes: maximumMultipartBytes, Parts: maximumParts,
+	}); err != nil {
+		t.Fatalf("construct exact maximum part count: %v", err)
+	}
+
+	measured, err := NewMultipartBody(MultipartOptions{
+		Boundary: "exact-limit", Parts: []MultipartPart{{Name: "part", Body: empty}},
+	})
+	if err != nil {
+		t.Fatalf("measure exact-limit body: %v", err)
+	}
+	if _, err := NewMultipartBody(MultipartOptions{
+		Boundary: "exact-limit", MaximumBytes: measured.ContentLength(),
+		Parts: []MultipartPart{{Name: "part", Body: empty}},
+	}); err != nil {
+		t.Fatalf("construct exact maximum body: %v", err)
+	}
+	if _, err := NewMultipartBody(MultipartOptions{
+		Boundary: "exact-limit", MaximumBytes: measured.ContentLength() - 1,
+		Parts: []MultipartPart{{Name: "part", Body: empty}},
+	}); !errors.Is(err, ErrMultipartLimit) {
+		t.Fatalf("over-limit declared body error = %v", err)
+	}
+
+	longName := strings.Repeat("a", maximumMultipartTextBytes)
+	if _, err := NewMultipartBody(MultipartOptions{
+		Boundary: "text-limit", Parts: []MultipartPart{{Name: longName, FileName: " ", Body: empty}},
+	}); err != nil {
+		t.Fatalf("construct exact maximum text body: %v", err)
+	}
+
+	canonical := "X-Exact"
+	exactValue := strings.Repeat("a", maximumMultipartTextBytes-len(canonical))
+	destination := make(textproto.MIMEHeader)
+	if err := copyMultipartHeaders(destination, http.Header{canonical: {exactValue}}); err != nil ||
+		destination.Get(canonical) != exactValue {
+		t.Fatalf("copy exact-size headers = %q, %v", destination.Get(canonical), err)
+	}
+	if err := copyMultipartHeaders(make(textproto.MIMEHeader), http.Header{
+		canonical: {
+			strings.Repeat("a", maximumMultipartTextBytes/2),
+			strings.Repeat("b", maximumMultipartTextBytes/2+1),
+		},
+	}); !errors.Is(err, ErrInvalidMultipart) {
+		t.Fatalf("cumulative header limit error = %v", err)
+	}
+	if err := copyMultipartHeaders(make(textproto.MIMEHeader), http.Header{
+		"X-One": {strings.Repeat("a", maximumMultipartTextBytes/2)},
+		"X-Two": {strings.Repeat("b", maximumMultipartTextBytes/2)},
+	}); !errors.Is(err, ErrInvalidMultipart) {
+		t.Fatalf("multi-header cumulative limit error = %v", err)
+	}
+
+	if length, err := addMultipartLength(math.MaxInt64-1, 1); err != nil || length != math.MaxInt64 {
+		t.Fatalf("exact maximum multipart length = %d, %v", length, err)
+	}
+	if _, err := addMultipartLength(math.MaxInt64, 1); !errors.Is(err, ErrMultipartLimit) {
+		t.Fatalf("overflow multipart length error = %v", err)
+	}
+
+	counting := &multipartCountingWriter{destination: io.Discard}
+	if count, err := counting.Write([]byte("ab")); count != 2 || err != nil {
+		t.Fatalf("first counting write = %d, %v", count, err)
+	}
+	if count, err := counting.Write([]byte("cde")); count != 3 || err != nil || counting.count != 5 {
+		t.Fatalf("second counting write = %d, total %d, %v", count, counting.count, err)
 	}
 }
 
@@ -194,6 +274,19 @@ func TestMultipartCopyAndLimitHelpersPropagateDependencyErrors(t *testing.T) {
 	if err := copyMultipartPart(io.Discard, multipartProbeErrorReader{err: readFailure}, 0); !errors.Is(err, readFailure) {
 		t.Fatalf("probe error = %v", err)
 	}
+	if err := copyMultipartPart(io.Discard, strings.NewReader("extra"), 0); !errors.Is(err, ErrMultipartPartLength) {
+		t.Fatalf("zero-length extra data error = %v", err)
+	}
+	if err := copyMultipartPart(io.Discard, &multipartProbeSequenceReader{
+		reads: []multipartProbeRead{{content: "a"}, {err: nil}},
+	}, 1); !errors.Is(err, ErrMultipartPartLength) {
+		t.Fatalf("zero-progress probe error = %v", err)
+	}
+	if err := copyMultipartPart(io.Discard, &multipartProbeSequenceReader{
+		reads: []multipartProbeRead{{content: "a"}, {content: "b", err: io.EOF}},
+	}, 1); !errors.Is(err, ErrMultipartPartLength) {
+		t.Fatalf("data-and-EOF probe error = %v", err)
+	}
 
 	writeFailure := errors.New("write")
 	limited := &multipartLimitWriter{destination: multipartErrorWriter{err: writeFailure}, remaining: 1}
@@ -204,6 +297,17 @@ func TestMultipartCopyAndLimitHelpersPropagateDependencyErrors(t *testing.T) {
 	limited = &multipartLimitWriter{destination: multipartErrorWriter{err: writeFailure}, remaining: 10}
 	if _, err := limited.Write([]byte("short")); !errors.Is(err, writeFailure) {
 		t.Fatalf("dependency write error = %v", err)
+	}
+	var exact bytes.Buffer
+	limited = &multipartLimitWriter{destination: &exact, remaining: 3}
+	if count, err := limited.Write([]byte("abc")); count != 3 || err != nil ||
+		limited.remaining != 0 || exact.String() != "abc" {
+		t.Fatalf("exact limited write = %d, remaining %d, body %q, %v", count, limited.remaining, exact.String(), err)
+	}
+	limited = &multipartLimitWriter{destination: multipartPartialWriter{count: 2}, remaining: 3}
+	if count, err := limited.Write([]byte("overflow")); count != 2 ||
+		!errors.Is(err, ErrMultipartLimit) || limited.remaining != 1 {
+		t.Fatalf("partial limited write = %d, remaining %d, %v", count, limited.remaining, err)
 	}
 
 	partBody, _ := NewBytesBody("text/plain", nil)
@@ -250,9 +354,34 @@ func (reader multipartProbeErrorReader) Read([]byte) (int, error) {
 	return 0, reader.err
 }
 
+type multipartProbeRead struct {
+	content string
+	err     error
+}
+
+type multipartProbeSequenceReader struct {
+	reads []multipartProbeRead
+}
+
+func (reader *multipartProbeSequenceReader) Read(buffer []byte) (int, error) {
+	if len(reader.reads) == 0 {
+		return 0, io.EOF
+	}
+	read := reader.reads[0]
+	reader.reads = reader.reads[1:]
+
+	return copy(buffer, read.content), read.err
+}
+
 type multipartErrorWriter struct{ err error }
 
 func (writer multipartErrorWriter) Write([]byte) (int, error) { return 0, writer.err }
+
+type multipartPartialWriter struct{ count int }
+
+func (writer multipartPartialWriter) Write(buffer []byte) (int, error) {
+	return min(writer.count, len(buffer)), nil
+}
 
 type multipartCallErrorWriter struct {
 	calls  int
