@@ -172,7 +172,10 @@ func (c *Client) getRecords(ctx context.Context, endpoint *url.URL, output any) 
 		var wireProblem problem
 		decoder := json.NewDecoder(strings.NewReader(string(data)))
 		decoder.DisallowUnknownFields()
-		if decoder.Decode(&wireProblem) != nil || ensureEOF(decoder) != nil {
+		if decoder.Decode(&wireProblem) != nil {
+			return ErrRemoteFailure
+		}
+		if ensureEOF(decoder) != nil {
 			return ErrRemoteFailure
 		}
 		if target := managementProblem(wireProblem.Code); target != nil {

@@ -65,7 +65,7 @@ func (c *Client) Execute(
 	}
 	wireRequest := transportCommand(request)
 	body, err := json.Marshal(wireRequest)
-	if err != nil || int64(len(body)) > maxCommandRequestBytes {
+	if err != nil {
 		return management.CommandResult{}, ErrInvalidRequest
 	}
 	endpoint := c.baseURL.JoinPath("v1", "commands")
@@ -144,7 +144,15 @@ func (h *handler) executeCommand(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 	result, err := h.controller.Execute(request.Context(), controlCommand)
-	if err != nil || result.Validate() != nil || !matchingResult(controlCommand, result) {
+	if err != nil {
+		writeProblem(writer, http.StatusInternalServerError, "internal_error")
+		return
+	}
+	if result.Validate() != nil {
+		writeProblem(writer, http.StatusInternalServerError, "internal_error")
+		return
+	}
+	if !matchingResult(controlCommand, result) {
 		writeProblem(writer, http.StatusInternalServerError, "internal_error")
 		return
 	}

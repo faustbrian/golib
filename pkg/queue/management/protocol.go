@@ -2,7 +2,7 @@
 // implementing queue delivery or backend operations.
 package management
 
-import "sort"
+import "slices"
 
 // ProtocolVersion identifies a worker/control-plane management protocol.
 type ProtocolVersion struct {
@@ -138,7 +138,5 @@ func capabilitySet(capabilities []Capability) map[Capability]struct{} {
 }
 
 func sortCapabilities(capabilities []Capability) {
-	sort.Slice(capabilities, func(i, j int) bool {
-		return capabilities[i] < capabilities[j]
-	})
+	slices.Sort(capabilities)
 }

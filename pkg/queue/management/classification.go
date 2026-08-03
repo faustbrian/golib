@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Classification is the stable backend-neutral failure disposition used by
@@ -108,10 +109,8 @@ func ResolveFailure(err error) FailureResolution {
 			}
 		case interface{ Unwrap() []error }:
 			stack = append(stack, value.Unwrap()...)
-			continue
 		case interface{ Unwrap() error }:
 			stack = append(stack, value.Unwrap())
-			continue
 		default:
 			switch {
 			case errors.Is(current, context.DeadlineExceeded):
@@ -127,11 +126,11 @@ func ResolveFailure(err error) FailureResolution {
 		resolutionRank := classificationRank(resolution.Classification)
 		if candidateRank > resolutionRank ||
 			(candidateRank == resolutionRank && candidate.Code != "" &&
-				(resolution.Code == "" || candidate.Code < resolution.Code)) {
+				(resolution.Code == "" || strings.Compare(candidate.Code, resolution.Code) == -1)) {
 			resolution = candidate
 		}
-		if wrapped, ok := current.(interface{ Unwrap() error }); ok {
-			stack = append(stack, wrapped.Unwrap())
+		if failure, ok := current.(*Failure); ok { //nolint:errorlint // Traverse only this exact node's cause.
+			stack = append(stack, failure.Unwrap())
 		}
 	}
 

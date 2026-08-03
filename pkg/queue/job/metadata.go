@@ -101,7 +101,6 @@ func (m Metadata) Validate() error {
 		traceContextBytes += len(key) + len(value)
 		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" ||
 			len(key) > MaxTraceContextFieldBytes ||
-			len(value) > MaxTraceContextValueBytes ||
 			traceContextBytes > MaxTraceContextBytes {
 			return fmt.Errorf(
 				"%w: metadata trace context keys and values must be bounded",

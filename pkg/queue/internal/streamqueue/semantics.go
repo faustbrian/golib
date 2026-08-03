@@ -268,11 +268,7 @@ func MessageAge(id string, now time.Time) (time.Duration, error) {
 	if _, err = strconv.ParseUint(sequence, 10, 64); err != nil {
 		return 0, malformedIdentifier()
 	}
-	age := now.Sub(time.UnixMilli(timestamp))
-	if age < 0 {
-		return 0, nil
-	}
-	return age, nil
+	return max(now.Sub(time.UnixMilli(timestamp)), 0), nil
 }
 
 func validateIdentity(command, stream, group, consumer string) error {

@@ -3,6 +3,7 @@ package managementhttp
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +14,88 @@ import (
 
 	"github.com/faustbrian/golib/pkg/queue/management"
 )
+
+func TestClientAcceptsValidBoundedCommandRequest(t *testing.T) {
+	want := validCommandResult()
+	calls := 0
+	client, err := NewClient(ClientConfig{
+		BaseURL: "https://worker.example", Token: "transport-secret",
+		MaxResponseBytes: int64(len(resultJSON(want))),
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			calls++
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(resultJSON(want))),
+			}, nil
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+
+	got, err := client.Execute(context.Background(), validCommand())
+	if err != nil || !reflect.DeepEqual(got, want) || calls != 1 {
+		t.Fatalf(
+			"Execute(valid bounded command) = (%+v, %v), calls=%d, response=%d, max=%d",
+			got, err, calls, len(resultJSON(want)), client.maxResponseBytes,
+		)
+	}
+}
+
+func TestCommandHandlerRejectsEachUnsafeBoundaryImmediately(t *testing.T) {
+	validBody := commandJSON(validCommand())
+	tests := []struct {
+		name          string
+		contentType   string
+		body          string
+		contentLength int64
+		controller    *controllerStub
+		wantStatus    int
+	}{
+		{name: "valid", contentType: "application/json", body: validBody, controller: &controllerStub{result: validCommandResult()}, wantStatus: http.StatusOK},
+		{name: "exact request bound", contentType: "application/json", body: validBody, contentLength: maxCommandRequestBytes, controller: &controllerStub{result: validCommandResult()}, wantStatus: http.StatusOK},
+		{name: "malformed media type", contentType: "application/json; charset", body: validBody, controller: &controllerStub{}, wantStatus: http.StatusUnsupportedMediaType},
+		{name: "wrong media type", contentType: "text/plain", body: validBody, controller: &controllerStub{}, wantStatus: http.StatusUnsupportedMediaType},
+		{name: "invalid JSON", contentType: "application/json", body: "{", controller: &controllerStub{}, wantStatus: http.StatusBadRequest},
+		{name: "trailing JSON", contentType: "application/json", body: validBody + `{}`, controller: &controllerStub{}, wantStatus: http.StatusBadRequest},
+		{name: "invalid command", contentType: "application/json", body: `{}`, controller: &controllerStub{}, wantStatus: http.StatusBadRequest},
+		{name: "controller error", contentType: "application/json", body: validBody, controller: &controllerStub{result: validCommandResult(), err: errors.New("failed")}, wantStatus: http.StatusInternalServerError},
+		{name: "invalid result", contentType: "application/json", body: validBody, controller: &controllerStub{}, wantStatus: http.StatusInternalServerError},
+		{name: "mismatched result", contentType: "application/json", body: validBody, controller: &controllerStub{result: mismatchedCommandResult()}, wantStatus: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, err := NewHandler(HandlerConfig{Token: "transport-secret", Controller: tt.controller})
+			if err != nil {
+				t.Fatalf("NewHandler() error = %v", err)
+			}
+			request := httptest.NewRequest(http.MethodPost, "/v1/commands", strings.NewReader(tt.body))
+			request.Header.Set("Authorization", "Bearer transport-secret")
+			request.Header.Set("Content-Type", tt.contentType)
+			if tt.contentLength != 0 {
+				request.ContentLength = tt.contentLength
+			}
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tt.wantStatus {
+				t.Fatalf("response = %d %s, want %d", response.Code, response.Body.String(), tt.wantStatus)
+			}
+		})
+	}
+
+	command := transportCommand(validCommand())
+	command.Selection = &commandSelection{Limit: 1}
+	command.Replay = &commandReplay{Destination: "replay", IdempotencyPolicy: management.ReplayRejectDuplicate}
+	converted := managementCommand(command)
+	if converted.Selection == nil || converted.Replay == nil {
+		t.Fatalf("managementCommand(optional safeguards) = %+v", converted)
+	}
+	if commandProblemCode(http.StatusRequestEntityTooLarge) != "request_too_large" ||
+		commandProblemCode(http.StatusBadRequest) != "invalid_request" {
+		t.Fatal("command problem codes are not status-specific")
+	}
+}
 
 func TestClientExecutesAuthenticatedBoundedCommand(t *testing.T) {
 	t.Parallel()
@@ -161,6 +244,7 @@ func TestClientRejectsUnsafeCommandResponses(t *testing.T) {
 		"trailing JSON":     {body: valid + `{}`, status: http.StatusOK, wantErr: ErrInvalidResponse},
 		"invalid result":    {body: `{}`, status: http.StatusOK, wantErr: ErrInvalidResponse},
 		"mismatched result": {body: resultJSON(mismatchedCommandResult()), status: http.StatusOK, wantErr: ErrInvalidResponse},
+		"exact response":    {body: valid, status: http.StatusOK, maxResponse: int64(len(valid))},
 		"response bound":    {body: strings.Repeat("x", 32), status: http.StatusOK, maxResponse: 8, wantErr: ErrResponseTooLarge},
 	}
 	for name, tt := range tests {
@@ -213,10 +297,21 @@ func TestCommandTransportPropagatesCancellation(t *testing.T) {
 		_, executeErr := client.Execute(ctx, validCommand())
 		done <- executeErr
 	}()
-	<-started
+	select {
+	case <-started:
+	case executeErr := <-done:
+		t.Fatalf("Execute() returned before issuing the request: %v", executeErr)
+	case <-time.After(time.Second):
+		t.Fatal("Execute() did not issue the request")
+	}
 	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("Execute() cancellation error = %v", err)
+	select {
+	case executeErr := <-done:
+		if !errors.Is(executeErr, context.Canceled) {
+			t.Fatalf("Execute() cancellation error = %v", executeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Execute() did not return after cancellation")
 	}
 }
 

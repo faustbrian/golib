@@ -31,6 +31,7 @@ func TestRequestRoutesClassifiedFailuresAfterDurablePublish(t *testing.T) {
 		exchange         string
 		routingKey       string
 		publishedAttempt int64
+		failureCode      any
 		nacked           bool
 	}{
 		{
@@ -40,12 +41,19 @@ func TestRequestRoutesClassifiedFailuresAfterDurablePublish(t *testing.T) {
 		{
 			name: "exhausted", failure: errors.New("temporary"), attempt: 5,
 			exchange: "events-dead", routingKey: "jobs.dead", publishedAttempt: 5,
+			failureCode: "attempts_exhausted",
 		},
 		{
 			name: "permanent", failure: management.NewFailure(
 				management.ClassificationPermanent, "invalid_order", errors.New("invalid"),
 			), attempt: 1, exchange: "events-dead", routingKey: "jobs.dead",
-			publishedAttempt: 1,
+			publishedAttempt: 1, failureCode: "invalid_order",
+		},
+		{
+			name: "permanent after retry budget", failure: management.NewFailure(
+				management.ClassificationPermanent, "invalid_order", errors.New("invalid"),
+			), attempt: 5, exchange: "events-dead", routingKey: "jobs.dead",
+			publishedAttempt: 5, failureCode: "invalid_order",
 		},
 		{
 			name: "canceled", failure: context.Canceled, attempt: 1, nacked: true,
@@ -89,6 +97,7 @@ func TestRequestRoutesClassifiedFailuresAfterDurablePublish(t *testing.T) {
 			assert.Equal(t, test.exchange, channel.publishExchange)
 			assert.Equal(t, test.routingKey, channel.publishRoutingKey)
 			assert.Equal(t, test.publishedAttempt, channel.published.Headers[deliveryAttemptHeader])
+			assert.Equal(t, test.failureCode, channel.published.Headers[failureCodeHeader])
 		})
 	}
 }
@@ -200,6 +209,33 @@ func TestRabbitSettlementFallbackAndMalformedAttempts(t *testing.T) {
 	}
 }
 
+func TestRabbitSettlementNacksWhenEitherPublisherDependencyIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	for name, worker := range map[string]*Worker{
+		"channel": {
+			confirmations: make(chan amqp.Confirmation),
+			opts:          newOptions(WithPublishTimeout(time.Nanosecond)),
+		},
+		"confirmations": {
+			channel: &fakeAMQPChannel{},
+			opts:    newOptions(WithPublishTimeout(time.Nanosecond)),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			acknowledger := &recordingAcknowledger{}
+			err := worker.settleRabbitFailure(amqp.Delivery{
+				Acknowledger: acknowledger,
+				DeliveryTag:  1,
+				Headers:      amqp.Table{deliveryAttemptHeader: int64(1)},
+			}, errors.New("temporary"))
+			require.NoError(t, err)
+			assert.Equal(t, 1, acknowledger.nacks)
+			assert.True(t, acknowledger.lastRequeue)
+		})
+	}
+}
+
 func TestRabbitPublishSettlementReportsConfirmationOutcomes(t *testing.T) {
 	t.Parallel()
 
@@ -241,6 +277,7 @@ func TestRabbitDeliveryAttemptAcceptsOnlyBoundedIntegers(t *testing.T) {
 		{deliveryAttemptHeader: int64(1)},
 		{deliveryAttemptHeader: int32(2)},
 		{deliveryAttemptHeader: int(3)},
+		{deliveryAttemptHeader: int64(101)},
 	} {
 		attempt, ok := rabbitDeliveryAttempt(headers)
 		assert.True(t, ok)

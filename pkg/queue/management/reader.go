@@ -1,12 +1,14 @@
 package management
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"errors"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 )
 
 const MaxStatusProviders = 1_000
@@ -90,7 +92,9 @@ func (r *ProviderStatusReader) ListWorkers(
 		}
 		items = append(items, item)
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	slices.SortFunc(items, func(left, right WorkerStatus) int {
+		return strings.Compare(left.ID, right.ID)
+	})
 	for index := 1; index < len(items); index++ {
 		if items[index-1].ID == items[index].ID {
 			return WorkerStatusPage{}, ErrInvalidStatusProviderOutput
@@ -124,11 +128,11 @@ func (r *ProviderStatusReader) ListQueues(
 		}
 		items = append(items, item)
 	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].Queue != items[j].Queue {
-			return items[i].Queue < items[j].Queue
-		}
-		return items[i].Backend < items[j].Backend
+	slices.SortFunc(items, func(left, right QueueStatus) int {
+		return cmp.Or(
+			strings.Compare(left.Queue, right.Queue),
+			strings.Compare(left.Backend, right.Backend),
+		)
 	})
 	for index := 1; index < len(items); index++ {
 		if items[index-1].Queue == items[index].Queue &&

@@ -149,6 +149,76 @@ func TestResolveFailureUsesWinningClassificationAndDeterministicCode(t *testing.
 	if resolution.Code != "alpha" {
 		t.Fatalf("ResolveFailure() equal-rank code = %q", resolution.Code)
 	}
+	resolution = ResolveFailure(errors.Join(
+		NewFailure(ClassificationPermanent, "alpha", nil),
+		NewFailure(ClassificationPermanent, "zeta", nil),
+	))
+	if resolution.Code != "alpha" {
+		t.Fatalf("ResolveFailure() descending equal-rank code = %q", resolution.Code)
+	}
+	resolution = ResolveFailure(errors.Join(
+		errors.New("unclassified"),
+		NewFailure(ClassificationRetryable, "retry_later", nil),
+	))
+	if resolution.Code != "retry_later" {
+		t.Fatalf("ResolveFailure() retained retryable code = %q", resolution.Code)
+	}
+	resolution = ResolveFailure(errors.Join(
+		NewFailure(ClassificationRetryable, "retry_later", nil),
+		errors.New("unclassified"),
+	))
+	if resolution.Code != "retry_later" {
+		t.Fatalf("ResolveFailure() selected retryable code = %q", resolution.Code)
+	}
+}
+
+func TestResolveFailureBoundsWrappedGraphTraversal(t *testing.T) {
+	t.Parallel()
+
+	infrastructure := NewFailure(
+		ClassificationInfrastructure,
+		"settlement_failed",
+		errors.New("broker endpoint"),
+	)
+	if resolution := ResolveFailure(wrapFailure(infrastructure, 63)); resolution.Classification != ClassificationInfrastructure {
+		t.Fatalf("64th graph node classification = %q", resolution.Classification)
+	}
+	if resolution := ResolveFailure(wrapFailure(infrastructure, 64)); resolution != (FailureResolution{Classification: ClassificationRetryable}) {
+		t.Fatalf("65th graph node resolution = %+v", resolution)
+	}
+	if resolution := ResolveFailure(joinedFailureWrapper{infrastructure, nil}); resolution.Classification != ClassificationInfrastructure {
+		t.Fatalf("joined failure after nil branch classification = %q", resolution.Classification)
+	}
+}
+
+type joinedFailureWrapper []error
+
+func (wrapper joinedFailureWrapper) Error() string {
+	return "joined"
+}
+
+func (wrapper joinedFailureWrapper) Unwrap() []error {
+	return wrapper
+}
+
+type failureWrapper struct {
+	cause error
+}
+
+func (wrapper failureWrapper) Error() string {
+	return "wrapped"
+}
+
+func (wrapper failureWrapper) Unwrap() error {
+	return wrapper.cause
+}
+
+func wrapFailure(err error, depth int) error {
+	for range depth {
+		err = failureWrapper{cause: err}
+	}
+
+	return err
 }
 
 func TestClassificationRankRejectsUnknownClassification(t *testing.T) {

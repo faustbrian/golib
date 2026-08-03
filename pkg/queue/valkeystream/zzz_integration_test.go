@@ -694,7 +694,10 @@ func startValkey9(
 		container, err := testcontainers.GenericContainer(t.Context(), testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Image: valkey9Image, ExposedPorts: []string{"6379/tcp"}, Cmd: command, Files: files,
-				WaitingFor: wait.ForListeningPort("6379/tcp").WithStartupTimeout(2 * time.Minute),
+				WaitingFor: wait.ForAll(
+					wait.ForListeningPort("6379/tcp"),
+					wait.ForLog("Ready to accept connections"),
+				).WithDeadline(2 * time.Minute),
 			},
 			Started: true,
 		})

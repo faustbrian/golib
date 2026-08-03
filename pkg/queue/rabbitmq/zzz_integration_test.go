@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,8 +24,35 @@ import (
 	"go.uber.org/goleak"
 )
 
+var (
+	sharedRabbitMQOnce      sync.Once
+	sharedRabbitMQContainer testcontainers.Container
+	sharedRabbitMQEndpoint  string
+	sharedRabbitMQError     error
+)
+
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+	goleak.VerifyTestMain(rabbitMQTestMain{tests: m})
+}
+
+type rabbitMQTestMain struct {
+	tests *testing.M
+}
+
+func (m rabbitMQTestMain) Run() int {
+	exitCode := m.tests.Run()
+	if sharedRabbitMQContainer == nil {
+		return exitCode
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if err := sharedRabbitMQContainer.Terminate(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "terminate shared RabbitMQ test container: %v\n", err)
+		return 1
+	}
+
+	return exitCode
 }
 
 type mockMessage struct {
@@ -51,6 +80,18 @@ func waitForSignal(t *testing.T, signal <-chan struct{}) {
 }
 
 func setupRabbitMQContainer(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
+	t.Helper()
+	sharedRabbitMQOnce.Do(func() {
+		sharedRabbitMQContainer, sharedRabbitMQEndpoint, sharedRabbitMQError =
+			startRabbitMQContainer(ctx)
+	})
+	require.NoError(t, sharedRabbitMQError)
+	require.NotNil(t, sharedRabbitMQContainer)
+
+	return sharedRabbitMQContainer, sharedRabbitMQEndpoint
+}
+
+func startRabbitMQContainer(ctx context.Context) (testcontainers.Container, string, error) {
 	req := testcontainers.ContainerRequest{
 		Image: "rabbitmq:3.13.7-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
 		ExposedPorts: []string{
@@ -58,32 +99,44 @@ func setupRabbitMQContainer(ctx context.Context, t *testing.T) (testcontainers.C
 			"5672/tcp", // amqp
 		},
 		WaitingFor: wait.ForLog("Server startup complete").
-			WithStartupTimeout(2 * time.Minute),
+			WithStartupTimeout(5 * time.Minute),
 		Env: map[string]string{
 			"RABBITMQ_DEFAULT_USER": "guest",
 			"RABBITMQ_DEFAULT_PASS": "guest",
 		},
 	}
-	rabbitMQC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
-	require.NoError(t, err)
+	if err != nil {
+		return nil, "", err
+	}
 
-	var endpoint string
-	require.Eventually(t, func() bool {
-		endpoint, err = rabbitMQC.PortEndpoint(ctx, "5672/tcp", "")
-		return err == nil
-	}, 5*time.Second, 25*time.Millisecond, "RabbitMQ port mapping did not become visible")
-
-	return rabbitMQC, endpoint
+	endpointContext, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		endpoint, endpointErr := container.PortEndpoint(endpointContext, "5672/tcp", "")
+		if endpointErr == nil {
+			return container, endpoint, nil
+		}
+		select {
+		case <-endpointContext.Done():
+			cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), time.Minute)
+			_ = container.Terminate(cleanupContext)
+			cleanupCancel()
+			return nil, "", fmt.Errorf("RabbitMQ port mapping did not become visible: %w", endpointErr)
+		case <-ticker.C:
+		}
+	}
 }
 
 func newRabbitWorker(t *testing.T, opts ...Option) *Worker {
 	t.Helper()
 	ctx := context.Background()
-	container, endpoint := setupRabbitMQContainer(ctx, t)
-	testcontainers.CleanupContainer(t, container)
+	_, endpoint := setupRabbitMQContainer(ctx, t)
 	return NewWorker(append(
 		[]Option{WithAddr(fmt.Sprintf("amqp://guest:guest@%s/", endpoint))},
 		opts...,
@@ -108,8 +161,7 @@ func TestShutdownWorkFlow(t *testing.T) {
 
 func TestRabbitMQDeadLettersExhaustedDeliveryAfterConfirmedPublishes(t *testing.T) {
 	ctx := t.Context()
-	rabbitMQC, endpoint := setupRabbitMQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, rabbitMQC)
+	_, endpoint := setupRabbitMQContainer(ctx, t)
 	address := fmt.Sprintf("amqp://guest:guest@%s/", endpoint)
 	worker, err := NewWorkerE(
 		WithAddr(address), WithExchangeName("terminal-events"),
@@ -159,7 +211,6 @@ func TestRabbitMQDeadLettersExhaustedDeliveryAfterConfirmedPublishes(t *testing.
 func TestBrokerRestartRequiresReplacementWorker(t *testing.T) {
 	ctx := context.Background()
 	rabbitMQC, endpoint := setupRabbitMQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, rabbitMQC)
 	address := fmt.Sprintf("amqp://guest:guest@%s/", endpoint)
 
 	worker := NewWorker(WithAddr(address), WithQueue("restart"))

@@ -120,9 +120,9 @@ func (w *Worker) Shutdown() error {
 		close(w.stop)
 		if w.client != nil {
 			if !w.client.IsClosed() {
-				if err := w.client.Drain(); err != nil {
-					w.client.Close()
-				}
+				// Drain closes the connection before returning either of its
+				// documented errors, so an additional Close is redundant.
+				_ = w.client.Drain()
 			}
 			if w.closed != nil {
 				<-w.closed

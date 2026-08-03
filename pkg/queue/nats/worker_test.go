@@ -38,7 +38,10 @@ func TestOptionsConfigureNATS(t *testing.T) {
 	assert.Equal(t, 30*time.Millisecond, opts.connectTimeout)
 	assert.ErrorIs(t, opts.runFunc(context.Background(), nil), runErr)
 	assert.Equal(t, natsgo.DefaultURL, newOptions(WithAddr()).addr)
-	assert.NoError(t, newOptions().runFunc(context.Background(), nil))
+	defaults := newOptions()
+	assert.Equal(t, 6*time.Second, defaults.requestTimeout)
+	assert.Equal(t, 2*time.Second, defaults.connectTimeout)
+	assert.NoError(t, defaults.runFunc(context.Background(), nil))
 	worker := &Worker{opts: opts}
 	assert.Equal(t, "nats", worker.BackendName())
 	assert.Equal(t, "jobs", worker.QueueName())
@@ -67,7 +70,7 @@ func TestWorkerQueuesRequestsRunsAndShutsDown(t *testing.T) {
 	assert.Equal(t, []byte("payload"), received.Payload())
 	require.NoError(t, worker.Run(context.Background(), received))
 	assert.Equal(t, []byte("payload"), handled)
-	require.NoError(t, worker.Shutdown())
+	require.NoError(t, shutdownWithin(t, worker))
 	assert.ErrorIs(t, worker.Shutdown(), queue.ErrQueueShutdown)
 	assert.ErrorIs(t, worker.Queue(&message), queue.ErrQueueShutdown)
 }
@@ -162,7 +165,7 @@ func TestShutdownWithoutSubscription(t *testing.T) {
 		tasks:  make(chan *natsgo.Msg),
 	}
 
-	require.NoError(t, worker.Shutdown())
+	require.NoError(t, shutdownWithin(t, worker))
 }
 
 func TestShutdownClosesReconnectInProgress(t *testing.T) {
@@ -272,6 +275,28 @@ func runNATSServer(t *testing.T) string {
 		instance.WaitForShutdown()
 	})
 	return instance.ClientURL()
+}
+
+func shutdownWithin(t *testing.T, worker *Worker) error {
+	t.Helper()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- worker.Shutdown()
+	}()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		return err
+	case <-timer.C:
+		t.Fatal("Shutdown() did not return")
+		return nil
+	case <-t.Context().Done():
+		t.Fatalf("Shutdown(): %v", t.Context().Err())
+		return nil
+	}
 }
 
 type rawMessage string

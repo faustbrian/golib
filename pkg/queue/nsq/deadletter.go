@@ -15,7 +15,9 @@ import (
 	nsqgo "github.com/nsqio/go-nsq"
 )
 
-const maxNSQDeadLetterEnvelopeBytes = job.DefaultMaxMessageBytes + 32_768
+// JSON base64-encodes the source payload. Twice the source-message limit
+// leaves room for that expansion and every validation-bounded metadata field.
+const maxNSQDeadLetterEnvelopeBytes = 2 * job.DefaultMaxMessageBytes
 
 type nsqDeadLetterRecord struct {
 	EnvelopeVersion uint16                    `json:"envelope_version"`

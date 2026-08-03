@@ -114,9 +114,6 @@ func (w *Worker) startConsumer() (err error) {
 		w.q.AddHandler(nsq.HandlerFunc(w.handleMessage))
 
 		err = w.connectConsumer(w.q, w.opts.addr)
-		if err != nil {
-			return
-		}
 	})
 
 	return err

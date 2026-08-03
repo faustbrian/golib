@@ -73,6 +73,14 @@ func TestCommandValidateRequiresBoundedMutationEnvelope(t *testing.T) {
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
+	exactReason := valid
+	exactReason.Reason = stringOfLength(MaxReasonBytes)
+	if err := exactReason.Validate(); err != nil {
+		t.Fatalf("Validate(exact reason limit) error = %v", err)
+	}
+	overReason := valid
+	overReason.Reason = stringOfLength(MaxReasonBytes + 1)
+	assertValidationField(t, overReason.Validate(), "reason")
 }
 
 func TestCommandValidateSupportsExplicitAdministrativeTargets(t *testing.T) {

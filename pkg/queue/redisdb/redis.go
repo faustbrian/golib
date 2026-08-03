@@ -77,17 +77,7 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 		)
 	}
 
-	options := &redis.Options{
-		Addr:                  w.opts.addr,
-		Username:              w.opts.username,
-		Password:              w.opts.password,
-		DB:                    w.opts.db,
-		TLSConfig:             w.opts.tls,
-		DialTimeout:           w.opts.connectTimeout,
-		DialerRetries:         1,
-		MaxRetries:            -1,
-		ContextTimeoutEnabled: true,
-	}
+	options := redisClientOptions(w.opts)
 
 	if w.opts.connectionString != "" {
 		options, err = redis.ParseURL(w.opts.connectionString)
@@ -116,29 +106,9 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 
 	switch {
 	case w.opts.sentinel:
-		w.rdb = redis.NewFailoverClient(&redis.FailoverOptions{
-			MasterName:            w.opts.masterName,
-			SentinelAddrs:         strings.Split(w.opts.addr, ","),
-			Username:              w.opts.username,
-			Password:              w.opts.password,
-			DB:                    w.opts.db,
-			TLSConfig:             w.opts.tls,
-			DialTimeout:           w.opts.connectTimeout,
-			DialerRetries:         1,
-			MaxRetries:            -1,
-			ContextTimeoutEnabled: true,
-		})
+		w.rdb = redis.NewFailoverClient(redisSentinelOptions(w.opts))
 	case w.opts.cluster:
-		w.rdb = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:                 strings.Split(w.opts.addr, ","),
-			Username:              w.opts.username,
-			Password:              w.opts.password,
-			TLSConfig:             w.opts.tls,
-			DialTimeout:           w.opts.connectTimeout,
-			DialerRetries:         1,
-			MaxRedirects:          -1,
-			ContextTimeoutEnabled: true,
-		})
+		w.rdb = redis.NewClusterClient(redisClusterOptions(w.opts))
 	default:
 		w.rdb = redis.NewClient(options)
 	}
@@ -168,6 +138,48 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 	return w, nil
 }
 
+func redisClientOptions(opts options) *redis.Options {
+	return &redis.Options{
+		Addr:                  opts.addr,
+		Username:              opts.username,
+		Password:              opts.password,
+		DB:                    opts.db,
+		TLSConfig:             opts.tls,
+		DialTimeout:           opts.connectTimeout,
+		DialerRetries:         1,
+		MaxRetries:            -1,
+		ContextTimeoutEnabled: true,
+	}
+}
+
+func redisSentinelOptions(opts options) *redis.FailoverOptions {
+	return &redis.FailoverOptions{
+		MasterName:            opts.masterName,
+		SentinelAddrs:         strings.Split(opts.addr, ","),
+		Username:              opts.username,
+		Password:              opts.password,
+		DB:                    opts.db,
+		TLSConfig:             opts.tls,
+		DialTimeout:           opts.connectTimeout,
+		DialerRetries:         1,
+		MaxRetries:            -1,
+		ContextTimeoutEnabled: true,
+	}
+}
+
+func redisClusterOptions(opts options) *redis.ClusterOptions {
+	return &redis.ClusterOptions{
+		Addrs:                 strings.Split(opts.addr, ","),
+		Username:              opts.username,
+		Password:              opts.password,
+		TLSConfig:             opts.tls,
+		DialTimeout:           opts.connectTimeout,
+		DialerRetries:         1,
+		MaxRedirects:          -1,
+		ContextTimeoutEnabled: true,
+	}
+}
+
 func probeRedisSentinels(
 	ctx context.Context,
 	addresses []string,
@@ -178,22 +190,13 @@ func probeRedisSentinels(
 	if len(addresses) == 0 || timeout <= 0 {
 		return errors.New("redis Sentinel probe requires an address and timeout")
 	}
-	attemptTimeout := max(timeout/time.Duration(len(addresses)), time.Nanosecond)
+	attemptTimeout := redisSentinelAttemptTimeout(timeout, len(addresses))
 	var failures []error
 	for _, address := range addresses {
 		attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
-		client := redis.NewSentinelClient(&redis.Options{
-			Addr:                  address,
-			Protocol:              2,
-			TLSConfig:             tlsConfig,
-			DialTimeout:           attemptTimeout,
-			DialerRetries:         1,
-			ReadTimeout:           attemptTimeout,
-			WriteTimeout:          attemptTimeout,
-			MaxRetries:            -1,
-			ContextTimeoutEnabled: true,
-			DisableIdentity:       true,
-		})
+		client := redis.NewSentinelClient(
+			redisSentinelProbeOptions(address, tlsConfig, attemptTimeout),
+		)
 		_, err := client.GetMasterAddrByName(attemptCtx, masterName).Result()
 		_ = client.Close()
 		cancel()
@@ -203,10 +206,33 @@ func probeRedisSentinels(
 		failures = append(failures, err)
 		if ctx.Err() != nil {
 			failures = append(failures, ctx.Err())
-			break
+			return errors.Join(failures...)
 		}
 	}
 	return errors.Join(failures...)
+}
+
+func redisSentinelProbeOptions(
+	address string,
+	tlsConfig *tls.Config,
+	timeout time.Duration,
+) *redis.Options {
+	return &redis.Options{
+		Addr:                  address,
+		Protocol:              2,
+		TLSConfig:             tlsConfig,
+		DialTimeout:           timeout,
+		DialerRetries:         1,
+		ReadTimeout:           timeout,
+		WriteTimeout:          timeout,
+		MaxRetries:            -1,
+		ContextTimeoutEnabled: true,
+		DisableIdentity:       true,
+	}
+}
+
+func redisSentinelAttemptTimeout(timeout time.Duration, addressCount int) time.Duration {
+	return max(timeout/time.Duration(addressCount), time.Nanosecond)
 }
 
 func subscribeRedis(ctx context.Context, client redis.Cmdable, channel string) *redis.PubSub {

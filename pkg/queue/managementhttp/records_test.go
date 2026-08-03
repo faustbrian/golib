@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,6 +15,108 @@ import (
 
 	"github.com/faustbrian/golib/pkg/queue/management"
 )
+
+func TestRecordClientRejectsEachUnsafeResponseBoundaryImmediately(t *testing.T) {
+	newClient := func(body string, status int, maxResponse int64) *Client {
+		t.Helper()
+		client, err := NewClient(ClientConfig{
+			BaseURL: "https://worker.example", Token: "transport-secret", MaxResponseBytes: maxResponse,
+			HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: status,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(body)),
+				}, nil
+			})},
+		})
+		if err != nil {
+			t.Fatalf("NewClient() error = %v", err)
+		}
+		return client
+	}
+	request := management.InspectRequest{
+		Kind: management.RecordFailure, ID: "record-1", Visibility: management.PayloadHidden,
+	}
+	cases := map[string]management.JobRecord{
+		"invalid record":      {},
+		"wrong kind":          validManagementRecord(management.RecordDeadLetter, management.PayloadHidden),
+		"overexposed payload": validManagementRecord(management.RecordFailure, management.PayloadRedacted),
+		"overexposed diagnostics": func() management.JobRecord {
+			record := validManagementRecord(management.RecordFailure, management.PayloadHidden)
+			record.Diagnostics = management.Payload{Visibility: management.PayloadRedacted}
+			return record
+		}(),
+	}
+	for name, record := range cases {
+		t.Run(name, func(t *testing.T) {
+			body, err := json.Marshal(transportRecord(record))
+			if err != nil {
+				t.Fatalf("json.Marshal() error = %v", err)
+			}
+			if _, err := newClient(string(body), http.StatusOK, 0).Inspect(context.Background(), request); !errors.Is(err, ErrInvalidResponse) {
+				t.Fatalf("Inspect() error = %v", err)
+			}
+		})
+	}
+
+	pageBody, err := json.Marshal(transportRecordPage(management.RecordPage{
+		Items: []management.JobRecord{validManagementRecord(management.RecordFailure, management.PayloadHidden)},
+	}))
+	if err != nil {
+		t.Fatalf("json.Marshal(page) error = %v", err)
+	}
+	if _, err := newClient(string(pageBody), http.StatusOK, int64(len(pageBody))).ListFailures(
+		context.Background(), validRecordPageRequest(),
+	); err != nil {
+		t.Fatalf("ListFailures(exact response bound) error = %v", err)
+	}
+	for name, body := range map[string]string{
+		"unknown problem field": `{"unknown":true}`,
+		"trailing problem":      `{"code":"record_not_found"}{}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := newClient(body, http.StatusBadRequest, 0).ListFailures(
+				context.Background(), validRecordPageRequest(),
+			)
+			if !errors.Is(err, ErrRemoteFailure) || errors.Is(err, management.ErrRecordNotFound) {
+				t.Fatalf("ListFailures(problem) error = %v", err)
+			}
+		})
+	}
+}
+
+func TestRecordQueryAndDiagnosticsConditionsAreIndependent(t *testing.T) {
+	for name, values := range map[string]url.Values{
+		"extra query":          {"visibility": {"hidden"}, "extra": {"x"}},
+		"missing visibility":   {"other": {"hidden"}},
+		"empty visibility":     {"visibility": nil},
+		"duplicate visibility": {"visibility": {"hidden", "revealed"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, ok := inspectVisibility(values); ok {
+				t.Fatalf("inspectVisibility(%v) accepted", values)
+			}
+		})
+	}
+
+	base := management.JobRecord{}
+	mutations := map[string]func(*management.JobRecord){
+		"envelope":     func(record *management.JobRecord) { record.EnvelopeVersion = 1 },
+		"visibility":   func(record *management.JobRecord) { record.Diagnostics.Visibility = management.PayloadRedacted },
+		"content type": func(record *management.JobRecord) { record.Diagnostics.ContentType = "application/json" },
+		"size":         func(record *management.JobRecord) { record.Diagnostics.Size = 1 },
+		"data":         func(record *management.JobRecord) { record.Diagnostics.Data = []byte("x") },
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			record := base
+			mutate(&record)
+			if transportDiagnostics(record) == nil {
+				t.Fatal("transportDiagnostics() = nil")
+			}
+		})
+	}
+}
 
 func TestClientReadsAuthenticatedBoundedRecords(t *testing.T) {
 	t.Parallel()

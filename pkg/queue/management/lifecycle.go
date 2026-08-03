@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 )
@@ -242,7 +242,7 @@ func (l *WorkerLifecycle) DecorateWorkerStatus(
 	capabilities = append(capabilities,
 		CapabilityPause, CapabilityResume, CapabilityDrain, CapabilityTerminate,
 	)
-	sort.Slice(capabilities, func(i, j int) bool { return capabilities[i] < capabilities[j] })
+	slices.Sort(capabilities)
 	status.Capabilities = deduplicateCapabilities(capabilities)
 	if status.Validate() != nil {
 		return WorkerStatus{}, ErrInvalidStatusProviderOutput

@@ -5,6 +5,9 @@ package nsq
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,8 +24,35 @@ import (
 	"go.uber.org/goleak"
 )
 
+var (
+	sharedNSQOnce      sync.Once
+	sharedNSQContainer testcontainers.Container
+	sharedNSQEndpoint  string
+	sharedNSQError     error
+)
+
 func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+	goleak.VerifyTestMain(nsqTestMain{tests: m})
+}
+
+type nsqTestMain struct {
+	tests *testing.M
+}
+
+func (m nsqTestMain) Run() int {
+	exitCode := m.tests.Run()
+	if sharedNSQContainer == nil {
+		return exitCode
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if err := sharedNSQContainer.Terminate(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "terminate shared NSQ test container: %v\n", err)
+		return 1
+	}
+
+	return exitCode
 }
 
 type mockMessage struct {
@@ -54,58 +84,119 @@ func waitForSignal(t *testing.T, signal <-chan struct{}) {
 }
 
 func setupNSQContainer(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
+	t.Helper()
+	sharedNSQOnce.Do(func() {
+		sharedNSQContainer, sharedNSQEndpoint, sharedNSQError = startNSQContainer(ctx)
+	})
+	require.NoError(t, sharedNSQError)
+	require.NotNil(t, sharedNSQContainer)
+
+	return sharedNSQContainer, sharedNSQEndpoint
+}
+
+func startNSQContainer(ctx context.Context) (testcontainers.Container, string, error) {
 	req := testcontainers.ContainerRequest{
 		Image: "nsqio/nsq:v1.3.0@sha256:1a369c146af71bc95c25d54b375a2b98452478c1eaf4e85f8fcb01da20f2c78a",
 		ExposedPorts: []string{
 			"4150/tcp", // nsqd port
 			"4151/tcp", // http port
 		},
-		WaitingFor: wait.ForLog("TCP: listening on"),
+		WaitingFor: wait.ForListeningPort("4150/tcp").WithStartupTimeout(5 * time.Minute),
+		Cmd:        []string{"nsqd"},
+	}
+	return createNSQContainer(ctx, req)
+}
+
+func startRestartableNSQContainer(ctx context.Context) (testcontainers.Container, string, error) {
+	req := testcontainers.ContainerRequest{
+		Image: "nsqio/nsq:v1.3.0@sha256:1a369c146af71bc95c25d54b375a2b98452478c1eaf4e85f8fcb01da20f2c78a",
+		ExposedPorts: []string{
+			"4150/tcp", // nsqd port
+			"4151/tcp", // http port
+		},
+		WaitingFor: wait.ForLog("TCP: listening on").WithStartupTimeout(5 * time.Minute),
 		Cmd: []string{
 			"sh", "-c",
-			"nsqd & echo $! > /tmp/nsqd.pid; while :; do sleep 3600; done",
+			"while :; do " +
+				"while [ -e /tmp/nsqd.paused ]; do sleep 0.1; done; " +
+				"nsqd & pid=$!; echo \"$pid\" > /tmp/nsqd.pid; " +
+				"wait \"$pid\" || true; echo \"$pid\" > /tmp/nsqd.stopped; " +
+				"done",
 		},
 	}
+	return createNSQContainer(ctx, req)
+}
+
+func createNSQContainer(
+	ctx context.Context,
+	req testcontainers.ContainerRequest,
+) (testcontainers.Container, string, error) {
 	nsqC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
-	require.NoError(t, err)
+	if err != nil {
+		return nil, "", err
+	}
 
-	var endpoint string
-	require.Eventually(t, func() bool {
-		endpoint, err = nsqC.PortEndpoint(ctx, "4150/tcp", "")
-		return err == nil
-	}, 5*time.Second, 25*time.Millisecond, "NSQ port mapping did not become visible")
-
-	return nsqC, endpoint
+	endpointContext, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		endpoint, endpointErr := nsqC.PortEndpoint(endpointContext, "4150/tcp", "")
+		if endpointErr == nil {
+			return nsqC, endpoint, nil
+		}
+		select {
+		case <-endpointContext.Done():
+			cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), time.Minute)
+			_ = nsqC.Terminate(cleanupContext)
+			cleanupCancel()
+			return nil, "", fmt.Errorf("NSQ port mapping did not become visible: %w", endpointErr)
+		case <-ticker.C:
+		}
+	}
 }
 
 func stopNSQServer(ctx context.Context, t *testing.T, nsqC testcontainers.Container) {
 	t.Helper()
 
 	exitCode, _, err := nsqC.Exec(ctx, []string{
-		"sh", "-c", "kill -TERM \"$(cat /tmp/nsqd.pid)\"",
+		"sh", "-c",
+		"touch /tmp/nsqd.paused; pid=$(cat /tmp/nsqd.pid); kill -KILL \"$pid\"; " +
+			"i=0; while [ \"$(cat /tmp/nsqd.stopped 2>/dev/null)\" != \"$pid\" ]; do " +
+			"i=$((i + 1)); [ \"$i\" -lt 300 ] || exit 1; sleep 0.1; done",
 	})
 	require.NoError(t, err)
 	require.Zero(t, exitCode)
 }
 
-func startNSQServer(ctx context.Context, t *testing.T, nsqC testcontainers.Container) {
+func startNSQServer(
+	ctx context.Context,
+	t *testing.T,
+	nsqC testcontainers.Container,
+) {
 	t.Helper()
 
 	exitCode, _, err := nsqC.Exec(ctx, []string{
 		"sh", "-c",
-		"nsqd > /tmp/nsqd-restart.log 2>&1 & echo $! > /tmp/nsqd.pid",
+		"old=$(cat /tmp/nsqd.pid); rm -f /tmp/nsqd.paused; " +
+			"i=0; while :; do pid=$(cat /tmp/nsqd.pid); " +
+			"if [ \"$pid\" != \"$old\" ] && kill -0 \"$pid\" 2>/dev/null; then exit 0; fi; " +
+			"i=$((i + 1)); [ \"$i\" -lt 300 ] || exit 1; sleep 0.1; done",
 	})
 	require.NoError(t, err)
 	require.Zero(t, exitCode)
+	require.NoError(t, wait.ForHTTP("/ping").
+		WithPort("4151/tcp").
+		WithStartupTimeout(time.Minute).
+		WaitUntilReady(ctx, nsqC))
 }
 
 func TestNSQDefaultFlow(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := &mockMessage{
 		Message: "foo",
 	}
@@ -129,8 +220,7 @@ func TestNSQDefaultFlow(t *testing.T) {
 
 func TestNSQDeadLettersExhaustedDeliveryBeforeFinishingSource(t *testing.T) {
 	ctx := t.Context()
-	nsqC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, nsqC)
+	_, endpoint := setupNSQContainer(ctx, t)
 
 	terminal := make(chan []byte, 1)
 	consumer, err := nsqgo.NewConsumer("terminal-jobs-dead", "inspect", nsqgo.NewConfig())
@@ -179,7 +269,8 @@ func TestNSQDeadLettersExhaustedDeliveryBeforeFinishingSource(t *testing.T) {
 
 func TestNSQReconnectsAfterBrokerRestart(t *testing.T) {
 	ctx := context.Background()
-	nsqC, endpoint := setupNSQContainer(ctx, t)
+	nsqC, endpoint, err := startRestartableNSQContainer(ctx)
+	require.NoError(t, err)
 	defer testcontainers.CleanupContainer(t, nsqC)
 
 	worker := NewWorker(WithAddr(endpoint), WithTopic("restart"), WithChannel("restart"))
@@ -208,8 +299,7 @@ func TestNSQReconnectsAfterBrokerRestart(t *testing.T) {
 
 func TestNSQShutdown(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	w := NewWorker(
 		WithAddr(endpoint),
 		WithTopic("test2"),
@@ -229,8 +319,7 @@ func TestNSQShutdown(t *testing.T) {
 
 func TestNSQCustomFuncAndWait(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := &mockMessage{
 		Message: "foo",
 	}
@@ -271,8 +360,7 @@ func TestNSQCustomFuncAndWait(t *testing.T) {
 
 func TestEnqueueJobAfterShutdown(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}
@@ -295,8 +383,7 @@ func TestEnqueueJobAfterShutdown(t *testing.T) {
 
 func TestJobReachTimeout(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}
@@ -330,8 +417,7 @@ func TestJobReachTimeout(t *testing.T) {
 
 func TestCancelJobAfterShutdown(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "test",
 	}
@@ -365,8 +451,7 @@ func TestCancelJobAfterShutdown(t *testing.T) {
 
 func TestGoroutineLeak(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}
@@ -394,8 +479,7 @@ func TestGoroutineLeak(t *testing.T) {
 
 func TestGoroutinePanic(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}
@@ -423,8 +507,7 @@ func TestGoroutinePanic(t *testing.T) {
 
 func TestNSQStatsinQueue(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}
@@ -454,8 +537,7 @@ func TestNSQStatsinQueue(t *testing.T) {
 
 func TestNSQStatsInWorker(t *testing.T) {
 	ctx := context.Background()
-	natsC, endpoint := setupNSQContainer(ctx, t)
-	defer testcontainers.CleanupContainer(t, natsC)
+	_, endpoint := setupNSQContainer(ctx, t)
 	m := mockMessage{
 		Message: "foo",
 	}

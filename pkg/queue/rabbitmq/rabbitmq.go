@@ -75,18 +75,21 @@ func dialWithRetry(addr string, cfg ReconnectConfig) (amqpConnection, error) {
 	var conn amqpConnection
 	var err error
 	delay := cfg.InitialDelay
-	for i := 0; i < cfg.MaxRetries; i++ {
+	for attempt := 0; ; attempt++ {
 		conn, err = dialAMQP(addr)
 		if err == nil {
 			return conn, nil
 		}
-		if i+1 < cfg.MaxRetries {
-			time.Sleep(delay)
+		if attempt == cfg.MaxRetries-1 {
+			return nil, safeerr.Wrap("failed to connect to RabbitMQ after retries", err)
 		}
-		// Exponential backoff with cap
-		delay = time.Duration(math.Min(float64(cfg.MaxDelay), float64(delay)*2))
+		time.Sleep(delay)
+		delay = nextRabbitMQRetryDelay(delay, cfg.MaxDelay)
 	}
-	return nil, safeerr.Wrap("failed to connect to RabbitMQ after retries", err)
+}
+
+func nextRabbitMQRetryDelay(delay, maximum time.Duration) time.Duration {
+	return time.Duration(math.Min(float64(maximum), float64(delay)*2))
 }
 
 func openRabbitMQ(

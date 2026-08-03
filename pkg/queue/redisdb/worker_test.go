@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -77,6 +78,26 @@ func TestOptionsConfigureRedisPubSub(t *testing.T) {
 	assert.Equal(t, uint16(tls.VersionTLS12), opts.tls.MinVersion)
 	assert.True(t, opts.tls.InsecureSkipVerify)
 	assert.ErrorIs(t, opts.runFunc(context.Background(), nil), runErr)
+
+	clientOptions := redisClientOptions(opts)
+	assert.Equal(t, "redis:6379", clientOptions.Addr)
+	assert.Equal(t, 1, clientOptions.DialerRetries)
+	assert.Equal(t, -1, clientOptions.MaxRetries)
+	assert.True(t, clientOptions.ContextTimeoutEnabled)
+
+	sentinelOptions := redisSentinelOptions(opts)
+	assert.Equal(t, "primary", sentinelOptions.MasterName)
+	assert.Equal(t, []string{"redis:6379"}, sentinelOptions.SentinelAddrs)
+	assert.Equal(t, 1, sentinelOptions.DialerRetries)
+	assert.Equal(t, -1, sentinelOptions.MaxRetries)
+	assert.True(t, sentinelOptions.ContextTimeoutEnabled)
+
+	clusterOptions := redisClusterOptions(opts)
+	assert.Equal(t, []string{"redis:6379"}, clusterOptions.Addrs)
+	assert.Equal(t, 1, clusterOptions.DialerRetries)
+	assert.Equal(t, -1, clusterOptions.MaxRedirects)
+	assert.True(t, clusterOptions.ContextTimeoutEnabled)
+
 	worker := &Worker{opts: opts}
 	assert.Equal(t, "redis-pubsub", worker.BackendName())
 	assert.Equal(t, "jobs", worker.QueueName())
@@ -118,10 +139,34 @@ func TestWorkerPublishesRunsReceivesAndShutsDown(t *testing.T) {
 	assert.ErrorIs(t, worker.Queue(&message), queue.ErrQueueShutdown)
 }
 
+func TestWorkerAppliesChannelSizeOnlyAboveMinimum(t *testing.T) {
+	for name, test := range map[string]struct {
+		configured int
+		expected   int
+	}{
+		"minimum uses client default": {configured: 1, expected: 100},
+		"larger buffer is applied":    {configured: 2, expected: 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server := miniredis.RunT(t)
+			worker, err := NewWorkerE(
+				WithAddr(server.Addr()),
+				WithChannelSize(test.configured),
+			)
+			require.NoError(t, err)
+			assert.Equal(t, test.expected, cap(worker.channel))
+			require.NoError(t, worker.Shutdown())
+		})
+	}
+}
+
 func TestWorkerConnectsWithConnectionString(t *testing.T) {
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(WithConnectionString("redis://" + server.Addr() + "/0"))
 	require.NoError(t, err)
+	client, ok := worker.rdb.(*redis.Client)
+	require.True(t, ok)
+	assert.Zero(t, client.Options().MaxRetries)
 	require.NoError(t, worker.Shutdown())
 }
 
@@ -137,7 +182,25 @@ func TestWorkerDebugModeConnects(t *testing.T) {
 	worker, err := NewWorkerE(WithAddr(server.Addr()), WithDebug())
 
 	require.NoError(t, err)
+	client, ok := worker.rdb.(*redis.Client)
+	require.True(t, ok)
+	assert.Zero(t, client.Options().MaxRetries)
 	require.NoError(t, worker.Shutdown())
+}
+
+func TestWorkerDebugModeReportsTLSWithoutConnecting(t *testing.T) {
+	logger := &recordingLogger{}
+	worker, err := NewWorkerE(
+		WithAddr("127.0.0.1:1"),
+		WithTLS(),
+		WithLogger(logger),
+		WithDebug(),
+		WithConnectTimeout(time.Millisecond),
+	)
+
+	assert.Nil(t, worker)
+	assert.Error(t, err)
+	assert.Contains(t, logger.output.String(), "tls=true")
 }
 
 func TestWorkerDebugModeDoesNotExposeCredentials(t *testing.T) {
@@ -186,7 +249,7 @@ func TestWorkerConstructorReturnsModeConnectionErrors(t *testing.T) {
 			WithConnectTimeout(20*time.Millisecond),
 		)
 		assert.Nil(t, worker)
-		assert.ErrorContains(t, err, "connect to Redis")
+		assert.ErrorContains(t, err, "connect to Redis Sentinel")
 	})
 
 	t.Run("sentinel protocol failure", func(t *testing.T) {
@@ -246,11 +309,36 @@ func TestProbeRedisSentinels(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("does not retry one Sentinel probe", func(t *testing.T) {
+		address, commands := startFailingSentinelStub(t)
+		err := probeRedisSentinels(
+			t.Context(), []string{address}, "primary", nil, time.Second,
+		)
+		assert.Error(t, err)
+		assert.Equal(t, int64(1), commands.Load())
+	})
+
 	t.Run("rejects an empty endpoint list", func(t *testing.T) {
 		assert.Error(t, probeRedisSentinels(t.Context(), nil, "primary", nil, time.Second))
-		assert.Error(t, probeRedisSentinels(
+		assert.EqualError(t, probeRedisSentinels(
 			t.Context(), []string{"127.0.0.1:1"}, "primary", nil, 0,
-		))
+		), "redis Sentinel probe requires an address and timeout")
+	})
+
+	t.Run("divides timeout across endpoints", func(t *testing.T) {
+		assert.Equal(t, 20*time.Millisecond, redisSentinelAttemptTimeout(40*time.Millisecond, 2))
+		assert.Equal(t, time.Nanosecond, redisSentinelAttemptTimeout(time.Nanosecond, 2))
+
+		probeOptions := redisSentinelProbeOptions("redis:26379", nil, 20*time.Millisecond)
+		assert.Equal(t, "redis:26379", probeOptions.Addr)
+		assert.Equal(t, 2, probeOptions.Protocol)
+		assert.Equal(t, 20*time.Millisecond, probeOptions.DialTimeout)
+		assert.Equal(t, 1, probeOptions.DialerRetries)
+		assert.Equal(t, 20*time.Millisecond, probeOptions.ReadTimeout)
+		assert.Equal(t, 20*time.Millisecond, probeOptions.WriteTimeout)
+		assert.Equal(t, -1, probeOptions.MaxRetries)
+		assert.True(t, probeOptions.ContextTimeoutEnabled)
+		assert.True(t, probeOptions.DisableIdentity)
 	})
 
 	t.Run("honors caller cancellation", func(t *testing.T) {
@@ -299,6 +387,50 @@ func startSentinelStub(t *testing.T) string {
 		<-done
 	})
 	return listener.Addr().String()
+}
+
+func startFailingSentinelStub(t *testing.T) (string, *atomic.Int64) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	commands := &atomic.Int64{}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			connection, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			func() {
+				defer func() { _ = connection.Close() }()
+				reader := bufio.NewReader(connection)
+				for range 5 {
+					if _, readErr := reader.ReadString('\n'); readErr != nil {
+						return
+					}
+				}
+				if _, writeErr := io.WriteString(
+					connection, "-ERR unknown command 'hello'\r\n",
+				); writeErr != nil {
+					return
+				}
+				for range 7 {
+					if _, readErr := reader.ReadString('\n'); readErr != nil {
+						return
+					}
+				}
+				commands.Add(1)
+				_, _ = io.WriteString(connection, "-ERR sentinel unavailable\r\n")
+			}()
+		}
+	}()
+	t.Cleanup(func() {
+		require.NoError(t, listener.Close())
+		<-done
+	})
+
+	return listener.Addr().String(), commands
 }
 
 func TestLegacyConstructorPanicsOnConnectionError(t *testing.T) {

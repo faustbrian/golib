@@ -44,7 +44,9 @@ func TestOptionsConfigureNSQ(t *testing.T) {
 	assert.Equal(t, "jobs-dead", opts.deadLetterTopic)
 	assert.Equal(t, uint16(7), opts.maxDeliveryAttempts)
 	assert.ErrorIs(t, opts.runFunc(context.Background(), nil), runErr)
-	assert.NoError(t, newOptions().runFunc(context.Background(), nil))
+	defaults := newOptions()
+	assert.Equal(t, 2*time.Second, defaults.touchInterval)
+	assert.NoError(t, defaults.runFunc(context.Background(), nil))
 	worker := &Worker{opts: opts}
 	assert.Equal(t, "nsq", worker.BackendName())
 	assert.Equal(t, "jobs", worker.QueueName())
@@ -72,9 +74,10 @@ func TestNewWorkerERejectsUnsafeDeadLetterPolicy(t *testing.T) {
 	t.Parallel()
 
 	for name, option := range map[string]Option{
-		"blank topic": WithDeadLetter(" ", 5),
-		"same topic":  WithDeadLetter("gorush", 5),
-		"attempts":    WithDeadLetter("gorush-dead", 1),
+		"blank topic":       WithDeadLetter(" ", 5),
+		"same topic":        WithDeadLetter("gorush", 5),
+		"attempts":          WithDeadLetter("gorush-dead", 1),
+		"too many attempts": WithDeadLetter("gorush-dead", 102),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -82,6 +85,14 @@ func TestNewWorkerERejectsUnsafeDeadLetterPolicy(t *testing.T) {
 			assert.Nil(t, worker)
 			assert.ErrorIs(t, err, queue.ErrInvalidConfiguration)
 		})
+	}
+	for _, attempts := range []uint16{2, 101} {
+		worker, err := NewWorkerE(
+			WithAddr("127.0.0.1:1"),
+			WithDeadLetter("gorush-dead", attempts),
+		)
+		require.NoError(t, err)
+		require.NoError(t, worker.Shutdown())
 	}
 }
 
@@ -141,7 +152,12 @@ func TestHandleMessageCoversDeliveryLifecycle(t *testing.T) {
 		}
 
 		require.NoError(t, worker.handleMessage(message))
-		assert.Same(t, message, <-worker.tasks)
+		select {
+		case delivered := <-worker.tasks:
+			assert.Same(t, message, delivered)
+		case <-time.After(time.Second):
+			t.Fatal("non-empty message was not delivered")
+		}
 	})
 
 	t.Run("requeued on shutdown", func(t *testing.T) {
@@ -153,7 +169,7 @@ func TestHandleMessageCoversDeliveryLifecycle(t *testing.T) {
 		worker := &Worker{stop: stop, tasks: make(chan *nsqgo.Message), opts: newOptions()}
 
 		require.NoError(t, worker.handleMessage(message))
-		assert.Equal(t, 1, delegate.requeued)
+		requireSingleDefaultRequeue(t, delegate)
 	})
 
 	t.Run("touches while waiting", func(t *testing.T) {
@@ -239,6 +255,26 @@ func TestRequestReturnsConsumerDecodeClosedAndTimeoutErrors(t *testing.T) {
 		assert.Nil(t, message)
 		assert.ErrorContains(t, err, "decode NSQ message")
 		assert.Equal(t, 1, delegate.finished)
+	})
+
+	t.Run("decode settlement failure", func(t *testing.T) {
+		publishErr := errors.New("dead-letter unavailable")
+		tasks := make(chan *nsqgo.Message, 1)
+		nsqMessage := nsqgo.NewMessage(nsqgo.MessageID{}, []byte("not-json"))
+		nsqMessage.Delegate = &messageDelegate{}
+		tasks <- nsqMessage
+		worker := &Worker{
+			tasks: tasks,
+			opts:  newOptions(),
+			publish: func(string, []byte) error {
+				return publishErr
+			},
+		}
+		worker.startOnce.Do(func() {})
+
+		_, err := worker.Request()
+		require.ErrorIs(t, err, publishErr)
+		require.ErrorContains(t, err, "decode NSQ message")
 	})
 
 	t.Run("oversized", func(t *testing.T) {

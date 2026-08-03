@@ -18,13 +18,14 @@ import (
 )
 
 type redisCommandFault struct {
-	mu      sync.Mutex
-	command string
-	failAt  int
-	calls   int
-	err     error
-	stop    bool
-	result  string
+	mu        sync.Mutex
+	command   string
+	failAt    int
+	calls     int
+	err       error
+	stop      bool
+	result    string
+	intResult *int64
 }
 
 type stagedCanceledContext struct {
@@ -52,8 +53,15 @@ func (h *redisCommandFault) ProcessHook(next redis.ProcessHook) redis.ProcessHoo
 			if h.calls == h.failAt {
 				h.mu.Unlock()
 				if h.stop {
-					if command, ok := cmd.(*redis.Cmd); ok && h.result != "" {
-						command.SetVal(h.result)
+					switch command := cmd.(type) {
+					case *redis.Cmd:
+						if h.result != "" {
+							command.SetVal(h.result)
+						}
+					case *redis.IntCmd:
+						if h.intResult != nil {
+							command.SetVal(*h.intResult)
+						}
 					}
 					return nil
 				}
@@ -76,6 +84,12 @@ func TestRedisControllerExecutionBoundaries(t *testing.T) {
 	command := faultControlCommand(management.CommandDelete, management.TargetDeadLetter, "1-0")
 
 	_, err := (&Worker{}).Execute(t.Context(), command)
+	assert.ErrorIs(t, err, management.ErrUnsupportedCapability)
+	_, err = (&Worker{opts: options{management: &management.StatusMetadata{}}}).Execute(
+		t.Context(), command,
+	)
+	assert.ErrorIs(t, err, management.ErrUnsupportedCapability)
+	_, err = (&Worker{rdb: worker.rdb}).Execute(t.Context(), command)
 	assert.ErrorIs(t, err, management.ErrUnsupportedCapability)
 	_, err = worker.Execute(t.Context(), management.Command{})
 	assert.Error(t, err)
@@ -163,15 +177,25 @@ func TestRedisReplayRejectsMissingMalformedAndCapacityRecords(t *testing.T) {
 func TestRedisReplayReconcilesConcurrentDuplicateRegistration(t *testing.T) {
 	t.Parallel()
 
-	for name, failDelete := range map[string]bool{
-		"delete appended duplicate": false,
-		"unknown duplicate delete":  true,
+	for name, test := range map[string]struct {
+		failDelete bool
+		deleted    *int64
+	}{
+		"delete appended duplicate": {},
+		"unknown duplicate delete error": {
+			failDelete: true,
+		},
+		"unknown missing duplicate": {
+			deleted: int64Pointer(0),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			worker, recordID := newFaultControlWorker(t)
 			addRedisStop(t, worker, "hsetnx", 1)
-			if failDelete {
+			if test.failDelete {
 				addRedisFault(t, worker, "xdel", 1)
+			} else if test.deleted != nil {
+				addRedisIntResult(t, worker, "xdel", 1, *test.deleted)
 			}
 			command := faultControlCommand(
 				management.CommandReplay, management.TargetDeadLetter, recordID,
@@ -180,7 +204,7 @@ func TestRedisReplayReconcilesConcurrentDuplicateRegistration(t *testing.T) {
 				Destination: "archive", IdempotencyPolicy: management.ReplayRejectDuplicate,
 			}
 			result := worker.replayRedisRecord(t.Context(), command)
-			if failDelete {
+			if test.failDelete || test.deleted != nil {
 				assert.Equal(t, management.CommandPartial, result.Status)
 				assert.Equal(t, "replay_duplicate_unknown", result.FailureCode)
 			} else {
@@ -189,6 +213,37 @@ func TestRedisReplayReconcilesConcurrentDuplicateRegistration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRedisReplayAndRetryReportMissingDeletedRecords(t *testing.T) {
+	t.Parallel()
+
+	t.Run("replace replay", func(t *testing.T) {
+		worker, recordID := newFaultControlWorker(t)
+		preparePriorReplay(t, worker, recordID)
+		addRedisIntResult(t, worker, "xdel", 1, 0)
+		command := faultControlCommand(
+			management.CommandReplay, management.TargetDeadLetter, recordID,
+		)
+		command.Replay = &management.ReplayOptions{
+			Destination: "archive", IdempotencyPolicy: management.ReplayReplaceDuplicate,
+		}
+
+		result := worker.replayRedisRecord(t.Context(), command)
+		assert.Equal(t, management.CommandPartial, result.Status)
+		assert.Equal(t, "replay_replace_unknown", result.FailureCode)
+	})
+
+	t.Run("retry cleanup", func(t *testing.T) {
+		worker, recordID := newFaultControlWorker(t)
+		addRedisIntResult(t, worker, "xdel", 1, 0)
+
+		result := worker.retryRedisRecord(t.Context(), faultControlCommand(
+			management.CommandRetry, management.TargetDeadLetter, recordID,
+		))
+		assert.Equal(t, management.CommandPartial, result.Status)
+		assert.Equal(t, "record_delete_unknown", result.FailureCode)
+	})
 }
 
 func TestRedisReplayReportsEveryDurableBoundary(t *testing.T) {
@@ -274,6 +329,36 @@ func TestRedisRetryReportsEveryDurableBoundary(t *testing.T) {
 	))
 	assert.Equal(t, management.CommandRejected, result.Status)
 	assert.Equal(t, "record_not_found", result.FailureCode)
+}
+
+func TestRedisRetryRejectsEachMalformedRecordField(t *testing.T) {
+	t.Parallel()
+
+	for name, values := range map[string]map[string]any{
+		"missing body": {
+			originalIDField: "original",
+		},
+		"missing original id": {
+			streamBodyField: "body",
+		},
+		"blank original id": {
+			streamBodyField: "body", originalIDField: "",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			worker, _ := newFaultControlWorker(t)
+			recordID, err := worker.rdb.XAdd(t.Context(), &redis.XAddArgs{
+				Stream: "dead", Values: values,
+			}).Result()
+			require.NoError(t, err)
+
+			result := worker.retryRedisRecord(t.Context(), faultControlCommand(
+				management.CommandRetry, management.TargetDeadLetter, recordID,
+			))
+			assert.Equal(t, management.CommandFailed, result.Status)
+			assert.Equal(t, "record_malformed", result.FailureCode)
+		})
+	}
 }
 
 func TestRedisControlCapacityPreservesExistingStreamRecords(t *testing.T) {
@@ -541,6 +626,21 @@ func addRedisResult(
 	client.AddHook(&redisCommandFault{
 		command: command, failAt: failAt, stop: true, result: result,
 	})
+}
+
+func addRedisIntResult(
+	t *testing.T, worker *Worker, command string, failAt int, result int64,
+) {
+	t.Helper()
+	client, ok := worker.rdb.(*redis.Client)
+	require.True(t, ok)
+	client.AddHook(&redisCommandFault{
+		command: command, failAt: failAt, stop: true, intResult: &result,
+	})
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
 }
 
 func newActiveFailureControlWorker(t *testing.T) (*Worker, string) {

@@ -15,13 +15,17 @@ import (
 )
 
 type messageDelegate struct {
-	finished int
-	requeued int
+	finished      int
+	requeued      int
+	requeueDelays []time.Duration
 }
 
-func (d *messageDelegate) OnFinish(*nsqgo.Message)                       { d.finished++ }
-func (d *messageDelegate) OnRequeue(*nsqgo.Message, time.Duration, bool) { d.requeued++ }
-func (d *messageDelegate) OnTouch(*nsqgo.Message)                        {}
+func (d *messageDelegate) OnFinish(*nsqgo.Message) { d.finished++ }
+func (d *messageDelegate) OnRequeue(_ *nsqgo.Message, delay time.Duration, _ bool) {
+	d.requeued++
+	d.requeueDelays = append(d.requeueDelays, delay)
+}
+func (d *messageDelegate) OnTouch(*nsqgo.Message) {}
 
 func TestRequestDefersNSQSettlement(t *testing.T) {
 	delegate := &messageDelegate{}
@@ -54,6 +58,7 @@ func TestRequestDefersNSQSettlement(t *testing.T) {
 
 	require.NoError(t, requeueTask.(*job.Message).Nack())
 	require.Equal(t, 1, requeueDelegate.requeued)
+	requireSingleDefaultRequeue(t, requeueDelegate)
 }
 
 func TestRequestFinishesMalformedNSQMessages(t *testing.T) {
@@ -146,6 +151,7 @@ func TestRequestDeadLettersClassifiedAndExhaustedNSQFailures(t *testing.T) {
 			require.Equal(t, test.requeued, delegate.requeued)
 			if test.finished == 0 {
 				require.Empty(t, published)
+				requireSingleDefaultRequeue(t, delegate)
 				return
 			}
 			record, err := decodeNSQDeadLetter(published)
@@ -161,21 +167,55 @@ func TestRequestDeadLettersClassifiedAndExhaustedNSQFailures(t *testing.T) {
 func TestNSQDeadLetterPublishFailureRequeuesSource(t *testing.T) {
 	t.Parallel()
 
+	for name, publish := range map[string]func(string, []byte) error{
+		"missing producer": nil,
+		"publish error":    func(string, []byte) error { return errors.New("unavailable") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			delegate := &messageDelegate{}
+			message := nsqgo.NewMessage(nsqgo.MessageID{1}, []byte("payload"))
+			message.Attempts = 5
+			message.Delegate = delegate
+			worker := &Worker{opts: newOptions(), publish: publish}
+			err := worker.settleNSQFailure(message, errors.New("exhausted"))
+			require.Error(t, err)
+			resolution := management.ResolveFailure(err)
+			require.Equal(t, management.ClassificationInfrastructure, resolution.Classification)
+			require.Equal(t, management.FailureCodeDeadLetterDestinationUnavailable, resolution.Code)
+			require.Zero(t, delegate.finished)
+			requireSingleDefaultRequeue(t, delegate)
+		})
+	}
+}
+
+func TestNSQDeadLetterRequeuesNilHandlerFailureWithDefaultDelay(t *testing.T) {
+	t.Parallel()
+
 	delegate := &messageDelegate{}
 	message := nsqgo.NewMessage(nsqgo.MessageID{1}, []byte("payload"))
-	message.Attempts = 5
 	message.Delegate = delegate
-	worker := &Worker{
-		opts:    newOptions(),
-		publish: func(string, []byte) error { return errors.New("unavailable") },
-	}
-	err := worker.settleNSQFailure(message, errors.New("exhausted"))
-	require.Error(t, err)
-	resolution := management.ResolveFailure(err)
-	require.Equal(t, management.ClassificationInfrastructure, resolution.Classification)
-	require.Equal(t, management.FailureCodeDeadLetterDestinationUnavailable, resolution.Code)
-	require.Zero(t, delegate.finished)
-	require.Equal(t, 1, delegate.requeued)
+	worker := &Worker{opts: newOptions()}
+
+	require.NoError(t, worker.settleNSQFailure(message, nil))
+	requireSingleDefaultRequeue(t, delegate)
+}
+
+func TestNSQDeadLetterRoundTripsMaximumSourcePayload(t *testing.T) {
+	t.Parallel()
+
+	worker := &Worker{opts: newOptions()}
+	message := nsqgo.NewMessage(
+		nsqgo.MessageID{1},
+		bytes.Repeat([]byte("x"), job.DefaultMaxMessageBytes),
+	)
+	encoded, err := worker.encodeNSQDeadLetter(
+		message, management.ClassificationPermanent, "invalid", 1,
+	)
+	require.NoError(t, err)
+
+	decoded, err := decodeNSQDeadLetter(encoded)
+	require.NoError(t, err)
+	require.Equal(t, message.Body, decoded.Payload)
 }
 
 func TestNSQDeadLetterBoundariesRejectMalformedRecords(t *testing.T) {
@@ -188,6 +228,13 @@ func TestNSQDeadLetterBoundariesRejectMalformedRecords(t *testing.T) {
 		message, management.ClassificationRetryable, "attempts_exhausted", 5,
 	)
 	require.NoError(t, err)
+	exactLimit := append([]byte(nil), valid...)
+	exactLimit = append(
+		exactLimit,
+		bytes.Repeat([]byte(" "), maxNSQDeadLetterEnvelopeBytes-len(exactLimit))...,
+	)
+	_, err = decodeNSQDeadLetter(exactLimit)
+	require.NoError(t, err)
 
 	for name, encoded := range map[string][]byte{
 		"empty":        nil,
@@ -197,9 +244,21 @@ func TestNSQDeadLetterBoundariesRejectMalformedRecords(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, decodeErr := decodeNSQDeadLetter(encoded)
+			if name == "empty" || name == "oversized" {
+				require.EqualError(t, decodeErr, "decode NSQ dead letter: invalid size")
+				return
+			}
 			require.Error(t, decodeErr)
 		})
 	}
+
+	emptyPayload := nsqgo.NewMessage(nsqgo.MessageID{1}, nil)
+	emptyEncoded, err := worker.encodeNSQDeadLetter(
+		emptyPayload, management.ClassificationPermanent, "invalid", 1,
+	)
+	require.NoError(t, err)
+	_, err = decodeNSQDeadLetter(emptyEncoded)
+	require.NoError(t, err)
 
 	var invalid map[string]any
 	require.NoError(t, json.Unmarshal(valid, &invalid))
@@ -229,7 +288,7 @@ func TestNSQDeadLetterBoundariesRejectMalformedRecords(t *testing.T) {
 		management.ClassificationPermanent, "invalid", errors.New("invalid"),
 	))
 	require.Error(t, err)
-	require.Equal(t, 1, delegate.requeued)
+	requireSingleDefaultRequeue(t, delegate)
 }
 
 func TestNSQDeadLetterPreservesSuppliedJobMetadata(t *testing.T) {
@@ -265,4 +324,11 @@ func TestNSQDeadLetterPreservesSuppliedJobMetadata(t *testing.T) {
 	require.Equal(t, "trace-123", record.TraceID)
 	require.Equal(t, "tenant-123", record.TenantID)
 	require.Equal(t, "1.2.3", record.ProducerVersion)
+}
+
+func requireSingleDefaultRequeue(t *testing.T, delegate *messageDelegate) {
+	t.Helper()
+
+	require.Equal(t, 1, delegate.requeued)
+	require.Equal(t, []time.Duration{-1}, delegate.requeueDelays)
 }

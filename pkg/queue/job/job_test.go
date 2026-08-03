@@ -94,6 +94,11 @@ func TestMessageSettlementCallbacks(t *testing.T) {
 	assert.NoError(t, message.Ack())
 	assert.NoError(t, message.Nack())
 
+	message.SetAcknowledgement(func() error { return nil }, nil)
+	assert.True(t, message.AcknowledgementRequired(), "ack callback alone requires settlement")
+	message.SetAcknowledgement(nil, func() error { return nil })
+	assert.True(t, message.AcknowledgementRequired(), "nack callback alone requires settlement")
+
 	ackErr := errors.New("ack")
 	nackErr := errors.New("nack")
 	message.SetAcknowledgement(
@@ -199,6 +204,17 @@ func TestMessageValidationRejectsUnsafeExecutionState(t *testing.T) {
 
 	valid := NewTask(nil, AllowOption{RetryCount: Int64(MaxRetryCount)})
 	assert.NoError(t, valid.Validate())
+	assert.NoError(t, (&Message{
+		Timeout:     time.Second,
+		RetryFactor: math.NaN(),
+	}).Validate(), "disabled retries must ignore backoff fields")
+	assert.NoError(t, (&Message{
+		Timeout:     time.Second,
+		RetryCount:  1,
+		RetryFactor: 1,
+		RetryMin:    time.Second,
+		RetryMax:    time.Second,
+	}).Validate(), "a retry factor of one is the exact lower bound")
 }
 
 func TestMessageMetadataValidationRejectsUnboundedValues(t *testing.T) {
@@ -216,7 +232,27 @@ func TestMessageMetadataValidationRejectsUnboundedValues(t *testing.T) {
 		"oversized value":   {TraceID: tooLong},
 		"too many tags":     {Tags: tooManyTags},
 		"blank tag key":     {Tags: map[string]string{" ": "value"}},
-		"oversized tag":     {Tags: map[string]string{"key": tooLong}},
+		"blank tag value":   {Tags: map[string]string{"key": " "}},
+		"oversized tag key": {Tags: map[string]string{tooLong: "value"}},
+		"oversized tag value": {
+			Tags: map[string]string{"key": tooLong},
+		},
+		"blank correlation key": {
+			Correlation: map[string]string{" ": "value"},
+		},
+		"blank correlation value": {
+			Correlation: map[string]string{"key": " "},
+		},
+		"oversized correlation key": {
+			Correlation: map[string]string{
+				strings.Repeat("k", MaxCorrelationFieldBytes+1): "value",
+			},
+		},
+		"oversized correlation value": {
+			Correlation: map[string]string{
+				"key": strings.Repeat("v", MaxCorrelationValueBytes+1),
+			},
+		},
 		"zero enqueue time": {EnqueuedAt: &zero},
 	}
 
@@ -230,9 +266,66 @@ func TestMessageMetadataValidationRejectsUnboundedValues(t *testing.T) {
 	}
 
 	message := NewTask(nil, AllowOption{Metadata: &Metadata{
-		OriginalID: "job-1", Tags: map[string]string{"region": "eu"},
+		OriginalID: strings.Repeat("x", MaxMetadataValueBytes),
+		Tags:       map[string]string{"region": "eu"},
 	}})
 	assert.NoError(t, message.Validate())
+}
+
+func TestMessageMetadataValidationAcceptsExactBounds(t *testing.T) {
+	t.Parallel()
+
+	tags := make(map[string]string, MaxMetadataTags)
+	for index := range MaxMetadataTags {
+		tags[fmt.Sprintf("tag-%d", index)] = "value"
+	}
+	correlation := make(map[string]string, MaxCorrelationFields)
+	for index := range MaxCorrelationFields {
+		correlation[fmt.Sprintf("field-%d", index)] = "value"
+	}
+	traceContext := make(map[string]string, MaxTraceContextFields)
+	for index := range MaxTraceContextFields {
+		traceContext[fmt.Sprintf("field-%d", index)] = "value"
+	}
+
+	for name, metadata := range map[string]*Metadata{
+		"identity and tags": {
+			OriginalID: strings.Repeat("x", MaxMetadataValueBytes),
+			Tags:       tags,
+		},
+		"tag field sizes": {
+			Tags: map[string]string{
+				strings.Repeat("k", MaxMetadataValueBytes): strings.Repeat("v", MaxMetadataValueBytes),
+			},
+		},
+		"correlation": {
+			Correlation: correlation,
+		},
+		"correlation field sizes": {
+			Correlation: map[string]string{
+				strings.Repeat("k", MaxCorrelationFieldBytes): strings.Repeat("v", MaxCorrelationValueBytes),
+			},
+		},
+		"trace context fields": {
+			TraceContext: traceContext,
+		},
+		"trace context field size": {
+			TraceContext: map[string]string{
+				strings.Repeat("k", MaxTraceContextFieldBytes): "value",
+			},
+		},
+		"trace context total": {
+			TraceContext: map[string]string{
+				"k": strings.Repeat("v", MaxTraceContextBytes-1),
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			message := NewTask(nil)
+			message.Metadata = metadata
+			assert.NoError(t, message.Validate())
+		})
+	}
 }
 
 func TestEncodingPanicsWhenJSONMarshallingFails(t *testing.T) {

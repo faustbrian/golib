@@ -3,6 +3,7 @@ package management
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -147,6 +148,46 @@ func TestDesiredStateReconcilerTreatsMissingStateAsNoChange(t *testing.T) {
 	}
 }
 
+func TestDesiredStateReconcilerContinuesAfterTargetScopedNoChange(t *testing.T) {
+	t.Parallel()
+
+	queueTarget := Target{Kind: TargetQueue, Name: "critical"}
+	groupTarget := Target{Kind: TargetWorkerGroup, Name: "payments"}
+	reader := &desiredReaderStub{
+		records: map[Target]DesiredRecord{
+			groupTarget: desiredRecordFor(groupTarget, 1, DesiredPaused),
+		},
+		missingTargets: map[Target]bool{queueTarget: true},
+	}
+	applier := &desiredApplierStub{}
+	reconciler, err := NewDesiredStateReconciler(DesiredStateReconcilerConfig{
+		Reader: reader, Applier: applier, Targets: []Target{queueTarget, groupTarget},
+	})
+	if err != nil {
+		t.Fatalf("NewDesiredStateReconciler() error = %v", err)
+	}
+	if err := reconciler.Reconcile(context.Background()); err != nil || len(applier.records) != 1 {
+		t.Fatalf("Reconcile(after missing target) = %v, records=%+v", err, applier.records)
+	}
+
+	delete(reader.missingTargets, queueTarget)
+	reader.records[queueTarget] = desiredRecordFor(queueTarget, 1, DesiredActive)
+	reader.records[groupTarget] = desiredRecordFor(groupTarget, 2, DesiredDraining)
+	if err := reconciler.Reconcile(context.Background()); err != nil || len(applier.records) != 3 {
+		t.Fatalf("Reconcile(after unchanged target) = %v, records=%+v", err, applier.records)
+	}
+	if got := applier.records[2]; got.Target != groupTarget || got.Revision != 2 {
+		t.Fatalf("record after unchanged target = %+v", got)
+	}
+	reader.records[groupTarget] = desiredRecordFor(groupTarget, 3, DesiredPaused)
+	if err := reconciler.Reconcile(context.Background()); err != nil || len(applier.records) != 4 {
+		t.Fatalf("Reconcile(after leading unchanged target) = %v, records=%+v", err, applier.records)
+	}
+	if got := applier.records[3]; got.Target != groupTarget || got.Revision != 3 {
+		t.Fatalf("record after leading unchanged target = %+v", got)
+	}
+}
+
 func TestDesiredStateReconcilerRejectsUnsafeConfigurationAndContext(t *testing.T) {
 	t.Parallel()
 
@@ -172,6 +213,16 @@ func TestDesiredStateReconcilerRejectsUnsafeConfigurationAndContext(t *testing.T
 		if reconciler != nil || !errors.Is(err, ErrInvalidDesiredStateConfiguration) {
 			t.Fatalf("NewDesiredStateReconciler(%+v) = (%v, %v)", config, reconciler, err)
 		}
+	}
+	exactTargets := make([]Target, MaxDesiredStateTargets)
+	for index := range exactTargets {
+		exactTargets[index] = Target{Kind: TargetQueue, Name: fmt.Sprintf("queue-%d", index)}
+	}
+	exact, err := NewDesiredStateReconciler(DesiredStateReconcilerConfig{
+		Reader: reader, Applier: applier, Targets: exactTargets,
+	})
+	if err != nil || exact == nil {
+		t.Fatalf("NewDesiredStateReconciler(exact target limit) = (%v, %v)", exact, err)
 	}
 	reconciler, err := NewDesiredStateReconciler(DesiredStateReconcilerConfig{
 		Reader: reader, Applier: applier,
@@ -202,10 +253,11 @@ func desiredRecordFor(target Target, revision uint64, state DesiredState) Desire
 type desiredContextKey struct{}
 
 type desiredReaderStub struct {
-	records map[Target]DesiredRecord
-	err     error
-	missing bool
-	ctx     context.Context
+	records        map[Target]DesiredRecord
+	err            error
+	missing        bool
+	missingTargets map[Target]bool
+	ctx            context.Context
 }
 
 func (s *desiredReaderStub) GetDesiredState(
@@ -216,7 +268,7 @@ func (s *desiredReaderStub) GetDesiredState(
 	if s.err != nil {
 		return DesiredRecord{}, s.err
 	}
-	if s.missing {
+	if s.missing || s.missingTargets[target] {
 		return DesiredRecord{}, ErrDesiredStateNotFound
 	}
 	return s.records[target], nil

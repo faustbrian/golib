@@ -2,6 +2,7 @@ package streamqueue
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,6 +65,29 @@ func TestSemanticRequestsValidateBounds(t *testing.T) {
 			assert.NoError(t, test.validate())
 		})
 	}
+}
+
+func TestReadAndClaimRequestsAcceptMaximumBatchSize(t *testing.T) {
+	read := ReadRequest{
+		Stream: "jobs", Group: "workers", Consumer: "worker-1",
+		Count: MaxBatchSize, Block: time.Second,
+	}
+	claim := ClaimRequest{
+		Stream: "jobs", Group: "workers", Consumer: "worker-1",
+		MinIdle: time.Second, Start: "0-0", Count: MaxBatchSize,
+	}
+
+	assert.NoError(t, read.Validate())
+	assert.NoError(t, claim.Validate())
+}
+
+func TestReadRequestRejectsZeroBatchSize(t *testing.T) {
+	err := (ReadRequest{
+		Stream: "jobs", Group: "workers", Consumer: "worker-1",
+		Count: 0, Block: time.Second,
+	}).Validate()
+
+	assertRequestField(t, err, "read", "batch size")
 }
 
 func TestSemanticRequestsRejectUnsafeValues(t *testing.T) {
@@ -158,6 +182,75 @@ func TestSemanticRequestsRejectUnsafeValues(t *testing.T) {
 	}
 }
 
+func TestDeadLetterRequestRejectsInvalidDestinationBeforeLaterFields(t *testing.T) {
+	valid := DeadLetterRequest{
+		Source: "jobs",
+		Group:  "workers",
+		Delivery: Delivery{
+			ID: "1700000000000-0", Body: []byte("body"), Attempts: 1,
+		},
+		Failure: FailureMetadata{
+			Classification: management.ClassificationRetryable,
+			Code:           "handler_failed",
+		},
+	}
+
+	for name, destination := range map[string]string{
+		"empty":       "",
+		"same source": valid.Source,
+	} {
+		t.Run(name, func(t *testing.T) {
+			request := valid
+			request.Destination = destination
+
+			assertRequestField(t, request.Validate(job.DefaultMaxMessageBytes), "dead letter", "destination")
+		})
+	}
+}
+
+func TestReplayLineageRequiresCompleteBoundedIdentity(t *testing.T) {
+	maximumIdentity := strings.Repeat("x", management.MaxIdentityBytes)
+	assert.NoError(t, validateReplayLineage(Delivery{}))
+	assert.NoError(t, validateReplayLineage(Delivery{
+		OriginalDeadLetterID: maximumIdentity,
+		PriorDeadLetterID:    maximumIdentity,
+		ReplayGeneration:     1,
+	}))
+
+	tests := map[string]Delivery{
+		"only original identifier": {
+			OriginalDeadLetterID: "original",
+		},
+		"only prior identifier": {
+			PriorDeadLetterID: "prior",
+		},
+		"only replay generation": {
+			ReplayGeneration: 1,
+		},
+		"missing original identifier": {
+			PriorDeadLetterID: "prior", ReplayGeneration: 1,
+		},
+		"missing prior identifier": {
+			OriginalDeadLetterID: "original", ReplayGeneration: 1,
+		},
+		"missing replay generation": {
+			OriginalDeadLetterID: "original", PriorDeadLetterID: "prior",
+		},
+		"oversized original identifier": {
+			OriginalDeadLetterID: maximumIdentity + "x", PriorDeadLetterID: "prior", ReplayGeneration: 1,
+		},
+		"oversized prior identifier": {
+			OriginalDeadLetterID: "original", PriorDeadLetterID: maximumIdentity + "x", ReplayGeneration: 1,
+		},
+	}
+
+	for name, delivery := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.EqualError(t, validateReplayLineage(delivery), "replay lineage must be complete and bounded")
+		})
+	}
+}
+
 func TestGroupStateReportsKnownAndUnknownDepth(t *testing.T) {
 	assert.Equal(t, Stats{Depth: 7, Pending: 2, Lag: 5, LagKnown: true},
 		(GroupState{Pending: 2, Lag: 5}).Stats())
@@ -175,6 +268,10 @@ func TestMessageAgeParsesStreamIdentifier(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, age)
 
+	age, err = MessageAge("1700000001000-0", now)
+	require.NoError(t, err)
+	assert.Zero(t, age)
+
 	for _, id := range []string{"invalid", "nope-0", "1-nope"} {
 		_, err = MessageAge(id, now)
 		assert.ErrorIs(t, err, ErrMalformedDelivery)
@@ -189,4 +286,13 @@ func TestRequestErrorRetainsClassificationAndCause(t *testing.T) {
 	assert.Equal(t, "streamqueue: invalid read stream", err.Error())
 	assert.ErrorIs(t, err, ErrInvalidSemanticRequest)
 	assert.ErrorIs(t, err, cause)
+}
+
+func assertRequestField(t *testing.T, err error, command, field string) {
+	t.Helper()
+
+	var requestErr *RequestError
+	require.ErrorAs(t, err, &requestErr)
+	assert.Equal(t, command, requestErr.Command)
+	assert.Equal(t, field, requestErr.Field)
 }

@@ -8,6 +8,82 @@ import (
 	"time"
 )
 
+func TestWorkerLifecycleBalancesOneAdmission(t *testing.T) {
+	lifecycle := newTestLifecycle(t, 8)
+	if !lifecycle.BeginAdmission() {
+		t.Fatal("initial admission rejected")
+	}
+	if err := lifecycle.EndAdmission(); err != nil {
+		t.Fatalf("EndAdmission() error = %v", err)
+	}
+	if err := lifecycle.EndAdmission(); !errors.Is(err, ErrInvalidLifecycleCounter) {
+		t.Fatalf("second EndAdmission() error = %v", err)
+	}
+
+	if !lifecycle.BeginAdmission() {
+		t.Fatal("job admission rejected")
+	}
+	if err := lifecycle.PromoteAdmissionToJob(); err != nil {
+		t.Fatalf("PromoteAdmissionToJob() error = %v", err)
+	}
+	if err := lifecycle.EndJob(); err != nil {
+		t.Fatalf("EndJob() error = %v", err)
+	}
+	if err := lifecycle.EndJob(); !errors.Is(err, ErrInvalidLifecycleCounter) {
+		t.Fatalf("second EndJob() error = %v", err)
+	}
+	if err := lifecycle.EndAdmission(); !errors.Is(err, ErrInvalidLifecycleCounter) {
+		t.Fatalf("EndAdmission() after promoted job error = %v", err)
+	}
+}
+
+func TestWorkerLifecycleBlockedTransitionsHonorCanceledContext(t *testing.T) {
+	paused := newTestLifecycle(t, 8)
+	if !paused.BeginAdmission() {
+		t.Fatal("pause admission rejected")
+	}
+	pausedContext, cancelPause := context.WithCancel(context.Background())
+	cancelPause()
+	if err := paused.ApplyDesiredState(
+		pausedContext,
+		lifecycleRecord(1, DesiredPaused, TargetQueue, "critical"),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ApplyDesiredState(blocked pause) error = %v", err)
+	}
+	if err := paused.EndAdmission(); err != nil {
+		t.Fatalf("EndAdmission() error = %v", err)
+	}
+
+	draining := newTestLifecycle(t, 8)
+	if !draining.BeginAdmission() {
+		t.Fatal("drain admission rejected")
+	}
+	if err := draining.PromoteAdmissionToJob(); err != nil {
+		t.Fatalf("PromoteAdmissionToJob() error = %v", err)
+	}
+	drainContext, cancelDrain := context.WithCancel(context.Background())
+	cancelDrain()
+	if err := draining.ApplyDesiredState(
+		drainContext,
+		lifecycleRecord(1, DesiredDraining, TargetWorkerGroup, "payments"),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ApplyDesiredState(blocked drain) error = %v", err)
+	}
+	if err := draining.EndJob(); err != nil {
+		t.Fatalf("EndJob() error = %v", err)
+	}
+
+	empty := newTestLifecycle(t, 8)
+	immediateContext, cancelImmediate := context.WithTimeout(context.Background(), time.Second)
+	defer cancelImmediate()
+	if err := empty.ApplyDesiredState(
+		immediateContext,
+		lifecycleRecord(1, DesiredDraining, TargetWorkerGroup, "payments"),
+	); err != nil {
+		t.Fatalf("ApplyDesiredState(empty drain) error = %v", err)
+	}
+}
+
 func TestWorkerLifecycleGatesAdmissionAndWaitsForSafeTransitions(t *testing.T) {
 	t.Parallel()
 
@@ -24,7 +100,7 @@ func TestWorkerLifecycleGatesAdmissionAndWaitsForSafeTransitions(t *testing.T) {
 	if err := lifecycle.EndAdmission(); err != nil {
 		t.Fatalf("EndAdmission() error = %v", err)
 	}
-	if err := lifecycle.ApplyDesiredState(context.Background(), paused); err != nil {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), paused); err != nil {
 		t.Fatalf("ApplyDesiredState(paused) error = %v", err)
 	}
 	if lifecycle.BeginAdmission() {
@@ -33,7 +109,7 @@ func TestWorkerLifecycleGatesAdmissionAndWaitsForSafeTransitions(t *testing.T) {
 	assertLifecycleSnapshot(t, lifecycle.Snapshot(), WorkerPaused, DrainNotRequested, 0)
 
 	if err := lifecycle.ApplyDesiredState(
-		context.Background(), lifecycleRecord(2, DesiredActive, TargetQueue, "critical"),
+		boundedLifecycleContext(t), lifecycleRecord(2, DesiredActive, TargetQueue, "critical"),
 	); err != nil {
 		t.Fatalf("ApplyDesiredState(active) error = %v", err)
 	}
@@ -56,7 +132,7 @@ func TestWorkerLifecycleGatesAdmissionAndWaitsForSafeTransitions(t *testing.T) {
 	if err := lifecycle.EndJob(); err != nil {
 		t.Fatalf("EndJob() error = %v", err)
 	}
-	if err := lifecycle.ApplyDesiredState(context.Background(), draining); err != nil {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), draining); err != nil {
 		t.Fatalf("ApplyDesiredState(draining) error = %v", err)
 	}
 	assertLifecycleSnapshot(t, lifecycle.Snapshot(), WorkerDraining, DrainCompleted, 0)
@@ -66,7 +142,7 @@ func TestWorkerLifecycleDesiredStateIsTargetedMonotonicAndRetryable(t *testing.T
 	t.Parallel()
 
 	lifecycle := newTestLifecycle(t, 8)
-	if err := lifecycle.ApplyDesiredState(context.Background(), DesiredRecord{}); !errors.Is(err, ErrInvalidDesiredStateOutput) {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), DesiredRecord{}); !errors.Is(err, ErrInvalidDesiredStateOutput) {
 		t.Fatalf("invalid desired output error = %v", err)
 	}
 	tests := []struct {
@@ -79,32 +155,32 @@ func TestWorkerLifecycleDesiredStateIsTargetedMonotonicAndRetryable(t *testing.T
 		{record: lifecycleRecord(1, DesiredActive, TargetWorkerGroup, "payments"), wantErr: nil},
 	}
 	for _, tt := range tests {
-		err := lifecycle.ApplyDesiredState(context.Background(), tt.record)
+		err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), tt.record)
 		if !errors.Is(err, tt.wantErr) {
 			t.Fatalf("ApplyDesiredState(%+v) error = %v, want %v", tt.record, err, tt.wantErr)
 		}
 	}
 
 	paused := lifecycleRecord(2, DesiredPaused, TargetQueue, "critical")
-	if err := lifecycle.ApplyDesiredState(context.Background(), paused); err != nil {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), paused); err != nil {
 		t.Fatalf("ApplyDesiredState(paused) error = %v", err)
 	}
-	if err := lifecycle.ApplyDesiredState(context.Background(), paused); err != nil {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), paused); err != nil {
 		t.Fatalf("ApplyDesiredState(duplicate) error = %v", err)
 	}
 	regression := lifecycleRecord(1, DesiredActive, TargetQueue, "critical")
-	if err := lifecycle.ApplyDesiredState(context.Background(), regression); !errors.Is(err, ErrDesiredStateRegression) {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), regression); !errors.Is(err, ErrDesiredStateRegression) {
 		t.Fatalf("regression error = %v", err)
 	}
 	conflict := lifecycleRecord(2, DesiredActive, TargetQueue, "critical")
-	if err := lifecycle.ApplyDesiredState(context.Background(), conflict); !errors.Is(err, ErrDesiredStateConflict) {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), conflict); !errors.Is(err, ErrDesiredStateConflict) {
 		t.Fatalf("conflict error = %v", err)
 	}
 
 	if !lifecycle.BeginAdmission() {
 		// Resume before exercising timeout retryability.
 		if err := lifecycle.ApplyDesiredState(
-			context.Background(), lifecycleRecord(3, DesiredActive, TargetQueue, "critical"),
+			boundedLifecycleContext(t), lifecycleRecord(3, DesiredActive, TargetQueue, "critical"),
 		); err != nil {
 			t.Fatalf("resume error = %v", err)
 		}
@@ -125,7 +201,7 @@ func TestWorkerLifecycleDesiredStateIsTargetedMonotonicAndRetryable(t *testing.T
 	if err := lifecycle.EndJob(); err != nil {
 		t.Fatalf("EndJob() error = %v", err)
 	}
-	if err := lifecycle.ApplyDesiredState(context.Background(), draining); err != nil {
+	if err := lifecycle.ApplyDesiredState(boundedLifecycleContext(t), draining); err != nil {
 		t.Fatalf("retried drain error = %v", err)
 	}
 }
@@ -145,7 +221,7 @@ func TestWorkerLifecycleExecutesEveryLifecycleActionAndFailureOutcome(t *testing
 	for _, tt := range tests {
 		lifecycle := newTestLifecycle(t, 8)
 		command := lifecycleCommand(string(tt.action)+"-1", tt.action, tt.kind, tt.name)
-		result, err := lifecycle.Execute(context.Background(), command)
+		result, err := lifecycle.Execute(boundedLifecycleContext(t), command)
 		if err != nil || result.Status != CommandAcknowledged {
 			t.Fatalf("Execute(%s) = (%+v, %v)", tt.action, result, err)
 		}
@@ -154,7 +230,7 @@ func TestWorkerLifecycleExecutesEveryLifecycleActionAndFailureOutcome(t *testing
 	protocol := newTestLifecycle(t, 8)
 	command := lifecycleCommand("protocol-1", CommandPause, TargetQueue, "critical")
 	command.Protocol.Minor = 1
-	result, err := protocol.Execute(context.Background(), command)
+	result, err := protocol.Execute(boundedLifecycleContext(t), command)
 	if err != nil || result.Status != CommandUnsupported || result.FailureCode != "protocol_mismatch" {
 		t.Fatalf("Execute(protocol mismatch) = (%+v, %v)", result, err)
 	}
@@ -163,19 +239,19 @@ func TestWorkerLifecycleExecutesEveryLifecycleActionAndFailureOutcome(t *testing
 	command = lifecycleCommand("expired-1", CommandPause, TargetQueue, "critical")
 	command.RequestedAt = time.Date(2026, 7, 16, 9, 0, 0, 0, time.UTC)
 	command.Deadline = command.RequestedAt.Add(time.Minute)
-	result, err = expired.Execute(context.Background(), command)
+	result, err = expired.Execute(boundedLifecycleContext(t), command)
 	if err != nil || result.Status != CommandTimedOut || result.FailureCode != "deadline_exceeded" {
 		t.Fatalf("Execute(expired) = (%+v, %v)", result, err)
 	}
 
 	terminating := newTestLifecycle(t, 8)
 	if err := terminating.ApplyDesiredState(
-		context.Background(), lifecycleRecord(1, DesiredTerminating, TargetWorker, "worker-1"),
+		boundedLifecycleContext(t), lifecycleRecord(1, DesiredTerminating, TargetWorker, "worker-1"),
 	); err != nil {
 		t.Fatalf("terminate state error = %v", err)
 	}
 	command = lifecycleCommand("resume-terminated", CommandResume, TargetWorkerGroup, "payments")
-	result, err = terminating.Execute(context.Background(), command)
+	result, err = terminating.Execute(boundedLifecycleContext(t), command)
 	if err != nil || result.Status != CommandRejected || result.FailureCode != "invalid_transition" {
 		t.Fatalf("Execute(resume terminated) = (%+v, %v)", result, err)
 	}
@@ -212,7 +288,7 @@ func TestWorkerLifecyclePendingDuplicateHonorsCancellation(t *testing.T) {
 	command := lifecycleCommand("drain-1", CommandDrain, TargetWorker, "worker-1")
 	done := make(chan CommandResult, 1)
 	go func() {
-		result, _ := lifecycle.Execute(context.Background(), command)
+		result, _ := lifecycle.Execute(boundedLifecycleContext(t), command)
 		done <- result
 	}()
 	waitForLifecycleState(t, lifecycle, DesiredDraining)
@@ -235,28 +311,28 @@ func TestWorkerLifecycleExecutesAndCachesBoundedLifecycleCommands(t *testing.T) 
 
 	lifecycle := newTestLifecycle(t, 2)
 	pause := lifecycleCommand("pause-1", CommandPause, TargetQueue, "critical")
-	result, err := lifecycle.Execute(context.Background(), pause)
+	result, err := lifecycle.Execute(boundedLifecycleContext(t), pause)
 	if err != nil || result.Status != CommandAcknowledged {
 		t.Fatalf("Execute(pause) = (%+v, %v)", result, err)
 	}
-	duplicate, err := lifecycle.Execute(context.Background(), pause)
+	duplicate, err := lifecycle.Execute(boundedLifecycleContext(t), pause)
 	if err != nil || !reflect.DeepEqual(duplicate, result) {
 		t.Fatalf("Execute(duplicate) = (%+v, %v), want %+v", duplicate, err, result)
 	}
 	conflict := pause
 	conflict.Action = CommandResume
-	conflicted, err := lifecycle.Execute(context.Background(), conflict)
+	conflicted, err := lifecycle.Execute(boundedLifecycleContext(t), conflict)
 	if err != nil || conflicted.Status != CommandRejected || conflicted.FailureCode != "idempotency_conflict" {
 		t.Fatalf("Execute(conflict) = (%+v, %v)", conflicted, err)
 	}
 
 	unsupported := lifecycleCommand("retry-1", CommandRetry, TargetFailure, "failure-1")
-	result, err = lifecycle.Execute(context.Background(), unsupported)
+	result, err = lifecycle.Execute(boundedLifecycleContext(t), unsupported)
 	if err != nil || result.Status != CommandUnsupported || result.FailureCode != "unsupported_action" {
 		t.Fatalf("Execute(unsupported) = (%+v, %v)", result, err)
 	}
 	full := lifecycleCommand("pause-2", CommandPause, TargetQueue, "critical")
-	result, err = lifecycle.Execute(context.Background(), full)
+	result, err = lifecycle.Execute(boundedLifecycleContext(t), full)
 	if err != nil || result.Status != CommandRejected || result.FailureCode != "idempotency_capacity" {
 		t.Fatalf("Execute(full) = (%+v, %v)", result, err)
 	}
@@ -267,13 +343,13 @@ func TestWorkerLifecycleReportsTargetsTimeoutsAndStatusHonestly(t *testing.T) {
 
 	lifecycle := newTestLifecycle(t, 8)
 	wrong := lifecycleCommand("wrong-1", CommandPause, TargetQueue, "other")
-	result, err := lifecycle.Execute(context.Background(), wrong)
+	result, err := lifecycle.Execute(boundedLifecycleContext(t), wrong)
 	if err != nil || result.Status != CommandRejected || result.FailureCode != "target_mismatch" {
 		t.Fatalf("Execute(wrong target) = (%+v, %v)", result, err)
 	}
 	expired := lifecycleCommand("expired-1", CommandPause, TargetQueue, "critical")
 	expired.Deadline = expired.RequestedAt
-	result, err = lifecycle.Execute(context.Background(), expired)
+	result, err = lifecycle.Execute(boundedLifecycleContext(t), expired)
 	if err == nil {
 		t.Fatalf("Execute(invalid deadline) = (%+v, %v)", result, err)
 	}
@@ -350,6 +426,14 @@ func TestWorkerLifecycleRejectsUnsafeConfigurationAndCounterUse(t *testing.T) {
 			t.Fatalf("NewWorkerLifecycle(%+v) = (%v, %v)", config, lifecycle, err)
 		}
 	}
+	for _, capacity := range []int{1, MaxLifecycleCommandResults} {
+		exact := valid
+		exact.MaxCommandResults = capacity
+		lifecycle, err := NewWorkerLifecycle(exact)
+		if err != nil || lifecycle == nil {
+			t.Fatalf("NewWorkerLifecycle(capacity %d) = (%v, %v)", capacity, lifecycle, err)
+		}
+	}
 	lifecycle, err := NewWorkerLifecycle(valid)
 	if err != nil {
 		t.Fatalf("NewWorkerLifecycle() error = %v", err)
@@ -389,6 +473,13 @@ func newTestLifecycle(t *testing.T, capacity int) *WorkerLifecycle {
 		t.Fatalf("NewWorkerLifecycle() error = %v", err)
 	}
 	return lifecycle
+}
+
+func boundedLifecycleContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	t.Cleanup(cancel)
+	return ctx
 }
 
 func lifecycleRecord(
@@ -434,6 +525,8 @@ func assertLifecycleSnapshot(
 
 func waitForLifecycleState(t *testing.T, lifecycle *WorkerLifecycle, wanted DesiredState) {
 	t.Helper()
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
 	for {
 		lifecycle.mu.Lock()
 		state := lifecycle.state
@@ -444,6 +537,8 @@ func waitForLifecycleState(t *testing.T, lifecycle *WorkerLifecycle, wanted Desi
 		}
 		select {
 		case <-changed:
+		case <-timer.C:
+			t.Fatalf("waiting for lifecycle state %q timed out", wanted)
 		case <-t.Context().Done():
 			t.Fatalf("waiting for lifecycle state %q: %v", wanted, t.Context().Err())
 		}
