@@ -108,6 +108,7 @@ func TestCredentialEditorsRejectInvalidConfigurationWithoutRenderingSecrets(t *t
 		{name: "bearer empty", new: func() (RequestEditor, error) { return NewBearerAuth("") }},
 		{name: "bearer syntax", new: func() (RequestEditor, error) { return NewBearerAuth(secret) }},
 		{name: "API key header name", new: func() (RequestEditor, error) { return NewAPIKeyHeader("Bad Header", secret) }},
+		{name: "API key header empty value", new: func() (RequestEditor, error) { return NewAPIKeyHeader("X-Key", "") }},
 		{name: "API key header value", new: func() (RequestEditor, error) { return NewAPIKeyHeader("X-Key", secret) }},
 		{name: "API key query name", new: func() (RequestEditor, error) { return NewAPIKeyQuery("", secret) }},
 		{name: "API key query value", new: func() (RequestEditor, error) { return NewAPIKeyQuery("key", "") }},
@@ -697,6 +698,7 @@ func TestCanonicalOriginNormalization(t *testing.T) {
 	}
 	invalid := []*url.URL{
 		nil,
+		{Host: "example.test"},
 		{Scheme: "ftp", Host: "example.test"},
 		{Scheme: "https"},
 		{Scheme: "http", Host: ":80"},
@@ -708,6 +710,48 @@ func TestCanonicalOriginNormalization(t *testing.T) {
 	for _, candidate := range invalid {
 		if _, err := canonicalOrigin(candidate); !errors.Is(err, ErrInvalidAuthentication) {
 			t.Fatalf("invalid origin %v error = %v", candidate, err)
+		}
+	}
+}
+
+func TestAuthenticationPrimitiveBoundaries(t *testing.T) {
+	t.Parallel()
+
+	if _, err := requestOrigin(nil); !errors.Is(err, ErrInvalidAuthentication) {
+		t.Fatalf("nil request origin error = %v", err)
+	}
+	if _, err := requestOrigin(&http.Request{}); !errors.Is(err, ErrInvalidAuthentication) {
+		t.Fatalf("nil request URL origin error = %v", err)
+	}
+
+	bearerTokens := []struct {
+		token string
+		valid bool
+	}{
+		{token: "A", valid: true},
+		{token: "A=", valid: true},
+		{token: "A===", valid: true},
+		{token: ""},
+		{token: "="},
+		{token: "=A"},
+		{token: "A=B"},
+	}
+	for _, test := range bearerTokens {
+		if got := validBearerToken(test.token); got != test.valid {
+			t.Errorf("validBearerToken(%q) = %t, want %t", test.token, got, test.valid)
+		}
+	}
+
+	validCharacters := []rune{'A', 'Z', 'a', 'z', '0', '9', '-', '/', '~'}
+	for _, character := range validCharacters {
+		if !bearerTokenCharacter(character) {
+			t.Errorf("bearerTokenCharacter(%q) = false, want true", character)
+		}
+	}
+	invalidCharacters := []rune{'@', '[', '`', '{', ':', '\\'}
+	for _, character := range invalidCharacters {
+		if bearerTokenCharacter(character) {
+			t.Errorf("bearerTokenCharacter(%q) = true, want false", character)
 		}
 	}
 }

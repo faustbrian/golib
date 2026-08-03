@@ -266,7 +266,10 @@ func authenticationSensitiveHeaders(additional []string) ([]string, error) {
 }
 
 func requestOrigin(request *http.Request) (string, error) {
-	if request == nil || request.URL == nil {
+	if request == nil {
+		return "", fmt.Errorf("%w: request URL is nil", ErrInvalidAuthentication)
+	}
+	if request.URL == nil {
 		return "", fmt.Errorf("%w: request URL is nil", ErrInvalidAuthentication)
 	}
 
@@ -274,8 +277,16 @@ func requestOrigin(request *http.Request) (string, error) {
 }
 
 func canonicalOrigin(candidate *url.URL) (string, error) {
-	if candidate == nil || candidate.User != nil ||
-		(candidate.Scheme != "http" && candidate.Scheme != "https") || candidate.Host == "" {
+	if candidate == nil {
+		return "", fmt.Errorf("%w: origin must be absolute HTTP(S)", ErrInvalidAuthentication)
+	}
+	if candidate.User != nil {
+		return "", fmt.Errorf("%w: origin must be absolute HTTP(S)", ErrInvalidAuthentication)
+	}
+	if candidate.Scheme != "http" && candidate.Scheme != "https" {
+		return "", fmt.Errorf("%w: origin must be absolute HTTP(S)", ErrInvalidAuthentication)
+	}
+	if candidate.Host == "" {
 		return "", fmt.Errorf("%w: origin must be absolute HTTP(S)", ErrInvalidAuthentication)
 	}
 	hostname, err := normalizeEgressHost(candidate.Hostname())
@@ -338,7 +349,13 @@ func NewBearerAuth(token string) (RequestEditor, error) {
 // for name are replaced rather than appended.
 func NewAPIKeyHeader(name string, value string) (RequestEditor, error) {
 	canonicalName, err := validateHeaderName(name)
-	if err != nil || value == "" || !validHeaderValue(value) {
+	if err != nil {
+		return nil, fmt.Errorf("%w: API key header is malformed", ErrInvalidAuthentication)
+	}
+	if value == "" {
+		return nil, fmt.Errorf("%w: API key header is malformed", ErrInvalidAuthentication)
+	}
+	if !validHeaderValue(value) {
 		return nil, fmt.Errorf("%w: API key header is malformed", ErrInvalidAuthentication)
 	}
 
@@ -459,18 +476,13 @@ func (editor queryCredentialEditor) EditRequest(request *http.Request) error {
 }
 
 func validBearerToken(token string) bool {
-	if token == "" {
+	payload := strings.TrimRight(token, "=")
+	if payload == "" {
 		return false
 	}
 
-	padding := false
-	for _, character := range token {
-		if character == '=' {
-			padding = true
-
-			continue
-		}
-		if padding || !bearerTokenCharacter(character) {
+	for _, character := range payload {
+		if !bearerTokenCharacter(character) {
 			return false
 		}
 	}
