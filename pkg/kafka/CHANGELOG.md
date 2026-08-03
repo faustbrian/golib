@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- record the independently versioned `kafkaservice` lifecycle and readiness
+  composition evidence in the Kafka compatibility and audit matrices
 - require the Kafka contract tests on Linux arm64 when Kafka gate inputs are
   selected, complementing the existing Linux amd64 module contract with
   attributable architecture-specific CI evidence
