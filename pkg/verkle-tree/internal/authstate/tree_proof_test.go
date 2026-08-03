@@ -1319,12 +1319,18 @@ func testRawOpeningProof(t testing.TB) backend.OpeningProof {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("opening fixture rows = %d, want 2", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("opening fixture rows = %d, want 3", len(lines))
+	}
+	if lines[0] != "corpus\ttranscript\tproof" {
+		t.Fatalf("opening fixture header = %q", lines[0])
 	}
 	fields := strings.Split(lines[1], "\t")
 	if len(fields) != 3 {
 		t.Fatalf("opening fixture fields = %d, want 3", len(fields))
+	}
+	if fields[0] != "three-openings-v1" || fields[1] != "verkle" {
+		t.Fatalf("opening fixture identity = %q/%q", fields[0], fields[1])
 	}
 	encoded, err := hex.DecodeString(fields[2])
 	if err != nil {
