@@ -8,4 +8,7 @@ require (
 	github.com/faustbrian/golib/pkg/retry v0.0.0
 )
 
-require golang.org/x/sync v0.22.0 // indirect
+require (
+	github.com/faustbrian/golib/pkg/resilience v0.0.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+)
