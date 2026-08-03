@@ -30,3 +30,26 @@ func TestEncodedInputBoundsPrecedeParsing(t *testing.T) {
 		t.Fatal("bounded adapters called parser for oversized input")
 	}
 }
+
+func TestEncodedInputsAtLimitReachParser(t *testing.T) {
+	t.Parallel()
+
+	parse := func(value string) (string, error) { return value, nil }
+	jsonValue := strings.Repeat("x", codec.MaxEncodedBytes-2)
+	decoded, absent, err := codec.DecodeJSON(
+		[]byte(`"`+jsonValue+`"`),
+		"test",
+		parse,
+	)
+	if err != nil || absent || decoded != jsonValue {
+		t.Fatalf("DecodeJSON(at limit) = %q, %v, %v", decoded, absent, err)
+	}
+
+	value := strings.Repeat("x", codec.MaxEncodedBytes)
+	for _, source := range []any{value, []byte(value)} {
+		decoded, absent, err := codec.Scan(source, "test", parse)
+		if err != nil || absent || decoded != value {
+			t.Fatalf("Scan(at limit) = %q, %v, %v", decoded, absent, err)
+		}
+	}
+}

@@ -1,9 +1,10 @@
 package subdivision
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
-	"sort"
+	"slices"
 
 	international "github.com/faustbrian/golib/pkg/international"
 )
@@ -21,6 +22,8 @@ func DatasetRecords() []international.Record {
 			Fingerprint: hex.EncodeToString(sum[:]),
 		})
 	}
-	sort.Slice(records, func(left, right int) bool { return records[left].ID < records[right].ID })
+	slices.SortFunc(records, func(left, right international.Record) int {
+		return cmp.Compare(left.ID, right.ID)
+	})
 	return records
 }

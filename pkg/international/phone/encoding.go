@@ -115,17 +115,29 @@ func (number Number) encoded() string {
 
 func parseEncodedNumber(input string) (Number, error) {
 	e164, extension, hasExtension := strings.Cut(input, extensionSeparator)
-	if strings.Contains(extension, extensionSeparator) || strings.Contains(e164, ";") {
+	if strings.Contains(extension, extensionSeparator) {
+		return Number{}, international.NewParseError("phone number", "malformed persistence text")
+	}
+	if strings.Contains(e164, ";") {
 		return Number{}, international.NewParseError("phone number", "malformed persistence text")
 	}
 	if !hasExtension {
 		return ParseE164(input)
 	}
-	if extension == "" || len(extension) > MaxExtensionBytes || !decimal(extension) {
+	if extension == "" {
+		return Number{}, international.NewParseError("phone number", "invalid extension")
+	}
+	if len(extension) > MaxExtensionBytes {
+		return Number{}, international.NewParseError("phone number", "invalid extension")
+	}
+	if !decimal(extension) {
 		return Number{}, international.NewParseError("phone number", "invalid extension")
 	}
 	parsed, err := Parse(e164+" ext. "+extension, ParseOptions{})
-	if err != nil || parsed.e164 != e164 || parsed.extension != extension {
+	if err != nil {
+		return Number{}, international.NewParseError("phone number", "invalid canonical persistence text")
+	}
+	if parsed.encoded() != input {
 		return Number{}, international.NewParseError("phone number", "invalid canonical persistence text")
 	}
 	return parsed, nil

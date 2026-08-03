@@ -65,7 +65,16 @@ func Parse(input string, context country.Code) (Code, error) {
 	if len(input) > MaxBytes {
 		return Code{}, international.ErrResourceLimit
 	}
-	if input == "" || context.IsZero() || !utf8.ValidString(input) || hasControl(input) {
+	if input == "" {
+		return Code{}, international.NewParseError("postal code", "invalid bounded value or country context")
+	}
+	if context.IsZero() {
+		return Code{}, international.NewParseError("postal code", "invalid bounded value or country context")
+	}
+	if !utf8.ValidString(input) {
+		return Code{}, international.NewParseError("postal code", "invalid bounded value or country context")
+	}
+	if hasControl(input) {
 		return Code{}, international.NewParseError("postal code", "invalid bounded value or country context")
 	}
 	return Code{value: input, country: context}, nil
@@ -140,7 +149,7 @@ func upperASCII(value string) string {
 	var result strings.Builder
 	result.Grow(len(value))
 	for _, character := range value {
-		if character >= 'a' && character <= 'z' {
+		if strings.ContainsRune("abcdefghijklmnopqrstuvwxyz", character) {
 			character -= 'a' - 'A'
 		}
 		result.WriteRune(character)

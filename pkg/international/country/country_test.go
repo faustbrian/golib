@@ -2,6 +2,7 @@ package country_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	international "github.com/faustbrian/golib/pkg/international"
@@ -56,6 +57,17 @@ func TestParsingIsStrictAndCanonicalizationIsExplicit(t *testing.T) {
 	for _, input := range []string{"F", "F1", "\xffI"} {
 		if _, err := country.Canonicalize(input); !errors.Is(err, international.ErrInvalid) {
 			t.Errorf("Canonicalize(%q) error = %v, want ErrInvalid", input, err)
+		}
+	}
+	for _, input := range []string{"AD", "ZA", "ad", "za"} {
+		if _, err := country.Canonicalize(input); err != nil {
+			t.Errorf("Canonicalize(%q) error = %v", input, err)
+		}
+	}
+	for _, input := range []string{"@D", "[D", "`d", "{d"} {
+		if _, err := country.Canonicalize(input); !errors.Is(err, international.ErrInvalid) ||
+			!strings.Contains(err.Error(), "invalid canonicalization input") {
+			t.Errorf("Canonicalize(%q) error = %v, want canonicalization error", input, err)
 		}
 	}
 }
@@ -156,6 +168,21 @@ func TestParseAlpha3AndNumericUseTheSameMapping(t *testing.T) {
 	for _, input := range []string{"84", "0840", "8A0", "999"} {
 		if _, err := country.ParseNumeric(input); !errors.Is(err, international.ErrInvalid) {
 			t.Errorf("ParseNumeric(%q) error = %v, want ErrInvalid", input, err)
+		}
+	}
+	for _, test := range []struct {
+		input   string
+		options country.ParseOptions
+	}{
+		{input: "004"},
+		{input: "958", options: country.ParseOptions{AllowReserved: true}},
+		{input: "090"},
+		{input: "196"},
+		{input: "010"},
+		{input: "499"},
+	} {
+		if _, err := country.ParseNumericWithOptions(test.input, test.options); err != nil {
+			t.Errorf("ParseNumericWithOptions(%q) error = %v", test.input, err)
 		}
 	}
 }

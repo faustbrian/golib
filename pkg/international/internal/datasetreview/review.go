@@ -127,14 +127,27 @@ func validate(snapshot Snapshot) error {
 }
 
 func validateRecords(records []international.Record) error {
-	if len(records) == 0 || len(records) > international.MaxDatasetRecords {
+	if len(records) == 0 {
 		return international.ErrInvalidDataset
+	}
+	if len(records) > international.MaxDatasetRecords {
+		return international.ErrResourceLimit
 	}
 	previous := ""
 	for _, record := range records {
-		fingerprint, err := hex.DecodeString(record.Fingerprint)
-		if record.ID == "" || record.ID <= previous || record.Status > international.StatusHistoric ||
-			err != nil || len(fingerprint) != sha256Bytes {
+		if record.ID == "" {
+			return international.ErrInvalidDataset
+		}
+		if record.ID <= previous {
+			return international.ErrInvalidDataset
+		}
+		if record.Status > international.StatusHistoric {
+			return international.ErrInvalidDataset
+		}
+		if len(record.Fingerprint) != hex.EncodedLen(sha256Bytes) {
+			return international.ErrInvalidDataset
+		}
+		if _, err := hex.DecodeString(record.Fingerprint); err != nil {
 			return international.ErrInvalidDataset
 		}
 		previous = record.ID

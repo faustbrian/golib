@@ -46,10 +46,7 @@ func (err *ParseError) Unwrap() error {
 }
 
 func truncateUTF8(value string, limit int) string {
-	if len(value) <= limit {
-		return value
-	}
-	value = value[:limit]
+	value = value[:min(len(value), limit)]
 	for !utf8.ValidString(value) {
 		value = value[:len(value)-1]
 	}

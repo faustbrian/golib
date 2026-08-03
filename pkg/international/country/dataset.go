@@ -1,10 +1,11 @@
 package country
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sort"
+	"slices"
 
 	international "github.com/faustbrian/golib/pkg/international"
 )
@@ -21,7 +22,9 @@ func DatasetRecords() []international.Record {
 			Fingerprint: fingerprint(fmt.Sprintf("%s\n%03d", metadata.alpha3, metadata.numeric)),
 		})
 	}
-	sort.Slice(records, func(left, right int) bool { return records[left].ID < records[right].ID })
+	slices.SortFunc(records, func(left, right international.Record) int {
+		return cmp.Compare(left.ID, right.ID)
+	})
 	return records
 }
 

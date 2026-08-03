@@ -102,3 +102,12 @@ func TestLowercaseUnicodeAcceptsEmptyInputWithinPositiveLimit(
 		t.Fatalf("LowercaseUnicode() = %q, %v", actual, err)
 	}
 }
+
+func TestLowercaseUnicodeAcceptsInputAndOutputAtByteLimit(t *testing.T) {
+	t.Parallel()
+
+	actual, err := international.LowercaseUnicode("Postal", len("Postal"))
+	if err != nil || actual != "postal" {
+		t.Fatalf("LowercaseUnicode() = %q, %v", actual, err)
+	}
+}

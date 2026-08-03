@@ -160,6 +160,35 @@ type nilResponseDoer struct{}
 
 func (nilResponseDoer) Do(*http.Request) (*http.Response, error) { return nil, nil }
 
+type doerFunc func(*http.Request) (*http.Response, error)
+
+func (doer doerFunc) Do(request *http.Request) (*http.Response, error) {
+	return doer(request)
+}
+
+func TestDownloadTransportResultBoundary(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("offline")
+	if _, err := download(doerFunc(func(*http.Request) (*http.Response, error) {
+		return nil, cause
+	}), "http://example.invalid", ""); !errors.Is(err, cause) {
+		t.Fatalf("download(transport failure) error = %v", err)
+	}
+
+	payload := []byte("data")
+	checksum := sha256.Sum256(payload)
+	actual, err := download(doerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(payload)),
+		}, nil
+	}), "http://example.invalid", hex.EncodeToString(checksum[:]))
+	if err != nil || !bytes.Equal(actual, payload) {
+		t.Fatalf("download(success) = %q, %v", actual, err)
+	}
+}
+
 func TestDownloadEnforcesTransportStatusSizeAndChecksum(t *testing.T) {
 	t.Parallel()
 	if _, err := download(http.DefaultClient, ":", ""); err == nil {
@@ -191,7 +220,10 @@ func TestDownloadEnforcesTransportStatusSizeAndChecksum(t *testing.T) {
 			_, _ = writer.Write([]byte("data"))
 		}
 	}))
-	defer server.Close()
+	defer func() {
+		server.CloseClientConnections()
+		server.Close()
+	}()
 	for _, path := range []string{"/status", "/large", "/data"} {
 		if _, err := download(server.Client(), server.URL+path, "bad"); err == nil {
 			t.Fatalf("download(%s) succeeded", path)
@@ -205,5 +237,171 @@ func TestDownloadEnforcesTransportStatusSizeAndChecksum(t *testing.T) {
 	payload, err = fetchRemote(server.URL+"/data", hex.EncodeToString(checksum[:]))
 	if err != nil || string(payload) != "data" {
 		t.Fatalf("fetchRemote success = %q, %v", payload, err)
+	}
+}
+
+func TestGeneratorScalarAndRangeBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{"AA", "AZ", "ZA", "ZZ"} {
+		if !validAlpha2(value) {
+			t.Errorf("validAlpha2(%q) = false", value)
+		}
+	}
+	for _, value := range []string{"@A", "[A", "A@", "A[", "aa", "A"} {
+		if validAlpha2(value) {
+			t.Errorf("validAlpha2(%q) = true", value)
+		}
+	}
+
+	for _, token := range []string{"AA~A", "AZ~Z"} {
+		codes, err := expandCodeRange(token)
+		if err != nil || len(codes) != 1 {
+			t.Errorf("expandCodeRange(%q) = %v, %v", token, codes, err)
+		}
+	}
+	codes, err := expandCodeRange("AA~Z")
+	if err != nil || len(codes) != 26 || codes[0] != "AA" || codes[25] != "AZ" {
+		t.Fatalf("expandCodeRange(AA~Z) = %v, %v", codes, err)
+	}
+
+	for _, value := range []string{"AAA", "ZAA", "AZA", "AAZ", "ZZZ"} {
+		if !validCurrencyCode(value) {
+			t.Errorf("validCurrencyCode(%q) = false", value)
+		}
+	}
+	for _, value := range []string{"@AA", "[AA", "A@A", "A[A", "AA@", "AA[", "aaa", "AA"} {
+		if validCurrencyCode(value) {
+			t.Errorf("validCurrencyCode(%q) = true", value)
+		}
+	}
+	for _, value := range []string{"000", "900", "090", "009", "999"} {
+		if !validNumericCode(value) {
+			t.Errorf("validNumericCode(%q) = false", value)
+		}
+	}
+	for _, value := range []string{"/00", ":00", "0/0", "0:0", "00/", "00:", "0000"} {
+		if validNumericCode(value) {
+			t.Errorf("validNumericCode(%q) = true", value)
+		}
+	}
+
+	for _, entry := range []currencyXMLEntry{
+		{Code: "AAA", Numeric: "000", Name: "lower", MinorUnits: "0"},
+		{Code: "ZZZ", Numeric: "999", Name: "upper", MinorUnits: "9"},
+	} {
+		if _, err := activeCurrencyRecord(entry); err != nil {
+			t.Errorf("activeCurrencyRecord(%#v) error = %v", entry, err)
+		}
+	}
+	if _, err := activeCurrencyRecord(currencyXMLEntry{
+		Code: "AAA", Numeric: "000", Name: "negative", MinorUnits: "-1",
+	}); err == nil {
+		t.Fatal("negative minor units were accepted")
+	}
+	for _, entry := range []currencyXMLEntry{
+		{Code: "AAA", Numeric: "00A", Name: "invalid numeric", MinorUnits: "0"},
+		{Code: "AAA", Numeric: "000", MinorUnits: "0"},
+	} {
+		if _, err := activeCurrencyRecord(entry); err == nil {
+			t.Errorf("activeCurrencyRecord(%#v) succeeded", entry)
+		}
+	}
+}
+
+func TestSubdivisionScalarAndRangeBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{"aaa", "zzz", "aa0", "aa9", "a0z"} {
+		if !validLowerAlphanumeric(value) {
+			t.Errorf("validLowerAlphanumeric(%q) = false", value)
+		}
+	}
+	for _, value := range []string{"aa@", "aa{", "aa/", "aa:", "aa"} {
+		if validLowerAlphanumeric(value) {
+			t.Errorf("validLowerAlphanumeric(%q) = true", value)
+		}
+	}
+	for _, pair := range [][2]byte{{'a', 'z'}, {'z', 'a'}, {'0', '9'}, {'9', '0'}} {
+		if !sameCharacterClass(pair[0], pair[1]) {
+			t.Errorf("sameCharacterClass(%q, %q) = false", pair[0], pair[1])
+		}
+	}
+	for _, pair := range [][2]byte{{'a', '0'}, {'0', 'a'}, {'@', 'a'}} {
+		if sameCharacterClass(pair[0], pair[1]) {
+			t.Errorf("sameCharacterClass(%q, %q) = true", pair[0], pair[1])
+		}
+	}
+	for _, id := range []string{"aa0", "az000", "za000", "zz999"} {
+		if !validSubdivisionID(id) {
+			t.Errorf("validSubdivisionID(%q) = false", id)
+		}
+	}
+	for _, id := range []string{"aa", "aa0000", "@a0", "[a0", "a@0", "a[0"} {
+		if validSubdivisionID(id) {
+			t.Errorf("validSubdivisionID(%q) = true", id)
+		}
+	}
+
+	for _, token := range []string{"aa0~0", "aaa~a", "aaz~z"} {
+		ids, err := expandSubdivisionRange(token)
+		if err != nil || len(ids) != 1 {
+			t.Errorf("expandSubdivisionRange(%q) = %v, %v", token, ids, err)
+		}
+	}
+	ids, err := expandSubdivisionRange("aa0~9")
+	if err != nil || len(ids) != 10 || ids[0] != "aa0" || ids[9] != "aa9" {
+		t.Fatalf("expandSubdivisionRange(aa0~9) = %v, %v", ids, err)
+	}
+	ids, err = expandSubdivisionRange("aaa~z")
+	if err != nil || len(ids) != 26 || ids[0] != "aaa" || ids[25] != "aaz" {
+		t.Fatalf("expandSubdivisionRange(aaa~z) = %v, %v", ids, err)
+	}
+}
+
+func TestGeneratorsContinueAfterIgnoredRows(t *testing.T) {
+	t.Parallel()
+
+	validity := `<supplementalData><idValidity><id type="region" idStatus="regular">AA</id></idValidity></supplementalData>`
+	for _, ignored := range []string{
+		`<territoryCodes type="AC" numeric="001"/>`,
+		`<territoryCodes type="AC" alpha3="ACC"/>`,
+		`<territoryCodes type="BB" numeric="002" alpha3="BBB"/>`,
+	} {
+		mappings := `<supplementalData><codeMappings>` + ignored +
+			`<territoryCodes type="AA" numeric="001" alpha3="AAA"/>` +
+			`</codeMappings></supplementalData>`
+		output, err := generateCountryData(strings.NewReader(validity), strings.NewReader(mappings))
+		if err != nil || !strings.Contains(string(output), `"AA"`) {
+			t.Fatalf("country generator stopped after ignored row: %v", err)
+		}
+	}
+
+	currentRows := `<CcyNtry><CcyNm>Ignored</CcyNm></CcyNtry>` +
+		`<CcyNtry><CcyNm>Euro</CcyNm><Ccy>EUR</Ccy><CcyNbr>978</CcyNbr><CcyMnrUnts>2</CcyMnrUnts></CcyNtry>`
+	current := `<ISO_4217 Pblshd="v"><CcyTbl>` + currentRows + `</CcyTbl></ISO_4217>`
+	historic := `<ISO_4217 Pblshd="v"><HstrcCcyTbl></HstrcCcyTbl></ISO_4217>`
+	output, _, err := generateCurrencyData(strings.NewReader(current), strings.NewReader(historic))
+	if err != nil || !strings.Contains(string(output), `"EUR"`) {
+		t.Fatalf("currency generator stopped after ignored current row: %v", err)
+	}
+
+	current = `<ISO_4217 Pblshd="v"><CcyTbl></CcyTbl></ISO_4217>`
+	historicRows := `<HstrcCcyNtry><CcyNm>Ignored</CcyNm></HstrcCcyNtry>` +
+		`<HstrcCcyNtry><CcyNm>Markka</CcyNm><Ccy>FIM</Ccy><CcyNbr>246</CcyNbr><WthdrwlDt>2002-03</WthdrwlDt></HstrcCcyNtry>`
+	historic = `<ISO_4217 Pblshd="v"><HstrcCcyTbl>` + historicRows + `</HstrcCcyTbl></ISO_4217>`
+	output, _, err = generateCurrencyData(strings.NewReader(current), strings.NewReader(historic))
+	if err != nil || !strings.Contains(string(output), `"FIM"`) {
+		t.Fatalf("currency generator stopped after ignored historic row: %v", err)
+	}
+}
+
+func TestRegionParserSkipsDigitBoundaries(t *testing.T) {
+	t.Parallel()
+
+	input := `<supplementalData><idValidity><id type="region" idStatus="regular">000 999 AA</id></idValidity></supplementalData>`
+	statuses, err := parseRegionValidity(strings.NewReader(input))
+	if err != nil || len(statuses) != 1 || statuses["AA"] != "regular" {
+		t.Fatalf("parseRegionValidity() = %#v, %v", statuses, err)
 	}
 }

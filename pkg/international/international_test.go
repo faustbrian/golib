@@ -129,6 +129,44 @@ func TestProvenanceValidationAndJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestProvenanceEqualityRejectsEveryFieldDifference(t *testing.T) {
+	t.Parallel()
+
+	base := international.Provenance{
+		Dataset:         "dataset",
+		Source:          "https://example.invalid/data",
+		RetrievedAt:     time.Date(2026, time.July, 16, 0, 0, 0, 0, time.UTC),
+		UpstreamVersion: "v1",
+		License:         "CC0-1.0",
+		SHA256:          strings.Repeat("a", 64),
+		Generator:       "generator/v1",
+		Transformations: []string{"parse"},
+	}
+	tests := map[string]func(*international.Provenance){
+		"dataset":          func(value *international.Provenance) { value.Dataset = "other" },
+		"source":           func(value *international.Provenance) { value.Source = "other" },
+		"retrieval date":   func(value *international.Provenance) { value.RetrievedAt = value.RetrievedAt.Add(time.Second) },
+		"upstream version": func(value *international.Provenance) { value.UpstreamVersion = "v2" },
+		"license":          func(value *international.Provenance) { value.License = "MIT" },
+		"checksum":         func(value *international.Provenance) { value.SHA256 = strings.Repeat("b", 64) },
+		"generator":        func(value *international.Provenance) { value.Generator = "other" },
+		"transformations":  func(value *international.Provenance) { value.Transformations = []string{"sort"} },
+	}
+
+	for name, mutate := range tests {
+		name, mutate := name, mutate
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			other := base
+			mutate(&other)
+			if base.Equal(other) || other.Equal(base) {
+				t.Fatal("Equal() accepted differing provenance")
+			}
+		})
+	}
+}
+
 func TestProvenanceRejectsIncompleteOrUnsafeMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +250,38 @@ func TestErrorDiagnosticsRejectUntrustedKindsWithoutPanicking(t *testing.T) {
 	}
 }
 
+func TestErrorDiagnosticsValidateKindCharacterBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, kind := range []string{"a", "z", "a a", "a-a", strings.Repeat("a", 64)} {
+		diagnostic := international.NewParseError(kind, "invalid syntax").Error()
+		if !strings.Contains(diagnostic, "invalid "+kind+":") {
+			t.Fatalf("valid kind %q replaced in %q", kind, diagnostic)
+		}
+	}
+
+	for _, kind := range []string{"", "!", "{", "A", strings.Repeat("a", 65), string([]byte{0xff})} {
+		diagnostic := international.NewParseError(kind, "invalid syntax").Error()
+		if !strings.Contains(diagnostic, "invalid value:") {
+			t.Fatalf("invalid kind %q retained in %q", kind, diagnostic)
+		}
+	}
+}
+
+func TestErrorDiagnosticsRepairMalformedUTF8Reasons(t *testing.T) {
+	t.Parallel()
+
+	for _, reason := range []string{
+		string([]byte{'x', 0xff}),
+		strings.Repeat("x", 225) + string([]byte{0xff}),
+	} {
+		diagnostic := international.NewParseError("phone", reason).Error()
+		if !utf8.ValidString(diagnostic) {
+			t.Fatalf("Error() returned malformed UTF-8: %q", diagnostic)
+		}
+	}
+}
+
 func TestDatasetDiffClassifiesCompatibilityRelevantChanges(t *testing.T) {
 	t.Parallel()
 
@@ -272,6 +342,25 @@ func TestDatasetDiffRejectsDuplicateAndUnboundedRecords(t *testing.T) {
 	_, err = international.DiffRecords(records, nil)
 	if !errors.Is(err, international.ErrResourceLimit) {
 		t.Fatalf("limit error = %v, want ErrResourceLimit", err)
+	}
+
+	atLimit := make([]international.Record, international.MaxDatasetRecords)
+	for name, test := range map[string]struct {
+		before []international.Record
+		after  []international.Record
+	}{
+		"before": {before: atLimit},
+		"after":  {after: atLimit},
+	} {
+		name, test := name, test
+		t.Run(name+" at limit", func(t *testing.T) {
+			t.Parallel()
+
+			_, err := international.DiffRecords(test.before, test.after)
+			if !errors.Is(err, international.ErrInvalidDataset) {
+				t.Fatalf("at-limit error = %v, want ErrInvalidDataset", err)
+			}
+		})
 	}
 }
 

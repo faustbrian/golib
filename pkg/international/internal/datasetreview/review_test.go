@@ -85,13 +85,15 @@ func TestSnapshotValidationRejectsMalformedOrUnboundedInput(t *testing.T) {
 			{ID: "AA", Status: international.StatusOfficial, Fingerprint: strings.Repeat("a", 64)},
 		}},
 	)
-	overLimit := fixtureSnapshot()
-	overLimit.Country = make([]international.Record, international.MaxDatasetRecords+1)
-	invalid = append(invalid, overLimit)
 	for _, snapshot := range invalid {
 		if err := Encode(&bytes.Buffer{}, snapshot); !errors.Is(err, international.ErrInvalidDataset) {
 			t.Errorf("Encode(%#v) error = %v, want ErrInvalidDataset", snapshot, err)
 		}
+	}
+	overLimit := fixtureSnapshot()
+	overLimit.Country = make([]international.Record, international.MaxDatasetRecords+1)
+	if err := Encode(&bytes.Buffer{}, overLimit); !errors.Is(err, international.ErrResourceLimit) {
+		t.Fatalf("Encode(over limit) error = %v, want ErrResourceLimit", err)
 	}
 
 	inputs := []string{
@@ -123,6 +125,55 @@ func TestSnapshotValidationRejectsMalformedOrUnboundedInput(t *testing.T) {
 	}
 	if _, err := Diff(fixtureSnapshot(), Snapshot{}); !errors.Is(err, international.ErrInvalidDataset) {
 		t.Fatalf("Diff invalid after snapshot error = %v", err)
+	}
+}
+
+func TestSnapshotAndRecordSizeBoundaries(t *testing.T) {
+	t.Parallel()
+
+	if _, err := Decode(strings.NewReader(strings.Repeat("x", MaxSnapshotBytes+1))); !errors.Is(
+		err,
+		international.ErrResourceLimit,
+	) {
+		t.Fatalf("Decode(over limit) error = %v, want ErrResourceLimit", err)
+	}
+	if _, err := Decode(strings.NewReader(strings.Repeat("x", MaxSnapshotBytes))); !errors.Is(err, international.ErrInvalidDataset) || errors.Is(err, international.ErrResourceLimit) {
+		t.Fatalf("Decode(at limit) error = %v, want ErrInvalidDataset", err)
+	}
+
+	atLimit := make([]international.Record, international.MaxDatasetRecords)
+	atLimit[0] = international.Record{
+		ID: "AA", Status: international.StatusOfficial, Fingerprint: strings.Repeat("a", 64),
+	}
+	if err := validateRecords(atLimit); !errors.Is(err, international.ErrInvalidDataset) ||
+		errors.Is(err, international.ErrResourceLimit) {
+		t.Fatalf("validateRecords(at limit) error = %v, want ErrInvalidDataset", err)
+	}
+}
+
+func TestRecordValidationChecksEachFieldIndependently(t *testing.T) {
+	t.Parallel()
+
+	fingerprint := strings.Repeat("a", 64)
+	if err := validateRecords([]international.Record{{
+		ID: "AA", Status: international.StatusHistoric, Fingerprint: fingerprint,
+	}}); err != nil {
+		t.Fatalf("validateRecords(valid historic record) error = %v", err)
+	}
+
+	for name, records := range map[string][]international.Record{
+		"empty ID": {{Status: international.StatusOfficial, Fingerprint: fingerprint}},
+		"duplicate ID": {
+			{ID: "AA", Status: international.StatusOfficial, Fingerprint: fingerprint},
+			{ID: "AA", Status: international.StatusOfficial, Fingerprint: fingerprint},
+		},
+		"unknown status":        {{ID: "AA", Status: international.Status(255), Fingerprint: fingerprint}},
+		"short fingerprint":     {{ID: "AA", Status: international.StatusOfficial, Fingerprint: strings.Repeat("a", 62)}},
+		"malformed fingerprint": {{ID: "AA", Status: international.StatusOfficial, Fingerprint: strings.Repeat("g", 64)}},
+	} {
+		if err := validateRecords(records); !errors.Is(err, international.ErrInvalidDataset) {
+			t.Errorf("validateRecords(%s) error = %v, want ErrInvalidDataset", name, err)
+		}
 	}
 }
 

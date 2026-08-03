@@ -87,7 +87,10 @@ func Parse(input string, options ParseOptions) (Number, error) {
 	if len(input) > MaxBytes {
 		return Number{}, international.ErrResourceLimit
 	}
-	if input == "" || !utf8.ValidString(input) {
+	if input == "" {
+		return Number{}, international.NewParseError("phone", "malformed input")
+	}
+	if !utf8.ValidString(input) {
 		return Number{}, international.NewParseError("phone", "malformed input")
 	}
 	defaultRegion := "ZZ"
@@ -106,11 +109,17 @@ func Parse(input string, options ParseOptions) (Number, error) {
 
 func snapshotParsed(parsed *phonenumbers.PhoneNumber) (Number, error) {
 	extension := parsed.GetExtension()
-	if len(extension) > MaxExtensionBytes || !decimal(extension) {
+	if len(extension) > MaxExtensionBytes {
+		return Number{}, international.NewParseError("phone", "invalid extension")
+	}
+	if !decimal(extension) {
 		return Number{}, international.NewParseError("phone", "invalid extension")
 	}
 	countryCallingCode := parsed.GetCountryCode()
-	if countryCallingCode <= 0 || countryCallingCode > 999 {
+	if countryCallingCode <= 0 {
+		return Number{}, international.NewParseError("phone", "invalid calling code metadata")
+	}
+	if countryCallingCode > 999 {
 		return Number{}, international.NewParseError("phone", "invalid calling code metadata")
 	}
 
@@ -149,17 +158,29 @@ func ParseE164(input string) (Number, error) {
 
 // ParseCallingCode accepts a supported plus-prefixed ITU calling code.
 func ParseCallingCode(input string) (CallingCode, error) {
-	if len(input) < 2 || len(input) > 4 || input[0] != '+' || !decimal(input[1:]) {
+	if len(input) < 2 {
 		return CallingCode{}, international.NewParseError("calling code", "malformed input")
 	}
-	value, _ := strconv.Atoi(input[1:])
-	if value <= 0 || value > 999 {
+	if len(input) > 4 {
+		return CallingCode{}, international.NewParseError("calling code", "malformed input")
+	}
+	if input[0] != '+' {
+		return CallingCode{}, international.NewParseError("calling code", "malformed input")
+	}
+	if !decimal(input[1:]) {
+		return CallingCode{}, international.NewParseError("calling code", "malformed input")
+	}
+	var value uint16
+	for index := 1; index < len(input); index++ {
+		value = value*10 + uint16(input[index]-'0')
+	}
+	if value == 0 {
 		return CallingCode{}, international.NewParseError("calling code", "unsupported value")
 	}
-	if !phonenumbers.GetSupportedCallingCodes()[value] {
+	if !phonenumbers.GetSupportedCallingCodes()[int(value)] {
 		return CallingCode{}, international.NewParseError("calling code", "unsupported value")
 	}
-	return CallingCode{value: uint16(value)}, nil
+	return CallingCode{value: value}, nil
 }
 
 // E164 returns canonical number identity without an extension.
@@ -222,11 +243,11 @@ func (code CallingCode) Int() int { return int(code.value) }
 func (code CallingCode) IsZero() bool { return code.value == 0 }
 
 func decimal(value string) bool {
-	if value == "" {
-		return true
-	}
 	for index := range value {
-		if value[index] < '0' || value[index] > '9' {
+		if value[index] < '0' {
+			return false
+		}
+		if value[index] > '9' {
 			return false
 		}
 	}

@@ -3,8 +3,6 @@
 package language
 
 import (
-	"unicode/utf8"
-
 	international "github.com/faustbrian/golib/pkg/international"
 	textlanguage "golang.org/x/text/language"
 	"golang.org/x/text/language/display"
@@ -22,8 +20,14 @@ func Parse(input string) (Code, error) {
 		return Code{}, international.NewParseError("language code", "invalid ISO 639 identifier")
 	}
 	base, err := textlanguage.ParseBase(input)
-	canonical, canonicalErr := textlanguage.DeprecatedBase.Canonicalize(textlanguage.Raw.Make(input))
-	if err != nil || canonicalErr != nil || base.String() != input || canonical.String() != input {
+	canonical, _ := textlanguage.DeprecatedBase.Canonicalize(textlanguage.Raw.Make(input))
+	if err != nil {
+		return Code{}, international.NewParseError("language code", "unknown or obsolete identifier")
+	}
+	if base.String() != input {
+		return Code{}, international.NewParseError("language code", "unknown or obsolete identifier")
+	}
+	if canonical.String() != input {
 		return Code{}, international.NewParseError("language code", "unknown or obsolete identifier")
 	}
 	return Code{value: input}, nil
@@ -35,7 +39,7 @@ func ParseISO3(input string) (Code, error) {
 		return Code{}, international.NewParseError("language code", "invalid ISO 639 three-letter identifier")
 	}
 	base, err := textlanguage.ParseBase(input)
-	if err != nil || base.ISO3() != input {
+	if err != nil {
 		return Code{}, international.NewParseError("language code", "unknown or obsolete identifier")
 	}
 	return Code{value: base.String()}, nil
@@ -70,7 +74,7 @@ func Name(code Code, displayLanguage textlanguage.Tag) string {
 }
 
 func validLowerAlpha(value string, length int) bool {
-	if !utf8.ValidString(value) || len(value) != length {
+	if len(value) != length {
 		return false
 	}
 	for index := range value {

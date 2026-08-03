@@ -39,10 +39,19 @@ type Tag struct {
 
 // Parse validates bounded BCP 47 input without rewriting its spelling.
 func Parse(input string) (Tag, error) {
-	if len(input) > MaxBytes || strings.Count(input, "-")+1 > MaxSegments {
+	if len(input) > MaxBytes {
 		return Tag{}, international.ErrResourceLimit
 	}
-	if input == "" || !utf8.ValidString(input) || strings.Contains(input, "_") {
+	if strings.Count(input, "-")+1 > MaxSegments {
+		return Tag{}, international.ErrResourceLimit
+	}
+	if input == "" {
+		return Tag{}, international.NewParseError("locale", "malformed BCP 47 tag")
+	}
+	if !utf8.ValidString(input) {
+		return Tag{}, international.NewParseError("locale", "malformed BCP 47 tag")
+	}
+	if strings.Contains(input, "_") {
 		return Tag{}, international.NewParseError("locale", "malformed BCP 47 tag")
 	}
 	parsed, err := textlanguage.Raw.Parse(input)
@@ -172,9 +181,7 @@ func parentTag(tag textlanguage.Tag) textlanguage.Tag {
 		if region.String() != "ZZ" {
 			parts = append(parts, region)
 		}
-		if variants := tag.Variants(); len(variants) > 0 {
-			parts = append(parts, variants)
-		}
+		parts = append(parts, tag.Variants())
 		parent, _ := textlanguage.Raw.Compose(parts...)
 		return parent
 	}

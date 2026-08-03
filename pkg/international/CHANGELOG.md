@@ -4,6 +4,8 @@ All notable changes and dataset updates are recorded here.
 
 ## [Unreleased]
 
+- Repair malformed UTF-8 parse-error reasons before returning diagnostics and
+  classify oversized dataset review inputs as resource-limit failures.
 - Add opt-in country-aware postal-code syntax validation compatible with the
   pinned `brick/postcode` 0.5.0 rules used by legacy Postal callers.
 - Restore source-resolvable owned dependency versions after local zero-version

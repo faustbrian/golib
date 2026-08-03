@@ -2,7 +2,6 @@ package currency
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	international "github.com/faustbrian/golib/pkg/international"
 )
@@ -39,9 +38,11 @@ func Parse(input string) (Code, error) {
 
 // ParseWithOptions parses an alphabetic identifier under an explicit policy.
 func ParseWithOptions(input string, options ParseOptions) (Code, error) {
-	record, exists := currencyRecords[input]
-	if !validCode(input) || !exists ||
-		(record.status == international.StatusHistoric && !options.AllowHistoric) {
+	if !validCode(input) {
+		return Code{}, international.NewParseError("currency code", "unaccepted ISO 4217 identifier")
+	}
+	record := currencyRecords[input]
+	if !statusAllowed(record.status, options) {
 		return Code{}, international.NewParseError("currency code", "unaccepted ISO 4217 identifier")
 	}
 	return Code{value: input}, nil
@@ -60,9 +61,7 @@ func ParseNumericWithOptions(input string, options ParseOptions) (Numeric, error
 	}
 	alphabetic := ""
 	for code, record := range currencyRecords {
-		allowed := record.status == international.StatusOfficial ||
-			(record.status == international.StatusHistoric && options.AllowHistoric)
-		if allowed && record.numeric == input {
+		if statusAllowed(record.status, options) && record.numeric == input {
 			if alphabetic != "" {
 				return Numeric{}, international.NewParseError(
 					"currency code",
@@ -203,11 +202,23 @@ func All() []Code {
 }
 
 func validCode(value string) bool {
-	if !utf8.ValidString(value) || len(value) != 3 {
+	if len(value) != 3 {
 		return false
 	}
 	return value[0] >= 'A' && value[0] <= 'Z' && value[1] >= 'A' &&
 		value[1] <= 'Z' && value[2] >= 'A' && value[2] <= 'Z'
+}
+
+func statusAllowed(status international.Status, options ParseOptions) bool {
+	switch status {
+	case international.StatusOfficial:
+		return true
+	case international.StatusHistoric:
+		return options.AllowHistoric
+	case international.StatusUnknown, international.StatusReserved, international.StatusTransitional,
+		international.StatusDeleted, international.StatusUserAssigned:
+	}
+	return false
 }
 
 func validNumeric(value string) bool {

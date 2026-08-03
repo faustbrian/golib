@@ -66,7 +66,10 @@ func (code Code) encoded() string {
 
 func parseEncoded(input string) (Code, error) {
 	countryText, value, found := strings.Cut(input, contextSeparator)
-	if !found || strings.Contains(value, contextSeparator) {
+	if !found {
+		return Code{}, international.NewParseError("postal code", "missing or repeated country context")
+	}
+	if strings.Contains(value, contextSeparator) {
 		return Code{}, international.NewParseError("postal code", "missing or repeated country context")
 	}
 	context, err := country.Parse(countryText)

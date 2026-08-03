@@ -2,7 +2,6 @@ package subdivision
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	international "github.com/faustbrian/golib/pkg/international"
 	"github.com/faustbrian/golib/pkg/international/country"
@@ -77,16 +76,30 @@ func All() []Code {
 }
 
 func validCode(value string) bool {
-	if !utf8.ValidString(value) || len(value) < 4 || len(value) > 6 || value[2] != '-' {
+	if len(value) < 4 {
 		return false
 	}
-	if value[0] < 'A' || value[0] > 'Z' || value[1] < 'A' || value[1] > 'Z' {
+	if len(value) > 6 {
+		return false
+	}
+	if value[2] != '-' {
+		return false
+	}
+	if !asciiUpper(value[0]) || !asciiUpper(value[1]) {
 		return false
 	}
 	for _, character := range value[3:] {
-		if (character < 'A' || character > 'Z') && (character < '0' || character > '9') {
+		if !asciiUpperOrDigit(character) {
 			return false
 		}
 	}
-	return !strings.Contains(value, "--")
+	return true
+}
+
+func asciiUpper(character byte) bool {
+	return strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZ", rune(character))
+}
+
+func asciiUpperOrDigit(character rune) bool {
+	return strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", character)
 }

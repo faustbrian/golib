@@ -14,7 +14,10 @@ const SyntaxDataset = "brick/postcode@0.5.0"
 // untrusted input before calling it. It does not claim that a syntactically
 // valid code exists, is deliverable, or belongs to an address.
 func ValidSyntax(value string, countryCode string) bool {
-	if len(countryCode) != 2 || value == "" {
+	if len(countryCode) != 2 {
+		return false
+	}
+	if value == "" {
 		return false
 	}
 
@@ -28,8 +31,7 @@ func ValidSyntax(value string, countryCode string) bool {
 		return false
 	}
 	for index := range normalized {
-		character := normalized[index]
-		if (character < 'A' || character > 'Z') && (character < '0' || character > '9') {
+		if !asciiLetterOrDigit(normalized[index]) {
 			return false
 		}
 	}
@@ -235,9 +237,12 @@ func validBahrain(value string) bool {
 		return false
 	}
 	municipality := value[:len(value)-2]
-	validMunicipality := len(municipality) == 1 && municipality >= "1" && municipality <= "9" ||
-		len(municipality) == 2 && municipality >= "10" && municipality <= "12"
-	return validMunicipality && value[len(value)-2:] != "00"
+	switch municipality {
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12":
+		return value[len(value)-2:] != "00"
+	default:
+		return false
+	}
 }
 
 func validCanada(value string) bool {
@@ -412,13 +417,14 @@ func validUnitedKingdom(value string) bool {
 	if !unitedKingdomPattern.MatchString(value) {
 		return false
 	}
-	areaLength := 0
-	for areaLength < len(value) && value[areaLength] >= 'A' && value[areaLength] <= 'Z' {
-		areaLength++
-	}
+	areaLength := strings.IndexAny(value, "0123456789")
 	area := value[:areaLength]
 	return strings.Contains(
 		" AB AL B BA BB BD BH BL BN BR BS BT CA CB CF CH CM CO CR CT CV CW DA DD DE DG DH DL DN DT DY E EC EH EN EX FK FY G GL GU HA HD HG HP HR HS HU HX IG IP IV KA KT KW KY L LA LD LE LL LN LS LU M ME MK ML N NE NG NN NP NR NW OL OX PA PE PH PL PO PR RG RH RM S SA SE SG SK SL SM SN SO SP SR SS ST SW SY TA TD TF TN TQ TR TS TW UB W WA WC WD WF WN WR WS WV YO ZE BF BX XX ",
 		" "+area+" ",
 	)
+}
+
+func asciiLetterOrDigit(character byte) bool {
+	return strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", rune(character))
 }

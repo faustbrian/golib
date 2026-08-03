@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	international "github.com/faustbrian/golib/pkg/international"
 	"golang.org/x/text/language"
@@ -44,8 +43,11 @@ func Parse(input string) (Code, error) {
 
 // ParseWithOptions parses an exact alpha-2 identifier under an explicit policy.
 func ParseWithOptions(input string, options ParseOptions) (Code, error) {
-	record, exists := countryRecords[input]
-	if !validAlpha(input, 2) || !exists || !allowed(record.status, options) {
+	if !validAlpha(input, 2) {
+		return Code{}, international.NewParseError("country code", "unaccepted alpha-2 identifier")
+	}
+	record := countryRecords[input]
+	if !allowed(record.status, options) {
 		return Code{}, international.NewParseError("country code", "unaccepted alpha-2 identifier")
 	}
 	return Code{value: input}, nil
@@ -53,7 +55,7 @@ func ParseWithOptions(input string, options ParseOptions) (Code, error) {
 
 // Canonicalize applies ASCII case canonicalization before strict parsing.
 func Canonicalize(input string) (Code, error) {
-	if !utf8.ValidString(input) || len(input) != 2 {
+	if len(input) != 2 {
 		return Code{}, international.NewParseError("country code", "invalid canonicalization input")
 	}
 	for index := range input {
@@ -126,8 +128,8 @@ func (code Code) Status() international.Status {
 
 // Alpha3 returns the authoritative alpha-3 mapping when one exists.
 func (code Code) Alpha3() (Alpha3, bool) {
-	record, exists := countryRecords[code.value]
-	if !exists || record.alpha3 == "" {
+	record := countryRecords[code.value]
+	if record.alpha3 == "" {
 		return Alpha3{}, false
 	}
 	return Alpha3{value: record.alpha3}, true
@@ -135,8 +137,8 @@ func (code Code) Alpha3() (Alpha3, bool) {
 
 // Numeric returns the authoritative numeric mapping when one exists.
 func (code Code) Numeric() (Numeric, bool) {
-	record, exists := countryRecords[code.value]
-	if !exists || record.numeric <= 0 || record.numeric > 999 {
+	record := countryRecords[code.value]
+	if record.numeric <= 0 || record.numeric > 999 {
 		return Numeric{}, false
 	}
 	return Numeric{value: fmt.Sprintf("%03d", record.numeric), alpha2: code.value}, true
@@ -222,7 +224,7 @@ func All() []Code {
 }
 
 func validAlpha(value string, length int) bool {
-	if !utf8.ValidString(value) || len(value) != length {
+	if len(value) != length {
 		return false
 	}
 	for index := range value {
