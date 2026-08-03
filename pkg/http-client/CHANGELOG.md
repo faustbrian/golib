@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reject padding-only and non-trailing-padding bearer tokens as malformed
   instead of accepting credentials without a token payload.
+- Reject IPv6 authorities with an empty explicit port instead of interpreting
+  them as the scheme default.
 - Require HTTPS for trusted authentication origins by default, with an
   explicit insecure opt-in limited to local test endpoints.
 - Verify that the insecure-origin opt-in permits HTTP only and still rejects

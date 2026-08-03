@@ -80,8 +80,10 @@ func TestEgressPolicyRejectsMalformedConfigurationAndDeniedCIDR(t *testing.T) {
 	for _, options := range []EgressOptions{
 		{AllowedPorts: []uint16{0}},
 		{AllowedHosts: []string{""}},
+		{AllowedHosts: []string{"bad/host"}},
 		{AllowedHosts: []string{"*.example.test"}},
 		{AllowedHosts: []string{"-bad.example.test"}},
+		{AllowedHosts: []string{"bad-.example.test"}},
 		{AllowedHosts: []string{strings.Repeat("a", 64) + ".test"}},
 		{AllowedHosts: []string{strings.Repeat("a", 254)}},
 		{AllowedHosts: []string{"snowman-☃.test"}},
@@ -101,6 +103,24 @@ func TestEgressPolicyRejectsMalformedConfigurationAndDeniedCIDR(t *testing.T) {
 	policy, _ := NewEgressPolicy(EgressOptions{DeniedCIDRs: []string{"192.0.2.0/24"}})
 	if err := policy.ValidateIP(net.ParseIP("192.0.2.10")); !errors.Is(err, ErrEgressDenied) {
 		t.Fatalf("denied CIDR error = %v", err)
+	}
+	maximumDNSName := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." +
+		strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)
+	if !validEgressDNSName(maximumDNSName) {
+		t.Fatal("253-byte DNS name rejected")
+	}
+	if !validEgressDNSName(strings.Repeat("a", 63) + ".test") {
+		t.Fatal("63-byte DNS label rejected")
+	}
+	for _, host := range []string{"a.test", "z.test", "0.test", "9.test", "a-b.test"} {
+		if !validEgressDNSName(host) {
+			t.Errorf("valid DNS name %q rejected", host)
+		}
+	}
+	for _, host := range []string{"`bad.test", "{bad.test", "/bad.test", ":bad.test"} {
+		if validEgressDNSName(host) {
+			t.Errorf("invalid DNS name %q accepted", host)
+		}
 	}
 }
 
@@ -139,10 +159,13 @@ func TestEgressValidationAndTransportBoundaryErrors(t *testing.T) {
 		{target: &url.URL{Scheme: "https", Host: "[::1]"}, port: 443, ok: true},
 		{target: &url.URL{Scheme: "https", Host: "[::1"}},
 		{target: &url.URL{Scheme: "https", Host: "[::1]bad"}},
+		{target: &url.URL{Scheme: "https", Host: "[::1]:"}},
 		{target: &url.URL{Scheme: "https", Host: "::1"}},
 		{target: &url.URL{Scheme: "https", Host: "example.test:bad"}},
 		{target: &url.URL{Scheme: "ftp", Host: "example.test"}},
 		{target: &url.URL{Scheme: "https", Host: "example.test:0"}},
+		{target: &url.URL{Scheme: "https", Host: "example.test:65535"}, port: 65535, ok: true},
+		{target: &url.URL{Scheme: "https", Host: "example.test:65536"}},
 	} {
 		port, err := egressPort(test.target)
 		if test.ok && (err != nil || port != test.port) || !test.ok && err == nil {
@@ -176,6 +199,23 @@ func TestEgressValidationAndTransportBoundaryErrors(t *testing.T) {
 	}
 	if err := policy.validateAuthority("api.example.test", 444); !errors.Is(err, ErrEgressDenied) {
 		t.Fatalf("port authority = %v", err)
+	}
+	defaultPolicy, err := NewEgressPolicy(EgressOptions{})
+	if err != nil {
+		t.Fatalf("construct default policy: %v", err)
+	}
+	if err := defaultPolicy.validateAuthority("public.example.test", 443); err != nil {
+		t.Fatalf("default authority denied = %v", err)
+	}
+
+	allowedNetworksPolicy, err := NewEgressPolicy(EgressOptions{
+		AllowedCIDRs: []string{"192.0.2.0/24", "198.51.100.0/24"},
+	})
+	if err != nil {
+		t.Fatalf("construct multiple-CIDR policy: %v", err)
+	}
+	if err := allowedNetworksPolicy.ValidateIP(net.ParseIP("192.0.2.10")); err != nil {
+		t.Fatalf("first allowed CIDR denied = %v", err)
 	}
 
 	transport := egressRoundTripper{policy: policy, next: TransportFunc(func(*http.Request) (*http.Response, error) {

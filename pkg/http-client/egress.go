@@ -225,17 +225,8 @@ func (policy *EgressPolicy) ValidateIP(address net.IP) error {
 			return &EgressError{Reason: EgressReasonCIDR}
 		}
 	}
-	if len(policy.allowedCIDRs) > 0 {
-		allowed := false
-		for _, network := range policy.allowedCIDRs {
-			if network.Contains(address) {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return &EgressError{Reason: EgressReasonCIDR}
-		}
+	if len(policy.allowedCIDRs) > 0 && !egressNetworksContain(policy.allowedCIDRs, address) {
+		return &EgressError{Reason: EgressReasonCIDR}
 	}
 	if metadataServiceAddress(address) {
 		if !policy.allowMetadata {
@@ -254,7 +245,10 @@ func (policy *EgressPolicy) ValidateIP(address net.IP) error {
 
 func normalizeEgressHost(host string) (string, error) {
 	host = strings.TrimSuffix(strings.TrimSpace(host), ".")
-	if host == "" || strings.ContainsAny(host, "/@") {
+	if host == "" {
+		return "", fmt.Errorf("%w: allowed host is malformed", ErrInvalidEgressPolicy)
+	}
+	if strings.ContainsAny(host, "/@") {
 		return "", fmt.Errorf("%w: allowed host is malformed", ErrInvalidEgressPolicy)
 	}
 	if address := net.ParseIP(host); address != nil {
@@ -306,8 +300,15 @@ func normalizeEgressOrigin(raw string) (string, error) {
 func egressPort(target *url.URL) (uint16, error) {
 	authority := target.Host
 	if strings.HasPrefix(authority, "[") {
+		if !strings.Contains(authority, "]") {
+			return 0, errors.New("invalid port")
+		}
 		closing := strings.LastIndex(authority, "]")
-		if closing < 0 || authority[closing+1:] != "" && !strings.HasPrefix(authority[closing+1:], ":") {
+		suffix := authority[closing+1:]
+		if suffix != "" && !strings.HasPrefix(suffix, ":") {
+			return 0, errors.New("invalid port")
+		}
+		if suffix == ":" {
 			return 0, errors.New("invalid port")
 		}
 	} else if strings.Count(authority, ":") > 1 {
@@ -332,6 +333,16 @@ func egressPort(target *url.URL) (uint16, error) {
 		return 0, errors.New("invalid port")
 	}
 	return uint16(port), nil
+}
+
+func egressNetworksContain(networks []*net.IPNet, address net.IP) bool {
+	for _, network := range networks {
+		if network.Contains(address) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func parseEgressCIDRs(values []string) ([]*net.IPNet, error) {
