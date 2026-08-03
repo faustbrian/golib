@@ -90,6 +90,10 @@ lengths, trailing bytes, empty or reordered update sets, duplicate keys,
 unsupported update kinds, malformed post-state roots, and malformed embedded
 proofs under separate witness, proof, update, and scratch limits, with exactly
 one permitted post-root point decode.
+Accepted canonical witness bytes are also fuzz-applied through complete proof
+verification and post-state calculation; the seed corpus requires a valid
+witness to succeed and a structurally valid witness with a different post-root
+to fail with the dedicated mismatch classification.
 It also requires the embedded proof claim keys to equal the canonical update
 keys exactly, rejecting both omission and surplus disclosure.
 Decoding establishes canonical structure only. `StatelessEngine.Apply`

@@ -34,6 +34,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add hostile canonical-witness fuzz application through complete proof
+  verification, post-state derivation, and claimed-root comparison.
 - Add aggregate process-exit goroutine leak detection across the complete
   root-package suite, including dependency-backed proof operations.
 - Bound each proof engine to one active dependency proof call and an explicit
