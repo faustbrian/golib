@@ -154,8 +154,13 @@ func idempotencyPolicyApplied(ctx context.Context) bool {
 	}
 	key, keyOK := IdempotencyKeyFromContext(ctx)
 	identity, identityOK := OperationIdentityFromContext(ctx)
-
-	return keyOK && identityOK && key == state.key && identity == state.operation
+	if !keyOK {
+		return false
+	}
+	if !identityOK {
+		return false
+	}
+	return key == state.key && identity == state.operation
 }
 
 // NewIdempotencyMiddleware creates paired operation and attempt middleware.
@@ -324,8 +329,13 @@ func (sameOriginMethodAttemptPolicy) PreserveKey(original *http.Request, attempt
 	}
 	originalOrigin, originalErr := requestOrigin(original)
 	attemptOrigin, attemptErr := requestOrigin(attempt)
-
-	return originalErr == nil && attemptErr == nil && originalOrigin == attemptOrigin
+	if originalErr != nil {
+		return false
+	}
+	if attemptErr != nil {
+		return false
+	}
+	return originalOrigin == attemptOrigin
 }
 
 func validIdempotencyKey(key string, maximumLength int) bool {

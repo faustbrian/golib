@@ -253,13 +253,17 @@ func TestIdempotencyPrecedesAuthenticationByDefault(t *testing.T) {
 	t.Parallel()
 
 	idempotency, err := NewIdempotencyMiddleware(IdempotencyOptions{
-		Name: "create-widget-idempotency", Layer: MiddlewareEndpoint,
+		Name: "create-widget-idempotency", Layer: MiddlewareEndpoint, Priority: 7,
 		Generator: IdentifierGeneratorFunc(func(context.Context) (GeneratedIdentifier, error) {
 			return GeneratedIdentifier{Value: "generated-key", EntropyBits: 128}, nil
 		}),
 	})
 	if err != nil {
 		t.Fatalf("construct idempotency middleware: %v", err)
+	}
+	if idempotency[0].information.Priority != idempotencyMiddlewarePriority+7 ||
+		idempotency[1].information.Priority != idempotencyMiddlewarePriority+7 {
+		t.Fatalf("idempotency middleware priorities = %#v", idempotency)
 	}
 	authentication, err := NewAuthenticationMiddleware(AuthenticationOptions{
 		Name: "vendor-auth", Layer: MiddlewareClient,
@@ -382,6 +386,16 @@ func TestIdempotencyRejectsInvalidPolicyAndCallerKeys(t *testing.T) {
 			t.Fatalf("invalid policy accepted: %#v", options)
 		}
 	}
+	for _, options := range []IdempotencyOptions{
+		{MaximumLength: 1, MinimumEntropyBits: minimumIdentifierEntropyBits},
+		{MaximumLength: maximumIdempotencyKeyLength, MinimumEntropyBits: maximumIdentifierEntropyBits},
+	} {
+		resolved, err := resolveIdempotencyOptions(options)
+		if err != nil || resolved.maximumLength != options.MaximumLength ||
+			resolved.minimumEntropy != options.MinimumEntropyBits {
+			t.Fatalf("boundary policy %#v resolved to %#v, %v", options, resolved, err)
+		}
+	}
 
 	var nilContext context.Context
 	for _, test := range []struct {
@@ -400,6 +414,10 @@ func TestIdempotencyRejectsInvalidPolicyAndCallerKeys(t *testing.T) {
 	}
 	if _, ok := IdempotencyKeyFromContext(nilContext); ok {
 		t.Fatal("nil context returned idempotency key")
+	}
+	if !validIdempotencyKey("!~", 2) ||
+		!validIdempotencyKey(strings.Repeat("a", maximumIdempotencyKeyLength), maximumIdempotencyKeyLength) {
+		t.Fatal("valid idempotency key boundary was rejected")
 	}
 }
 
@@ -559,6 +577,51 @@ func TestIdempotencyContextAndAttemptBoundaries(t *testing.T) {
 	var nilContext context.Context
 	if idempotencyPolicyApplied(nilContext) {
 		t.Fatal("nil context reported applied idempotency policy")
+	}
+	key := IdempotencyKey{Value: "key", Provenance: IdempotencyCallerContext}
+	operationIdentity := OperationIdentity{ID: "operation", Provenance: IdentityCaller}
+	state := idempotencyState{key: key, operation: operationIdentity}
+	withState := context.WithValue(context.Background(), idempotencyStateContextKey{}, state)
+	withKey := context.WithValue(withState, idempotencyKeyContextKey{}, key)
+	withIdentity := context.WithValue(withState, operationIdentityContextKey{}, operationIdentity)
+	matching := context.WithValue(withKey, operationIdentityContextKey{}, operationIdentity)
+	for name, candidate := range map[string]context.Context{
+		"missing key and identity": withState,
+		"missing identity":         withKey,
+		"missing key":              withIdentity,
+		"mismatched key": context.WithValue(
+			withIdentity, idempotencyKeyContextKey{}, IdempotencyKey{Value: "other", Provenance: IdempotencyCallerContext},
+		),
+		"mismatched identity": context.WithValue(
+			withKey, operationIdentityContextKey{}, OperationIdentity{ID: "other", Provenance: IdentityCaller},
+		),
+	} {
+		if idempotencyPolicyApplied(candidate) {
+			t.Fatalf("%s reported applied idempotency policy", name)
+		}
+	}
+	if !idempotencyPolicyApplied(matching) {
+		t.Fatal("matching idempotency policy was not applied")
+	}
+
+	policy := sameOriginMethodAttemptPolicy{}
+	original, _ := http.NewRequest(http.MethodPost, "https://api.example.test/path", nil)
+	attempt, _ := http.NewRequest(http.MethodPost, "https://api.example.test/other", nil)
+	differentMethod, _ := http.NewRequest(http.MethodGet, "https://api.example.test/path", nil)
+	differentOrigin, _ := http.NewRequest(http.MethodPost, "https://other.example.test/path", nil)
+	invalidOrigin := &http.Request{Method: http.MethodPost}
+	for name, preserved := range map[string]bool{
+		"nil original":            policy.PreserveKey(nil, attempt),
+		"nil attempt":             policy.PreserveKey(original, nil),
+		"different method":        policy.PreserveKey(original, differentMethod),
+		"invalid original origin": policy.PreserveKey(invalidOrigin, attempt),
+		"invalid attempt origin":  policy.PreserveKey(original, invalidOrigin),
+		"different origin":        policy.PreserveKey(original, differentOrigin),
+		"matching origin":         policy.PreserveKey(original, attempt),
+	} {
+		if preserved != (name == "matching origin") {
+			t.Fatalf("%s preserve key = %t", name, preserved)
+		}
 	}
 
 	middleware, err := NewIdempotencyMiddleware(IdempotencyOptions{
