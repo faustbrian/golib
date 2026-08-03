@@ -145,7 +145,16 @@ func CopyResponse(
 	destination io.Writer,
 	options TransferOptions,
 ) (result TransferResult, resultErr error) {
-	if ctx == nil || response == nil || response.Body == nil || nilLike(destination) {
+	if ctx == nil {
+		return result, fmt.Errorf("%w: context, response, body, or destination is invalid", ErrInvalidTransfer)
+	}
+	if response == nil {
+		return result, fmt.Errorf("%w: context, response, body, or destination is invalid", ErrInvalidTransfer)
+	}
+	if response.Body == nil {
+		return result, fmt.Errorf("%w: context, response, body, or destination is invalid", ErrInvalidTransfer)
+	}
+	if nilLike(destination) {
 		return result, fmt.Errorf("%w: context, response, body, or destination is invalid", ErrInvalidTransfer)
 	}
 	body := response.Body
@@ -183,55 +192,58 @@ func CopyResponse(
 		return result, err
 	}
 	buffer := make([]byte, transferBufferBytes)
-	for {
-		if err := ctx.Err(); err != nil {
-			return result, &TransferError{Operation: "cancellation", Cause: err}
-		}
-		if result.Bytes == policy.maximum {
-			var probe [1]byte
-			count, readErr := body.Read(probe[:])
-			if count > 0 {
-				return result, &TransferLimitError{MaximumBytes: policy.maximum, Bytes: result.Bytes + int64(count)}
+	stream := func() error {
+		for {
+			if err := ctx.Err(); err != nil {
+				return &TransferError{Operation: "cancellation", Cause: err}
 			}
-			if readErr != nil && !errors.Is(readErr, io.EOF) {
-				return result, &TransferError{Operation: "body read", Cause: readErr}
-			}
-			break
-		}
-		readBuffer := buffer
-		if remaining := policy.maximum - result.Bytes; int64(len(readBuffer)) > remaining {
-			readBuffer = readBuffer[:remaining]
-		}
-		count, readErr := body.Read(readBuffer)
-		if count > 0 {
-			written, writeErr := destination.Write(readBuffer[:count])
-			if written > 0 {
-				if policy.digest != nil {
-					_, _ = policy.digest.Write(readBuffer[:written])
+			if result.Bytes == policy.maximum {
+				var probe [1]byte
+				count, readErr := body.Read(probe[:])
+				if count != 0 {
+					return &TransferLimitError{MaximumBytes: policy.maximum, Bytes: result.Bytes + int64(count)}
 				}
-				result.Bytes += int64(written)
-			}
-			if writeErr != nil || written != count {
-				if writeErr == nil {
-					writeErr = io.ErrShortWrite
+				if readErr != nil && !errors.Is(readErr, io.EOF) {
+					return &TransferError{Operation: "body read", Cause: readErr}
 				}
-				return result, &TransferError{Operation: "destination write", Cause: writeErr}
+				return nil
 			}
-			now := policy.clock.Now()
-			if policy.progress != nil && result.Bytes != policy.expected &&
-				result.Bytes-lastProgressBytes >= policy.progressBytes &&
-				now.Sub(lastProgressAt) >= policy.progressInterval {
-				if err := progress(false); err != nil {
-					return result, err
+			remaining := policy.maximum - result.Bytes
+			readBuffer := buffer[:min(int64(len(buffer)), remaining)]
+			count, readErr := body.Read(readBuffer)
+			if count != 0 {
+				written, writeErr := destination.Write(readBuffer[:count])
+				if written != 0 {
+					if policy.digest != nil {
+						_, _ = policy.digest.Write(readBuffer[:written])
+					}
+					result.Bytes += int64(written)
 				}
+				if writeErr != nil || written != count {
+					if writeErr == nil {
+						writeErr = io.ErrShortWrite
+					}
+					return &TransferError{Operation: "destination write", Cause: writeErr}
+				}
+				now := policy.clock.Now()
+				if policy.progress != nil && result.Bytes != policy.expected &&
+					result.Bytes-lastProgressBytes >= policy.progressBytes &&
+					now.Sub(lastProgressAt) >= policy.progressInterval {
+					if err := progress(false); err != nil {
+						return err
+					}
+				}
+			}
+			if readErr != nil {
+				if !errors.Is(readErr, io.EOF) {
+					return &TransferError{Operation: "body read", Cause: readErr}
+				}
+				return nil
 			}
 		}
-		if readErr != nil {
-			if !errors.Is(readErr, io.EOF) {
-				return result, &TransferError{Operation: "body read", Cause: readErr}
-			}
-			break
-		}
+	}
+	if err := stream(); err != nil {
+		return result, err
 	}
 	result.Elapsed = max(policy.clock.Now().Sub(started), 0)
 	if policy.digest != nil {
@@ -240,7 +252,7 @@ func CopyResponse(
 	if policy.expected >= 0 && result.Bytes != policy.expected {
 		return result, &TransferLengthError{Expected: policy.expected, Actual: result.Bytes}
 	}
-	if len(policy.expectedDigest) > 0 && !hmac.Equal(result.Digest, policy.expectedDigest) {
+	if policy.expectedDigest != nil && !hmac.Equal(result.Digest, policy.expectedDigest) {
 		return result, &DigestMismatchError{Algorithm: options.DigestAlgorithm}
 	}
 	if err := progress(true); err != nil {

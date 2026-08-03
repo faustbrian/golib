@@ -211,6 +211,24 @@ func TestCopyResponsePolicyAndLifecycleBoundaries(t *testing.T) {
 	if _, err := CopyResponse(nilContext, nil, nil, TransferOptions{}); !errors.Is(err, ErrInvalidTransfer) {
 		t.Fatalf("invalid transfer error = %v", err)
 	}
+	validResponse := func() *http.Response {
+		return &http.Response{Body: http.NoBody, ContentLength: 0}
+	}
+	var nilWriter *bytes.Buffer
+	for name, input := range map[string]struct {
+		ctx      context.Context
+		response *http.Response
+		writer   io.Writer
+	}{
+		"nil context":      {response: validResponse(), writer: io.Discard},
+		"nil response":     {ctx: context.Background(), writer: io.Discard},
+		"nil body":         {ctx: context.Background(), response: &http.Response{}, writer: io.Discard},
+		"typed nil writer": {ctx: context.Background(), response: validResponse(), writer: nilWriter},
+	} {
+		if _, err := CopyResponse(input.ctx, input.response, input.writer, TransferOptions{}); !errors.Is(err, ErrInvalidTransfer) {
+			t.Fatalf("%s error = %v", name, err)
+		}
+	}
 
 	closeFailure := errors.New("close")
 	response := &http.Response{
@@ -225,6 +243,7 @@ func TestCopyResponsePolicyAndLifecycleBoundaries(t *testing.T) {
 
 	for _, options := range []TransferOptions{
 		{MaximumBytes: -1},
+		{MaximumBytes: maximumTransferBytes + 1},
 		{MaximumBytes: 64, ExpectedBytes: -2},
 		{MaximumBytes: 64, ProgressInterval: -1},
 		{MaximumBytes: 64, ProgressBytes: -1},
@@ -239,6 +258,17 @@ func TestCopyResponsePolicyAndLifecycleBoundaries(t *testing.T) {
 		}
 		if _, err := CopyResponse(context.Background(), response, io.Discard, options); err == nil {
 			t.Fatalf("invalid options succeeded: %#v", options)
+		}
+	}
+	resolved, err := resolveTransferOptions(validResponse(), TransferOptions{})
+	if err != nil || resolved.maximum != defaultMaximumTransferBytes ||
+		resolved.progressInterval != 100*time.Millisecond || resolved.progressBytes != 64*1024 {
+		t.Fatalf("default transfer policy = %#v, %v", resolved, err)
+	}
+	for _, maximum := range []int64{1, maximumTransferBytes} {
+		resolved, err = resolveTransferOptions(validResponse(), TransferOptions{MaximumBytes: maximum, ExpectedBytes: -1})
+		if err != nil || resolved.maximum != maximum {
+			t.Fatalf("maximum %d policy = %#v, %v", maximum, resolved, err)
 		}
 	}
 	var nilClock *transferTestClock
@@ -276,13 +306,36 @@ func TestCopyResponsePolicyAndLifecycleBoundaries(t *testing.T) {
 		t.Fatalf("probe read error = %v", err)
 	}
 	response = &http.Response{
+		Body: io.NopCloser(strings.NewReader("fives")), ContentLength: -1,
+	}
+	_, err = CopyResponse(context.Background(), response, io.Discard, TransferOptions{MaximumBytes: 4})
+	var limitError *TransferLimitError
+	if !errors.As(err, &limitError) || limitError.MaximumBytes != 4 || limitError.Bytes != 5 {
+		t.Fatalf("limit details = %#v, %v", limitError, err)
+	}
+	response = &http.Response{
+		Body:          io.NopCloser(&fixedChunkTransferReader{content: []byte("123456"), maximum: 3}),
+		ContentLength: -1,
+	}
+	_, err = CopyResponse(context.Background(), response, io.Discard, TransferOptions{MaximumBytes: 5})
+	limitError = nil
+	if !errors.As(err, &limitError) || limitError.MaximumBytes != 5 || limitError.Bytes != 6 {
+		t.Fatalf("chunked limit details = %#v, %v", limitError, err)
+	}
+	response = &http.Response{
 		StatusCode: http.StatusOK, Header: make(http.Header),
 		Body: io.NopCloser(strings.NewReader("four")), ContentLength: -1,
 	}
 	if result, err := CopyResponse(context.Background(), response, io.Discard, TransferOptions{
-		MaximumBytes: 4,
+		MaximumBytes: 4, ExpectedBytes: 4,
 	}); err != nil || result.Bytes != 4 {
 		t.Fatalf("exact maximum result = %#v, %v", result, err)
+	}
+	response = &http.Response{
+		Body: io.NopCloser(strings.NewReader("x")), ContentLength: 0,
+	}
+	if _, err := CopyResponse(context.Background(), response, io.Discard, TransferOptions{MaximumBytes: 4}); !errors.Is(err, ErrTransferLength) {
+		t.Fatalf("zero expected length mismatch = %v", err)
 	}
 
 	content := []byte("sha512")
@@ -331,6 +384,36 @@ func TestCopyResponsePolicyAndLifecycleBoundaries(t *testing.T) {
 			t.Fatalf("%s progress error = %v", progressCase.name, err)
 		}
 	}
+
+	clock := &transferTestClock{now: time.Unix(1_700_000_000, 0)}
+	reader := &advancingTransferReader{content: []byte("abcde"), clock: clock, advance: time.Millisecond}
+	response = &http.Response{Body: io.NopCloser(reader), ContentLength: -1}
+	updates := 0
+	_, err = CopyResponse(context.Background(), response, io.Discard, TransferOptions{
+		MaximumBytes: 64, ProgressBytes: 3, ProgressInterval: time.Nanosecond, Clock: clock,
+		Progress: func(context.Context, TransferProgress) error {
+			updates++
+			return nil
+		},
+	})
+	if err != nil || updates != 3 {
+		t.Fatalf("progress byte threshold updates = %d, %v", updates, err)
+	}
+
+	clock = &transferTestClock{now: time.Unix(1_700_000_000, 0)}
+	reader = &advancingTransferReader{content: []byte("ab"), clock: clock, advance: time.Millisecond}
+	response = &http.Response{Body: io.NopCloser(reader), ContentLength: -1}
+	updates = 0
+	_, err = CopyResponse(context.Background(), response, io.Discard, TransferOptions{
+		MaximumBytes: 64, ProgressBytes: 1, ProgressInterval: time.Millisecond, Clock: clock,
+		Progress: func(context.Context, TransferProgress) error {
+			updates++
+			return nil
+		},
+	})
+	if err != nil || updates != 4 {
+		t.Fatalf("exact progress interval updates = %d, %v", updates, err)
+	}
 }
 
 type transferWriterFunc func([]byte) (int, error)
@@ -353,6 +436,22 @@ type advancingTransferReader struct {
 type transferSequenceReader struct {
 	content  []byte
 	terminal error
+}
+
+type fixedChunkTransferReader struct {
+	content []byte
+	maximum int
+}
+
+func (reader *fixedChunkTransferReader) Read(buffer []byte) (int, error) {
+	if len(reader.content) == 0 {
+		return 0, io.EOF
+	}
+	count := min(len(buffer), len(reader.content), reader.maximum)
+	copy(buffer, reader.content[:count])
+	reader.content = reader.content[count:]
+
+	return count, nil
 }
 
 func (reader *transferSequenceReader) Read(buffer []byte) (int, error) {
