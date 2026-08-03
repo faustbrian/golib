@@ -79,9 +79,16 @@ func (err *RangeError) Unwrap() error { return err.Cause }
 // WithRange returns an independent GET or HEAD request with Range and optional
 // If-Range headers. It never consumes or aliases a request body.
 func WithRange(request *http.Request, options RangeOptions) (*http.Request, error) {
-	if request == nil || request.URL == nil ||
-		(request.Method != http.MethodGet && request.Method != http.MethodHead) ||
-		request.Body != nil && request.Body != http.NoBody {
+	if request == nil {
+		return nil, &RangeError{Operation: "request", Cause: ErrInvalidRange}
+	}
+	if request.URL == nil {
+		return nil, &RangeError{Operation: "request", Cause: ErrInvalidRange}
+	}
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+		return nil, &RangeError{Operation: "request", Cause: ErrInvalidRange}
+	}
+	if request.Body != nil && request.Body != http.NoBody {
 		return nil, &RangeError{Operation: "request", Cause: ErrInvalidRange}
 	}
 	if err := validateRangePolicy(options.Offset, options.Length, options.Validator); err != nil {
@@ -138,7 +145,10 @@ func ValidateRangeResponse(
 		return RangeMetadata{Start: 0, End: max(response.ContentLength-1, -1), Total: response.ContentLength}, RangeRestart, nil
 	case http.StatusRequestedRangeNotSatisfiable:
 		metadata, ok := parseContentRange(response.Header.Get("Content-Range"), true)
-		if !ok || metadata.Total != options.Offset {
+		if !ok {
+			return RangeMetadata{}, RangeContinue, &RangeError{Operation: "response", Cause: ErrRangeMismatch}
+		}
+		if metadata.Total != options.Offset {
 			return RangeMetadata{}, RangeContinue, &RangeError{Operation: "response", Cause: ErrRangeMismatch}
 		}
 		return metadata, RangeComplete, nil
@@ -148,16 +158,32 @@ func ValidateRangeResponse(
 }
 
 func validateRangePolicy(offset int64, length int64, validator RangeValidator) error {
-	if offset < 0 || length < 0 || validator.ETag != "" && !validator.LastModified.IsZero() ||
-		validator.ETag != "" && !validStrongETag(validator.ETag) ||
-		length > 0 && offset+length-1 < offset {
+	if offset < 0 {
+		return &RangeError{Operation: "policy", Cause: ErrInvalidRange}
+	}
+	if length < 0 {
+		return &RangeError{Operation: "policy", Cause: ErrInvalidRange}
+	}
+	if validator.ETag != "" && !validator.LastModified.IsZero() {
+		return &RangeError{Operation: "policy", Cause: ErrInvalidRange}
+	}
+	if validator.ETag != "" && !validStrongETag(validator.ETag) {
+		return &RangeError{Operation: "policy", Cause: ErrInvalidRange}
+	}
+	if length > 0 && offset+length-1 < offset {
 		return &RangeError{Operation: "policy", Cause: ErrInvalidRange}
 	}
 	return nil
 }
 
 func validStrongETag(value string) bool {
-	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
+	if len(value) < 2 {
+		return false
+	}
+	if value[0] != '"' {
+		return false
+	}
+	if value[len(value)-1] != '"' {
 		return false
 	}
 	for index := 1; index < len(value)-1; index++ {
@@ -176,7 +202,11 @@ func rangeValidatorMatches(header http.Header, validator RangeValidator) bool {
 		return true
 	}
 	modified, err := http.ParseTime(header.Get("Last-Modified"))
-	return err == nil && modified.Equal(validator.LastModified.Truncate(time.Second))
+	if err != nil {
+		return false
+	}
+
+	return modified.Equal(validator.LastModified.Truncate(time.Second))
 }
 
 func parseContentRange(value string, unsatisfied bool) (RangeMetadata, bool) {
@@ -191,13 +221,23 @@ func parseContentRange(value string, unsatisfied bool) (RangeMetadata, bool) {
 	total := int64(-1)
 	if totalPart != "*" {
 		parsed, err := strconv.ParseInt(totalPart, 10, 64)
-		if err != nil || parsed < 0 {
+		if err != nil {
+			return RangeMetadata{}, false
+		}
+		if parsed < 0 {
 			return RangeMetadata{}, false
 		}
 		total = parsed
 	}
 	if unsatisfied {
-		return RangeMetadata{Start: -1, End: -1, Total: total}, rangePart == "*" && total >= 0
+		if rangePart != "*" {
+			return RangeMetadata{}, false
+		}
+		if total < 0 {
+			return RangeMetadata{}, false
+		}
+
+		return RangeMetadata{Start: -1, End: -1, Total: total}, true
 	}
 	startPart, endPart, found := strings.Cut(rangePart, "-")
 	if !found {
@@ -205,7 +245,16 @@ func parseContentRange(value string, unsatisfied bool) (RangeMetadata, bool) {
 	}
 	start, startErr := strconv.ParseInt(startPart, 10, 64)
 	end, endErr := strconv.ParseInt(endPart, 10, 64)
-	if startErr != nil || endErr != nil || start < 0 || end < start || total >= 0 && end >= total {
+	if startErr != nil {
+		return RangeMetadata{}, false
+	}
+	if endErr != nil {
+		return RangeMetadata{}, false
+	}
+	if end < start {
+		return RangeMetadata{}, false
+	}
+	if total >= 0 && end >= total {
 		return RangeMetadata{}, false
 	}
 	return RangeMetadata{Start: start, End: end, Total: total}, true
