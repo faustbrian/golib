@@ -178,6 +178,18 @@ func setupRedisContainer(ctx context.Context, t *testing.T) (testcontainers.Cont
 		endpoint, endpointErr = redisC.PortEndpoint(ctx, "6379/tcp", "")
 		return endpointErr == nil
 	}, 5*time.Second, 25*time.Millisecond, "Redis port mapping did not become visible")
+	require.Eventually(t, func() bool {
+		client := redis.NewClient(&redis.Options{
+			Addr:         endpoint,
+			DialTimeout:  250 * time.Millisecond,
+			ReadTimeout:  250 * time.Millisecond,
+			WriteTimeout: 250 * time.Millisecond,
+			MaxRetries:   0,
+		})
+		defer func() { _ = client.Close() }()
+
+		return client.Ping(ctx).Err() == nil
+	}, 30*time.Second, 100*time.Millisecond, "Redis host endpoint did not become reachable")
 
 	return redisC, endpoint
 }
