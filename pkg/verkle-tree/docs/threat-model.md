@@ -144,7 +144,10 @@ decoding. It rejects malformed envelopes, alternate encodings, invalid points,
 wrong depth or path, duplicate references, missing nodes, resource overflow,
 and any mismatch with the independently rebuilt mathematical root or canonical
 root-node address. It closes the read view exactly once and returns no snapshot
-when read, reconstruction, cancellation, or close fails. The adapter remains
+when read, reconstruction, cancellation, or close fails. Hostile root-node
+bytes are fuzzed through that bounded read, decode,
+reconstruction, root-compare, ownership, and exactly-once close path. The
+adapter remains
 trusted to honor its asserted capabilities; only adapter crash and isolation
 tests can prove those guarantees. The audit boundary requires an isolated
 complete inventory, verifies every current and retained root before classifying

@@ -730,6 +730,7 @@ type internalStorageReadSnapshot struct {
 	closeCalls     int
 	readCalls      int
 	readBounds     []uint64
+	aliasReads     bool
 }
 
 func (snapshot *internalStorageReadSnapshot) Publication(
@@ -761,6 +762,9 @@ func (snapshot *internalStorageReadSnapshot) ReadNode(
 	encoded, present := snapshot.nodes[id]
 	if !present {
 		return nil, ErrStorageNodeMissing
+	}
+	if snapshot.aliasReads {
+		return encoded, nil
 	}
 
 	return append([]byte(nil), encoded...), nil
