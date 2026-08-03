@@ -31,11 +31,13 @@ func TestClassifyResponseReturnsRedactedMappedStatusAndCloses(t *testing.T) {
 	t.Parallel()
 
 	secret := []byte("token=secret")
+	vendorCause := errors.New("vendor-cause")
 	var closed atomic.Int64
 	response := &http.Response{
 		StatusCode: http.StatusTooManyRequests,
 		Header: http.Header{
 			"Content-Type": {"application/json"}, "X-Request-Id": {"request-1"},
+			"X-Correlation-Id": {"request-2"},
 		},
 		Body: &responseTestBody{Reader: bytes.NewReader(secret), closed: &closed},
 	}
@@ -49,11 +51,11 @@ func TestClassifyResponseReturnsRedactedMappedStatusAndCloses(t *testing.T) {
 			if string(snapshot.Excerpt) != "token=[redacted]" {
 				t.Fatalf("mapper excerpt = %q", snapshot.Excerpt)
 			}
-			return "rate_limited", errors.New("vendor-cause")
+			return "rate_limited", vendorCause
 		},
 	})
 	var statusError *HTTPStatusError
-	if !errors.As(err, &statusError) || !errors.Is(err, ErrHTTPStatus) {
+	if !errors.As(err, &statusError) || !errors.Is(err, ErrHTTPStatus) || !errors.Is(err, vendorCause) {
 		t.Fatalf("status error = %#v", err)
 	}
 	if statusError.StatusCode != http.StatusTooManyRequests ||
@@ -94,6 +96,21 @@ func TestClassifyResponseRequiresRedactionAndBoundsDrain(t *testing.T) {
 	if reads.Load() > 2 || closed.Load() != 1 {
 		t.Fatalf("drain reads = %d, closes = %d", reads.Load(), closed.Load())
 	}
+	if defaultMaximumStatusDrainBytes != 64*1024 {
+		t.Fatalf("default maximum status drain = %d", defaultMaximumStatusDrainBytes)
+	}
+
+	counted := &statusCountingReader{reader: strings.NewReader("0123456789")}
+	response = &http.Response{
+		StatusCode: http.StatusBadGateway, Header: make(http.Header),
+		Body: io.NopCloser(counted),
+	}
+	if err := ClassifyResponse(response, StatusOptions{MaximumDrainBytes: 4}); !errors.Is(err, ErrHTTPStatus) {
+		t.Fatalf("counted drain status error = %v", err)
+	}
+	if counted.bytes.Load() != 5 {
+		t.Fatalf("counted drain bytes = %d, want 5", counted.bytes.Load())
+	}
 }
 
 func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
@@ -110,13 +127,52 @@ func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("custom accepted response = %v", err)
 	}
+	redirect := &http.Response{
+		StatusCode: http.StatusMultipleChoices, Header: make(http.Header), Body: http.NoBody,
+	}
+	if err := ClassifyResponse(redirect, StatusOptions{}); !errors.Is(err, ErrHTTPStatus) {
+		t.Fatalf("default status boundary error = %v", err)
+	}
+
+	for name, options := range map[string]StatusOptions{
+		"negative excerpt":  {MaximumExcerptBytes: -1},
+		"excessive excerpt": {MaximumExcerptBytes: maximumStatusExcerptBytes + 1, RedactExcerpt: func(content []byte) ([]byte, error) { return content, nil }},
+		"negative drain":    {MaximumDrainBytes: -1},
+		"excessive drain":   {MaximumDrainBytes: maximumStatusDrainBytes + 1},
+	} {
+		response := &http.Response{StatusCode: http.StatusBadRequest, Header: make(http.Header), Body: http.NoBody}
+		if err := ClassifyResponse(response, options); !errors.Is(err, ErrInvalidStatusPolicy) {
+			t.Fatalf("%s policy error = %v", name, err)
+		}
+	}
+	boundary := &http.Response{StatusCode: http.StatusBadRequest, Header: make(http.Header), Body: http.NoBody}
+	if err := ClassifyResponse(boundary, StatusOptions{
+		MaximumExcerptBytes: maximumStatusExcerptBytes,
+		MaximumDrainBytes:   maximumStatusDrainBytes,
+		RedactExcerpt:       func(content []byte) ([]byte, error) { return content, nil },
+	}); !errors.Is(err, ErrHTTPStatus) || errors.Is(err, ErrInvalidStatusPolicy) {
+		t.Fatalf("exact policy maxima error = %v", err)
+	}
+	exactExcerpt := &http.Response{
+		StatusCode: http.StatusBadRequest, Header: make(http.Header),
+		Body: io.NopCloser(strings.NewReader("body")),
+	}
+	err := ClassifyResponse(exactExcerpt, StatusOptions{
+		MaximumExcerptBytes: 4,
+		RedactExcerpt:       func(content []byte) ([]byte, error) { return content, nil },
+	})
+	var exactStatus *HTTPStatusError
+	if !errors.As(err, &exactStatus) || string(exactStatus.Excerpt) != "body" {
+		t.Fatalf("exact-size redacted excerpt error = %#v", err)
+	}
 
 	failure := errors.New("status failure")
 	for _, test := range []struct {
-		name    string
-		body    io.ReadCloser
-		options StatusOptions
-		want    error
+		name      string
+		body      io.ReadCloser
+		options   StatusOptions
+		want      error
+		operation string
 	}{
 		{
 			name: "close", body: &responseTestBody{Reader: strings.NewReader(""), closeErr: failure},
@@ -128,7 +184,7 @@ func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
 				MaximumExcerptBytes: 4,
 				RedactExcerpt:       func(content []byte) ([]byte, error) { return content, nil },
 			},
-			want: failure,
+			want: failure, operation: "excerpt read",
 		},
 		{
 			name: "redactor", body: io.NopCloser(strings.NewReader("body")),
@@ -136,7 +192,7 @@ func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
 				MaximumExcerptBytes: 4,
 				RedactExcerpt:       func([]byte) ([]byte, error) { return nil, failure },
 			},
-			want: failure,
+			want: failure, operation: "excerpt redaction",
 		},
 		{
 			name: "redactor expansion", body: io.NopCloser(strings.NewReader("body")),
@@ -144,11 +200,11 @@ func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
 				MaximumExcerptBytes: 4,
 				RedactExcerpt:       func([]byte) ([]byte, error) { return []byte("expanded"), nil },
 			},
-			want: ErrInvalidStatusPolicy,
+			want: ErrInvalidStatusPolicy, operation: "excerpt redaction",
 		},
 		{
 			name: "drain", body: &compressionErrorBody{Reader: &responseErrorReader{err: failure}},
-			want: failure,
+			want: failure, operation: "drain",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -159,11 +215,28 @@ func TestClassifyResponseFailureAndPolicyBoundaries(t *testing.T) {
 			if !errors.Is(err, ErrHTTPStatus) || !errors.Is(err, test.want) {
 				t.Fatalf("classification error = %v, want %v", err, test.want)
 			}
+			if test.operation != "" {
+				var bodyError *ResponseBodyError
+				if !errors.As(err, &bodyError) || bodyError.Operation != test.operation {
+					t.Fatalf("classification body error = %#v, want operation %q", err, test.operation)
+				}
+			}
 		})
 	}
 }
 
 type countedInfiniteReader struct{ reads *atomic.Int64 }
+
+type statusCountingReader struct {
+	reader io.Reader
+	bytes  atomic.Int64
+}
+
+func (reader *statusCountingReader) Read(buffer []byte) (int, error) {
+	count, err := reader.reader.Read(buffer)
+	reader.bytes.Add(int64(count))
+	return count, err
+}
 
 func (reader *countedInfiniteReader) Read(buffer []byte) (int, error) {
 	reader.reads.Add(1)

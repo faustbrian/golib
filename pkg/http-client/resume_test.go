@@ -205,12 +205,24 @@ func TestResumeDownloadFilesystemAndProtocolFailureBoundaries(t *testing.T) {
 			Request: request,
 		}
 	}
-	var nilContext context.Context
-	if _, err := resumeDownloadToFile(nilContext, nil, nil, "", ResumeFileOptions{}, &fakeResumeFS{}); !errors.Is(err, ErrInvalidTransfer) {
-		t.Fatalf("invalid configuration error = %v", err)
+	for name, input := range map[string]struct {
+		ctx         context.Context
+		doer        HTTPDoer
+		request     *http.Request
+		destination string
+	}{
+		"nil context":       {doer: httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, failure }), request: request, destination: "destination"},
+		"nil doer":          {ctx: context.Background(), request: request, destination: "destination"},
+		"nil request":       {ctx: context.Background(), doer: httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, failure }), destination: "destination"},
+		"empty destination": {ctx: context.Background(), doer: httpDoerFunc(func(*http.Request) (*http.Response, error) { return nil, failure }), request: request},
+	} {
+		if _, err := resumeDownloadToFile(input.ctx, input.doer, input.request, input.destination, ResumeFileOptions{}, &fakeResumeFS{}); !errors.Is(err, ErrInvalidTransfer) {
+			t.Fatalf("%s configuration error = %v", name, err)
+		}
 	}
 	for _, options := range []ResumeFileOptions{
 		{Mode: 0o1000},
+		{Mode: os.ModeDir | 0o600},
 		{PartialPath: "other/partial"},
 		{PartialPath: "destination"},
 	} {
@@ -263,7 +275,8 @@ func TestResumeDownloadFilesystemAndProtocolFailureBoundaries(t *testing.T) {
 		})
 	}
 
-	if closeResumeResponse(nil) != nil || wrapResumeError("test", nil) != nil {
+	if closeResumeResponse(nil) != nil || closeResumeResponse(&http.Response{}) != nil ||
+		wrapResumeError("test", nil) != nil {
 		t.Fatal("nil resume errors were wrapped")
 	}
 	file := newFakeResumeFile("body")
@@ -351,6 +364,42 @@ func TestResumeDownloadFilesystemAndProtocolFailureBoundaries(t *testing.T) {
 		return continueResponse(request, io.NopCloser(strings.NewReader("new"))), nil
 	}), request, "destination", defaultMaximumOptions, &fakeResumeFS{file: defaultMaximumFile}); err != nil {
 		t.Fatalf("default maximum resume error = %v", err)
+	}
+	emptyFile := newFakeResumeFile("")
+	withoutValidator := ResumeFileOptions{Transfer: TransferOptions{MaximumBytes: 64, ExpectedBytes: 7}}
+	if _, err := resumeDownloadToFile(context.Background(), fullResumeDoer("replace"), request, "destination", withoutValidator, &fakeResumeFS{file: emptyFile}); err != nil {
+		t.Fatalf("empty partial without validator error = %v", err)
+	}
+
+	atMaximum := newFakeResumeFile("safe")
+	_, err := resumeDownloadToFile(context.Background(), httpDoerFunc(func(request *http.Request) (*http.Response, error) {
+		return continueResponse(request, io.NopCloser(strings.NewReader("new"))), nil
+	}), request, "destination", ResumeFileOptions{
+		Validator: RangeValidator{ETag: `"v1"`},
+		Transfer:  TransferOptions{MaximumBytes: 4, ExpectedBytes: 7},
+	}, &fakeResumeFS{file: atMaximum})
+	var limitError *TransferLimitError
+	if !errors.As(err, &limitError) || limitError.MaximumBytes != 4 || limitError.Bytes != 4 {
+		t.Fatalf("exact maximum resume error = %#v", err)
+	}
+
+	overSuffixLimit := newFakeResumeFile("safe")
+	_, err = resumeDownloadToFile(context.Background(), httpDoerFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusPartialContent,
+			Header:     http.Header{"Content-Range": {"bytes 4-10/11"}, "Etag": {`"v1"`}},
+			Body:       io.NopCloser(strings.NewReader("1234567")), ContentLength: 7, Request: request,
+		}, nil
+	}), request, "destination", ResumeFileOptions{
+		Validator: RangeValidator{ETag: `"v1"`},
+		Transfer:  TransferOptions{MaximumBytes: 10, ExpectedBytes: 11},
+	}, &fakeResumeFS{file: overSuffixLimit})
+	var suffixLimit *TransferLimitError
+	if !errors.As(err, &suffixLimit) || suffixLimit.MaximumBytes != 6 || suffixLimit.Bytes != 7 {
+		t.Fatalf("suffix maximum resume error = %#v", err)
+	}
+	if resumeProgressTotal(-1, 7) != 7 || resumeProgressTotal(0, 7) != 0 {
+		t.Fatal("resume progress total boundary is not negative-only")
 	}
 
 	for _, test := range []struct {

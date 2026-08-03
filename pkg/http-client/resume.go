@@ -146,10 +146,7 @@ func resumeDownloadToFile(
 			_ = response.Body.Close()
 			return result, &ResumeError{Operation: "partial seek", Cause: err}
 		}
-		total := metadata.Total
-		if total < 0 {
-			total = options.Transfer.ExpectedBytes
-		}
+		total := resumeProgressTotal(metadata.Total, options.Transfer.ExpectedBytes)
 		if err := observeResumeProgress(ctx, options.Transfer.Progress, TransferProgress{
 			Bytes: offset, Total: total,
 		}); err != nil {
@@ -224,6 +221,13 @@ func resumeDownloadToFile(
 		wrapResumeError("directory sync", directory.Sync()),
 		wrapResumeError("directory close", directory.Close()),
 	)
+}
+
+func resumeProgressTotal(total int64, expected int64) int64 {
+	if total < 0 {
+		return expected
+	}
+	return total
 }
 
 func validateCompletePartial(ctx context.Context, partial resumeFile, options TransferOptions) (TransferResult, error) {
