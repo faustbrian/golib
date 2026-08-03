@@ -42,7 +42,7 @@ closes one of the listed documentation or release items.
 | --- | ---: | --- |
 | Production commitment backend | 8 | Select and re-audit a maintained backend that removes the documented mutable-global, cancellation, initialization, unsafe-surface, side-channel, maintenance, and dependency blockers |
 | Stable v1 profile freeze | 5 | Freeze one exact stable profile only after backend, transcript, canonical encoding, provenance, and interoperability conditions are all satisfied |
-| Second independent implementation | 5 | Obtain broad positive and negative root, proof, witness, and transition agreement from another maintained implementation with independent cryptographic lineage; the EthereumJS WASM wrapper does not qualify |
+| Maintained independent implementation | 5 | Obtain broad positive and negative root, proof, witness, and transition agreement from at least one maintained implementation with independent cryptographic lineage so it and this package form the required independent pair; the unmaintained Rust reference and EthereumJS wrapper do not close this stable-profile gate |
 | Complete hostile-input and operational hardening | 4 | Finish malformed-input amplification, stress, leak, cancellation, concurrency, side-channel-scope, dependency, and generated-artifact review for the selected production boundary |
 | Exact mutation gate | 2 | The complete final production tree passes the repository's exact mutation requirements; the current gate is still running and earns zero until successful |
 | Storage crash and lifecycle evidence | 2 | Complete crash-point, retry, stale publication, recovery, retained-snapshot, concurrent-view, and reclamation evidence for the generic store contract and every claimed adapter |

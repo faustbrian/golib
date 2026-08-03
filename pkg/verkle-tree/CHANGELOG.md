@@ -17,6 +17,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   that its Rust implementation lineage is not an independent verifier.
 - Publish a fixed 100-point goal rubric with explicit earned and remaining exit
   criteria so progress changes only when a named requirement closes or reopens.
+- Refresh the production-backend candidate audit and pin why the current Sila
+  fork and unrelated FRI implementation do not resolve the backend blockers.
 
 ### Added
 

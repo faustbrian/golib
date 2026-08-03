@@ -11,10 +11,20 @@ The imported module version is
 `v0.0.0-20240223125850-b1e8a79f509c`, corresponding to commit
 `b1e8a79f509c5dd26b44d64c5f4aff67d7e69ed0`.
 
-The upstream branch was refreshed on 2026-07-29 at
+The upstream branch was refreshed again on 2026-08-03 and remains at
 `53bbb0ceb27adb011950fd0fce885ad6d4516f84`. Its only later commit updates
 transitive module versions; it does not resolve the production blockers below
 or provide a tagged release.
+
+The same refresh found no maintained drop-in Go replacement. The current
+`sila-chain/go-verkle` repository adds one branding commit on top of the pinned
+`ethereum/go-verkle` history and still requires the same `crate-crypto/go-ipa`
+pseudo-version. The current `stark-verkle/verkle` repository implements a
+different BabyBear/Poseidon/FRI construction and writes its cryptographic
+primitives in the tree repository, so it cannot back this profile or satisfy
+the rule against implementing the commitment arithmetic in the tree package.
+Both rejected candidates are revision- and checksum-pinned in the source
+manifest. Neither changes the production-backend decision.
 
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.

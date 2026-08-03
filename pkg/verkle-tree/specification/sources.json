@@ -813,8 +813,8 @@
       "tree": "0a8b415845cd8c5cdca40dacd492ae1ff337e1ae",
       "latest_reviewed_revision": "53bbb0ceb27adb011950fd0fce885ad6d4516f84",
       "latest_reviewed_tree": "71b2a455a9c8178baa2b05076ec3b44f347bb0b7",
-      "latest_reviewed_on": "2026-07-29",
-      "latest_delta": "one transitive dependency update; production blockers unchanged",
+      "latest_reviewed_on": "2026-08-03",
+      "latest_delta": "no newer upstream revision; production blockers unchanged",
       "go_mod_sha256": "60c3d2fc3819fe38ca5712b01610e5c74e5a73e20629b4349fd2554730fef306",
       "license": "MIT OR Apache-2.0",
       "license_files": {
@@ -823,6 +823,35 @@
       },
       "reproducible": true,
       "review_status": "candidate-not-approved"
+    },
+    {
+      "id": "sila-chain-go-verkle-backend-candidate-scan",
+      "kind": "git-repository",
+      "role": "rejected-backend-candidate",
+      "url": "https://github.com/sila-chain/go-verkle",
+      "revision": "e26b695b79a23510c31e454780c749a15fd6e1e1",
+      "tree": "03d4cc9c7d7b52a5890dffb6ccfd5088ccbaf46a",
+      "readme_sha256": "8f9eccb957e28cf98c337b57ac417756b725f601df7f142e46b4a5a82a2e39ed",
+      "go_mod_sha256": "f0a813b7ecc4fe70ba883b16cf9dba8d87c3ac1c8d73098a858fd5fc74a598e9",
+      "license": "Sila License (MIT-like terms)",
+      "license_sha256": "6ea9c40c063f6950250209a3c5613053a28d9b8824889458cdf42cd952dcb64b",
+      "reviewed_on": "2026-08-03",
+      "reproducible": true,
+      "review_status": "rejected-one-branding-commit-over-go-verkle-and-same-go-ipa-revision"
+    },
+    {
+      "id": "stark-verkle-go-backend-candidate-scan",
+      "kind": "git-repository",
+      "role": "rejected-profile-and-backend-candidate",
+      "url": "https://github.com/stark-verkle/verkle",
+      "revision": "f58b0357b11fa9193bb5a424c08337323fe1cf09",
+      "tree": "dd37d41eb1aaa92ba3ec874a522a065ef9c14db6",
+      "readme_sha256": "438d16a8efc844d87925f1e81262d51174c0bc6a56af3d802351594587429096",
+      "go_mod_sha256": "5902a3a78d1c0eb6054c1891f961fc3fe85b379dba798e8d36bbf0b5cef0e63e",
+      "license": "not-found-at-repository-root",
+      "reviewed_on": "2026-08-03",
+      "reproducible": true,
+      "review_status": "rejected-different-fri-poseidon-babybear-profile-and-self-implemented-cryptography"
     },
     {
       "id": "crate-crypto-rust-verkle",
