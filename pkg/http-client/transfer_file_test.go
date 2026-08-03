@@ -123,9 +123,19 @@ func TestCopyResponseToFileFilesystemFailureBoundaries(t *testing.T) {
 		}
 	}
 	var nilContext context.Context
-	if _, err := copyResponseToFile(nilContext, nil, "file", FileTransferOptions{}, &fakeFileTransferFS{}); !errors.Is(err, ErrInvalidTransfer) {
-		t.Fatalf("invalid input error = %v", err)
+	for name, input := range map[string]struct {
+		ctx      context.Context
+		response *http.Response
+	}{
+		"nil context":  {response: newResponse(http.NoBody)},
+		"nil response": {ctx: context.Background()},
+		"nil body":     {ctx: context.Background(), response: &http.Response{}},
+	} {
+		if _, err := copyResponseToFile(input.ctx, input.response, "file", FileTransferOptions{}, &fakeFileTransferFS{}); !errors.Is(err, ErrInvalidTransfer) {
+			t.Fatalf("%s error = %v", name, err)
+		}
 	}
+	_ = nilContext
 	response := newResponse(&compressionErrorBody{Reader: strings.NewReader("body"), closeErr: failure})
 	if _, err := copyResponseToFile(context.Background(), response, "", FileTransferOptions{}, &fakeFileTransferFS{}); !errors.Is(err, failure) {
 		t.Fatalf("configuration close error = %v", err)
@@ -137,38 +147,63 @@ func TestCopyResponseToFileFilesystemFailureBoundaries(t *testing.T) {
 		t.Fatalf("create and close error = %v", err)
 	}
 
+	chmodFailure := errors.New("chmod")
+	closeFailure := errors.New("close")
+	removeFailure := errors.New("remove")
 	for _, test := range []struct {
-		name       string
-		file       *fakeTransferFile
-		filesystem *fakeFileTransferFS
+		name        string
+		file        *fakeTransferFile
+		filesystem  *fakeFileTransferFS
+		causes      []error
+		closeCalls  int
+		removeCalls int
 	}{
 		{
 			name:       "mode and cleanup",
-			file:       &fakeTransferFile{chmodErr: failure, closeErr: failure},
-			filesystem: &fakeFileTransferFS{removeErr: failure},
+			file:       &fakeTransferFile{chmodErr: chmodFailure, closeErr: closeFailure},
+			filesystem: &fakeFileTransferFS{removeErr: removeFailure},
+			causes:     []error{chmodFailure, closeFailure, removeFailure}, closeCalls: 1, removeCalls: 1,
 		},
 		{
 			name: "sync",
 			file: &fakeTransferFile{syncErr: failure}, filesystem: &fakeFileTransferFS{},
+			causes: []error{failure}, closeCalls: 1, removeCalls: 1,
 		},
 		{
 			name: "close",
 			file: &fakeTransferFile{closeErr: failure}, filesystem: &fakeFileTransferFS{},
+			causes: []error{failure}, closeCalls: 1, removeCalls: 1,
 		},
 		{
 			name: "rename",
 			file: &fakeTransferFile{}, filesystem: &fakeFileTransferFS{renameErr: failure},
+			causes: []error{failure}, closeCalls: 1, removeCalls: 1,
 		},
 		{
 			name: "directory open",
 			file: &fakeTransferFile{}, filesystem: &fakeFileTransferFS{openErr: failure},
+			causes: []error{failure}, closeCalls: 1,
 		},
 		{
-			name: "directory sync and close",
+			name: "directory sync",
 			file: &fakeTransferFile{},
 			filesystem: &fakeFileTransferFS{
-				directory: &fakeTransferDirectory{syncErr: failure, closeErr: failure},
+				directory: &fakeTransferDirectory{syncErr: failure},
 			},
+			causes: []error{failure}, closeCalls: 1,
+		},
+		{
+			name: "directory close",
+			file: &fakeTransferFile{},
+			filesystem: &fakeFileTransferFS{
+				directory: &fakeTransferDirectory{closeErr: failure},
+			},
+			causes: []error{failure}, closeCalls: 1,
+		},
+		{
+			name: "missing temporary already removed",
+			file: &fakeTransferFile{chmodErr: failure}, filesystem: &fakeFileTransferFS{removeErr: os.ErrNotExist},
+			causes: []error{failure}, closeCalls: 1, removeCalls: 1,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -179,8 +214,16 @@ func TestCopyResponseToFileFilesystemFailureBoundaries(t *testing.T) {
 					Transfer: TransferOptions{MaximumBytes: 64},
 				}, test.filesystem,
 			)
-			if !errors.Is(err, failure) {
-				t.Fatalf("filesystem error = %v", err)
+			for _, cause := range test.causes {
+				if !errors.Is(err, cause) {
+					t.Fatalf("filesystem error = %v, want cause %v", err, cause)
+				}
+			}
+			if errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("filesystem error retained ignored missing temporary: %v", err)
+			}
+			if test.file.closeCalls != test.closeCalls || test.filesystem.removeCalls != test.removeCalls {
+				t.Fatalf("cleanup calls = close:%d remove:%d, want close:%d remove:%d", test.file.closeCalls, test.filesystem.removeCalls, test.closeCalls, test.removeCalls)
 			}
 		})
 	}
@@ -202,15 +245,19 @@ func assertNoTransferTemporaryFiles(t *testing.T, directory string) {
 
 type fakeTransferFile struct {
 	bytes.Buffer
-	chmodErr error
-	syncErr  error
-	closeErr error
+	chmodErr   error
+	syncErr    error
+	closeErr   error
+	closeCalls int
 }
 
 func (*fakeTransferFile) Name() string                 { return "temporary" }
 func (file *fakeTransferFile) Chmod(os.FileMode) error { return file.chmodErr }
 func (file *fakeTransferFile) Sync() error             { return file.syncErr }
-func (file *fakeTransferFile) Close() error            { return file.closeErr }
+func (file *fakeTransferFile) Close() error {
+	file.closeCalls++
+	return file.closeErr
+}
 
 type fakeTransferDirectory struct {
 	syncErr  error
@@ -221,12 +268,13 @@ func (directory *fakeTransferDirectory) Sync() error  { return directory.syncErr
 func (directory *fakeTransferDirectory) Close() error { return directory.closeErr }
 
 type fakeFileTransferFS struct {
-	file      *fakeTransferFile
-	directory *fakeTransferDirectory
-	createErr error
-	removeErr error
-	renameErr error
-	openErr   error
+	file        *fakeTransferFile
+	directory   *fakeTransferDirectory
+	createErr   error
+	removeErr   error
+	renameErr   error
+	openErr     error
+	removeCalls int
 }
 
 func (filesystem *fakeFileTransferFS) CreateTemp(string, string) (fileTransferFile, error) {
@@ -236,7 +284,10 @@ func (filesystem *fakeFileTransferFS) CreateTemp(string, string) (fileTransferFi
 	return filesystem.file, nil
 }
 
-func (filesystem *fakeFileTransferFS) Remove(string) error         { return filesystem.removeErr }
+func (filesystem *fakeFileTransferFS) Remove(string) error {
+	filesystem.removeCalls++
+	return filesystem.removeErr
+}
 func (filesystem *fakeFileTransferFS) Rename(string, string) error { return filesystem.renameErr }
 
 func (filesystem *fakeFileTransferFS) OpenDirectory(string) (fileTransferDirectory, error) {

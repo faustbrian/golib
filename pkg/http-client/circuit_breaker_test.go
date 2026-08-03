@@ -16,10 +16,13 @@ func TestCircuitBreakerWrapsOneLogicalOperationAcrossRetries(t *testing.T) {
 
 	circuit := &circuitTestBreaker{}
 	middleware, err := NewCircuitBreakerMiddleware(CircuitBreakerOptions{
-		Name: "vendor-circuit", Layer: MiddlewareClient, Breaker: circuit,
+		Name: "vendor-circuit", Layer: MiddlewareClient, Priority: 7, Breaker: circuit,
 	})
 	if err != nil {
 		t.Fatalf("construct circuit middleware: %v", err)
+	}
+	if middleware.information.Priority != circuitBreakerMiddlewarePriority+7 {
+		t.Fatalf("circuit middleware priority = %d", middleware.information.Priority)
 	}
 	retry, err := NewRetryMiddleware(RetryOptions{
 		Name: "vendor-retry", MaximumAttempts: 2,
@@ -145,7 +148,7 @@ func TestDefaultCircuitOutcomeClassification(t *testing.T) {
 		want     CircuitOutcome
 	}{
 		{name: "success", response: &http.Response{StatusCode: http.StatusOK}, want: CircuitOutcomeSuccess},
-		{name: "server failure", response: &http.Response{StatusCode: http.StatusServiceUnavailable}, want: CircuitOutcomeFailure},
+		{name: "server failure boundary", response: &http.Response{StatusCode: http.StatusInternalServerError}, want: CircuitOutcomeFailure},
 		{name: "rate response ignored", response: &http.Response{StatusCode: http.StatusTooManyRequests}, want: CircuitOutcomeIgnored},
 		{name: "contextless cancellation fails", failure: context.Canceled, want: CircuitOutcomeFailure},
 		{name: "deadline failure", failure: context.DeadlineExceeded, want: CircuitOutcomeFailure},
@@ -160,6 +163,15 @@ func TestDefaultCircuitOutcomeClassification(t *testing.T) {
 		if got := classifier.Classify(test.response, test.failure); got != test.want {
 			t.Fatalf("%s outcome = %v, want %v", test.name, got, test.want)
 		}
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	contextualClassifier := defaultCircuitOutcomeClassifier{}
+	if got := contextualClassifier.ClassifyContext(canceled, nil, context.Canceled); got != CircuitOutcomeIgnored {
+		t.Fatalf("caller cancellation outcome = %v", got)
+	}
+	if got := contextualClassifier.ClassifyContext(canceled, nil, errors.New("dependency")); got != CircuitOutcomeFailure {
+		t.Fatalf("dependency failure with canceled caller outcome = %v", got)
 	}
 	if got := CircuitOutcomeClassifierFunc(func(*http.Response, error) CircuitOutcome {
 		return CircuitOutcomeFailure
@@ -292,11 +304,15 @@ func TestCircuitBreakerBoundaryFailures(t *testing.T) {
 		t.Fatalf("circuit function adapter = %#v, %v", response, err)
 	}
 
+	typedRejection := &CircuitBreakerError{}
+	nonRejection := errors.New("dependency failure")
 	tests := []struct {
-		name    string
-		breaker CircuitBreaker
-		want    error
-		closed  *bool
+		name         string
+		breaker      CircuitBreaker
+		want         error
+		closed       *bool
+		wantCircuit  bool
+		exactCircuit *CircuitBreakerError
 	}{
 		{
 			name: "nil operation context",
@@ -316,15 +332,27 @@ func TestCircuitBreakerBoundaryFailures(t *testing.T) {
 			) (*http.Response, error) {
 				return nil, ErrCircuitRejected
 			}),
-			want: ErrCircuitRejected,
+			want: ErrCircuitRejected, wantCircuit: true,
+		},
+		{
+			name: "non-rejection failure",
+			breaker: CircuitBreakerFunc(func(
+				context.Context,
+				func(context.Context) (*http.Response, error),
+			) (*http.Response, error) {
+				return nil, nonRejection
+			}),
+			want: nonRejection,
 		},
 	}
 	closed := false
 	tests = append(tests, struct {
-		name    string
-		breaker CircuitBreaker
-		want    error
-		closed  *bool
+		name         string
+		breaker      CircuitBreaker
+		want         error
+		closed       *bool
+		wantCircuit  bool
+		exactCircuit *CircuitBreakerError
 	}{
 		name: "rejection response cleanup",
 		breaker: CircuitBreakerFunc(func(
@@ -334,9 +362,9 @@ func TestCircuitBreakerBoundaryFailures(t *testing.T) {
 			return &http.Response{
 				StatusCode: http.StatusServiceUnavailable,
 				Body:       &retryCloseBody{Reader: strings.NewReader("body"), closed: &closed},
-			}, &CircuitBreakerError{}
+			}, typedRejection
 		}),
-		want: ErrCircuitRejected, closed: &closed,
+		want: ErrCircuitRejected, closed: &closed, wantCircuit: true, exactCircuit: typedRejection,
 	})
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -357,9 +385,19 @@ func TestCircuitBreakerBoundaryFailures(t *testing.T) {
 			}
 			defer closeTestClient(t, client)
 			request, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
-			_, requestErr := client.Do(request)
+			response, requestErr := client.Do(request)
 			if !errors.Is(requestErr, test.want) {
 				t.Fatalf("boundary error = %v", requestErr)
+			}
+			var circuitError *CircuitBreakerError
+			if errors.As(requestErr, &circuitError) != test.wantCircuit {
+				t.Fatalf("circuit error = %#v, want typed = %t", requestErr, test.wantCircuit)
+			}
+			if test.exactCircuit != nil && circuitError != test.exactCircuit {
+				t.Fatalf("circuit error identity = %p, want %p", circuitError, test.exactCircuit)
+			}
+			if test.wantCircuit && response != nil {
+				t.Fatalf("rejection response = %#v", response)
 			}
 			if test.closed != nil && !*test.closed {
 				t.Fatal("rejection response body was not closed")

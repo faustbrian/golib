@@ -136,9 +136,18 @@ func TestClientEgressEnforcesDefaultTransportAndRedirects(t *testing.T) {
 		t.Fatalf("construct local client: %v", err)
 	}
 	t.Cleanup(func() { _ = localClient.Close() })
+	configuredRedirectCalls := 0
+	configuredRedirectFailure := errors.New("configured redirect called before egress validation")
+	localClient.HTTPClient().CheckRedirect = func(*http.Request, []*http.Request) error {
+		configuredRedirectCalls++
+		return configuredRedirectFailure
+	}
 	request, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
 	if _, err := localClient.Do(request); !errors.Is(err, ErrEgressDenied) {
 		t.Fatalf("redirect egress error = %v", err)
+	}
+	if configuredRedirectCalls != 0 {
+		t.Fatalf("configured redirect calls before egress denial = %d", configuredRedirectCalls)
 	}
 }
 

@@ -21,6 +21,9 @@ func TestNewClientProvidesFiniteSafeDefaults(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	httpClient := client.HTTPClient()
+	if defaultConnectTimeout != 10*time.Second || defaultKeepAlive != 30*time.Second {
+		t.Fatalf("dial defaults = connect:%s keep-alive:%s", defaultConnectTimeout, defaultKeepAlive)
+	}
 	if httpClient.Timeout != 30*time.Second {
 		t.Fatalf("Timeout = %v, want 30s", httpClient.Timeout)
 	}
@@ -77,6 +80,10 @@ func TestNewClientAppliesAndValidatesConnectTimeout(t *testing.T) {
 	dialer := newTransportDialer(5 * time.Second)
 	if dialer.Timeout != 5*time.Second {
 		t.Fatalf("connect timeout = %v, want 5s", dialer.Timeout)
+	}
+	defaultDialer := newTransportDialer(durationOrDefault(0, defaultConnectTimeout))
+	if defaultDialer.Timeout != 10*time.Second || durationOrDefault(5*time.Second, time.Second) != 5*time.Second {
+		t.Fatalf("defaulted connect timeout = %s", defaultDialer.Timeout)
 	}
 	if _, err := New(Config{
 		ConnectTimeout: -time.Second,

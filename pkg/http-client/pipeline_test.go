@@ -926,12 +926,13 @@ func TestClientDoWithMiddlewareRejectsInvalidDerivedPipeline(t *testing.T) {
 }
 
 func TestClientUsesDefaultTransportWhenStandardTransportIsNil(t *testing.T) {
-	t.Parallel()
-
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
+	originalDefaultTransport := http.DefaultTransport
+	http.DefaultTransport = server.Client().Transport
+	defer func() { http.DefaultTransport = originalDefaultTransport }()
 	client, err := New(Config{})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

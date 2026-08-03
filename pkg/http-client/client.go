@@ -236,10 +236,7 @@ func New(config Config) (*Client, error) {
 	transport := config.Transport
 	ownedTransport := config.TransportOwnership == TransportOwned
 	if transport == nil {
-		connectTimeout := config.ConnectTimeout
-		if connectTimeout == 0 {
-			connectTimeout = defaultConnectTimeout
-		}
+		connectTimeout := durationOrDefault(config.ConnectTimeout, defaultConnectTimeout)
 		responseHeaderTimeout := config.ResponseHeaderTimeout
 		if responseHeaderTimeout == 0 {
 			responseHeaderTimeout = defaultResponseHeaderTimeout
@@ -300,6 +297,13 @@ func New(config Config) (*Client, error) {
 	}
 
 	return client, nil
+}
+
+func durationOrDefault(value time.Duration, fallback time.Duration) time.Duration {
+	if value != 0 {
+		return value
+	}
+	return fallback
 }
 
 func sessionJar(session *clientSession) http.CookieJar {

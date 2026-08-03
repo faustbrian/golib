@@ -430,6 +430,7 @@ func TestCachedTokenSourceCoordinatesCancelableWaiters(t *testing.T) {
 	}()
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeOAuth2TestSignal(release) })
 	var calls atomic.Int64
 	source, err := NewCachedTokenSource(TokenCacheOptions{
 		Client: client,
@@ -475,7 +476,7 @@ func TestCachedTokenSourceCoordinatesCancelableWaiters(t *testing.T) {
 	if err := receiveOAuth2TestValue(t, canceledResult); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled waiter error = %v", err)
 	}
-	close(release)
+	closeOAuth2TestSignal(release)
 	if err := receiveOAuth2TestValue(t, leader); err != nil {
 		t.Fatalf("leader token: %v", err)
 	}
@@ -679,6 +680,7 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeOAuth2TestSignal(release) })
 	tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		close(entered)
 		select {
@@ -690,6 +692,7 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 		_, _ = writer.Write([]byte(`{"access_token":"token","token_type":"Bearer","expires_in":3600}`))
 	}))
 	defer tokenServer.Close()
+	defer closeOAuth2TestSignal(release)
 	client, err := New(Config{Transport: tokenServer.Client().Transport})
 	if err != nil {
 		t.Fatalf("construct client: %v", err)
@@ -729,7 +732,7 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 	if elapsed := time.Since(started); elapsed > 200*time.Millisecond {
 		t.Fatalf("canceled waiter took %s", elapsed)
 	}
-	close(release)
+	closeOAuth2TestSignal(release)
 	if err := receiveOAuth2TestValue(t, leaderResult); err != nil {
 		t.Fatalf("leader refresh: %v", err)
 	}
@@ -765,6 +768,7 @@ func TestClientCredentialsTokenRequestHonorsCallerAndClientCancellation(t *testi
 		t.Run(test.name, func(t *testing.T) {
 			entered := make(chan struct{})
 			release := make(chan struct{})
+			t.Cleanup(func() { closeOAuth2TestSignal(release) })
 			tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 				close(entered)
 				select {
@@ -774,6 +778,7 @@ func TestClientCredentialsTokenRequestHonorsCallerAndClientCancellation(t *testi
 			}))
 			defer tokenServer.Close()
 			defer tokenServer.CloseClientConnections()
+			defer closeOAuth2TestSignal(release)
 			client, err := New(Config{Transport: tokenServer.Client().Transport})
 			if err != nil {
 				t.Fatalf("construct client: %v", err)
@@ -806,7 +811,7 @@ func TestClientCredentialsTokenRequestHonorsCallerAndClientCancellation(t *testi
 			case <-time.After(time.Second):
 				t.Fatal("token request did not stop after cancellation")
 			}
-			close(release)
+			closeOAuth2TestSignal(release)
 		})
 	}
 }
@@ -1114,6 +1119,7 @@ func TestClientCredentialsWaiterStopsWhenClientCloses(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeOAuth2TestSignal(release) })
 	tokenServer := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		close(entered)
 		select {
@@ -1122,6 +1128,7 @@ func TestClientCredentialsWaiterStopsWhenClientCloses(t *testing.T) {
 		}
 	}))
 	defer tokenServer.Close()
+	defer closeOAuth2TestSignal(release)
 	client, err := New(Config{Transport: tokenServer.Client().Transport})
 	if err != nil {
 		t.Fatalf("construct client: %v", err)
@@ -1154,7 +1161,7 @@ func TestClientCredentialsWaiterStopsWhenClientCloses(t *testing.T) {
 	if err := receiveOAuth2TestValue(t, leaderResult); !errors.Is(err, ErrClientClosed) {
 		t.Fatalf("leader close error = %v", err)
 	}
-	close(release)
+	closeOAuth2TestSignal(release)
 }
 
 func TestOAuth2TokenHelpers(t *testing.T) {
@@ -1168,6 +1175,9 @@ func TestOAuth2TokenHelpers(t *testing.T) {
 	}
 	if !validClientCredentialsToken(&oauth2.Token{AccessToken: "no-expiry"}, now, 0) {
 		t.Fatal("zero-expiry token reported invalid")
+	}
+	if !validOAuth2Scope("#[]~") {
+		t.Fatal("OAuth2 scope rejected valid ABNF boundary characters")
 	}
 	if cloneOAuth2Token(nil) != nil {
 		t.Fatal("nil token clone was non-nil")
@@ -1211,5 +1221,13 @@ func receiveOAuth2TestValue[Value any](t *testing.T, values <-chan Value) Value 
 		t.Fatal("timed out waiting for OAuth2 test coordination")
 		var zero Value
 		return zero
+	}
+}
+
+func closeOAuth2TestSignal(signal chan struct{}) {
+	select {
+	case <-signal:
+	default:
+		close(signal)
 	}
 }

@@ -26,7 +26,6 @@ func TestCacheMiddlewareStoresFreshVariantsAndReturnsIndependentBodies(t *testin
 		_, _ = fmt.Fprintf(writer, "%s:%d", request.Header.Get("Accept-Language"), call)
 	}))
 	t.Cleanup(server.Close)
-
 	store, err := NewMemoryCache(MemoryCacheOptions{})
 	if err != nil {
 		t.Fatalf("construct memory cache: %v", err)
@@ -355,6 +354,7 @@ func TestCacheMiddlewareCoalescesConcurrentMisses(t *testing.T) {
 		_, _ = io.WriteString(writer, "coalesced")
 	}))
 	t.Cleanup(server.Close)
+	t.Cleanup(func() { closeTestSignal(release) })
 
 	store, err := NewMemoryCache(MemoryCacheOptions{})
 	if err != nil {
@@ -399,7 +399,7 @@ func TestCacheMiddlewareCoalescesConcurrentMisses(t *testing.T) {
 		}()
 	}
 	close(ready)
-	<-started
+	receiveTestValue(t, started)
 	select {
 	case <-duplicate:
 		close(release)
@@ -431,7 +431,6 @@ func TestCacheMiddlewareSupportsBypassRefreshTTLAndUnsafeInvalidation(t *testing
 		_, _ = fmt.Fprintf(writer, "version:%d", call)
 	}))
 	t.Cleanup(server.Close)
-
 	store, err := NewMemoryCache(MemoryCacheOptions{})
 	if err != nil {
 		t.Fatalf("construct memory cache: %v", err)
@@ -1262,6 +1261,7 @@ func TestCacheCoalescedWaiterHonorsCancellation(t *testing.T) {
 		_, _ = io.WriteString(writer, "leader")
 	}))
 	t.Cleanup(server.Close)
+	t.Cleanup(func() { closeTestSignal(release) })
 	memory, _ := NewMemoryCache(MemoryCacheOptions{})
 	secondLoad := make(chan struct{})
 	store := &signalingCacheStore{CacheStore: memory, secondLoad: secondLoad}
@@ -1283,7 +1283,7 @@ func TestCacheCoalescedWaiterHonorsCancellation(t *testing.T) {
 		}
 		leaderDone <- doErr
 	}()
-	<-started
+	receiveTestValue(t, started)
 	waiterContext, cancel := context.WithCancel(context.Background())
 	waiter, _ := http.NewRequestWithContext(waiterContext, http.MethodGet, server.URL, nil)
 	waiterDone := make(chan error, 1)
@@ -1291,13 +1291,13 @@ func TestCacheCoalescedWaiterHonorsCancellation(t *testing.T) {
 		_, doErr := client.Do(waiter)
 		waiterDone <- doErr
 	}()
-	<-secondLoad
+	receiveTestValue(t, secondLoad)
 	cancel()
-	if err := <-waiterDone; !errors.Is(err, context.Canceled) {
+	if err := receiveTestValue(t, waiterDone); !errors.Is(err, context.Canceled) {
 		t.Fatalf("waiter cancellation error = %v", err)
 	}
-	close(release)
-	if err := <-leaderDone; err != nil {
+	closeTestSignal(release)
+	if err := receiveTestValue(t, leaderDone); err != nil {
 		t.Fatalf("leader error = %v", err)
 	}
 }
@@ -1700,7 +1700,7 @@ func TestCacheStaleWhileRevalidateUsesApplicationOwnedScheduler(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("origin calls before task = %d", calls.Load())
 	}
-	task := <-scheduler.tasks
+	task := receiveTestValue(t, scheduler.tasks)
 	task(context.Background())
 	if calls.Load() != 2 {
 		t.Fatalf("origin calls after task = %d", calls.Load())
