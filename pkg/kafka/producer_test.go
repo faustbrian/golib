@@ -1252,6 +1252,9 @@ func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
 	if got := franzClient.OptValue(kgo.MetadataMinAge); got != 250*time.Millisecond {
 		t.Fatalf("MetadataMinAge = %v, want 250ms", got)
 	}
+	if got := franzClient.OptValue(kgo.RecordDeliveryTimeout); got != time.Duration(0) {
+		t.Fatalf("RecordDeliveryTimeout = %v, want disabled", got)
+	}
 	retryBackoff, ok := franzClient.OptValue(kgo.RetryBackoffFn).(func(int) time.Duration)
 	if !ok {
 		t.Fatalf("RetryBackoffFn = %T, want func(int) time.Duration", franzClient.OptValue(kgo.RetryBackoffFn))
@@ -1281,6 +1284,9 @@ func TestNewProducerAppliesBoundedIdempotentDeliveryPolicy(t *testing.T) {
 	defer closeProducerForTest(t, transactional)
 	if got := transactionalClient.OptValue(kgo.AllowIdempotentProduceCancellation); got != false {
 		t.Fatalf("transactional AllowIdempotentProduceCancellation = %v, want false", got)
+	}
+	if got := transactionalClient.OptValue(kgo.RecordDeliveryTimeout); got != time.Duration(0) {
+		t.Fatalf("transactional RecordDeliveryTimeout = %v, want disabled", got)
 	}
 	if !transactional.transactionsEnabled {
 		t.Fatal("transactional producer did not retain transaction capability")

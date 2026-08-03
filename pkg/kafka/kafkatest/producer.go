@@ -27,7 +27,7 @@ func RunProducerConformance(t *testing.T, harness BrokerHarness) {
 		key := []byte{0, 1, 2, 255}
 		value := []byte{255, 2, 1, 0}
 		headerValue := []byte{3, 0, 4, 255}
-		timestamp := time.Now().Add(-time.Second).UTC().Truncate(time.Millisecond)
+		timestamp := time.Date(2023, time.January, 2, 3, 4, 5, 0, time.UTC)
 		result := producer.PublishRecord(t.Context(), kafka.ProducerRecord{
 			Topic: topic, Partition: kafka.ExplicitPartition(0),
 			Key: key, Value: value,

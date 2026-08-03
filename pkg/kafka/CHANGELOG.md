@@ -44,6 +44,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- preserve caller-supplied historical Kafka event timestamps across ordinary,
+  producer-transaction, and consume-transform-produce delivery by measuring the
+  bounded delivery deadline from package admission instead of allowing
+  franz-go to interpret event time as record age
 - reject typed-nil custom security-provider interface values during
   construction instead of deferring failure to a runtime callback panic
 - reject invalid configured TLS server names during construction and malformed

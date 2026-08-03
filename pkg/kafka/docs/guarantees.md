@@ -3,8 +3,9 @@
 ## Producer
 
 The producer explicitly requests all in-sync replica acknowledgements and does
-not disable franz-go idempotence. Calls use bounded retries, delivery timeout,
-request timeout, dial timeout, buffering, batch size, and record size.
+not disable franz-go idempotence. Calls use bounded retries, package-owned
+delivery deadlines, request timeout, dial timeout, buffering, batch size, and
+record size.
 
 A delivery result with a nil error means Kafka acknowledged the record under
 the configured all-ISR acknowledgement policy. It does not prove a downstream
@@ -32,8 +33,8 @@ Non-transactional producers permit bounded cancellation of an in-flight
 idempotent record. This preserves the package delivery bound after a broker
 writes a record but its response is lost; franz-go's internal retries remain
 idempotent, but a new application submission cannot reuse the canceled
-producer sequence. Record delivery timeout and retry exhaustion are therefore
-`ErrorAmbiguous`; delivery cancellation and deadline expiry are classified the
+producer sequence. Delivery deadline expiry and retry exhaustion are therefore
+`ErrorAmbiguous`; delivery cancellation is classified the
 same way because the package cannot prove that Kafka rejected an admitted
 record. These errors retain their underlying identity and must not be retried
 blindly. A bounded dial failure before a request reaches Kafka remains a
@@ -45,11 +46,14 @@ continue-after-data-loss behavior.
 Retry backoff uses a 250 millisecond to 1 second default range,
 exponential growth, and bounded per-client jitter. Failed-partition metadata
 refresh uses the larger of the configured retry minimum and a reviewed 250
-millisecond floor. `DeliveryTimeout` is a rough franz-go record bound evaluated
-around requests. The package also gives every
-non-transactional delivery a context deadline of `DeliveryTimeout +
-RetryBackoffMax`, which is the policy-level maximum wait. `ShutdownTimeout`
-must cover that combined interval.
+millisecond floor. Every non-transactional delivery receives a package-owned
+context deadline of `DeliveryTimeout + RetryBackoffMax`, measured from package
+admission. The package deliberately does not configure franz-go's
+`RecordDeliveryTimeout` because franz-go v1.21.5 measures that option from the
+Kafka record timestamp; caller-supplied historical event time must not consume
+the delivery budget. The event timestamp is transported unchanged and does not
+alter the package deadline. `ShutdownTimeout` must cover the combined delivery
+interval.
 
 Keyed production is the default ordering policy. Unkeyed records are accepted
 only when configured explicitly; their partition is selected by the configured

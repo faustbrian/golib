@@ -322,7 +322,9 @@ func newTransactionProcessor(
 		kgo.MetadataMinAge(producerMetadataMinAge(
 			config.Output.RetryBackoffMin,
 		)),
-		kgo.RecordDeliveryTimeout(config.Output.DeliveryTimeout),
+		// franz-go measures RecordDeliveryTimeout from Record.Timestamp, which is
+		// Kafka event time rather than package admission time. Transactional
+		// delivery is bounded by the processor-owned wait and client interruption.
 		kgo.ProduceRequestTimeout(config.Output.RequestTimeout),
 		kgo.ProducerLinger(config.Output.Linger),
 		kgo.ProducerBatchCompression(

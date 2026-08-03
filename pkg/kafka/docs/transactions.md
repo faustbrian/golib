@@ -19,6 +19,8 @@ delivery timeout plus maximum retry backoff. If that bound expires after the
 record may have been sent, the package cancels and closes the entire client,
 returns an ambiguous `DeliveryError` joined with `ErrProducerFatal`, and skips
 commit and abort on that closed client. The producer cannot be reused. Kafka
+event timestamps are transported unchanged and never serve as delivery-clock
+origins; the bound starts when the package admits each publish. Kafka
 cannot expose the record to `read_committed` without a commit; constructing a
 replacement with the same transactional ID fences and recovers the open
 transaction. A blind application resubmission before that recovery is unsafe.

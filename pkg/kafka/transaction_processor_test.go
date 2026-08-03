@@ -96,6 +96,7 @@ func TestTransactionProcessorConfigValidateAndConstruction(t *testing.T) {
 				client.OptValue(kgo.AlwaysRetryEOF) != true ||
 				client.OptValue(kgo.StopProducerOnDataLossDetected) != true ||
 				client.OptValue(kgo.AllowIdempotentProduceCancellation) != false ||
+				client.OptValue(kgo.RecordDeliveryTimeout) != time.Duration(0) ||
 				client.OptValue(kgo.FetchMinBytes) != int32(2<<20) ||
 				client.OptValue(kgo.BrokerMaxReadBytes) != int32(70<<20) ||
 				client.OptValue(kgo.MetadataMinAge) != 250*time.Millisecond ||

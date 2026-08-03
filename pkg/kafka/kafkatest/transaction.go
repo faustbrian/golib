@@ -18,6 +18,7 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 	if err := harness.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	historicalTimestamp := time.Date(2023, time.January, 2, 3, 4, 5, 0, time.UTC)
 
 	t.Run("producer commit abort and callback fencing", func(t *testing.T) {
 		topic := harness.NewTopic(t, 1)
@@ -27,7 +28,9 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			escaped = transaction
 			return transaction.Publish(t.Context(), kafka.ProducerRecord{
 				Topic: topic, Partition: kafka.ExplicitPartition(0),
-				Key: []byte("committed"), Value: []byte("committed"),
+				Key:       []byte("committed"),
+				Value:     []byte("committed"),
+				Timestamp: historicalTimestamp,
 			})
 		}); err != nil {
 			t.Fatalf("committed RunTransaction() error = %v", err)
@@ -56,7 +59,8 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			Topic: topic, Partition: 0, StartOffset: 0, MaxRecords: 1,
 			Isolation: ReadCommitted,
 		})
-		if len(committed) != 1 || string(committed[0].Value) != "committed" {
+		if len(committed) != 1 || string(committed[0].Value) != "committed" ||
+			!committed[0].Timestamp.Equal(historicalTimestamp) {
 			t.Fatalf("read-committed record count = %d", len(committed))
 		}
 		uncommitted := readConformanceRecords(t, harness, ReadRequest{
@@ -96,8 +100,9 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 				sourceRecord = record.Retain()
 				return transaction.Publish(callbackCtx, kafka.ProducerRecord{
 					Topic: output, Partition: kafka.ExplicitPartition(0),
-					Key:   append([]byte(nil), record.Key...),
-					Value: []byte("transformed-" + string(record.Value)),
+					Key:       append([]byte(nil), record.Key...),
+					Value:     []byte("transformed-" + string(record.Value)),
+					Timestamp: historicalTimestamp,
 				})
 			}))
 		}
@@ -111,7 +116,8 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			Topic: output, Partition: 0, StartOffset: 0, MaxRecords: 1,
 			Isolation: ReadCommitted,
 		})
-		if len(outputs) != 1 || string(outputs[0].Value) != "transformed-source" {
+		if len(outputs) != 1 || string(outputs[0].Value) != "transformed-source" ||
+			!outputs[0].Timestamp.Equal(historicalTimestamp) {
 			t.Fatalf("transactional output count = %d", len(outputs))
 		}
 	})

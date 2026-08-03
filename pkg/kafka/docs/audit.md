@@ -76,9 +76,10 @@ observer seams. The dedicated gate runs the broker-backed suites against the
 digest-pinned single-node fixture and the provider/hook suites without a
 broker. This closes the missing public-suite surface; it does not extend the
 compatibility matrix beyond the exact fixture profile. The conformance run also
-confirmed that franz-go v1.21.5 ages delivery from an explicit record timestamp;
-the root policy still needs an explicit reviewed contract for historical event
-timestamps older than the configured delivery bound.
+proves that historical Kafka event timestamps survive ordinary,
+producer-transaction, and consume-transform-produce delivery unchanged. The
+root policy deliberately leaves franz-go's timestamp-aged record timeout
+disabled and starts its bounded delivery contexts at package admission.
 
 Current post-baseline integration evidence additionally runs
 `apache/kafka:4.3.1` by immutable multi-platform digest, asserts `4.3.1` from

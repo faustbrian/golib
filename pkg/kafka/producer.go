@@ -365,7 +365,10 @@ func newProducer(
 			config.RetryBackoffMax,
 		)),
 		kgo.MetadataMinAge(producerMetadataMinAge(config.RetryBackoffMin)),
-		kgo.RecordDeliveryTimeout(config.DeliveryTimeout),
+		// franz-go measures RecordDeliveryTimeout from Record.Timestamp, which is
+		// Kafka event time rather than package admission time. The owned delivery
+		// contexts below enforce the policy bound without rejecting historical
+		// event timestamps.
 		kgo.ProduceRequestTimeout(config.RequestTimeout),
 		kgo.DialTimeout(config.DialTimeout),
 		kgo.ProducerLinger(config.Linger),

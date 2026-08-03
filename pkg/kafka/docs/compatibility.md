@@ -110,7 +110,9 @@ Design and implementation are checked against:
 - [franz-go v1.21.5 package documentation](https://pkg.go.dev/github.com/twmb/franz-go/pkg/kgo@v1.21.5),
   including its tag-pinned
   [`RecordDeliveryTimeout`](https://github.com/twmb/franz-go/blob/v1.21.5/pkg/kgo/config.go)
-  and idempotent in-flight cancellation contracts, plus the tag-pinned
+  and idempotent in-flight cancellation contracts; the root policy does not
+  select `RecordDeliveryTimeout` because v1.21.5 ages it from Kafka event time
+  and instead bounds delivery from package admission, plus the tag-pinned
   [`ProduceSync`](https://github.com/twmb/franz-go/blob/v1.21.5/pkg/kgo/producer.go)
   callback aggregation used to verify cross-partition completion ordering;
 - the tag-pinned [kafka-go v0.4.51](https://github.com/segmentio/kafka-go/tree/v0.4.51)
