@@ -336,9 +336,10 @@ func (w *Worker) fetchTask() {
 			}
 		}
 		blockTime := w.opts.blockTime
-		if blockTime <= 0 || blockTime > time.Second {
+		if blockTime <= 0 {
 			blockTime = time.Second
 		}
+		blockTime = min(blockTime, time.Second)
 		data, err := w.readGroup(ctx, &redis.XReadGroupArgs{
 			Group:    w.opts.group,
 			Consumer: w.opts.consumer,
