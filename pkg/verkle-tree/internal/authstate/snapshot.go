@@ -272,6 +272,61 @@ func (snapshot Snapshot) RootContainer(ctx context.Context) (backend.Root, error
 	)
 }
 
+// EntryCount returns the exact number of retained present entries without
+// allocating or exposing the immutable backing slice.
+func (snapshot Snapshot) EntryCount() (uint32, error) {
+	if err := snapshot.validate(); err != nil {
+		return 0, err
+	}
+
+	return uint32(len(snapshot.entries)), nil
+}
+
+// CopyEntries returns an owned canonical entry sequence after preflighting the
+// result count and copy allocation. The caller must separately budget any
+// simultaneously live encoding or decoding buffers.
+func (snapshot Snapshot) CopyEntries(
+	ctx context.Context,
+	maxEntries uint32,
+	maxTemporaryBytes uint64,
+) ([]Entry, error) {
+	if err := snapshot.validate(); err != nil {
+		return nil, err
+	}
+	if err := checkContext(ctx); err != nil {
+		return nil, err
+	}
+	if maxEntries == 0 ||
+		maxEntries > maxSupportedCount ||
+		maxTemporaryBytes == 0 {
+		return nil, errInvalidLimits
+	}
+	if err := checkResource(
+		ResourceEntries,
+		uint64(maxEntries),
+		uint64(len(snapshot.entries)),
+	); err != nil {
+		return nil, err
+	}
+	if err := checkResource(
+		ResourceTemporaryBytes,
+		maxTemporaryBytes,
+		uint64(len(snapshot.entries))*entryWorkingBytes,
+	); err != nil {
+		return nil, err
+	}
+
+	entries := make([]Entry, len(snapshot.entries))
+	for index := range snapshot.entries {
+		if err := checkContext(ctx); err != nil {
+			return nil, err
+		}
+		entries[index] = snapshot.entries[index]
+	}
+
+	return entries, nil
+}
+
 // StorageImage returns a complete immutable canonical node image for the exact
 // snapshot without publishing it.
 func (snapshot Snapshot) StorageImage(

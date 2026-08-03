@@ -231,6 +231,9 @@ const (
 
 	// ResourcePathLookups counts authenticated witness-path reads.
 	ResourcePathLookups
+
+	// ResourceSnapshotBytes counts canonical whole-snapshot bytes.
+	ResourceSnapshotBytes
 )
 
 // ResourceError reports an exact rejected budget without disclosing keys,

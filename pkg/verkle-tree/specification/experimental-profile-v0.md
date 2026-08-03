@@ -62,8 +62,7 @@ The following parts of the profile are deliberately not frozen:
 - serialized empty-subtree representation outside the root and stored-node
   formats defined below;
 - stable witness semantics beyond the exact experimental Set/Delete witness,
-  completeness, and post-state rules below, and canonical whole-snapshot
-  encoding;
+  completeness, and post-state rules below;
 - canonical point, scalar, and verified-proof rejection rules beyond the
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
@@ -1016,8 +1015,8 @@ root for one existing-value update and one absent-suffix insertion. Its proof
 openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
-This internal construction does not freeze or implement a whole-snapshot wire
-encoding, crash-repair application, or general tree-level incremental updates.
+This internal construction does not freeze or implement crash-repair
+application or general tree-level incremental updates.
 The public canonical witness format connects the stateless updater to
 authenticated present, missing, and different tree paths for `Set` operations
 and to absent, topology-preserving, or completely disclosed topology-collapsing
@@ -1026,6 +1025,47 @@ The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained
 publications plus prune nodes through a capability-checked caller-owned adapter.
+
+## Canonical Whole-Snapshot Encoding
+
+The public immutable snapshot MUST have one canonical, self-authenticating
+byte encoding. It contains the complete ordered present key/value state and an
+exact profile-bound root. The format is package-owned and experimental; it is
+not a `go-verkle`, Rust Verkle, or Ethereum wire format.
+
+| Offset | Length | Field |
+| ---: | ---: | --- |
+| 0 | 4 | ASCII magic `VKSS` |
+| 4 | 1 | profile identifier `1` |
+| 5 | 2 | profile version `0`, unsigned big-endian |
+| 7 | 2 | snapshot container version `1`, unsigned big-endian |
+| 9 | 42 | exact canonical root container |
+| 51 | 4 | present entry count `N`, unsigned big-endian |
+| 55 | `64 * N` | canonical entry records |
+
+Each entry record MUST contain its 32-byte raw key followed by its 32-byte raw
+value. Records MUST be strictly ascending by raw key bytes. Duplicate or
+reordered keys, alternate lengths, trailing bytes, and omitted or surplus
+records MUST be rejected. The exact encoded length is `55 + 64 * N` bytes.
+`N` MUST NOT exceed `33,554,431`, keeping every format length and allocation
+representable under the package's portable signed-32-bit bound. A zero count
+is canonical only with the explicit empty root. An all-zero value remains a
+present value.
+
+Encoding MUST preflight the entry count, complete result bytes, and the
+simultaneously live canonical-entry copy and result buffer before allocation.
+Decoding MUST reject an unsupported profile or container version before point
+decoding, then preflight the declared entry count, exact length, root point
+work, and temporary entry copies before allocation or tree construction. A
+zero point-decode budget MAY decode the explicit empty root; a non-empty root
+requires exactly one authorized point decode.
+
+Decoding MUST defensively own every accepted entry, rebuild the complete
+authenticated tree under independent snapshot-construction limits, and compare
+the derived canonical root bytes with the encoded root. A mismatch MUST return
+no usable snapshot. Successful decode followed by encode MUST reproduce the
+input byte-for-byte. Encoding and decoding MUST observe cancellation during
+owned entry work and MUST NOT alias caller bytes.
 
 ## Compatibility Boundary
 

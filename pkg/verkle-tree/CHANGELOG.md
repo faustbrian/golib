@@ -14,6 +14,11 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add canonical profile-bound whole-snapshot encoding and hostile-input
+  decoding. Decoding preflights bytes, entries, point work, and temporary
+  memory, requires strict key order and exact length, rebuilds the complete
+  authenticated tree, and rejects an encoded root that does not match it.
+
 - Add an experimental caller-owned storage write boundary that encodes complete
   immutable trees as deterministic profile-bound nodes, addresses each node by
   SHA-256, and requires immutable-node, atomic-commit, durable-publication, and

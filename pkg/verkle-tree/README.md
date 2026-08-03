@@ -8,6 +8,7 @@ authenticated key/value trees backed by vector commitments.
 This module is **pre-v1 research only**. Its root package exposes the
 package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
 immutable snapshots, canonical set/delete transitions, profile-bound roots,
+canonical whole-snapshot bytes,
 bounded aggregate membership and non-membership proofs, atomic caller-owned
 storage writes, and bounded reconstruction from isolated caller-owned read
 snapshots, plus bounded recovery audits and atomic retention/pruning plans over
@@ -97,6 +98,27 @@ if err != nil {
 }
 _, _ = next, preRoot
 _, _ = postRoot.Bytes()
+
+snapshotBytes, err := next.Bytes(ctx, verkletree.SnapshotEncodingLimits{
+    MaxSnapshotBytes: 1 << 20, MaxEntries: 64,
+    MaxTemporaryBytes: 2 << 20,
+})
+if err != nil {
+    log.Fatal(err)
+}
+restored, err := verkletree.DecodeSnapshot(
+    ctx,
+    snapshotBytes,
+    verkletree.SnapshotDecodingLimits{
+        MaxSnapshotBytes: 1 << 20, MaxEntries: 64,
+        MaxPointDecodes: 1, MaxTemporaryBytes: 2 << 20,
+        Snapshot: limits,
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+_, _ = restored.Root()
 ```
 
 Proof generation and verification use `NewProofEngine`, `Prove`, `Verify`,
@@ -194,8 +216,8 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: whole-snapshot encoding, crash-repair
-semantics, stable proof and witness semantics,
+The profile remains incomplete: crash-repair semantics, stable proof and
+witness semantics,
 tree-level incremental update semantics, and complete dependency-level
 cancellation are not yet frozen. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it

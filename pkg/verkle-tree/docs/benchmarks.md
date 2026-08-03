@@ -17,6 +17,12 @@ two-stem corpus. It excludes builder and generator initialization, proof work,
 serialization, persistence, and incremental updates. It is not an end-to-end
 tree benchmark or a comparison with either reference implementation.
 
+Two public whole-snapshot benchmarks measure canonical encoding of a retained
+two-entry immutable snapshot and strict decoding followed by complete tree
+reconstruction and root comparison. They exclude transport and persistence;
+decode includes commitment construction because accepted bytes are not trusted
+until the independently derived root matches.
+
 A storage-image component benchmark measures canonical encoding, content
 hashing, ownership copying, and content-address sorting for the same four-entry
 corpus. It excludes adapter calls, durable writes, compare-and-swap
@@ -108,14 +114,14 @@ GOWORK=off go test ./internal/authstate -run '^$' \
   -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
-  -bench '^(BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune)$' \
+  -bench '^(BenchmarkEncodeSnapshotTwoEntries|BenchmarkDecodeSnapshotTwoEntries|BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune)$' \
   -benchmem -count=5
 ```
 
 Environment:
 
-- Date: 2026-08-01; bound proof-engine and stateless-witness rows refreshed
-  2026-08-03
+- Date: 2026-08-01; bound proof-engine, stateless-witness, and canonical
+  whole-snapshot rows refreshed 2026-08-03
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -158,6 +164,8 @@ nanoseconds per operation.
 | Build four-entry, two-stem committed root | 504199, 500008, 447677, 1315124, 1282870 | 7450-7452 | 89 |
 | Extract one immutable committed-tree proof path | 3765, 3824, 4398, 4883, 6526 | 4864 | 1 |
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
+| Encode canonical two-entry whole snapshot | 1429, 1358, 1543, 1520, 1478 | 320 | 2 |
+| Decode and independently rebuild two-entry whole snapshot | 9041426, 10959098, 10006862, 8807812, 8367261 | 168125-168148 | 3574-3575 |
 | Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
 | Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
 | Drop one retained snapshot and plan pruning plus atomic handoff | 17571147, 18097936, 16915685, 18563534, 18791243 | 339257-339375 | 7180-7181 |

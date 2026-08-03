@@ -2,8 +2,9 @@
 // storage-independent Verkle tree.
 //
 // The package exposes one package-owned experimental profile, immutable
-// snapshots and roots, canonical atomic updates, and bounded aggregate
-// membership and non-membership proofs. Every expensive operation requires a
+// snapshots and roots, canonical whole-snapshot bytes, canonical atomic
+// updates, and bounded aggregate membership and non-membership proofs. Every
+// expensive operation requires a
 // context and explicit resource limits. Snapshots can produce canonical
 // content-addressed node batches for capability-checked atomic publication and
 // reconstruct snapshots from capability-checked isolated reads after verifying

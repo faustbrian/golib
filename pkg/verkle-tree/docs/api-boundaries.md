@@ -2,7 +2,8 @@
 
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
-canonical storage-write and isolated storage-read, limit, resource, typed-error,
+canonical whole-snapshot encoding, canonical storage-write and isolated
+storage-read, limit, resource, typed-error,
 read-only storage-audit, and atomic storage-maintenance identifiers form the
 current experimental public contract. Canonical stateless witnesses and
 verified pre/post-state results are included; crash-repair identifiers remain
@@ -14,6 +15,7 @@ The current public API exposes opaque, profile-bound forms of:
 
 - profile identity and version;
 - immutable root and snapshot;
+- canonical whole-snapshot encoding and verified reconstruction;
 - read result with distinct present and absent states;
 - validated update and atomic batch;
 - membership, non-membership, and aggregate proof;
@@ -194,8 +196,8 @@ and transitions expose the canonical profile-bound root container for their
 exact roots; `Snapshot.Commit` separately delegates one complete atomic
 node/root publication to a capability-checked caller store.
 
-The same internal layer owns a non-empty profile-bound claim set for future
-tree proofs. Membership and absence are distinct kinds, a membership claim may
+The same internal layer owns a profile-bound claim set for tree proofs.
+Membership and absence are distinct kinds, a membership claim may
 contain the all-zero value, and omitted keys remain distinct from claimed
 absence. Construction validates all claims and resource limits before
 allocation, deterministically orders claims by raw key, rejects every duplicate

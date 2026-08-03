@@ -12,7 +12,8 @@ canonical point and scalar decoding, strict profile-bound root decoding,
 strict bounded decoding of the fixed raw aggregate-opening payload, fixed
 generator-set validation, bounded serial vector commitment, immutable state
 transitions, canonical stem topology, bounded deterministic full-root
-construction, atomic root-bound snapshot transitions, and canonical
+construction, atomic root-bound snapshot transitions, canonical
+self-authenticating whole-snapshot encoding and decoding, and canonical
 profile-bound tree claims plus an immutable canonical root-bound unverified
 tree-proof container with an exact package-owned encoding and strict aggregate
 decoder, and public fixed-profile aggregate tree-proof generation and
@@ -113,9 +114,18 @@ in-memory publication, caller mutation of fixed arrays, cross-snapshot root
 confusion, omitted or changed old values in supported stateless witnesses, and
 omitted or conflicting terminal topology for new-stem insertion. A present
 delete must authenticate its old value and either an exact retained member or a
-same-stem Set; otherwise it fails closed before topology could change. The
-package does not yet prove deletion-time collapse completeness or protect a
-future mutable writer from concurrent ownership violations.
+same-stem Set; otherwise it fails closed before topology could change.
+Topology-changing deletion requires complete authenticated suffix and
+non-root ancestor disclosure before removing empty nodes or collapsing unary
+stem paths. Immutable snapshots avoid mutable-writer ownership races; a future
+incremental mutable writer would require a separate exclusive-ownership
+contract.
+
+The whole-snapshot decoder rejects alternate lengths, unordered or duplicate
+entries, wrong profiles or versions, excessive bytes, entries, point work, and
+temporary memory before attacker-amplified allocation or commitment work. It
+strictly decodes the embedded root, rebuilds the complete authenticated tree,
+and returns a snapshot only when the derived canonical root matches exactly.
 
 The storage write boundary encodes the complete immutable arena into canonical
 profile-bound nodes, hashes the complete bytes for content addressing, orders

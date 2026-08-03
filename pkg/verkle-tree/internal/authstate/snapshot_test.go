@@ -655,6 +655,68 @@ func TestSnapshotSupportsConcurrentImmutableUse(t *testing.T) {
 	}
 }
 
+func TestSnapshotCopiesCanonicalEntriesWithinBounds(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x10, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: testKey(0x20, 0x02), Value: testValue(2)},
+		{Key: first, Value: testValue(1)},
+	})
+	count, err := snapshot.EntryCount()
+	if err != nil || count != 2 {
+		t.Fatalf("entry count = %d, error %v", count, err)
+	}
+	entries, err := snapshot.CopyEntries(context.Background(), 2, 128)
+	if err != nil {
+		t.Fatalf("copy entries: %v", err)
+	}
+	if entries[0].Key != first {
+		t.Fatalf("first copied key = %x", entries[0].Key)
+	}
+	entries[0].Value = testValue(0xff)
+	value, present, err := snapshot.Get(context.Background(), first)
+	if err != nil || !present || value != testValue(1) {
+		t.Fatalf("snapshot aliases entry copy = %x/%t, error %v", value, present, err)
+	}
+
+	if _, err := snapshot.CopyEntries(
+		context.Background(), 1, 128,
+	); !errors.Is(err, errResource) {
+		t.Fatalf("entry-count resource error = %v", err)
+	}
+	if _, err := snapshot.CopyEntries(
+		context.Background(), 2, 127,
+	); !errors.Is(err, errResource) {
+		t.Fatalf("entry-copy resource error = %v", err)
+	}
+	if _, err := snapshot.CopyEntries(
+		&stepContext{successfulChecks: 1}, 2, 128,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("entry-copy cancellation error = %v", err)
+	}
+	if _, err := snapshot.CopyEntries(
+		context.Background(), 0, 128,
+	); !errors.Is(err, errInvalidLimits) {
+		t.Fatalf("invalid copy limits error = %v", err)
+	}
+	var nilContext context.Context
+	if _, err := snapshot.CopyEntries(
+		nilContext, 2, 128,
+	); !errors.Is(err, errInvalidContext) {
+		t.Fatalf("nil-context copy error = %v", err)
+	}
+	var zero Snapshot
+	if _, err := zero.EntryCount(); !errors.Is(err, errInvalidSnapshot) {
+		t.Fatalf("zero entry count error = %v", err)
+	}
+	if _, err := zero.CopyEntries(
+		context.Background(), 2, 128,
+	); !errors.Is(err, errInvalidSnapshot) {
+		t.Fatalf("zero entry copy error = %v", err)
+	}
+}
+
 func assertRootBytes(t testing.TB, snapshot Snapshot, encoded string) {
 	t.Helper()
 
