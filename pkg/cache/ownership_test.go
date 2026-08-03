@@ -284,8 +284,14 @@ func TestSetIfOwnedSupersedesActiveLocalLoad(t *testing.T) {
 		t.Fatalf("SetIfOwned() error = %v", err)
 	}
 	close(release)
-	if err := <-loaded; err != nil {
-		t.Fatalf("GetOrLoad() error = %v", err)
+	var loadErr error
+	select {
+	case loadErr = <-loaded:
+	case <-time.After(time.Second):
+		t.Fatal("GetOrLoad() did not finish after SetIfOwned released the active-flight lock")
+	}
+	if loadErr != nil {
+		t.Fatalf("GetOrLoad() error = %v", loadErr)
 	}
 	result, err := store.Get(t.Context(), "catalog")
 	if err != nil || result.State != cache.Hit || result.Value != "fresh" {
