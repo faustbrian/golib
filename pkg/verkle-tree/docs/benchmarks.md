@@ -1,15 +1,33 @@
-# Component Microbenchmarks
+# Benchmarks
 
 ## Status and scope
 
-These are pre-v1 component microbenchmarks for the implemented cryptographic
-boundary: canonical Banderwagon commitment and scalar encoding, strict raw
-aggregate-opening-proof decoding, strict profile-bound root decoding, the
-commitment-to-field map, serial fixed-width vector commitment, and internal
-aggregate tree-proof generation and verification. One public loader benchmark
-uses an in-memory test reader as described below. The suite does not measure a
-production storage adapter or an equivalent cross-implementation end-to-end
-workload, and it supports no comparative performance claim.
+The public pre-v1 benchmark matrix exercises complete package entry points for
+ordered 32-entry root construction, immutable lookup, insert, update, delete,
+mixed batch application, single membership and non-membership proof generation
+and verification, eight-key aggregate proof generation and verification,
+canonical proof encoding and decoding, truncated-proof rejection, and two-key
+stateless-witness container construction, encoding, decoding, verification,
+and application. Shared immutable snapshot reads and aggregate-proof
+verification also have parallel measurements. The proof and witness rows
+report their exact canonical encoded sizes.
+
+The matrix uses the package-owned experimental profile and an in-memory
+snapshot. It excludes durable cold and warm storage, a production backend,
+cross-implementation equivalent workloads, latency distributions under stable
+load, and deployment-specific CPU feature controls. Those omissions prevent a
+complete benchmark gate or comparative ranking. Parallel rows demonstrate a
+bounded harness workload on one machine; they are not scalability claims.
+
+The remaining pre-v1 component microbenchmarks cover the implemented
+cryptographic boundary: canonical Banderwagon commitment and scalar encoding,
+strict raw aggregate-opening-proof decoding, strict profile-bound root
+decoding, the commitment-to-field map, serial fixed-width vector commitment,
+and internal aggregate tree-proof generation and verification. One public
+loader benchmark uses an in-memory test reader as described below. The suite
+does not measure a production storage adapter or an equivalent cross-
+implementation end-to-end workload, and it supports no comparative performance
+claim.
 
 One additional component benchmark measures rebuilding the implemented
 immutable committed-node arena and mathematical root for the pinned four-entry,
@@ -103,6 +121,22 @@ allocations, and allocation bytes.
 Command:
 
 ```console
+GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublicSnapshotOperations$' \
+  -benchmem -benchtime=20x -count=5
+
+GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublicSnapshotOperations$/^get-present(-parallel)?$' \
+  -benchmem -benchtime=100000x -count=5
+
+GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublic(ProofOperations|StatelessWitnessOperations)$' \
+  -benchmem -benchtime=1x -count=5
+
+GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublicProofOperations$/^verify-aggregate-8-parallel$' \
+  -benchmem -benchtime=32x -count=5
+
 GOWORK=off go test ./internal/backend -run '^$' \
   -bench '^(BenchmarkDecode|BenchmarkEncode|BenchmarkCommitmentToScalar|BenchmarkCommitVector)' \
   -benchmem -count=5
@@ -127,10 +161,47 @@ GOWORK=off go test . -run '^$' \
   -benchmem -count=5
 ```
 
+Repository-local runs MUST give every independent command a fresh build cache.
+The commands above were each executed inside this wrapper:
+
+```console
+(
+  agent_gocache=$(mktemp -d "${TMPDIR:-/tmp}/golib-gocache.XXXXXX")
+  trap 'rm -rf -- "$agent_gocache"' EXIT HUP INT TERM
+  export GOCACHE="$agent_gocache"
+
+  # One command from above.
+)
+```
+
+Process peak memory was sampled separately so compiler and linker memory did
+not contaminate the result:
+
+```console
+(
+  agent_gocache=$(mktemp -d "${TMPDIR:-/tmp}/golib-gocache.XXXXXX")
+  agent_benchdir=$(mktemp -d "${TMPDIR:-/tmp}/golib-verkle-peaks.XXXXXX")
+  trap 'rm -rf -- "$agent_gocache" "$agent_benchdir"' EXIT HUP INT TERM
+  export GOCACHE="$agent_gocache"
+
+  GOWORK=off go test -c -o "$agent_benchdir/verkle-peaks.test" .
+  /usr/bin/time -l "$agent_benchdir/verkle-peaks.test" \
+    -test.run '^$' \
+    -test.bench '^BenchmarkPublicProofOperations$/^generate-aggregate-8$' \
+    -test.benchmem -test.benchtime=1x -test.count=1
+)
+```
+
+Repeat the timed binary invocation with
+`^BenchmarkPublicSnapshotOperations$/^construct-ordered-32$` and
+`^BenchmarkPublicStatelessWitnessOperations$/^verify-and-apply-2$` for the
+other named workloads. Run it with only `-test.run '^$'` for the empty-binary
+baseline.
+
 Environment:
 
-- Date: 2026-08-01; bound proof-engine, stateless-witness, canonical whole-
-  snapshot, and storage-recovery rows refreshed 2026-08-03
+- Date: 2026-08-01; public API, bound proof-engine, stateless-witness,
+  canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -144,15 +215,73 @@ threshold is enforced because no stable cross-runner baseline exists yet.
 Reproduce measurements on the target deployment hardware before using them for
 capacity planning.
 
-The 2026-08-03 proof and witness refresh ran while unrelated repository
-mutation jobs shared the host, as required by the non-blocking verification
-workflow. The raw samples retain the resulting scheduling spikes and MUST NOT
-be used as a regression baseline or comparison result.
+The 2026-08-03 public API, proof, and witness refresh ran while an unrelated
+repository mutation job shared the host, as required by the non-blocking
+verification workflow. The raw samples retain the resulting scheduling spikes
+and MUST NOT be used as a regression baseline or comparison result.
 
 ## Raw samples
 
 The values below are the five samples emitted by the command above. Times are
 nanoseconds per operation.
+
+### Public API samples
+
+| Benchmark | ns/op samples | ops/s samples | Canonical bytes | B/op | allocs/op |
+| --- | --- | --- | ---: | ---: | ---: |
+| Construct ordered 32-entry root | 9548017, 9420452, 9332735, 9534233, 10015558 | 104.7, 106.2, 107.1, 104.9, 99.84 | - | 201966-202040 | 3845-3846 |
+| Get one present value | 55.04, 55.26, 54.76, 55.02, 54.45 | 18167090, 18097091, 18262338, 18174383, 18363787 | - | 0 | 0 |
+| Get one present value in parallel | 24.31, 12.28, 8.300, 10.56, 12.60 | 41143104, 81455380, 120609076, 94719394, 79367725 | - | 0 | 0 |
+| Insert a suffix into an existing stem | 1597567, 1618040, 1625673, 1522285, 1787048 | 626.0, 618.0, 615.1, 656.9, 559.6 | - | 37436-37458 | 346 |
+| Insert a new stem | 2660154, 2127231, 1617529, 1645096, 1633638 | 375.9, 470.1, 618.2, 607.9, 612.1 | - | 39152-39164 | 358 |
+| Update one present value | 1614081, 1521215, 1543675, 1472765, 1491229 | 619.5, 657.4, 647.8, 679.0, 670.6 | - | 35728-35740 | 333 |
+| Delete one present value | 1467727, 1520560, 1405171, 1439740, 1473419 | 681.3, 657.7, 711.7, 694.6, 678.7 | - | 35320-35354 | 329 |
+| Delete one absent value | 1408467, 1588312, 1461646, 1924758, 1470738 | 710.0, 629.6, 684.2, 519.5, 679.9 | - | 35728-35740 | 333 |
+| Apply mixed 16-update batch | 1953133, 1974062, 2031648, 1965502, 2001744 | 512.0, 506.6, 492.2, 508.8, 499.6 | - | 51240-51252 | 469 |
+| Generate one-key membership proof | 31226458, 25259333, 41684375, 20144792, 18077833 | 32.02, 39.59, 23.99, 49.64, 55.32 | - | 1532104-1534064 | 4854-4886 |
+| Verify one-key membership proof | 2236125, 2060250, 2253208, 2158625, 2173125 | 447.2, 485.4, 443.8, 463.3, 460.2 | 898 | 287256-287944 | 1042-1055 |
+| Generate one-key non-membership proof | 16698000, 16422708, 16451709, 16217083, 16167375 | 59.89, 60.89, 60.78, 61.66, 61.85 | - | 1550512-1551064 | 4887-4895 |
+| Verify one-key non-membership proof | 2108917, 2269334, 2120041, 2032500, 2098542 | 474.2, 440.7, 471.7, 492.0, 476.5 | 898 | 287680-287928 | 1048-1053 |
+| Generate eight-key aggregate proof | 17427833, 16802209, 16720167, 16717833, 16652791 | 57.38, 59.52, 59.81, 59.82, 60.05 | 2193 | 5011040-5014784 | 4981-5010 |
+| Verify eight-key aggregate proof | 2289875, 2249208, 2236084, 2176417, 2199334 | 436.7, 444.6, 447.2, 459.5, 454.7 | 2193 | 421040-421536 | 1078-1088 |
+| Verify eight-key aggregate proof in parallel | 985578, 971497, 928621, 1234750, 1123620 | 1015, 1029, 1077, 809.9, 890.0 | 2193 | 416331-420826 | 1073-1082 |
+| Encode eight-key aggregate proof | 18666, 15791, 15000, 12959, 16459 | 53573, 63327, 66667, 77166, 60757 | 2193 | 2304 | 1 |
+| Decode eight-key aggregate proof | 248541, 256959, 242875, 243292, 239709 | 4023, 3892, 4117, 4110, 4172 | 2193 | 25768-25864 | 40-42 |
+| Reject truncated aggregate proof | 14375, 6500, 6375, 5458, 10417 | 69565, 153846, 156863, 183217, 95997 | 2192 input | 2976-3040 | 24-25 |
+| Construct two-update witness container | 27792, 6833, 17083, 6041, 5083 | 35982, 146349, 58538, 165536, 196734 | 1217 | 432 | 3 |
+| Encode two-update witness | 17833, 10834, 15250, 14667, 18417 | 56076, 92302, 65574, 68180, 54298 | 1217 | 2432 | 2 |
+| Decode two-update witness | 211708, 201750, 201875, 203041, 202542 | 4723, 4957, 4954, 4925, 4937 | 1217 | 7816 | 37 |
+| Verify and apply two-update witness | 2239084, 2198208, 2141375, 2148125, 2148250 | 446.6, 454.9, 467.0, 465.5, 465.5 | 1217 | 312512-312528 | 1119 |
+
+The parallel rows use the Go benchmark harness at `GOMAXPROCS=16`; ns/op is
+aggregate wall time divided by completed operations, not per-goroutine latency.
+The non-parallel cryptographic samples use one measured iteration and
+deliberately expose host scheduling variance. The parallel proof row uses 32
+operations so the harness can schedule concurrent calls. Neither set is
+suitable for percentile or regression claims.
+
+### Process peak-memory samples
+
+The benchmark test binary was built once and each selected benchmark was run in
+a fresh process under `/usr/bin/time -l` with `-benchtime=1x`. The result is
+whole-process maximum resident set size, including benchmark fixture and
+backend initialization performed outside the timed loop. It is not
+per-operation scratch memory and cannot be subtracted safely from `B/op`.
+
+| Process workload | Maximum resident set bytes |
+| --- | ---: |
+| Empty benchmark binary baseline | 6619136 |
+| Ordered 32-entry construction | 9584640 |
+| Eight-key aggregate proof generation | 514834432 |
+| Two-update witness verification and application | 582811648 |
+
+The proof process constructs its snapshot and proof engine before the measured
+loop. The witness process additionally constructs its update proof, post-state,
+witness, and stateless engine. These high-water marks expose the current
+experimental backend's initialization and fixture footprint; they MUST NOT be
+presented as the incremental memory cost of the named operation.
+
+### Component samples
 
 | Benchmark | ns/op samples | B/op | allocs/op |
 | --- | --- | ---: | ---: |

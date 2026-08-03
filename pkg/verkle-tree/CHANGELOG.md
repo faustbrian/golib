@@ -22,6 +22,11 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add reproducible public benchmarks for immutable state operations, root
+  construction, membership and non-membership proofs, aggregate proofs,
+  malformed-proof rejection, stateless witnesses, parallel reads and
+  verification, canonical proof and witness sizes, and process peak memory.
+
 - Add canonical profile-bound whole-snapshot encoding and hostile-input
   decoding. Decoding preflights bytes, entries, point work, and temporary
   memory, requires strict key order and exact length, rebuilds the complete
