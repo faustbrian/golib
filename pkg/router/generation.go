@@ -58,7 +58,10 @@ func NewBaseURL(scheme, authority string) (BaseURL, error) {
 	if len(authority) > maxTrustedAuthorityBytes {
 		return BaseURL{}, generationError(ErrLimitExceeded, "host", "trusted authority is too long")
 	}
-	if authority == "" || invalidAuthority(authority) || !ascii(authority) {
+	if authority == "" {
+		return BaseURL{}, generationError(ErrGeneration, "host", "invalid trusted authority")
+	}
+	if invalidAuthority(authority) {
 		return BaseURL{}, generationError(ErrGeneration, "host", "invalid trusted authority")
 	}
 	return BaseURL{scheme: scheme, host: authority}, nil
@@ -105,7 +108,10 @@ func (r *Router) URL(name string, base BaseURL, query url.Values, parameters ...
 	if r == nil {
 		return "", generationError(ErrCompileState, "router", "nil compiled router")
 	}
-	if base.scheme == "" || base.host == "" {
+	if base.scheme == "" {
+		return "", generationError(ErrGeneration, "base", "uninitialized base URL")
+	}
+	if base.host == "" {
 		return "", generationError(ErrGeneration, "base", "uninitialized base URL")
 	}
 	if len(name) > r.limits.MaxNameBytes {
@@ -157,19 +163,22 @@ func collectParameters(parameters []URLParameter, limits Limits) (map[string]URL
 		if parameter.oversized {
 			return nil, generationError(ErrLimitExceeded, "parameters", "remainder segment count exceeded")
 		}
-		if len(parameter.name) > limits.MaxWildcardNameBytes || len(parameter.name) > limits.MaxURLParameterBytes-bytes {
+		if len(parameter.name) > limits.MaxWildcardNameBytes {
 			return nil, generationError(ErrLimitExceeded, "parameters", "parameter bytes exceeded")
 		}
 		bytes += len(parameter.name)
-		if len(parameter.values) > limits.MaxURLParameters-values {
-			return nil, generationError(ErrLimitExceeded, "parameters", "parameter value count exceeded")
+		if bytes > limits.MaxURLParameterBytes {
+			return nil, generationError(ErrLimitExceeded, "parameters", "parameter bytes exceeded")
 		}
 		values += len(parameter.values)
+		if values > limits.MaxURLParameters {
+			return nil, generationError(ErrLimitExceeded, "parameters", "parameter value count exceeded")
+		}
 		for _, value := range parameter.values {
-			if len(value) > limits.MaxURLParameterBytes-bytes {
+			bytes += len(value)
+			if bytes > limits.MaxURLParameterBytes {
 				return nil, generationError(ErrLimitExceeded, "parameters", "parameter bytes exceeded")
 			}
-			bytes += len(value)
 		}
 		if !validWildcardName(parameter.name) {
 			return nil, generationError(ErrInvalidParameter, "parameters", "invalid parameter name")
@@ -214,7 +223,13 @@ func renderPath(pattern string, provided map[string]URLParameter) (string, map[s
 		if !exists {
 			return "", nil, generationError(ErrInvalidParameter, "parameters", "missing path parameter")
 		}
-		if parameter.kind != kind || len(parameter.values) == 0 || kind == segmentParameter && len(parameter.values) != 1 {
+		if parameter.kind != kind {
+			return "", nil, generationError(ErrInvalidParameter, "parameters", "wrong parameter kind")
+		}
+		if len(parameter.values) == 0 {
+			return "", nil, generationError(ErrInvalidParameter, "parameters", "wrong parameter kind")
+		}
+		if kind == segmentParameter && len(parameter.values) != 1 {
 			return "", nil, generationError(ErrInvalidParameter, "parameters", "wrong parameter kind")
 		}
 		for _, value := range parameter.values {
@@ -243,7 +258,13 @@ func renderHost(pattern, baseAuthority string, provided map[string]URLParameter)
 		if !exists {
 			return "", nil, generationError(ErrInvalidParameter, "parameters", "missing host parameter")
 		}
-		if parameter.kind != segmentParameter || len(parameter.values) != 1 || !safeHostLabel(parameter.values[0]) {
+		if parameter.kind != segmentParameter {
+			return "", nil, generationError(ErrInvalidParameter, "parameters", "unsafe host label")
+		}
+		if len(parameter.values) != 1 {
+			return "", nil, generationError(ErrInvalidParameter, "parameters", "unsafe host label")
+		}
+		if !safeHostLabel(parameter.values[0]) {
 			return "", nil, generationError(ErrInvalidParameter, "parameters", "unsafe host label")
 		}
 		labels[index] = parameter.values[0]
@@ -258,7 +279,13 @@ func renderHost(pattern, baseAuthority string, provided map[string]URLParameter)
 }
 
 func pathWildcard(segment string) (string, parameterKind, bool) {
-	if len(segment) < 3 || segment[0] != '{' || segment[len(segment)-1] != '}' {
+	if len(segment) < 3 {
+		return "", segmentParameter, false
+	}
+	if segment[0] != '{' {
+		return "", segmentParameter, false
+	}
+	if segment[len(segment)-1] != '}' {
 		return "", segmentParameter, false
 	}
 	name := segment[1 : len(segment)-1]
@@ -278,17 +305,27 @@ func rejectUnused(provided map[string]URLParameter, used map[string]struct{}) er
 }
 
 func safePathSegment(value string) bool {
-	return value != "" && value != "." && value != ".." &&
-		strings.Trim(value, "/") != "" && !strings.ContainsAny(value, "\x00\r\n")
+	if value == "" || value == "." || value == ".." {
+		return false
+	}
+	if strings.Trim(value, "/") == "" {
+		return false
+	}
+	return !strings.ContainsAny(value, "\x00\r\n")
 }
 
 func safeHostLabel(value string) bool {
-	if value == "" || len(value) > 63 || value[0] == '-' || value[len(value)-1] == '-' {
+	if value == "" {
+		return false
+	}
+	if len(value) > 63 {
+		return false
+	}
+	if value[0] == '-' || value[len(value)-1] == '-' {
 		return false
 	}
 	for _, character := range value {
-		if character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
-			character >= '0' && character <= '9' || character == '-' {
+		if asciiLetterOrDigit(character) || character == '-' {
 			continue
 		}
 		return false
@@ -303,19 +340,19 @@ func validateQuery(values url.Values, limits Limits) error {
 	count := 0
 	bytes := 0
 	for key, entries := range values {
-		if len(key) > limits.MaxQueryBytes-bytes {
+		bytes += len(key)
+		if bytes > limits.MaxQueryBytes {
 			return generationError(ErrLimitExceeded, "query", "query bytes exceeded")
 		}
-		bytes += len(key)
 		if len(entries) == 0 {
 			count++
 		} else {
 			count += len(entries)
 			for _, entry := range entries {
-				if len(entry) > limits.MaxQueryBytes-bytes {
+				bytes += len(entry)
+				if bytes > limits.MaxQueryBytes {
 					return generationError(ErrLimitExceeded, "query", "query bytes exceeded")
 				}
-				bytes += len(entry)
 			}
 		}
 		if count > limits.MaxQueryValues {

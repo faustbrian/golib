@@ -105,7 +105,10 @@ func (b *Builder) composeGroup(options GroupOptions) (groupState, error) {
 		if len(middleware.Name) > b.limits.MaxNameBytes {
 			return groupState{}, b.routeError(ErrLimitExceeded, "middleware", "", "group middleware name is too long")
 		}
-		if middleware.Middleware == nil || middleware.Name != "" && !validName(middleware.Name) {
+		if middleware.Middleware == nil {
+			return groupState{}, b.routeError(ErrInvalidRoute, "middleware", "", "invalid group middleware")
+		}
+		if middleware.Name != "" && !validName(middleware.Name) {
 			return groupState{}, b.routeError(ErrInvalidRoute, "middleware", "", "invalid group middleware")
 		}
 	}

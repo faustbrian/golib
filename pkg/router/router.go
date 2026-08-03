@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -78,12 +79,19 @@ func MatchedRoute(request *http.Request) (RouteInfo, bool) {
 
 // ServeHTTP dispatches one request without mutating compiled state.
 func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	if r == nil || request == nil || request.URL == nil || invalidAuthority(request.Host) {
+	if r == nil || request == nil || request.URL == nil {
 		writeError(writer, http.StatusBadRequest, "bad request")
 		return
 	}
-	if len(request.Method) > r.limits.MaxMethodBytes || !isToken(request.Method) ||
-		request.Method == http.MethodConnect {
+	if invalidAuthority(request.Host) {
+		writeError(writer, http.StatusBadRequest, "bad request")
+		return
+	}
+	if len(request.Method) > r.limits.MaxMethodBytes {
+		writeError(writer, http.StatusBadRequest, "bad request")
+		return
+	}
+	if !isToken(request.Method) || request.Method == http.MethodConnect {
 		writeError(writer, http.StatusBadRequest, "bad request")
 		return
 	}
@@ -140,12 +148,17 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 func requestTargetTooLong(request *http.Request, limit int) bool {
-	if len(request.RequestURI) > limit || len(request.URL.Path) > limit ||
-		len(request.URL.RawPath) > limit || len(request.URL.RawQuery) > limit {
+	if len(request.RequestURI) > limit || len(request.URL.Path) > limit {
+		return true
+	}
+	if len(request.URL.RawPath) > limit || len(request.URL.RawQuery) > limit {
 		return true
 	}
 	escapedPath := request.URL.EscapedPath()
-	return len(escapedPath) > limit || len(request.URL.RawQuery) > limit-len(escapedPath)
+	if len(escapedPath) > limit {
+		return true
+	}
+	return len(request.URL.RawQuery) > limit-len(escapedPath)
 }
 
 func (r *Router) serveNotFound(writer http.ResponseWriter, request *http.Request) {
@@ -173,7 +186,7 @@ func (r *Router) matchingHandler(infoIndex int, hostParameters []string, handler
 		for index, name := range hostParameters {
 			request.SetPathValue(name, values[index])
 		}
-		resolved := make(map[string]string, len(inherited)+len(info.Parameters))
+		resolved := make(map[string]string)
 		for name, value := range inherited {
 			resolved[name] = value
 		}
@@ -197,17 +210,23 @@ func (r *Router) matchingHosts(host string) []*compiledHost {
 }
 
 func (r *Router) matchingHostForMethod(hosts []*compiledHost, request *http.Request) *compiledHost {
-	escapedPath := request.URL.EscapedPath()
 	for _, host := range hosts {
-		if r.redirectPolicy == RejectRedirects && host.requiresRedirect(request) {
-			continue
-		}
-		_, pattern := host.mux.Handler(request)
-		if pattern != "" && (r.redirectPolicy == FollowRedirects || !nonCanonicalPath(escapedPath)) {
+		if r.hostMatchesRequest(host, request) {
 			return host
 		}
 	}
 	return nil
+}
+
+func (r *Router) hostMatchesRequest(host *compiledHost, request *http.Request) bool {
+	if r.redirectPolicy == RejectRedirects && host.requiresRedirect(request) {
+		return false
+	}
+	_, pattern := host.mux.Handler(request)
+	if pattern == "" {
+		return false
+	}
+	return r.redirectPolicy == FollowRedirects || !nonCanonicalPath(request.URL.EscapedPath())
 }
 
 func (r *Router) allowedMethods(hosts []*compiledHost, request *http.Request) []string {
@@ -216,17 +235,11 @@ func (r *Router) allowedMethods(hosts []*compiledHost, request *http.Request) []
 		for method := range host.methods {
 			candidate := request.Clone(request.Context())
 			candidate.Method = method
-			escapedPath := candidate.URL.EscapedPath()
-			if r.redirectPolicy == RejectRedirects && host.requiresRedirect(candidate) {
-				continue
-			}
-			_, pattern := host.mux.Handler(candidate)
-			if pattern == "" || r.redirectPolicy == RejectRedirects && nonCanonicalPath(escapedPath) {
-				continue
-			}
-			allowed[method] = struct{}{}
-			if method == http.MethodGet {
-				allowed[http.MethodHead] = struct{}{}
+			if r.hostMatchesRequest(host, candidate) {
+				allowed[method] = struct{}{}
+				if method == http.MethodGet {
+					allowed[http.MethodHead] = struct{}{}
+				}
 			}
 		}
 	}
@@ -261,8 +274,9 @@ func redirectRoot(pattern string) string {
 		return strings.TrimSuffix(pattern, "/")
 	}
 	segments := strings.Split(pattern, "/")
-	if len(segments) > 0 && (segments[len(segments)-1] == "{$}" || strings.HasSuffix(segments[len(segments)-1], "...}")) {
-		return strings.TrimSuffix(strings.TrimSuffix(pattern, segments[len(segments)-1]), "/")
+	last := segments[len(segments)-1]
+	if last == "{$}" || strings.HasSuffix(last, "...}") {
+		return strings.TrimSuffix(strings.TrimSuffix(pattern, last), "/")
 	}
 	return ""
 }
@@ -282,10 +296,7 @@ func nonCanonicalPath(value string) bool {
 }
 
 func (r *Router) allMethods() []string {
-	methods := make([]string, 0, len(r.supported)+1)
-	for method := range r.supported {
-		methods = append(methods, method)
-	}
+	methods := slices.Collect(maps.Keys(r.supported))
 	if len(methods) > 0 {
 		methods = append(methods, http.MethodOptions)
 	}
@@ -395,8 +406,10 @@ func invalidAuthority(authority string) bool {
 	if authority == "" {
 		return false
 	}
-	if len(authority) > maxTrustedAuthorityBytes || !ascii(authority) ||
-		strings.ContainsAny(authority, "\x00\r\n\\/@") {
+	if len(authority) > maxTrustedAuthorityBytes {
+		return true
+	}
+	if !ascii(authority) || strings.ContainsAny(authority, "\x00\r\n\\/@") {
 		return true
 	}
 	parsed, err := url.Parse("//" + authority)

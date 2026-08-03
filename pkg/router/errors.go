@@ -69,7 +69,7 @@ func (e *Error) Unwrap() error {
 }
 
 func bounded(value string, limit int) string {
-	if limit <= 0 {
+	if limit < 1 {
 		return ""
 	}
 	inputTruncated := len(value) > limit
@@ -90,7 +90,7 @@ func validUTF8Boundary(value string, boundary int) int {
 	if boundary >= len(value) {
 		return len(value)
 	}
-	for boundary > 0 && !utf8.RuneStart(value[boundary]) {
+	for boundary != 0 && !utf8.RuneStart(value[boundary]) {
 		boundary--
 	}
 	return boundary

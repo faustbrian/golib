@@ -29,7 +29,13 @@ func (b *Builder) Mount(prefix string, handler http.Handler, options MountOption
 	if len(prefix) > b.limits.MaxPatternBytes {
 		return b.routeError(ErrLimitExceeded, "path", options.Source, "mount prefix is too long")
 	}
-	if prefix == "" || prefix[0] != '/' || strings.Contains(prefix, "{") {
+	if prefix == "" {
+		return b.routeError(ErrInvalidRoute, "path", options.Source, "invalid mount prefix")
+	}
+	if prefix[0] != '/' {
+		return b.routeError(ErrInvalidRoute, "path", options.Source, "invalid mount prefix")
+	}
+	if strings.Contains(prefix, "{") {
 		return b.routeError(ErrInvalidRoute, "path", options.Source, "invalid mount prefix")
 	}
 	if err := b.validatePrefix(prefix); err != nil {
@@ -40,12 +46,14 @@ func (b *Builder) Mount(prefix string, handler http.Handler, options MountOption
 		boundary = "/"
 	}
 	mounted := handler
-	if options.StripPrefix && !isNilHandler(handler) {
-		decodedBoundary, err := url.PathUnescape(boundary)
-		if err != nil {
-			return b.routeError(ErrInvalidRoute, "path", options.Source, "invalid mount prefix escape")
+	if options.StripPrefix {
+		if !isNilHandler(handler) {
+			decodedBoundary, err := url.PathUnescape(boundary)
+			if err != nil {
+				return b.routeError(ErrInvalidRoute, "path", options.Source, "invalid mount prefix escape")
+			}
+			mounted = stripMountPrefix(boundary, decodedBoundary, handler)
 		}
-		mounted = stripMountPrefix(boundary, decodedBoundary, handler)
 	}
 	methods := options.Methods
 	if len(methods) == 0 {
@@ -80,8 +88,11 @@ func stripMountPrefix(boundary, decodedBoundary string, handler http.Handler) ht
 	}
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		path := strings.TrimPrefix(request.URL.Path, decodedBoundary)
-		if len(path) == len(request.URL.Path) ||
-			decodedBoundary != "/" && path != "" && path[0] != '/' {
+		if len(path) == len(request.URL.Path) {
+			http.NotFound(writer, request)
+			return
+		}
+		if decodedBoundary != "/" && path != "" && path[0] != '/' {
 			http.NotFound(writer, request)
 			return
 		}

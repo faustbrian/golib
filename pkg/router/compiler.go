@@ -1,6 +1,7 @@
 package router
 
 import (
+	"cmp"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -26,7 +27,7 @@ func (b *Builder) Compile() (*Router, error) {
 
 	routes := b.PendingRoutes()
 	sort.Slice(routes, func(left, right int) bool {
-		return routeSortKey(routes[left]) < routeSortKey(routes[right])
+		return strings.Compare(routeSortKey(routes[left]), routeSortKey(routes[right])) == -1
 	})
 	if err := validateNames(routes, b.routeError); err != nil {
 		return nil, err
@@ -105,12 +106,19 @@ func (b *Builder) Compile() (*Router, error) {
 		}
 	}
 	sort.Slice(compiled.hosts, func(left, right int) bool {
-		return hostSpecificity(compiled.hosts[left].pattern) > hostSpecificity(compiled.hosts[right].pattern) ||
-			hostSpecificity(compiled.hosts[left].pattern) == hostSpecificity(compiled.hosts[right].pattern) &&
-				compiled.hosts[left].pattern < compiled.hosts[right].pattern
+		return compiledHostLess(compiled.hosts[left].pattern, compiled.hosts[right].pattern)
 	})
 	b.compiled = true
 	return compiled, nil
+}
+
+func compiledHostLess(left, right string) bool {
+	leftSpecificity := hostSpecificity(left)
+	rightSpecificity := hostSpecificity(right)
+	if leftSpecificity != rightSpecificity {
+		return cmp.Compare(leftSpecificity, rightSpecificity) == 1
+	}
+	return strings.Compare(left, right) == -1
 }
 
 func validateServeMuxConflicts(routes []Route) error {
@@ -155,7 +163,10 @@ func (b *Builder) validateGlobalMiddleware() error {
 func (b *Builder) resolveMiddleware(route Route) ([]NamedMiddleware, []string, error) {
 	excluded := make(map[string]struct{}, len(route.ExcludeMiddleware))
 	for _, name := range route.ExcludeMiddleware {
-		if name == "" || !validName(name) {
+		if name == "" {
+			return nil, nil, b.routeError(ErrInvalidRoute, "middleware", route.Source, "invalid middleware exclusion")
+		}
+		if !validName(name) {
 			return nil, nil, b.routeError(ErrInvalidRoute, "middleware", route.Source, "invalid middleware exclusion")
 		}
 		if _, duplicate := excluded[name]; duplicate {
@@ -251,11 +262,23 @@ func hostPatternsOverlap(left, right string) bool {
 func methodSetsOverlap(left, right []string) bool {
 	for _, leftMethod := range left {
 		for _, rightMethod := range right {
-			if leftMethod == rightMethod || leftMethod == http.MethodGet && rightMethod == http.MethodHead ||
-				leftMethod == http.MethodHead && rightMethod == http.MethodGet {
+			if methodsOverlap(leftMethod, rightMethod) {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+func methodsOverlap(left, right string) bool {
+	if left == right {
+		return true
+	}
+	if left == http.MethodGet {
+		return right == http.MethodHead
+	}
+	if left == http.MethodHead {
+		return right == http.MethodGet
 	}
 	return false
 }

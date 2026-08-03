@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -50,23 +51,20 @@ func New(options ...Option) *Builder {
 	for _, option := range options {
 		if option == nil {
 			builder.optionErr = &Error{Kind: ErrInvalidRoute, Field: "option", Detail: "nil option"}
-			continue
+		} else {
+			option(builder)
 		}
-		option(builder)
 	}
 	if builder.optionErr == nil {
-		if len(builder.globalMiddleware) > builder.limits.MaxMiddleware {
+		switch {
+		case len(builder.globalMiddleware) > builder.limits.MaxMiddleware:
 			builder.optionErr = &Error{Kind: ErrLimitExceeded, Field: "middleware", Detail: "router middleware depth exceeded"}
-		} else {
-			for _, middleware := range builder.globalMiddleware {
-				if len(middleware.Name) > builder.limits.MaxNameBytes {
-					builder.optionErr = &Error{Kind: ErrLimitExceeded, Field: "middleware", Detail: "router middleware name is too long"}
-					break
-				}
-			}
-			if builder.optionErr == nil {
-				builder.globalMiddleware = append([]NamedMiddleware(nil), builder.globalMiddleware...)
-			}
+		case slices.ContainsFunc(builder.globalMiddleware, func(middleware NamedMiddleware) bool {
+			return len(middleware.Name) > builder.limits.MaxNameBytes
+		}):
+			builder.optionErr = &Error{Kind: ErrLimitExceeded, Field: "middleware", Detail: "router middleware name is too long"}
+		default:
+			builder.globalMiddleware = append([]NamedMiddleware(nil), builder.globalMiddleware...)
 		}
 	}
 	return builder
@@ -138,7 +136,10 @@ func (b *Builder) Register(route Route) error {
 	if len(route.Methods) > b.limits.MaxMethodsPerRoute {
 		return b.routeError(ErrLimitExceeded, "methods", route.Source, "method count exceeded")
 	}
-	if len(route.Middleware) > b.limits.MaxMiddleware || len(route.ExcludeMiddleware) > b.limits.MaxMiddleware {
+	if len(route.Middleware) > b.limits.MaxMiddleware {
+		return b.routeError(ErrLimitExceeded, "middleware", route.Source, "middleware list exceeded")
+	}
+	if len(route.ExcludeMiddleware) > b.limits.MaxMiddleware {
 		return b.routeError(ErrLimitExceeded, "middleware", route.Source, "middleware list exceeded")
 	}
 	if len(route.Metadata) > b.limits.MaxMetadataEntries {
@@ -177,7 +178,10 @@ func (b *Builder) validateRoute(route Route) error {
 	if isNilHandler(route.Handler) {
 		return b.routeError(ErrInvalidRoute, "handler", route.Source, "handler is nil")
 	}
-	if len(route.Methods) == 0 || len(route.Methods) > b.limits.MaxMethodsPerRoute {
+	if len(route.Methods) == 0 {
+		return b.routeError(ErrInvalidRoute, "methods", route.Source, "invalid method count")
+	}
+	if len(route.Methods) > b.limits.MaxMethodsPerRoute {
 		return b.routeError(ErrInvalidRoute, "methods", route.Source, "invalid method count")
 	}
 	seenMethods := make(map[string]struct{}, len(route.Methods))
@@ -251,14 +255,20 @@ func (b *Builder) validateHost(host, source string) error {
 	if len(host) > b.limits.MaxHostBytes {
 		return b.routeError(ErrLimitExceeded, "host", source, "host pattern is too long")
 	}
-	if !ascii(host) || strings.ContainsAny(host, "/?#@ :[]\\\t\r\n") {
+	if !ascii(host) {
+		return b.routeError(ErrInvalidRoute, "host", source, "invalid host pattern")
+	}
+	if strings.ContainsAny(host, "/?#@ :[]\\\t\r\n") {
 		return b.routeError(ErrInvalidRoute, "host", source, "invalid host pattern")
 	}
 	for _, label := range strings.Split(host, ".") {
 		if label == "" {
 			return b.routeError(ErrInvalidRoute, "host", source, "empty host label")
 		}
-		if strings.HasPrefix(label, "{") && strings.HasSuffix(label, "}") {
+		if strings.HasPrefix(label, "{") {
+			if !strings.HasSuffix(label, "}") {
+				return b.routeError(ErrInvalidRoute, "host", source, "invalid host wildcard")
+			}
 			name := label[1 : len(label)-1]
 			if len(name) > b.limits.MaxWildcardNameBytes {
 				return b.routeError(ErrLimitExceeded, "host", source, "host wildcard name is too long")
@@ -282,7 +292,10 @@ func (b *Builder) validatePath(path, source string) error {
 	if len(path) > b.limits.MaxPatternBytes {
 		return b.routeError(ErrLimitExceeded, "path", source, "path pattern is too long")
 	}
-	if path == "" || path[0] != '/' {
+	if path == "" {
+		return b.routeError(ErrInvalidRoute, "path", source, "path must be an absolute bounded pattern")
+	}
+	if path[0] != '/' {
 		return b.routeError(ErrInvalidRoute, "path", source, "path must be an absolute bounded pattern")
 	}
 	for _, segment := range strings.Split(path, "/") {
@@ -354,8 +367,10 @@ func validName(value string) bool {
 		return false
 	}
 	for index, character := range value {
-		if character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
-			character >= '0' && character <= '9' || index > 0 && strings.ContainsRune("._:-", character) {
+		if asciiLetterOrDigit(character) {
+			continue
+		}
+		if index > 0 && strings.ContainsRune("._:-", character) {
 			continue
 		}
 		return false
@@ -366,11 +381,16 @@ func validName(value string) bool {
 func isToken(value string) bool {
 	const punctuation = "!#$%&'*+-.^_`|~"
 	for _, character := range value {
-		if character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' ||
-			character >= '0' && character <= '9' || strings.ContainsRune(punctuation, character) {
+		if asciiLetterOrDigit(character) || strings.ContainsRune(punctuation, character) {
 			continue
 		}
 		return false
 	}
 	return value != ""
+}
+
+func asciiLetterOrDigit(character rune) bool {
+	return character >= 'a' && character <= 'z' ||
+		character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9'
 }
