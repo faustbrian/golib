@@ -199,6 +199,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Fixed
 
+- Reject partially initialized proof engines consistently, preserve exact
+  update-proof and snapshot resource ceilings, and fail closed before reading
+  corrupt snapshot state during canonical encoding.
 - Classify excessive public proof and witness codec limits as invalid limits
   instead of malformed cryptographic material.
 - Require the stateless witness post-root point-decode limit to equal the one

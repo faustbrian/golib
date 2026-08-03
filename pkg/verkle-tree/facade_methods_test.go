@@ -370,6 +370,14 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 		); !errors.Is(err, ErrInvalidProofEngine) {
 			t.Fatalf("partial engine prove = %v", err)
 		}
+		if _, err := partial.ProveUpdates(
+			context.Background(),
+			snapshot,
+			[]Update{Set(Key{}, Value{})},
+			testFacadeProofGenerationLimits(),
+		); !errors.Is(err, ErrInvalidProofEngine) {
+			t.Fatalf("partial engine update proof = %v", err)
+		}
 		if err := partial.Verify(
 			context.Background(),
 			proof,
@@ -456,6 +464,11 @@ func TestFacadeUpdateProofRejectsInvalidAndBoundedInputs(t *testing.T) {
 	limits := testFacadeProofGenerationLimits()
 	limits.Material.MaxKeys = 1
 	limits.ProverQueries.MaxKeys = 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, updates, limits,
+	); err != nil {
+		t.Fatalf("exact update-proof key limit error = %v", err)
+	}
 	if _, err := engine.ProveUpdates(
 		context.Background(), snapshot,
 		[]Update{Set(Key{}, Value{2}), Delete(Key{1})}, limits,

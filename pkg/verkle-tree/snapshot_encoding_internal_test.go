@@ -52,6 +52,12 @@ func TestSnapshotEncodingCancellationAndErrorClassification(t *testing.T) {
 	if err := translateSnapshotEncodingError("copy", errors.New("fault")); !errors.Is(err, ErrInvalidSnapshot) {
 		t.Fatalf("encoding fallback error = %v", err)
 	}
+	for _, cause := range []error{context.Canceled, context.DeadlineExceeded} {
+		translated := translateSnapshotEncodingError("copy", cause)
+		if !errors.Is(translated, ErrCancelled) || !errors.Is(translated, cause) {
+			t.Fatalf("encoding cancellation %v translated to %v", cause, translated)
+		}
+	}
 	resource := newPublicResourceError(ResourceEntries, 1, 2)
 	if got := translateSnapshotDecodingError("decode", resource); got != resource {
 		t.Fatalf("decoding resource error = %v", got)
@@ -62,10 +68,82 @@ func TestSnapshotEncodingCancellationAndErrorClassification(t *testing.T) {
 	if err := translateSnapshotDecodingError("decode", errors.New("fault")); !errors.Is(err, ErrInvalidSnapshot) {
 		t.Fatalf("decoding fallback error = %v", err)
 	}
+	for _, cause := range []error{
+		ErrCancelled,
+		context.Canceled,
+		context.DeadlineExceeded,
+	} {
+		translated := translateSnapshotDecodingError("decode", cause)
+		if !errors.Is(translated, ErrCancelled) || !errors.Is(translated, cause) {
+			t.Fatalf("decoding cancellation %v translated to %v", cause, translated)
+		}
+	}
+	if err := checkSnapshotEncodingResource(ResourceEntries, 7, 7); err != nil {
+		t.Fatalf("exact encoding resource error = %v", err)
+	}
+	var excessiveResource *ResourceError
+	if err := checkSnapshotEncodingResource(ResourceEntries, 7, 8); !errors.As(err, &excessiveResource) ||
+		excessiveResource.Resource != ResourceEntries {
+		t.Fatalf("excessive encoding resource error = %v", err)
+	}
 
 	corrupt := Snapshot{valid: true}
 	if _, err := corrupt.Bytes(context.Background(), encodingLimits); !errors.Is(err, ErrInvalidSnapshot) {
 		t.Fatalf("corrupt snapshot encoding error = %v", err)
+	}
+}
+
+func TestSnapshotEncodingLimitCeilings(t *testing.T) {
+	t.Parallel()
+
+	safeEntries := uint32(
+		((int64(1) << 31) - 1 - int64(snapshotHeaderBytes)) /
+			int64(snapshotEntryBytes),
+	)
+	safeBytes := uint64(snapshotHeaderBytes) +
+		uint64(safeEntries)*uint64(snapshotEntryBytes)
+	limits := SnapshotEncodingLimits{
+		MaxSnapshotBytes:  safeBytes,
+		MaxEntries:        safeEntries,
+		MaxTemporaryBytes: 1,
+	}
+	if err := limits.validate(); err != nil {
+		t.Fatalf("safe encoding ceilings error = %v", err)
+	}
+
+	excessiveEntries := limits
+	excessiveEntries.MaxEntries++
+	if err := excessiveEntries.validate(); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("excessive entry ceiling error = %v", err)
+	}
+
+	excessiveBytes := limits
+	excessiveBytes.MaxSnapshotBytes++
+	if err := excessiveBytes.validate(); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("excessive byte ceiling error = %v", err)
+	}
+
+	decodingLimits := SnapshotDecodingLimits{
+		MaxSnapshotBytes:  safeBytes,
+		MaxEntries:        safeEntries,
+		MaxPointDecodes:   1,
+		MaxTemporaryBytes: 1,
+		Snapshot:          testFacadeSnapshotLimits(),
+	}
+	if err := decodingLimits.validate(); err != nil {
+		t.Fatalf("safe decoding ceilings error = %v", err)
+	}
+
+	excessiveDecodingEntries := decodingLimits
+	excessiveDecodingEntries.MaxEntries++
+	if err := excessiveDecodingEntries.validate(); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("excessive decoding entry ceiling error = %v", err)
+	}
+
+	excessiveDecodingBytes := decodingLimits
+	excessiveDecodingBytes.MaxSnapshotBytes++
+	if err := excessiveDecodingBytes.validate(); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("excessive decoding byte ceiling error = %v", err)
 	}
 }
 

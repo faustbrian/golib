@@ -23,11 +23,10 @@ const (
 		snapshotEncodingBytes +
 		int(RootSize) +
 		snapshotCountBytes
-	maxSnapshotEntries = uint32(
-		((1 << 31) - 1 - snapshotHeaderBytes) / snapshotEntryBytes,
-	)
-	maxSnapshotEncodedBytes = uint64(snapshotHeaderBytes) +
-		uint64(maxSnapshotEntries)*snapshotEntryBytes
+	// These are the largest 64-byte entry count and resulting encoded length
+	// whose 55-byte header fit in a signed 32-bit allocation length.
+	maxSnapshotEntries      = uint32(33_554_431)
+	maxSnapshotEncodedBytes = uint64(2_147_483_639)
 )
 
 var snapshotMagic = [snapshotMagicBytes]byte{'V', 'K', 'S', 'S'}
@@ -92,10 +91,12 @@ func (snapshot Snapshot) Bytes(
 		return nil, err
 	}
 	rootBytes, rootErr := snapshotCanonicalRoot(snapshot)
-	count, countErr := snapshot.value.EntryCount()
-	if rootErr != nil || countErr != nil {
+	if rootErr != nil {
 		return nil, ErrInvalidSnapshot
 	}
+	// A canonical root can only be returned after the same immutable internal
+	// snapshot has validated successfully, so EntryCount cannot fail here.
+	count, _ := snapshot.value.EntryCount()
 	if err := checkSnapshotEncodingResource(
 		ResourceEntries,
 		uint64(limits.MaxEntries),
@@ -131,9 +132,8 @@ func (snapshot Snapshot) Bytes(
 	profile := ExperimentalBandersnatchIPA256V0()
 
 	encoded := make([]byte, int(encodedBytes))
-	offset := 0
-	copy(encoded[offset:], snapshotMagic[:])
-	offset += snapshotMagicBytes
+	copy(encoded, snapshotMagic[:])
+	offset := snapshotMagicBytes
 	encoded[offset] = byte(profile.ID())
 	offset += snapshotProfileIDBytes
 	binary.BigEndian.PutUint16(encoded[offset:], profile.Version())
@@ -231,9 +231,12 @@ func DecodeSnapshot(
 		offset += 32
 		copy(entries[index].Value[:], encoded[offset:offset+32])
 		offset += 32
-		if index > 0 && bytes.Compare(
+		if index == 0 {
+			continue
+		}
+		if bytes.Compare(
 			entries[index-1].Key[:], entries[index].Key[:],
-		) >= 0 {
+		) != -1 {
 			return Snapshot{}, ErrInvalidSnapshot
 		}
 	}
