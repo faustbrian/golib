@@ -404,10 +404,7 @@ func validateAssociations(elements []Element, definitions map[string]definition)
 
 func hasPatternExcept(present map[string]struct{}, pattern, excluded string) bool {
 	for ai := range present {
-		if ai == excluded {
-			continue
-		}
-		if matchesPattern(ai, pattern) {
+		if ai != excluded && matchesPattern(ai, pattern) {
 			return true
 		}
 	}
