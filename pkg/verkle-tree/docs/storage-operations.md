@@ -108,6 +108,19 @@ concurrent readers, retained-root pruning, inventory pagination, and deferred
 reclamation. Root-package tests prove the generic contract and hostile-input
 planning; they do not prove a concrete adapter or storage engine.
 
+The black-box `storage_crash_test.go` reference adapter executes this generic
+matrix over persistent in-memory state. It injects failures before, during, and
+after node writes and root publication, permits node-only debris while keeping
+the old root readable, accepts either complete side of the publication
+linearization point, verifies cleanup and retry, and rejects a prematurely
+published root through `LoadSnapshot`. Separate maintenance and recovery cases
+exercise both old-state and new-state crash outcomes, repeated planning after
+an ambiguous success, retained-root pruning, unchanged current publication,
+and an audit view reading deleted nodes before and concurrently with
+maintenance and after logical reclamation. These tests establish the package
+contract and a conforming reference model only. Any concrete adapter still
+needs process-restart and storage-engine-specific evidence for every row.
+
 ## Retention and rebuild policy
 
 Define retention outside the tree package. Record which roots are protected,

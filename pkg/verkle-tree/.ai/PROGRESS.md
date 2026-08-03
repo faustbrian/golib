@@ -3,7 +3,7 @@
 ## Fixed score
 
 As of 2026-08-03, overall progress against the complete production-grade goal
-is **66/100**.
+is **68/100**.
 
 This is a delivery-planning score, not a cryptographic security rating. The
 allocation below is fixed. Points are binary: an item earns all of its points
@@ -17,7 +17,7 @@ profile items. A running gate does not earn its points until it exits
 successfully. Documentation activity does not earn additional points unless it
 closes one of the listed documentation or release items.
 
-## Earned: 66 points
+## Earned: 68 points
 
 | Item | Points | Exit criterion satisfied |
 | --- | ---: | --- |
@@ -34,9 +34,10 @@ closes one of the listed documentation or release items.
 | Baseline hostile-input and repository security gates | 4 | Race, bounded fuzz, static analysis, vulnerability, secret, license, and SBOM gates pass for the current implemented boundary |
 | Pinned differential corpora and artifact provenance | 4 | Go and Rust research fixtures, generators, revisions, checksums, licenses, and reproducible procedures are recorded and passing for the claimed corpora |
 | Public documentation baseline | 3 | Quick start, concepts, profile status, threat model, compatibility, usage, storage operations, recovery, adoption, migration, FAQ, and benchmark caveats are published |
-| **Total earned** | **66** | |
+| Storage crash and lifecycle evidence | 2 | The black-box reference adapter exercises partial writes, both atomic publication and maintenance outcomes, retries, recovery, stale-state preservation, retained-root pruning, concurrent pinned views, and deferred logical reclamation; no concrete adapter is claimed |
+| **Total earned** | **68** | |
 
-## Remaining: 34 points
+## Remaining: 32 points
 
 | Item | Points | Exact exit criterion |
 | --- | ---: | --- |
@@ -45,19 +46,18 @@ closes one of the listed documentation or release items.
 | Maintained independent implementation | 5 | Obtain broad positive and negative root, proof, witness, and transition agreement from at least one maintained implementation with independent cryptographic lineage so it and this package form the required independent pair; the unmaintained Rust reference and EthereumJS wrapper do not close this stable-profile gate |
 | Complete hostile-input and operational hardening | 4 | Finish malformed-input amplification, stress, leak, cancellation, concurrency, side-channel-scope, dependency, and generated-artifact review for the selected production boundary |
 | Exact mutation gate | 2 | The complete final production tree passes the repository's exact mutation requirements; the current gate is still running and earns zero until successful |
-| Storage crash and lifecycle evidence | 2 | Complete crash-point, retry, stale publication, recovery, retained-snapshot, concurrent-view, and reclamation evidence for the generic store contract and every claimed adapter |
 | Fair complete benchmarks | 3 | Publish reproducible full-operation latency, throughput, allocation, peak-memory, proof-size, malformed-rejection, storage, concurrency, and equivalent-comparison evidence |
 | Exported API audit and completion report | 2 | Audit every exported identifier for semantics, ownership, errors, concurrency, complexity, and caveats, then publish the required hardening completion report |
 | Final release evidence | 3 | Pass fresh final clean-consumer, reproducibility, interoperability, security, API, semantic-version, documentation, benchmark, and release-metadata gates on the exact release tree |
-| **Total remaining** | **34** | |
+| **Total remaining** | **32** | |
 
 ## Critical path to 100
 
 1. Select a production-suitable commitment backend.
 2. Add the missing independent implementation evidence.
 3. Freeze the stable v1 profile against those exact revisions and encodings.
-4. Close mutation, storage-crash, hostile-input, benchmark, and exported-API
-   audits on the final implementation.
+4. Close mutation, hostile-input, benchmark, and exported-API audits on the
+   final implementation.
 5. Publish the completion report and pass every final release gate on the exact
    release tree.
 

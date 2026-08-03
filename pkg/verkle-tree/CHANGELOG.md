@@ -22,6 +22,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add a stateful reference-store crash matrix covering partial node writes,
+  ambiguous publication outcomes, retry and recovery, atomic retention and
+  deletion, and pinned audit views across logical reclamation.
 - Add reproducible public benchmarks for immutable state operations, root
   construction, membership and non-membership proofs, aggregate proofs,
   malformed-proof rejection, stateless witnesses, parallel reads and
