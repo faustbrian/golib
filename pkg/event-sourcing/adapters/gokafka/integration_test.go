@@ -26,19 +26,12 @@ func TestEventDeliveriesRoundTripThroughKafka(t *testing.T) {
 	defer cancel()
 
 	container, err := tckafka.Run(ctx, integrationKafkaImage)
+	if container != nil {
+		cleanupKafkaContainer(t, container)
+	}
 	if err != nil {
 		t.Fatalf("start Kafka: %v", err)
 	}
-	t.Cleanup(func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(
-			context.Background(),
-			30*time.Second,
-		)
-		defer cleanupCancel()
-		if err := container.Terminate(cleanupCtx); err != nil {
-			t.Errorf("terminate Kafka: %v", err)
-		}
-	})
 	brokers, err := container.Brokers(ctx)
 	if err != nil {
 		t.Fatalf("resolve Kafka brokers: %v", err)

@@ -5769,6 +5769,9 @@
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/containerd/errdefs",
+        "github.com/moby/moby/client",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/kafka",
         "github.com/twmb/franz-go",
         "github.com/twmb/franz-go/pkg/kadm"
