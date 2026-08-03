@@ -11,6 +11,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Classify the module as pre-v1 research only until a complete profile and
   production-suitable commitment backend can be proven.
 - Record the pinned commitment-backend audit and its production blockers.
+- Add usage, storage operations, crash testing, adoption, migration, and FAQ
+  guides for the experimental public API and caller-owned adapter boundary.
 
 ### Added
 

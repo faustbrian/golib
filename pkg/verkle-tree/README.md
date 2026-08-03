@@ -454,6 +454,17 @@ yet. Restoration of missing or corrupt published state and proof of adapter
 atomicity, isolation, durability, and crash behavior remain adapter
 responsibilities.
 
+## Guides
+
+- [Usage and error handling](docs/usage.md)
+- [Storage, recovery, pruning, and adapter crash testing](docs/storage-operations.md)
+- [Adoption, migration, and FAQ](docs/adoption.md)
+- [API and ownership boundaries](docs/api-boundaries.md)
+- [Threat model](docs/threat-model.md)
+- [Compatibility matrix](docs/compatibility.md)
+- [Backend audit](docs/backend-audit.md)
+- [Benchmark method and raw samples](docs/benchmarks.md)
+
 ## Development rule
 
 Implementation MAY proceed incrementally behind the named experimental
