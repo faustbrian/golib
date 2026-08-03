@@ -110,7 +110,10 @@ The fixtures prove:
 - KRaft `StandardAuthorizer` denial for an authenticated PLAIN principal with
   no matching ACL, including `ErrorAuthorization` producer classification and
   unchanged inspector `TopicAuthorizationFailed` identity without password
-  disclosure; and
+  disclosure; input-ordered consumer-group inspection additionally retains one
+  explicitly authorized group result beside a separate
+  `GroupAuthorizationFailed` result with stable `ErrorAuthorization`
+  classification and no password disclosure; and
 - live SCRAM-SHA-256 and SCRAM-SHA-512 credential replacement: one producer
   per mechanism crosses Kafka's three-second broker-enforced reauthentication
   lifetime, invokes the package provider again, delivers with the replacement
@@ -127,8 +130,8 @@ The fixtures prove:
 
 This proves interoperability only with the pinned Apache fixture. Prolonged
 multi-client credential-rotation stress, PLAIN replacement, JWKS refresh and
-signing-key rollover, consumer-group and transactional-ID authorization
-failures, ACL changes during live traffic, and managed-service authentication
+signing-key rollover, transactional-ID authorization failures, ACL changes
+during live traffic, and managed-service authentication
 remain separate required evidence. The fixture does not use Kafka's
 non-production unsecured OAUTHBEARER implementation and does not claim
 compatibility with a particular OAuth identity provider.

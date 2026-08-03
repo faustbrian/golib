@@ -146,6 +146,29 @@ type TopicState struct {
 	// RetentionBytesPerPartition is the effective retention.bytes value.
 	// Minus one means no size limit.
 	RetentionBytesPerPartition int64
+	// LocalRetentionMilliseconds is the effective local.retention.ms value.
+	// Minus two inherits RetentionMilliseconds and minus one means unlimited.
+	// Kafka applies this only while remote storage is enabled and remote copying
+	// is not disabled.
+	LocalRetentionMilliseconds int64
+	// LocalRetentionBytesPerPartition is the effective local.retention.bytes
+	// value. Minus two inherits RetentionBytesPerPartition and minus one means
+	// no local size limit.
+	LocalRetentionBytesPerPartition int64
+	// LocalRetentionVisible reports whether Kafka returned both local-retention
+	// fields. Older supported brokers may omit them.
+	LocalRetentionVisible bool
+	// RemoteStorageEnabled is the effective remote.storage.enable value.
+	RemoteStorageEnabled bool
+	// RemoteStorageEnabledVisible reports whether Kafka returned
+	// remote.storage.enable.
+	RemoteStorageEnabledVisible bool
+	// RemoteLogCopyDisabled is the effective remote.log.copy.disable value.
+	// When true, Kafka ignores the local-retention limits.
+	RemoteLogCopyDisabled bool
+	// RemoteLogCopyDisabledVisible reports whether Kafka returned
+	// remote.log.copy.disable.
+	RemoteLogCopyDisabledVisible bool
 	// DeleteRetentionMilliseconds is the effective delete.retention.ms value.
 	DeleteRetentionMilliseconds int64
 	// MinimumCompactionLagMilliseconds is the effective
@@ -886,6 +909,13 @@ func (inspector *Inspector) buildTopicStates(
 			CleanupPolicy:                    config.cleanupPolicy,
 			RetentionMilliseconds:            config.retentionMilliseconds,
 			RetentionBytesPerPartition:       config.retentionBytesPerPartition,
+			LocalRetentionMilliseconds:       config.localRetentionMilliseconds,
+			LocalRetentionBytesPerPartition:  config.localRetentionBytesPerPartition,
+			LocalRetentionVisible:            config.localRetentionVisible,
+			RemoteStorageEnabled:             config.remoteStorageEnabled,
+			RemoteStorageEnabledVisible:      config.remoteStorageEnabledVisible,
+			RemoteLogCopyDisabled:            config.remoteLogCopyDisabled,
+			RemoteLogCopyDisabledVisible:     config.remoteLogCopyDisabledVisible,
 			DeleteRetentionMilliseconds:      config.deleteRetentionMilliseconds,
 			MinimumCompactionLagMilliseconds: config.minimumCompactionLagMilliseconds,
 			MaximumCompactionLagMilliseconds: config.maximumCompactionLagMilliseconds,
@@ -1070,11 +1100,32 @@ func inspectionTopicConfigs(
 			}
 			found |= field
 		}
-		if found != allTopicInspectionConfigFields {
+		if found&requiredTopicInspectionConfigFields !=
+			requiredTopicInspectionConfigFields {
 			return nil, ErrInvalidInspectionResponse
 		}
+		localRetentionFields := topicInspectionLocalRetentionMilliseconds |
+			topicInspectionLocalRetentionBytes
+		localRetentionFound := found & localRetentionFields
+		if localRetentionFound != 0 && localRetentionFound != localRetentionFields {
+			return nil, ErrInvalidInspectionResponse
+		}
+		parsed.localRetentionVisible = localRetentionFound == localRetentionFields
+		parsed.remoteStorageEnabledVisible =
+			found&topicInspectionRemoteStorageEnabled != 0
+		parsed.remoteLogCopyDisabledVisible =
+			found&topicInspectionRemoteLogCopyDisabled != 0
 		if parsed.minimumCompactionLagMilliseconds >
 			parsed.maximumCompactionLagMilliseconds {
+			return nil, ErrInvalidInspectionResponse
+		}
+		if parsed.localRetentionVisible && (!validLocalRetentionLimit(
+			parsed.localRetentionMilliseconds,
+			parsed.retentionMilliseconds,
+		) || !validLocalRetentionLimit(
+			parsed.localRetentionBytesPerPartition,
+			parsed.retentionBytesPerPartition,
+		)) {
 			return nil, ErrInvalidInspectionResponse
 		}
 		result[resource.Name] = parsed
@@ -1091,6 +1142,13 @@ type topicInspectionConfig struct {
 	cleanupPolicy                    TopicCleanupPolicy
 	retentionMilliseconds            int64
 	retentionBytesPerPartition       int64
+	localRetentionMilliseconds       int64
+	localRetentionBytesPerPartition  int64
+	localRetentionVisible            bool
+	remoteStorageEnabled             bool
+	remoteStorageEnabledVisible      bool
+	remoteLogCopyDisabled            bool
+	remoteLogCopyDisabledVisible     bool
 	deleteRetentionMilliseconds      int64
 	minimumCompactionLagMilliseconds int64
 	maximumCompactionLagMilliseconds int64
@@ -1107,6 +1165,10 @@ const (
 	topicInspectionCleanupPolicy
 	topicInspectionRetentionMilliseconds
 	topicInspectionRetentionBytes
+	topicInspectionLocalRetentionMilliseconds
+	topicInspectionLocalRetentionBytes
+	topicInspectionRemoteStorageEnabled
+	topicInspectionRemoteLogCopyDisabled
 	topicInspectionDeleteRetentionMilliseconds
 	topicInspectionMinimumCompactionLagMilliseconds
 	topicInspectionMaximumCompactionLagMilliseconds
@@ -1114,7 +1176,17 @@ const (
 	topicInspectionSegmentBytes
 	topicInspectionSegmentMilliseconds
 	topicInspectionUncleanLeaderElection
-	allTopicInspectionConfigFields = (topicInspectionUncleanLeaderElection << 1) - 1
+	requiredTopicInspectionConfigFields = topicInspectionMinInSyncReplicas |
+		topicInspectionCleanupPolicy |
+		topicInspectionRetentionMilliseconds |
+		topicInspectionRetentionBytes |
+		topicInspectionDeleteRetentionMilliseconds |
+		topicInspectionMinimumCompactionLagMilliseconds |
+		topicInspectionMaximumCompactionLagMilliseconds |
+		topicInspectionMinimumCleanableDirtyRatio |
+		topicInspectionSegmentBytes |
+		topicInspectionSegmentMilliseconds |
+		topicInspectionUncleanLeaderElection
 )
 
 func topicInspectionConfigField(key string) topicInspectionConfigFields {
@@ -1127,6 +1199,14 @@ func topicInspectionConfigField(key string) topicInspectionConfigFields {
 		return topicInspectionRetentionMilliseconds
 	case "retention.bytes":
 		return topicInspectionRetentionBytes
+	case "local.retention.ms":
+		return topicInspectionLocalRetentionMilliseconds
+	case "local.retention.bytes":
+		return topicInspectionLocalRetentionBytes
+	case "remote.storage.enable":
+		return topicInspectionRemoteStorageEnabled
+	case "remote.log.copy.disable":
+		return topicInspectionRemoteLogCopyDisabled
 	case "delete.retention.ms":
 		return topicInspectionDeleteRetentionMilliseconds
 	case "min.compaction.lag.ms":
@@ -1169,6 +1249,26 @@ func (config *topicInspectionConfig) set(
 	case topicInspectionRetentionBytes:
 		parsed, err := parseInspectionInteger(value, -1, math.MaxInt64)
 		config.retentionBytesPerPartition = parsed
+
+		return err
+	case topicInspectionLocalRetentionMilliseconds:
+		parsed, err := parseInspectionInteger(value, -2, math.MaxInt64)
+		config.localRetentionMilliseconds = parsed
+
+		return err
+	case topicInspectionLocalRetentionBytes:
+		parsed, err := parseInspectionInteger(value, -2, math.MaxInt64)
+		config.localRetentionBytesPerPartition = parsed
+
+		return err
+	case topicInspectionRemoteStorageEnabled:
+		parsed, err := parseInspectionBoolean(value)
+		config.remoteStorageEnabled = parsed
+
+		return err
+	case topicInspectionRemoteLogCopyDisabled:
+		parsed, err := parseInspectionBoolean(value)
+		config.remoteLogCopyDisabled = parsed
 
 		return err
 	case topicInspectionDeleteRetentionMilliseconds:
@@ -1217,18 +1317,31 @@ func (config *topicInspectionConfig) set(
 
 		return err
 	case topicInspectionUncleanLeaderElection:
-		switch value {
-		case "true":
-			config.uncleanLeaderElectionEnabled = true
+		parsed, err := parseInspectionBoolean(value)
+		config.uncleanLeaderElectionEnabled = parsed
 
-			return nil
-		case "false":
-			return nil
-		default:
-			return ErrInvalidInspectionResponse
-		}
+		return err
 	default:
 		return ErrInvalidInspectionResponse
+	}
+}
+
+func validLocalRetentionLimit(local, total int64) bool {
+	if local == -2 || total == -1 {
+		return true
+	}
+
+	return local >= 0 && local <= total
+}
+
+func parseInspectionBoolean(value string) (bool, error) {
+	switch value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, ErrInvalidInspectionResponse
 	}
 }
 

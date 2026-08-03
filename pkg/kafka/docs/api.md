@@ -378,7 +378,11 @@ replica, ISR, offline-replica, leader-epoch, beginning/end offset, and effective
 `min.insync.replicas`, cleanup, retention, compaction, segment, and
 unclean-election state. Kafka duration values remain raw milliseconds;
 retention limits preserve the `-1` unlimited sentinel and retention bytes are
-per partition. `Inspector.ConsumerGroupLag` returns bounded classic-group
+per partition. Local tiered-storage retention additionally preserves Kafka's
+`-2` inheritance sentinel and is accompanied by the effective remote-storage
+and remote-copy-disable flags. Visibility fields distinguish returned false or
+sentinel values from version-dependent broker omission.
+`Inspector.ConsumerGroupLag` returns bounded classic-group
 coordinator, state, protocol, member identity, copied assignment,
 committed-offset, and lag inspection. Members are sorted by member ID and their
 assignments by topic and partition. It requests KIP-447 stable committed

@@ -57,16 +57,24 @@ returned as raw Kafka milliseconds rather than `time.Duration`: Kafka permits
 values, including `math.MaxInt64`, that a Go duration cannot represent.
 `RetentionMilliseconds` and `RetentionBytesPerPartition` use Kafka's `-1`
 sentinel for no limit. The byte limit is per partition, not a topic-wide total.
+`LocalRetentionMilliseconds` and `LocalRetentionBytesPerPartition` additionally
+preserve Kafka's `-2` inheritance sentinel and `-1` unlimited sentinel. A
+non-sentinel local limit cannot exceed its finite topic-wide counterpart.
+`LocalRetentionVisible` distinguishes those returned values from an older
+broker that omits both fields. `RemoteStorageEnabled` and
+`RemoteLogCopyDisabled`, with their corresponding `Visible` fields, report
+whether those local limits currently govern locally retained tiered segments;
+Kafka ignores them when remote copying is disabled. Version-dependent remote
+fields may be independently absent.
 
 These values describe effective topic policy, not a promise that a particular
 record still exists or will be removed at an exact instant. Kafka removes
 eligible closed segments asynchronously; compaction preserves key history only
 according to the cleaner's current state and policy. Beginning offsets remain
-the broker evidence for the currently readable range. Tiered-storage
-`local.retention.ms` and `local.retention.bytes` are not exposed yet, so this
-surface does not completely describe local-versus-remote retention. The
-unclean-election field reports configured permission, not whether an unclean
-election occurred.
+the broker evidence for the currently readable range. Local-retention settings
+describe local tiered segments only; they do not report remote-object presence,
+copy progress, or remote deletion. The unclean-election field reports
+configured permission, not whether an unclean election occurred.
 
 Metadata, offsets, and configuration are separate Kafka requests rather than
 an atomic cluster snapshot. franz-go may satisfy metadata from its bounded

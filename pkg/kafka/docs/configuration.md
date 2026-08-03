@@ -320,6 +320,11 @@ when any requested target or selected field is missing, inconsistent,
 unauthorized, excessive, or unavailable. Kafka millisecond values remain
 signed 64-bit integers because valid values may exceed `time.Duration`;
 retention time and per-partition retention bytes preserve `-1` as unlimited.
+Local tiered-storage retention values preserve `-2` as inheritance and `-1` as
+unlimited, reject explicit finite limits above their finite topic-wide limit,
+and are returned with the effective remote-storage and copy-disable flags.
+Visibility fields distinguish broker-returned values from version-dependent
+omission; a partial local-retention pair fails closed.
 The `InspectTopics` and `InspectConsumerGroups` variants isolate targets under
 one request deadline, return one input-ordered result per target, and retain
 successful states when another target fails. `ErrInspectionTargetsFailed`

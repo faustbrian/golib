@@ -608,6 +608,60 @@ func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
 	if strings.Contains(inspectionErr.Error(), broker.limitedPassword) {
 		t.Fatal("ACL-denied inspection error disclosed a credential")
 	}
+
+	allowedGroup := fmt.Sprintf("golib-authorization-allowed-%d", time.Now().UnixNano())
+	deniedGroup := allowedGroup + "-denied"
+	createSecureKafkaGroupDescribeACL(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		franzplain.Auth{
+			User: "plain-user",
+			Pass: broker.plainPassword,
+		}.AsMechanism(),
+		"limited-user",
+		allowedGroup,
+		topic,
+	)
+	groupInspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  []string{broker.endpoint},
+		ClientID: "golib-authorization-group-inspector",
+		Security: limitedSecurity,
+	})
+	if err != nil {
+		t.Fatalf("construct group ACL Kafka inspector: %v", err)
+	}
+	groupResults, groupErr := groupInspector.InspectConsumerGroups(
+		ctx,
+		deniedGroup,
+		allowedGroup,
+	)
+	if closeErr := groupInspector.Close(); closeErr != nil {
+		t.Fatalf("close group ACL Kafka inspector: %v", closeErr)
+	}
+	if !errors.Is(groupErr, kafka.ErrInspectionTargetsFailed) ||
+		len(groupResults) != 2 ||
+		groupResults[0].Group != deniedGroup ||
+		groupResults[0].Category != kafka.ErrorAuthorization ||
+		!errors.Is(groupResults[0].Err, kerr.GroupAuthorizationFailed) ||
+		groupResults[1].Group != allowedGroup ||
+		groupResults[1].Err != nil ||
+		groupResults[1].State.State != "Empty" ||
+		len(groupResults[1].State.Partitions) != 1 ||
+		groupResults[1].State.Partitions[0].Topic != topic ||
+		groupResults[1].State.Partitions[0].CommittedOffset != 0 {
+		t.Fatalf(
+			"group ACL inspection results = %#v, %v; target errors = %v / %v",
+			groupResults,
+			groupErr,
+			groupResults[0].Err,
+			groupResults[1].Err,
+		)
+	}
+	if strings.Contains(groupResults[0].Err.Error(), broker.limitedPassword) {
+		t.Fatal("group ACL inspection error disclosed a credential")
+	}
 }
 
 func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
@@ -1830,6 +1884,53 @@ func createSecureKafkaTopicWithConfigs(
 	}
 	if response.Err != nil {
 		t.Fatalf("create secured Kafka topic %q: %v", topic, response.Err)
+	}
+}
+
+func createSecureKafkaGroupDescribeACL(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	tlsConfig *tls.Config,
+	mechanism sasl.Mechanism,
+	principal string,
+	group string,
+	topic string,
+) {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(broker),
+		kgo.ClientID("golib-secure-acl-admin"),
+		kgo.DialTLSConfig(tlsConfig),
+		kgo.SASL(mechanism),
+	)
+	if err != nil {
+		t.Fatalf("construct secured Kafka ACL administrator: %v", err)
+	}
+	defer client.Close()
+	var offsets kadm.Offsets
+	offsets.Add(kadm.Offset{Topic: topic, Partition: 0, At: 0})
+	commitResults, err := kadm.NewClient(client).CommitOffsets(ctx, group, offsets)
+	if err != nil {
+		t.Fatalf("initialize secured Kafka group offset: %v", err)
+	}
+	if err := commitResults.Error(); err != nil {
+		t.Fatalf("secured Kafka group offset results: %v", err)
+	}
+	builder := kadm.NewACLs().
+		Groups(group).
+		Topics(topic).
+		Allow(principal).
+		Operations(kadm.OpDescribe).
+		ResourcePatternType(kadm.ACLPatternLiteral)
+	builder.PrefixUser()
+	results, err := kadm.NewClient(client).CreateACLs(ctx, builder)
+	if err != nil {
+		t.Fatalf("create secured Kafka group ACL: %v", err)
+	}
+	if len(results) != 2 || results[0].Err != nil || results[1].Err != nil {
+		t.Fatalf("secured Kafka group ACL results = %#v", results)
 	}
 }
 

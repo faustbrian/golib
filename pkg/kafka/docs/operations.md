@@ -39,8 +39,13 @@ Cleanup and retention values do not predict an exact deletion instant.
 unlimited, and Kafka deletes eligible closed segments asynchronously.
 Compaction settings describe cleaner eligibility rather than a complete key
 history. Alert on unexpected policy drift, but use beginning offsets to decide
-whether a replay range remains readable. For tiered-storage topics, inspect
-`local.retention.*` with operator tooling until this package adds that surface.
+whether a replay range remains readable. For tiered-storage topics, compare
+`LocalRetentionMilliseconds` and `LocalRetentionBytesPerPartition` with their
+topic-wide counterparts, and check `RemoteStorageEnabled` plus
+`RemoteLogCopyDisabled` before interpreting them. Check each corresponding
+visibility field first because older brokers can omit version-dependent
+configuration. These fields do not prove that a segment was copied to, retained
+in, or deleted from remote storage.
 
 ## Lag
 

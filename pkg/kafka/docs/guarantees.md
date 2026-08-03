@@ -271,13 +271,18 @@ effective `min.insync.replicas`, cleanup, retention, compaction, segment, and
 unclean-election policy. Selected configuration is required, validated, and
 bounded. Millisecond values preserve Kafka's signed 64-bit domain rather than
 overflowing `time.Duration`; retention limits preserve `-1`, and retention
-bytes are explicitly per partition.
+bytes are explicitly per partition. Tiered-storage local-retention limits also
+preserve Kafka's `-2` inheritance sentinel and are returned with the effective
+remote-storage and copy-disable flags. Explicit visibility fields distinguish
+false or sentinel values from version-dependent broker omission; returning
+only one member of the local-retention pair fails closed.
 
 Configuration inspection is diagnostic rather than a retention guarantee.
 Deletion occurs at segment granularity and asynchronously, compaction depends
 on cleaner state, beginning offsets remain the readable-range evidence, and
 unclean-election configuration does not report election history. Tiered
-storage local-retention overrides are not currently exposed.
+storage fields do not report remote segment presence, upload progress, or
+remote deletion.
 
 Classic consumer-group inspection returns copied coordinator, group state,
 protocol type and assignor, member identity, and current assignments alongside

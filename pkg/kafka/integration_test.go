@@ -153,6 +153,8 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 			"cleanup.policy":                 kadm.StringPtr("compact,delete"),
 			"retention.ms":                   kadm.StringPtr("86400000"),
 			"retention.bytes":                kadm.StringPtr("10485760"),
+			"local.retention.ms":             kadm.StringPtr("21600000"),
+			"local.retention.bytes":          kadm.StringPtr("5242880"),
 			"delete.retention.ms":            kadm.StringPtr("43200000"),
 			"min.compaction.lag.ms":          kadm.StringPtr("60000"),
 			"max.compaction.lag.ms":          kadm.StringPtr("3600000"),
@@ -3393,6 +3395,9 @@ func assertInspectionState(
 			kafka.TopicCleanupDelete|kafka.TopicCleanupCompact ||
 		topics[0].RetentionMilliseconds != 86_400_000 ||
 		topics[0].RetentionBytesPerPartition != 10_485_760 ||
+		topics[0].LocalRetentionMilliseconds != 21_600_000 ||
+		topics[0].LocalRetentionBytesPerPartition != 5_242_880 ||
+		!topics[0].LocalRetentionVisible ||
 		topics[0].DeleteRetentionMilliseconds != 43_200_000 ||
 		topics[0].MinimumCompactionLagMilliseconds != 60_000 ||
 		topics[0].MaximumCompactionLagMilliseconds != 3_600_000 ||

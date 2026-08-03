@@ -101,6 +101,11 @@ func TestInspectorReturnsTopicDurabilityAndOffsetState(t *testing.T) {
 		CleanupPolicy:                    TopicCleanupDelete,
 		RetentionMilliseconds:            604_800_000,
 		RetentionBytesPerPartition:       -1,
+		LocalRetentionMilliseconds:       -2,
+		LocalRetentionBytesPerPartition:  -2,
+		LocalRetentionVisible:            true,
+		RemoteStorageEnabledVisible:      true,
+		RemoteLogCopyDisabledVisible:     true,
 		DeleteRetentionMilliseconds:      86_400_000,
 		MaximumCompactionLagMilliseconds: math.MaxInt64,
 		MinimumCleanableDirtyRatio:       0.5,
@@ -162,6 +167,10 @@ func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T)
 		"cleanup.policy":                 "compact,delete",
 		"retention.ms":                   "-1",
 		"retention.bytes":                "10485760",
+		"local.retention.ms":             "3600000",
+		"local.retention.bytes":          "1048576",
+		"remote.storage.enable":          "true",
+		"remote.log.copy.disable":        "true",
 		"delete.retention.ms":            "86400000",
 		"min.compaction.lag.ms":          "60000",
 		"max.compaction.lag.ms":          "3600000",
@@ -210,6 +219,13 @@ func TestInspectorReturnsTopicRetentionCompactionAndElectionPolicy(t *testing.T)
 	if topic.CleanupPolicy != TopicCleanupCompact|TopicCleanupDelete ||
 		topic.RetentionMilliseconds != -1 ||
 		topic.RetentionBytesPerPartition != 10_485_760 ||
+		topic.LocalRetentionMilliseconds != 3_600_000 ||
+		topic.LocalRetentionBytesPerPartition != 1_048_576 ||
+		!topic.LocalRetentionVisible ||
+		!topic.RemoteStorageEnabled ||
+		!topic.RemoteStorageEnabledVisible ||
+		!topic.RemoteLogCopyDisabled ||
+		!topic.RemoteLogCopyDisabledVisible ||
 		topic.DeleteRetentionMilliseconds != 86_400_000 ||
 		topic.MinimumCompactionLagMilliseconds != 60_000 ||
 		topic.MaximumCompactionLagMilliseconds != 3_600_000 ||
@@ -251,6 +267,59 @@ func TestInspectorTopicInspectionAcceptsCleanupPolicyValues(t *testing.T) {
 					err,
 					test.want,
 				)
+			}
+		})
+	}
+}
+
+func TestInspectorTopicInspectionAcceptsLocalRetentionRelationships(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		totalTime  string
+		localTime  string
+		totalBytes string
+		localBytes string
+	}{
+		{
+			name:       "inherit finite totals",
+			totalTime:  "100",
+			localTime:  "-2",
+			totalBytes: "100",
+			localBytes: "-2",
+		},
+		{
+			name:       "equal finite totals",
+			totalTime:  "100",
+			localTime:  "100",
+			totalBytes: "100",
+			localBytes: "100",
+		},
+		{
+			name:       "unlimited totals",
+			totalTime:  "-1",
+			localTime:  "-1",
+			totalBytes: "-1",
+			localBytes: "9223372036854775807",
+		},
+		{
+			name:       "zero local limits",
+			totalTime:  "100",
+			localTime:  "0",
+			totalBytes: "100",
+			localBytes: "0",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			resource := validTopicInspectionResource("events", "2")
+			setInspectionConfigValue(&resource, "retention.ms", test.totalTime)
+			setInspectionConfigValue(&resource, "local.retention.ms", test.localTime)
+			setInspectionConfigValue(&resource, "retention.bytes", test.totalBytes)
+			setInspectionConfigValue(&resource, "local.retention.bytes", test.localBytes)
+			if _, err := inspectionTopicConfigs(
+				map[string]struct{}{"events": {}},
+				kadm.ResourceConfigs{resource},
+			); err != nil {
+				t.Fatalf("inspectionTopicConfigs() error = %v", err)
 			}
 		})
 	}
@@ -307,7 +376,7 @@ func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
 
 	resource := validTopicInspectionResource("events", "2")
 	resource.Configs = append(resource.Configs, kadm.Config{
-		Key:       "local.retention.ms",
+		Key:       "remote.log.delete.on.disable",
 		Sensitive: true,
 	})
 
@@ -316,6 +385,33 @@ func TestInspectorTopicInspectionIgnoresUnselectedConfigs(t *testing.T) {
 		kadm.ResourceConfigs{resource},
 	)
 	if err != nil || configs["events"].minInSyncReplicas != 2 {
+		t.Fatalf("inspectionTopicConfigs() = %#v, %v", configs, err)
+	}
+}
+
+func TestInspectorTopicInspectionAcceptsAbsentVersionDependentConfigs(t *testing.T) {
+	resource := validTopicInspectionResource("events", "2")
+	resource.Configs = slices.DeleteFunc(
+		resource.Configs,
+		func(config kadm.Config) bool {
+			switch config.Key {
+			case "local.retention.ms", "local.retention.bytes",
+				"remote.storage.enable", "remote.log.copy.disable":
+				return true
+			default:
+				return false
+			}
+		},
+	)
+
+	configs, err := inspectionTopicConfigs(
+		map[string]struct{}{"events": {}},
+		kadm.ResourceConfigs{resource},
+	)
+	config := configs["events"]
+	if err != nil || config.localRetentionVisible ||
+		config.remoteStorageEnabledVisible ||
+		config.remoteLogCopyDisabledVisible {
 		t.Fatalf("inspectionTopicConfigs() = %#v, %v", configs, err)
 	}
 }
@@ -1120,6 +1216,73 @@ func TestInspectorTopicInspectionRejectsInvalidPolicyConfigs(t *testing.T) {
 			},
 		},
 		{
+			name: "local retention time below inheritance sentinel",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "local.retention.ms", "-3")
+			},
+		},
+		{
+			name: "local retention bytes below inheritance sentinel",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "local.retention.bytes", "-3")
+			},
+		},
+		{
+			name: "local retention time without bytes",
+			change: func(resource *kadm.ResourceConfig) {
+				resource.Configs = slices.DeleteFunc(
+					resource.Configs,
+					func(config kadm.Config) bool {
+						return config.Key == "local.retention.bytes"
+					},
+				)
+			},
+		},
+		{
+			name: "local retention bytes without time",
+			change: func(resource *kadm.ResourceConfig) {
+				resource.Configs = slices.DeleteFunc(
+					resource.Configs,
+					func(config kadm.Config) bool {
+						return config.Key == "local.retention.ms"
+					},
+				)
+			},
+		},
+		{
+			name: "local retention time exceeds finite total",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.ms", "100")
+				set(resource, "local.retention.ms", "101")
+			},
+		},
+		{
+			name: "unlimited local retention time exceeds finite total",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.ms", "100")
+				set(resource, "local.retention.ms", "-1")
+			},
+		},
+		{
+			name: "local retention bytes exceeds finite total",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "retention.bytes", "100")
+				set(resource, "local.retention.bytes", "101")
+			},
+		},
+		{
+			name: "noncanonical remote storage boolean",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "remote.storage.enable", "TRUE")
+			},
+		},
+		{
+			name: "noncanonical remote copy boolean",
+			change: func(resource *kadm.ResourceConfig) {
+				set(resource, "remote.log.copy.disable", "FALSE")
+			},
+		},
+		{
 			name: "negative tombstone retention",
 			change: func(resource *kadm.ResourceConfig) {
 				set(resource, "delete.retention.ms", "-1")
@@ -1293,6 +1456,10 @@ func validTopicInspectionResource(
 		{key: "cleanup.policy", value: "delete"},
 		{key: "retention.ms", value: "604800000"},
 		{key: "retention.bytes", value: "-1"},
+		{key: "local.retention.ms", value: "-2"},
+		{key: "local.retention.bytes", value: "-2"},
+		{key: "remote.storage.enable", value: "false"},
+		{key: "remote.log.copy.disable", value: "false"},
 		{key: "delete.retention.ms", value: "86400000"},
 		{key: "min.compaction.lag.ms", value: "0"},
 		{key: "max.compaction.lag.ms", value: "9223372036854775807"},

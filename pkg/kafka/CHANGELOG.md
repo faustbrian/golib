@@ -6,6 +6,14 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- expose bounded tiered-storage topic policy through local-retention values and
+  remote-storage/copy-disable flags while preserving Kafka's inheritance and
+  unlimited sentinels, reporting version-dependent visibility, and rejecting
+  impossible or incomplete relationships
+- prove authenticated consumer-group partial inspection against Kafka's KRaft
+  authorizer: one explicitly authorized result is retained beside an
+  input-ordered authorization failure with stable classification and credential
+  redaction
 - add bounded, input-ordered per-target topic and consumer-group inspection
   results that retain independent successes and stable error classifications
   without changing the existing fail-closed batch methods
