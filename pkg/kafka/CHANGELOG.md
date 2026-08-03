@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- require the Kafka contract tests on Linux arm64 when Kafka gate inputs are
+  selected, complementing the existing Linux amd64 module contract with
+  attributable architecture-specific CI evidence
 - expose the configured redacted SASL method on every broker-connect
   observation; successful events prove that connection initialization,
   API-version negotiation, and the configured authentication flow completed

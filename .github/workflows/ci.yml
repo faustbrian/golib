@@ -25,6 +25,7 @@ jobs:
     outputs:
       matrix: ${{ steps.selection.outputs.matrix }}
       count: ${{ steps.selection.outputs.count }}
+      kafka_arm64: ${{ steps.selection.outputs.kafka_arm64 }}
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -45,20 +46,32 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
             matrix="$(go run ./cmd/golib select --changed "${BASE_SHA}" --format matrix)"
+            changed_matrix="${matrix}"
           else
             matrix="$(go run ./cmd/golib select --all --format matrix)"
+            changed_matrix="${matrix}"
+            if [[ "${EVENT_NAME}" == "push" &&
+                  "${PUSH_BASE_SHA}" =~ ^[0-9a-f]{40}$ &&
+                  "${PUSH_BASE_SHA}" != "0000000000000000000000000000000000000000" ]] &&
+                git cat-file -e "${PUSH_BASE_SHA}^{commit}" 2>/dev/null; then
+              changed_matrix="$(go run ./cmd/golib select --changed "${PUSH_BASE_SHA}" --format matrix)"
+            fi
           fi
           count="$(jq 'length' <<<"${matrix}")"
           [[ "${count}" -gt 0 ]] || {
             echo 'module selection is empty' >&2
             exit 1
           }
-          echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
-          echo "count=${count}" >>"${GITHUB_OUTPUT}"
+          {
+            echo "matrix=${matrix}"
+            echo "count=${count}"
+            echo "kafka_arm64=$(jq -r 'any(.[]; .directory == "pkg/kafka")' <<<"${changed_matrix}")"
+          } >>"${GITHUB_OUTPUT}"
 
   quality:
     name: Module / ${{ matrix.directory }}
@@ -208,10 +221,46 @@ jobs:
       - name: Analyze
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
 
+  kafka-arm64:
+    name: Kafka / Linux arm64
+    needs: prepare
+    if: needs.prepare.outputs.kafka_arm64 == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Install repository verification tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ripgrep
+
+      - name: Run Kafka contract tests on Linux arm64
+        run: ./scripts/run-modules.sh test --modules 'pkg/kafka'
+
+      - name: Upload attributable evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: evidence-pkg-kafka-linux-arm64
+          path: .artifacts/pkg/kafka
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
   required:
     name: Required
     if: always()
-    needs: [prepare, quality, codeql]
+    needs: [prepare, quality, codeql, kafka-arm64]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -220,11 +269,18 @@ jobs:
           PREPARE_RESULT: ${{ needs.prepare.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
+          KAFKA_ARM64_REQUIRED: ${{ needs.prepare.outputs.kafka_arm64 }}
+          KAFKA_ARM64_RESULT: ${{ needs.kafka-arm64.result }}
           MODULE_COUNT: ${{ needs.prepare.outputs.count }}
         run: |
           set -euo pipefail
           [[ "${PREPARE_RESULT}" == success ]]
           [[ "${QUALITY_RESULT}" == success ]]
           [[ "${CODEQL_RESULT}" == success ]]
+          if [[ "${KAFKA_ARM64_REQUIRED}" == true ]]; then
+            [[ "${KAFKA_ARM64_RESULT}" == success ]]
+          else
+            [[ "${KAFKA_ARM64_RESULT}" == skipped ]]
+          fi
           [[ "${MODULE_COUNT}" =~ ^[1-9][0-9]*$ ]]
           printf 'all %s selected modules and repository gates passed\n' "${MODULE_COUNT}"
