@@ -7,6 +7,8 @@ versioning after the first stable release.
 
 ### Changed
 
+- Strengthen exact-limit mutation coverage and simplify equivalent boundary
+  expressions without changing the accepted measurement domain.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   and remove the superseded package-local Gremlins configuration.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

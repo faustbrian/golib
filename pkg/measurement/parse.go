@@ -52,7 +52,10 @@ func SymbolProfile() Profile {
 
 // Resolve resolves exactly one alias without case or locale inference.
 func (p Profile) Resolve(alias string) (Unit, error) {
-	if len(alias) == 0 || len(alias) > MaxAliasBytes {
+	if len(alias) == 0 {
+		return "", fmt.Errorf("%w: unit alias length", ErrUnknownUnit)
+	}
+	if len(alias) > MaxAliasBytes {
 		return "", fmt.Errorf("%w: unit alias length", ErrUnknownUnit)
 	}
 	unit, ok := p.aliases[alias]
@@ -75,7 +78,7 @@ func Parse(input string, profile Profile) (Quantity, error) {
 		return Quantity{}, ErrInvalidQuantity
 	}
 	separator := strings.LastIndexByte(input, ' ')
-	if separator <= 0 || separator == len(input)-1 {
+	if separator == -1 {
 		return Quantity{}, ErrInvalidQuantity
 	}
 	amount, err := decimal.Parse(input[:separator])

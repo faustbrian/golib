@@ -3,7 +3,7 @@ package measurement
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/faustbrian/golib/pkg/math/decimal"
 )
@@ -158,7 +158,7 @@ func Units(dimension Dimension) []Unit {
 			units = append(units, unit)
 		}
 	}
-	sort.Slice(units, func(left, right int) bool { return units[left] < units[right] })
+	slices.Sort(units)
 
 	return units
 }

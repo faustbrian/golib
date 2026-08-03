@@ -38,12 +38,12 @@ func (d Dimension) String() string {
 }
 
 func (d Dimension) multiply(other Dimension) (Dimension, error) {
-	if d > LoadingMetreDimension || other > LoadingMetreDimension ||
-		d == LoadingMetreDimension || other == LoadingMetreDimension {
-		return Dimensionless, ErrUnsupportedDimension
-	}
 	switch d { //nolint:exhaustive // omitted dimensions fall through to rejection
 	case Dimensionless:
+		if !other.supportsDerivedArithmetic() {
+			return Dimensionless, ErrUnsupportedDimension
+		}
+
 		return other, nil
 	case LengthDimension:
 		switch other { //nolint:exhaustive // only supported length products return
@@ -85,14 +85,18 @@ func (d Dimension) multiply(other Dimension) (Dimension, error) {
 }
 
 func (d Dimension) divide(other Dimension) (Dimension, error) {
-	if d > LoadingMetreDimension || other > LoadingMetreDimension ||
-		d == LoadingMetreDimension || other == LoadingMetreDimension {
-		return Dimensionless, ErrUnsupportedDimension
-	}
 	switch other { //nolint:exhaustive // only identity cases return early
 	case Dimensionless:
+		if !d.supportsDerivedArithmetic() {
+			return Dimensionless, ErrUnsupportedDimension
+		}
+
 		return d, nil
 	case d:
+		if !d.supportsDerivedArithmetic() {
+			return Dimensionless, ErrUnsupportedDimension
+		}
+
 		return Dimensionless, nil
 	}
 	switch d { //nolint:exhaustive // omitted dimensions fall through to rejection
@@ -117,4 +121,16 @@ func (d Dimension) divide(other Dimension) (Dimension, error) {
 	}
 
 	return Dimensionless, ErrUnsupportedDimension
+}
+
+func (d Dimension) supportsDerivedArithmetic() bool {
+	switch d {
+	case Dimensionless, LengthDimension, AreaDimension, VolumeDimension,
+		MassDimension, TemperatureDimension, DensityDimension:
+		return true
+	case LoadingMetreDimension:
+		return false
+	default:
+		return false
+	}
 }
