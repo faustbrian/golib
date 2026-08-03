@@ -16,7 +16,9 @@ const (
 
 // WitnessLimits bounds immutable stateless-witness construction.
 type WitnessLimits struct {
-	MaxUpdates        uint32
+	// MaxUpdates bounds operations in the canonical witness batch.
+	MaxUpdates uint32
+	// MaxTemporaryBytes bounds conservatively accounted construction scratch.
 	MaxTemporaryBytes uint64
 }
 
@@ -32,8 +34,11 @@ func (limits WitnessLimits) validate() error {
 
 // WitnessEncodingLimits bounds canonical stateless-witness serialization.
 type WitnessEncodingLimits struct {
-	MaxWitnessBytes   uint64
-	MaxProofBytes     uint64
+	// MaxWitnessBytes bounds the complete canonical witness output.
+	MaxWitnessBytes uint64
+	// MaxProofBytes bounds the embedded canonical proof bytes.
+	MaxProofBytes uint64
+	// MaxTemporaryBytes bounds conservatively accounted encoding scratch.
 	MaxTemporaryBytes uint64
 }
 
@@ -51,11 +56,16 @@ func (limits WitnessEncodingLimits) validate() error {
 // MaxPostRootPointDecodes must equal one. Proof limits apply independently to
 // the embedded pre-state proof.
 type WitnessDecodingLimits struct {
-	MaxWitnessBytes         uint64
-	MaxUpdates              uint32
+	// MaxWitnessBytes bounds the complete untrusted witness container.
+	MaxWitnessBytes uint64
+	// MaxUpdates bounds decoded Set and Delete operations.
+	MaxUpdates uint32
+	// MaxPostRootPointDecodes must be one for the embedded post-state root.
 	MaxPostRootPointDecodes uint32
-	MaxTemporaryBytes       uint64
-	Proof                   ProofDecodingLimits
+	// MaxTemporaryBytes bounds conservatively accounted decoding scratch.
+	MaxTemporaryBytes uint64
+	// Proof independently bounds the embedded pre-state proof decoder.
+	Proof ProofDecodingLimits
 }
 
 func (limits WitnessDecodingLimits) validate() error {
@@ -73,11 +83,16 @@ func (limits WitnessDecodingLimits) validate() error {
 
 // StatelessUpdateLimits bounds verified post-state root calculation.
 type StatelessUpdateLimits struct {
-	MaxUpdates           uint32
+	// MaxUpdates bounds authenticated Set and Delete operations.
+	MaxUpdates uint32
+	// MaxCommitmentUpdates bounds bottom-up authenticated vector changes.
 	MaxCommitmentUpdates uint32
-	MaxFieldMappings     uint32
-	MaxPathLookups       uint32
-	MaxTemporaryBytes    uint64
+	// MaxFieldMappings bounds commitment-to-field operations.
+	MaxFieldMappings uint32
+	// MaxPathLookups bounds reads from authenticated witness paths.
+	MaxPathLookups uint32
+	// MaxTemporaryBytes bounds conservatively accounted update scratch.
+	MaxTemporaryBytes uint64
 }
 
 func (limits StatelessUpdateLimits) validate() error {

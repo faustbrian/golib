@@ -15,80 +15,121 @@ const maxPublicProofQueries = uint32(65_536)
 // OpeningLimits bounds setup and fixed-profile aggregate-opening work.
 // MaxQueries includes the package-owned statement-binding anchor.
 type OpeningLimits struct {
+	// MaxGeneratorDerivations bounds fixed-profile generator derivation.
 	MaxGeneratorDerivations uint32
-	MaxPrecomputedPoints    uint32
-	MaxQueries              uint32
-	MaxScalarDecodes        uint64
-	MaxMSMTerms             uint64
-	MaxTemporaryBytes       uint64
-	MaxWorkers              uint32
+	// MaxPrecomputedPoints bounds fixed-profile setup precomputation.
+	MaxPrecomputedPoints uint32
+	// MaxQueries bounds all aggregate openings, including the binding anchor.
+	MaxQueries uint32
+	// MaxScalarDecodes bounds canonical scalar decoding across all queries.
+	MaxScalarDecodes uint64
+	// MaxMSMTerms bounds aggregate multi-scalar-multiplication terms.
+	MaxMSMTerms uint64
+	// MaxTemporaryBytes bounds conservatively accounted scratch memory.
+	MaxTemporaryBytes uint64
+	// MaxWorkers bounds dependency-owned proof workers.
+	MaxWorkers uint32
 }
 
 // ProofMaterialLimits bounds snapshot proof-material assembly.
 type ProofMaterialLimits struct {
-	MaxKeys            uint32
-	MaxStemPaths       uint32
-	MaxNodeReads       uint64
+	// MaxKeys bounds distinct requested proof keys.
+	MaxKeys uint32
+	// MaxStemPaths bounds distinct retained terminal stem paths.
+	MaxStemPaths uint32
+	// MaxNodeReads bounds immutable committed-node reads.
+	MaxNodeReads uint64
+	// MaxPathCommitments bounds retained non-root path commitments.
 	MaxPathCommitments uint32
-	MaxPathBytes       uint64
-	MaxTemporaryBytes  uint64
+	// MaxPathBytes bounds canonical retained path bytes.
+	MaxPathBytes uint64
+	// MaxTemporaryBytes bounds conservatively accounted scratch memory.
+	MaxTemporaryBytes uint64
 }
 
 // ProverQueryLimits bounds complete-vector query extraction.
 type ProverQueryLimits struct {
-	MaxKeys           uint32
-	MaxQueries        uint32
-	MaxNodeReads      uint64
+	// MaxKeys bounds distinct keys expanded into prover openings.
+	MaxKeys uint32
+	// MaxQueries bounds complete-vector prover openings.
+	MaxQueries uint32
+	// MaxNodeReads bounds committed-node reads during query extraction.
+	MaxNodeReads uint64
+	// MaxTemporaryBytes bounds conservatively accounted scratch memory.
 	MaxTemporaryBytes uint64
 }
 
 // VerifierQueryLimits bounds independent public-evaluation reconstruction.
 type VerifierQueryLimits struct {
-	MaxQueries        uint32
+	// MaxQueries bounds verifier-side reconstructed openings.
+	MaxQueries uint32
+	// MaxTemporaryBytes bounds conservatively accounted scratch memory.
 	MaxTemporaryBytes uint64
 }
 
 // ProofContainerLimits bounds immutable proof construction.
 type ProofContainerLimits struct {
-	MaxClaims          uint32
-	MaxStemPaths       uint32
+	// MaxClaims bounds retained membership and absence claims.
+	MaxClaims uint32
+	// MaxStemPaths bounds retained terminal stem paths.
+	MaxStemPaths uint32
+	// MaxPathCommitments bounds retained non-root path commitments.
 	MaxPathCommitments uint32
+	// MaxPathDerivations bounds canonical topology derivations.
 	MaxPathDerivations uint32
-	MaxPathBytes       uint64
-	MaxTemporaryBytes  uint64
+	// MaxPathBytes bounds canonical retained path bytes.
+	MaxPathBytes uint64
+	// MaxTemporaryBytes bounds conservatively accounted scratch memory.
+	MaxTemporaryBytes uint64
 }
 
 // ProofGenerationLimits binds every proof-generation stage budget.
 type ProofGenerationLimits struct {
-	Material        ProofMaterialLimits
-	ProverQueries   ProverQueryLimits
+	// Material bounds snapshot claim and path-material assembly.
+	Material ProofMaterialLimits
+	// ProverQueries bounds complete private-vector query extraction.
+	ProverQueries ProverQueryLimits
+	// VerifierQueries bounds independent public-evaluation reconstruction.
 	VerifierQueries VerifierQueryLimits
-	Proof           ProofContainerLimits
+	// Proof bounds immutable canonical proof-container construction.
+	Proof ProofContainerLimits
 }
 
 // ProofVerificationLimits bounds independent verifier reconstruction.
 type ProofVerificationLimits struct {
+	// VerifierQueries bounds independent public-evaluation reconstruction.
 	VerifierQueries VerifierQueryLimits
 }
 
 // ProofEncodingLimits bounds canonical proof serialization.
 type ProofEncodingLimits struct {
-	MaxProofBytes     uint64
+	// MaxProofBytes bounds the complete canonical proof encoding.
+	MaxProofBytes uint64
+	// MaxTemporaryBytes bounds conservatively accounted encoding scratch.
 	MaxTemporaryBytes uint64
 }
 
 // ProofDecodingLimits bounds hostile canonical proof decoding. Point and
 // scalar decode limits may be zero to reject before cryptographic decoding.
 type ProofDecodingLimits struct {
-	MaxProofBytes      uint64
-	MaxClaims          uint32
-	MaxStemPaths       uint32
+	// MaxProofBytes bounds the complete untrusted proof container.
+	MaxProofBytes uint64
+	// MaxClaims bounds decoded membership and absence claims.
+	MaxClaims uint32
+	// MaxStemPaths bounds decoded terminal stem paths.
+	MaxStemPaths uint32
+	// MaxPathCommitments bounds decoded non-root path commitments.
 	MaxPathCommitments uint32
+	// MaxPathDerivations bounds canonical topology validation work.
 	MaxPathDerivations uint32
-	MaxPathBytes       uint64
-	MaxPointDecodes    uint32
-	MaxScalarDecodes   uint32
-	MaxTemporaryBytes  uint64
+	// MaxPathBytes bounds decoded canonical path bytes.
+	MaxPathBytes uint64
+	// MaxPointDecodes bounds strict group-point decoding.
+	MaxPointDecodes uint32
+	// MaxScalarDecodes bounds strict scalar decoding.
+	MaxScalarDecodes uint32
+	// MaxTemporaryBytes bounds conservatively accounted decoding scratch.
+	MaxTemporaryBytes uint64
 }
 
 func (limits OpeningLimits) validate() error {

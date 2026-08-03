@@ -14,7 +14,9 @@ const RootSize = uint32(backend.RootSize)
 // RootDecodingLimits bounds hostile canonical root decoding. A zero
 // MaxPointDecodes rejects non-empty roots before point decoding.
 type RootDecodingLimits struct {
-	MaxRootBytes    uint32
+	// MaxRootBytes bounds the complete untrusted root container.
+	MaxRootBytes uint32
+	// MaxPointDecodes bounds strict group-point decoding.
 	MaxPointDecodes uint32
 }
 

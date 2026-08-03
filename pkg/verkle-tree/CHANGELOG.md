@@ -21,6 +21,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   fork and unrelated FRI implementation do not resolve the backend blockers.
 - Pin the maintained Constantine candidate and record that its unfinished,
   unaudited Verkle IPA implementation is not exported through C, Rust, or Go.
+- Audit the complete experimental exported API and document every public limit
+  field, ownership rule, error, concurrency contract, cost, and caveat.
 
 ### Added
 

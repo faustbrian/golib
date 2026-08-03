@@ -20,7 +20,9 @@ type Value [32]byte
 
 // Entry is one present key/value pair.
 type Entry struct {
-	Key   Key
+	// Key is the exact fixed-length lookup key.
+	Key Key
+	// Value is the exact fixed-length value, including an all-zero value.
 	Value Value
 }
 
@@ -90,36 +92,54 @@ func (update Update) Value() (Value, bool, error) {
 
 // StateLimits bounds retained state and atomic batch work.
 type StateLimits struct {
-	MaxEntries        uint32
-	MaxBatchUpdates   uint32
+	// MaxEntries bounds retained present key/value entries.
+	MaxEntries uint32
+	// MaxBatchUpdates bounds operations in one atomic update batch.
+	MaxBatchUpdates uint32
+	// MaxTemporaryBytes bounds conservatively accounted state scratch memory.
 	MaxTemporaryBytes uint64
 }
 
 // TreeLimits bounds committed-tree construction.
 type TreeLimits struct {
-	MaxEntries         uint32
-	MaxStems           uint32
-	MaxNodes           uint32
-	MaxEdges           uint32
-	MaxCommitments     uint32
-	MaxFieldMappings   uint64
+	// MaxEntries bounds present leaf entries committed by the tree.
+	MaxEntries uint32
+	// MaxStems bounds distinct retained 31-byte stems.
+	MaxStems uint32
+	// MaxNodes bounds retained logical tree nodes.
+	MaxNodes uint32
+	// MaxEdges bounds retained internal-node edges.
+	MaxEdges uint32
+	// MaxCommitments bounds constructed vector commitments.
+	MaxCommitments uint32
+	// MaxFieldMappings bounds commitment-to-field operations.
+	MaxFieldMappings uint64
+	// MaxCommitmentTerms bounds all vector-commitment terms.
 	MaxCommitmentTerms uint64
-	MaxTemporaryBytes  uint64
+	// MaxTemporaryBytes bounds conservatively accounted tree scratch memory.
+	MaxTemporaryBytes uint64
 }
 
 // CommitmentLimits bounds fixed-profile generator and commitment work.
 type CommitmentLimits struct {
+	// MaxGeneratorDerivations bounds fixed-profile generator derivation.
 	MaxGeneratorDerivations uint32
-	MaxScalarDecodes        uint32
-	MaxMSMTerms             uint32
-	MaxTemporaryBytes       uint64
+	// MaxScalarDecodes bounds canonical scalar decoding.
+	MaxScalarDecodes uint32
+	// MaxMSMTerms bounds vector-commitment scalar multiplication terms.
+	MaxMSMTerms uint32
+	// MaxTemporaryBytes bounds conservatively accounted backend scratch.
+	MaxTemporaryBytes uint64
 }
 
 // SnapshotLimits binds every resource budget required to construct and update
 // an immutable snapshot. Every field must be positive.
 type SnapshotLimits struct {
-	State      StateLimits
-	Tree       TreeLimits
+	// State bounds immutable key/value state construction and updates.
+	State StateLimits
+	// Tree bounds committed tree construction.
+	Tree TreeLimits
+	// Commitment bounds fixed-profile commitment work.
 	Commitment CommitmentLimits
 }
 

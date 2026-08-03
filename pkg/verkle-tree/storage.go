@@ -89,9 +89,12 @@ func (capabilities StoreCapabilities) Supports(
 
 // StoreCapabilityError reports the exact guarantees a store did not assert.
 type StoreCapabilityError struct {
-	Required  StoreCapabilities
+	// Required is the complete capability set required by the operation.
+	Required StoreCapabilities
+	// Available is the capability set asserted by the adapter.
 	Available StoreCapabilities
-	Missing   StoreCapabilities
+	// Missing is Required with every Available bit removed.
+	Missing StoreCapabilities
 }
 
 // Error implements error.
@@ -115,7 +118,9 @@ func (err *StoreCapabilityError) Unwrap() error {
 // expectation. Each StoredNode encoding returned to an implementation is an
 // owned copy that the implementation may retain.
 type NodeStore interface {
+	// Capabilities reports the storage guarantees asserted by the adapter.
 	Capabilities() StoreCapabilities
+	// CommitSnapshot atomically persists every node and publishes the root.
 	CommitSnapshot(ctx context.Context, commit StoreCommit) error
 }
 
@@ -124,7 +129,9 @@ type NodeStore interface {
 // returned byte slice to the loader; implementations must not retain or mutate
 // that slice after returning it.
 type NodeReader interface {
+	// Capabilities reports the storage guarantees asserted by the adapter.
 	Capabilities() StoreCapabilities
+	// OpenSnapshot opens one fixed published-root and node-namespace view.
 	OpenSnapshot(ctx context.Context) (NodeReadSnapshot, error)
 }
 
@@ -136,8 +143,11 @@ type NodeReader interface {
 // the operation context; implementations must release local resources even
 // when that context is already cancelled and use it to bound external cleanup.
 type NodeReadSnapshot interface {
+	// Publication returns the root and canonical root-node address for the view.
 	Publication(ctx context.Context) (StorePublication, error)
+	// ReadNode returns owned canonical bytes after enforcing maxBytes.
 	ReadNode(ctx context.Context, id NodeID, maxBytes uint64) ([]byte, error)
+	// Close releases the view exactly once, including after cancellation.
 	Close(ctx context.Context) error
 }
 
@@ -306,10 +316,15 @@ func (commit StoreCommit) validate() error {
 // Adapter-owned I/O and durability resources remain the adapter's explicit
 // responsibility.
 type StorageLimits struct {
-	MaxNodes          uint32
-	MaxNodeBytes      uint64
-	MaxEncodedBytes   uint64
-	MaxHashes         uint32
+	// MaxNodes bounds canonical nodes prepared for one atomic commit.
+	MaxNodes uint32
+	// MaxNodeBytes bounds each individual canonical node encoding.
+	MaxNodeBytes uint64
+	// MaxEncodedBytes bounds all canonical node bytes in one commit.
+	MaxEncodedBytes uint64
+	// MaxHashes bounds content-address calculations.
+	MaxHashes uint32
+	// MaxTemporaryBytes bounds conservatively accounted commit scratch.
 	MaxTemporaryBytes uint64
 }
 

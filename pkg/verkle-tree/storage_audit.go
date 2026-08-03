@@ -26,7 +26,9 @@ const (
 // retained historical publications, and the complete immutable node
 // inventory. Implementations must keep that view fixed until Close.
 type NodeAuditStore interface {
+	// Capabilities reports the storage guarantees asserted by the adapter.
 	Capabilities() StoreCapabilities
+	// OpenAudit opens one fixed publication, node namespace, and inventory view.
 	OpenAudit(ctx context.Context) (NodeAuditSnapshot, error)
 }
 
@@ -41,17 +43,22 @@ type NodeAuditStore interface {
 // ownership and pre-I/O byte-bound contract. Close follows the same cleanup
 // contract as NodeReadSnapshot.Close.
 type NodeAuditSnapshot interface {
+	// CurrentPublication returns the current root, or false when none exists.
 	CurrentPublication(ctx context.Context) (StorePublication, bool, error)
+	// RetainedPublications returns owned canonical publications within max.
 	RetainedPublications(
 		ctx context.Context,
 		maxPublications uint32,
 	) ([]StorePublication, error)
+	// ReadNode returns owned canonical bytes after enforcing maxBytes.
 	ReadNode(ctx context.Context, id NodeID, maxBytes uint64) ([]byte, error)
+	// NodeIDs returns one strictly ascending inventory page after after.
 	NodeIDs(
 		ctx context.Context,
 		after *NodeID,
 		maxIDs uint32,
 	) (ids []NodeID, more bool, err error)
+	// Close releases the view exactly once, including after cancellation.
 	Close(ctx context.Context) error
 }
 
@@ -59,13 +66,20 @@ type NodeAuditSnapshot interface {
 // inventory. Read applies independently to every publication; total read work
 // is bounded by MaxPublications multiplied by each Read field.
 type StorageAuditLimits struct {
-	MaxPublications     uint32
-	MaxInventoryNodes   uint32
-	MaxNodeIDsPerPage   uint32
-	MaxInventoryPages   uint32
+	// MaxPublications bounds the current and retained roots audited together.
+	MaxPublications uint32
+	// MaxInventoryNodes bounds all content addresses returned by inventory.
+	MaxInventoryNodes uint32
+	// MaxNodeIDsPerPage bounds each inventory result length and capacity.
+	MaxNodeIDsPerPage uint32
+	// MaxInventoryPages bounds inventory calls, including the terminal page.
+	MaxInventoryPages uint32
+	// MaxUnreachableNodes bounds retained unreachable-node results.
 	MaxUnreachableNodes uint32
-	MaxTemporaryBytes   uint64
-	Read                StorageReadLimits
+	// MaxTemporaryBytes bounds conservatively accounted audit scratch.
+	MaxTemporaryBytes uint64
+	// Read independently bounds verification of each publication.
+	Read StorageReadLimits
 }
 
 func (limits StorageAuditLimits) validate() error {

@@ -18,7 +18,9 @@ import (
 // close.
 type NodeMaintenanceStore interface {
 	NodeAuditStore
+	// MaintenanceProfile identifies the exclusive profile of the namespace.
 	MaintenanceProfile() Profile
+	// ApplyMaintenance atomically compares, retains, and deletes as requested.
 	ApplyMaintenance(ctx context.Context, maintenance StoreMaintenance) error
 }
 

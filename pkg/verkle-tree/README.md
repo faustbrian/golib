@@ -42,6 +42,8 @@ The exact evidence and consequences are recorded in
 [`specification/sources.json`](specification/sources.json). The pinned backend's
 accepted seam and release blockers are in
 [`docs/backend-audit.md`](docs/backend-audit.md).
+The complete current exported-surface review is in
+[`docs/api-audit.md`](docs/api-audit.md).
 
 ## Five-minute quick start
 

@@ -239,9 +239,12 @@ const (
 // ResourceError reports an exact rejected budget without disclosing keys,
 // values, commitments, roots, or proofs.
 type ResourceError struct {
+	// Resource identifies the rejected work or memory dimension.
 	Resource Resource
-	Limit    uint64
-	Actual   uint64
+	// Limit is the caller-declared maximum.
+	Limit uint64
+	// Actual is the value rejected before amplified work.
+	Actual uint64
 }
 
 // Error implements error.

@@ -33,8 +33,11 @@ var snapshotMagic = [snapshotMagicBytes]byte{'V', 'K', 'S', 'S'}
 
 // SnapshotEncodingLimits bounds canonical whole-snapshot serialization.
 type SnapshotEncodingLimits struct {
-	MaxSnapshotBytes  uint64
-	MaxEntries        uint32
+	// MaxSnapshotBytes bounds the complete canonical snapshot output.
+	MaxSnapshotBytes uint64
+	// MaxEntries bounds encoded present key/value entries.
+	MaxEntries uint32
+	// MaxTemporaryBytes bounds conservatively accounted encoding scratch.
 	MaxTemporaryBytes uint64
 }
 
@@ -54,11 +57,16 @@ func (limits SnapshotEncodingLimits) validate() error {
 // independently rebuilt authenticated state. MaxPointDecodes may be zero for
 // an empty snapshot and must not exceed the one encoded root commitment.
 type SnapshotDecodingLimits struct {
-	MaxSnapshotBytes  uint64
-	MaxEntries        uint32
-	MaxPointDecodes   uint32
+	// MaxSnapshotBytes bounds the complete untrusted snapshot container.
+	MaxSnapshotBytes uint64
+	// MaxEntries bounds decoded present key/value entries.
+	MaxEntries uint32
+	// MaxPointDecodes bounds strict decoding of the embedded root.
+	MaxPointDecodes uint32
+	// MaxTemporaryBytes bounds conservatively accounted decoding scratch.
 	MaxTemporaryBytes uint64
-	Snapshot          SnapshotLimits
+	// Snapshot independently bounds authenticated tree reconstruction.
+	Snapshot SnapshotLimits
 }
 
 func (limits SnapshotDecodingLimits) validate() error {

@@ -24,20 +24,28 @@ const (
 // reconstruction. MaxPointDecodes may be zero to permit only identity-only
 // nodes; every other field must be positive.
 type StorageReadLimits struct {
-	MaxEntries   uint32
-	MaxNodes     uint32
-	MaxEdges     uint32
+	// MaxEntries bounds present key/value entries reconstructed from storage.
+	MaxEntries uint32
+	// MaxNodes bounds distinct reachable logical nodes.
+	MaxNodes uint32
+	// MaxEdges bounds reachable internal-node edges.
+	MaxEdges uint32
+	// MaxNodeReads bounds adapter node-read calls.
 	MaxNodeReads uint32
+	// MaxNodeBytes bounds each adapter-returned canonical node.
 	MaxNodeBytes uint64
 	// MaxEncodedBytes covers loaded bytes plus canonical re-encoding used to
 	// verify the root-node address.
 	MaxEncodedBytes uint64
 	// MaxHashes covers loaded content-address checks plus canonical
 	// re-encoding hashes.
-	MaxHashes         uint64
-	MaxPointDecodes   uint64
+	MaxHashes uint64
+	// MaxPointDecodes bounds strict commitment decoding across loaded nodes.
+	MaxPointDecodes uint64
+	// MaxTemporaryBytes bounds conservatively accounted load scratch.
 	MaxTemporaryBytes uint64
-	Snapshot          SnapshotLimits
+	// Snapshot independently bounds authenticated tree reconstruction.
+	Snapshot SnapshotLimits
 }
 
 func (limits StorageReadLimits) validate() error {
