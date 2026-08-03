@@ -43,6 +43,28 @@ var (
 	// ErrInvalidProof identifies a malformed, incomplete, or unusable proof.
 	ErrInvalidProof = errors.New("invalid Verkle proof")
 
+	// ErrInvalidWitness identifies a malformed, incomplete, or unusable
+	// stateless witness.
+	ErrInvalidWitness = errors.New("invalid Verkle stateless witness")
+
+	// ErrInvalidStatelessEngine identifies an unusable stateless verifier.
+	ErrInvalidStatelessEngine = errors.New("invalid Verkle stateless engine")
+
+	// ErrInvalidStatelessResult identifies an unusable verified transition
+	// result.
+	ErrInvalidStatelessResult = errors.New("invalid Verkle stateless result")
+
+	// ErrIncompleteWitness identifies omitted authenticated update material.
+	ErrIncompleteWitness = errors.New("incomplete Verkle stateless witness")
+
+	// ErrUnsupportedUpdate identifies a valid update whose required topology
+	// transition is not implemented by the selected experimental profile.
+	ErrUnsupportedUpdate = errors.New("unsupported Verkle update")
+
+	// ErrPostStateMismatch identifies a derived post-state root that differs
+	// from the exact root claimed by a stateless witness.
+	ErrPostStateMismatch = errors.New("verkle post-state root mismatch")
+
 	// ErrInvalidStore identifies a nil or unusable caller-owned storage
 	// boundary.
 	ErrInvalidStore = errors.New("invalid Verkle node store")
@@ -200,6 +222,15 @@ const (
 
 	// ResourceUnreachableNodes counts stored nodes outside every audited root.
 	ResourceUnreachableNodes
+
+	// ResourceWitnessBytes counts canonical stateless-witness bytes.
+	ResourceWitnessBytes
+
+	// ResourceCommitmentUpdates counts authenticated vector changes.
+	ResourceCommitmentUpdates
+
+	// ResourcePathLookups counts authenticated witness-path reads.
+	ResourcePathLookups
 )
 
 // ResourceError reports an exact rejected budget without disclosing keys,

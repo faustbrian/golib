@@ -4,8 +4,9 @@ This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
 canonical storage-write and isolated storage-read, limit, resource, typed-error,
 read-only storage-audit, and atomic storage-maintenance identifiers form the
-current experimental public contract. Witnesses and crash-repair identifiers
-described here remain proposed.
+current experimental public contract. Canonical stateless Set witnesses and
+verified pre/post-state results are included; crash-repair identifiers remain
+proposed.
 
 ## Public concepts
 
@@ -16,6 +17,7 @@ The current public API exposes opaque, profile-bound forms of:
 - read result with distinct present and absent states;
 - validated update and atomic batch;
 - membership, non-membership, and aggregate proof;
+- canonical stateless Set witness and verified pre/post-state result;
 - canonical content-addressed node batches and capability-checked atomic root
   publication;
 - capability-checked isolated persisted snapshot reconstruction;
@@ -24,8 +26,8 @@ The current public API exposes opaque, profile-bound forms of:
 - verifier;
 - resource limits and typed errors.
 
-A future public API is expected to add stateless witnesses, verified post-state
-results, and crash-repair application.
+A future public API is expected to add topology-changing stateless updates and
+crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -150,11 +152,13 @@ not authenticate the supplied old scalars by itself. The internal authenticated
 stateless updater now verifies the complete tree proof before using those old
 scalars for present-stem `Set` operations. The decoder alone does not bind a
 root, key set, claim, path, transcript, or verification result. The boundary
-remains internal. Snapshot and proof functionality is exposed only through
-fixed-profile facades; stateless post-state calculation is not yet connected
-to a public or canonically encoded witness operation. The package does not
-provide generic cryptographic composition or dependency-level cancellation
-during proof arithmetic.
+remains internal. Snapshot, proof, and stateless post-state functionality are
+exposed only through fixed-profile facades. `Witness` binds canonical proof
+bytes, an exactly matching canonical Set key set, and a claimed post-state
+root; construction and decoding reject missing or surplus claims, while
+`StatelessEngine.Apply` verifies the proof and matches an independently derived
+root. The package does not provide generic cryptographic
+composition or dependency-level cancellation during proof arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,
 value, leaf, and topology rules. Its immutable builder may be reused
@@ -241,13 +245,16 @@ while the backend cannot stop proof arithmetic after cancellation and witness
 and storage contracts remain incomplete.
 
 The internal stateless updater verifies that proof first, requires one exact
-authenticated old claim for every distinct update, and accepts only `Set`
+authenticated old claim for every distinct update and no surplus claims, and
+accepts only `Set`
 operations whose stem path is present. It updates the selected C1/C2
 commitment, then the stem commitment, then every authenticated ancestor in
 descending depth order. Update order cannot change the result. Explicit limits
 cover updates, commitment changes, commitment-to-field mappings, path lookups,
-and temporary bytes. Deletion, missing/different-stem insertion, canonical
-witness bytes, and the public witness/application boundary remain proposed.
+and temporary bytes. The public canonical witness format additionally bounds
+witness/proof bytes and requires exactly one post-root point decode before
+cryptographic work.
+Deletion and missing/different-stem insertion remain proposed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

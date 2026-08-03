@@ -176,6 +176,20 @@ func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	} else if !errors.Is(decodeErr, verkletree.ErrInvalidProof) {
 		t.Fatalf("tampered decode error = %v", decodeErr)
 	}
+	excessiveEncodingLimits := publicProofEncodingLimits()
+	excessiveEncodingLimits.MaxProofBytes = ^uint64(0)
+	if _, err := proof.Bytes(
+		context.Background(), excessiveEncodingLimits,
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("excessive proof encoding limits error = %v", err)
+	}
+	excessiveDecodingLimits := publicProofDecodingLimits()
+	excessiveDecodingLimits.MaxProofBytes = ^uint64(0)
+	if _, err := verkletree.DecodeProof(
+		context.Background(), encoded, excessiveDecodingLimits,
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("excessive proof decoding limits error = %v", err)
+	}
 
 	if _, err := verkletree.NewProofEngine(
 		context.Background(),

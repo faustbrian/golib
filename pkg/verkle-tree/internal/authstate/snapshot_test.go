@@ -448,6 +448,12 @@ func TestSnapshotRejectsInvalidStateInputsAndContexts(t *testing.T) {
 		MaxTemporaryBytes: 1 << 17,
 	}
 	if _, err := snapshot.StorageImage(
+		context.Background(),
+		storageLimits,
+	); err != nil {
+		t.Fatalf("valid storage image: %v", err)
+	}
+	if _, err := snapshot.StorageImage(
 		nilContext,
 		storageLimits,
 	); !errors.Is(err, errInvalidContext) {

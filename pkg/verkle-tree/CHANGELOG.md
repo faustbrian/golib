@@ -70,8 +70,13 @@ All notable changes to `verkle-tree` will be documented in this file.
   complete aggregate tree proof, authenticates old membership or absent-suffix
   values, applies canonical `Set` batches to stems proven present, and
   propagates shared commitment changes deterministically to a pinned post-state
-  root. Deletion, new-stem topology changes, witness encoding, and a public
-  stateless API remain unsupported.
+  root.
+- Add the experimental public canonical stateless-witness and verifier API. A
+  strict bounded decoder binds the complete pre-state proof, ordered Set batch,
+  and claimed post-state root, rejecting missing or surplus proof claims;
+  `StatelessEngine.Apply` verifies the proof, derives the root independently,
+  and returns exact pre/post roots only after a match. Deletion and new-stem
+  topology changes remain unsupported.
 - Add a bounded immutable committed-tree builder that combines canonical leaf,
   stem, and internal commitments into deterministic roots, with reusable
   concurrent construction, aggregate cryptographic-work limits, and six
@@ -147,6 +152,12 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Fixed
 
+- Classify excessive public proof and witness codec limits as invalid limits
+  instead of malformed cryptographic material.
+- Require the stateless witness post-root point-decode limit to equal the one
+  root container decoded by the canonical format.
+- Preserve cancellation errors encountered while decoding a witness post-state
+  root instead of misclassifying them as malformed bytes.
 - Reject reordered claim, stem-path, and path-commitment records during strict
   tree-proof decoding instead of silently normalizing alternate encodings, and
   report malformed proof topology through the canonical decoding error.

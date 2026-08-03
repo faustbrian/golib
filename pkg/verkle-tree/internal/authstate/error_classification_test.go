@@ -19,7 +19,11 @@ func TestFacadeErrorClassifiers(t *testing.T) {
 		!IsInvalidProofError(errInvalidPathCommitment) ||
 		IsInvalidProofError(other) ||
 		!IsInvalidProofEncodingError(errInvalidTreeProofEncoding) ||
-		IsInvalidProofEncodingError(other) {
+		IsInvalidProofEncodingError(other) ||
+		!IsInvalidProofLimitsError(errInvalidTreeProofLimits) ||
+		!IsInvalidProofLimitsError(errInvalidTreeProofEncodingLimits) ||
+		!IsInvalidProofLimitsError(errInvalidTreeProofDecodingLimits) ||
+		IsInvalidProofLimitsError(other) {
 		t.Fatal("facade error classifier mismatch")
 	}
 }

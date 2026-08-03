@@ -391,6 +391,179 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	}
 }
 
+func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
+	t.Parallel()
+	validEncodingLimits := WitnessEncodingLimits{
+		MaxWitnessBytes: 1, MaxProofBytes: 1, MaxTemporaryBytes: 1,
+	}
+	for name, invalidate := range map[string]func(*WitnessEncodingLimits){
+		"witness bytes":   func(value *WitnessEncodingLimits) { value.MaxWitnessBytes = 0 },
+		"proof bytes":     func(value *WitnessEncodingLimits) { value.MaxProofBytes = 0 },
+		"temporary bytes": func(value *WitnessEncodingLimits) { value.MaxTemporaryBytes = 0 },
+	} {
+		limits := validEncodingLimits
+		invalidate(&limits)
+		if err := limits.validate(); !errors.Is(err, ErrInvalidLimits) {
+			t.Fatalf("invalid encoding %s limit = %v", name, err)
+		}
+	}
+	validDecodingLimits := WitnessDecodingLimits{
+		MaxWitnessBytes: 1, MaxUpdates: maxPublicWitnessUpdates,
+		MaxPostRootPointDecodes: 1, MaxTemporaryBytes: 1,
+		Proof: testFacadeProofDecodingLimits(),
+	}
+	for name, invalidate := range map[string]func(*WitnessDecodingLimits){
+		"witness bytes": func(value *WitnessDecodingLimits) { value.MaxWitnessBytes = 0 },
+		"updates zero":  func(value *WitnessDecodingLimits) { value.MaxUpdates = 0 },
+		"updates high": func(value *WitnessDecodingLimits) {
+			value.MaxUpdates = maxPublicWitnessUpdates + 1
+		},
+		"post-root points": func(value *WitnessDecodingLimits) {
+			value.MaxPostRootPointDecodes = 0
+		},
+		"post-root points high": func(value *WitnessDecodingLimits) {
+			value.MaxPostRootPointDecodes = 2
+		},
+	} {
+		limits := validDecodingLimits
+		invalidate(&limits)
+		if err := limits.validate(); !errors.Is(err, ErrInvalidLimits) {
+			t.Fatalf("invalid decoding %s limit = %v", name, err)
+		}
+	}
+	if err := validDecodingLimits.validate(); err != nil {
+		t.Fatalf("maximum decoding update limit: %v", err)
+	}
+
+	for name, validate := range map[string]func() error{
+		"witness zero": func() error { return (WitnessLimits{}).validate() },
+		"witness maximum": func() error {
+			return (WitnessLimits{MaxUpdates: maxPublicWitnessUpdates + 1, MaxTemporaryBytes: 1}).validate()
+		},
+		"encoding zero": func() error { return (WitnessEncodingLimits{}).validate() },
+		"decoding zero": func() error { return (WitnessDecodingLimits{}).validate() },
+		"decoding maximum": func() error {
+			return (WitnessDecodingLimits{
+				MaxWitnessBytes: 1, MaxUpdates: maxPublicWitnessUpdates + 1,
+				MaxTemporaryBytes: 1, Proof: testFacadeProofDecodingLimits(),
+			}).validate()
+		},
+		"update zero": func() error { return (StatelessUpdateLimits{}).validate() },
+		"update maximum": func() error {
+			return (StatelessUpdateLimits{
+				MaxUpdates:           maxPublicWitnessUpdates + 1,
+				MaxCommitmentUpdates: 1, MaxFieldMappings: 1,
+				MaxPathLookups: 1, MaxTemporaryBytes: 1,
+			}).validate()
+		},
+		"commitment zero": func() error { return validateCommitmentLimits(CommitmentLimits{}) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validate(); !errors.Is(err, ErrInvalidLimits) {
+				t.Fatalf("invalid limits error = %v", err)
+			}
+		})
+	}
+	if err := (WitnessLimits{MaxUpdates: maxPublicWitnessUpdates, MaxTemporaryBytes: 1}).validate(); err != nil {
+		t.Fatalf("maximum witness limits: %v", err)
+	}
+	if err := (StatelessUpdateLimits{
+		MaxUpdates:           maxPublicWitnessUpdates,
+		MaxCommitmentUpdates: 1, MaxFieldMappings: 1,
+		MaxPathLookups: 1, MaxTemporaryBytes: 1,
+	}).validate(); err != nil {
+		t.Fatalf("maximum stateless update limits: %v", err)
+	}
+
+	for name, invalidate := range map[string]func(*CommitmentLimits){
+		"generators": func(value *CommitmentLimits) { value.MaxGeneratorDerivations = 0 },
+		"scalars":    func(value *CommitmentLimits) { value.MaxScalarDecodes = 0 },
+		"msm":        func(value *CommitmentLimits) { value.MaxMSMTerms = 0 },
+		"memory":     func(value *CommitmentLimits) { value.MaxTemporaryBytes = 0 },
+	} {
+		t.Run("commitment "+name, func(t *testing.T) {
+			limits := testFacadeSnapshotLimits().Commitment
+			invalidate(&limits)
+			if err := validateCommitmentLimits(limits); !errors.Is(err, ErrInvalidLimits) {
+				t.Fatalf("invalid commitment limits error = %v", err)
+			}
+		})
+	}
+
+	var forged Witness
+	forged.valid = true
+	if _, err := forged.Proof(); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("forged witness proof error = %v", err)
+	}
+	if _, err := forged.Updates(context.Background()); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("forged witness updates error = %v", err)
+	}
+	if _, err := forged.PostRoot(); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("forged witness root error = %v", err)
+	}
+
+	invalid := Update{kind: UpdateDelete, value: Value{1}}
+	if _, err := invalid.Kind(); !errors.Is(err, ErrInvalidUpdate) {
+		t.Fatalf("forged update kind error = %v", err)
+	}
+	if _, err := invalid.Key(); !errors.Is(err, ErrInvalidUpdate) {
+		t.Fatalf("forged update key error = %v", err)
+	}
+	if _, _, err := invalid.Value(); !errors.Is(err, ErrInvalidUpdate) {
+		t.Fatalf("forged update value error = %v", err)
+	}
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := toInternalWitnessUpdates(cancelled, []Update{Set(Key{}, Value{})}); !errors.Is(err, ErrCancelled) {
+		t.Fatalf("cancelled internal update copy error = %v", err)
+	}
+	if _, err := toInternalWitnessUpdates(context.Background(), []Update{{}}); !errors.Is(err, ErrInvalidUpdate) {
+		t.Fatalf("invalid internal update copy error = %v", err)
+	}
+	if _, err := toInternalWitnessUpdates(context.Background(), []Update{Delete(Key{})}); !errors.Is(err, ErrUnsupportedUpdate) {
+		t.Fatalf("unsupported internal update copy error = %v", err)
+	}
+	if _, err := toPublicWitnessUpdates(
+		context.Background(), []authstate.Update{{}},
+	); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("invalid public update copy error = %v", err)
+	}
+	if _, err := toPublicWitnessUpdates(
+		context.Background(), []authstate.Update{authstate.Delete(authstate.Key{})},
+	); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("delete public update copy error = %v", err)
+	}
+	if _, err := toPublicWitnessUpdates(
+		&cancellingContext{remaining: 1},
+		[]authstate.Update{
+			authstate.Set(authstate.Key{}, authstate.Value{}),
+			authstate.Set(authstate.Key{1}, authstate.Value{}),
+		},
+	); !errors.Is(err, ErrCancelled) {
+		t.Fatalf("cancelled public update copy error = %v", err)
+	}
+
+	resourceLimits := testFacadeSnapshotLimits().Commitment
+	resourceLimits.MaxGeneratorDerivations = 1
+	if _, err := NewStatelessEngine(
+		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		testFacadeOpeningLimits(), resourceLimits,
+	); !errors.Is(err, ErrResourceExhausted) {
+		t.Fatalf("stateless engine resource error = %v", err)
+	}
+	for _, partial := range []StatelessEngine{
+		{valid: true},
+		{value: &authstate.StatelessUpdater{}},
+	} {
+		if _, err := partial.Apply(
+			context.Background(), Witness{}, ProofVerificationLimits{}, StatelessUpdateLimits{},
+		); !errors.Is(err, ErrInvalidStatelessEngine) {
+			t.Fatalf("partial stateless engine error = %v", err)
+		}
+	}
+}
+
 func TestFacadeLimitValidationChecksEveryFieldAndBoundary(t *testing.T) {
 	t.Parallel()
 

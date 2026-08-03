@@ -23,8 +23,8 @@ construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
 bounded atomic maintenance operation replaces the retained-publication set and
 prunes only nodes outside the current and desired retained roots. Crash-repair
-application, concrete storage adapters, stateless witnesses, and stable APIs
-remain unimplemented. This
+application, concrete storage adapters, topology-changing stateless updates,
+and stable APIs remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -62,12 +62,13 @@ The following parts of the profile are deliberately not frozen:
 
 - serialized empty-subtree representation outside the root and stored-node
   formats defined below;
-- canonical witness and snapshot encodings;
+- stable witness semantics beyond the exact experimental Set-witness format
+  below, and canonical whole-snapshot encoding;
 - canonical point, scalar, and verified-proof rejection rules beyond the
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
-- commitment and witness update ordering, conflicting old-value claims,
-  stateless witness completeness, and post-state calculation;
+- deletion and topology-changing witness update ordering, conflicting
+  old-value claims, completeness, and post-state calculation;
 - durable snapshot naming beyond the root publication pair, adapter-specific
   retention policy, and crash repair;
   and
@@ -762,12 +763,13 @@ experimental profile and proof system. It does not establish storage
 durability, snapshot retention, witness completeness for updates, execution
 validity, Ethereum protocol compatibility, or authorization to mutate state.
 
-## Internal Stateless Post-State Calculation
+## Stateless Witness And Post-State Calculation
 
-The internal stateless updater MUST cryptographically verify the complete tree
+The public stateless engine MUST cryptographically verify the complete tree
 proof before using any opened value or commitment for a state transition. It
 MUST accept only non-empty, duplicate-free `Set` batches whose exact keys are
-present in the canonical claim set and whose terminal topology is
+the complete canonical claim set, with neither omitted nor surplus claims, and
+whose terminal topology is
 `StemPathPresent`. A membership claim supplies the authenticated old value; an
 absence claim supplies the canonical zero pair for an absent suffix. Present
 all-zero values MUST remain distinct from absence.
@@ -784,9 +786,38 @@ The operation MUST bound update count, commitment updates,
 commitment-to-field mappings, authenticated path lookups, and conservative
 temporary bytes, and MUST observe cancellation throughout owned work and
 around backend calls. Missing claims or path commitments MUST fail closed.
-Deletion, insertion at a missing or different stem, extension creation or
-collapse, canonical witness encoding, and a public stateless API remain
-unsupported in this phase.
+
+One canonical witness MUST bind the profile, complete pre-state tree proof,
+non-empty canonical update set, and claimed post-state root. Its byte encoding
+is exactly:
+
+1. ASCII magic `VKWT` (4 bytes);
+2. profile ID (1 byte), profile version (2-byte big-endian), and canonical
+   encoding version (2-byte big-endian);
+3. embedded proof length (4-byte big-endian) and update count (4-byte
+   big-endian);
+4. canonical 42-byte claimed post-state root;
+5. updates in ascending raw-key order, each encoded as kind `1` (`Set`), the
+   32-byte key, and the 32-byte value; and
+6. the exact canonical embedded tree-proof bytes.
+
+The decoder MUST reject empty, duplicated, reordered, non-`Set`, truncated,
+surplus, or trailing update records, inconsistent declared lengths, and any
+mismatch between canonical update keys and embedded proof claim keys. It MUST
+reject profile and version mismatches before point decoding, preflight witness,
+proof, update, temporary-memory, post-root point-decode, and embedded-proof
+budgets before allocation or cryptographic decoding, and return an owned but
+unverified witness. Decoding MUST NOT imply proof verification or post-state
+agreement. `StatelessEngine.Apply` MUST verify the proof, derive the root, and
+reject a claimed post-state root mismatch before returning an immutable result
+that binds both verified roots.
+
+The post-root point-decode budget MUST equal one because every non-empty Set
+witness carries exactly one claimed root container; zero and larger declarations
+MUST fail as invalid limits before parsing witness bytes.
+
+Deletion, insertion at a missing or different stem, and extension creation or
+collapse remain unsupported in this phase.
 
 ## Committed Tree Construction
 
@@ -886,10 +917,10 @@ openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
-encoding, crash-repair application, general tree-level incremental updates, or
-a canonical/public witness format. The limited internal stateless updater is
-connected to authenticated tree paths only for `Set` operations on stems proven
-present; deletion and topology changes remain unsupported. The storage
+encoding, crash-repair application, or general tree-level incremental updates.
+The public canonical witness format connects the limited stateless updater to
+authenticated tree paths only for `Set` operations on stems proven present;
+deletion and topology changes remain unsupported. The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained
 publications plus prune nodes through a capability-checked caller-owned adapter.

@@ -47,6 +47,15 @@ func TestFacadeResourceErrorMappings(t *testing.T) {
 	add("decoding points", &authstate.TreeProofDecodingResourceError{Resource: authstate.TreeProofDecodingResourcePointDecodes, Limit: 1, Actual: 2}, ResourcePointDecodes)
 	add("decoding scalars", &authstate.TreeProofDecodingResourceError{Resource: authstate.TreeProofDecodingResourceScalarDecodes, Limit: 1, Actual: 2}, ResourceScalarDecodes)
 	add("decoding memory", &authstate.TreeProofDecodingResourceError{Resource: authstate.TreeProofDecodingResourceTemporaryBytes, Limit: 1, Actual: 2}, ResourceTemporaryBytes)
+	add("witness bytes", &authstate.StatelessWitnessResourceError{Resource: authstate.StatelessWitnessResourceBytes, Limit: 1, Actual: 2}, ResourceWitnessBytes)
+	add("witness proof bytes", &authstate.StatelessWitnessResourceError{Resource: authstate.StatelessWitnessResourceProofBytes, Limit: 1, Actual: 2}, ResourceProofBytes)
+	add("witness updates", &authstate.StatelessWitnessResourceError{Resource: authstate.StatelessWitnessResourceUpdates, Limit: 1, Actual: 2}, ResourceBatchUpdates)
+	add("witness memory", &authstate.StatelessWitnessResourceError{Resource: authstate.StatelessWitnessResourceTemporaryBytes, Limit: 1, Actual: 2}, ResourceTemporaryBytes)
+	add("stateless updates", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourceUpdates, Limit: 1, Actual: 2}, ResourceBatchUpdates)
+	add("stateless commitments", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourceCommitmentUpdates, Limit: 1, Actual: 2}, ResourceCommitmentUpdates)
+	add("stateless mappings", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourceFieldMappings, Limit: 1, Actual: 2}, ResourceFieldMappings)
+	add("stateless lookups", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourcePathLookups, Limit: 1, Actual: 2}, ResourcePathLookups)
+	add("stateless memory", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourceTemporaryBytes, Limit: 1, Actual: 2}, ResourceTemporaryBytes)
 	add("prover keys", &committedtree.AggregateProverQueryResourceError{Resource: committedtree.AggregateProverQueryResourceKeys, Limit: 1, Actual: 2}, ResourceKeys)
 	add("prover queries", &committedtree.AggregateProverQueryResourceError{Resource: committedtree.AggregateProverQueryResourceQueries, Limit: 1, Actual: 2}, ResourceQueries)
 	add("prover reads", &committedtree.AggregateProverQueryResourceError{Resource: committedtree.AggregateProverQueryResourceNodeReads, Limit: 1, Actual: 2}, ResourceNodeReads)
@@ -164,6 +173,107 @@ func TestFacadeErrorTranslationFallbacks(t *testing.T) {
 			if !errors.As(err, &resourceErr) || resourceErr.Resource != test.resource {
 				t.Fatalf("%s resource = %#v", test.name, resourceErr)
 			}
+		}
+	}
+}
+
+func TestFacadeWitnessErrorTranslations(t *testing.T) {
+	t.Parallel()
+
+	_, _, proof := testFacadeProof(t)
+	engine, err := NewStatelessEngine(
+		context.Background(),
+		ExperimentalBandersnatchIPA256V0(),
+		testFacadeOpeningLimits(),
+		testFacadeSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		t.Fatalf("new stateless engine: %v", err)
+	}
+	verificationLimits := authstate.ProofVerificationLimits{
+		VerifierQueries: authstate.AggregateVerifierQueryLimits{
+			MaxQueries: 128, MaxTemporaryBytes: 8 << 20,
+		},
+	}
+	updateLimits := authstate.StatelessUpdateLimits{
+		MaxUpdates: 8, MaxCommitmentUpdates: 128,
+		MaxFieldMappings: 256, MaxPathLookups: 256,
+		MaxTemporaryBytes: 1 << 20,
+	}
+	var nilUpdater *authstate.StatelessUpdater
+	_, invalidUpdaterErr := nilUpdater.Apply(
+		context.Background(), authstate.TreeProof{}, nil,
+		verificationLimits, updateLimits,
+	)
+	_, invalidWitnessErr := (authstate.StatelessWitness{}).Proof()
+	_, invalidEncodingErr := authstate.DecodeStatelessWitness(
+		context.Background(), nil,
+		authstate.StatelessWitnessDecodingLimits{
+			MaxWitnessBytes: 1 << 20, MaxUpdates: 8,
+			MaxPostRootPointDecodes: 1, MaxTemporaryBytes: 2 << 20,
+			Proof: toInternalProofDecodingLimits(testFacadeProofDecodingLimits()),
+		},
+	)
+	_, unsupportedErr := engine.value.Apply(
+		context.Background(), proof.value,
+		[]authstate.Update{authstate.Delete(authstate.Key{})},
+		verificationLimits, updateLimits,
+	)
+	missing := authstate.Key{}
+	missing[31] = 1
+	_, incompleteErr := engine.value.Apply(
+		context.Background(), proof.value,
+		[]authstate.Update{authstate.Set(missing, authstate.Value{2})},
+		verificationLimits, updateLimits,
+	)
+	_, invalidUpdateErr := engine.value.Apply(
+		context.Background(), proof.value,
+		[]authstate.Update{{}},
+		verificationLimits, updateLimits,
+	)
+	proofBytes, err := proof.value.Bytes(
+		context.Background(),
+		authstate.TreeProofEncodingLimits{
+			MaxProofBytes: 64 << 10, MaxTemporaryBytes: 64 << 10,
+		},
+	)
+	if err != nil {
+		t.Fatalf("encode proof: %v", err)
+	}
+	proofBytes[len(proofBytes)-1] ^= 1
+	tamperedProof, err := authstate.DecodeTreeProof(
+		context.Background(), proofBytes,
+		toInternalProofDecodingLimits(testFacadeProofDecodingLimits()),
+	)
+	if err != nil {
+		t.Fatalf("decode structurally valid tampered proof: %v", err)
+	}
+	_, verificationErr := engine.value.Apply(
+		context.Background(), tamperedProof,
+		[]authstate.Update{authstate.Set(authstate.Key{}, authstate.Value{2})},
+		verificationLimits, updateLimits,
+	)
+
+	for _, test := range []struct {
+		name string
+		err  error
+		want error
+	}{
+		{"cancellation", context.Canceled, ErrCancelled},
+		{"deadline", context.DeadlineExceeded, ErrCancelled},
+		{"resource", &authstate.StatelessUpdateResourceError{Resource: authstate.StatelessUpdateResourceUpdates, Limit: 1, Actual: 2}, ErrResourceExhausted},
+		{"profile", ErrUnsupportedProfile, ErrUnsupportedProfile},
+		{"invalid updater", invalidUpdaterErr, ErrInvalidStatelessEngine},
+		{"invalid witness", invalidWitnessErr, ErrInvalidWitness},
+		{"invalid encoding", invalidEncodingErr, ErrInvalidWitness},
+		{"incomplete witness", incompleteErr, ErrIncompleteWitness},
+		{"unsupported update", unsupportedErr, ErrUnsupportedUpdate},
+		{"invalid update", invalidUpdateErr, ErrInvalidUpdate},
+		{"verification", verificationErr, ErrVerification},
+		{"fallback", errors.New("different"), ErrCryptographic},
+	} {
+		if err := translateWitnessError("witness", test.err); !errors.Is(err, test.want) {
+			t.Fatalf("%s translation = %v, want %v", test.name, err, test.want)
 		}
 	}
 }

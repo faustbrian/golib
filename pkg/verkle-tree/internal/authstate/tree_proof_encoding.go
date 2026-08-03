@@ -785,3 +785,11 @@ func checkTreeProofDecodingResource(
 func IsInvalidProofEncodingError(err error) bool {
 	return errors.Is(err, errInvalidTreeProofEncoding)
 }
+
+// IsInvalidProofLimitsError reports invalid proof construction or codec
+// limits, as distinct from malformed proof material.
+func IsInvalidProofLimitsError(err error) bool {
+	return errors.Is(err, errInvalidTreeProofLimits) ||
+		errors.Is(err, errInvalidTreeProofEncodingLimits) ||
+		errors.Is(err, errInvalidTreeProofDecodingLimits)
+}

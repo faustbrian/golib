@@ -194,8 +194,9 @@ group-arithmetic update primitive: it does not authenticate supplied old
 scalars, establish tree-path completeness, or constitute a stateless witness.
 The package-owned internal stateless updater separately authenticates those old
 scalars and present-stem paths through its verified tree proof before composing
-the primitive. This does not expand the backend interoperability claim beyond
-the pinned corpus or provide a public or canonical witness format.
+the primitive. The public canonical witness format composes that authenticated
+operation without expanding the backend interoperability claim beyond the
+pinned corpus.
 The pinned proof implementation uses `runtime.NumCPU()` internally and accepts
 no context, so the wrapper rejects insufficient worker budgets beforehand and
 can check cancellation only before and after the call. This does not prove the

@@ -53,6 +53,41 @@ func Delete(key Key) Update {
 	return Update{kind: UpdateDelete, key: key}
 }
 
+// Kind returns whether the update sets or deletes its key.
+func (update Update) Kind() (UpdateKind, error) {
+	if update.kind != UpdateSet && update.kind != UpdateDelete {
+		return 0, ErrInvalidUpdate
+	}
+	if update.kind == UpdateDelete && update.value != (Value{}) {
+		return 0, ErrInvalidUpdate
+	}
+
+	return update.kind, nil
+}
+
+// Key returns the exact fixed-length update key.
+func (update Update) Key() (Key, error) {
+	if _, err := update.Kind(); err != nil {
+		return Key{}, err
+	}
+
+	return update.key, nil
+}
+
+// Value returns the Set value and whether one is present. Delete returns false
+// so deleting a key remains distinct from setting the all-zero value.
+func (update Update) Value() (Value, bool, error) {
+	kind, err := update.Kind()
+	if err != nil {
+		return Value{}, false, err
+	}
+	if kind == UpdateDelete {
+		return Value{}, false, nil
+	}
+
+	return update.value, true, nil
+}
+
 // StateLimits bounds retained state and atomic batch work.
 type StateLimits struct {
 	MaxEntries        uint32
@@ -314,6 +349,46 @@ func translateSnapshotError(operation string, err error) error {
 }
 
 func translateResourceError(err error) error {
+	var witnessErr *authstate.StatelessWitnessResourceError
+	if errors.As(err, &witnessErr) {
+		resource := ResourceTemporaryBytes
+		switch witnessErr.Resource {
+		case authstate.StatelessWitnessResourceBytes:
+			resource = ResourceWitnessBytes
+		case authstate.StatelessWitnessResourceProofBytes:
+			resource = ResourceProofBytes
+		case authstate.StatelessWitnessResourceUpdates:
+			resource = ResourceBatchUpdates
+		case authstate.StatelessWitnessResourceTemporaryBytes:
+		}
+
+		return newPublicResourceError(
+			resource,
+			witnessErr.Limit,
+			witnessErr.Actual,
+		)
+	}
+	var statelessUpdateErr *authstate.StatelessUpdateResourceError
+	if errors.As(err, &statelessUpdateErr) {
+		resource := ResourceTemporaryBytes
+		switch statelessUpdateErr.Resource {
+		case authstate.StatelessUpdateResourceUpdates:
+			resource = ResourceBatchUpdates
+		case authstate.StatelessUpdateResourceCommitmentUpdates:
+			resource = ResourceCommitmentUpdates
+		case authstate.StatelessUpdateResourceFieldMappings:
+			resource = ResourceFieldMappings
+		case authstate.StatelessUpdateResourcePathLookups:
+			resource = ResourcePathLookups
+		case authstate.StatelessUpdateResourceTemporaryBytes:
+		}
+
+		return newPublicResourceError(
+			resource,
+			statelessUpdateErr.Limit,
+			statelessUpdateErr.Actual,
+		)
+	}
 	var proofMaterialErr *authstate.ProofMaterialResourceError
 	if errors.As(err, &proofMaterialErr) {
 		resource := ResourceTemporaryBytes

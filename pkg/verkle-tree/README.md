@@ -12,10 +12,11 @@ bounded aggregate membership and non-membership proofs, atomic caller-owned
 storage writes, and bounded reconstruction from isolated caller-owned read
 snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. The
-public surface is experimental, rebuilds the complete tree for every update,
-persisted load, and maintained publication, and does not yet provide crash
-repair, adapter implementations, or public stateless witnesses. It is not a
-production-ready tree.
+public surface is experimental, rebuilds the complete tree for stateful
+updates, persisted loads, and maintained publications, and now provides
+canonical bounded stateless `Set` witnesses for already-present stems. It does
+not yet provide crash repair, adapter implementations, stateless deletion, or
+topology-changing stateless insertion. It is not a production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -101,6 +102,18 @@ Proof generation and verification use `NewProofEngine`, `Prove`, `Verify`,
 generation, verification, encoding, and decoding limits because each stage has
 different hostile-input amplification.
 
+For a stateless Set transition, the producer proves every update key against
+one immutable pre-state, obtains the expected post-root from its stateful
+transition, and calls `NewWitness`. The receiver calls `DecodeWitness`, creates
+a fixed-profile `StatelessEngine`, and calls `Apply` with independent proof and
+update budgets. Only a successful `StatelessResult` exposes the verified
+pre-root and independently derived, witness-matched post-root. Decoding alone
+does not verify either root. `Witness.Updates` returns an owned canonical copy;
+`Update.Kind`, `Update.Key`, and `Update.Value` preserve Set/delete and
+present-zero distinctions. Current witnesses accept Set only and require every
+stem to be proven present. The embedded proof claim keys MUST equal the update
+keys exactly; construction and decoding reject missing or surplus claims.
+
 Production code imports the pinned `go-ipa` dependency only behind internal
 canonical point/scalar encoding, bounded aggregate-opening generation and
 verification, a strict raw proof decoder, and a bounded serial
@@ -167,8 +180,8 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: canonical witness and whole-snapshot
-encodings, crash-repair semantics, stable proof and witness semantics,
+The profile remains incomplete: whole-snapshot encoding, crash-repair
+semantics, stable proof and witness semantics,
 tree-level incremental update semantics, and complete dependency-level
 cancellation are not yet frozen. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it
@@ -177,9 +190,12 @@ cryptographically verifies the complete tree proof before applying bounded
 `Set` operations to suffixes whose stems are proven present, then derives the
 post-state root bottom-up from authenticated old scalars. It handles existing
 values and absent suffixes, canonicalizes update order, rejects duplicate or
-unproven keys, and is deterministic across shared paths. It deliberately does
-not support deletion, missing/different-stem insertion, canonical witness
-encoding, or a public witness API yet. Canonical
+unproven keys, and is deterministic across shared paths. The public
+`Witness`/`StatelessEngine` boundary canonically binds the proof, ordered Set
+batch, and claimed post-state root, rejects any proof/update key-set mismatch,
+then verifies and independently derives the result. It deliberately does not
+support deletion or missing/different-stem
+insertion. Canonical
 stored-node bytes, atomic write publication, isolated persisted reconstruction,
 and atomic retention/pruning now have one package-owned experimental contract,
 but none is a stable interoperability surface.
@@ -287,15 +303,18 @@ experimental facade with opaque proofs and typed resource errors. It does not
 establish a stable proof API, witness semantics, storage durability, or
 Ethereum compatibility.
 
-The internal stateless updater composes that verified proof with sparse
+The stateless engine composes that verified proof with sparse
 commitment changes. Every requested key must have an authenticated membership
-or absence claim and a present-stem path. Existing-value replacement and
+or absence claim, no other claims may be present, and every claim must have a
+present-stem path. Existing-value replacement and
 absent-suffix insertion are supported, including multi-stem batches and shared
 ancestors; the result is checked against pinned and stateful post-state roots.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
-path lookups, and temporary bytes. This is a post-state calculation primitive,
-not a public or canonically encoded witness format. Deletion and topology
-creation/collapse remain unsupported until completeness rules are specified.
+path lookups, witness and proof bytes, strict point decoding, and temporary
+bytes. The canonical witness decoder returns an unverified owned container;
+`StatelessEngine.Apply` separately verifies the proof, derives the root, and
+matches the claimed post-state root. Deletion and topology creation/collapse
+remain unsupported until their completeness rules are specified.
 
 ## Experimental storage boundary
 

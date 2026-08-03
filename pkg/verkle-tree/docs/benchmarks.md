@@ -8,8 +8,8 @@ aggregate-opening-proof decoding, strict profile-bound root decoding, the
 commitment-to-field map, serial fixed-width vector commitment, and internal
 aggregate tree-proof generation and verification. One public loader benchmark
 uses an in-memory test reader as described below. The suite does not measure a
-production storage adapter, witness, or equivalent cross-implementation
-end-to-end workload, and it supports no comparative performance claim.
+production storage adapter or an equivalent cross-implementation end-to-end
+workload, and it supports no comparative performance claim.
 
 One additional component benchmark measures rebuilding the implemented
 immutable committed-node arena and mathematical root for the pinned four-entry,
@@ -71,6 +71,12 @@ one sixteen-key membership proof through the complete internal snapshot,
 query-reconstruction, aggregate-opening, and tree-proof container path. They
 reuse initialized snapshot and proof engines and exclude setup, persistence,
 witness processing, and public API ownership costs.
+Three stateless-witness component benchmarks measure canonical encoding, strict
+decoding, and verified post-state application for one present-key Set witness.
+They reuse initialized proof and stateless engines and exclude witness
+generation from a snapshot, storage, network transport, topology-changing
+updates, and external interoperability. The apply benchmark includes complete
+aggregate-proof verification and bottom-up commitment propagation.
 
 The accepted-input benchmarks exclude fixture construction from the measured
 loop. Rejection benchmarks measure the complete fail-closed decoder path,
@@ -97,6 +103,10 @@ GOWORK=off go test ./internal/authstate -run '^$' \
 GOWORK=off go test ./internal/authstate -run '^$' \
   -bench '^BenchmarkProofEngine$' -benchmem -benchtime=1x -count=5
 
+GOWORK=off go test ./internal/authstate -run '^$' \
+  -bench '^(BenchmarkEncodeStatelessWitness|BenchmarkDecodeStatelessWitness|BenchmarkApplyStatelessWitness)$' \
+  -benchmem -benchtime=1x -count=5
+
 GOWORK=off go test . -run '^$' \
   -bench '^(BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune)$' \
   -benchmem -count=5
@@ -104,7 +114,7 @@ GOWORK=off go test . -run '^$' \
 
 Environment:
 
-- Date: 2026-08-01
+- Date: 2026-08-01; stateless-witness rows refreshed 2026-08-03
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -117,6 +127,11 @@ The Go benchmark harness calibrates each sample independently. No latency
 threshold is enforced because no stable cross-runner baseline exists yet.
 Reproduce measurements on the target deployment hardware before using them for
 capacity planning.
+
+The 2026-08-03 witness refresh ran while unrelated repository mutation jobs
+shared the host, as required by the non-blocking verification workflow. The raw
+samples retain the resulting scheduling spikes and MUST NOT be used as a
+regression baseline or comparison result.
 
 ## Raw samples
 
@@ -157,6 +172,9 @@ nanoseconds per operation.
 | Reject wrong-length encoded tree proof | 474.3, 374.8, 377.9, 267.9, 338.3 | 96 | 2 |
 | Generate sixteen-key aggregate tree proof | 23815417, 24936125, 24801834, 24196208, 27617792 | 10085560-10086816 | 5247-5270 |
 | Verify sixteen-key aggregate tree proof | 3257666, 3220208, 3738459, 3016125, 3131959 | 610968-611408 | 1143-1150 |
+| Encode one-update canonical stateless witness | 16292, 10667, 15708, 18583, 19083 | 2048 | 2 |
+| Decode one-update canonical stateless witness | 222667, 203666, 9169709, 2168500, 215167 | 4464 | 32 |
+| Verify and apply one-update stateless witness | 29859209, 9478417, 6003458, 53805542, 18034417 | 284032-284472 | 1065-1072 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

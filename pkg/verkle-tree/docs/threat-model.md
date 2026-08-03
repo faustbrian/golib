@@ -20,9 +20,11 @@ verification, plus canonical content-addressed storage writes,
 capability-checked atomic root publication, and bounded isolated persisted
 snapshot reconstruction, plus bounded read-only auditing of current and
 retained roots against a canonical complete node inventory and bounded atomic
-retention/pruning requests. Stateless witnesses, crash-repair application,
-dependency-level cancellation, concrete storage adapters, and complete
-side-channel controls remain unimplemented.
+retention/pruning requests, plus canonical bounded stateless Set witnesses that
+verify a complete pre-state proof and independently match the claimed
+post-state root. Stateless deletion and topology creation/collapse,
+crash-repair application, dependency-level cancellation, concrete storage
+adapters, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
 
@@ -74,6 +76,20 @@ rejects alternate lengths and non-canonical commitment payloads, and uses a
 distinct empty kind so an identity point cannot be smuggled through root bytes.
 It does not bind a snapshot or prove that the committed state is available.
 
+The stateless witness decoder rejects wrong profile/version headers, alternate
+lengths, trailing bytes, empty or reordered update sets, duplicate keys,
+unsupported update kinds, malformed post-state roots, and malformed embedded
+proofs under separate witness, proof, update, and scratch limits, with exactly
+one permitted post-root point decode.
+It also requires the embedded proof claim keys to equal the canonical update
+keys exactly, rejecting both omission and surplus disclosure.
+Decoding establishes canonical structure only. `StatelessEngine.Apply`
+cryptographically verifies the complete embedded proof before using old values,
+requires an exact authenticated claim and present-stem path for every update,
+derives all changed commitments bottom-up, and rejects a different claimed
+post-state root. A successful result does not authorize the update, prove
+storage availability, or establish application-level execution validity.
+
 ### Tree and state transitions
 
 - absent, zero, empty, and deleted values becoming indistinguishable;
@@ -84,12 +100,13 @@ It does not bind a snapshot or prove that the committed state is available.
 - partial publication, stale-root publication, corrupt-node use, or unsafe
   pruning.
 
-The internal authenticated-state layer currently mitigates absent/zero/delete
+The authenticated-state layer currently mitigates absent/zero/delete
 ambiguity, nondeterministic batch order, duplicate operations, partial
-in-memory publication, caller mutation of fixed arrays, and cross-snapshot root
-confusion. It does not authenticate old values supplied by an external witness,
-prove witness completeness, or protect a future mutable writer from concurrent
-ownership violations.
+in-memory publication, caller mutation of fixed arrays, cross-snapshot root
+confusion, and omitted or changed old values in supported stateless Set
+witnesses. It does not yet prove completeness for deletion or topology-changing
+updates, or protect a future mutable writer from concurrent ownership
+violations.
 
 The storage write boundary encodes the complete immutable arena into canonical
 profile-bound nodes, hashes the complete bytes for content addressing, orders

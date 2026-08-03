@@ -11,8 +11,12 @@
 // the complete canonical node inventory with all verified current and retained
 // roots without mutating storage. A separate capability-checked operation can
 // atomically replace the retained-publication set and prune only nodes outside
-// the current and desired retained roots. Witnesses, crash repair, concrete
-// storage adapters, and stable-profile APIs remain unavailable.
+// the current and desired retained roots. Canonical stateless Set witnesses can
+// bind an exact update/claim key set, verify its authenticated pre-state, and
+// independently derive and match the claimed post-state root for stems already
+// present in that proof. Stateless
+// deletion and topology changes, crash repair, concrete storage adapters, and
+// stable-profile APIs remain unavailable.
 //
 // The exported API is experimental and exists to evaluate a pinned commitment
 // backend and complete tree semantics without making stability,

@@ -529,6 +529,9 @@ func translateProofError(operation string, err error, verification bool) error {
 		errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("%s: %w: %w", operation, ErrCancelled, err)
 	}
+	if authstate.IsInvalidProofLimitsError(err) {
+		return fmt.Errorf("%s: %w", operation, ErrInvalidLimits)
+	}
 	if authstate.IsDuplicateKeyError(err) {
 		return fmt.Errorf("%s: %w", operation, ErrDuplicateKey)
 	}

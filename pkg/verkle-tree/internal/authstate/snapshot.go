@@ -69,6 +69,36 @@ func Delete(key Key) Update {
 	return Update{kind: UpdateDelete, key: key}
 }
 
+// Kind returns the validated update kind.
+func (update Update) Kind() (UpdateKind, error) {
+	if err := update.validate(); err != nil {
+		return 0, err
+	}
+
+	return update.kind, nil
+}
+
+// Key returns the validated update key.
+func (update Update) Key() (Key, error) {
+	if err := update.validate(); err != nil {
+		return Key{}, err
+	}
+
+	return update.key, nil
+}
+
+// Value returns the Set value and whether one is present.
+func (update Update) Value() (Value, bool, error) {
+	if err := update.validate(); err != nil {
+		return Value{}, false, err
+	}
+	if update.kind == UpdateDelete {
+		return Value{}, false, nil
+	}
+
+	return update.value, true, nil
+}
+
 func (update Update) validate() error {
 	switch update.kind {
 	case UpdateSet:
