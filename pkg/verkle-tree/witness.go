@@ -345,6 +345,7 @@ func NewStatelessEngine(
 			MaxMSMTerms:             openingLimits.MaxMSMTerms,
 			MaxTemporaryBytes:       openingLimits.MaxTemporaryBytes,
 			MaxWorkers:              openingLimits.MaxWorkers,
+			MaxQueuedOperations:     openingLimits.MaxQueuedOperations,
 		},
 		toInternalCommitmentLimits(commitmentLimits),
 	)

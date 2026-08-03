@@ -237,8 +237,13 @@ partial opening sets, resource exhaustion, and cancellation observed by owned
 work. Verification is independent from mutable tree state. The pinned backend
 does not accept a context once aggregate proof arithmetic begins and chooses
 `runtime.NumCPU()` workers internally; preflight and post-call cancellation
-checks do not stop that in-flight work. This residual denial-of-service and
-worker-control risk blocks production-backend approval.
+checks do not stop that in-flight work. One proof-engine instance admits only
+one dependency proof call at a time, bounds waiting calls through
+`OpeningLimits.MaxQueuedOperations`, and lets queued calls observe cancellation
+before dependency entry. This contains worker multiplication within an engine
+but cannot stop an admitted call or coordinate separately constructed engines.
+The residual denial-of-service and worker-control risk blocks
+production-backend approval.
 
 ### Resource exhaustion
 
@@ -260,9 +265,11 @@ Package-owned production source defines no `init` function and starts no
 goroutine. An architecture test scans every production Go file, rejects both
 constructs, and proves the detector against an owned representative violation.
 This establishes only the package-owned lifecycle boundary: the current proof
-dependency may create workers internally and remains subject to the separate
-uncancellable-worker production blocker above. Store adapters also retain
-responsibility for their own handles, transactions, workers, and cleanup.
+dependency may create workers internally. Engine-local admission prevents
+concurrent callers from multiplying those workers, but the dependency remains
+subject to the separate in-flight cancellation blocker above. Store adapters
+also retain responsibility for their own handles, transactions, workers, and
+cleanup.
 
 ### Supply chain and disclosure
 

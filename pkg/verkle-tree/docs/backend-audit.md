@@ -144,6 +144,31 @@ commits serially. It still cannot interrupt the one fixed-width generator
 derivation call after it starts, so constructor cancellation is limited to
 preflight and post-derivation checks.
 
+The wrapper-control audit traced the complete proof call graph at the pinned
+revision. `multiproof.CreateMultiProof` calls an unexported aggregation helper
+that always starts `runtime.NumCPU()` goroutines. Prover folding and both
+verification MSMs reach `ipa.MultiScalar`, which supplies
+`banderwagon.MultiExpConfig{NbTasks: runtime.NumCPU()}` itself. Setup reaches
+`banderwagon.NewPrecompPoint`, whose errgroup uses `context.Background()` and a
+`runtime.NumCPU()` limit; its normalization helpers also use the package's
+parallel executor, whose default is `runtime.NumCPU()`. None of the exported
+multiproof or IPA proof entry points accepts a context or worker configuration.
+`IPAConfig` embeds the concrete precomputation type rather than an injectable
+bounded operation. A wrapper goroutine that returned on cancellation would
+therefore abandon live dependency CPU and workers, not cancel them. Replacing
+these calls would require maintaining a fork or reimplementing the IPA/MSM
+path, neither of which satisfies the selected-backend requirements.
+
+The package now serializes entry into that uncancellable dependency boundary
+per proof-engine instance. `MaxWorkers` must cover the dependency's fixed
+`runtime.NumCPU()` demand, and `MaxQueuedOperations` bounds callers waiting for
+the one active slot; zero rejects concurrent work rather than queueing it.
+Waiting observes cancellation without starting dependency work, and queue
+overflow is a typed resource failure. This prevents one engine from multiplying
+dependency workers through concurrent calls. It does not stop a call already
+inside the dependency, bound independently constructed engines, or turn the
+backend's CPU-derived worker choice into caller-controlled scheduling.
+
 ### Unsafe public surface
 
 The dependency publicly exposes unchecked or trusted decoding operations and
@@ -169,6 +194,17 @@ The reviewed source does not state a complete constant-time contract. The
 selected pseudo-version is untagged, and the upstream repository has not
 published the maintenance, audit, vulnerability, or release evidence required
 for a production cryptographic dependency.
+
+The reviewed arithmetic also contains observable data-dependent control flow:
+fixed-base MSM skips zero scalars, precomputed scalar multiplication branches
+on scalar windows and indexes lookup tables by those windows, and generic MSM
+partitions and schedules work using scalar values. The package's serial
+research commitment path likewise skips zero vector entries. Consequently the
+experimental implementation does not claim to hide key, value, vector-sparsity,
+or witness information from a same-host timing or cache observer. Production
+selection must define the confidentiality scope and either supply reviewed
+constant-time operations for secrets in that scope or explicitly constrain the
+profile to public inputs with an independently reviewed rationale.
 
 ### Override compatibility scope
 
@@ -233,11 +269,12 @@ through its verified tree proof before composing commitment operations. The
 public canonical witness format composes that authenticated operation without
 expanding the backend interoperability claim beyond the pinned corpora.
 The pinned proof implementation uses `runtime.NumCPU()` internally and accepts
-no context, so the wrapper rejects insufficient worker budgets beforehand and
-can check cancellation only before and after the call. This does not prove the
-dependency's complete heap allocation profile or constant-time behavior. The
-engine therefore remains an experimental internal component rather than an
-approved production backend.
+no context, so the wrapper rejects insufficient worker budgets beforehand,
+admits only one dependency proof call per engine, bounds waiting calls, and can
+check cancellation only before and after the in-flight call. This does not
+prove the dependency's complete heap allocation profile or constant-time
+behavior. The engine therefore remains an experimental internal component
+rather than an approved production backend.
 
 The separate `internal/leafvector` boundary performs dependency-free,
 fixed-size byte decomposition only. It produces canonical scalar bytes that are

@@ -688,6 +688,9 @@ func TestFacadeLimitValidationChecksEveryFieldAndBoundary(t *testing.T) {
 		func(value *OpeningLimits) { value.MaxMSMTerms = 0 },
 		func(value *OpeningLimits) { value.MaxTemporaryBytes = 0 },
 		func(value *OpeningLimits) { value.MaxWorkers = 0 },
+		func(value *OpeningLimits) {
+			value.MaxQueuedOperations = maxPublicQueuedProofOperations + 1
+		},
 	}
 	for index, mutate := range openingMutations {
 		value := testFacadeOpeningLimits()
@@ -698,6 +701,7 @@ func TestFacadeLimitValidationChecksEveryFieldAndBoundary(t *testing.T) {
 	}
 	opening := testFacadeOpeningLimits()
 	opening.MaxQueries = maxPublicProofQueries
+	opening.MaxQueuedOperations = maxPublicQueuedProofOperations
 	if err := opening.validate(); err != nil {
 		t.Fatalf("exact opening query limit: %v", err)
 	}
@@ -880,7 +884,7 @@ func testFacadeOpeningLimits() OpeningLimits {
 		MaxGeneratorDerivations: 256, MaxPrecomputedPoints: 256,
 		MaxQueries: 128, MaxScalarDecodes: 1 << 16,
 		MaxMSMTerms: 1 << 20, MaxTemporaryBytes: 1 << 30,
-		MaxWorkers: uint32(runtime.NumCPU()),
+		MaxWorkers: uint32(runtime.NumCPU()), MaxQueuedOperations: 32,
 	}
 }
 

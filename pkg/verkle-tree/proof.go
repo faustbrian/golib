@@ -10,7 +10,10 @@ import (
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/committedtree"
 )
 
-const maxPublicProofQueries = uint32(65_536)
+const (
+	maxPublicProofQueries          = uint32(65_536)
+	maxPublicQueuedProofOperations = uint32(65_536)
+)
 
 // OpeningLimits bounds setup and fixed-profile aggregate-opening work.
 // MaxQueries includes the package-owned statement-binding anchor.
@@ -29,6 +32,9 @@ type OpeningLimits struct {
 	MaxTemporaryBytes uint64
 	// MaxWorkers bounds dependency-owned proof workers.
 	MaxWorkers uint32
+	// MaxQueuedOperations bounds calls waiting for the engine's single
+	// dependency-proof slot. Zero rejects rather than queues concurrent calls.
+	MaxQueuedOperations uint32
 }
 
 // ProofMaterialLimits bounds snapshot proof-material assembly.
@@ -140,7 +146,8 @@ func (limits OpeningLimits) validate() error {
 		limits.MaxScalarDecodes == 0 ||
 		limits.MaxMSMTerms == 0 ||
 		limits.MaxTemporaryBytes == 0 ||
-		limits.MaxWorkers == 0 {
+		limits.MaxWorkers == 0 ||
+		limits.MaxQueuedOperations > maxPublicQueuedProofOperations {
 		return ErrInvalidLimits
 	}
 
@@ -295,6 +302,7 @@ func NewProofEngine(
 		MaxMSMTerms:             limits.MaxMSMTerms,
 		MaxTemporaryBytes:       limits.MaxTemporaryBytes,
 		MaxWorkers:              limits.MaxWorkers,
+		MaxQueuedOperations:     limits.MaxQueuedOperations,
 	})
 	if err != nil {
 		return ProofEngine{}, translateProofEngineError(err)

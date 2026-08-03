@@ -150,6 +150,108 @@ func TestBoundAggregateOpeningRejectsStatementReplayForZeroVector(t *testing.T) 
 	}
 }
 
+func TestAggregateOpeningEngineBoundsConcurrentDependencyWorkers(t *testing.T) {
+	t.Parallel()
+
+	real := newTestAggregateOpeningEngine(t)
+	engine := *real
+	prover, verifier := aggregateOpeningCorpus()
+	prover = prover[:1]
+	verifier = verifier[:1]
+	commitAggregateOpeningCorpus(t, prover, verifier)
+
+	entered := make(chan struct{}, 2)
+	release := make(chan struct{})
+	closed := false
+	defer func() {
+		if !closed {
+			close(release)
+		}
+	}()
+	engine.backend = &fakeAggregateOpeningBackend{
+		delegate: real.backend,
+		onOpen: func() {
+			entered <- struct{}{}
+			<-release
+		},
+	}
+
+	results := make(chan error, 2)
+	go func() {
+		_, err := engine.Open(context.Background(), prover)
+		results <- err
+	}()
+	<-entered
+	go func() {
+		_, err := engine.Open(context.Background(), prover)
+		results <- err
+	}()
+
+	select {
+	case <-entered:
+		t.Fatal("second proof call entered the dependency above the engine worker budget")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+	closed = true
+	for range 2 {
+		if err := <-results; err != nil {
+			t.Fatalf("bounded proof call: %v", err)
+		}
+	}
+}
+
+func TestAggregateOpeningGateBoundsAndCancelsQueuedWork(t *testing.T) {
+	t.Parallel()
+
+	alreadyCancelled, cancelAlready := context.WithCancel(context.Background())
+	cancelAlready()
+	free := &aggregateOpeningGate{active: make(chan struct{}, 1)}
+	if _, err := free.acquire(alreadyCancelled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("free-slot cancellation error = %v", err)
+	}
+	if len(free.active) != 0 {
+		t.Fatal("cancelled free-slot acquisition retained the active slot")
+	}
+
+	gate := &aggregateOpeningGate{
+		active:    make(chan struct{}, 1),
+		maxQueued: 1,
+	}
+	release, err := gate.acquire(context.Background())
+	if err != nil {
+		t.Fatalf("acquire active slot: %v", err)
+	}
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	queuedResult := make(chan error, 1)
+	go func() {
+		_, acquireErr := gate.acquire(cancelled)
+		queuedResult <- acquireErr
+	}()
+	waitForAggregateOpeningQueue(t, gate, 1)
+
+	_, err = gate.acquire(context.Background())
+	assertAggregateOpeningResourceError(
+		t, err, AggregateOpeningResourceQueuedOperations, 2,
+	)
+	cancel()
+	if err := <-queuedResult; !errors.Is(err, errAggregateOpeningCancelled) ||
+		!errors.Is(err, context.Canceled) {
+		t.Fatalf("queued cancellation error = %v", err)
+	}
+	waitForAggregateOpeningQueue(t, gate, 0)
+	release()
+
+	noQueue := &aggregateOpeningGate{active: make(chan struct{}, 1)}
+	noQueue.active <- struct{}{}
+	_, err = noQueue.acquire(context.Background())
+	assertAggregateOpeningResourceError(
+		t, err, AggregateOpeningResourceQueuedOperations, 1,
+	)
+}
+
 func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 	t.Parallel()
 
@@ -167,6 +269,11 @@ func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 		func() AggregateOpeningLimits { value := valid; value.MaxMSMTerms = 0; return value }(),
 		func() AggregateOpeningLimits { value := valid; value.MaxTemporaryBytes = 0; return value }(),
 		func() AggregateOpeningLimits { value := valid; value.MaxWorkers = 0; return value }(),
+		func() AggregateOpeningLimits {
+			value := valid
+			value.MaxQueuedOperations = maxAggregateQueuedOperations + 1
+			return value
+		}(),
 	}
 	for index, limits := range invalid {
 		if _, err := NewAggregateOpeningEngine(context.Background(), limits); !errors.Is(err, errInvalidAggregateOpeningLimits) {
@@ -287,9 +394,24 @@ func TestAggregateOpeningOperationsRejectInvalidInputsAndResources(t *testing.T)
 		t.Fatalf("corrupt engine verify error = %v", err)
 	}
 	corrupt = *engine
+	corrupt.gate = nil
+	if err := corrupt.Verify(context.Background(), proof, verifier); !errors.Is(err, errInvalidAggregateOpeningEngine) {
+		t.Fatalf("missing dependency gate error = %v", err)
+	}
+	corrupt = *engine
 	corrupt.limits.MaxQueries = 0
 	if _, err := corrupt.Open(context.Background(), prover); !errors.Is(err, errInvalidAggregateOpeningEngine) {
 		t.Fatalf("corrupt limits error = %v", err)
+	}
+	blocked := *engine
+	blocked.limits.MaxQueuedOperations = 0
+	blocked.gate = &aggregateOpeningGate{active: make(chan struct{}, 1)}
+	blocked.gate.active <- struct{}{}
+	if _, err := blocked.Open(context.Background(), prover); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("blocked open error = %v", err)
+	}
+	if err := blocked.Verify(context.Background(), proof, verifier); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("blocked verify error = %v", err)
 	}
 	var missingContext context.Context
 	if _, err := engine.Open(missingContext, prover); !errors.Is(err, errInvalidAggregateOpeningContext) {
@@ -335,18 +457,20 @@ func TestAggregateOpeningOperationsRejectInvalidInputsAndResources(t *testing.T)
 	if err := engine.Verify(context.Background(), OpeningProof{}, verifier); !errors.Is(err, errInvalidAggregateOpeningQuery) {
 		t.Fatalf("invalid proof error = %v", err)
 	}
-	for _, successful := range []int{1, 2} {
+	for _, successful := range []int{1, 2, 3} {
 		ctx := &aggregateOpeningStepContext{successful: successful}
 		if _, err := engine.Open(ctx, prover); !errors.Is(err, errAggregateOpeningCancelled) {
 			t.Fatalf("open cancellation after %d checks = %v", successful, err)
 		}
 	}
-	if err := engine.Verify(
-		&aggregateOpeningStepContext{successful: 1},
-		proof,
-		verifier,
-	); !errors.Is(err, errAggregateOpeningCancelled) {
-		t.Fatalf("verify loop cancellation error = %v", err)
+	for _, successful := range []int{1, 2} {
+		if err := engine.Verify(
+			&aggregateOpeningStepContext{successful: successful},
+			proof,
+			verifier,
+		); !errors.Is(err, errAggregateOpeningCancelled) {
+			t.Fatalf("verify cancellation after %d checks = %v", successful, err)
+		}
 	}
 	corruptProof := proof
 	clear(corruptProof.encoded[:commitmentSize])
@@ -630,6 +754,7 @@ func testAggregateOpeningLimits() AggregateOpeningLimits {
 		MaxMSMTerms:             64 * VectorWidth,
 		MaxTemporaryBytes:       1 << 30,
 		MaxWorkers:              uint32(runtime.NumCPU()),
+		MaxQueuedOperations:     32,
 	}
 }
 
@@ -716,6 +841,22 @@ func assertAggregateOpeningResourceError(
 		resourceErr.Unwrap() != errAggregateOpeningResource ||
 		resourceErr.Error() == "" {
 		t.Fatalf("resource error does not preserve sentinel: %v", err)
+	}
+}
+
+func waitForAggregateOpeningQueue(
+	t testing.TB,
+	gate *aggregateOpeningGate,
+	want uint32,
+) {
+	t.Helper()
+
+	deadline := time.Now().Add(time.Second)
+	for gate.queued.Load() != want {
+		if time.Now().After(deadline) {
+			t.Fatalf("queued operations = %d, want %d", gate.queued.Load(), want)
+		}
+		runtime.Gosched()
 	}
 }
 

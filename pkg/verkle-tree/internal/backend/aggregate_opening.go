@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync/atomic"
 
 	multiproof "github.com/crate-crypto/go-ipa"
 	"github.com/crate-crypto/go-ipa/bandersnatch/fr"
@@ -14,12 +15,13 @@ import (
 )
 
 const (
-	maxAggregateOpeningQueries = uint32(65_536)
-	aggregateSetupWorkingBytes = uint64(1 << 30)
-	aggregateQueryWorkingBytes = uint64(VectorWidth*scalarSize) * 8
-	aggregateFixedMSMTerms     = uint64(2 * VectorWidth * 8)
-	aggregateTranscriptLabel   = "verkle"
-	aggregateBindingLabel      = "verkletree-proof-statement-v0"
+	maxAggregateOpeningQueries   = uint32(65_536)
+	maxAggregateQueuedOperations = uint32(65_536)
+	aggregateSetupWorkingBytes   = uint64(1 << 30)
+	aggregateQueryWorkingBytes   = uint64(VectorWidth*scalarSize) * 8
+	aggregateFixedMSMTerms       = uint64(2 * VectorWidth * 8)
+	aggregateTranscriptLabel     = "verkle"
+	aggregateBindingLabel        = "verkletree-proof-statement-v0"
 )
 
 var (
@@ -34,8 +36,9 @@ var (
 )
 
 // AggregateOpeningLimits bounds fixed-profile setup and aggregate-opening
-// operations. Every field must be positive and no field denotes an unbounded
-// resource. The pinned backend may use exactly runtime.NumCPU workers; an
+// operations. Every field except MaxQueuedOperations must be positive, and no
+// field denotes an unbounded resource. A zero queue limit rejects concurrent
+// waiters. The pinned backend may use exactly runtime.NumCPU workers; an
 // operation is rejected before setup when MaxWorkers is smaller.
 type AggregateOpeningLimits struct {
 	MaxGeneratorDerivations uint32
@@ -45,6 +48,7 @@ type AggregateOpeningLimits struct {
 	MaxMSMTerms             uint64
 	MaxTemporaryBytes       uint64
 	MaxWorkers              uint32
+	MaxQueuedOperations     uint32
 }
 
 func (limits AggregateOpeningLimits) validate() error {
@@ -55,7 +59,8 @@ func (limits AggregateOpeningLimits) validate() error {
 		limits.MaxScalarDecodes == 0 ||
 		limits.MaxMSMTerms == 0 ||
 		limits.MaxTemporaryBytes == 0 ||
-		limits.MaxWorkers == 0 {
+		limits.MaxWorkers == 0 ||
+		limits.MaxQueuedOperations > maxAggregateQueuedOperations {
 		return errInvalidAggregateOpeningLimits
 	}
 
@@ -86,6 +91,10 @@ const (
 
 	// AggregateOpeningResourceWorkers counts dependency-owned workers.
 	AggregateOpeningResourceWorkers
+
+	// AggregateOpeningResourceQueuedOperations counts calls waiting to enter
+	// the dependency's uncancellable proof boundary.
+	AggregateOpeningResourceQueuedOperations
 )
 
 // AggregateOpeningResourceError reports a rejected resource bound without
@@ -139,7 +148,14 @@ type AggregateOpeningEngine struct {
 	backend           aggregateOpeningBackend
 	limits            AggregateOpeningLimits
 	bindingCommitment VectorCommitment
+	gate              *aggregateOpeningGate
 	valid             bool
+}
+
+type aggregateOpeningGate struct {
+	active    chan struct{}
+	queued    atomic.Uint32
+	maxQueued uint32
 }
 
 type aggregateOpeningBackend interface {
@@ -257,6 +273,10 @@ func newAggregateOpeningEngine(
 			value: commitment{element: config.SRS[0]},
 			valid: true,
 		},
+		gate: &aggregateOpeningGate{
+			active:    make(chan struct{}, 1),
+			maxQueued: limits.MaxQueuedOperations,
+		},
 		valid: true,
 	}, nil
 }
@@ -309,6 +329,12 @@ func (engine *AggregateOpeningEngine) open(
 			queries...,
 		)
 	}
+	release, err := engine.gate.acquire(ctx)
+	if err != nil {
+		return OpeningProof{}, err
+	}
+	defer release()
+
 	commitments := make([]banderwagon.Element, len(queries))
 	commitmentPointers := make([]*banderwagon.Element, len(queries))
 	polynomials := make([][]fr.Element, len(queries))
@@ -434,6 +460,12 @@ func (engine *AggregateOpeningEngine) verify(
 			queries...,
 		)
 	}
+	release, err := engine.gate.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	nativeProof, err := nativeAggregateOpeningProof(proof)
 	if err != nil {
 		return err
@@ -560,11 +592,58 @@ func newAggregateOpeningTranscript(
 }
 
 func (engine *AggregateOpeningEngine) validate() error {
-	if engine == nil || !engine.valid || engine.backend == nil || engine.limits.validate() != nil {
+	if engine == nil ||
+		!engine.valid ||
+		engine.backend == nil ||
+		engine.gate == nil ||
+		engine.gate.active == nil ||
+		cap(engine.gate.active) != 1 ||
+		engine.gate.maxQueued != engine.limits.MaxQueuedOperations ||
+		engine.limits.validate() != nil {
 		return errInvalidAggregateOpeningEngine
 	}
 
 	return nil
+}
+
+func (gate *aggregateOpeningGate) acquire(ctx context.Context) (func(), error) {
+	select {
+	case gate.active <- struct{}{}:
+		return gate.finishAcquire(ctx)
+	default:
+	}
+
+	for {
+		queued := gate.queued.Load()
+		if queued >= gate.maxQueued {
+			return nil, &AggregateOpeningResourceError{
+				Resource: AggregateOpeningResourceQueuedOperations,
+				Limit:    uint64(gate.maxQueued),
+				Actual:   uint64(queued) + 1,
+			}
+		}
+		if gate.queued.CompareAndSwap(queued, queued+1) {
+			break
+		}
+	}
+	defer gate.queued.Add(^uint32(0))
+
+	select {
+	case gate.active <- struct{}{}:
+		return gate.finishAcquire(ctx)
+	case <-ctx.Done():
+		return nil, checkAggregateOpeningContext(ctx)
+	}
+}
+
+func (gate *aggregateOpeningGate) finishAcquire(ctx context.Context) (func(), error) {
+	if err := checkAggregateOpeningContext(ctx); err != nil {
+		<-gate.active
+
+		return nil, err
+	}
+
+	return func() { <-gate.active }, nil
 }
 
 func encodeNativeAggregateOpeningProof(

@@ -219,6 +219,9 @@ The 2026-08-03 public API, proof, and witness refresh ran while an unrelated
 repository mutation job shared the host, as required by the non-blocking
 verification workflow. The raw samples retain the resulting scheduling spikes
 and MUST NOT be used as a regression baseline or comparison result.
+The parallel aggregate-verification row was rerun after engine-local dependency
+admission and queue bounds were added; race, coverage, and mutation work also
+shared the host during that sample.
 
 ## Raw samples
 
@@ -244,7 +247,7 @@ nanoseconds per operation.
 | Verify one-key non-membership proof | 2108917, 2269334, 2120041, 2032500, 2098542 | 474.2, 440.7, 471.7, 492.0, 476.5 | 898 | 287680-287928 | 1048-1053 |
 | Generate eight-key aggregate proof | 17427833, 16802209, 16720167, 16717833, 16652791 | 57.38, 59.52, 59.81, 59.82, 60.05 | 2193 | 5011040-5014784 | 4981-5010 |
 | Verify eight-key aggregate proof | 2289875, 2249208, 2236084, 2176417, 2199334 | 436.7, 444.6, 447.2, 459.5, 454.7 | 2193 | 421040-421536 | 1078-1088 |
-| Verify eight-key aggregate proof in parallel | 985578, 971497, 928621, 1234750, 1123620 | 1015, 1029, 1077, 809.9, 890.0 | 2193 | 416331-420826 | 1073-1082 |
+| Verify eight-key aggregate proof in parallel | 5385238, 5362990, 8107587, 6090237, 7293846 | 185.7, 186.5, 123.3, 164.2, 137.1 | 2193 | 416229-416265 | 1072-1073 |
 | Encode eight-key aggregate proof | 18666, 15791, 15000, 12959, 16459 | 53573, 63327, 66667, 77166, 60757 | 2193 | 2304 | 1 |
 | Decode eight-key aggregate proof | 248541, 256959, 242875, 243292, 239709 | 4023, 3892, 4117, 4110, 4172 | 2193 | 25768-25864 | 40-42 |
 | Reject truncated aggregate proof | 14375, 6500, 6375, 5458, 10417 | 69565, 153846, 156863, 183217, 95997 | 2192 input | 2976-3040 | 24-25 |
@@ -257,8 +260,11 @@ The parallel rows use the Go benchmark harness at `GOMAXPROCS=16`; ns/op is
 aggregate wall time divided by completed operations, not per-goroutine latency.
 The non-parallel cryptographic samples use one measured iteration and
 deliberately expose host scheduling variance. The parallel proof row uses 32
-operations so the harness can schedule concurrent calls. Neither set is
-suitable for percentile or regression claims.
+operations so the harness can schedule concurrent calls; the engine serializes
+their entry into the dependency proof boundary and bounds the waiting queue.
+The row therefore measures admission contention as well as verification and is
+not backend parallel-scaling evidence. Neither set is suitable for percentile
+or regression claims.
 
 ### Process peak-memory samples
 

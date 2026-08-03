@@ -549,6 +549,8 @@ func translateResourceError(err error) error {
 		case backend.AggregateOpeningResourceTemporaryBytes:
 		case backend.AggregateOpeningResourceWorkers:
 			resource = ResourceWorkers
+		case backend.AggregateOpeningResourceQueuedOperations:
+			resource = ResourceQueuedWork
 		}
 
 		return newPublicResourceError(

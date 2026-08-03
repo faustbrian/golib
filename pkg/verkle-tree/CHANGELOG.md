@@ -26,6 +26,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Bound each proof engine to one active dependency proof call and an explicit
+  cancellable queue limit so concurrent callers cannot multiply the pinned
+  backend's CPU-derived workers without bound.
 - Add an architecture regression that forbids package-owned initialization and
   goroutine creation while preserving the documented dependency-worker scope.
 - Add a stateful reference-store crash matrix covering partial node writes,

@@ -345,13 +345,14 @@ set from the decoded proof without consulting mutable tree state and rejects
 changed roots, key sets, claims, evaluations, or aggregate proof elements. The
 opening limit counts the additional statement-binding anchor. Query, scalar-decode,
 multi-scalar-multiplication, scratch-memory, generator, precomputation, and
-worker budgets are preflighted. Cancellation is checked throughout owned work
-and before and after dependency calls, but the pinned dependency cannot be
-interrupted during its aggregate proof operation; that remains a production
-backend blocker. The root package exposes this engine through a fixed-profile
-experimental facade with opaque proofs and typed resource errors. It does not
-establish a stable proof API, witness semantics, storage durability, or
-Ethereum compatibility.
+worker budgets are preflighted. Each engine admits one dependency proof call
+and a caller-bounded queue; queued cancellation is checked before dependency
+entry. Cancellation is checked throughout owned work and before and after
+dependency calls, but the pinned dependency cannot be interrupted during its
+aggregate proof operation; that remains a production backend blocker. The root
+package exposes this engine through a fixed-profile experimental facade with
+opaque proofs and typed resource errors. It does not establish a stable proof
+API, witness semantics, storage durability, or Ethereum compatibility.
 
 The stateless engine composes that verified proof with sparse commitment
 changes. Every requested key must have an authenticated membership or absence

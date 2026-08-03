@@ -847,6 +847,16 @@
         "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
         "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
       },
+      "source_files": {
+        "common/parallel/execute.go": "693ee8aa7dcbc7333410ac5e2d7e4d900821bbb98a8a2933b959d6bfb15f3c26",
+        "multiproof.go": "fdbb6b5a544efd852a94b78690354b6e02e25ac0c10bec9ad36a18be8a699906",
+        "bandersnatch/multiexp.go": "fb86629fdc225ac9879cfea01de89c05ac464e64c8355c842708af5e4654a6d0",
+        "banderwagon/precomp.go": "fbdc4c6b00008b1af1b8a049ea0f0d7a907b64b87b4800713c31a346d10d0a4e",
+        "ipa/config.go": "13ca80e8ca11fbdf3f3b6a6503b7703631bc61a0011f2ce8f77cfe578051715d",
+        "ipa/prover.go": "66032f3803f610001eb10e06a2f70393e8c898af84dd63c287e618bc8a890ce4",
+        "ipa/verifier.go": "ec60695e8510c54b61afd210e9f3081e64335d98953eae97b0921662e6f6ad8e"
+      },
+      "review_procedure": "Verify the pinned source files byte-for-byte; trace NewIPASettings, CreateMultiProof, CheckMultiProof, CreateIPAProof, CheckIPAProof, MultiScalar, MultiExp, NewPrecompPoint, and parallel.Execute; require wrapper-owned admission to bound concurrent dependency calls; and retain in-flight cancellation and side-channel gaps as production blockers until an audited backend removes them.",
       "reproducible": true,
       "review_status": "candidate-not-approved"
     },

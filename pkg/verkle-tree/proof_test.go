@@ -340,6 +340,7 @@ func publicOpeningLimits() verkletree.OpeningLimits {
 		MaxMSMTerms:             2_048 * 256,
 		MaxTemporaryBytes:       1 << 30,
 		MaxWorkers:              uint32(runtime.NumCPU()),
+		MaxQueuedOperations:     32,
 	}
 }
 

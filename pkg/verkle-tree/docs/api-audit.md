@@ -5,7 +5,7 @@
 This audit covers the complete exported surface of package
 `github.com/faustbrian/golib/pkg/verkle-tree` as represented by
 `api/baseline.txt` with SHA-256
-`67541479daa50169f3e49a6a973304abf3e9ea9c687e0c073c7ae5d3f6ce952f`.
+`4762023a24573bd3a101d76eb13a5248063f8b810c488af328bfc2204762e8b9`.
 It reviews semantics, ownership, error classification, concurrency, resource
 cost, and caveats. Every exported field has an inline Go documentation comment;
 the tables below cover every exported type, constant, variable, function, and
@@ -27,6 +27,10 @@ baseline checksum and this report are refreshed together.
   transitions, publications, audits, and successful maintenance results are
   immutable and safe for concurrent reads. Store view interfaces require only
   sequential use by one operation; adapters own synchronization across calls.
+- Each proof or stateless engine serializes entry into its dependency proof
+  boundary and admits no more than `MaxQueuedOperations` waiting calls. Queued
+  cancellation does not start dependency work; admitted work remains
+  uncancellable inside the experimental backend.
 - Every I/O or attacker-amplified public operation accepts `context.Context`.
   Nil contexts return `ErrInvalidContext`; cancellation and deadlines match
   both `ErrCancelled` and the original context error.
@@ -63,7 +67,7 @@ baseline checksum and this report are refreshed together.
 
 | Exported identifiers | Semantics and ownership | Errors, concurrency, cost, and caveats |
 | --- | --- | --- |
-| `OpeningLimits`, `ProofMaterialLimits`, `ProverQueryLimits`, `VerifierQueryLimits`, `ProofContainerLimits`, `ProofGenerationLimits`, `ProofVerificationLimits`, `ProofEncodingLimits`, `ProofDecodingLimits` and every exported field | Stage-specific bounds for paths, queries, decodes, MSM work, workers, bytes, and scratch memory. | Validated before attacker-amplified work. The backend cannot be interrupted inside its current fixed proof call despite pre/post cancellation checks. |
+| `OpeningLimits`, `ProofMaterialLimits`, `ProverQueryLimits`, `VerifierQueryLimits`, `ProofContainerLimits`, `ProofGenerationLimits`, `ProofVerificationLimits`, `ProofEncodingLimits`, `ProofDecodingLimits` and every exported field | Stage-specific bounds for paths, queries, decodes, MSM work, workers, queued operations, bytes, and scratch memory. | Validated before attacker-amplified work. One dependency call is admitted per engine, waiting calls are bounded and cancellable, and zero queued operations rejects concurrent calls. The backend cannot be interrupted inside its current fixed proof call. |
 | `ClaimKind`, `ClaimMembership`, `ClaimAbsence`, `Claim`, `Claim.Kind`, `Key`, `Value` | Immutable membership or exact-key absence assertion; all-zero membership is unambiguous. | Constant-time accessors. A zero or inconsistent claim matches `ErrInvalidProof`. |
 | `ProofEngine`, `NewProofEngine`, `ProofEngine.Prove`, `ProveUpdates`, `Verify`; `Proof`, `DecodeProof`, `Proof.Bytes`, `Claims`, `Root` | Fixed-profile aggregate proof generation and independent verification over exact canonical claims and paths. Returned proof data is owned. | Engines and proofs are concurrency safe. Work scales with keys, distinct stems, paths, complete vector openings, and backend MSM terms. Decode alone never verifies. Verification fails closed with `ErrVerification`; malformed containers match `ErrInvalidProof`. |
 | `WitnessLimits`, `WitnessEncodingLimits`, `WitnessDecodingLimits`, `StatelessUpdateLimits` and every exported field | Explicit construction, codec, embedded-proof, update, path, commitment, field, point, and scratch budgets. | No unbounded defaults; nested proof limits are independently enforced. |
@@ -118,7 +122,7 @@ queries, node reads and bytes, encoded node bytes, hashes, claims, field
 mappings, commitment terms and updates, generator derivations, precomputed
 points, scalar decodes, MSM terms, temporary bytes, root bytes, point decodes,
 proof bytes, workers, publications, inventory pages and nodes, unreachable
-nodes, witness bytes, path lookups, and snapshot bytes. Each exact constant is
+nodes, witness bytes, path lookups, snapshot bytes, and queued work. Each exact constant is
 documented at its declaration and identifies the preflight dimension reported
 through `errors.As`.
 

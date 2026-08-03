@@ -515,6 +515,7 @@ func testAuthstateAggregateOpeningLimits() backend.AggregateOpeningLimits {
 		MaxMSMTerms:             2048 * backend.VectorWidth,
 		MaxTemporaryBytes:       1 << 30,
 		MaxWorkers:              uint32(runtime.NumCPU()),
+		MaxQueuedOperations:     32,
 	}
 }
 

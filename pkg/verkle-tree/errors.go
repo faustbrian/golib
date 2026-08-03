@@ -234,6 +234,9 @@ const (
 
 	// ResourceSnapshotBytes counts canonical whole-snapshot bytes.
 	ResourceSnapshotBytes
+
+	// ResourceQueuedWork counts calls waiting for bounded execution capacity.
+	ResourceQueuedWork
 )
 
 // ResourceError reports an exact rejected budget without disclosing keys,

@@ -67,6 +67,7 @@ func TestFacadeResourceErrorMappings(t *testing.T) {
 	add("opening msm", &backend.AggregateOpeningResourceError{Resource: backend.AggregateOpeningResourceMSMTerms, Limit: 1, Actual: 2}, ResourceMSMTerms)
 	add("opening memory", &backend.AggregateOpeningResourceError{Resource: backend.AggregateOpeningResourceTemporaryBytes, Limit: 1, Actual: 2}, ResourceTemporaryBytes)
 	add("opening workers", &backend.AggregateOpeningResourceError{Resource: backend.AggregateOpeningResourceWorkers, Limit: 1, Actual: 2}, ResourceWorkers)
+	add("opening queue", &backend.AggregateOpeningResourceError{Resource: backend.AggregateOpeningResourceQueuedOperations, Limit: 1, Actual: 2}, ResourceQueuedWork)
 	add("opening proof bytes", &backend.OpeningProofResourceError{Resource: backend.OpeningProofResourceBytes, Limit: 1, Actual: 2}, ResourceProofBytes)
 	add("opening proof points", &backend.OpeningProofResourceError{Resource: backend.OpeningProofResourcePointDecodes, Limit: 1, Actual: 2}, ResourcePointDecodes)
 	add("opening proof scalars", &backend.OpeningProofResourceError{Resource: backend.OpeningProofResourceScalarDecodes, Limit: 1, Actual: 2}, ResourceScalarDecodes)

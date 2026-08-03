@@ -61,6 +61,15 @@ membership or non-membership claims from one immutable snapshot. Multiple keys
 produce one aggregate opening; a single-key call uses the same canonical proof
 system.
 
+The experimental dependency internally chooses `runtime.NumCPU()` workers and
+cannot be cancelled after proof arithmetic begins. Set `OpeningLimits.MaxWorkers`
+to at least that fixed demand. Each engine admits one dependency proof call at
+a time; `MaxQueuedOperations` bounds concurrent calls waiting for that slot,
+and zero makes excess calls fail with `ErrResourceExhausted` instead of waiting.
+A queued call respects its context. Use separate engines only after accounting
+for the multiplied worker and setup-memory budget; cancellation still cannot
+stop an already admitted dependency call.
+
 Proof bytes are untrusted input. `DecodeProof` establishes canonical syntax and
 ownership only. Obtain `Proof.Root()` and `Proof.Claims(ctx)`, compare the root
 with the exact trusted root and the claim keys with the exact requested key
