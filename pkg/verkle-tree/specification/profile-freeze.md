@@ -38,10 +38,12 @@ prohibited.
 
 ## Evidence Date
 
-This decision uses sources captured on 2026-07-29. A supplemental review on
-2026-08-03 pinned the EthereumJS-owned WASM wrapper and its npm package without
-changing the decision. Exact commits, content digests, license data, and source
-classifications are in [`sources.json`](sources.json).
+This decision uses sources captured through 2026-08-04. Supplemental reviews
+pinned the EthereumJS-owned WASM wrapper and its npm package, Geth's binary-tree
+direction, and the exact removal of an independent TypeScript Verkle
+implementation without changing the decision. Exact commits, content digests,
+license data, and source classifications are in
+[`sources.json`](sources.json).
 
 ## Candidate Research Target
 
@@ -55,6 +57,12 @@ wrapper around `rust-verkle`, not another independent implementation. Its
 pinned manifest selects an older Rust revision than the differential harness,
 so it MAY be used for separate WASM and FFI packaging research but MUST NOT be
 counted as independent cryptographic agreement.
+
+The historical `micro-eth-signer` Verkle implementation used an independent
+TypeScript and Noble lineage, but upstream removed its implementation, tests,
+and benchmark on 2025-11-20. Its pinned history MAY inform research, but a
+deleted and unmaintained implementation MUST NOT close the maintained
+independent-implementation gate or be copied into this package.
 
 That target is not a frozen package profile. In particular:
 

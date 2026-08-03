@@ -21,6 +21,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   fork and unrelated FRI implementation do not resolve the backend blockers.
 - Pin the maintained Constantine candidate and record that its unfinished,
   unaudited Verkle IPA implementation is not exported through C, Rust, or Go.
+- Pin Geth's binary-tree replacement direction and the exact removal of the
+  independent TypeScript Verkle candidate so neither is mistaken for a stable
+  Ethereum profile or a maintained interoperability target.
 - Audit the complete experimental exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
 

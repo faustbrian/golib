@@ -33,6 +33,8 @@ stable:
 - `ethereum/go-verkle` says the implementation is no longer used and that
   responses may be delayed;
 - `crate-crypto/rust-verkle` says it is unreviewed and unsafe outside research;
+- an independently implemented TypeScript Verkle candidate was removed from
+  `micro-eth-signer` after upstream dropped that roadmap work;
 - the Ethereum Verkle state EIPs are draft or stagnant; and
 - current Geth development is replacing its Verkle state work with a binary
   tree.

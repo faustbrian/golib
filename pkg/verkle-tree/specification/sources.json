@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "captured_on": "2026-07-29",
+  "captured_on": "2026-08-04",
   "profile_status": "not-frozen",
   "imports": [
     {
@@ -788,6 +788,39 @@
       },
       "reproducible": true,
       "review_status": "ethereumjs-maintained-wrapper-not-independent-differential-reference"
+    },
+    {
+      "id": "paulmillr-micro-eth-signer-retired-verkle",
+      "kind": "git-history",
+      "role": "retired-independent-implementation-candidate",
+      "url": "https://github.com/paulmillr/micro-eth-signer",
+      "revision": "87e6757ebb56a91fd1a8b6d02a400cfe08b605fd",
+      "tree": "9128830d0a140d3abf5eba3ad0b5222942bd8cf9",
+      "removed_by_revision": "d98fb3189259f23d43ed5472c63a429d8d4b9d63",
+      "removed_by_tree": "1ad2da984c8795cc1bdea18e1933ffe85d3e2a27",
+      "removed_on": "2025-11-20T14:46:00Z",
+      "removal_message": "Remove verkle. It was removed from eth roadmap.",
+      "reviewed_on": "2026-08-04",
+      "repository_head_as_of_review": "36abd1ca6c2427deef56e00380679bf4359d183d",
+      "license": "MIT",
+      "license_sha256": "3af2a890e9cba7cdfcb42674bc441d76126ca79a7ea69fea548f2d806738a572",
+      "removed_files": {
+        "src/advanced/verkle.ts": {
+          "git_blob": "ea769e496e717c41466251431608343701020feb",
+          "sha256": "0007743b62133879bb30e8b0e18ded890e8991c998856d6af36ca0f31f8ab0b2"
+        },
+        "test/verkle.test.ts": {
+          "git_blob": "f873073dfe22757be5765f649959e33f2f265cb9",
+          "sha256": "e189d4ef4ee4fc60a9f93d040ef23e5391f2f3fc5062ef0966b1175aaca0124c"
+        },
+        "test/benchmark/verkle.ts": {
+          "git_blob": "9d101b49c562827365ff19fa9331c91daf4afd45",
+          "sha256": "500f3bed058ca88d0ff66fd30f18cea8b3c2c1fd63d8563fcfa5bb8e618c11e6"
+        }
+      },
+      "review_procedure": "Read the implementation, tests, and benchmark at the parent revision; verify their Git blob IDs and raw SHA-256 digests; then verify the deleting commit, its parent and tree, removal date and message, current repository head, and license bytes through the GitHub API.",
+      "reproducible": true,
+      "review_status": "independent-typescript-lineage-retired-and-not-maintained"
     },
     {
       "id": "go-ethereum-v1.17.0-release",

@@ -74,6 +74,13 @@ exact shared construction exercised by that fixture. It does not establish
 Ethereum client, network, or mainnet readiness. See
 [compatibility status](compatibility.md) for the pinned claims.
 
+There is also no current Ethereum migration target for this package to adopt.
+Geth v1.17.0 describes binary-tree migration work as replacing its Verkle tree
+implementation, while EIP-7864 remains Draft and does not yet select its hash.
+The ethereum.org Verkle page is retained as moving background rather than an
+activation specification. Applications MUST NOT encode an assumed Ethereum
+transition into the package-owned experimental profile.
+
 ## FAQ
 
 ### Is this a Merkle tree with branching factor 256?
