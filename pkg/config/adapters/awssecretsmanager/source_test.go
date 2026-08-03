@@ -120,6 +120,67 @@ func TestSourceLoadsBinaryJSONAtExplicitImmutableVersion(t *testing.T) {
 	}
 }
 
+func TestSourceAcceptsExactResourceLimits(t *testing.T) {
+	t.Parallel()
+
+	payload := `{"value":"` + strings.Repeat("x", MaximumSecretBytes-12) + `"}`
+	client := &stubClient{output: &secretsmanager.GetSecretValueOutput{
+		SecretString: &payload,
+	}}
+	source, err := New(client, Options{
+		Name:         "runtime-secrets",
+		SecretID:     strings.Repeat("s", MaximumSecretIDBytes),
+		MaximumBytes: MaximumSecretBytes,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	document, err := source.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got := document.Tree["value"]; got != strings.Repeat("x", MaximumSecretBytes-12) {
+		t.Fatalf("Load() value length = %d, want %d", len(got.(string)), MaximumSecretBytes-12)
+	}
+}
+
+func TestSourcePreservesEachExplicitVersionSelector(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]Options{
+		"version ID":    {VersionID: "immutable-version"},
+		"version stage": {VersionStage: "candidate"},
+	}
+	for name, version := range tests {
+		name, version := name, version
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			payload := `{}`
+			client := &stubClient{output: &secretsmanager.GetSecretValueOutput{
+				SecretString: &payload,
+			}}
+			version.Name = "runtime-secrets"
+			version.SecretID = "track/runtime"
+			source, err := New(client, version)
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+			if _, err := source.Load(context.Background()); err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if got := value(client.input.VersionId); got != version.VersionID {
+				t.Fatalf("GetSecretValue() version ID = %q, want %q", got, version.VersionID)
+			}
+			if got := value(client.input.VersionStage); got != version.VersionStage {
+				t.Fatalf("GetSecretValue() version stage = %q, want %q", got, version.VersionStage)
+			}
+		})
+	}
+}
+
 func TestNewRejectsUnsafeComposition(t *testing.T) {
 	t.Parallel()
 
