@@ -188,7 +188,7 @@ func validOperationID(identifier string) bool {
 		return false
 	}
 	for _, character := range identifier {
-		if character > 0x7f || !operationIDCharacter(byte(character)) {
+		if !operationIDCharacter(character) {
 			return false
 		}
 	}
@@ -196,9 +196,9 @@ func validOperationID(identifier string) bool {
 	return true
 }
 
-func operationIDCharacter(character byte) bool {
+func operationIDCharacter(character rune) bool {
 	return character >= 'A' && character <= 'Z' ||
 		character >= 'a' && character <= 'z' ||
 		character >= '0' && character <= '9' ||
-		strings.ContainsRune("-._~", rune(character))
+		strings.ContainsRune("-._~", character)
 }

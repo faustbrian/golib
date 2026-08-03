@@ -136,7 +136,7 @@ func TestOperationIdentityRejectsInvalidPolicyAndValues(t *testing.T) {
 			t.Fatalf("entropy %d error = %v", entropy, err)
 		}
 	}
-	for _, identifier := range []string{"", "contains space", strings.Repeat("a", maximumOperationIDLength+1), "nön-ascii"} {
+	for _, identifier := range []string{"", "contains space", strings.Repeat("a", maximumOperationIDLength+1), "\x7f", "nön-ascii"} {
 		if _, err := WithOperationIdentity(context.Background(), identifier); !errors.Is(err, ErrInvalidOperationIdentity) {
 			t.Fatalf("identity %q error = %v", identifier, err)
 		}
@@ -151,6 +151,67 @@ func TestOperationIdentityRejectsInvalidPolicyAndValues(t *testing.T) {
 	var typedNilGenerator *identityTestGenerator
 	if _, err := New(Config{OperationIdentityGenerator: typedNilGenerator}); !errors.Is(err, ErrInvalidConfig) || !errors.Is(err, ErrInvalidIdentifier) {
 		t.Fatalf("typed-nil generator error = %v", err)
+	}
+}
+
+func TestOperationIdentityAcceptsExactPolicyBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, entropy := range []int{minimumIdentifierEntropyBits, maximumIdentifierEntropyBits} {
+		generator, err := NewRandomIdentifierGenerator(entropy)
+		if err != nil {
+			t.Fatalf("construct %d-bit generator: %v", entropy, err)
+		}
+		generated, err := generator.Generate(context.Background())
+		if err != nil {
+			t.Fatalf("generate %d-bit identifier: %v", entropy, err)
+		}
+		if generated.EntropyBits != entropy || !validOperationID(generated.Value) {
+			t.Fatalf("%d-bit generated identifier = %#v", entropy, generated)
+		}
+	}
+
+	identifier := strings.Repeat("a", maximumOperationIDLength)
+	ctx, err := WithOperationIdentity(context.Background(), identifier)
+	if err != nil {
+		t.Fatalf("attach maximum-length identity: %v", err)
+	}
+	identity, ok := OperationIdentityFromContext(ctx)
+	if !ok || identity.ID != identifier || identity.Provenance != IdentityCaller {
+		t.Fatalf("maximum-length identity = %#v, %v", identity, ok)
+	}
+
+	client, err := New(Config{
+		OperationIdentityGenerator: IdentifierGeneratorFunc(func(context.Context) (GeneratedIdentifier, error) {
+			return GeneratedIdentifier{Value: "minimum-entropy", EntropyBits: minimumIdentifierEntropyBits}, nil
+		}),
+		Transport: TransportFunc(func(request *http.Request) (*http.Response, error) {
+			identity, ok := OperationIdentityFromContext(request.Context())
+			if !ok || identity.ID != "minimum-entropy" || identity.Provenance != IdentityGenerated {
+				t.Fatalf("minimum-entropy identity = %#v, %v", identity, ok)
+			}
+
+			return &http.Response{StatusCode: http.StatusNoContent, Body: http.NoBody}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("construct minimum-entropy client: %v", err)
+	}
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close minimum-entropy client: %v", err)
+		}
+	}()
+	request, err := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	if err != nil {
+		t.Fatalf("construct minimum-entropy request: %v", err)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("execute minimum-entropy request: %v", err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatalf("close minimum-entropy response: %v", err)
 	}
 }
 
