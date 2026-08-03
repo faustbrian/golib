@@ -256,6 +256,14 @@ worker-control risk blocks production-backend approval.
 - goroutine, timer, file, response, transaction, or iterator leaks; and
 - writer races or store close racing with active operations.
 
+Package-owned production source defines no `init` function and starts no
+goroutine. An architecture test scans every production Go file, rejects both
+constructs, and proves the detector against an owned representative violation.
+This establishes only the package-owned lifecycle boundary: the current proof
+dependency may create workers internally and remains subject to the separate
+uncancellable-worker production blocker above. Store adapters also retain
+responsibility for their own handles, transactions, workers, and cleanup.
+
 ### Supply chain and disclosure
 
 - compromised dependencies, fixtures, generators, generated constants, or

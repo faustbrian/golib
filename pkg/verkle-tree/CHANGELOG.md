@@ -26,6 +26,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add an architecture regression that forbids package-owned initialization and
+  goroutine creation while preserving the documented dependency-worker scope.
 - Add a stateful reference-store crash matrix covering partial node writes,
   ambiguous publication outcomes, retry and recovery, atomic retention and
   deletion, and pinned audit views across logical reclamation.
