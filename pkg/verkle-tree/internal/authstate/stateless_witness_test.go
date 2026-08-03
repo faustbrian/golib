@@ -149,6 +149,231 @@ func TestStatelessWitnessCanonicalDeleteRoundTrip(t *testing.T) {
 	assertSameBackendRoot(t, gotRoot, postRoot)
 }
 
+func TestStatelessWitnessAcceptsCompleteTopologyDeletionProof(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x19, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(0x11)},
+	})
+	proof, updater := newTopologyStatelessTestProof(
+		t,
+		snapshot,
+		topologyDisclosureTestKeys(Stem(deleted[:31]), 1),
+	)
+	updates := []Update{Delete(deleted)}
+	postRoot, err := updater.Apply(
+		context.Background(), proof, updates,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("derive topology deletion root: %v", err)
+	}
+	witness, err := NewStatelessWitness(
+		context.Background(), proof, updates, postRoot,
+		testStatelessWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct topology deletion witness: %v", err)
+	}
+	encodingLimits := StatelessWitnessEncodingLimits{
+		MaxWitnessBytes: 8 << 20, MaxProofBytes: 8 << 20,
+		MaxTemporaryBytes: 16 << 20,
+	}
+	encoded, err := witness.Bytes(context.Background(), encodingLimits)
+	if err != nil {
+		t.Fatalf("encode topology deletion witness: %v", err)
+	}
+	decodingLimits := testStatelessWitnessDecodingLimits()
+	decodingLimits.MaxWitnessBytes = 8 << 20
+	decodingLimits.MaxTemporaryBytes = 64 << 20
+	decodingLimits.Proof.MaxProofBytes = 8 << 20
+	decodingLimits.Proof.MaxClaims = 1_024
+	decodingLimits.Proof.MaxStemPaths = 1_024
+	decodingLimits.Proof.MaxPathCommitments = 32_768
+	decodingLimits.Proof.MaxPathDerivations = 32_768
+	decodingLimits.Proof.MaxPathBytes = 1 << 20
+	decodingLimits.Proof.MaxPointDecodes = 32_768
+	decodingLimits.Proof.MaxScalarDecodes = 1
+	decodingLimits.Proof.MaxTemporaryBytes = 64 << 20
+	decoded, err := DecodeStatelessWitness(
+		context.Background(), encoded, decodingLimits,
+	)
+	if err != nil {
+		t.Fatalf("decode topology deletion witness: %v", err)
+	}
+	gotRoot, err := updater.ApplyWitness(
+		context.Background(), decoded,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply topology deletion witness: %v", err)
+	}
+	assertSameBackendRoot(t, gotRoot, postRoot)
+}
+
+func TestStatelessWitnessTopologyClaimFailureBoundaries(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x1a, 0x01)
+	surviving := deleted
+	surviving[1]++
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+		{Key: surviving, Value: testValue(2)},
+	})
+	stem := Stem(deleted[:31])
+	proof, _ := newTopologyStatelessTestProof(
+		t, snapshot, topologyDisclosureTestKeys(stem, 2),
+	)
+	updates := []Update{Delete(deleted)}
+	withoutClaim := func(key Key) ClaimSet {
+		value := proof.claims
+		value.claims = append([]Claim(nil), proof.claims.claims...)
+		for index := range value.claims {
+			if value.claims[index].key == key {
+				value.claims = append(value.claims[:index], value.claims[index+1:]...)
+
+				break
+			}
+		}
+
+		return value
+	}
+
+	if err := validateStatelessWitnessClaims(
+		context.Background(), proof.claims, nil, updates,
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("missing topology stem path error = %v", err)
+	}
+	wrongPaths := append([]StemPath(nil), proof.stemPaths...)
+	for index := range wrongPaths {
+		if wrongPaths[index].stem == stem {
+			wrongPaths[index].kind = StemPathMissing
+
+			break
+		}
+	}
+	if err := validateStatelessWitnessClaims(
+		context.Background(), proof.claims, wrongPaths, updates,
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("wrong topology stem path error = %v", err)
+	}
+
+	missingSuffix := deleted
+	missingSuffix[31] = 0xff
+	if err := validateStatelessWitnessClaims(
+		context.Background(), withoutClaim(missingSuffix), proof.stemPaths, updates,
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("incomplete suffix disclosure error = %v", err)
+	}
+	sparseClaims, err := NewClaimSet(
+		context.Background(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		[]Claim{
+			Membership(deleted, testValue(1)),
+			Absence(testKey(0x1a, 0x02)),
+		},
+		testClaimLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct sparse topology claims: %v", err)
+	}
+	if err := validateStatelessWitnessClaims(
+		context.Background(), sparseClaims, proof.stemPaths, updates,
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("bounded suffix disclosure error = %v", err)
+	}
+	parent := makeStatelessPath(stem[:1])
+	missingParent := statelessTopologyProbe(parent, 0xff)
+	if err := validateStatelessWitnessClaims(
+		context.Background(), withoutClaim(missingParent), proof.stemPaths, updates,
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("incomplete parent disclosure error = %v", err)
+	}
+
+	for successfulChecks, label := range map[int]string{
+		1:   "deletion stem",
+		2:   "auxiliary scan",
+		258: "suffix disclosure",
+		515: "parent disclosure",
+		771: "final relation",
+	} {
+		err := validateStatelessWitnessClaims(
+			&stepContext{successfulChecks: successfulChecks},
+			proof.claims,
+			proof.stemPaths,
+			updates,
+		)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("%s cancellation after %d checks = %v", label, successfulChecks, err)
+		}
+	}
+	assertStatelessWitnessCancellationSweep(t, func(ctx context.Context) error {
+		return validateStatelessWitnessClaims(
+			ctx, proof.claims, proof.stemPaths, updates,
+		)
+	})
+
+	other := testKey(0x1b, 0x01)
+	retained, disclosed, err := statelessWitnessStemAuxiliaries(
+		context.Background(),
+		[]Claim{Membership(deleted, testValue(1)), Absence(other)},
+		map[Key]struct{}{},
+		Stem(deleted[:31]),
+	)
+	if err != nil || len(retained) != 1 || disclosed {
+		t.Fatalf("bounded auxiliary scan = retained %d, disclosed %v, error %v", len(retained), disclosed, err)
+	}
+	if _, _, err := statelessWitnessStemAuxiliaries(
+		&stepContext{}, proof.claims.claims, map[Key]struct{}{}, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("auxiliary cancellation error = %v", err)
+	}
+	if _, found := statelessWitnessStemPath(proof.stemPaths, Stem(other[:31])); found {
+		t.Fatal("missing witness stem path was found")
+	}
+}
+
+func TestStatelessWitnessDecoderRejectsShortEmbeddedProof(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(0x1c, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{{Key: key, Value: testValue(1)}})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{key})
+	updates := []Update{Set(key, testValue(2))}
+	postRoot, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("derive post-state root: %v", err)
+	}
+	witness, err := NewStatelessWitness(
+		context.Background(), proof, updates, postRoot, testStatelessWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct witness: %v", err)
+	}
+	encoded, err := witness.Bytes(
+		context.Background(), testStatelessWitnessEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode witness: %v", err)
+	}
+	proofSize := treeProofHeaderBytes - 1
+	short := append(
+		[]byte(nil),
+		encoded[:statelessWitnessHeaderBytes+statelessWitnessUpdateBytes+proofSize]...,
+	)
+	binary.BigEndian.PutUint32(short[9:13], uint32(proofSize))
+	if _, err := DecodeStatelessWitness(
+		context.Background(), short, testStatelessWitnessDecodingLimits(),
+	); !errors.Is(err, errInvalidStatelessWitnessEncoding) {
+		t.Fatalf("short embedded proof error = %v", err)
+	}
+}
+
 func TestStatelessUpdaterVerifiesWitnessPostStateRoot(t *testing.T) {
 	t.Parallel()
 
@@ -308,7 +533,7 @@ func TestStatelessWitnessRejectsInvalidConstructionAndAccess(t *testing.T) {
 		t.Fatalf("mismatched delete claim error = %v", err)
 	}
 	if err := validateStatelessWitnessClaims(
-		context.Background(), ClaimSet{}, []Update{Delete(key)},
+		context.Background(), ClaimSet{}, nil, []Update{Delete(key)},
 	); !errors.Is(err, errInvalidClaimSet) {
 		t.Fatalf("invalid claim set relation error = %v", err)
 	}

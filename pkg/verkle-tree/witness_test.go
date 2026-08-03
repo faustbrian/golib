@@ -321,6 +321,73 @@ func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T
 	assertPublicRootsEqual(t, gotRoot, postRoot)
 }
 
+func TestPublicProofEngineBuildsAndAppliesTopologyDeletionWitness(t *testing.T) {
+	t.Parallel()
+
+	deleted := publicKey(0x2a, 0x01)
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		[]verkletree.Entry{{Key: deleted, Value: publicValue(1)}},
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new topology deletion snapshot: %v", err)
+	}
+	proofEngine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new topology deletion proof engine: %v", err)
+	}
+	updates := []verkletree.Update{verkletree.Delete(deleted)}
+	proof, err := proofEngine.ProveUpdates(
+		context.Background(), snapshot, updates,
+		publicTopologyProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove public topology deletion: %v", err)
+	}
+	next, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply public stateful topology deletion: %v", err)
+	}
+	postRoot, err := next.Root()
+	if err != nil {
+		t.Fatalf("public stateful topology deletion root: %v", err)
+	}
+	witness, err := verkletree.NewWitness(
+		context.Background(), proof, updates, postRoot, publicWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new public topology deletion witness: %v", err)
+	}
+	engine, err := verkletree.NewStatelessEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+		publicSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		t.Fatalf("new public topology deletion engine: %v", err)
+	}
+	result, err := engine.Apply(
+		context.Background(), witness,
+		publicTopologyProofVerificationLimits(),
+		publicTopologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply public topology deletion witness: %v", err)
+	}
+	got, err := result.PostRoot()
+	if err != nil {
+		t.Fatalf("public topology deletion result root: %v", err)
+	}
+	assertPublicRootsEqual(t, got, postRoot)
+}
+
 func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	t.Parallel()
 
@@ -683,6 +750,48 @@ func publicStatelessUpdateLimits() verkletree.StatelessUpdateLimits {
 		MaxPathLookups:       4_096,
 		MaxTemporaryBytes:    8 << 20,
 	}
+}
+
+func publicTopologyProofGenerationLimits() verkletree.ProofGenerationLimits {
+	limits := publicProofGenerationLimits()
+	limits.Material.MaxKeys = 1_024
+	limits.Material.MaxStemPaths = 1_024
+	limits.Material.MaxNodeReads = 32_768
+	limits.Material.MaxPathCommitments = 32_768
+	limits.Material.MaxPathBytes = 1 << 20
+	limits.Material.MaxTemporaryBytes = 64 << 20
+	limits.ProverQueries.MaxKeys = 1_024
+	limits.ProverQueries.MaxQueries = 4_096
+	limits.ProverQueries.MaxNodeReads = 32_768
+	limits.ProverQueries.MaxTemporaryBytes = 128 << 20
+	limits.VerifierQueries.MaxQueries = 4_096
+	limits.VerifierQueries.MaxTemporaryBytes = 64 << 20
+	limits.Proof.MaxClaims = 1_024
+	limits.Proof.MaxStemPaths = 1_024
+	limits.Proof.MaxPathCommitments = 32_768
+	limits.Proof.MaxPathDerivations = 32_768
+	limits.Proof.MaxPathBytes = 1 << 20
+	limits.Proof.MaxTemporaryBytes = 64 << 20
+
+	return limits
+}
+
+func publicTopologyProofVerificationLimits() verkletree.ProofVerificationLimits {
+	limits := publicProofVerificationLimits()
+	limits.VerifierQueries.MaxQueries = 4_096
+	limits.VerifierQueries.MaxTemporaryBytes = 64 << 20
+
+	return limits
+}
+
+func publicTopologyStatelessUpdateLimits() verkletree.StatelessUpdateLimits {
+	limits := publicStatelessUpdateLimits()
+	limits.MaxCommitmentUpdates = 4_096
+	limits.MaxFieldMappings = 16_384
+	limits.MaxPathLookups = 65_536
+	limits.MaxTemporaryBytes = 64 << 20
+
+	return limits
 }
 
 func assertPublicRootsEqual(t testing.TB, got verkletree.Root, want verkletree.Root) {

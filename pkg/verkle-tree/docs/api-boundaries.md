@@ -26,8 +26,7 @@ The current public API exposes opaque, profile-bound forms of:
 - verifier;
 - resource limits and typed errors.
 
-A future public API is expected to add deletion-time topology collapse and
-crash-repair application.
+A future public API is expected to add crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -256,16 +255,21 @@ new stems beneath the authenticated empty edge. Different paths preserve the
 authenticated existing stem commitment and construct the minimal canonical
 collision subtree. Every change then propagates through authenticated
 ancestors in descending depth order. Update order cannot change the result.
-An authenticated absent delete is a no-op. A present delete is accepted only
-when another authenticated member or a Set in the same batch proves the stem
-remains non-empty; deletion requiring topology collapse remains unsupported.
+An authenticated absent delete is a no-op. A present delete that leaves its
+stem non-empty requires another authenticated member or a same-stem Set. When
+a present delete empties a stem, `ProofEngine.ProveUpdates` includes every
+suffix position and every child position of each affected non-root internal
+ancestor. The verifier reconstructs those complete authenticated vectors,
+removes empty nodes, and replaces a unary internal path with its surviving stem
+when required by the canonical topology. The root remains an internal node, so
+it is updated but never collapsed.
 Explicit limits
 cover updates, commitment changes, commitment-to-field mappings, path lookups,
 and temporary bytes, including the maximum live recursive vector stack for
-topology insertion. The public canonical witness format additionally bounds
+topology insertion, one topology-disclosure vector, and the expanded proof-key
+set. The public canonical witness format additionally bounds
 witness/proof bytes and requires exactly one post-root point decode before
 cryptographic work.
-Deletion-time topology collapse remains proposed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

@@ -23,8 +23,9 @@ retained roots against a canonical complete node inventory and bounded atomic
 retention/pruning requests, plus canonical bounded stateless witnesses that
 verify a complete pre-state proof and independently match the claimed
 post-state root, including creation below authenticated missing or different
-stem paths and deletion that provably leaves topology unchanged. Deletion-time
-topology collapse, crash-repair application, dependency-level cancellation, concrete storage
+stem paths and deletion that is absent, topology-preserving, or backed by
+complete authenticated collapse disclosure. Crash-repair application,
+dependency-level cancellation, concrete storage
 adapters, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries

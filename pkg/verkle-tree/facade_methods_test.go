@@ -391,6 +391,101 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	}
 }
 
+func TestFacadeUpdateProofRejectsInvalidAndBoundedInputs(t *testing.T) {
+	t.Parallel()
+
+	engine, snapshot, _ := testFacadeProof(t)
+	updates := []Update{Set(Key{}, Value{2})}
+	var zeroEngine ProofEngine
+	var nilContext context.Context
+
+	for name, operation := range map[string]func() error{
+		"engine": func() error {
+			_, err := zeroEngine.ProveUpdates(
+				context.Background(), snapshot, updates,
+				testFacadeProofGenerationLimits(),
+			)
+			return err
+		},
+		"snapshot": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), Snapshot{}, updates,
+				testFacadeProofGenerationLimits(),
+			)
+			return err
+		},
+		"context": func() error {
+			_, err := engine.ProveUpdates(
+				nilContext, snapshot, updates, testFacadeProofGenerationLimits(),
+			)
+			return err
+		},
+		"limits": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, updates, ProofGenerationLimits{},
+			)
+			return err
+		},
+		"update": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, []Update{{}},
+				testFacadeProofGenerationLimits(),
+			)
+			return err
+		},
+		"empty": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, nil,
+				testFacadeProofGenerationLimits(),
+			)
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := operation(); err == nil {
+				t.Fatal("invalid public update-proof input was accepted")
+			}
+		})
+	}
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, nil, testFacadeProofGenerationLimits(),
+	); !errors.Is(err, ErrInvalidUpdate) {
+		t.Fatalf("empty update-proof error = %v", err)
+	}
+
+	limits := testFacadeProofGenerationLimits()
+	limits.Material.MaxKeys = 1
+	limits.ProverQueries.MaxKeys = 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot,
+		[]Update{Set(Key{}, Value{2}), Delete(Key{1})}, limits,
+	); !errors.Is(err, ErrResourceExhausted) {
+		t.Fatalf("update-proof key resource error = %v", err)
+	}
+	if _, err := engine.ProveUpdates(
+		&cancellingContext{remaining: 1}, snapshot, updates,
+		testFacadeProofGenerationLimits(),
+	); !errors.Is(err, ErrCancelled) {
+		t.Fatalf("update conversion cancellation error = %v", err)
+	}
+	topologyLimits := testFacadeProofGenerationLimits()
+	topologyLimits.Material.MaxKeys = 256
+	topologyLimits.ProverQueries.MaxKeys = 256
+	topologyLimits.Material.MaxNodeReads = 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, []Update{Delete(Key{})}, topologyLimits,
+	); !errors.Is(err, ErrResourceExhausted) {
+		t.Fatalf("topology node-read resource error = %v", err)
+	}
+
+	forged := ProofEngine{value: &authstate.ProofEngine{}, valid: true}
+	if _, err := forged.ProveUpdates(
+		context.Background(), snapshot, updates, testFacadeProofGenerationLimits(),
+	); !errors.Is(err, ErrInvalidProof) {
+		t.Fatalf("forged update-proof engine error = %v", err)
+	}
+}
+
 func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	t.Parallel()
 	validEncodingLimits := WitnessEncodingLimits{

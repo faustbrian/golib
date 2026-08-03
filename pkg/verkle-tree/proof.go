@@ -324,6 +324,52 @@ func (engine ProofEngine) Prove(
 	return Proof{value: value, valid: true}, nil
 }
 
+// ProveUpdates derives and proves the canonical pre-state key set required for
+// one update batch. Topology-changing deletions include bounded completeness
+// probes automatically.
+func (engine ProofEngine) ProveUpdates(
+	ctx context.Context,
+	snapshot Snapshot,
+	updates []Update,
+	limits ProofGenerationLimits,
+) (Proof, error) {
+	if !engine.valid || engine.value == nil {
+		return Proof{}, ErrInvalidProofEngine
+	}
+	if !snapshot.valid {
+		return Proof{}, ErrInvalidSnapshot
+	}
+	if err := checkPublicContext(ctx); err != nil {
+		return Proof{}, err
+	}
+	if err := limits.validate(); err != nil {
+		return Proof{}, err
+	}
+	maxKeys := min(limits.Material.MaxKeys, limits.ProverQueries.MaxKeys)
+	if uint64(len(updates)) > uint64(maxKeys) {
+		return Proof{}, newPublicResourceError(
+			ResourceKeys,
+			uint64(maxKeys),
+			uint64(len(updates)),
+		)
+	}
+	owned, err := toInternalWitnessUpdates(ctx, updates)
+	if err != nil {
+		return Proof{}, err
+	}
+	value, err := engine.value.ProveUpdates(
+		ctx,
+		snapshot.value,
+		owned,
+		toInternalProofGenerationLimits(limits),
+	)
+	if err != nil {
+		return Proof{}, translateProofError("generate update proof", err, false)
+	}
+
+	return Proof{value: value, valid: true}, nil
+}
+
 // Verify independently reconstructs and verifies every proof opening.
 func (engine ProofEngine) Verify(
 	ctx context.Context,
@@ -534,6 +580,9 @@ func translateProofError(operation string, err error, verification bool) error {
 	}
 	if authstate.IsDuplicateKeyError(err) {
 		return fmt.Errorf("%s: %w", operation, ErrDuplicateKey)
+	}
+	if authstate.IsInvalidStatelessUpdateError(err) {
+		return fmt.Errorf("%s: %w", operation, ErrInvalidUpdate)
 	}
 	if verification || authstate.IsProofVerificationError(err) {
 		return fmt.Errorf("%s: %w", operation, ErrVerification)

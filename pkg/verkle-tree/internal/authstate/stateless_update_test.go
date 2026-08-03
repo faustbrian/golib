@@ -182,20 +182,147 @@ func TestStatelessUpdaterAppliesMixedSetsAndDeletes(t *testing.T) {
 	assertSameBackendRoot(t, got, want)
 }
 
-func TestStatelessUpdaterRejectsDeletionThatRequiresTopologyCollapse(t *testing.T) {
+func TestStatelessUpdaterDeletesLastStemWithCompleteTopologyProof(t *testing.T) {
 	t.Parallel()
 
 	key := testKey(0x30, 0x01)
 	snapshot := newTestSnapshot(t, []Entry{{Key: key, Value: testValue(1)}})
-	proof, updater := newStatelessTestProof(t, snapshot, []Key{key})
-
-	_, err := updater.Apply(
-		context.Background(), proof, []Update{Delete(key)},
-		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	proof, updater := newTopologyStatelessTestProof(
+		t,
+		snapshot,
+		topologyDisclosureTestKeys(Stem(key[:31]), 1),
 	)
-	if !errors.Is(err, errUnsupportedStatelessUpdate) {
-		t.Fatalf("topology-changing deletion error = %v", err)
+	updates := []Update{Delete(key)}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("delete final disclosed stem: %v", err)
 	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful final deletion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful empty root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterCollapsesUnaryInternalPathAfterStemDeletion(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x30, 0x01)
+	deleted[1] = 0x10
+	retained := testKey(0x30, 0x02)
+	retained[1] = 0x20
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+		{Key: retained, Value: testValue(2)},
+	})
+	proof, updater := newTopologyStatelessTestProof(
+		t,
+		snapshot,
+		topologyDisclosureTestKeys(Stem(deleted[:31]), 2),
+	)
+	updates := []Update{Delete(deleted)}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("delete stem below unary internal path: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful collapsing deletion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful collapsed root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterCollapsesEveryUnaryAncestorAfterStemDeletion(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x32, 0x01)
+	deleted[1], deleted[2] = 0x10, 0x10
+	retained := testKey(0x32, 0x02)
+	retained[1], retained[2] = 0x10, 0x20
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+		{Key: retained, Value: testValue(2)},
+	})
+	proof, updater := newTopologyStatelessTestProof(
+		t,
+		snapshot,
+		topologyDisclosureTestKeys(Stem(deleted[:31]), 3),
+	)
+	updates := []Update{Delete(deleted)}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("delete stem below deep unary path: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply deep stateful collapse: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("deep stateful collapsed root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterCollapsesBatchDeletedSiblingStems(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x34, 0x01)
+	first[1] = 0x10
+	second := testKey(0x34, 0x02)
+	second[1] = 0x20
+	retained := testKey(0x34, 0x03)
+	retained[1] = 0x30
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: first, Value: testValue(1)},
+		{Key: second, Value: testValue(2)},
+		{Key: retained, Value: testValue(3)},
+	})
+	proofKeys := topologyDisclosureTestKeys(Stem(first[:31]), 2)
+	proofKeys = append(
+		proofKeys,
+		topologyDisclosureTestKeys(Stem(second[:31]), 2)...,
+	)
+	proofKeys = uniqueTestKeys(proofKeys)
+	proof, updater := newTopologyStatelessTestProof(t, snapshot, proofKeys)
+	updates := []Update{Delete(first), Delete(second)}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("delete disclosed sibling stems: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful sibling deletions: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful sibling deletion root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
 }
 
 func TestStatelessStemRetentionHonorsCancellationAndOrdering(t *testing.T) {
@@ -612,11 +739,11 @@ func TestStatelessUpdaterEnforcesEveryResource(t *testing.T) {
 		},
 		"temporary bytes": {
 			mutate: func(value *StatelessUpdateLimits) {
-				value.MaxTemporaryBytes = statelessTemporaryBytes(proof, 1) - 1
+				value.MaxTemporaryBytes = statelessTemporaryBytes(proof, 1, false) - 1
 			},
 			resource: StatelessUpdateResourceTemporaryBytes,
-			limit:    statelessTemporaryBytes(proof, 1) - 1,
-			actual:   statelessTemporaryBytes(proof, 1),
+			limit:    statelessTemporaryBytes(proof, 1, false) - 1,
+			actual:   statelessTemporaryBytes(proof, 1, false),
 		},
 		"path lookups": {
 			mutate:   func(value *StatelessUpdateLimits) { value.MaxPathLookups = 1 },
@@ -662,7 +789,7 @@ func TestStatelessUpdaterAccountsForProofAndPropagationScratch(t *testing.T) {
 	if !errors.As(err, &resourceErr) ||
 		resourceErr.Resource != StatelessUpdateResourceTemporaryBytes ||
 		resourceErr.Limit != statelessUpdateWorkingBytes ||
-		resourceErr.Actual != statelessTemporaryBytes(proof, 1) {
+		resourceErr.Actual != statelessTemporaryBytes(proof, 1, false) {
 		t.Fatalf("proof scratch error = %v", err)
 	}
 }
@@ -699,14 +826,14 @@ func TestStatelessUpdateProofCountAndScratchBoundaries(t *testing.T) {
 		2*statelessCommitmentPathWorkingBytes +
 		3*statelessStemPathWorkingBytes +
 		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes
-	if got := statelessTemporaryBytes(proof, updateCount); got != want {
+	if got := statelessTemporaryBytes(proof, updateCount, false); got != want {
 		t.Fatalf("stateless scratch bytes = %d, want %d", got, want)
 	}
 
 	present := TreeProof{stemPaths: []StemPath{{kind: StemPathPresent}}}
 	missing := TreeProof{stemPaths: []StemPath{{kind: StemPathMissing}}}
-	presentBytes := statelessTemporaryBytes(present, 1)
-	missingBytes := statelessTemporaryBytes(missing, 1)
+	presentBytes := statelessTemporaryBytes(present, 1, false)
+	missingBytes := statelessTemporaryBytes(missing, 1, false)
 	const insertionVectors = uint64(maxProofPathLength * len(backend.Vector{}) * len(backend.Vector{}[0]))
 	if missingBytes != presentBytes+insertionVectors {
 		t.Fatalf(
@@ -715,6 +842,19 @@ func TestStatelessUpdateProofCountAndScratchBoundaries(t *testing.T) {
 			presentBytes,
 			insertionVectors,
 		)
+	}
+	deletionBytes := statelessTemporaryBytes(present, 1, true)
+	if deletionBytes != presentBytes+statelessTopologyVectorWorkingBytes {
+		t.Fatalf(
+			"topology deletion scratch = %d, want present %d plus vector %d",
+			deletionBytes,
+			presentBytes,
+			statelessTopologyVectorWorkingBytes,
+		)
+	}
+	if !statelessUpdatesContainDelete([]Update{Delete(Key{})}) ||
+		statelessUpdatesContainDelete([]Update{Set(Key{}, Value{})}) {
+		t.Fatal("delete scratch classification mismatch")
 	}
 }
 
@@ -903,7 +1043,7 @@ func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
 	}
 
 	budget = newBudget()
-	budget.limits.MaxPathLookups = 2
+	budget.limits.MaxPathLookups = 3
 	if _, err := updater.updateStems(context.Background(), proof.claims, paths, commitments, updates, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("claim lookup budget error = %v", err)
 	}
@@ -946,40 +1086,42 @@ func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
 	}
 	budget = newBudget()
 	budget.limits.MaxFieldMappings = 1
-	if _, err := updater.updateAncestors(context.Background(), commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("ancestor new-field mapping budget error = %v", err)
 	}
 
 	budget = newBudget()
 	budget.limits.MaxFieldMappings = 1
 	budget.fieldMappings = 1
-	if _, err := updater.updateAncestors(context.Background(), commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("ancestor old-field mapping budget error = %v", err)
 	}
 
 	budget = newBudget()
 	budget.limits.MaxPathLookups = 1
 	budget.pathLookups = 1
-	if _, err := updater.updateAncestors(context.Background(), commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("ancestor lookup budget error = %v", err)
 	}
 
 	missingRoot := cloneCommitments()
 	delete(missingRoot, statelessPath{})
-	if _, err := updater.updateAncestors(context.Background(), missingRoot, changed, newBudget()); !errors.Is(err, errIncompleteStatelessWitness) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, missingRoot, changed, newBudget()); !errors.Is(err, errIncompleteStatelessWitness) {
 		t.Fatalf("missing ancestor commitment error = %v", err)
 	}
 
 	budget = newBudget()
 	budget.limits.MaxCommitmentUpdates = 1
 	budget.commitmentUpdates = 1
-	if _, err := updater.updateAncestors(context.Background(), commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, commitments, changed, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("ancestor commitment-update budget error = %v", err)
 	}
 
 	invalidRootPath := statelessPath{path: [maxProofPathLength]byte{1}}
 	if _, err := updater.updateAncestors(
 		context.Background(),
+		proof.claims,
+		paths,
 		commitments,
 		map[statelessPath]statelessChangedCommitment{
 			invalidRootPath: {old: root, new: root},
@@ -988,8 +1130,396 @@ func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
 	); !errors.Is(err, errInvalidStatelessUpdate) {
 		t.Fatalf("invalid root path error = %v", err)
 	}
-	if _, err := updater.updateAncestors(context.Background(), commitments, nil, newBudget()); !errors.Is(err, errInvalidStatelessUpdate) {
+	if _, err := updater.updateAncestors(context.Background(), proof.claims, paths, commitments, nil, newBudget()); !errors.Is(err, errInvalidStatelessUpdate) {
 		t.Fatalf("empty ancestor changes error = %v", err)
+	}
+}
+
+func TestStatelessTopologyDisclosureFailureBoundaries(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x41, 0x01)
+	surviving := deleted
+	surviving[1]++
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+		{Key: surviving, Value: testValue(2)},
+	})
+	stem := Stem(deleted[:31])
+	proof, updater := newTopologyStatelessTestProof(
+		t, snapshot, topologyDisclosureTestKeys(stem, 2),
+	)
+	paths, commitments := statelessTestMaterial(proof)
+	updates := []Update{Delete(deleted)}
+	newBudget := func() *statelessUpdateBudget {
+		return &statelessUpdateBudget{limits: topologyStatelessUpdateLimits()}
+	}
+	cloneClaims := func() ClaimSet {
+		value := proof.claims
+		value.claims = append([]Claim(nil), proof.claims.claims...)
+
+		return value
+	}
+	clonePaths := func() map[Stem]StemPath {
+		value := make(map[Stem]StemPath, len(paths))
+		for candidate, path := range paths {
+			value[candidate] = path
+		}
+
+		return value
+	}
+	cloneCommitments := func() map[statelessPath]backend.VectorCommitment {
+		value := make(map[statelessPath]backend.VectorCommitment, len(commitments))
+		for path, commitment := range commitments {
+			value[path] = commitment
+		}
+
+		return value
+	}
+	withoutClaim := func(key Key) ClaimSet {
+		value := cloneClaims()
+		for index := range value.claims {
+			if value.claims[index].key == key {
+				value.claims = append(value.claims[:index], value.claims[index+1:]...)
+
+				break
+			}
+		}
+
+		return value
+	}
+
+	if empty, err := statelessDisclosedStemEmpty(
+		context.Background(), proof.claims, updates, stem, newBudget(),
+	); err != nil || !empty {
+		t.Fatalf("complete stem disclosure = %v, error %v", empty, err)
+	}
+	if _, err := statelessDisclosedStemEmpty(
+		&stepContext{}, proof.claims, updates, stem, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("stem disclosure cancellation error = %v", err)
+	}
+	if _, err := statelessDisclosedStemEmpty(
+		context.Background(), ClaimSet{}, updates, stem, newBudget(),
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("stem disclosure claim-set error = %v", err)
+	}
+	budget := newBudget()
+	budget.limits.MaxPathLookups = 0
+	if _, err := statelessDisclosedStemEmpty(
+		context.Background(), proof.claims, updates, stem, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("stem disclosure lookup error = %v", err)
+	}
+	missingSuffix := deleted
+	missingSuffix[31] = 0xff
+	if empty, err := statelessDisclosedStemEmpty(
+		context.Background(), withoutClaim(missingSuffix), updates, stem, newBudget(),
+	); err != nil || empty {
+		t.Fatalf("incomplete stem disclosure = %v, error %v", empty, err)
+	}
+	if empty, err := statelessDisclosedStemEmpty(
+		context.Background(), proof.claims, nil, stem, newBudget(),
+	); err != nil || empty {
+		t.Fatalf("present stem disclosure = %v, error %v", empty, err)
+	}
+
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 2
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, paths, commitments, updates, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("propagated stem disclosure error = %v", err)
+	}
+	for successfulChecks := 258; successfulChecks <= 262; successfulChecks++ {
+		if _, err := updater.updateStems(
+			&stepContext{successfulChecks: successfulChecks},
+			proof.claims, paths, commitments, updates, newBudget(),
+		); !errors.Is(err, context.Canceled) {
+			t.Fatalf("stem disclosure cancellation after %d checks = %v", successfulChecks, err)
+		}
+	}
+
+	parent := makeStatelessPath(stem[:1])
+	missingChild := byte(0xff)
+	if missingChild == deleted[1] || missingChild == surviving[1] {
+		missingChild--
+	}
+	missingProbe := statelessTopologyProbe(parent, missingChild)
+	vector, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, commitments, parent, newBudget(),
+	)
+	if err != nil {
+		t.Fatalf("reconstruct disclosed internal vector: %v", err)
+	}
+	if vector[deleted[1]] == ([32]byte{}) || vector[surviving[1]] == ([32]byte{}) {
+		t.Fatal("disclosed internal vector omitted present children")
+	}
+	if _, err := statelessDisclosedInternalVector(
+		&stepContext{}, proof.claims, paths, commitments, parent, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("internal disclosure cancellation error = %v", err)
+	}
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), ClaimSet{}, paths, commitments, parent, newBudget(),
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("internal disclosure claim-set error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 0
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, commitments, parent, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("internal disclosure claim lookup error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 1
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, commitments, parent, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("internal disclosure path lookup error = %v", err)
+	}
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), withoutClaim(missingProbe), paths, commitments,
+		parent, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("internal disclosure missing claim error = %v", err)
+	}
+	missingPaths := clonePaths()
+	delete(missingPaths, Stem(missingProbe[:31]))
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, missingPaths, commitments,
+		parent, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("internal disclosure missing path error = %v", err)
+	}
+	shallowPaths := clonePaths()
+	shallow := shallowPaths[Stem(missingProbe[:31])]
+	shallow.depth = parent.length
+	shallowPaths[Stem(missingProbe[:31])] = shallow
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, shallowPaths, commitments,
+		parent, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("internal disclosure shallow path error = %v", err)
+	}
+	missingCommitments := cloneCommitments()
+	delete(missingCommitments, statelessChildPath(parent, surviving[1]))
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, missingCommitments,
+		parent, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("internal disclosure missing commitment error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 2
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, commitments, parent, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("internal disclosure commitment lookup error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxFieldMappings = 0
+	if _, err := statelessDisclosedInternalVector(
+		context.Background(), proof.claims, paths, commitments, parent, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("internal disclosure mapping error = %v", err)
+	}
+
+	if _, err := statelessDisclosedChildIsStem(
+		&stepContext{}, paths, parent, surviving[1], newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("child-kind cancellation error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 0
+	if _, err := statelessDisclosedChildIsStem(
+		context.Background(), paths, parent, surviving[1], budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("child-kind lookup error = %v", err)
+	}
+	if _, err := statelessDisclosedChildIsStem(
+		context.Background(), map[Stem]StemPath{}, parent, surviving[1], newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("child-kind missing path error = %v", err)
+	}
+	shallowPaths = clonePaths()
+	survivingProbe := statelessTopologyProbe(parent, surviving[1])
+	shallow = shallowPaths[Stem(survivingProbe[:31])]
+	shallow.depth = parent.length
+	shallowPaths[Stem(survivingProbe[:31])] = shallow
+	if _, err := statelessDisclosedChildIsStem(
+		context.Background(), shallowPaths, parent, surviving[1], newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("child-kind shallow path error = %v", err)
+	}
+}
+
+func TestStatelessDisclosedParentFailureBoundaries(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x42, 0x01)
+	surviving := deleted
+	surviving[1]++
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+		{Key: surviving, Value: testValue(2)},
+	})
+	stem := Stem(deleted[:31])
+	proof, updater := newTopologyStatelessTestProof(
+		t, snapshot, topologyDisclosureTestKeys(stem, 2),
+	)
+	paths, commitments := statelessTestMaterial(proof)
+	parent := makeStatelessPath(stem[:1])
+	deletedPath := statelessChildPath(parent, deleted[1])
+	survivingPath := statelessChildPath(parent, surviving[1])
+	oldDeleted := commitments[deletedPath]
+	oldSurviving := commitments[survivingPath]
+	deletedScalar, err := oldDeleted.ScalarBytes()
+	if err != nil {
+		t.Fatalf("map deleted child: %v", err)
+	}
+	survivingScalar, err := oldSurviving.ScalarBytes()
+	if err != nil {
+		t.Fatalf("map surviving child: %v", err)
+	}
+	deletedChange := statelessParentChange{
+		opening: backend.VectorUpdate{
+			Index: deleted[1], Old: deletedScalar, New: [32]byte{},
+		},
+		child: statelessChangedCommitment{
+			old: oldDeleted, new: backend.EmptyVectorCommitment(),
+			kind: statelessChangedEmpty, topology: true,
+		},
+	}
+	newBudget := func() *statelessUpdateBudget {
+		return &statelessUpdateBudget{limits: topologyStatelessUpdateLimits()}
+	}
+	clonePaths := func() map[Stem]StemPath {
+		value := make(map[Stem]StemPath, len(paths))
+		for candidate, path := range paths {
+			value[candidate] = path
+		}
+
+		return value
+	}
+
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), ClaimSet{}, paths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, newBudget(),
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("disclosed parent claim-set error = %v", err)
+	}
+	mismatched := deletedChange
+	mismatched.opening.Old = [32]byte{}
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent], []statelessParentChange{mismatched}, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("disclosed parent old-opening error = %v", err)
+	}
+	if _, _, _, err := updater.updateDisclosedParent(
+		&stepContext{successfulChecks: backend.VectorWidth},
+		proof.claims, paths, commitments, parent, commitments[parent],
+		[]statelessParentChange{deletedChange}, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("disclosed parent scan cancellation error = %v", err)
+	}
+
+	survivingDelete := statelessParentChange{
+		opening: backend.VectorUpdate{
+			Index: surviving[1], Old: survivingScalar, New: [32]byte{},
+		},
+		child: statelessChangedCommitment{
+			old: oldSurviving, new: backend.EmptyVectorCommitment(),
+			kind: statelessChangedEmpty, topology: true,
+		},
+	}
+	empty, kind, topology, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent],
+		[]statelessParentChange{deletedChange, survivingDelete}, newBudget(),
+	)
+	if err != nil || kind != statelessChangedEmpty || !topology ||
+		empty != backend.EmptyVectorCommitment() {
+		t.Fatalf("empty disclosed parent = kind %d, topology %v, error %v", kind, topology, err)
+	}
+
+	budget := newBudget()
+	budget.limits.MaxPathLookups = 514
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("disclosed child-kind budget error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 515
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("disclosed child commitment budget error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxFieldMappings = 2
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("collapsed child mapping budget error = %v", err)
+	}
+
+	wrongMapped := deletedChange
+	wrongMapped.opening.Index = surviving[1]
+	wrongMapped.opening.Old = survivingScalar
+	wrongMapped.opening.New = deletedScalar
+	wrongMapped.child = statelessChangedCommitment{
+		old: oldSurviving, new: oldSurviving,
+		kind: statelessChangedStem, topology: true,
+	}
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent],
+		[]statelessParentChange{deletedChange, wrongMapped}, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("collapsed child mapping mismatch error = %v", err)
+	}
+
+	unsupported := deletedChange
+	unsupported.opening.Index = surviving[1]
+	unsupported.opening.Old = survivingScalar
+	unsupported.opening.New = survivingScalar
+	unsupported.child = statelessChangedCommitment{
+		old: oldSurviving, new: oldSurviving,
+		kind: statelessChangedEmpty, topology: true,
+	}
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, paths, commitments, parent,
+		commitments[parent],
+		[]statelessParentChange{deletedChange, unsupported}, newBudget(),
+	); !errors.Is(err, errUnsupportedStatelessUpdate) {
+		t.Fatalf("unsupported disclosed child kind error = %v", err)
+	}
+
+	internalPaths := clonePaths()
+	probe := statelessTopologyProbe(parent, surviving[1])
+	internalPath := internalPaths[Stem(probe[:31])]
+	internalPath.depth = parent.length + 2
+	internalPaths[Stem(probe[:31])] = internalPath
+	budget = newBudget()
+	budget.limits.MaxCommitmentUpdates = 0
+	if _, _, _, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, internalPaths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("disclosed internal update budget error = %v", err)
+	}
+	if _, kind, topology, err := updater.updateDisclosedParent(
+		context.Background(), proof.claims, internalPaths, commitments, parent,
+		commitments[parent], []statelessParentChange{deletedChange}, newBudget(),
+	); err != nil || kind != statelessChangedInternal || topology {
+		t.Fatalf("retained internal parent = kind %d, topology %v, error %v", kind, topology, err)
 	}
 }
 
@@ -1309,6 +1839,118 @@ func newStatelessTestProof(
 	}
 
 	return proof, updater
+}
+
+func newTopologyStatelessTestProof(
+	t testing.TB,
+	snapshot Snapshot,
+	keys []Key,
+) (TreeProof, *StatelessUpdater) {
+	t.Helper()
+
+	limits := topologyProofGenerationLimits()
+
+	openingLimits := testAuthstateAggregateOpeningLimits()
+	openingLimits.MaxQueries = 4_096
+	openingLimits.MaxScalarDecodes = 4_096 * backend.VectorWidth
+	openingLimits.MaxMSMTerms = 8_192 * backend.VectorWidth
+	proofEngine, err := NewProofEngine(context.Background(), openingLimits)
+	if err != nil {
+		t.Fatalf("new topology proof engine: %v", err)
+	}
+	proof, err := proofEngine.Prove(context.Background(), snapshot, keys, limits)
+	if err != nil {
+		t.Fatalf("generate topology stateless proof: %v", err)
+	}
+	updater, err := NewStatelessUpdater(
+		context.Background(),
+		openingLimits,
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new topology stateless updater: %v", err)
+	}
+
+	return proof, updater
+}
+
+func topologyProofGenerationLimits() ProofGenerationLimits {
+	limits := testProofGenerationLimits()
+	limits.Material.MaxKeys = 1_024
+	limits.Material.MaxStemPaths = 1_024
+	limits.Material.MaxNodeReads = 32_768
+	limits.Material.MaxPathCommitments = 32_768
+	limits.Material.MaxPathBytes = 1 << 20
+	limits.Material.MaxTemporaryBytes = 64 << 20
+	limits.ProverQueries.MaxKeys = 1_024
+	limits.ProverQueries.MaxQueries = 4_096
+	limits.ProverQueries.MaxNodeReads = 32_768
+	limits.ProverQueries.MaxTemporaryBytes = 128 << 20
+	limits.VerifierQueries.MaxQueries = 4_096
+	limits.VerifierQueries.MaxTemporaryBytes = 64 << 20
+	limits.TreeProof.MaxClaims = 1_024
+	limits.TreeProof.MaxStemPaths = 1_024
+	limits.TreeProof.MaxPathCommitments = 32_768
+	limits.TreeProof.MaxPathDerivations = 32_768
+	limits.TreeProof.MaxPathBytes = 1 << 20
+	limits.TreeProof.MaxTemporaryBytes = 64 << 20
+
+	return limits
+}
+
+func topologyDisclosureTestKeys(stem Stem, depth uint8) []Key {
+	unique := make(map[Key]struct{}, int(depth+1)*backend.VectorWidth)
+	for suffix := range backend.VectorWidth {
+		var key Key
+		copy(key[:31], stem[:])
+		key[31] = byte(suffix)
+		unique[key] = struct{}{}
+	}
+	for parentDepth := uint8(1); parentDepth < depth; parentDepth++ {
+		for child := range backend.VectorWidth {
+			var key Key
+			copy(key[:parentDepth], stem[:parentDepth])
+			key[parentDepth] = byte(child)
+			unique[key] = struct{}{}
+		}
+	}
+	keys := make([]Key, 0, len(unique))
+	for key := range unique {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
+func uniqueTestKeys(keys []Key) []Key {
+	unique := make(map[Key]struct{}, len(keys))
+	for index := range keys {
+		unique[keys[index]] = struct{}{}
+	}
+	result := make([]Key, 0, len(unique))
+	for key := range unique {
+		result = append(result, key)
+	}
+
+	return result
+}
+
+func topologyProofVerificationLimits() ProofVerificationLimits {
+	limits := testProofVerificationLimits()
+	limits.VerifierQueries.MaxQueries = 4_096
+	limits.VerifierQueries.MaxTemporaryBytes = 64 << 20
+
+	return limits
+}
+
+func topologyStatelessUpdateLimits() StatelessUpdateLimits {
+	limits := testStatelessUpdateLimits()
+	limits.MaxCommitmentUpdates = 1_024
+	limits.MaxFieldMappings = 4_096
+	limits.MaxPathLookups = 32_768
+	limits.MaxTemporaryBytes = 64 << 20
+
+	return limits
 }
 
 func statelessTestMaterial(

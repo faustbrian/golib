@@ -23,8 +23,7 @@ construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
 bounded atomic maintenance operation replaces the retained-publication set and
 prunes only nodes outside the current and desired retained roots. Crash-repair
-application, concrete storage adapters, deletion-time topology collapse, and
-stable APIs remain unimplemented. This
+application, concrete storage adapters, and stable APIs remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -62,13 +61,12 @@ The following parts of the profile are deliberately not frozen:
 
 - serialized empty-subtree representation outside the root and stored-node
   formats defined below;
-- stable witness semantics beyond the exact experimental Set-witness format
-  below, and canonical whole-snapshot encoding;
+- stable witness semantics beyond the exact experimental Set/Delete witness,
+  completeness, and post-state rules below, and canonical whole-snapshot
+  encoding;
 - canonical point, scalar, and verified-proof rejection rules beyond the
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
-- deletion witness ordering, conflicting old-value claims, completeness,
-  post-state calculation, and topology collapse;
 - durable snapshot naming beyond the root publication pair, adapter-specific
   retention policy, and crash repair;
   and
@@ -773,10 +771,10 @@ validity, Ethereum protocol compatibility, or authorization to mutate state.
 
 The public stateless engine MUST cryptographically verify the complete tree
 proof before using any opened value, commitment, or terminal topology for a
-state transition. It MUST accept only non-empty, duplicate-free `Set` batches
-whose exact keys are the complete canonical claim set, with neither omitted nor
-surplus claims. A membership claim MUST terminate at `StemPathPresent` and
-supplies the authenticated old value. An absence claim MAY terminate at
+state transition. It MUST accept only non-empty, duplicate-free `Set` and
+`Delete` batches whose proof claims are the exact canonical set defined below,
+with neither omitted nor surplus claims. A membership claim MUST terminate at
+`StemPathPresent` and supplies the authenticated old value. An absence claim MAY terminate at
 `StemPathPresent`, `StemPathMissing`, or `StemPathDifferent`. Present
 absence supplies the canonical zero pair for an absent suffix. Present all-zero
 values MUST remain distinct from absence.
@@ -825,9 +823,20 @@ is exactly:
 The decoder MUST reject empty, duplicated, reordered, unknown-kind, non-zero
 Delete, truncated, surplus, or trailing update records and inconsistent
 declared lengths. Every update key MUST have one exact embedded proof claim.
-A stem with at least one membership Delete and no Set MAY have exactly one
-additional membership claim proving a retained suffix; unrelated, absent,
-redundant, or duplicate auxiliary claims MUST fail.
+For a stem with at least one membership Delete and no Set, proof generation
+MUST add exactly one retained same-stem membership when a suffix survives. If
+no suffix survives, proof generation MUST add the canonical union of:
+
+1. all 256 keys formed from the deleted stem and each suffix byte; and
+2. for every non-root internal ancestor at depths `1` through `D-1`, where `D`
+   is the authenticated terminal stem depth, all 256 probe keys formed from
+   the ancestor path, one child byte, and zero bytes in every remaining key
+   position.
+
+Overlapping update, suffix, or ancestor-probe keys MUST occur only once. The
+claim set MUST be in ascending raw-key order. A witness verifier MUST require
+exactly this union for an emptied stem. Unrelated, absent-retention, redundant,
+omitted, surplus, reordered, or duplicate auxiliary claims MUST fail.
 It MUST
 reject profile and version mismatches before point decoding, preflight witness,
 proof, update, temporary-memory, post-root point-decode, and embedded-proof
@@ -842,10 +851,26 @@ witness carries exactly one claimed root container; zero and larger declarations
 MUST fail as invalid limits before parsing witness bytes.
 
 An authenticated absent Delete MUST be a deterministic no-op. A present Delete
-MUST authenticate its old value and MUST be accepted only when one retained
-membership claim or a same-stem Set proves that the stem remains non-empty.
-Deletion that would empty a stem MUST fail as unsupported until canonical
-topology-collapse disclosures are specified.
+MUST authenticate its old value. When one retained membership claim or a
+same-stem Set proves that the stem remains non-empty, the stem commitment MUST
+be updated without changing topology. When a stem becomes empty, the updater
+MUST first verify all 256 suffix claims before removing it. For every affected
+non-root ancestor it MUST verify all 256 child probes, reconstruct the complete
+old child vector from authenticated paths and commitments, verify every changed
+old scalar, and apply the canonical child updates. A zero-child result MUST
+remove that internal node. A one-child result MUST collapse to the child only
+when that child is a stem; a child that remains internal represents multiple
+stems and MUST remain internal. A result with multiple children MUST remain
+internal. Collapse MUST propagate toward the root. The depth-zero root MUST
+always remain internal and MAY become the explicit empty-root identity, so root
+child probes MUST NOT be required solely for collapse.
+
+Topology-changing deletion proof generation and verification MUST preflight
+the expanded key, claim, path, commitment, opening, lookup, field-mapping, and
+temporary-byte budgets. The temporary-byte charge MUST include one complete
+width-256 scalar vector before reconstruction. Cancellation or resource
+exhaustion from terminal proof-path extraction MUST be preserved as such and
+MUST NOT be reported as an invalid update.
 
 ## Committed Tree Construction
 
@@ -948,8 +973,8 @@ This internal construction does not freeze or implement a whole-snapshot wire
 encoding, crash-repair application, or general tree-level incremental updates.
 The public canonical witness format connects the stateless updater to
 authenticated present, missing, and different tree paths for `Set` operations
-and to absent or topology-preserving `Delete` operations. Deletion-time
-topology collapse remains unsupported.
+and to absent, topology-preserving, or completely disclosed topology-collapsing
+`Delete` operations.
 The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained

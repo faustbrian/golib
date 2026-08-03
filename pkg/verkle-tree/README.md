@@ -14,11 +14,11 @@ snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. The
 public surface is experimental, rebuilds the complete tree for stateful
 updates, persisted loads, and maintained publications, and provides canonical
-bounded stateless witnesses for authenticated `Set` operations and for
-`Delete` operations that are proven absent or leave their stem non-empty.
-Authenticated `Set` paths may be present, missing, or different stems. It does
-not yet provide crash repair, adapter implementations, or deletion-time
-topology collapse. It is not a production-ready tree.
+bounded stateless witnesses for authenticated `Set` and `Delete` operations,
+including deletions that remove stems and collapse unary internal paths.
+Authenticated paths may be present, missing, or different stems. It does not
+yet provide crash repair or concrete adapter implementations. It is not a
+production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -104,20 +104,21 @@ Proof generation and verification use `NewProofEngine`, `Prove`, `Verify`,
 generation, verification, encoding, and decoding limits because each stage has
 different hostile-input amplification.
 
-For a stateless Set transition, the producer proves every update key against
-one immutable pre-state, obtains the expected post-root from its stateful
-transition, and calls `NewWitness`. The receiver calls `DecodeWitness`, creates
-a fixed-profile `StatelessEngine`, and calls `Apply` with independent proof and
-update budgets. Only a successful `StatelessResult` exposes the verified
-pre-root and independently derived, witness-matched post-root. Decoding alone
-does not verify either root. `Witness.Updates` returns an owned canonical copy;
-`Update.Kind`, `Update.Key`, and `Update.Value` preserve Set/delete and
-present-zero distinctions. Current witnesses accept Set only. An existing
-suffix requires its authenticated old membership value; an absent suffix or a
-new stem requires an authenticated absence claim and its exact terminal
-present, missing, or different path. The embedded proof claim keys MUST equal
-the update keys exactly; construction and decoding reject missing or surplus
-claims.
+For a stateless transition, the producer calls `ProofEngine.ProveUpdates` to
+derive and prove the complete canonical pre-state key set, obtains the expected
+post-root from its stateful transition, and calls `NewWitness`. The receiver
+calls `DecodeWitness`, creates a fixed-profile `StatelessEngine`, and calls
+`Apply` with independent proof and update budgets. Only a successful
+`StatelessResult` exposes the verified pre-root and independently derived,
+witness-matched post-root. Decoding alone does not verify either root.
+`Witness.Updates` returns an owned canonical copy; `Update.Kind`, `Update.Key`,
+and `Update.Value` preserve Set/delete and present-zero distinctions. An
+existing suffix requires its authenticated old membership value; an absent
+suffix or a new stem requires an authenticated absence claim and its exact
+terminal present, missing, or different path. A deletion that empties a stem
+adds all 256 suffix claims and all 256 canonical child probes for every
+non-root internal ancestor that may collapse. Witness construction and
+decoding reject missing, surplus, or non-canonical claim sets.
 
 Production code imports the pinned `go-ipa` dependency only behind internal
 canonical point/scalar encoding, bounded aggregate-opening generation and
@@ -197,19 +198,20 @@ cancellation are not yet frozen. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it
 does not authenticate old values by itself. An internal stateless updater now
 cryptographically verifies the complete tree proof before applying bounded
-`Set` operations to suffixes whose stems are proven present, then derives the
-post-state root bottom-up from authenticated old scalars. It handles existing
-values and absent suffixes, canonicalizes update order, rejects duplicate or
-unproven keys, and is deterministic across shared paths. The public
+`Set` and `Delete` operations, then derives the post-state root bottom-up from
+authenticated old scalars. It handles existing values, absent suffixes, new
+stems, and authenticated topology collapse; canonicalizes update order;
+rejects duplicate or unproven keys; and is deterministic across shared paths. The public
 `Witness`/`StatelessEngine` boundary canonically binds the proof, ordered
 update batch, and claimed post-state root, rejects unneeded proof claims, then
-verifies and independently derives the result. A deletion proof may carry one
+verifies and independently derives the result. A topology-preserving deletion proof may carry one
 authenticated retained member of the same stem only when a present deletion
 needs it and no same-stem Set otherwise establishes that the stem stays
-non-empty;
-authenticated absent deletes are no-ops. Deletion that
-empties a stem remains unsupported until canonical collapse evidence is
-defined. Canonical
+non-empty; authenticated absent deletes are no-ops. When a deletion empties a
+stem, its proof discloses every suffix and every child position of each
+affected non-root ancestor. The stateless verifier reconstructs those
+authenticated vectors and removes empty nodes or collapses unary paths to the
+surviving stem before deriving the root. Canonical
 stored-node bytes, atomic write publication, isolated persisted reconstruction,
 and atomic retention/pruning now have one package-owned experimental contract,
 but none is a stable interoperability surface.
@@ -321,20 +323,21 @@ The stateless engine composes that verified proof with sparse commitment
 changes. Every requested key must have an authenticated membership or absence
 claim and every claim must have its exact terminal stem path. A delete that
 removes a present suffix may additionally bind exactly one retained membership
-claim for that stem when no same-stem Set exists; other or redundant surplus
-claims fail closed. Existing-value
-replacement, absent-suffix insertion, non-collapsing deletion, and new-stem
-insertion through authenticated missing or different paths are supported,
-including canonical collision subtrees, deepest valid collisions, multi-stem
-batches, and shared ancestors. Authenticated absent deletion is a deterministic
-no-op. Results are checked against stateful post-state roots; the present-stem
-corpus additionally has pinned Rust agreement.
+claim for that stem when no same-stem Set exists. A deletion that empties its
+stem instead binds all suffix positions and every child position of each
+affected non-root ancestor; other, omitted, or redundant claims fail closed.
+Existing-value replacement, absent-suffix insertion, topology-preserving and
+topology-collapsing deletion, and new-stem insertion through authenticated
+missing or different paths are supported, including canonical collision
+subtrees, deepest valid collisions, multi-stem batches, and shared ancestors.
+Authenticated absent deletion is a deterministic no-op. Results are checked
+against stateful post-state roots; the present-stem corpus additionally has
+pinned Rust agreement.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
 path lookups, witness and proof bytes, strict point decoding, and temporary
 bytes. The canonical witness decoder returns an unverified owned container;
 `StatelessEngine.Apply` separately verifies the proof, derives the root, and
-matches the claimed post-state root. A deletion that would empty its stem is
-rejected until deletion-time topology-collapse disclosures are specified.
+matches the claimed post-state root.
 
 ## Experimental storage boundary
 

@@ -18,6 +18,7 @@ const (
 	statelessStemPathWorkingBytes         = uint64(128)
 	statelessPropagationLevelWorkingBytes = uint64(256)
 	statelessInsertionVectorWorkingBytes  = uint64(maxProofPathLength * len(backend.Vector{}) * len(backend.Vector{}[0]))
+	statelessTopologyVectorWorkingBytes   = uint64(len(backend.Vector{}) * len(backend.Vector{}[0]))
 )
 
 var (
@@ -130,8 +131,24 @@ type statelessPath struct {
 }
 
 type statelessChangedCommitment struct {
-	old backend.VectorCommitment
-	new backend.VectorCommitment
+	old      backend.VectorCommitment
+	new      backend.VectorCommitment
+	kind     statelessChangedKind
+	topology bool
+}
+
+type statelessChangedKind uint8
+
+const (
+	statelessChangedUnknown statelessChangedKind = iota
+	statelessChangedInternal
+	statelessChangedStem
+	statelessChangedEmpty
+)
+
+type statelessParentChange struct {
+	opening backend.VectorUpdate
+	child   statelessChangedCommitment
 }
 
 type statelessInsertedStem struct {
@@ -192,7 +209,11 @@ func (updater *StatelessUpdater) Apply(
 	); err != nil {
 		return backend.Root{}, err
 	}
-	temporaryBytes := statelessTemporaryBytes(proof, uint64(len(updates)))
+	temporaryBytes := statelessTemporaryBytes(
+		proof,
+		uint64(len(updates)),
+		statelessUpdatesContainDelete(updates),
+	)
 	if err := checkStatelessUpdateResource(
 		StatelessUpdateResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
@@ -241,7 +262,9 @@ func (updater *StatelessUpdater) Apply(
 	if len(changed) == 0 {
 		return backend.NewRoot(ctx, proof.profile, root)
 	}
-	postRoot, err := updater.updateAncestors(ctx, commitments, changed, &budget)
+	postRoot, err := updater.updateAncestors(
+		ctx, proof.claims, paths, commitments, changed, &budget,
+	)
 	if err != nil {
 		return backend.Root{}, err
 	}
@@ -249,7 +272,11 @@ func (updater *StatelessUpdater) Apply(
 	return backend.NewRoot(ctx, proof.profile, postRoot)
 }
 
-func statelessTemporaryBytes(proof TreeProof, updateCount uint64) uint64 {
+func statelessTemporaryBytes(
+	proof TreeProof,
+	updateCount uint64,
+	deletion bool,
+) uint64 {
 	insertionBytes := uint64(0)
 	for index := range proof.stemPaths {
 		if proof.stemPaths[index].kind == StemPathMissing ||
@@ -260,11 +287,26 @@ func statelessTemporaryBytes(proof TreeProof, updateCount uint64) uint64 {
 		}
 	}
 
+	deletionBytes := uint64(0)
+	if deletion {
+		deletionBytes = statelessTopologyVectorWorkingBytes
+	}
+
 	return updateCount*statelessUpdateWorkingBytes +
 		uint64(len(proof.commitments))*statelessCommitmentPathWorkingBytes +
 		uint64(len(proof.stemPaths))*statelessStemPathWorkingBytes +
 		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes +
-		insertionBytes
+		insertionBytes + deletionBytes
+}
+
+func statelessUpdatesContainDelete(updates []Update) bool {
+	for index := range updates {
+		if updates[index].kind == UpdateDelete {
+			return true
+		}
+	}
+
+	return false
 }
 
 func statelessProofCountsWithinLimits(proof TreeProof) bool {
@@ -434,7 +476,24 @@ func (updater *StatelessUpdater) updateStems(
 				return nil, err
 			}
 			if !retained {
-				return nil, errUnsupportedStatelessUpdate
+				empty, err := statelessDisclosedStemEmpty(
+					ctx, claims, updates[start:end], stem, budget,
+				)
+				if err != nil {
+					return nil, err
+				}
+				if !empty {
+					return nil, errUnsupportedStatelessUpdate
+				}
+				changed[stemPath] = statelessChangedCommitment{
+					old:      oldStem,
+					new:      backend.EmptyVectorCommitment(),
+					kind:     statelessChangedEmpty,
+					topology: true,
+				}
+				start = end
+
+				continue
 			}
 		}
 		stemUpdates := make([]backend.VectorUpdate, 0, len(halfChanges))
@@ -477,7 +536,9 @@ func (updater *StatelessUpdater) updateStems(
 		if err != nil {
 			return nil, err
 		}
-		changed[stemPath] = statelessChangedCommitment{old: oldStem, new: newStem}
+		changed[stemPath] = statelessChangedCommitment{
+			old: oldStem, new: newStem, kind: statelessChangedStem,
+		}
 		start = end
 	}
 	for index := range missing {
@@ -493,9 +554,14 @@ func (updater *StatelessUpdater) updateStems(
 		if err != nil {
 			return nil, err
 		}
+		kind := statelessChangedInternal
+		if len(missing[index].stems) == 1 {
+			kind = statelessChangedStem
+		}
 		changed[missing[index].path] = statelessChangedCommitment{
-			old: backend.EmptyVectorCommitment(),
-			new: inserted,
+			old:  backend.EmptyVectorCommitment(),
+			new:  inserted,
+			kind: kind,
 		}
 	}
 	for index := range different {
@@ -512,8 +578,9 @@ func (updater *StatelessUpdater) updateStems(
 			return nil, err
 		}
 		changed[different[index].path] = statelessChangedCommitment{
-			old: different[index].existing.commitment,
-			new: inserted,
+			old:  different[index].existing.commitment,
+			new:  inserted,
+			kind: statelessChangedInternal,
 		}
 	}
 
@@ -663,6 +730,44 @@ func statelessStemRetained(
 	return false, nil
 }
 
+func statelessDisclosedStemEmpty(
+	ctx context.Context,
+	claims ClaimSet,
+	updates []Update,
+	stem Stem,
+	budget *statelessUpdateBudget,
+) (bool, error) {
+	updateIndex := 0
+	for suffix := range backend.VectorWidth {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return false, err
+		}
+		var key Key
+		copy(key[:31], stem[:])
+		key[31] = byte(suffix)
+		claim, found, err := claims.Lookup(key)
+		if err != nil {
+			return false, err
+		}
+		if err := budget.lookup(); err != nil {
+			return false, err
+		}
+		if !found {
+			return false, nil
+		}
+		present := claim.kind == ClaimMembership
+		if updateIndex < len(updates) && updates[updateIndex].key == key {
+			present = updates[updateIndex].kind == UpdateSet
+			updateIndex++
+		}
+		if present {
+			return false, nil
+		}
+	}
+
+	return updateIndex == len(updates), nil
+}
+
 func mergeStatelessExistingStem(
 	ctx context.Context,
 	existing statelessInsertedStem,
@@ -742,6 +847,8 @@ func (updater *StatelessUpdater) commitInsertedSubtree(
 
 func (updater *StatelessUpdater) updateAncestors(
 	ctx context.Context,
+	claims ClaimSet,
+	paths map[Stem]StemPath,
 	commitments map[statelessPath]backend.VectorCommitment,
 	changed map[statelessPath]statelessChangedCommitment,
 	budget *statelessUpdateBudget,
@@ -761,7 +868,7 @@ func (updater *StatelessUpdater) updateAncestors(
 
 			return backend.VectorCommitment{}, errInvalidStatelessUpdate
 		}
-		parents := make(map[statelessPath][]backend.VectorUpdate)
+		parents := make(map[statelessPath][]statelessParentChange)
 		for path, value := range changed {
 			if err := checkTreeProofContext(ctx); err != nil {
 				return backend.VectorCommitment{}, err
@@ -779,7 +886,10 @@ func (updater *StatelessUpdater) updateAncestors(
 				if err != nil {
 					return backend.VectorCommitment{}, err
 				}
-				parents[parent] = append(parents[parent], backend.VectorUpdate{Index: index, Old: oldScalar, New: newScalar})
+				parents[parent] = append(parents[parent], statelessParentChange{
+					opening: backend.VectorUpdate{Index: index, Old: oldScalar, New: newScalar},
+					child:   value,
+				})
 			}
 		}
 		next := make(map[statelessPath]statelessChangedCommitment)
@@ -788,7 +898,7 @@ func (updater *StatelessUpdater) updateAncestors(
 				next[path] = value
 			}
 		}
-		for parent, vectorUpdates := range parents {
+		for parent, parentChanges := range parents {
 			oldParent, exists := commitments[parent]
 			if err := budget.lookup(); err != nil {
 				return backend.VectorCommitment{}, err
@@ -796,17 +906,215 @@ func (updater *StatelessUpdater) updateAncestors(
 			if !exists {
 				return backend.VectorCommitment{}, errIncompleteStatelessWitness
 			}
-			if err := budget.commitmentUpdate(); err != nil {
-				return backend.VectorCommitment{}, err
-			}
-			newParent, err := updater.commitment.UpdateCommitment(ctx, oldParent, vectorUpdates)
+			newParent, kind, topology, err := updater.updateDisclosedParent(
+				ctx,
+				claims,
+				paths,
+				commitments,
+				parent,
+				oldParent,
+				parentChanges,
+				budget,
+			)
 			if err != nil {
 				return backend.VectorCommitment{}, err
 			}
-			next[parent] = statelessChangedCommitment{old: oldParent, new: newParent}
+			next[parent] = statelessChangedCommitment{
+				old: oldParent, new: newParent, kind: kind, topology: topology,
+			}
 		}
 		changed = next
 	}
+}
+
+func (updater *StatelessUpdater) updateDisclosedParent(
+	ctx context.Context,
+	claims ClaimSet,
+	paths map[Stem]StemPath,
+	commitments map[statelessPath]backend.VectorCommitment,
+	parent statelessPath,
+	oldParent backend.VectorCommitment,
+	changes []statelessParentChange,
+	budget *statelessUpdateBudget,
+) (backend.VectorCommitment, statelessChangedKind, bool, error) {
+	updates := make([]backend.VectorUpdate, len(changes))
+	topologyChanged := false
+	for index := range changes {
+		updates[index] = changes[index].opening
+		topologyChanged = topologyChanged || changes[index].child.topology
+	}
+	if parent.length == 0 || !topologyChanged {
+		if err := budget.commitmentUpdate(); err != nil {
+			return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+		}
+		updated, err := updater.commitment.UpdateCommitment(ctx, oldParent, updates)
+
+		return updated, statelessChangedInternal, false, err
+	}
+	vector, err := statelessDisclosedInternalVector(
+		ctx, claims, paths, commitments, parent, budget,
+	)
+	if err != nil {
+		return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+	}
+	for index := range updates {
+		if vector[updates[index].Index] != updates[index].Old {
+			return backend.VectorCommitment{}, statelessChangedUnknown, false, errIncompleteStatelessWitness
+		}
+		vector[updates[index].Index] = updates[index].New
+	}
+	nonzeroCount := 0
+	nonzeroIndex := byte(0)
+	for index := range vector {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+		}
+		if vector[index] != ([32]byte{}) {
+			nonzeroCount++
+			nonzeroIndex = byte(index)
+		}
+	}
+	if nonzeroCount == 0 {
+		return backend.EmptyVectorCommitment(), statelessChangedEmpty, true, nil
+	}
+	if nonzeroCount == 1 {
+		kind := statelessChangedUnknown
+		var child backend.VectorCommitment
+		for index := range changes {
+			if changes[index].opening.Index == nonzeroIndex {
+				kind = changes[index].child.kind
+				child = changes[index].child.new
+
+				break
+			}
+		}
+		if kind == statelessChangedUnknown {
+			stemChild, err := statelessDisclosedChildIsStem(
+				ctx, paths, parent, nonzeroIndex, budget,
+			)
+			if err != nil {
+				return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+			}
+			if stemChild {
+				kind = statelessChangedStem
+			} else {
+				kind = statelessChangedInternal
+			}
+			childPath := statelessChildPath(parent, nonzeroIndex)
+			child = commitments[childPath]
+			if err := budget.lookup(); err != nil {
+				return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+			}
+		}
+		if kind == statelessChangedStem {
+			mapped, err := budget.mapCommitment(child)
+			if err != nil {
+				return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+			}
+			if mapped != vector[nonzeroIndex] {
+				return backend.VectorCommitment{}, statelessChangedUnknown, false, errIncompleteStatelessWitness
+			}
+
+			return child, statelessChangedStem, true, nil
+		}
+		if kind != statelessChangedInternal {
+			return backend.VectorCommitment{}, statelessChangedUnknown, false, errUnsupportedStatelessUpdate
+		}
+	}
+	if err := budget.commitmentUpdate(); err != nil {
+		return backend.VectorCommitment{}, statelessChangedUnknown, false, err
+	}
+	updated, err := updater.commitment.UpdateCommitment(ctx, oldParent, updates)
+
+	return updated, statelessChangedInternal, false, err
+}
+
+func statelessDisclosedInternalVector(
+	ctx context.Context,
+	claims ClaimSet,
+	paths map[Stem]StemPath,
+	commitments map[statelessPath]backend.VectorCommitment,
+	parent statelessPath,
+	budget *statelessUpdateBudget,
+) (backend.Vector, error) {
+	var vector backend.Vector
+	for child := range backend.VectorWidth {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.Vector{}, err
+		}
+		probe := statelessTopologyProbe(parent, byte(child))
+		if _, found, err := claims.Lookup(probe); err != nil {
+			return backend.Vector{}, err
+		} else if err := budget.lookup(); err != nil {
+			return backend.Vector{}, err
+		} else if !found {
+			return backend.Vector{}, errIncompleteStatelessWitness
+		}
+		path, found := paths[Stem(probe[:31])]
+		if err := budget.lookup(); err != nil {
+			return backend.Vector{}, err
+		}
+		if !found || path.depth < parent.length+1 {
+			return backend.Vector{}, errIncompleteStatelessWitness
+		}
+		if path.kind == StemPathMissing && path.depth == parent.length+1 {
+			continue
+		}
+		childPath := statelessChildPath(parent, byte(child))
+		commitment, found := commitments[childPath]
+		if err := budget.lookup(); err != nil {
+			return backend.Vector{}, err
+		}
+		if !found {
+			return backend.Vector{}, errIncompleteStatelessWitness
+		}
+		mapped, err := budget.mapCommitment(commitment)
+		if err != nil {
+			return backend.Vector{}, err
+		}
+		vector[child] = mapped
+	}
+
+	return vector, nil
+}
+
+func statelessDisclosedChildIsStem(
+	ctx context.Context,
+	paths map[Stem]StemPath,
+	parent statelessPath,
+	child byte,
+	budget *statelessUpdateBudget,
+) (bool, error) {
+	if err := checkTreeProofContext(ctx); err != nil {
+		return false, err
+	}
+	probe := statelessTopologyProbe(parent, child)
+	path, found := paths[Stem(probe[:31])]
+	if err := budget.lookup(); err != nil {
+		return false, err
+	}
+	if !found || path.depth < parent.length+1 {
+		return false, errIncompleteStatelessWitness
+	}
+
+	return path.depth == parent.length+1 &&
+		(path.kind == StemPathPresent || path.kind == StemPathDifferent), nil
+}
+
+func statelessTopologyProbe(parent statelessPath, child byte) Key {
+	var key Key
+	copy(key[:parent.length], parent.path[:parent.length])
+	key[parent.length] = child
+
+	return key
+}
+
+func statelessChildPath(parent statelessPath, child byte) statelessPath {
+	value := parent
+	value.path[value.length] = child
+	value.length++
+
+	return value
 }
 
 func makeStatelessPath(path []byte) statelessPath {

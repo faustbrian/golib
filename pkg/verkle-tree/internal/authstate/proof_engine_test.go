@@ -88,6 +88,439 @@ func TestProofEngineGeneratesDeterministicVerifiableTreeProof(t *testing.T) {
 	}
 }
 
+func TestProofEngineProvesCompleteTopologyDeletionTransition(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x29, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(1)},
+	})
+	engine := newTestProofEngine(t)
+	proof, err := engine.ProveUpdates(
+		context.Background(),
+		snapshot,
+		[]Update{Delete(deleted)},
+		topologyProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove topology deletion transition: %v", err)
+	}
+	if len(proof.claims.claims) != backend.VectorWidth {
+		t.Fatalf(
+			"topology deletion claims = %d, want %d",
+			len(proof.claims.claims), backend.VectorWidth,
+		)
+	}
+	updater, err := NewStatelessUpdater(
+		context.Background(),
+		testAuthstateAggregateOpeningLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new stateless updater: %v", err)
+	}
+	got, err := updater.Apply(
+		context.Background(), proof, []Update{Delete(deleted)},
+		topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply generated topology deletion proof: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(
+		context.Background(), []Update{Delete(deleted)},
+	)
+	if err != nil {
+		t.Fatalf("apply stateful topology deletion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful topology deletion root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestProofEngineDerivesCanonicalUpdateProofKeys(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x2a, 0x01)
+	retained := testKey(0x2a, 0x02)
+	absent := testKey(0x2b, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: first, Value: testValue(1)},
+		{Key: retained, Value: testValue(2)},
+	})
+	engine := newTestProofEngine(t)
+
+	proof, err := engine.ProveUpdates(
+		context.Background(), snapshot, []Update{Delete(first)},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove retained-stem deletion: %v", err)
+	}
+	if got, want := len(proof.claims.claims), 2; got != want {
+		t.Fatalf("retained-stem claims = %d, want %d", got, want)
+	}
+	if proof.claims.claims[0].key != first || proof.claims.claims[1].key != retained {
+		t.Fatal("retained-stem proof keys are not canonical")
+	}
+
+	proof, err = engine.ProveUpdates(
+		context.Background(), snapshot, []Update{Delete(absent)},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove absent deletion: %v", err)
+	}
+	if got, want := len(proof.claims.claims), 1; got != want ||
+		proof.claims.claims[0].key != absent {
+		t.Fatalf("absent-delete claims = %d, want one exact key", got)
+	}
+
+	setValue := testValue(3)
+	forward, err := engine.ProveUpdates(
+		context.Background(), snapshot,
+		[]Update{Delete(first), Set(retained, setValue)},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove mixed same-stem updates: %v", err)
+	}
+	reverse, err := engine.ProveUpdates(
+		context.Background(), snapshot,
+		[]Update{Set(retained, setValue), Delete(first)},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove reordered mixed same-stem updates: %v", err)
+	}
+	forwardBytes, err := forward.Bytes(context.Background(), testTreeProofEncodingLimits())
+	if err != nil {
+		t.Fatalf("encode mixed update proof: %v", err)
+	}
+	reverseBytes, err := reverse.Bytes(context.Background(), testTreeProofEncodingLimits())
+	if err != nil {
+		t.Fatalf("encode reordered mixed update proof: %v", err)
+	}
+	if !bytes.Equal(forwardBytes, reverseBytes) {
+		t.Fatal("reordered updates produced different canonical proofs")
+	}
+}
+
+func TestProofEngineUpdateProofRejectsInvalidAndBoundedInputs(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(0x2c, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{{Key: key, Value: testValue(1)}})
+	engine := newTestProofEngine(t)
+	updates := []Update{Delete(key)}
+	var nilEngine *ProofEngine
+	var nilContext context.Context
+
+	for name, operation := range map[string]func() error{
+		"engine": func() error {
+			_, err := nilEngine.ProveUpdates(
+				context.Background(), snapshot, updates, topologyProofGenerationLimits(),
+			)
+			return err
+		},
+		"context": func() error {
+			_, err := engine.ProveUpdates(
+				nilContext, snapshot, updates, topologyProofGenerationLimits(),
+			)
+			return err
+		},
+		"limits": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, updates, ProofGenerationLimits{},
+			)
+			return err
+		},
+		"snapshot": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), Snapshot{}, updates, topologyProofGenerationLimits(),
+			)
+			return err
+		},
+		"empty updates": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, nil, topologyProofGenerationLimits(),
+			)
+			return err
+		},
+		"invalid update": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, []Update{{}}, topologyProofGenerationLimits(),
+			)
+			return err
+		},
+		"duplicate update": func() error {
+			_, err := engine.ProveUpdates(
+				context.Background(), snapshot, []Update{Delete(key), Delete(key)},
+				topologyProofGenerationLimits(),
+			)
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := operation(); err == nil {
+				t.Fatal("invalid update proof input was accepted")
+			}
+		})
+	}
+
+	keyLimits := topologyProofGenerationLimits()
+	keyLimits.Material.MaxKeys = 1
+	keyLimits.ProverQueries.MaxKeys = 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot,
+		[]Update{Delete(key), Delete(testKey(0x2d, 0x01))}, keyLimits,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("initial key resource error = %v", err)
+	}
+
+	temporaryLimits := topologyProofGenerationLimits()
+	temporaryLimits.Material.MaxTemporaryBytes = 2*proofMaterialKeyWorkingBytes - 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, updates, temporaryLimits,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("initial temporary resource error = %v", err)
+	}
+
+	suffixLimits := topologyProofGenerationLimits()
+	suffixLimits.Material.MaxKeys = backend.VectorWidth - 1
+	suffixLimits.ProverQueries.MaxKeys = backend.VectorWidth - 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, updates, suffixLimits,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("topology suffix resource error = %v", err)
+	}
+
+	pathLimits := topologyProofGenerationLimits()
+	pathLimits.Material.MaxNodeReads = 1
+	_, err := engine.ProveUpdates(
+		context.Background(), snapshot, updates, pathLimits,
+	)
+	if !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("topology path resource error = %v", err)
+	}
+	corruptSnapshot := snapshot
+	corruptSnapshot.entries = append([]Entry(nil), snapshot.entries...)
+	corruptKey := testKey(0x3c, 0x02)
+	corruptSnapshot.entries[0].Key = corruptKey
+	if _, err := engine.ProveUpdates(
+		context.Background(), corruptSnapshot, []Update{Delete(corruptKey)},
+		topologyProofGenerationLimits(),
+	); !errors.Is(err, errInvalidProofMaterial) {
+		t.Fatalf("non-present topology path error = %v", err)
+	}
+
+	collision := key
+	collision[1]++
+	deepSnapshot := newTestSnapshot(t, []Entry{
+		{Key: key, Value: testValue(1)},
+		{Key: collision, Value: testValue(2)},
+	})
+	parentLimits := topologyProofGenerationLimits()
+	parentLimits.Material.MaxKeys = backend.VectorWidth
+	parentLimits.ProverQueries.MaxKeys = backend.VectorWidth
+	if _, err := engine.ProveUpdates(
+		context.Background(), deepSnapshot, updates, parentLimits,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("topology parent resource error = %v", err)
+	}
+}
+
+func TestStatelessProofKeyHelpersEnforceBoundsAndCancellation(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(0x2e, 0x02)
+	keys := map[Key]struct{}{key: {}}
+	if err := addStatelessProofKey(keys, key, 1, 1); err != nil {
+		t.Fatalf("duplicate proof key: %v", err)
+	}
+	if err := addStatelessProofKey(
+		keys, testKey(0x2e, 0x03), 1, 1<<20,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("proof-key count error = %v", err)
+	}
+	if err := addStatelessProofKey(
+		map[Key]struct{}{}, key, 1, 2*proofMaterialKeyWorkingBytes-1,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("proof-key temporary error = %v", err)
+	}
+
+	stem := Stem(key[:31])
+	entries := []Entry{
+		{Key: testKey(0x2e, 0x01), Value: testValue(1)},
+		{Key: key, Value: testValue(2)},
+	}
+	if _, _, err := statelessRetainedSnapshotKey(
+		&stepContext{}, entries, []Update{Delete(key)}, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retained-key cancellation error = %v", err)
+	}
+	if _, _, err := statelessRetainedSnapshotKey(
+		&stepContext{successfulChecks: 1}, entries,
+		[]Update{Delete(testKey(0x2e, 0x00))}, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retained-key update-advance cancellation error = %v", err)
+	}
+	retained, found, err := statelessRetainedSnapshotKey(
+		context.Background(), entries,
+		[]Update{Delete(testKey(0x2e, 0x00)), Delete(testKey(0x2e, 0x01))},
+		stem,
+	)
+	if err != nil || !found || retained != key {
+		t.Fatalf("retained key = %x, found %v, error %v", retained, found, err)
+	}
+}
+
+func TestStatelessSnapshotStemDepthUsesCanonicalNeighborCollisions(t *testing.T) {
+	t.Parallel()
+
+	singleton := testKey(0x50, 0x01)
+	depth, found, err := statelessSnapshotStemDepth(
+		context.Background(),
+		[]Entry{{Key: singleton, Value: testValue(1)}},
+		Stem(singleton[:31]),
+	)
+	if err != nil || !found || depth != 1 {
+		t.Fatalf("singleton depth = %d, found %v, error %v", depth, found, err)
+	}
+
+	first := singleton
+	first[1] = 0x10
+	second := singleton
+	second[1] = 0x20
+	secondSuffix := second
+	secondSuffix[31]++
+	depth, found, err = statelessSnapshotStemDepth(
+		context.Background(),
+		[]Entry{
+			{Key: first, Value: testValue(1)},
+			{Key: second, Value: testValue(2)},
+			{Key: secondSuffix, Value: testValue(3)},
+		},
+		Stem(second[:31]),
+	)
+	if err != nil || !found || depth != 2 {
+		t.Fatalf("neighbor collision depth = %d, found %v, error %v", depth, found, err)
+	}
+
+	deepFirst := singleton
+	deepSecond := singleton
+	deepSecond[30] = 1
+	depth, found, err = statelessSnapshotStemDepth(
+		context.Background(),
+		[]Entry{
+			{Key: deepFirst, Value: testValue(1)},
+			{Key: deepSecond, Value: testValue(2)},
+		},
+		Stem(deepFirst[:31]),
+	)
+	if err != nil || !found || depth != 31 {
+		t.Fatalf("maximum collision depth = %d, found %v, error %v", depth, found, err)
+	}
+
+	missing := singleton
+	missing[0]++
+	if _, found, err := statelessSnapshotStemDepth(
+		context.Background(),
+		[]Entry{{Key: singleton, Value: testValue(1)}},
+		Stem(missing[:31]),
+	); err != nil || found {
+		t.Fatalf("missing stem = found %v, error %v", found, err)
+	}
+	if _, _, err := statelessSnapshotStemDepth(
+		&stepContext{},
+		[]Entry{{Key: singleton, Value: testValue(1)}},
+		Stem(singleton[:31]),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("stem-depth cancellation error = %v", err)
+	}
+	secondSameStem := singleton
+	secondSameStem[31]++
+	if _, _, err := statelessSnapshotStemDepth(
+		&stepContext{successfulChecks: 2},
+		[]Entry{
+			{Key: singleton, Value: testValue(1)},
+			{Key: secondSameStem, Value: testValue(2)},
+		},
+		Stem(singleton[:31]),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("stem-depth group cancellation error = %v", err)
+	}
+}
+
+func TestProofEngineUpdateProofCancellationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	absent := testKey(0x2f, 0x01)
+	member := testKey(0x30, 0x01)
+	retained := testKey(0x30, 0x02)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: member, Value: testValue(1)},
+		{Key: retained, Value: testValue(2)},
+	})
+	engine := newTestProofEngine(t)
+
+	for successfulChecks := 0; successfulChecks <= 4; successfulChecks++ {
+		_, err := engine.ProveUpdates(
+			&stepContext{successfulChecks: successfulChecks},
+			snapshot,
+			[]Update{Delete(absent)},
+			testProofGenerationLimits(),
+		)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("absent deletion cancellation after %d checks = %v", successfulChecks, err)
+		}
+	}
+	if _, err := engine.ProveUpdates(
+		&stepContext{successfulChecks: 4}, snapshot,
+		[]Update{Delete(member)}, testProofGenerationLimits(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retained lookup cancellation error = %v", err)
+	}
+
+	retainedLimits := testProofGenerationLimits()
+	retainedLimits.Material.MaxKeys = 1
+	retainedLimits.ProverQueries.MaxKeys = 1
+	if _, err := engine.ProveUpdates(
+		context.Background(), snapshot, []Update{Delete(member)}, retainedLimits,
+	); !errors.Is(err, errProofMaterialResource) {
+		t.Fatalf("retained-key resource error = %v", err)
+	}
+
+	topologySnapshot := newTestSnapshot(t, []Entry{
+		{Key: member, Value: testValue(1)},
+	})
+	if _, err := engine.ProveUpdates(
+		&stepContext{successfulChecks: 4}, topologySnapshot,
+		[]Update{Delete(member)}, topologyProofGenerationLimits(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("suffix disclosure cancellation error = %v", err)
+	}
+
+	collision := member
+	collision[1]++
+	deepSnapshot := newTestSnapshot(t, []Entry{
+		{Key: member, Value: testValue(1)},
+		{Key: collision, Value: testValue(2)},
+	})
+	for successfulChecks := 260; successfulChecks < 700; successfulChecks++ {
+		_, err := engine.ProveUpdates(
+			&stepContext{successfulChecks: successfulChecks},
+			deepSnapshot,
+			[]Update{Delete(member)},
+			topologyProofGenerationLimits(),
+		)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("parent disclosure cancellation after %d checks = %v", successfulChecks, err)
+		}
+	}
+}
+
 func TestProofEngineRejectsTamperedProofs(t *testing.T) {
 	t.Parallel()
 

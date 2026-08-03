@@ -13,10 +13,10 @@
 // atomically replace the retained-publication set and prune only nodes outside
 // the current and desired retained roots. Canonical stateless witnesses can
 // verify authenticated Set operations on present, missing, or different stem
-// paths and Delete operations that are absent or provably leave a stem
-// non-empty, then independently derive and match the claimed post-state root.
-// Deletion-time topology collapse, crash repair, concrete storage adapters,
-// and stable-profile APIs remain unavailable.
+// paths and Delete operations that are absent, leave a stem non-empty, or
+// remove stems and canonically collapse authenticated unary paths, then
+// independently derive and match the claimed post-state root. Crash repair,
+// concrete storage adapters, and stable-profile APIs remain unavailable.
 //
 // The exported API is experimental and exists to evaluate a pinned commitment
 // backend and complete tree semantics without making stability,

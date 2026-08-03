@@ -6,20 +6,23 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 const (
-	statelessWitnessMagicBytes     = 4
-	statelessWitnessProfileIDBytes = 1
-	statelessWitnessVersionBytes   = 2
-	statelessWitnessEncodingBytes  = 2
-	statelessWitnessLengthBytes    = 4
-	statelessWitnessCountBytes     = 4
-	statelessWitnessUpdateBytes    = 1 + 32 + 32
-	statelessWitnessUpdateScratch  = uint64(192)
+	statelessWitnessMagicBytes      = 4
+	statelessWitnessProfileIDBytes  = 1
+	statelessWitnessVersionBytes    = 2
+	statelessWitnessEncodingBytes   = 2
+	statelessWitnessLengthBytes     = 4
+	statelessWitnessCountBytes      = 4
+	statelessWitnessUpdateBytes     = 1 + 32 + 32
+	statelessWitnessUpdateScratch   = uint64(192)
+	statelessWitnessRelationScratch = uint64(256)
 
 	statelessWitnessHeaderBytes = statelessWitnessMagicBytes +
 		statelessWitnessProfileIDBytes +
@@ -227,7 +230,10 @@ func NewStatelessWitness(
 	); err != nil {
 		return StatelessWitness{}, err
 	}
-	temporaryBytes := uint64(len(updates)) * 2 * statelessWitnessUpdateScratch
+	temporaryBytes := uint64(len(updates))*2*statelessWitnessUpdateScratch +
+		statelessWitnessRelationBytes(
+			uint64(len(proof.claims.claims)), uint64(len(updates)),
+		)
 	if err := checkStatelessWitnessResource(
 		StatelessWitnessResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
@@ -250,7 +256,9 @@ func NewStatelessWitness(
 			return StatelessWitness{}, errDuplicateKey
 		}
 	}
-	if err := validateStatelessWitnessClaims(ctx, proof.claims, owned); err != nil {
+	if err := validateStatelessWitnessClaims(
+		ctx, proof.claims, proof.stemPaths, owned,
+	); err != nil {
 		return StatelessWitness{}, err
 	}
 
@@ -301,10 +309,10 @@ func (witness StatelessWitness) Bytes(
 	if err := checkTreeProofContext(ctx); err != nil {
 		return nil, err
 	}
-	if err := witness.validate(ctx); err != nil {
+	if err := limits.validate(); err != nil {
 		return nil, err
 	}
-	if err := limits.validate(); err != nil {
+	if err := witness.validateContainer(); err != nil {
 		return nil, err
 	}
 	proofSize := treeProofEncodedSize(witness.proof)
@@ -324,12 +332,18 @@ func (witness StatelessWitness) Bytes(
 	); err != nil {
 		return nil, err
 	}
-	temporaryBytes := encodedSize + proofSize
+	temporaryBytes := encodedSize + proofSize + statelessWitnessRelationBytes(
+		uint64(len(witness.proof.claims.claims)),
+		uint64(len(witness.updates)),
+	)
 	if err := checkStatelessWitnessResource(
 		StatelessWitnessResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
 		temporaryBytes,
 	); err != nil {
+		return nil, err
+	}
+	if err := witness.validate(ctx); err != nil {
 		return nil, err
 	}
 	proofBytes, err := witness.proof.Bytes(ctx, TreeProofEncodingLimits{
@@ -433,8 +447,19 @@ func DecodeStatelessWitness(
 	if encodedSize != uint64(len(encoded)) {
 		return StatelessWitness{}, errInvalidStatelessWitnessEncoding
 	}
+	if proofSize < treeProofHeaderBytes {
+		return StatelessWitness{}, errInvalidStatelessWitnessEncoding
+	}
+	proofOffset := statelessWitnessHeaderBytes + int(updateCount)*statelessWitnessUpdateBytes
+	claimCountOffset := proofOffset + treeProofMagicBytes +
+		treeProofProfileIDBytes + treeProofVersionBytes +
+		treeProofEncodingBytes + backend.RootSize
+	claimCount := binary.BigEndian.Uint32(
+		encoded[claimCountOffset : claimCountOffset+treeProofCountBytes],
+	)
 	temporaryBytes := encodedSize +
-		uint64(updateCount)*2*statelessWitnessUpdateScratch
+		uint64(updateCount)*2*statelessWitnessUpdateScratch +
+		statelessWitnessRelationBytes(uint64(claimCount), uint64(updateCount))
 	if err := checkStatelessWitnessResource(
 		StatelessWitnessResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
@@ -443,7 +468,7 @@ func DecodeStatelessWitness(
 		return StatelessWitness{}, err
 	}
 	updatesOffset := statelessWitnessHeaderBytes
-	proofOffset := updatesOffset + int(updateCount)*statelessWitnessUpdateBytes
+	proofOffset = updatesOffset + int(updateCount)*statelessWitnessUpdateBytes
 	updates := make([]Update, updateCount)
 	for index := range updates {
 		if err := checkTreeProofContext(ctx); err != nil {
@@ -541,7 +566,10 @@ func (witness StatelessWitness) validate(ctx context.Context) error {
 		}
 	}
 	if err := validateStatelessWitnessClaims(
-		ctx, witness.proof.claims, witness.updates,
+		ctx,
+		witness.proof.claims,
+		witness.proof.stemPaths,
+		witness.updates,
 	); err != nil {
 		return err
 	}
@@ -552,63 +580,179 @@ func (witness StatelessWitness) validate(ctx context.Context) error {
 func validateStatelessWitnessClaims(
 	ctx context.Context,
 	claims ClaimSet,
+	stemPaths []StemPath,
 	updates []Update,
 ) error {
-	retentionRequired := make(map[Stem]struct{})
+	if err := claims.validate(); err != nil {
+		return err
+	}
+	expected := make(map[Key]struct{}, min(len(claims.claims), len(updates)))
+	deletionStems := make(map[Stem]struct{})
 	setStems := make(map[Stem]struct{})
 	for index := range updates {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return err
 		}
+		if index > 0 && bytes.Compare(
+			updates[index-1].key[:], updates[index].key[:],
+		) >= 0 {
+			return errInvalidStatelessWitness
+		}
 		stem := Stem(updates[index].key[:31])
+		expected[updates[index].key] = struct{}{}
 		if updates[index].kind == UpdateSet {
 			setStems[stem] = struct{}{}
 
 			continue
 		}
-		claim, found, err := claims.Lookup(updates[index].key)
-		if err != nil {
-			return err
-		}
+		claim, found := statelessValidatedClaimLookup(
+			claims.claims, updates[index].key,
+		)
 		if !found {
 			return errInvalidStatelessWitness
 		}
 		if claim.kind == ClaimMembership {
-			retentionRequired[stem] = struct{}{}
+			deletionStems[stem] = struct{}{}
 		}
 	}
-	retainedStems := make(map[Stem]struct{})
-	updateIndex := 0
-	for claimIndex := range claims.claims {
+	for stem := range deletionStems {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return err
 		}
-		claim := claims.claims[claimIndex]
-		if updateIndex < len(updates) && claim.key == updates[updateIndex].key {
-			updateIndex++
+		if _, set := setStems[stem]; set {
+			continue
+		}
+		retained, disclosed, err := statelessWitnessStemAuxiliaries(
+			ctx, claims.claims, expected, stem,
+		)
+		if err != nil {
+			return err
+		}
+		if len(retained) > 1 {
+			return errInvalidStatelessWitness
+		}
+		if len(retained) == 1 {
+			expected[retained[0]] = struct{}{}
 
 			continue
 		}
-		stem := Stem(claim.key[:31])
-		if claim.kind != ClaimMembership {
+		if !disclosed {
+			continue
+		}
+		path, found := statelessWitnessStemPath(stemPaths, stem)
+		if !found || path.kind != StemPathPresent {
 			return errInvalidStatelessWitness
 		}
-		if _, required := retentionRequired[stem]; !required {
-			return errInvalidStatelessWitness
+		for suffix := range backend.VectorWidth {
+			if err := checkTreeProofContext(ctx); err != nil {
+				return err
+			}
+			var key Key
+			copy(key[:31], stem[:])
+			key[31] = byte(suffix)
+			expected[key] = struct{}{}
+			if len(expected) > len(claims.claims) {
+				return errInvalidStatelessWitness
+			}
 		}
-		if _, redundant := setStems[stem]; redundant {
-			return errInvalidStatelessWitness
+		for parentDepth := uint8(1); parentDepth < path.depth; parentDepth++ {
+			parent := makeStatelessPath(stem[:parentDepth])
+			for child := range backend.VectorWidth {
+				if err := checkTreeProofContext(ctx); err != nil {
+					return err
+				}
+				expected[statelessTopologyProbe(parent, byte(child))] = struct{}{}
+				if len(expected) > len(claims.claims) {
+					return errInvalidStatelessWitness
+				}
+			}
 		}
-		if _, duplicate := retainedStems[stem]; duplicate {
-			return errInvalidStatelessWitness
-		}
-		retainedStems[stem] = struct{}{}
 	}
-	if updateIndex != len(updates) {
+	if len(expected) != len(claims.claims) {
 		return errInvalidStatelessWitness
+	}
+	for key := range expected {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		if _, found := statelessValidatedClaimLookup(claims.claims, key); !found {
+			return errInvalidStatelessWitness
+		}
 	}
 
 	return nil
+}
+
+func statelessValidatedClaimLookup(claims []Claim, key Key) (Claim, bool) {
+	index, found := slices.BinarySearchFunc(
+		claims,
+		key,
+		func(claim Claim, candidate Key) int {
+			return compareKey(claim.key, candidate)
+		},
+	)
+	if !found {
+		return Claim{}, false
+	}
+
+	return claims[index], true
+}
+
+func statelessWitnessStemAuxiliaries(
+	ctx context.Context,
+	claims []Claim,
+	expected map[Key]struct{},
+	stem Stem,
+) ([]Key, bool, error) {
+	start := sort.Search(len(claims), func(index int) bool {
+		return bytes.Compare(claims[index].key[:31], stem[:]) >= 0
+	})
+	retained := make([]Key, 0, 2)
+	disclosed := false
+	for index := start; index < len(claims); index++ {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return nil, false, err
+		}
+		claim := claims[index]
+		if Stem(claim.key[:31]) != stem {
+			break
+		}
+		if _, update := expected[claim.key]; update {
+			continue
+		}
+		if claim.kind == ClaimMembership {
+			retained = append(retained, claim.key)
+		} else {
+			disclosed = true
+		}
+	}
+
+	return retained, disclosed, nil
+}
+
+func statelessWitnessRelationBytes(
+	claimCount uint64,
+	updateCount uint64,
+) uint64 {
+	if claimCount <= updateCount {
+		return 0
+	}
+
+	return (claimCount - updateCount) * 2 * statelessWitnessRelationScratch
+}
+
+func statelessWitnessStemPath(
+	paths []StemPath,
+	stem Stem,
+) (StemPath, bool) {
+	index := sort.Search(len(paths), func(index int) bool {
+		return bytes.Compare(paths[index].stem[:], stem[:]) >= 0
+	})
+	if index == len(paths) || paths[index].stem != stem {
+		return StemPath{}, false
+	}
+
+	return paths[index], true
 }
 
 func treeProofEncodedSize(proof TreeProof) uint64 {
@@ -669,8 +813,8 @@ func IsIncompleteStatelessWitnessError(err error) bool {
 	return errors.Is(err, errIncompleteStatelessWitness)
 }
 
-// IsUnsupportedStatelessUpdateError reports an update kind outside the
-// currently implemented Set-only witness profile.
+// IsUnsupportedStatelessUpdateError reports a transition outside the
+// currently implemented Set/Delete witness profile.
 func IsUnsupportedStatelessUpdateError(err error) bool {
 	return errors.Is(err, errUnsupportedStatelessUpdate)
 }

@@ -85,7 +85,13 @@ All notable changes to `verkle-tree` will be documented in this file.
   and present suffixes that provably leave their stem non-empty. A present
   deletion may bind exactly one retained same-stem membership claim only when
   no same-stem Set exists; unrelated, redundant, or duplicate auxiliary claims
-  fail closed. Deletion-time topology collapse remains unsupported.
+  fail closed.
+- Add canonical topology-changing `Delete` proofs and witnesses. Proof
+  generation derives complete 256-suffix disclosure for an emptied stem and
+  complete child-position disclosure for every affected non-root ancestor;
+  verification rejects omitted or surplus probes, reconstructs authenticated
+  vectors, removes empty nodes, collapses unary paths to surviving stems, and
+  derives the same post-state root as the immutable stateful transition.
 - Accept the canonical all-zero Banderwagon identity only in aggregate IPA
   proof-element positions where valid zero evaluations require it, while roots,
   nodes, paths, and standalone commitments remain strict non-identity
