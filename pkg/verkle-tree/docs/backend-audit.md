@@ -67,6 +67,25 @@ licenses, source hashes, and review procedures in the source manifest. They
 remain useful research inputs, but neither is an adoptable production backend
 or the maintained independent implementation required to freeze v1.
 
+The active MIT-licensed `DeWebProtocol/malt` repository was also reviewed at
+commit `da66c340f3bccc43a11f9f2a3b16f1a698a897e4`. Its public IPA package is
+not an independent implementation: it compiles an internal source copy of
+`crate-crypto/go-ipa` commit
+`53bbb0ceb27adb011950fd0fce885ad6d4516f84`, and its worker executor is
+byte-for-byte identical to that revision. The fork adds direct, compact, and
+fast commitment profiles plus error-returning commitment calls, but the public
+scheme fixes MALT-specific cell hashing and transcript labels instead of
+accepting this package's canonical scalars and transcript. It accepts no
+context, operation budget, or worker limit; generic MSM and multiproof paths
+still derive goroutine counts from `runtime.NumCPU`. Its single-proof decoder
+calls the reducing `SetBytesLE` scalar parser, which both accepts out-of-field
+encodings modulo the scalar field and reverses the caller's proof bytes in
+place. The low-level fork is under Go's `internal` import boundary, so this
+package cannot wrap the patched primitive directly. MALT therefore provides
+neither an adoptable backend nor independent cryptographic agreement. Its
+head, release and release-candidate revisions, tree, license, source hashes,
+and review procedure are pinned in the source manifest.
+
 Three maintained BLS12-381 KZG implementations were reviewed as possible ways
 to leave the unmaintained Banderwagon IPA line. They improve maintenance and
 audit evidence, but none exposes the complete Verkle backend required here:

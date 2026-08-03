@@ -10,6 +10,7 @@ The bounded research agreements below apply only to their exact corpora.
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
 | `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening and zero-evaluation proofs, stem path hints, one tree root/proof corpus, and its bounded present-stem stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `ethereumjs/verkle-cryptography-wasm` | Git `2a814ff6fe0fb62e0a711e7b52a8e6db37e09733`; npm `0.4.8` | EthereumJS WASM delivery-lineage research | The repository declares maintenance by the Ethereum Foundation JavaScript team but wraps `crate-crypto/rust-verkle` revision `309cdcba4088e698689dc33b8ee071c2d064b2ae`; it is not a second independent cryptographic implementation and adds no tree, proof, wire, or production compatibility claim |
+| `DeWebProtocol/malt` IPA | Git `da66c340f3bccc43a11f9f2a3b16f1a698a897e4`; release `v0.0.6` | Active Go candidate research | Its public package wraps an internal source copy of `go-ipa` revision `53bbb0ceb27adb011950fd0fce885ad6d4516f84` with MALT-specific cell hashing and transcripts; shared lineage and incompatible, unbounded decoding and execution boundaries establish no independent, backend, tree, proof, wire, or production compatibility claim |
 | `paulmillr/micro-eth-signer` Verkle history | Last implementation `87e6757ebb56a91fd1a8b6d02a400cfe08b605fd`; removed by `d98fb3189259f23d43ed5472c63a429d8d4b9d63` | Historical independent TypeScript research | The Noble-based TypeScript implementation had independent Banderwagon, transcript, commitment, IPA, and multiproof code, but upstream removed it on 2025-11-20 after Verkle left its Ethereum roadmap; it is retired, not a maintained differential target, and establishes no compatibility claim |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
 | EIP-6800 | Stagnant at EIPs commit `c55786f4242e5324afd14c6bca890a369a771d7f` | Historical Ethereum Verkle layout | Not implemented |
@@ -35,6 +36,16 @@ may prove packaging or FFI behavior, but counting it beside `rust-verkle` as an
 independent cryptographic verifier would duplicate the same implementation
 lineage. It therefore does not replace the pinned Rust differential harness or
 satisfy the requirement for another independent implementation.
+
+MALT is active and ships a Go IPA surface, but activity does not make it an
+independent verifier or a drop-in backend. Its own fork record identifies the
+cryptography as a source copy of `go-ipa`; only MSM profiles and commitment
+error propagation are patched. The public wrapper then selects MALT-specific
+cell hashing and transcript labels, while its proof scalar parser reduces
+non-canonical encodings and reverses the caller-provided scalar bytes in place.
+It also exposes no context, work budget, or worker limit. Those properties are
+incompatible with this package's profile, canonicality, ownership, and bounded
+hostile-input contracts.
 
 The removed `micro-eth-signer` implementation is useful evidence that another
 cryptographic lineage existed: it implemented the relevant Banderwagon and IPA

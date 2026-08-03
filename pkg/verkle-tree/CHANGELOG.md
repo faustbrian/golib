@@ -29,6 +29,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Pin the maintained gnark, Go, and C KZG candidate scans and record why their
   fixed proof APIs, setup ownership, and cancellation boundaries do not provide
   the required compact Verkle multiproof backend.
+- Pin the active MALT IPA candidate and record its embedded `go-ipa` lineage,
+  incompatible profile, mutating non-canonical scalar decoder, and missing
+  bounded-execution surface.
 - Audit the complete experimental exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
 

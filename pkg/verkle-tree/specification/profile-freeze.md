@@ -40,9 +40,12 @@ prohibited.
 
 This decision uses sources captured through 2026-08-04. Supplemental reviews
 pinned the EthereumJS-owned WASM wrapper and its npm package, Geth's binary-tree
-direction, and the exact removal of an independent TypeScript Verkle
-implementation without changing the decision. Exact commits, content digests,
-license data, and source classifications are in
+direction, the exact removal of an independent TypeScript Verkle
+implementation, and the active MALT Go IPA wrapper without changing the
+decision. MALT embeds the same `go-ipa` lineage behind an inaccessible internal
+package and exposes different transcript and cell-encoding rules without the
+required canonical scalar, ownership, cancellation, or resource boundary.
+Exact commits, content digests, license data, and source classifications are in
 [`sources.json`](sources.json).
 
 ## Candidate Research Target
@@ -57,6 +60,12 @@ wrapper around `rust-verkle`, not another independent implementation. Its
 pinned manifest selects an older Rust revision than the differential harness,
 so it MAY be used for separate WASM and FFI packaging research but MUST NOT be
 counted as independent cryptographic agreement.
+
+The active `DeWebProtocol/malt` IPA package is a MALT-specific wrapper around
+an internal source copy of `go-ipa`, not another implementation lineage or a
+generic backend. Its differing cell hashing and transcripts, inaccessible
+primitive package, non-canonical mutating scalar decoder, CPU-derived workers,
+and missing context and resource budgets prevent selection for this profile.
 
 The historical `micro-eth-signer` Verkle implementation used an independent
 TypeScript and Noble lineage, but upstream removed its implementation, tests,
