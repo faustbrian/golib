@@ -103,8 +103,9 @@ append_module_files() {
                 in_documentation = relative ~ /^(docs|\.ai)\//
                 in_test_data = relative ~ /(^|\/)(testdata|fixtures|corpus)\//
                 is_named_documentation = relative ~ /(^|\/)(readme|changelog|contributing|security|code_of_conduct|support)\.(md|markdown)$/
+                is_generated_documentation = relative == "llms.txt" || relative == "llms-full.txt"
                 is_repository_catalog = relative == "modules.json" || relative == "packages.json"
-                skip_documentation = !include_documentation && is_markdown && (in_documentation || (!in_test_data && is_named_documentation))
+                skip_documentation = !include_documentation && (is_generated_documentation || (is_markdown && (in_documentation || (!in_test_data && is_named_documentation))))
                 if (is_repository_catalog) {
                     next
                 }

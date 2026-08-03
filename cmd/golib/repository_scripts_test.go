@@ -1588,6 +1588,8 @@ go 1.26.5
 	)
 	readme := filepath.Join(root, "pkg", "example", "README.md")
 	writeTestFile(t, readme, "# Example\n")
+	llmsFull := filepath.Join(root, "pkg", "example", "llms-full.txt")
+	writeTestFile(t, llmsFull, "# Complete documentation\n")
 	guide := filepath.Join(root, "pkg", "example", "docs", "guide.md")
 	if err := os.MkdirAll(filepath.Dir(guide), 0o700); err != nil {
 		t.Fatal(err)
@@ -1853,6 +1855,22 @@ go 1.26.5
 	}
 	if secretsAfter := digest("secrets"); secretsAfter == secretsAfterReadme {
 		t.Fatal("documentation directory did not change secrets digest")
+	}
+	docsBeforeLLMS := digest("docs")
+	secretsBeforeLLMS := digest("secrets")
+	writeTestFile(t, llmsFull, "# Revised complete documentation\n")
+	if testAfter := digest("test"); testAfter != testBefore {
+		t.Fatalf(
+			"generated documentation changed test digest: %s != %s",
+			testAfter,
+			testBefore,
+		)
+	}
+	if docsAfter := digest("docs"); docsAfter == docsBeforeLLMS {
+		t.Fatal("generated documentation did not change docs digest")
+	}
+	if secretsAfter := digest("secrets"); secretsAfter == secretsBeforeLLMS {
+		t.Fatal("generated documentation did not change secrets digest")
 	}
 	writeTestFile(
 		t,
