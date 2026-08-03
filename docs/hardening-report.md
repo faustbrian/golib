@@ -7,8 +7,8 @@ Audit date: 2026-08-02
 This report covers the normalization and strict hardening of the complete
 `github.com/faustbrian/golib` multi-module repository. The authoritative
 catalog currently contains 119 modules, of which 94 are independently
-releasable, and 654 Go packages, of which 521 are production packages. Exact
-statement coverage applies to the 519 production packages with executable
+releasable, and 656 Go packages, of which 522 are production packages. Exact
+statement coverage applies to the 520 production packages with executable
 statements; declaration-only production packages remain cataloged but have no
 statement denominator.
 
@@ -92,21 +92,17 @@ complete input fingerprint.
 ## Package-level outcomes
 
 The final package-attributable result is represented by the module matrix and
-its uploaded evidence, not by a repository-wide average. At this intermediate
-checkpoint:
+its uploaded evidence, not by a repository-wide average. This execution lane
+does not own Kafka or Verkle Tree: specialists are actively implementing and
+verifying those modules, so this lane does not inspect their work, alter their
+processes, or classify their intermediate results as failures or blockers.
+Repository-wide release approval will consume their independently produced
+evidence when their work reaches its final boundary.
 
-- 84 of 94 releasable modules have current clean-consumer release proof.
-- The remaining release-proof set is limited to Kafka and its owned consumers,
-  Knapsack and its Go Money adapter, and Verkle Tree.
-- Every completed mutation campaign enforces 100% efficacy and 100% mutant
-  coverage. Kafka's final integration-backed campaign is still running.
-- Knapsack requires regenerated native, peak-RSS, and BoxPacker benchmark
-  evidence against the final owned dependency content.
-- Verkle Tree requires final evidence after its current stateless witness work
-  stabilizes.
-
-These counts are a progress checkpoint, not final evidence. Before release the
-section will be replaced with the exact final matrix result and completion
+The remaining owned scope is still being verified. Every completed mutation
+campaign enforces 100% efficacy and 100% mutant coverage, but this intermediate
+report is not a substitute for the final matrix. Before release this section
+will be replaced with exact package-attributable outcomes and completion
 timestamps from the final tree.
 
 ## Specification and interoperability evidence

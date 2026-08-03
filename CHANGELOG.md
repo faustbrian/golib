@@ -51,6 +51,9 @@ documented in each module's changelog.
 
 ### Changed
 
+- Keep Kafka and Verkle Tree implementation and verification outside the
+  repository-hardening execution lane while consuming their specialist-owned
+  evidence at the final repository release boundary.
 - Add the repository-wide hardening report that records the canonical
   contract, pinned toolchain, package-attributable evidence, interoperability
   scope, and final release-readiness boundary.
