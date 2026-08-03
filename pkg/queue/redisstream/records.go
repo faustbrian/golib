@@ -54,10 +54,7 @@ func (w *Worker) listRecords(
 	if err != nil {
 		return management.RecordPage{}, err
 	}
-	scanLimit := int64(request.Limit)
-	if request.Search != "" {
-		scanLimit *= redisRecordSearchFactor
-	}
+	scanLimit := redisRecordScanLimit(request)
 	messages, err := w.readRecordPage(ctx, stream, cursor, scanLimit, request.Direction)
 	if err != nil {
 		return management.RecordPage{}, redisRecordReadError(
@@ -204,13 +201,13 @@ func redisManagementRecord(
 	if lineageErr != nil {
 		return management.JobRecord{}, errors.New("redisstream: malformed replay lineage")
 	}
-	if lineage.generation > 0 {
-		record.OriginalDeadLetterID = lineage.original
-		record.PriorDeadLetterID = lineage.prior
-		record.ReplayGeneration = lineage.generation
-	}
+	record.OriginalDeadLetterID = lineage.original
+	record.PriorDeadLetterID = lineage.prior
+	record.ReplayGeneration = lineage.generation
 	if record.EnqueuedAt == nil {
-		if enqueuedAt, enqueueErr := redisRecordTime(originalID); enqueueErr == nil {
+		enqueuedAt, enqueueErr := redisRecordTime(originalID)
+		switch enqueueErr {
+		case nil:
 			record.EnqueuedAt = &enqueuedAt
 		}
 	}
@@ -223,6 +220,15 @@ func redisManagementRecord(
 	}
 
 	return record, nil
+}
+
+func redisRecordScanLimit(request management.PageRequest) int64 {
+	switch request.Search {
+	case "":
+		return int64(request.Limit)
+	default:
+		return int64(request.Limit) * redisRecordSearchFactor
+	}
 }
 
 func redisRecordString(value any) (string, bool) {
@@ -271,8 +277,13 @@ func decodeRedisRecordCursor(cursor string) (string, error) {
 		return "", nil
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil || base64.RawURLEncoding.EncodeToString(decoded) != cursor ||
-		len(decoded) == 0 || len(decoded) > management.MaxIdentityBytes {
+	if err != nil {
+		return "", management.ErrMalformedCursor
+	}
+	if base64.RawURLEncoding.EncodeToString(decoded) != cursor {
+		return "", management.ErrMalformedCursor
+	}
+	if max(len(decoded), management.MaxIdentityBytes) != management.MaxIdentityBytes {
 		return "", management.ErrMalformedCursor
 	}
 	if _, err := redisRecordTime(string(decoded)); err != nil {

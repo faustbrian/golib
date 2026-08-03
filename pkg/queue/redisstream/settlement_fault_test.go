@@ -15,7 +15,6 @@ import (
 )
 
 func TestRedisMalformedSettlementKeepsSourceRecoverableAtEveryBoundary(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		command string
@@ -54,7 +53,6 @@ func TestRedisMalformedSettlementKeepsSourceRecoverableAtEveryBoundary(t *testin
 }
 
 func TestRedisHandlerSettlementReportsFailureAndDeadLetterBoundaries(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		command string
@@ -84,7 +82,6 @@ func TestRedisHandlerSettlementReportsFailureAndDeadLetterBoundaries(t *testing.
 }
 
 func TestRedisSettlementHelpersRejectMalformedState(t *testing.T) {
-	t.Parallel()
 
 	worker, message := newPendingRedisMessage(t)
 	addRedisFault(t, worker, "xadd", 1)
@@ -132,7 +129,6 @@ func newPendingRedisMessage(t *testing.T) (*Worker, redis.XMessage) {
 }
 
 func TestRedisFailureMetadataUsesSafeClassifiedCode(t *testing.T) {
-	t.Parallel()
 	metadata := redisFailureMetadata(management.NewFailure(
 		management.ClassificationPermanent, "invalid_order", errors.New("secret"),
 	), "fallback")
@@ -141,7 +137,6 @@ func TestRedisFailureMetadataUsesSafeClassifiedCode(t *testing.T) {
 }
 
 func TestRedisRequestReportsMalformedDeadLetterFailure(t *testing.T) {
-	t.Parallel()
 
 	for name, body := range map[string]any{
 		"non-string body":  1,
@@ -158,13 +153,12 @@ func TestRedisRequestReportsMalformedDeadLetterFailure(t *testing.T) {
 			requestWorker.tasks <- message
 			task, err := requestWorker.Request()
 			assert.Nil(t, task)
-			assert.Error(t, err)
+			assert.ErrorContains(t, err, "injected Redis fault")
 		})
 	}
 }
 
 func TestRedisReclaimLoopReportsErrorsAndPreservesClaimedWorkOnStop(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		next    string
@@ -205,7 +199,6 @@ func TestRedisReclaimLoopReportsErrorsAndPreservesClaimedWorkOnStop(t *testing.T
 }
 
 func TestRedisPendingAttemptsRejectsAbsentDelivery(t *testing.T) {
-	t.Parallel()
 	worker, _ := newFaultControlWorker(t)
 	addRedisStop(t, worker, "xpending", 1)
 	_, err := worker.pendingAttempts(t.Context(), "1-0")

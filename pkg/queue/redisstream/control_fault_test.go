@@ -78,7 +78,6 @@ func (h *redisCommandFault) ProcessPipelineHook(next redis.ProcessPipelineHook) 
 }
 
 func TestRedisControllerExecutionBoundaries(t *testing.T) {
-	t.Parallel()
 
 	worker, _ := newFaultControlWorker(t)
 	command := faultControlCommand(management.CommandDelete, management.TargetDeadLetter, "1-0")
@@ -127,7 +126,6 @@ func TestRedisControllerExecutionBoundaries(t *testing.T) {
 }
 
 func TestRedisReplayRejectsMissingMalformedAndCapacityRecords(t *testing.T) {
-	t.Parallel()
 
 	worker, _ := newFaultControlWorker(t)
 	command := faultControlCommand(
@@ -175,7 +173,6 @@ func TestRedisReplayRejectsMissingMalformedAndCapacityRecords(t *testing.T) {
 }
 
 func TestRedisReplayReconcilesConcurrentDuplicateRegistration(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		failDelete bool
@@ -216,7 +213,6 @@ func TestRedisReplayReconcilesConcurrentDuplicateRegistration(t *testing.T) {
 }
 
 func TestRedisReplayAndRetryReportMissingDeletedRecords(t *testing.T) {
-	t.Parallel()
 
 	t.Run("replace replay", func(t *testing.T) {
 		worker, recordID := newFaultControlWorker(t)
@@ -247,7 +243,6 @@ func TestRedisReplayAndRetryReportMissingDeletedRecords(t *testing.T) {
 }
 
 func TestRedisReplayReportsEveryDurableBoundary(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		prepare func(*testing.T, *Worker, string)
@@ -291,7 +286,6 @@ func TestRedisReplayReportsEveryDurableBoundary(t *testing.T) {
 }
 
 func TestRedisRetryReportsEveryDurableBoundary(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		command string
@@ -332,7 +326,6 @@ func TestRedisRetryReportsEveryDurableBoundary(t *testing.T) {
 }
 
 func TestRedisRetryRejectsEachMalformedRecordField(t *testing.T) {
-	t.Parallel()
 
 	for name, values := range map[string]map[string]any{
 		"missing body": {
@@ -362,7 +355,6 @@ func TestRedisRetryRejectsEachMalformedRecordField(t *testing.T) {
 }
 
 func TestRedisControlCapacityPreservesExistingStreamRecords(t *testing.T) {
-	t.Parallel()
 
 	worker, recordID := newFaultControlWorker(t)
 	worker.opts.maxLength = 1
@@ -397,7 +389,6 @@ func TestRedisControlCapacityPreservesExistingStreamRecords(t *testing.T) {
 }
 
 func TestRedisControlCapacityReportsInspectionFailures(t *testing.T) {
-	t.Parallel()
 
 	worker, recordID := newFaultControlWorker(t)
 	worker.opts.maxLength = 1
@@ -421,7 +412,6 @@ func TestRedisControlCapacityReportsInspectionFailures(t *testing.T) {
 }
 
 func TestRedisStreamCapacityAccountsForReplacedRecords(t *testing.T) {
-	t.Parallel()
 
 	worker, _ := newFaultControlWorker(t)
 	worker.opts.maxLength = 1
@@ -448,7 +438,6 @@ func TestRedisStreamCapacityAccountsForReplacedRecords(t *testing.T) {
 }
 
 func TestRedisDeletePurgeAndBulkFailuresRemainExplicit(t *testing.T) {
-	t.Parallel()
 
 	worker, recordID := newFaultControlWorker(t)
 	addRedisFault(t, worker, "xdel", 1)
@@ -495,7 +484,6 @@ func TestRedisDeletePurgeAndBulkFailuresRemainExplicit(t *testing.T) {
 }
 
 func TestRedisActiveFailureRetryReportsPendingAndAckUncertainty(t *testing.T) {
-	t.Parallel()
 
 	for name, command := range map[string]string{
 		"pending read": "xpending",
@@ -522,7 +510,6 @@ func TestRedisActiveFailureRetryReportsPendingAndAckUncertainty(t *testing.T) {
 }
 
 func TestRedisReplayLineageRejectsMalformedAndExhaustedRecords(t *testing.T) {
-	t.Parallel()
 
 	message := redis.XMessage{ID: "1-0", Values: map[string]any{
 		replayGenerationField: "invalid",

@@ -16,7 +16,6 @@ import (
 )
 
 func TestControllerRetriesDeadLetterIdempotentlyAfterDurableEnqueue(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}
@@ -77,7 +76,6 @@ func TestControllerRetriesDeadLetterIdempotentlyAfterDurableEnqueue(t *testing.T
 }
 
 func TestControllerBulkRetryDeleteAndPurgeStayBounded(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}
@@ -155,7 +153,6 @@ func TestControllerBulkRetryDeleteAndPurgeStayBounded(t *testing.T) {
 }
 
 func TestControllerRejectsStaleFailureAndUnsafeCommands(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}
@@ -221,7 +218,6 @@ func TestControllerRejectsStaleFailureAndUnsafeCommands(t *testing.T) {
 }
 
 func TestControllerSerializesConcurrentIdempotentRetry(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}
@@ -282,7 +278,6 @@ func TestControllerSerializesConcurrentIdempotentRetry(t *testing.T) {
 }
 
 func TestControllerFailsClosedOnIdempotencyConflictAndCapacity(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}
@@ -325,7 +320,6 @@ func TestControllerFailsClosedOnIdempotencyConflictAndCapacity(t *testing.T) {
 }
 
 func TestControllerReplaysWithDurableDuplicatePoliciesAndLineage(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	protocol := management.ProtocolVersion{Major: 1}

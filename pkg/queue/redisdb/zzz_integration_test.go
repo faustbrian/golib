@@ -146,22 +146,31 @@ func setupRedisClusterContainer(ctx context.Context, t *testing.T) (testcontaine
 }
 
 func setupRedisContainer(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
-	req := testcontainers.ContainerRequest{
-		Image:        "redis:6.2.22@sha256:3b477db2f54035771360d023c9aff4c6255ba833834511b8eedc5ba8c10d0bce",
-		ExposedPorts: []string{"6379/tcp"},
-		Cmd: []string{
-			"sh", "-c",
-			"redis-server --daemonize yes && while :; do sleep 3600; done",
-		},
-		WaitingFor: wait.NewExecStrategy(
-			[]string{"redis-cli", "-h", "localhost", "-p", "6379", "ping"},
-		),
-	}
-	redisC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
+	redisC := startPortBoundRedisContainer(ctx, t, func() testcontainers.ContainerRequest {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		hostPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+		require.NoError(t, listener.Close())
+
+		return testcontainers.ContainerRequest{
+			Image:        "redis:6.2.22@sha256:3b477db2f54035771360d023c9aff4c6255ba833834511b8eedc5ba8c10d0bce",
+			ExposedPorts: []string{"6379/tcp"},
+			Cmd: []string{
+				"sh", "-c",
+				"redis-server --daemonize yes && while :; do sleep 3600; done",
+			},
+			HostConfigModifier: func(config *container.HostConfig) {
+				config.PortBindings = network.PortMap{
+					network.MustParsePort("6379/tcp"): {{
+						HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: hostPort,
+					}},
+				}
+			},
+			WaitingFor: wait.NewExecStrategy(
+				[]string{"redis-cli", "-h", "localhost", "-p", "6379", "ping"},
+			),
+		}
 	})
-	require.NoError(t, err)
 
 	var endpoint string
 	var endpointErr error

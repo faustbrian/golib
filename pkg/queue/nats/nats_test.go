@@ -4,6 +4,9 @@ package nats
 
 import (
 	"context"
+	"net"
+	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +15,8 @@ import (
 	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
 
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,19 +60,41 @@ func waitForSignal(t *testing.T, signal <-chan struct{}) {
 }
 
 func setupNatsContainer(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
-	req := testcontainers.ContainerRequest{
-		Image: "nats:2.10.29@sha256:5498ba57b9471840be3d15b033a4eec554d1c02fa6c2cc0ca2d888637f6c6e2f",
-		ExposedPorts: []string{
-			"4222/tcp", // client port
-			"6222/tcp", // cluster port
-			"8222/tcp", // monitoring port
-		},
-		WaitingFor: wait.ForLog("Server is ready"),
+	var natsC testcontainers.Container
+	var err error
+	for range 5 {
+		listener, listenErr := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, listenErr)
+		hostPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+		require.NoError(t, listener.Close())
+
+		req := testcontainers.ContainerRequest{
+			Image:        "nats:2.10.29@sha256:5498ba57b9471840be3d15b033a4eec554d1c02fa6c2cc0ca2d888637f6c6e2f",
+			ExposedPorts: []string{"4222/tcp"},
+			HostConfigModifier: func(config *container.HostConfig) {
+				config.PortBindings = network.PortMap{
+					network.MustParsePort("4222/tcp"): {{
+						HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: hostPort,
+					}},
+				}
+			},
+			WaitingFor: wait.ForLog("Server is ready"),
+		}
+		natsC, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+		if err == nil {
+			break
+		}
+		if natsC != nil {
+			_ = natsC.Terminate(ctx)
+		}
+		if !strings.Contains(err.Error(), "port is already allocated") &&
+			!strings.Contains(err.Error(), "address already in use") {
+			require.NoError(t, err)
+		}
 	}
-	natsC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
 	require.NoError(t, err)
 
 	var endpoint string

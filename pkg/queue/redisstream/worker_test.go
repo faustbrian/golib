@@ -83,7 +83,6 @@ func TestOptionsConfigureRedisStreams(t *testing.T) {
 }
 
 func TestWorkerRejectsUnsafeDeadLetterConfigurationBeforeConnecting(t *testing.T) {
-	t.Parallel()
 
 	tests := map[string]Option{
 		"reclaim idle":     WithReclaim(0, time.Second, 1),
@@ -110,7 +109,6 @@ func TestWorkerRejectsUnsafeDeadLetterConfigurationBeforeConnecting(t *testing.T
 	}
 	for name, option := range tests {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			worker, err := NewWorkerE(WithAddr("127.0.0.1:1"), option)
 			assert.Nil(t, worker)
@@ -185,7 +183,6 @@ func TestWorkerBackpressuresInsteadOfTrimmingPendingDelivery(t *testing.T) {
 }
 
 func TestWorkerReportsEnqueueAndAcknowledgementProtocolFailures(t *testing.T) {
-	t.Parallel()
 
 	worker, _ := newFaultControlWorker(t)
 	addRedisFault(t, worker, "eval", 1)
@@ -352,7 +349,6 @@ func TestRequestReturnsPayloadAndChannelErrors(t *testing.T) {
 }
 
 func TestRequestDeadLettersMalformedDeliveryBeforeAcknowledgingSource(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(
@@ -383,7 +379,6 @@ func TestRequestDeadLettersMalformedDeliveryBeforeAcknowledgingSource(t *testing
 }
 
 func TestRequestDeadLettersPermanentHandlerFailureAndRecordsAttempt(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(
@@ -418,7 +413,6 @@ func TestRequestDeadLettersPermanentHandlerFailureAndRecordsAttempt(t *testing.T
 }
 
 func TestWorkerReclaimsRetryableDeliveryAndDeadLettersAtExactLimit(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	server.SetTime(time.Unix(100, 0))

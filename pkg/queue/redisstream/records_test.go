@@ -18,7 +18,6 @@ import (
 )
 
 func TestRecordReaderListsAndInspectsRedisDeadLetters(t *testing.T) {
-	t.Parallel()
 
 	enqueuedAt := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
 	server := miniredis.RunT(t)
@@ -90,7 +89,6 @@ func TestRecordReaderListsAndInspectsRedisDeadLetters(t *testing.T) {
 }
 
 func TestRecordReaderBoundsPaginationFiltersAndMalformedData(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(
@@ -161,7 +159,6 @@ func TestRecordReaderBoundsPaginationFiltersAndMalformedData(t *testing.T) {
 }
 
 func TestRedisRecordReaderClassifiesUnavailableBackendSafely(t *testing.T) {
-	t.Parallel()
 
 	server := miniredis.RunT(t)
 	worker, err := NewWorkerE(
@@ -188,7 +185,6 @@ func TestRedisRecordReaderClassifiesUnavailableBackendSafely(t *testing.T) {
 }
 
 func TestRedisRecordReadErrorPreservesCallerCancellation(t *testing.T) {
-	t.Parallel()
 
 	for _, cause := range []error{context.Canceled, context.DeadlineExceeded} {
 		err := redisRecordReadError("read records", cause)
@@ -198,7 +194,6 @@ func TestRedisRecordReadErrorPreservesCallerCancellation(t *testing.T) {
 }
 
 func TestRecordRetentionIsIndependentAndExplicit(t *testing.T) {
-	t.Parallel()
 
 	for name, test := range map[string]struct {
 		options  []Option
@@ -212,7 +207,6 @@ func TestRecordRetentionIsIndependentAndExplicit(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 
 			server := miniredis.RunT(t)
 			workerOptions := append([]Option{
@@ -238,7 +232,6 @@ func TestRecordRetentionIsIndependentAndExplicit(t *testing.T) {
 }
 
 func TestRedisRecordReaderFailsClosedAtUntrustedBoundaries(t *testing.T) {
-	t.Parallel()
 
 	request := management.PageRequest{
 		Limit: 1, Sort: management.SortOccurredAt, Direction: management.SortAscending,
@@ -276,7 +269,6 @@ func TestRedisRecordReaderFailsClosedAtUntrustedBoundaries(t *testing.T) {
 }
 
 func TestRedisManagementRecordRejectsMalformedMetadata(t *testing.T) {
-	t.Parallel()
 
 	valid := redis.XMessage{ID: "1000-0", Values: map[string]any{
 		streamBodyField: []byte("body"), originalIDField: "500-0",
@@ -290,6 +282,10 @@ func TestRedisManagementRecordRejectsMalformedMetadata(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, int64(4), record.Payload.Size)
+	require.NotNil(t, record.EnqueuedAt)
+	assert.Equal(t, time.UnixMilli(500).UTC(), *record.EnqueuedAt)
+	assert.Equal(t, int64(3), redisRecordScanLimit(management.PageRequest{Limit: 3}))
+	assert.Equal(t, int64(12), redisRecordScanLimit(management.PageRequest{Limit: 3, Search: "match"}))
 
 	for name, mutate := range map[string]func(*redis.XMessage){
 		"missing field": func(message *redis.XMessage) {

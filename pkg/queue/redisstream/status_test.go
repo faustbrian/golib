@@ -14,7 +14,6 @@ import (
 )
 
 func TestRedisStreamNativeManagementStatus(t *testing.T) {
-	t.Parallel()
 
 	now := time.Unix(20, 0).UTC()
 	worker := &Worker{
@@ -66,7 +65,6 @@ func TestRedisStreamNativeManagementStatus(t *testing.T) {
 }
 
 func TestRedisGroupLagCapabilityRequiresRedisSeven(t *testing.T) {
-	t.Parallel()
 
 	assert.True(t, redisGroupLagSupported("# Server\r\nredis_version:7.4.1\r\n"))
 	for _, info := range []string{
@@ -78,7 +76,6 @@ func TestRedisGroupLagCapabilityRequiresRedisSeven(t *testing.T) {
 }
 
 func TestRedisStreamManagementStatusFailsClosed(t *testing.T) {
-	t.Parallel()
 
 	worker := &Worker{}
 	_, err := worker.ObserveWorker(context.Background())
@@ -114,14 +111,12 @@ func TestRedisStreamManagementStatusFailsClosed(t *testing.T) {
 }
 
 func TestRedisStreamManagementOptionRejectsInvalidMetadata(t *testing.T) {
-	t.Parallel()
 
 	_, err := NewWorkerE(WithManagementStatus(management.StatusMetadata{}))
 	assert.ErrorIs(t, err, ErrInvalidManagementStatus)
 }
 
 func TestRedisStreamAdvertisesReplayOnlyWithAnAllowlist(t *testing.T) {
-	t.Parallel()
 
 	worker := &Worker{opts: options{
 		streamName: "jobs", replayDestinations: map[string]struct{}{"archive": {}},
@@ -141,7 +136,6 @@ func TestRedisStreamAdvertisesReplayOnlyWithAnAllowlist(t *testing.T) {
 }
 
 func TestRedisStreamReportsConfiguredRetentionCapabilities(t *testing.T) {
-	t.Parallel()
 
 	worker := &Worker{opts: options{
 		streamName: "jobs", recordMaxLength: 100,

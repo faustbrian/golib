@@ -59,6 +59,8 @@ versioning and Keep a Changelog structure.
 - Retry Valkey integration container startup, endpoint publication, and restart
   readiness failures, clean up partial containers, and retain connection errors
   for diagnosis.
+- Retry NATS and Redis integration container startup after bounded host-port
+  allocation races and clean up partially created containers between attempts.
 - Regenerated the complete documentation bundle from the current package
   documentation and release notes.
 - Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing

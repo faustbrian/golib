@@ -170,16 +170,7 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 		w.rdb = redis.NewClient(options)
 	} else if w.opts.addr != "" {
 		if w.opts.cluster {
-			w.rdb = redis.NewClusterClient(&redis.ClusterOptions{
-				Addrs:                 strings.Split(w.opts.addr, ","),
-				Username:              w.opts.username,
-				Password:              w.opts.password,
-				TLSConfig:             w.opts.tls,
-				DialTimeout:           w.opts.connectTimeout,
-				DialerRetries:         -1,
-				MaxRedirects:          -1,
-				ContextTimeoutEnabled: true,
-			})
+			w.rdb = redis.NewClusterClient(redisClusterOptions(w.opts))
 		} else {
 			options := &redis.Options{
 				Addr:      w.opts.addr,
@@ -203,9 +194,11 @@ func NewWorkerE(opts ...Option) (*Worker, error) {
 		closeRedisClient(w.rdb)
 		return nil, fmt.Errorf("connect to Redis: %w", err)
 	}
-	if w.opts.management != nil {
+	switch w.opts.management {
+	case nil:
+	default:
 		info, infoErr := w.rdb.Info(ctx, "server").Result()
-		w.groupLagSupported = infoErr == nil && redisGroupLagSupported(info)
+		w.groupLagSupported = redisGroupLagCapability(info, infoErr)
 	}
 	w.ack = func(id string) error {
 		return w.acknowledgeRecord(context.Background(), id)
@@ -240,6 +233,28 @@ func configureRedisOptions(options *redis.Options, timeout time.Duration) {
 	options.ContextTimeoutEnabled = true
 }
 
+func redisClusterOptions(opts options) *redis.ClusterOptions {
+	return &redis.ClusterOptions{
+		Addrs:                 strings.Split(opts.addr, ","),
+		Username:              opts.username,
+		Password:              opts.password,
+		TLSConfig:             opts.tls,
+		DialTimeout:           opts.connectTimeout,
+		DialerRetries:         -1,
+		MaxRedirects:          -1,
+		ContextTimeoutEnabled: true,
+	}
+}
+
+func redisGroupLagCapability(info string, err error) bool {
+	switch err {
+	case nil:
+		return redisGroupLagSupported(info)
+	default:
+		return false
+	}
+}
+
 func closeRedisClient(client redis.Cmdable) {
 	switch value := client.(type) {
 	case *redis.Client:
@@ -257,12 +272,15 @@ func (w *Worker) startConsumer() {
 	}
 
 	w.startOnce.Do(func() {
-		if err := w.rdb.XGroupCreateMkStream(
+		err := w.rdb.XGroupCreateMkStream(
 			context.Background(),
 			w.opts.streamName,
 			w.opts.group,
 			"0",
-		).Err(); err != nil {
+		).Err()
+		switch err {
+		case nil:
+		default:
 			w.opts.logger.Error(err)
 		}
 
@@ -297,13 +315,15 @@ func (w *Worker) fetchTask() {
 			})
 			nextReclaim = time.Now().Add(w.opts.reclaimInterval)
 			if reclaimErr != nil && !errors.Is(reclaimErr, redis.Nil) {
-				if ctx.Err() == nil {
+				switch ctx.Err() {
+				case nil:
 					w.opts.logger.Errorf("error while reclaiming Redis stream entries: %v", reclaimErr)
 				}
 			} else {
-				if next == "" || next == "0-0" {
+				switch next {
+				case "", "0-0":
 					reclaimCursor = "0-0"
-				} else {
+				default:
 					reclaimCursor = next
 				}
 				for _, message := range claimed {
@@ -330,22 +350,22 @@ func (w *Worker) fetchTask() {
 			Block: blockTime,
 		})
 		if err != nil {
-			if errors.Is(err, redis.Nil) {
+			switch {
+			case errors.Is(err, redis.Nil):
 				w.opts.logger.Infof("no messages available in Redis stream [%s]", w.opts.streamName)
-				continue
+			default:
+				w.opts.logger.Errorf("error while reading from redis %v", err)
 			}
-			w.opts.logger.Errorf("error while reading from redis %v", err)
-			continue
-		}
-		// we have received the data we should loop it and queue the messages
-		// so that our tasks can start processing
-		for _, result := range data {
-			for _, message := range result.Messages {
-				select {
-				case w.tasks <- message:
-				case <-w.stop:
-					w.opts.logger.Info("leave pending task for recovery: ", message.ID)
-					return
+		} else {
+			// We have received data, so queue each message for processing.
+			for _, result := range data {
+				for _, message := range result.Messages {
+					select {
+					case w.tasks <- message:
+					case <-w.stop:
+						w.opts.logger.Info("leave pending task for recovery: ", message.ID)
+						return
+					}
 				}
 			}
 		}
@@ -367,7 +387,8 @@ func (w *Worker) Shutdown() error {
 			w.cancelRead()
 		}
 
-		if atomic.LoadInt32(&w.started) == 1 {
+		switch atomic.LoadInt32(&w.started) {
+		case 1:
 			<-w.exit
 		}
 
@@ -422,7 +443,10 @@ func (w *Worker) Request() (core.TaskMessage, error) {
 		if !ok {
 			decodeErr := errors.New("redis stream message body must be a string")
 			if w.rdb != nil {
-				if deadLetterErr := w.deadLetterMalformed(task, nil, "malformed_delivery"); deadLetterErr != nil {
+				deadLetterErr := w.deadLetterMalformed(task, nil, "malformed_delivery")
+				switch deadLetterErr {
+				case nil:
+				default:
 					return nil, errors.Join(decodeErr, deadLetterErr)
 				}
 			}
@@ -437,9 +461,12 @@ func (w *Worker) Request() (core.TaskMessage, error) {
 				failureCode = "message_too_large"
 			}
 			if w.rdb != nil {
-				if deadLetterErr := w.deadLetterMalformed(
+				deadLetterErr := w.deadLetterMalformed(
 					task, deadLetterBody, failureCode,
-				); deadLetterErr != nil {
+				)
+				switch deadLetterErr {
+				case nil:
+				default:
 					return nil, errors.Join(fmt.Errorf("decode Redis stream message: %w", err), deadLetterErr)
 				}
 			}
@@ -625,13 +652,32 @@ func redisLineageFromValues(values map[string]any) (redisReplayLineage, error) {
 	if !originalOK && !priorOK && !generationOK {
 		return redisReplayLineage{}, nil
 	}
-	if !originalOK || !priorOK || !generationOK || strings.TrimSpace(original) == "" ||
-		strings.TrimSpace(prior) == "" || len(original) > management.MaxIdentityBytes ||
-		len(prior) > management.MaxIdentityBytes {
+	if !originalOK {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if !priorOK {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if !generationOK {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if strings.TrimSpace(original) == "" {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if strings.TrimSpace(prior) == "" {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if max(len(original), management.MaxIdentityBytes) != management.MaxIdentityBytes {
+		return redisReplayLineage{}, errors.New("malformed replay lineage")
+	}
+	if max(len(prior), management.MaxIdentityBytes) != management.MaxIdentityBytes {
 		return redisReplayLineage{}, errors.New("malformed replay lineage")
 	}
 	generation, err := strconv.ParseUint(generationText, 10, 32)
-	if err != nil || generation == 0 {
+	if err != nil {
+		return redisReplayLineage{}, errors.New("malformed replay generation")
+	}
+	if generation == 0 {
 		return redisReplayLineage{}, errors.New("malformed replay generation")
 	}
 
