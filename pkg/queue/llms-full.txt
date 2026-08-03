@@ -1187,6 +1187,15 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Valkey Streams terminal delivery limits now accept one attempt, allowing a
+  failed first handler execution to move directly to the dead-letter stream.
+- Strengthen exact queue semantic, settlement-callback, retry, replay-lineage,
+  failure-graph traversal, and metadata-boundary contracts while removing
+  validation branches that were provably redundant with stricter aggregate
+  limits.
+- Preserve decodable NSQ dead-letter payloads through the maximum accepted
+  source-message size and retain the backend default delay on every requeue
+  path.
 - Prove logger configuration, option ordering, lifecycle drain transitions,
   stack recovery, and in-memory queue boundaries with mutation-effective
   contracts.
@@ -1222,6 +1231,8 @@ versioning and Keep a Changelog structure.
 - Retry Valkey integration container startup, endpoint publication, and restart
   readiness failures, clean up partial containers, and retain connection errors
   for diagnosis.
+- Retry NATS and Redis integration container startup after bounded host-port
+  allocation races and clean up partially created containers between attempts.
 - Regenerated the complete documentation bundle from the current package
   documentation and release notes.
 - Run the Redis Pub/Sub shutdown lifecycle benchmark once instead of allowing
@@ -1874,8 +1885,8 @@ closes producer-owned connections.
 | `WithReadBatchSize` | 16 | 1 through 256 |
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
-| `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
-| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 2 through 100 |
+| `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 1 |
+| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 1 through 100 |
 | `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |
