@@ -1251,9 +1251,21 @@ func TestMiddlewareConstructorAndValidationBoundaries(t *testing.T) {
 	}
 	if _, err := newMiddleware(
 		MiddlewareOptions{Name: "valid", Scope: ScopeOperation, Layer: MiddlewareClient},
-		MiddlewareStage(255),
+		middlewareStageCount,
 	); !errors.Is(err, ErrInvalidMiddleware) {
 		t.Fatalf("newMiddleware(invalid stage) error = %v", err)
+	}
+	if _, err := newMiddleware(
+		MiddlewareOptions{Name: "valid", Scope: middlewareScopeCount, Layer: MiddlewareClient},
+		StageRequest,
+	); !errors.Is(err, ErrInvalidMiddleware) {
+		t.Fatalf("newMiddleware(exact invalid scope) error = %v", err)
+	}
+	if _, err := newMiddleware(
+		MiddlewareOptions{Name: "valid", Scope: ScopeOperation, Layer: middlewareLayerCount},
+		StageRequest,
+	); !errors.Is(err, ErrInvalidMiddleware) {
+		t.Fatalf("newMiddleware(exact invalid layer) error = %v", err)
 	}
 
 	validInfo := MiddlewareInfo{Name: "valid", Scope: ScopeOperation, Layer: MiddlewareClient}
@@ -1288,6 +1300,72 @@ func TestMiddlewareConstructorAndValidationBoundaries(t *testing.T) {
 	if snapshotRequest(nil) != nil {
 		t.Fatal("snapshotRequest(nil) is non-nil")
 	}
+}
+
+func TestMiddlewareNameLayerAndOrderingBoundaries(t *testing.T) {
+	t.Parallel()
+
+	if !validMiddlewareName(strings.Repeat("a", 64)) || validMiddlewareName(strings.Repeat("a", 65)) {
+		t.Fatal("middleware name length boundary is invalid")
+	}
+	for character, want := range map[byte]bool{
+		'a': true, 'z': true, '0': true, '9': true,
+		'`': false, '{': false, '/': false, ':': false,
+	} {
+		if got := lowerAlphaNumeric(character); got != want {
+			t.Fatalf("lowerAlphaNumeric(%q) = %t, want %t", character, got, want)
+		}
+	}
+	if higherMiddlewareLayer(MiddlewareClient, MiddlewareClient) ||
+		!higherMiddlewareLayer(MiddlewareEndpoint, MiddlewareClient) ||
+		higherMiddlewareLayer(MiddlewareClient, MiddlewareEndpoint) {
+		t.Fatal("middleware layer precedence is invalid")
+	}
+
+	base := MiddlewareInfo{
+		Name: "b", Scope: ScopeOperation, Layer: MiddlewareEndpoint,
+		Stage: StageResponse, Priority: 2,
+	}
+	for _, test := range []struct {
+		name  string
+		left  MiddlewareInfo
+		right MiddlewareInfo
+		want  bool
+	}{
+		{name: "lower stage", left: withMiddlewareStage(base, StageRequest), right: base, want: true},
+		{name: "higher stage", left: base, right: withMiddlewareStage(base, StageRequest), want: false},
+		{name: "lower priority", left: withMiddlewarePriority(base, 1), right: base, want: true},
+		{name: "higher priority", left: base, right: withMiddlewarePriority(base, 1), want: false},
+		{name: "lower layer", left: withMiddlewareLayer(base, MiddlewareClient), right: base, want: true},
+		{name: "higher layer", left: base, right: withMiddlewareLayer(base, MiddlewareClient), want: false},
+		{name: "lower name", left: withMiddlewareName(base, "a"), right: base, want: true},
+		{name: "higher name", left: base, right: withMiddlewareName(base, "a"), want: false},
+		{name: "equal", left: base, right: base, want: false},
+	} {
+		if got := middlewareLess(test.left, test.right); got != test.want {
+			t.Fatalf("%s middlewareLess = %t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
+func withMiddlewareStage(information MiddlewareInfo, stage MiddlewareStage) MiddlewareInfo {
+	information.Stage = stage
+	return information
+}
+
+func withMiddlewarePriority(information MiddlewareInfo, priority int) MiddlewareInfo {
+	information.Priority = priority
+	return information
+}
+
+func withMiddlewareLayer(information MiddlewareInfo, layer MiddlewareLayer) MiddlewareInfo {
+	information.Layer = layer
+	return information
+}
+
+func withMiddlewareName(information MiddlewareInfo, name string) MiddlewareInfo {
+	information.Name = name
+	return information
 }
 
 func withStage(information MiddlewareInfo, stage MiddlewareStage) MiddlewareInfo {

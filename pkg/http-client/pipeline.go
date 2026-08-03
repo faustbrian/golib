@@ -281,8 +281,7 @@ type Pipeline struct {
 // With returns a new pipeline containing middleware. The receiver remains
 // unchanged.
 func (pipeline Pipeline) With(middleware ...Middleware) (Pipeline, error) {
-	registrations := make([]Middleware, 0, len(pipeline.registrations)+len(middleware))
-	registrations = append(registrations, pipeline.registrations...)
+	registrations := append([]Middleware(nil), pipeline.registrations...)
 	registrations = append(registrations, middleware...)
 
 	return resolvePipeline(registrations)
@@ -370,7 +369,7 @@ func executeMiddlewareScope(
 	response, failure = normalizeMiddlewareResult(lastRequest, response, failure)
 	snapshot := snapshotRequest(lastRequest)
 
-	if failure == nil && response != nil {
+	if failure == nil {
 		response, failure = runResponseMiddleware(middleware, snapshot, response)
 	}
 	if failure != nil {
@@ -655,7 +654,7 @@ func resolvePipeline(registrations []Middleware) (Pipeline, error) {
 		}
 		seen[registrationKey] = struct{}{}
 		current, exists := selected[key]
-		if !exists || middleware.information.Layer > current.information.Layer {
+		if !exists || higherMiddlewareLayer(middleware.information.Layer, current.information.Layer) {
 			selected[key] = middleware
 		}
 	}
@@ -672,6 +671,10 @@ func resolvePipeline(registrations []Middleware) (Pipeline, error) {
 	sortMiddleware(resolved.attempt)
 
 	return resolved, nil
+}
+
+func higherMiddlewareLayer(candidate, current MiddlewareLayer) bool {
+	return candidate > current
 }
 
 func validateMiddleware(middleware Middleware) error {
@@ -728,20 +731,31 @@ func lowerAlphaNumeric(character byte) bool {
 
 func sortMiddleware(middleware []Middleware) {
 	sort.Slice(middleware, func(left int, right int) bool {
-		leftInfo := middleware[left].information
-		rightInfo := middleware[right].information
-		if leftInfo.Stage != rightInfo.Stage {
-			return leftInfo.Stage < rightInfo.Stage
-		}
-		if leftInfo.Priority != rightInfo.Priority {
-			return leftInfo.Priority < rightInfo.Priority
-		}
-		if leftInfo.Layer != rightInfo.Layer {
-			return leftInfo.Layer < rightInfo.Layer
-		}
-
-		return leftInfo.Name < rightInfo.Name
+		return middlewareLess(middleware[left].information, middleware[right].information)
 	})
+}
+
+func middlewareLess(left, right MiddlewareInfo) bool {
+	if left.Stage < right.Stage {
+		return true
+	}
+	if left.Stage > right.Stage {
+		return false
+	}
+	if left.Priority < right.Priority {
+		return true
+	}
+	if left.Priority > right.Priority {
+		return false
+	}
+	if left.Layer < right.Layer {
+		return true
+	}
+	if left.Layer > right.Layer {
+		return false
+	}
+
+	return left.Name < right.Name
 }
 
 func middlewareInformation(middleware []Middleware) []MiddlewareInfo {
