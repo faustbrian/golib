@@ -15,6 +15,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   guides for the experimental public API and caller-owned adapter boundary.
 - Pin the EthereumJS Verkle WASM repository and npm package while recording
   that its Rust implementation lineage is not an independent verifier.
+- Publish a fixed 100-point goal rubric with explicit earned and remaining exit
+  criteria so progress changes only when a named requirement closes or reopens.
 
 ### Added
 

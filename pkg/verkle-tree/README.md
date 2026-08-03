@@ -456,6 +456,7 @@ responsibilities.
 
 ## Guides
 
+- [Goal progress and fixed completion score](.ai/PROGRESS.md)
 - [Usage and error handling](docs/usage.md)
 - [Storage, recovery, pruning, and adapter crash testing](docs/storage-operations.md)
 - [Adoption, migration, and FAQ](docs/adoption.md)
