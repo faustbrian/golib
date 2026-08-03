@@ -174,6 +174,15 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 	transactionTopic := prefix + "-producer"
 	fencingTopic := prefix + "-producer-fencing"
 	timeoutTopic := prefix + "-producer-timeout"
+	commitResponseLossTopic := prefix + "-commit-response-loss"
+	produceResponseLossTopic := prefix + "-produce-response-loss"
+	processorResponseLossSourceTopic := prefix + "-processor-response-loss-source"
+	processorResponseLossOutputTopic := prefix + "-processor-response-loss-output"
+	rebalanceSourceTopic := prefix + "-rebalance-source"
+	rebalanceOutputTopic := prefix + "-rebalance-output"
+	rebalanceTriggerTopic := prefix + "-rebalance-trigger"
+	cooperativeSourceTopic := prefix + "-cooperative-source"
+	cooperativeOutputTopic := prefix + "-cooperative-output"
 	failureTopic := prefix + "-producer-failure"
 	recoveryTopic := prefix + "-producer-recovery"
 	sourceTopic := prefix + "-source"
@@ -182,6 +191,13 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		transactionTopic,
 		fencingTopic,
 		timeoutTopic,
+		commitResponseLossTopic,
+		produceResponseLossTopic,
+		processorResponseLossSourceTopic,
+		processorResponseLossOutputTopic,
+		rebalanceSourceTopic,
+		rebalanceOutputTopic,
+		rebalanceTriggerTopic,
 		failureTopic,
 		recoveryTopic,
 		sourceTopic,
@@ -199,6 +215,28 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 			},
 		)
 	}
+	createIntegrationTopicWithReplication(
+		t,
+		ctx,
+		brokers,
+		cooperativeSourceTopic,
+		2,
+		3,
+		map[string]*string{
+			"min.insync.replicas": kadm.StringPtr("2"),
+		},
+	)
+	createIntegrationTopicWithReplication(
+		t,
+		ctx,
+		brokers,
+		cooperativeOutputTopic,
+		1,
+		3,
+		map[string]*string{
+			"min.insync.replicas": kadm.StringPtr("2"),
+		},
+	)
 
 	producer, err := kafka.NewProducer(kafka.ProducerConfig{
 		Brokers:       brokers,
@@ -280,6 +318,35 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		brokers,
 		timeoutTopic,
 		transactionTimeoutFenced,
+	)
+	proveProducerCommitResponseLoss(t, ctx, brokers, commitResponseLossTopic)
+	proveTransactionalProducerResponseLoss(
+		t,
+		ctx,
+		brokers,
+		produceResponseLossTopic,
+	)
+	proveTransactionProcessorProduceResponseLoss(
+		t,
+		ctx,
+		brokers,
+		processorResponseLossSourceTopic,
+		processorResponseLossOutputTopic,
+	)
+	proveTransactionProcessorRebalance(
+		t,
+		ctx,
+		brokers,
+		rebalanceSourceTopic,
+		rebalanceOutputTopic,
+		rebalanceTriggerTopic,
+	)
+	proveTransactionProcessorCooperativeRebalance(
+		t,
+		ctx,
+		brokers,
+		cooperativeSourceTopic,
+		cooperativeOutputTopic,
 	)
 }
 

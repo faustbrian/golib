@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove Kafka 3.7.2 eager and cooperative transaction-processor rebalance
+  recovery without committing the interrupted transaction
+- prove Kafka 3.7.2 committed `EndTxn` response loss and bounded ambiguous
+  transactional `Produce` response loss for producers and processors
 - prove Kafka 3.7.2 same-transactional-ID producer fencing, its known fenced
   outcome after broker-enforced expiry, and committed replacement visibility
 - prove Kafka 3.7.2 producer transaction commit and abort isolation while one
