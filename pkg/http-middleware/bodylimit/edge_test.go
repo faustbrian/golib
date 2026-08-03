@@ -30,3 +30,23 @@ func TestConfigurationErrorAndExactLimit(t *testing.T) {
 		t.Fatalf("status = %d", recorder.Code)
 	}
 }
+
+func TestMinimumBodyLimitIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	middleware, err := New(Policy{MaxBytes: 1})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("1"))
+	recorder := httptest.NewRecorder()
+	middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		payload, readErr := io.ReadAll(r.Body)
+		if readErr != nil || string(payload) != "1" {
+			t.Fatalf("read = %q, %v", payload, readErr)
+		}
+	})).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+}

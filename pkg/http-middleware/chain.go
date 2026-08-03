@@ -176,9 +176,7 @@ func (c Chain) Descriptors() []Descriptor {
 // Prepend returns a new chain with descriptor first. Invalid input is retained
 // for validation by Concat or Handler construction through Described.
 func (c Chain) Prepend(descriptor Descriptor) Chain {
-	result := make([]Descriptor, 0, len(c.descriptors)+1)
-	result = append(result, descriptor)
-	result = append(result, c.descriptors...)
+	result := append([]Descriptor{descriptor}, c.descriptors...)
 	return Chain{descriptors: result}
 }
 
@@ -191,8 +189,7 @@ func (c Chain) Append(descriptor Descriptor) Chain {
 
 // Concat returns a validated chain containing c followed by suffix.
 func (c Chain) Concat(suffix Chain) (Chain, error) {
-	result := make([]Descriptor, 0, len(c.descriptors)+len(suffix.descriptors))
-	result = append(result, c.descriptors...)
+	result := c.Descriptors()
 	result = append(result, suffix.descriptors...)
 	return Described(result...)
 }

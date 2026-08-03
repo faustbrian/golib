@@ -46,8 +46,10 @@ This project follows Semantic Versioning and Keep a Changelog.
   when an earlier media range matches.
 - Preserve response trailers through compression while removing stale digest,
   length, and entity-tag metadata for the identity representation.
+- Preserve implicit identity encoding preference and accept bounded Unicode
+  origins whose IDNA serialization is valid.
 
-## 0.1.0 - TBD
+## 1.0.0 - TBD
 
 - Initial public foundation. The release date is assigned only when all local
   and hosted release gates pass.

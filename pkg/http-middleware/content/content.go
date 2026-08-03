@@ -63,7 +63,7 @@ func New(policy Policy) (func(http.Handler) http.Handler, error) {
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if len(requests) > 0 && hasBody(r) {
+			if len(requests) != 0 && hasBody(r) {
 				values := r.Header.Values("Content-Type")
 				if len(values) != 1 {
 					httpx.SafeError(w, http.StatusUnsupportedMediaType, "unsupported media type\n")
@@ -75,7 +75,7 @@ func New(policy Policy) (func(http.Handler) http.Handler, error) {
 					return
 				}
 			}
-			if len(responses) > 0 && !acceptable(r.Header.Values("Accept"), responses, policy.MaxValues, policy.MaxHeaderBytes) {
+			if len(responses) != 0 && !acceptable(r.Header.Values("Accept"), responses, policy.MaxValues, policy.MaxHeaderBytes) {
 				httpx.SafeError(w, http.StatusNotAcceptable, "not acceptable\n")
 				return
 			}
@@ -163,7 +163,7 @@ func validMediaRange(value string, allowWildcard bool) bool {
 		return false
 	}
 	major, minor, found := strings.Cut(mediaType, "/")
-	if !found || major == "" || minor == "" {
+	if !found {
 		return false
 	}
 	if !allowWildcard {

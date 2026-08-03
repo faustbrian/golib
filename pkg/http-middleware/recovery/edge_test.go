@@ -60,3 +60,11 @@ func TestNormalCompletionAndDefaultStackLimit(t *testing.T) {
 		t.Fatalf("status = %d", recorder.Code)
 	}
 }
+
+func TestMaximumStackLimitIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	if _, err := New(Policy{CaptureStack: true, MaxStackBytes: maximumMaxStackBytes}); err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+}

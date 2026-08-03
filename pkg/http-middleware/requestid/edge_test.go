@@ -34,6 +34,19 @@ func TestConfigurationAndIdentifierBoundaries(t *testing.T) {
 			t.Fatalf("validIdentifier(%q) = true", value)
 		}
 	}
+	for _, value := range []string{"!", "~", "abcd"} {
+		if !validIdentifier(value, 4) {
+			t.Fatalf("validIdentifier(%q) = false", value)
+		}
+	}
+	if !validHeaderName(strings.Repeat("a", 128)) {
+		t.Fatal("128-byte header name is invalid")
+	}
+	for _, maximum := range []int{1, 1_024} {
+		if _, err := New(Policy{MaxLength: maximum}); err != nil {
+			t.Fatalf("New(MaxLength: %d) error = %v", maximum, err)
+		}
+	}
 }
 
 func TestTrustedDefaultsAndInvalidGeneratedValue(t *testing.T) {
@@ -63,5 +76,38 @@ func TestTrustedDefaultsAndInvalidGeneratedValue(t *testing.T) {
 	invalid(http.NotFoundHandler()).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d", recorder.Code)
+	}
+}
+
+func TestRejectPolicyGeneratesWhenInboundValueIsAbsentOrUntrusted(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name         string
+		trustInbound bool
+		values       []string
+	}{
+		{name: "absent trusted value", trustInbound: true},
+		{name: "untrusted values", values: []string{"one", "two"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			middleware, err := New(Policy{
+				TrustInbound: testCase.trustInbound,
+				Invalid:      RejectInvalid,
+				Generator:    func() (string, error) { return "generated", nil },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.Header["X-Request-Id"] = testCase.values
+			recorder := httptest.NewRecorder()
+			middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			})).ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusNoContent || recorder.Header().Get("X-Request-ID") != "generated" {
+				t.Fatalf("response = %d %q", recorder.Code, recorder.Header().Get("X-Request-ID"))
+			}
+		})
 	}
 }

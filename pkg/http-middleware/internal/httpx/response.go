@@ -122,7 +122,7 @@ func AddVary(header http.Header, names ...string) {
 		}
 	}
 	header.Del("Vary")
-	if len(values) > 0 {
+	if len(values) != 0 {
 		header.Set("Vary", strings.Join(values, ", "))
 	}
 }

@@ -309,7 +309,7 @@ func removeRepresentationTrailers(header http.Header) {
 		}
 	}
 	header.Del("Trailer")
-	if len(retained) > 0 {
+	if len(retained) != 0 {
 		header.Set("Trailer", strings.Join(retained, ", "))
 	}
 }
@@ -329,7 +329,8 @@ func negotiate(lines []string, maxBytes int) (gzipQ, identityQ float64, ok bool)
 	if len(lines) == 1 && lines[0] == "" {
 		return 0, identityQ, true
 	}
-	wildcard := -1.0
+	wildcard := 0.0
+	wildcardSet := false
 	gzipSet := false
 	identitySet := false
 	remaining, items := maxBytes, 0
@@ -350,7 +351,10 @@ func negotiate(lines []string, maxBytes int) (gzipQ, identityQ float64, ok bool)
 			qualitySeen := false
 			for _, field := range fields[1:] {
 				key, value, found := strings.Cut(strings.TrimSpace(field), "=")
-				if !found || !strings.EqualFold(key, "q") || qualitySeen {
+				if !found {
+					return 0, 0, false
+				}
+				if !strings.EqualFold(key, "q") || qualitySeen {
 					return 0, 0, false
 				}
 				parsed, valid := httpx.ParseQuality(value)
@@ -363,21 +367,20 @@ func negotiate(lines []string, maxBytes int) (gzipQ, identityQ float64, ok bool)
 			switch coding {
 			case "gzip":
 				gzipSet = true
-				if q > gzipQ {
-					gzipQ = q
-				}
+				gzipQ = max(gzipQ, q)
 			case "identity":
 				identityQ = q
 				identitySet = true
 			case "*":
 				wildcard = q
+				wildcardSet = true
 			}
 		}
 	}
-	if !gzipSet && wildcard >= 0 {
+	if !gzipSet && wildcardSet {
 		gzipQ = wildcard
 	}
-	if !identitySet && wildcard == 0 {
+	if !identitySet && wildcardSet && wildcard == 0 {
 		identityQ = 0
 	}
 	return gzipQ, identityQ, gzipQ > 0 || identityQ > 0

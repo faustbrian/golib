@@ -58,6 +58,8 @@ type compiled struct {
 	maxBytes        int
 }
 
+const maximumRawOriginBytes = 2_048
+
 // New validates wildcard and credential combinations and constructs middleware.
 func New(policy Policy) (func(http.Handler) http.Handler, error) {
 	configuration, err := compile(policy)
@@ -67,7 +69,7 @@ func New(policy Policy) (func(http.Handler) http.Handler, error) {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if corsHeaderBytes(r.Header) > configuration.maxBytes {
-				if r.Method == http.MethodOptions && len(r.Header.Values("Access-Control-Request-Method")) > 0 {
+				if r.Method == http.MethodOptions && len(r.Header.Values("Access-Control-Request-Method")) != 0 {
 					httpx.SafeError(w, http.StatusBadRequest, "invalid CORS preflight\n")
 					return
 				}
@@ -219,8 +221,8 @@ func compile(policy Policy) (compiled, error) {
 
 func (c compiled) preflight(w http.ResponseWriter, r *http.Request) bool {
 	httpx.AddVary(w.Header(), "Access-Control-Request-Method", "Access-Control-Request-Headers")
-	methodValue, present, valid := singular(r.Header, "Access-Control-Request-Method", 128)
-	if !present || !valid || !validToken(methodValue) {
+	methodValue, _, _ := singular(r.Header, "Access-Control-Request-Method", 128)
+	if !validToken(methodValue) {
 		clearCORS(w.Header())
 		httpx.SafeError(w, http.StatusBadRequest, "invalid CORS preflight\n")
 		return false
@@ -245,10 +247,10 @@ func (c compiled) preflight(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 	w.Header().Set("Access-Control-Allow-Methods", method)
-	if len(requested) > 0 {
+	if len(requested) != 0 {
 		w.Header().Set("Access-Control-Allow-Headers", strings.Join(requested, ", "))
 	}
-	if c.maxAge > 0 {
+	if c.maxAge != 0 {
 		w.Header().Set("Access-Control-Max-Age", strconv.Itoa(c.maxAge))
 	}
 	privateValue, privatePresent, privateValid := singular(r.Header, "Access-Control-Request-Private-Network", 8)
@@ -300,11 +302,17 @@ func canonicalOrigin(raw string) (string, bool) {
 	if raw == "null" {
 		return raw, true
 	}
-	if len(raw) == 0 || len(raw) > 2048 || strings.TrimSpace(raw) != raw {
+	if len(raw) == 0 {
+		return "", false
+	}
+	if !httpx.ValidFieldValue(raw, maximumRawOriginBytes) {
+		return "", false
+	}
+	if strings.TrimSpace(raw) != raw {
 		return "", false
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed == nil {
+	if err != nil {
 		return "", false
 	}
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
@@ -356,7 +364,7 @@ func splitHeaderList(values []string, maximum, maxBytes int) []string {
 		remaining -= len(line)
 		for _, part := range parts {
 			part = strings.TrimSpace(part)
-			if part == "" || !validToken(part) || len(result) >= maximum {
+			if part == "" || !validToken(part) {
 				return nil
 			}
 			result = append(result, http.CanonicalHeaderKey(part))

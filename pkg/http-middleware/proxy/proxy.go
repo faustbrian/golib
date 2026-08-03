@@ -254,7 +254,10 @@ func validParameterName(value string) bool {
 }
 
 func parseNode(value string) (netip.Addr, bool) {
-	if strings.HasPrefix(value, "_") || strings.EqualFold(value, "unknown") {
+	if strings.HasPrefix(value, "_") {
+		return netip.Addr{}, false
+	}
+	if strings.EqualFold(value, "unknown") {
 		return netip.Addr{}, false
 	}
 	if address, err := netip.ParseAddr(strings.Trim(value, "[]")); err == nil {
@@ -301,7 +304,16 @@ func forwardedField(header http.Header, name string, maximum, maxBytes int) (str
 	return value, true, true
 }
 func validHost(value string) bool {
-	if value == "" || len(value) > 255 || !httpx.ValidFieldValue(value, 255) || strings.ContainsAny(value, "/\\@") {
+	if value == "" {
+		return false
+	}
+	if len(value) > 255 {
+		return false
+	}
+	if !httpx.ValidFieldValue(value, 255) {
+		return false
+	}
+	if strings.ContainsAny(value, "/\\@") {
 		return false
 	}
 	parsed, err := url.Parse("http://" + value)
@@ -317,11 +329,26 @@ func validHost(value string) bool {
 	return true
 }
 func validPrefix(value string) bool {
-	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || len(value) > 256 || !httpx.ValidFieldValue(value, 256) || strings.ContainsAny(value, "\\?#") {
+	if !strings.HasPrefix(value, "/") {
 		return false
 	}
-	parsed, err := url.ParseRequestURI(value)
-	return err == nil && parsed != nil && parsed.RawQuery == "" && parsed.Fragment == "" && path.Clean(value) == value
+	if strings.HasPrefix(value, "//") {
+		return false
+	}
+	if len(value) > 256 {
+		return false
+	}
+	if !httpx.ValidFieldValue(value, 256) {
+		return false
+	}
+	if strings.ContainsAny(value, "\\?#") {
+		return false
+	}
+	_, err := url.ParseRequestURI(value)
+	if err != nil {
+		return false
+	}
+	return path.Clean(value) == value
 }
 
 func forwardedValue(value string) (string, bool) {
@@ -333,14 +360,16 @@ func forwardedValue(value string) (string, bool) {
 		return "", false
 	}
 	var result strings.Builder
-	for index := 1; index < len(value)-1; index++ {
-		character := value[index]
+	remaining := value[1 : len(value)-1]
+	for len(remaining) != 0 {
+		character := remaining[0]
+		remaining = remaining[1:]
 		if character == '\\' {
-			index++
-			if index >= len(value)-1 {
+			if len(remaining) == 0 {
 				return "", false
 			}
-			character = value[index]
+			character = remaining[0]
+			remaining = remaining[1:]
 		}
 		if character == '"' || character == '\r' || character == '\n' || character == 0 {
 			return "", false

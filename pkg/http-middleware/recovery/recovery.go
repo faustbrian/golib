@@ -38,6 +38,11 @@ type Policy struct {
 // ErrInvalidPolicy identifies invalid recovery policy configuration.
 var ErrInvalidPolicy = errors.New("recovery: invalid policy")
 
+const (
+	defaultMaxStackBytes = 65_536
+	maximumMaxStackBytes = 1_048_576
+)
+
 // ConfigError reports an invalid recovery policy field.
 type ConfigError struct{ Field string }
 
@@ -48,9 +53,9 @@ func (e *ConfigError) Unwrap() error { return ErrInvalidPolicy }
 // normal connection abort behavior remains owned by net/http.
 func New(policy Policy) (func(http.Handler) http.Handler, error) {
 	if policy.CaptureStack && policy.MaxStackBytes == 0 {
-		policy.MaxStackBytes = 64 << 10
+		policy.MaxStackBytes = defaultMaxStackBytes
 	}
-	if policy.MaxStackBytes < 0 || policy.MaxStackBytes > 1<<20 || (!policy.CaptureStack && policy.MaxStackBytes != 0) {
+	if policy.MaxStackBytes < 0 || policy.MaxStackBytes > maximumMaxStackBytes || (!policy.CaptureStack && policy.MaxStackBytes != 0) {
 		return nil, &ConfigError{Field: "stack limit"}
 	}
 	return func(next http.Handler) http.Handler {
@@ -71,9 +76,7 @@ func New(policy Policy) (func(http.Handler) http.Handler, error) {
 				event := Event{Class: class, Committed: recorder.Committed}
 				if policy.CaptureStack {
 					stack := debug.Stack()
-					if len(stack) > policy.MaxStackBytes {
-						stack = stack[:policy.MaxStackBytes]
-					}
+					stack = stack[:min(len(stack), policy.MaxStackBytes)]
 					event.Stack = append([]byte(nil), stack...)
 				}
 				observe(policy.Observer, event)

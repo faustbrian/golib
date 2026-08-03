@@ -11,7 +11,7 @@ func SplitDelimited(value string, delimiter byte, maxBytes, maxItems int) ([]str
 	start, quoted, escaped := 0, false, false
 	for index := 0; index < len(value); index++ {
 		character := value[index]
-		if character == '\r' || character == '\n' || character == 0 || character == 0x7f || (character < 0x20 && character != '\t') {
+		if character == 0x7f || (character < 0x20 && character != '\t') {
 			return nil, false
 		}
 		if escaped {

@@ -27,6 +27,11 @@ func TestAdmissionConfigurationAndRetryAfterGrammar(t *testing.T) {
 			t.Fatalf("validRetryAfter(%q) = true", value)
 		}
 	}
+	for _, status := range []int{400, 599} {
+		if _, err := Admission(AdmissionPolicy{State: readyState, Status: status}); err != nil {
+			t.Fatalf("Admission(Status: %d) error = %v", status, err)
+		}
+	}
 }
 
 func TestAdmissionReadyAndRetryResponse(t *testing.T) {

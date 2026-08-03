@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConfigurationAndNegotiationBoundaries(t *testing.T) {
@@ -244,6 +245,7 @@ func TestStreamingCompressionClosesEncoderAfterCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	request := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
 	request.Header.Set("Accept-Encoding", "gzip")
 	recorder := httptest.NewRecorder()
@@ -257,9 +259,17 @@ func TestStreamingCompressionClosesEncoderAfterCancellation(t *testing.T) {
 		})).ServeHTTP(recorder, request)
 		close(done)
 	}()
-	<-written
+	select {
+	case <-written:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start streaming compression")
+	}
 	cancel()
-	<-done
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not stop after cancellation")
+	}
 	reader, err := gzip.NewReader(recorder.Body)
 	if err != nil {
 		t.Fatal(err)

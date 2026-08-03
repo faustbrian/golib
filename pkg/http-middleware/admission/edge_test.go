@@ -19,6 +19,15 @@ func TestConfigurationErrorsAndRetryHeader(t *testing.T) {
 			t.Fatalf("New(%#v) error = %v", policy, err)
 		}
 	}
+	for name, policy := range map[string]Policy{
+		"maximum in-flight": {MaxInFlight: 1_000_000},
+		"maximum waiters":   {MaxInFlight: 1, MaxWaiters: 1_000_000},
+		"maximum wait":      {MaxInFlight: 1, Wait: time.Minute},
+	} {
+		if _, err := New(policy); err != nil {
+			t.Fatalf("New(%s exact bound) error = %v", name, err)
+		}
+	}
 	middleware, _ := New(Policy{MaxInFlight: 1, RetryAfterSeconds: 3})
 	block := make(chan struct{})
 	entered := make(chan struct{})

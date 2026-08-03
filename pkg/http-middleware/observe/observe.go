@@ -91,10 +91,7 @@ func New(policy Policy) (func(http.Handler) http.Handler, error) {
 				if panicValue != nil {
 					result = Panicked
 				}
-				duration := policy.Now().Sub(start)
-				if duration < 0 {
-					duration = 0
-				}
+				duration := max(policy.Now().Sub(start), 0)
 				routeName := route.load()
 				if routeName == "" {
 					routeName = metadata(policy.Route, r, 128)
@@ -155,10 +152,7 @@ func notify(ctx context.Context, policy Policy, event Event) {
 	policy.Observer(ctx, event)
 }
 func bounded(value string, maximum int) string {
-	if len(value) > maximum {
-		return value[:maximum]
-	}
-	return value
+	return value[:min(len(value), maximum)]
 }
 func metadata(extractor func(*http.Request) string, request *http.Request, maximum int) (value string) {
 	if extractor == nil {

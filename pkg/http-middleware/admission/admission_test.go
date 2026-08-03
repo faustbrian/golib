@@ -35,6 +35,9 @@ func TestImmediateAdmissionRejectsAboveLimitAndReleasesPermit(t *testing.T) {
 	if overloaded.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d", overloaded.Code)
 	}
+	if retryAfter := overloaded.Header().Get("Retry-After"); retryAfter != "" {
+		t.Fatalf("Retry-After = %q, want omitted", retryAfter)
+	}
 	close(release)
 	<-done
 }
