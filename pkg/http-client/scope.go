@@ -70,7 +70,7 @@ type PolicyScope struct {
 
 // NewPolicyScope validates and snapshots identity scope values.
 func NewPolicyScope(options PolicyScopeOptions) (PolicyScope, error) {
-	values := make(map[ScopeDimension]string, 4+len(options.Custom))
+	values := make(map[ScopeDimension]string, len(options.Custom))
 	for dimension, value := range map[ScopeDimension]string{
 		ScopeEndpoint: options.Endpoint, ScopeCredential: options.Credential,
 		ScopeTenant: options.Tenant, ScopeAccount: options.Account,
@@ -106,7 +106,10 @@ func CustomScopeDimension(name string) (ScopeDimension, error) {
 
 // WithPolicyScope attaches an immutable scope snapshot to ctx.
 func WithPolicyScope(ctx context.Context, scope PolicyScope) (context.Context, error) {
-	if ctx == nil || !scope.valid {
+	if ctx == nil {
+		return nil, fmt.Errorf("%w: context or scope is invalid", ErrInvalidPolicyScope)
+	}
+	if !scope.valid {
 		return nil, fmt.Errorf("%w: context or scope is invalid", ErrInvalidPolicyScope)
 	}
 	return context.WithValue(ctx, policyScopeContextKey{}, clonePolicyScope(scope)), nil
@@ -152,7 +155,13 @@ func ResolvePolicyScope(
 	resource PolicyResource,
 	dimensions ...ScopeDimension,
 ) (PolicyScopeKey, error) {
-	if request == nil || request.URL == nil || resource >= policyResourceCount {
+	if request == nil {
+		return PolicyScopeKey{}, fmt.Errorf("%w: request or resource is invalid", ErrInvalidPolicyScope)
+	}
+	if request.URL == nil {
+		return PolicyScopeKey{}, fmt.Errorf("%w: request or resource is invalid", ErrInvalidPolicyScope)
+	}
+	if resource >= policyResourceCount {
 		return PolicyScopeKey{}, fmt.Errorf("%w: request or resource is invalid", ErrInvalidPolicyScope)
 	}
 	if len(dimensions) == 0 {
@@ -259,13 +268,19 @@ func validScopeDimension(dimension ScopeDimension) bool {
 	case ScopeOrigin, ScopeHost, ScopeEndpoint, ScopeCredential, ScopeTenant, ScopeAccount:
 		return true
 	default:
+		if !strings.HasPrefix(string(dimension), customScopePrefix) {
+			return false
+		}
 		name := strings.TrimPrefix(string(dimension), customScopePrefix)
-		return name != string(dimension) && validPolicyScopeName(name)
+		return validPolicyScopeName(name)
 	}
 }
 
 func validPolicyScopeName(name string) bool {
-	if name == "" || len(name) > maximumPolicyScopeNameBytes {
+	if name == "" {
+		return false
+	}
+	if len(name) > maximumPolicyScopeNameBytes {
 		return false
 	}
 	for index := 0; index < len(name); index++ {
@@ -280,7 +295,10 @@ func validPolicyScopeName(name string) bool {
 }
 
 func validPolicyScopeValue(value string) bool {
-	if !utf8.ValidString(value) || len(value) > maximumPolicyScopeValueBytes {
+	if !utf8.ValidString(value) {
+		return false
+	}
+	if len(value) > maximumPolicyScopeValueBytes {
 		return false
 	}
 	for _, character := range value {

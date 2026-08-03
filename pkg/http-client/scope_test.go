@@ -133,6 +133,7 @@ func TestPolicyScopeRejectsMalformedPolicyAndState(t *testing.T) {
 
 	for _, options := range []PolicyScopeOptions{
 		{Tenant: "bad\nvalue"},
+		{Tenant: string([]byte{0xff})},
 		{Account: strings.Repeat("a", maximumPolicyScopeValueBytes+1)},
 		{Custom: map[string]string{"": "value"}},
 		{Custom: map[string]string{"bad name": "value"}},
@@ -149,14 +150,30 @@ func TestPolicyScopeRejectsMalformedPolicyAndState(t *testing.T) {
 	if _, err := WithPolicyScope(nilContext, PolicyScope{}); !errors.Is(err, ErrInvalidPolicyScope) {
 		t.Fatalf("nil context = %v", err)
 	}
+	validScope, err := NewPolicyScope(PolicyScopeOptions{})
+	if err != nil {
+		t.Fatalf("construct valid scope = %v", err)
+	}
+	if _, err := WithPolicyScope(nilContext, validScope); !errors.Is(err, ErrInvalidPolicyScope) {
+		t.Fatalf("nil context with valid scope = %v", err)
+	}
+	if _, err := WithPolicyScope(context.Background(), PolicyScope{}); !errors.Is(err, ErrInvalidPolicyScope) {
+		t.Fatalf("valid context with invalid scope = %v", err)
+	}
 	request, _ := http.NewRequest(http.MethodGet, "https://api.example.test/", nil)
 	for _, resource := range []PolicyResource{PolicyResource(255)} {
 		if _, err := ResolvePolicyScope(request, resource); !errors.Is(err, ErrInvalidPolicyScope) {
 			t.Fatalf("invalid resource = %v", err)
 		}
 	}
+	if _, err := ResolvePolicyScope(request, policyResourceCount); !errors.Is(err, ErrInvalidPolicyScope) {
+		t.Fatalf("first invalid resource = %v", err)
+	}
 	if _, err := ResolvePolicyScope(nil, PolicyResourceCache); !errors.Is(err, ErrInvalidPolicyScope) {
 		t.Fatalf("nil request = %v", err)
+	}
+	if _, err := ResolvePolicyScope(&http.Request{}, PolicyResourceCache); !errors.Is(err, ErrInvalidPolicyScope) {
+		t.Fatalf("nil request URL = %v", err)
 	}
 	if _, err := ResolvePolicyScope(request, PolicyResourceCache, ScopeDimension("unknown")); !errors.Is(err, ErrInvalidPolicyScope) {
 		t.Fatalf("invalid dimension = %v", err)
@@ -206,6 +223,44 @@ func TestPolicyScopeRejectsMalformedPolicyAndState(t *testing.T) {
 	}
 	if (&PolicyScopeKey{}).String() == "" {
 		t.Fatal("zero scope key rendered empty text")
+	}
+
+	maximumName := strings.Repeat("a", maximumPolicyScopeNameBytes)
+	if !validPolicyScopeName(maximumName) {
+		t.Fatal("maximum-length scope name rejected")
+	}
+	if validPolicyScopeName(maximumName + "a") {
+		t.Fatal("oversized scope name accepted")
+	}
+	for _, name := range []string{"a", "z", "A", "Z", "0", "9", "a-b", "a_b", "a.b"} {
+		if !validPolicyScopeName(name) {
+			t.Errorf("valid scope name %q rejected", name)
+		}
+	}
+	for _, name := range []string{"/", ":", "@", "[", "`", "{"} {
+		if validPolicyScopeName(name) {
+			t.Errorf("invalid scope name %q accepted", name)
+		}
+	}
+
+	maximumValue := strings.Repeat("v", maximumPolicyScopeValueBytes)
+	for _, value := range []string{maximumValue, " ", "~"} {
+		if !validPolicyScopeValue(value) {
+			t.Errorf("valid scope value length %d rejected", len(value))
+		}
+	}
+	for _, value := range []string{string([]byte{0xff}), "\x1f", "\x7f", maximumValue + "v"} {
+		if validPolicyScopeValue(value) {
+			t.Errorf("invalid scope value length %d accepted", len(value))
+		}
+	}
+
+	custom, err := CustomScopeDimension(maximumName)
+	if err != nil || !validScopeDimension(custom) {
+		t.Fatalf("maximum custom dimension = %q, %v", custom, err)
+	}
+	if validScopeDimension(ScopeDimension("not-custom")) {
+		t.Fatal("unprefixed custom dimension accepted")
 	}
 }
 
