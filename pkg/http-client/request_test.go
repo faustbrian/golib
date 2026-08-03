@@ -69,9 +69,17 @@ func TestNewRequestSpecRejectsUnsafeBaseOrReference(t *testing.T) {
 			base:      "https://api.example.com/v1/",
 			reference: "https://evil.example/widgets",
 		},
+		"same-origin absolute reference": {
+			base:      "https://api.example.com/v1/",
+			reference: "https://api.example.com/widgets",
+		},
 		"network path reference": {
 			base:      "https://api.example.com/v1/",
 			reference: "//evil.example/widgets",
+		},
+		"same-host network path reference": {
+			base:      "https://api.example.com/v1/",
+			reference: "//api.example.com/widgets",
 		},
 		"reference user information": {
 			base:      "https://api.example.com/v1/",
@@ -92,6 +100,46 @@ func TestNewRequestSpecRejectsUnsafeBaseOrReference(t *testing.T) {
 				t.Fatalf("NewRequestSpec() error = %v, want ErrInvalidURL", err)
 			}
 		})
+	}
+}
+
+func TestRequestURLValidationContracts(t *testing.T) {
+	t.Parallel()
+
+	baseCases := []struct {
+		name      string
+		candidate *url.URL
+		valid     bool
+	}{
+		{name: "nil", candidate: nil},
+		{name: "opaque", candidate: &url.URL{Scheme: "https", Opaque: "api.example.com/path"}},
+		{name: "user information", candidate: &url.URL{Scheme: "https", Host: "api.example.com", User: url.User("user")}},
+		{name: "missing host", candidate: &url.URL{Scheme: "https", Path: "/path"}},
+		{name: "relative", candidate: &url.URL{Path: "/path"}},
+		{name: "unsupported scheme", candidate: &url.URL{Scheme: "ftp", Host: "api.example.com"}},
+		{name: "http", candidate: &url.URL{Scheme: "http", Host: "api.example.com"}, valid: true},
+		{name: "case-insensitive https", candidate: &url.URL{Scheme: "HTTPS", Host: "api.example.com"}, valid: true},
+	}
+	for _, test := range baseCases {
+		if got := validBaseURL(test.candidate); got != test.valid {
+			t.Errorf("validBaseURL(%s) = %t, want %t", test.name, got, test.valid)
+		}
+	}
+
+	referenceCases := []struct {
+		name      string
+		candidate *url.URL
+		valid     bool
+	}{
+		{name: "nil", candidate: nil},
+		{name: "user information", candidate: &url.URL{User: url.User("user")}},
+		{name: "opaque", candidate: &url.URL{Opaque: "path"}},
+		{name: "relative", candidate: &url.URL{Path: "widgets"}, valid: true},
+	}
+	for _, test := range referenceCases {
+		if got := validRelativeReference(test.candidate); got != test.valid {
+			t.Errorf("validRelativeReference(%s) = %t, want %t", test.name, got, test.valid)
+		}
 	}
 }
 
@@ -684,6 +732,29 @@ func TestRequestSpecBoundaryContracts(t *testing.T) {
 	if _, err := spec.WithoutQuery(LayerRequest, ""); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("WithoutQuery(invalid name) error = %v", err)
 	}
+	if err := validateLayer(LayerOneShot); err != nil {
+		t.Fatalf("validateLayer(last valid layer) error = %v", err)
+	}
+	if err := validateLayer(requestLayerCount); !errors.Is(err, ErrInvalidRequestSpec) {
+		t.Fatalf("validateLayer(first invalid layer) error = %v", err)
+	}
+
+	for _, value := range []byte("09azAZ!~") {
+		if !headerTokenByte(value) {
+			t.Errorf("headerTokenByte(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []byte("/:@[") {
+		if headerTokenByte(value) {
+			t.Errorf("headerTokenByte(%q) = true, want false", value)
+		}
+	}
+	if !validHeaderValue("\t") {
+		t.Fatal("validHeaderValue(tab) = false, want true")
+	}
+	if validHeaderValue("\t\n") {
+		t.Fatal("validHeaderValue(tab followed by newline) = true, want false")
+	}
 
 	spec, err := spec.WithoutHeader(LayerRequest, "X-Restored")
 	if err != nil {
@@ -716,6 +787,28 @@ func TestRequestSpecBoundaryContracts(t *testing.T) {
 	}
 	if request.Body != nil {
 		t.Fatalf("Body = %T, want nil", request.Body)
+	}
+	if request.Trailer != nil {
+		t.Fatalf("Trailer = %#v, want nil without trailer instructions", request.Trailer)
+	}
+}
+
+func TestCloneQueryValuePreservesAndIsolatesObjectState(t *testing.T) {
+	t.Parallel()
+
+	withoutObject := cloneQueryValue(QueryValue{})
+	if withoutObject.object != nil {
+		t.Fatalf("nil object cloned as %#v, want nil", withoutObject.object)
+	}
+
+	original := QueryValue{object: map[string]string{}}
+	clone := cloneQueryValue(original)
+	if clone.object == nil {
+		t.Fatal("non-nil empty object cloned as nil")
+	}
+	clone.object["role"] = "admin"
+	if _, exists := original.object["role"]; exists {
+		t.Fatal("cloned object aliases original map")
 	}
 }
 

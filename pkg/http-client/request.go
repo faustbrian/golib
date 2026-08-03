@@ -243,12 +243,21 @@ func NewRequestSpec(baseURL string, reference string) (RequestSpec, error) {
 	}
 
 	relative, err := url.Parse(reference)
-	if err != nil || !validRelativeReference(relative) {
+	if err != nil {
+		return RequestSpec{}, fmt.Errorf("%w: reference must not contain a scheme, authority, or user information", ErrInvalidURL)
+	}
+	if !validRelativeReference(relative) {
 		return RequestSpec{}, fmt.Errorf("%w: reference must not contain a scheme, authority, or user information", ErrInvalidURL)
 	}
 
 	target := base.ResolveReference(relative)
-	if !sameOrigin(base, target) || relative.IsAbs() || relative.Host != "" {
+	if !sameOrigin(base, target) {
+		return RequestSpec{}, fmt.Errorf("%w: reference changed the base origin", ErrInvalidURL)
+	}
+	if relative.IsAbs() {
+		return RequestSpec{}, fmt.Errorf("%w: reference changed the base origin", ErrInvalidURL)
+	}
+	if relative.Host != "" {
 		return RequestSpec{}, fmt.Errorf("%w: reference changed the base origin", ErrInvalidURL)
 	}
 
@@ -723,9 +732,9 @@ func applyHeaders(target http.Header, instructions map[string]headerInstruction)
 	for name, instruction := range instructions {
 		if instruction.remove {
 			target.Del(name)
-			continue
+		} else {
+			target[name] = append([]string(nil), instruction.values...)
 		}
-		target[name] = append([]string(nil), instruction.values...)
 	}
 }
 
