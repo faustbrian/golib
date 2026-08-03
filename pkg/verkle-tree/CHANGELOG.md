@@ -75,8 +75,16 @@ All notable changes to `verkle-tree` will be documented in this file.
   strict bounded decoder binds the complete pre-state proof, ordered Set batch,
   and claimed post-state root, rejecting missing or surplus proof claims;
   `StatelessEngine.Apply` verifies the proof, derives the root independently,
-  and returns exact pre/post roots only after a match. Deletion and new-stem
-  topology changes remain unsupported.
+  and returns exact pre/post roots only after a match.
+- Extend canonical stateless `Set` witnesses to insert stems below
+  authenticated missing edges and to split authenticated different-stem paths,
+  including deterministic multi-stem subtrees and deepest collisions checked
+  against the stateful transition oracle. Stateless deletion remains
+  unsupported.
+- Accept the canonical all-zero Banderwagon identity only in aggregate IPA
+  proof-element positions where valid zero evaluations require it, while roots,
+  nodes, paths, and standalone commitments remain strict non-identity
+  boundaries; pin matching Go/Rust zero-evaluation proof bytes.
 - Add a bounded immutable committed-tree builder that combines canonical leaf,
   stem, and internal commitments into deterministic roots, with reusable
   concurrent construction, aggregate cryptographic-work limits, and six

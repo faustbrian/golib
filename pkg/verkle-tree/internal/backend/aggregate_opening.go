@@ -502,7 +502,7 @@ func nativeAggregateOpeningProof(proof OpeningProof) (multiproof.MultiProof, err
 	points := make([]banderwagon.Element, openingProofPointCount)
 	for index := range points {
 		start := index * commitmentSize
-		decoded, err := decodeCommitment(proof.encoded[start : start+commitmentSize])
+		decoded, err := decodeOpeningProofPoint(proof.encoded[start : start+commitmentSize])
 		if err != nil {
 			return multiproof.MultiProof{}, errInvalidOpeningProof
 		}

@@ -23,8 +23,8 @@ construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
 bounded atomic maintenance operation replaces the retained-publication set and
 prunes only nodes outside the current and desired retained roots. Crash-repair
-application, concrete storage adapters, topology-changing stateless updates,
-and stable APIs remain unimplemented. This
+application, concrete storage adapters, stateless deletion and deletion-time
+topology collapse, and stable APIs remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -67,8 +67,8 @@ The following parts of the profile are deliberately not frozen:
 - canonical point, scalar, and verified-proof rejection rules beyond the
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
-- deletion and topology-changing witness update ordering, conflicting
-  old-value claims, completeness, and post-state calculation;
+- deletion witness ordering, conflicting old-value claims, completeness,
+  post-state calculation, and topology collapse;
 - durable snapshot naming beyond the root publication pair, adapter-specific
   retention policy, and crash repair;
   and
@@ -614,8 +614,8 @@ A decoder MUST reject a wrong magic, profile identifier, profile version, or
 encoding version. It MUST reject a declared-count/length mismatch, alternate
 length, trailing bytes, invalid record kind, non-canonical ordering, duplicate
 or conflicting reconstructed metadata, nonzero padding, a zero commitment
-payload on a non-suffix path, malformed or identity point encodings, malformed
-root, and malformed aggregate-opening payload.
+payload on a non-suffix path, malformed or identity commitment encodings,
+malformed root, and malformed aggregate-opening payload.
 
 Profile and version mismatch MUST fail before point or scalar decoding. Before
 cryptographic decoding or attacker-amplified allocation, a decoder MUST
@@ -702,12 +702,18 @@ order:
 3. eight canonical 32-byte Banderwagon points `R[0]` through `R[7]`; and
 4. one canonical 32-byte little-endian scalar `A`.
 
-The payload length MUST therefore be exactly 576 bytes. A decoder MUST reject
-short input, trailing bytes, identity encodings, malformed or non-canonical
-points, points outside the required subgroup, and non-canonical or out-of-field
-scalars. It MUST check declared byte, point-decoding, and scalar-decoding
-budgets before the corresponding amplified work, MUST observe cancellation
-between point decodings, and MUST defensively own accepted bytes.
+The payload length MUST therefore be exactly 576 bytes. Each proof-point field
+MUST accept the canonical all-zero encoding as the Banderwagon identity because
+a valid IPA proof can contain identity elements. Every other accepted
+proof-point encoding MUST be canonical, on-curve, and in the required subgroup.
+A decoder MUST reject short input, trailing bytes, malformed or non-canonical
+points, points outside the required subgroup, alternate identity encodings, and
+non-canonical or out-of-field scalars. Identity acceptance in these 17
+proof-only fields MUST NOT relax the non-identity requirement for roots, nodes,
+path commitments, or standalone commitments. The decoder MUST check declared
+byte, point-decoding, and scalar-decoding budgets before the corresponding
+amplified work, MUST observe cancellation between point decodings, and MUST
+defensively own accepted bytes.
 
 This payload is not a tree proof container. Successful decoding establishes
 canonical syntax only. It MUST NOT imply cryptographic verification and MUST
@@ -766,26 +772,40 @@ validity, Ethereum protocol compatibility, or authorization to mutate state.
 ## Stateless Witness And Post-State Calculation
 
 The public stateless engine MUST cryptographically verify the complete tree
-proof before using any opened value or commitment for a state transition. It
-MUST accept only non-empty, duplicate-free `Set` batches whose exact keys are
-the complete canonical claim set, with neither omitted nor surplus claims, and
-whose terminal topology is
-`StemPathPresent`. A membership claim supplies the authenticated old value; an
-absence claim supplies the canonical zero pair for an absent suffix. Present
-all-zero values MUST remain distinct from absence.
+proof before using any opened value, commitment, or terminal topology for a
+state transition. It MUST accept only non-empty, duplicate-free `Set` batches
+whose exact keys are the complete canonical claim set, with neither omitted nor
+surplus claims. A membership claim MUST terminate at `StemPathPresent` and
+supplies the authenticated old value. An absence claim MAY terminate at
+`StemPathPresent`, `StemPathMissing`, or `StemPathDifferent`. Present
+absence supplies the canonical zero pair for an absent suffix. Present all-zero
+values MUST remain distinct from absence.
 
 For each changed suffix half, the updater MUST apply both authenticated leaf
 scalar changes to C1 or C2, map the old and new half commitments into the
 field, update stem position 2 or 3, and propagate old/new child-commitment
 images through every authenticated ancestor to the root. It MUST combine
 shared ancestors from deepest to shallowest so mixed-depth and multi-stem
-batches cannot omit a descendant change. Update order MUST NOT affect the
-post-state root.
+batches cannot omit a descendant change.
 
-The operation MUST bound update count, commitment updates,
-commitment-to-field mappings, authenticated path lookups, and conservative
-temporary bytes, and MUST observe cancellation throughout owned work and
-around backend calls. Missing claims or path commitments MUST fail closed.
+For each missing path, the updater MUST group every new stem selecting the same
+authenticated empty edge, construct each stem from exactly its claimed-absent
+`Set` values, and build the minimal canonical subtree from those stems. For a
+different path, it MUST retain the authenticated encountered stem commitment
+as an opaque existing child, group every new stem selecting that collision,
+and build the minimal canonical collision subtree beginning at the asserted
+depth. New stems MUST be ordered by raw stem bytes, duplicate or conflicting
+stems MUST fail closed, and recursion MUST stop at the fixed 31-byte stem
+depth. Update order MUST NOT affect the post-state root.
+
+The operation MUST bound update count, all updated or newly constructed
+commitments, commitment-to-field mappings, authenticated path lookups,
+recursion depth, and conservative temporary bytes, and MUST observe
+cancellation throughout owned work and around backend calls. Missing claims,
+terminal paths, encountered-stem commitments, or ancestor commitments MUST fail
+closed. The temporary-byte charge MUST include one complete width-256 scalar
+vector for every possible live recursive insertion level before any topology
+construction begins.
 
 One canonical witness MUST bind the profile, complete pre-state tree proof,
 non-empty canonical update set, and claimed post-state root. Its byte encoding
@@ -816,8 +836,7 @@ The post-root point-decode budget MUST equal one because every non-empty Set
 witness carries exactly one claimed root container; zero and larger declarations
 MUST fail as invalid limits before parsing witness bytes.
 
-Deletion, insertion at a missing or different stem, and extension creation or
-collapse remain unsupported in this phase.
+Deletion and deletion-time topology collapse remain unsupported in this phase.
 
 ## Committed Tree Construction
 
@@ -918,9 +937,10 @@ reference model separately checks general in-memory transition semantics.
 
 This internal construction does not freeze or implement a whole-snapshot wire
 encoding, crash-repair application, or general tree-level incremental updates.
-The public canonical witness format connects the limited stateless updater to
-authenticated tree paths only for `Set` operations on stems proven present;
-deletion and topology changes remain unsupported. The storage
+The public canonical witness format connects the stateless updater to
+authenticated present, missing, and different tree paths for `Set`
+operations; deletion and deletion-time topology collapse remain unsupported.
+The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained
 publications plus prune nodes through a capability-checked caller-owned adapter.

@@ -71,9 +71,11 @@ MUST NOT be described as production readiness or Ethereum compatibility.
 The low-level Rust differential artifacts establish canonical scalar and
 Banderwagon commitment encoding agreement for five deterministic generator
 multiples plus ordered 256-point generator-set agreement under SHA-256
-collision resistance for the pinned width, seed, revisions, and encodings. One
-pinned positive corpus also establishes exact aggregate-proof bytes and
-cross-verification for three openings under the `verkle` transcript label.
+collision resistance for the pinned width, seed, revisions, and encodings. Two
+pinned positive corpora also establish exact aggregate-proof bytes and
+cross-verification under the `verkle` transcript label: one has three
+openings, and one has a single authenticated zero evaluation whose valid proof
+contains canonical identity proof elements.
 Those artifacts do not establish independent setup provenance, transcript
 soundness, comprehensive negative-proof behavior, hostile decoding, or
 witnesses. The locked dependency graph also retains two unmaintained RustSec
@@ -93,7 +95,9 @@ references also derive the same post-state root after one existing-value update
 and one absent-suffix insertion, and Rust rejects a different valid pre-state
 root or a changed authenticated old value. The Rust updater panics for the
 attempted absent-stem insertion because its `ExtPresent::None` branch does not
-construct the commitment later indexed during root recomputation. The corpus
+construct the commitment later indexed during root recomputation. The
+package-owned updater implements that operation against its stateful tree
+oracle without claiming Rust-updater agreement. The cross-implementation corpus
 does not cover that operation, deletion, conflicting or reordered updates,
 canonical container encoding, hostile decoding, resource bounds, storage, or
 general state corpora and therefore does not change the no-go decision.

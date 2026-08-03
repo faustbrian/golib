@@ -41,6 +41,15 @@ func TestDecodeCommitmentRejectsIdentity(t *testing.T) {
 	}
 }
 
+func TestDecodeOpeningProofPointRejectsWrongLength(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodeOpeningProofPoint(make([]byte, commitmentSize-1))
+	if !errors.Is(err, errInvalidCommitment) {
+		t.Fatalf("decode short proof point error = %v, want %v", err, errInvalidCommitment)
+	}
+}
+
 func TestDecodeCommitmentRejectsMalformedEncodings(t *testing.T) {
 	t.Parallel()
 

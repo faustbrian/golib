@@ -87,6 +87,157 @@ func TestStatelessUpdaterDerivesPinnedPostStateRoot(t *testing.T) {
 	assertSameBackendRoot(t, reordered, want)
 }
 
+func TestStatelessUpdaterInsertsOneAuthenticatedMissingStem(t *testing.T) {
+	t.Parallel()
+
+	existing := testKey(0x00, 0x00)
+	neighbor := testKey(0x02, 0xff)
+	insertedLow := testKey(0x01, 0x01)
+	insertedHigh := testKey(0x01, 0x80)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: existing, Value: testValue(0x11)},
+		{Key: neighbor, Value: testValue(0x33)},
+	})
+	proof, updater := newStatelessTestProof(
+		t, snapshot, []Key{insertedLow, insertedHigh},
+	)
+	updates := []Update{
+		Set(insertedHigh, testValue(0x22)),
+		Set(insertedLow, Value{}),
+	}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("insert authenticated missing stem: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful missing-stem insertion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful missing-stem root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterBuildsCanonicalSubtreeForMissingSiblingStems(t *testing.T) {
+	t.Parallel()
+
+	left := testKey(0x00, 0x00)
+	right := testKey(0x02, 0xff)
+	first := testKey(0x01, 0x01)
+	first[1] = 0x10
+	second := testKey(0x01, 0x80)
+	second[1] = 0x20
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: left, Value: testValue(0x11)},
+		{Key: right, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{first, second})
+	updates := []Update{
+		Set(second, testValue(0x44)),
+		Set(first, testValue(0x33)),
+	}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("insert sibling stems below missing edge: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful sibling-stem insertion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful sibling-stem root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterSplitsAuthenticatedDifferentStem(t *testing.T) {
+	t.Parallel()
+
+	existing := testKey(0x10, 0x00)
+	existing[1] = 0x20
+	neighbor := testKey(0x30, 0xff)
+	insertedBefore := testKey(0x10, 0x01)
+	insertedBefore[1] = 0x10
+	insertedAfter := testKey(0x10, 0x80)
+	insertedAfter[1] = 0x30
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: existing, Value: testValue(0x11)},
+		{Key: neighbor, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(
+		t, snapshot, []Key{insertedAfter, insertedBefore},
+	)
+	updates := []Update{
+		Set(insertedAfter, testValue(0x33)),
+		Set(insertedBefore, Value{}),
+	}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("split authenticated different stem: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful different-stem insertion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful different-stem root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterBuildsDeepestDifferentStemChain(t *testing.T) {
+	t.Parallel()
+
+	var existing Key
+	for index := 0; index < 30; index++ {
+		existing[index] = 0x40
+	}
+	existing[30] = 0x10
+	inserted := existing
+	inserted[30] = 0x20
+	inserted[31] = 0xff
+	neighbor := testKey(0x80, 0x00)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: existing, Value: testValue(0x11)},
+		{Key: neighbor, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{inserted})
+	updates := []Update{Set(inserted, testValue(0x33))}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("insert deepest different stem: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful deepest insertion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful deepest insertion root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
 func TestStatelessUpdaterHandlesDeepSharedPathsAndBothSuffixHalves(t *testing.T) {
 	t.Parallel()
 
@@ -239,9 +390,6 @@ func TestStatelessUpdaterRejectsInvalidAndIncompleteRequests(t *testing.T) {
 	if err := apply(updater, context.Background(), proof, []Update{Set(testKey(0, 2), testValue(2))}, testStatelessUpdateLimits()); !errors.Is(err, errIncompleteStatelessWitness) {
 		t.Fatalf("missing claim error = %v", err)
 	}
-	if err := apply(updater, context.Background(), proof, []Update{Set(absentStem, testValue(2))}, testStatelessUpdateLimits()); !errors.Is(err, errUnsupportedStatelessUpdate) {
-		t.Fatalf("absent stem error = %v", err)
-	}
 	tampered := proof
 	tampered.claims.claims = append([]Claim(nil), proof.claims.claims...)
 	tampered.claims.claims[0].value[0]++
@@ -377,6 +525,20 @@ func TestStatelessUpdateProofCountAndScratchBoundaries(t *testing.T) {
 	if got := statelessTemporaryBytes(proof, updateCount); got != want {
 		t.Fatalf("stateless scratch bytes = %d, want %d", got, want)
 	}
+
+	present := TreeProof{stemPaths: []StemPath{{kind: StemPathPresent}}}
+	missing := TreeProof{stemPaths: []StemPath{{kind: StemPathMissing}}}
+	presentBytes := statelessTemporaryBytes(present, 1)
+	missingBytes := statelessTemporaryBytes(missing, 1)
+	const insertionVectors = uint64(maxProofPathLength * len(backend.Vector{}) * len(backend.Vector{}[0]))
+	if missingBytes != presentBytes+insertionVectors {
+		t.Fatalf(
+			"topology insertion scratch = %d, want present %d plus vectors %d",
+			missingBytes,
+			presentBytes,
+			insertionVectors,
+		)
+	}
 }
 
 func TestStatelessUpdaterHonorsCancellationAndConcurrentUse(t *testing.T) {
@@ -443,6 +605,46 @@ func TestStatelessUpdaterHonorsCancellationAndConcurrentUse(t *testing.T) {
 	for workerErr := range errorsByWorker {
 		t.Error(workerErr)
 	}
+}
+
+func TestStatelessUpdaterHonorsTopologyInsertionCancellation(t *testing.T) {
+	t.Parallel()
+
+	missingExisting := testKey(0x00, 0x00)
+	missingNeighbor := testKey(0x02, 0xff)
+	missingInserted := testKey(0x01, 0x01)
+	missingSnapshot := newTestSnapshot(t, []Entry{
+		{Key: missingExisting, Value: testValue(0x11)},
+		{Key: missingNeighbor, Value: testValue(0x22)},
+	})
+	missingProof, missingUpdater := newStatelessTestProof(
+		t, missingSnapshot, []Key{missingInserted},
+	)
+	assertStatelessTopologyCancellationSweep(
+		t,
+		missingUpdater,
+		missingProof,
+		[]Update{Set(missingInserted, testValue(0x33))},
+	)
+
+	differentExisting := testKey(0x10, 0x00)
+	differentExisting[1] = 0x20
+	differentNeighbor := testKey(0x30, 0xff)
+	differentInserted := testKey(0x10, 0x01)
+	differentInserted[1] = 0x10
+	differentSnapshot := newTestSnapshot(t, []Entry{
+		{Key: differentExisting, Value: testValue(0x44)},
+		{Key: differentNeighbor, Value: testValue(0x55)},
+	})
+	differentProof, differentUpdater := newStatelessTestProof(
+		t, differentSnapshot, []Key{differentInserted},
+	)
+	assertStatelessTopologyCancellationSweep(
+		t,
+		differentUpdater,
+		differentProof,
+		[]Update{Set(differentInserted, testValue(0x66))},
+	)
 }
 
 func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
@@ -579,6 +781,229 @@ func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
 	}
 }
 
+func TestStatelessInsertedTopologyInternalFailureBoundaries(t *testing.T) {
+	t.Parallel()
+
+	existingKey := testKey(0x00, 0x00)
+	neighborKey := testKey(0x02, 0xff)
+	insertedKey := testKey(0x01, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: existingKey, Value: testValue(0x11)},
+		{Key: neighborKey, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{insertedKey})
+	paths, commitments := statelessTestMaterial(proof)
+	updates := []Update{Set(insertedKey, testValue(0x33))}
+	stem := Stem(insertedKey[:31])
+	path := paths[stem]
+	stemPath := makeStatelessPath(stem[:path.depth])
+	newBudget := func() *statelessUpdateBudget {
+		return &statelessUpdateBudget{limits: testStatelessUpdateLimits()}
+	}
+	clonePaths := func() map[Stem]StemPath {
+		cloned := make(map[Stem]StemPath, len(paths))
+		for candidate, candidatePath := range paths {
+			cloned[candidate] = candidatePath
+		}
+
+		return cloned
+	}
+	cloneCommitments := func() map[statelessPath]backend.VectorCommitment {
+		cloned := make(map[statelessPath]backend.VectorCommitment, len(commitments))
+		for candidatePath, commitment := range commitments {
+			cloned[candidatePath] = commitment
+		}
+
+		return cloned
+	}
+
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, map[Stem]StemPath{}, commitments, updates, newBudget(),
+	); !errors.Is(err, errUnsupportedStatelessUpdate) {
+		t.Fatalf("missing inserted-stem path error = %v", err)
+	}
+
+	invalidPaths := clonePaths()
+	invalidPath := invalidPaths[stem]
+	invalidPath.kind = StemPathKind(0xff)
+	invalidPaths[stem] = invalidPath
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, invalidPaths, commitments, updates, newBudget(),
+	); !errors.Is(err, errUnsupportedStatelessUpdate) {
+		t.Fatalf("unsupported inserted-stem path error = %v", err)
+	}
+
+	invalidClaims := proof.claims
+	invalidClaims.claims = append([]Claim(nil), proof.claims.claims...)
+	invalidClaims.claims[0].kind = ClaimMembership
+	if _, err := updater.commitInsertedStem(
+		context.Background(), invalidClaims, stem, updates, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("non-absence insertion claim error = %v", err)
+	}
+	if _, err := updater.commitInsertedStem(
+		context.Background(), ClaimSet{}, stem, updates, newBudget(),
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("invalid insertion claim-set error = %v", err)
+	}
+
+	for maximum := uint32(0); maximum < 3; maximum++ {
+		budget := newBudget()
+		budget.limits.MaxCommitmentUpdates = maximum
+		if _, err := updater.commitInsertedStem(
+			context.Background(), proof.claims, stem, updates, budget,
+		); !errors.Is(err, errStatelessUpdateResource) {
+			t.Fatalf("inserted-stem commitment limit %d error = %v", maximum, err)
+		}
+	}
+	for maximum := uint32(0); maximum < 2; maximum++ {
+		budget := newBudget()
+		budget.limits.MaxFieldMappings = maximum
+		if _, err := updater.commitInsertedStem(
+			context.Background(), proof.claims, stem, updates, budget,
+		); !errors.Is(err, errStatelessUpdateResource) {
+			t.Fatalf("inserted-stem field limit %d error = %v", maximum, err)
+		}
+	}
+	budget := newBudget()
+	budget.limits.MaxPathLookups = 0
+	if _, err := updater.commitInsertedStem(
+		context.Background(), proof.claims, stem, updates, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("inserted-stem lookup limit error = %v", err)
+	}
+
+	insertedCommitment, err := updater.commitInsertedStem(
+		context.Background(), proof.claims, stem, updates, newBudget(),
+	)
+	if err != nil {
+		t.Fatalf("build inserted stem fixture: %v", err)
+	}
+	inserted := statelessInsertedStem{stem: stem, commitment: insertedCommitment}
+	if _, err := mergeStatelessExistingStem(
+		&stepContext{}, inserted, []statelessInsertedStem{inserted},
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled existing-stem merge error = %v", err)
+	}
+	if _, err := mergeStatelessExistingStem(
+		context.Background(), inserted, []statelessInsertedStem{inserted},
+	); !errors.Is(err, errInvalidStatelessUpdate) {
+		t.Fatalf("duplicate existing-stem merge error = %v", err)
+	}
+	before := inserted
+	before.stem[0]--
+	merged, err := mergeStatelessExistingStem(
+		context.Background(), inserted, []statelessInsertedStem{before},
+	)
+	if err != nil || len(merged) != 2 || merged[1].stem != inserted.stem {
+		t.Fatalf("append existing stem result = %#v, error = %v", merged, err)
+	}
+
+	if _, err := updater.commitInsertedSubtree(
+		context.Background(), nil, 0, newBudget(),
+	); !errors.Is(err, errInvalidStatelessUpdate) {
+		t.Fatalf("empty inserted subtree error = %v", err)
+	}
+	if got, err := updater.commitInsertedSubtree(
+		context.Background(), []statelessInsertedStem{inserted}, 0, newBudget(),
+	); err != nil || got != inserted.commitment {
+		t.Fatalf("single inserted subtree = %#v, error = %v", got, err)
+	}
+	if _, err := updater.commitInsertedSubtree(
+		context.Background(), []statelessInsertedStem{inserted, inserted}, uint8(len(Stem{})), newBudget(),
+	); !errors.Is(err, errInvalidStatelessUpdate) {
+		t.Fatalf("excessive inserted subtree depth error = %v", err)
+	}
+	if _, err := updater.commitInsertedSubtree(
+		&stepContext{}, []statelessInsertedStem{inserted}, 0, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled inserted subtree error = %v", err)
+	}
+
+	second := inserted
+	second.stem[1]++
+	stems := []statelessInsertedStem{inserted, second}
+	if _, err := updater.commitInsertedSubtree(
+		&stepContext{successfulChecks: 1}, stems, 0, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled inserted subtree loop error = %v", err)
+	}
+	if _, err := updater.commitInsertedSubtree(
+		&stepContext{successfulChecks: 2}, stems, 0, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled inserted subtree child error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxFieldMappings = 0
+	if _, err := updater.commitInsertedSubtree(
+		context.Background(), stems, 0, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("inserted subtree field limit error = %v", err)
+	}
+	budget = newBudget()
+	budget.limits.MaxCommitmentUpdates = 0
+	if _, err := updater.commitInsertedSubtree(
+		context.Background(), stems, 0, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("inserted subtree commitment limit error = %v", err)
+	}
+	if _, err := updater.commitInsertedSubtree(
+		context.Background(), []statelessInsertedStem{inserted, inserted}, 30, newBudget(),
+	); !errors.Is(err, errInvalidStatelessUpdate) {
+		t.Fatalf("inserted subtree child error = %v", err)
+	}
+
+	missingBudget := newBudget()
+	missingBudget.limits.MaxPathLookups = 1
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, paths, commitments, updates, missingBudget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("missing-stem insertion propagation error = %v", err)
+	}
+
+	differentPaths := clonePaths()
+	differentPath := differentPaths[stem]
+	differentPath.kind = StemPathDifferent
+	differentPath.existing = Stem(existingKey[:31])
+	differentPaths[stem] = differentPath
+	differentCommitments := cloneCommitments()
+	differentCommitments[stemPath] = commitments[makeStatelessPath(existingKey[:differentPath.depth])]
+	missingDifferentCommitment := cloneCommitments()
+	delete(missingDifferentCommitment, stemPath)
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, differentPaths, missingDifferentCommitment, updates, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("missing different-stem commitment error = %v", err)
+	}
+	differentBudget := newBudget()
+	differentBudget.limits.MaxPathLookups = 1
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, differentPaths, differentCommitments, updates, differentBudget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("different-stem lookup propagation error = %v", err)
+	}
+	differentBudget = newBudget()
+	differentBudget.limits.MaxPathLookups = 2
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, differentPaths, differentCommitments, updates, differentBudget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("different-stem insertion propagation error = %v", err)
+	}
+
+	duplicatePaths := clonePaths()
+	duplicatePath := duplicatePaths[stem]
+	duplicatePath.kind = StemPathDifferent
+	duplicatePath.existing = stem
+	duplicatePaths[stem] = duplicatePath
+	duplicateCommitments := cloneCommitments()
+	duplicateCommitments[stemPath] = insertedCommitment
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, duplicatePaths, duplicateCommitments, updates, newBudget(),
+	); !errors.Is(err, errInvalidStatelessUpdate) {
+		t.Fatalf("different-stem merge propagation error = %v", err)
+	}
+}
+
 func assertSameBackendRoot(t testing.TB, got backend.Root, want backend.Root) {
 	t.Helper()
 
@@ -593,6 +1018,39 @@ func assertSameBackendRoot(t testing.TB, got backend.Root, want backend.Root) {
 	if gotBytes != wantBytes {
 		t.Fatalf("stateless root = %x, want %x", gotBytes, wantBytes)
 	}
+}
+
+func assertStatelessTopologyCancellationSweep(
+	t testing.TB,
+	updater *StatelessUpdater,
+	proof TreeProof,
+	updates []Update,
+) {
+	t.Helper()
+
+	observed := false
+	for successful := 0; successful < 4_000; successful++ {
+		_, err := updater.Apply(
+			&stepContext{successfulChecks: successful},
+			proof,
+			updates,
+			testProofVerificationLimits(),
+			testStatelessUpdateLimits(),
+		)
+		if err == nil {
+			if !observed {
+				t.Fatal("topology cancellation sweep exercised no boundary")
+			}
+
+			return
+		}
+		observed = true
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("topology cancellation after %d checks = %v", successful, err)
+		}
+	}
+
+	t.Fatal("topology cancellation sweep did not reach success")
 }
 
 func assertStatelessRootCommitment(t testing.TB, root backend.Root, encoded string) {

@@ -616,8 +616,8 @@ func IsIncompleteStatelessWitnessError(err error) bool {
 	return errors.Is(err, errIncompleteStatelessWitness)
 }
 
-// IsUnsupportedStatelessUpdateError reports topology-changing behavior outside
-// the currently implemented witness profile.
+// IsUnsupportedStatelessUpdateError reports an update kind outside the
+// currently implemented Set-only witness profile.
 func IsUnsupportedStatelessUpdateError(err error) bool {
 	return errors.Is(err, errUnsupportedStatelessUpdate)
 }

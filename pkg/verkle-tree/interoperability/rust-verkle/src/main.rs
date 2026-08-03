@@ -198,6 +198,33 @@ fn print_multiproof() {
         "three-openings-v1\tverkle\t{}",
         encode_hex(&proof.to_bytes().expect("multiproof serialization failed"))
     );
+
+    let mut zero_values = vec![Fr::from(0_u64); 256];
+    zero_values[0] = Fr::from(1_u64);
+    zero_values[2] = Fr::from(2_u64);
+    let zero_poly = LagrangeBasis::new(zero_values);
+    let zero_crs = CRS::new(256, b"eth_verkle_oct_2021");
+    let zero_query = ProverQuery {
+        commitment: zero_crs.commit_lagrange_poly(&zero_poly),
+        result: zero_poly.evaluate_in_domain(1),
+        poly: zero_poly,
+        point: 1,
+    };
+    let mut zero_transcript = Transcript::new(b"verkle");
+    let zero_proof = MultiPoint::open(
+        zero_crs,
+        &precomputed_weights,
+        &mut zero_transcript,
+        vec![zero_query],
+    );
+    println!(
+        "one-zero-evaluation-v1\tverkle\t{}",
+        encode_hex(
+            &zero_proof
+                .to_bytes()
+                .expect("zero-evaluation multiproof serialization failed")
+        )
+    );
 }
 
 fn tree_key(first: u8, suffix: u8) -> [u8; 32] {

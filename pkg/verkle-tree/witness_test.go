@@ -152,6 +152,84 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 	assertPublicRootsEqual(t, resultPostRoot, postRoot)
 }
 
+func TestPublicStatelessWitnessAppliesTopologyChangingSets(t *testing.T) {
+	t.Parallel()
+
+	existing := publicKey(0x10, 0x00)
+	existing[1] = 0x20
+	neighbor := publicKey(0x30, 0xff)
+	different := publicKey(0x10, 0x80)
+	different[1] = 0x21
+	missing := publicKey(0x20, 0x01)
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		[]verkletree.Entry{
+			{Key: existing, Value: publicValue(1)},
+			{Key: neighbor, Value: publicValue(2)},
+		},
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new topology snapshot: %v", err)
+	}
+	proofEngine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new proof engine: %v", err)
+	}
+	proof, err := proofEngine.Prove(
+		context.Background(), snapshot,
+		[]verkletree.Key{missing, different},
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove topology-changing keys: %v", err)
+	}
+	updates := []verkletree.Update{
+		verkletree.Set(missing, verkletree.Value{}),
+		verkletree.Set(different, publicValue(3)),
+	}
+	next, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("stateful topology apply: %v", err)
+	}
+	postRoot, err := next.Root()
+	if err != nil {
+		t.Fatalf("stateful topology root: %v", err)
+	}
+	witness, err := verkletree.NewWitness(
+		context.Background(), proof, updates, postRoot, publicWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new topology witness: %v", err)
+	}
+	engine, err := verkletree.NewStatelessEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+		publicSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		t.Fatalf("new stateless engine: %v", err)
+	}
+	result, err := engine.Apply(
+		context.Background(), witness,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply topology witness: %v", err)
+	}
+	got, err := result.PostRoot()
+	if err != nil {
+		t.Fatalf("topology result root: %v", err)
+	}
+	assertPublicRootsEqual(t, got, postRoot)
+}
+
 func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	t.Parallel()
 

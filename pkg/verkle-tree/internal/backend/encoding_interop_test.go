@@ -271,8 +271,8 @@ func readMultiProofFixture(t testing.TB) (string, []byte) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("fixture rows = %d, want 2", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("fixture rows = %d, want 3", len(lines))
 	}
 	if lines[0] != "corpus\ttranscript\tproof" {
 		t.Fatalf("fixture header = %q", lines[0])
@@ -291,6 +291,35 @@ func readMultiProofFixture(t testing.TB) (string, []byte) {
 	if len(fixtureProof) != 576 {
 		t.Fatalf("fixture proof bytes = %d, want 576", len(fixtureProof))
 	}
+	return fields[1], fixtureProof
+}
+
+func readZeroEvaluationMultiProofFixture(t testing.TB) (string, []byte) {
+	t.Helper()
+
+	contents, err := os.ReadFile("testdata/rust-verkle-multiproof.tsv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("fixture rows = %d, want 3", len(lines))
+	}
+	fields := strings.Split(lines[2], "\t")
+	if len(fields) != 3 {
+		t.Fatalf("zero-evaluation fixture fields = %d, want 3", len(fields))
+	}
+	if fields[0] != "one-zero-evaluation-v1" {
+		t.Fatalf("zero-evaluation fixture corpus = %q", fields[0])
+	}
+	if fields[1] != "verkle" {
+		t.Fatalf("zero-evaluation fixture transcript = %q", fields[1])
+	}
+	fixtureProof := decodeInteropHex(t, 3, "zero-evaluation multiproof", fields[2])
+	if len(fixtureProof) != OpeningProofSize {
+		t.Fatalf("zero-evaluation fixture proof bytes = %d, want %d", len(fixtureProof), OpeningProofSize)
+	}
+
 	return fields[1], fixtureProof
 }
 

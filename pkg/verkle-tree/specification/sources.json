@@ -91,7 +91,7 @@
       "license": "MIT OR Apache-2.0",
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -154,7 +154,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -218,7 +218,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -269,7 +269,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -316,7 +316,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -352,21 +352,25 @@
         {
           "path": "ipa-multipoint/src/lagrange_basis.rs",
           "sha256": "ac16e6bf97d1f2e2ee922c72c5ede18295c227e5256ae4fd4055715819bfae5a"
+        },
+        {
+          "path": "banderwagon/src/element.rs",
+          "sha256": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442"
         }
       ],
       "fixture_path": "internal/backend/testdata/rust-verkle-multiproof.tsv",
-      "fixture_sha256": "8a17d05bb61d756cafa735764bc9dc46de9a0aa24aed6f84bd3e869379679395",
+      "fixture_sha256": "5e4a4ac92786f204af513558041c32a99298f747f91c4029732966f387cd05f3",
       "license": "MIT OR Apache-2.0",
       "profile_assumptions": {
         "width": 256,
         "generator_seed": "eth_verkle_oct_2021",
         "transcript": "verkle",
-        "corpus": "three-openings-v1: f0(i)=i+1 at 3; f1(i)=(i+1)^2 at 3; f2(i)=3i+7 at 200",
-        "proof_encoding": "D followed by eight L points, eight R points, and one little-endian scalar; all elements are 32 bytes"
+        "corpus": "three-openings-v1: f0(i)=i+1 at 3; f1(i)=(i+1)^2 at 3; f2(i)=3i+7 at 200; one-zero-evaluation-v1: f(0)=1, f(2)=2, every other evaluation zero, opened at 1",
+        "proof_encoding": "D followed by eight L points, eight R points, and one little-endian scalar; all elements are 32 bytes; canonical all-zero identity encodings are permitted only in these proof-point positions"
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -398,8 +402,8 @@
         "verkle_trie_manifest_license": "missing; repository root is pinned and independently verified as MIT OR Apache-2.0",
         "production_status": "rejected-research-generator-only"
       },
-      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness commits to three deterministic 256-element evaluation vectors, opens two positions with one duplicated index, constructs the aggregated proof with transcript label verkle, and emits the canonical 576-byte proof.",
-      "review_procedure": "Reconstruct the same vectors, commitments, openings, ordering, generator set, and transcript through the pinned Go implementation; require exact proof bytes; decode the Rust proof through the Go parser; require Go verification of every opening; and reject a one-bit mutation in every serialized proof element, a wrong transcript label, and a wrong opened value.",
+      "generation_procedure": "Run scripts/check-interoperability.sh. The pinned Rust harness commits to three deterministic 256-element evaluation vectors and one sparse vector whose selected evaluation is zero, constructs both aggregated proofs with transcript label verkle, and emits their canonical 576-byte encodings.",
+      "review_procedure": "Reconstruct the same vectors, commitments, openings, ordering, generator set, and transcript through the pinned Go implementation; require exact proof bytes for both corpora; require the zero-evaluation proof to contain and round-trip canonical identity proof elements; decode the Rust proofs through the Go parser; require Go verification of every opening; and reject a one-bit mutation in every serialized proof element, a wrong transcript label, and a wrong opened value.",
       "reproducible": true
     },
     {
@@ -522,7 +526,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -593,7 +597,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",
@@ -660,7 +664,7 @@
       },
       "generator": {
         "source_path": "interoperability/rust-verkle/src/main.rs",
-        "source_sha256": "f19f1bad25d03d4e973502dbc1c4faf654922f9085087e70d1e13fb8c737a023",
+        "source_sha256": "4ba1ce3d26f39af62523c887459c4b7f65d8e6a44caa0f0775fb9ce7bcfad284",
         "manifest_path": "interoperability/rust-verkle/Cargo.toml",
         "manifest_sha256": "cf708af0ea2186a0818bccbfb73d33de119acb529c7b7d82eeb1f3d84ae5ed3a",
         "lock_path": "interoperability/rust-verkle/Cargo.lock",

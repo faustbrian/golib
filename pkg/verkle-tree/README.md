@@ -13,10 +13,11 @@ storage writes, and bounded reconstruction from isolated caller-owned read
 snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. The
 public surface is experimental, rebuilds the complete tree for stateful
-updates, persisted loads, and maintained publications, and now provides
-canonical bounded stateless `Set` witnesses for already-present stems. It does
-not yet provide crash repair, adapter implementations, stateless deletion, or
-topology-changing stateless insertion. It is not a production-ready tree.
+updates, persisted loads, and maintained publications, and provides canonical
+bounded stateless `Set` witnesses for authenticated present, missing, and
+different stem paths. It does not yet provide crash repair, adapter
+implementations, stateless deletion, or deletion-time topology collapse. It is
+not a production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -110,9 +111,12 @@ update budgets. Only a successful `StatelessResult` exposes the verified
 pre-root and independently derived, witness-matched post-root. Decoding alone
 does not verify either root. `Witness.Updates` returns an owned canonical copy;
 `Update.Kind`, `Update.Key`, and `Update.Value` preserve Set/delete and
-present-zero distinctions. Current witnesses accept Set only and require every
-stem to be proven present. The embedded proof claim keys MUST equal the update
-keys exactly; construction and decoding reject missing or surplus claims.
+present-zero distinctions. Current witnesses accept Set only. An existing
+suffix requires its authenticated old membership value; an absent suffix or a
+new stem requires an authenticated absence claim and its exact terminal
+present, missing, or different path. The embedded proof claim keys MUST equal
+the update keys exactly; construction and decoding reject missing or surplus
+claims.
 
 Production code imports the pinned `go-ipa` dependency only behind internal
 canonical point/scalar encoding, bounded aggregate-opening generation and
@@ -141,14 +145,17 @@ engine is explicit, immutable, fixed-width, resource-bounded, serial, and
 cancellation-aware between commitment terms. Generator derivation remains one
 fixed backend call that cannot be interrupted after it starts, so this seam is
 experimental and does not satisfy the production-backend gate.
-For one pinned three-opening corpus, both references also produce the same
-canonical 576-byte aggregate proof, and the Go verifier accepts the Rust proof.
-The internal decoder now rejects wrong lengths, trailing bytes, identity,
-malformed, non-canonical, and wrong-subgroup points, and non-canonical final
-scalars under explicit byte and decode budgets. It returns only an opaque owned
-proof. The separate fixed-profile opening engine verifies that payload against
-the complete reconstructed opening set; syntactic decoding alone still does
-not verify an opening or bind tree claims.
+For one pinned three-opening corpus and one single zero-evaluation corpus, both
+references produce the same canonical 576-byte aggregate proofs, and the Go
+verifier accepts the Rust proofs. A valid zero-evaluation IPA proof contains
+canonical identity elements, encoded as 32 zero bytes, in proof-only point
+positions. The internal decoder accepts that one canonical representation
+there while rejecting wrong lengths, trailing bytes, malformed,
+non-canonical, and wrong-subgroup points and non-canonical final scalars under
+explicit byte and decode budgets. Root, node, path, and standalone commitment
+decoders remain non-identity. The decoder returns only an opaque owned proof;
+the separate fixed-profile opening engine verifies it against the complete
+reconstructed opening set.
 A separate isolated harness pins `ethereum/go-verkle` at
 `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` and reproduces one deterministic
 256-wide tree root plus an aggregate proof covering membership, an absent
@@ -167,10 +174,12 @@ evidence, canonical JSON evidence, or a stable profile. For the same pre-state,
 both implementations also derive the same post-state root after updating one
 present value and inserting one absent suffix in an existing stem; Rust rejects
 the update witness against a different valid pre-state root or a changed
-authenticated old value. Inserting a new absent stem is deliberately excluded
-because the pinned Rust updater reaches an unhandled `ExtPresent::None` path and
-panics. Deletion, conflicting updates, ordering variants, and hostile update
-witnesses remain unproven.
+authenticated old value. The package-owned updater supports absent-stem
+insertion despite the pinned Rust updater reaching an unhandled
+`ExtPresent::None` path and panicking. Those topology-changing roots are
+checked against the package's independent stateful tree construction, not
+claimed as Rust updater agreement. Deletion and general
+cross-implementation update corpora remain unproven.
 
 ## Experimental profile
 
@@ -237,8 +246,8 @@ different stems and returns the exact internal, stem, and selected C1/C2
 commitments required by the package-owned proof topology. This extraction does
 not construct an opening, verify a proof, or authenticate a claim. The
 unverified tree-proof container represents an empty selected suffix half with a
-unique zero-payload marker; the strict point decoder still rejects identity
-point encodings.
+unique zero-payload marker; the strict commitment decoder still rejects
+identity point encodings.
 
 An internal authenticated-state layer now binds those complete roots to
 immutable ordered snapshots. It distinguishes absence from a present zero
@@ -303,18 +312,21 @@ experimental facade with opaque proofs and typed resource errors. It does not
 establish a stable proof API, witness semantics, storage durability, or
 Ethereum compatibility.
 
-The stateless engine composes that verified proof with sparse
-commitment changes. Every requested key must have an authenticated membership
-or absence claim, no other claims may be present, and every claim must have a
-present-stem path. Existing-value replacement and
-absent-suffix insertion are supported, including multi-stem batches and shared
-ancestors; the result is checked against pinned and stateful post-state roots.
+The stateless engine composes that verified proof with sparse commitment
+changes. Every requested key must have an authenticated membership or absence
+claim, no other claims may be present, and every claim must have its exact
+terminal stem path. Existing-value replacement, absent-suffix insertion, and
+new-stem insertion through authenticated missing or different paths are
+supported, including canonical collision subtrees, deepest valid collisions,
+multi-stem batches, and shared ancestors. Results are checked against stateful
+post-state roots; the present-stem corpus additionally has pinned Rust
+agreement.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
 path lookups, witness and proof bytes, strict point decoding, and temporary
 bytes. The canonical witness decoder returns an unverified owned container;
 `StatelessEngine.Apply` separately verifies the proof, derives the root, and
-matches the claimed post-state root. Deletion and topology creation/collapse
-remain unsupported until their completeness rules are specified.
+matches the claimed post-state root. Deletion and deletion-time topology
+collapse remain unsupported until their completeness rules are specified.
 
 ## Experimental storage boundary
 

@@ -95,8 +95,10 @@ func (err *OpeningProofResourceError) Unwrap() error {
 }
 
 // DecodeOpeningProof validates resource declarations, exact length, every
-// non-identity point, and the final canonical scalar before returning an owned
-// opaque proof. It performs no cryptographic verification.
+// canonical proof point, and the final canonical scalar before returning an
+// owned opaque proof. The proof format permits the mathematical identity only
+// as its canonical all-zero proof element. It performs no cryptographic
+// verification.
 func DecodeOpeningProof(
 	ctx context.Context,
 	encoded []byte,
@@ -140,7 +142,7 @@ func DecodeOpeningProof(
 			return OpeningProof{}, err
 		}
 		start := index * commitmentSize
-		if _, err := decodeCommitment(owned[start : start+commitmentSize]); err != nil {
+		if _, err := decodeOpeningProofPoint(owned[start : start+commitmentSize]); err != nil {
 			return OpeningProof{}, fmt.Errorf(
 				"%w: point %d",
 				errInvalidOpeningProof,

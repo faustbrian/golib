@@ -257,8 +257,57 @@ func TestAggregateOpeningOperationsRejectInvalidInputsAndResources(t *testing.T)
 	}
 	corruptProof := proof
 	clear(corruptProof.encoded[:commitmentSize])
-	if err := engine.Verify(context.Background(), corruptProof, verifier); !errors.Is(err, errInvalidOpeningProof) {
+	if err := engine.Verify(context.Background(), corruptProof, verifier); !errors.Is(err, errAggregateOpeningVerification) {
 		t.Fatalf("corrupt native proof error = %v", err)
+	}
+}
+
+func TestAggregateOpeningSupportsOneAuthenticatedZeroOpening(t *testing.T) {
+	t.Parallel()
+
+	engine := newTestAggregateOpeningEngine(t)
+	prover := []AggregateProverQuery{{Index: 1}}
+	setVectorUint64(&prover[0].Vector, 0, 1)
+	setVectorUint64(&prover[0].Vector, 2, 2)
+	verifier := []AggregateVerifierQuery{{Index: 1}}
+	commitAggregateOpeningCorpus(t, prover, verifier)
+	polynomial := make([]fr.Element, VectorWidth)
+	for index := range prover[0].Vector {
+		decoded, decodeErr := decodeScalar(prover[0].Vector[index][:])
+		if decodeErr != nil {
+			t.Fatalf("decode polynomial scalar %d: %v", index, decodeErr)
+		}
+		polynomial[index] = decoded.element
+	}
+	commitment := engine.backend.commit(polynomial)
+	native, err := engine.backend.open(
+		[]*banderwagon.Element{&commitment}, [][]fr.Element{polynomial}, []uint8{1},
+	)
+	if err != nil {
+		t.Fatalf("open native one authenticated zero: %v", err)
+	}
+	zero := fr.Zero()
+	verified, err := engine.backend.verify(
+		native, []*banderwagon.Element{&commitment}, []*fr.Element{&zero}, []uint8{1},
+	)
+	if err != nil || !verified {
+		t.Fatalf("verify native one authenticated zero = %t, %v", verified, err)
+	}
+
+	proof, err := engine.Open(context.Background(), prover)
+	if err != nil {
+		t.Fatalf("open one authenticated zero: %v", err)
+	}
+	if err := engine.Verify(context.Background(), proof, verifier); err != nil {
+		t.Fatalf("verify one authenticated zero: %v", err)
+	}
+	_, fixture := readZeroEvaluationMultiProofFixture(t)
+	encoded, err := proof.Bytes()
+	if err != nil {
+		t.Fatalf("encode one authenticated zero: %v", err)
+	}
+	if !bytes.Equal(encoded[:], fixture) {
+		t.Fatal("one authenticated zero proof differs from pinned Rust proof")
 	}
 }
 
@@ -392,9 +441,17 @@ func TestAggregateOpeningProofNativeConversionRejectsCorruption(t *testing.T) {
 		t.Fatalf("decode proof: %v", err)
 	}
 	corruptPoint := proof
-	clear(corruptPoint.encoded[:commitmentSize])
+	for index := 0; index < commitmentSize; index++ {
+		corruptPoint.encoded[index] = 0xff
+	}
 	if _, err := nativeAggregateOpeningProof(corruptPoint); !errors.Is(err, errInvalidOpeningProof) {
 		t.Fatalf("corrupt point error = %v", err)
+	}
+	engine := newTestAggregateOpeningEngine(t)
+	prover, verifier := aggregateOpeningCorpus()
+	commitAggregateOpeningCorpus(t, prover, verifier)
+	if err := engine.Verify(context.Background(), corruptPoint, verifier); !errors.Is(err, errInvalidOpeningProof) {
+		t.Fatalf("verify corrupt point error = %v", err)
 	}
 	corruptScalar := proof
 	modulus := scalarModulusBytes(t)

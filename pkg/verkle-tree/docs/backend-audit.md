@@ -50,13 +50,15 @@ At the pinned revision:
   declared scalar, group-operation, generator, and scratch budgets before
   amplified work, and performs commitment terms serially with deterministic
   cancellation checkpoints;
-- one deterministic three-opening corpus produces the same canonical 576-byte
-  aggregate proof through both implementations, and the Go verifier accepts
-  the Rust proof;
+- one deterministic three-opening corpus and one single zero-evaluation corpus
+  produce the same canonical 576-byte aggregate proofs through both
+  implementations, and the Go verifier accepts both Rust proofs;
 - the internal raw-proof decoder requires exactly 576 bytes, validates all 17
-  points and the final little-endian scalar canonically, rejects identity and
-  wrong-subgroup points, owns accepted bytes, and enforces byte, point-decode,
-  scalar-decode, and cancellation bounds before amplified work;
+  points and the final little-endian scalar canonically, accepts the all-zero
+  identity representation only in proof-point positions where the IPA equation
+  permits it, rejects malformed and wrong-subgroup points, owns accepted bytes,
+  and enforces byte, point-decode, scalar-decode, and cancellation bounds
+  before amplified work;
 - the Go verifier rejects one-bit mutations in every serialized proof element,
   a wrong transcript label, and a wrong opened value for that corpus;
 - point decoding checks canonical base-field encoding, curve membership, and
@@ -155,7 +157,9 @@ operations against the final dependency graph.
 The current internal boundary may:
 
 - decode exactly 32-byte compressed Banderwagon commitments;
-- reject non-canonical, off-curve, wrong-subgroup, and identity encodings;
+- reject non-canonical, off-curve, wrong-subgroup, and identity commitment
+  encodings while accepting the canonical all-zero identity only inside opaque
+  aggregate-proof point positions;
 - decode exactly 32-byte canonical little-endian scalars;
 - map an already validated non-identity commitment to its canonical scalar
   field image;
@@ -181,8 +185,9 @@ The current internal boundary may:
 It may decode only the fixed raw aggregate-proof payload described by the
 experimental profile and the package-owned internal unverified tree-proof
 container that embeds it. It may construct and verify openings only through the
-fixed internal profile boundary. It must not accept a serialized identity,
-expose dependency values outside `internal/`, accept caller-selected
+fixed internal profile boundary. It must not accept a serialized identity as a
+root, node, path, or standalone commitment, expose dependency values outside
+`internal/`, accept caller-selected
 transcripts or generators, or claim cancellation once a dependency proof call
 has begun.
 
@@ -192,11 +197,11 @@ pinned independent sparse-boundary commitment is reproduced both through full
 commitment and through the sparse-update path. That agreement proves only the
 group-arithmetic update primitive: it does not authenticate supplied old
 scalars, establish tree-path completeness, or constitute a stateless witness.
-The package-owned internal stateless updater separately authenticates those old
-scalars and present-stem paths through its verified tree proof before composing
-the primitive. The public canonical witness format composes that authenticated
-operation without expanding the backend interoperability claim beyond the
-pinned corpus.
+The package-owned internal stateless updater separately authenticates old
+scalars for present paths and terminal missing/different paths for new stems
+through its verified tree proof before composing commitment operations. The
+public canonical witness format composes that authenticated operation without
+expanding the backend interoperability claim beyond the pinned corpora.
 The pinned proof implementation uses `runtime.NumCPU()` internally and accepts
 no context, so the wrapper rejects insufficient worker budgets beforehand and
 can check cancellation only before and after the call. This does not prove the

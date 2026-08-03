@@ -22,8 +22,9 @@ snapshot reconstruction, plus bounded read-only auditing of current and
 retained roots against a canonical complete node inventory and bounded atomic
 retention/pruning requests, plus canonical bounded stateless Set witnesses that
 verify a complete pre-state proof and independently match the claimed
-post-state root. Stateless deletion and topology creation/collapse,
-crash-repair application, dependency-level cancellation, concrete storage
+post-state root, including creation below authenticated missing or different
+stem paths. Stateless deletion and deletion-time topology collapse, crash-
+repair application, dependency-level cancellation, concrete storage
 adapters, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
@@ -66,10 +67,14 @@ stronger atomicity, isolation, or durability than the selected store provides.
   state.
 
 The raw aggregate-opening decoder currently mitigates alternate payload length,
-trailing-byte, identity-point, malformed-point, non-canonical-point,
-wrong-subgroup-point, non-canonical-scalar, caller-aliasing, and declared decode
-budget attacks. Acceptance proves only canonical syntax for one opaque payload;
-it does not prove the opening or authenticate any tree claim.
+trailing-byte, malformed-point, non-canonical-point, wrong-subgroup-point,
+non-canonical-scalar, caller-aliasing, and declared decode budget attacks. It
+accepts the exact all-zero identity representation only in proof-point
+positions because valid IPA proofs can require it; identity remains forbidden
+for roots, nodes, paths, and standalone commitments. Arbitrary identity
+substitution remains subject to the complete cryptographic equation.
+Acceptance proves only canonical syntax for one opaque payload; it does not
+prove the opening or authenticate any tree claim.
 
 The root decoder rejects wrong profile and encoding headers before point work,
 rejects alternate lengths and non-canonical commitment payloads, and uses a
@@ -84,10 +89,11 @@ one permitted post-root point decode.
 It also requires the embedded proof claim keys to equal the canonical update
 keys exactly, rejecting both omission and surplus disclosure.
 Decoding establishes canonical structure only. `StatelessEngine.Apply`
-cryptographically verifies the complete embedded proof before using old values,
-requires an exact authenticated claim and present-stem path for every update,
-derives all changed commitments bottom-up, and rejects a different claimed
-post-state root. A successful result does not authorize the update, prove
+cryptographically verifies the complete embedded proof before using old values
+or terminal topology, requires an exact authenticated claim and stem path for
+every update, constructs canonical missing/different-stem subtrees when
+required, derives all changed commitments bottom-up, and rejects a different
+claimed post-state root. A successful result does not authorize the update, prove
 storage availability, or establish application-level execution validity.
 
 ### Tree and state transitions
@@ -103,10 +109,10 @@ storage availability, or establish application-level execution validity.
 The authenticated-state layer currently mitigates absent/zero/delete
 ambiguity, nondeterministic batch order, duplicate operations, partial
 in-memory publication, caller mutation of fixed arrays, cross-snapshot root
-confusion, and omitted or changed old values in supported stateless Set
-witnesses. It does not yet prove completeness for deletion or topology-changing
-updates, or protect a future mutable writer from concurrent ownership
-violations.
+confusion, omitted or changed old values in supported stateless Set witnesses,
+and omitted or conflicting terminal topology for new-stem insertion. It does
+not yet prove completeness for deletion or deletion-time collapse, or protect
+a future mutable writer from concurrent ownership violations.
 
 The storage write boundary encodes the complete immutable arena into canonical
 profile-bound nodes, hashes the complete bytes for content addressing, orders
@@ -178,8 +184,10 @@ mathematically false but structurally valid commitments.
 Its strict decoder rejects the wrong profile before point decoding, alternate
 or inconsistent lengths, trailing bytes, nonzero fixed-width path padding,
 invalid claim and topology tags, misplaced empty-vector markers, malformed or
-identity point encodings, malformed opening points or scalars, and
-non-canonical reconstructed ordering. It
+identity commitment encodings, malformed opening points or scalars, and
+non-canonical reconstructed ordering. Canonical identity opening points remain
+permitted only inside the aggregate payload and still require cryptographic
+verification. It
 preflights aggregate proof bytes, record counts, derived paths, retained path
 bytes, point and scalar decodes, and conservative temporary memory before
 cryptographic decoding or attacker-amplified allocation. Cancellation from

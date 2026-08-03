@@ -59,6 +59,23 @@ func decodeCommitment(encoded []byte) (commitment, error) {
 	return commitment{element: element}, nil
 }
 
+func decodeOpeningProofPoint(encoded []byte) (commitment, error) {
+	if len(encoded) != commitmentSize {
+		return commitment{}, fmt.Errorf("%w: encoded length", errInvalidCommitment)
+	}
+
+	var canonical [commitmentSize]byte
+	copy(canonical[:], encoded)
+	if canonical == [commitmentSize]byte{} {
+		var identity banderwagon.Element
+		identity.SetIdentity()
+
+		return commitment{element: identity}, nil
+	}
+
+	return decodeCommitment(canonical[:])
+}
+
 func encodeScalar(value scalar) [scalarSize]byte {
 	return value.element.BytesLE()
 }

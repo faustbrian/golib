@@ -57,8 +57,8 @@ var (
 	// ErrIncompleteWitness identifies omitted authenticated update material.
 	ErrIncompleteWitness = errors.New("incomplete Verkle stateless witness")
 
-	// ErrUnsupportedUpdate identifies a valid update whose required topology
-	// transition is not implemented by the selected experimental profile.
+	// ErrUnsupportedUpdate identifies a valid update kind that is not
+	// implemented by the selected experimental witness profile.
 	ErrUnsupportedUpdate = errors.New("unsupported Verkle update")
 
 	// ErrPostStateMismatch identifies a derived post-state root that differs

@@ -26,8 +26,8 @@ The current public API exposes opaque, profile-bound forms of:
 - verifier;
 - resource limits and typed errors.
 
-A future public API is expected to add topology-changing stateless updates and
-crash-repair application.
+A future public API is expected to add stateless deletion, deletion-time
+topology collapse, and crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -149,8 +149,9 @@ aggregate-opening proof, and fixed-profile aggregate opening and verification.
 It binds the `verkle` transcript and pinned generators and rejects duplicate or
 conflicting update and opening identities. Sparse commitment arithmetic does
 not authenticate the supplied old scalars by itself. The internal authenticated
-stateless updater now verifies the complete tree proof before using those old
-scalars for present-stem `Set` operations. The decoder alone does not bind a
+stateless updater now verifies the complete tree proof before using old
+scalars for present-stem `Set` operations or authenticated terminal paths for
+new-stem insertion. The decoder alone does not bind a
 root, key set, claim, path, transcript, or verification result. The boundary
 remains internal. Snapshot, proof, and stateless post-state functionality are
 exposed only through fixed-profile facades. `Witness` binds canonical proof
@@ -246,15 +247,19 @@ and storage contracts remain incomplete.
 
 The internal stateless updater verifies that proof first, requires one exact
 authenticated old claim for every distinct update and no surplus claims, and
-accepts only `Set`
-operations whose stem path is present. It updates the selected C1/C2
-commitment, then the stem commitment, then every authenticated ancestor in
-descending depth order. Update order cannot change the result. Explicit limits
+accepts only `Set` operations. Present paths update the selected C1/C2
+commitment and then the stem commitment. Missing paths construct one or more
+new stems beneath the authenticated empty edge. Different paths preserve the
+authenticated existing stem commitment and construct the minimal canonical
+collision subtree. Every change then propagates through authenticated
+ancestors in descending depth order. Update order cannot change the result.
+Explicit limits
 cover updates, commitment changes, commitment-to-field mappings, path lookups,
-and temporary bytes. The public canonical witness format additionally bounds
+and temporary bytes, including the maximum live recursive vector stack for
+topology insertion. The public canonical witness format additionally bounds
 witness/proof bytes and requires exactly one post-root point decode before
 cryptographic work.
-Deletion and missing/different-stem insertion remain proposed.
+Deletion and deletion-time topology collapse remain proposed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

@@ -1,6 +1,7 @@
 package authstate
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ const (
 	statelessCommitmentPathWorkingBytes   = uint64(192)
 	statelessStemPathWorkingBytes         = uint64(128)
 	statelessPropagationLevelWorkingBytes = uint64(256)
+	statelessInsertionVectorWorkingBytes  = uint64(maxProofPathLength * len(backend.Vector{}) * len(backend.Vector{}[0]))
 )
 
 var (
@@ -91,8 +93,8 @@ func (err *StatelessUpdateResourceError) Unwrap() error {
 }
 
 // StatelessUpdater verifies an immutable proof and derives the resulting root
-// for authenticated Set operations on stems already proven present. It is safe
-// for concurrent use.
+// for authenticated Set operations on present, missing, or different stem
+// paths. It is safe for concurrent use.
 type StatelessUpdater struct {
 	proof      *ProofEngine
 	commitment *backend.CommitmentEngine
@@ -131,6 +133,22 @@ type statelessChangedCommitment struct {
 	new backend.VectorCommitment
 }
 
+type statelessInsertedStem struct {
+	stem       Stem
+	commitment backend.VectorCommitment
+}
+
+type statelessMissingInsertion struct {
+	path  statelessPath
+	stems []statelessInsertedStem
+}
+
+type statelessDifferentInsertion struct {
+	path     statelessPath
+	existing statelessInsertedStem
+	stems    []statelessInsertedStem
+}
+
 type statelessUpdateBudget struct {
 	limits            StatelessUpdateLimits
 	commitmentUpdates uint64
@@ -140,7 +158,7 @@ type statelessUpdateBudget struct {
 
 // Apply verifies proof before deriving a canonical post-state root. Update
 // order does not affect the result. The proof must contain the exact old claim
-// for every update and the corresponding present-stem path.
+// and terminal stem path for every update.
 func (updater *StatelessUpdater) Apply(
 	ctx context.Context,
 	proof TreeProof,
@@ -231,10 +249,21 @@ func (updater *StatelessUpdater) Apply(
 }
 
 func statelessTemporaryBytes(proof TreeProof, updateCount uint64) uint64 {
+	insertionBytes := uint64(0)
+	for index := range proof.stemPaths {
+		if proof.stemPaths[index].kind == StemPathMissing ||
+			proof.stemPaths[index].kind == StemPathDifferent {
+			insertionBytes = statelessInsertionVectorWorkingBytes
+
+			break
+		}
+	}
+
 	return updateCount*statelessUpdateWorkingBytes +
 		uint64(len(proof.commitments))*statelessCommitmentPathWorkingBytes +
 		uint64(len(proof.stemPaths))*statelessStemPathWorkingBytes +
-		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes
+		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes +
+		insertionBytes
 }
 
 func statelessProofCountsWithinLimits(proof TreeProof) bool {
@@ -251,6 +280,10 @@ func (updater *StatelessUpdater) updateStems(
 	budget *statelessUpdateBudget,
 ) (map[statelessPath]statelessChangedCommitment, error) {
 	changed := make(map[statelessPath]statelessChangedCommitment)
+	missing := make([]statelessMissingInsertion, 0)
+	missingByPath := make(map[statelessPath]int)
+	different := make([]statelessDifferentInsertion, 0)
+	differentByPath := make(map[statelessPath]int)
 	for start := 0; start < len(updates); {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return nil, err
@@ -264,10 +297,68 @@ func (updater *StatelessUpdater) updateStems(
 		if err := budget.lookup(); err != nil {
 			return nil, err
 		}
-		if !exists || path.kind != StemPathPresent {
+		if !exists {
 			return nil, errUnsupportedStatelessUpdate
 		}
 		stemPath := makeStatelessPath(stem[:path.depth])
+		if path.kind == StemPathMissing {
+			newStem, err := updater.commitInsertedStem(
+				ctx, claims, stem, updates[start:end], budget,
+			)
+			if err != nil {
+				return nil, err
+			}
+			insertionIndex, found := missingByPath[stemPath]
+			if !found {
+				insertionIndex = len(missing)
+				missingByPath[stemPath] = insertionIndex
+				missing = append(missing, statelessMissingInsertion{path: stemPath})
+			}
+			missing[insertionIndex].stems = append(
+				missing[insertionIndex].stems,
+				statelessInsertedStem{stem: stem, commitment: newStem},
+			)
+			start = end
+
+			continue
+		}
+		if path.kind == StemPathDifferent {
+			oldStem, oldFound := commitments[stemPath]
+			if err := budget.lookup(); err != nil {
+				return nil, err
+			}
+			if !oldFound {
+				return nil, errIncompleteStatelessWitness
+			}
+			newStem, err := updater.commitInsertedStem(
+				ctx, claims, stem, updates[start:end], budget,
+			)
+			if err != nil {
+				return nil, err
+			}
+			insertionIndex, found := differentByPath[stemPath]
+			if !found {
+				insertionIndex = len(different)
+				differentByPath[stemPath] = insertionIndex
+				different = append(different, statelessDifferentInsertion{
+					path: stemPath,
+					existing: statelessInsertedStem{
+						stem:       path.existing,
+						commitment: oldStem,
+					},
+				})
+			}
+			different[insertionIndex].stems = append(
+				different[insertionIndex].stems,
+				statelessInsertedStem{stem: stem, commitment: newStem},
+			)
+			start = end
+
+			continue
+		}
+		if path.kind != StemPathPresent {
+			return nil, errUnsupportedStatelessUpdate
+		}
 		oldStem, exists := commitments[stemPath]
 		if err := budget.lookup(); err != nil {
 			return nil, err
@@ -344,8 +435,187 @@ func (updater *StatelessUpdater) updateStems(
 		changed[stemPath] = statelessChangedCommitment{old: oldStem, new: newStem}
 		start = end
 	}
+	for index := range missing {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return nil, err
+		}
+		inserted, err := updater.commitInsertedSubtree(
+			ctx,
+			missing[index].stems,
+			missing[index].path.length,
+			budget,
+		)
+		if err != nil {
+			return nil, err
+		}
+		changed[missing[index].path] = statelessChangedCommitment{
+			old: backend.EmptyVectorCommitment(),
+			new: inserted,
+		}
+	}
+	for index := range different {
+		stems, err := mergeStatelessExistingStem(
+			ctx, different[index].existing, different[index].stems,
+		)
+		if err != nil {
+			return nil, err
+		}
+		inserted, err := updater.commitInsertedSubtree(
+			ctx, stems, different[index].path.length, budget,
+		)
+		if err != nil {
+			return nil, err
+		}
+		changed[different[index].path] = statelessChangedCommitment{
+			old: different[index].existing.commitment,
+			new: inserted,
+		}
+	}
 
 	return changed, nil
+}
+
+func (updater *StatelessUpdater) commitInsertedStem(
+	ctx context.Context,
+	claims ClaimSet,
+	stem Stem,
+	updates []Update,
+	budget *statelessUpdateBudget,
+) (backend.VectorCommitment, error) {
+	var halves [2]backend.Vector
+	for index := range updates {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		claim, found, err := claims.Lookup(updates[index].key)
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		if err := budget.lookup(); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		if !found || claim.kind != ClaimAbsence {
+			return backend.VectorCommitment{}, errIncompleteStatelessWitness
+		}
+		opening := leafvector.EncodePresent(
+			updates[index].key[31],
+			[32]byte(updates[index].value),
+		)
+		half := &halves[0]
+		if opening.Half == leafvector.C2 {
+			half = &halves[1]
+		}
+		half[opening.LowIndex] = [32]byte(opening.Low)
+		half[opening.HighIndex] = [32]byte(opening.High)
+	}
+
+	var halfCommitments [2]backend.VectorCommitment
+	for index := range halves {
+		if err := budget.commitmentUpdate(); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		committed, err := updater.commitment.Commit(ctx, halves[index])
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		halfCommitments[index] = committed
+	}
+	c1Scalar, err := budget.mapCommitment(halfCommitments[0])
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	c2Scalar, err := budget.mapCommitment(halfCommitments[1])
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+
+	var vector backend.Vector
+	vector[leafvector.ExtensionMarkerIndex] = [32]byte(leafvector.EncodeExtensionMarker())
+	vector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(stem))
+	vector[leafvector.C1HashIndex] = c1Scalar
+	vector[leafvector.C2HashIndex] = c2Scalar
+	if err := budget.commitmentUpdate(); err != nil {
+		return backend.VectorCommitment{}, err
+	}
+
+	return updater.commitment.Commit(ctx, vector)
+}
+
+func mergeStatelessExistingStem(
+	ctx context.Context,
+	existing statelessInsertedStem,
+	inserted []statelessInsertedStem,
+) ([]statelessInsertedStem, error) {
+	result := make([]statelessInsertedStem, 0, len(inserted)+1)
+	merged := false
+	for index := range inserted {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return nil, err
+		}
+		order := bytes.Compare(existing.stem[:], inserted[index].stem[:])
+		if order == 0 {
+			return nil, errInvalidStatelessUpdate
+		}
+		if !merged && order < 0 {
+			result = append(result, existing)
+			merged = true
+		}
+		result = append(result, inserted[index])
+	}
+	if !merged {
+		result = append(result, existing)
+	}
+
+	return result, nil
+}
+
+func (updater *StatelessUpdater) commitInsertedSubtree(
+	ctx context.Context,
+	stems []statelessInsertedStem,
+	depth uint8,
+	budget *statelessUpdateBudget,
+) (backend.VectorCommitment, error) {
+	if err := checkTreeProofContext(ctx); err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	if len(stems) == 0 {
+		return backend.VectorCommitment{}, errInvalidStatelessUpdate
+	}
+	if len(stems) == 1 {
+		return stems[0].commitment, nil
+	}
+	if depth >= uint8(len(Stem{})) {
+		return backend.VectorCommitment{}, errInvalidStatelessUpdate
+	}
+
+	var vector backend.Vector
+	for start := 0; start < len(stems); {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		index := stems[start].stem[depth]
+		end := start + 1
+		for end < len(stems) && stems[end].stem[depth] == index {
+			end++
+		}
+		child, err := updater.commitInsertedSubtree(
+			ctx, stems[start:end], depth+1, budget,
+		)
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		mapped, err := budget.mapCommitment(child)
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		vector[index] = mapped
+		start = end
+	}
+	if err := budget.commitmentUpdate(); err != nil {
+		return backend.VectorCommitment{}, err
+	}
+
+	return updater.commitment.Commit(ctx, vector)
 }
 
 func (updater *StatelessUpdater) updateAncestors(

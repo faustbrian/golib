@@ -916,8 +916,6 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 	stemOffset := claimOffset + claimEncodedBytes
 	commitmentOffset := stemOffset + stemPathEncodedBytes
 	secondCommitmentOffset := commitmentOffset + pathCommitmentEncodedBytes
-	openingOffset := len(canonical) -
-		(treeProofFixedBytes - treeProofHeaderBytes)
 	rootOffset := treeProofMagicBytes + treeProofProfileIDBytes +
 		treeProofVersionBytes + treeProofEncodingBytes
 
@@ -994,11 +992,6 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 			commitmentOffset+1+maxProofPathLength,
 			32,
 		),
-		"opening": zeroTreeProofEncoding(
-			canonical,
-			openingOffset,
-			32,
-		),
 		"wrong topology": mutateTreeProofEncoding(
 			canonical,
 			secondCommitmentOffset+2,
@@ -1027,6 +1020,48 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 				t.Fatalf("encoding error = %v", err)
 			}
 		})
+	}
+}
+
+func TestTreeProofIdentityOpeningRequiresCryptographicVerification(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x00, 0x00)
+	second := testKey(0x01, 0xff)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: first, Value: testValue(0x11)},
+		{Key: second, Value: testValue(0x22)},
+	})
+	engine := newTestProofEngine(t)
+	proof, err := engine.Prove(
+		context.Background(), snapshot, []Key{first, second},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("generate proof: %v", err)
+	}
+	encoded, err := proof.Bytes(context.Background(), testTreeProofEncodingLimits())
+	if err != nil {
+		t.Fatalf("encode proof: %v", err)
+	}
+	openingOffset := len(encoded) - (treeProofFixedBytes - treeProofHeaderBytes)
+	if bytes.Equal(
+		encoded[openingOffset:openingOffset+backend.CommitmentSize],
+		make([]byte, backend.CommitmentSize),
+	) {
+		t.Fatal("test proof already contains an identity first point")
+	}
+	clear(encoded[openingOffset : openingOffset+backend.CommitmentSize])
+	decoded, err := DecodeTreeProof(
+		context.Background(), encoded, testTreeProofDecodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("decode canonical identity proof element: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(), decoded, testProofVerificationLimits(),
+	); !IsProofVerificationError(err) {
+		t.Fatalf("identity substitution verification error = %v", err)
 	}
 }
 

@@ -46,11 +46,6 @@ func TestOpeningProofRejectsMalformedEncodings(t *testing.T) {
 		t.Fatalf("decode modulus: %v", err)
 	}
 
-	identity := bytes.Clone(fixture)
-	clear(identity[:commitmentSize])
-	lastIdentity := bytes.Clone(fixture)
-	lastPointStart := (openingProofPointCount - 1) * commitmentSize
-	clear(lastIdentity[lastPointStart : lastPointStart+commitmentSize])
 	nonCanonical := bytes.Clone(fixture)
 	copy(nonCanonical[:commitmentSize], bytes.Repeat([]byte{0xff}, commitmentSize))
 	wrongSubgroupProof := bytes.Clone(fixture)
@@ -64,8 +59,6 @@ func TestOpeningProofRejectsMalformedEncodings(t *testing.T) {
 		"empty":                {encoded: nil, limits: testOpeningProofLimits()},
 		"short":                {encoded: fixture[:len(fixture)-1], limits: testOpeningProofLimits()},
 		"trailing byte":        {encoded: append(bytes.Clone(fixture), 0), limits: OpeningProofLimits{MaxProofBytes: OpeningProofSize + 1, MaxPointDecodes: openingProofPointCount, MaxScalarDecodes: 1}},
-		"identity point":       {encoded: identity, limits: testOpeningProofLimits()},
-		"last identity point":  {encoded: lastIdentity, limits: testOpeningProofLimits()},
 		"non-canonical point":  {encoded: nonCanonical, limits: testOpeningProofLimits()},
 		"wrong-subgroup point": {encoded: wrongSubgroupProof, limits: testOpeningProofLimits()},
 		"non-canonical scalar": {encoded: nonCanonicalScalar, limits: testOpeningProofLimits()},
@@ -81,6 +74,30 @@ func TestOpeningProofRejectsMalformedEncodings(t *testing.T) {
 				t.Fatalf("decode error = %v, want %v", err, errInvalidOpeningProof)
 			}
 		})
+	}
+}
+
+func TestOpeningProofAcceptsCanonicalIdentityElements(t *testing.T) {
+	t.Parallel()
+
+	_, fixture := readMultiProofFixture(t)
+	for index := 0; index < openingProofPointCount; index++ {
+		encoded := bytes.Clone(fixture)
+		start := index * commitmentSize
+		clear(encoded[start : start+commitmentSize])
+		proof, err := DecodeOpeningProof(
+			context.Background(), encoded, testOpeningProofLimits(),
+		)
+		if err != nil {
+			t.Fatalf("decode identity proof element %d: %v", index, err)
+		}
+		roundTrip, err := proof.Bytes()
+		if err != nil {
+			t.Fatalf("encode identity proof element %d: %v", index, err)
+		}
+		if !bytes.Equal(roundTrip[:], encoded) {
+			t.Fatalf("identity proof element %d did not round trip", index)
+		}
 	}
 }
 
