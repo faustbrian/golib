@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-gremlins="${GREMLINS:-go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0}"
-
-${gremlins} unleash --config .gremlins.yml
+root="$(git rev-parse --show-toplevel)"
+exec "${root}/scripts/check-mutation.sh" pkg/cli

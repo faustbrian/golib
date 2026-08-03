@@ -13,28 +13,12 @@ forbidden-runtime scans, documentation examples, API compatibility, workflow
 validation, Staticcheck, strict golangci-lint, advisory NilAway, govulncheck,
 benchmarks, and mutation testing.
 
-The initial mutation run on 2026-07-16 discovered 173 runnable mutations with
-100% mutant coverage. It killed 105 of 155 scored mutants, for 67.74% efficacy;
-18 deadlocking mutants timed out. Surviving boundary mutants were audited:
-
-- meaningful survivors around independent resource limits, non-zero elapsed
-  subtraction, nested waiter result arithmetic, empty shutdown, and observation
-  outcomes received stronger assertions;
-- equivalent mutations include generation changes after an object is already
-  inactive, zero-duration `> 0` boundary changes, and diagnostic arithmetic
-  that cannot change whether work fires;
-- the release gate requires 100% mutant coverage and at least 65% efficacy, and
-  keeps the full JSON result available as a local artifact.
-
-The final release-tree run evaluated 166 mutations. It killed 134 of 149 scored
-mutants, timed out 17 deadlocking mutants, covered every mutant, and reached
-89.93% efficacy. All 15 survivors are equivalent under maintained invariants:
-strict heap comparisons have unique sequence keys, popped indices are never
-reused, zero-duration boundary variants add or wait for zero time, empty
-shutdown failure is a no-op, and target-selection variants take redundant
-coordinator steps without changing request completion or ordering. Meaningful
-resource counts, failed-reset rollback, observation outcomes, callback
-association, and request-relative result arithmetic are mutation-detecting.
+`make mutation` now delegates to the canonical content-addressed repository
+runner. It requires exact 100% efficacy and mutant coverage, with every viable
+mutant killed. Survivors, timeouts, uncovered mutants, malformed reports,
+missing packages, and unclassified results fail closed. Earlier standalone
+campaigns with accepted survivors or timeouts are historical and are not
+release evidence.
 
 Race stress uses 32 concurrent lifecycle workers plus a shutdown race spanning
 advance, reset, stop, wait, callback, cancellation, jump, and shutdown. Fuzz
@@ -51,15 +35,10 @@ and an explicit cap on outstanding advancement waiters. Regression tests prove
 both bounds while callbacks are active. Representative downstream verification
 is recorded in [integration.md](integration.md).
 
-The final 2026-07-17 release-tree audit reran the mutation gate with unchanged
-thresholds. It evaluated 174 mutations: 138 killed, 15 equivalent survivors,
-21 deadlocking timeouts, 100.00% mutant coverage, and 90.20% efficacy. The
-survivor audit found only invariant-equivalent strict-boundary substitutions;
-meaningful target-selection and callback-progress negations are killed. The
-audit also added direct Go `time` differential checks, JSON monotonic-loss
-proof, a timer/ticker/callback synctest composition test, explicit
-wall/monotonic jump scenarios, a blocking repeated race-stress target, and
-cold/contended benchmark baselines.
+The resource audit also added direct Go `time` differential checks, JSON
+monotonic-loss proof, a timer/ticker/callback synctest composition test,
+explicit wall/monotonic jump scenarios, a blocking repeated race-stress target,
+and cold/contended benchmark baselines.
 
 ## Requirement evidence matrix
 
@@ -72,7 +51,7 @@ cold/contended benchmark baselines.
 | Concurrency, panic, shutdown, and leaks | repeated `make stress`; full `make race`; callback panic tests; repeated leak target; internal heap-release tests |
 | Wall, monotonic, persistence, and synctest | independent jump tests; JSON round-trip test; `clocktest` bubble suites; semantic guide and compatibility matrix |
 | Resource and observation budgets | active/waiter/work-limit tests; tag boundary tests; bounded observation type; security scan |
-| Fuzz, mutation, compatibility, and performance | `make fuzz mutation api benchmark`; `mutation-results.json`; `docs/performance.md` |
+| Fuzz, mutation, compatibility, and performance | `make fuzz mutation api benchmark`; canonical repository evidence; `docs/performance.md` |
 | Release automation and advisory analysis | `make workflows`; blocking CI/release workflows; visible non-blocking `make nilaway` |
 
 The test names above are stable executable contracts, not line-coverage

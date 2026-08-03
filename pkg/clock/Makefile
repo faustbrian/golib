@@ -63,7 +63,6 @@ install-tools:
 	GOBIN=$(TOOLS_DIR) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 	GOBIN=$(TOOLS_DIR) $(GO) install go.uber.org/nilaway/cmd/nilaway@v0.0.0-20260710181136-2378218750e4
 	GOBIN=$(TOOLS_DIR) $(GO) install golang.org/x/vuln/cmd/govulncheck@v1.6.0
-	GOBIN=$(TOOLS_DIR) $(GO) install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
 	GOBIN=$(TOOLS_DIR) $(GO) install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
 staticcheck:
@@ -79,9 +78,7 @@ vuln:
 	$(TOOLS_DIR)/govulncheck ./...
 
 mutation:
-	$(TOOLS_DIR)/gremlins unleash . --integration --coverpkg ./... --workers 2 \
-		--timeout-coefficient 10 --threshold-mcover 100 \
-		--threshold-efficacy 65 --output mutation-results.json
+	$$(git rev-parse --show-toplevel)/scripts/check-mutation.sh pkg/clock
 
 workflows:
 	$(TOOLS_DIR)/actionlint .github/workflows/*.yml

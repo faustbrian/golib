@@ -4,6 +4,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of maintaining package-local thresholds and exclusions.
+
 ### Added
 
 - Explicit interaction modes, caller-supplied terminal capabilities, and

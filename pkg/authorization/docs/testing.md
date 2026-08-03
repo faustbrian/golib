@@ -50,13 +50,7 @@ of internal errors into allows and loss of cancellation behavior.
 
 ## Mutation testing
 
-`./scripts/check-mutation.sh` runs the pinned Gremlins release against all
-production packages. The repository enforces at least 85 percent test efficacy
-and 95 percent mutant coverage. These thresholds are based on a complete local
-baseline rather than a dry run and should only move upward.
-
-Timed-out mutants are reported separately because context, synchronization,
-and polling mutations can deliberately prevent termination. Lived mutants are
-not equivalent to defects, but each is a prompt to decide whether an assertion,
-an implementation simplification, or a documented equivalent mutant is
-appropriate.
+`./scripts/check-mutation.sh` delegates to the canonical repository runner for
+this module. It requires exact 100 percent efficacy and mutant coverage, a
+nonempty report, and `KILLED` status for every viable mutant. Lived, uncovered,
+timed-out, malformed, missing, or unclassified results fail the gate.

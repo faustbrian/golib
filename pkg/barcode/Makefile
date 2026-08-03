@@ -3,11 +3,6 @@ GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lin
 STATICCHECK ?= $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.7.0
 GOVULNCHECK ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.6.0
 ACTIONLINT ?= $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-GREMLINS ?= $(GO) run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
-MUTATION_EFFICACY ?= 80
-MUTATION_COVERAGE ?= 95
-MUTATION_TARGET ?= .
-MUTATION_WORKERS ?= 2
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
 
@@ -36,10 +31,7 @@ fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"
 
 mutation:
-	$(GREMLINS) unleash $(MUTATION_TARGET) --integration --coverpkg ./... \
-		--workers "$(MUTATION_WORKERS)" --silent \
-		--threshold-efficacy "$(MUTATION_EFFICACY)" \
-		--threshold-mcover "$(MUTATION_COVERAGE)"
+	$$(git rev-parse --show-toplevel)/scripts/check-mutation.sh pkg/barcode
 
 benchmark:
 	BENCH_TIME="$(BENCH_TIME)" ./scripts/check-benchmarks.sh

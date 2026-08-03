@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"go/parser"
 	"go/token"
 	"maps"
@@ -505,6 +506,83 @@ func TestValidateWorkspaceContentRequiresLocalZeroVersionReplacements(t *testing
 	invalid := strings.Replace(valid, "v0.0.0", "v0.1.0", 1)
 	if err := validateWorkspaceContent(invalid, current); err == nil {
 		t.Fatal("validateWorkspaceContent(v0.1.0) error = nil")
+	}
+}
+
+func TestValidateMutationThresholdsRequiresLiteralOneHundred(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		contents  string
+		wantError bool
+	}{
+		{
+			name: "exact thresholds",
+			contents: "gremlins unleash . --threshold-efficacy 100 " +
+				"--threshold-mcover 100\n",
+		},
+		{
+			name:      "reduced efficacy",
+			contents:  "gremlins unleash . --threshold-efficacy 99.99\n",
+			wantError: true,
+		},
+		{
+			name:      "reduced mutation coverage",
+			contents:  "gremlins unleash . --threshold-mcover 95\n",
+			wantError: true,
+		},
+		{
+			name:      "runtime override",
+			contents:  "gremlins unleash . --threshold-efficacy \"$(MUTATION_EFFICACY)\"\n",
+			wantError: true,
+		},
+		{
+			name:      "implicit defaults",
+			contents:  "gremlins unleash .\n",
+			wantError: true,
+		},
+		{
+			name:     "unrelated command",
+			contents: "printf '%s\\n' unleash\n",
+		},
+		{
+			name: "continued exact threshold",
+			contents: "gremlins unleash . --threshold-efficacy \\\n" +
+				"  100 --threshold-mcover 100\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateMutationThresholdContents("scripts/check-mutation.sh", []byte(test.contents))
+			if (err != nil) != test.wantError {
+				t.Fatalf(
+					"validateMutationThresholdContents() error = %v, wantError %t",
+					err,
+					test.wantError,
+				)
+			}
+		})
+	}
+}
+
+func TestRepositoryMutationCommandsCannotReduceThresholds(t *testing.T) {
+	root, err := repositoryRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(root, "modules.json"))
+	if err != nil {
+		t.Fatalf("read module catalog: %v", err)
+	}
+	current := catalog{}
+	if err := json.Unmarshal(contents, &current); err != nil {
+		t.Fatalf("decode module catalog: %v", err)
+	}
+	if err := validateMutationThresholds(root, current); err != nil {
+		t.Fatalf("validate repository mutation thresholds: %v", err)
 	}
 }
 

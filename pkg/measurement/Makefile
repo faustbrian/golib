@@ -3,7 +3,6 @@ GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lin
 STATICCHECK ?= $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.7.0
 GOVULNCHECK ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.6.0
 ACTIONLINT ?= $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-GREMLINS ?= $(GO) run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
 
@@ -33,7 +32,7 @@ fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"
 
 mutation:
-	$(GREMLINS) unleash . --integration --coverpkg ./... --workers 2
+	$$(git rev-parse --show-toplevel)/scripts/check-mutation.sh pkg/measurement
 
 benchmark:
 	$(GO) test ./... -run '^$$' -bench Benchmark -benchmem \

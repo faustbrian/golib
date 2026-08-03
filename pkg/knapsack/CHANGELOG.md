@@ -20,6 +20,9 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Delegate the root and nested-module mutation checks to the canonical
+  exact-100 repository runner; historical classifications no longer waive
+  uncovered mutants.
 - Refresh benchmark and clean-consumer evidence after owned dependency changes,
   recording the planned stable `v1.0.0` dependency versions.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

@@ -17,9 +17,8 @@ for standalone extraction, and `make actionlint` validates both when the
 monorepo workflow is present.
 
 Hosted mutation testing shards by package directory to stay within runner
-limits. Reproduce one shard with
-`make mutation MUTATION_TARGET=./imagedecode`; plain `make mutation` retains
-the complete local module gate.
+limits. `make mutation` invokes the same complete, exact repository mutation
+gate used by CI.
 
 Public API changes need an adoption note and compatibility assessment. Avoid
 including standards text whose redistribution is restricted.

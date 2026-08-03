@@ -21,11 +21,10 @@ vulnerability analysis, API compatibility, workflow/security linting, two
 benchmarks, 128 MiB admission stress under the race detector, advisory NilAway,
 and byte-identical release archive verification.
 
-Mutation killed 220 mutants with zero live or uncovered mutants, 100.00% test
-efficacy, and 100.00% mutant coverage. Six fail-safe nontermination mutations in
-admission or acquisition conditions timed out. Exact results remain
-reproducible with `make mutation`; the harness clears Go's test-result cache
-before measuring its timeout baseline.
+`make mutation` invokes the canonical content-addressed gate. It requires exact
+100.00% efficacy and mutant coverage, with every viable mutant killed. A
+timeout, survivor, uncovered mutant, malformed report, or missing result fails
+the release gate.
 
 ## Requirement map
 

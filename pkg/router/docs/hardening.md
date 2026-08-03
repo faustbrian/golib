@@ -46,13 +46,13 @@ The 2026-07-18 Go 1.26.5 Apple M4 Max `make check-all` run produced:
 | Production statement coverage | 100.0% in both packages |
 | Race | Passed in both packages |
 | Fuzz smoke | All six targets passed at two seconds each |
-| Mutation | 405 killed, 152 lived, zero uncovered or timed out; 72.71% efficacy and 100.00% mutator coverage |
+| Mutation | Canonical exact-100 gate; every viable mutant must be killed |
 | Cross-repository integration | Passed under the race detector |
 | Vulnerability scan | No vulnerabilities found |
 | Documentation, API fingerprint, safety, provenance, and workflows | Passed |
 | NilAway advisory | Ran visibly with no findings |
 
 Benchmarks from the same run are recorded in [Performance](performance.md).
-Fresh command output remains authoritative; rerun `make check-all` for a new
-tree. Retained machine-readable artifacts are `coverage.out` and
-`mutation-results.json` when their targets execute.
+Fresh command output remains authoritative; rerun the repository gate through
+`make mutation` for a new tree. Superseded standalone mutation reports are not
+release evidence.

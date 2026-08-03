@@ -7,6 +7,11 @@ Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of accepting package-local survivors.
+
 ### Added
 
 - An explicit request-target byte budget enforced before dispatch matching.

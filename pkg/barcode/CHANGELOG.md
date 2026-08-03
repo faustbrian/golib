@@ -1,5 +1,7 @@
 # Changelog
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of configurable package-local thresholds.
 - Activate the complete barcode gate at the monorepo workflow root, with
   path filtering, scheduled fuzzing, benchmark artifacts, and manual dispatch.
 - Shard hosted mutation testing by package directory while retaining the full

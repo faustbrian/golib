@@ -15,6 +15,8 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ### Changed
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  and remove the superseded package-local Gremlins toolchain and configuration.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

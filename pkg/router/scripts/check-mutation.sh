@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="v0.6.0"
-go run "github.com/go-gremlins/gremlins/cmd/gremlins@${version}" unleash . \
-  --integration --coverpkg ./... --workers 2 --timeout-coefficient 10 \
-  --threshold-mcover 100 --threshold-efficacy 65 \
-  --output mutation-results.json
+root="$(git rev-parse --show-toplevel)"
+exec "${root}/scripts/check-mutation.sh" pkg/router

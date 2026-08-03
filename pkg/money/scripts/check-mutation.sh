@@ -13,7 +13,7 @@ go run "github.com/go-gremlins/gremlins/cmd/gremlins@$gremlins_version" \
   --timeout-coefficient 10 \
   --output-statuses l \
   --threshold-efficacy 100 \
-  --threshold-mcover 97
+  --threshold-mcover 100
 
 run_mutant() {
   name="$1"

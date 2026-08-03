@@ -972,13 +972,10 @@ branch when checking a wider change set. The pinned checker compares exported
 Go declarations; behavioral compatibility remains covered by tests and the
 semantic diff package.
 
-`make mutation MUTATION_PATH=./security` runs the pinned mutation engine for
-one package and independently rejects every lived, uncovered, timed-out,
-skipped, or otherwise unresolved mutant. The default path is `./security`.
-Set `MUTATION_INTEGRATION=true` for command packages. The scheduled CI matrix
-shards every production package, isolates the root package from recursive
-subpackages, and requires strict 100% efficacy and mutator coverage in every
-shard.
+`make mutation` invokes the same canonical content-addressed mutation runner as
+CI for the complete module. It shards production packages internally and
+requires strict 100% efficacy and mutator coverage in every shard. Package,
+operator, timeout, and exclusion overrides are intentionally unavailable.
 
 Run `make benchmark` for allocation-reporting comparisons of representative
 100-path parsing, warm validation, canonical JSON serialization, internal

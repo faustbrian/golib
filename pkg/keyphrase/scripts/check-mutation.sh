@@ -1,8 +1,5 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
-command -v gremlins >/dev/null 2>&1 || {
-    printf '%s\n' 'gremlins is missing; run make tools' >&2
-    exit 1
-}
-gremlins unleash
+root="$(git rev-parse --show-toplevel)"
+exec "${root}/scripts/check-mutation.sh" pkg/keyphrase

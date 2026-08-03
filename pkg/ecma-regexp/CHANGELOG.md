@@ -9,6 +9,8 @@ and this project intends to use semantic versioning after its first release.
 
 ### Changed
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of maintaining package-local exclusions and reduced thresholds.
 - Mutation campaigns reuse the external Test262 coverage baseline while
   exercising each mutant without reinvoking the external corpus.
 - Provision pinned Node and Deno runtimes for the required multi-engine

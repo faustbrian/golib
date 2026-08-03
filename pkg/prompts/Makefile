@@ -6,7 +6,6 @@ NILAWAY ?= $(GO) run go.uber.org/nilaway/cmd/nilaway@v0.0.0-20260720194628-9fd1b
 GITLEAKS ?= $(GO) run github.com/zricethezav/gitleaks/v8@v8.30.1
 ACTIONLINT ?= $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 APIDIFF ?= $(GO) run golang.org/x/exp/cmd/apidiff@v0.0.0-20260718201538-764159d718ef
-GREMLINS ?= $(GO) run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
 GO_LICENSES ?= $(GO) run github.com/google/go-licenses/v2@v2.0.1
 CYCLONEDX ?= $(GO) run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0
 
@@ -61,14 +60,7 @@ license:
 	GOWORK=off $(GO_LICENSES) check ./...
 
 mutation:
-	@set -e; output="$$(mktemp)"; \
-		trap 'status=$$?; rm -f "$$output"; exit $$status' EXIT; \
-		GOWORK=off $(GREMLINS) unleash --workers 4 --test-cpu 1 \
-		--timeout-coefficient 50 --threshold-efficacy 99.99 \
-		--threshold-mcover 99.99 --exclude-files '^scripts/' \
-		--exclude-files '^terminal/echo_.*\.go$$' \
-		--output "$$output" .; \
-		! grep -Eq '"status":"(LIVED|TIMED OUT)"' "$$output"
+	$$(git rev-parse --show-toplevel)/scripts/check-mutation.sh pkg/prompts
 
 reproducible:
 	./scripts/check-reproducible-source.sh

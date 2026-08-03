@@ -134,8 +134,7 @@ Fresh final verification on Darwin arm64 with Go 1.26.5 used these commands:
 | `make interoperability` | Passed pinned matrix and public corpus |
 | `make performance` | Passed every semantic and allocation budget |
 | `make benchmark` | Passed all 23 benchmarks |
-| `make mutation MUTATION_PATH=./validate MUTATION_TIMEOUT_COEFFICIENT=60` | Passed with no unresolved mutant |
-| `make mutation MUTATION_PATH=./internal/specification/cmd/specmatrix MUTATION_INTEGRATION=true` | Passed with 21 killed and no unresolved mutant |
+| `make mutation` | Canonical exact-100 module mutation gate |
 | `GOOS=linux GOARCH=amd64 go build ./...` | Passed |
 | Windows test-binary cross-compilation for every package | Passed |
 

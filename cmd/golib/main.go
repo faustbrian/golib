@@ -33,6 +33,10 @@ var ownedDependencyPseudoVersionPattern = regexp.MustCompile(
 	`^v0\.0\.0-[0-9]{14}-[0-9a-f]{12}$`,
 )
 
+var mutationThresholdPattern = regexp.MustCompile(
+	`--threshold-(efficacy|mcover)(?:[[:space:]]+|=)[[:space:]]*([^[:space:]\\]+)`,
+)
+
 type catalog struct {
 	SchemaVersion int      `json:"schema_version"`
 	Repository    string   `json:"repository"`
@@ -200,6 +204,9 @@ func validate(root string) {
 	}
 
 	validateWorkspace(root, wanted)
+	if err := validateMutationThresholds(root, wanted); err != nil {
+		fatal("validate mutation thresholds: %v", err)
+	}
 	validatePaths(root)
 	fmt.Printf("validated %d modules and %d packages\n", len(wanted.Modules), packageCount(wanted))
 }
@@ -1396,6 +1403,77 @@ func validateWorkspaceContent(text string, current catalog) error {
 		}
 	}
 
+	return nil
+}
+
+func validateMutationThresholds(root string, current catalog) error {
+	for _, item := range current.Modules {
+		if !item.Gates["mutation"] {
+			continue
+		}
+		base := filepath.Join(root, item.Directory)
+		err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if path != base && excludedSourceDirectory(entry.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if entry.Name() == ".gremlins.yml" || entry.Name() == ".gremlins.yaml" {
+				return fmt.Errorf(
+					"%s duplicates canonical mutation policy; package-local Gremlins configuration is forbidden",
+					filepath.ToSlash(path),
+				)
+			}
+			if entry.Name() != "Makefile" && filepath.Ext(entry.Name()) != ".sh" &&
+				filepath.Ext(entry.Name()) != ".mk" {
+				return nil
+			}
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			relative, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			return validateMutationThresholdContents(filepath.ToSlash(relative), contents)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateMutationThresholdContents(path string, contents []byte) error {
+	normalized := bytes.ReplaceAll(contents, []byte("\\\r\n"), []byte(" "))
+	normalized = bytes.ReplaceAll(normalized, []byte("\\\n"), []byte(" "))
+	thresholds := map[string]bool{}
+	for _, match := range mutationThresholdPattern.FindAllSubmatch(normalized, -1) {
+		name := string(match[1])
+		value := strings.Trim(string(match[2]), "'\"")
+		if value != "100" {
+			return fmt.Errorf(
+				"%s configures mutation threshold %q; thresholds must be literal 100",
+				path,
+				value,
+			)
+		}
+		thresholds[name] = true
+	}
+	lower := bytes.ToLower(normalized)
+	if bytes.Contains(lower, []byte("gremlins")) &&
+		bytes.Contains(lower, []byte("unleash")) &&
+		(!thresholds["efficacy"] || !thresholds["mcover"]) {
+		return fmt.Errorf(
+			"%s invokes Gremlins directly without literal 100 efficacy and mutator coverage thresholds",
+			path,
+		)
+	}
 	return nil
 }
 

@@ -12,6 +12,8 @@ versioning after v1.
 
 ### Changed
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  and remove the superseded package-local Gremlins configuration.
 - Remove an obsolete conversion suppression now that Argon2id parallelism is
   parsed at eight-bit width.
 - Execute API compatibility tooling against the isolated module graph so owned

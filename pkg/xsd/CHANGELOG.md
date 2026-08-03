@@ -7,6 +7,8 @@ at its first stable release.
 
 ### Changed
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of a reduced package-local efficacy threshold.
 - Avoid retaining a pre-compilation complex-type lookup that must be refreshed
   after recursive base compilation.
 - Execute API compatibility tooling against the isolated module graph so owned

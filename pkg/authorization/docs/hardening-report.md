@@ -54,12 +54,9 @@ mapper trust and publisher approval remain application responsibilities.
   tests outside the core dependency graph.
 - Race detector, 100 percent production statement coverage, lint, vet,
   vulnerability, API compatibility, examples, docs, and workflow checks.
-- Pinned whole-module mutation gate with an 85 percent efficacy and 95 percent
-  mutant-coverage floor.
-- Controlled whole-module mutation run: 584 killed, 26 lived, 29 not covered,
-  and 9 deliberate nontermination timeouts (95.74 percent efficacy and 95.46
-  percent mutant coverage). Every lived decision-path mutant was reviewed; none
-  changes a deny or non-applicable result into an allow.
+- Canonical content-addressed mutation gate with exact 100 percent efficacy and
+  mutant coverage. Every viable mutant must be killed; lived, uncovered,
+  timed-out, malformed, missing, or unclassified results fail closed.
 - Benchmarks for cold and warm decisions, batches, policy sizes, inheritance,
   predicates, compilation, and reload.
 

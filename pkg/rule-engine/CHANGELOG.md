@@ -7,6 +7,8 @@ Keep a Changelog and semantic versioning.
 
 ### Changed
 
+- Delegate core and adapter mutation checks to the canonical exact-100
+  repository runner instead of package-specific thresholds and exclusions.
 - Keep standalone module tidiness in the release gate instead of requiring an
   unpublished canonical tag before running local competitor benchmarks.
 - Verify optional domain adapters through their independently attributable

@@ -7,6 +7,8 @@ semantic versioning after the first tagged release.
 
 ### Changed
 
+- Require exact 100% mutant coverage in the package mutation command while
+  retaining the package's explicit behavioral mutants.
 - Reuse the repository-provided API compatibility tool during isolated checks
   so mutable local dependency archives never conflict with source checksums.
 - Pin unpublished owned modules to exact resolvable revisions so clean

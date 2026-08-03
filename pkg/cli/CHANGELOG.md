@@ -9,6 +9,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  and remove the superseded package-local Gremlins configuration.
 - Record PFlag as a direct dependency of the competitor benchmark harness and
   remove its redundant indirect declaration.
 - Replace the internal Cobra/PFlag adapter with a dependency-free,

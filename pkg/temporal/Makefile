@@ -5,7 +5,6 @@ GOLANGCI_LINT_VERSION := v2.12.2
 STATICCHECK_VERSION := v0.7.0
 NILAWAY_VERSION := v0.0.0-20260710181136-2378218750e4
 GOVULNCHECK_VERSION := v1.6.0
-GREMLINS_VERSION := v0.3.0
 ACTIONLINT_VERSION := v1.7.12
 APIDIFF_VERSION := v0.0.0-20260709172345-9ea1abe57597
 TOOLS_BIN := $(CURDIR)/.tools/bin
@@ -63,11 +62,8 @@ fuzz-smoke:
 bench:
 	$(GO) test -run='^$$' -bench=. -benchmem ./...
 
-mutation: $(TOOLS_BIN)/gremlins
-	@for package in . instant dateperiod timeofday notation postgres; do \
-		echo "mutation package: $$package"; \
-		$(TOOLS_BIN)/gremlins unleash "$$package" || exit 1; \
-	done
+mutation:
+	$$(git rev-parse --show-toplevel)/scripts/check-mutation.sh pkg/temporal
 
 vuln: $(TOOLS_BIN)/govulncheck
 	$(TOOLS_BIN)/govulncheck ./...
@@ -95,7 +91,7 @@ api-check:
 		$$apidiff -m -incompatible api/v1.export "$$current"
 
 tools: $(TOOLS_BIN)/golangci-lint $(TOOLS_BIN)/staticcheck $(TOOLS_BIN)/nilaway \
-	$(TOOLS_BIN)/govulncheck $(TOOLS_BIN)/gremlins $(TOOLS_BIN)/actionlint \
+	$(TOOLS_BIN)/govulncheck $(TOOLS_BIN)/actionlint \
 	$(TOOLS_BIN)/apidiff
 
 $(TOOLS_BIN):
@@ -112,9 +108,6 @@ $(TOOLS_BIN)/nilaway: | $(TOOLS_BIN)
 
 $(TOOLS_BIN)/govulncheck: | $(TOOLS_BIN)
 	GOBIN=$(TOOLS_BIN) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
-
-$(TOOLS_BIN)/gremlins: | $(TOOLS_BIN)
-	GOBIN=$(TOOLS_BIN) $(GO) install github.com/go-gremlins/gremlins/cmd/gremlins@$(GREMLINS_VERSION)
 
 $(TOOLS_BIN)/actionlint: | $(TOOLS_BIN)
 	GOBIN=$(TOOLS_BIN) $(GO) install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)

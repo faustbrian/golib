@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reject reduced, implicit, or runtime-overridable package mutation thresholds
+  and route package entry points through the canonical exact-100 runner.
 - Terminate and await complete verification-lane process trees before deleting
   their snapshots, preserving in-flight evidence during cancellation.
 - Ignore deleted tracked paths when fingerprinting the live working tree so a

@@ -5,6 +5,11 @@ the module follows semantic versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Delegate local mutation checks to the canonical exact-100 repository runner
+  instead of accepting package-local survivors and timeouts.
+
 ### Added
 
 - Differential system lifecycle, persistence monotonic-loss, synctest timer,
