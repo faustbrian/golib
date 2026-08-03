@@ -172,12 +172,16 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		time.Now().UnixNano(),
 	)
 	transactionTopic := prefix + "-producer"
+	fencingTopic := prefix + "-producer-fencing"
+	timeoutTopic := prefix + "-producer-timeout"
 	failureTopic := prefix + "-producer-failure"
 	recoveryTopic := prefix + "-producer-recovery"
 	sourceTopic := prefix + "-source"
 	outputTopic := prefix + "-output"
 	for _, topic := range []string{
 		transactionTopic,
+		fencingTopic,
+		timeoutTopic,
 		failureTopic,
 		recoveryTopic,
 		sourceTopic,
@@ -269,6 +273,14 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		return len(state.Partitions) == 1 && allPartitionsMatch(state, 3, 3)
 	})
 	proveProducerTransactionVisibility(t, ctx, brokers, recoveryTopic)
+	proveProducerFencing(t, ctx, brokers, fencingTopic)
+	proveTransactionTimeout(
+		t,
+		ctx,
+		brokers,
+		timeoutTopic,
+		transactionTimeoutFenced,
+	)
 }
 
 func TestApacheKafkaReplayFailsClosedAfterUncleanElectionTruncation(
@@ -1859,6 +1871,30 @@ func TestApacheKafkaTransactionTimeout(t *testing.T) {
 		time.Now().UnixNano(),
 	)
 	createApacheKafkaTopic(t, ctx, brokers, topic, 1)
+	proveTransactionTimeout(
+		t,
+		ctx,
+		brokers,
+		topic,
+		transactionTimeoutUnknown,
+	)
+}
+
+type transactionTimeoutOutcome uint8
+
+const (
+	transactionTimeoutUnknown transactionTimeoutOutcome = iota + 1
+	transactionTimeoutFenced
+)
+
+func proveTransactionTimeout(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	wantOutcome transactionTimeoutOutcome,
+) {
+	t.Helper()
 
 	adminClient, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
@@ -1910,16 +1946,7 @@ func TestApacheKafkaTransactionTimeout(t *testing.T) {
 		)
 	})
 
-	var transactionErr *kafka.TransactionError
-	if !errors.As(err, &transactionErr) ||
-		transactionErr.Operation() != kafka.TransactionOperationCommit ||
-		transactionErr.Category() != kafka.ErrorAmbiguous ||
-		transactionErr.Abortable() ||
-		transactionErr.OutcomeKnown() ||
-		!errors.Is(err, kafka.ErrTransactionOutcomeUnknown) ||
-		!errors.Is(err, kerr.InvalidTxnState) {
-		t.Fatalf("expired transaction error = %v", err)
-	}
+	assertTransactionTimeoutOutcome(t, err, wantOutcome)
 
 	assertNoApacheKafkaTransactionValues(
 		t,
@@ -1935,6 +1962,40 @@ func TestApacheKafkaTransactionTimeout(t *testing.T) {
 		1,
 	); len(values) != 1 || values[0] != "expired" {
 		t.Fatalf("read-uncommitted expired values = %q", values)
+	}
+}
+
+func assertTransactionTimeoutOutcome(
+	t *testing.T,
+	err error,
+	wantOutcome transactionTimeoutOutcome,
+) {
+	t.Helper()
+
+	var transactionErr *kafka.TransactionError
+	if !errors.As(err, &transactionErr) ||
+		transactionErr.Operation() != kafka.TransactionOperationCommit ||
+		transactionErr.Abortable() {
+		t.Fatalf("expired transaction error = %v", err)
+	}
+	switch wantOutcome {
+	case transactionTimeoutUnknown:
+		if transactionErr.Category() != kafka.ErrorAmbiguous ||
+			transactionErr.OutcomeKnown() ||
+			!errors.Is(err, kafka.ErrTransactionOutcomeUnknown) ||
+			!errors.Is(err, kerr.InvalidTxnState) {
+			t.Fatalf("expired transaction error = %v", err)
+		}
+	case transactionTimeoutFenced:
+		if transactionErr.Category() != kafka.ErrorFenced ||
+			!transactionErr.OutcomeKnown() ||
+			errors.Is(err, kafka.ErrTransactionOutcomeUnknown) ||
+			(!errors.Is(err, kerr.ProducerFenced) &&
+				!errors.Is(err, kerr.InvalidProducerEpoch)) {
+			t.Fatalf("expired transaction error = %v", err)
+		}
+	default:
+		t.Fatalf("unknown transaction timeout outcome %d", wantOutcome)
 	}
 }
 
