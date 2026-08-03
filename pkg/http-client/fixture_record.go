@@ -78,13 +78,9 @@ func NewRecorderTransport(base http.RoundTripper, options RecorderOptions) (*Rec
 	if err != nil {
 		return nil, err
 	}
-	customSensitive := make(map[string]struct{}, len(options.SensitiveHeaders))
-	for _, name := range options.SensitiveHeaders {
-		canonical, nameErr := validateHeaderName(name)
-		if nameErr != nil {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
-		}
-		customSensitive[canonical] = struct{}{}
+	customSensitive, err := canonicalRecorderHeaderSet(options.SensitiveHeaders)
+	if err != nil {
+		return nil, err
 	}
 	for _, name := range matchHeaders {
 		if _, sensitive := customSensitive[name]; sensitive {
@@ -113,14 +109,12 @@ func NewRecorderTransport(base http.RoundTripper, options RecorderOptions) (*Rec
 		[]string{"Date", "Server", "Traceparent", "Tracestate", "X-Request-ID"},
 		options.VolatileHeaders...,
 	)
-	volatileNames = append(volatileNames, options.SensitiveHeaders...)
-	volatileHeaders := make(map[string]struct{}, len(volatileNames))
-	for _, name := range volatileNames {
-		canonical, nameErr := validateHeaderName(name)
-		if nameErr != nil {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
-		}
-		volatileHeaders[canonical] = struct{}{}
+	volatileHeaders, err := canonicalRecorderHeaderSet(volatileNames)
+	if err != nil {
+		return nil, err
+	}
+	for name := range customSensitive {
+		volatileHeaders[name] = struct{}{}
 	}
 	clock := options.Clock
 	if clock == nil {
@@ -311,6 +305,18 @@ func sortedFixtureQueryNames(names map[string]struct{}) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func canonicalRecorderHeaderSet(names []string) (map[string]struct{}, error) {
+	result := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		canonical, err := validateHeaderName(name)
+		if err != nil {
+			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
+		}
+		result[canonical] = struct{}{}
+	}
+	return result, nil
 }
 
 func fixtureRequestBody(content []byte) io.ReadCloser {

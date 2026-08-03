@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -192,15 +193,13 @@ func TestRecorderRejectsUnsafeConfigurationAndRuntimeBoundaries(t *testing.T) {
 		},
 	}
 	for index, construct := range constructors {
-		if _, err := construct(); !errors.Is(err, ErrInvalidFixture) {
-			t.Fatalf("invalid recorder %d error = %v", index, err)
-		}
+		_, err := construct()
+		requireFixtureError(t, err, ErrInvalidFixture, -1, "invalid recorder %d", index)
 	}
 
 	recorder, _ := NewRecorderTransport(telemetryNoContentTransport(), RecorderOptions{})
-	if _, err := recorder.RoundTrip(nil); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("nil record request = %v", err)
-	}
+	_, err := recorder.RoundTrip(nil)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "nil record request")
 	canceledContext, cancel := context.WithCancel(context.Background())
 	cancel()
 	canceled, _ := http.NewRequestWithContext(canceledContext, http.MethodGet, "https://example.test", nil)
@@ -250,8 +249,11 @@ func TestRecorderRejectsUnsafeConfigurationAndRuntimeBoundaries(t *testing.T) {
 					t.Fatalf("boundary response = %#v, %v", response, err)
 				}
 				_ = response.Body.Close()
-			} else if !errors.Is(err, test.want) || response != nil {
-				t.Fatalf("boundary response = %#v, %v, want %v", response, err, test.want)
+			} else {
+				if response != nil {
+					t.Fatalf("boundary response = %#v, want nil", response)
+				}
+				requireFixtureError(t, err, test.want, -1, "%s boundary", test.name)
 			}
 		})
 	}
@@ -259,17 +261,15 @@ func TestRecorderRejectsUnsafeConfigurationAndRuntimeBoundaries(t *testing.T) {
 	limited, _ := NewRecorderTransport(telemetryNoContentTransport(), RecorderOptions{})
 	limited.maximumInteractions = 0
 	request, _ := http.NewRequest(http.MethodGet, "https://example.test", nil)
-	if _, err := limited.RoundTrip(request); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("interaction limit error = %v", err)
-	}
+	_, err = limited.RoundTrip(request)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "interaction limit")
 	failureLimited, _ := NewRecorderTransport(roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("transport")
 	}), RecorderOptions{})
 	failureLimited.maximumInteractions = 0
 	request, _ = http.NewRequest(http.MethodGet, "https://example.test", nil)
-	if _, err := failureLimited.RoundTrip(request); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("failure interaction limit error = %v", err)
-	}
+	_, err = failureLimited.RoundTrip(request)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "failure interaction limit")
 
 	closeProbe := &fixtureCloseProbe{}
 	transportFailure := errors.New("transport failure")
@@ -286,6 +286,107 @@ func TestRecorderRejectsUnsafeConfigurationAndRuntimeBoundaries(t *testing.T) {
 		classifyFixtureFailure(context.DeadlineExceeded) != FixtureFailureTimeout ||
 		classifyFixtureFailure(errors.New("transport")) != FixtureFailureTransport {
 		t.Fatal("fixture failure classification is unstable")
+	}
+}
+
+func TestRecorderAcceptsExactBodyAndTTLBoundaries(t *testing.T) {
+	clock := &fixtureTestClock{now: time.Unix(1_700_000_000, 0).UTC()}
+	recorder, err := NewRecorderTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode:    http.StatusOK,
+			Header:        make(http.Header),
+			Body:          io.NopCloser(strings.NewReader("x")),
+			Request:       request,
+			ContentLength: 1,
+		}, nil
+	}), RecorderOptions{
+		MaximumBodyBytes: 1,
+		Clock:            clock,
+		ResponseBodyRedactor: FixtureBodyRedactorFunc(func(content []byte) ([]byte, error) {
+			return content, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("construct exact minimum recorder: %v", err)
+	}
+	if !recorder.fixture.ExpiresAt.IsZero() {
+		t.Fatalf("zero TTL expiry = %v", recorder.fixture.ExpiresAt)
+	}
+	request, _ := http.NewRequest(http.MethodPost, "https://example.test", strings.NewReader("x"))
+	response, err := recorder.RoundTrip(request)
+	if err != nil {
+		t.Fatalf("record exact body limit: %v", err)
+	}
+	_ = response.Body.Close()
+	fixture := recorder.Fixture()
+	if len(fixture.Interactions) != 1 || string(fixture.Interactions[0].Response.Body) != "x" {
+		t.Fatalf("exact body fixture = %#v", fixture)
+	}
+
+	maximum, err := NewRecorderTransport(
+		telemetryNoContentTransport(),
+		RecorderOptions{MaximumBodyBytes: maximumFixtureBody},
+	)
+	if err != nil || maximum.maximumBody != maximumFixtureBody {
+		t.Fatalf("construct exact maximum recorder = %#v, %v", maximum, err)
+	}
+}
+
+func TestRecorderHeaderSelectionContinuesAfterOmittedNames(t *testing.T) {
+	header := http.Header{
+		"X-Omitted": []string{"private"},
+		"X-Stable":  []string{"second", "first"},
+	}
+	selected := selectFixtureHeaders(
+		header,
+		[]string{"X-Omitted", "X-Stable"},
+		map[string]struct{}{"X-Omitted": {}},
+	)
+	if selected.Get("X-Omitted") != "" ||
+		!slices.Equal(selected.Values("X-Stable"), []string{"first", "second"}) {
+		t.Fatalf("selected fixture headers = %#v", selected)
+	}
+}
+
+func TestRecorderOmitsCustomSensitiveResponseHeaders(t *testing.T) {
+	recorder, err := NewRecorderTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Header:     http.Header{"X-Private": []string{"secret"}},
+			Body:       http.NoBody,
+			Request:    request,
+		}, nil
+	}), RecorderOptions{
+		ResponseHeaders:  []string{"X-Private"},
+		SensitiveHeaders: []string{"X-Private"},
+	})
+	if err != nil {
+		t.Fatalf("construct custom-sensitive recorder: %v", err)
+	}
+	request, _ := http.NewRequest(http.MethodGet, "https://example.test", nil)
+	response, err := recorder.RoundTrip(request)
+	if err != nil {
+		t.Fatalf("record custom-sensitive response: %v", err)
+	}
+	_ = response.Body.Close()
+	interaction := recorder.Fixture().Interactions[0]
+	if interaction.Response.Header.Get("X-Private") != "" {
+		t.Fatalf("recorded custom-sensitive header = %#v", interaction.Response.Header)
+	}
+}
+
+func requireFixtureError(
+	t *testing.T,
+	err error,
+	cause error,
+	interaction int,
+	format string,
+	arguments ...any,
+) {
+	t.Helper()
+	var fixtureErr *FixtureError
+	if !errors.Is(err, cause) || !errors.As(err, &fixtureErr) || fixtureErr.Interaction != interaction {
+		t.Fatalf(format+": error = %#v, want cause %v at interaction %d", append(arguments, err, cause, interaction)...)
 	}
 }
 
