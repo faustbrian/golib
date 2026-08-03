@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Bound Docker service cleanup so an unresponsive removal cannot stall a
+  verification lane indefinitely, while continuing cleanup for later services.
 - Reject reduced, implicit, or runtime-overridable package mutation thresholds
   and route package entry points through the canonical exact-100 runner.
 - Terminate and await complete verification-lane process trees before deleting

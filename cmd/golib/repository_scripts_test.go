@@ -20,6 +20,62 @@ import (
 	"time"
 )
 
+func TestStopServicesBoundsHungDockerCleanup(t *testing.T) {
+	root := testRepositoryRoot(t)
+	bin := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "docker.log")
+	stateFile := filepath.Join(t.TempDir(), "services")
+	docker := filepath.Join(bin, "docker")
+	writeTestFile(t, docker, `#!/bin/sh
+if [ "$3" = "hung" ]; then
+    exec sleep 30
+fi
+printf '%s\n' "$3" >>"$FAKE_DOCKER_LOG"
+`)
+	if err := os.Chmod(docker, 0o700); err != nil {
+		t.Fatalf("make fake Docker executable: %v", err)
+	}
+	writeTestFile(t, stateFile, "hung\nhealthy\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	command := exec.CommandContext(
+		ctx,
+		filepath.Join(root, "scripts", "stop-services.sh"),
+		stateFile,
+	)
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(command.Env, "FAKE_DOCKER_LOG", logFile)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_DOCKER_CLEANUP_TIMEOUT_SECONDS",
+		"1",
+	)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}
+	command.WaitDelay = time.Second
+	result, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("stop services: %v\n%s", err, result)
+	}
+	if !strings.Contains(string(result), "timed out removing Docker container hung") {
+		t.Fatalf("stop services output = %q", result)
+	}
+	removed, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("read Docker removal log: %v", err)
+	}
+	if string(removed) != "healthy\n" {
+		t.Fatalf("Docker removal log = %q, want healthy", removed)
+	}
+}
+
 func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	root := testRepositoryRoot(t)
 	globalConfig := filepath.Join(t.TempDir(), "gitconfig")
