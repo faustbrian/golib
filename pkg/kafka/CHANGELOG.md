@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add equivalent mTLS and SASL/PLAIN producer performance workloads covering
+  warmed delivery and complete authenticated connection lifecycles
 - record the independently versioned `kafkaservice` lifecycle and readiness
   composition evidence in the Kafka compatibility and audit matrices
 - require the Kafka contract tests on Linux arm64 when Kafka gate inputs are

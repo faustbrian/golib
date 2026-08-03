@@ -172,12 +172,14 @@ The 2026-07-30 producer, consumer, and transaction capture and the 2026-07-31
 replay, inspection, rebalance, reconnect, and resource captures used Go 1.26.5
 on Darwin arm64 with an Apple M4 Max, Docker Desktop engine 29.6.2, and the
 immutable Confluent Local 7.5.0 fixture. The running broker reported
-`7.5.0-ccs`. The TLS capture used the same host and toolchain with the immutable
-Apache Kafka 4.3.1 fixture; runtime checks asserted Kafka 4.3.1, OpenSSL 3.5.7,
-and TLS 1.3. Exact module versions, input hashes, raw samples, and benchstat
+`7.5.0-ccs`. The TLS and 2026-08-03 authenticated-producer captures used the
+same host and toolchain with the immutable Apache Kafka 4.3.1 fixture; runtime
+checks asserted Kafka 4.3.1, OpenSSL 3.5.7, and TLS 1.3. Exact module versions,
+input hashes, raw samples, and benchstat
 distributions are stored with the
-[2026-07-30 capture](performance-results/2026-07-30/README.md) and
-[2026-07-31 capture](performance-results/2026-07-31/README.md).
+[2026-07-30 capture](performance-results/2026-07-30/README.md),
+[2026-07-31 capture](performance-results/2026-07-31/README.md), and
+[2026-08-03 authenticated capture](performance-results/2026-08-03/README.md).
 
 The local single-node broker shares CPU and networking with the benchmark
 process. In the refreshed single-record capture, observed median end-to-end
@@ -229,6 +231,18 @@ shutdown medians were 16.38 milliseconds, 16.08 milliseconds, and 13.41
 milliseconds. Persistent distributions spread as far as 99 percent on the
 shared local host, so they are descriptive evidence rather than client rankings
 or production budgets.
+
+Persistent mTLS medians ranged from 2.712 to 8.742 milliseconds for the policy
+path, 5.167 to 5.177 milliseconds for raw franz-go, and 11.27 to 14.06
+milliseconds for Sarama. Persistent SASL/PLAIN medians ranged from 2.075 to
+2.452 milliseconds for the policy path, 3.075 to 4.278 milliseconds for raw
+franz-go, and 15.06 to 16.76 milliseconds for Sarama. Complete authenticated
+connection, one-record delivery, and shutdown medians were 143.5, 76.23, and
+64.08 milliseconds for mTLS and 121.0, 127.2, and 138.0 milliseconds for
+SASL/PLAIN, respectively. Distributions spread as far as 243 percent, so the
+capture is descriptive local evidence rather than a ranking or regression
+budget. SCRAM, OAUTHBEARER, external identity-provider, and credential-rotation
+performance remain unverified.
 
 Producer transaction medians for one record ranged from 6.37 to 25.92
 milliseconds for the policy path, 6.63 to 24.07 milliseconds for raw

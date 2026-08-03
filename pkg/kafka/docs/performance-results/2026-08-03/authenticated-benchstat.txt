@@ -1,0 +1,100 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/faustbrian/golib/pkg/kafka/benchmarks/clients
+cpu: Apple M4 Max
+                                                                           │ raw-authenticated.txt │
+                                                                           │        sec/op         │
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/golib-policy-16                  8.742m ±  60%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/raw-franz-go-16                  5.177m ± 167%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/sarama-16                        11.27m ±  52%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/golib-policy-16                 2.712m ± 113%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/raw-franz-go-16                 5.167m ±  59%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/sarama-16                       14.06m ±  46%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/golib-policy-16            2.452m ±  84%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/raw-franz-go-16            3.075m ± 102%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/sarama-16                  15.06m ±  36%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/golib-policy-16           2.075m ± 105%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/raw-franz-go-16           4.278m ± 243%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/sarama-16                 16.76m ±  67%
+EquivalentAuthenticatedConnectProduceClose/mtls/golib-policy-16                      143.5m ±  41%
+EquivalentAuthenticatedConnectProduceClose/mtls/raw-franz-go-16                      76.23m ±  94%
+EquivalentAuthenticatedConnectProduceClose/mtls/sarama-16                            64.08m ±  24%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/golib-policy-16                121.0m ±  38%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/raw-franz-go-16                127.2m ±  35%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/sarama-16                      138.0m ±  42%
+geomean                                                                              15.45m
+
+                                                                           │ raw-authenticated.txt │
+                                                                           │          B/s          │
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/golib-policy-16                 9.766Ki ± 200%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/raw-franz-go-16                 29.30Ki ± 100%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/sarama-16                       9.766Ki ±   0%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/golib-policy-16                366.2Ki ± 116%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/raw-franz-go-16                190.4Ki ± 146%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/sarama-16                      73.24Ki ±  33%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/golib-policy-16           53.71Ki ±  82%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/raw-franz-go-16           43.95Ki ± 100%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/sarama-16                 9.766Ki ±   0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/golib-policy-16          483.4Ki ±  52%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/raw-franz-go-16          253.9Ki ±  73%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/sarama-16                58.59Ki ±  50%
+geomean                                                                             60.42Ki
+
+                                                                           │ raw-authenticated.txt │
+                                                                           │         B/op          │
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/golib-policy-16                   5.162Ki ± 2%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/raw-franz-go-16                   4.461Ki ± 4%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/sarama-16                         6.003Ki ± 1%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/golib-policy-16                  6.514Ki ± 4%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/raw-franz-go-16                  4.617Ki ± 1%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/sarama-16                        7.871Ki ± 0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/golib-policy-16             5.199Ki ± 2%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/raw-franz-go-16             4.318Ki ± 3%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/sarama-16                   6.043Ki ± 1%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/golib-policy-16            6.259Ki ± 4%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/raw-franz-go-16            4.679Ki ± 6%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/sarama-16                  8.042Ki ± 2%
+EquivalentAuthenticatedConnectProduceClose/mtls/golib-policy-16                       423.2Ki ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/raw-franz-go-16                       393.2Ki ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/sarama-16                             857.5Ki ± 1%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/golib-policy-16                 387.0Ki ± 1%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/raw-franz-go-16                 381.4Ki ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/sarama-16                       895.3Ki ± 1%
+geomean                                                                               25.43Ki
+
+                                                                           │ raw-authenticated.txt │
+                                                                           │       allocs/op       │
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/golib-policy-16                     71.00 ± 1%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/raw-franz-go-16                     61.00 ± 2%
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/sarama-16                           96.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/golib-policy-16                    71.50 ± 1%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/raw-franz-go-16                    60.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/mtls/1024B/sarama-16                          96.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/golib-policy-16               71.00 ± 1%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/raw-franz-go-16               60.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/128B/sarama-16                     96.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/golib-policy-16              71.00 ± 0%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/raw-franz-go-16              60.50 ± 1%
+EquivalentAuthenticatedSynchronousProduce/sasl-plain/1024B/sarama-16                    96.00 ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/golib-policy-16                        3.006k ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/raw-franz-go-16                        2.616k ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/sarama-16                              5.549k ± 2%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/golib-policy-16                  2.713k ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/raw-franz-go-16                  2.635k ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/sarama-16                        6.310k ± 2%
+geomean                                                                                 269.7
+
+                                                                    │ raw-authenticated.txt │
+                                                                    │         MB/s          │
+EquivalentAuthenticatedSynchronousProduce/mtls/128B/raw-franz-go-16             0.000 ± ∞ ¹
+¹ need >= 6 samples for confidence interval at level 0.95
+
+                                                                      │ raw-authenticated.txt │
+                                                                      │    connections/op     │
+EquivalentAuthenticatedConnectProduceClose/mtls/golib-policy-16                    1.000 ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/raw-franz-go-16                    1.000 ± 0%
+EquivalentAuthenticatedConnectProduceClose/mtls/sarama-16                          1.000 ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/golib-policy-16              1.000 ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/raw-franz-go-16              1.000 ± 0%
+EquivalentAuthenticatedConnectProduceClose/sasl-plain/sarama-16                    1.000 ± 0%
+geomean                                                                            1.000

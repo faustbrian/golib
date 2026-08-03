@@ -202,6 +202,26 @@ certificate material never enter captured output. The fixture permits only TLS
 asserts the negotiated protocol and reads every exact produced key and value
 through a separate verified TLS client.
 
+`BenchmarkEquivalentAuthenticatedSynchronousProduce` applies the same warmed
+producer, payload, acknowledgement, idempotence, partitioning, and TLS 1.3
+contract to two authenticated listeners: required mutual TLS and SASL/PLAIN
+over verified TLS. `BenchmarkEquivalentAuthenticatedConnectProduceClose`
+measures the corresponding complete authenticated connection, one-record
+delivery, and bounded shutdown lifecycle. Ten samples of ten operations
+produce 1,200 persistent deliveries across the payload matrix and 600 complete
+authenticated connection lifecycles. The policy path uses its rotating
+client-certificate or username/password provider boundary; raw franz-go and
+Sarama use the same immutable certificate or credentials directly. This keeps
+the policy cost inside the measured security contract without claiming that a
+local ephemeral credential lookup represents an external credential service.
+
+`TestEquivalentAuthenticatedProducerOutcomes` independently proves TLS 1.3
+negotiation and exact broker-visible keys and values for all three clients
+through both listeners. The fixture generates every private key and password
+at runtime and never writes credential values to benchmark output. These
+workloads do not establish SCRAM, OAUTHBEARER, identity-provider, or credential
+rotation performance.
+
 ## Equivalent transactional workloads
 
 `BenchmarkEquivalentTransactionalProduce` compares one stable transactional

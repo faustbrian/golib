@@ -11,14 +11,17 @@ RESOURCE_PATTERN ?= ^BenchmarkEquivalentInspection(Reconnect|IdleResources)$$
 TLS_COUNT ?= 10
 TLS_TIME ?= 100x
 TLS_PATTERN ?= ^BenchmarkEquivalentTLS(SynchronousProduce|ConnectProduceClose)$$
+AUTH_COUNT ?= 10
+AUTH_TIME ?= 10x
+AUTH_PATTERN ?= ^BenchmarkEquivalentAuthenticated(SynchronousProduce|ConnectProduceClose)$$
 
-.PHONY: analyze benchmark capture environment rebalance-benchmark rebalance-capture resource-benchmark resource-capture test tls-benchmark tls-capture verify
+.PHONY: analyze auth-benchmark auth-capture benchmark capture environment rebalance-benchmark rebalance-capture resource-benchmark resource-capture test tls-benchmark tls-capture verify
 
 test:
 	@$(GO) test ./...
 
 verify:
-	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|ConsumerRebalance|TLSProducer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
+	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|ConsumerRebalance|TLSProducer|AuthenticatedProducer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
@@ -61,6 +64,17 @@ tls-capture:
 	@test -n '$(OUTPUT)'
 	@$(GO) test -tags=integration -run '^$$' -bench '$(TLS_PATTERN)' \
 		-benchmem -benchtime='$(TLS_TIME)' -count='$(TLS_COUNT)' \
+		> '$(OUTPUT)'
+	@cat '$(OUTPUT)'
+
+auth-benchmark:
+	@$(GO) test -tags=integration -run '^$$' -bench '$(AUTH_PATTERN)' \
+		-benchmem -benchtime='$(AUTH_TIME)' -count='$(AUTH_COUNT)'
+
+auth-capture:
+	@test -n '$(OUTPUT)'
+	@$(GO) test -tags=integration -run '^$$' -bench '$(AUTH_PATTERN)' \
+		-benchmem -benchtime='$(AUTH_TIME)' -count='$(AUTH_COUNT)' \
 		> '$(OUTPUT)'
 	@cat '$(OUTPUT)'
 
