@@ -153,7 +153,7 @@ func TestApacheKafkaConsumerChild(t *testing.T) {
 func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 	runKafkaBrokerIntegration(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	cluster := startApacheKafkaClusterWithImage(
@@ -172,10 +172,14 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		time.Now().UnixNano(),
 	)
 	transactionTopic := prefix + "-producer"
+	failureTopic := prefix + "-producer-failure"
+	recoveryTopic := prefix + "-producer-recovery"
 	sourceTopic := prefix + "-source"
 	outputTopic := prefix + "-output"
 	for _, topic := range []string{
 		transactionTopic,
+		failureTopic,
+		recoveryTopic,
 		sourceTopic,
 		outputTopic,
 	} {
@@ -218,6 +222,53 @@ func TestApacheKafkaMinimumSupportedTransactions(t *testing.T) {
 		outputTopic,
 		"golib-apache-minimum-transaction-source",
 	)
+
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-minimum-transaction-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct minimum-version transaction inspector: %v", err)
+	}
+	defer inspector.Close()
+	state := waitForApacheTopicState(t, ctx, inspector, failureTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 && allPartitionsMatch(state, 3, 3)
+	})
+	partition := state.Partitions[0]
+	stoppedBroker := int32(-1)
+	for _, replica := range partition.Replicas {
+		if replica != partition.Leader {
+			stoppedBroker = replica
+
+			break
+		}
+	}
+	if stoppedBroker < 0 {
+		t.Fatalf("minimum-version transaction topic has no follower: %#v", partition)
+	}
+	cluster.stopNode(t, ctx, stoppedBroker)
+	waitForApacheTopicState(t, ctx, inspector, failureTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 &&
+			state.Partitions[0].Leader == partition.Leader &&
+			state.Partitions[0].InSyncReplicas == 2 &&
+			!slices.Contains(
+				state.Partitions[0].InSyncReplicaIDs,
+				stoppedBroker,
+			)
+	})
+	proveProducerTransactionVisibility(t, ctx, brokers, failureTopic)
+	cluster.startNode(t, ctx, stoppedBroker)
+	waitForApacheTopicState(t, ctx, inspector, failureTopic, func(
+		state kafka.TopicState,
+	) bool {
+		return len(state.Partitions) == 1 && allPartitionsMatch(state, 3, 3)
+	})
+	proveProducerTransactionVisibility(t, ctx, brokers, recoveryTopic)
 }
 
 func TestApacheKafkaReplayFailsClosedAfterUncleanElectionTruncation(

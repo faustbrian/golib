@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove Kafka 3.7.2 producer transaction commit and abort isolation while one
+  follower is unavailable at ISR two and after full ISR recovery
 - add equivalent mTLS and SASL/PLAIN producer performance workloads covering
   warmed delivery and complete authenticated connection lifecycles
 - record the independently versioned `kafkaservice` lifecycle and readiness
