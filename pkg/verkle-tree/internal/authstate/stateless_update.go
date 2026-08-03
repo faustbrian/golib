@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector"
@@ -93,8 +94,8 @@ func (err *StatelessUpdateResourceError) Unwrap() error {
 }
 
 // StatelessUpdater verifies an immutable proof and derives the resulting root
-// for authenticated Set operations on present, missing, or different stem
-// paths. It is safe for concurrent use.
+// for authenticated Set operations and for Delete operations that are absent
+// or provably leave their stem non-empty. It is safe for concurrent use.
 type StatelessUpdater struct {
 	proof      *ProofEngine
 	commitment *backend.CommitmentEngine
@@ -210,9 +211,6 @@ func (updater *StatelessUpdater) Apply(
 		if err := ordered[index].validate(); err != nil {
 			return backend.Root{}, errInvalidStatelessUpdate
 		}
-		if ordered[index].kind != UpdateSet {
-			return backend.Root{}, errUnsupportedStatelessUpdate
-		}
 		if index > 0 && ordered[index-1].key == ordered[index].key {
 			return backend.Root{}, errDuplicateKey
 		}
@@ -239,6 +237,9 @@ func (updater *StatelessUpdater) Apply(
 	changed, err := updater.updateStems(ctx, proof.claims, paths, commitments, ordered, &budget)
 	if err != nil {
 		return backend.Root{}, err
+	}
+	if len(changed) == 0 {
+		return backend.NewRoot(ctx, proof.profile, root)
 	}
 	postRoot, err := updater.updateAncestors(ctx, commitments, changed, &budget)
 	if err != nil {
@@ -302,6 +303,16 @@ func (updater *StatelessUpdater) updateStems(
 		}
 		stemPath := makeStatelessPath(stem[:path.depth])
 		if path.kind == StemPathMissing {
+			if !statelessUpdatesContainSet(updates[start:end]) {
+				if err := validateStatelessAbsentDeletes(
+					claims, updates[start:end], budget,
+				); err != nil {
+					return nil, err
+				}
+				start = end
+
+				continue
+			}
 			newStem, err := updater.commitInsertedStem(
 				ctx, claims, stem, updates[start:end], budget,
 			)
@@ -323,6 +334,16 @@ func (updater *StatelessUpdater) updateStems(
 			continue
 		}
 		if path.kind == StemPathDifferent {
+			if !statelessUpdatesContainSet(updates[start:end]) {
+				if err := validateStatelessAbsentDeletes(
+					claims, updates[start:end], budget,
+				); err != nil {
+					return nil, err
+				}
+				start = end
+
+				continue
+			}
 			oldStem, oldFound := commitments[stemPath]
 			if err := budget.lookup(); err != nil {
 				return nil, err
@@ -367,6 +388,7 @@ func (updater *StatelessUpdater) updateStems(
 			return nil, errIncompleteStatelessWitness
 		}
 		halfChanges := make(map[byte][]backend.VectorUpdate, 2)
+		deletedMembership := false
 		for index := start; index < end; index++ {
 			claim, found, err := claims.Lookup(updates[index].key)
 			if err != nil {
@@ -383,6 +405,13 @@ func (updater *StatelessUpdater) updateStems(
 				oldOpening = leafvector.EncodePresent(claim.key[31], [32]byte(claim.value))
 			}
 			newOpening := leafvector.EncodePresent(updates[index].key[31], [32]byte(updates[index].value))
+			if updates[index].kind == UpdateDelete {
+				newOpening = leafvector.EncodeAbsent(updates[index].key[31])
+				deletedMembership = deletedMembership || claim.kind == ClaimMembership
+			}
+			if oldOpening == newOpening {
+				continue
+			}
 			half := byte(leafvector.C1HashIndex)
 			if oldOpening.Half == leafvector.C2 {
 				half = leafvector.C2HashIndex
@@ -391,6 +420,22 @@ func (updater *StatelessUpdater) updateStems(
 				backend.VectorUpdate{Index: oldOpening.LowIndex, Old: [32]byte(oldOpening.Low), New: [32]byte(newOpening.Low)},
 				backend.VectorUpdate{Index: oldOpening.HighIndex, Old: [32]byte(oldOpening.High), New: [32]byte(newOpening.High)},
 			)
+		}
+		if len(halfChanges) == 0 {
+			start = end
+
+			continue
+		}
+		if deletedMembership {
+			retained, err := statelessStemRetained(
+				ctx, claims, updates[start:end], stem,
+			)
+			if err != nil {
+				return nil, err
+			}
+			if !retained {
+				return nil, errUnsupportedStatelessUpdate
+			}
 		}
 		stemUpdates := make([]backend.VectorUpdate, 0, len(halfChanges))
 		for _, half := range []byte{leafvector.C1HashIndex, leafvector.C2HashIndex} {
@@ -497,6 +542,9 @@ func (updater *StatelessUpdater) commitInsertedStem(
 		if !found || claim.kind != ClaimAbsence {
 			return backend.VectorCommitment{}, errIncompleteStatelessWitness
 		}
+		if updates[index].kind == UpdateDelete {
+			continue
+		}
 		opening := leafvector.EncodePresent(
 			updates[index].key[31],
 			[32]byte(updates[index].value),
@@ -539,6 +587,80 @@ func (updater *StatelessUpdater) commitInsertedStem(
 	}
 
 	return updater.commitment.Commit(ctx, vector)
+}
+
+func statelessUpdatesContainSet(updates []Update) bool {
+	for index := range updates {
+		if updates[index].kind == UpdateSet {
+			return true
+		}
+	}
+
+	return false
+}
+
+func validateStatelessAbsentDeletes(
+	claims ClaimSet,
+	updates []Update,
+	budget *statelessUpdateBudget,
+) error {
+	for index := range updates {
+		claim, found, err := claims.Lookup(updates[index].key)
+		if err != nil {
+			return err
+		}
+		if err := budget.lookup(); err != nil {
+			return err
+		}
+		if !found || claim.kind != ClaimAbsence {
+			return errIncompleteStatelessWitness
+		}
+	}
+
+	return nil
+}
+
+func statelessStemRetained(
+	ctx context.Context,
+	claims ClaimSet,
+	updates []Update,
+	stem Stem,
+) (bool, error) {
+	for index := range updates {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return false, err
+		}
+		if updates[index].kind == UpdateSet {
+			return true, nil
+		}
+	}
+	claimIndex := sort.Search(len(claims.claims), func(index int) bool {
+		return bytes.Compare(claims.claims[index].key[:31], stem[:]) >= 0
+	})
+	updateIndex := 0
+	for claimIndex < len(claims.claims) {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return false, err
+		}
+		claim := claims.claims[claimIndex]
+		if Stem(claim.key[:31]) != stem {
+			break
+		}
+		for updateIndex < len(updates) &&
+			bytes.Compare(updates[updateIndex].key[:], claim.key[:]) < 0 {
+			if err := checkTreeProofContext(ctx); err != nil {
+				return false, err
+			}
+			updateIndex++
+		}
+		if claim.kind == ClaimMembership &&
+			(updateIndex == len(updates) || updates[updateIndex].key != claim.key) {
+			return true, nil
+		}
+		claimIndex++
+	}
+
+	return false, nil
 }
 
 func mergeStatelessExistingStem(

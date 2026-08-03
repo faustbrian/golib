@@ -9,6 +9,7 @@ import (
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector"
+	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
 func TestStatelessUpdaterDerivesPinnedPostStateRoot(t *testing.T) {
@@ -85,6 +86,182 @@ func TestStatelessUpdaterDerivesPinnedPostStateRoot(t *testing.T) {
 		t.Fatalf("apply reordered stateless updates: %v", err)
 	}
 	assertSameBackendRoot(t, reordered, want)
+}
+
+func TestStatelessUpdaterDeletesWithoutChangingTopology(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x20, 0x01)
+	retained := testKey(0x20, 0x02)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(0x11)},
+		{Key: retained, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{deleted, retained})
+	updates := []Update{Delete(deleted)}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("delete with retained stem member: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful deletion: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful deletion root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterTreatsAuthenticatedAbsentDeletesAsNoOps(t *testing.T) {
+	t.Parallel()
+
+	present := testKey(0x10, 0x01)
+	absentSuffix := testKey(0x10, 0x04)
+	differentStem := testKey(0x10, 0x02)
+	differentStem[1] = 0x01
+	missingStem := testKey(0x20, 0x03)
+	snapshot := newTestSnapshot(t, []Entry{{Key: present, Value: testValue(1)}})
+	proof, updater := newStatelessTestProof(
+		t, snapshot, []Key{absentSuffix, differentStem, missingStem},
+	)
+	want, err := snapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("pre-state root: %v", err)
+	}
+	for _, key := range []Key{absentSuffix, differentStem, missingStem} {
+		got, applyErr := updater.Apply(
+			context.Background(), proof, []Update{Delete(key)},
+			testProofVerificationLimits(), testStatelessUpdateLimits(),
+		)
+		if applyErr != nil {
+			t.Fatalf("delete authenticated absent key: %v", applyErr)
+		}
+		assertSameBackendRoot(t, got, want)
+	}
+}
+
+func TestStatelessUpdaterAppliesMixedSetsAndDeletes(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x40, 0x01)
+	setPresentStem := testKey(0x40, 0x02)
+	setMissingStem := testKey(0x50, 0x03)
+	deleteMissingStem := testKey(0x50, 0x04)
+	snapshot := newTestSnapshot(t, []Entry{{Key: deleted, Value: testValue(1)}})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{
+		deleted, setPresentStem, setMissingStem, deleteMissingStem,
+	})
+	updates := []Update{
+		Delete(deleteMissingStem),
+		Set(setMissingStem, testValue(3)),
+		Set(setPresentStem, testValue(2)),
+		Delete(deleted),
+	}
+
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply mixed stateless batch: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply mixed stateful batch: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("mixed stateful root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
+func TestStatelessUpdaterRejectsDeletionThatRequiresTopologyCollapse(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(0x30, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{{Key: key, Value: testValue(1)}})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{key})
+
+	_, err := updater.Apply(
+		context.Background(), proof, []Update{Delete(key)},
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if !errors.Is(err, errUnsupportedStatelessUpdate) {
+		t.Fatalf("topology-changing deletion error = %v", err)
+	}
+}
+
+func TestStatelessStemRetentionHonorsCancellationAndOrdering(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x38, 0x00)
+	second := testKey(0x38, 0x01)
+	third := testKey(0x38, 0x02)
+	stem := Stem(first[:31])
+	claims, err := NewClaimSet(
+		context.Background(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		[]Claim{
+			Membership(first, testValue(1)),
+			Membership(second, testValue(2)),
+			Membership(third, testValue(3)),
+		},
+		ClaimLimits{MaxClaims: 3, MaxTemporaryBytes: 1 << 10},
+	)
+	if err != nil {
+		t.Fatalf("construct retention claims: %v", err)
+	}
+	allDeleted := []Update{Delete(first), Delete(second), Delete(third)}
+	if _, err := statelessStemRetained(
+		&stepContext{}, claims, allDeleted, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retention preflight cancellation error = %v", err)
+	}
+	if _, err := statelessStemRetained(
+		&stepContext{successfulChecks: len(allDeleted)}, claims, allDeleted, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retention scan cancellation error = %v", err)
+	}
+	retained, err := statelessStemRetained(
+		context.Background(), claims, allDeleted, stem,
+	)
+	if err != nil || retained {
+		t.Fatalf("fully deleted stem retention = (%v, %v)", retained, err)
+	}
+	lastOnlyClaims, err := NewClaimSet(
+		context.Background(),
+		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		[]Claim{Membership(third, testValue(3))},
+		ClaimLimits{MaxClaims: 1, MaxTemporaryBytes: 1 << 10},
+	)
+	if err != nil {
+		t.Fatalf("construct last-member claim: %v", err)
+	}
+	if _, err := statelessStemRetained(
+		&stepContext{successfulChecks: len(allDeleted) + 1},
+		lastOnlyClaims, allDeleted, stem,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retention merge cancellation error = %v", err)
+	}
+	retained, err = statelessStemRetained(
+		context.Background(), claims, []Update{Delete(second)}, stem,
+	)
+	if err != nil || !retained {
+		t.Fatalf("preceding retained member = (%v, %v)", retained, err)
+	}
+	retained, err = statelessStemRetained(
+		context.Background(), claims, []Update{Set(second, testValue(4))}, stem,
+	)
+	if err != nil || !retained {
+		t.Fatalf("same-stem Set retention = (%v, %v)", retained, err)
+	}
 }
 
 func TestStatelessUpdaterInsertsOneAuthenticatedMissingStem(t *testing.T) {
@@ -671,6 +848,41 @@ func TestStatelessUpdateInternalFailureBoundaries(t *testing.T) {
 	budget.limits.MaxPathLookups = 0
 	if _, err := updater.updateStems(context.Background(), proof.claims, paths, commitments, updates, budget); !errors.Is(err, errStatelessUpdateResource) {
 		t.Fatalf("initial stem-path lookup budget error = %v", err)
+	}
+
+	deleteUpdates := []Update{Delete(key)}
+	if _, err := updater.updateStems(
+		&stepContext{successfulChecks: 1}, proof.claims, paths, commitments,
+		deleteUpdates, newBudget(),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("retention propagation cancellation error = %v", err)
+	}
+	missingPaths := map[Stem]StemPath{
+		Stem(key[:31]): MissingStemPath(Stem(key[:31]), 1),
+	}
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, missingPaths, commitments,
+		deleteUpdates, newBudget(),
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("non-absence missing-path delete error = %v", err)
+	}
+	differentStem := Stem(key[:31])
+	differentStem[1]++
+	differentPaths := map[Stem]StemPath{
+		Stem(key[:31]): DifferentStemPath(Stem(key[:31]), 1, differentStem),
+	}
+	budget = newBudget()
+	budget.limits.MaxPathLookups = 1
+	if _, err := updater.updateStems(
+		context.Background(), proof.claims, differentPaths, commitments,
+		deleteUpdates, budget,
+	); !errors.Is(err, errStatelessUpdateResource) {
+		t.Fatalf("different-path delete lookup budget error = %v", err)
+	}
+	if err := validateStatelessAbsentDeletes(
+		ClaimSet{}, deleteUpdates, newBudget(),
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("invalid absent-delete claims error = %v", err)
 	}
 
 	budget = newBudget()

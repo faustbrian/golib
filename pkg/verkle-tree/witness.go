@@ -116,8 +116,8 @@ type StatelessResult struct {
 	valid    bool
 }
 
-// NewWitness validates, canonicalizes, and defensively owns one non-empty Set
-// batch with its complete pre-state proof and claimed post-state root.
+// NewWitness validates, canonicalizes, and defensively owns one non-empty
+// update batch with its complete pre-state proof and claimed post-state root.
 func NewWitness(
 	ctx context.Context,
 	proof Proof,
@@ -276,11 +276,12 @@ func toPublicWitnessUpdates(
 		if err != nil {
 			return nil, ErrInvalidWitness
 		}
-		if !present {
-			return nil, ErrInvalidWitness
-		}
 		key, _ := values[index].Key()
-		updates[index] = Set(Key(key), Value(value))
+		if present {
+			updates[index] = Set(Key(key), Value(value))
+		} else {
+			updates[index] = Delete(Key(key))
+		}
 	}
 
 	return updates, nil
@@ -422,8 +423,10 @@ func toInternalWitnessUpdates(ctx context.Context, updates []Update) ([]authstat
 		if err != nil {
 			return nil, err
 		}
-		if kind != UpdateSet {
-			return nil, ErrUnsupportedUpdate
+		if kind == UpdateDelete {
+			owned[index] = authstate.Delete(authstate.Key(updates[index].key))
+
+			continue
 		}
 		owned[index] = authstate.Set(
 			authstate.Key(updates[index].key), authstate.Value(updates[index].value),

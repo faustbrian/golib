@@ -4,7 +4,7 @@ This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
 canonical storage-write and isolated storage-read, limit, resource, typed-error,
 read-only storage-audit, and atomic storage-maintenance identifiers form the
-current experimental public contract. Canonical stateless Set witnesses and
+current experimental public contract. Canonical stateless witnesses and
 verified pre/post-state results are included; crash-repair identifiers remain
 proposed.
 
@@ -17,7 +17,7 @@ The current public API exposes opaque, profile-bound forms of:
 - read result with distinct present and absent states;
 - validated update and atomic batch;
 - membership, non-membership, and aggregate proof;
-- canonical stateless Set witness and verified pre/post-state result;
+- canonical stateless witness and verified pre/post-state result;
 - canonical content-addressed node batches and capability-checked atomic root
   publication;
 - capability-checked isolated persisted snapshot reconstruction;
@@ -26,8 +26,8 @@ The current public API exposes opaque, profile-bound forms of:
 - verifier;
 - resource limits and typed errors.
 
-A future public API is expected to add stateless deletion, deletion-time
-topology collapse, and crash-repair application.
+A future public API is expected to add deletion-time topology collapse and
+crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -245,21 +245,27 @@ bytes and independently verifies decoded proofs. The API remains experimental
 while the backend cannot stop proof arithmetic after cancellation and witness
 and storage contracts remain incomplete.
 
-The internal stateless updater verifies that proof first, requires one exact
-authenticated old claim for every distinct update and no surplus claims, and
-accepts only `Set` operations. Present paths update the selected C1/C2
+The internal stateless updater verifies that proof first and requires one exact
+authenticated old claim for every distinct update. A delete that removes a
+present suffix may bind exactly one additional retained membership claim for
+the same stem only when no same-stem Set exists; unrelated, absent, redundant,
+or duplicate auxiliary claims fail closed.
+Present paths update the selected C1/C2
 commitment and then the stem commitment. Missing paths construct one or more
 new stems beneath the authenticated empty edge. Different paths preserve the
 authenticated existing stem commitment and construct the minimal canonical
 collision subtree. Every change then propagates through authenticated
 ancestors in descending depth order. Update order cannot change the result.
+An authenticated absent delete is a no-op. A present delete is accepted only
+when another authenticated member or a Set in the same batch proves the stem
+remains non-empty; deletion requiring topology collapse remains unsupported.
 Explicit limits
 cover updates, commitment changes, commitment-to-field mappings, path lookups,
 and temporary bytes, including the maximum live recursive vector stack for
 topology insertion. The public canonical witness format additionally bounds
 witness/proof bytes and requires exactly one post-root point decode before
 cryptographic work.
-Deletion and deletion-time topology collapse remain proposed.
+Deletion-time topology collapse remains proposed.
 
 The boundary must not be a generic callback surface. Callers must not be able to
 mix a curve from one profile with generators, transcript labels, width, or

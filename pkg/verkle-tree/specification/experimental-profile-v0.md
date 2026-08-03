@@ -23,8 +23,8 @@ construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
 bounded atomic maintenance operation replaces the retained-publication set and
 prunes only nodes outside the current and desired retained roots. Crash-repair
-application, concrete storage adapters, stateless deletion and deletion-time
-topology collapse, and stable APIs remain unimplemented. This
+application, concrete storage adapters, deletion-time topology collapse, and
+stable APIs remain unimplemented. This
 document MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
@@ -817,13 +817,18 @@ is exactly:
 3. embedded proof length (4-byte big-endian) and update count (4-byte
    big-endian);
 4. canonical 42-byte claimed post-state root;
-5. updates in ascending raw-key order, each encoded as kind `1` (`Set`), the
-   32-byte key, and the 32-byte value; and
+5. updates in ascending raw-key order, each encoded as kind `1` (`Set`) or kind
+   `2` (`Delete`), the 32-byte key, and the 32-byte Set value or canonical
+   all-zero Delete value; and
 6. the exact canonical embedded tree-proof bytes.
 
-The decoder MUST reject empty, duplicated, reordered, non-`Set`, truncated,
-surplus, or trailing update records, inconsistent declared lengths, and any
-mismatch between canonical update keys and embedded proof claim keys. It MUST
+The decoder MUST reject empty, duplicated, reordered, unknown-kind, non-zero
+Delete, truncated, surplus, or trailing update records and inconsistent
+declared lengths. Every update key MUST have one exact embedded proof claim.
+A stem with at least one membership Delete and no Set MAY have exactly one
+additional membership claim proving a retained suffix; unrelated, absent,
+redundant, or duplicate auxiliary claims MUST fail.
+It MUST
 reject profile and version mismatches before point decoding, preflight witness,
 proof, update, temporary-memory, post-root point-decode, and embedded-proof
 budgets before allocation or cryptographic decoding, and return an owned but
@@ -832,11 +837,15 @@ agreement. `StatelessEngine.Apply` MUST verify the proof, derive the root, and
 reject a claimed post-state root mismatch before returning an immutable result
 that binds both verified roots.
 
-The post-root point-decode budget MUST equal one because every non-empty Set
+The post-root point-decode budget MUST equal one because every non-empty
 witness carries exactly one claimed root container; zero and larger declarations
 MUST fail as invalid limits before parsing witness bytes.
 
-Deletion and deletion-time topology collapse remain unsupported in this phase.
+An authenticated absent Delete MUST be a deterministic no-op. A present Delete
+MUST authenticate its old value and MUST be accepted only when one retained
+membership claim or a same-stem Set proves that the stem remains non-empty.
+Deletion that would empty a stem MUST fail as unsupported until canonical
+topology-collapse disclosures are specified.
 
 ## Committed Tree Construction
 
@@ -938,8 +947,9 @@ reference model separately checks general in-memory transition semantics.
 This internal construction does not freeze or implement a whole-snapshot wire
 encoding, crash-repair application, or general tree-level incremental updates.
 The public canonical witness format connects the stateless updater to
-authenticated present, missing, and different tree paths for `Set`
-operations; deletion and deletion-time topology collapse remain unsupported.
+authenticated present, missing, and different tree paths for `Set` operations
+and to absent or topology-preserving `Delete` operations. Deletion-time
+topology collapse remains unsupported.
 The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained

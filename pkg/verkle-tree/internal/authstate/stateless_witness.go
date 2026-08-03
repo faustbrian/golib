@@ -156,8 +156,8 @@ func (err *StatelessWitnessResourceError) Unwrap() error {
 }
 
 // StatelessWitness canonically binds one complete pre-state proof, a non-empty
-// Set batch, and one claimed post-state root. Construction does not verify the
-// proof or establish that the claimed post-state root is correct.
+// update batch, and one claimed post-state root. Construction does not verify
+// the proof or establish that the claimed post-state root is correct.
 type StatelessWitness struct {
 	profile  internalprofile.Profile
 	proof    TreeProof
@@ -243,24 +243,15 @@ func NewStatelessWitness(
 		if err := checkTreeProofContext(ctx); err != nil {
 			return StatelessWitness{}, err
 		}
-		if err := owned[index].validate(); err != nil ||
-			owned[index].kind != UpdateSet {
+		if err := owned[index].validate(); err != nil {
 			return StatelessWitness{}, errInvalidStatelessWitness
 		}
 		if index > 0 && owned[index-1].key == owned[index].key {
 			return StatelessWitness{}, errDuplicateKey
 		}
 	}
-	if len(proof.claims.claims) != len(owned) {
-		return StatelessWitness{}, errInvalidStatelessWitness
-	}
-	for index := range owned {
-		if err := checkTreeProofContext(ctx); err != nil {
-			return StatelessWitness{}, err
-		}
-		if proof.claims.claims[index].key != owned[index].key {
-			return StatelessWitness{}, errInvalidStatelessWitness
-		}
+	if err := validateStatelessWitnessClaims(ctx, proof.claims, owned); err != nil {
+		return StatelessWitness{}, err
 	}
 
 	return StatelessWitness{
@@ -460,12 +451,16 @@ func DecodeStatelessWitness(
 		}
 		offset := updatesOffset + index*statelessWitnessUpdateBytes
 		record := encoded[offset : offset+statelessWitnessUpdateBytes]
-		if UpdateKind(record[0]) != UpdateSet {
+		kind := UpdateKind(record[0])
+		if kind != UpdateSet && kind != UpdateDelete {
 			return StatelessWitness{}, errInvalidStatelessWitnessEncoding
 		}
 		copy(updates[index].key[:], record[1:33])
 		copy(updates[index].value[:], record[33:])
-		updates[index].kind = UpdateSet
+		updates[index].kind = kind
+		if updates[index].validate() != nil {
+			return StatelessWitness{}, errInvalidStatelessWitnessEncoding
+		}
 		if index != 0 {
 			if bytes.Compare(
 				updates[index-1].key[:], updates[index].key[:],
@@ -523,9 +518,6 @@ func (witness StatelessWitness) validateContainer() error {
 	if witness.proof.validate() != nil {
 		return errInvalidStatelessWitness
 	}
-	if len(witness.proof.claims.claims) != len(witness.updates) {
-		return errInvalidStatelessWitness
-	}
 	if _, err := witness.postRoot.Profile(); err != nil {
 		return errInvalidStatelessWitness
 	}
@@ -547,12 +539,73 @@ func (witness StatelessWitness) validate(ctx context.Context) error {
 		if witness.updates[index].validate() != nil {
 			return errInvalidStatelessWitness
 		}
-		if witness.updates[index].kind != UpdateSet {
+	}
+	if err := validateStatelessWitnessClaims(
+		ctx, witness.proof.claims, witness.updates,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateStatelessWitnessClaims(
+	ctx context.Context,
+	claims ClaimSet,
+	updates []Update,
+) error {
+	retentionRequired := make(map[Stem]struct{})
+	setStems := make(map[Stem]struct{})
+	for index := range updates {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		stem := Stem(updates[index].key[:31])
+		if updates[index].kind == UpdateSet {
+			setStems[stem] = struct{}{}
+
+			continue
+		}
+		claim, found, err := claims.Lookup(updates[index].key)
+		if err != nil {
+			return err
+		}
+		if !found {
 			return errInvalidStatelessWitness
 		}
-		if witness.proof.claims.claims[index].key != witness.updates[index].key {
+		if claim.kind == ClaimMembership {
+			retentionRequired[stem] = struct{}{}
+		}
+	}
+	retainedStems := make(map[Stem]struct{})
+	updateIndex := 0
+	for claimIndex := range claims.claims {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		claim := claims.claims[claimIndex]
+		if updateIndex < len(updates) && claim.key == updates[updateIndex].key {
+			updateIndex++
+
+			continue
+		}
+		stem := Stem(claim.key[:31])
+		if claim.kind != ClaimMembership {
 			return errInvalidStatelessWitness
 		}
+		if _, required := retentionRequired[stem]; !required {
+			return errInvalidStatelessWitness
+		}
+		if _, redundant := setStems[stem]; redundant {
+			return errInvalidStatelessWitness
+		}
+		if _, duplicate := retainedStems[stem]; duplicate {
+			return errInvalidStatelessWitness
+		}
+		retainedStems[stem] = struct{}{}
+	}
+	if updateIndex != len(updates) {
+		return errInvalidStatelessWitness
 	}
 
 	return nil

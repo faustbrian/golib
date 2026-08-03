@@ -72,15 +72,20 @@ All notable changes to `verkle-tree` will be documented in this file.
   propagates shared commitment changes deterministically to a pinned post-state
   root.
 - Add the experimental public canonical stateless-witness and verifier API. A
-  strict bounded decoder binds the complete pre-state proof, ordered Set batch,
-  and claimed post-state root, rejecting missing or surplus proof claims;
+  strict bounded decoder binds the complete pre-state proof, ordered update
+  batch, and claimed post-state root, rejecting missing or unneeded proof
+  claims;
   `StatelessEngine.Apply` verifies the proof, derives the root independently,
   and returns exact pre/post roots only after a match.
 - Extend canonical stateless `Set` witnesses to insert stems below
   authenticated missing edges and to split authenticated different-stem paths,
   including deterministic multi-stem subtrees and deepest collisions checked
-  against the stateful transition oracle. Stateless deletion remains
-  unsupported.
+  against the stateful transition oracle.
+- Add canonical stateless `Delete` witnesses for authenticated absent no-ops
+  and present suffixes that provably leave their stem non-empty. A present
+  deletion may bind exactly one retained same-stem membership claim only when
+  no same-stem Set exists; unrelated, redundant, or duplicate auxiliary claims
+  fail closed. Deletion-time topology collapse remains unsupported.
 - Accept the canonical all-zero Banderwagon identity only in aggregate IPA
   proof-element positions where valid zero evaluations require it, while roots,
   nodes, paths, and standalone commitments remain strict non-identity

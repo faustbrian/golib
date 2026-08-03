@@ -230,6 +230,97 @@ func TestPublicStatelessWitnessAppliesTopologyChangingSets(t *testing.T) {
 	assertPublicRootsEqual(t, got, postRoot)
 }
 
+func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T) {
+	t.Parallel()
+
+	deleted := publicKey(0x28, 0x01)
+	retained := publicKey(0x28, 0x02)
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		[]verkletree.Entry{
+			{Key: deleted, Value: publicValue(1)},
+			{Key: retained, Value: publicValue(2)},
+		},
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new deletion snapshot: %v", err)
+	}
+	proofEngine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new proof engine: %v", err)
+	}
+	proof, err := proofEngine.Prove(
+		context.Background(), snapshot,
+		[]verkletree.Key{deleted, retained},
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove deletion and retained member: %v", err)
+	}
+	updates := []verkletree.Update{verkletree.Delete(deleted)}
+	next, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("stateful deletion: %v", err)
+	}
+	postRoot, err := next.Root()
+	if err != nil {
+		t.Fatalf("stateful deletion root: %v", err)
+	}
+	witness, err := verkletree.NewWitness(
+		context.Background(), proof, updates, postRoot, publicWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new deletion witness: %v", err)
+	}
+	encoded, err := witness.Bytes(
+		context.Background(), publicWitnessEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode deletion witness: %v", err)
+	}
+	decoded, err := verkletree.DecodeWitness(
+		context.Background(), encoded, publicWitnessDecodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("decode deletion witness: %v", err)
+	}
+	gotUpdates, err := decoded.Updates(context.Background())
+	if err != nil || len(gotUpdates) != 1 {
+		t.Fatalf("decoded deletion updates = (%v, %v)", gotUpdates, err)
+	}
+	kind, err := gotUpdates[0].Kind()
+	if err != nil || kind != verkletree.UpdateDelete {
+		t.Fatalf("decoded deletion kind = (%v, %v)", kind, err)
+	}
+	engine, err := verkletree.NewStatelessEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+		publicSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		t.Fatalf("new stateless engine: %v", err)
+	}
+	result, err := engine.Apply(
+		context.Background(), decoded,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply deletion witness: %v", err)
+	}
+	gotRoot, err := result.PostRoot()
+	if err != nil {
+		t.Fatalf("deletion result root: %v", err)
+	}
+	assertPublicRootsEqual(t, gotRoot, postRoot)
+}
+
 func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	t.Parallel()
 
@@ -282,6 +373,12 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		t.Fatalf("empty update witness error = %v", err)
 	}
 	if _, err := verkletree.NewWitness(
+		context.Background(), proof, []verkletree.Update{{}}, postRoot,
+		publicWitnessLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidUpdate) {
+		t.Fatalf("invalid update witness error = %v", err)
+	}
+	if _, err := verkletree.NewWitness(
 		nilContext, proof, updates, postRoot, publicWitnessLimits(),
 	); !errors.Is(err, verkletree.ErrInvalidContext) {
 		t.Fatalf("nil witness context error = %v", err)
@@ -330,8 +427,8 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		context.Background(), proof,
 		[]verkletree.Update{verkletree.Delete(key)}, postRoot,
 		publicWitnessLimits(),
-	); !errors.Is(err, verkletree.ErrUnsupportedUpdate) {
-		t.Fatalf("delete witness error = %v", err)
+	); err != nil {
+		t.Fatalf("delete witness construction error = %v", err)
 	}
 	if _, err := verkletree.NewWitness(
 		context.Background(), proof,

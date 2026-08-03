@@ -98,6 +98,57 @@ func TestStatelessWitnessCanonicalRoundTrip(t *testing.T) {
 	assertSameBackendRoot(t, decodedPostRoot, postRoot)
 }
 
+func TestStatelessWitnessCanonicalDeleteRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	deleted := testKey(0x18, 0x01)
+	retained := testKey(0x18, 0x00)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: deleted, Value: testValue(0x11)},
+		{Key: retained, Value: testValue(0x22)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{deleted, retained})
+	updates := []Update{Delete(deleted)}
+	postRoot, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("derive deletion root: %v", err)
+	}
+	witness, err := NewStatelessWitness(
+		context.Background(), proof, updates, postRoot,
+		testStatelessWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct deletion witness: %v", err)
+	}
+	encoded, err := witness.Bytes(
+		context.Background(), testStatelessWitnessEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode deletion witness: %v", err)
+	}
+	decoded, err := DecodeStatelessWitness(
+		context.Background(), encoded, testStatelessWitnessDecodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("decode deletion witness: %v", err)
+	}
+	gotUpdates, err := decoded.Updates(context.Background())
+	if err != nil || len(gotUpdates) != 1 || gotUpdates[0] != updates[0] {
+		t.Fatalf("decoded deletion updates = (%v, %v)", gotUpdates, err)
+	}
+	gotRoot, err := updater.ApplyWitness(
+		context.Background(), decoded,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply deletion witness: %v", err)
+	}
+	assertSameBackendRoot(t, gotRoot, postRoot)
+}
+
 func TestStatelessUpdaterVerifiesWitnessPostStateRoot(t *testing.T) {
 	t.Parallel()
 
@@ -208,17 +259,64 @@ func TestStatelessWitnessRejectsInvalidConstructionAndAccess(t *testing.T) {
 	); !errors.Is(err, errInvalidStatelessWitness) {
 		t.Fatalf("surplus proof claim error = %v", err)
 	}
+	secondRetained := testKey(0x31, 0x43)
+	retainedSnapshot := newTestSnapshot(t, []Entry{
+		{Key: key, Value: testValue(1)},
+		{Key: surplusKey, Value: testValue(2)},
+		{Key: secondRetained, Value: testValue(3)},
+	})
+	duplicateRetainedProof, _ := newStatelessTestProof(
+		t, retainedSnapshot, []Key{key, surplusKey, secondRetained},
+	)
+	if err := construct(
+		duplicateRetainedProof, []Update{Delete(key)}, postRoot,
+		testStatelessWitnessLimits(),
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("duplicate retained proof claim error = %v", err)
+	}
+	setKey := testKey(0x31, 0x44)
+	redundantRetainedProof, _ := newStatelessTestProof(
+		t, retainedSnapshot, []Key{key, surplusKey, setKey},
+	)
+	if err := construct(
+		redundantRetainedProof,
+		[]Update{Delete(key), Set(setKey, testValue(4))}, postRoot,
+		testStatelessWitnessLimits(),
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("redundant retained proof claim error = %v", err)
+	}
+	absentDelete := testKey(0x31, 0x45)
+	absentDeleteProof, _ := newStatelessTestProof(
+		t, retainedSnapshot, []Key{surplusKey, absentDelete},
+	)
+	if err := construct(
+		absentDeleteProof, []Update{Delete(absentDelete)}, postRoot,
+		testStatelessWitnessLimits(),
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("absent-delete retained proof claim error = %v", err)
+	}
 	if err := construct(
 		proof, []Update{Set(surplusKey, testValue(2))}, postRoot,
 		testStatelessWitnessLimits(),
 	); !errors.Is(err, errInvalidStatelessWitness) {
 		t.Fatalf("mismatched proof claim error = %v", err)
 	}
+	if err := construct(
+		proof, []Update{Delete(surplusKey)}, postRoot,
+		testStatelessWitnessLimits(),
+	); !errors.Is(err, errInvalidStatelessWitness) {
+		t.Fatalf("mismatched delete claim error = %v", err)
+	}
+	if err := validateStatelessWitnessClaims(
+		context.Background(), ClaimSet{}, []Update{Delete(key)},
+	); !errors.Is(err, errInvalidClaimSet) {
+		t.Fatalf("invalid claim set relation error = %v", err)
+	}
 	if err := construct(proof, []Update{{}}, postRoot, testStatelessWitnessLimits()); !errors.Is(err, errInvalidStatelessWitness) {
 		t.Fatalf("invalid update error = %v", err)
 	}
-	if err := construct(proof, []Update{Delete(key)}, postRoot, testStatelessWitnessLimits()); !errors.Is(err, errInvalidStatelessWitness) {
-		t.Fatalf("delete update error = %v", err)
+	if err := construct(proof, []Update{Delete(key)}, postRoot, testStatelessWitnessLimits()); err != nil {
+		t.Fatalf("delete update construction error = %v", err)
 	}
 	if err := construct(proof, []Update{updates[0], updates[0]}, postRoot, testStatelessWitnessLimits()); !errors.Is(err, errDuplicateKey) {
 		t.Fatalf("duplicate update error = %v", err)
@@ -295,10 +393,6 @@ func TestStatelessWitnessRejectsInvalidConstructionAndAccess(t *testing.T) {
 		"empty updates": {profile: witness.profile, proof: proof, postRoot: postRoot, valid: true},
 		"proof":         {profile: witness.profile, postRoot: postRoot, updates: updates, valid: true},
 		"post root":     {profile: witness.profile, proof: proof, updates: updates, valid: true},
-		"delete update": {
-			profile: witness.profile, proof: proof,
-			updates: []Update{Delete(key)}, postRoot: postRoot, valid: true,
-		},
 		"mismatched claim": {
 			profile: witness.profile, proof: proof,
 			updates: []Update{Set(surplusKey, testValue(2))}, postRoot: postRoot, valid: true,
@@ -577,7 +671,8 @@ func TestStatelessWitnessEncodingRejectsMalformedAndExhaustiveLimits(t *testing.
 		"encoding":      func(value []byte) { value[8]++ },
 		"proof length":  func(value []byte) { binary.BigEndian.PutUint32(value[9:13], 0) },
 		"update count":  func(value []byte) { binary.BigEndian.PutUint32(value[13:17], 0) },
-		"update kind":   func(value []byte) { value[statelessWitnessHeaderBytes] = byte(UpdateDelete) },
+		"update kind":   func(value []byte) { value[statelessWitnessHeaderBytes] = 3 },
+		"delete value":  func(value []byte) { value[statelessWitnessHeaderBytes] = byte(UpdateDelete) },
 		"update key":    func(value []byte) { value[statelessWitnessHeaderBytes+32]++ },
 		"post root":     func(value []byte) { value[17] ^= 1 },
 		"proof payload": func(value []byte) { value[len(value)-1] ^= 1 },

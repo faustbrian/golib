@@ -14,10 +14,11 @@ snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. The
 public surface is experimental, rebuilds the complete tree for stateful
 updates, persisted loads, and maintained publications, and provides canonical
-bounded stateless `Set` witnesses for authenticated present, missing, and
-different stem paths. It does not yet provide crash repair, adapter
-implementations, stateless deletion, or deletion-time topology collapse. It is
-not a production-ready tree.
+bounded stateless witnesses for authenticated `Set` operations and for
+`Delete` operations that are proven absent or leave their stem non-empty.
+Authenticated `Set` paths may be present, missing, or different stems. It does
+not yet provide crash repair, adapter implementations, or deletion-time
+topology collapse. It is not a production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -200,11 +201,15 @@ cryptographically verifies the complete tree proof before applying bounded
 post-state root bottom-up from authenticated old scalars. It handles existing
 values and absent suffixes, canonicalizes update order, rejects duplicate or
 unproven keys, and is deterministic across shared paths. The public
-`Witness`/`StatelessEngine` boundary canonically binds the proof, ordered Set
-batch, and claimed post-state root, rejects any proof/update key-set mismatch,
-then verifies and independently derives the result. It deliberately does not
-support deletion or missing/different-stem
-insertion. Canonical
+`Witness`/`StatelessEngine` boundary canonically binds the proof, ordered
+update batch, and claimed post-state root, rejects unneeded proof claims, then
+verifies and independently derives the result. A deletion proof may carry one
+authenticated retained member of the same stem only when a present deletion
+needs it and no same-stem Set otherwise establishes that the stem stays
+non-empty;
+authenticated absent deletes are no-ops. Deletion that
+empties a stem remains unsupported until canonical collapse evidence is
+defined. Canonical
 stored-node bytes, atomic write publication, isolated persisted reconstruction,
 and atomic retention/pruning now have one package-owned experimental contract,
 but none is a stable interoperability surface.
@@ -314,19 +319,22 @@ Ethereum compatibility.
 
 The stateless engine composes that verified proof with sparse commitment
 changes. Every requested key must have an authenticated membership or absence
-claim, no other claims may be present, and every claim must have its exact
-terminal stem path. Existing-value replacement, absent-suffix insertion, and
-new-stem insertion through authenticated missing or different paths are
-supported, including canonical collision subtrees, deepest valid collisions,
-multi-stem batches, and shared ancestors. Results are checked against stateful
-post-state roots; the present-stem corpus additionally has pinned Rust
-agreement.
+claim and every claim must have its exact terminal stem path. A delete that
+removes a present suffix may additionally bind exactly one retained membership
+claim for that stem when no same-stem Set exists; other or redundant surplus
+claims fail closed. Existing-value
+replacement, absent-suffix insertion, non-collapsing deletion, and new-stem
+insertion through authenticated missing or different paths are supported,
+including canonical collision subtrees, deepest valid collisions, multi-stem
+batches, and shared ancestors. Authenticated absent deletion is a deterministic
+no-op. Results are checked against stateful post-state roots; the present-stem
+corpus additionally has pinned Rust agreement.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
 path lookups, witness and proof bytes, strict point decoding, and temporary
 bytes. The canonical witness decoder returns an unverified owned container;
 `StatelessEngine.Apply` separately verifies the proof, derives the root, and
-matches the claimed post-state root. Deletion and deletion-time topology
-collapse remain unsupported until their completeness rules are specified.
+matches the claimed post-state root. A deletion that would empty its stem is
+rejected until deletion-time topology-collapse disclosures are specified.
 
 ## Experimental storage boundary
 

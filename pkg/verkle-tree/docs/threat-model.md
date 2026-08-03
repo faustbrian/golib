@@ -20,11 +20,11 @@ verification, plus canonical content-addressed storage writes,
 capability-checked atomic root publication, and bounded isolated persisted
 snapshot reconstruction, plus bounded read-only auditing of current and
 retained roots against a canonical complete node inventory and bounded atomic
-retention/pruning requests, plus canonical bounded stateless Set witnesses that
+retention/pruning requests, plus canonical bounded stateless witnesses that
 verify a complete pre-state proof and independently match the claimed
 post-state root, including creation below authenticated missing or different
-stem paths. Stateless deletion and deletion-time topology collapse, crash-
-repair application, dependency-level cancellation, concrete storage
+stem paths and deletion that provably leaves topology unchanged. Deletion-time
+topology collapse, crash-repair application, dependency-level cancellation, concrete storage
 adapters, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
@@ -109,10 +109,12 @@ storage availability, or establish application-level execution validity.
 The authenticated-state layer currently mitigates absent/zero/delete
 ambiguity, nondeterministic batch order, duplicate operations, partial
 in-memory publication, caller mutation of fixed arrays, cross-snapshot root
-confusion, omitted or changed old values in supported stateless Set witnesses,
-and omitted or conflicting terminal topology for new-stem insertion. It does
-not yet prove completeness for deletion or deletion-time collapse, or protect
-a future mutable writer from concurrent ownership violations.
+confusion, omitted or changed old values in supported stateless witnesses, and
+omitted or conflicting terminal topology for new-stem insertion. A present
+delete must authenticate its old value and either an exact retained member or a
+same-stem Set; otherwise it fails closed before topology could change. The
+package does not yet prove deletion-time collapse completeness or protect a
+future mutable writer from concurrent ownership violations.
 
 The storage write boundary encodes the complete immutable arena into canonical
 profile-bound nodes, hashes the complete bytes for content addressing, orders

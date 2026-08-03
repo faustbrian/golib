@@ -521,18 +521,22 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	if _, err := toInternalWitnessUpdates(context.Background(), []Update{{}}); !errors.Is(err, ErrInvalidUpdate) {
 		t.Fatalf("invalid internal update copy error = %v", err)
 	}
-	if _, err := toInternalWitnessUpdates(context.Background(), []Update{Delete(Key{})}); !errors.Is(err, ErrUnsupportedUpdate) {
-		t.Fatalf("unsupported internal update copy error = %v", err)
+	internalDeletes, err := toInternalWitnessUpdates(
+		context.Background(), []Update{Delete(Key{})},
+	)
+	if err != nil || len(internalDeletes) != 1 {
+		t.Fatalf("internal delete copy = (%v, %v)", internalDeletes, err)
 	}
 	if _, err := toPublicWitnessUpdates(
 		context.Background(), []authstate.Update{{}},
 	); !errors.Is(err, ErrInvalidWitness) {
 		t.Fatalf("invalid public update copy error = %v", err)
 	}
-	if _, err := toPublicWitnessUpdates(
+	publicDeletes, err := toPublicWitnessUpdates(
 		context.Background(), []authstate.Update{authstate.Delete(authstate.Key{})},
-	); !errors.Is(err, ErrInvalidWitness) {
-		t.Fatalf("delete public update copy error = %v", err)
+	)
+	if err != nil || len(publicDeletes) != 1 {
+		t.Fatalf("public delete copy = (%v, %v)", publicDeletes, err)
 	}
 	if _, err := toPublicWitnessUpdates(
 		&cancellingContext{remaining: 1},
