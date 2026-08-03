@@ -790,9 +790,7 @@ func (w *Worker) Stats(ctx context.Context) (Stats, error) {
 		if ageErr != nil {
 			return Stats{}, ageErr
 		}
-		if age > stats.OldestJobAge {
-			stats.OldestJobAge = age
-		}
+		stats.OldestJobAge = max(stats.OldestJobAge, age)
 	}
 	return stats, nil
 }
