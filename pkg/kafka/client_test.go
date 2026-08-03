@@ -786,6 +786,8 @@ func TestTrustAnchorProviderRejectsInvalidMaterial(t *testing.T) {
 }
 
 func TestTrustAnchorDialerLoadsRootsForEveryConnection(t *testing.T) {
+	const dialTimeout = 5 * time.Second
+
 	server := httptest.NewTLSServer(http.HandlerFunc(func(
 		response http.ResponseWriter,
 		_ *http.Request,
@@ -804,7 +806,7 @@ func TestTrustAnchorDialerLoadsRootsForEveryConnection(t *testing.T) {
 			ctx context.Context,
 		) (TrustAnchors, error) {
 			deadline, ok := ctx.Deadline()
-			if !ok || time.Until(deadline) > 100*time.Millisecond {
+			if !ok || time.Until(deadline) > dialTimeout {
 				t.Fatalf("trust-anchor dial deadline = %v, %t", deadline, ok)
 			}
 			calls.Add(1)
@@ -816,7 +818,7 @@ func TestTrustAnchorDialerLoadsRootsForEveryConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize trust-anchor dialer: %v", err)
 	}
-	dial := trustAnchorDialer(security, 100*time.Millisecond)
+	dial := trustAnchorDialer(security, dialTimeout)
 	connection, err := dial(context.Background(), "tcp", address)
 	if err != nil {
 		t.Fatalf("dial trusted TLS server: %v", err)

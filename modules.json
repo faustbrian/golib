@@ -9996,8 +9996,10 @@
         "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
+        "github.com/containerd/errdefs",
         "github.com/klauspost/compress",
         "github.com/moby/moby/api",
+        "github.com/moby/moby/client",
         "github.com/pierrec/lz4/v4",
         "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/kafka",

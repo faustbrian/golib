@@ -22,8 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/faustbrian/golib/pkg/kafka"
 	dockernetwork "github.com/moby/moby/api/types/network"
+	dockerclient "github.com/moby/moby/client"
 	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -48,6 +50,7 @@ const (
 	apacheKafkaStopFile       = "/tmp/golib-kafka.stop"
 	apacheKafkaSubnetPool     = 4_096
 	apacheKafkaCleanupTimeout = time.Minute
+	kafkaCleanupCheckTimeout  = 10 * time.Second
 
 	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
 	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
@@ -4123,7 +4126,7 @@ func startApacheKafkaClusterWithImage(
 		}
 		container, err := testcontainers.GenericContainer(ctx, request)
 		if container != nil {
-			cleanupApacheKafkaContainer(t, container)
+			cleanupKafkaContainer(t, container)
 		}
 		if err != nil {
 			t.Fatalf("create Apache Kafka node %d: %v", nodeID, err)
@@ -4336,7 +4339,7 @@ func createApacheKafkaContainer(
 		testcontainers.GenericContainerRequest{ContainerRequest: request},
 	)
 	if container != nil {
-		cleanupApacheKafkaContainer(t, container)
+		cleanupKafkaContainer(t, container)
 	}
 	if err != nil {
 		t.Fatalf("create Apache Kafka %s %d: %v", role, nodeID, err)
@@ -4345,22 +4348,91 @@ func createApacheKafkaContainer(
 	return container
 }
 
-func cleanupApacheKafkaContainer(
+func cleanupKafkaContainer(
 	t *testing.T,
 	container testcontainers.Container,
 ) {
 	t.Helper()
 
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(
-			context.Background(),
-			apacheKafkaCleanupTimeout,
-		)
-		defer cancel()
-		if err := container.Terminate(ctx, testcontainers.StopTimeout(0)); err != nil {
+		if err := terminateKafkaContainer(container); err != nil {
 			t.Errorf("terminate Apache Kafka container: %v", err)
 		}
 	})
+}
+
+type kafkaContainerTerminator interface {
+	GetContainerID() string
+	Terminate(context.Context, ...testcontainers.TerminateOption) error
+}
+
+type kafkaContainerAbsenceVerifier func(context.Context, string) (bool, error)
+
+func terminateKafkaContainer(container kafkaContainerTerminator) error {
+	return terminateKafkaContainerWithVerifier(
+		container,
+		verifyKafkaContainerAbsent,
+	)
+}
+
+func terminateKafkaContainerWithVerifier(
+	container kafkaContainerTerminator,
+	verifyAbsent kafkaContainerAbsenceVerifier,
+) error {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		apacheKafkaCleanupTimeout,
+	)
+	defer cancel()
+	terminateErr := container.Terminate(ctx, testcontainers.StopTimeout(0))
+	if terminateErr == nil {
+		return nil
+	}
+
+	checkCtx, checkCancel := context.WithTimeout(
+		context.Background(),
+		kafkaCleanupCheckTimeout,
+	)
+	defer checkCancel()
+	absent, checkErr := verifyAbsent(checkCtx, container.GetContainerID())
+	// Docker can finish the forced removal immediately after the request's
+	// deadline. Accept that timeout only when a fresh client proves absence.
+	if absent && checkErr == nil {
+		return nil
+	}
+	if checkErr != nil {
+		return errors.Join(
+			terminateErr,
+			fmt.Errorf("verify Kafka container cleanup: %w", checkErr),
+		)
+	}
+
+	return terminateErr
+}
+
+func verifyKafkaContainerAbsent(
+	ctx context.Context,
+	containerID string,
+) (bool, error) {
+	client, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		return false, fmt.Errorf("connect to Docker: %w", err)
+	}
+	defer client.Close()
+
+	_, err = client.ContainerInspect(
+		ctx,
+		containerID,
+		dockerclient.ContainerInspectOptions{},
+	)
+	if errdefs.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inspect container: %w", err)
+	}
+
+	return false, nil
 }
 
 func cleanupApacheKafkaNetwork(

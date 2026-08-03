@@ -29,8 +29,6 @@ const integrationKafkaImage = "confluentinc/confluent-local:7.5.0@" +
 
 const integrationKafkaVersion = "7.5.0-ccs"
 
-const integrationBrokerConcurrency = 2
-
 var integrationBrokerSlots = make(chan struct{}, integrationBrokerConcurrency)
 
 func runKafkaBrokerIntegration(t *testing.T) {
@@ -65,16 +63,7 @@ func TestKafkaProducerConsumerCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start Kafka: %v", err)
 	}
-	t.Cleanup(func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(
-			context.Background(),
-			30*time.Second,
-		)
-		defer cleanupCancel()
-		if err := container.Terminate(cleanupCtx); err != nil {
-			t.Errorf("terminate Kafka: %v", err)
-		}
-	})
+	cleanupKafkaContainer(t, container)
 	assertIntegrationKafkaVersion(t, ctx, container)
 
 	brokers, err := container.Brokers(ctx)

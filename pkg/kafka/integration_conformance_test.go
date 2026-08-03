@@ -25,13 +25,7 @@ func TestPublicConformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start Kafka: %v", err)
 	}
-	t.Cleanup(func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cleanupCancel()
-		if err := container.Terminate(cleanupCtx); err != nil {
-			t.Errorf("terminate Kafka: %v", err)
-		}
-	})
+	cleanupKafkaContainer(t, container)
 	assertIntegrationKafkaVersion(t, ctx, container)
 	brokers, err := container.Brokers(ctx)
 	if err != nil {
