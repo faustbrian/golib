@@ -152,6 +152,68 @@ func TestSnapshotProofMaterialDerivesCanonicalClaimsAndPaths(t *testing.T) {
 	}
 }
 
+func TestSnapshotProofMaterialDerivesEmptyRootNonMembership(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x20, 0x01)
+	second := testKey(0x10, 0x02)
+	secondSuffix := second
+	secondSuffix[31] = 0x80
+	material, err := newTestSnapshot(t, nil).ProofMaterial(
+		context.Background(),
+		[]Key{first, secondSuffix, second},
+		testProofMaterialLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty-root proof material: %v", err)
+	}
+	root, err := material.Root()
+	if err != nil {
+		t.Fatalf("material root: %v", err)
+	}
+	empty, err := root.IsEmpty()
+	if err != nil || !empty {
+		t.Fatalf("material root empty = %t, error %v", empty, err)
+	}
+	claims, err := material.Claims()
+	if err != nil {
+		t.Fatalf("material claims: %v", err)
+	}
+	for _, key := range []Key{second, secondSuffix, first} {
+		claim, found, lookupErr := claims.Lookup(key)
+		if lookupErr != nil || !found {
+			t.Fatalf("claim %x found = %t, error %v", key, found, lookupErr)
+		}
+		kind, kindErr := claim.Kind()
+		if kindErr != nil || kind != ClaimAbsence {
+			t.Fatalf("claim %x kind = %d, error %v", key, kind, kindErr)
+		}
+	}
+	paths, err := material.StemPaths(context.Background())
+	if err != nil {
+		t.Fatalf("material stem paths: %v", err)
+	}
+	if len(paths) != 2 {
+		t.Fatalf("stem path count = %d, want 2", len(paths))
+	}
+	for index, want := range []Stem{stemFromKey(second), stemFromKey(first)} {
+		stem, stemErr := paths[index].Stem()
+		depth, depthErr := paths[index].Depth()
+		kind, kindErr := paths[index].Kind()
+		if stemErr != nil || depthErr != nil || kindErr != nil ||
+			stem != want || depth != 1 || kind != StemPathMissing {
+			t.Fatalf(
+				"path %d = %x/%d/%d, errors %v/%v/%v",
+				index, stem, depth, kind, stemErr, depthErr, kindErr,
+			)
+		}
+	}
+	commitments, err := material.PathCommitments(context.Background())
+	if err != nil || len(commitments) != 0 {
+		t.Fatalf("material commitments = %#v, error %v", commitments, err)
+	}
+}
+
 func testProofMaterialLimits() ProofMaterialLimits {
 	return ProofMaterialLimits{
 		MaxKeys:            64,
@@ -188,15 +250,15 @@ func TestSnapshotProofMaterialRejectsInvalidInputs(t *testing.T) {
 	if _, err := snapshot.ProofMaterial(context.Background(), []Key{testKey(0, 0)}, invalidLimits); !errors.Is(err, errInvalidProofMaterialLimits) {
 		t.Fatalf("invalid limits error = %v", err)
 	}
-	if _, err := newTestSnapshot(t, nil).ProofMaterial(context.Background(), []Key{testKey(0, 0)}, limits); !errors.Is(err, errInvalidProofMaterial) {
-		t.Fatalf("empty snapshot error = %v", err)
-	}
 	emptyKeys := []Key{testKey(0, 0), testKey(1, 0)}
 	emptyLimits := limits
 	emptyLimits.MaxKeys = 1
-	if _, err := newTestSnapshot(t, nil).ProofMaterial(context.Background(), emptyKeys, emptyLimits); !errors.Is(err, errInvalidProofMaterial) {
-		t.Fatalf("empty snapshot preflight error = %v", err)
-	}
+	_, err := newTestSnapshot(t, nil).ProofMaterial(
+		context.Background(), emptyKeys, emptyLimits,
+	)
+	assertProofMaterialResourceError(
+		t, err, ProofMaterialResourceKeys, 1, 2,
+	)
 	corrupt := snapshot
 	corrupt.tree = committedtree.Tree{}
 	if _, err := corrupt.ProofMaterial(context.Background(), []Key{testKey(0, 0)}, limits); err == nil {

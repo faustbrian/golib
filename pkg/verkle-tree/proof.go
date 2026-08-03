@@ -13,6 +13,7 @@ import (
 const maxPublicProofQueries = uint32(65_536)
 
 // OpeningLimits bounds setup and fixed-profile aggregate-opening work.
+// MaxQueries includes the package-owned statement-binding anchor.
 type OpeningLimits struct {
 	MaxGeneratorDerivations uint32
 	MaxPrecomputedPoints    uint32

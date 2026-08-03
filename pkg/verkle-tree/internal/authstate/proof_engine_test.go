@@ -88,6 +88,64 @@ func TestProofEngineGeneratesDeterministicVerifiableTreeProof(t *testing.T) {
 	}
 }
 
+func TestProofEngineGeneratesVerifiableEmptyRootNonMembership(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x20, 0x01)
+	second := testKey(0x10, 0x02)
+	secondSuffix := second
+	secondSuffix[31] = 0x80
+	engine := newTestProofEngine(t)
+	proof, err := engine.Prove(
+		context.Background(),
+		newTestSnapshot(t, nil),
+		[]Key{first, secondSuffix, second},
+		testProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("generate empty-root proof: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(),
+		proof,
+		testProofVerificationLimits(),
+	); err != nil {
+		t.Fatalf("verify empty-root proof: %v", err)
+	}
+	root, err := proof.Root()
+	if err != nil {
+		t.Fatalf("proof root: %v", err)
+	}
+	empty, err := root.IsEmpty()
+	if err != nil || !empty {
+		t.Fatalf("proof root empty = %t, error %v", empty, err)
+	}
+	if len(proof.commitments) != 0 {
+		t.Fatalf("empty-root commitment count = %d, want 0", len(proof.commitments))
+	}
+
+	replayedKey := testKey(0x30, 0x01)
+	replayed, err := NewTreeProof(
+		context.Background(),
+		root,
+		mustClaimSet(t, []Claim{Absence(replayedKey)}),
+		[]StemPath{MissingStemPath(stemFromKey(replayedKey), 1)},
+		nil,
+		proof.opening,
+		testTreeProofLimits(),
+	)
+	if err != nil {
+		t.Fatalf("construct key-replayed empty-root proof: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(),
+		replayed,
+		testProofVerificationLimits(),
+	); !errors.Is(err, errProofVerification) {
+		t.Fatalf("key-replayed empty-root proof error = %v", err)
+	}
+}
+
 func TestProofEngineProvesCompleteTopologyDeletionTransition(t *testing.T) {
 	t.Parallel()
 
@@ -769,6 +827,66 @@ func TestProofEnginePropagatesBoundedStageFailures(t *testing.T) {
 	}
 }
 
+func TestProofEngineStatementBindingFailures(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(0, 0)
+	snapshot := newTestSnapshot(t, []Entry{{Key: key, Value: testValue(1)}})
+	material, err := snapshot.ProofMaterial(
+		context.Background(), []Key{key}, testProofMaterialLimits(),
+	)
+	if err != nil {
+		t.Fatalf("proof material: %v", err)
+	}
+	if _, err := proofStatementBinding(
+		context.Background(), backend.Root{}, material.claims, nil,
+	); !errors.Is(err, errInvalidTreeProof) {
+		t.Fatalf("invalid binding root error = %v", err)
+	}
+	invalidQuery := AggregateVerifierQuery{
+		Opening: backend.AggregateVerifierQuery{},
+	}
+	if _, err := proofStatementBinding(
+		context.Background(), material.root, material.claims,
+		[]AggregateVerifierQuery{invalidQuery},
+	); !errors.Is(err, errInvalidProofMaterial) {
+		t.Fatalf("invalid binding commitment error = %v", err)
+	}
+
+	counting := &countingProofContext{Context: context.Background()}
+	material, err = snapshot.ProofMaterial(
+		counting, []Key{key}, testProofMaterialLimits(),
+	)
+	if err != nil {
+		t.Fatalf("count proof-material checks: %v", err)
+	}
+	prover, err := snapshot.tree.AggregateProverQueries(
+		counting, []Key{key}, testCommittedAggregateQueryLimits(),
+	)
+	if err != nil {
+		t.Fatalf("count prover-query checks: %v", err)
+	}
+	verifier, err := material.AggregateVerifierQueries(
+		counting, testAggregateVerifierQueryLimits(),
+	)
+	if err != nil {
+		t.Fatalf("count verifier-query checks: %v", err)
+	}
+	if _, err := matchAggregateQueries(counting, prover, verifier); err != nil {
+		t.Fatalf("count query-matching checks: %v", err)
+	}
+	engine := newTestProofEngine(t)
+	_, err = engine.Prove(
+		&stepContext{successfulChecks: counting.checks + 1},
+		snapshot,
+		[]Key{key},
+		testProofGenerationLimits(),
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("statement-binding cancellation error = %v", err)
+	}
+}
+
 func TestProofEngineVerificationPreservesMaterialAndCancellationFailures(t *testing.T) {
 	t.Parallel()
 
@@ -812,6 +930,17 @@ func TestProofEngineVerificationPreservesMaterialAndCancellationFailures(t *test
 	if !observed {
 		t.Fatal("no verifier cancellation boundary was exercised")
 	}
+}
+
+type countingProofContext struct {
+	context.Context
+	checks int
+}
+
+func (ctx *countingProofContext) Err() error {
+	ctx.checks++
+
+	return nil
 }
 
 func TestProofEngineSupportsConcurrentImmutableUse(t *testing.T) {

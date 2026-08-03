@@ -3,6 +3,8 @@ package authstate
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
@@ -123,7 +125,16 @@ func (engine *ProofEngine) Prove(
 	if err != nil {
 		return TreeProof{}, err
 	}
-	opening, err := engine.opening.Open(ctx, proverQueries)
+	binding, err := proofStatementBinding(
+		ctx,
+		material.root,
+		material.claims,
+		verifierRecords,
+	)
+	if err != nil {
+		return TreeProof{}, err
+	}
+	opening, err := engine.opening.OpenBound(ctx, binding, proverQueries)
 	if err != nil {
 		return TreeProof{}, fmt.Errorf("%w: %w", errProofGeneration, err)
 	}
@@ -432,11 +443,71 @@ func (engine *ProofEngine) Verify(
 		}
 		openings[index] = queries[index].Opening
 	}
-	if err := engine.opening.Verify(ctx, proof.opening, openings); err != nil {
+	binding, err := proofStatementBinding(
+		ctx,
+		proof.root,
+		proof.claims,
+		queries,
+	)
+	if err != nil {
+		return err
+	}
+	if err := engine.opening.VerifyBound(
+		ctx,
+		binding,
+		proof.opening,
+		openings,
+	); err != nil {
 		return fmt.Errorf("%w: %w", errProofVerification, err)
 	}
 
 	return nil
+}
+
+func proofStatementBinding(
+	ctx context.Context,
+	root backend.Root,
+	claims ClaimSet,
+	queries []AggregateVerifierQuery,
+) (backend.AggregateOpeningBinding, error) {
+	hash := sha256.New()
+	hash.Write([]byte("github.com/faustbrian/golib/pkg/verkle-tree/proof-statement/v0"))
+	rootBytes, err := root.Bytes()
+	if err != nil {
+		return backend.AggregateOpeningBinding{}, errInvalidTreeProof
+	}
+	hash.Write(rootBytes[:])
+	var count [4]byte
+	binary.BigEndian.PutUint32(count[:], uint32(len(claims.claims)))
+	hash.Write(count[:])
+	for index := range claims.claims {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.AggregateOpeningBinding{}, err
+		}
+		claim := claims.claims[index]
+		hash.Write(claim.key[:])
+		hash.Write([]byte{byte(claim.kind)})
+		hash.Write(claim.value[:])
+	}
+	binary.BigEndian.PutUint32(count[:], uint32(len(queries)))
+	hash.Write(count[:])
+	for index := range queries {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return backend.AggregateOpeningBinding{}, err
+		}
+		query := queries[index]
+		hash.Write([]byte{query.Length})
+		hash.Write(query.Path[:query.Length])
+		commitment, commitmentErr := query.Opening.Commitment.DeduplicationKey()
+		if commitmentErr != nil {
+			return backend.AggregateOpeningBinding{}, errInvalidProofMaterial
+		}
+		hash.Write(commitment[:])
+		hash.Write([]byte{query.Opening.Index})
+		hash.Write(query.Opening.Value[:])
+	}
+
+	return backend.AggregateOpeningBinding(hash.Sum(nil)), nil
 }
 
 func (engine *ProofEngine) validate() error {

@@ -18,6 +18,7 @@ const (
 	treeProofEncodingBytes     = 2
 	treeProofCountBytes        = 4
 	treeProofCountFields       = 3
+	treeProofContainerVersion  = uint16(2)
 	claimEncodedBytes          = 32 + 1 + 32
 	stemPathEncodedBytes       = 31 + 1 + 1 + 31
 	pathCommitmentEncodedBytes = 1 + maxProofPathLength +
@@ -263,7 +264,7 @@ func (proof TreeProof) Bytes(
 	offset += treeProofVersionBytes
 	binary.BigEndian.PutUint16(
 		encoded[offset:offset+treeProofEncodingBytes],
-		proof.profile.EncodingVersion(),
+		treeProofContainerVersion,
 	)
 	offset += treeProofEncodingBytes
 	copy(encoded[offset:], rootBytes[:])
@@ -372,7 +373,7 @@ func DecodeTreeProof(
 	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
 	if encoded[treeProofMagicBytes] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(encoded[5:7]) != profile.Version() ||
-		binary.BigEndian.Uint16(encoded[7:9]) != profile.EncodingVersion() {
+		binary.BigEndian.Uint16(encoded[7:9]) != treeProofContainerVersion {
 		return TreeProof{}, fmt.Errorf(
 			"%w: proof profile",
 			internalprofile.ErrUnsupported,

@@ -125,7 +125,10 @@ canonical point/scalar encoding, bounded aggregate-opening generation and
 verification, a strict raw proof decoder, and a bounded serial
 vector-commitment boundary. The fixed aggregate-opening engine binds the
 `verkle` transcript and pinned generator set without accepting caller-selected
-cryptographic composition. The encoding tests
+cryptographic composition. Package-owned tree proofs additionally hash the
+canonical root, claims, and reconstructed opening records into the transcript
+and add one fixed nonzero anchor opening. This prevents the otherwise trivial
+all-zero-vector IPA proof from being replayed for another key set. The encoding tests
 include two pinned upstream point fixtures and the documented scalar-field
 modulus; their provenance is recorded in
 [`specification/sources.json`](specification/sources.json). No setup material
@@ -283,11 +286,12 @@ result per stem, the deduplicated internal, stem, and selected suffix-half
 commitments, and the profile-bound snapshot root. Aggregate key, stem,
 node-read, path, and temporary-memory limits are enforced before
 attacker-amplified work, and returned metadata is owned and safe for concurrent
-reads. This material boundary does not authenticate claims by itself and does
-not support empty-root non-membership.
+reads. For an empty snapshot it emits only absence claims, depth-one missing
+paths, and no non-root commitments. This material boundary does not
+authenticate claims by itself.
 
 An internal immutable unverified tree-proof container now binds that canonical
-claim set to one exact non-empty root, one topology result per distinct queried
+claim set to one exact root, one topology result per distinct queried
 stem, every required non-root path commitment, and one strict raw
 aggregate-opening payload. It deterministically orders stems and commitment
 paths, deduplicates shared suffix paths, rejects omitted, surplus, duplicate, or
@@ -300,16 +304,20 @@ bytes, nonzero padding, malformed points or scalars, and aggregate resource
 overruns before cryptographic decoding; and preserve cancellation and caller
 ownership. This remains an experimental format and performs no verification
 merely by construction or decoding.
-Empty-root non-membership remains deliberately unsupported until its proof form
-is specified without a meaningless aggregate-opening payload.
+An empty-root proof requires only absence claims, one depth-one missing path per
+distinct stem, and no non-root tree commitment. Its aggregate opening proves
+the selected zero child positions of the root's identity vector plus the fixed
+statement-binding anchor; shared tree child indices are consolidated
+canonically.
 
 An explicit internal proof engine now derives complete prover vectors from one
 immutable snapshot, independently reconstructs verifier evaluations from the
 canonical proof material, consolidates identical commitment/index openings,
-constructs the fixed `verkle` transcript, and returns the canonical tree-proof
-container. Verification reconstructs the expected opening set from the decoded
-proof without consulting mutable tree state and rejects changed roots, claims,
-evaluations, or aggregate proof elements. Query, scalar-decode,
+constructs the fixed package-bound `verkle` transcript, and returns the
+canonical tree-proof container. Verification reconstructs the expected opening
+set from the decoded proof without consulting mutable tree state and rejects
+changed roots, key sets, claims, evaluations, or aggregate proof elements. The
+opening limit counts the additional statement-binding anchor. Query, scalar-decode,
 multi-scalar-multiplication, scratch-memory, generator, precomputation, and
 worker budgets are preflighted. Cancellation is checked throughout owned work
 and before and after dependency calls, but the pinned dependency cannot be

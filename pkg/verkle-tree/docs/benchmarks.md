@@ -114,7 +114,8 @@ GOWORK=off go test . -run '^$' \
 
 Environment:
 
-- Date: 2026-08-01; stateless-witness rows refreshed 2026-08-03
+- Date: 2026-08-01; bound proof-engine and stateless-witness rows refreshed
+  2026-08-03
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -128,10 +129,10 @@ threshold is enforced because no stable cross-runner baseline exists yet.
 Reproduce measurements on the target deployment hardware before using them for
 capacity planning.
 
-The 2026-08-03 witness refresh ran while unrelated repository mutation jobs
-shared the host, as required by the non-blocking verification workflow. The raw
-samples retain the resulting scheduling spikes and MUST NOT be used as a
-regression baseline or comparison result.
+The 2026-08-03 proof and witness refresh ran while unrelated repository
+mutation jobs shared the host, as required by the non-blocking verification
+workflow. The raw samples retain the resulting scheduling spikes and MUST NOT
+be used as a regression baseline or comparison result.
 
 ## Raw samples
 
@@ -170,11 +171,11 @@ nanoseconds per operation.
 | Encode canonical unverified tree proof | 5136, 16481, 16351, 13961, 6149 | 1024 | 1 |
 | Decode canonical unverified tree proof | 253440, 627923, 368237, 277831, 307604 | 4354-4355 | 30 |
 | Reject wrong-length encoded tree proof | 474.3, 374.8, 377.9, 267.9, 338.3 | 96 | 2 |
-| Generate sixteen-key aggregate tree proof | 23815417, 24936125, 24801834, 24196208, 27617792 | 10085560-10086816 | 5247-5270 |
-| Verify sixteen-key aggregate tree proof | 3257666, 3220208, 3738459, 3016125, 3131959 | 610968-611408 | 1143-1150 |
-| Encode one-update canonical stateless witness | 16292, 10667, 15708, 18583, 19083 | 2048 | 2 |
-| Decode one-update canonical stateless witness | 222667, 203666, 9169709, 2168500, 215167 | 4464 | 32 |
-| Verify and apply one-update stateless witness | 29859209, 9478417, 6003458, 53805542, 18034417 | 284032-284472 | 1065-1072 |
+| Generate sixteen-key aggregate tree proof | 43424750, 30970417, 28593083, 32713125, 51248250 | 10574424-10576752 | 5191-5229 |
+| Verify sixteen-key aggregate tree proof | 4989750, 15851417, 11878209, 8317041, 10396709 | 635072-635744 | 1146-1158 |
+| Encode one-update canonical stateless witness | 15125, 13625, 14875, 22375, 7625 | 2048 | 2 |
+| Decode one-update canonical stateless witness | 223916, 249625, 354125, 227458, 226417 | 4464 | 32 |
+| Verify and apply one-update stateless witness | 3356666, 104793459, 202132792, 8603458, 23423500 | 286304-286728 | 1073-1080 |
 
 These results are descriptive evidence for this source and environment, not a
 portable performance guarantee. The vector samples show substantial local

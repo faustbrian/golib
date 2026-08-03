@@ -192,7 +192,7 @@ func TestTreeProofRequiresExactCanonicalPathSet(t *testing.T) {
 	}
 }
 
-func TestTreeProofRejectsEmptyRootUntilEmptyProofSemanticsAreFixed(t *testing.T) {
+func TestTreeProofAcceptsCanonicalEmptyRootNonMembership(t *testing.T) {
 	t.Parallel()
 
 	snapshot := newTestSnapshot(t, nil)
@@ -201,7 +201,7 @@ func TestTreeProofRejectsEmptyRootUntilEmptyProofSemanticsAreFixed(t *testing.T)
 		t.Fatalf("empty root: %v", err)
 	}
 	key := testKey(0, 0)
-	_, err = NewTreeProof(
+	proof, err := NewTreeProof(
 		context.Background(),
 		root,
 		mustClaimSet(t, []Claim{Absence(key)}),
@@ -210,8 +210,91 @@ func TestTreeProofRejectsEmptyRootUntilEmptyProofSemanticsAreFixed(t *testing.T)
 		testRawOpeningProof(t),
 		testTreeProofLimits(),
 	)
-	if !errors.Is(err, errInvalidTreeProof) {
-		t.Fatalf("empty-root proof error = %v, want %v", err, errInvalidTreeProof)
+	if err != nil {
+		t.Fatalf("empty-root proof: %v", err)
+	}
+	gotRoot, err := proof.Root()
+	if err != nil {
+		t.Fatalf("proof root: %v", err)
+	}
+	empty, err := gotRoot.IsEmpty()
+	if err != nil || !empty {
+		t.Fatalf("proof root empty = %t, error %v", empty, err)
+	}
+}
+
+func TestTreeProofRejectsNonCanonicalEmptyRootShapes(t *testing.T) {
+	t.Parallel()
+
+	root, err := newTestSnapshot(t, nil).RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("empty root: %v", err)
+	}
+	key := testKey(0, 0)
+	stem := stemFromKey(key)
+	absence := mustClaimSet(t, []Claim{Absence(key)})
+	opening := testRawOpeningProof(t)
+	tests := map[string]struct {
+		claims      ClaimSet
+		paths       []StemPath
+		commitments []PathCommitment
+	}{
+		"membership": {
+			claims: mustClaimSet(t, []Claim{Membership(key, testValue(1))}),
+			paths:  []StemPath{MissingStemPath(stem, 1)},
+		},
+		"present path": {
+			claims: absence,
+			paths:  []StemPath{PresentStemPath(stem, 1)},
+		},
+		"deep missing path": {
+			claims: absence,
+			paths:  []StemPath{MissingStemPath(stem, 2)},
+		},
+		"non-root commitment": {
+			claims: absence,
+			paths:  []StemPath{MissingStemPath(stem, 1)},
+			commitments: []PathCommitment{mustPathCommitment(
+				t, []byte{key[0]}, backend.EmptyVectorCommitment(),
+			)},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewTreeProof(
+				context.Background(), root, test.claims, test.paths,
+				test.commitments, opening, testTreeProofLimits(),
+			)
+			if !errors.Is(err, errInvalidTreeProof) {
+				t.Fatalf("empty-root shape error = %v, want %v", err, errInvalidTreeProof)
+			}
+		})
+	}
+
+	valid, err := NewTreeProof(
+		context.Background(), root, absence,
+		[]StemPath{MissingStemPath(stem, 1)}, nil,
+		opening, testTreeProofLimits(),
+	)
+	if err != nil {
+		t.Fatalf("canonical empty-root proof: %v", err)
+	}
+	for name, mutate := range map[string]func(*TreeProof){
+		"claims": func(proof *TreeProof) {
+			proof.claims = mustClaimSet(t, []Claim{Membership(key, testValue(1))})
+		},
+		"paths":       func(proof *TreeProof) { proof.stemPaths = nil },
+		"commitments": func(proof *TreeProof) { proof.commitments = []PathCommitment{{}} },
+	} {
+		t.Run("forged "+name, func(t *testing.T) {
+			forged := valid
+			mutate(&forged)
+			if !errors.Is(forged.validate(), errInvalidTreeProof) {
+				t.Fatal("forged empty-root proof was valid")
+			}
+		})
 	}
 }
 

@@ -121,6 +121,104 @@ func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
 	}
 }
 
+func TestPublicProofEngineProvesCanonicalEmptyRootNonMembership(t *testing.T) {
+	t.Parallel()
+
+	first := publicKey(0x20, 0x01)
+	second := publicKey(0x10, 0x02)
+	secondSuffix := second
+	secondSuffix[31] = 0x80
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		nil,
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new empty snapshot: %v", err)
+	}
+	engine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new proof engine: %v", err)
+	}
+	proof, err := engine.Prove(
+		context.Background(),
+		snapshot,
+		[]verkletree.Key{first, secondSuffix, second},
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove empty-root non-membership: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(), proof, publicProofVerificationLimits(),
+	); err != nil {
+		t.Fatalf("verify empty-root non-membership: %v", err)
+	}
+	root, err := proof.Root()
+	if err != nil {
+		t.Fatalf("proof root: %v", err)
+	}
+	empty, err := root.IsEmpty()
+	if err != nil || !empty {
+		t.Fatalf("proof root empty = %t, error %v", empty, err)
+	}
+	claims, err := proof.Claims(context.Background())
+	if err != nil || len(claims) != 3 {
+		t.Fatalf("claims = %#v, error %v", claims, err)
+	}
+	for index := range claims {
+		kind, kindErr := claims[index].Kind()
+		_, present, valueErr := claims[index].Value()
+		if kindErr != nil || valueErr != nil ||
+			kind != verkletree.ClaimAbsence || present {
+			t.Fatalf(
+				"claim %d = %d/%t, errors %v/%v",
+				index, kind, present, kindErr, valueErr,
+			)
+		}
+	}
+	encoded, err := proof.Bytes(
+		context.Background(), publicProofEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode empty-root proof: %v", err)
+	}
+	decoded, err := verkletree.DecodeProof(
+		context.Background(), encoded, publicProofDecodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("decode empty-root proof: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(), decoded, publicProofVerificationLimits(),
+	); err != nil {
+		t.Fatalf("verify decoded empty-root proof: %v", err)
+	}
+	reordered, err := engine.Prove(
+		context.Background(),
+		snapshot,
+		[]verkletree.Key{second, first, secondSuffix},
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove reordered empty-root non-membership: %v", err)
+	}
+	reorderedBytes, err := reordered.Bytes(
+		context.Background(), publicProofEncodingLimits(),
+	)
+	if err != nil {
+		t.Fatalf("encode reordered empty-root proof: %v", err)
+	}
+	if !bytes.Equal(encoded, reorderedBytes) {
+		t.Fatal("empty-root proof bytes depend on caller key order")
+	}
+}
+
 func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	t.Parallel()
 

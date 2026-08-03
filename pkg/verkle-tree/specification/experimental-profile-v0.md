@@ -550,9 +550,16 @@ caller storage, and an immutable container MUST support concurrent reads.
 This container performs no transcript construction, opening generation,
 opening verification, or claim authentication. Successful construction proves
 only canonical structure for later proof verification. It MUST NOT be exposed
-as a verified proof or used to authorize a state transition. Empty-root
-non-membership MUST remain unsupported until its proof form is fixed without
-requiring a surplus aggregate-opening payload.
+as a verified proof or used to authorize a state transition.
+
+For an explicit empty root, every claim MUST be absence, every distinct queried
+stem MUST have exactly one `missing` path at depth one, and the non-root path
+commitment set MUST be empty. The proof engine MUST open the all-zero root
+vector at each selected first stem byte. Queries selecting the same root index
+MUST consolidate canonically. The resulting aggregate opening is REQUIRED: it
+proves the claimed zero root positions and is not a surplus payload. A
+membership claim, a present or different path, a missing path at another
+depth, or any non-root commitment MUST be rejected before verification.
 
 ## Canonical Tree-Proof Encoding
 
@@ -568,8 +575,8 @@ The encoding MUST contain the following fields in order:
 | 0 | 4 | ASCII magic `VKPF` |
 | 4 | 1 | profile identifier `1` |
 | 5 | 2 | profile version `0`, unsigned big-endian |
-| 7 | 2 | container encoding version `1`, unsigned big-endian |
-| 9 | 42 | exact canonical non-empty root container |
+| 7 | 2 | tree-proof container encoding version `2`, unsigned big-endian |
+| 9 | 42 | exact canonical root container, including explicit empty root |
 | 51 | 4 | claim count, unsigned big-endian |
 | 55 | 4 | stem-path count, unsigned big-endian |
 | 59 | 4 | path-commitment count, unsigned big-endian |
@@ -726,6 +733,38 @@ The internal experimental aggregate-opening engine MUST bind width 256, the
 MUST NOT select or replace the curve, field, width, generators, transcript, or
 proof encoding at runtime.
 
+Package-owned tree proofs MUST compute a statement binding as SHA-256 over the
+following concatenation, with no omitted or optional fields:
+
+1. ASCII `github.com/faustbrian/golib/pkg/verkle-tree/proof-statement/v0`;
+2. the 42-byte canonical root container;
+3. the claim count as unsigned 32-bit big-endian;
+4. each canonical claim's 32-byte key, one-byte kind, and 32-byte value;
+5. the reconstructed verifier-query count as unsigned 32-bit big-endian; and
+6. for each canonical verifier query, its one-byte path length, exact path
+   prefix, 32-byte commitment deduplication key, one-byte index, and 32-byte
+   canonical evaluation.
+
+The commitment deduplication key MUST be the canonical compressed commitment,
+or 32 zero bytes for the in-memory identity. Before the backend's first
+challenge, the engine MUST append the 32-byte statement binding to the
+`verkle` transcript under ASCII label `verkletree-proof-statement-v0`.
+
+Every bound tree proof MUST also include one nonzero anchor opening: the
+width-256 vector whose index zero is scalar one and whose other entries are
+zero, its commitment (generator zero), index zero, and evaluation one. The
+engine MUST prepend the synthetic anchor before every tree opening. If the tree
+opening set already contains that exact commitment, index, vector, and
+evaluation, the engine MUST instead consolidate it at its canonical tree-query
+position; a conflicting duplicate MUST fail.
+The anchor counts against every query, scalar-decode, multi-scalar,
+temporary-memory, and worker budget. Its purpose is to make the proof depend on
+the statement binding even when every tree commitment and evaluation is zero.
+Security of this binding relies on SHA-256 collision resistance and the
+binding and knowledge-soundness assumptions of the selected commitment scheme.
+The unbound raw backend methods retained for pinned interoperability fixtures
+MUST NOT be used to verify package-owned tree proofs.
+
 Each prover query MUST contain one complete vector of 256 canonical
 little-endian field scalars, its opaque commitment, and one in-domain index.
 Before proof generation, the engine MUST decode every scalar canonically,
@@ -744,13 +783,21 @@ the same commitment and index, both sides MUST consolidate them to the first
 canonical path; differing vectors or evaluations for that shared opening MUST
 fail closed.
 
+For the explicit empty root, the prover vector MUST be the width-256 all-zero
+vector, its in-memory commitment MUST be the mathematical identity, and every
+evaluation MUST be canonical scalar zero. The identity MUST remain represented
+only by the root container and in-memory commitment; it MUST NOT introduce an
+identity point encoding or a non-root path-commitment record. The fixed
+statement-binding anchor remains REQUIRED and is not a tree path commitment.
+
 The resulting aggregate opening MUST use the exact 576-byte encoding above.
 Tree-proof verification MUST reconstruct the complete expected opening set
 from the immutable proof without consulting mutable tree state and MUST invoke
 the backend only after structural, profile, canonical-order, completeness, and
 resource validation. A well-formed proof that fails the cryptographic equation
 MUST return a verification error and MUST NOT be treated as absence. Changed
-roots, claims, values, commitments, indices, or proof elements MUST fail.
+roots, key sets, claims, values, commitments, indices, statement bindings, or
+proof elements MUST fail.
 
 Construction and verification MUST preflight positive limits for generator
 derivations, precomputed points, queries, scalar decodes, conservative

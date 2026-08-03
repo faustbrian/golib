@@ -63,7 +63,7 @@ func TestTreeProofBytesUsesCanonicalProfileBoundEncoding(t *testing.T) {
 	want = binary.BigEndian.AppendUint16(want, proof.profile.Version())
 	want = binary.BigEndian.AppendUint16(
 		want,
-		proof.profile.EncodingVersion(),
+		2,
 	)
 	want = append(want, rootBytes[:]...)
 	want = binary.BigEndian.AppendUint32(want, 1)
@@ -940,7 +940,7 @@ func TestDecodeTreeProofRejectsMalformedCanonicalEncoding(t *testing.T) {
 			canonical,
 			treeProofMagicBytes+treeProofProfileIDBytes+
 				treeProofVersionBytes+1,
-			2,
+			1,
 		),
 		"root": zeroTreeProofEncoding(
 			canonical,

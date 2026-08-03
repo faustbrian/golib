@@ -180,7 +180,9 @@ The current internal boundary may:
   scratch-memory, and dependency-worker preflight;
 - create aggregate openings only for complete canonical width-256 vectors
   whose recomputed commitments match; and
-- verify complete canonical opening sets under the fixed `verkle` transcript.
+- verify complete canonical opening sets under the fixed `verkle` transcript;
+  package-owned bound operations additionally inject a canonical SHA-256
+  statement digest and one fixed nonzero anchor opening before proof work.
 
 It may decode only the fixed raw aggregate-proof payload described by the
 experimental profile and the package-owned internal unverified tree-proof
@@ -189,7 +191,9 @@ fixed internal profile boundary. It must not accept a serialized identity as a
 root, node, path, or standalone commitment, expose dependency values outside
 `internal/`, accept caller-selected
 transcripts or generators, or claim cancellation once a dependency proof call
-has begun.
+has begun. The unbound raw opening methods exist only to reproduce the pinned
+interoperability corpora; the package-owned proof engine uses only the bound
+statement-and-anchor methods.
 
 The engine's generator, query, scalar, multi-scalar-multiplication, worker, and
 scratch-byte accounting is a deterministic conservative package budget. The

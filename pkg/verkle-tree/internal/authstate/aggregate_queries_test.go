@@ -89,6 +89,40 @@ func TestProofMaterialReconstructsVerifiableAggregateQueries(t *testing.T) {
 	}
 }
 
+func TestEmptyRootVerifierQueriesConsolidateSharedRootIndex(t *testing.T) {
+	t.Parallel()
+
+	first := testKey(0x10, 0x01)
+	second := testKey(0x10, 0x02)
+	second[1] = 0x20
+	material, err := newTestSnapshot(t, nil).ProofMaterial(
+		context.Background(),
+		[]Key{second, first},
+		testProofMaterialLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty-root proof material: %v", err)
+	}
+	queries, err := material.AggregateVerifierQueries(
+		context.Background(),
+		testAggregateVerifierQueryLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty-root verifier queries: %v", err)
+	}
+	if len(queries) != 1 {
+		t.Fatalf("empty-root query count = %d, want 1", len(queries))
+	}
+	query := queries[0]
+	if query.Length != 0 || query.Opening.Index != first[0] ||
+		query.Opening.Value != ([32]byte{}) {
+		t.Fatalf(
+			"empty-root query = path length %d, index %d, value %x",
+			query.Length, query.Opening.Index, query.Opening.Value,
+		)
+	}
+}
+
 func TestAggregateVerifierQueriesTraverseEveryInternalDepth(t *testing.T) {
 	t.Parallel()
 

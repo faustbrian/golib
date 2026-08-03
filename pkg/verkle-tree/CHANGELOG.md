@@ -41,6 +41,11 @@ All notable changes to `verkle-tree` will be documented in this file.
   hostile-input budgets, canonical encoding, typed errors, and zero-value
   rejection. Membership, absent-suffix, and absent-stem claims are independently
   verified without consulting mutable tree state.
+- Add canonical empty-root non-membership proofs with absence claims, depth-one
+  missing paths, zero root-vector openings, and a nonzero statement-binding
+  anchor that prevents cross-key replay, including stateless insertion
+  witnesses from an empty pre-state. Tree-proof container encoding version 2
+  rejects the earlier unbound version 1 semantics.
 
 - Add an internal fixed-profile aggregate proof engine that derives complete
   snapshot opening vectors, independently reconstructs verifier evaluations,
@@ -138,8 +143,7 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add an internal canonical unverified tree-proof container that binds an exact
   root, claim set, stem topology, required non-root path commitments, and raw
   opening payload while rejecting incomplete or conflicting metadata under
-  explicit resource and cancellation limits; empty-root proofs remain rejected
-  until their proof form is specified.
+  explicit resource and cancellation limits.
 - Add an exact package-owned canonical encoding and strict bounded decoder for
   the unverified tree-proof container, binding its profile, root, ordered
   claims, topology, path commitments, and opening payload while rejecting

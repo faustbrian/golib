@@ -146,9 +146,12 @@ identity handling, commitment-to-field mapping, bounded sparse changes to
 already authenticated vector positions, strict decoding of the fixed 576-byte
 aggregate-opening proof, and fixed-profile aggregate opening and verification.
 It binds the `verkle` transcript and pinned generators and rejects duplicate or
-conflicting update and opening identities. Sparse commitment arithmetic does
-not authenticate the supplied old scalars by itself. The internal authenticated
-stateless updater now verifies the complete tree proof before using old
+conflicting update and opening identities. Package-owned tree proofs prepend a
+fixed nonzero anchor opening and bind a SHA-256 digest of the canonical root,
+claims, and reconstructed opening records before the backend transcript's first
+challenge. Sparse commitment arithmetic does not authenticate the supplied old
+scalars by itself. The internal authenticated stateless updater now verifies
+the complete tree proof before using old
 scalars for present-stem `Set` operations or authenticated terminal paths for
 new-stem insertion. The decoder alone does not bind a
 root, key set, claim, path, transcript, or verification result. The boundary
@@ -203,14 +206,15 @@ verification result.
 The immutable snapshot proof-material operation accepts unordered distinct
 fixed-size keys and derives canonical claims, one terminal stem path per
 distinct stem, the exact deduplicated non-root commitments required by those
-paths, and the snapshot's non-empty profile-bound root. One invocation reads
-only the retained immutable committed tree, so its outputs cannot mix snapshot
+paths, and the snapshot's profile-bound root. For an empty root it returns only
+absence claims, depth-one missing paths, and no non-root commitments. One
+invocation reads only the retained immutable committed tree, so its outputs cannot mix snapshot
 versions. It owns every returned slice, supports concurrent reads, and enforces
 aggregate key, stem, node-read, commitment, path-byte, temporary-memory, and
 cancellation limits. It does not produce an aggregate opening or a verified
-proof, and empty-root non-membership remains deliberately unsupported.
+proof.
 
-The next internal boundary combines those claims with one exact non-empty root,
+The next internal boundary combines those claims with one exact root,
 one validated present, missing-child, or different-stem result per distinct
 queried stem, the exact set of required non-root path commitments, and one
 canonical raw opening payload. It owns and deterministically orders all
@@ -227,8 +231,10 @@ opening elements, and preflights aggregate byte, count, path, point, scalar,
 derivation, and temporary-memory budgets before cryptographic decoding or
 attacker-amplified allocation. It returns an owned but unverified container.
 This encoding is not a public or stable wire contract and does not authenticate
-a claim merely by decoding. Empty-root non-membership remains outside this
-boundary until its proof representation is fixed.
+a claim merely by decoding. Empty-root non-membership has one exact form: every
+claim is absence, every distinct stem terminates at a depth-one missing path,
+the non-root commitment set is empty, and the aggregate opening proves the
+selected zero positions of the root identity vector.
 
 The internal proof engine combines the immutable snapshot, proof-material,
 committed-tree query, and fixed aggregate-opening boundaries. Generation first

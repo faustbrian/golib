@@ -196,14 +196,20 @@ bytes, point and scalar decodes, and conservative temporary memory before
 cryptographic decoding or attacker-amplified allocation. Cancellation from
 nested cryptographic decoders remains distinguishable from malformed syntax,
 and accepted state does not alias the hostile input.
-It rejects empty roots until empty-root non-membership has an explicit proof
-form that cannot carry a meaningless surplus opening payload.
+For an explicit empty root, it accepts only absence claims with one depth-one
+missing path per distinct stem and no non-root commitments. The proof engine
+still requires an aggregate opening of the selected all-zero root-vector
+positions plus a fixed nonzero anchor. A SHA-256 digest of the canonical root,
+claims, and reconstructed openings is injected before the first transcript
+challenge, so the otherwise trivial zero-vector proof cannot be replayed for a
+different key set.
 
 The internal proof engine mitigates false structural claims by deriving full
 prover vectors from the immutable tree, independently reconstructing verifier
 evaluations from the proof, requiring exact canonical agreement, and verifying
 the aggregate opening under the fixed generator set and `verkle` transcript.
-It consolidates identical commitment/index openings and rejects conflicting
+It binds the complete canonical statement digest and one fixed nonzero anchor,
+consolidates identical commitment/index openings, and rejects conflicting
 vectors or evaluations, changed roots or claimed values, malformed proofs,
 partial opening sets, resource exhaustion, and cancellation observed by owned
 work. Verification is independent from mutable tree state. The pinned backend

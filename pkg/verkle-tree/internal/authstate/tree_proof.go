@@ -336,10 +336,7 @@ func NewTreeProof(
 	if err != nil {
 		return TreeProof{}, errInvalidTreeProof
 	}
-	emptyRoot, err := root.IsEmpty()
-	if err != nil || emptyRoot {
-		return TreeProof{}, errInvalidTreeProof
-	}
+	emptyRoot, _ := root.IsEmpty()
 	if err := claims.validate(); err != nil {
 		return TreeProof{}, errInvalidTreeProof
 	}
@@ -352,6 +349,9 @@ func NewTreeProof(
 	claimCount := uint32(len(claims.claims))
 	stemPathCount := uint64(len(stemPaths))
 	commitmentCount := uint64(len(commitments))
+	if emptyRoot && commitmentCount != 0 {
+		return TreeProof{}, errInvalidTreeProof
+	}
 	if err := checkTreeProofResource(
 		TreeProofResourceClaims,
 		uint64(limits.MaxClaims),
@@ -389,6 +389,10 @@ func NewTreeProof(
 		}
 		if err := stemPaths[index].validate(); err != nil {
 			return TreeProof{}, err
+		}
+		if emptyRoot && (stemPaths[index].kind != StemPathMissing ||
+			stemPaths[index].depth != 1) {
+			return TreeProof{}, errInvalidTreeProof
 		}
 	}
 	for index := range commitments {
@@ -570,7 +574,11 @@ func (proof TreeProof) validate() error {
 		return errInvalidTreeProof
 	}
 	emptyRoot, _ := proof.root.IsEmpty()
-	if emptyRoot {
+	if emptyRoot && !validEmptyRootTreeProofShape(
+		proof.claims.claims,
+		proof.stemPaths,
+		proof.commitments,
+	) {
 		return errInvalidTreeProof
 	}
 	if _, err := proof.claims.Profile(); err != nil {
@@ -581,6 +589,34 @@ func (proof TreeProof) validate() error {
 	}
 
 	return nil
+}
+
+func validEmptyRootTreeProofShape(
+	claims []Claim,
+	paths []StemPath,
+	commitments []PathCommitment,
+) bool {
+	if len(claims) == 0 || len(paths) == 0 || len(commitments) != 0 {
+		return false
+	}
+	claimIndex := 0
+	for pathIndex := range paths {
+		path := paths[pathIndex]
+		if path.kind != StemPathMissing || path.depth != 1 ||
+			claimIndex == len(claims) ||
+			Stem(claims[claimIndex].key[:31]) != path.stem {
+			return false
+		}
+		for claimIndex < len(claims) &&
+			Stem(claims[claimIndex].key[:31]) == path.stem {
+			if claims[claimIndex].kind != ClaimAbsence {
+				return false
+			}
+			claimIndex++
+		}
+	}
+
+	return claimIndex == len(claims)
 }
 
 type pathMarkerKind uint8

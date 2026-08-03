@@ -321,6 +321,73 @@ func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T
 	assertPublicRootsEqual(t, gotRoot, postRoot)
 }
 
+func TestPublicStatelessWitnessAppliesInsertionToEmptyRoot(t *testing.T) {
+	t.Parallel()
+
+	key := publicKey(0x18, 0x80)
+	value := publicValue(7)
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		nil,
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new empty snapshot: %v", err)
+	}
+	updates := []verkletree.Update{verkletree.Set(key, value)}
+	proofEngine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new proof engine: %v", err)
+	}
+	proof, err := proofEngine.ProveUpdates(
+		context.Background(), snapshot, updates,
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove empty-root insertion: %v", err)
+	}
+	next, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("stateful empty-root insertion: %v", err)
+	}
+	postRoot, err := next.Root()
+	if err != nil {
+		t.Fatalf("stateful post-state root: %v", err)
+	}
+	witness, err := verkletree.NewWitness(
+		context.Background(), proof, updates, postRoot, publicWitnessLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new empty-root insertion witness: %v", err)
+	}
+	engine, err := verkletree.NewStatelessEngine(
+		context.Background(),
+		verkletree.ExperimentalBandersnatchIPA256V0(),
+		publicOpeningLimits(),
+		publicSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		t.Fatalf("new stateless engine: %v", err)
+	}
+	result, err := engine.Apply(
+		context.Background(), witness,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply empty-root insertion witness: %v", err)
+	}
+	gotRoot, err := result.PostRoot()
+	if err != nil {
+		t.Fatalf("stateless post-state root: %v", err)
+	}
+	assertPublicRootsEqual(t, gotRoot, postRoot)
+}
+
 func TestPublicProofEngineBuildsAndAppliesTopologyDeletionWitness(t *testing.T) {
 	t.Parallel()
 

@@ -57,6 +57,99 @@ func TestAggregateOpeningEngineMatchesPinnedRustProof(t *testing.T) {
 	}
 }
 
+func TestBoundAggregateOpeningRejectsStatementReplayForZeroVector(t *testing.T) {
+	t.Parallel()
+
+	engine := newTestAggregateOpeningEngine(t)
+	prover := []AggregateProverQuery{{
+		Commitment: EmptyVectorCommitment(),
+		Index:      0x10,
+	}}
+	verifier := []AggregateVerifierQuery{{
+		Commitment: EmptyVectorCommitment(),
+		Index:      0x10,
+	}}
+	binding := AggregateOpeningBinding{1}
+	proof, err := engine.OpenBound(context.Background(), binding, prover)
+	if err != nil {
+		t.Fatalf("open bound zero vector: %v", err)
+	}
+	if err := engine.VerifyBound(
+		context.Background(), binding, proof, verifier,
+	); err != nil {
+		t.Fatalf("verify bound zero vector: %v", err)
+	}
+	replayed := binding
+	replayed[31] = 1
+	if err := engine.VerifyBound(
+		context.Background(), replayed, proof, verifier,
+	); !errors.Is(err, errAggregateOpeningVerification) {
+		t.Fatalf("replayed binding error = %v", err)
+	}
+	if _, err := engine.OpenBound(
+		context.Background(), binding, nil,
+	); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("empty bound prover error = %v", err)
+	}
+	if err := engine.VerifyBound(
+		context.Background(), binding, proof, nil,
+	); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("empty bound verifier error = %v", err)
+	}
+
+	limited := *engine
+	limited.limits.MaxQueries = 1
+	if _, err := limited.OpenBound(
+		context.Background(), binding, prover,
+	); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("bound anchor query resource error = %v", err)
+	}
+	if err := limited.VerifyBound(
+		context.Background(), binding, proof, verifier,
+	); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("bound verifier anchor query resource error = %v", err)
+	}
+	anchorProver := []AggregateProverQuery{limited.bindingProverQuery()}
+	anchorVerifier := []AggregateVerifierQuery{limited.bindingVerifierQuery()}
+	anchorProof, err := limited.OpenBound(
+		context.Background(), binding, anchorProver,
+	)
+	if err != nil {
+		t.Fatalf("open consolidated binding anchor: %v", err)
+	}
+	if err := limited.VerifyBound(
+		context.Background(), binding, anchorProof, anchorVerifier,
+	); err != nil {
+		t.Fatalf("verify consolidated binding anchor: %v", err)
+	}
+	invalidProver := append([]AggregateProverQuery(nil), prover...)
+	invalidProver[0].Commitment = VectorCommitment{}
+	if _, err := engine.OpenBound(
+		context.Background(), binding, invalidProver,
+	); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("invalid bound prover commitment error = %v", err)
+	}
+	invalidVerifier := append([]AggregateVerifierQuery(nil), verifier...)
+	invalidVerifier[0].Commitment = VectorCommitment{}
+	if err := engine.VerifyBound(
+		context.Background(), binding, proof, invalidVerifier,
+	); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("invalid bound verifier commitment error = %v", err)
+	}
+	oversizedInvalidProver := make([]AggregateProverQuery, 2)
+	if _, err := limited.OpenBound(
+		context.Background(), binding, oversizedInvalidProver,
+	); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("oversized bound prover preflight error = %v", err)
+	}
+	oversizedInvalidVerifier := make([]AggregateVerifierQuery, 2)
+	if err := limited.VerifyBound(
+		context.Background(), binding, proof, oversizedInvalidVerifier,
+	); !errors.Is(err, errAggregateOpeningResource) {
+		t.Fatalf("oversized bound verifier preflight error = %v", err)
+	}
+}
+
 func TestAggregateOpeningEngineRejectsInvalidSetup(t *testing.T) {
 	t.Parallel()
 
@@ -281,6 +374,7 @@ func TestAggregateOpeningSupportsOneAuthenticatedZeroOpening(t *testing.T) {
 	}
 	commitment := engine.backend.commit(polynomial)
 	native, err := engine.backend.open(
+		nil,
 		[]*banderwagon.Element{&commitment}, [][]fr.Element{polynomial}, []uint8{1},
 	)
 	if err != nil {
@@ -288,6 +382,7 @@ func TestAggregateOpeningSupportsOneAuthenticatedZeroOpening(t *testing.T) {
 	}
 	zero := fr.Zero()
 	verified, err := engine.backend.verify(
+		nil,
 		native, []*banderwagon.Element{&commitment}, []*fr.Element{&zero}, []uint8{1},
 	)
 	if err != nil || !verified {
@@ -477,6 +572,7 @@ func (backend *fakeAggregateOpeningBackend) commit(polynomial []fr.Element) band
 }
 
 func (backend *fakeAggregateOpeningBackend) open(
+	binding *AggregateOpeningBinding,
 	commitments []*banderwagon.Element,
 	polynomials [][]fr.Element,
 	indices []uint8,
@@ -488,10 +584,11 @@ func (backend *fakeAggregateOpeningBackend) open(
 		return backend.openProof, backend.openErr
 	}
 
-	return backend.delegate.open(commitments, polynomials, indices)
+	return backend.delegate.open(binding, commitments, polynomials, indices)
 }
 
 func (backend *fakeAggregateOpeningBackend) verify(
+	binding *AggregateOpeningBinding,
 	proof *multiproof.MultiProof,
 	commitments []*banderwagon.Element,
 	values []*fr.Element,
@@ -504,7 +601,7 @@ func (backend *fakeAggregateOpeningBackend) verify(
 		return backend.verifyOK, backend.verifyErr
 	}
 
-	return backend.delegate.verify(proof, commitments, values, indices)
+	return backend.delegate.verify(binding, proof, commitments, values, indices)
 }
 
 type aggregateOpeningStepContext struct {

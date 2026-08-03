@@ -19,6 +19,7 @@ const (
 	aggregateQueryWorkingBytes = uint64(VectorWidth*scalarSize) * 8
 	aggregateFixedMSMTerms     = uint64(2 * VectorWidth * 8)
 	aggregateTranscriptLabel   = "verkle"
+	aggregateBindingLabel      = "verkletree-proof-statement-v0"
 )
 
 var (
@@ -127,22 +128,30 @@ type AggregateVerifierQuery struct {
 	Index      uint8
 }
 
+// AggregateOpeningBinding binds one package-owned proof statement into the
+// aggregate-opening transcript. Bound operations also add one fixed nonzero
+// anchor opening so even an all-zero vector proof depends on this binding.
+type AggregateOpeningBinding [32]byte
+
 // AggregateOpeningEngine owns the fixed profile's IPA settings. Construction
 // is explicit; the engine is immutable and safe for concurrent operations.
 type AggregateOpeningEngine struct {
-	backend aggregateOpeningBackend
-	limits  AggregateOpeningLimits
-	valid   bool
+	backend           aggregateOpeningBackend
+	limits            AggregateOpeningLimits
+	bindingCommitment VectorCommitment
+	valid             bool
 }
 
 type aggregateOpeningBackend interface {
 	commit([]fr.Element) banderwagon.Element
 	open(
+		*AggregateOpeningBinding,
 		[]*banderwagon.Element,
 		[][]fr.Element,
 		[]uint8,
 	) (*multiproof.MultiProof, error)
 	verify(
+		*AggregateOpeningBinding,
 		*multiproof.MultiProof,
 		[]*banderwagon.Element,
 		[]*fr.Element,
@@ -161,12 +170,13 @@ func (backend *ipaAggregateOpeningBackend) commit(
 }
 
 func (backend *ipaAggregateOpeningBackend) open(
+	binding *AggregateOpeningBinding,
 	commitments []*banderwagon.Element,
 	polynomials [][]fr.Element,
 	indices []uint8,
 ) (*multiproof.MultiProof, error) {
 	return multiproof.CreateMultiProof(
-		common.NewTranscript(aggregateTranscriptLabel),
+		newAggregateOpeningTranscript(binding),
 		backend.config,
 		commitments,
 		polynomials,
@@ -175,13 +185,14 @@ func (backend *ipaAggregateOpeningBackend) open(
 }
 
 func (backend *ipaAggregateOpeningBackend) verify(
+	binding *AggregateOpeningBinding,
 	proof *multiproof.MultiProof,
 	commitments []*banderwagon.Element,
 	values []*fr.Element,
 	indices []uint8,
 ) (bool, error) {
 	return multiproof.CheckMultiProof(
-		common.NewTranscript(aggregateTranscriptLabel),
+		newAggregateOpeningTranscript(binding),
 		backend.config,
 		proof,
 		commitments,
@@ -242,7 +253,11 @@ func newAggregateOpeningEngine(
 	return &AggregateOpeningEngine{
 		backend: &ipaAggregateOpeningBackend{config: config},
 		limits:  limits,
-		valid:   true,
+		bindingCommitment: VectorCommitment{
+			value: commitment{element: config.SRS[0]},
+			valid: true,
+		},
+		valid: true,
 	}, nil
 }
 
@@ -251,19 +266,49 @@ func (engine *AggregateOpeningEngine) Open(
 	ctx context.Context,
 	queries []AggregateProverQuery,
 ) (OpeningProof, error) {
+	return engine.open(ctx, nil, queries)
+}
+
+// OpenBound creates one canonical aggregate proof bound to an exact
+// package-owned statement digest.
+func (engine *AggregateOpeningEngine) OpenBound(
+	ctx context.Context,
+	binding AggregateOpeningBinding,
+	queries []AggregateProverQuery,
+) (OpeningProof, error) {
+	return engine.open(ctx, &binding, queries)
+}
+
+func (engine *AggregateOpeningEngine) open(
+	ctx context.Context,
+	binding *AggregateOpeningBinding,
+	queries []AggregateProverQuery,
+) (OpeningProof, error) {
 	if err := engine.validate(); err != nil {
 		return OpeningProof{}, err
 	}
 	if err := checkAggregateOpeningContext(ctx); err != nil {
 		return OpeningProof{}, err
 	}
-	if err := engine.preflight(uint64(len(queries)), VectorWidth); err != nil {
-		return OpeningProof{}, err
-	}
 	if len(queries) == 0 {
 		return OpeningProof{}, fmt.Errorf("%w: empty query set", errInvalidAggregateOpeningQuery)
 	}
-
+	queryCount := uint64(len(queries))
+	if err := engine.preflight(queryCount, VectorWidth); err != nil {
+		return OpeningProof{}, err
+	}
+	needsBindingAnchor := binding != nil &&
+		!engine.hasBindingProverQuery(queries)
+	if needsBindingAnchor {
+		queryCount++
+		if err := engine.preflight(queryCount, VectorWidth); err != nil {
+			return OpeningProof{}, err
+		}
+		queries = append(
+			[]AggregateProverQuery{engine.bindingProverQuery()},
+			queries...,
+		)
+	}
 	commitments := make([]banderwagon.Element, len(queries))
 	commitmentPointers := make([]*banderwagon.Element, len(queries))
 	polynomials := make([][]fr.Element, len(queries))
@@ -310,6 +355,7 @@ func (engine *AggregateOpeningEngine) Open(
 	}
 
 	generated, err := engine.backend.open(
+		binding,
 		commitmentPointers,
 		polynomials,
 		indices,
@@ -343,19 +389,51 @@ func (engine *AggregateOpeningEngine) Verify(
 	proof OpeningProof,
 	queries []AggregateVerifierQuery,
 ) error {
+	return engine.verify(ctx, nil, proof, queries)
+}
+
+// VerifyBound verifies every opening under the exact package-owned statement
+// digest supplied during generation.
+func (engine *AggregateOpeningEngine) VerifyBound(
+	ctx context.Context,
+	binding AggregateOpeningBinding,
+	proof OpeningProof,
+	queries []AggregateVerifierQuery,
+) error {
+	return engine.verify(ctx, &binding, proof, queries)
+}
+
+func (engine *AggregateOpeningEngine) verify(
+	ctx context.Context,
+	binding *AggregateOpeningBinding,
+	proof OpeningProof,
+	queries []AggregateVerifierQuery,
+) error {
 	if err := engine.validate(); err != nil {
 		return err
 	}
 	if err := checkAggregateOpeningContext(ctx); err != nil {
 		return err
 	}
-	if err := engine.preflight(uint64(len(queries)), 1); err != nil {
-		return err
-	}
 	if len(queries) == 0 || !proof.valid {
 		return fmt.Errorf("%w: empty or invalid input", errInvalidAggregateOpeningQuery)
 	}
-
+	queryCount := uint64(len(queries))
+	if err := engine.preflight(queryCount, 1); err != nil {
+		return err
+	}
+	needsBindingAnchor := binding != nil &&
+		!engine.hasBindingVerifierQuery(queries)
+	if needsBindingAnchor {
+		queryCount++
+		if err := engine.preflight(queryCount, 1); err != nil {
+			return err
+		}
+		queries = append(
+			[]AggregateVerifierQuery{engine.bindingVerifierQuery()},
+			queries...,
+		)
+	}
 	nativeProof, err := nativeAggregateOpeningProof(proof)
 	if err != nil {
 		return err
@@ -391,6 +469,7 @@ func (engine *AggregateOpeningEngine) Verify(
 	}
 
 	ok, err := engine.backend.verify(
+		binding,
 		&nativeProof,
 		commitmentPointers,
 		valuePointers,
@@ -407,6 +486,77 @@ func (engine *AggregateOpeningEngine) Verify(
 	}
 
 	return nil
+}
+
+func (engine *AggregateOpeningEngine) bindingProverQuery() AggregateProverQuery {
+	var vector Vector
+	vector[0][0] = 1
+
+	return AggregateProverQuery{
+		Commitment: engine.bindingCommitment,
+		Vector:     vector,
+		Index:      0,
+	}
+}
+
+func (engine *AggregateOpeningEngine) bindingVerifierQuery() AggregateVerifierQuery {
+	var value [scalarSize]byte
+	value[0] = 1
+
+	return AggregateVerifierQuery{
+		Commitment: engine.bindingCommitment,
+		Value:      value,
+		Index:      0,
+	}
+}
+
+func (engine *AggregateOpeningEngine) hasBindingProverQuery(
+	queries []AggregateProverQuery,
+) bool {
+	anchor := engine.bindingProverQuery()
+	anchorIdentity := aggregateOpeningIdentity(anchor.Commitment, anchor.Index)
+	for index := range queries {
+		query := queries[index]
+		if !query.Commitment.valid {
+			continue
+		}
+		if aggregateOpeningIdentity(query.Commitment, query.Index) == anchorIdentity &&
+			query.Vector == anchor.Vector {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (engine *AggregateOpeningEngine) hasBindingVerifierQuery(
+	queries []AggregateVerifierQuery,
+) bool {
+	anchor := engine.bindingVerifierQuery()
+	anchorIdentity := aggregateOpeningIdentity(anchor.Commitment, anchor.Index)
+	for index := range queries {
+		query := queries[index]
+		if !query.Commitment.valid {
+			continue
+		}
+		if aggregateOpeningIdentity(query.Commitment, query.Index) == anchorIdentity &&
+			query.Value == anchor.Value {
+			return true
+		}
+	}
+
+	return false
+}
+
+func newAggregateOpeningTranscript(
+	binding *AggregateOpeningBinding,
+) *common.Transcript {
+	transcript := common.NewTranscript(aggregateTranscriptLabel)
+	if binding != nil {
+		transcript.AppendMessage(binding[:], []byte(aggregateBindingLabel))
+	}
+
+	return transcript
 }
 
 func (engine *AggregateOpeningEngine) validate() error {

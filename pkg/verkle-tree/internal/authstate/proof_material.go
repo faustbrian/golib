@@ -121,8 +121,8 @@ type ProofMaterial struct {
 }
 
 // ProofMaterial derives complete canonical proof inputs for unordered distinct
-// keys from this exact immutable snapshot. It rejects empty roots until their
-// opening-free non-membership form is specified.
+// keys from this exact immutable snapshot. An empty root yields absence claims
+// with depth-one missing paths and no non-root commitments.
 func (snapshot Snapshot) ProofMaterial(
 	ctx context.Context,
 	keys []Key,
@@ -143,10 +143,6 @@ func (snapshot Snapshot) ProofMaterial(
 	root, err := snapshot.RootContainer(ctx)
 	if err != nil {
 		return ProofMaterial{}, err
-	}
-	empty, err := root.IsEmpty()
-	if err != nil || empty {
-		return ProofMaterial{}, errInvalidProofMaterial
 	}
 	keyCount := uint64(len(keys))
 	if err := checkProofMaterialResource(
@@ -433,7 +429,8 @@ func deduplicatePathCommitments(
 	return unique, nil
 }
 
-// Root returns the exact non-empty profile-bound snapshot root.
+// Root returns the exact profile-bound snapshot root, including the explicit
+// empty-root identity.
 func (material ProofMaterial) Root() (backend.Root, error) {
 	if err := material.validate(); err != nil {
 		return backend.Root{}, err
@@ -483,11 +480,14 @@ func (material ProofMaterial) validate() error {
 	if _, err := material.root.Profile(); err != nil {
 		return errInvalidProofMaterial
 	}
-	empty, _ := material.root.IsEmpty()
-	if empty {
+	emptyRoot, _ := material.root.IsEmpty()
+	if emptyRoot && !validEmptyRootTreeProofShape(
+		material.claims.claims,
+		material.stemPaths,
+		material.commitments,
+	) {
 		return errInvalidProofMaterial
 	}
-
 	return nil
 }
 
