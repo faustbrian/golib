@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ const (
 	defaultPoolMaximumBytes    = 64 << 20
 	maximumPoolConcurrency     = 1 << 10
 	maximumPoolPending         = 1 << 20
+	unknownPoolRequestCount    = -1
 )
 
 // PoolResultOrder controls result presentation independently from execution.
@@ -171,15 +173,26 @@ func NewPool[Input any, Output any](
 	if concurrency == 0 {
 		concurrency = defaultPoolConcurrency
 	}
-	if minimum < 1 || maximum < minimum || maximum > maximumPoolConcurrency ||
-		concurrency < minimum || concurrency > maximum {
+	switch {
+	case minimum < 1:
+		return nil, fmt.Errorf("%w: concurrency bounds are invalid", ErrInvalidPool)
+	case maximum < minimum:
+		return nil, fmt.Errorf("%w: concurrency bounds are invalid", ErrInvalidPool)
+	case maximum > maximumPoolConcurrency:
+		return nil, fmt.Errorf("%w: concurrency bounds are invalid", ErrInvalidPool)
+	case concurrency < minimum:
+		return nil, fmt.Errorf("%w: concurrency bounds are invalid", ErrInvalidPool)
+	case concurrency > maximum:
 		return nil, fmt.Errorf("%w: concurrency bounds are invalid", ErrInvalidPool)
 	}
 	pending := options.Pending
 	if pending == 0 {
 		pending = concurrency
 	}
-	if pending < 1 || pending > maximumPoolPending {
+	if pending < 1 {
+		return nil, fmt.Errorf("%w: pending bound is invalid", ErrInvalidPool)
+	}
+	if pending > maximumPoolPending {
 		return nil, fmt.Errorf("%w: pending bound is invalid", ErrInvalidPool)
 	}
 	limits, err := resolvePoolLimits(options.Limits)
@@ -201,6 +214,16 @@ func NewPool[Input any, Output any](
 }
 
 func resolvePoolLimits(limits PoolLimits) (PoolLimits, error) {
+	switch {
+	case limits.MaximumRequests < 0:
+		return PoolLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPool)
+	case limits.MaximumElapsed < 0:
+		return PoolLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPool)
+	case limits.MaximumResponseBytes < 0:
+		return PoolLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPool)
+	case limits.MaximumMemoryBytes < 0:
+		return PoolLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPool)
+	}
 	if limits.MaximumRequests == 0 {
 		limits.MaximumRequests = defaultPoolMaximumRequests
 	}
@@ -213,11 +236,6 @@ func resolvePoolLimits(limits PoolLimits) (PoolLimits, error) {
 	if limits.MaximumMemoryBytes == 0 {
 		limits.MaximumMemoryBytes = defaultPoolMaximumBytes
 	}
-	if limits.MaximumRequests < 0 || limits.MaximumElapsed < 0 ||
-		limits.MaximumResponseBytes < 0 || limits.MaximumMemoryBytes < 0 {
-		return PoolLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPool)
-	}
-
 	return limits, nil
 }
 
@@ -230,10 +248,6 @@ func (pool *Pool[Input, Output]) RunSlice(
 	index := 0
 
 	return pool.run(ctx, len(snapshot), func(context.Context) (Input, bool, error) {
-		var zero Input
-		if index >= len(snapshot) {
-			return zero, false, nil
-		}
 		value := snapshot[index]
 		index++
 
@@ -250,7 +264,7 @@ func (pool *Pool[Input, Output]) RunGenerator(
 		return nil, fmt.Errorf("%w: generator is nil", ErrInvalidPool)
 	}
 
-	return pool.run(ctx, -1, generator)
+	return pool.run(ctx, unknownPoolRequestCount, generator)
 }
 
 // RunChannel executes inputs until channel closure or cancellation.
@@ -258,11 +272,11 @@ func (pool *Pool[Input, Output]) RunChannel(
 	ctx context.Context,
 	input <-chan Input,
 ) ([]PoolResult[Input, Output], error) {
-	if input == nil {
+	if nilLike(input) {
 		return nil, fmt.Errorf("%w: input channel is nil", ErrInvalidPool)
 	}
 
-	return pool.run(ctx, -1, func(ctx context.Context) (Input, bool, error) {
+	return pool.run(ctx, unknownPoolRequestCount, func(ctx context.Context) (Input, bool, error) {
 		return receivePoolInput(ctx, input)
 	})
 }
@@ -310,10 +324,11 @@ func (pool *Pool[Input, Output]) run(
 	var elapsed atomic.Bool
 	go func() {
 		defer close(deadlineDone)
-		if pool.clock.Wait(runCtx, pool.limits.MaximumElapsed) == nil {
-			elapsed.Store(true)
-			cancel()
+		if err := pool.clock.Wait(runCtx, pool.limits.MaximumElapsed); err != nil {
+			return
 		}
+		elapsed.Store(true)
+		cancel()
 	}()
 
 	var workers sync.WaitGroup
@@ -340,58 +355,40 @@ func (pool *Pool[Input, Output]) run(
 			}
 		}()
 	}
-	go pool.schedule(runCtx, cancel, source, jobs, sourceFailure)
+	go pool.schedule(runCtx, cancel, knownRequests, source, jobs, sourceFailure)
 	go func() {
 		workers.Wait()
 		close(completed)
 	}()
 
 	results := make([]PoolResult[Input, Output], 0, max(knownRequests, 0))
-	var responseBytes int64
-	var memoryBytes int64
+	accounting := poolBudgetState{}
 	var runFailure error
 	for result := range completed {
-		if elapsed.Load() {
+		resultFailure := pool.accountResult(&accounting, result, elapsed.Load())
+		if resultFailure != nil {
 			if runFailure == nil {
-				runFailure = ErrPoolLimit
+				runFailure = resultFailure
 				cancel()
 			}
-			continue
-		}
-		if result.ResponseBytes < 0 || result.MemoryBytes < 0 {
-			if runFailure == nil {
-				runFailure = ErrInvalidPool
+		} else {
+			results = append(results, result)
+			if pool.failure == PoolFailFast && result.Error != nil && runFailure == nil {
+				runFailure = result.Error
 				cancel()
 			}
-			continue
-		}
-		nextResponseBytes := responseBytes + result.ResponseBytes
-		nextMemoryBytes := memoryBytes + result.MemoryBytes
-		if nextResponseBytes < responseBytes || nextMemoryBytes < memoryBytes ||
-			nextResponseBytes > pool.limits.MaximumResponseBytes ||
-			nextMemoryBytes > pool.limits.MaximumMemoryBytes {
-			if runFailure == nil {
-				runFailure = ErrPoolLimit
-				cancel()
-			}
-			continue
-		}
-		responseBytes = nextResponseBytes
-		memoryBytes = nextMemoryBytes
-		results = append(results, result)
-		if pool.failure == PoolFailFast && result.Error != nil && runFailure == nil {
-			runFailure = result.Error
-			cancel()
 		}
 	}
 	cancel()
 	<-deadlineDone
 	scheduleFailure := <-sourceFailure
-	if runFailure == nil && scheduleFailure != nil {
+	if runFailure == nil {
 		runFailure = scheduleFailure
 	}
-	if runFailure == nil && elapsed.Load() {
-		runFailure = ErrPoolLimit
+	if runFailure == nil {
+		if elapsed.Load() {
+			runFailure = ErrPoolLimit
+		}
 	}
 	orderPoolResults(results, pool.order)
 	if runFailure != nil {
@@ -404,13 +401,44 @@ func (pool *Pool[Input, Output]) run(
 	return results, nil
 }
 
+type poolBudgetState struct {
+	responseBytes int64
+	memoryBytes   int64
+}
+
+func (pool *Pool[Input, Output]) accountResult(
+	state *poolBudgetState,
+	result PoolResult[Input, Output],
+	elapsed bool,
+) error {
+	if elapsed {
+		return ErrPoolLimit
+	}
+	if result.ResponseBytes < 0 {
+		return ErrInvalidPool
+	}
+	if result.MemoryBytes < 0 {
+		return ErrInvalidPool
+	}
+	if result.ResponseBytes > pool.limits.MaximumResponseBytes-state.responseBytes {
+		return ErrPoolLimit
+	}
+	if result.MemoryBytes > pool.limits.MaximumMemoryBytes-state.memoryBytes {
+		return ErrPoolLimit
+	}
+	state.responseBytes += result.ResponseBytes
+	state.memoryBytes += result.MemoryBytes
+
+	return nil
+}
+
 func orderPoolResults[Input any, Output any](
 	results []PoolResult[Input, Output],
 	order PoolResultOrder,
 ) {
 	if order == PoolInputOrder {
 		sort.SliceStable(results, func(left int, right int) bool {
-			return results[left].Index < results[right].Index
+			return cmp.Compare(results[left].Index, results[right].Index) == -1
 		})
 	}
 }
@@ -427,7 +455,10 @@ func (pool *Pool[Input, Output]) selectConcurrency(workload PoolWorkload) (int, 
 			return 0, &PoolPanicError{Stage: "concurrency", Value: panicValue}
 		}
 	}
-	if selected < pool.minimum || selected > pool.maximum {
+	if selected < pool.minimum {
+		return 0, fmt.Errorf("%w: selected concurrency is out of bounds", ErrInvalidPool)
+	}
+	if selected > pool.maximum {
 		return 0, fmt.Errorf("%w: selected concurrency is out of bounds", ErrInvalidPool)
 	}
 
@@ -437,19 +468,20 @@ func (pool *Pool[Input, Output]) selectConcurrency(workload PoolWorkload) (int, 
 func (pool *Pool[Input, Output]) schedule(
 	ctx context.Context,
 	cancel context.CancelFunc,
+	knownRequests int,
 	source PoolGenerator[Input],
 	jobs chan<- poolJob[Input],
 	failure chan<- error,
 ) {
 	defer close(jobs)
-	index := 0
-	for {
+	requestCount := pool.limits.MaximumRequests
+	knownSource := knownRequests != unknownPoolRequestCount
+	if knownSource {
+		requestCount = knownRequests
+	}
+	for index := range requestCount {
 		if err := ctx.Err(); err != nil {
 			failure <- nil
-			return
-		}
-		if index >= pool.limits.MaximumRequests {
-			failure <- ErrPoolLimit
 			return
 		}
 		input, ok, sourceErr := invokePoolGenerator(source, ctx)
@@ -475,12 +507,16 @@ func (pool *Pool[Input, Output]) schedule(
 		job := poolJob[Input]{index: index, key: key, input: input}
 		select {
 		case jobs <- job:
-			index++
 		case <-ctx.Done():
 			failure <- nil
 			return
 		}
 	}
+	if knownSource {
+		failure <- nil
+		return
+	}
+	failure <- ErrPoolLimit
 }
 
 func invokePoolExecutor[Input any, Output any](

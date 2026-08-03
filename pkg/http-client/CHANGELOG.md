@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Allow a finite slice pool to complete successfully when its input count is
+  exactly equal to `MaximumRequests`.
 - Validate cached and client-credential OAuth2 tokens with the same injected
   clock used by their source instead of rechecking them against ambient wall
   time in the request editor.

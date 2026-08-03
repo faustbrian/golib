@@ -217,12 +217,17 @@ func TestPoolRejectsInvalidConfigurationAndSources(t *testing.T) {
 	for _, options := range []PoolOptions[int, int]{
 		{Execute: nilExecute},
 		{Execute: validExecute, Concurrency: -1},
+		{Execute: validExecute, MinimumConcurrency: -1},
 		{Execute: validExecute, MinimumConcurrency: 3, MaximumConcurrency: 2},
+		{Execute: validExecute, Concurrency: 3, MinimumConcurrency: 1, MaximumConcurrency: 2},
 		{Execute: validExecute, MaximumConcurrency: maximumPoolConcurrency + 1},
 		{Execute: validExecute, Pending: -1},
 		{Execute: validExecute, Pending: maximumPoolPending + 1},
 		{Execute: validExecute, Clock: nilClock},
 		{Execute: validExecute, Limits: PoolLimits{MaximumRequests: -1}},
+		{Execute: validExecute, Limits: PoolLimits{MaximumElapsed: -1}},
+		{Execute: validExecute, Limits: PoolLimits{MaximumResponseBytes: -1}},
+		{Execute: validExecute, Limits: PoolLimits{MaximumMemoryBytes: -1}},
 		{Execute: validExecute, Order: PoolResultOrder(99)},
 		{Execute: validExecute, Failure: PoolFailureMode(99)},
 	} {
@@ -245,6 +250,176 @@ func TestPoolRejectsInvalidConfigurationAndSources(t *testing.T) {
 	var nilChannel <-chan int
 	if _, err := pool.RunChannel(context.Background(), nilChannel); !errors.Is(err, ErrInvalidPool) {
 		t.Fatalf("nil channel error = %v", err)
+	}
+}
+
+func TestPoolAcceptsExactConfigurationAndSelectionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, options := range []PoolOptions[int, int]{
+		{
+			Concurrency: 1, MinimumConcurrency: 1, MaximumConcurrency: 1,
+			Pending: 1, Execute: poolIdentityExecutor,
+		},
+		{
+			Concurrency: maximumPoolConcurrency, MinimumConcurrency: 1,
+			MaximumConcurrency: maximumPoolConcurrency, Pending: maximumPoolPending,
+			Execute: poolIdentityExecutor,
+		},
+	} {
+		pool, err := NewPool(options)
+		if err != nil {
+			t.Fatalf("construct exact-boundary pool: %v", err)
+		}
+		if pool.concurrency != options.Concurrency || pool.minimum != options.MinimumConcurrency ||
+			pool.maximum != options.MaximumConcurrency || pool.pending != options.Pending {
+			t.Fatalf("resolved exact-boundary pool = %#v", pool)
+		}
+	}
+
+	for _, selected := range []int{2, 3} {
+		pool := mustPool(t, PoolOptions[int, int]{
+			Concurrency: 2, MinimumConcurrency: 2, MaximumConcurrency: 3,
+			SelectConcurrency: func(PoolWorkload) int { return selected },
+			Execute:           poolIdentityExecutor,
+		})
+		results, err := pool.RunSlice(context.Background(), []int{1})
+		if err != nil || len(results) != 1 {
+			t.Fatalf("selected exact concurrency %d = %#v, %v", selected, results, err)
+		}
+	}
+}
+
+func TestPoolAcceptsExactBudgetsAndRejectsIndependentOverflow(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name   string
+		limits PoolLimits
+		value  PoolValue[int]
+	}{
+		{
+			name:   "request count",
+			limits: PoolLimits{MaximumRequests: 1},
+		},
+		{
+			name:   "response bytes",
+			limits: PoolLimits{MaximumResponseBytes: 7},
+			value:  PoolValue[int]{ResponseBytes: 7},
+		},
+		{
+			name:   "memory bytes",
+			limits: PoolLimits{MaximumMemoryBytes: 7},
+			value:  PoolValue[int]{MemoryBytes: 7},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := mustPool(t, PoolOptions[int, int]{
+				Concurrency: 1, Limits: test.limits,
+				Execute: func(context.Context, int) (PoolValue[int], error) { return test.value, nil },
+			})
+			results, err := pool.RunSlice(context.Background(), []int{1})
+			if err != nil || len(results) != 1 {
+				t.Fatalf("exact budget = %#v, %v", results, err)
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		name   string
+		limits PoolLimits
+		first  PoolValue[int]
+		second PoolValue[int]
+	}{
+		{
+			name:   "response bytes",
+			limits: PoolLimits{MaximumResponseBytes: math.MaxInt64},
+			first:  PoolValue[int]{ResponseBytes: math.MaxInt64},
+			second: PoolValue[int]{ResponseBytes: 1},
+		},
+		{
+			name:   "memory bytes",
+			limits: PoolLimits{MaximumMemoryBytes: math.MaxInt64},
+			first:  PoolValue[int]{MemoryBytes: math.MaxInt64},
+			second: PoolValue[int]{MemoryBytes: 1},
+		},
+	} {
+		t.Run(test.name+" overflow", func(t *testing.T) {
+			pool := mustPool(t, PoolOptions[int, int]{
+				Concurrency: 1, Limits: test.limits,
+				Execute: func(_ context.Context, input int) (PoolValue[int], error) {
+					if input == 1 {
+						return test.first, nil
+					}
+
+					return test.second, nil
+				},
+			})
+			results, err := pool.RunSlice(context.Background(), []int{1, 2})
+			if len(results) != 1 || !errors.Is(err, ErrPoolLimit) {
+				t.Fatalf("independent overflow = %#v, %v", results, err)
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		name   string
+		limits PoolLimits
+		first  PoolValue[int]
+		next   PoolValue[int]
+	}{
+		{
+			name:   "cumulative response bytes",
+			limits: PoolLimits{MaximumResponseBytes: 10},
+			first:  PoolValue[int]{ResponseBytes: 3},
+			next:   PoolValue[int]{ResponseBytes: 4},
+		},
+		{
+			name:   "cumulative memory bytes",
+			limits: PoolLimits{MaximumMemoryBytes: 10},
+			first:  PoolValue[int]{MemoryBytes: 3},
+			next:   PoolValue[int]{MemoryBytes: 4},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := mustPool(t, PoolOptions[int, int]{
+				Concurrency: 1, Limits: test.limits,
+				Execute: func(_ context.Context, input int) (PoolValue[int], error) {
+					if input == 1 {
+						return test.first, nil
+					}
+
+					return test.next, nil
+				},
+			})
+			results, err := pool.RunSlice(context.Background(), []int{1, 2, 3})
+			if len(results) != 2 || !errors.Is(err, ErrPoolLimit) {
+				t.Fatalf("cumulative budget = %#v, %v", results, err)
+			}
+		})
+	}
+}
+
+func TestPoolGeneratorReportsUnknownWorkload(t *testing.T) {
+	t.Parallel()
+
+	observed := 0
+	pool := mustPool(t, PoolOptions[int, int]{
+		Concurrency:        1,
+		MinimumConcurrency: 1,
+		MaximumConcurrency: 1,
+		SelectConcurrency: func(workload PoolWorkload) int {
+			observed = workload.KnownRequests
+
+			return 1
+		},
+		Execute: poolIdentityExecutor,
+	})
+	results, err := pool.RunGenerator(context.Background(), func(context.Context) (int, bool, error) {
+		return 0, false, nil
+	})
+	if err != nil || len(results) != 0 || observed != -1 {
+		t.Fatalf("unknown generator workload = %d, %#v, %v", observed, results, err)
 	}
 }
 
@@ -320,6 +495,20 @@ func TestPoolRejectsDynamicConcurrencyAndCallbackFailures(t *testing.T) {
 				MinimumConcurrency: 1,
 				MaximumConcurrency: 2,
 				SelectConcurrency:  func(PoolWorkload) int { return 3 },
+				Execute:            poolIdentityExecutor,
+			}),
+			run: func(pool *Pool[int, int]) ([]PoolResult[int, int], error) {
+				return pool.RunSlice(context.Background(), []int{1})
+			},
+			want: ErrInvalidPool,
+		},
+		{
+			name: "selector below range",
+			pool: mustPool(t, PoolOptions[int, int]{
+				Concurrency:        1,
+				MinimumConcurrency: 1,
+				MaximumConcurrency: 2,
+				SelectConcurrency:  func(PoolWorkload) int { return 0 },
 				Execute:            poolIdentityExecutor,
 			}),
 			run: func(pool *Pool[int, int]) ([]PoolResult[int, int], error) {
@@ -420,7 +609,11 @@ func TestPoolCancellationStopsBlockedSourcesAndReturnsCompletedWork(t *testing.T
 			_, err := pool.RunSlice(ctx, []int{1, 2, 3, 4})
 			done <- err
 		}()
-		<-started
+		select {
+		case <-started:
+		case <-time.After(2 * time.Second):
+			t.Fatal("executor did not start")
+		}
 		cancel()
 		if err := <-done; !errors.Is(err, context.Canceled) {
 			t.Fatalf("backpressure cancellation error = %v", err)
@@ -447,7 +640,7 @@ func TestPoolInternalCancellationAndElapsedCompletionBoundaries(t *testing.T) {
 		pool := mustPool(t, PoolOptions[int, int]{Execute: poolIdentityExecutor})
 		jobs := make(chan poolJob[int], 1)
 		failure := make(chan error, 1)
-		pool.schedule(ctx, func() {}, func(context.Context) (int, bool, error) {
+		pool.schedule(ctx, func() {}, unknownPoolRequestCount, func(context.Context) (int, bool, error) {
 			t.Fatal("canceled scheduler invoked its source")
 			return 0, false, nil
 		}, jobs, failure)
@@ -468,8 +661,12 @@ func TestPoolInternalCancellationAndElapsedCompletionBoundaries(t *testing.T) {
 			Limits:      PoolLimits{MaximumElapsed: time.Second},
 			Execute: func(ctx context.Context, _ int) (PoolValue[int], error) {
 				close(started)
-				<-ctx.Done()
-				return PoolValue[int]{Value: 1}, nil
+				select {
+				case <-ctx.Done():
+					return PoolValue[int]{Value: 1}, nil
+				case <-time.After(2 * time.Second):
+					return PoolValue[int]{}, errors.New("elapsed cancellation was not delivered")
+				}
 			},
 		})
 		results, err := pool.RunSlice(context.Background(), []int{1})
@@ -497,9 +694,13 @@ type poolElapsedTestClock struct{ started <-chan struct{} }
 
 func (clock poolElapsedTestClock) Now() time.Time { return time.Unix(1_700_000_000, 0) }
 
-func (clock poolElapsedTestClock) Wait(context.Context, time.Duration) error {
-	<-clock.started
-	return nil
+func (clock poolElapsedTestClock) Wait(ctx context.Context, _ time.Duration) error {
+	select {
+	case <-clock.started:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func TestPoolEnforcesGeneratorAndAccountingBoundaries(t *testing.T) {
