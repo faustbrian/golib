@@ -161,6 +161,11 @@ func NewPaginator[Item any, Continuation any](
 }
 
 func resolvePaginationLimits(limits PaginationLimits) (PaginationLimits, error) {
+	if limits.MaximumPages < 0 || limits.MaximumItems < 0 || limits.MaximumElapsed < 0 ||
+		limits.MaximumResponseBytes < 0 || limits.MaximumEmptyPages < 0 ||
+		limits.MaximumContinuationBytes < 0 {
+		return PaginationLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPagination)
+	}
 	if limits.MaximumPages == 0 {
 		limits.MaximumPages = defaultMaximumPaginationPages
 	}
@@ -179,12 +184,6 @@ func resolvePaginationLimits(limits PaginationLimits) (PaginationLimits, error) 
 	if limits.MaximumContinuationBytes == 0 {
 		limits.MaximumContinuationBytes = defaultMaximumPaginationContinuationBytes
 	}
-	if limits.MaximumPages < 0 || limits.MaximumItems < 0 || limits.MaximumElapsed < 0 ||
-		limits.MaximumResponseBytes < 0 || limits.MaximumEmptyPages < 0 ||
-		limits.MaximumContinuationBytes < 0 {
-		return PaginationLimits{}, fmt.Errorf("%w: limit is negative", ErrInvalidPagination)
-	}
-
 	return limits, nil
 }
 
@@ -244,7 +243,9 @@ func (paginator *Paginator[Item, Continuation]) Next(ctx context.Context) (Item,
 		if paginator.state.Pages >= paginator.limits.MaximumPages {
 			return zero, false, paginationLimitError("pages")
 		}
-		if err := paginator.fetchPage(ctx); err != nil {
+		switch err := paginator.fetchPage(ctx); err {
+		case nil:
+		default:
 			return zero, false, err
 		}
 	}
@@ -286,7 +287,9 @@ func (paginator *Paginator[Item, Continuation]) fetchPage(ctx context.Context) e
 	if nextBytes > paginator.limits.MaximumResponseBytes || nextBytes < paginator.state.ResponseBytes {
 		return paginationLimitError("response bytes")
 	}
-	if err := paginator.updateElapsed(); err != nil {
+	switch err := paginator.updateElapsed(); err {
+	case nil:
+	default:
 		return err
 	}
 	nextEmptyPages := 0
@@ -306,19 +309,12 @@ func (paginator *Paginator[Item, Continuation]) fetchPage(ctx context.Context) e
 	paginator.state.HasNext = page.HasNext
 	paginator.state.Buffered = append([]Item(nil), page.Items...)
 	paginator.state.BufferedIndex = 0
-	if len(page.Items) == 0 && !page.HasNext {
-		paginator.state.Done = true
-	}
-
 	return nil
 }
 
 func (paginator *Paginator[Item, Continuation]) updateElapsed() error {
 	now := paginator.clock.Now()
-	elapsed := now.Sub(paginator.started)
-	if elapsed < 0 {
-		elapsed = 0
-	}
+	elapsed := max(now.Sub(paginator.started), 0)
 	paginator.state.Elapsed = paginator.baseElapsed + elapsed
 	if paginator.state.Elapsed > paginator.limits.MaximumElapsed ||
 		paginator.state.Elapsed < paginator.baseElapsed {

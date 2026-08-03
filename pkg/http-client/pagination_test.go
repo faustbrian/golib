@@ -255,6 +255,128 @@ func TestPaginatorRejectsInvalidConfigurationAndResumeState(t *testing.T) {
 	}
 }
 
+func TestPaginationValidationAndTransitionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, limits := range []PaginationLimits{
+		{MaximumPages: -1},
+		{MaximumItems: -1},
+		{MaximumElapsed: -1},
+		{MaximumResponseBytes: -1},
+		{MaximumEmptyPages: -1},
+		{MaximumContinuationBytes: -1},
+	} {
+		if _, err := resolvePaginationLimits(limits); !errors.Is(err, ErrInvalidPagination) {
+			t.Fatalf("negative limits %#v error = %v", limits, err)
+		}
+	}
+
+	limits := PaginationLimits{
+		MaximumPages: 1, MaximumItems: 1, MaximumElapsed: time.Second,
+		MaximumResponseBytes: 1, MaximumEmptyPages: 1, MaximumContinuationBytes: 4,
+	}
+	exact := PaginationState[int, string]{
+		HasNext: true, Buffered: []int{1}, BufferedIndex: 1,
+		Pages: 1, Items: 1, ResponseBytes: 1, EmptyPages: 1, Elapsed: time.Second,
+	}
+	if err := validatePaginationState(exact, limits); err != nil {
+		t.Fatalf("exact-limit resume state error = %v", err)
+	}
+	for name, state := range map[string]PaginationState[int, string]{
+		"pages":          {HasNext: true, Pages: -1},
+		"items":          {HasNext: true, Items: -1},
+		"response bytes": {HasNext: true, ResponseBytes: -1},
+		"empty pages":    {HasNext: true, EmptyPages: -1},
+		"elapsed":        {HasNext: true, Elapsed: -1},
+		"buffer index":   {HasNext: true, BufferedIndex: -1},
+	} {
+		if err := validatePaginationState(state, limits); !errors.Is(err, ErrInvalidPagination) {
+			t.Fatalf("negative %s resume error = %v", name, err)
+		}
+	}
+	for name, state := range map[string]PaginationState[int, string]{
+		"pages":          {HasNext: true, Pages: 2},
+		"items":          {HasNext: true, Items: 2},
+		"response bytes": {HasNext: true, ResponseBytes: 2},
+		"empty pages":    {HasNext: true, EmptyPages: 2},
+		"elapsed":        {HasNext: true, Elapsed: 2 * time.Second},
+	} {
+		if err := validatePaginationState(state, limits); !errors.Is(err, ErrInvalidPagination) {
+			t.Fatalf("excessive %s resume error = %v", name, err)
+		}
+	}
+
+	validFetch := func(context.Context, string) (PaginationPage[int, string], error) {
+		return PaginationPage[int, string]{}, nil
+	}
+	validKey := func(value string) (string, error) { return value, nil }
+	storedKey := strings.Repeat("a", limits.MaximumContinuationBytes)
+	if _, err := NewPaginator(PaginationOptions[int, string]{
+		Fetch: validFetch, Key: validKey, Limits: limits,
+		Resume: &PaginationState[int, string]{HasNext: true, Seen: []string{storedKey}},
+	}); err != nil {
+		t.Fatalf("exact-size stored continuation error = %v", err)
+	}
+
+	transitionFetches := 0
+	iterationLimits := limits
+	iterationLimits.MaximumPages = 2
+	transition, err := NewPaginator(PaginationOptions[int, string]{
+		Initial: "abcd", Key: validKey, Limits: iterationLimits,
+		Fetch: func(context.Context, string) (PaginationPage[int, string], error) {
+			transitionFetches++
+			if transitionFetches == 1 {
+				return PaginationPage[int, string]{Next: "efgh", HasNext: true}, nil
+			}
+			return PaginationPage[int, string]{Items: []int{1}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct exact continuation paginator: %v", err)
+	}
+	if item, ok, err := transition.Next(context.Background()); err != nil || !ok || item != 1 || transitionFetches != 2 {
+		t.Fatalf("exact continuation transition = %d, %t, fetches %d, %v", item, ok, transitionFetches, err)
+	}
+
+	buffered, err := NewPaginator(PaginationOptions[int, string]{
+		Fetch: validFetch, Key: validKey,
+		Resume: &PaginationState[int, string]{Buffered: []int{1}},
+	})
+	if err != nil {
+		t.Fatalf("construct terminal buffered paginator: %v", err)
+	}
+	if item, ok, err := buffered.Next(context.Background()); err != nil || !ok || item != 1 || !buffered.State().Done {
+		t.Fatalf("terminal buffered transition = %d, %t, %#v, %v", item, ok, buffered.State(), err)
+	}
+
+	doneFetches := 0
+	done, err := NewPaginator(PaginationOptions[int, string]{
+		Fetch: func(context.Context, string) (PaginationPage[int, string], error) {
+			doneFetches++
+			return PaginationPage[int, string]{}, nil
+		},
+		Key: validKey, Resume: &PaginationState[int, string]{Done: true, HasNext: true},
+	})
+	if err != nil {
+		t.Fatalf("construct completed paginator: %v", err)
+	}
+	if _, ok, err := done.Next(context.Background()); err != nil || ok || doneFetches != 0 {
+		t.Fatalf("completed paginator result = %t, fetches %d, %v", ok, doneFetches, err)
+	}
+
+	clock := &paginationTestClock{now: time.Unix(1_700_000_000, 0)}
+	timed, err := NewPaginator(PaginationOptions[int, string]{
+		Fetch: validFetch, Key: validKey, Clock: clock, Limits: limits,
+	})
+	if err != nil {
+		t.Fatalf("construct exact elapsed paginator: %v", err)
+	}
+	clock.now = timed.started.Add(time.Second)
+	if err := timed.updateElapsed(); err != nil || timed.state.Elapsed != time.Second {
+		t.Fatalf("exact elapsed update = %s, %v", timed.state.Elapsed, err)
+	}
+}
+
 func TestPaginatorBoundaryFailuresDoNotExposeOrConsumePages(t *testing.T) {
 	t.Parallel()
 
