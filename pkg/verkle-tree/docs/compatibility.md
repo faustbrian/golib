@@ -9,6 +9,7 @@ The bounded research agreements below apply only to their exact corpora.
 | `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Public immutable snapshots with canonical self-authenticating whole-snapshot bytes, canonical set/delete transitions, profile-bound roots, aggregate membership/non-membership proofs including canonical empty-root absence, canonical Set witnesses for present, missing, different, and empty-root paths plus absent, topology-preserving, and authenticated topology-collapsing Delete witnesses with verified pre/post-state roots, canonical capability-checked storage writes, bounded isolated persisted reconstruction, bounded read-only current/retained-root inventory audit, atomic capability-checked retained-publication replacement plus pruning, and bounded recovery that preserves every publication while deleting unreachable unpublished node writes over internal canonical topology, bounded vector commitments, strict encodings, and independent verifier reconstruction; no restoration of corrupt published state, stable wire, concrete storage adapter, production, or Ethereum compatibility |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
 | `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening and zero-evaluation proofs, stem path hints, one tree root/proof corpus, and its bounded present-stem stateless update agree with Go; no general tree, API, wire, or production compatibility |
+| `ethereumjs/verkle-cryptography-wasm` | Git `2a814ff6fe0fb62e0a711e7b52a8e6db37e09733`; npm `0.4.8` | EthereumJS WASM delivery-lineage research | The repository declares maintenance by the Ethereum Foundation JavaScript team but wraps `crate-crypto/rust-verkle` revision `309cdcba4088e698689dc33b8ee071c2d064b2ae`; it is not a second independent cryptographic implementation and adds no tree, proof, wire, or production compatibility claim |
 | `crate-crypto/verkle-trie-ref` | `483f40c737f27bc8f059870f862cf6c244159cd4` | Algorithm and transcript research | Work-in-progress reference only |
 | EIP-6800 | Stagnant at EIPs commit `c55786f4242e5324afd14c6bca890a369a771d7f` | Historical Ethereum Verkle layout | Not implemented |
 | EIP-7612 | Stagnant at the same EIPs commit | Historical overlay transition | Out of generic package scope |
@@ -21,6 +22,17 @@ Agreement with one implementation or one fixture set will not establish broader
 compatibility. Any future row marked compatible must identify the exact profile,
 root semantics, transcript, generators, proof form, canonical encoding, and
 positive and negative differential corpus.
+
+The EthereumJS repository is the Ethereum Foundation JavaScript team's owned
+WASM/TypeScript delivery surface, so it is relevant to JavaScript integration
+lineage. Its pinned Rust manifest depends directly on `ipa-multipoint`,
+`banderwagon`, and `ffi_interface` from one older `rust-verkle` revision. The
+latest npm version and repository head reviewed on 2026-08-03 were still the
+September 2024 `0.4.8` release and matching source revision. Testing the wrapper
+may prove packaging or FFI behavior, but counting it beside `rust-verkle` as an
+independent cryptographic verifier would duplicate the same implementation
+lineage. It therefore does not replace the pinned Rust differential harness or
+satisfy the requirement for another independent implementation.
 
 The Rust encoding claim is reproduced by the pinned Cargo harness in
 `interoperability/rust-verkle`. It generates five deterministic scalar and

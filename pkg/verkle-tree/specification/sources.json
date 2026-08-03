@@ -762,6 +762,34 @@
       "review_status": "research-only-no-longer-used"
     },
     {
+      "id": "ethereumjs-verkle-cryptography-wasm",
+      "kind": "git-repository-and-npm-package",
+      "role": "ethereumjs-owned-wasm-delivery-reference",
+      "url": "https://github.com/ethereumjs/verkle-cryptography-wasm",
+      "revision": "2a814ff6fe0fb62e0a711e7b52a8e6db37e09733",
+      "tree": "6d15660cccce8bb74fdac35a9e2e176187fa4503",
+      "reviewed_on": "2026-08-03",
+      "repository_head_as_of_review": "2a814ff6fe0fb62e0a711e7b52a8e6db37e09733",
+      "npm_package": "verkle-cryptography-wasm",
+      "npm_version": "0.4.8",
+      "npm_git_head": "2a814ff6fe0fb62e0a711e7b52a8e6db37e09733",
+      "npm_published_at": "2024-09-13T10:48:20.162Z",
+      "npm_integrity": "sha512-ssom3p39wVRP63IMU/I7dx0mHZvb7svK8MAoMNlAzX/6CqA7FhtokSBt81RszXs3JXa0k1E40Qr1JPHW0aNkgQ==",
+      "npm_tarball_sha256": "d65a14d498d4cdde13e801c103f514b062cd8cc842e4eb6a91c88da82d67ef86",
+      "package_json_sha256": "c41095eac6f078ca1df2b4ca9d72881b75edd8f68a4a42df9c39f303a594ea37",
+      "readme_sha256": "3288c3293ebf904627484500021de251478079f91d8c2be0d66cddd704397bab",
+      "rust_manifest_path": "src.rs/Cargo.toml",
+      "rust_manifest_sha256": "91dd08cfffd1ab43d9b94ce0628a982513f96f5eb96faa2125d56b4b279f7bf1",
+      "wrapped_rust_verkle_revision": "309cdcba4088e698689dc33b8ee071c2d064b2ae",
+      "license": "MIT OR Apache-2.0",
+      "license_files": {
+        "MIT": "7820032c12efadbe08d2ed34537fd507fef46fb291405dfff238c77519905c0e",
+        "Apache-2.0": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      },
+      "reproducible": true,
+      "review_status": "ethereumjs-maintained-wrapper-not-independent-differential-reference"
+    },
+    {
       "id": "go-ethereum-v1.17.0-release",
       "kind": "release-notes",
       "role": "current-client-direction",

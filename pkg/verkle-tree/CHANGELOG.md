@@ -13,6 +13,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Record the pinned commitment-backend audit and its production blockers.
 - Add usage, storage operations, crash testing, adoption, migration, and FAQ
   guides for the experimental public API and caller-owned adapter boundary.
+- Pin the EthereumJS Verkle WASM repository and npm package while recording
+  that its Rust implementation lineage is not an independent verifier.
 
 ### Added
 

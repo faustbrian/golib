@@ -38,9 +38,10 @@ prohibited.
 
 ## Evidence Date
 
-This decision uses sources captured on 2026-07-29. Exact commits, content
-digests, license data, and source classifications are in
-[`sources.json`](sources.json).
+This decision uses sources captured on 2026-07-29. A supplemental review on
+2026-08-03 pinned the EthereumJS-owned WASM wrapper and its npm package without
+changing the decision. Exact commits, content digests, license data, and source
+classifications are in [`sources.json`](sources.json).
 
 ## Candidate Research Target
 
@@ -48,6 +49,12 @@ The only sufficiently implemented target found for further differential
 research is the 256-wide Bandersnatch/Banderwagon Pedersen-plus-IPA construction
 shared by the pinned `go-verkle`, `go-ipa`, `rust-verkle`, and Python reference
 revisions.
+
+The EthereumJS-owned `verkle-cryptography-wasm` repository is a delivery
+wrapper around `rust-verkle`, not another independent implementation. Its
+pinned manifest selects an older Rust revision than the differential harness,
+so it MAY be used for separate WASM and FFI packaging research but MUST NOT be
+counted as independent cryptographic agreement.
 
 That target is not a frozen package profile. In particular:
 
