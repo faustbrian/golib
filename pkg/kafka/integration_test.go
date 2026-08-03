@@ -3330,6 +3330,26 @@ func assertGroupCommitted(
 		partition.Lag != 0 {
 		t.Fatalf("committed group state = %#v", groups[0])
 	}
+	partialGroups, partialErr := inspector.InspectConsumerGroups(
+		ctx,
+		groupID+"-missing",
+		groupID,
+	)
+	if partialErr != nil ||
+		len(partialGroups) != 2 ||
+		partialGroups[0].Group != groupID+"-missing" ||
+		partialGroups[0].Err != nil ||
+		partialGroups[0].State.State != "Dead" ||
+		partialGroups[1].Group != groupID ||
+		partialGroups[1].Err != nil ||
+		len(partialGroups[1].State.Partitions) != 1 ||
+		partialGroups[1].State.Partitions[0].CommittedOffset != 3 {
+		t.Fatalf(
+			"partial consumer-group inspection = %#v, %v",
+			partialGroups,
+			partialErr,
+		)
+	}
 }
 
 func assertInspectionState(
@@ -3398,6 +3418,25 @@ func assertInspectionState(
 			partition.EndOffset != 0 {
 			t.Fatalf("topic partition inspection state = %#v", partition)
 		}
+	}
+	missingTopic := topic + "-missing"
+	partialTopics, partialErr := inspector.InspectTopics(
+		ctx,
+		missingTopic,
+		topic,
+	)
+	if !errors.Is(partialErr, kafka.ErrInspectionTargetsFailed) ||
+		len(partialTopics) != 2 ||
+		partialTopics[0].Topic != missingTopic ||
+		!errors.Is(partialTopics[0].Err, kerr.UnknownTopicOrPartition) ||
+		partialTopics[1].Topic != topic ||
+		partialTopics[1].Err != nil ||
+		len(partialTopics[1].State.Partitions) != 4 {
+		t.Fatalf(
+			"partial topic inspection = %#v, %v",
+			partialTopics,
+			partialErr,
+		)
 	}
 }
 

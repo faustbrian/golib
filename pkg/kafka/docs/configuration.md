@@ -306,6 +306,7 @@ Inspection uses the shared connection policy plus these owned bounds:
 | `MaxMetadataBrokers` | 1,000 | 1 through 10,000; caps copied cluster brokers and every partition replica set. |
 | `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate topic partitions, or group lag partitions plus assignment topic and partition entries, copied by one request. |
 | `MaxGroupMembers` | 10,000 | 1 through 100,000; caps members copied across one explicit group request. |
+| `MaxConcurrentInspections` | 4 | 1 through 64; caps independent target requests made by `InspectTopics` and `InspectConsumerGroups`. |
 | `Readiness.FailureThreshold` | 3 | 1 through 100 consecutive failed dependency probes before a ready inspector becomes unready. |
 | `Readiness.RecoveryThreshold` | 2 | 1 through 100 consecutive successful dependency probes before initial or recovered readiness. |
 | `Observers` | disabled | Shared `ObserverPolicy`: 1 through 16 copied ordered callbacks, explicit failure handler, and one 1 millisecond through 5 second cooperative event budget. |
@@ -319,6 +320,10 @@ when any requested target or selected field is missing, inconsistent,
 unauthorized, excessive, or unavailable. Kafka millisecond values remain
 signed 64-bit integers because valid values may exceed `time.Duration`;
 retention time and per-partition retention bytes preserve `-1` as unlimited.
+The `InspectTopics` and `InspectConsumerGroups` variants isolate targets under
+one request deadline, return one input-ordered result per target, and retain
+successful states when another target fails. `ErrInspectionTargetsFailed`
+signals that callers must inspect the typed result errors and categories.
 Construction and inspection do not authorize topic, group, offset, ACL, or
 broker mutation.
 

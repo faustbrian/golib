@@ -164,6 +164,12 @@ exporting a public observation rather than reimplementing these invariants.
 | Broker throttle | `ThrottleDuration` is Kafka's reported interval; `ThrottledAfterResponse` distinguishes client-side post-response delay from broker-side pre-response delay. The event is request-level and deliberately omits topic, partition, and record coordinates because franz-go's throttle hook does not identify the request and one produce response can cover many records. |
 | Broker disconnect | Reports the connection close without inventing a cause because franz-go does not supply one to this hook |
 
+`InspectTopics` and `InspectConsumerGroups` invoke the existing fail-closed
+operation once per independently isolated target. They therefore emit one
+existing topic or consumer-group observation per target, potentially
+concurrently and without an additional aggregate event. Target names remain
+absent from observations.
+
 `BrokerID` is present only when franz-go supplies a non-negative Kafka node ID.
 Seed connections can be reported with `BrokerKnown=false`. Invalid negative
 byte counts and durations are clipped to zero; duration overflow saturates;

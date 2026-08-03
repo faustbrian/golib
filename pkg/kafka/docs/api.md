@@ -385,6 +385,15 @@ assignments by topic and partition. It requests KIP-447 stable committed
 offsets so pending transactional commits resolve within the request deadline
 on supported brokers. Topic and group methods require explicit target lists,
 and every operation derives `InspectorConfig.RequestTimeout`.
+`Inspector.InspectTopics` and `Inspector.InspectConsumerGroups` execute one
+independent request per target under that shared deadline and preserve the
+caller's input order. `InspectorConfig.MaxConcurrentInspections`, defaulting to
+four, bounds those requests. Each result retains the target-specific error and
+its stable `ErrorCategory`; any failed target makes the aggregate error
+`ErrInspectionTargetsFailed` without discarding successful states. The existing
+`Topics` and `ConsumerGroupLag` methods remain fail closed across their complete
+target list. Kafka's successful `Dead` description for an unknown classic
+group is state, not an error.
 `InspectorConfig.Observers` reports inspection, dependency, readiness,
 shutdown, and broker activity through the shared stable observation contract.
 

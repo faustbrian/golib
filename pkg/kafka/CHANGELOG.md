@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add bounded, input-ordered per-target topic and consumer-group inspection
+  results that retain independent successes and stable error classifications
+  without changing the existing fail-closed batch methods
 - prove Kafka 3.7.2 transaction-processor recovery after an in-flight child
   process terminates without committing its source offset or output
 - prove Kafka 3.7.2 eager and cooperative transaction-processor rebalance

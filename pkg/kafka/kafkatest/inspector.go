@@ -9,7 +9,8 @@ import (
 )
 
 // RunInspectorConformance proves bounded cluster, topic, consumer-group lag,
-// dependency, readiness, liveness, and post-close inspection contracts.
+// per-target partial results, dependency, readiness, liveness, and post-close
+// inspection contracts.
 func RunInspectorConformance(t *testing.T, harness BrokerHarness) {
 	t.Helper()
 	if err := harness.Validate(); err != nil {
@@ -65,6 +66,16 @@ func RunInspectorConformance(t *testing.T, harness BrokerHarness) {
 				t.Fatalf("topic partition[%d] = %#v", index, partition)
 			}
 		}
+		partialTopics, err := inspector.InspectTopics(
+			t.Context(),
+			nextConformanceGroup("missing-topic"),
+			topic,
+		)
+		if !errors.Is(err, kafka.ErrInspectionTargetsFailed) ||
+			len(partialTopics) != 2 || partialTopics[0].Err == nil ||
+			partialTopics[1].Err != nil || partialTopics[1].State.Name != topic {
+			t.Fatalf("InspectTopics() = %#v, %v", partialTopics, err)
+		}
 		groups, err := inspector.ConsumerGroupLag(t.Context(), group)
 		if err != nil || len(groups) != 1 || groups[0].Group != group ||
 			len(groups[0].Partitions) != 2 {
@@ -75,6 +86,16 @@ func RunInspectorConformance(t *testing.T, harness BrokerHarness) {
 				partition.CommittedOffset != 1 || partition.EndOffset != 1 || partition.Lag != 0 {
 				t.Fatalf("group partition[%d] = %#v", index, partition)
 			}
+		}
+		partialGroups, err := inspector.InspectConsumerGroups(
+			t.Context(),
+			nextConformanceGroup("missing"),
+			group,
+		)
+		if err != nil || len(partialGroups) != 2 ||
+			partialGroups[0].Err != nil || partialGroups[0].State.State != "Dead" ||
+			partialGroups[1].Err != nil || partialGroups[1].State.Group != group {
+			t.Fatalf("InspectConsumerGroups() = %#v, %v", partialGroups, err)
 		}
 		if err := inspector.DependencyHealth(t.Context()); err != nil {
 			t.Fatalf("DependencyHealth() error = %v", err)

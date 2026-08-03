@@ -41,6 +41,15 @@ configuration entries are accepted per topic, and each selected value is
 limited to 64 valid UTF-8 bytes before parsing. The method does not return a
 partially successful topic list.
 
+`InspectTopics` is the explicit partial-result alternative. It makes one
+independent topic request per target, returns results in input order, and keeps
+complete successful topic state when another target is missing, unauthorized,
+unavailable, or invalid. Every failed result retains its target-specific error
+and stable `ErrorCategory`; the aggregate return is
+`ErrInspectionTargetsFailed`. The operation shares one request deadline and
+uses no more than `MaxConcurrentInspections` workers. All workers finish before
+the method returns.
+
 `TopicCleanupPolicy` preserves Kafka's delete and compact policies as flags;
 zero means that neither policy is active. Both policies may be active together.
 Retention, compaction-lag, tombstone-retention, and segment durations are
@@ -112,6 +121,13 @@ description API. This package does not yet claim KIP-848 group inspection;
 such groups are unverified rather than silently reported as classic groups.
 Group description, committed offsets, and end offsets are separate requests,
 so membership or lag can change during one call.
+
+`InspectConsumerGroups` provides the same bounded, input-ordered per-target
+contract for classic groups. Kafka describes an unknown classic group
+successfully with state `Dead`; this is an observable group state rather than a
+target failure. Authorization, transport, timeout, and invalid-response errors
+remain typed failed results and cause the aggregate
+`ErrInspectionTargetsFailed` return.
 
 ## Deadlines and health signals
 

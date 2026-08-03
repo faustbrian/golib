@@ -294,7 +294,13 @@ All inspector broker operations derive `RequestTimeout` from the caller context.
 Missing, inconsistent, excessive, unauthorized, or unavailable required state
 returns an error instead of a partial success. A caller therefore cannot infer
 that omitted partitions, replicas, offsets, or durability configuration are
-healthy. Multi-target typed partial results are not implemented yet.
+healthy. `Topics` and `ConsumerGroupLag` keep this fail-closed contract.
+`InspectTopics` and `InspectConsumerGroups` instead issue independently bounded
+per-target requests, preserve input order and successful target state, and
+return `ErrInspectionTargetsFailed` if any typed result contains a classified
+target error. All workers finish before return, share the outer request
+deadline, and never exceed `MaxConcurrentInspections`. Kafka's successful
+`Dead` state for an unknown classic group remains a successful result.
 Optional inspector observers receive only bounded aggregate counts and
 health/readiness state. They never receive cluster IDs, broker hosts, target
 names, group members, assignments, or lag coordinates. A conclusive readiness

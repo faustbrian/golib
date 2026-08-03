@@ -30,6 +30,9 @@ var (
 	ErrInspectionResponseTooLarge = errors.New(
 		"kafka: broker inspection response exceeds configured limits",
 	)
+	ErrInspectionTargetsFailed = errors.New(
+		"kafka: one or more inspection targets failed",
+	)
 )
 
 // InspectorConfig defines a read-only Kafka metadata and lag client.
@@ -44,7 +47,10 @@ type InspectorConfig struct {
 	MaxMetadataBrokers    int
 	MaxMetadataPartitions int
 	MaxGroupMembers       int
-	Readiness             ReadinessPolicy
+	// MaxConcurrentInspections bounds independently isolated per-target
+	// requests made by InspectTopics and InspectConsumerGroups.
+	MaxConcurrentInspections int
+	Readiness                ReadinessPolicy
 	// Observers receive payload-free inspection, health, readiness, shutdown,
 	// and broker events under one bounded synchronous callback policy.
 	Observers ObserverPolicy
@@ -184,6 +190,27 @@ type ConsumerGroupState struct {
 	Partitions    []ConsumerGroupPartitionLag
 }
 
+// TopicInspectionResult is one input-ordered topic inspection outcome. State
+// is populated only when Err is nil. Err retains the target-specific broker or
+// policy failure, and Category provides its stable package classification.
+type TopicInspectionResult struct {
+	Topic    string
+	State    TopicState
+	Category ErrorCategory
+	Err      error
+}
+
+// ConsumerGroupInspectionResult is one input-ordered consumer-group
+// inspection outcome. State is populated only when Err is nil. Err retains the
+// target-specific broker or policy failure, and Category provides its stable
+// package classification.
+type ConsumerGroupInspectionResult struct {
+	Group    string
+	State    ConsumerGroupState
+	Category ErrorCategory
+	Err      error
+}
+
 // ConsumerGroupMemberState is bounded, copied classic consumer-group member
 // identity and current partition assignment.
 type ConsumerGroupMemberState struct {
@@ -273,21 +300,22 @@ type inspectorAdminFactory func(*kgo.Client, InspectorConfig) inspectorBackend
 // Inspector provides bounded, read-only protocol administration used by
 // readiness checks, dashboards, and replay planning.
 type Inspector struct {
-	clientID              string
-	admin                 inspectorBackend
-	client                inspectorClient
-	requestTimeout        time.Duration
-	maxMetadataBrokers    int
-	maxMetadataPartitions int
-	maxGroupMembers       int
-	readinessPolicy       ReadinessPolicy
-	readinessMu           sync.Mutex
-	readiness             ReadinessState
-	lifecycleMu           sync.Mutex
-	observerCallbacks     int
-	observers             observerDispatcher
-	closeOnce             sync.Once
-	closed                atomic.Bool
+	clientID                 string
+	admin                    inspectorBackend
+	client                   inspectorClient
+	requestTimeout           time.Duration
+	maxMetadataBrokers       int
+	maxMetadataPartitions    int
+	maxGroupMembers          int
+	maxConcurrentInspections int
+	readinessPolicy          ReadinessPolicy
+	readinessMu              sync.Mutex
+	readiness                ReadinessState
+	lifecycleMu              sync.Mutex
+	observerCallbacks        int
+	observers                observerDispatcher
+	closeOnce                sync.Once
+	closed                   atomic.Bool
 }
 
 type franzInspectorBackend struct {
@@ -354,13 +382,14 @@ func newInspector(
 	options = append(options, clientSecurityOptions(config.Security, config.DialTimeout)...)
 	dispatcher := newObserverDispatcher(config.Observers)
 	inspector := &Inspector{
-		clientID:              strings.Clone(config.ClientID),
-		requestTimeout:        config.RequestTimeout,
-		maxMetadataBrokers:    config.MaxMetadataBrokers,
-		maxMetadataPartitions: config.MaxMetadataPartitions,
-		maxGroupMembers:       config.MaxGroupMembers,
-		readinessPolicy:       config.Readiness,
-		observers:             dispatcher,
+		clientID:                 strings.Clone(config.ClientID),
+		requestTimeout:           config.RequestTimeout,
+		maxMetadataBrokers:       config.MaxMetadataBrokers,
+		maxMetadataPartitions:    config.MaxMetadataPartitions,
+		maxGroupMembers:          config.MaxGroupMembers,
+		maxConcurrentInspections: config.MaxConcurrentInspections,
+		readinessPolicy:          config.Readiness,
+		observers:                dispatcher,
 	}
 	if dispatcher.enabled() {
 		observerHook := newFranzObserverHook(
@@ -411,6 +440,9 @@ func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 	if config.MaxGroupMembers == 0 {
 		config.MaxGroupMembers = 10_000
 	}
+	if config.MaxConcurrentInspections == 0 {
+		config.MaxConcurrentInspections = 4
+	}
 	readiness, err := normalizeReadinessPolicy(config.Readiness)
 	if err != nil {
 		return InspectorConfig{}, err
@@ -430,7 +462,9 @@ func normalizeInspectorConfig(config InspectorConfig) (InspectorConfig, error) {
 		config.MaxMetadataPartitions < 1 ||
 		config.MaxMetadataPartitions > 1_000_000 ||
 		config.MaxGroupMembers < 1 ||
-		config.MaxGroupMembers > 100_000 {
+		config.MaxGroupMembers > 100_000 ||
+		config.MaxConcurrentInspections < 1 ||
+		config.MaxConcurrentInspections > 64 {
 		return InspectorConfig{}, ErrInvalidInspectorConfig
 	}
 
@@ -589,6 +623,154 @@ func (inspector *Inspector) requestContext(
 	requestCtx, cancel := context.WithTimeout(ctx, timeout)
 
 	return requestCtx, cancel, nil
+}
+
+type inspectionTargetOutcome[T any] struct {
+	state T
+	err   error
+}
+
+// InspectTopics returns one input-ordered result for every explicit topic.
+// Target failures do not discard independent successes: the returned slice is
+// complete and ErrInspectionTargetsFailed signals that callers must inspect
+// each result. Requests share the inspector request deadline and never exceed
+// MaxConcurrentInspections. Topics remains the fail-closed batch API.
+func (inspector *Inspector) InspectTopics(
+	ctx context.Context,
+	topics ...string,
+) ([]TopicInspectionResult, error) {
+	if err := validateInspectionTopics(topics); err != nil {
+		return nil, err
+	}
+	requestCtx, cancel, err := inspector.requestContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	outcomes := runInspectionTargets(
+		requestCtx,
+		topics,
+		inspector.inspectionConcurrencyLimit(),
+		func(ctx context.Context, topic string) (TopicState, error) {
+			states, err := inspector.Topics(ctx, topic)
+			if err != nil {
+				return TopicState{}, err
+			}
+
+			return states[0], nil
+		},
+	)
+	results := make([]TopicInspectionResult, len(topics))
+	failed := false
+	for index, topic := range topics {
+		results[index] = TopicInspectionResult{
+			Topic: strings.Clone(topic),
+			State: outcomes[index].state,
+			Err:   outcomes[index].err,
+		}
+		if outcomes[index].err != nil {
+			results[index].Category = classifyError(outcomes[index].err)
+			failed = true
+		}
+	}
+	if failed {
+		return results, ErrInspectionTargetsFailed
+	}
+
+	return results, nil
+}
+
+// InspectConsumerGroups returns one input-ordered result for every explicit
+// consumer group. Target failures do not discard independent successes: the
+// returned slice is complete and ErrInspectionTargetsFailed signals that
+// callers must inspect each result. Requests share the inspector request
+// deadline and never exceed MaxConcurrentInspections. ConsumerGroupLag remains
+// the fail-closed batch API.
+func (inspector *Inspector) InspectConsumerGroups(
+	ctx context.Context,
+	groups ...string,
+) ([]ConsumerGroupInspectionResult, error) {
+	if err := validateInspectionTargets(groups, 255); err != nil {
+		return nil, err
+	}
+	requestCtx, cancel, err := inspector.requestContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	outcomes := runInspectionTargets(
+		requestCtx,
+		groups,
+		inspector.inspectionConcurrencyLimit(),
+		func(ctx context.Context, group string) (ConsumerGroupState, error) {
+			states, err := inspector.ConsumerGroupLag(ctx, group)
+			if err != nil {
+				return ConsumerGroupState{}, err
+			}
+
+			return states[0], nil
+		},
+	)
+	results := make([]ConsumerGroupInspectionResult, len(groups))
+	failed := false
+	for index, group := range groups {
+		results[index] = ConsumerGroupInspectionResult{
+			Group: strings.Clone(group),
+			State: outcomes[index].state,
+			Err:   outcomes[index].err,
+		}
+		if outcomes[index].err != nil {
+			results[index].Category = classifyError(outcomes[index].err)
+			failed = true
+		}
+	}
+	if failed {
+		return results, ErrInspectionTargetsFailed
+	}
+
+	return results, nil
+}
+
+func runInspectionTargets[T any](
+	ctx context.Context,
+	targets []string,
+	maximumConcurrency int,
+	inspect func(context.Context, string) (T, error),
+) []inspectionTargetOutcome[T] {
+	workers := min(maximumConcurrency, len(targets))
+	jobs := make(chan int, len(targets))
+	for index := range targets {
+		jobs <- index
+	}
+	close(jobs)
+
+	results := make([]inspectionTargetOutcome[T], len(targets))
+	var workersDone sync.WaitGroup
+	workersDone.Add(workers)
+	for range workers {
+		go func() {
+			defer workersDone.Done()
+			for index := range jobs {
+				results[index].state, results[index].err = inspect(
+					ctx,
+					targets[index],
+				)
+			}
+		}()
+	}
+	workersDone.Wait()
+
+	return results
+}
+
+func (inspector *Inspector) inspectionConcurrencyLimit() int {
+	if inspector.maxConcurrentInspections == 0 {
+		return 4
+	}
+
+	return inspector.maxConcurrentInspections
 }
 
 // Topics returns sorted metadata for an explicit bounded topic set.
