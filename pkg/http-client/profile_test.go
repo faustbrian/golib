@@ -218,6 +218,21 @@ func TestPolicyProfilesRejectUnknownAndInvalidOverrides(t *testing.T) {
 			t.Fatalf("invalid overrides %#v error = %v", overrides, err)
 		}
 	}
+	if _, err := ResolvePolicy(PolicyProfileInteractiveV1, PolicyOverrides{
+		OperationTimeout:            durationPointer(maximumProfileDuration),
+		RetryMaximumAttempts:        intPointer(maximumRetryAttempts),
+		RetryMaximumElapsed:         durationPointer(maximumProfileDuration),
+		PoolConcurrency:             intPointer(maximumPoolConcurrency),
+		PoolMaximumElapsed:          durationPointer(maximumProfileDuration),
+		TransportMaximumConnections: intPointer(maximumPoolPending),
+		LimiterMaximumWait:          durationPointer(maximumProfileDuration),
+		BreakerOpenTimeout:          durationPointer(maximumProfileDuration),
+		CacheMaximumBodyBytes:       int64Pointer(maximumProfileBodyBytes),
+		BodyMaximumBytes:            int64Pointer(maximumProfileBodyBytes),
+		ShutdownTimeout:             durationPointer(maximumProfileDuration),
+	}, PolicyOverrides{}); err != nil {
+		t.Fatalf("exact maximum overrides: %v", err)
+	}
 	if _, err := ResolvePolicy(PolicyProfileID("unknown/v1"), PolicyOverrides{}, PolicyOverrides{}); !errors.Is(err, ErrInvalidPolicyProfile) {
 		t.Fatalf("unknown profile error = %v", err)
 	}
@@ -258,6 +273,12 @@ func TestPolicyProfilesRejectUnknownAndInvalidOverrides(t *testing.T) {
 		t.Fatalf("invalid request policy error = %v", err)
 	}
 }
+
+func durationPointer(value time.Duration) *time.Duration { return &value }
+
+func intPointer(value int) *int { return &value }
+
+func int64Pointer(value int64) *int64 { return &value }
 
 func mustProfileInspectionMiddleware(t *testing.T, timeout time.Duration) Middleware {
 	t.Helper()

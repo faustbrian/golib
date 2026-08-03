@@ -223,7 +223,10 @@ func NewLinkPaginator[Item any](
 		return nil, fmt.Errorf("%w: Link fetcher is nil", ErrInvalidPagination)
 	}
 	initial, err := url.Parse(options.InitialURL)
-	if err != nil || !validBaseURL(initial) {
+	if err != nil {
+		return nil, fmt.Errorf("%w: initial Link URL is invalid", ErrInvalidPagination)
+	}
+	if !validBaseURL(initial) {
 		return nil, fmt.Errorf("%w: initial Link URL is invalid", ErrInvalidPagination)
 	}
 
@@ -242,7 +245,10 @@ func NewLinkPaginator[Item any](
 			next := reference
 			if hasNext {
 				candidate, targetErr := url.Parse(target)
-				if targetErr != nil || !validRelativeReference(candidate) {
+				if targetErr != nil {
+					return PaginationPage[Item, string]{}, ErrInvalidPagination
+				}
+				if !validRelativeReference(candidate) {
 					return PaginationPage[Item, string]{}, ErrInvalidPagination
 				}
 				resolved := base.ResolveReference(candidate)
@@ -259,7 +265,10 @@ func NewLinkPaginator[Item any](
 		},
 		Key: func(reference string) (string, error) {
 			candidate, parseErr := url.Parse(reference)
-			if parseErr != nil || !validBaseURL(candidate) {
+			if parseErr != nil {
+				return "", ErrInvalidPagination
+			}
+			if !validBaseURL(candidate) {
 				return "", ErrInvalidPagination
 			}
 
@@ -355,7 +364,10 @@ func splitLinkHeader(value string, separator byte) ([]string, error) {
 }
 
 func parseLinkEntry(entry string) (string, []string, error) {
-	if len(entry) < 3 || entry[0] != '<' {
+	if len(entry) < 3 {
+		return "", nil, fmt.Errorf("%w: Link target is malformed", ErrInvalidPagination)
+	}
+	if entry[0] != '<' {
 		return "", nil, fmt.Errorf("%w: Link target is malformed", ErrInvalidPagination)
 	}
 	closing := strings.IndexByte(entry, '>')

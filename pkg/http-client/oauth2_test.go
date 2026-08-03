@@ -452,7 +452,7 @@ func TestCachedTokenSourceCoordinatesCancelableWaiters(t *testing.T) {
 		_, tokenErr := source.Token(context.Background())
 		leader <- tokenErr
 	}()
-	<-entered
+	receiveOAuth2TestValue(t, entered)
 
 	successContext := &observedDoneContext{
 		Context: context.Background(), observed: make(chan struct{}),
@@ -462,7 +462,7 @@ func TestCachedTokenSourceCoordinatesCancelableWaiters(t *testing.T) {
 		_, tokenErr := source.Token(successContext)
 		success <- tokenErr
 	}()
-	<-successContext.observed
+	receiveOAuth2TestValue(t, successContext.observed)
 	canceledContext, cancel := context.WithCancel(context.Background())
 	canceled := &observedDoneContext{Context: canceledContext, observed: make(chan struct{})}
 	canceledResult := make(chan error, 1)
@@ -470,16 +470,16 @@ func TestCachedTokenSourceCoordinatesCancelableWaiters(t *testing.T) {
 		_, tokenErr := source.Token(canceled)
 		canceledResult <- tokenErr
 	}()
-	<-canceled.observed
+	receiveOAuth2TestValue(t, canceled.observed)
 	cancel()
-	if err := <-canceledResult; !errors.Is(err, context.Canceled) {
+	if err := receiveOAuth2TestValue(t, canceledResult); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled waiter error = %v", err)
 	}
 	close(release)
-	if err := <-leader; err != nil {
+	if err := receiveOAuth2TestValue(t, leader); err != nil {
 		t.Fatalf("leader token: %v", err)
 	}
-	if err := <-success; err != nil {
+	if err := receiveOAuth2TestValue(t, success); err != nil {
 		t.Fatalf("successful waiter token: %v", err)
 	}
 	if calls.Load() != 1 {
@@ -619,7 +619,7 @@ func TestCachedTokenSourceStopsLeaderAndWaiterWhenClientCloses(t *testing.T) {
 		_, tokenErr := source.Token(context.Background())
 		leader <- tokenErr
 	}()
-	<-entered
+	receiveOAuth2TestValue(t, entered)
 	waiterContext := &observedDoneContext{
 		Context: context.Background(), observed: make(chan struct{}),
 	}
@@ -628,14 +628,14 @@ func TestCachedTokenSourceStopsLeaderAndWaiterWhenClientCloses(t *testing.T) {
 		_, tokenErr := source.Token(waiterContext)
 		waiter <- tokenErr
 	}()
-	<-waiterContext.observed
+	receiveOAuth2TestValue(t, waiterContext.observed)
 	if err := client.Close(); err != nil {
 		t.Fatalf("close client: %v", err)
 	}
-	if err := <-waiter; !errors.Is(err, ErrClientClosed) {
+	if err := receiveOAuth2TestValue(t, waiter); !errors.Is(err, ErrClientClosed) {
 		t.Fatalf("waiter close error = %v", err)
 	}
-	if err := <-leader; !errors.Is(err, ErrClientClosed) {
+	if err := receiveOAuth2TestValue(t, leader); !errors.Is(err, ErrClientClosed) {
 		t.Fatalf("leader close error = %v", err)
 	}
 	if _, err := source.Token(context.Background()); !errors.Is(err, ErrClientClosed) {
@@ -711,7 +711,7 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 		_, tokenErr := source.Token(context.Background())
 		leaderResult <- tokenErr
 	}()
-	<-entered
+	receiveOAuth2TestValue(t, entered)
 	underlying, cancel := context.WithCancel(context.Background())
 	canceled := &observedDoneContext{Context: underlying, observed: make(chan struct{})}
 	waiterResult := make(chan error, 1)
@@ -719,10 +719,10 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 		_, tokenErr := source.Token(canceled)
 		waiterResult <- tokenErr
 	}()
-	<-canceled.observed
+	receiveOAuth2TestValue(t, canceled.observed)
 	started := time.Now()
 	cancel()
-	err = <-waiterResult
+	err = receiveOAuth2TestValue(t, waiterResult)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled waiter error = %v", err)
 	}
@@ -730,7 +730,7 @@ func TestClientCredentialsTokenSourceCancelsRefreshWaiters(t *testing.T) {
 		t.Fatalf("canceled waiter took %s", elapsed)
 	}
 	close(release)
-	if err := <-leaderResult; err != nil {
+	if err := receiveOAuth2TestValue(t, leaderResult); err != nil {
 		t.Fatalf("leader refresh: %v", err)
 	}
 }
@@ -796,7 +796,7 @@ func TestClientCredentialsTokenRequestHonorsCallerAndClientCancellation(t *testi
 				_, tokenErr := source.Token(ctx)
 				result <- tokenErr
 			}()
-			<-entered
+			receiveOAuth2TestValue(t, entered)
 			test.cancelWith(t, cancel, client)
 			select {
 			case err := <-result:
@@ -1137,21 +1137,21 @@ func TestClientCredentialsWaiterStopsWhenClientCloses(t *testing.T) {
 		_, tokenErr := source.Token(context.Background())
 		leaderResult <- tokenErr
 	}()
-	<-entered
+	receiveOAuth2TestValue(t, entered)
 	waiterContext := &observedDoneContext{Context: context.Background(), observed: make(chan struct{})}
 	waiterResult := make(chan error, 1)
 	go func() {
 		_, tokenErr := source.Token(waiterContext)
 		waiterResult <- tokenErr
 	}()
-	<-waiterContext.observed
+	receiveOAuth2TestValue(t, waiterContext.observed)
 	if err := client.Close(); err != nil {
 		t.Fatalf("close client: %v", err)
 	}
-	if err := <-waiterResult; !errors.Is(err, ErrClientClosed) {
+	if err := receiveOAuth2TestValue(t, waiterResult); !errors.Is(err, ErrClientClosed) {
 		t.Fatalf("waiter close error = %v", err)
 	}
-	if err := <-leaderResult; !errors.Is(err, ErrClientClosed) {
+	if err := receiveOAuth2TestValue(t, leaderResult); !errors.Is(err, ErrClientClosed) {
 		t.Fatalf("leader close error = %v", err)
 	}
 	close(release)
@@ -1200,4 +1200,16 @@ func (ctx *observedDoneContext) Done() <-chan struct{} {
 	ctx.once.Do(func() { close(ctx.observed) })
 
 	return ctx.Context.Done()
+}
+
+func receiveOAuth2TestValue[Value any](t *testing.T, values <-chan Value) Value {
+	t.Helper()
+	select {
+	case value := <-values:
+		return value
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for OAuth2 test coordination")
+		var zero Value
+		return zero
+	}
 }

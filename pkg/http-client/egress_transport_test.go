@@ -181,10 +181,20 @@ func TestEgressValidationAndTransportBoundaryErrors(t *testing.T) {
 	transport := egressRoundTripper{policy: policy, next: TransportFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusNoContent, Body: http.NoBody}, nil
 	})}
-	if _, err := (egressRoundTripper{}).RoundTrip(nil); !errors.Is(err, ErrEgressDenied) {
-		t.Fatalf("invalid wrapper = %v", err)
-	}
 	request, _ := http.NewRequest(http.MethodGet, "https://api.example.test/", nil)
+	for name, candidate := range map[string]egressRoundTripper{
+		"nil request": {policy: policy, next: transport.next},
+		"nil policy":  {next: transport.next},
+		"nil next":    {policy: policy},
+	} {
+		candidateRequest := request
+		if name == "nil request" {
+			candidateRequest = nil
+		}
+		if _, err := candidate.RoundTrip(candidateRequest); !errors.Is(err, ErrEgressDenied) {
+			t.Fatalf("%s wrapper error = %v", name, err)
+		}
+	}
 	if response, err := transport.RoundTrip(request); err != nil || response.StatusCode != http.StatusNoContent {
 		t.Fatalf("valid wrapper = %#v, %v", response, err)
 	}
@@ -227,6 +237,25 @@ func TestEgressDialerRejectsMalformedAndPropagatesResolutionAndDialFailures(t *t
 		if _, err := dialer.DialContext(context.Background(), input.network, input.address); !errors.Is(err, ErrEgressDenied) {
 			t.Fatalf("dial %q %q error = %v", input.network, input.address, err)
 		}
+	}
+	overflowPolicy, err := NewEgressPolicy(EgressOptions{
+		AllowedHosts: []string{"dial.example.test"}, AllowedPorts: []uint16{65535}, Resolver: resolver,
+	})
+	if err != nil {
+		t.Fatalf("construct overflow policy: %v", err)
+	}
+	var overflowAttempts atomic.Int64
+	overflowDialer := &egressDialer{
+		policy: overflowPolicy,
+		dialer: egressDialerFunc(func(context.Context, string, string) (net.Conn, error) {
+			overflowAttempts.Add(1)
+			return nil, dialFailure
+		}),
+	}
+	_, overflowErr := overflowDialer.DialContext(context.Background(), "tcp", "dial.example.test:65536")
+	var egressErr *EgressError
+	if !errors.As(overflowErr, &egressErr) || egressErr.Reason != EgressReasonPort || overflowAttempts.Load() != 0 {
+		t.Fatalf("overflow port error = %#v, attempts = %d", overflowErr, overflowAttempts.Load())
 	}
 	if _, err := (*egressDialer)(nil).DialContext(context.Background(), "tcp", "host:443"); !errors.Is(err, ErrEgressDenied) {
 		t.Fatalf("nil dialer error = %v", err)

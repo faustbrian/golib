@@ -523,6 +523,14 @@ func TestSessionPersistenceReturnsClosedWhenClientClosesDuringCall(t *testing.T)
 
 func TestSessionMiddlewareRejectsMissingContextAndInvalidOrigins(t *testing.T) {
 	t.Parallel()
+	for name, request := range map[string]*http.Request{
+		"nil request": nil,
+		"nil URL":     {},
+	} {
+		if _, err := sessionRequestOrigin(request); !errors.Is(err, ErrInvalidSession) {
+			t.Fatalf("%s origin error = %v", name, err)
+		}
+	}
 
 	middleware := newSessionMiddleware(CookieRedirectSameOrigin)
 	attemptOnly, err := NewPipeline(middleware[1])

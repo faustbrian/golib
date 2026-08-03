@@ -26,6 +26,12 @@ func TestDrainResponseCompletesWithinBoundAndCloses(t *testing.T) {
 	if err := DrainResponse(exact, DrainOptions{MaximumBytes: 5}); err != nil {
 		t.Fatalf("exact-limit drain: %v", err)
 	}
+	for _, maximum := range []int64{1, maximumResponseDrainBytes} {
+		response := &http.Response{Body: http.NoBody}
+		if err := DrainResponse(response, DrainOptions{MaximumBytes: maximum}); err != nil {
+			t.Fatalf("valid boundary maximum %d: %v", maximum, err)
+		}
+	}
 }
 
 func TestDrainResponseReturnsTypedLimitAndCloses(t *testing.T) {

@@ -184,6 +184,18 @@ func TestPaginationStrategiesRejectInvalidConfigurationAndOverflow(t *testing.T)
 	if _, _, err := offsetPaginator.Next(context.Background()); !errors.Is(err, ErrInvalidPagination) {
 		t.Fatalf("offset overflow error = %v", err)
 	}
+	exactBoundary, err := NewOffsetPaginator(OffsetPaginationOptions[int]{
+		InitialOffset: int(^uint(0)>>1) - 2, Limit: 2,
+		Fetch: func(context.Context, OffsetContinuation) (IndexedPaginationPage[int], error) {
+			return IndexedPaginationPage[int]{Items: []int{1}, HasNext: true}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct exact-boundary offset paginator: %v", err)
+	}
+	if item, ok, err := exactBoundary.Next(context.Background()); err != nil || !ok || item != 1 {
+		t.Fatalf("exact-boundary offset result = %d, %t, %v", item, ok, err)
+	}
 }
 
 func TestPaginationStrategyBoundaryFailures(t *testing.T) {
@@ -259,17 +271,24 @@ func TestPaginationStrategyBoundaryFailures(t *testing.T) {
 	if _, err := NewLinkPaginator(LinkPaginationOptions[int]{InitialURL: ":bad", Fetch: linkFetch}); !errors.Is(err, ErrInvalidPagination) {
 		t.Fatalf("invalid initial Link URL error = %v", err)
 	}
+	if _, err := NewLinkPaginator(LinkPaginationOptions[int]{InitialURL: "ftp://api.example.test", Fetch: linkFetch}); !errors.Is(err, ErrInvalidPagination) {
+		t.Fatalf("unsupported initial Link URL error = %v", err)
+	}
 	for _, test := range []struct {
 		name   string
 		resume string
 		fetch  LinkPaginationFetcher[int]
 	}{
 		{name: "invalid resumed base", resume: ":bad", fetch: linkFetch},
+		{name: "unsupported resumed base", resume: "ftp://api.example.test", fetch: linkFetch},
 		{name: "fetch failure", fetch: func(context.Context, string) (LinkPaginationPage[int], error) {
 			return LinkPaginationPage[int]{}, failure
 		}},
 		{name: "malformed Link", fetch: func(context.Context, string) (LinkPaginationPage[int], error) {
 			return LinkPaginationPage[int]{Link: "malformed"}, nil
+		}},
+		{name: "malformed next target", fetch: func(context.Context, string) (LinkPaginationPage[int], error) {
+			return LinkPaginationPage[int]{Link: `<%>; rel=next`}, nil
 		}},
 		{name: "userinfo target", fetch: func(context.Context, string) (LinkPaginationPage[int], error) {
 			return LinkPaginationPage[int]{Link: `<https://user@example.test/next>; rel=next`}, nil
@@ -304,6 +323,9 @@ func TestLinkParserBoundaryMatrix(t *testing.T) {
 	}
 	if _, _, err := parseLinkEntry(`<a>; title="unterminated`); !errors.Is(err, ErrInvalidPagination) {
 		t.Fatalf("direct malformed Link parameters error = %v", err)
+	}
+	if _, _, err := parseLinkEntry(`<`); !errors.Is(err, ErrInvalidPagination) {
+		t.Fatalf("short Link entry error = %v", err)
 	}
 	if target, ok, err := ParseNextLink(`<a>; title="escaped\"quote"; rel=next`); err != nil || !ok || target != "a" {
 		t.Fatalf("escaped quoted Link = %q, %v, %v", target, ok, err)
