@@ -4,6 +4,8 @@ go 1.26.5
 
 require github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c
 
+require go.uber.org/goleak v1.3.0
+
 require (
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/consensys/gnark-crypto v0.20.1 // indirect

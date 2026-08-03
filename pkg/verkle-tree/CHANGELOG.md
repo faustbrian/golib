@@ -31,6 +31,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add aggregate process-exit goroutine leak detection across the complete
+  root-package suite, including dependency-backed proof operations.
 - Bound each proof engine to one active dependency proof call and an explicit
   cancellable queue limit so concurrent callers cannot multiply the pinned
   backend's CPU-derived workers without bound.

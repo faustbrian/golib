@@ -264,12 +264,15 @@ production-backend approval.
 Package-owned production source defines no `init` function and starts no
 goroutine. An architecture test scans every production Go file, rejects both
 constructs, and proves the detector against an owned representative violation.
-This establishes only the package-owned lifecycle boundary: the current proof
-dependency may create workers internally. Engine-local admission prevents
-concurrent callers from multiplying those workers, but the dependency remains
-subject to the separate in-flight cancellation blocker above. Store adapters
-also retain responsibility for their own handles, transactions, workers, and
-cleanup.
+The complete root-package suite also runs under a process-exit `goleak` check,
+which detects workers left alive after successful, failing, cancelled, queued,
+and concurrent package operations. This establishes only the package-owned
+lifecycle boundary after operations return: the current proof dependency may
+create workers internally, and an in-flight call can still ignore cancellation.
+Engine-local admission prevents concurrent callers from multiplying those
+workers, but the dependency remains subject to the separate in-flight
+cancellation blocker above. Store adapters also retain responsibility for their
+own handles, transactions, workers, and cleanup.
 
 ### Supply chain and disclosure
 
