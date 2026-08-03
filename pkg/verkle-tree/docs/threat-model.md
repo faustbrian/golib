@@ -21,12 +21,14 @@ verification, plus canonical content-addressed storage writes,
 capability-checked atomic root publication, and bounded isolated persisted
 snapshot reconstruction, plus bounded read-only auditing of current and
 retained roots against a canonical complete node inventory and bounded atomic
-retention/pruning requests, plus canonical bounded stateless witnesses that
+retention/pruning requests, plus recovery that preserves that publication set
+while atomically removing unreachable node-only debris from an interrupted
+unpublished write, plus canonical bounded stateless witnesses that
 verify a complete pre-state proof and independently match the claimed
 post-state root, including creation below authenticated missing or different
 stem paths and deletion that is absent, topology-preserving, or backed by
-complete authenticated collapse disclosure. Crash-repair application,
-dependency-level cancellation, concrete storage
+complete authenticated collapse disclosure. Restoration of missing or corrupt
+published state, dependency-level cancellation, concrete storage
 adapters, and complete side-channel controls remain unimplemented.
 
 ## Trust boundaries
@@ -170,6 +172,16 @@ reclamation. The package cannot detect an adapter that lies about namespace
 scope, inventory completeness, atomic compare/delete behavior, or snapshot
 lifetime; adapter crash-point, concurrency, and recovery tests remain required
 before its guarantees can be trusted.
+
+The recovery boundary mitigates leaked node-only writes without permitting an
+audit report to become deletion authority. It freshly verifies the complete
+publication set, preserves every current and retained publication, derives
+deletion only from the complete inventory, closes the audit view, and submits
+one atomic request that compares the exact unchanged publication set. Missing
+or corrupt reachable state, incomplete inventory, stale publications, or any
+lifecycle failure prevents recovery. The core cannot reconstruct missing
+published data or prove that an adapter honored atomic deletion, durability, or
+crash isolation.
 
 The canonical claim-set boundary additionally rejects duplicate and conflicting
 claimed keys, preserves present-zero and claimed-absence distinctions, and

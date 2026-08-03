@@ -28,7 +28,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   content addresses, topology, profile, mathematical root, and canonical root
   node independently, closes the view atomically, and distinguishes missing,
   corrupt, resource-exhausted, cancelled, and adapter-failure states. Concrete
-  adapters and crash repair remain unavailable.
+  adapters and restoration of missing or corrupt published state remain
+  unavailable.
 - Add a bounded caller-owned storage audit boundary that verifies the current
   and every retained publication before canonically inventorying stored node
   identifiers. It reports only nodes unreachable from all verified roots,
@@ -40,6 +41,11 @@ All notable changes to `verkle-tree` will be documented in this file.
   pruning from a complete inventory, closes the audit view before mutation, and
   requires one compare/retain/delete operation that preserves pre-existing read
   snapshots and leaves storage unchanged on stale state or failure.
+- Add bounded storage recovery that preserves every verified current and
+  retained publication while atomically deleting only complete-inventory nodes
+  unreachable from all of them. Corrupt published state, incomplete inventory,
+  stale publications, and lifecycle failures fail closed without a usable
+  result.
 
 - Add the experimental public immutable snapshot, profile-bound root, canonical
   batch-update transition, and aggregate proof APIs with explicit cancellation,

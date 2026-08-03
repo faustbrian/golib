@@ -9,6 +9,286 @@ import (
 	"testing"
 )
 
+func TestRecoverStoragePreservesPublicationsAndRemovesInterruptedWrites(
+	t *testing.T,
+) {
+	t.Parallel()
+
+	oldSnapshot := testStorageFacadeSnapshotWithKey(t, 1)
+	middleSnapshot := testStorageFacadeSnapshotWithKey(t, 2)
+	currentSnapshot := testStorageFacadeSnapshotWithKey(t, 3)
+	auditStore := newInternalAuditStore(
+		t, currentSnapshot, []Snapshot{oldSnapshot, middleSnapshot},
+	)
+	wantRetained := slices.Clone(auditStore.view.retained)
+	orphan := NodeID{0xff}
+	auditStore.view.nodes[orphan] = []byte("interrupted unpublished write")
+	store := &internalMaintenanceStore{
+		internalAuditStore: auditStore,
+		applyToView:        true,
+	}
+	store.capabilities |= StoreCapabilityAtomicMaintenance
+
+	result, err := RecoverStorage(
+		context.Background(),
+		ExperimentalBandersnatchIPA256V0(),
+		store,
+		testInternalStorageAuditLimits(),
+	)
+	if err != nil {
+		t.Fatalf("RecoverStorage() error = %v", err)
+	}
+	if result.PreviousRetainedCount() != 2 || result.RetainedCount() != 2 ||
+		result.DeletedNodeCount() != 1 {
+		t.Fatalf(
+			"recovery counts = (%d, %d, %d), want (2, 2, 1)",
+			result.PreviousRetainedCount(),
+			result.RetainedCount(),
+			result.DeletedNodeCount(),
+		)
+	}
+	retained, err := store.request.RetainedPublications(context.Background())
+	if err != nil || !slices.Equal(retained, wantRetained) {
+		t.Fatalf("recovery retained publications = (%+v, %v)", retained, err)
+	}
+	deleted, err := result.DeletedNodes(context.Background())
+	if err != nil || !slices.Equal(deleted, []NodeID{orphan}) {
+		t.Fatalf("recovery deleted nodes = (%x, %v), want %x", deleted, err, orphan)
+	}
+	if store.applyCalls != 1 || !store.closedBeforeApply {
+		t.Fatalf(
+			"recovery apply calls = %d, closed before apply = %t",
+			store.applyCalls,
+			store.closedBeforeApply,
+		)
+	}
+	if _, present := store.view.nodes[orphan]; present {
+		t.Fatal("interrupted unpublished node survived recovery")
+	}
+	for id := range internalReaderFromSnapshot(t, currentSnapshot).view.nodes {
+		if _, present := store.view.nodes[id]; !present {
+			t.Fatalf("current publication node %x was removed", id)
+		}
+	}
+	for _, snapshot := range []Snapshot{oldSnapshot, middleSnapshot} {
+		for id := range internalReaderFromSnapshot(t, snapshot).view.nodes {
+			if _, present := store.view.nodes[id]; !present {
+				t.Fatalf("retained publication node %x was removed", id)
+			}
+		}
+	}
+}
+
+func TestRecoverStorageSupportsAnUnpublishedNodeOnlyStore(t *testing.T) {
+	t.Parallel()
+
+	auditStore := newInternalAuditStore(t, testStorageFacadeSnapshot(t), nil)
+	auditStore.view.current = StorePublication{}
+	auditStore.view.currentOK = false
+	auditStore.view.retained = nil
+	auditStore.view.nodes = map[NodeID][]byte{
+		{1}: []byte("first interrupted node"),
+		{2}: []byte("second interrupted node"),
+	}
+	store := &internalMaintenanceStore{
+		internalAuditStore: auditStore,
+		applyToView:        true,
+	}
+	store.capabilities |= StoreCapabilityAtomicMaintenance
+
+	result, err := RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+		testInternalStorageAuditLimits(),
+	)
+	if err != nil || result.PreviousRetainedCount() != 0 ||
+		result.RetainedCount() != 0 || result.DeletedNodeCount() != 2 {
+		t.Fatalf("unpublished-only recovery = (%+v, %v)", result, err)
+	}
+	current, present, currentErr := store.request.CurrentPublication()
+	if currentErr != nil || present || current != (StorePublication{}) {
+		t.Fatalf(
+			"recovery current expectation = (%+v, %t, %v)",
+			current,
+			present,
+			currentErr,
+		)
+	}
+	if len(store.view.nodes) != 0 {
+		t.Fatalf("recovery left %d unpublished nodes", len(store.view.nodes))
+	}
+}
+
+func TestRecoverStorageFailsAtomicallyForInvalidOrChangingState(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("adapter failure")
+	publicationFailure := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+	}
+	publicationFailure.capabilities |= StoreCapabilityAtomicMaintenance
+	publicationFailure.view.currentErr = sentinel
+	result, err := RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		publicationFailure, testInternalStorageAuditLimits(),
+	)
+	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
+		result.valid || publicationFailure.applyCalls != 0 ||
+		publicationFailure.view.closeCalls != 1 {
+		t.Fatalf(
+			"publication-failed recovery = (%+v, %v), apply=%d close=%d",
+			result,
+			err,
+			publicationFailure.applyCalls,
+			publicationFailure.view.closeCalls,
+		)
+	}
+
+	corrupt := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+	}
+	corrupt.capabilities |= StoreCapabilityAtomicMaintenance
+	corrupt.view.readErr = sentinel
+	result, err = RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(), corrupt,
+		testInternalStorageAuditLimits(),
+	)
+	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
+		result.valid || corrupt.applyCalls != 0 || corrupt.view.closeCalls != 1 {
+		t.Fatalf(
+			"corrupt recovery = (%+v, %v), apply=%d close=%d",
+			result,
+			err,
+			corrupt.applyCalls,
+			corrupt.view.closeCalls,
+		)
+	}
+
+	closeFailure := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+	}
+	closeFailure.capabilities |= StoreCapabilityAtomicMaintenance
+	closeFailure.view.closeErr = sentinel
+	result, err = RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(), closeFailure,
+		testInternalStorageAuditLimits(),
+	)
+	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
+		result.valid || closeFailure.applyCalls != 0 ||
+		closeFailure.view.closeCalls != 1 {
+		t.Fatalf(
+			"close-failed recovery = (%+v, %v), apply=%d close=%d",
+			result,
+			err,
+			closeFailure.applyCalls,
+			closeFailure.view.closeCalls,
+		)
+	}
+
+	stale := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+		applyErr: ErrStaleRoot,
+	}
+	stale.capabilities |= StoreCapabilityAtomicMaintenance
+	stale.view.nodes[NodeID{0xfe}] = []byte("interrupted node")
+	result, err = RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(), stale,
+		testInternalStorageAuditLimits(),
+	)
+	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, ErrStaleRoot) ||
+		result.valid || stale.applyCalls != 1 || !stale.closedBeforeApply {
+		t.Fatalf(
+			"stale recovery = (%+v, %v), apply=%d closed=%t",
+			result,
+			err,
+			stale.applyCalls,
+			stale.closedBeforeApply,
+		)
+	}
+}
+
+func TestRecoverStorageRejectsInvalidInputsBeforeOpening(t *testing.T) {
+	t.Parallel()
+
+	valid := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+	}
+	valid.capabilities |= StoreCapabilityAtomicMaintenance
+	var nilContext context.Context
+	var nilStore *internalMaintenanceStore
+	tests := map[string]struct {
+		ctx     context.Context
+		profile Profile
+		store   NodeMaintenanceStore
+		limits  StorageAuditLimits
+		want    error
+	}{
+		"nil context": {
+			ctx: nilContext, profile: ExperimentalBandersnatchIPA256V0(),
+			store: valid, limits: testInternalStorageAuditLimits(),
+			want: ErrInvalidContext,
+		},
+		"invalid profile": {
+			ctx: context.Background(), store: valid,
+			limits: testInternalStorageAuditLimits(), want: ErrUnsupportedProfile,
+		},
+		"nil store": {
+			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
+		},
+		"typed nil store": {
+			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			store: nilStore, limits: testInternalStorageAuditLimits(),
+			want: ErrInvalidStore,
+		},
+		"invalid limits": {
+			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			store: valid, want: ErrInvalidLimits,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			before := valid.openCalls
+			_, recoverErr := RecoverStorage(
+				test.ctx, test.profile, test.store, test.limits,
+			)
+			if !errors.Is(recoverErr, test.want) {
+				t.Fatalf("RecoverStorage() error = %v, want %v", recoverErr, test.want)
+			}
+			if valid.openCalls != before {
+				t.Fatalf("open calls changed from %d to %d", before, valid.openCalls)
+			}
+		})
+	}
+
+	missing := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			t, testStorageFacadeSnapshot(t), nil,
+		),
+	}
+	missing.capabilities = RequiredMaintenanceStoreCapabilities &^
+		StoreCapabilityAtomicMaintenance
+	_, err := RecoverStorage(
+		context.Background(), ExperimentalBandersnatchIPA256V0(), missing,
+		testInternalStorageAuditLimits(),
+	)
+	var capabilityErr *StoreCapabilityError
+	if !errors.As(err, &capabilityErr) ||
+		capabilityErr.Missing != StoreCapabilityAtomicMaintenance ||
+		missing.openCalls != 0 {
+		t.Fatalf("missing recovery capability = %v, open calls = %d", err, missing.openCalls)
+	}
+}
+
 func TestMaintainStorageAtomicallyAppliesRetentionAndPruning(t *testing.T) {
 	t.Parallel()
 

@@ -37,3 +37,27 @@ func BenchmarkMaintainStorageDropRetainedAndPrune(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkRecoverStoragePreserveRetainedAndDeleteOrphan(b *testing.B) {
+	oldSnapshot := testStorageFacadeSnapshotWithKey(b, 1)
+	currentSnapshot := testStorageFacadeSnapshotWithKey(b, 2)
+	store := &internalMaintenanceStore{
+		internalAuditStore: newInternalAuditStore(
+			b, currentSnapshot, []Snapshot{oldSnapshot},
+		),
+	}
+	store.capabilities |= StoreCapabilityAtomicMaintenance
+	store.view.nodes[NodeID{0xff}] = []byte("interrupted unpublished node")
+	profile := ExperimentalBandersnatchIPA256V0()
+	limits := testInternalStorageAuditLimits()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		if _, err := RecoverStorage(
+			context.Background(), profile, store, limits,
+		); err != nil {
+			b.Fatalf("RecoverStorage() error = %v", err)
+		}
+	}
+}

@@ -53,6 +53,15 @@ inventory, canonical retention, deletion planning, ownership, and call-handoff
 cost; it excludes transaction, compare-and-swap, locking, physical deletion,
 deferred reclamation, durability, and crash-recovery cost.
 
+One public storage-recovery benchmark verifies a current and retained in-memory
+snapshot, preserves their exact publication set, identifies one unreachable
+unpublished node, closes the isolated view, and hands the opaque request to an
+in-memory atomic-maintenance mock. The mock records but does not apply the
+request. The result includes package-owned validation, inventory, deletion
+planning, ownership, and call-handoff cost; it excludes transaction, compare-
+and-swap, locking, physical deletion, deferred reclamation, restoration,
+durability, and adapter crash behavior.
+
 Two authenticated-state component benchmarks measure an immutable lookup and a
 single-value replacement that rebuilds a one-entry committed tree through an
 already initialized snapshot builder. They exclude snapshot construction,
@@ -114,14 +123,14 @@ GOWORK=off go test ./internal/authstate -run '^$' \
   -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
-  -bench '^(BenchmarkEncodeSnapshotTwoEntries|BenchmarkDecodeSnapshotTwoEntries|BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune)$' \
+  -bench '^(BenchmarkEncodeSnapshotTwoEntries|BenchmarkDecodeSnapshotTwoEntries|BenchmarkLoadSnapshotFourEntries|BenchmarkAuditStorageCurrentAndRetainedSnapshots|BenchmarkMaintainStorageDropRetainedAndPrune|BenchmarkRecoverStoragePreserveRetainedAndDeleteOrphan)$' \
   -benchmem -count=5
 ```
 
 Environment:
 
-- Date: 2026-08-01; bound proof-engine, stateless-witness, and canonical
-  whole-snapshot rows refreshed 2026-08-03
+- Date: 2026-08-01; bound proof-engine, stateless-witness, canonical whole-
+  snapshot, and storage-recovery rows refreshed 2026-08-03
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -169,6 +178,7 @@ nanoseconds per operation.
 | Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
 | Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
 | Drop one retained snapshot and plan pruning plus atomic handoff | 17571147, 18097936, 16915685, 18563534, 18791243 | 339257-339375 | 7180-7181 |
+| Preserve all publications and plan interrupted-write cleanup | 19377604, 21950949, 19936596, 20412821, 23103113 | 335112-335206 | 7141-7142 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |

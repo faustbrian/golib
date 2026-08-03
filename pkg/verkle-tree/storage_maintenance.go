@@ -172,6 +172,33 @@ func MaintainStorage(
 	retained []StorePublication,
 	limits StorageAuditLimits,
 ) (StorageMaintenanceResult, error) {
+	return runStorageMaintenance(
+		ctx, profile, store, retained, limits, false,
+	)
+}
+
+// RecoverStorage verifies every current and retained publication, preserves
+// that exact publication set, and atomically deletes only inventoried nodes
+// unreachable from all of them. This recovers node-only writes left by an
+// interrupted unpublished commit; missing or corrupt reachable state fails
+// closed and requires adapter-specific restoration.
+func RecoverStorage(
+	ctx context.Context,
+	profile Profile,
+	store NodeMaintenanceStore,
+	limits StorageAuditLimits,
+) (StorageMaintenanceResult, error) {
+	return runStorageMaintenance(ctx, profile, store, nil, limits, true)
+}
+
+func runStorageMaintenance(
+	ctx context.Context,
+	profile Profile,
+	store NodeMaintenanceStore,
+	retained []StorePublication,
+	limits StorageAuditLimits,
+	recoverAll bool,
+) (StorageMaintenanceResult, error) {
 	if err := checkPublicContext(ctx); err != nil {
 		return StorageMaintenanceResult{}, err
 	}
@@ -199,11 +226,16 @@ func MaintainStorage(
 	if err := checkPublicContext(ctx); err != nil {
 		return StorageMaintenanceResult{}, err
 	}
-	ownedRetained, retainedCapacity, err := copyRequestedRetained(
-		ctx, retained, limits,
-	)
-	if err != nil {
-		return StorageMaintenanceResult{}, err
+	var ownedRetained []StorePublication
+	var retainedCapacity uint64
+	if !recoverAll {
+		var err error
+		ownedRetained, retainedCapacity, err = copyRequestedRetained(
+			ctx, retained, limits,
+		)
+		if err != nil {
+			return StorageMaintenanceResult{}, err
+		}
 	}
 	view, err := store.OpenAudit(ctx)
 	if err != nil {
@@ -213,9 +245,17 @@ func MaintainStorage(
 		return StorageMaintenanceResult{}, fmt.Errorf("open audit: %w", ErrStorageMaintenance)
 	}
 
-	maintenance, planErr := planStorageMaintenance(
-		ctx, profile, view, ownedRetained, retainedCapacity, limits,
-	)
+	var maintenance StoreMaintenance
+	var planErr error
+	if recoverAll {
+		maintenance, planErr = planStorageRecovery(
+			ctx, profile, view, limits,
+		)
+	} else {
+		maintenance, planErr = planStorageMaintenance(
+			ctx, profile, view, ownedRetained, retainedCapacity, limits,
+		)
+	}
 	closeErr := view.Close(ctx)
 	if closeErr != nil {
 		wrapped := wrapStorageMaintenanceError("close audit", closeErr)
@@ -255,6 +295,47 @@ func planStorageMaintenance(
 	if err != nil {
 		return StoreMaintenance{}, wrapStorageMaintenanceError("read publications", err)
 	}
+
+	return planStorageMaintenanceObserved(
+		ctx, profile, view, publications, hasCurrent,
+		requested, requestedCapacity, limits,
+	)
+}
+
+func planStorageRecovery(
+	ctx context.Context,
+	profile Profile,
+	view NodeAuditSnapshot,
+	limits StorageAuditLimits,
+) (StoreMaintenance, error) {
+	publications, hasCurrent, err := auditPublicationSet(ctx, view, limits)
+	if err != nil {
+		return StoreMaintenance{}, wrapStorageMaintenanceError(
+			"read publications", err,
+		)
+	}
+	retainedStart := 0
+	if hasCurrent {
+		retainedStart = 1
+	}
+	requested := publications[retainedStart:len(publications):len(publications)]
+
+	return planStorageMaintenanceObserved(
+		ctx, profile, view, publications, hasCurrent,
+		requested, uint64(cap(requested)), limits,
+	)
+}
+
+func planStorageMaintenanceObserved(
+	ctx context.Context,
+	profile Profile,
+	view NodeAuditSnapshot,
+	publications []StorePublication,
+	hasCurrent bool,
+	requested []StorePublication,
+	requestedCapacity uint64,
+	limits StorageAuditLimits,
+) (StoreMaintenance, error) {
 	var current StorePublication
 	retainedStart := 0
 	if hasCurrent {

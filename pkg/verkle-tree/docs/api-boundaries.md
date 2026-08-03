@@ -3,11 +3,10 @@
 This document records ownership boundaries for profile research. The exported
 profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
 canonical whole-snapshot encoding, canonical storage-write and isolated
-storage-read, limit, resource, typed-error,
-read-only storage-audit, and atomic storage-maintenance identifiers form the
-current experimental public contract. Canonical stateless witnesses and
-verified pre/post-state results are included; crash-repair identifiers remain
-proposed.
+storage-read, limit, resource, typed-error, read-only storage-audit, atomic
+storage-maintenance, and bounded storage-recovery identifiers form the current
+experimental public contract. Canonical stateless witnesses and verified pre-
+state and post-state results are included.
 
 ## Public concepts
 
@@ -25,10 +24,9 @@ The current public API exposes opaque, profile-bound forms of:
 - capability-checked isolated persisted snapshot reconstruction;
 - capability-checked bounded current/retained-root and node-inventory audit;
 - capability-checked atomic retained-publication replacement and safe pruning;
+- capability-checked atomic recovery of unreachable unpublished node writes;
 - verifier;
 - resource limits and typed errors.
-
-A future public API is expected to add crash-repair application.
 
 Unchecked points, scalars, generators, transcripts, mutable nodes, backend
 configuration, and scratch memory must remain internal.
@@ -129,8 +127,18 @@ binding for adapter validation. It is invoked even for a no-op plan. A mismatch
 or failure must leave all publications and nodes unchanged. Deletion must not
 invalidate read or audit snapshots opened before the operation; adapters may
 defer physical reclamation until those views close. The generic package cannot
-prove an adapter honors those assertions, and crash repair remains an adapter-
-specific future boundary.
+prove an adapter honors those assertions.
+
+`RecoverStorage` uses the same independently verified audit view but selects
+every observed retained publication as the desired set. It preserves the exact
+current and retained publication set and deletes exactly the inventoried nodes
+outside all of those publications. This bounded operation cleans up node-only
+writes left by an interrupted commit whose publication never became visible.
+The view closes before the single atomic compare-and-delete call. A stale
+publication set, incomplete inventory, corrupt reachable state, cancellation,
+close failure, or apply failure returns no usable result. The operation cannot
+restore missing or corrupt reachable nodes, and its success does not prove an
+adapter's atomicity or durability.
 
 Database, filesystem, and object-storage adapters belong in additive nested
 modules and must not become root-package dependencies.
@@ -177,8 +185,10 @@ profile-bound roots and aggregate proof operations while keeping topology,
 points, vectors, and commitments internal. It produces and strictly decodes the
 complete canonical content-addressed nodes used by the public atomic write and
 isolated read boundaries. The audit and maintenance facades use those same
-nodes for bounded reachability verification and atomic pruning, but provide no
-incremental commitment-update or crash-repair seam.
+nodes for bounded reachability verification, atomic pruning, and bounded
+cleanup of unreachable unpublished node writes, but provide no restoration of
+missing or corrupt published state or general incremental commitment-update
+seam.
 
 The current internal authenticated-state boundary owns a canonical entry set
 and one complete committed tree per immutable snapshot. Construction and batch

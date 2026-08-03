@@ -22,9 +22,11 @@ topology, leaf field inputs, vector commitments, complete mathematical root
 construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
 bounded atomic maintenance operation replaces the retained-publication set and
-prunes only nodes outside the current and desired retained roots. Crash-repair
-application, concrete storage adapters, and stable APIs remain unimplemented. This
-document MUST NOT be read as a claim that those surfaces already exist.
+prunes only nodes outside the current and desired retained roots. A bounded
+recovery operation preserves every publication and atomically prunes node-only
+debris outside them. Restoration of missing or corrupt published state,
+concrete storage adapters, and stable APIs remain unimplemented. This document
+MUST NOT be read as a claim that those surfaces already exist.
 
 ## Fixed Identity
 
@@ -67,7 +69,7 @@ The following parts of the profile are deliberately not frozen:
   internal research seams already tested;
 - aggregate-proof and batch-verification failure semantics;
 - durable snapshot naming beyond the root publication pair, adapter-specific
-  retention policy, and crash repair;
+  retention policy, restoration, and durability semantics;
   and
 - operation budgets, cancellation checkpoints, and resource accounting.
 
@@ -419,9 +421,31 @@ close. A successful adapter return is the adapter's assertion that the complete
 operation occurred. The generic package cannot independently prove that
 assertion.
 
-These write, read, audit, and maintenance boundaries do not define crash repair
-or a concrete persistence adapter. They do not establish storage-adapter
-correctness, long-term snapshot availability, or Ethereum compatibility.
+Bounded recovery MUST open and independently verify a fresh isolated audit
+view under the complete audit contract. It MUST preserve the exact observed
+current publication and every retained publication; callers MUST NOT select a
+different retention set through recovery. It MUST prove that the complete
+inventory contains every node reachable from every observed publication and
+MUST derive deletion as exactly the inventoried nodes outside all of those
+publications. Missing or corrupt reachable state and incomplete or malformed
+inventory MUST fail closed and MUST NOT be treated as recoverable debris.
+
+The recovery audit view MUST close exactly once before mutation. Close failure,
+cancellation observed after close, stale publications, adapter failure, or
+resource exhaustion MUST prevent any successful result. After successful
+close, the core MUST invoke exactly one atomic maintenance call, including for
+a no-op plan. The request MUST bind the exact unchanged current and retained
+publication set plus the ascending deletion set. The adapter MUST atomically
+compare that complete publication set and delete exactly the supplied nodes or
+leave all publications and nodes unchanged. This operation recovers only
+node-only writes whose publication was never made visible. It MUST NOT claim to
+restore missing or corrupt published state or to prove adapter atomicity,
+durability, or crash isolation.
+
+These write, read, audit, maintenance, and bounded recovery boundaries do not
+define restoration of missing or corrupt published state or a concrete
+persistence adapter. They do not establish storage-adapter correctness,
+long-term snapshot availability, or Ethereum compatibility.
 
 ## Immutable Proof-Path Extraction
 
@@ -1015,8 +1039,9 @@ root for one existing-value update and one absent-suffix insertion. Its proof
 openings with a null post-value are unchanged claims, not deletions. The slow
 reference model separately checks general in-memory transition semantics.
 
-This internal construction does not freeze or implement crash-repair
-application or general tree-level incremental updates.
+This internal construction does not freeze or implement adapter-specific
+restoration of missing or corrupt published state or general tree-level
+incremental updates.
 The public canonical witness format connects the stateless updater to
 authenticated present, missing, and different tree paths for `Set` operations
 and to absent, topology-preserving, or completely disclosed topology-collapsing
@@ -1025,6 +1050,8 @@ The storage
 boundaries publish and verify the complete canonical node image defined above,
 audit reachability without mutation, and atomically replace retained
 publications plus prune nodes through a capability-checked caller-owned adapter.
+Bounded recovery preserves every publication while removing only inventoried
+nodes unreachable from all of them.
 
 ## Canonical Whole-Snapshot Encoding
 

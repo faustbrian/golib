@@ -12,14 +12,16 @@ canonical whole-snapshot bytes,
 bounded aggregate membership and non-membership proofs, atomic caller-owned
 storage writes, and bounded reconstruction from isolated caller-owned read
 snapshots, plus bounded recovery audits and atomic retention/pruning plans over
-current and retained roots. The
-public surface is experimental, rebuilds the complete tree for stateful
+current and retained roots. A bounded recovery operation preserves every
+verified publication while atomically removing node-only debris left by an
+interrupted unpublished write. The public surface is experimental, rebuilds
+the complete tree for stateful
 updates, persisted loads, and maintained publications, and provides canonical
 bounded stateless witnesses for authenticated `Set` and `Delete` operations,
 including deletions that remove stems and collapse unary internal paths.
 Authenticated paths may be present, missing, or different stems. It does not
-yet provide crash repair or concrete adapter implementations. It is not a
-production-ready tree.
+restore missing or corrupt published state or provide concrete adapter
+implementations. It is not a production-ready tree.
 Compatibility claims are limited to the exact research corpora described
 below.
 
@@ -216,8 +218,8 @@ one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: crash-repair semantics, stable proof and
-witness semantics,
+The profile remains incomplete: adapter-specific restoration and durability
+semantics, stable proof and witness semantics,
 tree-level incremental update semantics, and complete dependency-level
 cancellation are not yet frozen. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it
@@ -438,9 +440,19 @@ observed publication is fully verified even when it will be dropped, and all
 publication, reachability-map, inventory-page, deletion-result, and defensive-
 copy allocations remain bounded.
 
+`RecoverStorage` uses the same independent verification and inventory boundary
+without changing retention. It preserves the exact observed current and
+retained publication set and atomically deletes only inventoried nodes outside
+all of those roots. This recovers node-only debris from an interrupted commit
+whose root was never published. The adapter must compare the exact unchanged
+publication set at the same linearization point as deletion. Missing or corrupt
+nodes reachable from any publication fail closed; the generic package cannot
+restore that state.
+
 No database, filesystem, or object-storage adapter is part of the root module
-yet. Adapter crash recovery and proof of its asserted atomicity, isolation, and
-durability remain adapter responsibilities.
+yet. Restoration of missing or corrupt published state and proof of adapter
+atomicity, isolation, durability, and crash behavior remain adapter
+responsibilities.
 
 ## Development rule
 
