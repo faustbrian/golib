@@ -117,9 +117,6 @@ func normalizeTracestate(value string) (string, error) {
 }
 
 func validTracestateKey(key string) bool {
-	if key == "" || len(key) > 256 {
-		return false
-	}
 	parts := strings.Split(key, "@")
 	if len(parts) > 2 {
 		return false

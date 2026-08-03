@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -430,6 +431,65 @@ func TestW3CTraceContextIsValidatedAndInjectedOnTrustedAttempts(t *testing.T) {
 	}
 	if resolved, _ := W3CTraceContextFromContext(multiTenant); resolved.Tracestate != "tenant@vendor=value" {
 		t.Fatalf("multi-tenant tracestate = %#v", resolved)
+	}
+}
+
+func TestW3CTraceContextPrimitiveBoundaries(t *testing.T) {
+	t.Parallel()
+
+	maximumState := "a=" + strings.Repeat("x", 254) + ",b=" + strings.Repeat("y", 253)
+	if len(maximumState) != 512 {
+		t.Fatalf("maximum tracestate fixture length = %d", len(maximumState))
+	}
+	if normalized, err := normalizeTracestate(maximumState); err != nil || normalized != maximumState {
+		t.Fatalf("normalizeTracestate(maximum) = %q, %v", normalized, err)
+	}
+
+	members := make([]string, 32)
+	for index := range members {
+		members[index] = "a" + strconv.Itoa(index) + "=v"
+	}
+	exactMemberLimit := strings.Join(members, ",")
+	if normalized, err := normalizeTracestate(exactMemberLimit); err != nil || normalized != exactMemberLimit {
+		t.Fatalf("normalizeTracestate(32 members) = %q, %v", normalized, err)
+	}
+
+	validKeys := []string{
+		strings.Repeat("a", 256),
+		strings.Repeat("a", 241) + "@" + strings.Repeat("b", 14),
+		"a0", "a9", "a_", "a-", "a*", "a/", "z",
+	}
+	for _, key := range validKeys {
+		if !validTracestateKey(key) {
+			t.Errorf("validTracestateKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"A", "a:", "`", "{"} {
+		if validTracestateKey(key) {
+			t.Errorf("validTracestateKey(%q) = true, want false", key)
+		}
+	}
+
+	for _, value := range []string{strings.Repeat("v", 256), "a b", "~"} {
+		if !validTracestateValue(value) {
+			t.Errorf("validTracestateValue(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []string{" leading", "trailing ", "\x1f", "\x7f", ",", "="} {
+		if validTracestateValue(value) {
+			t.Errorf("validTracestateValue(%q) = true, want false", value)
+		}
+	}
+
+	for _, character := range []byte{'a', 'z'} {
+		if !lowerAlpha(character) {
+			t.Errorf("lowerAlpha(%q) = false, want true", character)
+		}
+	}
+	for _, character := range []byte{'`', '{'} {
+		if lowerAlpha(character) {
+			t.Errorf("lowerAlpha(%q) = true, want false", character)
+		}
 	}
 }
 
