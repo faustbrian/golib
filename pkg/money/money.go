@@ -44,7 +44,10 @@ func Parse(input string, code currency.Code, context Context) (Money, error) {
 		if amount.Scale() > int32(context.scale) {
 			return Money{}, ErrPrecisionLoss
 		}
-		aligned := mustInvariant(alignAmountScale(amount, context.scale))
+		aligned, alignErr := alignAmountScale(amount, context.scale)
+		if alignErr != nil {
+			return Money{}, fmt.Errorf("money: align amount scale: %w", alignErr)
+		}
 		amount = mustInvariant(AmountFromDecimal(aligned))
 	}
 

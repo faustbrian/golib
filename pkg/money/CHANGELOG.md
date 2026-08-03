@@ -5,6 +5,11 @@ semantic versioning after the first tagged release.
 
 ## Unreleased
 
+### Fixed
+
+- Fixed-context parsing now returns a bounded arithmetic error instead of
+  panicking when scale alignment would exceed the maximum amount digits.
+
 ### Changed
 
 - Require exact 100% mutant coverage in the package mutation command while
