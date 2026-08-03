@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Terminate and await complete verification-lane process trees before deleting
+  their snapshots, preserving in-flight evidence during cancellation.
 - Ignore deleted tracked paths when fingerprinting the live working tree so a
   clean verification snapshot of the same files can reuse valid gate evidence.
 - Reuse ECMA regexp's external Test262 coverage baseline without launching the

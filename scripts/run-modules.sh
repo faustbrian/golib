@@ -75,80 +75,8 @@ if [[ "${mutating_gate}" -eq 0 &&
     if [[ "${jobs}" -gt "${module_count}" ]]; then
         jobs="${module_count}"
     fi
-    snapshot_parents=()
-    snapshot_pids=()
-    lane_files=()
-    # shellcheck disable=SC2329 # Invoked by the signal and exit trap.
-    cleanup_snapshots() {
-        local lane_file parent pid
-        for pid in "${snapshot_pids[@]}"; do
-            kill "${pid}" 2>/dev/null || true
-        done
-        for pid in "${snapshot_pids[@]}"; do
-            wait "${pid}" 2>/dev/null || true
-        done
-        for parent in "${snapshot_parents[@]}"; do
-            if [[ -d "${parent}" ]]; then
-                find "${parent}" -depth -delete
-            fi
-        done
-        for lane_file in "${lane_files[@]}"; do
-            rm -f "${lane_file}"
-        done
-    }
-    trap cleanup_snapshots EXIT HUP INT TERM
-
-    lane=0
-    while [[ "${lane}" -lt "${jobs}" ]]; do
-        lane_files+=("$(mktemp "${TMPDIR:-/tmp}/golib-lane.XXXXXX")")
-        lane=$((lane + 1))
-    done
-    lane=0
-    while IFS= read -r module; do
-        [[ -n "${module}" ]] || continue
-        printf '%s\n' "${module}" >>"${lane_files[${lane}]}"
-        lane=$(((lane + 1) % jobs))
-    done <<<"${selection}"
-
-    printf 'parallel-safe verification snapshot jobs=%s\n' "${jobs}"
-    lane=0
-    while [[ "${lane}" -lt "${jobs}" ]]; do
-        snapshot_parent="$(
-            mktemp -d "${TMPDIR:-/tmp}/golib-verification.XXXXXX"
-        )"
-        snapshot="${snapshot_parent}/repository"
-        snapshot_parents+=("${snapshot_parent}")
-        "${root}/scripts/create-verification-snapshot.sh" \
-            "${root}" "${snapshot}"
-        selected_modules="$(paste -sd, - <"${lane_files[${lane}]}")"
-        (
-            cd "${snapshot}"
-            GOLIB_VERIFICATION_SNAPSHOT=1 \
-                ./scripts/run-modules.sh \
-                "${gate}" --jobs 1 --modules "${selected_modules}"
-        ) &
-        snapshot_pids+=("$!")
-        lane=$((lane + 1))
-    done
-
-    status=0
-    for pid in "${snapshot_pids[@]}"; do
-        if ! wait "${pid}"; then
-            status=1
-        fi
-    done
-    if [[ "${status}" -eq 0 ]]; then
-        while IFS= read -r module; do
-            [[ -n "${module}" ]] || continue
-            if [[ "${gate}" == "check" ]]; then
-                "${root}/scripts/audit-goals.sh" "${module}" >/dev/null
-            else
-                "${root}/scripts/verify-gate-evidence.sh" \
-                    "${module}" "${gate}"
-            fi
-        done <<<"${selection}"
-    fi
-    exit "${status}"
+    exec "${root}/scripts/internal/run-verification-snapshots.sh" \
+        "${root}" "${gate}" "${jobs}" "${selection}"
 fi
 
 local_proxy="$(mktemp -d "${TMPDIR:-/tmp}/golib-proxy.XXXXXX")"

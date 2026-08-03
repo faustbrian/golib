@@ -1546,9 +1546,16 @@ go 1.26.5
 		"internal",
 		"mutation-command.sh",
 	)
+	snapshotOrchestratorScript := filepath.Join(
+		root,
+		"scripts",
+		"internal",
+		"run-verification-snapshots.sh",
+	)
 	writeTestFile(t, checkModuleScript, "check module\n")
 	writeTestFile(t, checkFuzzScript, "check fuzz\n")
 	writeTestFile(t, mutationCommandScript, "mutation command\n")
+	writeTestFile(t, snapshotOrchestratorScript, "snapshot orchestration\n")
 	versionsFile := filepath.Join(root, ".golib", "versions.env")
 	mutationInventory := filepath.Join(root, ".golib", "mutation-zero-inventory.json")
 	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.0\n")
@@ -1640,6 +1647,14 @@ go 1.26.5
 			"mutation-only tooling changed fuzz digest: %s != %s",
 			current,
 			fuzzBefore,
+		)
+	}
+	writeTestFile(t, snapshotOrchestratorScript, "revised snapshot orchestration\n")
+	if current := digest("test"); current != testBefore {
+		t.Fatalf(
+			"snapshot-only orchestration changed test digest: %s != %s",
+			current,
+			testBefore,
 		)
 	}
 	writeTestFile(t, checkFuzzScript, "revised check fuzz\n")
@@ -2159,6 +2174,10 @@ func TestGateEvidenceIsCheckpointedPerResult(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read module runner: %v", err)
 	}
+	snapshotRunner, err := os.ReadFile(filepath.Join(root, "scripts", "internal", "run-verification-snapshots.sh"))
+	if err != nil {
+		t.Fatalf("read snapshot runner: %v", err)
+	}
 	evidence, err := os.ReadFile(filepath.Join(root, "scripts", "run-gate-with-evidence.sh"))
 	if err != nil {
 		t.Fatalf("read evidence runner: %v", err)
@@ -2203,15 +2222,16 @@ func TestGateEvidenceIsCheckpointedPerResult(t *testing.T) {
 	if !strings.Contains(string(runner), "format|tidy|api-update)") {
 		t.Error("module runner records verification evidence for mutating commands")
 	}
-	if strings.Contains(string(runner), "mapfile") ||
-		strings.Contains(string(runner), "readarray") {
+	runnerContract := string(runner) + string(snapshotRunner)
+	if strings.Contains(runnerContract, "mapfile") ||
+		strings.Contains(runnerContract, "readarray") {
 		t.Error("module runner requires Bash features unavailable on macOS")
 	}
 	for _, required := range []string{
 		"create-verification-snapshot.sh",
 		"GOLIB_VERIFICATION_SNAPSHOT",
 	} {
-		if !strings.Contains(string(runner), required) {
+		if !strings.Contains(runnerContract, required) {
 			t.Errorf("module runner lacks parallel-safe snapshot contract %q", required)
 		}
 	}
@@ -2319,6 +2339,127 @@ func TestVerificationSnapshotMirrorsDirtyTreeWithoutSharingWrites(t *testing.T) 
 	}
 	if len(output) != 0 {
 		t.Fatalf("shared artifact mount appears in snapshot inputs: %q", output)
+	}
+}
+
+func TestVerificationSnapshotWaitsForDescendantsBeforeCleanup(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	state := filepath.Join(t.TempDir(), "state")
+	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repository, "cmd", "golib"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(repository, "scripts", "run-modules.sh"), mustReadFile(t, filepath.Join(root, "scripts", "run-modules.sh")))
+	if err := os.MkdirAll(filepath.Join(repository, "scripts", "internal"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(
+		t,
+		filepath.Join(repository, "scripts", "internal", "run-verification-snapshots.sh"),
+		mustReadFile(t, filepath.Join(root, "scripts", "internal", "run-verification-snapshots.sh")),
+	)
+	writeFile(t, filepath.Join(repository, "scripts", "create-verification-snapshot.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+snapshot="$2"
+mkdir -p "${snapshot}/scripts"
+printf '%s\n' "${snapshot}" >"${TEST_STATE}/snapshot"
+cat >"${snapshot}/scripts/run-modules.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+(
+    trap '
+        if [[ -d "${PWD}" ]]; then
+            printf present >"${TEST_STATE}/snapshot-state"
+        else
+            printf missing >"${TEST_STATE}/snapshot-state"
+        fi
+        exit 0
+    ' TERM
+    printf ready >"${TEST_STATE}/ready"
+    while true; do sleep 1; done
+) &
+wait "$!"
+SCRIPT
+chmod +x "${snapshot}/scripts/run-modules.sh"
+`)
+	writeFile(t, filepath.Join(repository, "go"), `#!/usr/bin/env bash
+set -euo pipefail
+printf 'pkg/example\n'
+`)
+	for _, path := range []string{
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		filepath.Join(repository, "scripts", "internal", "run-verification-snapshots.sh"),
+		filepath.Join(repository, "scripts", "create-verification-snapshot.sh"),
+		filepath.Join(repository, "go"),
+	} {
+		if err := os.Chmod(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if output, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	command := exec.CommandContext(
+		ctx,
+		filepath.Join(repository, "scripts", "run-modules.sh"),
+		"check",
+		"--modules", "pkg/example",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		environmentWithValues(os.Environ(), "PATH", repository+string(os.PathListSeparator)+os.Getenv("PATH")),
+		"TEST_STATE", state,
+	)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	var output bytes.Buffer
+	command.Stdout = &output
+	command.Stderr = &output
+	command.Cancel = func() error {
+		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}
+	command.WaitDelay = time.Second
+	if err := command.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}()
+
+	waitForFile(t, ctx, filepath.Join(state, "ready"))
+	if err := command.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatalf("terminate module runner: %v", err)
+	}
+	if err := command.Wait(); err == nil {
+		t.Fatal("terminated module runner exited successfully")
+	} else if exitError, ok := err.(*exec.ExitError); !ok || exitError.ExitCode() != 143 {
+		t.Fatalf("terminated module runner exit = %v, want 143\n%s", err, output.String())
+	}
+	waitForFile(t, ctx, filepath.Join(state, "snapshot-state"))
+	contents, err := os.ReadFile(filepath.Join(state, "snapshot-state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "present" {
+		t.Fatalf("snapshot state during descendant shutdown = %q, want present", contents)
+	}
+	snapshot, err := os.ReadFile(filepath.Join(state, "snapshot"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(strings.TrimSpace(string(snapshot))); !os.IsNotExist(err) {
+		t.Fatalf("verification snapshot remains after shutdown: %v", err)
 	}
 }
 
@@ -2898,6 +3039,32 @@ func environmentWithValues(base []string, name, value string) []string {
 		}
 	}
 	return append(environment, prefix+value)
+}
+
+func mustReadFile(t *testing.T, path string) string {
+	t.Helper()
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return string(contents)
+}
+
+func waitForFile(t *testing.T, ctx context.Context, path string) {
+	t.Helper()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		} else if !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for %s: %v", path, ctx.Err())
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 }
 
 func writeFile(t *testing.T, path string, contents string) {
