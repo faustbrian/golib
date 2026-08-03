@@ -88,6 +88,60 @@ func TestConstructionAndPersistentOperationBoundaries(t *testing.T) {
 	}
 }
 
+func TestConstructionAcceptsExactAndZeroResourceLimits(t *testing.T) {
+	t.Parallel()
+
+	exact, err := localized.NewTextWithLimits(
+		localized.Limits{MaxLocales: 2, MaxTagBytes: 2, MaxTextBytes: 3, MaxTotalBytes: 6},
+		localized.Entry{Locale: mustLocale(t, "en"), Text: "one"},
+		localized.Entry{Locale: mustLocale(t, "fi"), Text: "two"},
+	)
+	if err != nil || exact.Len() != 2 {
+		t.Fatalf("exact construction limits = %v, %v", exact.Entries(), err)
+	}
+
+	zeroLimits := []localized.Limits{
+		{MaxLocales: 0, MaxTagBytes: 1, MaxTextBytes: 1, MaxTotalBytes: 1},
+		{MaxLocales: 1, MaxTagBytes: 0, MaxTextBytes: 1, MaxTotalBytes: 1},
+	}
+	for _, limits := range zeroLimits {
+		value, err := localized.NewTextWithLimits(limits)
+		if err != nil || !value.IsEmpty() {
+			t.Fatalf("zero resource limit %+v = %v, %v", limits, value.Entries(), err)
+		}
+	}
+	value, err := localized.NewTextWithLimits(
+		localized.Limits{MaxLocales: 1, MaxTagBytes: 2, MaxTextBytes: 0, MaxTotalBytes: 0},
+		localized.Entry{Locale: mustLocale(t, "en"), Text: ""},
+	)
+	if err != nil || value.Len() != 1 {
+		t.Fatalf("zero text limits = %v, %v", value.Entries(), err)
+	}
+
+	_, err = localized.NewTextWithLimits(
+		localized.Limits{MaxLocales: 2, MaxTagBytes: 2, MaxTextBytes: 3, MaxTotalBytes: 5},
+		localized.Entry{Locale: mustLocale(t, "en"), Text: "one"},
+		localized.Entry{Locale: mustLocale(t, "fi"), Text: "two"},
+	)
+	if !errors.Is(err, localized.ErrLimitExceeded) {
+		t.Fatalf("cumulative text limit error = %v, want ErrLimitExceeded", err)
+	}
+}
+
+func TestStrictConstructorsAcceptMaximumLengthLocale(t *testing.T) {
+	t.Parallel()
+
+	raw := maximumLengthLocale()
+	fromMap, err := localized.TextFromMap(map[string]string{raw: "map"})
+	if err != nil || fromMap.Len() != 1 {
+		t.Fatalf("TextFromMap(maximum locale) = %v, %v", fromMap.Entries(), err)
+	}
+	fromPairs, err := localized.TextFromPairs(localized.Pair{Locale: raw, Text: "pair"})
+	if err != nil || fromPairs.Len() != 1 {
+		t.Fatalf("TextFromPairs(maximum locale) = %v, %v", fromPairs.Entries(), err)
+	}
+}
+
 func TestBuilderAndMergeFailureBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -127,4 +181,33 @@ func TestBuilderAndMergeFailureBoundaries(t *testing.T) {
 	if !errors.Is(err, localized.ErrLimitExceeded) {
 		t.Fatalf("Merge(limit) error = %v", err)
 	}
+}
+
+func TestMergeSkipsEmptyEntriesWithoutDiscardingLaterLocales(t *testing.T) {
+	t.Parallel()
+
+	left, err := localized.TextFromMap(map[string]string{"en": "", "fi": "left"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	right, err := localized.TextFromMap(map[string]string{"de": "", "sv": "right"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, err := left.MergeWithOptions(right, localized.MergeOptions{Empty: localized.EmptyIsAbsent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merged.Len() != 2 || !merged.Has(mustLocale(t, "fi")) || !merged.Has(mustLocale(t, "sv")) {
+		t.Fatalf("Merge(empty absent) = %v, want later non-empty locales", merged.Entries())
+	}
+}
+
+func maximumLengthLocale() string {
+	parts := make([]string, 0, 28)
+	for range 27 {
+		parts = append(parts, "abcdefgh")
+	}
+	parts = append(parts, "abcdefg")
+	return "en-x-" + strings.Join(parts, "-")
 }

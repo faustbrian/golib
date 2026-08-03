@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"iter"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -147,8 +147,8 @@ func NewTextWithOptions(options ConstructionOptions, entries ...Entry) (Text, er
 	for _, entry := range byLocale {
 		owned = append(owned, entry)
 	}
-	sort.Slice(owned, func(i, j int) bool {
-		return owned[i].Locale.String() < owned[j].Locale.String()
+	slices.SortFunc(owned, func(left, right Entry) int {
+		return strings.Compare(left.Locale.String(), right.Locale.String())
 	})
 	index := make(map[string]int, len(owned))
 	for i := range owned {
@@ -345,7 +345,7 @@ func (t Text) Remove(tag locale.Tag) Text {
 	if !ok {
 		return t
 	}
-	entries := make([]Entry, 0, len(t.entries)-1)
+	entries := make([]Entry, 0, len(t.entries))
 	entries = append(entries, t.entries[:i]...)
 	entries = append(entries, t.entries[i+1:]...)
 	result, _ := NewText(entries...)
@@ -462,7 +462,7 @@ func (t Text) MergeWithOptions(other Text, options MergeOptions) (Text, error) {
 	if options.Conflicts == ResolveConflict && options.Resolver == nil {
 		return Text{}, ErrResolverRequired
 	}
-	entries := make(map[string]Entry, t.Len()+other.Len())
+	entries := make(map[string]Entry)
 	for _, entry := range t.entries {
 		if options.Empty == EmptyIsAbsent && entry.Text == "" {
 			continue

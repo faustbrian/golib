@@ -126,9 +126,20 @@ func TestAcceptLanguageBoundaryMatrix(t *testing.T) {
 	if _, err := localizedhttp.ParseAcceptLanguage("en;q=1.001", localizedhttp.ParseOptions{}); !errors.Is(err, localizedhttp.ErrInvalidWeight) {
 		t.Fatalf("ParseAcceptLanguage(1.001) error = %v", err)
 	}
+	exactHeader := "en,fi"
+	exact, err := localizedhttp.ParseAcceptLanguage(exactHeader, localizedhttp.ParseOptions{
+		MaxBytes: len(exactHeader), MaxCandidates: 2,
+	})
+	if err != nil || len(exact) != 2 {
+		t.Fatalf("ParseAcceptLanguage(exact limits) = %+v, %v", exact, err)
+	}
 	weighted, err := localizedhttp.Select(value, "fi;q=0.5,en-US;q=0.9", localizedhttp.ParseOptions{})
 	if err != nil || weighted.Locale != mustLocale(t, "en-US") {
 		t.Fatalf("Select(weighted) = %+v, %v", weighted, err)
+	}
+	equalWeight, err := localizedhttp.Select(value, "fi;q=0.7,sv;q=0.7", localizedhttp.ParseOptions{})
+	if err != nil || equalWeight.Locale != mustLocale(t, "fi") {
+		t.Fatalf("Select(equal weight) = %+v, %v", equalWeight, err)
 	}
 	matched, err := localizedhttp.Select(value, "en-CA", localizedhttp.ParseOptions{})
 	if err != nil || !matched.Present || matched.Kind != localizedmatch.Matched {

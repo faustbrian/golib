@@ -33,7 +33,6 @@ type DecodeOptions struct {
 // EncodeJSON returns the deterministic canonical JSON object representation.
 func EncodeJSON(value Text) ([]byte, error) {
 	var buffer bytes.Buffer
-	buffer.Grow(2 + value.Len()*8)
 	buffer.WriteByte('{')
 	for i, entry := range value.entries {
 		if i > 0 {
@@ -58,10 +57,13 @@ func DecodeJSON(data []byte, options DecodeOptions) (Text, error) {
 		return Text{}, ErrInvalidPolicy
 	}
 	maxInput := options.MaxInputBytes
+	if maxInput < 0 {
+		return Text{}, fmt.Errorf("%w: parser input", ErrLimitExceeded)
+	}
 	if maxInput == 0 {
 		maxInput = defaultMaxJSONBytes
 	}
-	if maxInput < 0 || len(data) > maxInput {
+	if len(data) > maxInput {
 		return Text{}, fmt.Errorf("%w: parser input", ErrLimitExceeded)
 	}
 	limits := options.Limits
@@ -107,8 +109,7 @@ func DecodeJSON(data []byte, options DecodeOptions) (Text, error) {
 		}
 		entries = append(entries, Entry{Locale: tag, Text: value})
 	}
-	closing, err := decoder.Token()
-	if err != nil || closing != json.Delim('}') {
+	if _, err := decoder.Token(); err != nil {
 		return Text{}, ErrInvalidEncoding
 	}
 	var extra any

@@ -2,7 +2,9 @@
 package match
 
 import (
-	"sort"
+	"cmp"
+	"math"
+	"slices"
 
 	"github.com/faustbrian/golib/pkg/international/locale"
 	localized "github.com/faustbrian/golib/pkg/localized"
@@ -58,10 +60,13 @@ func Best(value localized.Text, preferences ...Preference) (Result, error) {
 // BestWithOptions performs standards matching with explicit limits and hooks.
 func BestWithOptions(value localized.Text, options Options, preferences ...Preference) (Result, error) {
 	maxCandidates := options.MaxCandidates
+	if maxCandidates < 0 {
+		return Result{}, ErrCandidateLimit
+	}
 	if maxCandidates == 0 {
 		maxCandidates = maxPreferences
 	}
-	if maxCandidates < 0 || len(preferences) > maxCandidates {
+	if len(preferences) > maxCandidates {
 		return Result{}, ErrCandidateLimit
 	}
 	ordered := append([]Preference(nil), preferences...)
@@ -71,12 +76,12 @@ func BestWithOptions(value localized.Text, options Options, preferences ...Prefe
 			return Result{}, ErrInvalidCandidate
 		}
 		ordered[i].Locale = canonical
-		if preference.Weight < 0 || preference.Weight > 1 {
+		if math.IsNaN(preference.Weight) || preference.Weight < 0 || preference.Weight > 1 {
 			return Result{}, ErrInvalidWeight
 		}
 	}
-	sort.SliceStable(ordered, func(i, j int) bool {
-		return ordered[i].Weight > ordered[j].Weight
+	slices.SortStableFunc(ordered, func(left, right Preference) int {
+		return cmp.Compare(right.Weight, left.Weight)
 	})
 
 	accepted := ordered[:0]
@@ -85,7 +90,12 @@ func BestWithOptions(value localized.Text, options Options, preferences ...Prefe
 			accepted = append(accepted, preference)
 		}
 	}
-	if len(accepted) == 0 || value.IsEmpty() {
+	if len(accepted) == 0 {
+		result := Result{Kind: Missing}
+		notify(options.Observer, Event{Operation: OperationMatch, Kind: result.Kind, CandidateCount: len(accepted)})
+		return result, nil
+	}
+	if value.IsEmpty() {
 		result := Result{Kind: Missing}
 		notify(options.Observer, Event{Operation: OperationMatch, Kind: result.Kind, CandidateCount: len(accepted)})
 		return result, nil
@@ -136,7 +146,10 @@ func NewFallbackPlan(candidates []locale.Tag, defaultTag *locale.Tag, max int) (
 	if defaultTag != nil {
 		count++
 	}
-	if max < 0 || count > max {
+	if max < 0 {
+		return FallbackPlan{}, ErrCandidateLimit
+	}
+	if count > max {
 		return FallbackPlan{}, ErrCandidateLimit
 	}
 	seen := make(map[string]struct{}, count)

@@ -117,6 +117,42 @@ func TestValidationRejectsInvalidRuleLimits(t *testing.T) {
 	}
 }
 
+func TestValidationAcceptsExactAndZeroLimits(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name string
+		text string
+		rule validation.Rule
+	}{
+		{"zero bytes", "", validation.MaxBytes(0)},
+		{"exact bytes", "one", validation.MaxBytes(3)},
+		{"zero runes", "", validation.MaxRunes(0)},
+		{"exact runes", "åä", validation.MaxRunes(2)},
+		{"zero lines", "", validation.MaxLines(0)},
+		{"exact lines", "one\ntwo", validation.MaxLines(2)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validation.Validate(value(t, test.text), test.rule); err != nil {
+				t.Fatalf("Validate() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidationAdapterContinuesAfterInvalidRule(t *testing.T) {
+	t.Parallel()
+
+	report := validation.Validator(nil, validation.MaxBytes(0)).Validate(
+		validationcore.Context{}, value(t, "a"),
+	)
+	violations := report.Violations()
+	if len(violations) != 2 || violations[0].Code() != "localized_invalid_rule" ||
+		violations[1].Code() != "localized_max_bytes" {
+		t.Fatalf("violations = %+v, want invalid-rule and max-bytes findings", violations)
+	}
+}
+
 func TestNormalizeIsExplicitAndPersistent(t *testing.T) {
 	t.Parallel()
 

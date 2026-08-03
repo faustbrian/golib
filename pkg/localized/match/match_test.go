@@ -2,6 +2,7 @@ package match_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	language "github.com/faustbrian/golib/pkg/international/locale"
@@ -70,9 +71,26 @@ func TestBestUsesWeightThenStableInputOrder(t *testing.T) {
 	if result.Locale != mustLocale(t, "en-US") {
 		t.Fatalf("locale = %s", result.Locale)
 	}
+	equalWeight, err := localizedmatch.BestWithOptions(value, localizedmatch.Options{MaxCandidates: 2},
+		localizedmatch.Preference{Locale: mustLocale(t, "en-GB"), Weight: 1},
+		localizedmatch.Preference{Locale: mustLocale(t, "en-US"), Weight: 1},
+	)
+	if err != nil || equalWeight.Locale != mustLocale(t, "en-GB") {
+		t.Fatalf("equal-weight result = %+v, %v", equalWeight, err)
+	}
+	zeroWeight, err := localizedmatch.Best(
+		value,
+		localizedmatch.Preference{Locale: mustLocale(t, "en-US"), Weight: 0},
+	)
+	if err != nil || zeroWeight.Kind != localizedmatch.Missing {
+		t.Fatalf("zero-weight result = %+v, %v", zeroWeight, err)
+	}
 
 	if _, err := localizedmatch.Best(value, localizedmatch.Preference{Locale: mustLocale(t, "en"), Weight: 1.1}); !errors.Is(err, localizedmatch.ErrInvalidWeight) {
 		t.Fatalf("weight error = %v", err)
+	}
+	if _, err := localizedmatch.Best(value, localizedmatch.Preference{Locale: mustLocale(t, "en"), Weight: math.NaN()}); !errors.Is(err, localizedmatch.ErrInvalidWeight) {
+		t.Fatalf("NaN weight error = %v", err)
 	}
 }
 
@@ -136,6 +154,7 @@ func TestMatchAndFallbackBoundaryMatrix(t *testing.T) {
 	}
 
 	english := mustLocale(t, "en")
+	finnish := mustLocale(t, "fi")
 	zero := language.Tag{}
 	if _, err := localizedmatch.NewFallbackPlan([]language.Tag{zero}, nil, 1); !errors.Is(err, localizedmatch.ErrInvalidCandidate) {
 		t.Fatalf("NewFallbackPlan(zero candidate) error = %v", err)
@@ -145,6 +164,15 @@ func TestMatchAndFallbackBoundaryMatrix(t *testing.T) {
 	}
 	if _, err := localizedmatch.NewFallbackPlan(nil, nil, -1); !errors.Is(err, localizedmatch.ErrCandidateLimit) {
 		t.Fatalf("NewFallbackPlan(negative) error = %v", err)
+	}
+	if _, err := localizedmatch.NewFallbackPlan(nil, nil, 0); err != nil {
+		t.Fatalf("NewFallbackPlan(zero exact limit) error = %v", err)
+	}
+	if _, err := localizedmatch.NewFallbackPlan([]language.Tag{english}, nil, 1); err != nil {
+		t.Fatalf("NewFallbackPlan(exact limit) error = %v", err)
+	}
+	if _, err := localizedmatch.NewFallbackPlan([]language.Tag{english}, &finnish, 1); !errors.Is(err, localizedmatch.ErrCandidateLimit) {
+		t.Fatalf("NewFallbackPlan(candidate plus default limit) error = %v", err)
 	}
 	if _, err := localizedmatch.NewFallbackPlan([]language.Tag{english}, &english, 2); !errors.Is(err, localizedmatch.ErrDuplicateCandidate) {
 		t.Fatalf("NewFallbackPlan(default duplicate) error = %v", err)

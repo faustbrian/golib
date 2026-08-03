@@ -2,7 +2,8 @@
 package http
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -42,18 +43,21 @@ type ParseOptions struct {
 // default locale. Wildcard uses the zero locale only inside this adapter.
 func ParseAcceptLanguage(header string, options ParseOptions) ([]localizedmatch.Preference, error) {
 	maxBytes := options.MaxBytes
+	if maxBytes < 0 {
+		return nil, ErrHeaderLimit
+	}
 	if maxBytes == 0 {
 		maxBytes = defaultMaxHeaderBytes
 	}
 	maxCandidates := options.MaxCandidates
+	if maxCandidates < 0 {
+		return nil, ErrCandidateLimit
+	}
 	if maxCandidates == 0 {
 		maxCandidates = defaultMaxCandidates
 	}
-	if maxBytes < 0 || len(header) > maxBytes {
+	if len(header) > maxBytes {
 		return nil, ErrHeaderLimit
-	}
-	if maxCandidates < 0 {
-		return nil, ErrCandidateLimit
 	}
 	if !utf8.ValidString(header) {
 		return nil, ErrInvalidRange
@@ -159,17 +163,17 @@ func Select(value localized.Text, header string, options ParseOptions) (localize
 			wildcard:   strings.TrimSpace(strings.SplitN(items[i], ";", 2)[0]) == "*",
 		}
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		return candidates[i].preference.Weight > candidates[j].preference.Weight
+	slices.SortStableFunc(candidates, func(left, right candidate) int {
+		return cmp.Compare(right.preference.Weight, left.preference.Weight)
 	})
 	for _, candidate := range candidates {
 		if candidate.preference.Weight == 0 {
-			continue
+			return localizedmatch.Result{Kind: localizedmatch.Missing}, nil
 		}
 		if candidate.wildcard {
 			locales := value.Locales()
 			if len(locales) == 0 {
-				continue
+				return localizedmatch.Result{Kind: localizedmatch.Missing}, nil
 			}
 			text, _ := value.Get(locales[0])
 			return localizedmatch.Result{

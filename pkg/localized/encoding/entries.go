@@ -42,10 +42,13 @@ func UnmarshalEntries(data []byte, options DecodeOptions) (localized.Text, error
 		return localized.Text{}, localized.ErrInvalidUTF8
 	}
 	maxInput := options.MaxInputBytes
+	if maxInput < 0 {
+		return localized.Text{}, localized.ErrLimitExceeded
+	}
 	if maxInput == 0 {
 		maxInput = defaultMaxInputBytes
 	}
-	if maxInput < 0 || len(data) > maxInput {
+	if len(data) > maxInput {
 		return localized.Text{}, localized.ErrLimitExceeded
 	}
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {

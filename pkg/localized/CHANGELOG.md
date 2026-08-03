@@ -4,6 +4,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject non-numeric matching weights instead of silently treating them as
+  absent preferences.
+
 ### Changed
 
 - Pin owned dependencies to published source revisions so clean consumers can

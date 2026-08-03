@@ -94,7 +94,7 @@ func TestTextJSONRejectsHostileAndAmbiguousInput(t *testing.T) {
 		want  error
 	}{
 		{"null", []byte(`null`), localized.ErrNullValue},
-		{"array", []byte(`[]`), localized.ErrInvalidEncoding},
+		{"array", []byte(`["value"]`), localized.ErrInvalidEncoding},
 		{"non-string", []byte(`{"en":1}`), localized.ErrInvalidEncoding},
 		{"invalid locale", []byte(`{"not_a_tag":"value"}`), localized.ErrInvalidLocale},
 		{"canonical duplicate", []byte(`{"en-US":"one","EN-us":"two"}`), localized.ErrDuplicateLocale},
@@ -131,6 +131,20 @@ func TestDecodeJSONEnforcesInputAndValueLimits(t *testing.T) {
 	_, err = localized.DecodeJSON([]byte(`{"en":"one"}`), localized.DecodeOptions{MaxInputBytes: 4})
 	if !errors.Is(err, localized.ErrLimitExceeded) {
 		t.Fatalf("DecodeJSON() input error = %v", err)
+	}
+
+	exactInput := []byte(`{"en":"one"}`)
+	value, err := localized.DecodeJSON(exactInput, localized.DecodeOptions{MaxInputBytes: len(exactInput)})
+	if err != nil || value.Len() != 1 {
+		t.Fatalf("DecodeJSON(exact input limit) = %v, %v", value.Entries(), err)
+	}
+	exactLocale := maximumLengthLocale()
+	value, err = localized.DecodeJSON(
+		[]byte(`{"`+exactLocale+`":"value"}`),
+		localized.DecodeOptions{},
+	)
+	if err != nil || value.Len() != 1 {
+		t.Fatalf("DecodeJSON(maximum locale) = %v, %v", value.Entries(), err)
 	}
 }
 

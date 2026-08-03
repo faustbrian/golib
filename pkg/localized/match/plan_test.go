@@ -98,6 +98,12 @@ func TestPlanResolutionBoundaryMatrix(t *testing.T) {
 	if _, err := localizedmatch.NewPlan(nil, localizedmatch.PlanOptions{MaxDepth: 1, MaxCandidates: -1}); !errors.Is(err, localizedmatch.ErrCandidateLimit) {
 		t.Fatalf("NewPlan(negative candidates) error = %v", err)
 	}
+	if _, err := localizedmatch.NewPlan(nil, localizedmatch.PlanOptions{MaxDepth: 0, MaxCandidates: 0}); !errors.Is(err, localizedmatch.ErrDepthLimit) {
+		t.Fatalf("NewPlan(zero depth) error = %v", err)
+	}
+	if _, err := localizedmatch.NewPlan(nil, localizedmatch.PlanOptions{MaxDepth: 1, MaxCandidates: 0}); err != nil {
+		t.Fatalf("NewPlan(zero candidates) error = %v", err)
+	}
 	if _, err := localizedmatch.NewPlan([]localizedmatch.Chain{
 		{From: mustLocale(t, "en"), Candidates: []localizedmatch.Candidate{{Kind: localizedmatch.ExactLocale, Locale: mustLocale(t, "fi")}}},
 		{From: mustLocale(t, "fi"), Candidates: []localizedmatch.Candidate{{Kind: localizedmatch.ExactLocale, Locale: mustLocale(t, "de")}}},
@@ -135,6 +141,47 @@ func TestPlanResolutionBoundaryMatrix(t *testing.T) {
 	}
 	if result := missingPlan.Resolve(localized.Text{}, zero); result.Kind != localizedmatch.Missing {
 		t.Fatalf("zero request = %+v", result)
+	}
+}
+
+func TestPlanChecksEveryCandidateAroundSelfParentRanges(t *testing.T) {
+	t.Parallel()
+
+	en := mustLocale(t, "en")
+	fi := mustLocale(t, "fi")
+	cycle := []localizedmatch.Chain{
+		{From: en, Candidates: []localizedmatch.Candidate{
+			{Kind: localizedmatch.ParentRange, Locale: en},
+			{Kind: localizedmatch.ExactLocale, Locale: fi},
+		}},
+		{From: fi, Candidates: []localizedmatch.Candidate{{Kind: localizedmatch.ExactLocale, Locale: en}}},
+	}
+	if _, err := localizedmatch.NewPlan(cycle, localizedmatch.PlanOptions{MaxDepth: 3, MaxCandidates: 3}); !errors.Is(err, localizedmatch.ErrFallbackCycle) {
+		t.Fatalf("self-parent cycle error = %v", err)
+	}
+	if _, err := localizedmatch.NewPlan([]localizedmatch.Chain{{
+		From: en, Candidates: []localizedmatch.Candidate{{Kind: localizedmatch.ExactLocale, Locale: en}},
+	}}, localizedmatch.PlanOptions{MaxDepth: 2, MaxCandidates: 1}); !errors.Is(err, localizedmatch.ErrFallbackCycle) {
+		t.Fatalf("exact self-cycle error = %v", err)
+	}
+
+	plan, err := localizedmatch.NewPlan([]localizedmatch.Chain{{
+		From: en,
+		Candidates: []localizedmatch.Candidate{
+			{Kind: localizedmatch.ParentRange, Locale: en},
+			{Kind: localizedmatch.ExactLocale, Locale: fi},
+		},
+	}}, localizedmatch.PlanOptions{MaxDepth: 2, MaxCandidates: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := localized.TextFromMap(map[string]string{"fi": "fallback"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := plan.Resolve(value, en)
+	if result.Kind != localizedmatch.Fallback || result.Locale != fi || result.Text != "fallback" {
+		t.Fatalf("Resolve(after self parent) = %+v", result)
 	}
 }
 

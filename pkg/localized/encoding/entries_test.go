@@ -61,6 +61,14 @@ func TestEntryArrayDecodeIsBoundedAndPreservesPresentEmpty(t *testing.T) {
 	if _, err := localizedencoding.UnmarshalEntries([]byte(`[]`), localizedencoding.DecodeOptions{MaxInputBytes: 1}); !errors.Is(err, localized.ErrLimitExceeded) {
 		t.Fatalf("limit error = %v", err)
 	}
+	exactInput := []byte(`[{"locale":"en","text":"one"}]`)
+	exact, err := localizedencoding.UnmarshalEntries(
+		exactInput,
+		localizedencoding.DecodeOptions{MaxInputBytes: len(exactInput)},
+	)
+	if err != nil || exact.Len() != 1 {
+		t.Fatalf("exact input limit = %v, %v", exact.Entries(), err)
+	}
 }
 
 func TestEntryArrayRejectsMalformedBoundaries(t *testing.T) {
