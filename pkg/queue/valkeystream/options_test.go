@@ -232,7 +232,7 @@ func TestOptionsRejectUnsafeConfiguration(t *testing.T) {
 		"replay matches dead":      WithReplayDestinations("golang-queue-dead"),
 		"empty dead letter":        WithDeadLetter(" ", 3),
 		"same dead letter stream":  WithDeadLetter("golang-queue", 3),
-		"invalid delivery limit":   WithDeadLetter("dead", 1),
+		"invalid delivery limit":   WithDeadLetter("dead", 0),
 		"nil delivery resolver":    WithDeliveryAttemptLimitResolver(nil),
 		"missing canceled codes":   WithCanceledDeadLetterCodes(),
 		"too many canceled codes": WithCanceledDeadLetterCodes(

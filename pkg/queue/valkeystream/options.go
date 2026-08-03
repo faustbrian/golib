@@ -427,7 +427,7 @@ func (opts options) validate() error {
 		{opts.reclaimBatchSize <= 0 || opts.reclaimBatchSize > maxReclaimBatchSize, "reclaim batch size"},
 		{opts.failureStream == "" || opts.failureStream == opts.stream || opts.failureStream == opts.deadLetterStream, "failure stream"},
 		{opts.deadLetterStream == "" || opts.deadLetterStream == opts.stream, "dead-letter stream"},
-		{opts.maxDeliveryAttempts < 2, "maximum delivery attempts"},
+		{opts.maxDeliveryAttempts < 1, "maximum delivery attempts"},
 	}
 	for destination := range opts.replayDestinations {
 		if destination == opts.failureStream || destination == opts.deadLetterStream {

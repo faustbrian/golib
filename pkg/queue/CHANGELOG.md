@@ -15,6 +15,8 @@ versioning and Keep a Changelog structure.
 
 ### Changed
 
+- Valkey Streams terminal delivery limits now accept one attempt, allowing a
+  failed first handler execution to move directly to the dead-letter stream.
 - Prove logger configuration, option ordering, lifecycle drain transitions,
   stack recovery, and in-memory queue boundaries with mutation-effective
   contracts.

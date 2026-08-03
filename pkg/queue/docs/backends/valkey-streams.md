@@ -93,8 +93,8 @@ closes producer-owned connections.
 | `WithReadBatchSize` | 16 | 1 through 256 |
 | `WithReclaim` | idle 30 seconds, interval 5 seconds, batch 16 | All positive; batch at most 256 |
 | `WithFailureStream` | `golang-queue-failures` | Bounded failed-attempt records; differs from source and dead-letter streams |
-| `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 2 |
-| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 2 through 100 |
+| `WithDeadLetter` | `golang-queue-dead`, 5 attempts | Destination differs from source; attempts at least 1 |
+| `WithDeliveryAttemptLimitResolver` | Disabled | Deterministic per-message override of the default terminal attempt ceiling; results must be 1 through 100 |
 | `WithCanceledDeadLetterCodes` | Disabled | One to 32 bounded canceled failure codes become terminal only at attempt exhaustion |
 | `WithReplayDestinations` | Disabled | One to 64 explicit destination streams; each differs from failure and dead-letter streams |
 | `WithLogger` | Standard logger | Error text is redacted; payloads and metadata are never logged |

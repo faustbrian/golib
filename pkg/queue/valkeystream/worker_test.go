@@ -228,6 +228,41 @@ func TestConfiguredCanceledFailureDeadLettersAtAttemptLimit(t *testing.T) {
 	assert.Equal(t, "deadline_exceeded", transport.deadLetterFailure.Code)
 }
 
+func TestSingleAttemptRetryableFailureDeadLettersImmediately(t *testing.T) {
+	t.Parallel()
+
+	opts, err := newOptions(
+		WithAddress("127.0.0.1:6379"),
+		WithFailureStream("jobs-failures"),
+		WithDeadLetter("jobs-dead", 1),
+	)
+	require.NoError(t, err)
+	transport := &recordTransportStub{}
+	worker := &Worker{opts: opts, transport: transport}
+	message := job.NewMessage(rawMessage("single-attempt"))
+	delivery, err := worker.decode(streamqueue.Delivery{
+		ID:       "1-0",
+		Body:     message.Bytes(),
+		Attempts: 1,
+	})
+	require.NoError(t, err)
+	handlerErr := management.NewFailure(
+		management.ClassificationRetryable,
+		"temporary_failure",
+		errors.New("temporary failure"),
+	)
+
+	require.NoError(t, delivery.(*job.Message).NackFailure(handlerErr))
+	assert.Equal(t, 1, transport.failureCalls)
+	assert.Equal(t, 1, transport.deadLetterCalls)
+	assert.Equal(
+		t,
+		management.ClassificationRetryable,
+		transport.deadLetterFailure.Classification,
+	)
+	assert.Equal(t, "temporary_failure", transport.deadLetterFailure.Code)
+}
+
 func TestDeliveryAttemptLimitResolverAppliesPerMessagePolicy(t *testing.T) {
 	t.Parallel()
 
@@ -293,7 +328,7 @@ func TestDeliveryAttemptLimitResolverRejectsUnsafeRuntimeLimit(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]DeliveryAttemptLimitResolver{
-		"below minimum": func(core.TaskMessage) int64 { return 1 },
+		"below minimum": func(core.TaskMessage) int64 { return 0 },
 		"above maximum": func(core.TaskMessage) int64 { return 101 },
 		"panic": func(core.TaskMessage) int64 {
 			panic("secret resolver failure")
@@ -325,7 +360,7 @@ func TestDeliveryAttemptLimitResolverAcceptsExactBounds(t *testing.T) {
 	t.Parallel()
 
 	for name, limit := range map[string]int64{
-		"minimum": 2,
+		"minimum": 1,
 		"maximum": maxResolvedDeliveryAttempts,
 	} {
 		t.Run(name, func(t *testing.T) {

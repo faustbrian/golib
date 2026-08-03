@@ -407,7 +407,7 @@ func (w *Worker) resolveDeliveryAttemptLimit(
 		}
 	}()
 	limit = w.opts.deliveryAttemptLimit(message)
-	if limit < 2 || limit > maxResolvedDeliveryAttempts {
+	if limit < 1 || limit > maxResolvedDeliveryAttempts {
 		return 0, ErrInvalidDeliveryAttemptLimit
 	}
 
