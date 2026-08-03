@@ -210,6 +210,8 @@ func TestTelemetryOutcomeAndCacheCategoriesAreBounded(t *testing.T) {
 		cache   TelemetryCacheOutcome
 	}{
 		{"success", cacheResponse(204, CacheMiss), nil, TelemetryOutcomeSuccess, "2xx", TelemetryCacheMiss},
+		{"success boundary", cacheResponse(399, CacheMiss), nil, TelemetryOutcomeSuccess, "3xx", TelemetryCacheMiss},
+		{"HTTP boundary", cacheResponse(400, CacheHit), nil, TelemetryOutcomeHTTPError, "4xx", TelemetryCacheHit},
 		{"HTTP", cacheResponse(503, CacheHit), nil, TelemetryOutcomeHTTPError, "5xx", TelemetryCacheHit},
 		{"revalidated", cacheResponse(200, CacheRevalidated), nil, TelemetryOutcomeSuccess, "2xx", TelemetryCacheRevalidated},
 		{"stale", cacheResponse(200, CacheStale), nil, TelemetryOutcomeSuccess, "2xx", TelemetryCacheStale},
@@ -231,8 +233,12 @@ func TestTelemetryOutcomeAndCacheCategoriesAreBounded(t *testing.T) {
 			}
 		})
 	}
-	if statusClass(0) != "invalid" || statusClass(600) != "invalid" {
-		t.Fatal("invalid status escaped bounded classification")
+	for status, want := range map[int]string{
+		99: "invalid", 100: "1xx", 599: "5xx", 600: "invalid",
+	} {
+		if got := statusClass(status); got != want {
+			t.Fatalf("status class for %d = %q, want %q", status, got, want)
+		}
 	}
 }
 
@@ -253,6 +259,17 @@ func TestTelemetryPolicyValidationAndObserverIsolation(t *testing.T) {
 			t.Fatalf("invalid telemetry %#v error = %v", options, err)
 		}
 	}
+	middleware, err := newTelemetryMiddleware(&TelemetryOptions{Observer: &telemetryTestObserver{}})
+	if err != nil {
+		t.Fatalf("construct telemetry middleware: %v", err)
+	}
+	if len(middleware) != 2 || middleware[0].information.Priority != -1900 ||
+		middleware[1].information.Priority != -1900 {
+		t.Fatalf("telemetry middleware priorities = %#v", middleware)
+	}
+	if !validBaggageName(strings.Repeat("a", 256)) || validBaggageName(strings.Repeat("a", 257)) {
+		t.Fatal("baggage name length boundary is not 256 bytes")
+	}
 	observer := &telemetryBoundaryObserver{panicStart: true, panicFinish: true}
 	client, err := New(Config{
 		Telemetry: &TelemetryOptions{Observer: observer},
@@ -267,6 +284,20 @@ func TestTelemetryPolicyValidationAndObserverIsolation(t *testing.T) {
 		t.Fatalf("observer panic affected request: %v", err)
 	}
 	_ = response.Body.Close()
+}
+
+func TestTelemetryBaggageFilteringPreservesLaterAllowedMembersAndRemovesEmptyHeader(t *testing.T) {
+	header := http.Header{"Baggage": []string{"malformed, safe=kept", "blocked=secret"}}
+	filterBaggage(header, map[string]struct{}{"safe": {}})
+	if values := header.Values("Baggage"); len(values) != 1 || values[0] != "safe=kept" {
+		t.Fatalf("filtered baggage = %#v", values)
+	}
+
+	header = http.Header{"Baggage": []string{"malformed", "blocked=secret"}}
+	filterBaggage(header, map[string]struct{}{})
+	if _, exists := header["Baggage"]; exists {
+		t.Fatalf("empty baggage header retained = %#v", header)
+	}
 }
 
 func TestSlogTelemetryObserverLogsOnlySafeFixedFields(t *testing.T) {

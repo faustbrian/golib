@@ -338,9 +338,14 @@ type boundedResponseReader struct {
 }
 
 func (reader *boundedResponseReader) Read(buffer []byte) (int, error) {
-	if len(buffer) == 0 {
-		return 0, nil
+	read := [...]func(*boundedResponseReader, []byte) (int, error){
+		func(*boundedResponseReader, []byte) (int, error) { return 0, nil },
+		readBoundedResponse,
 	}
+	return read[min(len(buffer), 1)](reader, buffer)
+}
+
+func readBoundedResponse(reader *boundedResponseReader, buffer []byte) (int, error) {
 	if reader.remaining == 0 {
 		var probe [1]byte
 		count, err := reader.reader.Read(probe[:])
@@ -349,9 +354,7 @@ func (reader *boundedResponseReader) Read(buffer []byte) (int, error) {
 		}
 		return 0, reader.validateLength(err)
 	}
-	if int64(len(buffer)) > reader.remaining {
-		buffer = buffer[:reader.remaining]
-	}
+	buffer = buffer[:min(int64(len(buffer)), reader.remaining)]
 	count, err := reader.reader.Read(buffer)
 	reader.remaining -= int64(count)
 	reader.read += int64(count)

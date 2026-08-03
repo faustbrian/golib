@@ -138,7 +138,19 @@ func TestDecodeJSONResponsePreservesCloseFailure(t *testing.T) {
 }
 
 func TestDecodeJSONResponsePolicyAndReaderBoundaries(t *testing.T) {
-	t.Parallel()
+	reader := &boundedResponseReader{
+		reader: strings.NewReader("x"), remaining: 1, limit: 1, expected: 1,
+	}
+	if count, err := reader.Read(nil); count != 0 || err != nil {
+		t.Fatalf("zero read = %d, %v", count, err)
+	}
+	buffer := make([]byte, 8)
+	if count, err := reader.Read(buffer); count != 1 || err != nil {
+		t.Fatalf("bounded read = %d, %v", count, err)
+	}
+	if count, err := reader.Read(buffer); count != 0 || !errors.Is(err, io.EOF) {
+		t.Fatalf("bounded EOF = %d, %v", count, err)
+	}
 
 	if (&ResponseLimitError{}).Error() == "" || (&UnexpectedContentTypeError{}).Error() == "" {
 		t.Fatal("typed response errors rendered empty text")
@@ -158,13 +170,45 @@ func TestDecodeJSONResponsePolicyAndReaderBoundaries(t *testing.T) {
 	if _, err := DecodeJSONResponse[any](invalidOptions, DecodeOptions{MaximumBodyBytes: -1}); !errors.Is(err, ErrInvalidResponsePolicy) || closed.Load() != 1 {
 		t.Fatalf("invalid maximum error = %v, closes = %d", err, closed.Load())
 	}
+	for maximum, valid := range map[int64]bool{
+		1: true, maximumDecodeBytes: true, maximumDecodeBytes + 1: false,
+	} {
+		resolved, _, optionErr := resolveDecodeOptions(DecodeOptions{MaximumBodyBytes: maximum})
+		if (optionErr == nil) != valid || valid && resolved != maximum {
+			t.Fatalf("maximum %d resolved to %d, %v", maximum, resolved, optionErr)
+		}
+	}
 	invalidMedia := &http.Response{
 		StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody,
 	}
 	if _, err := DecodeJSONResponse[any](invalidMedia, DecodeOptions{
-		ExpectedMediaTypes: []string{"not a media type"},
+		ExpectedMediaTypes: []string{"text/plain; invalid"},
 	}); !errors.Is(err, ErrInvalidResponsePolicy) {
 		t.Fatalf("invalid expected media type error = %v", err)
+	}
+	_, expected, err := resolveDecodeOptions(DecodeOptions{ExpectedMediaTypes: []string{
+		"application/*+json", " Application/Problem+JSON ; charset=utf-8 ",
+	}})
+	if err != nil || len(expected) != 2 || expected[0] != "application/*+json" ||
+		expected[1] != "application/problem+json" {
+		t.Fatalf("normalized expected media types = %#v, %v", expected, err)
+	}
+	for name, accepted := range map[string]bool{
+		"wildcard match":         acceptedMediaType("application/problem+json", []string{"application/*+json"}),
+		"candidate mismatch":     acceptedMediaType("application/problem+json", []string{"application/json"}),
+		"type mismatch":          acceptedMediaType("text/problem+json", []string{"application/*+json"}),
+		"suffix mismatch":        acceptedMediaType("application/problem+xml", []string{"application/*+json"}),
+		"exact case-insensitive": acceptedMediaType("APPLICATION/JSON", []string{"application/json"}),
+	} {
+		want := name == "wildcard match" || name == "exact case-insensitive"
+		if accepted != want {
+			t.Fatalf("%s accepted = %t, want %t", name, accepted, want)
+		}
+	}
+	for status, empty := range map[int]bool{99: false, 100: true, 199: true, 200: false} {
+		if got := responseSemanticallyEmpty(&http.Response{StatusCode: status}); got != empty {
+			t.Fatalf("status %d semantically empty = %t, want %t", status, got, empty)
+		}
 	}
 
 	request, _ := http.NewRequest(http.MethodHead, "https://example.test", nil)
@@ -207,19 +251,6 @@ func TestDecodeJSONResponsePolicyAndReaderBoundaries(t *testing.T) {
 		t.Fatalf("allowed trailing limit error = %v", err)
 	}
 
-	reader := &boundedResponseReader{
-		reader: strings.NewReader("x"), remaining: 1, limit: 1, expected: 1,
-	}
-	if count, err := reader.Read(nil); count != 0 || err != nil {
-		t.Fatalf("zero read = %d, %v", count, err)
-	}
-	buffer := make([]byte, 8)
-	if count, err := reader.Read(buffer); count != 1 || err != nil {
-		t.Fatalf("bounded read = %d, %v", count, err)
-	}
-	if count, err := reader.Read(buffer); count != 0 || !errors.Is(err, io.EOF) {
-		t.Fatalf("bounded EOF = %d, %v", count, err)
-	}
 }
 
 type responseTestBody struct {
