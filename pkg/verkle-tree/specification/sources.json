@@ -805,6 +805,32 @@
       "review_status": "release-notes-state-binary-tree-work-replaces-verkle-implementation"
     },
     {
+      "id": "mratsim-constantine-backend-candidate-scan",
+      "kind": "git-repository",
+      "role": "rejected-backend-candidate",
+      "url": "https://github.com/mratsim/constantine",
+      "revision": "ca0006c7fb02ef034f8fce2257e0b8dcb23b5afb",
+      "tree": "6bae8f17833626ce8c472b0505e6d6c9f357b03e",
+      "latest_release": "v0.2.0",
+      "latest_release_revision": "8d6a6a38b90fb8ee3ec2230839773e69aab36d80",
+      "latest_release_tree": "8f9e317ef21957929380e2ba59229643f122c933",
+      "reviewed_on": "2026-08-03",
+      "license": "MIT OR Apache-2.0",
+      "license_files": {
+        "MIT": "c743ffa13e42b7a631e396bb6f2cda97794fb464fd5ec78448a028911f64d160",
+        "Apache-2.0": "8c0973018c3b4705c3b15e775197885c7ea3164724908ae8efcc4fee3168651c"
+      },
+      "source_files": {
+        "README.md": "3b1f6731a7d53c79f797d88c81a4eb5611cc5d944d47df4f5f016a9ddb0298bc",
+        "PLANNING.md": "0522c4e67f378df81878d608493bda458339b5a3b2ca7d57843cadc53314fa7c",
+        "constantine/ethereum_verkle_ipa.nim": "afe12bcd86c74949b6792740a95cf6b289407c9d982ecf9d27eceda3608cec98",
+        "constantine/commitments/eth_verkle_ipa.nim": "07335b66bfa190b6b3182d76cacad64fdac214703c22b084e94641a393f5744b",
+        "constantine/commitments/eth_verkle_transcripts.nim": "91441b45588ecd6fcd9117ab220aa176cdd3c54edc53b2d3276c0c89cf84050b"
+      },
+      "reproducible": true,
+      "review_status": "rejected-verkle-ipa-unfinished-unaudited-and-not-exported-to-c-rust-or-go"
+    },
+    {
       "id": "crate-crypto-go-ipa-candidate",
       "kind": "git-repository",
       "role": "candidate-commitment-backend",

@@ -26,6 +26,22 @@ the rule against implementing the commitment arithmetic in the tree package.
 Both rejected candidates are revision- and checksum-pinned in the source
 manifest. Neither changes the production-backend decision.
 
+The maintained `mratsim/constantine` repository was also reviewed at commit
+`ca0006c7fb02ef034f8fce2257e0b8dcb23b5afb`. It contains Banderwagon,
+Ethereum-Verkle transcript, IPA, and multiproof primitives and is dual licensed
+MIT or Apache-2.0. It is not presently an adoptable backend: its public support
+matrix marks Ethereum Verkle IPA as under construction in Nim and unavailable
+through C, Rust, and Go; its planning document still requires finishing the IPA
+test suite; and the repository's security statement says it remains unaudited
+and best effort. No Verkle or IPA operation is exported from its C headers,
+Rust bindings, or Go package at the reviewed revision. Adopting it would
+therefore require this package to design and maintain a new foreign-function
+interface around unfinished cryptographic internals, which does not satisfy the
+maintained, independently reviewable, replaceable-backend requirement. Exact
+source, tree, license, API, implementation, transcript, README, and planning
+checksums are recorded in the source manifest so this decision can be
+revisited without relying on a moving branch.
+
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict

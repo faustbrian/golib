@@ -19,6 +19,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   criteria so progress changes only when a named requirement closes or reopens.
 - Refresh the production-backend candidate audit and pin why the current Sila
   fork and unrelated FRI implementation do not resolve the backend blockers.
+- Pin the maintained Constantine candidate and record that its unfinished,
+  unaudited Verkle IPA implementation is not exported through C, Rust, or Go.
 
 ### Added
 
