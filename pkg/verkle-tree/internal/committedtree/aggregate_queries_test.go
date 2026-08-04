@@ -192,7 +192,7 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		err,
 		AggregateProverQueryResourceTemporaryBytes,
 		128,
-		608_384,
+		304_832,
 	)
 	duplicate := []Key{keys[0], keys[0]}
 	if _, err := tree.AggregateProverQueries(
@@ -255,7 +255,7 @@ func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
 
 	const queryCapacity = uint64(31 + 2 + 1 + 2*keyCount)
 	temporaryBytes := uint64(keyCount)*2*aggregateQueryKeyWorkingBytes +
-		queryCapacity*2*aggregateQueryResultWorkingBytes()
+		queryCapacity*(aggregateQueryResultWorkingBytes()+16)
 	limits := testAggregateProverQueryLimits()
 	limits.MaxTemporaryBytes = temporaryBytes
 	queries, err := tree.AggregateProverQueries(context.Background(), keys, limits)
@@ -286,7 +286,7 @@ func TestAggregateProverQueriesPreserveCancellation(t *testing.T) {
 	tree := testAggregateQueryTree(t)
 	keys := []Key{testKey(1, 0), testKey(0, 0)}
 	observed := false
-	for cancelAt := 1; cancelAt < 120; cancelAt++ {
+	for cancelAt := 1; cancelAt < 1_000; cancelAt++ {
 		_, err := tree.AggregateProverQueries(
 			&cancelContext{cancelAt: cancelAt},
 			keys,

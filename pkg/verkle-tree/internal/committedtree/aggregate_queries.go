@@ -18,6 +18,7 @@ const (
 	aggregateQueriesPerStemHalf       = uint64(1)
 	aggregateQueriesPerKey            = uint64(2)
 	aggregateQueryKeyWorkingBytes     = uint64(64)
+	aggregateQuerySortWorkingBytes    = uint64(16)
 )
 
 var (
@@ -201,7 +202,7 @@ func (tree Tree) AggregateProverQueries(
 	}
 	capacity = min(uint64(limits.MaxQueries), capacity)
 	temporaryBytes := keyTemporaryBytes +
-		capacity*2*aggregateQueryResultWorkingBytes()
+		capacity*(aggregateQueryResultWorkingBytes()+aggregateQuerySortWorkingBytes)
 	if err := checkAggregateProverQueryResource(
 		AggregateProverQueryResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
@@ -578,15 +579,33 @@ func sortAggregateProverQueries(
 	if len(queries) < 2 {
 		return checkContext(ctx)
 	}
-	scratch := make([]AggregateProverQuery, len(queries))
+	order := make([]uint32, len(queries))
+	scratch := make([]uint32, len(queries))
+	for index := range order {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		order[index] = uint32(index)
+	}
+	if err := mergeSortAggregateProverQueryIndices(
+		ctx,
+		queries,
+		order,
+		scratch,
+		0,
+		len(order),
+	); err != nil {
+		return err
+	}
 
-	return mergeSortAggregateProverQueries(ctx, queries, scratch, 0, len(queries))
+	return applyAggregateProverQueryOrder(ctx, queries, order)
 }
 
-func mergeSortAggregateProverQueries(
+func mergeSortAggregateProverQueryIndices(
 	ctx context.Context,
 	queries []AggregateProverQuery,
-	scratch []AggregateProverQuery,
+	order []uint32,
+	scratch []uint32,
 	start int,
 	end int,
 ) error {
@@ -597,10 +616,14 @@ func mergeSortAggregateProverQueries(
 		return nil
 	}
 	middle := start + (end-start)/2
-	if err := mergeSortAggregateProverQueries(ctx, queries, scratch, start, middle); err != nil {
+	if err := mergeSortAggregateProverQueryIndices(
+		ctx, queries, order, scratch, start, middle,
+	); err != nil {
 		return err
 	}
-	if err := mergeSortAggregateProverQueries(ctx, queries, scratch, middle, end); err != nil {
+	if err := mergeSortAggregateProverQueryIndices(
+		ctx, queries, order, scratch, middle, end,
+	); err != nil {
 		return err
 	}
 	left := start
@@ -610,15 +633,52 @@ func mergeSortAggregateProverQueries(
 			return err
 		}
 		if right == end ||
-			(left < middle && compareAggregateProverQuery(queries[left], queries[right]) != 1) {
-			scratch[output] = queries[left]
+			(left < middle && compareAggregateProverQuery(
+				queries[order[left]],
+				queries[order[right]],
+			) != 1) {
+			scratch[output] = order[left]
 			left++
 		} else {
-			scratch[output] = queries[right]
+			scratch[output] = order[right]
 			right++
 		}
 	}
-	copy(queries[start:end], scratch[start:end])
+	copy(order[start:end], scratch[start:end])
+
+	return nil
+}
+
+func applyAggregateProverQueryOrder(
+	ctx context.Context,
+	queries []AggregateProverQuery,
+	order []uint32,
+) error {
+	visited := make([]bool, len(queries))
+	for start := range queries {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		if visited[start] {
+			continue
+		}
+		current := start
+		displaced := queries[start]
+		for {
+			if err := checkContext(ctx); err != nil {
+				return err
+			}
+			source := int(order[current])
+			visited[current] = true
+			if source == start {
+				queries[current] = displaced
+
+				break
+			}
+			queries[current] = queries[source]
+			current = source
+		}
+	}
 
 	return nil
 }
