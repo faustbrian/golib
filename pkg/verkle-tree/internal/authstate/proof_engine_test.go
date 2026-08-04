@@ -1044,6 +1044,12 @@ func TestMatchAggregateQueriesRejectsDivergence(t *testing.T) {
 	}}
 	if got, err := matchAggregateQueries(context.Background(), prover, verifier); err != nil || len(got) != 1 {
 		t.Fatalf("matching queries = %d, error = %v", len(got), err)
+	} else {
+		got[0].Vector[7][0]++
+		if prover[0].Opening.Vector[7][0] != got[0].Vector[7][0] {
+			t.Fatal("matching copied the prover opening")
+		}
+		got[0].Vector[7][0]--
 	}
 	if _, err := matchAggregateQueries(context.Background(), prover, nil); !errors.Is(err, errProofGeneration) {
 		t.Fatalf("count mismatch error = %v", err)

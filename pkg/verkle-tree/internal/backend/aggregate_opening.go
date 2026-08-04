@@ -286,7 +286,7 @@ func (engine *AggregateOpeningEngine) Open(
 	ctx context.Context,
 	queries []AggregateProverQuery,
 ) (OpeningProof, error) {
-	return engine.open(ctx, nil, queries)
+	return engine.open(ctx, nil, aggregateProverQueryReferences(queries))
 }
 
 // OpenBound creates one canonical aggregate proof bound to an exact
@@ -296,13 +296,25 @@ func (engine *AggregateOpeningEngine) OpenBound(
 	binding AggregateOpeningBinding,
 	queries []AggregateProverQuery,
 ) (OpeningProof, error) {
+	return engine.open(ctx, &binding, aggregateProverQueryReferences(queries))
+}
+
+// OpenBoundReferences creates one canonical bound proof from caller-owned
+// queries without copying their vectors. The engine consumes the references
+// synchronously and does not retain them; callers must keep every query
+// immutable until the call returns.
+func (engine *AggregateOpeningEngine) OpenBoundReferences(
+	ctx context.Context,
+	binding AggregateOpeningBinding,
+	queries []*AggregateProverQuery,
+) (OpeningProof, error) {
 	return engine.open(ctx, &binding, queries)
 }
 
 func (engine *AggregateOpeningEngine) open(
 	ctx context.Context,
 	binding *AggregateOpeningBinding,
-	queries []AggregateProverQuery,
+	queries []*AggregateProverQuery,
 ) (OpeningProof, error) {
 	if err := engine.validate(); err != nil {
 		return OpeningProof{}, err
@@ -317,6 +329,15 @@ func (engine *AggregateOpeningEngine) open(
 	if err := engine.preflight(queryCount, VectorWidth); err != nil {
 		return OpeningProof{}, err
 	}
+	for queryIndex := range queries {
+		if queries[queryIndex] == nil {
+			return OpeningProof{}, fmt.Errorf(
+				"%w: query %d",
+				errInvalidAggregateOpeningQuery,
+				queryIndex,
+			)
+		}
+	}
 	needsBindingAnchor := binding != nil &&
 		!engine.hasBindingProverQuery(queries)
 	if needsBindingAnchor {
@@ -324,10 +345,8 @@ func (engine *AggregateOpeningEngine) open(
 		if err := engine.preflight(queryCount, VectorWidth); err != nil {
 			return OpeningProof{}, err
 		}
-		queries = append(
-			[]AggregateProverQuery{engine.bindingProverQuery()},
-			queries...,
-		)
+		anchor := engine.bindingProverQuery()
+		queries = append([]*AggregateProverQuery{&anchor}, queries...)
 	}
 	release, err := engine.gate.acquire(ctx)
 	if err != nil {
@@ -543,7 +562,7 @@ func (engine *AggregateOpeningEngine) bindingVerifierQuery() AggregateVerifierQu
 }
 
 func (engine *AggregateOpeningEngine) hasBindingProverQuery(
-	queries []AggregateProverQuery,
+	queries []*AggregateProverQuery,
 ) bool {
 	anchor := engine.bindingProverQuery()
 	anchorIdentity := aggregateOpeningIdentity(anchor.Commitment, anchor.Index)
@@ -559,6 +578,17 @@ func (engine *AggregateOpeningEngine) hasBindingProverQuery(
 	}
 
 	return false
+}
+
+func aggregateProverQueryReferences(
+	queries []AggregateProverQuery,
+) []*AggregateProverQuery {
+	references := make([]*AggregateProverQuery, len(queries))
+	for index := range queries {
+		references[index] = &queries[index]
+	}
+
+	return references
 }
 
 func (engine *AggregateOpeningEngine) hasBindingVerifierQuery(

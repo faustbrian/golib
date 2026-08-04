@@ -134,7 +134,7 @@ func (engine *ProofEngine) Prove(
 	if err != nil {
 		return TreeProof{}, err
 	}
-	opening, err := engine.opening.OpenBound(ctx, binding, proverQueries)
+	opening, err := engine.opening.OpenBoundReferences(ctx, binding, proverQueries)
 	if err != nil {
 		return TreeProof{}, fmt.Errorf("%w: %w", errProofGeneration, err)
 	}
@@ -522,11 +522,11 @@ func matchAggregateQueries(
 	ctx context.Context,
 	prover []committedtree.AggregateProverQuery,
 	verifier []AggregateVerifierQuery,
-) ([]backend.AggregateProverQuery, error) {
+) ([]*backend.AggregateProverQuery, error) {
 	if len(prover) != len(verifier) {
 		return nil, errProofGeneration
 	}
-	openings := make([]backend.AggregateProverQuery, len(prover))
+	openings := make([]*backend.AggregateProverQuery, len(prover))
 	for index := range prover {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return nil, err
@@ -545,7 +545,7 @@ func matchAggregateQueries(
 				verifier[index].Opening.Value {
 			return nil, errProofGeneration
 		}
-		openings[index] = prover[index].Opening
+		openings[index] = &prover[index].Opening
 	}
 
 	return openings, nil

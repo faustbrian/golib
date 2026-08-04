@@ -79,6 +79,22 @@ func TestBoundAggregateOpeningRejectsStatementReplayForZeroVector(t *testing.T) 
 	); err != nil {
 		t.Fatalf("verify bound zero vector: %v", err)
 	}
+	referencedProof, err := engine.OpenBoundReferences(
+		context.Background(),
+		binding,
+		[]*AggregateProverQuery{&prover[0]},
+	)
+	if err != nil {
+		t.Fatalf("open referenced bound zero vector: %v", err)
+	}
+	if referencedProof != proof {
+		t.Fatal("referenced bound proof differs from owned-query proof")
+	}
+	if _, err := engine.OpenBoundReferences(
+		context.Background(), binding, []*AggregateProverQuery{nil},
+	); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("nil referenced bound query error = %v", err)
+	}
 	replayed := binding
 	replayed[31] = 1
 	if err := engine.VerifyBound(
