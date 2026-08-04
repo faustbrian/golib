@@ -261,9 +261,9 @@ func (builder *Builder) Build(ctx context.Context, entries []Entry) (Tree, error
 	return buildPrepared(ctx, plan, builder.engine)
 }
 
-// Update constructs a new immutable tree while retaining unchanged
-// commitments when the ordered stem topology is unchanged. Topology-changing
-// updates fall back to a complete deterministic rebuild.
+// Update constructs a new immutable tree while retaining unchanged stem
+// commitments and sparsely updating existing ancestors. New topology nodes are
+// committed in canonical order.
 func (builder *Builder) Update(
 	ctx context.Context,
 	previous Tree,
@@ -291,7 +291,7 @@ func (builder *Builder) Update(
 		return updated, nil
 	}
 
-	return buildPrepared(ctx, plan, builder.engine)
+	return rebuildPrepared(ctx, previous, plan, builder.engine)
 }
 
 type buildPlan struct {
@@ -466,6 +466,276 @@ func buildPrepared(
 	tree.entries = plan.entries
 
 	return tree, nil
+}
+
+func rebuildPrepared(
+	ctx context.Context,
+	previous Tree,
+	plan buildPlan,
+	engine commitmentEngine,
+) (Tree, error) {
+	rebuilder := topologyRebuilder{
+		ctx:      ctx,
+		previous: previous,
+		entries:  plan.entries,
+		groups:   plan.groups,
+		engine:   engine,
+		nodes:    make([]node, 0, int(plan.nodeCount)),
+		edges:    make([]edge, 0, int(plan.edgeCount)),
+	}
+	var prefix [31]byte
+	_, err := rebuilder.commitInternal(0, len(plan.groups), 0, prefix)
+	if err != nil {
+		return Tree{}, err
+	}
+	root := uint32(len(rebuilder.nodes) - 1)
+	tree, err := finalizeTree(
+		rebuilder.nodes,
+		rebuilder.edges,
+		root,
+		plan.nodeCount,
+		plan.edgeCount,
+	)
+	if err != nil {
+		return Tree{}, err
+	}
+	tree.entries = plan.entries
+
+	return tree, nil
+}
+
+type topologyRebuilder struct {
+	ctx      context.Context
+	previous Tree
+	entries  []Entry
+	groups   []stemGroup
+	engine   commitmentEngine
+	nodes    []node
+	edges    []edge
+}
+
+func (rebuilder *topologyRebuilder) commitInternal(
+	start int,
+	end int,
+	depth uint8,
+	prefix [31]byte,
+) (backend.VectorCommitment, error) {
+	if err := checkContext(rebuilder.ctx); err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	oldIndex, oldFound, err := rebuilder.previous.findInternalNode(
+		rebuilder.ctx, prefix, depth,
+	)
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	groupCount := 0
+	for groupStart := start; groupStart < end; {
+		if err := checkContext(rebuilder.ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		groupCount++
+		groupStart = stemGroupEnd(rebuilder.groups, groupStart, depth)
+	}
+	firstEdge := len(rebuilder.edges)
+	rebuilder.edges = append(rebuilder.edges, make([]edge, groupCount)...)
+	edgeIndex := 0
+	var newVector backend.Vector
+	for groupStart := start; groupStart < end; {
+		if err := checkContext(rebuilder.ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		groupEnd := groupStart + 1
+		index := rebuilder.groups[groupStart].stem[depth]
+		for groupEnd < end && rebuilder.groups[groupEnd].stem[depth] == index {
+			groupEnd++
+		}
+		childPrefix := prefix
+		childPrefix[depth] = index
+
+		var child backend.VectorCommitment
+		if groupEnd-groupStart == 1 {
+			child, err = rebuilder.commitStem(rebuilder.groups[groupStart], depth+1)
+		} else {
+			child, err = rebuilder.commitInternal(
+				groupStart, groupEnd, depth+1, childPrefix,
+			)
+		}
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		childIndex := uint32(len(rebuilder.nodes) - 1)
+		rebuilder.edges[firstEdge+edgeIndex] = edge{index: index, child: childIndex}
+		mapped, err := child.ScalarBytes()
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		newVector[index] = mapped
+		edgeIndex++
+		groupStart = groupEnd
+	}
+
+	var committed backend.VectorCommitment
+	if oldFound {
+		oldVector, vectorErr := rebuilder.previous.internalNodeVector(
+			rebuilder.ctx, oldIndex,
+		)
+		if vectorErr != nil {
+			return backend.VectorCommitment{}, vectorErr
+		}
+		committed, err = updateVectorCommitment(
+			rebuilder.ctx,
+			rebuilder.engine,
+			rebuilder.previous.nodes[oldIndex].commitment,
+			oldVector,
+			newVector,
+		)
+	} else {
+		committed, err = rebuilder.engine.Commit(rebuilder.ctx, newVector)
+	}
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	rebuilder.nodes = append(rebuilder.nodes, node{
+		kind:       nodeInternal,
+		depth:      depth,
+		firstEdge:  uint32(firstEdge),
+		edgeCount:  uint16(groupCount),
+		commitment: committed,
+	})
+
+	return committed, nil
+}
+
+func (rebuilder *topologyRebuilder) commitStem(
+	group stemGroup,
+	depth uint8,
+) (backend.VectorCommitment, error) {
+	if err := checkContext(rebuilder.ctx); err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	oldIndex, oldFound, err := rebuilder.previous.findStemNode(
+		rebuilder.ctx, group.stem,
+	)
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	newEntries := rebuilder.entries[group.entryStart:group.entryEnd]
+	var committed node
+	if oldFound {
+		old := rebuilder.previous.nodes[oldIndex]
+		oldStart := int(old.entryStart)
+		oldEnd := oldStart + int(old.entryCount)
+		oldEntries := rebuilder.previous.entries[oldStart:oldEnd]
+		committed = old
+		if !entriesEqual(oldEntries, newEntries) {
+			committed, err = updateStemEntries(
+				rebuilder.ctx, old, oldEntries, newEntries, rebuilder.engine,
+			)
+		}
+	} else {
+		committed, err = commitStemEntries(
+			rebuilder.ctx,
+			newEntries,
+			group.stem,
+			depth,
+			rebuilder.engine,
+		)
+	}
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	committed.depth = depth
+	committed.entryStart = uint32(group.entryStart)
+	committed.entryCount = uint32(group.entryEnd - group.entryStart)
+	rebuilder.nodes = append(rebuilder.nodes, committed)
+
+	return committed.commitment, nil
+}
+
+func (tree Tree) findInternalNode(
+	ctx context.Context,
+	prefix [31]byte,
+	depth uint8,
+) (uint32, bool, error) {
+	current := tree.root
+	for level := uint8(0); level < depth; level++ {
+		if err := checkContext(ctx); err != nil {
+			return 0, false, err
+		}
+		node := tree.nodes[current]
+		if node.kind != nodeInternal || node.depth != level {
+			return 0, false, nil
+		}
+		first := int(node.firstEdge)
+		end := first + int(node.edgeCount)
+		edgeIndex, found := findProofPathChild(tree.edges[first:end], prefix[level])
+		if !found {
+			return 0, false, nil
+		}
+		current = tree.edges[first+edgeIndex].child
+	}
+	currentNode := tree.nodes[current]
+	if currentNode.kind != nodeInternal || currentNode.depth != depth {
+		return 0, false, nil
+	}
+
+	return current, true, nil
+}
+
+func (tree Tree) findStemNode(
+	ctx context.Context,
+	stem [31]byte,
+) (uint32, bool, error) {
+	current := tree.root
+	for {
+		if err := checkContext(ctx); err != nil {
+			return 0, false, err
+		}
+		node := tree.nodes[current]
+		if node.kind != nodeInternal || node.depth > 30 {
+			return 0, false, nil
+		}
+		first := int(node.firstEdge)
+		end := first + int(node.edgeCount)
+		edgeIndex, found := findProofPathChild(tree.edges[first:end], stem[node.depth])
+		if !found {
+			return 0, false, nil
+		}
+		current = tree.edges[first+edgeIndex].child
+		child := tree.nodes[current]
+		switch child.kind {
+		case nodeInternal:
+			continue
+		case nodeStem:
+			return current, child.stem == stem, nil
+		default:
+			return 0, false, nil
+		}
+	}
+}
+
+func (tree Tree) internalNodeVector(
+	ctx context.Context,
+	index uint32,
+) (backend.Vector, error) {
+	current := tree.nodes[index]
+	var vector backend.Vector
+	first := int(current.firstEdge)
+	end := first + int(current.edgeCount)
+	for edgeIndex := first; edgeIndex < end; edgeIndex++ {
+		if err := checkContext(ctx); err != nil {
+			return backend.Vector{}, err
+		}
+		child := tree.edges[edgeIndex]
+		mapped, err := tree.nodes[child.child].commitment.ScalarBytes()
+		if err != nil {
+			return backend.Vector{}, err
+		}
+		vector[child.index] = mapped
+	}
+
+	return vector, nil
 }
 
 func updatePrepared(

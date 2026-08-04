@@ -3,6 +3,7 @@ package committedtree
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
@@ -273,6 +274,205 @@ func TestBuilderUpdateRejectsInvalidSparseStemResult(t *testing.T) {
 	}
 	if _, err := scripted.Update(context.Background(), base, updated); err == nil {
 		t.Fatal("invalid sparse stem result was accepted by its parent")
+	}
+}
+
+func TestTopologyRebuilderPropagatesCommitmentAndTopologyFailures(t *testing.T) {
+	t.Parallel()
+
+	realBuilder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	baseEntries := []Entry{{Key: testKey(1, 0), Value: testValue(1)}}
+	nextEntries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := realBuilder.Build(context.Background(), baseEntries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	plan, err := prepareBuild(context.Background(), nextEntries, testLimits())
+	if err != nil {
+		t.Fatalf("prepare topology change: %v", err)
+	}
+	want := errors.New("topology commitment failed")
+	if _, err := rebuildPrepared(
+		context.Background(),
+		base,
+		plan,
+		&scriptedCommitmentEngine{results: []commitResult{{err: want}}},
+	); !errors.Is(err, want) {
+		t.Fatalf("new stem failure = %v, want %v", err, want)
+	}
+
+	valid := validVectorCommitment(t)
+	if _, err := rebuildPrepared(
+		context.Background(),
+		base,
+		plan,
+		&scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{commitment: valid},
+			{},
+		}},
+	); err == nil {
+		t.Fatal("invalid new stem commitment was accepted")
+	}
+
+	if _, err := rebuildPrepared(
+		context.Background(),
+		base,
+		plan,
+		&scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{commitment: valid},
+			{commitment: valid},
+			{err: want},
+		}},
+	); !errors.Is(err, want) {
+		t.Fatalf("root update failure = %v, want %v", err, want)
+	}
+
+	invalidPlan := plan
+	invalidPlan.nodeCount++
+	if _, err := rebuildPrepared(
+		context.Background(), base, invalidPlan, realBuilder.engine,
+	); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("finalized topology error = %v, want %v", err, errInvalidTree)
+	}
+}
+
+func TestTopologyRebuilderRejectsCorruptRemovedCommitment(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	base.nodes = slices.Clone(base.nodes)
+	base.nodes[1].commitment = backend.VectorCommitment{}
+	if _, err := builder.Update(
+		context.Background(), base, entries[:1],
+	); err == nil {
+		t.Fatal("corrupt removed commitment was accepted")
+	}
+}
+
+func TestTopologyLookupAndRebuildCancellationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	left := testKey(0, 0)
+	right := testKey(0, 0)
+	right[1] = 1
+	entries := []Entry{
+		{Key: left, Value: testValue(1)},
+		{Key: right, Value: testValue(2)},
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	plan, err := prepareBuild(context.Background(), entries[:1], testLimits())
+	if err != nil {
+		t.Fatalf("prepare collapsed tree: %v", err)
+	}
+
+	for cancelAt := 1; cancelAt <= 40; cancelAt++ {
+		_, rebuildErr := rebuildPrepared(
+			&cancelContext{cancelAt: cancelAt}, base, plan, builder.engine,
+		)
+		if rebuildErr != nil && !errors.Is(rebuildErr, context.Canceled) {
+			t.Fatalf("cancel at %d error = %v, want cancellation", cancelAt, rebuildErr)
+		}
+	}
+	rebuilder := topologyRebuilder{
+		ctx:      &cancelContext{cancelAt: 2},
+		previous: base,
+		entries:  plan.entries,
+		groups:   plan.groups,
+		engine:   builder.engine,
+	}
+	if _, err := rebuilder.commitInternal(
+		0, len(plan.groups), 1, [31]byte{},
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("internal lookup propagation = %v, want cancellation", err)
+	}
+
+	var prefix [31]byte
+	if _, _, err := base.findInternalNode(
+		&cancelContext{cancelAt: 1}, prefix, 1,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("internal lookup cancellation = %v", err)
+	}
+	prefix[0] = 0xff
+	if _, found, err := base.findInternalNode(
+		context.Background(), prefix, 1,
+	); err != nil || found {
+		t.Fatalf("missing internal lookup = (%t, %v)", found, err)
+	}
+
+	corruptRoot := base
+	corruptRoot.nodes = slices.Clone(base.nodes)
+	corruptRoot.nodes[corruptRoot.root].kind = nodeStem
+	if _, found, err := corruptRoot.findInternalNode(
+		context.Background(), prefix, 1,
+	); err != nil || found {
+		t.Fatalf("corrupt internal lookup = (%t, %v)", found, err)
+	}
+	if _, found, err := corruptRoot.findStemNode(
+		context.Background(), [31]byte(left[:31]),
+	); err != nil || found {
+		t.Fatalf("corrupt stem lookup = (%t, %v)", found, err)
+	}
+	if _, _, err := base.findStemNode(
+		&cancelContext{cancelAt: 1}, [31]byte(left[:31]),
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("stem lookup cancellation = %v", err)
+	}
+
+	corruptChild := base
+	corruptChild.nodes = slices.Clone(base.nodes)
+	corruptChild.nodes[0].kind = nodeKind(0xff)
+	if _, found, err := corruptChild.findStemNode(
+		context.Background(), [31]byte(left[:31]),
+	); err != nil || found {
+		t.Fatalf("corrupt child lookup = (%t, %v)", found, err)
+	}
+
+	if _, err := base.internalNodeVector(
+		&cancelContext{cancelAt: 1}, base.root,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("internal vector cancellation = %v", err)
+	}
+	invalidVector := base
+	invalidVector.nodes = slices.Clone(base.nodes)
+	root := invalidVector.nodes[invalidVector.root]
+	child := invalidVector.edges[root.firstEdge].child
+	invalidVector.nodes[child].commitment = backend.VectorCommitment{}
+	if _, err := invalidVector.internalNodeVector(
+		context.Background(), invalidVector.root,
+	); err == nil {
+		t.Fatal("invalid internal child commitment was accepted")
 	}
 }
 

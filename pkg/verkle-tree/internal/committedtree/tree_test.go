@@ -257,6 +257,118 @@ func TestBuilderUpdateMatchesRebuildAcrossValueAndTopologyChanges(t *testing.T) 
 	}
 }
 
+func TestBuilderUpdateReusesCommitmentsAcrossTopologyChanges(t *testing.T) {
+	t.Parallel()
+
+	rootStems := make([]Entry, 8)
+	for index := range rootStems {
+		rootStems[index] = Entry{
+			Key:   testKey(byte(index), 0),
+			Value: testValue(byte(index + 1)),
+		}
+	}
+	insertedStem := slices.Clone(rootStems)
+	insertedStem = append(insertedStem, Entry{
+		Key:   testKey(8, 0),
+		Value: testValue(9),
+	})
+	insertedAndUpdated := slices.Clone(insertedStem)
+	insertedAndUpdated[0].Value = testValue(0xf0)
+
+	left := testKey(0, 0)
+	right := testKey(0, 0)
+	right[1] = 1
+	cases := []struct {
+		name        string
+		base        []Entry
+		next        []Entry
+		fullCalls   int
+		updateCalls int
+	}{
+		{
+			name:        "insert stem",
+			base:        rootStems,
+			next:        insertedStem,
+			fullCalls:   3,
+			updateCalls: 1,
+		},
+		{
+			name:        "delete stem",
+			base:        rootStems,
+			next:        slices.Clone(rootStems[:7]),
+			fullCalls:   0,
+			updateCalls: 1,
+		},
+		{
+			name:        "insert stem and update existing value",
+			base:        rootStems,
+			next:        insertedAndUpdated,
+			fullCalls:   3,
+			updateCalls: 3,
+		},
+		{
+			name: "split branch",
+			base: []Entry{{Key: left, Value: testValue(1)}},
+			next: []Entry{
+				{Key: left, Value: testValue(1)},
+				{Key: right, Value: testValue(2)},
+			},
+			fullCalls:   4,
+			updateCalls: 1,
+		},
+		{
+			name: "collapse branch",
+			base: []Entry{
+				{Key: left, Value: testValue(1)},
+				{Key: right, Value: testValue(2)},
+			},
+			next:        []Entry{{Key: left, Value: testValue(1)}},
+			fullCalls:   0,
+			updateCalls: 1,
+		},
+	}
+
+	for _, test := range cases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			engine, err := backend.NewCommitmentEngine(
+				context.Background(), testCommitmentLimits(),
+			)
+			if err != nil {
+				t.Fatalf("new commitment engine: %v", err)
+			}
+			counted := &countingCommitmentEngine{commitmentEngine: engine}
+			builder := &Builder{limits: testLimits(), engine: counted, valid: true}
+			base, err := builder.Build(context.Background(), test.base)
+			if err != nil {
+				t.Fatalf("build base: %v", err)
+			}
+			counted.commitCalls = 0
+			counted.updateCalls = 0
+			updated, err := builder.Update(context.Background(), base, test.next)
+			if err != nil {
+				t.Fatalf("update tree: %v", err)
+			}
+			if counted.commitCalls != test.fullCalls ||
+				counted.updateCalls != test.updateCalls {
+				t.Fatalf(
+					"commitment calls = full %d, sparse %d; want full %d, sparse %d",
+					counted.commitCalls,
+					counted.updateCalls,
+					test.fullCalls,
+					test.updateCalls,
+				)
+			}
+			rebuilt, err := builder.Build(context.Background(), test.next)
+			if err != nil {
+				t.Fatalf("rebuild tree: %v", err)
+			}
+			assertSameRoot(t, updated, rebuilt)
+		})
+	}
+}
+
 type countingCommitmentEngine struct {
 	commitmentEngine
 	commitCalls      int
