@@ -35,6 +35,48 @@ func BenchmarkBuildFourEntries(b *testing.B) {
 	}
 }
 
+func BenchmarkBuilderTopologyPreservingUpdate(b *testing.B) {
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		b.Fatalf("new builder: %v", err)
+	}
+	entries := make([]Entry, 16)
+	for index := range entries {
+		entries[index] = Entry{
+			Key:   testKey(byte(index), 0),
+			Value: testValue(byte(index + 1)),
+		}
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		b.Fatalf("build base tree: %v", err)
+	}
+	updated := make([]Entry, len(entries))
+	copy(updated, entries)
+	updated[len(updated)/2].Value = testValue(0xf0)
+
+	b.Run("full-rebuild", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			benchmarkTree, err = builder.Build(context.Background(), updated)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("incremental", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			benchmarkTree, err = builder.Update(context.Background(), base, updated)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 func BenchmarkProofPath(b *testing.B) {
 	key := testKey(0, 0)
 	other := testKey(0, 1)

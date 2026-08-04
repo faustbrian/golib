@@ -155,6 +155,7 @@ type ResourceError struct {
 
 type treeBuilder interface {
 	Build(context.Context, []committedtree.Entry) (committedtree.Tree, error)
+	Update(context.Context, committedtree.Tree, []committedtree.Entry) (committedtree.Tree, error)
 }
 
 // Error implements error.
@@ -473,7 +474,7 @@ func (snapshot Snapshot) Apply(
 		return Snapshot{}, Transition{}, err
 	}
 
-	committed, err := snapshot.builder.Build(ctx, result)
+	committed, err := snapshot.builder.Update(ctx, snapshot.tree, result)
 	if err != nil {
 		return Snapshot{}, Transition{}, err
 	}

@@ -110,6 +110,157 @@ func TestBuilderReusesImmutableCommitmentEngineConcurrently(t *testing.T) {
 	}
 }
 
+func TestBuilderUpdateRecommitsOnlyChangedExistingStemPath(t *testing.T) {
+	t.Parallel()
+
+	engine, err := backend.NewCommitmentEngine(
+		context.Background(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	counted := &countingCommitmentEngine{commitmentEngine: engine}
+	builder := &Builder{
+		limits: testLimits(),
+		engine: counted,
+		valid:  true,
+	}
+	entries := make([]Entry, 8)
+	for index := range entries {
+		entries[index] = Entry{
+			Key:   testKey(byte(index), 0),
+			Value: testValue(byte(index + 1)),
+		}
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base tree: %v", err)
+	}
+	baseRoot, err := base.Root()
+	if err != nil {
+		t.Fatalf("base root: %v", err)
+	}
+
+	updatedEntries := slices.Clone(entries)
+	updatedEntries[3].Value = testValue(0xf0)
+	counted.calls = 0
+	updated, err := builder.Update(context.Background(), base, updatedEntries)
+	if err != nil {
+		t.Fatalf("incremental update: %v", err)
+	}
+	if counted.calls != 4 {
+		t.Fatalf("incremental commitment calls = %d, want 4", counted.calls)
+	}
+
+	counted.calls = 0
+	rebuilt, err := builder.Build(context.Background(), updatedEntries)
+	if err != nil {
+		t.Fatalf("rebuild updated tree: %v", err)
+	}
+	if counted.calls != 25 {
+		t.Fatalf("full rebuild commitment calls = %d, want 25", counted.calls)
+	}
+	assertSameRoot(t, updated, rebuilt)
+	afterBaseRoot, err := base.Root()
+	if err != nil {
+		t.Fatalf("base root after update: %v", err)
+	}
+	baseBytes, err := baseRoot.Bytes()
+	if err != nil {
+		t.Fatalf("encode base root: %v", err)
+	}
+	afterBaseBytes, err := afterBaseRoot.Bytes()
+	if err != nil {
+		t.Fatalf("encode base root after update: %v", err)
+	}
+	if baseBytes != afterBaseBytes {
+		t.Fatal("incremental update mutated the base tree")
+	}
+}
+
+func TestBuilderUpdateMatchesRebuildAcrossValueAndTopologyChanges(t *testing.T) {
+	t.Parallel()
+
+	baseEntries := []Entry{
+		{Key: testKey(0x10, 0x00), Value: testValue(0x11)},
+		{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+		{Key: testKey(0x20, 0x00), Value: testValue(0x21)},
+	}
+	tests := map[string][]Entry{
+		"replace value": {
+			{Key: testKey(0x10, 0x00), Value: testValue(0xf1)},
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+			{Key: testKey(0x20, 0x00), Value: testValue(0x21)},
+		},
+		"insert into existing stem": {
+			{Key: testKey(0x10, 0x00), Value: testValue(0x11)},
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+			{Key: testKey(0x10, 0x02), Value: testValue(0x13)},
+			{Key: testKey(0x20, 0x00), Value: testValue(0x21)},
+		},
+		"delete while retaining stem": {
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+			{Key: testKey(0x20, 0x00), Value: testValue(0x21)},
+		},
+		"insert new stem": {
+			{Key: testKey(0x10, 0x00), Value: testValue(0x11)},
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+			{Key: testKey(0x20, 0x00), Value: testValue(0x21)},
+			{Key: testKey(0x30, 0x00), Value: testValue(0x31)},
+		},
+		"delete complete stem": {
+			{Key: testKey(0x10, 0x00), Value: testValue(0x11)},
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+		},
+		"replace stem": {
+			{Key: testKey(0x10, 0x00), Value: testValue(0x11)},
+			{Key: testKey(0x10, 0x01), Value: testValue(0x12)},
+			{Key: testKey(0x30, 0x00), Value: testValue(0x31)},
+		},
+	}
+
+	for name, updatedEntries := range tests {
+		updatedEntries := updatedEntries
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			builder, err := NewBuilder(
+				context.Background(), testLimits(), testCommitmentLimits(),
+			)
+			if err != nil {
+				t.Fatalf("new builder: %v", err)
+			}
+			base, err := builder.Build(context.Background(), baseEntries)
+			if err != nil {
+				t.Fatalf("build base: %v", err)
+			}
+			updated, err := builder.Update(context.Background(), base, updatedEntries)
+			if err != nil {
+				t.Fatalf("update tree: %v", err)
+			}
+			rebuilt, err := builder.Build(context.Background(), updatedEntries)
+			if err != nil {
+				t.Fatalf("rebuild tree: %v", err)
+			}
+			assertSameRoot(t, updated, rebuilt)
+		})
+	}
+}
+
+type countingCommitmentEngine struct {
+	commitmentEngine
+	calls int
+}
+
+func (engine *countingCommitmentEngine) Commit(
+	ctx context.Context,
+	vector backend.Vector,
+) (backend.VectorCommitment, error) {
+	engine.calls++
+
+	return engine.commitmentEngine.Commit(ctx, vector)
+}
+
 func TestBuildEmptyTreeRetainsIdentityRoot(t *testing.T) {
 	t.Parallel()
 

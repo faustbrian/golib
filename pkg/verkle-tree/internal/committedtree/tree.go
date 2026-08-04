@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector"
@@ -254,6 +255,39 @@ func (builder *Builder) Build(ctx context.Context, entries []Entry) (Tree, error
 	return buildPrepared(ctx, plan, builder.engine)
 }
 
+// Update constructs a new immutable tree while retaining unchanged
+// commitments when the ordered stem topology is unchanged. Topology-changing
+// updates fall back to a complete deterministic rebuild.
+func (builder *Builder) Update(
+	ctx context.Context,
+	previous Tree,
+	entries []Entry,
+) (Tree, error) {
+	if builder == nil || !builder.valid || builder.engine == nil || builder.limits.validate() != nil {
+		return Tree{}, errInvalidBuilder
+	}
+	if err := previous.validateStorageTree(); err != nil {
+		return Tree{}, err
+	}
+	if err := previous.validateStorageTopology(ctx); err != nil {
+		return Tree{}, err
+	}
+	plan, err := prepareBuild(ctx, entries, builder.limits)
+	if err != nil {
+		return Tree{}, err
+	}
+
+	updated, compatible, err := updatePrepared(ctx, previous, plan, builder.engine)
+	if err != nil {
+		return Tree{}, err
+	}
+	if compatible {
+		return updated, nil
+	}
+
+	return buildPrepared(ctx, plan, builder.engine)
+}
+
 type buildPlan struct {
 	entries   []Entry
 	groups    []stemGroup
@@ -426,6 +460,116 @@ func buildPrepared(
 	tree.entries = plan.entries
 
 	return tree, nil
+}
+
+func updatePrepared(
+	ctx context.Context,
+	previous Tree,
+	plan buildPlan,
+	engine commitmentEngine,
+) (Tree, bool, error) {
+	if entriesEqual(previous.entries, plan.entries) {
+		return previous, true, nil
+	}
+
+	stemNodes := make([]int, 0, len(plan.groups))
+	for index := range previous.nodes {
+		if err := checkContext(ctx); err != nil {
+			return Tree{}, false, err
+		}
+		if previous.nodes[index].kind == nodeStem {
+			stemNodes = append(stemNodes, index)
+		}
+	}
+	if len(stemNodes) != len(plan.groups) {
+		return Tree{}, false, nil
+	}
+	for index := range stemNodes {
+		if previous.nodes[stemNodes[index]].stem != plan.groups[index].stem {
+			return Tree{}, false, nil
+		}
+	}
+
+	nodes := slices.Clone(previous.nodes)
+	changed := make([]bool, len(nodes))
+	for groupIndex, nodeIndex := range stemNodes {
+		if err := checkContext(ctx); err != nil {
+			return Tree{}, false, err
+		}
+		group := plan.groups[groupIndex]
+		current := nodes[nodeIndex]
+		oldStart := uint64(current.entryStart)
+		oldEnd := oldStart + uint64(current.entryCount)
+		current.entryStart = uint32(group.entryStart)
+		current.entryCount = uint32(group.entryEnd - group.entryStart)
+		if !entriesEqual(
+			previous.entries[int(oldStart):int(oldEnd)],
+			plan.entries[group.entryStart:group.entryEnd],
+		) {
+			committed, err := commitStemEntries(
+				ctx,
+				plan.entries[group.entryStart:group.entryEnd],
+				group.stem,
+				current.depth,
+				engine,
+			)
+			if err != nil {
+				return Tree{}, false, err
+			}
+			current.commitment = committed.commitment
+			current.c1 = committed.c1
+			current.c2 = committed.c2
+			changed[nodeIndex] = true
+		}
+		nodes[nodeIndex] = current
+	}
+
+	for nodeIndex := range nodes {
+		if err := checkContext(ctx); err != nil {
+			return Tree{}, false, err
+		}
+		current := nodes[nodeIndex]
+		if current.kind != nodeInternal {
+			continue
+		}
+		first := uint64(current.firstEdge)
+		end := first + uint64(current.edgeCount)
+		affected := false
+		for edgeIndex := first; edgeIndex < end; edgeIndex++ {
+			child := previous.edges[edgeIndex].child
+			affected = affected || changed[child]
+		}
+		if !affected {
+			continue
+		}
+		var vector backend.Vector
+		for edgeIndex := first; edgeIndex < end; edgeIndex++ {
+			child := previous.edges[edgeIndex].child
+			mapped, err := nodes[child].commitment.ScalarBytes()
+			if err != nil {
+				return Tree{}, false, err
+			}
+			vector[previous.edges[edgeIndex].index] = mapped
+		}
+		committed, err := engine.Commit(ctx, vector)
+		if err != nil {
+			return Tree{}, false, err
+		}
+		current.commitment = committed
+		nodes[nodeIndex] = current
+		changed[nodeIndex] = true
+	}
+	return Tree{
+		entries: plan.entries,
+		nodes:   nodes,
+		edges:   previous.edges,
+		root:    previous.root,
+		valid:   true,
+	}, true, nil
+}
+
+func entriesEqual(left []Entry, right []Entry) bool {
+	return slices.Equal(left, right)
 }
 
 func sortEntries(ctx context.Context, entries []Entry) error {
@@ -657,13 +801,37 @@ func (builder *treeBuilder) commitStem(
 	group stemGroup,
 	depth uint8,
 ) (backend.VectorCommitment, error) {
+	committed, err := commitStemEntries(
+		builder.ctx,
+		builder.entries[group.entryStart:group.entryEnd],
+		group.stem,
+		depth,
+		builder.engine,
+	)
+	if err != nil {
+		return backend.VectorCommitment{}, err
+	}
+	committed.entryStart = uint32(group.entryStart)
+	committed.entryCount = uint32(group.entryEnd - group.entryStart)
+	builder.nodes = append(builder.nodes, committed)
+
+	return committed.commitment, nil
+}
+
+func commitStemEntries(
+	ctx context.Context,
+	entries []Entry,
+	stem [31]byte,
+	depth uint8,
+	engine commitmentEngine,
+) (node, error) {
 	var c1 backend.Vector
 	var c2 backend.Vector
-	for index := group.entryStart; index < group.entryEnd; index++ {
-		if err := checkContext(builder.ctx); err != nil {
-			return backend.VectorCommitment{}, err
+	for index := range entries {
+		if err := checkContext(ctx); err != nil {
+			return node{}, err
 		}
-		entry := builder.entries[index]
+		entry := entries[index]
 		opening := leafvector.EncodePresent(entry.Key[31], [32]byte(entry.Value))
 		target := &c1
 		if opening.Half == leafvector.C2 {
@@ -672,44 +840,41 @@ func (builder *treeBuilder) commitStem(
 		target[opening.LowIndex] = [32]byte(opening.Low)
 		target[opening.HighIndex] = [32]byte(opening.High)
 	}
-	c1Commitment, err := builder.engine.Commit(builder.ctx, c1)
+	c1Commitment, err := engine.Commit(ctx, c1)
 	if err != nil {
-		return backend.VectorCommitment{}, err
+		return node{}, err
 	}
-	c2Commitment, err := builder.engine.Commit(builder.ctx, c2)
+	c2Commitment, err := engine.Commit(ctx, c2)
 	if err != nil {
-		return backend.VectorCommitment{}, err
+		return node{}, err
 	}
 	c1Scalar, err := c1Commitment.ScalarBytes()
 	if err != nil {
-		return backend.VectorCommitment{}, err
+		return node{}, err
 	}
 	c2Scalar, err := c2Commitment.ScalarBytes()
 	if err != nil {
-		return backend.VectorCommitment{}, err
+		return node{}, err
 	}
 
 	var vector backend.Vector
 	vector[leafvector.ExtensionMarkerIndex] = [32]byte(leafvector.EncodeExtensionMarker())
-	vector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(group.stem))
+	vector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(stem))
 	vector[leafvector.C1HashIndex] = c1Scalar
 	vector[leafvector.C2HashIndex] = c2Scalar
-	committed, err := builder.engine.Commit(builder.ctx, vector)
+	committed, err := engine.Commit(ctx, vector)
 	if err != nil {
-		return backend.VectorCommitment{}, err
+		return node{}, err
 	}
-	builder.nodes = append(builder.nodes, node{
+
+	return node{
 		kind:       nodeStem,
 		depth:      depth,
-		stem:       group.stem,
-		entryStart: uint32(group.entryStart),
-		entryCount: uint32(group.entryEnd - group.entryStart),
+		stem:       stem,
 		commitment: committed,
 		c1:         c1Commitment,
 		c2:         c2Commitment,
-	})
-
-	return committed, nil
+	}, nil
 }
 
 func checkContext(ctx context.Context) error {

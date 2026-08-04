@@ -882,6 +882,14 @@ func (builder *scriptedTreeBuilder) Build(
 	return builder.tree, builder.err
 }
 
+func (builder *scriptedTreeBuilder) Update(
+	context.Context,
+	committedtree.Tree,
+	[]committedtree.Entry,
+) (committedtree.Tree, error) {
+	return builder.tree, builder.err
+}
+
 type stepContext struct {
 	successfulChecks int
 }

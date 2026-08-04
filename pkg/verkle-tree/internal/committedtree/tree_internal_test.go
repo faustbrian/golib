@@ -55,6 +55,213 @@ func TestBuilderZeroAndCorruptValuesRejectUse(t *testing.T) {
 	if _, err := corrupt.Build(context.Background(), nil); !errors.Is(err, errInvalidBuilder) {
 		t.Fatalf("corrupt limits error = %v, want %v", err, errInvalidBuilder)
 	}
+	if _, err := corrupt.Update(context.Background(), Tree{}, nil); !errors.Is(err, errInvalidBuilder) {
+		t.Fatalf("corrupt update builder error = %v, want %v", err, errInvalidBuilder)
+	}
+}
+
+func TestBuilderUpdateRejectsInvalidTreeAndPreparation(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	if _, err := builder.Update(context.Background(), Tree{}, nil); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("invalid tree error = %v, want %v", err, errInvalidTree)
+	}
+	base, err := builder.Build(
+		context.Background(), []Entry{{Key: testKey(1, 0), Value: testValue(1)}},
+	)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	duplicate := Entry{Key: testKey(2, 0), Value: testValue(2)}
+	if _, err := builder.Update(
+		context.Background(), base, []Entry{duplicate, duplicate},
+	); !errors.Is(err, errDuplicateKey) {
+		t.Fatalf("preparation error = %v, want %v", err, errDuplicateKey)
+	}
+}
+
+func TestBuilderUpdatePropagatesIncrementalCommitmentFailure(t *testing.T) {
+	t.Parallel()
+
+	realBuilder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := realBuilder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	updated := append([]Entry(nil), entries...)
+	updated[0].Value = testValue(3)
+	want := errors.New("incremental commitment failed")
+	failedStem := &Builder{
+		limits: testLimits(),
+		engine: &scriptedCommitmentEngine{results: []commitResult{{err: want}}},
+		valid:  true,
+	}
+	if _, err := failedStem.Update(
+		context.Background(), base, updated,
+	); !errors.Is(err, want) {
+		t.Fatalf("stem failure = %v, want %v", err, want)
+	}
+
+	valid := validVectorCommitment(t)
+	failedParent := &Builder{
+		limits: testLimits(),
+		engine: &scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{commitment: valid},
+			{commitment: valid},
+			{err: want},
+		}},
+		valid: true,
+	}
+	if _, err := failedParent.Update(
+		context.Background(), base, updated,
+	); !errors.Is(err, want) {
+		t.Fatalf("parent failure = %v, want %v", err, want)
+	}
+}
+
+func TestBuilderUpdateCancellationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	updated := append([]Entry(nil), entries...)
+	updated[0].Value = testValue(3)
+	for cancelAt := 1; cancelAt <= 500; cancelAt++ {
+		_, updateErr := builder.Update(
+			&cancelContext{cancelAt: cancelAt}, base, updated,
+		)
+		if updateErr != nil && !errors.Is(updateErr, context.Canceled) {
+			t.Fatalf("cancel at %d error = %v, want cancellation", cancelAt, updateErr)
+		}
+	}
+	plan, err := prepareBuild(context.Background(), updated, testLimits())
+	if err != nil {
+		t.Fatalf("prepare updated tree: %v", err)
+	}
+	valid := validVectorCommitment(t)
+	_, _, err = updatePrepared(
+		&cancelContext{cancelAt: 9},
+		base,
+		plan,
+		&scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{commitment: valid},
+			{commitment: valid},
+		}},
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("internal-node cancellation error = %v, want cancellation", err)
+	}
+}
+
+func TestBuilderUpdateReusesIdenticalTree(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{{Key: testKey(1, 0), Value: testValue(1)}}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	updated, err := builder.Update(context.Background(), base, entries)
+	if err != nil {
+		t.Fatalf("update identical tree: %v", err)
+	}
+	assertSameRoot(t, base, updated)
+}
+
+func TestBuilderUpdateSkipsUnchangedInternalBranch(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	left := testKey(0, 0)
+	left[1] = 1
+	right := testKey(0, 0)
+	right[1] = 2
+	changed := testKey(1, 0)
+	entries := []Entry{
+		{Key: left, Value: testValue(1)},
+		{Key: right, Value: testValue(2)},
+		{Key: changed, Value: testValue(3)},
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	updatedEntries := append([]Entry(nil), entries...)
+	updatedEntries[2].Value = testValue(4)
+	updated, err := builder.Update(context.Background(), base, updatedEntries)
+	if err != nil {
+		t.Fatalf("update tree: %v", err)
+	}
+	rebuilt, err := builder.Build(context.Background(), updatedEntries)
+	if err != nil {
+		t.Fatalf("rebuild tree: %v", err)
+	}
+	assertSameRoot(t, updated, rebuilt)
+}
+
+func TestBuilderUpdateRejectsInvalidUnchangedChildCommitment(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := builder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	base.nodes[0].commitment = backend.VectorCommitment{}
+	updated := append([]Entry(nil), entries...)
+	updated[1].Value = testValue(3)
+	if _, err := builder.Update(context.Background(), base, updated); err == nil {
+		t.Fatal("invalid unchanged child commitment was accepted")
+	}
 }
 
 func TestBuilderPropagatesPreparationFailure(t *testing.T) {
