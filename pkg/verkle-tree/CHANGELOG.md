@@ -12,6 +12,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Rename `ExperimentalBandersnatchIPA256V0` to `BandersnatchIPA256V0` and
   remove `Profile.Experimental`; pre-v1 lifecycle is release metadata rather
   than a cryptographic profile property.
+- Pin the module's initial release plan to `v0.1.0` without changing the
+  repository-wide `v1.0.0` default for modules without an explicit policy.
 
 ### Documentation
 

@@ -52,22 +52,39 @@ tag_prefix="$(jq -r '.tag_prefix' <<<"${entry}")"
     exit 1
 }
 current_version="$(jq -r '.version' <<<"${entry}")"
+initial_version="v1.0.0"
+release_policy="${root}/${module}/release.json"
+if [[ -e "${release_policy}" ]]; then
+    if ! initial_version="$(jq -er '
+        select(type == "object")
+        | select((keys | sort) == ["initial_version", "schema_version"])
+        | select(.schema_version == 1)
+        | .initial_version
+        | select(type == "string")
+        | select(test("^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
+        | select(. != "v0.0.0")
+    ' "${release_policy}")"; then
+        printf 'invalid release policy for %s: %s\n' \
+            "${module}" "${release_policy}" >&2
+        exit 1
+    fi
+fi
 if [[ -z "${release_version}" ]]; then
     if [[ "${current_version}" != "unreleased" ]]; then
         printf 'release version is required after the initial release of %s\n' \
             "${module}" >&2
         exit 1
     fi
-    release_version="v1.0.0"
+    release_version="${initial_version}"
 fi
 if [[ ! "${release_version}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
     printf 'release version must be canonical semantic version: %s\n' \
         "${release_version}" >&2
     exit 2
 fi
-if [[ "${current_version}" == "unreleased" && "${release_version}" != "v1.0.0" ]]; then
-    printf 'initial release must be v1.0.0 for %s, got %s\n' \
-        "${module}" "${release_version}" >&2
+if [[ "${current_version}" == "unreleased" && "${release_version}" != "${initial_version}" ]]; then
+    printf 'initial release must be %s for %s, got %s\n' \
+        "${initial_version}" "${module}" "${release_version}" >&2
     exit 1
 fi
 tag="${tag_prefix}${release_version#v}"

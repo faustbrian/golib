@@ -21480,7 +21480,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`verkle-tree` is intended to become a storage-independent Go library for authenticated key/value trees backed by vector commitments.",
+      "purpose": "`verkle-tree` is a storage-independent Go library for authenticated key/value trees backed by vector commitments.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
