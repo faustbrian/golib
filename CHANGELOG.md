@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Exclude agent-only policy documentation from executable gate fingerprints so
+  policy wording cannot invalidate otherwise identical verification evidence.
 - Reuse mutation checkpoints after history rewrites through explicit
   old-to-current package input mappings instead of repository-wide worktree
   identity, so unrelated concurrent changes cannot restart proven campaigns.

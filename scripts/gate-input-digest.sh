@@ -216,7 +216,6 @@ verification_digest() {
         .github/workflows/ci.yml
         .go-version
         .gitleaks.toml
-        AGENTS.md
         Makefile
         go.mod
         go.sum

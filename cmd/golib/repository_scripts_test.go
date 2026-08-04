@@ -1674,6 +1674,8 @@ go 1.26.5
 `)
 	workspace := filepath.Join(root, "go.work")
 	writeTestFile(t, workspace, "go 1.26.5\n")
+	agentPolicy := filepath.Join(root, "AGENTS.md")
+	writeTestFile(t, agentPolicy, "# Agent policy\n")
 	writeTestFile(
 		t,
 		filepath.Join(root, "pkg", "example", "example.go"),
@@ -1764,6 +1766,27 @@ go 1.26.5
 	fuzzBefore := digest("fuzz")
 	docsBefore := digest("docs")
 	secretsBefore := digest("secrets")
+	writeTestFile(t, agentPolicy, "# Revised agent policy\n")
+	for _, gate := range []struct {
+		name string
+		want string
+	}{
+		{name: "test", want: testBefore},
+		{name: "benchmark", want: benchmarkBefore},
+		{name: "fuzz", want: fuzzBefore},
+		{name: "docs", want: docsBefore},
+		{name: "secrets", want: secretsBefore},
+	} {
+		if current := digest(gate.name); current != gate.want {
+			t.Fatalf(
+				"agent policy changed %s gate inputs: %s != %s",
+				gate.name,
+				current,
+				gate.want,
+			)
+		}
+	}
+	writeTestFile(t, agentPolicy, "# Agent policy\n")
 	writeTestFile(t, workspace, "go 1.26.5\n\nuse ./pkg/unrelated\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(
