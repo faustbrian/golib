@@ -183,6 +183,15 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		err,
 		AggregateProverQueryResourceTemporaryBytes,
 		1,
+		128,
+	)
+	temporary.MaxTemporaryBytes = 128
+	_, err = tree.AggregateProverQueries(context.Background(), []Key{keys[0]}, temporary)
+	assertAggregateProverQueryResourceError(
+		t,
+		err,
+		AggregateProverQueryResourceTemporaryBytes,
+		128,
 		608_384,
 	)
 	duplicate := []Key{keys[0], keys[0]}
@@ -220,6 +229,55 @@ func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	); err != nil {
 		t.Fatalf("exact resource limit: %v", err)
 	}
+}
+
+func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
+	t.Parallel()
+
+	const keyCount = 64
+	entries := make([]Entry, keyCount)
+	keys := make([]Key, keyCount)
+	for index := range entries {
+		keys[index] = testKey(0, byte(index))
+		entries[index] = Entry{Key: keys[index], Value: testValue(byte(index + 1))}
+	}
+	buildLimits := testLimits()
+	buildLimits.MaxEntries = keyCount
+	tree, err := Build(
+		context.Background(),
+		entries,
+		buildLimits,
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build shared-stem tree: %v", err)
+	}
+
+	const queryCapacity = uint64(31 + 2 + 1 + 2*keyCount)
+	temporaryBytes := uint64(keyCount)*2*aggregateQueryKeyWorkingBytes +
+		queryCapacity*2*aggregateQueryResultWorkingBytes()
+	limits := testAggregateProverQueryLimits()
+	limits.MaxTemporaryBytes = temporaryBytes
+	queries, err := tree.AggregateProverQueries(context.Background(), keys, limits)
+	if err != nil {
+		t.Fatalf("derive shared-stem queries: %v", err)
+	}
+	if len(queries) >= int(queryCapacity) {
+		t.Fatalf("query count = %d, capacity bound %d", len(queries), queryCapacity)
+	}
+	if cap(queries) != int(queryCapacity) {
+		t.Fatalf("query capacity = %d, want %d", cap(queries), queryCapacity)
+	}
+
+	limits.MaxTemporaryBytes--
+	_, err = tree.AggregateProverQueries(context.Background(), keys, limits)
+	assertAggregateProverQueryResourceError(
+		t,
+		err,
+		AggregateProverQueryResourceTemporaryBytes,
+		temporaryBytes-1,
+		temporaryBytes,
+	)
 }
 
 func TestAggregateProverQueriesPreserveCancellation(t *testing.T) {
@@ -300,7 +358,7 @@ func TestAggregateProverQueriesTraverseInternalAndDifferentStems(t *testing.T) {
 	}
 	if _, err := deepTree.AggregateProverQueries(
 		context.Background(),
-		[]Key{deepLeft},
+		[]Key{deepLeft, deepRight},
 		testAggregateProverQueryLimits(),
 	); err != nil {
 		t.Fatalf("depth-31 stem traversal: %v", err)

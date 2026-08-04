@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	maxAggregateProverQueries       = uint32(65_536)
-	aggregateQueriesPerKey          = uint64(36)
-	aggregateQueryKeyWorkingBytes   = uint64(64)
-	aggregateQueryResultWorkingByte = uint64(backend.VectorWidth*32 + 256)
+	maxAggregateProverQueries         = uint32(65_536)
+	aggregateInternalQueriesFirstStem = uint64(31)
+	aggregateQueriesPerStem           = uint64(2)
+	aggregateQueriesPerStemHalf       = uint64(1)
+	aggregateQueriesPerKey            = uint64(2)
+	aggregateQueryKeyWorkingBytes     = uint64(64)
 )
 
 var (
@@ -151,16 +153,11 @@ func (tree Tree) AggregateProverQueries(
 	); err != nil {
 		return nil, err
 	}
-	capacity := min(
-		uint64(limits.MaxQueries),
-		uint64(len(keys))*aggregateQueriesPerKey,
-	)
-	temporaryBytes := uint64(len(keys))*2*aggregateQueryKeyWorkingBytes +
-		capacity*2*aggregateQueryResultWorkingByte
+	keyTemporaryBytes := uint64(len(keys)) * 2 * aggregateQueryKeyWorkingBytes
 	if err := checkAggregateProverQueryResource(
 		AggregateProverQueryResourceTemporaryBytes,
 		limits.MaxTemporaryBytes,
-		temporaryBytes,
+		keyTemporaryBytes,
 	); err != nil {
 		return nil, err
 	}
@@ -169,6 +166,13 @@ func (tree Tree) AggregateProverQueries(
 	if err := sortAggregateQueryKeys(ctx, ordered); err != nil {
 		return nil, err
 	}
+	// An internal opening is identified by the selected prefix through its
+	// next byte. The first stem can therefore visit 31 distinct internal
+	// openings and every later sorted stem adds one opening after each byte
+	// beyond its common prefix. A reached stem adds two metadata openings,
+	// each distinct half adds one child-commitment opening, and every key adds
+	// two suffix-field openings. Traversals that terminate early use less.
+	var capacity uint64
 	for index := range ordered {
 		if err := checkContext(ctx); err != nil {
 			return nil, err
@@ -176,6 +180,34 @@ func (tree Tree) AggregateProverQueries(
 		if index > 0 && ordered[index-1] == ordered[index] {
 			return nil, errDuplicateKey
 		}
+		sameStem := index > 0 && bytes.Equal(ordered[index-1][:31], ordered[index][:31])
+		if !sameStem {
+			capacity += aggregateQueriesPerStem
+			if index == 0 {
+				capacity += aggregateInternalQueriesFirstStem
+			} else {
+				commonPrefix := 0
+				for commonPrefix < 31 &&
+					ordered[index-1][commonPrefix] == ordered[index][commonPrefix] {
+					commonPrefix++
+				}
+				capacity += uint64(31 - commonPrefix)
+			}
+		}
+		if !sameStem || ordered[index-1][31]/128 != ordered[index][31]/128 {
+			capacity += aggregateQueriesPerStemHalf
+		}
+		capacity += aggregateQueriesPerKey
+	}
+	capacity = min(uint64(limits.MaxQueries), capacity)
+	temporaryBytes := keyTemporaryBytes +
+		capacity*2*aggregateQueryResultWorkingBytes()
+	if err := checkAggregateProverQueryResource(
+		AggregateProverQueryResourceTemporaryBytes,
+		limits.MaxTemporaryBytes,
+		temporaryBytes,
+	); err != nil {
+		return nil, err
 	}
 
 	collector := aggregateQueryCollector{
@@ -200,6 +232,10 @@ func (tree Tree) AggregateProverQueries(
 	}
 
 	return queries, nil
+}
+
+func aggregateQueryResultWorkingBytes() uint64 {
+	return uint64(backend.VectorWidth*32 + 256)
 }
 
 type aggregateQueryCollector struct {
