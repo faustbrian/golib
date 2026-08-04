@@ -1029,7 +1029,7 @@ func TestMatchAggregateQueriesRejectsDivergence(t *testing.T) {
 		Path:   [32]byte{9},
 		Opening: backend.AggregateProverQuery{
 			Commitment: commitment,
-			Vector:     vector,
+			Vector:     &vector,
 			Index:      7,
 		},
 	}}
@@ -1080,6 +1080,8 @@ func TestMatchAggregateQueriesRejectsDivergence(t *testing.T) {
 	}
 	for index, mutate := range mutations {
 		changedProver := append([]committedtree.AggregateProverQuery(nil), prover...)
+		changedVector := *changedProver[0].Opening.Vector
+		changedProver[0].Opening.Vector = &changedVector
 		changedVerifier := append([]AggregateVerifierQuery(nil), verifier...)
 		mutate(changedProver, changedVerifier)
 		if _, err := matchAggregateQueries(

@@ -103,7 +103,8 @@ func (err *AggregateProverQueryResourceError) Unwrap() error {
 }
 
 // AggregateProverQuery binds one canonical tree path to one complete vector
-// opening. Path is empty for the root and Opening owns its vector by value.
+// opening. Path is empty for the root. The returned query set owns every
+// immutable vector referenced by Opening.
 type AggregateProverQuery struct {
 	Path    [32]byte
 	Length  uint8
@@ -122,7 +123,7 @@ type aggregateQueryIdentity struct {
 
 type aggregateQueryVector struct {
 	commitment backend.VectorCommitment
-	vector     backend.Vector
+	vector     *backend.Vector
 	nodeIndex  uint32
 }
 
@@ -246,6 +247,7 @@ type aggregateQueryCollector struct {
 	queries    []AggregateProverQuery
 	queryByID  map[aggregateQueryIdentity]int
 	vectorByID map[aggregateQueryPath]aggregateQueryVector
+	zeroVector *backend.Vector
 	nodeReads  uint64
 }
 
@@ -356,7 +358,7 @@ func (collector *aggregateQueryCollector) internalVector(
 	if end > uint64(len(collector.tree.edges)) {
 		return aggregateQueryVector{}, errInvalidTree
 	}
-	var vector backend.Vector
+	vector := new(backend.Vector)
 	var previous byte
 	for offset := first; offset < end; offset++ {
 		if err := checkContext(collector.ctx); err != nil {
@@ -398,6 +400,19 @@ func (collector *aggregateQueryCollector) stemVectors(
 	nodeIndex uint32,
 	node node,
 ) (aggregateQueryVector, aggregateQueryVector, aggregateQueryVector, error) {
+	c1Path := aggregateStemHalfPath(path, leafvector.C1HashIndex)
+	c2Path := aggregateStemHalfPath(path, leafvector.C2HashIndex)
+	if stem, ok := collector.vectorByID[path]; ok {
+		c1, c1OK := collector.vectorByID[c1Path]
+		c2, c2OK := collector.vectorByID[c2Path]
+		if stem.nodeIndex != nodeIndex ||
+			!c1OK || c1.nodeIndex != nodeIndex ||
+			!c2OK || c2.nodeIndex != nodeIndex {
+			return aggregateQueryVector{}, aggregateQueryVector{}, aggregateQueryVector{}, errInvalidTree
+		}
+
+		return stem, c1, c2, nil
+	}
 	if err := collector.readNodes(1); err != nil {
 		return aggregateQueryVector{}, aggregateQueryVector{}, aggregateQueryVector{}, err
 	}
@@ -406,8 +421,8 @@ func (collector *aggregateQueryCollector) stemVectors(
 	if node.entryCount == 0 || end > uint64(len(collector.tree.entries)) {
 		return aggregateQueryVector{}, aggregateQueryVector{}, aggregateQueryVector{}, errInvalidTree
 	}
-	var c1Vector backend.Vector
-	var c2Vector backend.Vector
+	var c1Vector *backend.Vector
+	var c2Vector *backend.Vector
 	for index := start; index < end; index++ {
 		if err := checkContext(collector.ctx); err != nil {
 			return aggregateQueryVector{}, aggregateQueryVector{}, aggregateQueryVector{}, err
@@ -421,8 +436,17 @@ func (collector *aggregateQueryCollector) stemVectors(
 		if opening.Half == leafvector.C2 {
 			target = &c2Vector
 		}
-		target[opening.LowIndex] = [32]byte(opening.Low)
-		target[opening.HighIndex] = [32]byte(opening.High)
+		if *target == nil {
+			*target = new(backend.Vector)
+		}
+		(*target)[opening.LowIndex] = [32]byte(opening.Low)
+		(*target)[opening.HighIndex] = [32]byte(opening.High)
+	}
+	if c1Vector == nil {
+		c1Vector = collector.emptyAggregateQueryVector()
+	}
+	if c2Vector == nil {
+		c2Vector = collector.emptyAggregateQueryVector()
 	}
 	c1Scalar, err := node.c1.ScalarBytes()
 	if err != nil {
@@ -432,7 +456,7 @@ func (collector *aggregateQueryCollector) stemVectors(
 	if err != nil {
 		return aggregateQueryVector{}, aggregateQueryVector{}, aggregateQueryVector{}, errInvalidTree
 	}
-	var stemVector backend.Vector
+	stemVector := new(backend.Vector)
 	stemVector[leafvector.ExtensionMarkerIndex] = [32]byte(leafvector.EncodeExtensionMarker())
 	stemVector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(node.stem))
 	stemVector[leafvector.C1HashIndex] = c1Scalar
@@ -441,8 +465,25 @@ func (collector *aggregateQueryCollector) stemVectors(
 	collector.vectorByID[path] = stem
 	c1 := aggregateQueryVector{commitment: node.c1, vector: c1Vector, nodeIndex: nodeIndex}
 	c2 := aggregateQueryVector{commitment: node.c2, vector: c2Vector, nodeIndex: nodeIndex}
+	collector.vectorByID[c1Path] = c1
+	collector.vectorByID[c2Path] = c2
 
 	return stem, c1, c2, nil
+}
+
+func aggregateStemHalfPath(path aggregateQueryPath, halfIndex uint8) aggregateQueryPath {
+	path.path[path.length] = halfIndex
+	path.length++
+
+	return path
+}
+
+func (collector *aggregateQueryCollector) emptyAggregateQueryVector() *backend.Vector {
+	if collector.zeroVector == nil {
+		collector.zeroVector = new(backend.Vector)
+	}
+
+	return collector.zeroVector
 }
 
 func (collector *aggregateQueryCollector) findChild(
@@ -475,6 +516,9 @@ func (collector *aggregateQueryCollector) append(
 	if err := checkContext(collector.ctx); err != nil {
 		return err
 	}
+	if vector.vector == nil {
+		return errInvalidTree
+	}
 	incomingCommitment, incomingErr := vector.commitment.DeduplicationKey()
 	if incomingErr != nil {
 		return errInvalidTree
@@ -485,7 +529,8 @@ func (collector *aggregateQueryCollector) append(
 		existingCommitment, existingErr := existing.Commitment.DeduplicationKey()
 		if existingErr != nil ||
 			existingCommitment != incomingCommitment ||
-			existing.Vector != vector.vector {
+			existing.Vector == nil ||
+			*existing.Vector != *vector.vector {
 			return errInvalidTree
 		}
 		return nil
@@ -706,6 +751,9 @@ func consolidateAggregateProverQueries(
 		if err := checkContext(ctx); err != nil {
 			return nil, err
 		}
+		if queries[index].Opening.Vector == nil {
+			return nil, errInvalidAggregateProverQuery
+		}
 		key, err := queries[index].Opening.Commitment.DeduplicationKey()
 		if err != nil {
 			return nil, errInvalidAggregateProverQuery
@@ -715,7 +763,8 @@ func consolidateAggregateProverQueries(
 			index:      queries[index].Opening.Index,
 		}
 		if existing, duplicate := seen[identity]; duplicate {
-			if retained[existing].Opening.Vector != queries[index].Opening.Vector {
+			if retained[existing].Opening.Vector == nil ||
+				*retained[existing].Opening.Vector != *queries[index].Opening.Vector {
 				return nil, errInvalidAggregateProverQuery
 			}
 			continue

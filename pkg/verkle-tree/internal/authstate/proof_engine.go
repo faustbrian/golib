@@ -541,6 +541,7 @@ func matchAggregateQueries(
 			prover[index].Length != verifier[index].Length ||
 			prover[index].Opening.Index != verifier[index].Opening.Index ||
 			proverKey != verifierKey ||
+			prover[index].Opening.Vector == nil ||
 			prover[index].Opening.Vector[prover[index].Opening.Index] !=
 				verifier[index].Opening.Value {
 			return nil, errProofGeneration

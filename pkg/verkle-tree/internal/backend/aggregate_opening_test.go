@@ -61,8 +61,10 @@ func TestBoundAggregateOpeningRejectsStatementReplayForZeroVector(t *testing.T) 
 	t.Parallel()
 
 	engine := newTestAggregateOpeningEngine(t)
+	zeroVector := new(Vector)
 	prover := []AggregateProverQuery{{
 		Commitment: EmptyVectorCommitment(),
+		Vector:     zeroVector,
 		Index:      0x10,
 	}}
 	verifier := []AggregateVerifierQuery{{
@@ -499,13 +501,13 @@ func TestAggregateOpeningSupportsOneAuthenticatedZeroOpening(t *testing.T) {
 	t.Parallel()
 
 	engine := newTestAggregateOpeningEngine(t)
-	prover := []AggregateProverQuery{{Index: 1}}
-	setVectorUint64(&prover[0].Vector, 0, 1)
-	setVectorUint64(&prover[0].Vector, 2, 2)
+	prover := []AggregateProverQuery{{Vector: new(Vector), Index: 1}}
+	setVectorUint64(prover[0].Vector, 0, 1)
+	setVectorUint64(prover[0].Vector, 2, 2)
 	verifier := []AggregateVerifierQuery{{Index: 1}}
 	commitAggregateOpeningCorpus(t, prover, verifier)
 	polynomial := make([]fr.Element, VectorWidth)
-	for index := range prover[0].Vector {
+	for index := range *prover[0].Vector {
 		decoded, decodeErr := decodeScalar(prover[0].Vector[index][:])
 		if decodeErr != nil {
 			t.Fatalf("decode polynomial scalar %d: %v", index, decodeErr)
@@ -562,6 +564,11 @@ func TestAggregateOpeningOperationsRejectMalformedQueries(t *testing.T) {
 	if _, err := engine.Open(context.Background(), invalidCommitment); !errors.Is(err, errInvalidAggregateOpeningQuery) {
 		t.Fatalf("invalid prover commitment error = %v", err)
 	}
+	missingVector := append([]AggregateProverQuery(nil), prover...)
+	missingVector[0].Vector = nil
+	if _, err := engine.Open(context.Background(), missingVector); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("missing prover vector error = %v", err)
+	}
 	invalidVerifier := append([]AggregateVerifierQuery(nil), verifier...)
 	invalidVerifier[0].Commitment = VectorCommitment{}
 	if err := engine.Verify(context.Background(), proof, invalidVerifier); !errors.Is(err, errInvalidAggregateOpeningQuery) {
@@ -576,6 +583,8 @@ func TestAggregateOpeningOperationsRejectMalformedQueries(t *testing.T) {
 		t.Fatalf("duplicate verifier error = %v", err)
 	}
 	nonCanonicalProver := append([]AggregateProverQuery(nil), prover...)
+	nonCanonicalVector := *nonCanonicalProver[0].Vector
+	nonCanonicalProver[0].Vector = &nonCanonicalVector
 	nonCanonicalProver[0].Vector[0] = scalarModulusBytes(t)
 	if _, err := engine.Open(context.Background(), nonCanonicalProver); !errors.Is(err, errInvalidAggregateOpeningQuery) {
 		t.Fatalf("non-canonical prover scalar error = %v", err)
@@ -631,6 +640,8 @@ func TestAggregateOpeningReusesCommittedVectorPreparation(t *testing.T) {
 	}
 
 	mismatch := append([]AggregateProverQuery(nil), prover...)
+	mismatchVector := *mismatch[1].Vector
+	mismatch[1].Vector = &mismatchVector
 	mismatch[1].Vector[0][0]++
 	if _, err := engine.Open(context.Background(), mismatch); !errors.Is(err, errInvalidAggregateOpeningQuery) {
 		t.Fatalf("repeated commitment vector mismatch error = %v", err)
@@ -858,7 +869,7 @@ func commitAggregateOpeningCorpus(
 	for index := range prover {
 		commitment, commitErr := commitmentEngine.Commit(
 			context.Background(),
-			prover[index].Vector,
+			*prover[index].Vector,
 		)
 		if commitErr != nil {
 			t.Fatalf("commit query %d: %v", index, commitErr)
@@ -932,6 +943,7 @@ func aggregateOpeningCorpus() ([]AggregateProverQuery, []AggregateVerifierQuery)
 	verifier := make([]AggregateVerifierQuery, 3)
 	points := [...]uint8{3, 3, 200}
 	for vectorIndex := range prover {
+		prover[vectorIndex].Vector = new(Vector)
 		for index := 0; index < VectorWidth; index++ {
 			value := uint64(index + 1)
 			switch vectorIndex {
@@ -940,7 +952,7 @@ func aggregateOpeningCorpus() ([]AggregateProverQuery, []AggregateVerifierQuery)
 			case 2:
 				value = 3*uint64(index) + 7
 			}
-			setVectorUint64(&prover[vectorIndex].Vector, index, value)
+			setVectorUint64(prover[vectorIndex].Vector, index, value)
 		}
 		prover[vectorIndex].Index = points[vectorIndex]
 		verifier[vectorIndex].Index = points[vectorIndex]

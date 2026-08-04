@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector"
 )
 
 func TestAggregateProverQueriesAreCanonicalAndComplete(t *testing.T) {
@@ -78,6 +79,22 @@ func TestAggregateProverQueriesAreCanonicalAndComplete(t *testing.T) {
 			t.Fatalf("query %d unexpectedly opens zero", index)
 		}
 	}
+	rootVector := aggregateProverQueryVector(&queries[0])
+	if aggregateProverQueryVector(&queries[1]) != rootVector ||
+		aggregateProverQueryVector(&queries[2]) != rootVector {
+		t.Fatal("openings for one committed vector do not share immutable storage")
+	}
+	if aggregateProverQueryVector(&queries[3]) == rootVector {
+		t.Fatal("openings for distinct committed vectors share storage")
+	}
+	if aggregateProverQueryVector(&queries[6]) !=
+		aggregateProverQueryVector(&queries[8]) {
+		t.Fatal("separate keys in one stem half do not share vector storage")
+	}
+}
+
+func aggregateProverQueryVector(query *AggregateProverQuery) *backend.Vector {
+	return query.Opening.Vector
 }
 
 func TestAggregateProverQueriesRejectInvalidInputsAndResources(t *testing.T) {
@@ -500,12 +517,48 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	stemIndex := tree.edges[root.firstEdge].child
 	stem := tree.nodes[stemIndex]
 	stem.depth = 0
-	if _, _, _, err := collector.stemVectors(
+	stemCollector := newAggregateQueryTestCollector(&tree)
+	if _, _, _, err := stemCollector.stemVectors(
 		aggregateQueryPath{},
 		stemIndex,
 		stem,
 	); err != nil {
 		t.Fatalf("direct stem vectors: %v", err)
+	}
+	stemPath := aggregateQueryPath{}
+	c1Path := aggregateStemHalfPath(stemPath, leafvector.C1HashIndex)
+	c2Path := aggregateStemHalfPath(stemPath, leafvector.C2HashIndex)
+	cachedStem := stemCollector.vectorByID[stemPath]
+	cachedC1 := stemCollector.vectorByID[c1Path]
+	cachedC2 := stemCollector.vectorByID[c2Path]
+	cacheCorruptions := map[string]func(map[aggregateQueryPath]aggregateQueryVector){
+		"stem node": func(cache map[aggregateQueryPath]aggregateQueryVector) {
+			corrupt := cache[stemPath]
+			corrupt.nodeIndex++
+			cache[stemPath] = corrupt
+		},
+		"c1 node": func(cache map[aggregateQueryPath]aggregateQueryVector) {
+			corrupt := cache[c1Path]
+			corrupt.nodeIndex++
+			cache[c1Path] = corrupt
+		},
+		"missing c2": func(cache map[aggregateQueryPath]aggregateQueryVector) {
+			delete(cache, c2Path)
+		},
+	}
+	for name, corrupt := range cacheCorruptions {
+		cachedCollector := newAggregateQueryTestCollector(&tree)
+		cachedCollector.vectorByID[stemPath] = cachedStem
+		cachedCollector.vectorByID[c1Path] = cachedC1
+		cachedCollector.vectorByID[c2Path] = cachedC2
+		corrupt(cachedCollector.vectorByID)
+		if _, _, _, err := cachedCollector.stemVectors(
+			stemPath,
+			stemIndex,
+			stem,
+		); !errors.Is(err, errInvalidTree) {
+			t.Fatalf("%s cached stem vectors error = %v", name, err)
+		}
 	}
 	if err := collector.collectStem(testKey(0, 0), stemIndex, stem); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("invalid stem depth error = %v", err)
@@ -528,6 +581,7 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	badRangeCollector := newAggregateQueryTestCollector(&badRangeTree)
 	badRangeCollector.vectorByID[path] = aggregateQueryVector{
 		commitment: root.commitment,
+		vector:     new(backend.Vector),
 		nodeIndex:  badRangeTree.root,
 	}
 	if err := badRangeCollector.collect(testKey(0, 0)); !errors.Is(err, errInvalidTree) {
@@ -556,7 +610,17 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 		t.Fatal("initial stem-vector node budget was accepted")
 	}
 
-	vector := aggregateQueryVector{commitment: root.commitment}
+	if err := collector.append(
+		path,
+		aggregateQueryVector{commitment: root.commitment},
+		9,
+	); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("missing query vector error = %v", err)
+	}
+	vector := aggregateQueryVector{
+		commitment: root.commitment,
+		vector:     new(backend.Vector),
+	}
 	if err := collector.append(path, vector, 9); err != nil {
 		t.Fatalf("append first query: %v", err)
 	}
@@ -582,8 +646,11 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	if err := corruptExisting.append(path, vector, 9); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("corrupt existing commitment error = %v", err)
 	}
-	vector.vector[0][0] = 1
-	if err := collector.append(path, vector, 9); !errors.Is(err, errInvalidTree) {
+	conflictingVector := *vector.vector
+	conflictingVector[0][0] = 1
+	conflicting := vector
+	conflicting.vector = &conflictingVector
+	if err := collector.append(path, conflicting, 9); !errors.Is(err, errInvalidTree) {
 		t.Fatalf("conflicting path query error = %v", err)
 	}
 
@@ -591,8 +658,13 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	if err := sortAggregateProverQueries(missingContext, nil); !errors.Is(err, errInvalidContext) {
 		t.Fatalf("singleton sort context error = %v", err)
 	}
+	validVector := new(backend.Vector)
 	valid := AggregateProverQuery{
-		Opening: backend.AggregateProverQuery{Commitment: root.commitment, Index: 7},
+		Opening: backend.AggregateProverQuery{
+			Commitment: root.commitment,
+			Vector:     validVector,
+			Index:      7,
+		},
 	}
 	if _, err := consolidateAggregateProverQueries(
 		missingContext,
@@ -608,7 +680,17 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	); !errors.Is(err, errInvalidAggregateProverQuery) {
 		t.Fatalf("invalid consolidation commitment error = %v", err)
 	}
+	missingVector := valid
+	missingVector.Opening.Vector = nil
+	if _, err := consolidateAggregateProverQueries(
+		context.Background(),
+		[]AggregateProverQuery{missingVector},
+	); !errors.Is(err, errInvalidAggregateProverQuery) {
+		t.Fatalf("missing consolidation vector error = %v", err)
+	}
+	conflictVector := *valid.Opening.Vector
 	conflict := valid
+	conflict.Opening.Vector = &conflictVector
 	conflict.Opening.Vector[0][0] = 1
 	if _, err := consolidateAggregateProverQueries(
 		context.Background(),
@@ -682,15 +764,18 @@ func TestAggregateQuerySortHelpers(t *testing.T) {
 	if queryPair[0].Path[0] != 0 || queryPair[1].Path[0] != 1 {
 		t.Fatalf("sorted query pair = (%d, %d)", queryPair[0].Path[0], queryPair[1].Path[0])
 	}
+	stableLeftVector := &backend.Vector{{1}}
 	stableLeft := AggregateProverQuery{
 		Path:   [32]byte{1},
 		Length: 1,
 		Opening: backend.AggregateProverQuery{
 			Index:  2,
-			Vector: backend.Vector{{1}},
+			Vector: stableLeftVector,
 		},
 	}
 	stableRight := stableLeft
+	stableRightVector := *stableLeft.Opening.Vector
+	stableRight.Opening.Vector = &stableRightVector
 	stableRight.Opening.Vector[0][0] = 2
 	stable := []AggregateProverQuery{stableLeft, stableRight}
 	if err := sortAggregateProverQueries(context.Background(), stable); err != nil {

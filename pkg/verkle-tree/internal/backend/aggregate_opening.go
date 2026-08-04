@@ -121,11 +121,13 @@ func (err *AggregateOpeningResourceError) Unwrap() error {
 	return errAggregateOpeningResource
 }
 
-// AggregateProverQuery binds one committed vector to one in-domain opening.
-// The engine rejects a vector whose commitment does not match Commitment.
+// AggregateProverQuery binds one caller-owned committed vector to one
+// in-domain opening. The engine consumes Vector synchronously without retaining
+// it; callers must keep it immutable until the operation returns. The engine
+// rejects a vector whose commitment does not match Commitment.
 type AggregateProverQuery struct {
 	Commitment VectorCommitment
-	Vector     Vector
+	Vector     *Vector
 	Index      uint8
 }
 
@@ -330,7 +332,7 @@ func (engine *AggregateOpeningEngine) open(
 		return OpeningProof{}, err
 	}
 	for queryIndex := range queries {
-		if queries[queryIndex] == nil {
+		if queries[queryIndex] == nil || queries[queryIndex].Vector == nil {
 			return OpeningProof{}, fmt.Errorf(
 				"%w: query %d",
 				errInvalidAggregateOpeningQuery,
@@ -379,7 +381,7 @@ func (engine *AggregateOpeningEngine) open(
 
 		if preparedIndex, exists := preparedIndexes[identity.commitment]; exists {
 			existing := &preparedVectors[preparedIndex]
-			if *existing.vector != query.Vector {
+			if *existing.vector != *query.Vector {
 				return OpeningProof{}, fmt.Errorf(
 					"%w: commitment vector mismatch",
 					errInvalidAggregateOpeningQuery,
@@ -394,7 +396,7 @@ func (engine *AggregateOpeningEngine) open(
 		}
 
 		polynomial := make([]fr.Element, VectorWidth)
-		for scalarIndex := range query.Vector {
+		for scalarIndex := range *query.Vector {
 			if err := checkAggregateOpeningContext(ctx); err != nil {
 				return OpeningProof{}, err
 			}
@@ -415,7 +417,7 @@ func (engine *AggregateOpeningEngine) open(
 		}
 		preparedIndex := len(preparedVectors)
 		preparedVectors = append(preparedVectors, preparedAggregateProverVector{
-			vector:     &query.Vector,
+			vector:     query.Vector,
 			commitment: computed,
 			polynomial: polynomial,
 		})
@@ -572,7 +574,7 @@ func (engine *AggregateOpeningEngine) bindingProverQuery() AggregateProverQuery 
 
 	return AggregateProverQuery{
 		Commitment: engine.bindingCommitment,
-		Vector:     vector,
+		Vector:     &vector,
 		Index:      0,
 	}
 }
@@ -599,7 +601,7 @@ func (engine *AggregateOpeningEngine) hasBindingProverQuery(
 			continue
 		}
 		if aggregateOpeningIdentity(query.Commitment, query.Index) == anchorIdentity &&
-			query.Vector == anchor.Vector {
+			*query.Vector == *anchor.Vector {
 			return true
 		}
 	}
