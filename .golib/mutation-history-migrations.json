@@ -1185,10 +1185,11 @@
     {
       "module": "pkg/http-client",
       "package": ".",
-      "execution_revision": "e569424ad5c4622334dc7e6b2ce905b17ce886a6",
-      "gate_input_digest": "41eb67b933cd985528a691383487df1450ab6e8536683542c74ad82f54ab4d29",
+      "execution_revision": "bae308431eb44a7061a14c37156df6620f51df7f",
+      "gate_input_digest": "be6d11e6dc504fdbe5c59ee3a1381af0ec6af0f4df201d37c13aedd26b59658f",
+      "replacement_gate_input_digest": "e842faa83cb8d950cefedb356afc845c3147dfbf93ef1032b9bb90a8374d5854",
       "gremlins_version": "v0.6.0",
-      "report_sha256": "aaaaaea0089339d0ee898deda48ebffed60a6e5e00670467a11758655d5c4e13"
+      "report_sha256": "84659e907065fa63395aee5bc609e9fccf8f832db3524f6ac1f7cbd76d3346de"
     },
     {
       "module": "pkg/http-middleware",

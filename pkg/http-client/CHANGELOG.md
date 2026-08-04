@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Mark the deliberate nil-context boundary assertion explicitly so strict
+  static analysis does not reject the defensive contract test.
 - Keep conditional revalidation header filtering deterministic regardless of
   validation-header map iteration order.
 - Reject persisted fixtures whose expiry precedes their recording time during

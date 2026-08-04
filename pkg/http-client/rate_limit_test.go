@@ -333,7 +333,8 @@ func TestRateLimitExactConfigurationAndAdmissionBoundaries(t *testing.T) {
 	if rateLimitReservationRejected(context.Background(), time.Second, time.Second) {
 		t.Fatal("exact maximum reservation was rejected")
 	}
-	if !rateLimitReservationRejected(nil, 0, 0) {
+	//lint:ignore SA1012 This assertion verifies the nil-context contract.
+	if !rateLimitReservationRejected(nil, 0, 0) { //nolint:staticcheck // Deliberate defensive-input regression.
 		t.Fatal("nil reservation context was accepted")
 	}
 
