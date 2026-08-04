@@ -1,5 +1,5 @@
 // Package statemodel implements the bounded, cryptography-independent state
-// transition oracle for the package-owned experimental Verkle profile.
+// transition oracle for the package-owned pre-v1 Verkle profile.
 //
 // It deliberately computes no root or commitment. Future committed-tree code
 // can be differentially tested against this slow immutable model without

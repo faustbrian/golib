@@ -417,7 +417,7 @@ func DecodeStatelessWitness(
 		statelessWitnessMagic {
 		return StatelessWitness{}, errInvalidStatelessWitnessEncoding
 	}
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	if encoded[statelessWitnessMagicBytes] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(encoded[5:7]) != profile.Version() ||
 		binary.BigEndian.Uint16(encoded[7:9]) != profile.EncodingVersion() {

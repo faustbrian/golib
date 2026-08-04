@@ -19,7 +19,7 @@ func BenchmarkAuditStorageCurrentAndRetainedSnapshots(b *testing.B) {
 	}
 	store := newInternalAuditStore(b, currentSnapshot, []Snapshot{oldSnapshot})
 	store.view.nodes[NodeID{0xff}] = []byte("unpublished node")
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 	limits := testInternalStorageAuditLimits()
 	b.ReportAllocs()
 	b.ResetTimer()

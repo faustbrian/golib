@@ -5,14 +5,13 @@ import (
 	"testing"
 )
 
-func TestExperimentalProfileIsExactAndRejectsOtherValues(t *testing.T) {
+func TestProfileIsExactAndRejectsOtherValues(t *testing.T) {
 	t.Parallel()
 
-	value := ExperimentalBandersnatchIPA256V0()
+	value := BandersnatchIPA256V0Profile()
 	if value.ID() != BandersnatchIPA256V0 ||
 		value.Name() != bandersnatchIPA256V0Name ||
 		value.Version() != 0 ||
-		!value.Experimental() ||
 		value.BranchingWidth() != 256 ||
 		value.KeySize() != 32 ||
 		value.StemSize() != 31 ||

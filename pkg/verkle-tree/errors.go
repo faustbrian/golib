@@ -58,7 +58,7 @@ var (
 	ErrIncompleteWitness = errors.New("incomplete Verkle stateless witness")
 
 	// ErrUnsupportedUpdate identifies a valid update kind that is not
-	// implemented by the selected experimental witness profile.
+	// implemented by the selected pre-v1 witness profile.
 	ErrUnsupportedUpdate = errors.New("unsupported Verkle update")
 
 	// ErrPostStateMismatch identifies a derived post-state root that differs

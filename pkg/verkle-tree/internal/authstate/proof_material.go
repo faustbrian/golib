@@ -192,7 +192,7 @@ func (snapshot Snapshot) ProofMaterial(
 	}
 	claimSet, err := NewClaimSet(
 		ctx,
-		profile.ExperimentalBandersnatchIPA256V0(),
+		profile.BandersnatchIPA256V0Profile(),
 		claims,
 		ClaimLimits{
 			MaxClaims:         limits.MaxKeys,

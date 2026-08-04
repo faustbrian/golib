@@ -87,7 +87,7 @@ func TestStorageCommitCrashMatrixAndRetry(t *testing.T) {
 			if !test.newRoot {
 				recovery, err := verkletree.RecoverStorage(
 					context.Background(),
-					verkletree.ExperimentalBandersnatchIPA256V0(),
+					verkletree.BandersnatchIPA256V0(),
 					store,
 					testPublicStorageAuditLimits(),
 				)
@@ -176,7 +176,7 @@ func TestStorageMaintenanceCrashRetryAndPinnedAuditView(t *testing.T) {
 			go func() {
 				result, maintainErr := verkletree.MaintainStorage(
 					context.Background(),
-					verkletree.ExperimentalBandersnatchIPA256V0(),
+					verkletree.BandersnatchIPA256V0(),
 					store,
 					nil,
 					testPublicStorageAuditLimits(),
@@ -228,7 +228,7 @@ func TestStorageMaintenanceCrashRetryAndPinnedAuditView(t *testing.T) {
 			store.setCrashPoint(storageCrashNone)
 			if _, err := verkletree.MaintainStorage(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				verkletree.BandersnatchIPA256V0(),
 				store,
 				nil,
 				testPublicStorageAuditLimits(),
@@ -283,7 +283,7 @@ func TestStorageRecoveryCrashIsAtomicAndRetryable(t *testing.T) {
 			store.setCrashPoint(point)
 			result, err := verkletree.RecoverStorage(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				verkletree.BandersnatchIPA256V0(),
 				store,
 				testPublicStorageAuditLimits(),
 			)
@@ -304,7 +304,7 @@ func TestStorageRecoveryCrashIsAtomicAndRetryable(t *testing.T) {
 			store.setCrashPoint(storageCrashNone)
 			if _, err := verkletree.RecoverStorage(
 				context.Background(),
-				verkletree.ExperimentalBandersnatchIPA256V0(),
+				verkletree.BandersnatchIPA256V0(),
 				store,
 				testPublicStorageAuditLimits(),
 			); err != nil {
@@ -338,7 +338,7 @@ func (store *crashReferenceStore) Capabilities() verkletree.StoreCapabilities {
 }
 
 func (store *crashReferenceStore) MaintenanceProfile() verkletree.Profile {
-	return verkletree.ExperimentalBandersnatchIPA256V0()
+	return verkletree.BandersnatchIPA256V0()
 }
 
 func (store *crashReferenceStore) CommitSnapshot(
@@ -673,7 +673,7 @@ func mustLoadCrashStore(
 
 	snapshot, err := verkletree.LoadSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		store,
 		testPublicStorageReadLimits(),
 	)

@@ -24,7 +24,7 @@ func TestTreeProofCanonicalizesAndBindsComponents(t *testing.T) {
 	keyMissing := testKey(2, 0)
 	claims, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		[]Claim{
 			Absence(keyMissing),
 			Absence(keyAbsentSuffix),
@@ -69,7 +69,7 @@ func TestTreeProofCanonicalizesAndBindsComponents(t *testing.T) {
 	pathCommitments[0] = mustPathCommitment(t, []byte{9}, commitment)
 
 	if profile, profileErr := proof.Profile(); profileErr != nil ||
-		profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
+		profile != internalprofile.BandersnatchIPA256V0Profile() {
 		t.Fatalf("proof profile = %#v, error = %v", profile, profileErr)
 	}
 	gotRoot, err := proof.Root()
@@ -1175,7 +1175,7 @@ func TestTreeProofCancellationAndInvalidReceiverBehavior(t *testing.T) {
 		t.Fatalf("zero opening error = %v", err)
 	}
 
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	validStem := PresentStemPath(stemFromKey(key), 1)
 	emptyRoot, err := newTestSnapshot(t, nil).RootContainer(context.Background())
 	if err != nil {
@@ -1349,7 +1349,7 @@ func mustClaimSet(t testing.TB, claims []Claim) ClaimSet {
 
 	set, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		claims,
 		testClaimLimits(),
 	)

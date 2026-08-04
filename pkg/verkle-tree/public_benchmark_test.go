@@ -9,7 +9,7 @@ import (
 
 func BenchmarkPublicSnapshotOperations(b *testing.B) {
 	ctx := context.Background()
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := verkletree.BandersnatchIPA256V0()
 	limits := publicSnapshotLimits()
 	entries := benchmarkPublicEntries()
 	snapshot, err := verkletree.NewSnapshot(ctx, profile, entries, limits)
@@ -89,7 +89,7 @@ func BenchmarkPublicProofOperations(b *testing.B) {
 	snapshot := benchmarkPublicState(b)
 	engine, err := verkletree.NewProofEngine(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -200,7 +200,7 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	snapshot := benchmarkPublicState(b)
 	proofEngine, err := verkletree.NewProofEngine(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -236,7 +236,7 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	}
 	engine, err := verkletree.NewStatelessEngine(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -313,7 +313,7 @@ func benchmarkPublicState(b testing.TB) verkletree.Snapshot {
 
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		benchmarkPublicEntries(),
 		publicSnapshotLimits(),
 	)

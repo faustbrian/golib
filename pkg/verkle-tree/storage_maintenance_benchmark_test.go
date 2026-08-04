@@ -24,7 +24,7 @@ func BenchmarkMaintainStorageDropRetainedAndPrune(b *testing.B) {
 	}
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 	store.view.nodes[NodeID{0xff}] = []byte("unpublished node")
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 	limits := testInternalStorageAuditLimits()
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -48,7 +48,7 @@ func BenchmarkRecoverStoragePreserveRetainedAndDeleteOrphan(b *testing.B) {
 	}
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 	store.view.nodes[NodeID{0xff}] = []byte("interrupted unpublished node")
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 	limits := testInternalStorageAuditLimits()
 	b.ReportAllocs()
 	b.ResetTimer()

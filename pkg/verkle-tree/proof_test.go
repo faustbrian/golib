@@ -18,7 +18,7 @@ func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
 	absentStem := publicKey(1, 0)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: present, Value: publicValue(7)}},
 		publicSnapshotLimits(),
 	)
@@ -27,7 +27,7 @@ func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
 	}
 	engine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -130,7 +130,7 @@ func TestPublicProofEngineProvesCanonicalEmptyRootNonMembership(t *testing.T) {
 	secondSuffix[31] = 0x80
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		publicSnapshotLimits(),
 	)
@@ -139,7 +139,7 @@ func TestPublicProofEngineProvesCanonicalEmptyRootNonMembership(t *testing.T) {
 	}
 	engine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -225,7 +225,7 @@ func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	key := publicKey(0, 0)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: key, Value: publicValue(1)}},
 		publicSnapshotLimits(),
 	)
@@ -234,7 +234,7 @@ func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	}
 	engine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -298,7 +298,7 @@ func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	}
 	if _, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		verkletree.OpeningLimits{},
 	); !errors.Is(err, verkletree.ErrInvalidLimits) {
 		t.Fatalf("invalid opening limits error = %v", err)

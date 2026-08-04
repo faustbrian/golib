@@ -20,7 +20,7 @@ func TestMaintainStoragePreservesPlanningAndCancellationFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelled.cancelAfterCapabilities = cancel
 	_, err := MaintainStorage(
-		ctx, ExperimentalBandersnatchIPA256V0(), cancelled, nil,
+		ctx, BandersnatchIPA256V0(), cancelled, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrCancelled) || cancelled.openCalls != 0 {
@@ -33,7 +33,7 @@ func TestMaintainStoragePreservesPlanningAndCancellationFailures(t *testing.T) {
 	readFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	readFailure.view.currentErr = sentinel
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), readFailure, nil,
+		context.Background(), BandersnatchIPA256V0(), readFailure, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, ErrStorageAudit) ||
@@ -48,7 +48,7 @@ func TestMaintainStoragePreservesPlanningAndCancellationFailures(t *testing.T) {
 	joined.view.currentErr = sentinel
 	joined.view.closeErr = ErrStaleRoot
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), joined, nil,
+		context.Background(), BandersnatchIPA256V0(), joined, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, sentinel) || !errors.Is(err, ErrStaleRoot) || joined.applyCalls != 0 {
@@ -61,7 +61,7 @@ func TestMaintainStoragePreservesPlanningAndCancellationFailures(t *testing.T) {
 	}
 	applyCancelled.capabilities |= StoreCapabilityAtomicMaintenance
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), applyCancelled, nil,
+		context.Background(), BandersnatchIPA256V0(), applyCancelled, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, ErrCancelled) ||
@@ -84,7 +84,7 @@ func TestMaintainStorageEnforcesPlanningResourceBudgets(t *testing.T) {
 	limits.MaxNodeIDsPerPage = 1
 	limits.MaxUnreachableNodes = 1
 	_, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nodeBound, nil, limits,
+		context.Background(), BandersnatchIPA256V0(), nodeBound, nil, limits,
 	)
 	assertMaintenanceResourceError(t, err, ResourceInventoryNodes, 1, 2)
 
@@ -96,7 +96,7 @@ func TestMaintainStorageEnforcesPlanningResourceBudgets(t *testing.T) {
 	limits.MaxTemporaryBytes = storageAuditPublicationBytes +
 		2*storageAuditReachableBytes - 1
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), temporary, nil, limits,
+		context.Background(), BandersnatchIPA256V0(), temporary, nil, limits,
 	)
 	var resourceErr *ResourceError
 	if !errors.As(err, &resourceErr) || resourceErr.Resource != ResourceTemporaryBytes ||
@@ -112,7 +112,7 @@ func TestMaintainStorageEnforcesPlanningResourceBudgets(t *testing.T) {
 	limits = testInternalStorageAuditLimits()
 	limits.MaxPublications = 1
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), requestBound,
+		context.Background(), BandersnatchIPA256V0(), requestBound,
 		hidden, limits,
 	)
 	assertMaintenanceResourceError(t, err, ResourcePublications, 1, 2)
@@ -170,7 +170,7 @@ func TestMaintainStorageChargesEveryLivePublicationAndReachabilitySlot(t *testin
 	t.Parallel()
 
 	retainedSnapshot, err := NewSnapshot(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nil,
+		context.Background(), BandersnatchIPA256V0(), nil,
 		testFacadeSnapshotLimits(),
 	)
 	if err != nil {
@@ -194,7 +194,7 @@ func TestMaintainStorageChargesEveryLivePublicationAndReachabilitySlot(t *testin
 		2*storageAuditReachableBytes
 	limits.MaxTemporaryBytes = wantActual - 1
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+		context.Background(), BandersnatchIPA256V0(), store,
 		requested, limits,
 	)
 	var resourceErr *ResourceError
@@ -211,7 +211,7 @@ func TestMaintainStorageChargesDroppedReachabilityUntilFinalRequest(t *testing.T
 	t.Parallel()
 
 	retainedSnapshot, err := NewSnapshot(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nil,
+		context.Background(), BandersnatchIPA256V0(), nil,
 		testFacadeSnapshotLimits(),
 	)
 	if err != nil {
@@ -230,7 +230,7 @@ func TestMaintainStorageChargesDroppedReachabilityUntilFinalRequest(t *testing.T
 		storageAuditNodeIDBytes
 	limits.MaxTemporaryBytes = 1100
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, nil, limits,
+		context.Background(), BandersnatchIPA256V0(), store, nil, limits,
 	)
 	var resourceErr *ResourceError
 	if !errors.As(err, &resourceErr) || resourceErr.Resource != ResourceTemporaryBytes ||
@@ -255,7 +255,7 @@ func TestMaintainStorageChecksFinalRequestAllocationBudget(t *testing.T) {
 	snapshotLimits.Tree.MaxCommitments = 256
 	snapshotLimits.Tree.MaxFieldMappings = 256
 	base, err := NewSnapshot(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nil, snapshotLimits,
+		context.Background(), BandersnatchIPA256V0(), nil, snapshotLimits,
 	)
 	if err != nil {
 		t.Fatalf("NewSnapshot() error = %v", err)
@@ -282,7 +282,7 @@ func TestMaintainStorageChecksFinalRequestAllocationBudget(t *testing.T) {
 	limits.Read.Snapshot = snapshotLimits
 	store := newInternalAuditStore(t, current, retained)
 	maintenance, err := planStorageMaintenance(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store.view, nil, 0, limits,
+		context.Background(), BandersnatchIPA256V0(), store.view, nil, 0, limits,
 	)
 	if err != nil {
 		t.Fatalf("initial planStorageMaintenance() error = %v", err)
@@ -303,7 +303,7 @@ func TestMaintainStorageChecksFinalRequestAllocationBudget(t *testing.T) {
 	bounded := newInternalAuditStore(t, current, retained)
 	limits.MaxTemporaryBytes = finalBytes - 1
 	_, err = planStorageMaintenance(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), bounded.view, nil, 0, limits,
+		context.Background(), BandersnatchIPA256V0(), bounded.view, nil, 0, limits,
 	)
 	var resourceErr *ResourceError
 	if !errors.As(err, &resourceErr) || resourceErr.Resource != ResourceTemporaryBytes ||
@@ -690,7 +690,7 @@ func TestStoreMaintenanceAccessorsPreserveValidationCancellationAndOwnership(t *
 	t.Parallel()
 
 	publication := internalReaderFromSnapshot(t, testStorageFacadeSnapshot(t)).view.publication
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 	invalidFlag := StoreMaintenance{profile: profile}
 	if _, err := invalidFlag.Profile(); !errors.Is(err, ErrStorageMaintenance) {
 		t.Fatalf("invalid flag error = %v", err)

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// VectorWidth is the fixed vector width of the experimental profile.
+	// VectorWidth is the fixed vector width of the pre-v1 profile.
 	VectorWidth = 256
 
 	generatorWorkingBytes = uint64(256)
@@ -112,7 +112,7 @@ func (err *CommitmentResourceError) Unwrap() error {
 	return errCommitmentResource
 }
 
-// CommitmentEngine owns the exact experimental-profile generator set. Once
+// CommitmentEngine owns the exact pre-v1 profile generator set. Once
 // constructed, it is immutable and safe for concurrent commitment operations.
 type CommitmentEngine struct {
 	limits     CommitmentLimits

@@ -370,7 +370,7 @@ func DecodeTreeProof(
 		treeProofMagic {
 		return TreeProof{}, errInvalidTreeProofEncoding
 	}
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	if encoded[treeProofMagicBytes] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(encoded[5:7]) != profile.Version() ||
 		binary.BigEndian.Uint16(encoded[7:9]) != treeProofContainerVersion {

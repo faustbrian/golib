@@ -3,7 +3,7 @@
 ## Stability first
 
 The only constructible profile is
-`ExperimentalBandersnatchIPA256V0`. It is pre-v1, may change incompatibly, and
+`BandersnatchIPA256V0`. It is pre-v1, may change incompatibly, and
 is not an Ethereum compatibility claim. New deployments must persist the exact
 profile identity with every root, proof, witness, and node namespace and must
 reject a different profile before cryptographic work.
@@ -61,7 +61,7 @@ membership or non-membership claims from one immutable snapshot. Multiple keys
 produce one aggregate opening; a single-key call uses the same canonical proof
 system.
 
-The experimental dependency internally chooses `runtime.NumCPU()` workers and
+The pinned dependency internally chooses `runtime.NumCPU()` workers and
 cannot be cancelled after proof arithmetic begins. Set `OpeningLimits.MaxWorkers`
 to at least that fixed demand. Each engine admits one dependency proof call at
 a time; `MaxQueuedOperations` bounds concurrent calls waiting for that slot,
@@ -100,7 +100,7 @@ validity, or storage durability by itself.
 ## Canonical bytes and ownership
 
 `Root.Bytes`, `Snapshot.Bytes`, `Proof.Bytes`, and `Witness.Bytes` produce the
-package-owned experimental formats documented in the profile specification.
+package-owned pre-v1 formats documented in the profile specification.
 Returned byte arrays and slices are caller-owned. Decoders defensively own
 accepted input. These encodings are not `go-verkle`, Rust Verkle, Ethereum
 execution-witness, or network wire formats.
@@ -123,5 +123,5 @@ Important distinctions include:
 
 See [API boundaries](api-boundaries.md), the
 [threat model](threat-model.md), and the
-[experimental profile specification](../specification/experimental-profile-v0.md)
+[pre-v1 profile specification](../specification/bandersnatch-ipa-256-v0.md)
 for the exact contracts.

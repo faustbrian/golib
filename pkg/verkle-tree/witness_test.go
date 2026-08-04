@@ -16,7 +16,7 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 	second := publicKey(0x10, 0x21)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: first, Value: publicValue(1)}},
 		publicSnapshotLimits(),
 	)
@@ -25,7 +25,7 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 	}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -120,7 +120,7 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -163,7 +163,7 @@ func TestPublicStatelessWitnessAppliesTopologyChangingSets(t *testing.T) {
 	missing := publicKey(0x20, 0x01)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: existing, Value: publicValue(1)},
 			{Key: neighbor, Value: publicValue(2)},
@@ -175,7 +175,7 @@ func TestPublicStatelessWitnessAppliesTopologyChangingSets(t *testing.T) {
 	}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -209,7 +209,7 @@ func TestPublicStatelessWitnessAppliesTopologyChangingSets(t *testing.T) {
 	}
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -237,7 +237,7 @@ func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T
 	retained := publicKey(0x28, 0x02)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: deleted, Value: publicValue(1)},
 			{Key: retained, Value: publicValue(2)},
@@ -249,7 +249,7 @@ func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T
 	}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -300,7 +300,7 @@ func TestPublicStatelessWitnessAppliesDeletionWithoutTopologyChange(t *testing.T
 	}
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -328,7 +328,7 @@ func TestPublicStatelessWitnessAppliesInsertionToEmptyRoot(t *testing.T) {
 	value := publicValue(7)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		publicSnapshotLimits(),
 	)
@@ -338,7 +338,7 @@ func TestPublicStatelessWitnessAppliesInsertionToEmptyRoot(t *testing.T) {
 	updates := []verkletree.Update{verkletree.Set(key, value)}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -367,7 +367,7 @@ func TestPublicStatelessWitnessAppliesInsertionToEmptyRoot(t *testing.T) {
 	}
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -394,7 +394,7 @@ func TestPublicProofEngineBuildsAndAppliesTopologyDeletionWitness(t *testing.T) 
 	deleted := publicKey(0x2a, 0x01)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: deleted, Value: publicValue(1)}},
 		publicSnapshotLimits(),
 	)
@@ -403,7 +403,7 @@ func TestPublicProofEngineBuildsAndAppliesTopologyDeletionWitness(t *testing.T) 
 	}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -433,7 +433,7 @@ func TestPublicProofEngineBuildsAndAppliesTopologyDeletionWitness(t *testing.T) 
 	}
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -462,7 +462,7 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	key := publicKey(0x30, 0x40)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: key, Value: publicValue(1)}},
 		publicSnapshotLimits(),
 	)
@@ -471,7 +471,7 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	}
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 	)
 	if err != nil {
@@ -630,7 +630,7 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 
 	engine, err := verkletree.NewStatelessEngine(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(),
 		publicSnapshotLimits().Commitment,
 	)
@@ -638,7 +638,7 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		t.Fatalf("new stateless engine: %v", err)
 	}
 	if _, err := verkletree.NewStatelessEngine(
-		nilContext, verkletree.ExperimentalBandersnatchIPA256V0(),
+		nilContext, verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(), publicSnapshotLimits().Commitment,
 	); !errors.Is(err, verkletree.ErrInvalidContext) {
 		t.Fatalf("nil engine context error = %v", err)
@@ -650,20 +650,20 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		t.Fatalf("unsupported engine profile error = %v", err)
 	}
 	if _, err := verkletree.NewStatelessEngine(
-		context.Background(), verkletree.ExperimentalBandersnatchIPA256V0(),
+		context.Background(), verkletree.BandersnatchIPA256V0(),
 		verkletree.OpeningLimits{}, publicSnapshotLimits().Commitment,
 	); !errors.Is(err, verkletree.ErrInvalidLimits) {
 		t.Fatalf("invalid engine opening limits error = %v", err)
 	}
 	if _, err := verkletree.NewStatelessEngine(
-		context.Background(), verkletree.ExperimentalBandersnatchIPA256V0(),
+		context.Background(), verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(), verkletree.CommitmentLimits{},
 	); !errors.Is(err, verkletree.ErrInvalidLimits) {
 		t.Fatalf("invalid engine commitment limits error = %v", err)
 	}
 	wrongSnapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: key, Value: publicValue(9)}},
 		publicSnapshotLimits(),
 	)

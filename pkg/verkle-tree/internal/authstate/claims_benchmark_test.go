@@ -12,7 +12,7 @@ const benchmarkClaimBytes = 1 + len(Key{}) + len(Value{})
 func BenchmarkNewClaimSetSixteen(b *testing.B) {
 	claims := benchmarkClaims()
 	limits := testClaimLimits()
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	b.ReportAllocs()
 	b.SetBytes(int64(len(claims) * benchmarkClaimBytes))
 	b.ResetTimer()
@@ -31,7 +31,7 @@ func BenchmarkNewClaimSetSixteen(b *testing.B) {
 func BenchmarkClaimSetCopySixteen(b *testing.B) {
 	set, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		benchmarkClaims(),
 		testClaimLimits(),
 	)

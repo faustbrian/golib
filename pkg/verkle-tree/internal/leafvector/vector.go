@@ -1,4 +1,4 @@
-// Package leafvector defines the experimental profile's canonical field inputs
+// Package leafvector defines the pre-v1 profile's canonical field inputs
 // for stems and fixed-size leaf values. It does not construct commitments.
 package leafvector
 

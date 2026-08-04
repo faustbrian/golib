@@ -65,7 +65,7 @@ func TestFacadeRootRejectsHostileAndZeroValues(t *testing.T) {
 
 	empty, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		nil,
 		testFacadeSnapshotLimits(),
 	)
@@ -105,7 +105,7 @@ func TestFacadeSnapshotRejectsEveryInvalidOwnershipState(t *testing.T) {
 	var nilContext context.Context
 	if _, err := NewSnapshot(
 		&cancellingContext{remaining: 1},
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		[]Entry{{}},
 		testFacadeSnapshotLimits(),
 	); !errors.Is(err, ErrCancelled) {
@@ -133,7 +133,7 @@ func TestFacadeSnapshotRejectsEveryInvalidOwnershipState(t *testing.T) {
 	}
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		nil,
 		testFacadeSnapshotLimits(),
 	)
@@ -200,7 +200,7 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	}
 	if _, err := NewProofEngine(
 		nilContext,
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		testFacadeOpeningLimits(),
 	); !errors.Is(err, ErrInvalidContext) {
 		t.Fatalf("nil engine context = %v", err)
@@ -209,7 +209,7 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	resourceLimits.MaxGeneratorDerivations = 1
 	if _, err := NewProofEngine(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		resourceLimits,
 	); !errors.Is(err, ErrResourceExhausted) {
 		t.Fatalf("engine resource = %v", err)
@@ -659,7 +659,7 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	resourceLimits := testFacadeSnapshotLimits().Commitment
 	resourceLimits.MaxGeneratorDerivations = 1
 	if _, err := NewStatelessEngine(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		testFacadeOpeningLimits(), resourceLimits,
 	); !errors.Is(err, ErrResourceExhausted) {
 		t.Fatalf("stateless engine resource error = %v", err)
@@ -836,7 +836,7 @@ func testFacadeProof(t testing.TB) (ProofEngine, Snapshot, Proof) {
 
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		[]Entry{{Key: Key{}, Value: Value{1}}},
 		testFacadeSnapshotLimits(),
 	)
@@ -845,7 +845,7 @@ func testFacadeProof(t testing.TB) (ProofEngine, Snapshot, Proof) {
 	}
 	engine, err := NewProofEngine(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		testFacadeOpeningLimits(),
 	)
 	if err != nil {

@@ -249,7 +249,7 @@ func TestLoadSnapshotReconstructsPublishedCanonicalState(t *testing.T) {
 
 	got, err := verkletree.LoadSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		store,
 		testPublicStorageReadLimits(),
 	)
@@ -296,7 +296,7 @@ func TestLoadSnapshotReconstructsEmptyRootWithoutPointDecoding(t *testing.T) {
 	limits.MaxPointDecodes = 0
 	got, err := verkletree.LoadSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		store,
 		limits,
 	)
@@ -339,7 +339,7 @@ func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
 		store.openErr = verkletree.ErrStorageSnapshotMissing
 		_, err := verkletree.LoadSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			store,
 			testPublicStorageReadLimits(),
 		)
@@ -354,7 +354,7 @@ func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
 		store.missing = true
 		_, err := verkletree.LoadSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			store,
 			testPublicStorageReadLimits(),
 		)
@@ -369,7 +369,7 @@ func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
 		store.corrupt = true
 		_, err := verkletree.LoadSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			store,
 			testPublicStorageReadLimits(),
 		)
@@ -383,7 +383,7 @@ func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
 		store.readErr = errors.New("reader unavailable")
 		_, err := verkletree.LoadSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			store,
 			testPublicStorageReadLimits(),
 		)
@@ -398,7 +398,7 @@ func TestLoadSnapshotDistinguishesMissingCorruptAndStoreFailures(t *testing.T) {
 		store.closeErr = errors.New("close failed")
 		loaded, err := verkletree.LoadSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			store,
 			testPublicStorageReadLimits(),
 		)
@@ -554,7 +554,7 @@ func mustPublicSnapshot(
 
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		entries,
 		publicSnapshotLimits(),
 	)

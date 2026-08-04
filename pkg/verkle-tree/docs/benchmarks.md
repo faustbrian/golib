@@ -12,12 +12,13 @@ and application. Shared immutable snapshot reads and aggregate-proof
 verification also have parallel measurements. The proof and witness rows
 report their exact canonical encoded sizes.
 
-The matrix uses the package-owned experimental profile and an in-memory
-snapshot. It excludes durable cold and warm storage, a production backend,
+The matrix uses the package-owned pre-v1 profile and an in-memory
+snapshot. It excludes durable cold and warm storage, an audited backend,
 cross-implementation equivalent workloads, latency distributions under stable
-load, and deployment-specific CPU feature controls. Those omissions prevent a
-complete benchmark gate or comparative ranking. Parallel rows demonstrate a
-bounded harness workload on one machine; they are not scalability claims.
+load, and deployment-specific CPU feature controls. The matrix satisfies the
+pre-v1 descriptive benchmark boundary but does not support a production or
+comparative ranking claim. Parallel rows demonstrate a bounded harness workload
+on one machine; they are not scalability claims.
 
 The remaining pre-v1 component microbenchmarks cover the implemented
 cryptographic boundary: canonical Banderwagon commitment and scalar encoding,
@@ -284,7 +285,7 @@ per-operation scratch memory and cannot be subtracted safely from `B/op`.
 The proof process constructs its snapshot and proof engine before the measured
 loop. The witness process additionally constructs its update proof, post-state,
 witness, and stateless engine. These high-water marks expose the current
-experimental backend's initialization and fixture footprint; they MUST NOT be
+pinned backend's initialization and fixture footprint; they MUST NOT be
 presented as the incremental memory cost of the named operation.
 
 ### Component samples

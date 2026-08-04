@@ -24,7 +24,7 @@ func TestSnapshotRootContainerBindsProfileAndCommitment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("root profile: %v", err)
 	}
-	if profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
+	if profile != internalprofile.BandersnatchIPA256V0Profile() {
 		t.Fatalf("root profile = %#v", profile)
 	}
 	encoded, err := container.Bytes()

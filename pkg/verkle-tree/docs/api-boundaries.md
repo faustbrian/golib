@@ -5,7 +5,7 @@ profile, immutable snapshot/root/transition, update, aggregate proof, verifier,
 canonical whole-snapshot encoding, canonical storage-write and isolated
 storage-read, limit, resource, typed-error, read-only storage-audit, atomic
 storage-maintenance, and bounded storage-recovery identifiers form the current
-experimental public contract. Canonical stateless witnesses and verified pre-
+pre-v1 public contract. Canonical stateless witnesses and verified pre-
 state and post-state results are included.
 
 ## Public concepts
@@ -258,7 +258,7 @@ verifier. It rejects changed roots or values, incomplete or surplus paths,
 conflicting shared openings, invalid proofs, cancellation, and exhausted
 resource budgets. The engine is immutable and concurrency safe. The root
 package exposes it through a fixed-profile facade that owns canonical proof
-bytes and independently verifies decoded proofs. The API remains experimental
+bytes and independently verifies decoded proofs. The API remains pre-v1
 while the backend cannot stop proof arithmetic after cancellation and witness
 and storage contracts remain incomplete.
 

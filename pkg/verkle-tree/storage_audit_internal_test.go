@@ -30,7 +30,7 @@ func TestAuditStorageFindsOnlyNodesOutsideCurrentAndRetainedSnapshots(t *testing
 
 	audit, err := AuditStorage(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		testInternalStorageAuditLimits(),
 	)
@@ -77,7 +77,7 @@ func TestAuditStorageRejectsInventoryThatOmitsReachableNode(t *testing.T) {
 
 	audit, err := AuditStorage(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		testInternalStorageAuditLimits(),
 	)
@@ -103,7 +103,7 @@ func TestAuditStorageRejectsInvalidInputsBeforeOpeningStore(t *testing.T) {
 		want    error
 	}{
 		"nil context": {
-			ctx: nilContext, profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: nilContext, profile: BandersnatchIPA256V0(),
 			store: valid, limits: testInternalStorageAuditLimits(), want: ErrInvalidContext,
 		},
 		"invalid profile": {
@@ -111,15 +111,15 @@ func TestAuditStorageRejectsInvalidInputsBeforeOpeningStore(t *testing.T) {
 			limits: testInternalStorageAuditLimits(), want: ErrUnsupportedProfile,
 		},
 		"nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
 		},
 		"typed nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: nilStore, limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
 		},
 		"invalid limits": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: valid, want: ErrInvalidLimits,
 		},
 	}
@@ -144,7 +144,7 @@ func TestAuditStorageRejectsInvalidInputsBeforeOpeningStore(t *testing.T) {
 		missing := newInternalAuditStore(t, testStorageFacadeSnapshot(t), nil)
 		missing.capabilities &^= omitted
 		_, err := AuditStorage(
-			context.Background(), ExperimentalBandersnatchIPA256V0(),
+			context.Background(), BandersnatchIPA256V0(),
 			missing, testInternalStorageAuditLimits(),
 		)
 		var capabilityErr *StoreCapabilityError
@@ -163,7 +163,7 @@ func TestAuditStorageRejectsInvalidInputsBeforeOpeningStore(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelledAfterCapabilities.cancelAfterCapabilities = cancel
 	_, err := AuditStorage(
-		ctx, ExperimentalBandersnatchIPA256V0(),
+		ctx, BandersnatchIPA256V0(),
 		cancelledAfterCapabilities, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrCancelled) || cancelledAfterCapabilities.openCalls != 0 {
@@ -218,7 +218,7 @@ func TestAuditStoragePreservesLifecycleAndReachableReadFailures(t *testing.T) {
 	openFailure := newInternalAuditStore(t, snapshot, nil)
 	openFailure.openErr = context.DeadlineExceeded
 	_, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		openFailure, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageAudit) || !errors.Is(err, ErrCancelled) {
@@ -228,7 +228,7 @@ func TestAuditStoragePreservesLifecycleAndReachableReadFailures(t *testing.T) {
 	nilView := newInternalAuditStore(t, snapshot, nil)
 	nilView.returnNil = true
 	_, err = AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		nilView, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageAudit) {
@@ -239,7 +239,7 @@ func TestAuditStoragePreservesLifecycleAndReachableReadFailures(t *testing.T) {
 	publicationFailure.view.currentErr = sentinel
 	publicationFailure.view.closeErr = context.Canceled
 	_, err = AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		publicationFailure, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageAudit) ||
@@ -252,7 +252,7 @@ func TestAuditStoragePreservesLifecycleAndReachableReadFailures(t *testing.T) {
 	readFailure := newInternalAuditStore(t, snapshot, nil)
 	readFailure.view.readErr = sentinel
 	_, err = AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		readFailure, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageAudit) || !errors.Is(err, sentinel) {
@@ -262,7 +262,7 @@ func TestAuditStoragePreservesLifecycleAndReachableReadFailures(t *testing.T) {
 	closeFailure := newInternalAuditStore(t, snapshot, nil)
 	closeFailure.view.closeErr = sentinel
 	audit, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		closeFailure, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageAudit) || !errors.Is(err, sentinel) || audit.valid {
@@ -303,7 +303,7 @@ func TestAuditStorageRejectsMalformedPublicationSets(t *testing.T) {
 				limits.MaxPublications = 1
 			}
 			_, err := AuditStorage(
-				context.Background(), ExperimentalBandersnatchIPA256V0(), store, limits,
+				context.Background(), BandersnatchIPA256V0(), store, limits,
 			)
 			if name == "retained failure" {
 				if !errors.Is(err, ErrStorageAudit) {
@@ -394,7 +394,7 @@ func TestAuditStorageRejectsMalformedAndExhaustedInventoryPages(t *testing.T) {
 			limits := testInternalStorageAuditLimits()
 			test.configure(store, &limits)
 			_, err := AuditStorage(
-				context.Background(), ExperimentalBandersnatchIPA256V0(), store, limits,
+				context.Background(), BandersnatchIPA256V0(), store, limits,
 			)
 			if test.want != nil && !errors.Is(err, test.want) {
 				t.Fatalf("AuditStorage() error = %v, want %v", err, test.want)
@@ -419,7 +419,7 @@ func TestAuditStorageSupportsEmptyPublicationSetAndBoundsUnreachableNodes(t *tes
 	store.view.nodes = map[NodeID][]byte{{1}: {1}, {2}: {2}}
 
 	audit, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		store, testInternalStorageAuditLimits(),
 	)
 	if err != nil || audit.PublicationCount() != 0 ||
@@ -432,7 +432,7 @@ func TestAuditStorageSupportsEmptyPublicationSetAndBoundsUnreachableNodes(t *tes
 	limits := testInternalStorageAuditLimits()
 	limits.MaxUnreachableNodes = 0
 	_, err = AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), limited, limits,
+		context.Background(), BandersnatchIPA256V0(), limited, limits,
 	)
 	assertAuditResourceError(t, err, ResourceUnreachableNodes, 0, 1)
 }
@@ -478,7 +478,7 @@ func TestAuditStorageRejectsCancellationAfterEmptyInventoryRead(t *testing.T) {
 
 	audit, err := AuditStorage(
 		ctx,
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		testInternalStorageAuditLimits(),
 	)
@@ -569,7 +569,7 @@ func TestStorageAuditInternalBoundariesFailClosed(t *testing.T) {
 	exact.MaxInventoryPages = uint32(len(store.view.nodes))
 	exact.MaxUnreachableNodes = 0
 	if _, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, exact,
+		context.Background(), BandersnatchIPA256V0(), store, exact,
 	); err != nil {
 		t.Fatalf("exact audit boundaries error = %v", err)
 	}
@@ -621,7 +621,7 @@ func TestStorageAuditInternalBoundariesFailClosed(t *testing.T) {
 	limits = testInternalStorageAuditLimits()
 	limits.MaxTemporaryBytes = storageAuditPublicationBytes + storageAuditReachableBytes - 1
 	_, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, limits,
+		context.Background(), BandersnatchIPA256V0(), store, limits,
 	)
 	if err == nil {
 		t.Fatal("reachable-set temporary limit accepted")
@@ -632,7 +632,7 @@ func TestStorageAuditInternalBoundariesFailClosed(t *testing.T) {
 	}
 
 	emptySnapshot, emptyErr := NewSnapshot(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nil,
+		context.Background(), BandersnatchIPA256V0(), nil,
 		testFacadeSnapshotLimits(),
 	)
 	if emptyErr != nil {
@@ -642,7 +642,7 @@ func TestStorageAuditInternalBoundariesFailClosed(t *testing.T) {
 	limits = testInternalStorageAuditLimits()
 	limits.MaxTemporaryBytes = storageAuditPublicationBytes + 319
 	_, err = AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, limits,
+		context.Background(), BandersnatchIPA256V0(), store, limits,
 	)
 	if !errors.As(err, &resourceErr) || resourceErr.Resource != ResourceTemporaryBytes {
 		t.Fatalf("first reachable map allocation error = %v", err)

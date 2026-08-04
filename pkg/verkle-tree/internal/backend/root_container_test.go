@@ -14,7 +14,7 @@ import (
 func TestRootContainerCanonicalRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	commitment := testNonIdentityCommitment(t)
 	root, err := NewRoot(context.Background(), profile, commitment)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestRootContainerEncodesEmptyRootExplicitly(t *testing.T) {
 
 	root, err := NewRoot(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		testIdentityCommitment(),
 	)
 	if err != nil {
@@ -228,7 +228,7 @@ func TestRootContainerEnforcesResources(t *testing.T) {
 func TestRootContainerRejectsInvalidStateContextAndLimits(t *testing.T) {
 	t.Parallel()
 
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	commitment := testNonIdentityCommitment(t)
 	encoded := testEncodedRoot(t)
 	if _, err := NewRoot(context.Background(), internalprofile.Profile{}, commitment); !errors.Is(
@@ -348,7 +348,7 @@ func testEncodedRoot(t testing.TB) []byte {
 
 	root, err := NewRoot(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		testNonIdentityCommitment(t),
 	)
 	if err != nil {
@@ -420,5 +420,5 @@ func testRootLimits() RootLimits {
 }
 
 func testProfile() internalprofile.Profile {
-	return internalprofile.ExperimentalBandersnatchIPA256V0()
+	return internalprofile.BandersnatchIPA256V0Profile()
 }

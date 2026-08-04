@@ -4,15 +4,24 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Define `verkletree-bandersnatch-ipa-256-v0` as the normative package-owned
+  pre-v1 profile and publish claim-by-claim conformance boundaries separately
+  from production suitability, external audit, and Ethereum compatibility.
+- Rename `ExperimentalBandersnatchIPA256V0` to `BandersnatchIPA256V0` and
+  remove `Profile.Experimental`; pre-v1 lifecycle is release metadata rather
+  than a cryptographic profile property.
+
 ### Documentation
 
 - Record the initial profile-freeze decision, pinned research sources,
   compatibility limits, threat model, and proposed API ownership boundaries.
-- Classify the module as pre-v1 research only until a complete profile and
-  production-suitable commitment backend can be proven.
+- Classify the module as profile-conformant pre-v1 software while keeping
+  production suitability dependent on separate backend evidence.
 - Record the pinned commitment-backend audit and its production blockers.
 - Add usage, storage operations, crash testing, adoption, migration, and FAQ
-  guides for the experimental public API and caller-owned adapter boundary.
+  guides for the pre-v1 public API and caller-owned adapter boundary.
 - Pin the EthereumJS Verkle WASM repository and npm package while recording
   that its Rust implementation lineage is not an independent verifier.
 - Publish a fixed 100-point goal rubric with explicit earned and remaining exit
@@ -32,7 +41,7 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Pin the active MALT IPA candidate and record its embedded `go-ipa` lineage,
   incompatible profile, mutating non-canonical scalar decoder, and missing
   bounded-execution surface.
-- Audit the complete experimental exported API and document every public limit
+- Audit the complete pre-v1 exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
 
 ### Added
@@ -61,7 +70,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   memory, requires strict key order and exact length, rebuilds the complete
   authenticated tree, and rejects an encoded root that does not match it.
 
-- Add an experimental caller-owned storage write boundary that encodes complete
+- Add a pre-v1 caller-owned storage write boundary that encodes complete
   immutable trees as deterministic profile-bound nodes, addresses each node by
   SHA-256, and requires immutable-node, atomic-commit, durable-publication, and
   compare-and-swap capabilities before publishing a root.
@@ -89,7 +98,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   stale publications, and lifecycle failures fail closed without a usable
   result.
 
-- Add the experimental public immutable snapshot, profile-bound root, canonical
+- Add the pre-v1 public immutable snapshot, profile-bound root, canonical
   batch-update transition, and aggregate proof APIs with explicit cancellation,
   hostile-input budgets, canonical encoding, typed errors, and zero-value
   rejection. Membership, absent-suffix, and absent-stem claims are independently
@@ -106,7 +115,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   shared openings, rejects tampered roots and claims, and enforces explicit
   cryptographic work, memory, worker, and cancellation bounds.
 
-- Add the immutable `verkletree-bandersnatch-ipa-256-v0` experimental profile
+- Add the immutable `verkletree-bandersnatch-ipa-256-v0` pre-v1 profile
   identity and structural metadata without exposing runtime cryptographic
   composition or tree operations.
 - Add a bounded immutable reference model for deterministic set, delete,
@@ -129,7 +138,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   values, applies canonical `Set` batches to stems proven present, and
   propagates shared commitment changes deterministically to a pinned post-state
   root.
-- Add the experimental public canonical stateless-witness and verifier API. A
+- Add the pre-v1 public canonical stateless-witness and verifier API. A
   strict bounded decoder binds the complete pre-state proof, ordered update
   batch, and claimed post-state root, rejecting missing or unneeded proof
   claims;
@@ -162,7 +171,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   updates, distinct delete and present-zero semantics, exact pre/post-root
   transitions, explicit resource bounds, state-model differential checks, and
   pinned independent update-root agreement.
-- Fix the experimental profile's dependency-free leaf field inputs, including
+- Fix the pre-v1 profile's dependency-free leaf field inputs, including
   present-zero marking, absence, suffix-half placement, local indices, stem
   encoding, and stem-vector positions, with pinned Rust differential vectors.
 - Fix the profile's commitment-to-field map, internal child inputs, and
@@ -186,7 +195,7 @@ All notable changes to `verkle-tree` will be documented in this file.
   payload, with canonical point and scalar validation, defensive ownership,
   cancellation checkpoints, and fail-closed resource accounting without
   claiming tree-proof verification.
-- Add a canonical 42-byte experimental root container that binds the exact
+- Add a canonical 42-byte pre-v1 root container that binds the exact
   profile and encoding version, represents the empty root without an identity
   point, rejects mismatches before point decoding, and binds snapshot
   transitions to portable pre-state and post-state root bytes.

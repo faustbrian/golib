@@ -269,7 +269,7 @@ func TestStatelessWitnessTopologyClaimFailureBoundaries(t *testing.T) {
 	}
 	sparseClaims, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		[]Claim{
 			Membership(deleted, testValue(1)),
 			Absence(testKey(0x1a, 0x02)),

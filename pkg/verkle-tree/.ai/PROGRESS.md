@@ -1,66 +1,58 @@
 # Goal Progress
 
-## Fixed score
+## Selected release target
 
-As of 2026-08-03, overall progress against the complete production-grade goal
-is **68/100**.
+As of 2026-08-04, progress against the selected **profile-conformant pre-v1**
+release target is **95/100**.
 
 This is a delivery-planning score, not a cryptographic security rating. The
-allocation below is fixed. Points are binary: an item earns all of its points
-only when its complete exit criterion is satisfied. Work inside an item does
-not move the score. A completed item can reopen only when fresh evidence proves
-that its exit criterion no longer holds; any decrease must name that exact
-item and evidence.
+allocation below is fixed and binary. An item earns all of its points only when
+its complete exit criterion is satisfied. A completed item can reopen only when
+fresh evidence proves that its criterion no longer holds; any decrease must
+name that item and evidence.
 
-Experimental implementation does not satisfy the production-backend or stable-
-profile items. A running gate does not earn its points until it exits
-successfully. Documentation activity does not earn additional points unless it
-closes one of the listed documentation or release items.
+This score replaces the earlier production-grade denominator because the
+maintainer explicitly selected a pre-v1 release target. It is a scope change,
+not a 27-point implementation jump. Production-backend audit, stable-v1 API
+guarantees, and Ethereum protocol readiness are not silently counted as done;
+they are outside this release target.
 
-## Earned: 68 points
+## Earned: 95 points
 
 | Item | Points | Exit criterion satisfied |
 | --- | ---: | --- |
-| Named experimental profile and exact package-owned structural, cryptographic, transcript, and encoding specification | 5 | The only constructible profile is immutable and explicitly pre-v1 |
-| Immutable state operations | 6 | Bounded deterministic get, set, update, delete, duplicate rejection, present-zero semantics, and atomic snapshots are implemented |
-| Vector-committed root construction | 5 | Complete deterministic tree construction and exact root containers are implemented and differentially checked for the pinned corpus |
-| Membership, non-membership, and aggregate proofs | 7 | Present, absent-suffix, absent-stem, empty-root, and multi-key proofs are generated and independently verified from immutable snapshots |
-| Canonical proof boundary and transcript binding | 5 | Strict proof decoding, statement binding, replay rejection, malformed point/scalar handling, and fail-closed verification are implemented for the experimental profile |
-| Stateless witnesses | 7 | Canonical bounded Set and Delete witnesses cover present, missing, different-stem, empty-root, and topology-collapse paths with verified pre/post roots |
-| Canonical whole-snapshot encoding | 3 | Encoding and hostile decoding rebuild and compare the complete authenticated state |
-| Caller-owned storage core | 7 | Atomic commit, isolated load, audit, retention/pruning maintenance, and unpublished-write recovery contracts are implemented |
-| Resource, determinism, ownership, and concurrency contracts | 5 | Public operations have explicit budgets, cancellation, defensive ownership, deterministic ordering, and immutable concurrent-read semantics |
-| Exact statement coverage | 5 | Every production package has fresh exact 100% statement coverage evidence |
-| Baseline hostile-input and repository security gates | 4 | Race, bounded fuzz, static analysis, vulnerability, secret, license, and SBOM gates pass for the current implemented boundary |
-| Pinned differential corpora and artifact provenance | 4 | Go and Rust research fixtures, generators, revisions, checksums, licenses, and reproducible procedures are recorded and passing for the claimed corpora |
-| Public documentation baseline | 3 | Quick start, concepts, profile status, threat model, compatibility, usage, storage operations, recovery, adoption, migration, FAQ, and benchmark caveats are published |
-| Storage crash and lifecycle evidence | 2 | The black-box reference adapter exercises partial writes, both atomic publication and maintenance outcomes, retries, recovery, stale-state preservation, retained-root pruning, concurrent pinned views, and deferred logical reclamation; no concrete adapter is claimed |
-| **Total earned** | **68** | |
+| Exact named profile | 8 | `verkletree-bandersnatch-ipa-256-v0` fixes the layout, field, group, commitment construction, generators, transcript, and canonical encodings without runtime composition |
+| Immutable state transitions | 10 | Bounded deterministic get, set, update, delete, duplicate rejection, present-zero semantics, atomic batches, and immutable snapshots are implemented |
+| Vector-committed roots | 8 | Complete deterministic tree construction and exact profile-bound root containers are implemented and checked against pinned corpora |
+| Membership, non-membership, and aggregate proofs | 12 | Present, absent-suffix, absent-stem, empty-root, and multi-key proofs are generated and independently verified from immutable snapshots |
+| Canonical proof and transcript boundary | 8 | Strict decoding, statement binding, replay rejection, malformed point/scalar handling, canonical ordering, and fail-closed verification are implemented |
+| Stateless witnesses | 10 | Canonical bounded Set and Delete witnesses cover present, missing, different-stem, empty-root, and topology-collapse paths with verified pre/post roots |
+| Snapshot and caller-owned storage contracts | 10 | Canonical snapshot encoding, atomic commit, isolated load, audit, retention/pruning maintenance, and unpublished-write recovery are implemented |
+| Resource, ownership, determinism, and concurrency contracts | 7 | Public operations have explicit budgets, cancellation, defensive ownership, deterministic output, bounded worker admission, and immutable concurrent-read semantics |
+| Test and hostile-input baseline | 8 | Production packages have exact statement coverage and the current boundary has race, fuzz, malformed-input, crash-lifecycle, static-analysis, vulnerability, secret, license, and SBOM evidence |
+| Pinned conformance and provenance evidence | 8 | Exact Go and Rust revisions, licenses, generators, checksums, and procedures are recorded; the compatibility matrix identifies every positive and negative differential claim without generalizing beyond its corpus |
+| Documentation, API audit, and benchmarks | 6 | Quick start, normative profile, conformance matrix, threat model, usage, storage, adoption, complete exported-API audit, benchmark method, caveats, and raw samples are published |
+| **Total earned** | **95** | |
 
-## Remaining: 32 points
+## Remaining: 5 points
 
 | Item | Points | Exact exit criterion |
 | --- | ---: | --- |
-| Production commitment backend | 8 | Select and re-audit a maintained backend that removes the documented mutable-global, cancellation, initialization, unsafe-surface, side-channel, maintenance, and dependency blockers |
-| Stable v1 profile freeze | 5 | Freeze one exact stable profile only after backend, transcript, canonical encoding, provenance, and interoperability conditions are all satisfied |
-| Maintained independent implementation | 5 | Obtain broad positive and negative root, proof, witness, and transition agreement from at least one maintained implementation with independent cryptographic lineage so it and this package form the required independent pair; the unmaintained Rust reference and EthereumJS wrapper do not close this stable-profile gate |
-| Complete hostile-input and operational hardening | 4 | Finish malformed-input amplification, stress, leak, cancellation, concurrency, side-channel-scope, dependency, and generated-artifact review for the selected production boundary |
-| Exact mutation gate | 2 | The complete final production tree passes the repository's exact mutation requirements; the current gate is still running and earns zero until successful |
-| Fair complete benchmarks | 3 | Publish reproducible full-operation latency, throughput, allocation, peak-memory, proof-size, malformed-rejection, storage, concurrency, and equivalent-comparison evidence |
-| Exported API audit and completion report | 2 | Audit every exported identifier for semantics, ownership, errors, concurrency, complexity, and caveats, then publish the required hardening completion report |
-| Final release evidence | 3 | Pass fresh final clean-consumer, reproducibility, interoperability, security, API, semantic-version, documentation, benchmark, and release-metadata gates on the exact release tree |
-| **Total remaining** | **32** | |
+| Exact mutation gate | 2 | The final pre-v1 tree passes the repository's exact mutation requirements; a running or stale-tree campaign earns zero |
+| Final pre-v1 release evidence | 3 | Fresh clean-consumer, reproducibility, conformance, security, API, documentation, benchmark-smoke, semantic-version, and release-metadata gates pass on the exact release tree |
+| **Total remaining** | **5** | |
 
-## Critical path to 100
+## What conformance means
 
-1. Select a production-suitable commitment backend.
-2. Add the missing independent implementation evidence.
-3. Freeze the stable v1 profile against those exact revisions and encodings.
-4. Close mutation, hostile-input, benchmark, and exported-API audits on the
-   final implementation.
-5. Publish the completion report and pass every final release gate on the exact
-   release tree.
+Tests and differential fixtures establish conformance to the exact
+package-owned profile and to each pinned compatibility claim listed in
+[`docs/compatibility.md`](../docs/compatibility.md). Benchmarks characterize
+latency, memory, allocation, throughput, and encoded size for stated workloads;
+they do not establish cryptographic conformance.
 
-The goal is complete only at **100/100**. Passing experimental-profile tests or
-adding more package-owned features cannot substitute for the backend, stable-
-profile, independent-implementation, and final-release exit criteria.
+The evidence does not establish a universal Verkle standard, Ethereum mainnet
+compatibility, an external audit, or production suitability of the pinned
+cryptographic backend. Those are separate claims and are not prerequisites for
+publishing the selected pre-v1 release with accurate qualifications.
+
+The selected target is complete only at **100/100**.

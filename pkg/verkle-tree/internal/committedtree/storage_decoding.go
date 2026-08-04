@@ -96,7 +96,7 @@ func (err *StorageDecodingResourceError) Unwrap() error {
 	return ErrStorageDecodingResource
 }
 
-// StorageNodeKind is one fixed experimental-profile logical node kind.
+// StorageNodeKind is one fixed pre-v1 profile logical node kind.
 type StorageNodeKind uint8
 
 const (
@@ -341,7 +341,7 @@ func inspectStorageNode(encoded []byte) (storageDecodingPlan, error) {
 		return storageDecodingPlan{}, ErrInvalidStorageNode
 	}
 	offset := storageNodeMagicBytes
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	if encoded[offset] != byte(profile.ID()) {
 		return storageDecodingPlan{}, errors.Join(ErrInvalidStorageNode, ErrStorageNodeProfile)
 	}

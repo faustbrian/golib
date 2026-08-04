@@ -118,7 +118,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 		want    error
 	}{
 		"nil context": {
-			ctx: nilContext, profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: nilContext, profile: BandersnatchIPA256V0(),
 			reader: valid, limits: testInternalStorageReadLimits(), want: ErrInvalidContext,
 		},
 		"invalid profile": {
@@ -126,15 +126,15 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 			limits: testInternalStorageReadLimits(), want: ErrUnsupportedProfile,
 		},
 		"nil reader": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			limits: testInternalStorageReadLimits(), want: ErrInvalidStore,
 		},
 		"typed nil reader": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			reader: nilReader, limits: testInternalStorageReadLimits(), want: ErrInvalidStore,
 		},
 		"invalid limits": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			reader: valid, want: ErrInvalidLimits,
 		},
 	}
@@ -155,7 +155,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	missingCapability.capabilities = StoreCapabilityImmutableNodes
 	_, err := LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		missingCapability,
 		testInternalStorageReadLimits(),
 	)
@@ -170,7 +170,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	openCancelled.openErr = context.Canceled
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		openCancelled,
 		testInternalStorageReadLimits(),
 	)
@@ -182,7 +182,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	typedNilView.returnNilView = true
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		typedNilView,
 		testInternalStorageReadLimits(),
 	)
@@ -197,7 +197,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	publicationFailure.view.closeErr = closeSentinel
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		publicationFailure,
 		testInternalStorageReadLimits(),
 	)
@@ -212,7 +212,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	invalidPublication.view.publication = StorePublication{}
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		invalidPublication,
 		testInternalStorageReadLimits(),
 	)
@@ -225,7 +225,7 @@ func TestLoadSnapshotRejectsFacadeAndReaderLifecycleFailures(t *testing.T) {
 	cancelledPublication.cancelOnOpen = cancelPublication
 	_, err = LoadSnapshot(
 		publicationContext,
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		cancelledPublication,
 		testInternalStorageReadLimits(),
 	)
@@ -282,7 +282,7 @@ func TestLoadSnapshotEnforcesEveryReadResource(t *testing.T) {
 			test.mutate(&limits)
 			_, err := LoadSnapshot(
 				context.Background(),
-				ExperimentalBandersnatchIPA256V0(),
+				BandersnatchIPA256V0(),
 				reader,
 				limits,
 			)
@@ -319,7 +319,7 @@ func TestLoadSnapshotPassesExactRemainingReadBounds(t *testing.T) {
 	encodedLimits.MaxEncodedBytes = rootBytes + 17
 	_, err := LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		encodedReader,
 		encodedLimits,
 	)
@@ -335,7 +335,7 @@ func TestLoadSnapshotPassesExactRemainingReadBounds(t *testing.T) {
 	temporaryLimits.MaxTemporaryBytes = storageReadRetainedBytes(1, 0) + 23
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		temporaryReader,
 		temporaryLimits,
 	)
@@ -358,7 +358,7 @@ func TestLoadSnapshotAccountsPointDecodesAcrossNodes(t *testing.T) {
 	limits.MaxPointDecodes = total - 1
 	_, err := LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		reader,
 		limits,
 	)
@@ -378,7 +378,7 @@ func TestLoadSnapshotRemainsCancellableAcrossReadsAndReconstruction(t *testing.T
 		reader := cloneInternalStorageReader(base)
 		_, err := LoadSnapshot(
 			&cancellingContext{remaining: cancelAt},
-			ExperimentalBandersnatchIPA256V0(),
+			BandersnatchIPA256V0(),
 			reader,
 			testInternalStorageReadLimits(),
 		)
@@ -394,7 +394,7 @@ func TestLoadSnapshotRemainsCancellableAcrossReadsAndReconstruction(t *testing.T
 	reader := cloneInternalStorageReader(base)
 	if _, err := LoadSnapshot(
 		counting,
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		reader,
 		testInternalStorageReadLimits(),
 	); err != nil {
@@ -403,7 +403,7 @@ func TestLoadSnapshotRemainsCancellableAcrossReadsAndReconstruction(t *testing.T
 	reader = cloneInternalStorageReader(base)
 	_, err := LoadSnapshot(
 		&cancellingContext{remaining: counting.calls - 1},
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		reader,
 		testInternalStorageReadLimits(),
 	)
@@ -425,7 +425,7 @@ func TestLoadSnapshotRejectsAdapterThatExceedsReadBound(t *testing.T) {
 	limits.MaxTemporaryBytes = storageReadRetainedBytes(1, 0) + 1
 	_, err := LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		reader,
 		limits,
 	)
@@ -454,7 +454,7 @@ func TestLoadSnapshotTemporaryBudgetStopsEachAllocationPhase(t *testing.T) {
 		limits.MaxTemporaryBytes = budget
 		_, err := LoadSnapshot(
 			context.Background(),
-			ExperimentalBandersnatchIPA256V0(),
+			BandersnatchIPA256V0(),
 			reader,
 			limits,
 		)
@@ -485,7 +485,7 @@ func TestLoadSnapshotIsDeterministicAcrossConcurrentReadViews(t *testing.T) {
 			defer wait.Done()
 			loaded, err := LoadSnapshot(
 				context.Background(),
-				ExperimentalBandersnatchIPA256V0(),
+				BandersnatchIPA256V0(),
 				reader,
 				testInternalStorageReadLimits(),
 			)
@@ -561,7 +561,7 @@ func TestLoadSnapshotRejectsCanonicalTopologyAndCommitmentSubstitution(t *testin
 			mutate(reader)
 			_, err := LoadSnapshot(
 				context.Background(),
-				ExperimentalBandersnatchIPA256V0(),
+				BandersnatchIPA256V0(),
 				reader,
 				testInternalStorageReadLimits(),
 			)
@@ -576,7 +576,7 @@ func TestLoadSnapshotRejectsCanonicalTopologyAndCommitmentSubstitution(t *testin
 	mutateInternalRoot(t, wrongProfile, func(encoded []byte) { encoded[4]++ })
 	_, err := LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		wrongProfile,
 		testInternalStorageReadLimits(),
 	)
@@ -588,7 +588,7 @@ func TestLoadSnapshotRejectsCanonicalTopologyAndCommitmentSubstitution(t *testin
 	mutateFirstChild(t, wrongChildDepth, func(encoded []byte) { encoded[10]++ })
 	_, err = LoadSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		wrongChildDepth,
 		testInternalStorageReadLimits(),
 	)
@@ -953,7 +953,7 @@ func testStorageReadSnapshot(t testing.TB) Snapshot {
 	second[31] = 2
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		[]Entry{
 			{Key: first, Value: Value{1}},
 			{Key: second, Value: Value{2}},
@@ -971,7 +971,7 @@ func testStorageEmptySnapshot(t testing.TB) Snapshot {
 	t.Helper()
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		nil,
 		testFacadeSnapshotLimits(),
 	)

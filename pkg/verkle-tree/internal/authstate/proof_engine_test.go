@@ -599,7 +599,7 @@ func TestProofEngineRejectsTamperedProofs(t *testing.T) {
 	changedClaims[0].value[0]++
 	claimSet, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		changedClaims,
 		testClaimLimits(),
 	)

@@ -105,7 +105,7 @@ func TestTreeProofBytesUsesCanonicalProfileBoundEncoding(t *testing.T) {
 	}
 }
 
-func TestTreeProofEncodingUsesExactExperimentalLayout(t *testing.T) {
+func TestTreeProofEncodingUsesExactPreV1Layout(t *testing.T) {
 	t.Parallel()
 
 	if treeProofHeaderBytes != 63 ||

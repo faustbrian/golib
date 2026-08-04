@@ -12,29 +12,29 @@ shown here.
 
 No stable `verkle-tree` profile is frozen.
 
-The module MUST remain pre-v1 and MUST NOT describe any tree, proof, witness,
-root, node, or serialization API as stable or production-ready until every
-freeze condition below has objective evidence.
+The module MUST remain pre-v1 until stable API and format guarantees are
+deliberately released. Profile conformance MUST be stated separately from
+production suitability, external audit, and Ethereum protocol compatibility.
 
 This is a deliberate no-go decision for a stable profile, not a decision to
 replace vector commitments with hashes or to treat a moving Ethereum proposal
 as a generic standard.
 
-## Experimental Profile Approval
+## Pre-v1 Profile Approval
 
-On 2026-07-29 the maintainer approved incremental implementation under the
-package-owned name `verkletree-bandersnatch-ipa-256-v0`. The exported
+On 2026-07-29 the maintainer approved implementation under the package-owned
+name `verkletree-bandersnatch-ipa-256-v0`. On 2026-08-04 the maintainer selected
+profile-conformant pre-v1 delivery instead of making stable-v1 or production
+suitability release gates. The exported
 `Profile` identity is immutable and callers cannot compose its width, curve,
 generator set, transcript, or encodings at runtime.
 
-This approval changes implementation sequencing, not the stable-profile
-decision. The profile currently fixes only the structural and cryptographic
-identity recorded in
-[`experimental-profile-v0.md`](experimental-profile-v0.md). The remaining
-freeze conditions MUST be specified and proven before their corresponding
-tree, proof, witness, storage, or serialization APIs are exported. Stable v1,
-production-readiness, audit, and Ethereum-compatibility claims remain
-prohibited.
+The normative profile definition is
+[`bandersnatch-ipa-256-v0.md`](bandersnatch-ipa-256-v0.md). An implemented
+surface MUST satisfy every applicable requirement in that document and the
+compatibility report MUST bound every external agreement to its pinned corpus.
+Stable-v1, external-audit, production-suitability, and Ethereum-compatibility
+claims require separate evidence and are not implied by profile conformance.
 
 ## Evidence Date
 
@@ -73,7 +73,8 @@ and benchmark on 2025-11-20. Its pinned history MAY inform research, but a
 deleted and unmaintained implementation MUST NOT close the maintained
 independent-implementation gate or be copied into this package.
 
-That target is not a frozen package profile. In particular:
+That construction is the cryptographic basis of the package-owned v0 profile,
+but it is not a stable Ethereum protocol profile. In particular:
 
 - its Python specification is marked `WIP`;
 - the Go tree implementation says it is no longer used;
@@ -90,7 +91,7 @@ That target is not a frozen package profile. In particular:
 The pinned implementations MAY be used to generate differential research
 artifacts. Such artifacts MUST identify the exact implementation revision,
 profile assumptions, input corpus, and encoding layer being compared. Agreement
-MUST NOT be described as production readiness or Ethereum compatibility.
+MUST NOT be described as production suitability or Ethereum compatibility.
 
 The low-level Rust differential artifacts establish canonical scalar and
 Banderwagon commitment encoding agreement for five deterministic generator
@@ -202,8 +203,8 @@ The reviewed Ethereum documents do not define a stable package profile:
   Verkle implementation.
 
 An Ethereum subpackage MUST therefore remain absent until an explicit,
-revision-pinned experimental profile can be implemented and differentially
-proven. Even then, it MUST NOT claim mainnet readiness.
+revision-pinned Ethereum profile can be implemented and differentially proven.
+Even then, it MUST NOT claim mainnet readiness.
 
 The ethereum.org roadmap page remains useful introductory material, but its
 current-progress text conflicts with the newer Geth implementation direction.
@@ -211,10 +212,10 @@ It is classified as moving explanatory material, not protocol authority.
 
 ## Phase Exit
 
-Phase 1 is complete only when this no-go decision is replaced by a reviewed
-profile definition satisfying every freeze condition, or when maintainers
-explicitly approve a named experimental profile whose public stability and
-compatibility limits are encoded in its types and serialization.
+Phase 1 is complete for the pre-v1 target: the named v0 profile has a normative
+definition, immutable identity, pinned sources, and explicit conformance and
+compatibility limits. The separate stable-v1 and production-suitability
+decisions remain open.
 
 [RFC2119]: https://www.rfc-editor.org/rfc/rfc2119
 [RFC8174]: https://www.rfc-editor.org/rfc/rfc8174

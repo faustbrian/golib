@@ -7,10 +7,10 @@ import (
 	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 )
 
-func TestExperimentalBandersnatchIPA256V0(t *testing.T) {
+func TestBandersnatchIPA256V0(t *testing.T) {
 	t.Parallel()
 
-	profile := verkletree.ExperimentalBandersnatchIPA256V0()
+	profile := verkletree.BandersnatchIPA256V0()
 
 	if err := profile.Validate(); err != nil {
 		t.Fatalf("validate profile: %v", err)
@@ -23,9 +23,6 @@ func TestExperimentalBandersnatchIPA256V0(t *testing.T) {
 	}
 	if got, want := profile.Version(), uint16(0); got != want {
 		t.Fatalf("profile version = %d, want %d", got, want)
-	}
-	if !profile.Experimental() {
-		t.Fatal("profile must remain experimental")
 	}
 	if got, want := profile.BranchingWidth(), uint16(256); got != want {
 		t.Fatalf("branching width = %d, want %d", got, want)

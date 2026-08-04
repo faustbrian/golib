@@ -126,7 +126,7 @@ pinned in the source manifest.
 The resolved graph deliberately overrides that module's stale requirements
 with `gnark-crypto` `v0.20.1`, `x/sync` `v0.22.0`, and `x/sys` `v0.47.0`.
 This composition is accepted for the canonical encoding seam, strict
-profile-bound root decoding, the internal experimental commitment engine, the
+profile-bound root decoding, the internal pre-v1 commitment engine, the
 strict standalone commitment decoder, strict raw aggregate-opening-proof
 decoder, strict internal tree-proof decoder, fixed-profile aggregate opening
 and verification, and the pinned proof corpus exercised here. It is not
@@ -281,7 +281,7 @@ fixed-base MSM skips zero scalars, precomputed scalar multiplication branches
 on scalar windows and indexes lookup tables by those windows, and generic MSM
 partitions and schedules work using scalar values. The package's serial
 research commitment path likewise skips zero vector entries. Consequently the
-experimental implementation does not claim to hide key, value, vector-sparsity,
+pre-v1 implementation does not claim to hide key, value, vector-sparsity,
 or witness information from a same-host timing or cache observer. Production
 selection must define the confidentiality scope and either supply reviewed
 constant-time operations for secrets in that scope or explicitly constrain the
@@ -328,7 +328,7 @@ The current internal boundary may:
   statement digest and one fixed nonzero anchor opening before proof work.
 
 It may decode only the fixed raw aggregate-proof payload described by the
-experimental profile and the package-owned internal unverified tree-proof
+pre-v1 profile and the package-owned internal unverified tree-proof
 container that embeds it. It may construct and verify openings only through the
 fixed internal profile boundary. It must not accept a serialized identity as a
 root, node, path, or standalone commitment, expose dependency values outside
@@ -354,7 +354,7 @@ no context, so the wrapper rejects insufficient worker budgets beforehand,
 admits only one dependency proof call per engine, bounds waiting calls, and can
 check cancellation only before and after the in-flight call. This does not
 prove the dependency's complete heap allocation profile or constant-time
-behavior. The engine therefore remains an experimental internal component
+behavior. The engine therefore remains a pre-v1 internal component
 rather than an approved production backend.
 
 The separate `internal/leafvector` boundary performs dependency-free,

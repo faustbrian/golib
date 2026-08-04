@@ -1,21 +1,20 @@
-# Experimental Public API Audit
+# Pre-v1 Public API Audit
 
 ## Scope and status
 
 This audit covers the complete exported surface of package
 `github.com/faustbrian/golib/pkg/verkle-tree` as represented by
 `api/baseline.txt` with SHA-256
-`4762023a24573bd3a101d76eb13a5248063f8b810c488af328bfc2204762e8b9`.
+`93a238fbcbd098d227ec1bdb3ae15cba9d3622d36eccc067c759db05f518729f`.
 It reviews semantics, ownership, error classification, concurrency, resource
 cost, and caveats. Every exported field has an inline Go documentation comment;
 the tables below cover every exported type, constant, variable, function, and
 method, including the methods re-exported by the immutable `Profile` alias.
 
-This is an audit of the current experimental API, not a stable-release or
-cryptographic-security claim. The production backend, maintained independent
-implementation, stable profile, final mutation campaign, and release evidence
-remain open. Any exported API change invalidates this audit until the API
-baseline checksum and this report are refreshed together.
+This is an audit of the current pre-v1 API, not a stable-release,
+external-audit, or production-suitability claim. The final mutation campaign
+and release evidence remain open. Any exported API change invalidates this
+audit until the API baseline checksum and this report are refreshed together.
 
 ## Cross-cutting contract
 
@@ -30,7 +29,7 @@ baseline checksum and this report are refreshed together.
 - Each proof or stateless engine serializes entry into its dependency proof
   boundary and admits no more than `MaxQueuedOperations` waiting calls. Queued
   cancellation does not start dependency work; admitted work remains
-  uncancellable inside the experimental backend.
+  uncancellable inside the pinned backend.
 - Every I/O or attacker-amplified public operation accepts `context.Context`.
   Nil contexts return `ErrInvalidContext`; cancellation and deadlines match
   both `ErrCancelled` and the original context error.
@@ -50,7 +49,7 @@ baseline checksum and this report are refreshed together.
 
 | Exported identifiers | Semantics and ownership | Errors, concurrency, cost, and caveats |
 | --- | --- | --- |
-| `ProfileID`, `ProfileBandersnatchIPA256V0`, `Profile`, `ExperimentalBandersnatchIPA256V0`; `Profile.ID`, `Name`, `Version`, `Experimental`, `BranchingWidth`, `KeySize`, `StemSize`, `ValueSize`, `EncodingVersion`, `Validate` | One immutable package-owned convention; callers cannot compose algorithms. | Constant time and concurrency safe. Zero or altered profiles match `ErrUnsupportedProfile`. The only profile is experimental. |
+| `ProfileID`, `ProfileBandersnatchIPA256V0`, `Profile`, `BandersnatchIPA256V0`; `Profile.ID`, `Name`, `Version`, `BranchingWidth`, `KeySize`, `StemSize`, `ValueSize`, `EncodingVersion`, `Validate` | One immutable package-owned convention; callers cannot compose algorithms. | Constant time and concurrency safe. Zero or altered profiles match `ErrUnsupportedProfile`. The only profile is the normative package-owned pre-v1 profile. |
 | `RootSize`, `RootDecodingLimits`, `Root`, `DecodeRoot`, `Root.Bytes`, `Profile`, `IsEmpty` | One exact profile-bound canonical root; returned bytes are by value. | Constant-size validation and at most one point decode. Zero roots match `ErrInvalidRoot`; malformed and unsupported-profile inputs remain distinct. |
 | `Key`, `Value`, `Entry`, `Entry.Key`, `Entry.Value` | Exact 32-byte keys and values. A present all-zero `Value` differs from absence. | Value copies are constant time. `Entry` is caller-owned input and is copied before retention. |
 
@@ -133,8 +132,8 @@ cryptographic values, retains caller slices without copying, or silently treats
 zero limits as unbounded. No public-contract defect was identified in this
 audit.
 
-The surface remains experimental because its cryptographic backend is not
-approved for production and the stable profile cannot yet be frozen. This
-report therefore closes the current API inventory and documentation review,
-but it does not constitute the final hardening-completion report or earn a
-stable-release claim.
+The surface is profile-conformant and pre-v1. The pinned cryptographic backend
+has not received the separate review required for a production-suitability
+claim, and the API has no stable-v1 compatibility guarantee. This report closes
+the current API inventory and documentation review, but it does not constitute
+an external cryptographic audit or final release evidence.

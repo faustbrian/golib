@@ -12,7 +12,7 @@ func ExampleSnapshot() {
 	key := verkletree.Key{}
 	snapshot, err := verkletree.NewSnapshot(
 		ctx,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{Key: key, Value: verkletree.Value{}}},
 		publicSnapshotLimits(),
 	)

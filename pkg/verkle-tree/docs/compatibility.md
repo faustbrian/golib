@@ -1,12 +1,21 @@
-# Compatibility Status
+# Conformance And Compatibility Status
 
-No production or general tree compatibility claim is currently implemented.
-The bounded research agreements below apply only to their exact corpora.
+The package conforms to its normative
+`verkletree-bandersnatch-ipa-256-v0` profile for the implemented surfaces.
+External interoperability is claim-by-claim: agreement with a pinned reference
+proves the listed behavior for the listed corpus and does not silently extend
+to another wire format, operation, revision, or Ethereum protocol rule.
+
+Package tests prove deterministic state transitions, canonical encodings,
+proof verification, hostile-input rejection, and resource contracts against
+the normative profile. Differential harnesses additionally prove the exact
+cross-implementation claims below. Benchmarks do not prove conformance; they
+measure the already-defined operations under a recorded environment.
 
 | Target | Pinned revision or status | Intended use | Claim |
 | --- | --- | --- | --- |
-| Generic `verkle-tree` v1 | Not frozen | Future package profile | None |
-| `verkletree-bandersnatch-ipa-256-v0` | Package-owned experimental identity | Incremental pre-v1 implementation | Public immutable snapshots with canonical self-authenticating whole-snapshot bytes, canonical set/delete transitions, profile-bound roots, aggregate membership/non-membership proofs including canonical empty-root absence, canonical Set witnesses for present, missing, different, and empty-root paths plus absent, topology-preserving, and authenticated topology-collapsing Delete witnesses with verified pre/post-state roots, canonical capability-checked storage writes, bounded isolated persisted reconstruction, bounded read-only current/retained-root inventory audit, atomic capability-checked retained-publication replacement plus pruning, and bounded recovery that preserves every publication while deleting unreachable unpublished node writes over internal canonical topology, bounded vector commitments, strict encodings, and independent verifier reconstruction; no restoration of corrupt published state, stable wire, concrete storage adapter, production, or Ethereum compatibility |
+| Generic `verkle-tree` v1 | Not frozen | Future stable package profile | None |
+| `verkletree-bandersnatch-ipa-256-v0` | Package-owned normative pre-v1 identity | Implemented package profile | Conformant immutable snapshots; canonical self-authenticating snapshot bytes; canonical Set/Delete transitions; profile-bound roots; aggregate membership/non-membership proofs including empty-root absence; Set witnesses for present, missing, different, and empty-root paths; absent, topology-preserving, and authenticated topology-collapsing Delete witnesses with verified pre/post roots; capability-checked canonical storage writes; bounded isolated reconstruction, audit, retained-publication replacement, pruning, and unpublished-write recovery; bounded vector commitments; strict encodings; and independent verifier reconstruction. This does not claim restoration of corrupt published state, stable API or wire compatibility, a concrete adapter, external audit, production suitability, or Ethereum compatibility. |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
 | `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening and zero-evaluation proofs, stem path hints, one tree root/proof corpus, and its bounded present-stem stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `ethereumjs/verkle-cryptography-wasm` | Git `2a814ff6fe0fb62e0a711e7b52a8e6db37e09733`; npm `0.4.8` | EthereumJS WASM delivery-lineage research | The repository declares maintenance by the Ethereum Foundation JavaScript team but wraps `crate-crypto/rust-verkle` revision `309cdcba4088e698689dc33b8ee071c2d064b2ae`; it is not a second independent cryptographic implementation and adds no tree, proof, wire, or production compatibility claim |

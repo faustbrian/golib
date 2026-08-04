@@ -22,7 +22,7 @@ func TestClaimSetCanonicalizesAndOwnsClaims(t *testing.T) {
 	}
 	set, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		input,
 		testClaimLimits(),
 	)
@@ -35,7 +35,7 @@ func TestClaimSetCanonicalizesAndOwnsClaims(t *testing.T) {
 		t.Fatalf("claim count = %d, error = %v", count, countErr)
 	}
 	if profile, profileErr := set.Profile(); profileErr != nil ||
-		profile != internalprofile.ExperimentalBandersnatchIPA256V0() {
+		profile != internalprofile.BandersnatchIPA256V0Profile() {
 		t.Fatalf("claim profile = %#v, error = %v", profile, profileErr)
 	}
 	claims, err := set.Claims(context.Background())
@@ -96,7 +96,7 @@ func TestClaimSetRejectsDuplicatesAndInvalidClaims(t *testing.T) {
 	key := testKey(1, 1)
 	if _, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		nil,
 		testClaimLimits(),
 	); !errors.Is(err, errInvalidClaimSet) {
@@ -128,7 +128,7 @@ func TestClaimSetRejectsDuplicatesAndInvalidClaims(t *testing.T) {
 
 			_, err := NewClaimSet(
 				context.Background(),
-				internalprofile.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.BandersnatchIPA256V0Profile(),
 				claims,
 				testClaimLimits(),
 			)
@@ -202,7 +202,7 @@ func TestClaimSetEnforcesResourcesBeforeAllocation(t *testing.T) {
 
 			_, err := NewClaimSet(
 				context.Background(),
-				internalprofile.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.BandersnatchIPA256V0Profile(),
 				claims,
 				test.limits,
 			)
@@ -222,7 +222,7 @@ func TestClaimSetEnforcesResourcesBeforeAllocation(t *testing.T) {
 func TestClaimSetRejectsInvalidStateContextAndLimits(t *testing.T) {
 	t.Parallel()
 
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	claims := []Claim{
 		Membership(testKey(2, 2), testValue(2)),
 		Absence(testKey(1, 1)),
@@ -328,7 +328,7 @@ func TestClaimLimitsAndSetValidationHonorImplementationBoundaries(t *testing.T) 
 		t.Fatalf("maximum claim limit: %v", err)
 	}
 
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	exactMaximum := ClaimSet{
 		profile: profile,
 		claims:  make([]Claim, maxClaimCount),
@@ -383,7 +383,7 @@ func TestClaimSetCanonicalizesMergeBoundaries(t *testing.T) {
 			}
 			set, err := NewClaimSet(
 				context.Background(),
-				internalprofile.ExperimentalBandersnatchIPA256V0(),
+				internalprofile.BandersnatchIPA256V0Profile(),
 				claims,
 				testClaimLimits(),
 			)
@@ -409,7 +409,7 @@ func TestClaimSetSupportsConcurrentImmutableReads(t *testing.T) {
 
 	set, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		[]Claim{
 			Membership(testKey(1, 1), testValue(1)),
 			Absence(testKey(2, 2)),

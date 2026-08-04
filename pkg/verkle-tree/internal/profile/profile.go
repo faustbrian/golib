@@ -12,7 +12,7 @@ var ErrUnsupported = errors.New("unsupported Verkle profile")
 type ID uint8
 
 const (
-	// BandersnatchIPA256V0 identifies the package-owned experimental profile.
+	// BandersnatchIPA256V0 identifies the package-owned pre-v1 profile.
 	BandersnatchIPA256V0 ID = iota + 1
 )
 
@@ -28,11 +28,10 @@ type Profile struct {
 	stemSize        uint16
 	valueSize       uint16
 	encodingVersion uint16
-	experimental    bool
 }
 
-// ExperimentalBandersnatchIPA256V0 returns the only package-defined profile.
-func ExperimentalBandersnatchIPA256V0() Profile {
+// BandersnatchIPA256V0Profile returns the only package-defined profile.
+func BandersnatchIPA256V0Profile() Profile {
 	return Profile{
 		id:              BandersnatchIPA256V0,
 		name:            bandersnatchIPA256V0Name,
@@ -42,7 +41,6 @@ func ExperimentalBandersnatchIPA256V0() Profile {
 		stemSize:        31,
 		valueSize:       32,
 		encodingVersion: 1,
-		experimental:    true,
 	}
 }
 
@@ -59,11 +57,6 @@ func (profile Profile) Name() string {
 // Version returns the profile definition version.
 func (profile Profile) Version() uint16 {
 	return profile.version
-}
-
-// Experimental reports whether the profile is prohibited from stable claims.
-func (profile Profile) Experimental() bool {
-	return profile.experimental
 }
 
 // BranchingWidth returns the fixed number of positions in an inner node.
@@ -93,7 +86,7 @@ func (profile Profile) EncodingVersion() uint16 {
 
 // Validate rejects every value except the exact package-owned definition.
 func (profile Profile) Validate() error {
-	if profile != ExperimentalBandersnatchIPA256V0() {
+	if profile != BandersnatchIPA256V0Profile() {
 		return ErrUnsupported
 	}
 

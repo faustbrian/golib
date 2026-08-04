@@ -488,7 +488,7 @@ func (tree Tree) encodeStorageNode(
 	encoded := make([]byte, int(size))
 	copy(encoded, storageNodeMagic[:])
 	offset := storageNodeMagicBytes
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	encoded[offset] = byte(profile.ID())
 	offset += storageNodeProfileIDBytes
 	binary.BigEndian.PutUint16(

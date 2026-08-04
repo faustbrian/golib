@@ -15,7 +15,7 @@ const (
 	maxSupportedStemCount = uint32(2_147_483_647)
 )
 
-// Stem is the fixed 31-byte path portion of an experimental-profile key.
+// Stem is the fixed 31-byte path portion of a pre-v1 profile key.
 type Stem [31]byte
 
 // Kind identifies one logical committed-tree node kind.

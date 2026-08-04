@@ -2,11 +2,12 @@
 
 ## Adoption decision
 
-Adopt this module only when a pre-v1 experimental dependency is acceptable.
-The current package is useful for research, internal evaluation, pinned
-interoperability work, and development of caller-owned storage boundaries. It
-is not approved for production, a stable public wire protocol, or Ethereum
-mainnet state.
+Adopt this module when a pre-v1 API and the documented backend qualifications
+are acceptable. The current package implements its named profile and is useful
+for authenticated application state, pinned interoperability work, and
+caller-owned storage integration. It does not claim a stable public wire
+protocol, external cryptographic audit, production suitability, or Ethereum
+mainnet compatibility.
 
 Before a deployment, record:
 
@@ -79,7 +80,7 @@ Geth v1.17.0 describes binary-tree migration work as replacing its Verkle tree
 implementation, while EIP-7864 remains Draft and does not yet select its hash.
 The ethereum.org Verkle page is retained as moving background rather than an
 activation specification. Applications MUST NOT encode an assumed Ethereum
-transition into the package-owned experimental profile.
+transition into the package-owned pre-v1 profile.
 
 ## FAQ
 

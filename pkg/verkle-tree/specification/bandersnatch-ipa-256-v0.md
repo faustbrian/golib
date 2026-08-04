@@ -1,4 +1,4 @@
-# Experimental Bandersnatch IPA 256 Profile
+# Bandersnatch IPA 256 Profile
 
 ## Normative Language
 
@@ -10,14 +10,15 @@ shown here.
 
 ## Status
 
-`verkletree-bandersnatch-ipa-256-v0` is a package-owned, pre-v1 experimental
-profile. It is not stable, audited, production-ready, or Ethereum-compatible.
-Its definition MAY change incompatibly before v1.
+`verkletree-bandersnatch-ipa-256-v0` is the package-owned pre-v1 profile. This
+document is its normative definition. Implementations conform only when they
+satisfy every applicable MUST and MUST NOT requirement for the surfaces they
+claim. Any incompatible revision MUST use another profile version or identity.
 
-The exported experimental surface implements immutable snapshots, roots,
+The Go package implements immutable snapshots, roots,
 root-bound state transitions, aggregate proofs, capability-checked canonical
 storage writes, and bounded isolated persisted reconstruction. Internal
-research boundaries implement the fixed
+boundaries implement the fixed
 topology, leaf field inputs, vector commitments, complete mathematical root
 construction, and encodings below. A bounded read-only recovery audit covers
 current and retained publications plus complete node-ID inventory. A separate
@@ -25,8 +26,9 @@ bounded atomic maintenance operation replaces the retained-publication set and
 prunes only nodes outside the current and desired retained roots. A bounded
 recovery operation preserves every publication and atomically prunes node-only
 debris outside them. Restoration of missing or corrupt published state,
-concrete storage adapters, and stable APIs remain unimplemented. This document
-MUST NOT be read as a claim that those surfaces already exist.
+concrete storage adapters, and stable APIs remain out of scope. Profile
+conformance does not establish external audit, production suitability, or
+Ethereum protocol compatibility.
 
 ## Fixed Identity
 
@@ -37,7 +39,7 @@ The profile identity fixes the following values:
 | Name | `verkletree-bandersnatch-ipa-256-v0` |
 | Numeric identifier | `1` |
 | Profile version | `0` |
-| Experimental | `true` |
+| Release stage | pre-v1 |
 | Branching width | `256` |
 | Key length | `32` bytes |
 | Stem length | `31` bytes |
@@ -57,27 +59,25 @@ they are not registries for independently configurable cryptographic
 components. An implementation MUST reject the zero profile and any internally
 inconsistent representation before cryptographic work.
 
-## Unfrozen Semantics
+## Out-of-scope semantics
 
-The following parts of the profile are deliberately not frozen:
+The following semantics are not part of this profile:
 
 - serialized empty-subtree representation outside the root and stored-node
   formats defined below;
-- stable witness semantics beyond the exact experimental Set/Delete witness,
+- witness semantics beyond the exact Set/Delete witness,
   completeness, and post-state rules below;
-- canonical point, scalar, and verified-proof rejection rules beyond the
-  internal research seams already tested;
-- aggregate-proof and batch-verification failure semantics;
+- point, scalar, or proof forms other than the canonical rules below;
+- proof systems or batch-verification modes other than the aggregate proof
+  defined below;
 - durable snapshot naming beyond the root publication pair, adapter-specific
   retention policy, restoration, and durability semantics;
   and
-- operation budgets, cancellation checkpoints, and resource accounting.
+- unbounded operation modes or unspecified resource accounting.
 
-The package MUST NOT export an operation that depends on one of these semantics
-until the corresponding definition is normative, canonical, bounded, and
-covered by positive and hostile-input tests. Any future incompatible choice
-MUST use a different profile name or version; it MUST NOT silently reinterpret
-already encoded objects.
+An implementation MUST NOT claim these omitted semantics as profile
+conformance. Any future incompatible choice MUST use a different profile name
+or version; it MUST NOT silently reinterpret already encoded objects.
 
 ## Fixed Tree Topology
 
@@ -220,7 +220,7 @@ encoding, or Ethereum compatibility claim.
 
 ## Root Container Encoding
 
-The experimental canonical root container MUST be exactly 42 bytes:
+The pre-v1 canonical root container MUST be exactly 42 bytes:
 
 | Offset | Size | Field |
 | ---: | ---: | --- |
@@ -249,7 +249,7 @@ non-membership, proof verification, persistence, or publication.
 
 ## Canonical Stored-Node Encoding And Publication
 
-The experimental stored-node encoding MUST bind the complete logical node and
+The pre-v1 stored-node encoding MUST bind the complete logical node and
 profile. Every node MUST begin with this 44-byte header:
 
 | Offset | Size | Field |
@@ -484,7 +484,7 @@ verification.
 
 ## Canonical Tree Claims
 
-An internal canonical claim set MUST bind the exact experimental profile and
+An internal canonical claim set MUST bind the exact pre-v1 profile and
 MUST contain at least one claim. Each claim MUST contain exactly one 32-byte
 key and one of:
 
@@ -516,7 +516,7 @@ proof container.
 ## Canonical Unverified Tree-Proof Container
 
 The internal tree-proof container MUST bind exactly one valid non-empty
-profile-bound root, one canonical claim set for the same fixed experimental
+profile-bound root, one canonical claim set for the same fixed pre-v1
 profile, one topology assertion for every distinct queried stem, every required
 non-root path commitment, and one canonical raw aggregate-opening payload.
 Construction MUST NOT report the container as cryptographically verified.
@@ -587,7 +587,7 @@ depth, or any non-root commitment MUST be rejected before verification.
 ## Canonical Tree-Proof Encoding
 
 The internal unverified tree-proof container MUST have exactly one
-package-owned canonical byte encoding. This encoding is experimental and
+package-owned canonical byte encoding. This encoding is pre-v1 and
 internal; it MUST NOT be described as a public, stable, or independently
 compatible wire format.
 
@@ -667,7 +667,7 @@ a state transition.
 
 ## Internal Commitment Construction
 
-The experimental internal engine MUST accept exactly one complete width-256
+The pre-v1 internal engine MUST accept exactly one complete width-256
 vector of canonical 32-byte little-endian scalars. It MUST reject a
 non-canonical scalar rather than reduce it into the field. The fixed array
 input MUST NOT permit a caller-selected vector length.
@@ -722,7 +722,7 @@ production-backend evidence.
 
 ## Raw Aggregate Opening Proof Encoding
 
-The internal experimental raw aggregate-opening proof payload MUST contain, in
+The internal pre-v1 raw aggregate-opening proof payload MUST contain, in
 order:
 
 1. one canonical 32-byte Banderwagon point `D`;
@@ -751,7 +751,7 @@ Those bindings remain REQUIRED before a public verified proof API can exist.
 
 ## Aggregate Opening And Tree-Proof Verification
 
-The internal experimental aggregate-opening engine MUST bind width 256, the
+The internal pre-v1 aggregate-opening engine MUST bind width 256, the
 `eth_verkle_oct_2021` generator set, and the transcript label `verkle`. Callers
 MUST NOT select or replace the curve, field, width, generators, transcript, or
 proof encoding at runtime.
@@ -833,7 +833,7 @@ This limitation prohibits production-backend approval.
 
 Successful verification establishes only that the canonical claims and absence
 statements are consistent with the committed root under this exact
-experimental profile and proof system. It does not establish storage
+pre-v1 profile and proof system. It does not establish storage
 durability, snapshot retention, witness completeness for updates, execution
 validity, Ethereum protocol compatibility, or authorization to mutate state.
 
@@ -980,7 +980,7 @@ The independently generated Rust corpus fixes roots for empty, present-zero,
 single-value, suffix-half boundary, separate-root-branch, and maximum-depth
 collision states. Agreement proves only deterministic mathematical root
 construction for those exact states. The package-owned root container binds
-them to the experimental profile, but it is not an external interoperability
+them to the pre-v1 profile, but it is not an external interoperability
 claim and does not establish persisted-read compatibility, an incremental
 update algorithm, proof or witness compatibility, a production backend, or
 general Rust compatibility.
@@ -1057,7 +1057,7 @@ nodes unreachable from all of them.
 
 The public immutable snapshot MUST have one canonical, self-authenticating
 byte encoding. It contains the complete ordered present key/value state and an
-exact profile-bound root. The format is package-owned and experimental; it is
+exact profile-bound root. The format is package-owned and pre-v1; it is
 not a `go-verkle`, Rust Verkle, or Ethereum wire format.
 
 | Offset | Length | Field |

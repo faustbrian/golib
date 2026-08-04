@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// OpeningProofSize is the exact byte length of the experimental profile's
+	// OpeningProofSize is the exact byte length of the pre-v1 profile's
 	// raw aggregate opening proof: D, eight L points, eight R points, and one
 	// canonical scalar.
 	OpeningProofSize = openingProofPointCount*commitmentSize + scalarSize
@@ -32,7 +32,7 @@ var (
 )
 
 // OpeningProof is one opaque canonical aggregate-opening proof for the fixed
-// experimental profile. It does not include tree claims or imply verification.
+// pre-v1 profile. It does not include tree claims or imply verification.
 type OpeningProof struct {
 	encoded [OpeningProofSize]byte
 	valid   bool

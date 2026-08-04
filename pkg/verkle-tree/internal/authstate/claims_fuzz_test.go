@@ -27,13 +27,13 @@ func FuzzClaimSetCanonicalization(f *testing.F) {
 		}
 		left, leftErr := NewClaimSet(
 			context.Background(),
-			internalprofile.ExperimentalBandersnatchIPA256V0(),
+			internalprofile.BandersnatchIPA256V0Profile(),
 			claims,
 			limits,
 		)
 		right, rightErr := NewClaimSet(
 			context.Background(),
-			internalprofile.ExperimentalBandersnatchIPA256V0(),
+			internalprofile.BandersnatchIPA256V0Profile(),
 			reversed,
 			limits,
 		)

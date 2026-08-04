@@ -13,7 +13,7 @@ func BenchmarkLoadSnapshotFourEntries(b *testing.B) {
 	entries[3] = Entry{Key: Key{0: 2, 31: 129}, Value: Value{0: 4}}
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		entries[:],
 		testFacadeSnapshotLimits(),
 	)
@@ -32,7 +32,7 @@ func BenchmarkLoadSnapshotFourEntries(b *testing.B) {
 	for range b.N {
 		if _, err := LoadSnapshot(
 			context.Background(),
-			ExperimentalBandersnatchIPA256V0(),
+			BandersnatchIPA256V0(),
 			reader,
 			testInternalStorageReadLimits(),
 		); err != nil {

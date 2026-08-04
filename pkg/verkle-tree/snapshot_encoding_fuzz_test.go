@@ -19,7 +19,7 @@ func FuzzDecodeSnapshot(f *testing.F) {
 	} {
 		snapshot, err := verkletree.NewSnapshot(
 			context.Background(),
-			verkletree.ExperimentalBandersnatchIPA256V0(),
+			verkletree.BandersnatchIPA256V0(),
 			entries,
 			publicSnapshotLimits(),
 		)

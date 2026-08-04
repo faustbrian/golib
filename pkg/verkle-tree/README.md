@@ -1,12 +1,12 @@
 # verkle-tree
 
-`verkle-tree` is intended to become a storage-independent Go library for
-authenticated key/value trees backed by vector commitments.
+`verkle-tree` is a storage-independent Go library for authenticated key/value
+trees backed by vector commitments.
 
 ## Status
 
-This module is **pre-v1 research only**. Its root package exposes the
-package-owned `verkletree-bandersnatch-ipa-256-v0` experimental profile,
+This module is **profile-conformant pre-v1 software**. Its root package exposes
+the package-owned `verkletree-bandersnatch-ipa-256-v0` profile,
 immutable snapshots, canonical set/delete transitions, profile-bound roots,
 canonical whole-snapshot bytes,
 bounded aggregate membership and non-membership proofs, atomic caller-owned
@@ -14,16 +14,17 @@ storage writes, and bounded reconstruction from isolated caller-owned read
 snapshots, plus bounded recovery audits and atomic retention/pruning plans over
 current and retained roots. A bounded recovery operation preserves every
 verified publication while atomically removing node-only debris left by an
-interrupted unpublished write. The public surface is experimental, rebuilds
-the complete tree for stateful
+interrupted unpublished write. The public surface may change incompatibly
+before v1, rebuilds the complete tree for stateful
 updates, persisted loads, and maintained publications, and provides canonical
 bounded stateless witnesses for authenticated `Set` and `Delete` operations,
 including deletions that remove stems and collapse unary internal paths.
 Authenticated paths may be present, missing, or different stems. It does not
 restore missing or corrupt published state or provide concrete adapter
-implementations. It is not a production-ready tree.
-Compatibility claims are limited to the exact research corpora described
-below.
+implementations. Production suitability is not claimed because the pinned
+cryptographic backend has not received the audit required by this package.
+Conformance and compatibility claims are limited to the exact profile and
+pinned corpora described below.
 
 The initial source review did not find a profile that can honestly be frozen as
 stable:
@@ -55,7 +56,7 @@ update, and obtains profile-bound pre/post roots:
 
 ```go
 ctx := context.Background()
-profile := verkletree.ExperimentalBandersnatchIPA256V0()
+profile := verkletree.BandersnatchIPA256V0()
 limits := verkletree.SnapshotLimits{
     State: verkletree.StateLimits{
         MaxEntries: 64, MaxBatchUpdates: 64, MaxTemporaryBytes: 16 << 20,
@@ -176,8 +177,9 @@ It also reproduces the internal engine's commitments and commitment-to-field
 images for zero, one-hot, sparse-boundary, and dense width-256 vectors. The Go
 engine is explicit, immutable, fixed-width, resource-bounded, serial, and
 cancellation-aware between commitment terms. Generator derivation remains one
-fixed backend call that cannot be interrupted after it starts, so this seam is
-experimental and does not satisfy the production-backend gate.
+fixed backend call that cannot be interrupted after it starts. This limitation
+is part of the production-suitability qualification; it does not invalidate
+conformance to the named profile.
 For one pinned three-opening corpus and one single zero-evaluation corpus, both
 references produce the same canonical 576-byte aggregate proofs, and the Go
 verifier accepts the Rust proofs. A valid zero-evaluation IPA proof contains
@@ -214,18 +216,19 @@ checked against the package's independent stateful tree construction, not
 claimed as Rust updater agreement. Deletion and general
 cross-implementation update corpora remain unproven.
 
-## Experimental profile
+## Pre-v1 profile
 
-`ExperimentalBandersnatchIPA256V0` is the only constructible profile. Its
+`BandersnatchIPA256V0` is the only constructible profile. Its
 identity fixes a 256-wide layout, 32-byte keys split into a 31-byte stem and
 one-byte suffix, 32-byte values, the Bandersnatch/Banderwagon
 Pedersen-plus-IPA construction, the `eth_verkle_oct_2021` generator set, and
 the `verkle` transcript.
 
-The profile remains incomplete: adapter-specific restoration and durability
-semantics, stable proof and witness semantics,
-tree-level incremental update semantics, and complete dependency-level
-cancellation are not yet frozen. The internal backend can deterministically
+The v0 profile is complete for the implemented surfaces. It deliberately does
+not define adapter-specific restoration and durability guarantees, tree-level
+incremental update APIs, or cancellation inside the pinned dependency call.
+Those are capability and deployment boundaries, not alternate profile
+semantics. The internal backend can deterministically
 apply a bounded sparse change to already authenticated vector positions, but it
 does not authenticate old values by itself. An internal stateless updater now
 cryptographically verifies the complete tree proof before applying bounded
@@ -244,10 +247,10 @@ affected non-root ancestor. The stateless verifier reconstructs those
 authenticated vectors and removes empty nodes or collapses unary paths to the
 surviving stem before deriving the root. Canonical
 stored-node bytes, atomic write publication, isolated persisted reconstruction,
-and atomic retention/pruning now have one package-owned experimental contract,
+and atomic retention/pruning now have one package-owned pre-v1 contract,
 but none is a stable interoperability surface.
 The exact boundary is recorded in
-[`specification/experimental-profile-v0.md`](specification/experimental-profile-v0.md).
+[`specification/bandersnatch-ipa-256-v0.md`](specification/bandersnatch-ipa-256-v0.md).
 
 An internal slow reference model now fixes bounded immutable state transitions:
 raw fixed-length keys and values, present-zero semantics, explicit deletion,
@@ -303,7 +306,7 @@ broader state-transition behavior.
 An internal canonical claim-set boundary now fixes the ordered key/value
 assertions that a later tree proof must authenticate. It distinguishes a
 present all-zero value from absence, rejects duplicate or conflicting keys,
-binds the exact experimental profile before allocation, and owns all accepted
+binds the exact pre-v1 profile before allocation, and owns all accepted
 claims under explicit count, scratch-memory, and cancellation limits. It does
 not authenticate any assertion by itself.
 
@@ -330,7 +333,7 @@ encoding and strict decoder bind the profile, root, ordered claims, topology,
 path commitments, and raw opening payload; reject alternate lengths, trailing
 bytes, nonzero padding, malformed points or scalars, and aggregate resource
 overruns before cryptographic decoding; and preserve cancellation and caller
-ownership. This remains an experimental format and performs no verification
+ownership. This remains a pre-v1 format and performs no verification
 merely by construction or decoding.
 An empty-root proof requires only absence claims, one depth-one missing path per
 distinct stem, and no non-root tree commitment. Its aggregate opening proves
@@ -352,7 +355,7 @@ and a caller-bounded queue; queued cancellation is checked before dependency
 entry. Cancellation is checked throughout owned work and before and after
 dependency calls, but the pinned dependency cannot be interrupted during its
 aggregate proof operation; that remains a production backend blocker. The root
-package exposes this engine through a fixed-profile experimental facade with
+package exposes this engine through a fixed-profile pre-v1 facade with
 opaque proofs and typed resource errors. It does not establish a stable proof
 API, witness semantics, storage durability, or Ethereum compatibility.
 
@@ -376,7 +379,7 @@ bytes. The canonical witness decoder returns an unverified owned container;
 `StatelessEngine.Apply` separately verifies the proof, derives the root, and
 matches the claimed post-state root.
 
-## Experimental storage boundary
+## Storage boundary
 
 `Snapshot.Commit` converts the complete immutable tree into canonical
 profile-bound internal and stem nodes. Internal nodes reference children by the
@@ -473,10 +476,11 @@ responsibilities.
 
 ## Development rule
 
-Implementation MAY proceed incrementally behind the named experimental
-profile. Each tree, proof, witness, storage, or encoding surface MUST remain
-absent until its corresponding semantics are fixed and tested. The module MUST
-remain pre-v1 and MUST NOT claim production readiness, stable compatibility, or
-Ethereum compatibility while the profile-freeze blockers remain unresolved.
+Implementation MAY proceed incrementally behind the named pre-v1 profile. Each
+tree, proof, witness, storage, or encoding surface MUST have normative semantics
+and conformance evidence before it is claimed as implemented. The module MUST
+remain pre-v1 until its public API and canonical formats are deliberately
+released as stable. It MUST NOT claim production suitability, external audit,
+or Ethereum protocol compatibility without separate evidence for those claims.
 
 The complete product requirements remain in [`.ai/GOAL.md`](.ai/GOAL.md).

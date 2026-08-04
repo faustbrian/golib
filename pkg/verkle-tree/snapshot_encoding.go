@@ -137,7 +137,7 @@ func (snapshot Snapshot) Bytes(
 	if err != nil {
 		return nil, translateSnapshotEncodingError("copy entries", err)
 	}
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 
 	encoded := make([]byte, int(encodedBytes))
 	copy(encoded, snapshotMagic[:])
@@ -190,7 +190,7 @@ func DecodeSnapshot(
 		!bytes.Equal(encoded[:snapshotMagicBytes], snapshotMagic[:]) {
 		return Snapshot{}, ErrInvalidSnapshot
 	}
-	profile := ExperimentalBandersnatchIPA256V0()
+	profile := BandersnatchIPA256V0()
 	if encoded[snapshotMagicBytes] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(encoded[5:7]) != profile.Version() ||
 		binary.BigEndian.Uint16(encoded[7:9]) != snapshotContainerVersion {

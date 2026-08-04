@@ -17,7 +17,7 @@ func TestPublicSnapshotSupportsImmutableAuthenticatedTransitions(t *testing.T) {
 	zero := verkletree.Value{}
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: keyB, Value: publicValue(2)},
 			{Key: keyA, Value: zero},
@@ -42,7 +42,7 @@ func TestPublicSnapshotSupportsImmutableAuthenticatedTransitions(t *testing.T) {
 		t.Fatalf("pre root: %v", err)
 	}
 	if profile, profileErr := preRoot.Profile(); profileErr != nil ||
-		profile != verkletree.ExperimentalBandersnatchIPA256V0() {
+		profile != verkletree.BandersnatchIPA256V0() {
 		t.Fatalf("root profile = %#v, error = %v", profile, profileErr)
 	}
 
@@ -107,7 +107,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	}
 	forward, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		entries,
 		publicSnapshotLimits(),
 	)
@@ -116,7 +116,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	}
 	reverse, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{entries[1], entries[0]},
 		publicSnapshotLimits(),
 	)
@@ -139,7 +139,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	}
 	if _, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		verkletree.SnapshotLimits{},
 	); !errors.Is(err, verkletree.ErrInvalidLimits) {
@@ -147,7 +147,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	}
 	if _, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{entries[0], entries[0]},
 		publicSnapshotLimits(),
 	); !errors.Is(err, verkletree.ErrDuplicateKey) {
@@ -157,7 +157,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	limited.State.MaxEntries = 1
 	_, err = verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		entries,
 		limited,
 	)
@@ -180,7 +180,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	var nilContext context.Context
 	if _, err := verkletree.NewSnapshot(
 		nilContext,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		publicSnapshotLimits(),
 	); !errors.Is(err, verkletree.ErrInvalidContext) {
@@ -190,7 +190,7 @@ func TestPublicSnapshotIsDeterministicAndFailsClosed(t *testing.T) {
 	cancel()
 	if _, err := verkletree.NewSnapshot(
 		cancelled,
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		publicSnapshotLimits(),
 	); !errors.Is(err, verkletree.ErrCancelled) ||

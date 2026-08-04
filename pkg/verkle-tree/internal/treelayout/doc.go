@@ -1,4 +1,4 @@
-// Package treelayout implements the experimental profile's immutable,
+// Package treelayout implements the pre-v1 profile's immutable,
 // commitment-independent stem topology.
 //
 // The model is deliberately independent from cryptographic commitments. It

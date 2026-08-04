@@ -334,7 +334,7 @@ func TestStatelessStemRetentionHonorsCancellationAndOrdering(t *testing.T) {
 	stem := Stem(first[:31])
 	claims, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		[]Claim{
 			Membership(first, testValue(1)),
 			Membership(second, testValue(2)),
@@ -364,7 +364,7 @@ func TestStatelessStemRetentionHonorsCancellationAndOrdering(t *testing.T) {
 	}
 	lastOnlyClaims, err := NewClaimSet(
 		context.Background(),
-		internalprofile.ExperimentalBandersnatchIPA256V0(),
+		internalprofile.BandersnatchIPA256V0Profile(),
 		[]Claim{Membership(third, testValue(3))},
 		ClaimLimits{MaxClaims: 1, MaxTemporaryBytes: 1 << 10},
 	)

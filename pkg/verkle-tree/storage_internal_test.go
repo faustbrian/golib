@@ -286,7 +286,7 @@ func testStorageFacadeSnapshot(t testing.TB) Snapshot {
 	key[31] = 1
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		[]Entry{{Key: key, Value: Value{1}}},
 		testFacadeSnapshotLimits(),
 	)

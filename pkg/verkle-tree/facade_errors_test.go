@@ -184,7 +184,7 @@ func TestFacadeWitnessErrorTranslations(t *testing.T) {
 	_, _, proof := testFacadeProof(t)
 	engine, err := NewStatelessEngine(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		testFacadeOpeningLimits(),
 		testFacadeSnapshotLimits().Commitment,
 	)

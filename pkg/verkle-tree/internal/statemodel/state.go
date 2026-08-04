@@ -15,7 +15,7 @@ const (
 	maxSupportedCount  = uint32(2_147_483_647)
 )
 
-// Key is one fixed-length raw key in the experimental profile.
+// Key is one fixed-length raw key in the pre-v1 profile.
 type Key [32]byte
 
 // Value is one fixed-length raw value. Its zero value remains a present value.

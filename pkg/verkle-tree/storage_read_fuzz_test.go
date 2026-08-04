@@ -38,7 +38,7 @@ func FuzzLoadSnapshotRootNode(f *testing.F) {
 
 		loaded, loadErr := LoadSnapshot(
 			context.Background(),
-			ExperimentalBandersnatchIPA256V0(),
+			BandersnatchIPA256V0(),
 			reader,
 			testInternalStorageReadLimits(),
 		)

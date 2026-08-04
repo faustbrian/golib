@@ -19,7 +19,7 @@ func TestPublicSnapshotEncodingIsCanonicalAndSelfAuthenticating(t *testing.T) {
 	second := publicKey(0x20, 0x02)
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: second, Value: publicValue(2)},
 			{Key: first, Value: verkletree.Value{}},
@@ -46,7 +46,7 @@ func TestPublicSnapshotEncodingIsCanonicalAndSelfAuthenticating(t *testing.T) {
 
 	reordered, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: first, Value: verkletree.Value{}},
 			{Key: second, Value: publicValue(2)},
@@ -99,7 +99,7 @@ func TestDecodeSnapshotRejectsMalformedAndExhaustedInput(t *testing.T) {
 
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: publicKey(0x10, 0x01), Value: publicValue(1)},
 			{Key: publicKey(0x20, 0x02), Value: publicValue(2)},
@@ -249,7 +249,7 @@ func TestSnapshotEncodingRejectsInvalidUseAndOwnsEmptyState(t *testing.T) {
 	}
 	empty, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		nil,
 		publicSnapshotLimits(),
 	)
@@ -327,7 +327,7 @@ func TestSnapshotEncodingPreflightsEveryAllocation(t *testing.T) {
 
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: publicKey(0x10, 0x01), Value: publicValue(1)},
 			{Key: publicKey(0x20, 0x02), Value: publicValue(2)},
@@ -414,7 +414,7 @@ func benchmarkPublicSnapshot(tb testing.TB) verkletree.Snapshot {
 
 	snapshot, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{
 			{Key: publicKey(0x10, 0x01), Value: publicValue(1)},
 			{Key: publicKey(0x20, 0x02), Value: publicValue(2)},
@@ -489,7 +489,7 @@ func snapshotWithDifferentValidRoot(t testing.TB, encoded []byte) []byte {
 
 	different, err := verkletree.NewSnapshot(
 		context.Background(),
-		verkletree.ExperimentalBandersnatchIPA256V0(),
+		verkletree.BandersnatchIPA256V0(),
 		[]verkletree.Entry{{
 			Key: publicKey(0x30, 0x03), Value: publicValue(3),
 		}},

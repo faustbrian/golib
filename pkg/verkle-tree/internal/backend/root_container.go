@@ -21,7 +21,7 @@ const (
 	rootPayloadOffset  = rootKindIndex + rootKindSize
 
 	// RootSize is the exact canonical root-container length for the
-	// experimental profile.
+	// pre-v1 profile.
 	RootSize = rootPayloadOffset + commitmentSize
 )
 
@@ -174,7 +174,7 @@ func DecodeRoot(
 	if [rootMagicSize]byte(owned[:rootMagicSize]) != rootMagic {
 		return Root{}, fmt.Errorf("%w: magic", errInvalidRoot)
 	}
-	profile := internalprofile.ExperimentalBandersnatchIPA256V0()
+	profile := internalprofile.BandersnatchIPA256V0Profile()
 	if owned[rootProfileIDIndex] != byte(profile.ID()) ||
 		binary.BigEndian.Uint16(owned[rootVersionOffset:rootEncodingOffset]) != profile.Version() ||
 		binary.BigEndian.Uint16(owned[rootEncodingOffset:rootKindIndex]) != profile.EncodingVersion() {

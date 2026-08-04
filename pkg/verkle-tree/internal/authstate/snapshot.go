@@ -1,4 +1,4 @@
-// Package authstate binds immutable key/value snapshots to experimental-profile
+// Package authstate binds immutable key/value snapshots to pre-v1 profile
 // Verkle commitments. It remains an internal pre-v1 construction boundary.
 package authstate
 
@@ -30,7 +30,7 @@ var (
 	errResource          = errors.New("authenticated-state resource limit exceeded")
 )
 
-// Key is one fixed-length raw key in the experimental profile.
+// Key is one fixed-length raw key in the pre-v1 profile.
 type Key = committedtree.Key
 
 // Value is one fixed-length raw value. Its zero value remains present.
@@ -267,7 +267,7 @@ func (snapshot Snapshot) RootContainer(ctx context.Context) (backend.Root, error
 
 	return backend.NewRoot(
 		ctx,
-		profile.ExperimentalBandersnatchIPA256V0(),
+		profile.BandersnatchIPA256V0Profile(),
 		root,
 	)
 }
@@ -521,7 +521,7 @@ func (transition Transition) PreRootContainer(
 
 	return backend.NewRoot(
 		ctx,
-		profile.ExperimentalBandersnatchIPA256V0(),
+		profile.BandersnatchIPA256V0Profile(),
 		root,
 	)
 }
@@ -546,7 +546,7 @@ func (transition Transition) PostRootContainer(
 
 	return backend.NewRoot(
 		ctx,
-		profile.ExperimentalBandersnatchIPA256V0(),
+		profile.BandersnatchIPA256V0Profile(),
 		root,
 	)
 }

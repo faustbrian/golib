@@ -31,7 +31,7 @@ func TestRecoverStoragePreservesPublicationsAndRemovesInterruptedWrites(
 
 	result, err := RecoverStorage(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		testInternalStorageAuditLimits(),
 	)
@@ -97,7 +97,7 @@ func TestRecoverStorageSupportsAnUnpublishedNodeOnlyStore(t *testing.T) {
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 
 	result, err := RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+		context.Background(), BandersnatchIPA256V0(), store,
 		testInternalStorageAuditLimits(),
 	)
 	if err != nil || result.PreviousRetainedCount() != 0 ||
@@ -130,7 +130,7 @@ func TestRecoverStorageFailsAtomicallyForInvalidOrChangingState(t *testing.T) {
 	publicationFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	publicationFailure.view.currentErr = sentinel
 	result, err := RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		publicationFailure, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
@@ -153,7 +153,7 @@ func TestRecoverStorageFailsAtomicallyForInvalidOrChangingState(t *testing.T) {
 	corrupt.capabilities |= StoreCapabilityAtomicMaintenance
 	corrupt.view.readErr = sentinel
 	result, err = RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), corrupt,
+		context.Background(), BandersnatchIPA256V0(), corrupt,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
@@ -175,7 +175,7 @@ func TestRecoverStorageFailsAtomicallyForInvalidOrChangingState(t *testing.T) {
 	closeFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	closeFailure.view.closeErr = sentinel
 	result, err = RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), closeFailure,
+		context.Background(), BandersnatchIPA256V0(), closeFailure,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) ||
@@ -199,7 +199,7 @@ func TestRecoverStorageFailsAtomicallyForInvalidOrChangingState(t *testing.T) {
 	stale.capabilities |= StoreCapabilityAtomicMaintenance
 	stale.view.nodes[NodeID{0xfe}] = []byte("interrupted node")
 	result, err = RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), stale,
+		context.Background(), BandersnatchIPA256V0(), stale,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, ErrStaleRoot) ||
@@ -233,7 +233,7 @@ func TestRecoverStorageRejectsInvalidInputsBeforeOpening(t *testing.T) {
 		want    error
 	}{
 		"nil context": {
-			ctx: nilContext, profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: nilContext, profile: BandersnatchIPA256V0(),
 			store: valid, limits: testInternalStorageAuditLimits(),
 			want: ErrInvalidContext,
 		},
@@ -242,16 +242,16 @@ func TestRecoverStorageRejectsInvalidInputsBeforeOpening(t *testing.T) {
 			limits: testInternalStorageAuditLimits(), want: ErrUnsupportedProfile,
 		},
 		"nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
 		},
 		"typed nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: nilStore, limits: testInternalStorageAuditLimits(),
 			want: ErrInvalidStore,
 		},
 		"invalid limits": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: valid, want: ErrInvalidLimits,
 		},
 	}
@@ -278,7 +278,7 @@ func TestRecoverStorageRejectsInvalidInputsBeforeOpening(t *testing.T) {
 	missing.capabilities = RequiredMaintenanceStoreCapabilities &^
 		StoreCapabilityAtomicMaintenance
 	_, err := RecoverStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), missing,
+		context.Background(), BandersnatchIPA256V0(), missing,
 		testInternalStorageAuditLimits(),
 	)
 	var capabilityErr *StoreCapabilityError
@@ -327,7 +327,7 @@ func TestMaintainStorageAtomicallyAppliesRetentionAndPruning(t *testing.T) {
 
 	result, err := MaintainStorage(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		desired,
 		testInternalStorageAuditLimits(),
@@ -353,7 +353,7 @@ func TestMaintainStorageAtomicallyAppliesRetentionAndPruning(t *testing.T) {
 		)
 	}
 	requestProfile, err := store.request.Profile()
-	if err != nil || requestProfile != ExperimentalBandersnatchIPA256V0() {
+	if err != nil || requestProfile != BandersnatchIPA256V0() {
 		t.Fatalf("request Profile() = (%+v, %v)", requestProfile, err)
 	}
 	deleted, err := result.DeletedNodes(context.Background())
@@ -406,7 +406,7 @@ func TestMaintainStorageLeavesACompleteAuditablePostMaintenanceStore(t *testing.
 	store.view.nodes[NodeID{0xfc}] = []byte("unpublished")
 
 	result, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, nil,
+		context.Background(), BandersnatchIPA256V0(), store, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if err != nil {
@@ -427,7 +427,7 @@ func TestMaintainStorageLeavesACompleteAuditablePostMaintenanceStore(t *testing.
 		}
 	}
 	audit, err := AuditStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		store, testInternalStorageAuditLimits(),
 	)
 	if err != nil || audit.UnreachableNodeCount() != 0 {
@@ -445,7 +445,7 @@ func TestMaintainStorageReadsOneIsolatedPublicationSet(t *testing.T) {
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 	result, err := MaintainStorage(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		store,
 		nil,
 		testInternalStorageAuditLimits(),
@@ -478,7 +478,7 @@ func TestMaintainStorageRejectsInvalidInputsAndCapabilitiesBeforeOpening(t *test
 		want    error
 	}{
 		"nil context": {
-			ctx: nilContext, profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: nilContext, profile: BandersnatchIPA256V0(),
 			store: valid, limits: testInternalStorageAuditLimits(), want: ErrInvalidContext,
 		},
 		"invalid profile": {
@@ -486,15 +486,15 @@ func TestMaintainStorageRejectsInvalidInputsAndCapabilitiesBeforeOpening(t *test
 			limits: testInternalStorageAuditLimits(), want: ErrUnsupportedProfile,
 		},
 		"nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
 		},
 		"typed nil store": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: nilStore, limits: testInternalStorageAuditLimits(), want: ErrInvalidStore,
 		},
 		"invalid limits": {
-			ctx: context.Background(), profile: ExperimentalBandersnatchIPA256V0(),
+			ctx: context.Background(), profile: BandersnatchIPA256V0(),
 			store: valid, want: ErrInvalidLimits,
 		},
 	}
@@ -522,7 +522,7 @@ func TestMaintainStorageRejectsInvalidInputsAndCapabilitiesBeforeOpening(t *test
 		}
 		store.capabilities = RequiredMaintenanceStoreCapabilities &^ missing
 		_, err := MaintainStorage(
-			context.Background(), ExperimentalBandersnatchIPA256V0(), store, nil,
+			context.Background(), BandersnatchIPA256V0(), store, nil,
 			testInternalStorageAuditLimits(),
 		)
 		var capabilityErr *StoreCapabilityError
@@ -541,7 +541,7 @@ func TestMaintainStorageRejectsUnboundProfileNamespaceBeforeOpening(t *testing.T
 	}
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 	result, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store, nil,
+		context.Background(), BandersnatchIPA256V0(), store, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrUnsupportedProfile) || result.valid ||
@@ -580,7 +580,7 @@ func TestMaintainStorageRejectsInvalidRetentionSetsWithoutApplying(t *testing.T)
 			}
 			store.capabilities |= StoreCapabilityAtomicMaintenance
 			result, err := MaintainStorage(
-				context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+				context.Background(), BandersnatchIPA256V0(), store,
 				retained, testInternalStorageAuditLimits(),
 			)
 			if !errors.Is(err, ErrInvalidRetention) || result.valid || store.applyCalls != 0 {
@@ -602,7 +602,7 @@ func TestMaintainStorageValidatesAndCopiesRequestedRetentionBeforeOpening(t *tes
 	}
 	invalid.capabilities |= StoreCapabilityAtomicMaintenance
 	_, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), invalid,
+		context.Background(), BandersnatchIPA256V0(), invalid,
 		[]StorePublication{{}}, testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrInvalidRetention) || invalid.openCalls != 0 {
@@ -626,7 +626,7 @@ func TestMaintainStorageValidatesAndCopiesRequestedRetentionBeforeOpening(t *tes
 		requested[0] = StorePublication{}
 	}
 	result, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+		context.Background(), BandersnatchIPA256V0(), store,
 		requested, testInternalStorageAuditLimits(),
 	)
 	if err != nil || result.RetainedCount() != 1 || store.applyCalls != 1 {
@@ -649,7 +649,7 @@ func TestMaintainStoragePreservesLifecycleAndAtomicFailureSemantics(t *testing.T
 	openFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	openFailure.openErr = sentinel
 	_, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), openFailure, nil,
+		context.Background(), BandersnatchIPA256V0(), openFailure, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) || openFailure.applyCalls != 0 {
@@ -662,7 +662,7 @@ func TestMaintainStoragePreservesLifecycleAndAtomicFailureSemantics(t *testing.T
 	nilView.capabilities |= StoreCapabilityAtomicMaintenance
 	nilView.returnNil = true
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), nilView, nil,
+		context.Background(), BandersnatchIPA256V0(), nilView, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || nilView.applyCalls != 0 {
@@ -675,7 +675,7 @@ func TestMaintainStoragePreservesLifecycleAndAtomicFailureSemantics(t *testing.T
 	closeFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	closeFailure.view.closeErr = sentinel
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), closeFailure, nil,
+		context.Background(), BandersnatchIPA256V0(), closeFailure, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, sentinel) || closeFailure.applyCalls != 0 {
@@ -687,7 +687,7 @@ func TestMaintainStoragePreservesLifecycleAndAtomicFailureSemantics(t *testing.T
 	}
 	applyFailure.capabilities |= StoreCapabilityAtomicMaintenance
 	result, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), applyFailure, nil,
+		context.Background(), BandersnatchIPA256V0(), applyFailure, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageMaintenance) || !errors.Is(err, ErrStaleRoot) || result.valid ||
@@ -706,7 +706,7 @@ func TestMaintainStorageRejectsIncompleteInventoryAndDeletionBudget(t *testing.T
 	omitted.capabilities |= StoreCapabilityAtomicMaintenance
 	omitted.view.omitLast = true
 	_, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), omitted, nil,
+		context.Background(), BandersnatchIPA256V0(), omitted, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageInventory) || omitted.applyCalls != 0 {
@@ -721,7 +721,7 @@ func TestMaintainStorageRejectsIncompleteInventoryAndDeletionBudget(t *testing.T
 	limits := testInternalStorageAuditLimits()
 	limits.MaxUnreachableNodes = 0
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), orphaned, nil, limits,
+		context.Background(), BandersnatchIPA256V0(), orphaned, nil, limits,
 	)
 	var resourceErr *ResourceError
 	if !errors.As(err, &resourceErr) || resourceErr.Resource != ResourceUnreachableNodes ||
@@ -758,7 +758,7 @@ func TestMaintainStorageCanonicalizesRetentionAndVerifiesDroppedSnapshots(t *tes
 	store.capabilities |= StoreCapabilityAtomicMaintenance
 	requested := []StorePublication{store.view.retained[1], store.view.retained[0]}
 	if _, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), store,
+		context.Background(), BandersnatchIPA256V0(), store,
 		requested, testInternalStorageAuditLimits(),
 	); err != nil {
 		t.Fatalf("MaintainStorage() error = %v", err)
@@ -777,7 +777,7 @@ func TestMaintainStorageCanonicalizesRetentionAndVerifiesDroppedSnapshots(t *tes
 	droppedRootNode, _ := corrupt.view.retained[0].RootNode()
 	corrupt.view.nodes[droppedRootNode][0] ^= 0xff
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), corrupt, nil,
+		context.Background(), BandersnatchIPA256V0(), corrupt, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageNodeCorrupt) || corrupt.applyCalls != 0 {
@@ -796,7 +796,7 @@ func TestMaintainStorageSupportsNoCurrentPublicationAndRejectsMalformedPages(t *
 	noCurrent.view.currentOK = false
 	noCurrent.view.nodes = map[NodeID][]byte{{0xfd}: []byte("abandoned")}
 	result, err := MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), noCurrent, nil,
+		context.Background(), BandersnatchIPA256V0(), noCurrent, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if err != nil || result.DeletedNodeCount() != 1 {
@@ -814,7 +814,7 @@ func TestMaintainStorageSupportsNoCurrentPublicationAndRejectsMalformedPages(t *
 		return nil, true, nil
 	}
 	_, err = MaintainStorage(
-		context.Background(), ExperimentalBandersnatchIPA256V0(), malformed, nil,
+		context.Background(), BandersnatchIPA256V0(), malformed, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrStorageInventory) || malformed.applyCalls != 0 {
@@ -832,7 +832,7 @@ func TestMaintainStorageStopsAfterCloseCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	store.view.cancelAfterClose = cancel
 	result, err := MaintainStorage(
-		ctx, ExperimentalBandersnatchIPA256V0(), store, nil,
+		ctx, BandersnatchIPA256V0(), store, nil,
 		testInternalStorageAuditLimits(),
 	)
 	if !errors.Is(err, ErrCancelled) || result.valid || store.applyCalls != 0 || store.view.closeCalls != 1 {
@@ -895,7 +895,7 @@ func (store *internalMaintenanceStore) MaintenanceProfile() Profile {
 		return Profile{}
 	}
 
-	return ExperimentalBandersnatchIPA256V0()
+	return BandersnatchIPA256V0()
 }
 
 func (store *internalMaintenanceStore) ApplyMaintenance(
@@ -966,7 +966,7 @@ func testStorageFacadeSnapshotWithKey(t testing.TB, first byte) Snapshot {
 	var key Key
 	key[0] = first
 	snapshot, err := NewSnapshot(
-		context.Background(), ExperimentalBandersnatchIPA256V0(),
+		context.Background(), BandersnatchIPA256V0(),
 		[]Entry{{Key: key, Value: Value{first}}}, testFacadeSnapshotLimits(),
 	)
 	if err != nil {

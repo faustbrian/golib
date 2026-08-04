@@ -11,7 +11,7 @@ func TestSnapshotEncodingCancellationAndErrorClassification(t *testing.T) {
 
 	snapshot, err := NewSnapshot(
 		context.Background(),
-		ExperimentalBandersnatchIPA256V0(),
+		BandersnatchIPA256V0(),
 		[]Entry{
 			{Key: Key{0x10}, Value: Value{1}},
 			{Key: Key{0x20}, Value: Value{2}},
