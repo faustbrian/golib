@@ -648,7 +648,7 @@ func derivePathMarkers(
 	if err := checkTreeProofContext(ctx); err != nil {
 		return nil, err
 	}
-	markers := make([]pathMarker, 0, capacity)
+	markers := make([]pathMarker, 0, min(capacity, maxProofPathLength))
 	claimIndex := 0
 	for pathIndex := range stemPaths {
 		if err := checkTreeProofContext(ctx); err != nil {
