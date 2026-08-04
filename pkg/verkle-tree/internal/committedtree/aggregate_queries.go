@@ -222,7 +222,7 @@ func (tree Tree) AggregateProverQueries(
 		limits:        limits,
 		queryCapacity: int(capacity),
 		queries:       make([]AggregateProverQuery, 0, int(initialCapacity)),
-		queryByID:     make(map[aggregateQueryIdentity]int, int(capacity)),
+		queryByID:     make(map[aggregateQueryIdentity]int, int(initialCapacity)),
 		vectorByID:    make(map[aggregateQueryPath]aggregateQueryVector),
 	}
 	for index := range ordered {
