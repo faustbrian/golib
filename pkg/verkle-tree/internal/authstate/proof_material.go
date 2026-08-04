@@ -207,11 +207,12 @@ func (snapshot Snapshot) ProofMaterial(
 		0,
 		min(len(ordered), int(limits.MaxStemPaths)),
 	)
-	commitments := make([]PathCommitment, 0, int(pathCapacity))
+	initialPathCapacity := min(pathCapacity, proofPathMaximumCommitments)
+	commitments := make([]PathCommitment, 0, int(initialPathCapacity))
 	pathScratch := make(
 		[]committedtree.ProofPathCommitment,
 		0,
-		int(min(pathCapacity, proofPathMaximumCommitments)),
+		int(initialPathCapacity),
 	)
 	nodeReads := uint64(0)
 	pathBytes := uint64(0)
