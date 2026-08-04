@@ -263,7 +263,7 @@ type Column struct{ sql string }
 // NewColumn accepts one to three dot-separated SQL identifier segments.
 func NewColumn(identifier string) (Column, error) {
 	segments := strings.Split(identifier, ".")
-	if len(segments) < 1 || len(segments) > 3 {
+	if len(segments) > 3 {
 		return Column{}, encodingError("column must have one to three segments", nil)
 	}
 	quoted := make([]string, len(segments))
@@ -400,7 +400,13 @@ func validateColumn(column Column) error {
 }
 
 func validatePlaceholder(first, count int) error {
-	if first <= 0 || count <= 0 || first > math.MaxInt-count+1 {
+	if first <= 0 {
+		return encodingError("placeholder index is invalid", nil)
+	}
+	if count <= 0 {
+		return encodingError("placeholder index is invalid", nil)
+	}
+	if count-1 > math.MaxInt-first {
 		return encodingError("placeholder index is invalid", nil)
 	}
 	return nil

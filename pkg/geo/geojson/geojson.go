@@ -86,7 +86,7 @@ func Unmarshal(data []byte, crs geo.CRS, limits geo.Limits) (geo.Geometry, error
 		return nil, err
 	}
 
-	return unmarshalGeometry(data, crs, limits, 1)
+	return unmarshalGeometry(data, crs, limits, limits.MaxCollectionDepth)
 }
 
 // MarshalFeature encodes a Feature with deterministic member order.
@@ -134,7 +134,12 @@ func UnmarshalFeature(data []byte, crs geo.CRS, limits geo.Limits) (Feature, err
 		return Feature{}, encodingError("geometry member is required", nil)
 	}
 	if !bytes.Equal(bytes.TrimSpace(wire.Geometry), []byte("null")) {
-		geometry, err = unmarshalGeometry(wire.Geometry, crs, limits, 1)
+		geometry, err = unmarshalGeometry(
+			wire.Geometry,
+			crs,
+			limits,
+			limits.MaxCollectionDepth,
+		)
 		if err != nil {
 			return Feature{}, err
 		}
@@ -152,8 +157,13 @@ func UnmarshalFeature(data []byte, crs geo.CRS, limits geo.Limits) (Feature, err
 	return NewFeature(geometry, properties, wire.ID)
 }
 
-func unmarshalGeometry(data []byte, crs geo.CRS, limits geo.Limits, depth int) (geo.Geometry, error) {
-	if depth > limits.MaxCollectionDepth {
+func unmarshalGeometry(
+	data []byte,
+	crs geo.CRS,
+	limits geo.Limits,
+	remainingDepth int,
+) (geo.Geometry, error) {
+	if remainingDepth <= 0 {
 		return nil, encodingError("collection depth limit exceeded", geo.ErrTopology)
 	}
 	var wire geometryWire
@@ -242,7 +252,7 @@ func unmarshalGeometry(data []byte, crs geo.CRS, limits geo.Limits, depth int) (
 	case geo.TypeGeometryCollection:
 		geometries := make([]geo.Geometry, len(wire.Geometries))
 		for index, rawGeometry := range wire.Geometries {
-			geometry, err := unmarshalGeometry(rawGeometry, crs, limits, depth+1)
+			geometry, err := unmarshalGeometry(rawGeometry, crs, limits, remainingDepth-1)
 			if err != nil {
 				return nil, err
 			}

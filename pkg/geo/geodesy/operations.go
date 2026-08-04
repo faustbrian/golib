@@ -38,9 +38,6 @@ func (sphere Sphere) RadiusEnvelope(
 	}
 
 	angularRadius := radius.Meters() / sphere.radius.Meters()
-	if angularRadius >= math.Pi {
-		return boundingBox(-180, -90, 180, 90)
-	}
 	latitude := radians(center.Latitude().Degrees())
 	south := math.Max(-math.Pi/2, latitude-angularRadius)
 	north := math.Min(math.Pi/2, latitude+angularRadius)
@@ -151,9 +148,7 @@ func Nearest(
 	sort.SliceStable(ranked, func(left, right int) bool {
 		return ranked[left].distance.Meters() < ranked[right].distance.Meters()
 	})
-	if limit < len(ranked) {
-		ranked = ranked[:limit]
-	}
+	ranked = ranked[:min(limit, len(ranked))]
 	return ranked, nil
 }
 

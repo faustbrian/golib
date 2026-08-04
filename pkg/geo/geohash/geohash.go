@@ -3,7 +3,7 @@ package geohash
 
 import (
 	"math"
-	"sort"
+	"slices"
 	"strings"
 
 	geo "github.com/faustbrian/golib/pkg/geo"
@@ -75,34 +75,31 @@ func Encode(coordinate geo.Coordinate, precision int) (Hash, error) {
 	longitudeMinimum, longitudeMaximum := -180.0, 180.0
 	latitudeMinimum, latitudeMaximum := -90.0, 90.0
 	result := make([]byte, precision)
-	bit, value := 0, byte(0)
 	longitudeBit := true
-	for index := 0; index < precision; {
-		value <<= 1
-		if longitudeBit {
-			middle := (longitudeMinimum + longitudeMaximum) / 2
-			if coordinate.Longitude().Degrees() >= middle {
-				value |= 1
-				longitudeMinimum = middle
+	for index := range precision {
+		value := byte(0)
+		for range 5 {
+			value <<= 1
+			if longitudeBit {
+				middle := (longitudeMinimum + longitudeMaximum) / 2
+				if coordinate.Longitude().Degrees() >= middle {
+					value |= 1
+					longitudeMinimum = middle
+				} else {
+					longitudeMaximum = middle
+				}
 			} else {
-				longitudeMaximum = middle
+				middle := (latitudeMinimum + latitudeMaximum) / 2
+				if coordinate.Latitude().Degrees() >= middle {
+					value |= 1
+					latitudeMinimum = middle
+				} else {
+					latitudeMaximum = middle
+				}
 			}
-		} else {
-			middle := (latitudeMinimum + latitudeMaximum) / 2
-			if coordinate.Latitude().Degrees() >= middle {
-				value |= 1
-				latitudeMinimum = middle
-			} else {
-				latitudeMaximum = middle
-			}
+			longitudeBit = !longitudeBit
 		}
-		longitudeBit = !longitudeBit
-		bit++
-		if bit == 5 {
-			result[index] = alphabet[value]
-			index++
-			bit, value = 0, 0
-		}
+		result[index] = alphabet[value]
 	}
 	return Hash(result), nil
 }
@@ -121,7 +118,7 @@ func Decode(hash Hash) (Cell, error) {
 		if value < 0 {
 			return Cell{}, encodingError("hash contains a non-canonical character")
 		}
-		for mask := 16; mask != 0; mask >>= 1 {
+		for _, mask := range [...]int{16, 8, 4, 2, 1} {
 			if longitudeBit {
 				middle := (longitudeMinimum + longitudeMaximum) / 2
 				if value&mask != 0 {
@@ -241,13 +238,15 @@ func Cover(
 				Maximum:   float64(maxCells),
 			}
 		}
-		total += addition
+		total = total + addition
 	}
 
 	hashes := make([]Hash, 0, int(total))
-	for latitude := south; latitude <= north; latitude++ {
+	for latitudeOffset := range north - south + 1 {
+		latitude := south + latitudeOffset
 		for _, cellRange := range ranges {
-			for longitude := cellRange.west; longitude <= cellRange.east; longitude++ {
+			for longitudeOffset := range cellRange.east - cellRange.west + 1 {
+				longitude := cellRange.west + longitudeOffset
 				center := coordinate(
 					-180+(float64(longitude)+0.5)*width,
 					-90+(float64(latitude)+0.5)*height,
@@ -257,7 +256,7 @@ func Cover(
 			}
 		}
 	}
-	sort.Slice(hashes, func(left, right int) bool { return hashes[left] < hashes[right] })
+	slices.Sort(hashes)
 	return hashes, nil
 }
 
@@ -303,11 +302,11 @@ func coordinate(longitude, latitude float64) geo.Coordinate {
 }
 
 func wrapLongitude(longitude float64) float64 {
-	for longitude > 180 {
-		longitude -= 360
+	if longitude > 180 {
+		return longitude - 360
 	}
-	for longitude < -180 {
-		longitude += 360
+	if longitude < -180 {
+		return longitude + 360
 	}
 	return longitude
 }

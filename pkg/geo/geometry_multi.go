@@ -360,9 +360,6 @@ func (collection GeometryCollection) geometryDepth() int { return collection.dep
 // EqualGeometry compares geometry kind, CRS, coordinates, ring order, and
 // collection order exactly. No tolerance or CRS transformation is applied.
 func EqualGeometry(left, right Geometry) bool {
-	if !supportedGeometry(left) || !supportedGeometry(right) {
-		return false
-	}
 	left, leftErr := cloneGeometry(left)
 	right, rightErr := cloneGeometry(right)
 	if leftErr != nil || rightErr != nil || left.Type() != right.Type() {
@@ -394,27 +391,11 @@ func EqualGeometry(left, right Geometry) bool {
 		equal = true
 		for index := range value.geometries {
 			if !EqualGeometry(value.geometries[index], other.geometries[index]) {
-				equal = false
-				break
+				return false
 			}
 		}
 	}
 	return equal
-}
-
-func supportedGeometry(geometry Geometry) bool {
-	switch geometry.(type) {
-	case Point, *Point,
-		LineString, *LineString,
-		Polygon, *Polygon,
-		MultiPoint, *MultiPoint,
-		MultiLineString, *MultiLineString,
-		MultiPolygon, *MultiPolygon,
-		GeometryCollection, *GeometryCollection:
-		return true
-	default:
-		return false
-	}
 }
 
 func cloneGeometry(geometry Geometry) (Geometry, error) {

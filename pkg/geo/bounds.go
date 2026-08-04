@@ -87,14 +87,8 @@ func (bounds BoundingBox) Overlaps(other BoundingBox) (bool, error) {
 		other.north.degrees < bounds.south.degrees {
 		return false, nil
 	}
-	if bounds.wholeWorld() || other.wholeWorld() {
-		return true, nil
-	}
-
 	return bounds.containsLongitude(other.west.degrees) ||
-		bounds.containsLongitude(other.east.degrees) ||
-		other.containsLongitude(bounds.west.degrees) ||
-		other.containsLongitude(bounds.east.degrees), nil
+		other.containsLongitude(bounds.west.degrees), nil
 }
 
 func (bounds BoundingBox) wholeWorld() bool {

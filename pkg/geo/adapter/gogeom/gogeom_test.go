@@ -1,10 +1,12 @@
 package gogeom_test
 
 import (
+	"encoding/binary"
 	"errors"
 	"testing"
 
 	"github.com/twpayne/go-geom"
+	geomwkb "github.com/twpayne/go-geom/encoding/ewkb"
 
 	geo "github.com/faustbrian/golib/pkg/geo"
 	"github.com/faustbrian/golib/pkg/geo/adapter/gogeom"
@@ -52,6 +54,19 @@ func TestFromGoGeomEnforcesDimensionsAndResourceLimits(t *testing.T) {
 	limits.MaxPoints = 2
 	if _, err := gogeom.FromGoGeom(line, limits); !errors.Is(err, geo.ErrTopology) {
 		t.Fatalf("point limit error = %v, want ErrTopology", err)
+	}
+	limits.MaxPoints = 3
+	if _, err := gogeom.FromGoGeom(line, limits); err != nil {
+		t.Fatalf("exact point limit error = %v", err)
+	}
+
+	encoded, err := geomwkb.Marshal(line, binary.LittleEndian)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	limits.MaxEncodedBytes = int64(len(encoded))
+	if _, err := gogeom.FromGoGeom(line, limits); err != nil {
+		t.Fatalf("exact encoded byte limit error = %v", err)
 	}
 }
 

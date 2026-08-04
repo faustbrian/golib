@@ -39,6 +39,8 @@ versioning after its first release.
 
 ### Fixed
 
+- Enforce exact geometry, codec, identifier, depth, size, and placeholder
+  boundaries, including bounded WKT/WKB iteration for hostile input.
 - Exact ellipsoidal antipodes and opposite poles now report undefined bearings
   instead of presenting one non-unique azimuth as meaningful.
 - Bound and check pgx example connection shutdown, and keep equivalent GeoJSON

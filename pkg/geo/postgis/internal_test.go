@@ -1,7 +1,9 @@
 package postgis
 
 import (
+	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"math"
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	geo "github.com/faustbrian/golib/pkg/geo"
+	"github.com/faustbrian/golib/pkg/geo/wkb"
 )
 
 func TestValueCoversNullOwnershipAndInvalidInternalGeometry(t *testing.T) {
@@ -293,6 +296,109 @@ func TestDecodeRejectsInvalidHexWithAndWithoutPrefix(t *testing.T) {
 	for _, data := range [][]byte{nil, []byte("zz"), []byte(`\xzz`)} {
 		if _, err := decode(data, geo.DefaultLimits()); !errors.Is(err, geo.ErrEncoding) {
 			t.Fatalf("decode(%q) error = %v", data, err)
+		}
+	}
+}
+
+func TestDecodeDistinguishesBinaryByteOrdersFromHexadecimal(t *testing.T) {
+	t.Parallel()
+
+	point := testPoint(t, 24.9384, 60.1699, geo.WGS84())
+	for _, byteOrder := range []binary.ByteOrder{binary.BigEndian, binary.LittleEndian} {
+		encoded, err := wkb.MarshalEWKB(point, byteOrder)
+		if err != nil {
+			t.Fatalf("MarshalEWKB() error = %v", err)
+		}
+		decoded, err := decode(encoded, geo.DefaultLimits())
+		if err != nil {
+			t.Fatalf("decode(binary) error = %v", err)
+		}
+		if !geo.EqualGeometry(decoded, point) {
+			t.Fatal("decode(binary) changed the geometry")
+		}
+
+		hexadecimal := []byte(hex.EncodeToString(encoded))
+		decoded, err = decode(hexadecimal, geo.DefaultLimits())
+		if err != nil {
+			t.Fatalf("decode(hexadecimal) error = %v", err)
+		}
+		if !geo.EqualGeometry(decoded, point) {
+			t.Fatal("decode(hexadecimal) changed the geometry")
+		}
+	}
+}
+
+func TestTrimHexPrefixRequiresTheCompletePrefix(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		input string
+		want  string
+	}{
+		{input: "", want: ""},
+		{input: `\`, want: `\`},
+		{input: `\x`, want: ""},
+		{input: `\y`, want: `\y`},
+		{input: "ax", want: "ax"},
+		{input: `\x01`, want: "01"},
+	} {
+		if got := trimHexPrefix([]byte(test.input)); !bytes.Equal(got, []byte(test.want)) {
+			t.Fatalf("trimHexPrefix(%q) = %q, want %q", test.input, got, test.want)
+		}
+	}
+}
+
+func TestIdentifierGrammarCoversEveryASCIIBoundary(t *testing.T) {
+	t.Parallel()
+
+	for _, identifier := range []string{
+		"a", "z", "A", "Z", "_", "a0", "a9", "a_", "aA", "aZ", "aa", "az",
+	} {
+		if !validIdentifier(identifier) {
+			t.Fatalf("validIdentifier(%q) = false", identifier)
+		}
+	}
+	for _, identifier := range []string{
+		"", "0", "9", "@", "[", "`", "{", "a/", "a:", "a@", "a[", "a`", "a{",
+	} {
+		if validIdentifier(identifier) {
+			t.Fatalf("validIdentifier(%q) = true", identifier)
+		}
+	}
+	if _, err := NewColumn("a.b.c"); err != nil {
+		t.Fatalf("NewColumn(three segments) error = %v", err)
+	}
+}
+
+func TestPlaceholderRangeIncludesTheMaximumIntegerExactly(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		first int
+		count int
+	}{
+		{first: 1, count: 1},
+		{first: math.MaxInt, count: 1},
+		{first: math.MaxInt - 1, count: 2},
+		{first: math.MaxInt - 2, count: 3},
+	} {
+		if err := validatePlaceholder(test.first, test.count); err != nil {
+			t.Fatalf("validatePlaceholder(%d, %d) error = %v", test.first, test.count, err)
+		}
+	}
+	for _, test := range []struct {
+		first int
+		count int
+	}{
+		{first: 0, count: 1},
+		{first: -1, count: 1},
+		{first: 1, count: 0},
+		{first: 1, count: -1},
+		{first: math.MaxInt, count: 2},
+		{first: math.MaxInt - 1, count: 3},
+	} {
+		if err := validatePlaceholder(test.first, test.count); !errors.Is(err, geo.ErrEncoding) {
+			t.Fatalf("validatePlaceholder(%d, %d) error = %v", test.first, test.count, err)
 		}
 	}
 }

@@ -40,7 +40,7 @@ func Unmarshal(data []byte, crs geo.CRS, limits geo.Limits) (geo.Geometry, error
 		return nil, err
 	}
 	parser := parser{data: data, crs: crs, limits: limits}
-	geometry, err := parser.geometry(1)
+	geometry, err := parser.geometry(limits.MaxCollectionDepth)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func UnmarshalEWKT(data []byte, limits geo.Limits) (geo.Geometry, error) {
 		return nil, encodingError("encoded byte limit exceeded", nil)
 	}
 	separator := bytes.IndexByte(data, ';')
-	if separator < 0 {
+	if separator == -1 {
 		return nil, encodingError("EWKT requires SRID prefix", nil)
 	}
 	prefix := strings.TrimSpace(string(data[:separator]))
@@ -86,8 +86,8 @@ type parser struct {
 	limits   geo.Limits
 }
 
-func (parser *parser) geometry(depth int) (geo.Geometry, error) {
-	if depth > parser.limits.MaxCollectionDepth {
+func (parser *parser) geometry(remainingDepth int) (geo.Geometry, error) {
+	if remainingDepth <= 0 {
 		return nil, parser.failure("collection depth limit exceeded", geo.ErrTopology)
 	}
 	kind := strings.ToUpper(parser.identifier())
@@ -97,7 +97,8 @@ func (parser *parser) geometry(depth int) (geo.Geometry, error) {
 	parser.space()
 	dimensionPosition := parser.position
 	dimension := strings.ToUpper(parser.identifier())
-	if dimension == "Z" || dimension == "M" || dimension == "ZM" {
+	switch dimension {
+	case "Z", "M", "ZM":
 		return nil, parser.failure("only two-dimensional WKT is supported", geo.ErrUnsupported)
 	}
 	parser.position = dimensionPosition
@@ -143,7 +144,7 @@ func (parser *parser) geometry(depth int) (geo.Geometry, error) {
 		}
 		return parser.wrap(geo.NewMultiPolygonWithLimits(polygons, parser.crs, parser.limits))
 	case geo.TypeGeometryCollection:
-		geometries, err := parser.collection(depth)
+		geometries, err := parser.collection(remainingDepth)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +351,7 @@ func (parser *parser) multiPolygon() ([]geo.Polygon, error) {
 	return polygons, nil
 }
 
-func (parser *parser) collection(depth int) ([]geo.Geometry, error) {
+func (parser *parser) collection(remainingDepth int) ([]geo.Geometry, error) {
 	if err := parser.expect('('); err != nil {
 		return nil, err
 	}
@@ -359,7 +360,7 @@ func (parser *parser) collection(depth int) ([]geo.Geometry, error) {
 		if len(geometries) >= parser.limits.MaxGeometries {
 			return nil, parser.failure("geometry limit exceeded", geo.ErrTopology)
 		}
-		geometry, err := parser.geometry(depth + 1)
+		geometry, err := parser.geometry(remainingDepth - 1)
 		if err != nil {
 			return nil, err
 		}
@@ -384,12 +385,11 @@ func (parser *parser) wrap(geometry geo.Geometry, err error) (geo.Geometry, erro
 func (parser *parser) number() (float64, error) {
 	parser.space()
 	start := parser.position
-	for parser.position < len(parser.data) {
-		value := parser.data[parser.position]
-		if value == ',' || value == ')' || isSpace(value) {
-			break
-		}
-		parser.position++
+	end := bytes.IndexAny(parser.data[start:], ",) \t\n\r")
+	if end == -1 {
+		parser.position = len(parser.data)
+	} else {
+		parser.position = start + end
 	}
 	if start == parser.position {
 		return 0, parser.failure("number is required", nil)
@@ -404,13 +404,13 @@ func (parser *parser) number() (float64, error) {
 func (parser *parser) identifier() string {
 	parser.space()
 	start := parser.position
-	for parser.position < len(parser.data) {
-		value := parser.data[parser.position]
-		if (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') {
-			parser.position++
-			continue
-		}
-		break
+	end := bytes.IndexFunc(parser.data[start:], func(value rune) bool {
+		return value != rune(byte(value)) || !asciiLetter(byte(value))
+	})
+	if end == -1 {
+		parser.position = len(parser.data)
+	} else {
+		parser.position = start + end
 	}
 	return string(parser.data[start:parser.position])
 }
@@ -424,7 +424,7 @@ func (parser *parser) keyword(keyword string) bool {
 	end := parser.position + len(keyword)
 	if end < len(parser.data) {
 		value := parser.data[end]
-		if (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') {
+		if asciiLetter(value) {
 			return false
 		}
 	}
@@ -590,13 +590,17 @@ func canonicalType(value string) string {
 }
 
 func validateData(data []byte, crs geo.CRS, limits geo.Limits) error {
-	if crs.SRID() <= 0 || crs.Name() == "" {
+	if crs.SRID() == 0 {
 		return &geo.CRSError{SRID: crs.SRID(), Problem: "WKT requires explicit CRS metadata"}
 	}
 	if int64(len(data)) > limits.MaxEncodedBytes {
 		return encodingError("encoded byte limit exceeded", nil)
 	}
 	return nil
+}
+
+func asciiLetter(value byte) bool {
+	return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z'
 }
 
 func isSpace(value byte) bool {

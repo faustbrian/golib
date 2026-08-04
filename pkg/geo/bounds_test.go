@@ -56,6 +56,74 @@ func TestBoundingBoxOverlapHandlesTheDatelineAsOneMeridian(t *testing.T) {
 	}
 }
 
+func TestBoundingBoxBoundariesAndOverlapOperandsAreIndependent(t *testing.T) {
+	t.Parallel()
+
+	pointBounds := mustBounds(t, 10, 5, 10, 5, geo.WGS84())
+	if pointBounds.CrossesAntimeridian() {
+		t.Fatal("zero-width bounds cross the antimeridian")
+	}
+	contains, err := pointBounds.Contains(mustCoordinate(t, 10, 5, geo.WGS84()))
+	if err != nil || !contains {
+		t.Fatalf("Contains(exact point) = %t, %v; want true, nil", contains, err)
+	}
+	contains, err = pointBounds.Contains(mustCoordinate(t, 11, 5, geo.WGS84()))
+	if err != nil || contains {
+		t.Fatalf("Contains(outside point bounds) = %t, %v; want false, nil", contains, err)
+	}
+
+	touchingNorth := mustBounds(t, -5, 0, 5, 5, geo.WGS84())
+	touchingSouth := mustBounds(t, -5, 5, 5, 10, geo.WGS84())
+	assertBoundsOverlap(t, touchingNorth, touchingSouth, true)
+	assertBoundsOverlap(t, touchingSouth, touchingNorth, true)
+	assertBoundsOverlap(t, touchingNorth, mustBounds(t, -5, 6, 5, 10, geo.WGS84()), false)
+	assertBoundsOverlap(t, mustBounds(t, -5, -10, 5, -6, geo.WGS84()), touchingNorth, false)
+
+	world := mustBounds(t, -180, -90, 180, 90, geo.WGS84())
+	distant := mustBounds(t, 40, 0, 50, 1, geo.WGS84())
+	assertBoundsOverlap(t, world, distant, true)
+	assertBoundsOverlap(t, distant, world, true)
+	if mustBounds(t, -180, 0, 0, 1, geo.WGS84()).CrossesAntimeridian() {
+		t.Fatal("half-world western bounds cross the antimeridian")
+	}
+	if mustBounds(t, 0, 0, 180, 1, geo.WGS84()).CrossesAntimeridian() {
+		t.Fatal("half-world eastern bounds cross the antimeridian")
+	}
+}
+
+func TestBoundingBoxLongitudeOverlapAndDatelineEndpoints(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name  string
+		left  geo.BoundingBox
+		right geo.BoundingBox
+		want  bool
+	}{
+		{name: "left edge enters right", left: mustBounds(t, -10, 0, 10, 1, geo.WGS84()), right: mustBounds(t, 5, 0, 20, 1, geo.WGS84()), want: true},
+		{name: "right edge enters left", left: mustBounds(t, 5, 0, 20, 1, geo.WGS84()), right: mustBounds(t, -10, 0, 10, 1, geo.WGS84()), want: true},
+		{name: "contained", left: mustBounds(t, -20, 0, 20, 1, geo.WGS84()), right: mustBounds(t, -5, 0, 5, 1, geo.WGS84()), want: true},
+		{name: "disjoint", left: mustBounds(t, -20, 0, -10, 1, geo.WGS84()), right: mustBounds(t, 10, 0, 20, 1, geo.WGS84()), want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			assertBoundsOverlap(t, test.left, test.right, test.want)
+		})
+	}
+
+	easternDateline := mustBounds(t, 170, -1, 180, 1, geo.WGS84())
+	for _, longitude := range []float64{170, 180, -180} {
+		contains, err := easternDateline.Contains(mustCoordinate(t, longitude, 0, geo.WGS84()))
+		if err != nil || !contains {
+			t.Fatalf("Contains(%v) = %t, %v; want true, nil", longitude, contains, err)
+		}
+	}
+	contains, err := easternDateline.Contains(mustCoordinate(t, 169, 0, geo.WGS84()))
+	if err != nil || contains {
+		t.Fatalf("Contains(169) = %t, %v; want false, nil", contains, err)
+	}
+}
+
 func TestBoundingBoxRejectsInvertedLatitudeAndCRSMismatch(t *testing.T) {
 	t.Parallel()
 
@@ -113,6 +181,18 @@ func mustBounds(t *testing.T, west, south, east, north float64, crs geo.CRS) geo
 	}
 
 	return bounds
+}
+
+func assertBoundsOverlap(t *testing.T, left, right geo.BoundingBox, want bool) {
+	t.Helper()
+
+	overlaps, err := left.Overlaps(right)
+	if err != nil {
+		t.Fatalf("Overlaps() error = %v", err)
+	}
+	if overlaps != want {
+		t.Fatalf("Overlaps() = %t, want %t", overlaps, want)
+	}
 }
 
 func mustCoordinate(t *testing.T, longitude, latitude float64, crs geo.CRS) geo.Coordinate {

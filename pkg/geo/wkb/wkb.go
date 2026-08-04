@@ -59,7 +59,7 @@ func Unmarshal(data []byte, crs geo.CRS, limits geo.Limits) (geo.Geometry, error
 		return nil, err
 	}
 	parser := binaryParser{data: data, limits: limits, ewkb: false}
-	geometry, _, err := parser.geometry(1, 0, crs, true)
+	geometry, _, err := parser.geometry(limits.MaxCollectionDepth, 0, crs, true)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func UnmarshalEWKB(data []byte, limits geo.Limits) (geo.Geometry, error) {
 		return nil, encodingError("encoded byte limit exceeded", nil)
 	}
 	parser := binaryParser{data: data, limits: limits, ewkb: true}
-	geometry, _, err := parser.geometry(1, 0, geo.CRS{}, true)
+	geometry, _, err := parser.geometry(limits.MaxCollectionDepth, 0, geo.CRS{}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -95,12 +95,12 @@ type binaryParser struct {
 }
 
 func (parser *binaryParser) geometry(
-	depth int,
+	remainingDepth int,
 	expected uint32,
 	inherited geo.CRS,
 	top bool,
 ) (geo.Geometry, geo.CRS, error) {
-	if depth > parser.limits.MaxCollectionDepth {
+	if remainingDepth <= 0 {
 		return nil, geo.CRS{}, parser.failure("collection depth limit exceeded", geo.ErrTopology)
 	}
 	order, err := parser.byteOrder()
@@ -111,7 +111,10 @@ func (parser *binaryParser) geometry(
 	if err != nil {
 		return nil, geo.CRS{}, err
 	}
-	if rawType&(flagZ|flagM) != 0 || rawType&typeMask >= 1000 {
+	if rawType&(flagZ|flagM) != 0 {
+		return nil, geo.CRS{}, parser.failure("only two-dimensional WKB is supported", geo.ErrUnsupported)
+	}
+	if rawType&typeMask >= 1000 {
 		return nil, geo.CRS{}, parser.failure("only two-dimensional WKB is supported", geo.ErrUnsupported)
 	}
 	hasSRID := rawType&flagSRID != 0
@@ -172,7 +175,7 @@ func (parser *binaryParser) geometry(
 		}
 		coordinates := make([]geo.Coordinate, count)
 		for index := range coordinates {
-			child, _, childErr := parser.geometry(depth+1, typePoint, crs, false)
+			child, _, childErr := parser.geometry(remainingDepth-1, typePoint, crs, false)
 			if childErr != nil {
 				return nil, geo.CRS{}, childErr
 			}
@@ -187,7 +190,7 @@ func (parser *binaryParser) geometry(
 		}
 		lines := make([]geo.LineString, count)
 		for index := range lines {
-			child, _, childErr := parser.geometry(depth+1, typeLineString, crs, false)
+			child, _, childErr := parser.geometry(remainingDepth-1, typeLineString, crs, false)
 			if childErr != nil {
 				return nil, geo.CRS{}, childErr
 			}
@@ -202,7 +205,7 @@ func (parser *binaryParser) geometry(
 		}
 		polygons := make([]geo.Polygon, count)
 		for index := range polygons {
-			child, _, childErr := parser.geometry(depth+1, typePolygon, crs, false)
+			child, _, childErr := parser.geometry(remainingDepth-1, typePolygon, crs, false)
 			if childErr != nil {
 				return nil, geo.CRS{}, childErr
 			}
@@ -217,7 +220,7 @@ func (parser *binaryParser) geometry(
 		}
 		geometries := make([]geo.Geometry, count)
 		for index := range geometries {
-			child, _, childErr := parser.geometry(depth+1, 0, crs, false)
+			child, _, childErr := parser.geometry(remainingDepth-1, 0, crs, false)
 			if childErr != nil {
 				return nil, geo.CRS{}, childErr
 			}
@@ -302,7 +305,7 @@ func (parser *binaryParser) count(
 	if uint64(raw) > uint64(limit) {
 		return 0, parser.failure(resource+" limit exceeded", geo.ErrTopology)
 	}
-	remaining := len(parser.data) - parser.position
+	remaining := len(parser.data[parser.position:])
 	if uint64(raw) > uint64(remaining/minimumBytes) {
 		return 0, parser.failure(resource+" count exceeds remaining bytes", io.ErrUnexpectedEOF)
 	}
@@ -392,7 +395,7 @@ func appendGeometry(
 		result = appendPolygon(result, order, value)
 	case geo.MultiPoint:
 		result = appendUint32(result, order, uint32(value.Len()))
-		for index := 0; index < value.Len(); index++ {
+		for index := range value.Len() {
 			coordinate, _ := value.At(index)
 			point, _ := geo.NewPoint(coordinate)
 			result = appendGeometry(result, point, order, false)
@@ -422,7 +425,7 @@ func appendLineString(
 	line geo.LineString,
 ) []byte {
 	result = appendUint32(result, order, uint32(line.Len()))
-	for index := 0; index < line.Len(); index++ {
+	for index := range line.Len() {
 		coordinate, _ := line.At(index)
 		result = appendCoordinate(result, order, coordinate)
 	}
@@ -484,9 +487,7 @@ func initialCapacity(geometry geo.Geometry, includeSRID bool) int {
 	case geo.Point:
 		return header + 16
 	case geo.LineString:
-		if value.Len() <= (math.MaxInt-header-4)/16 {
-			return header + 4 + value.Len()*16
-		}
+		return header + 4 + value.Len()*16
 	}
 	return 0
 }
@@ -540,7 +541,7 @@ func crsForSRID(srid int32) geo.CRS {
 	return crs
 }
 
-func crsValid(crs geo.CRS) bool { return crs.SRID() > 0 && crs.Name() != "" }
+func crsValid(crs geo.CRS) bool { return crs.SRID() != 0 }
 
 func encodingError(problem string, cause error) *geo.EncodingError {
 	return &geo.EncodingError{Format: "WKB", Problem: problem, Cause: cause}

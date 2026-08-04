@@ -42,6 +42,18 @@ func TestEncodeMatchesCanonicalGeohashVector(t *testing.T) {
 	}
 }
 
+func TestEncodeAssignsMidpointCoordinatesToUpperHalves(t *testing.T) {
+	t.Parallel()
+
+	hash, err := geohash.Encode(mustCoordinate(t, 0, 0), 1)
+	if err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	if hash != "s" {
+		t.Fatalf("Encode(0, 0, 1) = %q, want s", hash)
+	}
+}
+
 func TestNeighborsAreDistinctAndReciprocal(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +79,46 @@ func TestNeighborsAreDistinctAndReciprocal(t *testing.T) {
 	if northNeighbors.South != hash {
 		t.Fatalf("north then south = %q, want %q", northNeighbors.South, hash)
 	}
+	cell, err := geohash.Decode(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, neighbor := range map[string]struct {
+		hash      geohash.Hash
+		wantWest  float64
+		wantSouth float64
+		wantEast  float64
+		wantNorth float64
+	}{
+		"north": {hash: neighbors.North, wantWest: cell.Bounds().West().Degrees(), wantSouth: cell.Bounds().North().Degrees()},
+		"east":  {hash: neighbors.East, wantWest: cell.Bounds().East().Degrees(), wantSouth: cell.Bounds().South().Degrees()},
+		"south": {hash: neighbors.South, wantWest: cell.Bounds().West().Degrees(), wantNorth: cell.Bounds().South().Degrees()},
+		"west":  {hash: neighbors.West, wantSouth: cell.Bounds().South().Degrees(), wantEast: cell.Bounds().West().Degrees()},
+	} {
+		adjacent, decodeErr := geohash.Decode(neighbor.hash)
+		if decodeErr != nil {
+			t.Fatal(decodeErr)
+		}
+		bounds := adjacent.Bounds()
+		switch name {
+		case "north":
+			if bounds.West().Degrees() != neighbor.wantWest || bounds.South().Degrees() != neighbor.wantSouth {
+				t.Fatalf("north bounds are not adjacent")
+			}
+		case "east":
+			if bounds.West().Degrees() != neighbor.wantWest || bounds.South().Degrees() != neighbor.wantSouth {
+				t.Fatalf("east bounds are not adjacent")
+			}
+		case "south":
+			if bounds.West().Degrees() != neighbor.wantWest || bounds.North().Degrees() != neighbor.wantNorth {
+				t.Fatalf("south bounds are not adjacent")
+			}
+		case "west":
+			if bounds.South().Degrees() != neighbor.wantSouth || bounds.East().Degrees() != neighbor.wantEast {
+				t.Fatalf("west bounds are not adjacent")
+			}
+		}
+	}
 }
 
 func TestCoverIsBoundedAndHandlesAntimeridian(t *testing.T) {
@@ -88,6 +140,15 @@ func TestCoverIsBoundedAndHandlesAntimeridian(t *testing.T) {
 	}
 	if len(hashes) == 0 {
 		t.Fatal("Cover() returned no cells")
+	}
+	exactCount := len(hashes)
+	if _, err := geohash.Cover(bounds, 4, exactCount); err != nil {
+		t.Fatalf("Cover(exact antimeridian limit %d) error = %v", exactCount, err)
+	}
+	_, err = geohash.Cover(bounds, 4, exactCount-1)
+	var rangeError *geo.RangeError
+	if !errors.As(err, &rangeError) || rangeError.Value != float64(exactCount) {
+		t.Fatalf("Cover(antimeridian one below limit) error = %#v, want required count %d", err, exactCount)
 	}
 	for _, longitude := range []float64{179.95, -179.95} {
 		target := mustCoordinate(t, longitude, 0)
@@ -162,6 +223,12 @@ func TestNeighborsClampPolesAndWrapTheAntimeridian(t *testing.T) {
 				t.Fatalf("Decode(neighbor %q) error = %v", neighbor, err)
 			}
 		}
+		if point[1] == 90 && neighbors.North != hash {
+			t.Fatalf("north-pole neighbor = %q, want same polar row %q", neighbors.North, hash)
+		}
+		if point[1] == -90 && neighbors.South != hash {
+			t.Fatalf("south-pole neighbor = %q, want same polar row %q", neighbors.South, hash)
+		}
 	}
 	if _, err := geohash.Neighbors("!"); !errors.Is(err, geo.ErrEncoding) {
 		t.Fatalf("Neighbors(invalid) error = %v, want ErrEncoding", err)
@@ -178,6 +245,11 @@ func TestCoverValidatesInputsAndIncludesPolarRows(t *testing.T) {
 	if _, err := geohash.Cover(world, 1, 0); !errors.Is(err, geo.ErrRange) {
 		t.Fatalf("Cover(limit) error = %v, want ErrRange", err)
 	}
+	_, err := geohash.Cover(world, 1, 0)
+	var limitError *geo.RangeError
+	if !errors.As(err, &limitError) || limitError.ValueName != "geohash cover cell limit" || limitError.Minimum != 1 {
+		t.Fatalf("Cover(zero limit) error = %#v, want cell-limit validation", err)
+	}
 	webMercator, err := geo.NewCRS(3857, "EPSG:3857")
 	if err != nil {
 		t.Fatalf("NewCRS() error = %v", err)
@@ -192,6 +264,49 @@ func TestCoverValidatesInputsAndIncludesPolarRows(t *testing.T) {
 	}
 	if len(hashes) != 32 {
 		t.Fatalf("Cover(world) count = %d, want 32", len(hashes))
+	}
+}
+
+func TestCoverAcceptsAnExactCellLimitAndReportsTheExactRequiredCount(t *testing.T) {
+	t.Parallel()
+
+	cell, err := geohash.Decode("s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	center := cell.Center()
+	pointBounds := mustBounds(
+		t,
+		center.Longitude().Degrees(),
+		center.Latitude().Degrees(),
+		center.Longitude().Degrees(),
+		center.Latitude().Degrees(),
+		geo.WGS84(),
+	)
+	hashes, err := geohash.Cover(pointBounds, 1, 1)
+	if err != nil {
+		t.Fatalf("Cover(exact one-cell limit) error = %v", err)
+	}
+	if len(hashes) != 1 || hashes[0] != "s" {
+		t.Fatalf("Cover(exact one-cell limit) = %v, want [s]", hashes)
+	}
+
+	bounds := mustBounds(t, -45, 0, 45, 45, geo.WGS84())
+	hashes, err = geohash.Cover(bounds, 1, 6)
+	if err != nil {
+		t.Fatalf("Cover(exact six-cell limit) error = %v", err)
+	}
+	if len(hashes) != 6 {
+		t.Fatalf("Cover(exact six-cell limit) count = %d, want 6", len(hashes))
+	}
+	want := []geohash.Hash{"e", "g", "s", "t", "u", "v"}
+	for index := range want {
+		if hashes[index] != want[index] {
+			t.Fatalf("Cover(exact six-cell limit) = %v, want %v", hashes, want)
+		}
+	}
+	if _, err := geohash.Cover(bounds, 1, 5); !errors.Is(err, geo.ErrRange) {
+		t.Fatalf("Cover(one below required limit) error = %v, want ErrRange", err)
 	}
 }
 

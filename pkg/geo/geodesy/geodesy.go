@@ -100,8 +100,8 @@ func (sphere Sphere) Inverse(from, to geo.Coordinate) (InverseResult, error) {
 	return InverseResult{
 		distance:        distance,
 		initialBearing:  mustBearing(initial),
-		finalBearing:    mustBearing(reverse + 180),
-		bearingsDefined: math.Abs(math.Pi-centralAngle) > 1e-15,
+		finalBearing:    mustBearing(oppositeBearingDegrees(reverse)),
+		bearingsDefined: centralAngle != math.Pi,
 	}, nil
 }
 
@@ -143,7 +143,7 @@ func (sphere Sphere) Destination(
 	coordinate := coordinate(lon2, clampLatitude(degrees(lat2)))
 	reverse := sphereBearing(lat2, radians(lon2), lat1, lon1)
 
-	return coordinate, mustBearing(reverse + 180), nil
+	return coordinate, mustBearing(oppositeBearingDegrees(reverse)), nil
 }
 
 // Ellipsoid solves geodesics on the WGS84 reference ellipsoid using the
@@ -251,11 +251,18 @@ func normalizeBearingDegrees(value float64) float64 {
 }
 
 func normalizeLongitudeDegrees(value float64) float64 {
-	value = math.Mod(value+180, 360)
-	if value < 0 {
-		value += 360
+	value = math.Remainder(value, 360)
+	if value == 180 {
+		return -180
 	}
+	return value
+}
 
+func oppositeBearingDegrees(value float64) float64 {
+	value = normalizeBearingDegrees(value)
+	if value < 180 {
+		return value + 180
+	}
 	return value - 180
 }
 

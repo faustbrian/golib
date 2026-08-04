@@ -42,6 +42,32 @@ func TestMeanEarthSphereSolvesQuarterEquator(t *testing.T) {
 	closeTo(t, "destination final bearing", final.Degrees(), 90, 1e-12)
 }
 
+func TestMeanEarthSphereObliqueInverseAndDestinationRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	model := geodesy.MeanEarthSphere()
+	from := coordinate(t, 20, 10, geo.WGS84())
+	to := coordinate(t, 50, 40, geo.WGS84())
+	result, err := model.Inverse(from, to)
+	if err != nil {
+		t.Fatalf("Inverse() error = %v", err)
+	}
+	if result.Distance().Meters() <= 0 || !result.BearingsDefined() {
+		t.Fatal("oblique inverse did not produce a defined positive geodesic")
+	}
+	destination, final, err := model.Destination(
+		from,
+		result.InitialBearing(),
+		result.Distance(),
+	)
+	if err != nil {
+		t.Fatalf("Destination() error = %v", err)
+	}
+	closeTo(t, "destination longitude", destination.Longitude().Degrees(), to.Longitude().Degrees(), 1e-12)
+	closeTo(t, "destination latitude", destination.Latitude().Degrees(), to.Latitude().Degrees(), 1e-12)
+	closeTo(t, "destination final bearing", final.Degrees(), result.FinalBearing().Degrees(), 1e-12)
+}
+
 func TestWGS84MatchesGeographicLibAuthoritativeExamples(t *testing.T) {
 	t.Parallel()
 

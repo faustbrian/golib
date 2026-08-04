@@ -20,6 +20,98 @@ func TestResourceAdditionRejectsIntegerOverflow(t *testing.T) {
 	if exceeds(math.MaxInt-1, 1, math.MaxInt) {
 		t.Fatal("exceeds() rejected an aggregate exactly at the limit")
 	}
+	if exceeds(0, 1, 1) {
+		t.Fatal("exceeds() rejected a single addition exactly at the limit")
+	}
+}
+
+func TestGeometryBoundaryHelpers(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name                 string
+		x, y, x1, y1, x2, y2 float64
+		want                 bool
+	}{
+		{name: "diagonal midpoint", x: 1, y: 1, x1: 0, y1: 0, x2: 2, y2: 2, want: true},
+		{name: "diagonal non-collinear", x: 1, y: 1.5, x1: 0, y1: 0, x2: 2, y2: 2, want: false},
+		{name: "before minimum x", x: -1, y: -1, x1: 0, y1: 0, x2: 2, y2: 2, want: false},
+		{name: "after maximum x", x: 3, y: 3, x1: 0, y1: 0, x2: 2, y2: 2, want: false},
+		{name: "before minimum y", x: 1, y: -1, x1: 1, y1: 0, x2: 1, y2: 2, want: false},
+		{name: "after maximum y", x: 1, y: 3, x1: 1, y1: 0, x2: 1, y2: 2, want: false},
+		{name: "maximum y endpoint", x: 1, y: 2, x1: 1, y1: 0, x2: 1, y2: 2, want: true},
+		{name: "reversed endpoint", x: 0, y: 0, x1: 2, y1: 2, x2: 0, y2: 0, want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if got := pointOnSegment(test.x, test.y, test.x1, test.y1, test.x2, test.y2); got != test.want {
+				t.Fatalf("pointOnSegment() = %t, want %t", got, test.want)
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		longitude float64
+		reference float64
+		want      float64
+	}{
+		{longitude: 180, reference: 0, want: 180},
+		{longitude: -180, reference: 0, want: -180},
+		{longitude: 180, reference: -1, want: -180},
+		{longitude: -180, reference: 1, want: 180},
+		{longitude: 180, reference: -180, want: -180},
+		{longitude: -180, reference: 180, want: 180},
+	} {
+		if got := unwrapLongitude(test.longitude, test.reference); got != test.want {
+			t.Fatalf("unwrapLongitude(%v, %v) = %v, want %v", test.longitude, test.reference, got, test.want)
+		}
+	}
+
+	ring := []Coordinate{contractCoordinate(t, 170, 1), contractCoordinate(t, -170, 2)}
+	if got, want := topologyRing(ring, 170), []float64{170, 1, 190, 2}; !equalFloat64s(got, want) {
+		t.Fatalf("topologyRing() = %v, want %v", got, want)
+	}
+
+	triangle := []Coordinate{
+		contractCoordinate(t, 0, 0),
+		contractCoordinate(t, 4, 0),
+		contractCoordinate(t, 0, 4),
+		contractCoordinate(t, 0, 0),
+	}
+	vertexHeightTriangle := []Coordinate{
+		contractCoordinate(t, 0, 0),
+		contractCoordinate(t, 4, 2),
+		contractCoordinate(t, 0, 4),
+		contractCoordinate(t, 0, 0),
+	}
+	if got := locateInRing(vertexHeightTriangle, contractCoordinate(t, 1, 2)); got != Inside {
+		t.Fatalf("locateInRing(vertex-height interior) = %v, want Inside", got)
+	}
+	for _, test := range []struct {
+		point Coordinate
+		want  Location
+	}{
+		{point: contractCoordinate(t, 1, 1), want: Inside},
+		{point: contractCoordinate(t, 3, 3), want: Outside},
+		{point: contractCoordinate(t, 2, 2), want: Boundary},
+		{point: contractCoordinate(t, 0, 0), want: Boundary},
+	} {
+		if got := locateInRing(triangle, test.point); got != test.want {
+			t.Fatalf("locateInRing(%v) = %v, want %v", test.point, got, test.want)
+		}
+	}
+}
+
+func equalFloat64s(left, right []float64) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestGeometryModelAccessorsCloneAndEquality(t *testing.T) {
@@ -378,6 +470,208 @@ func TestGeometryConstructorLimitAndEqualityBranches(t *testing.T) {
 	}
 }
 
+func TestGeometryConstructorsAcceptExactLimitsAndAccumulateEveryChild(t *testing.T) {
+	t.Parallel()
+
+	first := contractCoordinate(t, 0, 0)
+	second := contractCoordinate(t, 1, 1)
+	third := contractCoordinate(t, 2, 0)
+	line, err := NewLineStringWithLimits(
+		[]Coordinate{first, second},
+		Limits{MaxPoints: 2},
+	)
+	if err != nil {
+		t.Fatalf("line at exact point limit: %v", err)
+	}
+	otherLine, err := NewLineString([]Coordinate{second, third})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	polygon, err := NewPolygonWithLimits(
+		[]Coordinate{first, second, third, first},
+		nil,
+		Limits{MaxPoints: 4, MaxRings: 1},
+	)
+	if err != nil {
+		t.Fatalf("polygon at exact limits: %v", err)
+	}
+	exterior := []Coordinate{
+		first,
+		contractCoordinate(t, 10, 0),
+		contractCoordinate(t, 10, 10),
+		contractCoordinate(t, 0, 10),
+		first,
+	}
+	hole := []Coordinate{
+		contractCoordinate(t, 2, 2),
+		contractCoordinate(t, 2, 3),
+		contractCoordinate(t, 3, 3),
+		contractCoordinate(t, 3, 2),
+		contractCoordinate(t, 2, 2),
+	}
+	if _, err := NewPolygonWithLimits(
+		exterior,
+		[][]Coordinate{hole},
+		Limits{MaxPoints: 10, MaxRings: 2},
+	); err != nil {
+		t.Fatalf("polygon with hole at exact limits: %v", err)
+	}
+	otherPolygon, err := NewPolygon(
+		[]Coordinate{first, contractCoordinate(t, 1, 2), third, first},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := NewMultiPointWithLimits(
+		[]Coordinate{first, second}, WGS84(), Limits{MaxPoints: 2},
+	); err != nil {
+		t.Fatalf("multi point at exact point limit: %v", err)
+	}
+	multiLine, err := NewMultiLineStringWithLimits(
+		[]LineString{line, otherLine},
+		WGS84(),
+		Limits{MaxGeometries: 2, MaxPoints: 4},
+	)
+	if err != nil {
+		t.Fatalf("multi line at exact limits: %v", err)
+	}
+	if multiLine.pointCount() != 4 {
+		t.Fatalf("multi line point count = %d, want 4", multiLine.pointCount())
+	}
+	if _, err := NewMultiLineStringWithLimits(
+		[]LineString{line, otherLine},
+		WGS84(),
+		Limits{MaxGeometries: 1, MaxPoints: 4},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("multi line above geometry limit error = %v, want ErrTopology", err)
+	}
+	if _, err := NewMultiLineStringWithLimits(
+		[]LineString{line, otherLine},
+		WGS84(),
+		Limits{MaxGeometries: 2, MaxPoints: 3},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("multi line accumulated point limit error = %v, want ErrTopology", err)
+	}
+	if _, err := NewMultiLineStringWithLimits(
+		[]LineString{line, otherLine, line},
+		WGS84(),
+		Limits{MaxGeometries: 3, MaxPoints: 5},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("three-line accumulated point limit error = %v, want ErrTopology", err)
+	}
+
+	multiPolygon, err := NewMultiPolygonWithLimits(
+		[]Polygon{polygon, otherPolygon},
+		WGS84(),
+		Limits{MaxGeometries: 2, MaxPoints: 8},
+	)
+	if err != nil {
+		t.Fatalf("multi polygon at exact limits: %v", err)
+	}
+	if multiPolygon.pointCount() != 8 {
+		t.Fatalf("multi polygon point count = %d, want 8", multiPolygon.pointCount())
+	}
+	if _, err := NewMultiPolygonWithLimits(
+		[]Polygon{polygon, otherPolygon},
+		WGS84(),
+		Limits{MaxGeometries: 1, MaxPoints: 8},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("multi polygon above geometry limit error = %v, want ErrTopology", err)
+	}
+	if _, err := NewMultiPolygonWithLimits(
+		[]Polygon{polygon, otherPolygon},
+		WGS84(),
+		Limits{MaxGeometries: 2, MaxPoints: 7},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("multi polygon accumulated point limit error = %v, want ErrTopology", err)
+	}
+	if _, err := NewMultiPolygonWithLimits(
+		[]Polygon{polygon, otherPolygon, polygon},
+		WGS84(),
+		Limits{MaxGeometries: 3, MaxPoints: 11},
+	); !errors.Is(err, ErrTopology) {
+		t.Fatalf("three-polygon accumulated point limit error = %v, want ErrTopology", err)
+	}
+
+	point, err := NewPoint(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner, err := NewGeometryCollectionWithLimits(
+		[]Geometry{point},
+		WGS84(),
+		Limits{MaxPoints: 1, MaxGeometries: 2, MaxCollectionDepth: 2},
+	)
+	if err != nil {
+		t.Fatalf("inner collection at exact limits: %v", err)
+	}
+	outer, err := NewGeometryCollectionWithLimits(
+		[]Geometry{inner},
+		WGS84(),
+		Limits{MaxPoints: 1, MaxGeometries: 3, MaxCollectionDepth: 3},
+	)
+	if err != nil {
+		t.Fatalf("outer collection at exact limits: %v", err)
+	}
+	if outer.pointCount() != 1 || outer.geometryCount() != 3 || outer.geometryDepth() != 3 {
+		t.Fatalf("outer collection counts = %d, %d, %d; want 1, 3, 3",
+			outer.pointCount(), outer.geometryCount(), outer.geometryDepth())
+	}
+}
+
+func TestEqualGeometryRejectsEachUnsupportedAndCloneFailureOperand(t *testing.T) {
+	t.Parallel()
+
+	point, err := NewPoint(contractCoordinate(t, 0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if EqualGeometry(contractFakeGeometry{}, point) {
+		t.Fatal("unsupported left geometry compared equal")
+	}
+	if EqualGeometry(point, contractFakeGeometry{}) {
+		t.Fatal("unsupported right geometry compared equal")
+	}
+	var nilPoint *Point
+	if EqualGeometry(nilPoint, point) {
+		t.Fatal("nil left point compared equal")
+	}
+	if EqualGeometry(point, nilPoint) {
+		t.Fatal("nil right point compared equal")
+	}
+}
+
+func TestScalarAndCRSExactBoundaryContracts(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []float64{math.Inf(-1), math.Inf(1)} {
+		_, err := NewAltitudeMeters(value)
+		var rangeError *RangeError
+		if !errors.As(err, &rangeError) {
+			t.Fatalf("NewAltitudeMeters(%v) error = %v, want RangeError", value, err)
+		}
+		if rangeError.Minimum != -math.MaxFloat64 || rangeError.Maximum != math.MaxFloat64 {
+			t.Fatalf("altitude bounds = [%v, %v]", rangeError.Minimum, rangeError.Maximum)
+		}
+	}
+	distance, err := NewDistanceMeters(0)
+	if err != nil || distance.Meters() != 0 {
+		t.Fatalf("NewDistanceMeters(0) = %v, %v; want zero, nil", distance, err)
+	}
+	if (CRS{srid: 0, name: "EPSG:0"}).valid() {
+		t.Fatal("zero SRID with name is valid")
+	}
+	if (CRS{srid: 4326}).valid() {
+		t.Fatal("positive SRID without name is valid")
+	}
+	if !(CRS{srid: 4326, name: "EPSG:4326"}).valid() {
+		t.Fatal("positive SRID with name is invalid")
+	}
+}
+
 func TestTypedErrorContracts(t *testing.T) {
 	t.Parallel()
 
@@ -539,9 +833,16 @@ func TestValueSerializationErrorContracts(t *testing.T) {
 	}
 
 	var crs CRS
-	for _, value := range []string{"missing", "bad:name", "0:name"} {
+	for _, value := range []string{"bad:name", "0:name"} {
 		if err := crs.UnmarshalText([]byte(value)); err == nil {
 			t.Fatalf("CRS.UnmarshalText(%q) succeeded", value)
+		}
+	}
+	for _, value := range []string{"missing", "4326:"} {
+		err := crs.UnmarshalText([]byte(value))
+		var encodingError *EncodingError
+		if !errors.As(err, &encodingError) || encodingError.Problem != "CRS must use srid:name" {
+			t.Fatalf("CRS.UnmarshalText(%q) error = %v, want canonical syntax error", value, err)
 		}
 	}
 	if err := json.Unmarshal([]byte("null"), &crs); !errors.Is(err, ErrCRS) {
@@ -554,13 +855,22 @@ func TestValueSerializationErrorContracts(t *testing.T) {
 	var coordinate Coordinate
 	for _, value := range []string{
 		"missing",
-		"1,2,3@4326:EPSG:4326",
 		"bad,2@4326:EPSG:4326",
 		"1,bad@4326:EPSG:4326",
 		"1,2@bad:EPSG:4326",
 	} {
 		if err := coordinate.UnmarshalText([]byte(value)); err == nil {
 			t.Fatalf("Coordinate.UnmarshalText(%q) succeeded", value)
+		}
+	}
+	for _, value := range []string{
+		"1@4326:EPSG:4326",
+		"1,2,3@4326:EPSG:4326",
+	} {
+		err := coordinate.UnmarshalText([]byte(value))
+		var encodingError *EncodingError
+		if !errors.As(err, &encodingError) || encodingError.Problem != "coordinate must contain exactly two values" {
+			t.Fatalf("Coordinate.UnmarshalText(%q) error = %v, want exact value-count error", value, err)
 		}
 	}
 	if err := json.Unmarshal([]byte("[]"), &coordinate); !errors.Is(err, ErrEncoding) {

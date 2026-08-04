@@ -1,6 +1,10 @@
 package geo
 
-import simplegeom "github.com/peterstace/simplefeatures/geom"
+import (
+	"cmp"
+
+	simplegeom "github.com/peterstace/simplefeatures/geom"
+)
 
 // Limits bounds geometry construction and untrusted codec work. A zero field
 // selects the corresponding DefaultLimits value.
@@ -239,8 +243,14 @@ func locateInRing(ring []Coordinate, point Coordinate) Location {
 		if pointOnSegment(x, y, x1, y1, x2, y2) {
 			return Boundary
 		}
-		if (y1 > y) != (y2 > y) && x < (x2-x1)*(y-y1)/(y2-y1)+x1 {
-			inside = !inside
+		if (y1 > y) != (y2 > y) {
+			intersection := (x2-x1)*(y-y1)/(y2-y1) + x1
+			switch cmp.Compare(x, intersection) {
+			case 0, 1:
+				// Boundary equality was handled above; +1 is right of the crossing.
+			default:
+				inside = !inside
+			}
 		}
 	}
 	if inside {
@@ -257,11 +267,12 @@ func pointOnSegment(x, y, x1, y1, x2, y2 float64) bool {
 }
 
 func unwrapLongitude(longitude, reference float64) float64 {
-	for longitude-reference > 180 {
-		longitude -= 360
+	difference := longitude - reference
+	if difference > 180 {
+		return longitude - 360
 	}
-	for longitude-reference < -180 {
-		longitude += 360
+	if difference < -180 {
+		return longitude + 360
 	}
 
 	return longitude
@@ -289,13 +300,11 @@ func validatePolygonTopology(exterior []Coordinate, holes [][]Coordinate) error 
 }
 
 func topologyRing(ring []Coordinate, reference float64) []float64 {
-	flat := make([]float64, 0, len(ring)*2)
-	for _, coordinate := range ring {
-		flat = append(
-			flat,
-			unwrapLongitude(coordinate.longitude.degrees, reference),
-			coordinate.latitude.degrees,
-		)
+	flat := make([]float64, len(ring)*2)
+	for index, coordinate := range ring {
+		offset := index * 2
+		flat[offset] = unwrapLongitude(coordinate.longitude.degrees, reference)
+		flat[offset+1] = coordinate.latitude.degrees
 	}
 
 	return flat

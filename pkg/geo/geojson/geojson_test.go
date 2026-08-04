@@ -236,6 +236,20 @@ func TestGeometryDecoderRejectsMalformedCoordinatesAndTopology(t *testing.T) {
 	if _, err := geojson.Unmarshal(deep, geo.WGS84(), limits); !errors.Is(err, geo.ErrTopology) {
 		t.Fatalf("Unmarshal(depth) error = %v, want ErrTopology", err)
 	}
+	limits.MaxCollectionDepth = 2
+	if _, err := geojson.Unmarshal(deep, geo.WGS84(), limits); err != nil {
+		t.Fatalf("Unmarshal(exact depth) error = %v", err)
+	}
+	deeper := []byte(`{"type":"GeometryCollection","geometries":[` +
+		`{"type":"GeometryCollection","geometries":[` +
+		`{"type":"GeometryCollection","geometries":[]}]}]}`)
+	if _, err := geojson.Unmarshal(deeper, geo.WGS84(), limits); !errors.Is(err, geo.ErrTopology) {
+		t.Fatalf("Unmarshal(above exact depth) error = %v, want ErrTopology", err)
+	}
+	limits.MaxCollectionDepth = 3
+	if _, err := geojson.Unmarshal(deeper, geo.WGS84(), limits); err != nil {
+		t.Fatalf("Unmarshal(exact deeper depth) error = %v", err)
+	}
 }
 
 func TestFeatureRejectsInvalidShapeIDPropertiesAndLimits(t *testing.T) {
@@ -284,6 +298,10 @@ func TestFeatureRejectsInvalidShapeIDPropertiesAndLimits(t *testing.T) {
 	limits.MaxEncodedBytes = 4
 	if _, err := geojson.UnmarshalFeature(input, geo.WGS84(), limits); !errors.Is(err, geo.ErrEncoding) {
 		t.Fatalf("UnmarshalFeature(byte limit) error = %v", err)
+	}
+	limits.MaxEncodedBytes = int64(len(input))
+	if _, err := geojson.UnmarshalFeature(input, geo.WGS84(), limits); err != nil {
+		t.Fatalf("UnmarshalFeature(exact byte limit) error = %v", err)
 	}
 	webMercator, err := geo.NewCRS(3857, "EPSG:3857")
 	if err != nil {
