@@ -354,11 +354,15 @@ func (engine *AggregateOpeningEngine) open(
 	}
 	defer release()
 
+	// go-ipa batch-normalizes commitment pointers in place, so every query
+	// retains distinct commitment storage even when polynomial preparation is shared.
 	commitments := make([]banderwagon.Element, len(queries))
 	commitmentPointers := make([]*banderwagon.Element, len(queries))
 	polynomials := make([][]fr.Element, len(queries))
 	indices := make([]uint8, len(queries))
 	seen := make(map[aggregateOpeningQueryIdentity]struct{}, len(queries))
+	preparedIndexes := make(map[[commitmentSize]byte]int, len(queries))
+	preparedVectors := make([]preparedAggregateProverVector, 0, len(queries))
 	for queryIndex := range queries {
 		if err := checkAggregateOpeningContext(ctx); err != nil {
 			return OpeningProof{}, err
@@ -372,6 +376,22 @@ func (engine *AggregateOpeningEngine) open(
 			return OpeningProof{}, fmt.Errorf("%w: duplicate query", errInvalidAggregateOpeningQuery)
 		}
 		seen[identity] = struct{}{}
+
+		if preparedIndex, exists := preparedIndexes[identity.commitment]; exists {
+			existing := &preparedVectors[preparedIndex]
+			if *existing.vector != query.Vector {
+				return OpeningProof{}, fmt.Errorf(
+					"%w: commitment vector mismatch",
+					errInvalidAggregateOpeningQuery,
+				)
+			}
+			commitments[queryIndex] = existing.commitment
+			commitmentPointers[queryIndex] = &commitments[queryIndex]
+			polynomials[queryIndex] = existing.polynomial
+			indices[queryIndex] = query.Index
+
+			continue
+		}
 
 		polynomial := make([]fr.Element, VectorWidth)
 		for scalarIndex := range query.Vector {
@@ -393,6 +413,13 @@ func (engine *AggregateOpeningEngine) open(
 		if !computed.Equal(&query.Commitment.value.element) {
 			return OpeningProof{}, fmt.Errorf("%w: commitment mismatch", errInvalidAggregateOpeningQuery)
 		}
+		preparedIndex := len(preparedVectors)
+		preparedVectors = append(preparedVectors, preparedAggregateProverVector{
+			vector:     &query.Vector,
+			commitment: computed,
+			polynomial: polynomial,
+		})
+		preparedIndexes[identity.commitment] = preparedIndex
 		commitments[queryIndex] = computed
 		commitmentPointers[queryIndex] = &commitments[queryIndex]
 		polynomials[queryIndex] = polynomial
@@ -742,6 +769,12 @@ func (engine *AggregateOpeningEngine) preflight(
 type aggregateOpeningQueryIdentity struct {
 	commitment [commitmentSize]byte
 	index      uint8
+}
+
+type preparedAggregateProverVector struct {
+	vector     *Vector
+	commitment banderwagon.Element
+	polynomial []fr.Element
 }
 
 func aggregateOpeningIdentity(

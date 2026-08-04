@@ -592,6 +592,51 @@ func TestAggregateOpeningOperationsRejectMalformedQueries(t *testing.T) {
 	}
 }
 
+func TestAggregateOpeningReusesCommittedVectorPreparation(t *testing.T) {
+	t.Parallel()
+
+	real := newTestAggregateOpeningEngine(t)
+	prover, verifier := aggregateOpeningCorpus()
+	prover[1].Vector = prover[0].Vector
+	prover[1].Index = prover[0].Index + 1
+	verifier[1].Index = prover[1].Index
+	verifier[1].Value = prover[1].Vector[prover[1].Index]
+	commitAggregateOpeningCorpus(t, prover, verifier)
+
+	engine := *real
+	fake := &fakeAggregateOpeningBackend{
+		delegate: real.backend,
+		onOpenQueries: func(
+			commitments []*banderwagon.Element,
+			polynomials [][]fr.Element,
+		) {
+			if commitments[0] == commitments[1] {
+				t.Fatal("repeated opening aliases mutable backend commitment storage")
+			}
+			if &polynomials[0][0] != &polynomials[1][0] {
+				t.Fatal("repeated opening does not reuse immutable polynomial storage")
+			}
+		},
+	}
+	engine.backend = fake
+	proof, err := engine.Open(context.Background(), prover)
+	if err != nil {
+		t.Fatalf("open repeated committed vector: %v", err)
+	}
+	if fake.commitCalls != 2 {
+		t.Fatalf("commit calls = %d, want 2", fake.commitCalls)
+	}
+	if err := engine.Verify(context.Background(), proof, verifier); err != nil {
+		t.Fatalf("verify repeated committed vector: %v", err)
+	}
+
+	mismatch := append([]AggregateProverQuery(nil), prover...)
+	mismatch[1].Vector[0][0]++
+	if _, err := engine.Open(context.Background(), mismatch); !errors.Is(err, errInvalidAggregateOpeningQuery) {
+		t.Fatalf("repeated commitment vector mismatch error = %v", err)
+	}
+}
+
 func TestAggregateOpeningOperationsPropagateBackendAndCancellationFailures(t *testing.T) {
 	t.Parallel()
 
@@ -697,17 +742,20 @@ func TestAggregateOpeningProofNativeConversionRejectsCorruption(t *testing.T) {
 }
 
 type fakeAggregateOpeningBackend struct {
-	delegate  aggregateOpeningBackend
-	openProof *multiproof.MultiProof
-	openErr   error
-	verifyOK  bool
-	verifySet bool
-	verifyErr error
-	onOpen    func()
-	onVerify  func()
+	delegate      aggregateOpeningBackend
+	openProof     *multiproof.MultiProof
+	openErr       error
+	verifyOK      bool
+	verifySet     bool
+	verifyErr     error
+	onOpen        func()
+	onOpenQueries func([]*banderwagon.Element, [][]fr.Element)
+	onVerify      func()
+	commitCalls   int
 }
 
 func (backend *fakeAggregateOpeningBackend) commit(polynomial []fr.Element) banderwagon.Element {
+	backend.commitCalls++
 	return backend.delegate.commit(polynomial)
 }
 
@@ -717,6 +765,9 @@ func (backend *fakeAggregateOpeningBackend) open(
 	polynomials [][]fr.Element,
 	indices []uint8,
 ) (*multiproof.MultiProof, error) {
+	if backend.onOpenQueries != nil {
+		backend.onOpenQueries(commitments, polynomials)
+	}
 	if backend.onOpen != nil {
 		backend.onOpen()
 	}
