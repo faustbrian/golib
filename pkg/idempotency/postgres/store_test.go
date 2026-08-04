@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -79,10 +80,15 @@ func TestStoreUsesBackendClockForLeaseAuthority(t *testing.T) {
 }
 
 func TestStoreValidatesOptionsAndNativePool(t *testing.T) {
+	const expectedMaxRetention = 365 * 24 * time.Hour
 	tests := map[string]Options{
-		"retention": {},
+		"retention": {OwnerTokens: func() (string, error) { return "owner", nil }},
+		"negative retention": {
+			Retention:   -time.Nanosecond,
+			OwnerTokens: func() (string, error) { return "owner", nil },
+		},
 		"retention too long": {
-			Retention:   maxRetention + time.Second,
+			Retention:   expectedMaxRetention + time.Nanosecond,
 			OwnerTokens: func() (string, error) { return "owner", nil },
 		},
 		"tokens": {Retention: time.Hour},
@@ -98,6 +104,12 @@ func TestStoreValidatesOptionsAndNativePool(t *testing.T) {
 		Retention: time.Hour, OwnerTokens: func() (string, error) { return "owner", nil },
 	}); err == nil {
 		t.Fatal("New() nil pool error = nil")
+	}
+	store, err := newStore(newFakeExecutor(), Options{
+		Retention: expectedMaxRetention, OwnerTokens: func() (string, error) { return "owner", nil },
+	})
+	if err != nil || store.retention != expectedMaxRetention {
+		t.Fatalf("newStore() exact maximum retention = %#v, %v", store, err)
 	}
 }
 
@@ -149,11 +161,25 @@ func TestStorePropagatesExecutorAndTokenFailures(t *testing.T) {
 	}
 
 	executor.err = nil
-	store.ownerTokens = func() (string, error) { return "", backendErr }
+	store.ownerTokens = func() (string, error) { return "owner", backendErr }
 	if _, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
 		Key: key, Fingerprint: fingerprint, Lease: time.Minute,
 	}); err == nil {
 		t.Fatal("Acquire() token error = nil")
+	}
+
+	for name, token := range map[string]string{
+		"empty":     "",
+		"oversized": strings.Repeat("o", idempotency.MaxOwnerTokenBytes+1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			store.ownerTokens = func() (string, error) { return token, nil }
+			if _, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+				Key: key, Fingerprint: fingerprint, Lease: time.Minute,
+			}); err == nil {
+				t.Fatal("Acquire() invalid token error = nil")
+			}
+		})
 	}
 }
 
@@ -172,6 +198,95 @@ func TestCleanupValidatesBatchAndDelegates(t *testing.T) {
 	count, err := store.Cleanup(context.Background(), 10)
 	if err != nil || count != 7 {
 		t.Fatalf("Cleanup() = %d, %v", count, err)
+	}
+	count, err = store.Cleanup(context.Background(), maxCleanupBatch)
+	if err != nil || count != 7 {
+		t.Fatalf("Cleanup() exact maximum = %d, %v", count, err)
+	}
+}
+
+func TestStoreAcceptsExactRequestLimits(t *testing.T) {
+	executor := newFakeExecutor()
+	ownerToken := strings.Repeat("o", idempotency.MaxOwnerTokenBytes)
+	store, err := newStore(executor, Options{
+		Retention: time.Hour, OwnerTokens: func() (string, error) { return ownerToken, nil },
+	})
+	if err != nil {
+		t.Fatalf("newStore() error = %v", err)
+	}
+	key, fingerprint := storeIdentity(t, "exact-limits")
+	acquired, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+		Key: key, Fingerprint: fingerprint, Lease: idempotency.MaxLease,
+	})
+	if err != nil || acquired.Record.OwnerToken != ownerToken {
+		t.Fatalf("Acquire() exact limits = %#v, %v", acquired, err)
+	}
+	completed, err := store.Complete(context.Background(), idempotency.CompleteRequest{
+		Ownership: acquired.Record.Ownership(), Result: make([]byte, idempotency.MaxResultBytes),
+	})
+	if err != nil || len(completed.Result) != idempotency.MaxResultBytes {
+		t.Fatalf("Complete() exact result limit = %#v, %v", completed, err)
+	}
+}
+
+func TestHeartbeatRetainsRunningRecordBeyondExtendedLease(t *testing.T) {
+	executor := newFakeExecutor()
+	store, err := newStore(executor, Options{
+		Retention:   time.Hour,
+		OwnerTokens: idempotencytest.NewTokenSource("running-retention-owner").Next,
+	})
+	if err != nil {
+		t.Fatalf("newStore() error = %v", err)
+	}
+	key, fingerprint := storeIdentity(t, "running-retention")
+	acquired, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+		Key: key, Fingerprint: fingerprint, Lease: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+	executor.advance(time.Second)
+	running, err := store.Heartbeat(context.Background(), idempotency.HeartbeatRequest{
+		Ownership: acquired.Record.Ownership(), Lease: 2 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("Heartbeat() error = %v", err)
+	}
+	persisted := executor.records[string(recordDigest(key))]
+	wantPurgeAt := running.LeaseExpiresAt.Add(time.Hour)
+	if !persisted.purgeAt.Equal(wantPurgeAt) {
+		t.Fatalf("Heartbeat() purge deadline = %v, want %v", persisted.purgeAt, wantPurgeAt)
+	}
+}
+
+func TestCurrentRecordRequiresEachOwnershipFieldAndActiveState(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0).UTC()
+	record := codecRecord(t)
+	record.State = idempotency.StateAcquired
+	record.LeaseExpiresAt = now.Add(time.Minute)
+	ownership := record.Ownership()
+
+	tests := map[string]idempotency.Ownership{
+		"owner token":   {Key: ownership.Key, OwnerToken: "other", FencingToken: ownership.FencingToken},
+		"fencing token": {Key: ownership.Key, OwnerToken: ownership.OwnerToken, FencingToken: ownership.FencingToken + 1},
+	}
+	for name, candidate := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := currentRecord(&record, candidate, now); err == nil {
+				t.Fatal("currentRecord() stale ownership error = nil")
+			}
+		})
+	}
+	if _, err := currentRecord(&record, ownership, now); err != nil {
+		t.Fatalf("currentRecord() acquired error = %v", err)
+	}
+	record.State = idempotency.StateRunning
+	if _, err := currentRecord(&record, ownership, now); err != nil {
+		t.Fatalf("currentRecord() running error = %v", err)
+	}
+	record.State = idempotency.StateCompleted
+	if _, err := currentRecord(&record, ownership, now); err == nil {
+		t.Fatal("currentRecord() terminal state error = nil")
 	}
 }
 

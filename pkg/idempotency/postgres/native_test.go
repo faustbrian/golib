@@ -122,6 +122,44 @@ func TestNativeExecutorDeletesExpiredRecordBeforeFreshMutation(t *testing.T) {
 	}
 }
 
+func TestNativeExecutorRetainsFreshRecordAndExpiresAtExactBoundary(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0).UTC()
+	record := codecRecord(t)
+	encoded, err := encodeRecord(record)
+	if err != nil {
+		t.Fatalf("encodeRecord() error = %v", err)
+	}
+	for name, purgeAt := range map[string]time.Time{
+		"fresh":    now.Add(time.Nanosecond),
+		"boundary": now,
+	} {
+		t.Run(name, func(t *testing.T) {
+			transaction := &fakeTransaction{
+				rows: []pgx.Row{lockRow(now), persistedRow(encoded, purgeAt)},
+			}
+			var current *idempotency.Record
+			err := (&nativeExecutor{database: databaseWithTransaction(transaction)}).withRecord(
+				context.Background(), make([]byte, 32),
+				func(_ time.Time, loaded *idempotency.Record) (
+					idempotency.Record, time.Time, bool, error,
+				) {
+					current = loaded
+					return idempotency.Record{}, time.Time{}, false, nil
+				},
+			)
+			if err != nil {
+				t.Fatalf("withRecord() error = %v", err)
+			}
+			if name == "fresh" && current == nil {
+				t.Fatal("withRecord() discarded fresh record")
+			}
+			if name == "boundary" && current != nil {
+				t.Fatal("withRecord() retained record at purge boundary")
+			}
+		})
+	}
+}
+
 func TestNativeExecutorUsesLockedBackendClock(t *testing.T) {
 	backendNow := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
 	transaction := &fakeTransaction{

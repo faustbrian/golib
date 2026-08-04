@@ -41,11 +41,15 @@ func (e *nativeExecutor) withRecord(
 	mutate recordMutation,
 ) error {
 	tx, err := e.database.begin(ctx)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return err
 	}
 	defer func() { _ = tx.rollback(context.WithoutCancel(ctx)) }()
-	if err := applyRecordMutation(ctx, tx, digest, mutate); err != nil {
+	switch err := applyRecordMutation(ctx, tx, digest, mutate); err {
+	case nil:
+	default:
 		return err
 	}
 	return tx.commit(ctx)
@@ -66,11 +70,19 @@ func applyRecordMutation(
 	if err != nil {
 		return err
 	}
-	if current != nil && !now.Before(purgeAt) {
-		if err := tx.exec(ctx, deleteRecordSQL, digest); err != nil {
-			return err
+	switch current {
+	case nil:
+	default:
+		switch now.Before(purgeAt) {
+		case true:
+		case false:
+			switch err := tx.exec(ctx, deleteRecordSQL, digest); err {
+			case nil:
+			default:
+				return err
+			}
+			current = nil
 		}
-		current = nil
 	}
 	next, nextPurgeAt, write, err := mutate(now.UTC(), current)
 	if err != nil {
@@ -78,10 +90,14 @@ func applyRecordMutation(
 	}
 	if write {
 		encoded, err := encodeRecord(next)
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			return err
 		}
-		if err := tx.exec(ctx, upsertRecordSQL, digest, encoded, nextPurgeAt); err != nil {
+		switch err := tx.exec(ctx, upsertRecordSQL, digest, encoded, nextPurgeAt); err {
+		case nil:
+		default:
 			return err
 		}
 	}
@@ -96,14 +112,19 @@ func loadRecord(
 	var encoded []byte
 	var purgeAt time.Time
 	err := tx.queryRow(ctx, selectRecordSQL, digest).Scan(&encoded, &purgeAt)
-	if errors.Is(err, pgx.ErrNoRows) {
+	switch errors.Is(err, pgx.ErrNoRows) {
+	case true:
 		return nil, time.Time{}, nil
 	}
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return nil, time.Time{}, err
 	}
 	record, err := decodeRecord(encoded)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return nil, time.Time{}, err
 	}
 	return &record, purgeAt.UTC(), nil
@@ -135,7 +156,9 @@ type poolDatabase struct {
 
 func (d poolDatabase) begin(ctx context.Context) (nativeTransaction, error) {
 	tx, err := d.pool.Begin(ctx)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return nil, err
 	}
 	return poolTransaction{tx: tx}, nil

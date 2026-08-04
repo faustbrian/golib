@@ -60,10 +60,16 @@ func New(options Options) (*Store, error) {
 		}
 	}
 	maxRecords := options.MaxRecords
+	if maxRecords < 0 {
+		return nil, &idempotency.Error{
+			Reason: idempotency.ReasonInvalidConfiguration,
+			Field:  "max_records",
+		}
+	}
 	if maxRecords == 0 {
 		maxRecords = DefaultMaxRecords
 	}
-	if maxRecords < 0 || maxRecords > MaxRecordCapacity {
+	if maxRecords > MaxRecordCapacity {
 		return nil, &idempotency.Error{
 			Reason: idempotency.ReasonInvalidConfiguration,
 			Field:  "max_records",

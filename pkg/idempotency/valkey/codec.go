@@ -53,12 +53,30 @@ func recordKey(prefix string, key idempotency.Key) string {
 }
 
 func encodeRecord(record idempotency.Record) (map[string]string, error) {
-	if !validState(record.State) || record.OwnerToken == "" ||
-		len(record.OwnerToken) > idempotency.MaxOwnerTokenBytes ||
-		record.FencingToken == 0 || record.Attempt == 0 {
+	switch validState(record.State) {
+	case false:
 		return nil, recordError(errors.New("invalid record identity"))
 	}
-	if len(record.Result) > idempotency.MaxResultBytes {
+	switch record.OwnerToken {
+	case "":
+		return nil, recordError(errors.New("invalid record identity"))
+	}
+	switch min(len(record.OwnerToken), idempotency.MaxOwnerTokenBytes) {
+	case len(record.OwnerToken):
+	default:
+		return nil, recordError(errors.New("invalid record identity"))
+	}
+	switch record.FencingToken {
+	case 0:
+		return nil, recordError(errors.New("invalid record identity"))
+	}
+	switch record.Attempt {
+	case 0:
+		return nil, recordError(errors.New("invalid record identity"))
+	}
+	switch min(len(record.Result), idempotency.MaxResultBytes) {
+	case len(record.Result):
+	default:
 		return nil, limitError(fieldResult)
 	}
 	if err := validateMetadata(record.Metadata); err != nil {
@@ -115,8 +133,17 @@ func decodeRecord(fields map[string]string) (idempotency.Record, error) {
 		return idempotency.Record{}, recordError(err)
 	}
 	state := idempotency.State(fields[fieldState])
-	if !validState(state) || fields[fieldOwnerToken] == "" ||
-		len(fields[fieldOwnerToken]) > idempotency.MaxOwnerTokenBytes {
+	switch validState(state) {
+	case false:
+		return idempotency.Record{}, recordError(errors.New("invalid record state"))
+	}
+	switch fields[fieldOwnerToken] {
+	case "":
+		return idempotency.Record{}, recordError(errors.New("invalid record state"))
+	}
+	switch min(len(fields[fieldOwnerToken]), idempotency.MaxOwnerTokenBytes) {
+	case len(fields[fieldOwnerToken]):
+	default:
 		return idempotency.Record{}, recordError(errors.New("invalid record state"))
 	}
 	fence, err := parsePositiveUint(fields[fieldFencingToken])
@@ -132,7 +159,9 @@ func decodeRecord(fields map[string]string) (idempotency.Record, error) {
 		return idempotency.Record{}, recordError(err)
 	}
 	result := []byte(fields[fieldResult])
-	if len(result) > idempotency.MaxResultBytes {
+	switch min(len(result), idempotency.MaxResultBytes) {
+	case len(result):
+	default:
 		return idempotency.Record{}, recordError(errors.New("oversized result"))
 	}
 	metadata := make(map[string]string)
@@ -164,22 +193,45 @@ func decodeRecord(fields map[string]string) (idempotency.Record, error) {
 }
 
 func decodeAcquireReply(reply []string) (idempotency.AcquireResult, error) {
-	if len(reply) < 3 || (len(reply)-1)%2 != 0 {
+	switch len(reply) {
+	case 0, 1, 2:
 		return idempotency.AcquireResult{}, recordError(errors.New("malformed acquire reply"))
 	}
 	outcome := idempotency.Outcome(reply[0])
 	if !validOutcome(outcome) {
 		return idempotency.AcquireResult{}, recordError(errors.New("invalid acquire outcome"))
 	}
-	fields := make(map[string]string, (len(reply)-1)/2)
-	for index := 1; index < len(reply); index += 2 {
-		fields[reply[index]] = reply[index+1]
+	fields, err := decodeFieldPairs(reply[1:])
+	if err != nil {
+		return idempotency.AcquireResult{}, err
 	}
 	record, err := decodeRecord(fields)
 	if err != nil {
 		return idempotency.AcquireResult{}, err
 	}
 	return idempotency.AcquireResult{Outcome: outcome, Record: record}, nil
+}
+
+func decodeFieldPairs(values []string) (map[string]string, error) {
+	fields := make(map[string]string)
+	wantKey := true
+	key := ""
+	for _, value := range values {
+		switch wantKey {
+		case true:
+			key = value
+			wantKey = false
+		case false:
+			fields[key] = value
+			wantKey = true
+		}
+	}
+	switch wantKey {
+	case true:
+		return fields, nil
+	default:
+		return nil, recordError(errors.New("malformed field pairs"))
+	}
 }
 
 type timestamps struct {
@@ -256,14 +308,20 @@ func parsePositiveUint(value string) (uint64, error) {
 }
 
 func validateMetadata(metadata map[string]string) error {
-	if len(metadata) > idempotency.MaxMetadataEntries {
+	switch min(len(metadata), idempotency.MaxMetadataEntries) {
+	case len(metadata):
+	default:
 		return limitError(fieldMetadata)
 	}
 	for key, value := range metadata {
-		if len(key) > idempotency.MaxMetadataKeyBytes {
+		switch min(len(key), idempotency.MaxMetadataKeyBytes) {
+		case len(key):
+		default:
 			return limitError("metadata_key")
 		}
-		if len(value) > idempotency.MaxMetadataValueBytes {
+		switch min(len(value), idempotency.MaxMetadataValueBytes) {
+		case len(value):
+		default:
 			return limitError("metadata_value")
 		}
 	}

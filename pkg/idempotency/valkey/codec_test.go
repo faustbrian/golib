@@ -189,6 +189,30 @@ func TestRecordEncoderRejectsInvalidAndOversizedValues(t *testing.T) {
 		assertCodecReason(t, err, idempotency.ReasonInvalidPayload)
 	})
 
+	t.Run("state", func(t *testing.T) {
+		t.Parallel()
+		record := testRecord(t)
+		record.State = "future"
+		_, err := encodeRecord(record)
+		assertCodecReason(t, err, idempotency.ReasonInvalidPayload)
+	})
+
+	t.Run("empty owner token", func(t *testing.T) {
+		t.Parallel()
+		record := testRecord(t)
+		record.OwnerToken = ""
+		_, err := encodeRecord(record)
+		assertCodecReason(t, err, idempotency.ReasonInvalidPayload)
+	})
+
+	t.Run("attempt", func(t *testing.T) {
+		t.Parallel()
+		record := testRecord(t)
+		record.Attempt = 0
+		_, err := encodeRecord(record)
+		assertCodecReason(t, err, idempotency.ReasonInvalidPayload)
+	})
+
 	t.Run("result", func(t *testing.T) {
 		t.Parallel()
 		record := testRecord(t)
@@ -216,6 +240,34 @@ func TestRecordEncoderRejectsInvalidAndOversizedValues(t *testing.T) {
 	})
 }
 
+func TestRecordCodecAcceptsExactPersistenceLimits(t *testing.T) {
+	t.Parallel()
+
+	record := testRecord(t)
+	record.OwnerToken = strings.Repeat("o", idempotency.MaxOwnerTokenBytes)
+	record.Result = make([]byte, idempotency.MaxResultBytes)
+	record.Metadata = make(map[string]string, idempotency.MaxMetadataEntries)
+	for index := range idempotency.MaxMetadataEntries - 1 {
+		record.Metadata[string(rune('a'+index))] = "value"
+	}
+	record.Metadata[strings.Repeat("k", idempotency.MaxMetadataKeyBytes)] =
+		strings.Repeat("v", idempotency.MaxMetadataValueBytes)
+
+	fields, err := encodeRecord(record)
+	if err != nil {
+		t.Fatalf("encodeRecord() exact limits error = %v", err)
+	}
+	decoded, err := decodeRecord(fields)
+	if err != nil {
+		t.Fatalf("decodeRecord() exact limits error = %v", err)
+	}
+	if len(decoded.OwnerToken) != idempotency.MaxOwnerTokenBytes ||
+		len(decoded.Result) != idempotency.MaxResultBytes ||
+		len(decoded.Metadata) != idempotency.MaxMetadataEntries {
+		t.Fatalf("decodeRecord() exact limits = %#v", decoded)
+	}
+}
+
 func TestAcquireReplyIncludesAValidatedOutcomeAndRecord(t *testing.T) {
 	t.Parallel()
 
@@ -239,6 +291,9 @@ func TestAcquireReplyIncludesAValidatedOutcomeAndRecord(t *testing.T) {
 		"empty":   nil,
 		"outcome": {"unknown", fieldSchema, schemaVersion},
 		"pairs":   {string(idempotency.OutcomeReplayed), fieldSchema},
+		"odd pairs": {
+			string(idempotency.OutcomeReplayed), fieldSchema, schemaVersion, fieldState,
+		},
 		"record": {
 			string(idempotency.OutcomeReplayed), fieldSchema, "future",
 		},

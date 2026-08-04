@@ -62,11 +62,11 @@ func New(options Options) (*Runner, error) {
 	if options.Lease <= 0 || options.Lease > idempotency.MaxLease {
 		return nil, configurationError("lease")
 	}
-	if options.TransitionTimeout == 0 {
-		options.TransitionTimeout = 5 * time.Second
-	}
 	if options.TransitionTimeout < 0 {
 		return nil, configurationError("transition_timeout")
+	}
+	if options.TransitionTimeout == 0 {
+		options.TransitionTimeout = 5 * time.Second
 	}
 	return &Runner{
 		service: options.Service, lease: options.Lease,

@@ -64,7 +64,9 @@ func (s *Store) Acquire(
 	ctx context.Context,
 	request idempotency.AcquireRequest,
 ) (result idempotency.AcquireResult, err error) {
-	if err := validateLease(request.Lease); err != nil {
+	switch err := validateLease(request.Lease); err {
+	case nil:
+	default:
 		return idempotency.AcquireResult{}, err
 	}
 	err = s.executor.withRecord(ctx, recordDigest(request.Key), func(
@@ -91,9 +93,22 @@ func (s *Store) Acquire(
 		}
 
 		ownerToken, err := s.ownerTokens()
-		if err != nil || ownerToken == "" || len(ownerToken) > idempotency.MaxOwnerTokenBytes {
+		switch err {
+		case nil:
+		default:
 			return idempotency.Record{}, time.Time{}, false, &idempotency.Error{
 				Reason: idempotency.ReasonUnavailable, Field: "owner_token", Cause: err,
+			}
+		}
+		switch ownerToken {
+		case "":
+			return idempotency.Record{}, time.Time{}, false, &idempotency.Error{
+				Reason: idempotency.ReasonUnavailable, Field: "owner_token",
+			}
+		}
+		if len(ownerToken) > idempotency.MaxOwnerTokenBytes {
+			return idempotency.Record{}, time.Time{}, false, &idempotency.Error{
+				Reason: idempotency.ReasonUnavailable, Field: "owner_token",
 			}
 		}
 		outcome := idempotency.OutcomeAcquired
@@ -142,7 +157,9 @@ func (s *Store) Heartbeat(
 	ctx context.Context,
 	request idempotency.HeartbeatRequest,
 ) (idempotency.Record, error) {
-	if err := validateLease(request.Lease); err != nil {
+	switch err := validateLease(request.Lease); err {
+	case nil:
+	default:
 		return idempotency.Record{}, err
 	}
 	return s.updateCurrent(ctx, request.Ownership, func(now time.Time, record *idempotency.Record) {
@@ -180,7 +197,8 @@ func (s *Store) CompleteTx(
 	if err := validateReplayData(request.Result, request.Metadata); err != nil {
 		return idempotency.Record{}, err
 	}
-	if tx == nil {
+	switch tx {
+	case nil:
 		return idempotency.Record{}, configurationError("transaction")
 	}
 	return s.completeInTransaction(ctx, poolTransaction{tx: tx}, request)
@@ -283,7 +301,8 @@ func (s *Store) updateCurrent(
 		update(now, &next)
 		record = cloneRecord(next)
 		purgeAt := now.Add(s.retention)
-		if next.State == idempotency.StateRunning {
+		switch next.State {
+		case idempotency.StateRunning:
 			purgeAt = next.LeaseExpiresAt.Add(s.retention)
 		}
 		return next, purgeAt, true, nil
@@ -296,15 +315,27 @@ func currentRecord(
 	ownership idempotency.Ownership,
 	now time.Time,
 ) (idempotency.Record, error) {
-	if current == nil {
+	switch current {
+	case nil:
 		return idempotency.Record{}, notFound()
 	}
-	if current.OwnerToken != ownership.OwnerToken || current.FencingToken != ownership.FencingToken {
+	switch current.OwnerToken {
+	case ownership.OwnerToken:
+	default:
 		return idempotency.Record{}, &idempotency.Error{
 			Reason: idempotency.ReasonStaleOwner, Field: "ownership",
 		}
 	}
-	if current.State != idempotency.StateAcquired && current.State != idempotency.StateRunning {
+	switch current.FencingToken {
+	case ownership.FencingToken:
+	default:
+		return idempotency.Record{}, &idempotency.Error{
+			Reason: idempotency.ReasonStaleOwner, Field: "ownership",
+		}
+	}
+	switch current.State {
+	case idempotency.StateAcquired, idempotency.StateRunning:
+	default:
 		return idempotency.Record{}, transitionError(current.State)
 	}
 	if !now.Before(current.LeaseExpiresAt) {
@@ -326,10 +357,12 @@ func validateLease(lease time.Duration) error {
 }
 
 func validateReplayData(result []byte, metadata map[string]string) error {
-	if len(result) > idempotency.MaxResultBytes {
+	switch min(len(result), idempotency.MaxResultBytes) {
+	case len(result):
+		return validateMetadata(metadata)
+	default:
 		return &idempotency.Error{Reason: idempotency.ReasonLimitExceeded, Field: "result"}
 	}
-	return validateMetadata(metadata)
 }
 
 func acquireResult(outcome idempotency.Outcome, record idempotency.Record) idempotency.AcquireResult {

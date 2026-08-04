@@ -103,10 +103,11 @@ func validateTokens(input []byte, maxDepth int) error {
 	depth := 0
 	for {
 		token, err := decoder.Token()
-		if errors.Is(err, io.EOF) {
+		switch err {
+		case nil:
+		case io.EOF:
 			return nil
-		}
-		if err != nil {
+		default:
 			return payloadError("json", err)
 		}
 		switch value := token.(type) {
@@ -133,40 +134,50 @@ func validateTokens(input []byte, maxDepth int) error {
 
 func validateUnicodeEscapes(input []byte) error {
 	inString := false
-	for index := 0; index < len(input); index++ {
+	index := 0
+	for range input {
+		if index >= len(input) {
+			return nil
+		}
 		switch input[index] {
 		case '"':
 			inString = !inString
 		case '\\':
 			if !inString {
-				continue
+				return errors.New("escape outside string")
 			}
 			index++
-			if index >= len(input) || input[index] != 'u' {
-				continue
+			if index >= len(input) {
+				return errors.New("incomplete escape")
 			}
-			first, err := parseEscape(input, index+1)
-			if err != nil {
-				return err
-			}
-			index += 4
-			switch {
-			case first >= 0xd800 && first <= 0xdbff:
-				if index+6 >= len(input) || input[index+1] != '\\' || input[index+2] != 'u' {
-					return errors.New("missing low surrogate")
-				}
-				second, err := parseEscape(input, index+3)
+			if input[index] == 'u' {
+				first, err := parseEscape(input, index+1)
 				if err != nil {
 					return err
 				}
-				if second < 0xdc00 || second > 0xdfff {
-					return errors.New("invalid low surrogate")
+				index += 4
+				switch {
+				case first >= 0xd800 && first <= 0xdbff:
+					if index+6 >= len(input) {
+						return errors.New("missing low surrogate")
+					}
+					if input[index+1] != '\\' || input[index+2] != 'u' {
+						return errors.New("missing low surrogate")
+					}
+					second, err := parseEscape(input, index+3)
+					if err != nil {
+						return err
+					}
+					if second < 0xdc00 || second > 0xdfff {
+						return errors.New("invalid low surrogate")
+					}
+					index += 6
+				case first >= 0xdc00 && first <= 0xdfff:
+					return errors.New("unexpected low surrogate")
 				}
-				index += 6
-			case first >= 0xdc00 && first <= 0xdfff:
-				return errors.New("unexpected low surrogate")
 			}
 		}
+		index++
 	}
 	return nil
 }

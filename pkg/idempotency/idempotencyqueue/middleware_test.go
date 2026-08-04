@@ -135,6 +135,10 @@ func TestNewValidatesConfiguration(t *testing.T) {
 	if _, err := idempotencyqueue.New(valid); err != nil {
 		t.Fatalf("New() default timeout error = %v", err)
 	}
+	valid.Lease = idempotency.MaxLease
+	if _, err := idempotencyqueue.New(valid); err != nil {
+		t.Fatalf("New() maximum lease error = %v", err)
+	}
 }
 
 func TestMiddlewareValidatesMessageAndIdentity(t *testing.T) {

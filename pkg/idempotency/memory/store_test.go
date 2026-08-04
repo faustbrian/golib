@@ -329,6 +329,42 @@ func TestStoreBoundsOwnerTokensAndRecordCount(t *testing.T) {
 		assertReason(t, err, idempotency.ReasonNotFound)
 	})
 
+	t.Run("empty owner token", func(t *testing.T) {
+		store, err := memory.New(memory.Options{
+			Clock: clock,
+			OwnerTokens: func() (string, error) {
+				return "", nil
+			},
+			MaxRecords: 1,
+		})
+		if err != nil {
+			t.Fatalf("memory.New() error = %v", err)
+		}
+		_, err = store.Acquire(context.Background(), idempotency.AcquireRequest{
+			Key: firstKey, Fingerprint: fingerprint, Lease: time.Minute,
+		})
+		assertReason(t, err, idempotency.ReasonUnavailable)
+	})
+
+	t.Run("maximum owner token", func(t *testing.T) {
+		store, err := memory.New(memory.Options{
+			Clock: clock,
+			OwnerTokens: func() (string, error) {
+				return strings.Repeat("o", idempotency.MaxOwnerTokenBytes), nil
+			},
+			MaxRecords: 1,
+		})
+		if err != nil {
+			t.Fatalf("memory.New() error = %v", err)
+		}
+		result, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+			Key: firstKey, Fingerprint: fingerprint, Lease: time.Minute,
+		})
+		if err != nil || len(result.Record.OwnerToken) != idempotency.MaxOwnerTokenBytes {
+			t.Fatalf("Acquire() = %#v, %v", result, err)
+		}
+	})
+
 	t.Run("record capacity", func(t *testing.T) {
 		tokens := &tokenSource{}
 		store, err := memory.New(memory.Options{
@@ -376,6 +412,11 @@ func TestStoreRejectsInvalidConfigurationAndInputs(t *testing.T) {
 		Clock: clock, OwnerTokens: tokens, MaxRecords: memory.MaxRecordCapacity + 1,
 	})
 	assertReason(t, err, idempotency.ReasonInvalidConfiguration)
+	if _, err = memory.New(memory.Options{
+		Clock: clock, OwnerTokens: tokens, MaxRecords: memory.MaxRecordCapacity,
+	}); err != nil {
+		t.Fatalf("memory.New() maximum records error = %v", err)
+	}
 
 	store, key, fingerprint, _ := fixture(t)
 	_, err = store.Acquire(context.Background(), idempotency.AcquireRequest{
@@ -386,6 +427,12 @@ func TestStoreRejectsInvalidConfigurationAndInputs(t *testing.T) {
 		Key: key, Fingerprint: fingerprint, Lease: idempotency.MaxLease + time.Nanosecond,
 	})
 	assertReason(t, err, idempotency.ReasonLimitExceeded)
+	result, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+		Key: key, Fingerprint: fingerprint, Lease: idempotency.MaxLease,
+	})
+	if err != nil || result.Outcome != idempotency.OutcomeAcquired {
+		t.Fatalf("Acquire() maximum lease = %#v, %v", result, err)
+	}
 }
 
 func TestStoreBoundsResultsAndMetadata(t *testing.T) {
@@ -440,6 +487,28 @@ func TestStoreBoundsResultsAndMetadata(t *testing.T) {
 			Result:    make([]byte, idempotency.MaxResultBytes+1),
 		})
 		assertReason(t, err, idempotency.ReasonLimitExceeded)
+	})
+
+	t.Run("exact limits", func(t *testing.T) {
+		t.Parallel()
+
+		metadata := make(map[string]string, idempotency.MaxMetadataEntries)
+		for index := range idempotency.MaxMetadataEntries - 1 {
+			metadata[fmt.Sprintf("key-%d", index)] = "value"
+		}
+		metadata[strings.Repeat("k", idempotency.MaxMetadataKeyBytes)] =
+			strings.Repeat("v", idempotency.MaxMetadataValueBytes)
+		store, key, fingerprint, _ := fixture(t)
+		owner := acquire(t, store, key, fingerprint)
+		completed, err := store.Complete(context.Background(), idempotency.CompleteRequest{
+			Ownership: owner.Record.Ownership(),
+			Result:    make([]byte, idempotency.MaxResultBytes),
+			Metadata:  metadata,
+		})
+		if err != nil || len(completed.Result) != idempotency.MaxResultBytes ||
+			len(completed.Metadata) != idempotency.MaxMetadataEntries {
+			t.Fatalf("Complete() = %#v, %v", completed, err)
+		}
 	})
 }
 

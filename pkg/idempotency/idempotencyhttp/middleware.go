@@ -78,17 +78,20 @@ func New(options Options) (*Middleware, error) {
 	if options.Fingerprint == nil {
 		return nil, configurationError("fingerprint")
 	}
+	if options.MaxResponseBytes < 0 {
+		return nil, configurationError("max_response_bytes")
+	}
 	if options.MaxResponseBytes == 0 {
 		options.MaxResponseBytes = defaultMaxBytes
 	}
-	if options.MaxResponseBytes < 0 || options.MaxResponseBytes > MaxReplayResponseBytes {
+	if options.MaxResponseBytes > MaxReplayResponseBytes {
 		return nil, configurationError("max_response_bytes")
-	}
-	if options.TransitionTimeout == 0 {
-		options.TransitionTimeout = defaultTransitionTimeout
 	}
 	if options.TransitionTimeout < 0 {
 		return nil, configurationError("transition_timeout")
+	}
+	if options.TransitionTimeout == 0 {
+		options.TransitionTimeout = defaultTransitionTimeout
 	}
 	headers := make([]string, 0, len(options.ReplayHeaders))
 	seen := make(map[string]struct{}, len(options.ReplayHeaders))
@@ -97,11 +100,10 @@ func New(options Options) (*Middleware, error) {
 		if header == "" {
 			return nil, configurationError("replay_headers")
 		}
-		if _, exists := seen[header]; exists {
-			continue
+		if _, exists := seen[header]; !exists {
+			seen[header] = struct{}{}
+			headers = append(headers, header)
 		}
-		seen[header] = struct{}{}
-		headers = append(headers, header)
 	}
 	return &Middleware{
 		service: options.Service, lease: options.Lease,

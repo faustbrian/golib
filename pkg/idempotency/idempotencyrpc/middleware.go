@@ -93,14 +93,17 @@ func New(options Options) (*Middleware, error) {
 	if options.MaxResponseBytes == 0 {
 		options.MaxResponseBytes = defaultMaxBytes
 	}
-	if options.MaxResponseBytes < MinResponseBytes || options.MaxResponseBytes > MaxResponseBytes {
+	if options.MaxResponseBytes < MinResponseBytes {
 		return nil, configurationError("max_response_bytes")
 	}
-	if options.TransitionTimeout == 0 {
-		options.TransitionTimeout = defaultTransitionTimeout
+	if options.MaxResponseBytes > MaxResponseBytes {
+		return nil, configurationError("max_response_bytes")
 	}
 	if options.TransitionTimeout < 0 {
 		return nil, configurationError("transition_timeout")
+	}
+	if options.TransitionTimeout == 0 {
+		options.TransitionTimeout = defaultTransitionTimeout
 	}
 	return &Middleware{
 		service: options.Service, lease: options.Lease,

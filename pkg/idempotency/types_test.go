@@ -56,6 +56,20 @@ func TestNewKeyRejectsOversizedParts(t *testing.T) {
 	assertReason(t, err, idempotency.ReasonLimitExceeded)
 }
 
+func TestNewKeyAcceptsMaximumLengthParts(t *testing.T) {
+	t.Parallel()
+
+	part := strings.Repeat("k", idempotency.MaxKeyPartBytes)
+	key, err := idempotency.NewKey(part, part, part, part, part)
+	if err != nil {
+		t.Fatalf("NewKey() error = %v", err)
+	}
+	if key.Namespace() != part || key.Tenant() != part || key.Operation() != part ||
+		key.Caller() != part || key.Value() != part {
+		t.Fatalf("NewKey() did not preserve maximum-length identity parts: %#v", key)
+	}
+}
+
 func TestKeyPreservesIdentityParts(t *testing.T) {
 	t.Parallel()
 
@@ -119,6 +133,27 @@ func TestFingerprintRejectsOversizedVersion(t *testing.T) {
 	assertReason(t, err, idempotency.ReasonLimitExceeded)
 	_, err = idempotency.NewFingerprintFromSum(version, make([]byte, 32))
 	assertReason(t, err, idempotency.ReasonLimitExceeded)
+}
+
+func TestFingerprintAcceptsMaximumLengthVersion(t *testing.T) {
+	t.Parallel()
+
+	version := strings.Repeat("v", idempotency.MaxFingerprintVersionBytes)
+	fingerprint, err := idempotency.NewFingerprint(version, []byte("canonical request"))
+	if err != nil {
+		t.Fatalf("NewFingerprint() error = %v", err)
+	}
+	if fingerprint.Version() != version {
+		t.Fatalf("Version() = %q, want maximum-length version", fingerprint.Version())
+	}
+
+	reconstructed, err := idempotency.NewFingerprintFromSum(version, fingerprint.Sum())
+	if err != nil {
+		t.Fatalf("NewFingerprintFromSum() error = %v", err)
+	}
+	if !fingerprint.Equal(reconstructed) {
+		t.Fatal("maximum-length version did not reconstruct the fingerprint")
+	}
 }
 
 func TestFingerprintCanBeReconstructedFromPersistedDigest(t *testing.T) {

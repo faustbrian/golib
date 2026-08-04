@@ -65,11 +65,11 @@ func New(options Options) (*Middleware, error) {
 	if options.Fingerprint == nil {
 		return nil, configurationError("fingerprint")
 	}
-	if options.TransitionTimeout == 0 {
-		options.TransitionTimeout = 5 * time.Second
-	}
 	if options.TransitionTimeout < 0 {
 		return nil, configurationError("transition_timeout")
+	}
+	if options.TransitionTimeout == 0 {
+		options.TransitionTimeout = 5 * time.Second
 	}
 	return &Middleware{
 		service: options.Service, lease: options.Lease,

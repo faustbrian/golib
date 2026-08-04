@@ -166,6 +166,67 @@ func TestNewValidatesConfiguration(t *testing.T) {
 	if _, err := idempotencyrpc.New(valid); err != nil {
 		t.Fatalf("New() default limit error = %v", err)
 	}
+	valid.Lease = idempotency.MaxLease
+	valid.MaxResponseBytes = idempotencyrpc.MinResponseBytes
+	if _, err := idempotencyrpc.New(valid); err != nil {
+		t.Fatalf("New() minimum response limit error = %v", err)
+	}
+	valid.MaxResponseBytes = idempotencyrpc.MaxResponseBytes
+	if _, err := idempotencyrpc.New(valid); err != nil {
+		t.Fatalf("New() maximum response limit error = %v", err)
+	}
+}
+
+func TestMiddlewareAcceptsExactPersistedResponseLimit(t *testing.T) {
+	const prefix = `{"schema":1,"response":{"result":"`
+	const suffix = `"}}`
+	filler := strings.Repeat("x", idempotencyrpc.MinResponseBytes-len(prefix)-len(suffix))
+	response := idempotencyrpc.Response{Result: json.RawMessage(`"` + filler + `"`)}
+	middleware, _ := fixture(t, idempotencyrpc.MinResponseBytes)
+	request := idempotencyrpc.Request{Method: "widgets.exact", Params: json.RawMessage(`{}`)}
+	handler := func(context.Context, idempotencyrpc.Request) idempotencyrpc.Response {
+		return response
+	}
+
+	first, err := middleware.Call(context.Background(), request, handler)
+	if err != nil {
+		t.Fatalf("Call() error = %v", err)
+	}
+	second, err := middleware.Call(context.Background(), request, handler)
+	if err != nil {
+		t.Fatalf("Call() replay error = %v", err)
+	}
+	if string(first.Response.Result) != string(response.Result) ||
+		string(second.Response.Result) != string(response.Result) || !second.Replayed {
+		t.Fatalf("results = %#v, %#v", first, second)
+	}
+}
+
+func TestMiddlewarePayloadErrorsRetainCauses(t *testing.T) {
+	middleware, _ := fixture(t, 1024)
+	_, err := middleware.Call(context.Background(), idempotencyrpc.Request{}, validHandler)
+	var semanticError *idempotency.Error
+	if !errors.As(err, &semanticError) || semanticError.Cause == nil {
+		t.Fatalf("method error = %#v", err)
+	}
+
+	request := idempotencyrpc.Request{Method: "widgets.replay", Params: json.RawMessage(`{}`)}
+	key, fingerprint := identity(t, request)
+	record := idempotency.Record{
+		Key: key, Fingerprint: fingerprint, State: idempotency.StateCompleted,
+		Result: []byte(`{"schema":`),
+	}
+	store := &storeOverride{Store: mustStore(t), acquire: func(
+		context.Context, idempotency.AcquireRequest,
+	) (idempotency.AcquireResult, error) {
+		return idempotency.AcquireResult{Outcome: idempotency.OutcomeReplayed, Record: record}, nil
+	}}
+	middleware = mustMiddleware(t, store, validKey(t), validFingerprint(t), 1024)
+	_, err = middleware.Call(context.Background(), request, validHandler)
+	var syntaxError *json.SyntaxError
+	if !errors.As(err, &syntaxError) {
+		t.Fatalf("replay error = %v, want *json.SyntaxError", err)
+	}
 }
 
 func TestMiddlewareValidatesInvocationIdentity(t *testing.T) {

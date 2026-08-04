@@ -3,6 +3,8 @@ package postgres
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -155,6 +157,45 @@ func TestRecordCodecPreservesNilMetadata(t *testing.T) {
 	decoded, err := decodeRecord(encoded)
 	if err != nil || decoded.Metadata != nil {
 		t.Fatalf("decodeRecord() = %#v, %v", decoded, err)
+	}
+}
+
+func TestRecordCodecAcceptsExactPersistenceLimits(t *testing.T) {
+	record := codecRecord(t)
+	record.OwnerToken = strings.Repeat("o", idempotency.MaxOwnerTokenBytes)
+	record.Result = make([]byte, idempotency.MaxResultBytes)
+	record.Metadata = make(map[string]string, idempotency.MaxMetadataEntries)
+	for index := range idempotency.MaxMetadataEntries - 1 {
+		record.Metadata[fmt.Sprintf("key-%d", index)] = "value"
+	}
+	record.Metadata[strings.Repeat("k", idempotency.MaxMetadataKeyBytes)] =
+		strings.Repeat("v", idempotency.MaxMetadataValueBytes)
+
+	encoded, err := encodeRecord(record)
+	if err != nil {
+		t.Fatalf("encodeRecord() error = %v", err)
+	}
+	decoded, err := decodeRecord(encoded)
+	if err != nil {
+		t.Fatalf("decodeRecord() error = %v", err)
+	}
+	if len(decoded.OwnerToken) != idempotency.MaxOwnerTokenBytes ||
+		len(decoded.Result) != idempotency.MaxResultBytes ||
+		len(decoded.Metadata) != idempotency.MaxMetadataEntries {
+		t.Fatalf("decodeRecord() = %#v", decoded)
+	}
+}
+
+func TestPayloadErrorPreservesOrSuppliesCause(t *testing.T) {
+	provided := errors.New("provided cause")
+	if err := payloadError("field", provided); !errors.Is(err, provided) {
+		t.Fatalf("payloadError() = %v, want provided cause", err)
+	}
+
+	err := payloadError("field", nil)
+	var semanticError *idempotency.Error
+	if !errors.As(err, &semanticError) || semanticError.Cause == nil {
+		t.Fatalf("payloadError() = %#v", err)
 	}
 }
 

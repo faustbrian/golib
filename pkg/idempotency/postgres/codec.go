@@ -158,7 +158,8 @@ func cloneMetadata(metadata map[string]string) map[string]string {
 }
 
 func payloadError(field string, cause error) error {
-	if cause == nil {
+	switch cause {
+	case nil:
 		cause = errors.New("invalid persisted idempotency record")
 	}
 	return &idempotency.Error{Reason: idempotency.ReasonInvalidPayload, Field: field, Cause: cause}

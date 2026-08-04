@@ -13,6 +13,7 @@ import (
 func TestNewStoreValidatesAdapterOptions(t *testing.T) {
 	t.Parallel()
 
+	const expectedMaxRetention = 365 * 24 * time.Hour
 	executor := &stubExecutor{}
 	tokens := func() (string, error) { return "owner", nil }
 	tests := map[string]Options{
@@ -22,7 +23,10 @@ func TestNewStoreValidatesAdapterOptions(t *testing.T) {
 		"prefix oversized":  {Prefix: strings.Repeat("p", MaxPrefixBytes+1), Retention: time.Hour, OwnerTokens: tokens},
 		"retention missing": {Prefix: "idempotency", OwnerTokens: tokens},
 		"retention too long": {
-			Prefix: "idempotency", Retention: MaxRetention + time.Nanosecond, OwnerTokens: tokens,
+			Prefix: "idempotency", Retention: expectedMaxRetention + time.Nanosecond, OwnerTokens: tokens,
+		},
+		"retention negative": {
+			Prefix: "idempotency", Retention: -time.Nanosecond, OwnerTokens: tokens,
 		},
 		"tokens missing": {Prefix: "idempotency", Retention: time.Hour},
 	}
@@ -38,6 +42,14 @@ func TestNewStoreValidatesAdapterOptions(t *testing.T) {
 		Prefix: "idempotency", Retention: time.Hour, OwnerTokens: tokens,
 	})
 	assertStoreReason(t, err, idempotency.ReasonInvalidConfiguration)
+
+	store, err := newStore(executor, Options{
+		Prefix: strings.Repeat("p", MaxPrefixBytes), Retention: expectedMaxRetention,
+		OwnerTokens: tokens,
+	})
+	if err != nil || store.retentionMS != milliseconds(expectedMaxRetention) {
+		t.Fatalf("newStore() exact limits = %#v, %v", store, err)
+	}
 }
 
 func TestAcquireExecutesAtomicScriptAndDecodesResult(t *testing.T) {
@@ -119,6 +131,32 @@ func TestAcquireValidatesLeaseAndOwnerTokenBeforeExecuting(t *testing.T) {
 				t.Fatal("Acquire() executed a script for invalid input")
 			}
 		})
+	}
+}
+
+func TestAcquireAcceptsExactLeaseAndOwnerTokenLimits(t *testing.T) {
+	t.Parallel()
+
+	want := testRecord(t)
+	executor := &stubExecutor{reply: acquireReply(t, idempotency.OutcomeAcquired, want)}
+	store, err := newStore(executor, Options{
+		Prefix: "idempotency", Retention: time.Hour,
+		OwnerTokens: func() (string, error) {
+			return strings.Repeat("o", idempotency.MaxOwnerTokenBytes), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("newStore() error = %v", err)
+	}
+	if _, err := store.Acquire(context.Background(), idempotency.AcquireRequest{
+		Key: want.Key, Fingerprint: want.Fingerprint, Lease: idempotency.MaxLease,
+	}); err != nil {
+		t.Fatalf("Acquire() exact limits error = %v", err)
+	}
+	call := executor.singleCall(t)
+	if len(call.args[5]) != idempotency.MaxOwnerTokenBytes ||
+		call.args[6] != milliseconds(idempotency.MaxLease) {
+		t.Fatalf("Acquire() exact limit args = %#v", call.args)
 	}
 }
 
@@ -235,6 +273,40 @@ func TestStorePropagatesBackendAndSemanticFailures(t *testing.T) {
 	store = mustStore(t, &stubExecutor{reply: []string{"ok", fieldSchema}})
 	_, err = store.Inspect(context.Background(), want.Key)
 	assertStoreReason(t, err, idempotency.ReasonInvalidPayload)
+
+	for name, reply := range map[string][]string{
+		"status":    {"future", fieldSchema, schemaVersion},
+		"odd pairs": {"ok", fieldSchema, schemaVersion, fieldState},
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := mustStore(t, &stubExecutor{reply: reply})
+			_, err := store.Inspect(context.Background(), want.Key)
+			assertStoreReason(t, err, idempotency.ReasonInvalidPayload)
+		})
+	}
+}
+
+func TestSemanticReplyRequiresExactErrorShape(t *testing.T) {
+	t.Parallel()
+
+	for name, reply := range map[string][]string{
+		"empty":          nil,
+		"short error":    {"error"},
+		"non-error pair": {"ok", string(idempotency.ReasonNotFound)},
+		"long error":     {"error", string(idempotency.ReasonNotFound), "extra"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if err := decodeSemanticReply(reply); err != nil {
+				t.Fatalf("decodeSemanticReply() error = %v", err)
+			}
+		})
+	}
+	if err := decodeSemanticReply([]string{
+		"error", string(idempotency.ReasonNotFound),
+	}); err == nil {
+		t.Fatal("decodeSemanticReply() exact error shape = nil")
+	}
 }
 
 func TestCompleteAndFailRejectOversizedDataBeforeExecuting(t *testing.T) {
@@ -265,6 +337,23 @@ func TestCompleteAndFailRejectOversizedDataBeforeExecuting(t *testing.T) {
 				t.Fatal("operation executed a script for oversized input")
 			}
 		})
+	}
+}
+
+func TestCompleteAcceptsExactResultLimit(t *testing.T) {
+	t.Parallel()
+
+	want := testRecord(t)
+	executor := &stubExecutor{reply: recordReply(t, want)}
+	store := mustStore(t, executor)
+	result := make([]byte, idempotency.MaxResultBytes)
+	if _, err := store.Complete(context.Background(), idempotency.CompleteRequest{
+		Ownership: want.Ownership(), Result: result,
+	}); err != nil {
+		t.Fatalf("Complete() exact result limit error = %v", err)
+	}
+	if call := executor.singleCall(t); len(call.args[2]) != idempotency.MaxResultBytes {
+		t.Fatalf("Complete() result bytes = %d", len(call.args[2]))
 	}
 }
 

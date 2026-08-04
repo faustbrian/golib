@@ -1,7 +1,9 @@
 package idempotencyhttp_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -136,6 +138,62 @@ func TestNewValidatesConfiguration(t *testing.T) {
 	valid.ReplayHeaders = []string{"content-type", "Content-Type"}
 	if _, err := idempotencyhttp.New(valid); err != nil {
 		t.Fatalf("New() defaults and duplicate headers error = %v", err)
+	}
+	valid.Lease = idempotency.MaxLease
+	valid.MaxResponseBytes = idempotencyhttp.MaxReplayResponseBytes
+	if _, err := idempotencyhttp.New(valid); err != nil {
+		t.Fatalf("New() exact limits error = %v", err)
+	}
+}
+
+func TestMiddlewareUsesDefaultAndExactResponseLimits(t *testing.T) {
+	service := serviceForStore(t, mustMemoryStore(t))
+	middleware, err := idempotencyhttp.New(idempotencyhttp.Options{
+		Service: service,
+		Lease:   time.Minute,
+		Key:     validKey(t),
+		Fingerprint: func(request *http.Request) (idempotency.Fingerprint, error) {
+			return requestFingerprint(t, request.Header.Get("X-Payload")), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	handler := middleware.Handler(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		size := 64 * 1024
+		if request.Header.Get("X-Payload") == "oversized" {
+			size++
+		}
+		_, _ = response.Write(bytes.Repeat([]byte{'x'}, size))
+	}))
+
+	exact := perform(handler, "default-exact", "exact")
+	oversized := perform(handler, "default-oversized", "oversized")
+	if exact.Code != http.StatusOK || exact.Body.Len() != 64*1024 {
+		t.Fatalf("exact response = %d, %d bytes", exact.Code, exact.Body.Len())
+	}
+	if oversized.Code != http.StatusInternalServerError {
+		t.Fatalf("oversized response = %d", oversized.Code)
+	}
+}
+
+func TestMiddlewareDeduplicatesReplayHeaders(t *testing.T) {
+	service := serviceForStore(t, mustMemoryStore(t))
+	middleware, err := idempotencyhttp.New(idempotencyhttp.Options{
+		Service: service, Lease: time.Minute, MaxResponseBytes: 1024,
+		ReplayHeaders: []string{"location", "Location"},
+		Key:           validKey(t), Fingerprint: validFingerprint(t),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	handler := middleware.Handler(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Location", "/widgets/42")
+	}))
+	_ = perform(handler, "deduplicated", "payload")
+	replayed := perform(handler, "deduplicated", "payload")
+	if values := replayed.Header().Values("Location"); len(values) != 1 || values[0] != "/widgets/42" {
+		t.Fatalf("replayed Location values = %#v", values)
 	}
 }
 
@@ -293,6 +351,73 @@ func TestMiddlewareHandlesEmptyAndOversizedEncodedResponses(t *testing.T) {
 	})), "header-key", "payload")
 	if large.Code != http.StatusInternalServerError {
 		t.Fatalf("large header response = %d", large.Code)
+	}
+}
+
+func TestMiddlewareAcceptsExactEncodedResultLimit(t *testing.T) {
+	middleware, _ := fixture(t, 1024)
+	const prefix = `{"schema":1,"status":200,"header":{"Location":["`
+	const suffix = `"]}}`
+	header := strings.Repeat("x", idempotency.MaxResultBytes-len(prefix)-len(suffix))
+	handler := middleware.Handler(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Location", header)
+	}))
+
+	first := perform(handler, "exact-encoded", "payload")
+	second := perform(handler, "exact-encoded", "payload")
+	if first.Code != http.StatusOK || second.Code != http.StatusOK ||
+		second.Header().Get("Location") != header {
+		t.Fatalf("responses = %d, %d; replayed header bytes = %d", first.Code, second.Code, len(second.Header().Get("Location")))
+	}
+}
+
+func TestMiddlewareValidatesEachReplayBoundary(t *testing.T) {
+	tests := map[string]struct {
+		schema int
+		status int
+		body   []byte
+		valid  bool
+	}{
+		"first status":       {schema: 1, status: 100, valid: true},
+		"last status":        {schema: 1, status: 999, valid: true},
+		"exact body":         {schema: 1, status: 200, body: bytes.Repeat([]byte{'x'}, idempotencyhttp.MaxReplayResponseBytes), valid: true},
+		"wrong schema":       {schema: 2, status: 200},
+		"status below range": {schema: 1, status: 99},
+		"status above range": {schema: 1, status: 1000},
+		"body above limit":   {schema: 1, status: 200, body: bytes.Repeat([]byte{'x'}, idempotencyhttp.MaxReplayResponseBytes+1)},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			key := requestKey(t, name)
+			fingerprint := requestFingerprint(t, "payload")
+			encoded, err := json.Marshal(struct {
+				Schema int    `json:"schema"`
+				Status int    `json:"status"`
+				Body   []byte `json:"body,omitempty"`
+			}{Schema: test.schema, Status: test.status, Body: test.body})
+			if err != nil {
+				t.Fatalf("Marshal() error = %v", err)
+			}
+			store := &storeOverride{Store: mustMemoryStore(t)}
+			store.acquire = func(context.Context, idempotency.AcquireRequest) (idempotency.AcquireResult, error) {
+				return idempotency.AcquireResult{Outcome: idempotency.OutcomeReplayed, Record: idempotency.Record{
+					Key: key, Fingerprint: fingerprint, State: idempotency.StateCompleted, Result: encoded,
+				}}, nil
+			}
+			middleware := middlewareForStore(t, store, 1024, validKey(t), validFingerprint(t))
+			response := perform(middleware.Handler(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				t.Fatal("handler executed")
+			})), name, "payload")
+			if test.valid {
+				if response.Code != test.status || !bytes.Equal(response.Body.Bytes(), test.body) {
+					t.Fatalf("response = %d, %d body bytes", response.Code, response.Body.Len())
+				}
+				return
+			}
+			if response.Code != http.StatusServiceUnavailable {
+				t.Fatalf("response = %d", response.Code)
+			}
+		})
 	}
 }
 

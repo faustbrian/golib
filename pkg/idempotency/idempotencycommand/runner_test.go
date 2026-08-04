@@ -108,6 +108,10 @@ func TestNewValidatesConfiguration(t *testing.T) {
 	if _, err := idempotencycommand.New(valid); err != nil {
 		t.Fatalf("New() default timeout error = %v", err)
 	}
+	valid.Lease = idempotency.MaxLease
+	if _, err := idempotencycommand.New(valid); err != nil {
+		t.Fatalf("New() maximum lease error = %v", err)
+	}
 }
 
 func TestRunnerValidatesHandlerAndKey(t *testing.T) {

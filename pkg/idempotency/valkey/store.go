@@ -66,11 +66,23 @@ func newStore(executor scriptExecutor, options Options) (*Store, error) {
 	if executor == nil {
 		return nil, configurationError("executor")
 	}
-	if options.Prefix == "" || len(options.Prefix) > MaxPrefixBytes ||
-		strings.ContainsAny(options.Prefix, "{}") {
+	switch options.Prefix {
+	case "":
 		return nil, configurationError("prefix")
 	}
-	if options.Retention <= 0 || options.Retention > MaxRetention {
+	switch min(len(options.Prefix), MaxPrefixBytes) {
+	case len(options.Prefix):
+	default:
+		return nil, configurationError("prefix")
+	}
+	switch strings.ContainsAny(options.Prefix, "{}") {
+	case true:
+		return nil, configurationError("prefix")
+	}
+	if options.Retention <= 0 {
+		return nil, configurationError("retention")
+	}
+	if options.Retention > MaxRetention {
 		return nil, configurationError("retention")
 	}
 	if options.OwnerTokens == nil {
@@ -93,11 +105,26 @@ func (s *Store) Acquire(ctx context.Context, request idempotency.AcquireRequest)
 		return idempotency.AcquireResult{}, err
 	}
 	ownerToken, err := s.ownerTokens()
-	if err != nil || ownerToken == "" || len(ownerToken) > idempotency.MaxOwnerTokenBytes {
+	switch err {
+	case nil:
+	default:
 		return idempotency.AcquireResult{}, &idempotency.Error{
 			Reason: idempotency.ReasonUnavailable,
 			Field:  "owner_token",
 			Cause:  err,
+		}
+	}
+	switch ownerToken {
+	case "":
+		return idempotency.AcquireResult{}, &idempotency.Error{
+			Reason: idempotency.ReasonUnavailable, Field: "owner_token",
+		}
+	}
+	switch min(len(ownerToken), idempotency.MaxOwnerTokenBytes) {
+	case len(ownerToken):
+	default:
+		return idempotency.AcquireResult{}, &idempotency.Error{
+			Reason: idempotency.ReasonUnavailable, Field: "owner_token",
 		}
 	}
 	reply, err := s.executor.Exec(ctx, operationAcquire, recordKey(s.prefix, request.Key), []string{
@@ -198,18 +225,31 @@ func (s *Store) executeRecord(ctx context.Context, operation operation, key idem
 }
 
 func decodeRecordReply(reply []string) (idempotency.Record, error) {
-	if len(reply) < 3 || reply[0] != "ok" || (len(reply)-1)%2 != 0 {
+	switch len(reply) {
+	case 0, 1, 2:
 		return idempotency.Record{}, recordError(errors.New("malformed record reply"))
 	}
-	fields := make(map[string]string, (len(reply)-1)/2)
-	for index := 1; index < len(reply); index += 2 {
-		fields[reply[index]] = reply[index+1]
+	switch reply[0] {
+	case "ok":
+	default:
+		return idempotency.Record{}, recordError(errors.New("malformed record reply"))
+	}
+	fields, err := decodeFieldPairs(reply[1:])
+	if err != nil {
+		return idempotency.Record{}, err
 	}
 	return decodeRecord(fields)
 }
 
 func decodeSemanticReply(reply []string) error {
-	if len(reply) != 2 || reply[0] != "error" {
+	switch len(reply) {
+	case 2:
+	default:
+		return nil
+	}
+	switch reply[0] {
+	case "error":
+	default:
 		return nil
 	}
 	reason := idempotency.Reason(reply[1])
@@ -223,7 +263,9 @@ func decodeSemanticReply(reply []string) error {
 }
 
 func encodeMetadata(result []byte, metadata map[string]string) (string, error) {
-	if len(result) > idempotency.MaxResultBytes {
+	switch min(len(result), idempotency.MaxResultBytes) {
+	case len(result):
+	default:
 		return "", limitError(fieldResult)
 	}
 	if err := validateMetadata(metadata); err != nil {
