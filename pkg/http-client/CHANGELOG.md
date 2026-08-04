@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make rate-limit defaults, admission bounds, window rollover, token refill,
+  and reset parsing independently regression-tested at exact boundaries.
 - Use a deterministic execution budget for default fuzz smoke campaigns while
   preserving explicit duration overrides for extended fuzzing.
 - Normalized standalone module metadata against the canonical owned dependency

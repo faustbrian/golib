@@ -215,11 +215,19 @@ func TestRateLimitConfigurationValidation(t *testing.T) {
 	for _, construct := range []func() error{
 		func() error { _, err := NewFixedWindowLimiter(FixedWindowOptions{}); return err },
 		func() error {
+			_, err := NewFixedWindowLimiter(FixedWindowOptions{Limit: 1})
+			return err
+		},
+		func() error {
 			_, err := NewFixedWindowLimiter(FixedWindowOptions{Limit: 1, Window: time.Second, Clock: nilClock})
 			return err
 		},
 		func() error {
 			_, err := NewSlidingWindowLimiter(SlidingWindowOptions{Limit: -1, Window: time.Second})
+			return err
+		},
+		func() error {
+			_, err := NewSlidingWindowLimiter(SlidingWindowOptions{Limit: 1})
 			return err
 		},
 		func() error {
@@ -264,6 +272,14 @@ func TestRateLimitConfigurationValidation(t *testing.T) {
 			_, err := NewRateLimitMiddleware(RateLimitOptions{Name: "limit", Limiter: &rateLimitTestLimiter{}, MaximumWait: -1})
 			return err
 		},
+		func() error {
+			_, err := NewRateLimitMiddleware(RateLimitOptions{Name: "limit", Limiter: &rateLimitTestLimiter{}, MaximumServerDelay: -1})
+			return err
+		},
+		func() error {
+			_, err := NewLeakyBucketLimiter(LeakyBucketOptions{Rate: 0, Capacity: 1})
+			return err
+		},
 	} {
 		if err := construct(); !errors.Is(err, ErrInvalidRateLimitPolicy) {
 			t.Fatalf("invalid configuration error = %v", err)
@@ -273,6 +289,187 @@ func TestRateLimitConfigurationValidation(t *testing.T) {
 		Name: "Invalid", Limiter: &rateLimitTestLimiter{},
 	}); !errors.Is(err, ErrInvalidMiddleware) {
 		t.Fatalf("invalid middleware metadata error = %v", err)
+	}
+}
+
+func TestRateLimitExactConfigurationAndAdmissionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	limiter := &rateLimitTestLimiter{}
+	middleware, err := NewRateLimitMiddleware(RateLimitOptions{
+		Name: "exact-limit", Priority: 7, Limiter: limiter,
+	})
+	if err != nil {
+		t.Fatalf("construct exact middleware: %v", err)
+	}
+	if middleware[0].information.Priority != -743 {
+		t.Fatalf("middleware priority = %d, want -743", middleware[0].information.Priority)
+	}
+	client, err := New(Config{Middleware: middleware, Transport: telemetryNoContentTransport()})
+	if err != nil {
+		t.Fatalf("construct exact client: %v", err)
+	}
+	request, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("execute exact client: %v", err)
+	}
+	_ = response.Body.Close()
+	_ = client.Close()
+	if limiter.maximum != 30*time.Second {
+		t.Fatalf("default maximum wait = %v, want 30s", limiter.maximum)
+	}
+
+	limiter = &rateLimitTestLimiter{wait: time.Second}
+	if err := acquireRateLimit(context.Background(), limiter, time.Second); err != nil {
+		t.Fatalf("acquire exact maximum wait: %v", err)
+	}
+	if wait, err := waitForRateLimit(context.Background(), &rateLimitTestClock{}, 0, 0); err != nil || wait != 0 {
+		t.Fatalf("wait exact zero boundary = %v, %v", wait, err)
+	}
+	if wait, err := waitForRateLimit(context.Background(), &rateLimitTestClock{}, time.Second, time.Second); err != nil || wait != time.Second {
+		t.Fatalf("wait exact maximum boundary = %v, %v", wait, err)
+	}
+	if rateLimitReservationRejected(context.Background(), time.Second, time.Second) {
+		t.Fatal("exact maximum reservation was rejected")
+	}
+	if !rateLimitReservationRejected(nil, 0, 0) {
+		t.Fatal("nil reservation context was accepted")
+	}
+
+	request, _ = http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+	ctx := context.WithValue(request.Context(), rateLimitOperationContextKey{}, (*rateLimitOperationState)(nil))
+	_, err = middleware[1].around(request.WithContext(ctx), func(request *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusNoContent, Request: request}, nil
+	})
+	if !errors.Is(err, ErrInvalidRateLimitPolicy) {
+		t.Fatalf("typed nil operation state error = %v", err)
+	}
+}
+
+func TestRateLimitConstructorsAcceptExactMinimums(t *testing.T) {
+	t.Parallel()
+
+	clock := &rateLimitTestClock{now: time.Unix(1_700_000_000, 0)}
+	constructors := []func() (RateLimiter, error){
+		func() (RateLimiter, error) {
+			return NewFixedWindowLimiter(FixedWindowOptions{Limit: 1, Window: time.Nanosecond, Clock: clock})
+		},
+		func() (RateLimiter, error) {
+			return NewSlidingWindowLimiter(SlidingWindowOptions{Limit: 1, Window: time.Nanosecond, Clock: clock})
+		},
+		func() (RateLimiter, error) {
+			return NewTokenBucketLimiter(TokenBucketOptions{Rate: 1, Burst: 1, Clock: clock})
+		},
+		func() (RateLimiter, error) {
+			return NewLeakyBucketLimiter(LeakyBucketOptions{Rate: 1, Capacity: 1, Clock: clock})
+		},
+	}
+	for index, construct := range constructors {
+		if limiter, err := construct(); err != nil || limiter == nil {
+			t.Fatalf("construct exact minimum %d = %#v, %v", index, limiter, err)
+		}
+	}
+	minimumRate := float64(time.Second) / float64(math.MaxInt64)
+	if !validRate(minimumRate) || validRate(math.Nextafter(minimumRate, 0)) ||
+		validRate(math.Inf(1)) || validRate(math.NaN()) {
+		t.Fatal("rate validity boundaries are incorrect")
+	}
+	observer, err := NewHeaderRateLimitObserver(HeaderRateLimitOptions{Reset: RateLimitResetHTTPDate})
+	if err != nil || observer == nil {
+		t.Fatalf("construct exact reset mode = %#v, %v", observer, err)
+	}
+}
+
+func TestRateLimiterExactReservationAndArithmeticBoundaries(t *testing.T) {
+	t.Parallel()
+
+	base := time.Unix(1_700_000_000, 0)
+	for _, construct := range []func(*rateLimitTestClock) (RateLimiter, error){
+		func(clock *rateLimitTestClock) (RateLimiter, error) {
+			return NewFixedWindowLimiter(FixedWindowOptions{Limit: 10, Window: time.Second, Clock: clock})
+		},
+		func(clock *rateLimitTestClock) (RateLimiter, error) {
+			return NewSlidingWindowLimiter(SlidingWindowOptions{Limit: 10, Window: time.Second, Clock: clock})
+		},
+		func(clock *rateLimitTestClock) (RateLimiter, error) {
+			return NewTokenBucketLimiter(TokenBucketOptions{Rate: 10, Burst: 10, Clock: clock})
+		},
+		func(clock *rateLimitTestClock) (RateLimiter, error) {
+			return NewLeakyBucketLimiter(LeakyBucketOptions{Rate: 10, Capacity: 11, Clock: clock})
+		},
+	} {
+		clock := &rateLimitTestClock{now: base}
+		limiter, err := construct(clock)
+		if err != nil {
+			t.Fatalf("construct exact reservation limiter: %v", err)
+		}
+		limiter.DeferUntil(base.Add(time.Second))
+		if wait, err := limiter.Acquire(context.Background(), time.Second); err != nil || wait != time.Second {
+			t.Fatalf("exact reservation = %v, %v", wait, err)
+		}
+	}
+
+	clock := &rateLimitTestClock{now: base}
+	fixed, _ := NewFixedWindowLimiter(FixedWindowOptions{Limit: 1, Window: time.Second, Clock: clock})
+	if _, err := fixed.Acquire(context.Background(), time.Second); err != nil {
+		t.Fatalf("prime fixed window: %v", err)
+	}
+	clock.now = base.Add(time.Second)
+	if wait, err := fixed.Acquire(context.Background(), time.Second); err != nil || wait != 0 {
+		t.Fatalf("fixed exact window rollover = %v, %v", wait, err)
+	}
+
+	clock = &rateLimitTestClock{now: base}
+	tokenInterface, _ := NewTokenBucketLimiter(TokenBucketOptions{Rate: 2, Burst: 2, Clock: clock})
+	token := tokenInterface.(*tokenBucketLimiter)
+	if _, err := token.Acquire(context.Background(), time.Second); err != nil {
+		t.Fatalf("prime token bucket: %v", err)
+	}
+	clock.now = base.Add(250 * time.Millisecond)
+	if wait, err := token.Acquire(context.Background(), time.Second); err != nil || wait != 0 {
+		t.Fatalf("refill token bucket = %v, %v", wait, err)
+	}
+	if token.tokens != 0.5 || !token.last.Equal(clock.now) {
+		t.Fatalf("refilled token state = %v at %v", token.tokens, token.last)
+	}
+	token.tokens = 0.25
+	if wait, err := token.Acquire(context.Background(), time.Second); err != nil || wait != 375*time.Millisecond {
+		t.Fatalf("partial token delay = %v, %v", wait, err)
+	}
+	if token.tokens != 0 || !token.last.Equal(clock.now.Add(375*time.Millisecond)) {
+		t.Fatalf("delayed token state = %v at %v", token.tokens, token.last)
+	}
+}
+
+func TestRateLimitObservationExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, delay := range []time.Duration{0, time.Second} {
+		limiter := &rateLimitTestLimiter{}
+		middleware, err := NewRateLimitMiddleware(RateLimitOptions{
+			Name: "observation-limit", Limiter: limiter, MaximumServerDelay: time.Second,
+			Observer: RateLimitObserverFunc(func(*http.Response, time.Time) (time.Duration, bool, error) {
+				return delay, true, nil
+			}),
+		})
+		if err != nil {
+			t.Fatalf("construct exact observation: %v", err)
+		}
+		client, err := New(Config{Middleware: middleware, Transport: telemetryNoContentTransport()})
+		if err != nil {
+			t.Fatalf("construct observation client: %v", err)
+		}
+		request, _ := http.NewRequest(http.MethodGet, "https://api.example.test", nil)
+		response, err := client.Do(request)
+		if err != nil {
+			t.Fatalf("execute exact observation: %v", err)
+		}
+		_ = response.Body.Close()
+		_ = client.Close()
+		if !limiter.deferred.Equal(limiter.Now().Add(delay)) {
+			t.Fatalf("exact observation %v deferred until %v", delay, limiter.deferred)
+		}
 	}
 }
 
@@ -460,6 +657,15 @@ func TestRateLimitHeaderObservationMatrix(t *testing.T) {
 		t.Fatalf("Retry-After precedence = %v, %v", delay, ok)
 	}
 	response.Header.Del("Retry-After")
+	response.Header.Set("RateLimit-Remaining", "0")
+	if _, ok, _ := defaultObserver.Delay(response, now); ok {
+		t.Fatal("missing reset produced delay")
+	}
+	response.Header.Del("RateLimit-Remaining")
+	response.Header.Set("RateLimit-Reset", "2")
+	if _, ok, _ := defaultObserver.Delay(response, now); ok {
+		t.Fatal("missing remaining produced delay")
+	}
 	response.Header.Set("RateLimit-Remaining", "invalid")
 	response.Header.Set("RateLimit-Reset", "2")
 	if _, ok, _ := defaultObserver.Delay(response, now); ok {
@@ -485,9 +691,11 @@ func TestRateLimitHeaderObservationMatrix(t *testing.T) {
 		ok    bool
 	}{
 		{mode: RateLimitResetUnixSeconds, value: strconv.FormatInt(now.Add(3*time.Second).Unix(), 10), want: 3 * time.Second, ok: true},
+		{mode: RateLimitResetUnixSeconds, value: strconv.FormatInt(now.Unix(), 10), ok: true},
 		{mode: RateLimitResetUnixSeconds, value: strconv.FormatInt(now.Add(-time.Second).Unix(), 10), ok: true},
 		{mode: RateLimitResetUnixSeconds, value: "invalid"},
 		{mode: RateLimitResetHTTPDate, value: now.Add(4 * time.Second).Format(http.TimeFormat), want: 4 * time.Second, ok: true},
+		{mode: RateLimitResetHTTPDate, value: now.Format(http.TimeFormat), ok: true},
 		{mode: RateLimitResetHTTPDate, value: now.Add(-time.Second).Format(http.TimeFormat), ok: true},
 		{mode: RateLimitResetHTTPDate, value: "invalid"},
 	} {
@@ -612,9 +820,11 @@ type rateLimitTestLimiter struct {
 	acquireErr error
 	now        time.Time
 	deferred   time.Time
+	maximum    time.Duration
 }
 
-func (limiter *rateLimitTestLimiter) Acquire(context.Context, time.Duration) (time.Duration, error) {
+func (limiter *rateLimitTestLimiter) Acquire(_ context.Context, maximum time.Duration) (time.Duration, error) {
+	limiter.maximum = maximum
 	return limiter.wait, limiter.acquireErr
 }
 func (limiter *rateLimitTestLimiter) DeferUntil(deadline time.Time) { limiter.deferred = deadline }

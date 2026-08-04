@@ -88,6 +88,12 @@ func NewRateLimitMiddleware(options RateLimitOptions) ([]Middleware, error) {
 	if nilLike(options.Limiter) {
 		return nil, fmt.Errorf("%w: limiter is nil", ErrInvalidRateLimitPolicy)
 	}
+	if options.MaximumWait < 0 {
+		return nil, fmt.Errorf("%w: maximum wait is negative", ErrInvalidRateLimitPolicy)
+	}
+	if options.MaximumServerDelay < 0 {
+		return nil, fmt.Errorf("%w: maximum server delay is negative", ErrInvalidRateLimitPolicy)
+	}
 	maximumWait := options.MaximumWait
 	if maximumWait == 0 {
 		maximumWait = defaultRateLimitMaximumWait
@@ -95,9 +101,6 @@ func NewRateLimitMiddleware(options RateLimitOptions) ([]Middleware, error) {
 	maximumServerDelay := options.MaximumServerDelay
 	if maximumServerDelay == 0 {
 		maximumServerDelay = defaultRateLimitMaximumServerDelay
-	}
-	if maximumWait < 0 || maximumServerDelay < 0 {
-		return nil, fmt.Errorf("%w: duration bound is negative", ErrInvalidRateLimitPolicy)
 	}
 	observer := options.Observer
 	if observer == nil {
@@ -126,7 +129,10 @@ func NewRateLimitMiddleware(options RateLimitOptions) ([]Middleware, error) {
 	attemptAdmission.information.Scope = ScopeAttempt
 	attemptAdmission.around = func(request *http.Request, next Next) (*http.Response, error) {
 		state, ok := request.Context().Value(rateLimitOperationContextKey{}).(*rateLimitOperationState)
-		if !ok || state == nil {
+		if !ok {
+			return nil, &RateLimitError{Cause: ErrInvalidRateLimitPolicy}
+		}
+		if state == nil {
 			return nil, &RateLimitError{Cause: ErrInvalidRateLimitPolicy}
 		}
 		state.mu.Lock()
@@ -159,9 +165,7 @@ func NewRateLimitMiddleware(options RateLimitOptions) ([]Middleware, error) {
 			if delay < 0 {
 				return nil, &RateLimitError{Cause: ErrInvalidRateLimitPolicy}
 			}
-			if delay > maximumServerDelay {
-				delay = maximumServerDelay
-			}
+			delay = min(delay, maximumServerDelay)
 			options.Limiter.DeferUntil(now.Add(delay))
 		}
 
@@ -176,7 +180,10 @@ func acquireRateLimit(ctx context.Context, limiter RateLimiter, maximumWait time
 	if acquireErr != nil {
 		return &RateLimitError{Wait: wait, Cause: acquireErr}
 	}
-	if wait < 0 || wait > maximumWait {
+	if wait < 0 {
+		return &RateLimitError{Wait: wait, Cause: ErrInvalidRateLimitPolicy}
+	}
+	if wait > maximumWait {
 		return &RateLimitError{Wait: wait, Cause: ErrInvalidRateLimitPolicy}
 	}
 
@@ -252,9 +259,7 @@ func waitForRateLimit(ctx context.Context, clock RetryClock, wait time.Duration,
 	if err := ctx.Err(); err != nil {
 		return wait, err
 	}
-	if wait < 0 {
-		wait = 0
-	}
+	wait = max(0, wait)
 	if wait > maximum {
 		return wait, ErrRateLimitWaitExceeded
 	}
@@ -276,7 +281,10 @@ type fixedWindowLimiter struct {
 
 // NewFixedWindowLimiter constructs a fixed-window limiter.
 func NewFixedWindowLimiter(options FixedWindowOptions) (RateLimiter, error) {
-	if options.Limit < 1 || options.Window <= 0 {
+	if options.Limit < 1 {
+		return nil, fmt.Errorf("%w: fixed window limit is invalid", ErrInvalidRateLimitPolicy)
+	}
+	if options.Window <= 0 {
 		return nil, fmt.Errorf("%w: fixed window bounds are invalid", ErrInvalidRateLimitPolicy)
 	}
 	core, err := newRateLimitCore(options.Clock)
@@ -293,7 +301,10 @@ func (limiter *fixedWindowLimiter) Acquire(ctx context.Context, maximum time.Dur
 	candidate := limiter.core.candidate(now)
 	start := limiter.windowStart
 	used := limiter.used
-	if start.IsZero() || !candidate.Before(start.Add(limiter.window)) {
+	if start.IsZero() {
+		start = candidate
+		used = 0
+	} else if !candidate.Before(start.Add(limiter.window)) {
 		start = candidate
 		used = 0
 	}
@@ -305,7 +316,7 @@ func (limiter *fixedWindowLimiter) Acquire(ctx context.Context, maximum time.Dur
 		candidate = start
 	}
 	wait := candidate.Sub(now)
-	if wait > maximum || ctx == nil || ctx.Err() != nil {
+	if rateLimitReservationRejected(ctx, wait, maximum) {
 		limiter.mu.Unlock()
 
 		return waitForRateLimit(ctx, limiter.core.clock, wait, maximum)
@@ -336,7 +347,10 @@ type slidingWindowLimiter struct {
 
 // NewSlidingWindowLimiter constructs an exact sliding-window limiter.
 func NewSlidingWindowLimiter(options SlidingWindowOptions) (RateLimiter, error) {
-	if options.Limit < 1 || options.Window <= 0 {
+	if options.Limit < 1 {
+		return nil, fmt.Errorf("%w: sliding window limit is invalid", ErrInvalidRateLimitPolicy)
+	}
+	if options.Window <= 0 {
 		return nil, fmt.Errorf("%w: sliding window bounds are invalid", ErrInvalidRateLimitPolicy)
 	}
 	core, err := newRateLimitCore(options.Clock)
@@ -352,20 +366,13 @@ func (limiter *slidingWindowLimiter) Acquire(ctx context.Context, maximum time.D
 	now := limiter.core.clock.Now()
 	candidate := limiter.core.candidate(now)
 	reservations := append([]time.Time(nil), limiter.reservations...)
-	for {
-		cutoff := candidate.Add(-limiter.window)
-		index := 0
-		for index < len(reservations) && !reservations[index].After(cutoff) {
-			index++
-		}
-		reservations = reservations[index:]
-		if len(reservations) < limiter.limit {
-			break
-		}
+	reservations = activeRateLimitReservations(reservations, candidate.Add(-limiter.window))
+	if len(reservations) >= limiter.limit {
 		candidate = reservations[0].Add(limiter.window)
+		reservations = activeRateLimitReservations(reservations, reservations[0])
 	}
 	wait := candidate.Sub(now)
-	if wait > maximum || ctx == nil || ctx.Err() != nil {
+	if rateLimitReservationRejected(ctx, wait, maximum) {
 		limiter.mu.Unlock()
 
 		return waitForRateLimit(ctx, limiter.core.clock, wait, maximum)
@@ -424,15 +431,13 @@ func (limiter *tokenBucketLimiter) Acquire(ctx context.Context, maximum time.Dur
 		tokens = math.Min(limiter.burst, tokens+candidate.Sub(last).Seconds()*limiter.rate)
 		last = candidate
 	}
-	if tokens < 1 {
-		missing := 1 - tokens
-		delay := time.Duration(math.Ceil(missing / limiter.rate * float64(time.Second)))
-		candidate = candidate.Add(delay)
-		tokens = math.Min(limiter.burst, tokens+delay.Seconds()*limiter.rate)
-		last = candidate
-	}
+	missing := math.Max(0, 1-tokens)
+	delay := time.Duration(math.Ceil(missing / limiter.rate * float64(time.Second)))
+	candidate = candidate.Add(delay)
+	tokens = math.Min(limiter.burst, tokens+delay.Seconds()*limiter.rate)
+	last = candidate
 	wait := candidate.Sub(now)
-	if wait > maximum || ctx == nil || ctx.Err() != nil {
+	if rateLimitReservationRejected(ctx, wait, maximum) {
 		limiter.mu.Unlock()
 
 		return waitForRateLimit(ctx, limiter.core.clock, wait, maximum)
@@ -463,7 +468,10 @@ type leakyBucketLimiter struct {
 
 // NewLeakyBucketLimiter constructs a constant-rate bounded-queue limiter.
 func NewLeakyBucketLimiter(options LeakyBucketOptions) (RateLimiter, error) {
-	if !validRate(options.Rate) || options.Capacity < 1 {
+	if !validRate(options.Rate) {
+		return nil, fmt.Errorf("%w: leaky bucket rate is invalid", ErrInvalidRateLimitPolicy)
+	}
+	if options.Capacity < 1 {
 		return nil, fmt.Errorf("%w: leaky bucket bounds are invalid", ErrInvalidRateLimitPolicy)
 	}
 	interval := time.Duration(math.Ceil(float64(time.Second) / options.Rate))
@@ -489,7 +497,7 @@ func (limiter *leakyBucketLimiter) Acquire(ctx context.Context, maximum time.Dur
 
 		return wait, ErrRateLimitCapacity
 	}
-	if wait > maximum || ctx == nil || ctx.Err() != nil {
+	if rateLimitReservationRejected(ctx, wait, maximum) {
 		limiter.mu.Unlock()
 
 		return waitForRateLimit(ctx, limiter.core.clock, wait, maximum)
@@ -511,8 +519,31 @@ func (limiter *leakyBucketLimiter) Now() time.Time { return limiter.core.clock.N
 
 func validRate(rate float64) bool {
 	minimum := float64(time.Second) / float64(math.MaxInt64)
+	if rate < minimum {
+		return false
+	}
+	if math.IsNaN(rate) {
+		return false
+	}
+	return !math.IsInf(rate, 0)
+}
 
-	return rate >= minimum && !math.IsNaN(rate) && !math.IsInf(rate, 0)
+func rateLimitReservationRejected(ctx context.Context, wait, maximum time.Duration) bool {
+	if wait > maximum {
+		return true
+	}
+	if ctx == nil {
+		return true
+	}
+	return ctx.Err() != nil
+}
+
+func activeRateLimitReservations(reservations []time.Time, cutoff time.Time) []time.Time {
+	index := 0
+	for index < len(reservations) && !reservations[index].After(cutoff) {
+		index++
+	}
+	return reservations[index:]
 }
 
 type retryAfterRateLimitObserver struct{}
@@ -588,7 +619,10 @@ func (observer headerRateLimitObserver) Delay(
 	}
 	remaining := strings.TrimSpace(response.Header.Get(observer.remaining))
 	reset := strings.TrimSpace(response.Header.Get(observer.reset))
-	if remaining == "" || reset == "" {
+	if remaining == "" {
+		return 0, false, nil
+	}
+	if reset == "" {
 		return 0, false, nil
 	}
 	remainingValue, err := strconv.ParseUint(remaining, 10, 63)
@@ -614,9 +648,7 @@ func (observer headerRateLimitObserver) parseReset(value string, now time.Time) 
 			return 0, false, nil
 		}
 		delay := time.Unix(seconds, 0).Sub(now)
-		if delay < 0 {
-			delay = 0
-		}
+		delay = max(0, delay)
 
 		return delay, true, nil
 	case RateLimitResetHTTPDate:
@@ -625,9 +657,7 @@ func (observer headerRateLimitObserver) parseReset(value string, now time.Time) 
 			return 0, false, nil
 		}
 		delay := date.Sub(now)
-		if delay < 0 {
-			delay = 0
-		}
+		delay = max(0, delay)
 
 		return delay, true, nil
 	default:
