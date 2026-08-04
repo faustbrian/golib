@@ -56,6 +56,38 @@ func TestCommitmentEngineUpdateCommitmentHandlesIdentityAndNoOp(t *testing.T) {
 	}
 }
 
+func TestCommitmentEngineReportsSparseUpdateCapacity(t *testing.T) {
+	t.Parallel()
+
+	var nilEngine *CommitmentEngine
+	if got := nilEngine.UpdateCapacity(); got != 0 {
+		t.Fatalf("nil update capacity = %d, want 0", got)
+	}
+	if got := (&CommitmentEngine{}).UpdateCapacity(); got != 0 {
+		t.Fatalf("zero update capacity = %d, want 0", got)
+	}
+
+	limits := testCommitmentLimits()
+	limits.MaxScalarDecodes = 18
+	limits.MaxMSMTerms = 7
+	engine, err := NewCommitmentEngine(context.Background(), limits)
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	if got := engine.UpdateCapacity(); got != 7 {
+		t.Fatalf("update capacity = %d, want 7", got)
+	}
+
+	limits.MaxScalarDecodes = 1
+	engine, err = NewCommitmentEngine(context.Background(), limits)
+	if err != nil {
+		t.Fatalf("new scalar-limited commitment engine: %v", err)
+	}
+	if got := engine.UpdateCapacity(); got != 0 {
+		t.Fatalf("scalar-limited update capacity = %d, want 0", got)
+	}
+}
+
 func TestCommitmentEngineUpdateCommitmentAcceptsEveryVectorPosition(t *testing.T) {
 	t.Parallel()
 

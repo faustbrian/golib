@@ -144,22 +144,32 @@ func TestBuilderUpdateRecommitsOnlyChangedExistingStemPath(t *testing.T) {
 
 	updatedEntries := slices.Clone(entries)
 	updatedEntries[3].Value = testValue(0xf0)
-	counted.calls = 0
+	counted.commitCalls = 0
+	counted.updateCalls = 0
 	updated, err := builder.Update(context.Background(), base, updatedEntries)
 	if err != nil {
 		t.Fatalf("incremental update: %v", err)
 	}
-	if counted.calls != 4 {
-		t.Fatalf("incremental commitment calls = %d, want 4", counted.calls)
+	if counted.commitCalls != 0 || counted.updateCalls != 3 {
+		t.Fatalf(
+			"incremental commitment calls = full %d, sparse %d; want full 0, sparse 3",
+			counted.commitCalls,
+			counted.updateCalls,
+		)
 	}
 
-	counted.calls = 0
+	counted.commitCalls = 0
+	counted.updateCalls = 0
 	rebuilt, err := builder.Build(context.Background(), updatedEntries)
 	if err != nil {
 		t.Fatalf("rebuild updated tree: %v", err)
 	}
-	if counted.calls != 25 {
-		t.Fatalf("full rebuild commitment calls = %d, want 25", counted.calls)
+	if counted.commitCalls != 25 || counted.updateCalls != 0 {
+		t.Fatalf(
+			"full rebuild commitment calls = full %d, sparse %d; want full 25, sparse 0",
+			counted.commitCalls,
+			counted.updateCalls,
+		)
 	}
 	assertSameRoot(t, updated, rebuilt)
 	afterBaseRoot, err := base.Root()
@@ -249,16 +259,43 @@ func TestBuilderUpdateMatchesRebuildAcrossValueAndTopologyChanges(t *testing.T) 
 
 type countingCommitmentEngine struct {
 	commitmentEngine
-	calls int
+	commitCalls      int
+	updateCalls      int
+	capacityOverride *uint16
+}
+
+func (engine *countingCommitmentEngine) UpdateCapacity() uint16 {
+	if engine.capacityOverride != nil {
+		return *engine.capacityOverride
+	}
+
+	return engine.commitmentEngine.UpdateCapacity()
 }
 
 func (engine *countingCommitmentEngine) Commit(
 	ctx context.Context,
 	vector backend.Vector,
 ) (backend.VectorCommitment, error) {
-	engine.calls++
+	engine.commitCalls++
 
 	return engine.commitmentEngine.Commit(ctx, vector)
+}
+
+func (engine *countingCommitmentEngine) UpdateCommitment(
+	ctx context.Context,
+	committed backend.VectorCommitment,
+	updates []backend.VectorUpdate,
+) (backend.VectorCommitment, error) {
+	engine.updateCalls++
+	updater := engine.commitmentEngine.(interface {
+		UpdateCommitment(
+			context.Context,
+			backend.VectorCommitment,
+			[]backend.VectorUpdate,
+		) (backend.VectorCommitment, error)
+	})
+
+	return updater.UpdateCommitment(ctx, committed, updates)
 }
 
 func TestBuildEmptyTreeRetainsIdentityRoot(t *testing.T) {

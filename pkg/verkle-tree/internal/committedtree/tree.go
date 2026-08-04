@@ -210,6 +210,12 @@ type topologyCounts struct {
 
 type commitmentEngine interface {
 	Commit(context.Context, backend.Vector) (backend.VectorCommitment, error)
+	UpdateCommitment(
+		context.Context,
+		backend.VectorCommitment,
+		[]backend.VectorUpdate,
+	) (backend.VectorCommitment, error)
+	UpdateCapacity() uint16
 }
 
 // Builder owns one immutable commitment engine and fixed construction limits.
@@ -506,19 +512,17 @@ func updatePrepared(
 			previous.entries[int(oldStart):int(oldEnd)],
 			plan.entries[group.entryStart:group.entryEnd],
 		) {
-			committed, err := commitStemEntries(
+			committed, err := updateStemEntries(
 				ctx,
+				current,
+				previous.entries[int(oldStart):int(oldEnd)],
 				plan.entries[group.entryStart:group.entryEnd],
-				group.stem,
-				current.depth,
 				engine,
 			)
 			if err != nil {
 				return Tree{}, false, err
 			}
-			current.commitment = committed.commitment
-			current.c1 = committed.c1
-			current.c2 = committed.c2
+			current = committed
 			changed[nodeIndex] = true
 		}
 		nodes[nodeIndex] = current
@@ -542,16 +546,29 @@ func updatePrepared(
 		if !affected {
 			continue
 		}
-		var vector backend.Vector
+		var oldVector backend.Vector
+		var newVector backend.Vector
 		for edgeIndex := first; edgeIndex < end; edgeIndex++ {
 			child := previous.edges[edgeIndex].child
-			mapped, err := nodes[child].commitment.ScalarBytes()
+			oldMapped, err := previous.nodes[child].commitment.ScalarBytes()
 			if err != nil {
 				return Tree{}, false, err
 			}
-			vector[previous.edges[edgeIndex].index] = mapped
+			newMapped, err := nodes[child].commitment.ScalarBytes()
+			if err != nil {
+				return Tree{}, false, err
+			}
+			position := previous.edges[edgeIndex].index
+			oldVector[position] = oldMapped
+			newVector[position] = newMapped
 		}
-		committed, err := engine.Commit(ctx, vector)
+		committed, err := updateVectorCommitment(
+			ctx,
+			engine,
+			current.commitment,
+			oldVector,
+			newVector,
+		)
 		if err != nil {
 			return Tree{}, false, err
 		}
@@ -825,20 +842,9 @@ func commitStemEntries(
 	depth uint8,
 	engine commitmentEngine,
 ) (node, error) {
-	var c1 backend.Vector
-	var c2 backend.Vector
-	for index := range entries {
-		if err := checkContext(ctx); err != nil {
-			return node{}, err
-		}
-		entry := entries[index]
-		opening := leafvector.EncodePresent(entry.Key[31], [32]byte(entry.Value))
-		target := &c1
-		if opening.Half == leafvector.C2 {
-			target = &c2
-		}
-		target[opening.LowIndex] = [32]byte(opening.Low)
-		target[opening.HighIndex] = [32]byte(opening.High)
+	c1, c2, err := encodeStemLeafVectors(ctx, entries)
+	if err != nil {
+		return node{}, err
 	}
 	c1Commitment, err := engine.Commit(ctx, c1)
 	if err != nil {
@@ -848,20 +854,10 @@ func commitStemEntries(
 	if err != nil {
 		return node{}, err
 	}
-	c1Scalar, err := c1Commitment.ScalarBytes()
+	vector, err := encodeStemCommitmentVector(stem, c1Commitment, c2Commitment)
 	if err != nil {
 		return node{}, err
 	}
-	c2Scalar, err := c2Commitment.ScalarBytes()
-	if err != nil {
-		return node{}, err
-	}
-
-	var vector backend.Vector
-	vector[leafvector.ExtensionMarkerIndex] = [32]byte(leafvector.EncodeExtensionMarker())
-	vector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(stem))
-	vector[leafvector.C1HashIndex] = c1Scalar
-	vector[leafvector.C2HashIndex] = c2Scalar
 	committed, err := engine.Commit(ctx, vector)
 	if err != nil {
 		return node{}, err
@@ -875,6 +871,158 @@ func commitStemEntries(
 		c1:         c1Commitment,
 		c2:         c2Commitment,
 	}, nil
+}
+
+func updateStemEntries(
+	ctx context.Context,
+	current node,
+	oldEntries []Entry,
+	newEntries []Entry,
+	engine commitmentEngine,
+) (node, error) {
+	oldC1, oldC2, err := encodeStemLeafVectors(ctx, oldEntries)
+	if err != nil {
+		return node{}, err
+	}
+	newC1, newC2, err := encodeStemLeafVectors(ctx, newEntries)
+	if err != nil {
+		return node{}, err
+	}
+	updatedC1, err := updateVectorCommitment(
+		ctx, engine, current.c1, oldC1, newC1,
+	)
+	if err != nil {
+		return node{}, err
+	}
+	updatedC2, err := updateVectorCommitment(
+		ctx, engine, current.c2, oldC2, newC2,
+	)
+	if err != nil {
+		return node{}, err
+	}
+	oldExtension, err := encodeStemCommitmentVector(current.stem, current.c1, current.c2)
+	if err != nil {
+		return node{}, err
+	}
+	newExtension, err := encodeStemCommitmentVector(current.stem, updatedC1, updatedC2)
+	if err != nil {
+		return node{}, err
+	}
+	updatedCommitment, err := updateVectorCommitment(
+		ctx,
+		engine,
+		current.commitment,
+		oldExtension,
+		newExtension,
+	)
+	if err != nil {
+		return node{}, err
+	}
+	current.c1 = updatedC1
+	current.c2 = updatedC2
+	current.commitment = updatedCommitment
+
+	return current, nil
+}
+
+func encodeStemLeafVectors(
+	ctx context.Context,
+	entries []Entry,
+) (backend.Vector, backend.Vector, error) {
+	var c1 backend.Vector
+	var c2 backend.Vector
+	for index := range entries {
+		if err := checkContext(ctx); err != nil {
+			return backend.Vector{}, backend.Vector{}, err
+		}
+		entry := entries[index]
+		opening := leafvector.EncodePresent(entry.Key[31], [32]byte(entry.Value))
+		target := &c1
+		if opening.Half == leafvector.C2 {
+			target = &c2
+		}
+		target[opening.LowIndex] = [32]byte(opening.Low)
+		target[opening.HighIndex] = [32]byte(opening.High)
+	}
+
+	return c1, c2, nil
+}
+
+func encodeStemCommitmentVector(
+	stem [31]byte,
+	c1 backend.VectorCommitment,
+	c2 backend.VectorCommitment,
+) (backend.Vector, error) {
+	c1Scalar, err := c1.ScalarBytes()
+	if err != nil {
+		return backend.Vector{}, err
+	}
+	c2Scalar, err := c2.ScalarBytes()
+	if err != nil {
+		return backend.Vector{}, err
+	}
+
+	var vector backend.Vector
+	vector[leafvector.ExtensionMarkerIndex] = [32]byte(leafvector.EncodeExtensionMarker())
+	vector[leafvector.StemIndex] = [32]byte(leafvector.EncodeStem(stem))
+	vector[leafvector.C1HashIndex] = c1Scalar
+	vector[leafvector.C2HashIndex] = c2Scalar
+
+	return vector, nil
+}
+
+func updateVectorCommitment(
+	ctx context.Context,
+	engine commitmentEngine,
+	current backend.VectorCommitment,
+	oldVector backend.Vector,
+	newVector backend.Vector,
+) (backend.VectorCommitment, error) {
+	count := 0
+	for index := range oldVector {
+		if err := checkContext(ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		if oldVector[index] == newVector[index] {
+			continue
+		}
+		count++
+	}
+	if count == 0 {
+		return current, nil
+	}
+	changes := make([]backend.VectorUpdate, 0, count)
+	for index := range oldVector {
+		if err := checkContext(ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		if oldVector[index] == newVector[index] {
+			continue
+		}
+		changes = append(changes, backend.VectorUpdate{
+			Index: uint8(index),
+			Old:   oldVector[index],
+			New:   newVector[index],
+		})
+	}
+	capacity := int(engine.UpdateCapacity())
+	if capacity == 0 {
+		return engine.Commit(ctx, newVector)
+	}
+	updated := current
+	for start := 0; start < count; start += capacity {
+		if err := checkContext(ctx); err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		end := min(start+capacity, count)
+		next, err := engine.UpdateCommitment(ctx, updated, changes[start:end])
+		if err != nil {
+			return backend.VectorCommitment{}, err
+		}
+		updated = next
+	}
+
+	return updated, nil
 }
 
 func checkContext(ctx context.Context) error {

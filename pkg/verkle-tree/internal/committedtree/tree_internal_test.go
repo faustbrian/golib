@@ -123,7 +123,6 @@ func TestBuilderUpdatePropagatesIncrementalCommitmentFailure(t *testing.T) {
 		engine: &scriptedCommitmentEngine{results: []commitResult{
 			{commitment: valid},
 			{commitment: valid},
-			{commitment: valid},
 			{err: want},
 		}},
 		valid: true,
@@ -168,7 +167,7 @@ func TestBuilderUpdateCancellationBoundaries(t *testing.T) {
 	}
 	valid := validVectorCommitment(t)
 	_, _, err = updatePrepared(
-		&cancelContext{cancelAt: 9},
+		&cancelContext{cancelAt: 1290},
 		base,
 		plan,
 		&scriptedCommitmentEngine{results: []commitResult{
@@ -179,6 +178,101 @@ func TestBuilderUpdateCancellationBoundaries(t *testing.T) {
 	)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("internal-node cancellation error = %v, want cancellation", err)
+	}
+}
+
+func TestSparseStemUpdateRejectsEveryInvalidCommitmentBoundary(t *testing.T) {
+	t.Parallel()
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	low := Entry{Key: testKey(1, 0), Value: testValue(1)}
+	high := Entry{Key: testKey(1, 0x80), Value: testValue(1)}
+	base, err := builder.Build(context.Background(), []Entry{low})
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	current := base.nodes[0]
+	valid := validVectorCommitment(t)
+	want := errors.New("sparse update failed")
+
+	if _, err := updateStemEntries(
+		context.Background(),
+		current,
+		[]Entry{high},
+		[]Entry{{Key: high.Key, Value: testValue(2)}},
+		&scriptedCommitmentEngine{results: []commitResult{{err: want}}},
+	); !errors.Is(err, want) {
+		t.Fatalf("C2 update error = %v, want %v", err, want)
+	}
+
+	invalidOld := current
+	invalidOld.c1 = backend.VectorCommitment{}
+	if _, err := updateStemEntries(
+		context.Background(), invalidOld, []Entry{low}, []Entry{low},
+		&scriptedCommitmentEngine{},
+	); err == nil {
+		t.Fatal("invalid old extension commitment was accepted")
+	}
+
+	if _, err := updateStemEntries(
+		context.Background(),
+		current,
+		[]Entry{low},
+		[]Entry{{Key: low.Key, Value: testValue(2)}},
+		&scriptedCommitmentEngine{results: []commitResult{{}}},
+	); err == nil {
+		t.Fatal("invalid new extension commitment was accepted")
+	}
+
+	if _, err := updateStemEntries(
+		context.Background(),
+		current,
+		[]Entry{low},
+		[]Entry{{Key: low.Key, Value: testValue(2)}},
+		&scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{err: want},
+		}},
+	); !errors.Is(err, want) {
+		t.Fatalf("extension update error = %v, want %v", err, want)
+	}
+}
+
+func TestBuilderUpdateRejectsInvalidSparseStemResult(t *testing.T) {
+	t.Parallel()
+
+	realBuilder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new builder: %v", err)
+	}
+	entries := []Entry{
+		{Key: testKey(1, 0), Value: testValue(1)},
+		{Key: testKey(2, 0), Value: testValue(2)},
+	}
+	base, err := realBuilder.Build(context.Background(), entries)
+	if err != nil {
+		t.Fatalf("build base: %v", err)
+	}
+	updated := append([]Entry(nil), entries...)
+	updated[0].Value = testValue(3)
+	valid := validVectorCommitment(t)
+	scripted := &Builder{
+		limits: testLimits(),
+		engine: &scriptedCommitmentEngine{results: []commitResult{
+			{commitment: valid},
+			{},
+		}},
+		valid: true,
+	}
+	if _, err := scripted.Update(context.Background(), base, updated); err == nil {
+		t.Fatal("invalid sparse stem result was accepted by its parent")
 	}
 }
 
@@ -261,6 +355,107 @@ func TestBuilderUpdateRejectsInvalidUnchangedChildCommitment(t *testing.T) {
 	updated[1].Value = testValue(3)
 	if _, err := builder.Update(context.Background(), base, updated); err == nil {
 		t.Fatal("invalid unchanged child commitment was accepted")
+	}
+}
+
+func TestSparseVectorUpdateChunksAndFallsBackDeterministically(t *testing.T) {
+	t.Parallel()
+
+	baseEngine, err := backend.NewCommitmentEngine(
+		context.Background(), testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	var oldVector backend.Vector
+	var newVector backend.Vector
+	for index := range 4 {
+		oldVector[index][0] = byte(index + 1)
+		newVector[index][0] = byte(index + 1)
+	}
+	newVector[0][0] = 9
+	newVector[1][0] = 10
+	newVector[2][0] = 11
+	oldCommitment, err := baseEngine.Commit(context.Background(), oldVector)
+	if err != nil {
+		t.Fatalf("commit old vector: %v", err)
+	}
+	want, err := baseEngine.Commit(context.Background(), newVector)
+	if err != nil {
+		t.Fatalf("commit new vector: %v", err)
+	}
+
+	one := uint16(1)
+	chunked := &countingCommitmentEngine{
+		commitmentEngine: baseEngine,
+		capacityOverride: &one,
+	}
+	got, err := updateVectorCommitment(
+		context.Background(), chunked, oldCommitment, oldVector, newVector,
+	)
+	if err != nil {
+		t.Fatalf("chunk sparse updates: %v", err)
+	}
+	if chunked.commitCalls != 0 || chunked.updateCalls != 3 {
+		t.Fatalf(
+			"chunked calls = full %d, sparse %d; want full 0, sparse 3",
+			chunked.commitCalls,
+			chunked.updateCalls,
+		)
+	}
+	assertSameCommitment(t, got, want)
+
+	zero := uint16(0)
+	fallback := &countingCommitmentEngine{
+		commitmentEngine: baseEngine,
+		capacityOverride: &zero,
+	}
+	got, err = updateVectorCommitment(
+		context.Background(), fallback, oldCommitment, oldVector, newVector,
+	)
+	if err != nil {
+		t.Fatalf("fallback full commit: %v", err)
+	}
+	if fallback.commitCalls != 1 || fallback.updateCalls != 0 {
+		t.Fatalf(
+			"fallback calls = full %d, sparse %d; want full 1, sparse 0",
+			fallback.commitCalls,
+			fallback.updateCalls,
+		)
+	}
+	assertSameCommitment(t, got, want)
+
+	cancelled := &scriptedCommitmentEngine{results: []commitResult{
+		{commitment: validVectorCommitment(t)},
+	}, capacity: 1}
+	_, err = updateVectorCommitment(
+		&cancelContext{cancelAt: 514},
+		cancelled,
+		oldCommitment,
+		oldVector,
+		newVector,
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("between-chunk cancellation error = %v, want cancellation", err)
+	}
+}
+
+func assertSameCommitment(
+	t testing.TB,
+	left backend.VectorCommitment,
+	right backend.VectorCommitment,
+) {
+	t.Helper()
+	leftBytes, err := left.Bytes()
+	if err != nil {
+		t.Fatalf("encode left commitment: %v", err)
+	}
+	rightBytes, err := right.Bytes()
+	if err != nil {
+		t.Fatalf("encode right commitment: %v", err)
+	}
+	if leftBytes != rightBytes {
+		t.Fatalf("commitments differ: %x / %x", leftBytes, rightBytes)
 	}
 }
 
@@ -516,8 +711,9 @@ type commitResult struct {
 }
 
 type scriptedCommitmentEngine struct {
-	results []commitResult
-	calls   int
+	results  []commitResult
+	calls    int
+	capacity uint16
 }
 
 func (engine *scriptedCommitmentEngine) Commit(
@@ -531,6 +727,28 @@ func (engine *scriptedCommitmentEngine) Commit(
 	engine.calls++
 
 	return result.commitment, result.err
+}
+
+func (engine *scriptedCommitmentEngine) UpdateCommitment(
+	context.Context,
+	backend.VectorCommitment,
+	[]backend.VectorUpdate,
+) (backend.VectorCommitment, error) {
+	if engine.calls >= len(engine.results) {
+		return backend.VectorCommitment{}, errors.New("unexpected commitment update call")
+	}
+	result := engine.results[engine.calls]
+	engine.calls++
+
+	return result.commitment, result.err
+}
+
+func (engine *scriptedCommitmentEngine) UpdateCapacity() uint16 {
+	if engine.capacity != 0 {
+		return engine.capacity
+	}
+
+	return backend.VectorWidth / 2
 }
 
 func validVectorCommitment(t testing.TB) backend.VectorCommitment {

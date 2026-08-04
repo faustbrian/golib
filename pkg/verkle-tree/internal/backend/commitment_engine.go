@@ -173,6 +173,22 @@ func NewCommitmentEngine(
 	return newCommitmentEngineFromGenerators(ctx, limits, derived)
 }
 
+// UpdateCapacity returns the maximum number of vector positions that one
+// sparse commitment update can process under the engine's fixed limits. A
+// zero or invalid engine reports zero so callers can fall back to full commits.
+func (engine *CommitmentEngine) UpdateCapacity() uint16 {
+	if engine == nil || !engine.valid || engine.limits.validate() != nil {
+		return 0
+	}
+	capacity := min(
+		uint32(VectorWidth),
+		engine.limits.MaxScalarDecodes/2,
+		engine.limits.MaxMSMTerms,
+	)
+
+	return uint16(capacity)
+}
+
 func newCommitmentEngineFromGenerators(
 	ctx context.Context,
 	limits CommitmentLimits,
@@ -319,7 +335,7 @@ func (engine *CommitmentEngine) UpdateCommitment(
 		return VectorCommitment{}, err
 	}
 
-	var owned [VectorWidth]VectorUpdate
+	owned := make([]VectorUpdate, len(updates))
 	var present [VectorWidth]bool
 	for index := range updates {
 		if err := checkCommitmentContext(ctx); err != nil {
