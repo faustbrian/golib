@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Exclude GolangCI-Lint runner-concurrency plumbing from gate input identity so
+  successful analysis evidence survives operational parallelism fixes.
 - Allow isolated GolangCI-Lint runners to execute concurrently so parallel
   module verification cannot fail on the linter's process-wide lock.
 - Exclude agent-only policy documentation from executable gate fingerprints so

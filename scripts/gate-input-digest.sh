@@ -163,9 +163,9 @@ append_verification_environment() {
 }
 
 append_verification_tool_files() {
+    local check_module_digest
     local paths=(
         .golib/versions.env
-        scripts/check-module.sh
         scripts/create-verification-snapshot.sh
         scripts/run-modules.sh
         scripts/start-services.sh
@@ -208,6 +208,22 @@ append_verification_tool_files() {
     esac
     git -C "${root}" ls-files -co --exclude-standard -- \
         "${paths[@]}" >>"${input_files}"
+
+    # Runner concurrency changes whether a linter can start, not its findings.
+    # Keep successful gate evidence bound to the analyzer contract rather than
+    # invalidating every package when isolated runners are made parallel-safe.
+    if [[ -f "${root}/scripts/check-module.sh" ]]; then
+        check_module_digest="$(
+            sed 's/ --allow-parallel-runners//g' \
+                "${root}/scripts/check-module.sh" |
+                git hash-object --stdin
+        )"
+        printf 'file   %s  %s\n' \
+            "${check_module_digest}" \
+            'scripts/check-module.sh' >>"${manifest}"
+    else
+        append_value missing-file scripts/check-module.sh
+    fi
 }
 
 verification_digest() {

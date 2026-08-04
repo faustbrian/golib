@@ -1710,7 +1710,7 @@ go 1.26.5
 		"internal",
 		"run-verification-snapshots.sh",
 	)
-	writeTestFile(t, checkModuleScript, "check module\n")
+	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
 	writeTestFile(t, checkFuzzScript, "check fuzz\n")
 	writeTestFile(t, mutationCommandScript, "mutation command\n")
 	writeTestFile(t, snapshotOrchestratorScript, "snapshot orchestration\n")
@@ -1763,6 +1763,7 @@ go 1.26.5
 	}
 
 	testBefore := digest("test")
+	lintBefore := digest("lint")
 	benchmarkBefore := digest("benchmark")
 	fuzzBefore := digest("fuzz")
 	docsBefore := digest("docs")
@@ -1848,11 +1849,33 @@ go 1.26.5
 		t.Fatal("fuzz tooling did not change fuzz digest")
 	}
 	writeTestFile(t, checkFuzzScript, "check fuzz\n")
+	writeTestFile(
+		t,
+		checkModuleScript,
+		"lint run --allow-parallel-runners --timeout=10m ./...\n",
+	)
+	for _, gate := range []struct {
+		name string
+		want string
+	}{
+		{name: "test", want: testBefore},
+		{name: "lint", want: lintBefore},
+	} {
+		if current := digest(gate.name); current != gate.want {
+			t.Fatalf(
+				"operational lint concurrency changed %s digest: %s != %s",
+				gate.name,
+				current,
+				gate.want,
+			)
+		}
+	}
+	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
 	writeTestFile(t, checkModuleScript, "revised check module\n")
 	if current := digest("test"); current == testBefore {
 		t.Fatal("shared gate tooling did not change test digest")
 	}
-	writeTestFile(t, checkModuleScript, "check module\n")
+	writeTestFile(t, checkModuleScript, "lint run --timeout=10m ./...\n")
 	moduleCatalog := filepath.Join(root, "modules.json")
 	catalogContents, err := os.ReadFile(moduleCatalog)
 	if err != nil {
