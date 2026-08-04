@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"encoding/hex"
+	"strconv"
 	"testing"
 )
 
@@ -39,6 +40,36 @@ func BenchmarkCommitVectorSparse(b *testing.B) {
 
 func BenchmarkCommitVectorDense(b *testing.B) {
 	benchmarkCommitVector(b, "dense-incrementing")
+}
+
+func BenchmarkUpdateCommitmentSparse(b *testing.B) {
+	limits := testCommitmentLimits()
+	limits.MaxScalarDecodes = 2 * VectorWidth
+	engine, err := NewCommitmentEngine(context.Background(), limits)
+	if err != nil {
+		b.Fatal(err)
+	}
+	committed := EmptyVectorCommitment()
+	for _, terms := range []int{1, 4, 16, 64, VectorWidth} {
+		updates := make([]VectorUpdate, terms)
+		for index := range updates {
+			var vector Vector
+			setVectorUint64(&vector, index, uint64(index+1))
+			updates[index] = VectorUpdate{Index: uint8(index), New: vector[index]}
+		}
+		b.Run(strconv.Itoa(terms), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(terms * 2 * scalarSize))
+			for b.Loop() {
+				benchmarkVectorCommitment, err = engine.UpdateCommitment(
+					context.Background(), committed, updates,
+				)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }
 
 func benchmarkCommitVector(b *testing.B, fixture string) {

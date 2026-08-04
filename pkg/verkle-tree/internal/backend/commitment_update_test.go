@@ -56,6 +56,33 @@ func TestCommitmentEngineUpdateCommitmentHandlesIdentityAndNoOp(t *testing.T) {
 	}
 }
 
+func TestCommitmentEngineEqualScalarUpdateDoesNotAllocate(t *testing.T) {
+	if raceEnabled || testing.CoverMode() != "" {
+		t.Skip("instrumentation changes allocation counts")
+	}
+	engine, err := NewCommitmentEngine(context.Background(), testCommitmentLimits())
+	if err != nil {
+		t.Fatalf("new commitment engine: %v", err)
+	}
+	var vector Vector
+	setVectorUint64(&vector, 42, 9)
+	committed, err := engine.Commit(context.Background(), vector)
+	if err != nil {
+		t.Fatalf("commit vector: %v", err)
+	}
+	updates := []VectorUpdate{{Index: 42, Old: vector[42], New: vector[42]}}
+	allocations := testing.AllocsPerRun(100, func() {
+		if _, updateErr := engine.UpdateCommitment(
+			context.Background(), committed, updates,
+		); updateErr != nil {
+			t.Fatalf("equal scalar update: %v", updateErr)
+		}
+	})
+	if allocations != 0 {
+		t.Fatalf("equal scalar update allocations = %.0f, want 0", allocations)
+	}
+}
+
 func TestCommitmentEngineReportsSparseUpdateCapacity(t *testing.T) {
 	t.Parallel()
 

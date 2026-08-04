@@ -335,7 +335,7 @@ func (engine *CommitmentEngine) UpdateCommitment(
 		return VectorCommitment{}, err
 	}
 
-	owned := make([]VectorUpdate, len(updates))
+	var owned [VectorWidth]VectorUpdate
 	var present [VectorWidth]bool
 	for index := range updates {
 		if err := checkCommitmentContext(ctx); err != nil {
