@@ -46,7 +46,7 @@ func New(values map[string]money.Money) (Costs, error) {
 // NewWithLimits validates, sorts, and defensively copies a bounded nonempty
 // single-currency cost map.
 func NewWithLimits(values map[string]money.Money, limits Limits) (Costs, error) {
-	if limits.MaxTypes == 0 || limits.MaxIDBytes == 0 || len(values) == 0 || uint64(len(values)) > uint64(limits.MaxTypes) {
+	if limits.MaxIDBytes == 0 || len(values) == 0 || uint64(len(values)) > uint64(limits.MaxTypes) {
 		return Costs{}, ErrInvalidCosts
 	}
 	typeIDs := make([]string, 0, len(values))
@@ -60,10 +60,10 @@ func NewWithLimits(values map[string]money.Money, limits Limits) (Costs, error) 
 	result := Costs{typeIDs: typeIDs, values: make([]money.Money, len(typeIDs))}
 	for index, typeID := range typeIDs {
 		result.values[index] = values[typeID]
-		if index > 0 {
-			if _, err := result.values[0].Compare(result.values[index]); err != nil {
-				return Costs{}, ErrInvalidCosts
-			}
+	}
+	for _, value := range result.values[1:] {
+		if _, err := result.values[0].Compare(value); err != nil {
+			return Costs{}, ErrInvalidCosts
 		}
 	}
 	return result, nil

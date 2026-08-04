@@ -37,6 +37,23 @@ func TestNewRejectsMoreThanDefaultCostTypes(t *testing.T) {
 	if _, err := gomoney.NewWithLimits(values, gomoney.Limits{}); !errors.Is(err, gomoney.ErrInvalidCosts) {
 		t.Fatalf("invalid limits error = %v", err)
 	}
+	for name, limits := range map[string]gomoney.Limits{
+		"zero type limit": {MaxIDBytes: 16},
+		"zero ID limit":   {MaxTypes: 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := gomoney.NewWithLimits(map[string]money.Money{"box": value}, limits); !errors.Is(err, gomoney.ErrInvalidCosts) {
+				t.Fatalf("NewWithLimits() error = %v, want ErrInvalidCosts", err)
+			}
+		})
+	}
+	if _, err := gomoney.NewWithLimits(
+		map[string]money.Money{"box": value},
+		gomoney.Limits{MaxTypes: 1, MaxIDBytes: 3},
+	); err != nil {
+		t.Fatalf("exact type ID limit rejected: %v", err)
+	}
 	if _, err := gomoney.NewWithLimits(
 		map[string]money.Money{"too-long": value},
 		gomoney.Limits{MaxTypes: 1, MaxIDBytes: 3},
@@ -89,6 +106,12 @@ func TestCostObjectiveRejectsInvalidAndUnpriceablePlans(t *testing.T) {
 	costs, err := gomoney.New(map[string]money.Money{"box": euroCost})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !costs.Valid() {
+		t.Fatal("constructed costs are invalid")
+	}
+	if (gomoney.Costs{}).Valid() {
+		t.Fatal("zero-value costs are valid")
 	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -171,6 +194,23 @@ func TestExactPackagingCostComparison(t *testing.T) {
 	}
 	if comparison >= 0 {
 		t.Fatal("exact cheaper multi-box plan was not preferred")
+	}
+
+	equalLarge, err := money.Parse("1.20", euro, moneyContext)
+	if err != nil {
+		t.Fatal(err)
+	}
+	equalCosts, err := gomoney.New(map[string]money.Money{"small": small, "large": equalLarge})
+	if err != nil {
+		t.Fatal(err)
+	}
+	comparison, err = equalCosts.Compare(twoSmall, oneLarge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Compare(twoSmall.CanonicalString(), oneLarge.CanonicalString())
+	if comparison != want || comparison == 0 {
+		t.Fatalf("equal-cost comparison = %d, want canonical comparison %d", comparison, want)
 	}
 }
 
