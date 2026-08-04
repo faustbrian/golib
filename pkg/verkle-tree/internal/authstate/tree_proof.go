@@ -688,21 +688,28 @@ func derivePathMarkers(
 				pathMarkerStem,
 				path.stem,
 			))
-			for index := claimIndex; index < claimEnd; index++ {
+			for index := claimIndex; index < claimEnd; {
 				if err := checkTreeProofContext(ctx); err != nil {
 					return nil, err
 				}
-				key := claims[index].key
-				suffixPath := make([]byte, path.depth+1)
-				copy(suffixPath, path.stem[:path.depth])
-				suffixPath[path.depth] = 2 + key[31]/128
+				half := claims[index].key[31] / 128
+				var suffixPath [maxProofPathLength]byte
+				copy(suffixPath[:], path.stem[:path.depth])
+				suffixPath[path.depth] = 2 + half
 				marker := newPathMarker(
-					suffixPath,
+					suffixPath[:path.depth+1],
 					pathMarkerSuffix,
 					Stem{},
 				)
-				marker.identityAllowed =
-					claims[index].kind == ClaimAbsence
+				marker.identityAllowed = true
+				for index < claimEnd && claims[index].key[31]/128 == half {
+					if err := checkTreeProofContext(ctx); err != nil {
+						return nil, err
+					}
+					marker.identityAllowed = marker.identityAllowed &&
+						claims[index].kind == ClaimAbsence
+					index++
+				}
 				markers = append(markers, marker)
 			}
 		case StemPathMissing:
