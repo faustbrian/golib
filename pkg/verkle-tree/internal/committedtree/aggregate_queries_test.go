@@ -297,6 +297,37 @@ func TestAggregateProverQueriesBoundScratchByDistinctStems(t *testing.T) {
 	)
 }
 
+func TestGrowAggregateProverQueriesCapsAllocatedCapacity(t *testing.T) {
+	t.Parallel()
+
+	queries := make([]AggregateProverQuery, 2)
+	same, err := growAggregateProverQueries(queries, 5, cap(queries))
+	if err != nil {
+		t.Fatalf("retain exact-capacity queries: %v", err)
+	}
+	if &same[0] != &queries[0] {
+		t.Fatal("exact-capacity growth replaced query storage")
+	}
+	grown, err := growAggregateProverQueries(queries, 5, 3)
+	if err != nil {
+		t.Fatalf("grow queries: %v", err)
+	}
+	if len(grown) != len(queries) || cap(grown) != 4 {
+		t.Fatalf("grown query shape = %d/%d, want 2/4", len(grown), cap(grown))
+	}
+	grown = grown[:cap(grown)]
+	clamped, err := growAggregateProverQueries(grown, 5, 5)
+	if err != nil {
+		t.Fatalf("clamp query growth: %v", err)
+	}
+	if len(clamped) != len(grown) || cap(clamped) != 5 {
+		t.Fatalf("clamped query shape = %d/%d, want 4/5", len(clamped), cap(clamped))
+	}
+	if _, err := growAggregateProverQueries(clamped[:cap(clamped)], 5, 6); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("growth beyond bound error = %v", err)
+	}
+}
+
 func TestAggregateProverQueriesPreserveCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -624,6 +655,11 @@ func TestAggregateQueryHelpersRejectInvalidState(t *testing.T) {
 	if err := collector.append(path, vector, 9); err != nil {
 		t.Fatalf("append first query: %v", err)
 	}
+	bounded := newAggregateQueryTestCollector(&tree)
+	bounded.queryCapacity = 0
+	if err := bounded.append(path, vector, 9); !errors.Is(err, errInvalidTree) {
+		t.Fatalf("query growth beyond derived bound error = %v", err)
+	}
 	differentCommitment := vector
 	differentCommitment.commitment = tree.nodes[stemIndex].commitment
 	if err := collector.append(path, differentCommitment, 9); !errors.Is(err, errInvalidTree) {
@@ -812,12 +848,15 @@ func TestBuildPreparedRejectsFinalizedCountMismatch(t *testing.T) {
 }
 
 func newAggregateQueryTestCollector(tree *Tree) *aggregateQueryCollector {
+	limits := testAggregateProverQueryLimits()
+
 	return &aggregateQueryCollector{
-		ctx:        context.Background(),
-		tree:       tree,
-		limits:     testAggregateProverQueryLimits(),
-		queryByID:  make(map[aggregateQueryIdentity]int),
-		vectorByID: make(map[aggregateQueryPath]aggregateQueryVector),
+		ctx:           context.Background(),
+		tree:          tree,
+		limits:        limits,
+		queryCapacity: int(limits.MaxQueries),
+		queryByID:     make(map[aggregateQueryIdentity]int),
+		vectorByID:    make(map[aggregateQueryPath]aggregateQueryVector),
 	}
 }
 

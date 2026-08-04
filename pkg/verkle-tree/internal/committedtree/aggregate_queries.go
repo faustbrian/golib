@@ -17,8 +17,11 @@ const (
 	aggregateQueriesPerStem           = uint64(2)
 	aggregateQueriesPerStemHalf       = uint64(1)
 	aggregateQueriesPerKey            = uint64(2)
-	aggregateQueryKeyWorkingBytes     = uint64(64)
-	aggregateQuerySortWorkingBytes    = uint64(16)
+	// One fully queried stem: 31 internal, two metadata, two half, and 512
+	// suffix-field openings.
+	aggregateInitialQueryCapacity  = uint64(547)
+	aggregateQueryKeyWorkingBytes  = uint64(64)
+	aggregateQuerySortWorkingBytes = uint64(16)
 )
 
 var (
@@ -212,13 +215,15 @@ func (tree Tree) AggregateProverQueries(
 		return nil, err
 	}
 
+	initialCapacity := min(capacity, aggregateInitialQueryCapacity)
 	collector := aggregateQueryCollector{
-		ctx:        ctx,
-		tree:       &tree,
-		limits:     limits,
-		queries:    make([]AggregateProverQuery, 0, int(capacity)),
-		queryByID:  make(map[aggregateQueryIdentity]int, int(capacity)),
-		vectorByID: make(map[aggregateQueryPath]aggregateQueryVector),
+		ctx:           ctx,
+		tree:          &tree,
+		limits:        limits,
+		queryCapacity: int(capacity),
+		queries:       make([]AggregateProverQuery, 0, int(initialCapacity)),
+		queryByID:     make(map[aggregateQueryIdentity]int, int(capacity)),
+		vectorByID:    make(map[aggregateQueryPath]aggregateQueryVector),
 	}
 	for index := range ordered {
 		if err := collector.collect(ordered[index]); err != nil {
@@ -241,14 +246,15 @@ func aggregateQueryResultWorkingBytes() uint64 {
 }
 
 type aggregateQueryCollector struct {
-	ctx        context.Context
-	tree       *Tree
-	limits     AggregateProverQueryLimits
-	queries    []AggregateProverQuery
-	queryByID  map[aggregateQueryIdentity]int
-	vectorByID map[aggregateQueryPath]aggregateQueryVector
-	zeroVector *backend.Vector
-	nodeReads  uint64
+	ctx           context.Context
+	tree          *Tree
+	limits        AggregateProverQueryLimits
+	queryCapacity int
+	queries       []AggregateProverQuery
+	queryByID     map[aggregateQueryIdentity]int
+	vectorByID    map[aggregateQueryPath]aggregateQueryVector
+	zeroVector    *backend.Vector
+	nodeReads     uint64
 }
 
 func (collector *aggregateQueryCollector) collect(key Key) error {
@@ -543,6 +549,15 @@ func (collector *aggregateQueryCollector) append(
 	); err != nil {
 		return err
 	}
+	queries, err := growAggregateProverQueries(
+		collector.queries,
+		collector.queryCapacity,
+		int(actual),
+	)
+	if err != nil {
+		return err
+	}
+	collector.queries = queries
 	query := AggregateProverQuery{
 		Path:   path.path,
 		Length: path.length,
@@ -556,6 +571,24 @@ func (collector *aggregateQueryCollector) append(
 	collector.queries = append(collector.queries, query)
 
 	return nil
+}
+
+func growAggregateProverQueries(
+	queries []AggregateProverQuery,
+	capacity int,
+	required int,
+) ([]AggregateProverQuery, error) {
+	if required <= cap(queries) {
+		return queries, nil
+	}
+	if required > capacity {
+		return nil, errInvalidTree
+	}
+	next := min(max(cap(queries)*2, required), capacity)
+	grown := make([]AggregateProverQuery, len(queries), next)
+	copy(grown, queries)
+
+	return grown, nil
 }
 
 func (collector *aggregateQueryCollector) readNodes(count uint64) error {
