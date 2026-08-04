@@ -445,11 +445,13 @@ func (policy *cachePolicy) execute(request *http.Request, next Next) (*http.Resp
 		if mode == CacheModeRefresh {
 			flight, leader := policy.acquireFlight(key)
 			if !leader {
-				if err := waitCacheFlight(request.Context(), flight); err != nil {
+				switch err := waitCacheFlight(request.Context(), flight); err {
+				case nil:
+					mode = CacheModeDefault
+					continue
+				default:
 					return nil, err
 				}
-				mode = CacheModeDefault
-				continue
 			}
 			return policy.fetchFlight(request, next, key, nil, flight)
 		}
@@ -505,32 +507,27 @@ func (policy *cachePolicy) execute(request *http.Request, next Next) (*http.Resp
 			if requestHasDirective(request, "only-if-cached") {
 				return onlyIfCachedMiss(request), nil
 			}
-			if found && hasValidator(entry) {
-				flight, leader := policy.acquireFlight(key)
-				if !leader {
-					if err := waitCacheFlight(request.Context(), flight); err != nil {
-						return nil, err
-					}
-					continue
-				}
-				conditional := request.Clone(request.Context())
-				if etag := entry.Header.Get("ETag"); etag != "" && conditional.Header.Get("If-None-Match") == "" {
-					conditional.Header.Set("If-None-Match", etag)
-				}
-				if modified := entry.Header.Get("Last-Modified"); modified != "" && conditional.Header.Get("If-Modified-Since") == "" {
-					conditional.Header.Set("If-Modified-Since", modified)
-				}
-				return policy.fetchFlight(conditional, next, key, &entry, flight)
-			}
 			if found {
 				flight, leader := policy.acquireFlight(key)
 				if !leader {
-					if err := waitCacheFlight(request.Context(), flight); err != nil {
+					switch err := waitCacheFlight(request.Context(), flight); err {
+					case nil:
+						continue
+					default:
 						return nil, err
 					}
-					continue
 				}
-				return policy.fetchFlight(request, next, key, &entry, flight)
+				originRequest := request
+				if hasValidator(entry) {
+					originRequest = request.Clone(request.Context())
+					if etag := entry.Header.Get("ETag"); etag != "" && originRequest.Header.Get("If-None-Match") == "" {
+						originRequest.Header.Set("If-None-Match", etag)
+					}
+					if modified := entry.Header.Get("Last-Modified"); modified != "" && originRequest.Header.Get("If-Modified-Since") == "" {
+						originRequest.Header.Set("If-Modified-Since", modified)
+					}
+				}
+				return policy.fetchFlight(originRequest, next, key, &entry, flight)
 			}
 		}
 		if requestHasDirective(request, "only-if-cached") {
@@ -538,10 +535,12 @@ func (policy *cachePolicy) execute(request *http.Request, next Next) (*http.Resp
 		}
 		flight, leader := policy.acquireFlight(key)
 		if !leader {
-			if err := waitCacheFlight(request.Context(), flight); err != nil {
+			switch err := waitCacheFlight(request.Context(), flight); err {
+			case nil:
+				continue
+			default:
 				return nil, err
 			}
-			continue
 		}
 		return policy.fetchFlight(request, next, key, nil, flight)
 	}
@@ -771,7 +770,8 @@ func (policy *cachePolicy) acquireFlight(key string) (*cacheFlight, bool) {
 
 func (policy *cachePolicy) finishFlight(key string, flight *cacheFlight) {
 	policy.mu.Lock()
-	if policy.flights[key] == flight {
+	switch policy.flights[key] {
+	case flight:
 		delete(policy.flights, key)
 		close(flight.done)
 	}

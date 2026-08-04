@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Consolidate stale cache refresh and conditional revalidation onto one
+  coalesced fetch path while preserving caller-supplied validators.
+- Make cache capacity, freshness, invalidation, parser, and request-flight
+  boundaries independently regression-tested at exact limits.
 - Make fixture replay limits, persisted overrides, response policy, body
   capture, and canonicalization independently regression-tested.
 - Make rate-limit defaults, admission bounds, window rollover, token refill,
