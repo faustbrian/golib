@@ -42,7 +42,7 @@ func TestRecorderWritesDeterministicVersionedFixtureAndLoaderChecksExpiry(t *tes
 	if err != nil || loaded.SchemaVersion != FixtureSchemaVersion || len(loaded.Interactions) != 1 {
 		t.Fatalf("load current fixture = %#v, %v", loaded, err)
 	}
-	clock.now = clock.now.Add(2 * time.Hour)
+	clock.now = loaded.ExpiresAt
 	if _, err := ReadFixture(bytes.NewReader(first.Bytes()), FixtureLoadOptions{Clock: clock}); !errors.Is(err, ErrFixtureExpired) {
 		t.Fatalf("expired fixture error = %v", err)
 	}
@@ -86,56 +86,93 @@ func TestFixtureLoaderMigratesExplicitSchemasAndRejectsHostileInput(t *testing.T
 		payload []byte
 		options FixtureLoadOptions
 		want    error
+		at      int
 	}{
-		{"empty", nil, FixtureLoadOptions{}, ErrInvalidFixture},
-		{"oversized", bytes.Repeat([]byte("x"), defaultMaximumFixtureFileBytes+1), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"unknown schema", []byte(`{"schema_version":99}`), FixtureLoadOptions{}, ErrFixtureSchema},
-		{"typed nil migrator", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: (*fixtureNilMigrator)(nil)}}, ErrInvalidFixture},
-		{"unknown field", append(append([]byte(nil), valid[:len(valid)-1]...), []byte(`,"unknown":true}`)...), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"trailing document", append(append([]byte(nil), valid...), []byte(` {}`)...), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"invalid current fixture", []byte(`{"schema_version":1,"interactions":[{}]}`), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"invalid current interaction", []byte(`{"schema_version":1,"recorded_at":"2023-11-14T22:13:20Z","interactions":[{"request":{"method":"bad method","url":"https://example.test/"},"response":{"status_code":204}}]}`), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"raw persisted request body", []byte(`{"schema_version":1,"recorded_at":"2023-11-14T22:13:20Z","interactions":[{"request":{"method":"POST","url":"https://example.test/","body":"c2VjcmV0"},"response":{"status_code":204}}]}`), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"invalid current JSON type", []byte(`{"schema_version":1,"recorded_at":5}`), FixtureLoadOptions{}, ErrInvalidFixture},
-		{"invalid maximum", valid, FixtureLoadOptions{MaximumFileBytes: -1}, ErrInvalidFixture},
-		{"excessive maximum", valid, FixtureLoadOptions{MaximumFileBytes: maximumFixtureBody*4 + 1}, ErrInvalidFixture},
-		{"typed nil clock", valid, FixtureLoadOptions{Clock: (*fixtureNilClock)(nil)}, ErrInvalidFixture},
-		{"migration error", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: FixtureMigratorFunc(func(json.RawMessage) (Fixture, error) { return Fixture{}, errors.New("migration failure") })}}, ErrInvalidFixture},
-		{"migration panic", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: FixtureMigratorFunc(func(json.RawMessage) (Fixture, error) { panic("migration panic") })}}, ErrInvalidFixture},
+		{"empty", nil, FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"oversized", bytes.Repeat([]byte("x"), defaultMaximumFixtureFileBytes+1), FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"unknown schema", []byte(`{"schema_version":99}`), FixtureLoadOptions{}, ErrFixtureSchema, -1},
+		{"typed nil migrator", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: (*fixtureNilMigrator)(nil)}}, ErrInvalidFixture, -1},
+		{"unknown field", append(append([]byte(nil), valid[:len(valid)-1]...), []byte(`,"unknown":true}`)...), FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"trailing document", append(append([]byte(nil), valid...), []byte(` {}`)...), FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"invalid current fixture", []byte(`{"schema_version":1,"interactions":[{}]}`), FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"invalid current interaction", []byte(`{"schema_version":1,"recorded_at":"2023-11-14T22:13:20Z","interactions":[{"request":{"method":"bad method","url":"https://example.test/"},"response":{"status_code":204}}]}`), FixtureLoadOptions{}, ErrInvalidFixture, 0},
+		{"raw persisted request body", []byte(`{"schema_version":1,"recorded_at":"2023-11-14T22:13:20Z","interactions":[{"request":{"method":"POST","url":"https://example.test/","body":"c2VjcmV0"},"response":{"status_code":204}}]}`), FixtureLoadOptions{}, ErrInvalidFixture, 0},
+		{"invalid current JSON type", []byte(`{"schema_version":1,"recorded_at":5}`), FixtureLoadOptions{}, ErrInvalidFixture, -1},
+		{"invalid maximum", valid, FixtureLoadOptions{MaximumFileBytes: -1}, ErrInvalidFixture, -1},
+		{"excessive maximum", valid, FixtureLoadOptions{MaximumFileBytes: maximumFixtureFileBytes + 1}, ErrInvalidFixture, -1},
+		{"typed nil clock", valid, FixtureLoadOptions{Clock: (*fixtureNilClock)(nil)}, ErrInvalidFixture, -1},
+		{"migration error", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: FixtureMigratorFunc(func(json.RawMessage) (Fixture, error) { return Fixture{}, errors.New("migration failure") })}}, ErrInvalidFixture, -1},
+		{"migration panic", legacy, FixtureLoadOptions{Migrations: map[int]FixtureMigrator{0: FixtureMigratorFunc(func(json.RawMessage) (Fixture, error) { panic("migration panic") })}}, ErrInvalidFixture, -1},
+		{"expiry before recording", []byte(`{"schema_version":1,"recorded_at":"2023-11-14T22:13:20Z","expires_at":"2023-11-14T22:13:19Z"}`), FixtureLoadOptions{}, ErrInvalidFixture, -1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := ReadFixture(bytes.NewReader(test.payload), test.options); !errors.Is(err, test.want) {
-				t.Fatalf("load error = %v, want %v", err, test.want)
-			}
+			_, err := ReadFixture(bytes.NewReader(test.payload), test.options)
+			requireFixtureError(t, err, test.want, test.at, "load hostile input")
 		})
 	}
-	if _, err := ReadFixture(nil, FixtureLoadOptions{}); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("nil reader error = %v", err)
-	}
+	_, err = ReadFixture(nil, FixtureLoadOptions{})
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "nil reader")
 	readFailure := errors.New("reader failure")
-	if _, err := ReadFixture(fixtureFailureReader{err: readFailure}, FixtureLoadOptions{}); !errors.Is(err, readFailure) {
-		t.Fatalf("reader failure = %v", err)
-	}
+	_, err = ReadFixture(fixtureFailureReader{err: readFailure}, FixtureLoadOptions{})
+	requireFixtureError(t, err, readFailure, -1, "reader failure")
 	if _, err := ReadFixture(bytes.NewReader(valid), FixtureLoadOptions{}); err != nil {
 		t.Fatalf("default clock load = %v", err)
 	}
-	if err := writeFixtureJSON(io.Discard, Fixture{}); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("invalid write metadata = %v", err)
-	}
+	err = writeFixtureJSON(io.Discard, Fixture{})
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "invalid write metadata")
 	invalidFixture := cloneFixture(loaded)
 	invalidFixture.Interactions[0].Request.Method = "bad method"
-	if err := writeFixtureJSON(io.Discard, invalidFixture); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("invalid fixture write = %v", err)
-	}
-	if err := writeFixtureJSON(nil, loaded); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("nil helper writer = %v", err)
-	}
-	if err := (&RecorderTransport{}).WriteFixture(nil); !errors.Is(err, ErrInvalidFixture) {
-		t.Fatalf("nil writer error = %v", err)
-	}
+	err = writeFixtureJSON(io.Discard, invalidFixture)
+	requireFixtureError(t, err, ErrInvalidFixture, 0, "invalid fixture write")
+	invalidFixture = cloneFixture(loaded)
+	invalidFixture.ExpiresAt = invalidFixture.RecordedAt.Add(-time.Nanosecond)
+	err = writeFixtureJSON(io.Discard, invalidFixture)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "invalid fixture expiry write")
+	err = writeFixtureJSON(nil, loaded)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "nil helper writer")
+	err = (*RecorderTransport)(nil).WriteFixture(io.Discard)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "nil recorder")
+	err = (&RecorderTransport{}).WriteFixture(nil)
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "nil writer")
 	writerFailure := errors.New("writer failure")
-	if err := writeFixtureJSON(fixtureFailureWriter{err: writerFailure}, loaded); !errors.Is(err, writerFailure) {
-		t.Fatalf("writer failure = %v", err)
+	err = writeFixtureJSON(fixtureFailureWriter{err: writerFailure}, loaded)
+	requireFixtureError(t, err, writerFailure, -1, "writer failure")
+}
+
+func TestFixtureFileMaximumBoundariesAndReadLimit(t *testing.T) {
+	const expectedMaximumFixtureFileBytes int64 = 256 << 20
+
+	for _, test := range []struct {
+		configured int64
+		want       int64
+		valid      bool
+	}{
+		{0, defaultMaximumFixtureFileBytes, true},
+		{1, 1, true},
+		{expectedMaximumFixtureFileBytes, expectedMaximumFixtureFileBytes, true},
+		{-1, 0, false},
+		{expectedMaximumFixtureFileBytes + 1, 0, false},
+	} {
+		got, valid := fixtureFileMaximum(test.configured)
+		if got != test.want || valid != test.valid {
+			t.Fatalf("fixture maximum for %d = %d, %t; want %d, %t", test.configured, got, valid, test.want, test.valid)
+		}
+	}
+
+	reader := &fixtureCountingReader{reader: bytes.NewReader(bytes.Repeat([]byte("x"), 33))}
+	_, err := ReadFixture(reader, FixtureLoadOptions{MaximumFileBytes: 32})
+	requireFixtureError(t, err, ErrInvalidFixture, -1, "bounded fixture read")
+	if reader.bytesRead != 33 {
+		t.Fatalf("bounded fixture read consumed %d bytes, want 33", reader.bytesRead)
+	}
+
+	fixture := Fixture{SchemaVersion: FixtureSchemaVersion, RecordedAt: time.Unix(1_700_000_000, 0).UTC()}
+	payload, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatalf("marshal exact-bound fixture: %v", err)
+	}
+	if _, err := ReadFixture(bytes.NewReader(payload), FixtureLoadOptions{MaximumFileBytes: int64(len(payload))}); err != nil {
+		t.Fatalf("read exact-bound fixture: %v", err)
 	}
 }
 
@@ -152,6 +189,17 @@ var _ io.Writer = fixtureFailureWriter{}
 type fixtureFailureReader struct{ err error }
 
 func (reader fixtureFailureReader) Read([]byte) (int, error) { return 0, reader.err }
+
+type fixtureCountingReader struct {
+	reader    io.Reader
+	bytesRead int
+}
+
+func (reader *fixtureCountingReader) Read(payload []byte) (int, error) {
+	count, err := reader.reader.Read(payload)
+	reader.bytesRead += count
+	return count, err
+}
 
 type fixtureNilClock struct{}
 

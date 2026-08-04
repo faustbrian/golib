@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject persisted fixtures whose expiry precedes their recording time during
+  both serialization and loading.
 - Stop retries safely when a custom retry clock moves backwards instead of
   allowing elapsed-budget subtraction to overflow.
 - Allow a finite slice pool to complete successfully when its input count is
