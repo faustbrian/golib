@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -163,14 +164,21 @@ type ReplayTransport struct {
 
 // NewReplayTransport validates and snapshots a replay fixture.
 func NewReplayTransport(fixture Fixture, options ReplayOptions) (*ReplayTransport, error) {
+	if options.MaximumBodyBytes < 0 {
+		return nil, fixturePersistenceError(ErrInvalidFixture)
+	}
 	maximumBody := options.MaximumBodyBytes
 	if maximumBody == 0 {
 		maximumBody = defaultFixtureMaximumBody
 	}
-	if maximumBody < 1 || maximumBody > maximumFixtureBody ||
-		fixture.SchemaVersion != FixtureSchemaVersion ||
-		len(fixture.Interactions) > maximumFixtureInteractions {
-		return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
+	if maximumBody > maximumFixtureBody {
+		return nil, fixturePersistenceError(ErrInvalidFixture)
+	}
+	if fixture.SchemaVersion != FixtureSchemaVersion {
+		return nil, fixturePersistenceError(ErrInvalidFixture)
+	}
+	if !validFixtureInteractionCount(len(fixture.Interactions)) {
+		return nil, fixturePersistenceError(ErrInvalidFixture)
 	}
 	configuredHeaders := options.MatchHeaders
 	if len(fixture.Match.Headers) > 0 {
@@ -180,10 +188,13 @@ func NewReplayTransport(fixture Fixture, options ReplayOptions) (*ReplayTranspor
 	if err != nil {
 		return nil, err
 	}
-	if len(options.MatchHeaders) > 0 && len(fixture.Match.Headers) > 0 {
+	if len(options.MatchHeaders) > 0 {
 		override, overrideErr := canonicalFixtureHeaderNames(options.MatchHeaders)
-		if overrideErr != nil || !equalStrings(override, matchHeaders) {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
+		if overrideErr != nil {
+			return nil, fixturePersistenceError(ErrInvalidFixture)
+		}
+		if !equalStrings(override, matchHeaders) {
+			return nil, fixturePersistenceError(ErrInvalidFixture)
 		}
 	}
 	redactedQuery, err := canonicalFixtureQueryNames(fixture.Match.RedactedQueryParameters)
@@ -204,10 +215,14 @@ func NewReplayTransport(fixture Fixture, options ReplayOptions) (*ReplayTranspor
 	}, nil
 }
 
+func validFixtureInteractionCount(count int) bool {
+	return count <= maximumFixtureInteractions
+}
+
 // RoundTrip returns the next response only when request matches exactly.
 func (replay *ReplayTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	if request == nil {
-		return nil, &FixtureError{Interaction: -1, Cause: ErrFixtureUnmatched}
+		return nil, fixturePersistenceError(ErrFixtureUnmatched)
 	}
 	if err := request.Context().Err(); err != nil {
 		return nil, err
@@ -220,15 +235,18 @@ func (replay *ReplayTransport) RoundTrip(request *http.Request) (*http.Response,
 	}
 	replay.mu.Lock()
 	defer replay.mu.Unlock()
-	if replay.next >= len(replay.interactions) ||
-		!fixtureRequestsEqual(actual, replay.interactions[replay.next].Request, replay.matchHeaders) {
+	if replay.next >= len(replay.interactions) {
 		return nil, &FixtureError{Interaction: replay.next, Cause: ErrFixtureUnmatched}
 	}
-	interaction := replay.interactions[replay.next]
+	if !fixtureRequestsEqual(actual, replay.interactions[replay.next].Request, replay.matchHeaders) {
+		return nil, &FixtureError{Interaction: replay.next, Cause: ErrFixtureUnmatched}
+	}
+	interactionIndex := replay.next
+	interaction := replay.interactions[interactionIndex]
 	replay.next++
 	if interaction.Response.Failure != "" {
 		return nil, &FixtureError{
-			Interaction: replay.next - 1,
+			Interaction: interactionIndex,
 			Cause:       &FixtureReplayError{Kind: interaction.Response.Failure},
 		}
 	}
@@ -250,11 +268,22 @@ func canonicalFixtureInteraction(
 	maximumBody int64,
 	redactedQuery map[string]struct{},
 ) (FixtureInteraction, error) {
-	if interaction.Request.Method == "" || !validHTTPToken(interaction.Request.Method) ||
-		int64(len(interaction.Request.Body)) > maximumBody ||
-		int64(len(interaction.Response.Body)) > maximumBody ||
-		interaction.Request.BodySHA256 != "" && len(interaction.Request.Body) > 0 ||
-		interaction.Request.BodySHA256 != "" && !validFixtureDigest(interaction.Request.BodySHA256) {
+	if interaction.Request.Method == "" {
+		return FixtureInteraction{}, ErrInvalidFixture
+	}
+	if !validHTTPToken(interaction.Request.Method) {
+		return FixtureInteraction{}, ErrInvalidFixture
+	}
+	if int64(len(interaction.Request.Body)) > maximumBody {
+		return FixtureInteraction{}, ErrInvalidFixture
+	}
+	if int64(len(interaction.Response.Body)) > maximumBody {
+		return FixtureInteraction{}, ErrInvalidFixture
+	}
+	if interaction.Request.BodySHA256 != "" && len(interaction.Request.Body) > 0 {
+		return FixtureInteraction{}, ErrInvalidFixture
+	}
+	if interaction.Request.BodySHA256 != "" && !validFixtureDigest(interaction.Request.BodySHA256) {
 		return FixtureInteraction{}, ErrInvalidFixture
 	}
 	if !validFixtureResponsePolicy(interaction.Response) {
@@ -299,7 +328,7 @@ func captureFixtureRequest(
 ) (FixtureRequest, error) {
 	canonicalURL, err := canonicalFixtureURL(request.URL.String(), redactedQuery)
 	if err != nil {
-		return FixtureRequest{}, &FixtureError{Interaction: -1, Cause: ErrFixtureUnmatched}
+		return FixtureRequest{}, fixturePersistenceError(ErrFixtureUnmatched)
 	}
 	body, err := readFixtureBody(request.Body, request.ContentLength, maximumBody)
 	if err != nil {
@@ -309,7 +338,9 @@ func captureFixtureRequest(
 	for _, name := range matchHeaders {
 		values := append([]string(nil), request.Header.Values(name)...)
 		sort.Strings(values)
-		if len(values) > 0 {
+		if len(values) == 0 {
+			delete(header, name)
+		} else {
 			header[name] = values
 		}
 	}
@@ -320,20 +351,26 @@ func captureFixtureRequest(
 }
 
 func readFixtureBody(body io.ReadCloser, contentLength int64, maximum int64) ([]byte, error) {
-	if body == nil || body == http.NoBody {
+	if body == nil {
+		return nil, nil
+	}
+	if body == http.NoBody {
 		return nil, nil
 	}
 	if contentLength > maximum {
 		_ = body.Close()
-		return nil, &FixtureError{Interaction: -1, Cause: ErrFixtureBodyLimit}
+		return nil, fixturePersistenceError(ErrFixtureBodyLimit)
 	}
 	content, readErr := io.ReadAll(io.LimitReader(body, maximum+1))
 	closeErr := body.Close()
-	if readErr != nil || closeErr != nil {
-		return nil, &FixtureError{Interaction: -1, Cause: errors.Join(ErrInvalidFixture, readErr, closeErr)}
+	if readErr != nil {
+		return nil, fixturePersistenceError(errors.Join(ErrInvalidFixture, readErr, closeErr))
+	}
+	if closeErr != nil {
+		return nil, fixturePersistenceError(errors.Join(ErrInvalidFixture, closeErr))
 	}
 	if int64(len(content)) > maximum {
-		return nil, &FixtureError{Interaction: -1, Cause: ErrFixtureBodyLimit}
+		return nil, fixturePersistenceError(ErrFixtureBodyLimit)
 	}
 	return content, nil
 }
@@ -409,7 +446,10 @@ func validFixtureResponsePolicy(response FixtureResponse) bool {
 			return false
 		}
 	}
-	if response.StatusCode < 100 || response.StatusCode > 599 {
+	if response.StatusCode < 100 {
+		return false
+	}
+	if response.StatusCode > 599 {
 		return false
 	}
 	if response.ContentLength != nil && *response.ContentLength < -1 {
@@ -423,7 +463,7 @@ type fixtureUnexpectedEOFBody struct{ reader *bytes.Reader }
 
 func (body *fixtureUnexpectedEOFBody) Read(buffer []byte) (int, error) {
 	count, err := body.reader.Read(buffer)
-	if body.reader.Len() == 0 && (err == nil || errors.Is(err, io.EOF)) {
+	if body.reader.Len() == 0 {
 		return count, io.ErrUnexpectedEOF
 	}
 	return count, err
@@ -452,10 +492,7 @@ func canonicalFixtureURL(raw string, redactedQuery map[string]struct{}) (string,
 			}
 		}
 	}
-	path := parsed.EscapedPath()
-	if path == "" {
-		path = "/"
-	}
+	path := cmp.Or(parsed.EscapedPath(), "/")
 	canonical := origin + path
 	if encoded := query.Encode(); encoded != "" {
 		canonical += "?" + encoded
@@ -467,8 +504,14 @@ func canonicalFixtureQueryNames(names []string) (map[string]struct{}, error) {
 	result := make(map[string]struct{}, len(names))
 	for _, name := range names {
 		name = strings.ToLower(strings.TrimSpace(name))
-		if name == "" || len(name) > 256 || !validPolicyScopeValue(name) {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
+		if name == "" {
+			return nil, fixturePersistenceError(ErrInvalidFixture)
+		}
+		if len(name) > 256 {
+			return nil, fixturePersistenceError(ErrInvalidFixture)
+		}
+		if !validPolicyScopeValue(name) {
+			return nil, fixturePersistenceError(ErrInvalidFixture)
 		}
 		result[name] = struct{}{}
 	}
@@ -479,23 +522,24 @@ func validFixtureDigest(value string) bool {
 	if len(value) != sha256.Size*2 {
 		return false
 	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == sha256.Size && value == strings.ToLower(value)
+	if _, err := hex.DecodeString(value); err != nil {
+		return false
+	}
+	return value == strings.ToLower(value)
 }
 
 func canonicalFixtureHeaderNames(names []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(names))
-	result := make([]string, 0, len(names))
 	for _, name := range names {
 		canonical, err := validateHeaderName(name)
 		if err != nil || sensitiveFixtureHeader(canonical) {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
-		}
-		if _, duplicate := seen[canonical]; duplicate {
-			continue
+			return nil, fixturePersistenceError(ErrInvalidFixture)
 		}
 		seen[canonical] = struct{}{}
-		result = append(result, canonical)
+	}
+	result := make([]string, 0, len(seen))
+	for name := range seen {
+		result = append(result, name)
 	}
 	sort.Strings(result)
 	return result, nil
@@ -503,17 +547,16 @@ func canonicalFixtureHeaderNames(names []string) ([]string, error) {
 
 func canonicalFixtureTrailerNames(names []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(names))
-	result := make([]string, 0, len(names))
 	for _, name := range names {
 		canonical, err := validateTrailerName(name)
 		if err != nil || sensitiveFixtureHeader(canonical) {
-			return nil, &FixtureError{Interaction: -1, Cause: ErrInvalidFixture}
-		}
-		if _, duplicate := seen[canonical]; duplicate {
-			continue
+			return nil, fixturePersistenceError(ErrInvalidFixture)
 		}
 		seen[canonical] = struct{}{}
-		result = append(result, canonical)
+	}
+	result := make([]string, 0, len(seen))
+	for name := range seen {
+		result = append(result, name)
 	}
 	sort.Strings(result)
 	return result, nil

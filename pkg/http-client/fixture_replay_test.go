@@ -3,6 +3,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"io"
 	"net"
@@ -212,6 +213,75 @@ func TestReplayTransportRejectsMalformedFixturesAndBoundaries(t *testing.T) {
 	}
 }
 
+func TestReplayTransportAcceptsExactPersistenceBoundaries(t *testing.T) {
+	valid := Fixture{
+		SchemaVersion: FixtureSchemaVersion,
+		Interactions: []FixtureInteraction{{
+			Request:  FixtureRequest{Method: http.MethodGet, URL: "https://example.test"},
+			Response: FixtureResponse{StatusCode: http.StatusContinue},
+		}},
+	}
+	for _, maximum := range []int64{1, maximumFixtureBody} {
+		if _, err := NewReplayTransport(valid, ReplayOptions{MaximumBodyBytes: maximum}); err != nil {
+			t.Fatalf("construct exact body maximum %d: %v", maximum, err)
+		}
+	}
+	valid.Interactions[0].Request.Body = []byte("x")
+	if _, err := NewReplayTransport(valid, ReplayOptions{MaximumBodyBytes: 1}); err != nil {
+		t.Fatalf("construct exact request body maximum: %v", err)
+	}
+	valid.Interactions[0].Request.Body = nil
+	valid.Interactions[0].Response.StatusCode = 599
+	negativeOne := int64(-1)
+	valid.Interactions[0].Response.ContentLength = &negativeOne
+	if _, err := NewReplayTransport(valid, ReplayOptions{}); err != nil {
+		t.Fatalf("construct exact response boundaries: %v", err)
+	}
+	if !validFixtureInteractionCount(maximumFixtureInteractions) ||
+		validFixtureInteractionCount(maximumFixtureInteractions+1) {
+		t.Fatal("fixture interaction count boundaries are incorrect")
+	}
+
+	request, _ := http.NewRequest(http.MethodGet, "https://example.test", nil)
+	captured, err := captureFixtureRequest(request, []string{"X-Absent"}, nil, 1)
+	if err != nil {
+		t.Fatalf("capture absent match header: %v", err)
+	}
+	if _, exists := captured.Header["X-Absent"]; exists {
+		t.Fatalf("captured absent header = %#v", captured.Header)
+	}
+
+	readFailure := errors.New("read failure")
+	if _, err := readFixtureBody(fixtureFailureBody{readErr: readFailure}, -1, 1); !errors.Is(err, readFailure) {
+		t.Fatalf("read-only body failure = %v", err)
+	}
+	closeFailure := errors.New("close failure")
+	if _, err := readFixtureBody(fixtureCloseFailureBody{err: closeFailure}, -1, 1); !errors.Is(err, closeFailure) {
+		t.Fatalf("close-only body failure = %v", err)
+	}
+
+	exactName := strings.Repeat("x", 256)
+	if names, err := canonicalFixtureQueryNames([]string{exactName}); err != nil || len(names) != 1 {
+		t.Fatalf("exact query name boundary = %#v, %v", names, err)
+	}
+	if _, err := canonicalFixtureQueryNames([]string{exactName + "x"}); !errors.Is(err, ErrInvalidFixture) {
+		t.Fatalf("excessive query name = %v", err)
+	}
+	if !validFixtureDigest(emptyFixtureBodyDigest) || validFixtureDigest(strings.ToUpper(emptyFixtureBodyDigest)) ||
+		validFixtureDigest(strings.Repeat("z", sha256.Size*2)) {
+		t.Fatal("fixture digest boundaries are incorrect")
+	}
+
+	headers, err := canonicalFixtureHeaderNames([]string{"x-match", "X-Match"})
+	if err != nil || len(headers) != 1 || headers[0] != "X-Match" {
+		t.Fatalf("deduplicated fixture headers = %v, %v", headers, err)
+	}
+	trailers, err := canonicalFixtureTrailerNames([]string{"x-checksum", "X-Checksum"})
+	if err != nil || len(trailers) != 1 || trailers[0] != "X-Checksum" {
+		t.Fatalf("deduplicated fixture trailers = %v, %v", trailers, err)
+	}
+}
+
 func TestReplayTransportHeaderMismatchDoesNotConsumeInteraction(t *testing.T) {
 	replay, err := NewReplayTransport(Fixture{
 		SchemaVersion: FixtureSchemaVersion,
@@ -347,6 +417,11 @@ func TestReplayTransportValidatesPersistedMatchAndFailurePolicy(t *testing.T) {
 		}(),
 		func() Fixture {
 			fixture := cloneFixture(base)
+			fixture.Interactions[0].Request.Body = []byte("raw")
+			return fixture
+		}(),
+		func() Fixture {
+			fixture := cloneFixture(base)
 			fixture.Interactions[0].Request.BodySHA256 = strings.ToUpper(emptyFixtureBodyDigest)
 			return fixture
 		}(),
@@ -380,6 +455,9 @@ func TestReplayTransportValidatesPersistedMatchAndFailurePolicy(t *testing.T) {
 	if _, err := NewReplayTransport(base, ReplayOptions{MatchHeaders: []string{"X-Other"}}); !errors.Is(err, ErrInvalidFixture) {
 		t.Fatalf("mismatched persisted override = %v", err)
 	}
+	if _, err := NewReplayTransport(base, ReplayOptions{MatchHeaders: []string{"Bad Header"}}); !errors.Is(err, ErrInvalidFixture) {
+		t.Fatalf("malformed persisted override = %v", err)
+	}
 
 	digestReplay, _ := NewReplayTransport(base, ReplayOptions{})
 	nonempty, _ := http.NewRequest(http.MethodPost, "https://example.test/?token=different", strings.NewReader("different"))
@@ -404,6 +482,13 @@ func TestReplayTransportValidatesPersistedMatchAndFailurePolicy(t *testing.T) {
 	if count, err := body.Read(buffer); count != 2 || err != nil {
 		t.Fatalf("incremental truncation read = %d, %v", count, err)
 	}
+	if count, err := body.Read(buffer); count != 2 || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("terminal truncation read = %d, %v", count, err)
+	}
+	emptyBody := &fixtureUnexpectedEOFBody{reader: bytes.NewReader(nil)}
+	if count, err := emptyBody.Read(buffer); count != 0 || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("empty truncation read = %d, %v", count, err)
+	}
 	_ = body.Close()
 }
 
@@ -426,3 +511,8 @@ type fixtureFailureBody struct {
 
 func (body fixtureFailureBody) Read([]byte) (int, error) { return 0, body.readErr }
 func (body fixtureFailureBody) Close() error             { return body.closeErr }
+
+type fixtureCloseFailureBody struct{ err error }
+
+func (fixtureCloseFailureBody) Read([]byte) (int, error) { return 0, io.EOF }
+func (body fixtureCloseFailureBody) Close() error        { return body.err }
