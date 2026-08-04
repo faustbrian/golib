@@ -152,6 +152,65 @@ func TestProofPathExtractsCanonicalMembershipAndAbsenceMaterial(
 	}
 }
 
+func TestProofPathIntoReusesCallerScratch(t *testing.T) {
+	t.Parallel()
+
+	key := testKey(7, 1)
+	key[1] = 1
+	other := testKey(7, 2)
+	other[1] = 2
+	tree, err := Build(
+		context.Background(),
+		[]Entry{
+			{Key: key, Value: testValue(1)},
+			{Key: other, Value: testValue(2)},
+		},
+		testLimits(),
+		testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("build proof tree: %v", err)
+	}
+	want, err := tree.ProofPath(
+		context.Background(),
+		key,
+		testProofPathLimits(),
+	)
+	if err != nil {
+		t.Fatalf("extract owned proof path: %v", err)
+	}
+	scratch := make([]ProofPathCommitment, 1, maxProofPathCommitments)
+	scratch[0].Length = 0xff
+	got, err := tree.ProofPathInto(
+		context.Background(),
+		key,
+		testProofPathLimits(),
+		scratch,
+	)
+	if err != nil {
+		t.Fatalf("extract proof path into scratch: %v", err)
+	}
+	if got.Kind != want.Kind || got.Depth != want.Depth ||
+		got.ExistingStem != want.ExistingStem ||
+		len(got.Commitments) != len(want.Commitments) {
+		t.Fatalf("scratch proof path = %#v, want %#v", got, want)
+	}
+	if len(got.Commitments) == 0 ||
+		&got.Commitments[0] != &scratch[:cap(scratch)][0] {
+		t.Fatal("proof path did not reuse caller scratch")
+	}
+	for index := range want.Commitments {
+		gotKey, gotErr := got.Commitments[index].Commitment.DeduplicationKey()
+		wantKey, wantErr := want.Commitments[index].Commitment.DeduplicationKey()
+		if gotErr != nil || wantErr != nil ||
+			got.Commitments[index].Path != want.Commitments[index].Path ||
+			got.Commitments[index].Length != want.Commitments[index].Length ||
+			gotKey != wantKey {
+			t.Fatalf("scratch commitment %d differs from owned path", index)
+		}
+	}
+}
+
 func TestProofPathEnforcesLimitsAndCallerOwnership(t *testing.T) {
 	t.Parallel()
 

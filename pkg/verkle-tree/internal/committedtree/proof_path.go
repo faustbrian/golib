@@ -128,6 +128,27 @@ func (tree Tree) ProofPath(
 	key Key,
 	limits ProofPathLimits,
 ) (ProofPath, error) {
+	return tree.proofPath(ctx, key, limits, nil)
+}
+
+// ProofPathInto extracts a proof path while reusing caller-owned commitment
+// storage. Existing scratch elements are ignored. Returned Commitments may
+// alias scratch, which must remain immutable while the result is in use.
+func (tree Tree) ProofPathInto(
+	ctx context.Context,
+	key Key,
+	limits ProofPathLimits,
+	scratch []ProofPathCommitment,
+) (ProofPath, error) {
+	return tree.proofPath(ctx, key, limits, scratch)
+}
+
+func (tree Tree) proofPath(
+	ctx context.Context,
+	key Key,
+	limits ProofPathLimits,
+	scratch []ProofPathCommitment,
+) (ProofPath, error) {
 	if !tree.valid ||
 		len(tree.nodes) == 0 ||
 		uint64(tree.root) >= uint64(len(tree.nodes)) {
@@ -140,13 +161,15 @@ func (tree Tree) ProofPath(
 		return ProofPath{}, err
 	}
 
-	capacity := min(
-		uint64(limits.MaxCommitments),
-		limits.MaxTemporaryBytes/proofPathWorkingBytes,
-	)
-	result := ProofPath{
-		Commitments: make([]ProofPathCommitment, 0, int(capacity)),
+	commitments := scratch[:0]
+	if scratch == nil {
+		capacity := min(
+			uint64(limits.MaxCommitments),
+			limits.MaxTemporaryBytes/proofPathWorkingBytes,
+		)
+		commitments = make([]ProofPathCommitment, 0, int(capacity))
 	}
+	result := ProofPath{Commitments: commitments}
 	nodeReads := uint64(0)
 	pathBytes := uint64(0)
 	current, err := tree.readProofPathNode(

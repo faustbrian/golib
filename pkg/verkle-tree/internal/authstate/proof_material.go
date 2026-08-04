@@ -208,6 +208,11 @@ func (snapshot Snapshot) ProofMaterial(
 		min(len(ordered), int(limits.MaxStemPaths)),
 	)
 	commitments := make([]PathCommitment, 0, int(pathCapacity))
+	pathScratch := make(
+		[]committedtree.ProofPathCommitment,
+		0,
+		int(min(pathCapacity, proofPathMaximumCommitments)),
+	)
 	nodeReads := uint64(0)
 	pathBytes := uint64(0)
 	for start := 0; start < len(ordered); {
@@ -226,13 +231,14 @@ func (snapshot Snapshot) ProofMaterial(
 		); err != nil {
 			return ProofMaterial{}, err
 		}
-		path, err := snapshot.extractProofPath(
+		path, err := snapshot.extractProofPathInto(
 			ctx,
 			ordered[start],
 			limits,
 			&nodeReads,
 			&pathBytes,
 			&commitments,
+			&pathScratch,
 		)
 		if err != nil {
 			return ProofMaterial{}, err
@@ -245,13 +251,14 @@ func (snapshot Snapshot) ProofMaterial(
 				secondHalf++
 			}
 			if secondHalf < end {
-				if _, err := snapshot.extractProofPath(
+				if _, err := snapshot.extractProofPathInto(
 					ctx,
 					ordered[secondHalf],
 					limits,
 					&nodeReads,
 					&pathBytes,
 					&commitments,
+					&pathScratch,
 				); err != nil {
 					return ProofMaterial{}, err
 				}
@@ -287,6 +294,28 @@ func (snapshot Snapshot) extractProofPath(
 	pathBytes *uint64,
 	commitments *[]PathCommitment,
 ) (committedtree.ProofPath, error) {
+	var scratch []committedtree.ProofPathCommitment
+
+	return snapshot.extractProofPathInto(
+		ctx,
+		key,
+		limits,
+		nodeReads,
+		pathBytes,
+		commitments,
+		&scratch,
+	)
+}
+
+func (snapshot Snapshot) extractProofPathInto(
+	ctx context.Context,
+	key Key,
+	limits ProofMaterialLimits,
+	nodeReads *uint64,
+	pathBytes *uint64,
+	commitments *[]PathCommitment,
+	scratch *[]committedtree.ProofPathCommitment,
+) (committedtree.ProofPath, error) {
 	remainingReads, err := remainingProofMaterialResource(
 		ProofMaterialResourceNodeReads,
 		limits.MaxNodeReads,
@@ -312,7 +341,7 @@ func (snapshot Snapshot) extractProofPath(
 	if err != nil {
 		return committedtree.ProofPath{}, err
 	}
-	path, err := snapshot.tree.ProofPath(
+	path, err := snapshot.tree.ProofPathInto(
 		ctx,
 		key,
 		committedtree.ProofPathLimits{
@@ -333,6 +362,7 @@ func (snapshot Snapshot) extractProofPath(
 				proofPathMaximumCommitments,
 			) * proofPathCommitmentBytes,
 		},
+		*scratch,
 	)
 	if err != nil {
 		return committedtree.ProofPath{}, translateProofPathResourceError(
@@ -351,6 +381,8 @@ func (snapshot Snapshot) extractProofPath(
 	converted, addedPathBytes := convertProofPathCommitments(path.Commitments)
 	*commitments = append(*commitments, converted...)
 	*pathBytes += addedPathBytes
+	*scratch = path.Commitments[:0]
+	path.Commitments = nil
 
 	return path, nil
 }
