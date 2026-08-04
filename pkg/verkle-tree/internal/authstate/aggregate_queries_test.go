@@ -381,12 +381,21 @@ func TestAggregateVerifierQueriesRejectInvalidInputsAndResources(t *testing.T) {
 	temporary := testAggregateVerifierQueryLimits()
 	temporary.MaxTemporaryBytes = 1
 	_, err = material.AggregateVerifierQueries(context.Background(), temporary)
+	temporaryCapacity, capacityErr := aggregateVerifierQueryCapacity(
+		context.Background(),
+		uint64(len(material.claims.claims)),
+		material.stemPaths,
+		uint64(temporary.MaxQueries),
+	)
+	if capacityErr != nil {
+		t.Fatalf("temporary query capacity: %v", capacityErr)
+	}
 	assertAggregateVerifierResourceError(
 		t,
 		err,
 		AggregateVerifierQueryResourceTemporaryBytes,
 		1,
-		aggregateVerifierQueriesPerClaim*2*aggregateVerifierQueryWorkingByte,
+		temporaryCapacity*2*aggregateVerifierQueryWorkingByte,
 	)
 	queries := testAggregateVerifierQueryLimits()
 	queries.MaxQueries = 1
@@ -406,6 +415,29 @@ func TestAggregateVerifierQueriesRejectInvalidInputsAndResources(t *testing.T) {
 		testAggregateVerifierQueryLimits(),
 	); !errors.Is(err, errInvalidProofMaterial) {
 		t.Fatalf("invalid topology error = %v", err)
+	}
+}
+
+func TestAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
+	t.Parallel()
+
+	paths := []StemPath{
+		PresentStemPath(Stem{1}, 3),
+		MissingStemPath(Stem{2}, 2),
+		DifferentStemPath(Stem{3}, 2, Stem{4}),
+	}
+	got, err := aggregateVerifierQueryCapacity(context.Background(), 2, paths, 100)
+	if err != nil || got != 17 {
+		t.Fatalf("topology query capacity = %d, want 17", got)
+	}
+	got, err = aggregateVerifierQueryCapacity(context.Background(), 2, paths, 5)
+	if err != nil || got != 5 {
+		t.Fatalf("limited query capacity = %d, want 5", got)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := aggregateVerifierQueryCapacity(cancelled, 2, paths, 100); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled query capacity error = %v", err)
 	}
 }
 

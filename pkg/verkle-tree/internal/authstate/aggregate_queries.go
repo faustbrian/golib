@@ -12,7 +12,6 @@ import (
 
 const (
 	maxAggregateVerifierQueries       = uint32(65_536)
-	aggregateVerifierQueriesPerClaim  = uint64(36)
 	aggregateVerifierQueryWorkingByte = uint64(512)
 )
 
@@ -114,10 +113,15 @@ func (material ProofMaterial) AggregateVerifierQueries(
 	if err := limits.validate(); err != nil {
 		return nil, err
 	}
-	capacity := min(
+	capacity, err := aggregateVerifierQueryCapacity(
+		ctx,
+		uint64(len(material.claims.claims)),
+		material.stemPaths,
 		uint64(limits.MaxQueries),
-		uint64(len(material.claims.claims))*aggregateVerifierQueriesPerClaim,
 	)
+	if err != nil {
+		return nil, err
+	}
 	temporaryBytes := capacity * 2 * aggregateVerifierQueryWorkingByte
 	if err := checkAggregateVerifierQueryResource(
 		AggregateVerifierQueryResourceTemporaryBytes,
@@ -202,6 +206,30 @@ func (material ProofMaterial) AggregateVerifierQueries(
 	}
 
 	return queries, nil
+}
+
+func aggregateVerifierQueryCapacity(
+	ctx context.Context,
+	claimCount uint64,
+	stemPaths []StemPath,
+	limit uint64,
+) (uint64, error) {
+	capacity := claimCount * 2
+	for index := range stemPaths {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return 0, err
+		}
+		path := stemPaths[index]
+		capacity += uint64(path.depth)
+		switch path.kind {
+		case StemPathPresent:
+			capacity += 4
+		case StemPathDifferent:
+			capacity += 2
+		}
+	}
+
+	return min(limit, capacity), nil
 }
 
 type aggregateVerifierCollector struct {
