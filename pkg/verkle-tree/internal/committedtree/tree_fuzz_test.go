@@ -173,3 +173,138 @@ func FuzzBuildDeterministic(f *testing.F) {
 		}
 	})
 }
+
+func FuzzBuilderUpdateMatchesFullRebuild(f *testing.F) {
+	base := make([]byte, 3*64)
+	base[0] = 0x10
+	base[31] = 0x00
+	base[32] = 0x11
+	base[64] = 0x10
+	base[64+31] = 0x01
+	base[64+32] = 0x12
+	base[128] = 0x20
+	base[128+31] = 0x00
+	base[128+32] = 0x21
+
+	replaced := slices.Clone(base)
+	replaced[32] = 0xf1
+	f.Add(base, replaced)
+
+	insertedSuffix := append(slices.Clone(base), make([]byte, 64)...)
+	insertedSuffix[192] = 0x10
+	insertedSuffix[192+31] = 0x02
+	insertedSuffix[192+32] = 0x13
+	f.Add(base, insertedSuffix)
+
+	insertedStem := append(slices.Clone(base), make([]byte, 64)...)
+	insertedStem[192] = 0x30
+	insertedStem[192+32] = 0x31
+	f.Add(base, insertedStem)
+	f.Add(base, base[:2*64])
+	f.Add([]byte(nil), []byte(nil))
+
+	builder, err := NewBuilder(
+		context.Background(), testLimits(), testCommitmentLimits(),
+	)
+	if err != nil {
+		f.Fatalf("new builder: %v", err)
+	}
+	f.Fuzz(func(t *testing.T, baseEncoded []byte, nextEncoded []byte) {
+		if len(baseEncoded) > 8*64 || len(nextEncoded) > 8*64 {
+			return
+		}
+		baseEntries := decodeFuzzEntries(baseEncoded)
+		nextEntries := decodeFuzzEntries(nextEncoded)
+		baseTree, err := builder.Build(context.Background(), baseEntries)
+		if err != nil {
+			if !errors.Is(err, errDuplicateKey) {
+				t.Fatalf("build base tree: %v", err)
+			}
+			return
+		}
+
+		updated, updateErr := builder.Update(
+			context.Background(), baseTree, nextEntries,
+		)
+		rebuilt, rebuildErr := builder.Build(context.Background(), nextEntries)
+		if (updateErr != nil) != (rebuildErr != nil) {
+			t.Fatalf("update/rebuild errors differ: %v / %v", updateErr, rebuildErr)
+		}
+		if updateErr != nil {
+			if !errors.Is(updateErr, errDuplicateKey) ||
+				!errors.Is(rebuildErr, errDuplicateKey) {
+				t.Fatalf("update/rebuild errors: %v / %v", updateErr, rebuildErr)
+			}
+			return
+		}
+
+		if len(nextEntries) == 0 {
+			updatedRoot, err := updated.Root()
+			if err != nil {
+				t.Fatalf("read updated empty root: %v", err)
+			}
+			rebuiltRoot, err := rebuilt.Root()
+			if err != nil {
+				t.Fatalf("read rebuilt empty root: %v", err)
+			}
+			updatedEmpty, err := updatedRoot.IsIdentity()
+			if err != nil {
+				t.Fatalf("classify updated empty root: %v", err)
+			}
+			rebuiltEmpty, err := rebuiltRoot.IsIdentity()
+			if err != nil {
+				t.Fatalf("classify rebuilt empty root: %v", err)
+			}
+			if !updatedEmpty || !rebuiltEmpty {
+				t.Fatal("empty update and rebuild roots differ")
+			}
+			return
+		}
+		assertSameRoot(t, updated, rebuilt)
+		updatedImage, err := updated.StorageImage(
+			context.Background(), testStorageEncodingLimits(),
+		)
+		if err != nil {
+			t.Fatalf("encode updated storage image: %v", err)
+		}
+		rebuiltImage, err := rebuilt.StorageImage(
+			context.Background(), testStorageEncodingLimits(),
+		)
+		if err != nil {
+			t.Fatalf("encode rebuilt storage image: %v", err)
+		}
+		updatedNodes, err := updatedImage.Nodes(context.Background())
+		if err != nil {
+			t.Fatalf("read updated storage nodes: %v", err)
+		}
+		rebuiltNodes, err := rebuiltImage.Nodes(context.Background())
+		if err != nil {
+			t.Fatalf("read rebuilt storage nodes: %v", err)
+		}
+		if len(updatedNodes) != len(rebuiltNodes) {
+			t.Fatalf(
+				"storage node counts differ: %d / %d",
+				len(updatedNodes), len(rebuiltNodes),
+			)
+		}
+		for index := range updatedNodes {
+			if updatedNodes[index].ID() != rebuiltNodes[index].ID() ||
+				!slices.Equal(updatedNodes[index].Encoded(), rebuiltNodes[index].Encoded()) {
+				t.Fatalf("storage node %d differs", index)
+			}
+		}
+	})
+}
+
+func decodeFuzzEntries(encoded []byte) []Entry {
+	entries := make([]Entry, 0, len(encoded)/64)
+	for len(encoded) >= 64 {
+		var entry Entry
+		copy(entry.Key[:], encoded[:32])
+		copy(entry.Value[:], encoded[32:64])
+		entries = append(entries, entry)
+		encoded = encoded[64:]
+	}
+
+	return entries
+}
