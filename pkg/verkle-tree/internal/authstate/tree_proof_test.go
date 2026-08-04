@@ -1251,7 +1251,9 @@ func TestTreeProofHelpersPreserveBoundariesAndStableOrder(t *testing.T) {
 		order int
 	}
 	values := []ordered{
+		{group: 2, order: 1},
 		{group: 1, order: 1},
+		{group: 2, order: 2},
 		{group: 1, order: 2},
 	}
 	if err := sortTreeProofValues(
@@ -1263,10 +1265,12 @@ func TestTreeProofHelpersPreserveBoundariesAndStableOrder(t *testing.T) {
 	); err != nil {
 		t.Fatalf("stable sort: %v", err)
 	}
-	if values[0].order != 1 || values[1].order != 2 {
+	if values[0] != (ordered{group: 1, order: 1}) ||
+		values[1] != (ordered{group: 1, order: 2}) ||
+		values[2] != (ordered{group: 2, order: 1}) ||
+		values[3] != (ordered{group: 2, order: 2}) {
 		t.Fatalf("equal order changed: %#v", values)
 	}
-
 	reversed := []int{2, 1}
 	if err := sortTreeProofValues(
 		context.Background(),

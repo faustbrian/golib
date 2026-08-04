@@ -883,22 +883,36 @@ func sortTreeProofValues[T any](
 	if err := checkTreeProofContext(ctx); err != nil {
 		return err
 	}
-	scratch := make([]T, len(values))
-
-	return mergeSortTreeProofValues(
+	// Every production caller has already bounded values by a profile limit
+	// no greater than maxTreeProofPathCommitments, which fits uint32.
+	order := make([]uint32, len(values))
+	scratch := make([]uint32, len(values))
+	for index := range order {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		order[index] = uint32(index)
+	}
+	if err := mergeSortTreeProofValueIndices(
 		ctx,
 		values,
+		order,
 		scratch,
 		0,
-		len(values),
+		len(order),
 		compare,
-	)
+	); err != nil {
+		return err
+	}
+
+	return applyTreeProofValueOrder(ctx, values, order)
 }
 
-func mergeSortTreeProofValues[T any](
+func mergeSortTreeProofValueIndices[T any](
 	ctx context.Context,
 	values []T,
-	scratch []T,
+	order []uint32,
+	scratch []uint32,
 	start int,
 	end int,
 	compare func(T, T) int,
@@ -910,9 +924,10 @@ func mergeSortTreeProofValues[T any](
 		return nil
 	}
 	middle := start + (end-start)/2
-	if err := mergeSortTreeProofValues(
+	if err := mergeSortTreeProofValueIndices(
 		ctx,
 		values,
+		order,
 		scratch,
 		start,
 		middle,
@@ -920,9 +935,10 @@ func mergeSortTreeProofValues[T any](
 	); err != nil {
 		return err
 	}
-	if err := mergeSortTreeProofValues(
+	if err := mergeSortTreeProofValueIndices(
 		ctx,
 		values,
+		order,
 		scratch,
 		middle,
 		end,
@@ -937,22 +953,51 @@ func mergeSortTreeProofValues[T any](
 			return err
 		}
 		if right == end {
-			scratch[output] = values[left]
+			scratch[output] = order[left]
 			left++
 		} else if left == middle ||
-			compare(values[left], values[right]) > 0 {
-			scratch[output] = values[right]
+			compare(values[order[left]], values[order[right]]) > 0 {
+			scratch[output] = order[right]
 			right++
 		} else {
-			scratch[output] = values[left]
+			scratch[output] = order[left]
 			left++
 		}
 	}
-	for index := start; index < end; index++ {
+	copy(order[start:end], scratch[start:end])
+
+	return nil
+}
+
+func applyTreeProofValueOrder[T any](
+	ctx context.Context,
+	values []T,
+	order []uint32,
+) error {
+	visited := make([]bool, len(values))
+	for start := range values {
 		if err := checkTreeProofContext(ctx); err != nil {
 			return err
 		}
-		values[index] = scratch[index]
+		if visited[start] {
+			continue
+		}
+		current := start
+		displaced := values[start]
+		for {
+			if err := checkTreeProofContext(ctx); err != nil {
+				return err
+			}
+			source := int(order[current])
+			visited[current] = true
+			if source == start {
+				values[current] = displaced
+
+				break
+			}
+			values[current] = values[source]
+			current = source
+		}
 	}
 
 	return nil
