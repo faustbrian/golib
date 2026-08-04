@@ -1304,11 +1304,12 @@ func hasValidator(entry CacheEntry) bool {
 
 func updateCachedHeaders(stored http.Header, validation http.Header) {
 	for name, values := range validation {
-		if strings.EqualFold(name, "Content-Length") || strings.EqualFold(name, "Connection") ||
+		switch strings.EqualFold(name, "Content-Length") || strings.EqualFold(name, "Connection") ||
 			strings.EqualFold(name, "Vary") {
-			continue
+		case true:
+		default:
+			stored[name] = append([]string(nil), values...)
 		}
-		stored[name] = append([]string(nil), values...)
 	}
 }
 
