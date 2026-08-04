@@ -565,8 +565,9 @@ func (updater *StatelessUpdater) updateStems(
 		}
 	}
 	for index := range different {
-		stems, err := mergeStatelessExistingStem(
-			ctx, different[index].existing, different[index].stems,
+		existingChange, existingChanged := changed[different[index].path]
+		stems, kind, err := mergeStatelessDifferentInsertion(
+			ctx, different[index], existingChange, existingChanged,
 		)
 		if err != nil {
 			return nil, err
@@ -580,7 +581,7 @@ func (updater *StatelessUpdater) updateStems(
 		changed[different[index].path] = statelessChangedCommitment{
 			old:  different[index].existing.commitment,
 			new:  inserted,
-			kind: statelessChangedInternal,
+			kind: kind,
 		}
 	}
 
@@ -794,6 +795,43 @@ func mergeStatelessExistingStem(
 	}
 
 	return result, nil
+}
+
+func mergeStatelessDifferentInsertion(
+	ctx context.Context,
+	insertion statelessDifferentInsertion,
+	existingChange statelessChangedCommitment,
+	existingChanged bool,
+) ([]statelessInsertedStem, statelessChangedKind, error) {
+	existing := insertion.existing
+	retainExisting := true
+	if existingChanged {
+		if existingChange.old != existing.commitment {
+			return nil, statelessChangedUnknown, errIncompleteStatelessWitness
+		}
+		switch existingChange.kind {
+		case statelessChangedStem:
+			existing.commitment = existingChange.new
+		case statelessChangedEmpty:
+			retainExisting = false
+		default:
+			return nil, statelessChangedUnknown, errUnsupportedStatelessUpdate
+		}
+	}
+	stems := insertion.stems
+	if retainExisting {
+		var err error
+		stems, err = mergeStatelessExistingStem(ctx, existing, stems)
+		if err != nil {
+			return nil, statelessChangedUnknown, err
+		}
+	}
+	kind := statelessChangedInternal
+	if len(stems) == 1 {
+		kind = statelessChangedStem
+	}
+
+	return stems, kind, nil
 }
 
 func (updater *StatelessUpdater) commitInsertedSubtree(

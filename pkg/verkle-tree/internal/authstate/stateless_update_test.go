@@ -182,6 +182,120 @@ func TestStatelessUpdaterAppliesMixedSetsAndDeletes(t *testing.T) {
 	assertSameBackendRoot(t, got, want)
 }
 
+func TestStatelessUpdaterCombinesExistingStemMutationWithInsertion(t *testing.T) {
+	t.Parallel()
+
+	oldFirst := testKey(0x20, 0x00)
+	oldFirst[1] = 0x10
+	oldSecond := testKey(0x20, 0x01)
+	oldSecond[1] = 0x10
+	inserted := testKey(0x20, 0x00)
+	inserted[1] = 0x30
+	oldDeep := testKey(0x20, 0x00)
+	oldDeep[1] = 0x10
+	oldDeep[2] = 0x10
+	deepSibling := testKey(0x20, 0x00)
+	deepSibling[1] = 0x40
+	insertedDeep := testKey(0x20, 0x00)
+	insertedDeep[1] = 0x10
+	insertedDeep[2] = 0x30
+	tests := []struct {
+		name    string
+		entries []Entry
+		updates []Update
+	}{
+		{
+			name: "replace emptied stem",
+			entries: []Entry{
+				{Key: oldFirst, Value: testValue(1)},
+			},
+			updates: []Update{
+				Delete(oldFirst),
+				Set(inserted, testValue(2)),
+			},
+		},
+		{
+			name: "update retained stem",
+			entries: []Entry{
+				{Key: oldFirst, Value: testValue(1)},
+			},
+			updates: []Update{
+				Set(oldFirst, testValue(3)),
+				Set(inserted, testValue(2)),
+			},
+		},
+		{
+			name: "delete from retained stem",
+			entries: []Entry{
+				{Key: oldFirst, Value: testValue(1)},
+				{Key: oldSecond, Value: testValue(2)},
+			},
+			updates: []Update{
+				Delete(oldFirst),
+				Set(inserted, testValue(3)),
+			},
+		},
+		{
+			name: "replace stem while collapsing parent",
+			entries: []Entry{
+				{Key: oldDeep, Value: testValue(1)},
+				{Key: deepSibling, Value: testValue(2)},
+			},
+			updates: []Update{
+				Delete(oldDeep),
+				Set(insertedDeep, testValue(3)),
+				Delete(deepSibling),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			snapshot := newTestSnapshot(t, test.entries)
+			openingLimits := testAuthstateAggregateOpeningLimits()
+			openingLimits.MaxQueries = 4_096
+			openingLimits.MaxScalarDecodes = 4_096 * backend.VectorWidth
+			openingLimits.MaxMSMTerms = 8_192 * backend.VectorWidth
+			proofEngine, err := NewProofEngine(context.Background(), openingLimits)
+			if err != nil {
+				t.Fatalf("new proof engine: %v", err)
+			}
+			proof, err := proofEngine.ProveUpdates(
+				context.Background(), snapshot, test.updates,
+				topologyProofGenerationLimits(),
+			)
+			if err != nil {
+				t.Fatalf("prove combined transition: %v", err)
+			}
+			updater, err := NewStatelessUpdater(
+				context.Background(), openingLimits, testCommitmentLimits(),
+			)
+			if err != nil {
+				t.Fatalf("new stateless updater: %v", err)
+			}
+			got, err := updater.Apply(
+				context.Background(), proof, test.updates,
+				topologyProofVerificationLimits(), topologyStatelessUpdateLimits(),
+			)
+			if err != nil {
+				t.Fatalf("apply stateless combined transition: %v", err)
+			}
+			wantSnapshot, _, err := snapshot.Apply(context.Background(), test.updates)
+			if err != nil {
+				t.Fatalf("apply stateful combined transition: %v", err)
+			}
+			want, err := wantSnapshot.RootContainer(context.Background())
+			if err != nil {
+				t.Fatalf("read combined stateful root: %v", err)
+			}
+			assertSameBackendRoot(t, got, want)
+		})
+	}
+}
+
 func TestStatelessUpdaterDeletesLastStemWithCompleteTopologyProof(t *testing.T) {
 	t.Parallel()
 
@@ -1665,6 +1779,34 @@ func TestStatelessInsertedTopologyInternalFailureBoundaries(t *testing.T) {
 	second := inserted
 	second.stem[1]++
 	stems := []statelessInsertedStem{inserted, second}
+	differentInsertion := statelessDifferentInsertion{
+		existing: inserted,
+		stems:    []statelessInsertedStem{second},
+	}
+	if _, _, err := mergeStatelessDifferentInsertion(
+		context.Background(),
+		differentInsertion,
+		statelessChangedCommitment{
+			old:  backend.EmptyVectorCommitment(),
+			new:  inserted.commitment,
+			kind: statelessChangedStem,
+		},
+		true,
+	); !errors.Is(err, errIncompleteStatelessWitness) {
+		t.Fatalf("mismatched existing-stem change error = %v", err)
+	}
+	if _, _, err := mergeStatelessDifferentInsertion(
+		context.Background(),
+		differentInsertion,
+		statelessChangedCommitment{
+			old:  inserted.commitment,
+			new:  inserted.commitment,
+			kind: statelessChangedInternal,
+		},
+		true,
+	); !errors.Is(err, errUnsupportedStatelessUpdate) {
+		t.Fatalf("unsupported existing-stem change error = %v", err)
+	}
 	if _, err := updater.commitInsertedSubtree(
 		&stepContext{successfulChecks: 1}, stems, 0, newBudget(),
 	); !errors.Is(err, context.Canceled) {
