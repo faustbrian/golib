@@ -25,6 +25,7 @@ directory="${root}/${module}"
 artifact="${root}/.artifacts/${module}"
 report="${artifact}/mutation.json"
 checkpoint_directory="${artifact}/mutation-checkpoints"
+history_migrations="${root}/.golib/mutation-history-migrations.json"
 mkdir -p "${checkpoint_directory}"
 active_build_cache=""
 # shellcheck disable=SC1091
@@ -385,6 +386,34 @@ for package_directory in "${packages[@]}"; do
                 continue
             fi
         fi
+    fi
+
+    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" &&
+        -s "${history_migrations}" ]]; then
+        checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
+        if "${root}/scripts/internal/reuse-approved-mutation-checkpoint.sh" \
+            "${history_migrations}" \
+            "${checkpoint}" \
+            "${module}" \
+            "${package_directory}" \
+            "${package_input_digest}" \
+            "${GREMLINS_VERSION}" \
+            "$(git -C "${root}" rev-parse HEAD)" \
+            "${checkpoint_tmp}"; then
+            checkpoint_total="$(
+                jq '[.report.files[].mutations[]?] | length' \
+                    "${checkpoint_tmp}"
+            )"
+            if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
+                mv "${checkpoint_tmp}" "${checkpoint}"
+                reports+=("${checkpoint}")
+                write_aggregate
+                printf '[%s] %s reused approved content-identical mutation evidence\n' \
+                    "${module}" "${target}"
+                continue
+            fi
+        fi
+        rm -f "${checkpoint_tmp}"
     fi
 
     printf '[%s] mutation package %s\n' "${module}" "${target}"

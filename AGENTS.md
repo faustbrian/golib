@@ -138,11 +138,10 @@ shown here.
   rerun with no changed gate inputs.
 - A one-time history-reset migration MUST be pinned to the exact original
   module, package, execution revision, gate-input digest, tool version, and
-  canonical report hash. It MUST also pin a deterministic replacement-scope
-  fingerprint covering every repository path except an exact reviewed
-  bookkeeping allowlist. It MUST preserve the original execution revision and
-  MUST remain valid across later history-only rewrites only while that complete
-  replacement-scope fingerprint is unchanged.
+  canonical report hash. It MUST also pin the exact replacement gate-input
+  fingerprint for that module and package. It MUST preserve the original
+  execution revision and MUST NOT depend on unrelated repository paths,
+  worktree state, or repository-history availability.
 
 ## CI And Workflows
 

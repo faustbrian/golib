@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reuse mutation checkpoints after history rewrites through explicit
+  old-to-current package input mappings instead of repository-wide worktree
+  identity, so unrelated concurrent changes cannot restart proven campaigns.
 - Bound Docker service cleanup so an unresponsive removal cannot stall a
   verification lane indefinitely, while continuing cleanup for later services.
 - Reject reduced, implicit, or runtime-overridable package mutation thresholds

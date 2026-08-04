@@ -1152,6 +1152,8 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`migrated module-wide mutation identity`,
 		`identity_lineage`,
 		`migrated caller-dependent mutation identity`,
+		`reuse-approved-mutation-checkpoint.sh`,
+		`reused approved content-identical mutation evidence`,
 		`write_aggregate`,
 		`mv "${checkpoint_tmp}" "${checkpoint}"`,
 		`.complete == true`,
@@ -1179,74 +1181,111 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 	}
 }
 
-func TestHistoryMigrationScopeUsesContentInsteadOfRepositoryHistory(t *testing.T) {
+func TestApprovedMutationCheckpointMigrationUsesExactInputIdentity(t *testing.T) {
 	root := testRepositoryRoot(t)
-	script := filepath.Join(root, "scripts", "history-migration-scope-digest.sh")
-	repository := t.TempDir()
-	ledger := filepath.Join(
-		repository,
-		".golib",
-		"mutation-history-migrations.json",
-	)
-
-	if err := os.MkdirAll(filepath.Dir(ledger), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, ledger, `{
-  "allowed_changes": [
-    ".golib/mutation-history-migrations.json",
-    "allowed.txt"
-  ]
+	directory := t.TempDir()
+	checkpoint := filepath.Join(directory, "checkpoint.json")
+	ledger := filepath.Join(directory, "ledger.json")
+	output := filepath.Join(directory, "migrated.json")
+	writeFile(t, checkpoint, `{
+  "schema_version": 3,
+  "module": "pkg/example",
+  "package": ".",
+  "execution_revision": "original-execution",
+  "validated_revision": "old-validation",
+  "gate_input_digest": "old-input",
+  "gremlins_version": "v0.6.0",
+  "environment": {"GOOS": "linux"},
+  "report": {
+    "files": [{
+      "file_name": "example.go",
+      "mutations": [{"status": "KILLED", "type": "INVERT_LOGICAL"}]
+    }]
+  }
 }`)
-	writeFile(t, filepath.Join(repository, "allowed.txt"), "first\n")
-	stable := filepath.Join(repository, "stable.txt")
-	writeFile(t, stable, "stable\n")
-	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
-		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+
+	reportDigestCommand := exec.Command("sh", "-c", `jq -S -c '.report' "$1" | shasum -a 256 | awk '{print $1}'`, "digest", checkpoint)
+	reportDigestOutput, err := reportDigestCommand.Output()
+	if err != nil {
+		t.Fatalf("calculate fixture report digest: %v", err)
 	}
-	add := exec.Command("git", "-C", repository, "add", "--", ".golib", "allowed.txt", "stable.txt")
-	if output, err := add.CombinedOutput(); err != nil {
-		t.Fatalf("index fixture repository: %v\n%s", err, output)
+	reportDigest := strings.TrimSpace(string(reportDigestOutput))
+	writeFile(t, ledger, fmt.Sprintf(`{
+  "schema_version": 3,
+  "entries": [{
+    "module": "pkg/example",
+    "package": ".",
+    "execution_revision": "original-execution",
+    "gate_input_digest": "old-input",
+    "replacement_gate_input_digest": "current-input",
+    "gremlins_version": "v0.6.0",
+    "report_sha256": %q
+  }]
+}`, reportDigest))
+
+	script := filepath.Join(root, "scripts", "internal", "reuse-approved-mutation-checkpoint.sh")
+	command := exec.Command(
+		script,
+		ledger,
+		checkpoint,
+		"pkg/example",
+		".",
+		"current-input",
+		"v0.6.0",
+		"current-validation",
+		output,
+	)
+	if result, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("reuse approved checkpoint: %v\n%s", err, result)
 	}
 
-	digest := func() string {
-		t.Helper()
-		command := exec.Command(script, repository, ledger)
-		output, err := command.CombinedOutput()
-		if err != nil {
-			t.Fatalf("calculate history migration scope: %v\n%s", err, output)
-		}
-		return strings.TrimSpace(string(output))
-	}
-
-	initial := digest()
-	writeFile(t, filepath.Join(repository, "allowed.txt"), "second\n")
-	if current := digest(); current != initial {
-		t.Fatalf("allowed bookkeeping changed scope digest: %s != %s", current, initial)
-	}
-
-	if err := os.RemoveAll(filepath.Join(repository, ".git")); err != nil {
+	contents, err := os.ReadFile(output)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
-		t.Fatalf("reinitialize fixture repository: %v\n%s", err, output)
+	var migrated struct {
+		ExecutionRevision string   `json:"execution_revision"`
+		ValidatedRevision string   `json:"validated_revision"`
+		GateInputDigest   string   `json:"gate_input_digest"`
+		IdentityLineage   []string `json:"identity_lineage"`
+		IdentityMigration struct {
+			Reason                  string `json:"reason"`
+			PreviousGateInputDigest string `json:"previous_gate_input_digest"`
+		} `json:"identity_migration"`
 	}
-	add = exec.Command("git", "-C", repository, "add", "--", ".golib", "allowed.txt", "stable.txt")
-	if output, err := add.CombinedOutput(); err != nil {
-		t.Fatalf("reindex fixture repository: %v\n%s", err, output)
+	if err := json.Unmarshal(contents, &migrated); err != nil {
+		t.Fatal(err)
 	}
-	if current := digest(); current != initial {
-		t.Fatalf("history rewrite changed scope digest: %s != %s", current, initial)
+	if migrated.ExecutionRevision != "original-execution" {
+		t.Fatalf("execution revision = %q", migrated.ExecutionRevision)
+	}
+	if migrated.ValidatedRevision != "current-validation" {
+		t.Fatalf("validated revision = %q", migrated.ValidatedRevision)
+	}
+	if migrated.GateInputDigest != "current-input" {
+		t.Fatalf("gate input digest = %q", migrated.GateInputDigest)
+	}
+	if !slices.Contains(migrated.IdentityLineage, "old-input") {
+		t.Fatalf("identity lineage = %v", migrated.IdentityLineage)
+	}
+	if migrated.IdentityMigration.Reason != "approved-input-identity-migration" ||
+		migrated.IdentityMigration.PreviousGateInputDigest != "old-input" {
+		t.Fatalf("identity migration = %+v", migrated.IdentityMigration)
 	}
 
-	writeFile(t, stable, "changed\n")
-	if current := digest(); current == initial {
-		t.Fatal("unapproved tracked input did not change scope digest")
-	}
-	writeFile(t, stable, "stable\n")
-	writeFile(t, filepath.Join(repository, "untracked.txt"), "unexpected\n")
-	if current := digest(); current == initial {
-		t.Fatal("unapproved untracked input did not change scope digest")
+	rejected := exec.Command(
+		script,
+		ledger,
+		checkpoint,
+		"pkg/example",
+		".",
+		"different-input",
+		"v0.6.0",
+		"current-validation",
+		output,
+	)
+	if err := rejected.Run(); err == nil {
+		t.Fatal("migration accepted an unapproved replacement input")
 	}
 }
 
