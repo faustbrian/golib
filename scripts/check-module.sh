@@ -323,7 +323,7 @@ run_gate() {
             run_go_tool \
                 "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
                 golangci-lint \
-                run --timeout=10m ./...
+                run --allow-parallel-runners --timeout=10m ./...
             ;;
         staticcheck)
             applicable lint || { skip_not_applicable lint; return; }

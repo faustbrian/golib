@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Allow isolated GolangCI-Lint runners to execute concurrently so parallel
+  module verification cannot fail on the linter's process-wide lock.
 - Exclude agent-only policy documentation from executable gate fingerprints so
   policy wording cannot invalidate otherwise identical verification evidence.
 - Reuse mutation checkpoints after history rewrites through explicit

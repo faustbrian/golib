@@ -742,6 +742,7 @@ func TestIsolatedGatesUseLocalProxyWithoutWeakeningPublicProof(t *testing.T) {
 		`golib-modcache.`,
 		`GOLANGCI_LINT_CACHE="${GOLIB_ISOLATED_MODFILES_DIRECTORY}/golangci-lint-cache"`,
 		`mkdir -p "${GOLANGCI_LINT_CACHE}"`,
+		`run --allow-parallel-runners --timeout=10m ./...`,
 		`chmod -R u+w "${GOLIB_LOCAL_MODCACHE}"`,
 		`awk '$1 !~ /^github\.com\/faustbrian\/golib\// { print }'`,
 		`test -s "${root}/LICENSE"`,
