@@ -296,6 +296,129 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	})
 }
 
+func BenchmarkPublicStatelessTopologyTransitions(b *testing.B) {
+	ctx := context.Background()
+	profile := verkletree.BandersnatchIPA256V0()
+	openingLimits := publicTopologyOpeningLimits()
+	proofEngine, err := verkletree.NewProofEngine(ctx, profile, openingLimits)
+	if err != nil {
+		b.Fatalf("prepare topology proof engine: %v", err)
+	}
+	statelessEngine, err := verkletree.NewStatelessEngine(
+		ctx, profile, openingLimits, publicSnapshotLimits().Commitment,
+	)
+	if err != nil {
+		b.Fatalf("prepare topology stateless engine: %v", err)
+	}
+
+	retainedDelete := publicKey(0x10, 0x00)
+	retainedMember := publicKey(0x10, 0x01)
+	replaced := publicKey(0x20, 0x00)
+	replaced[1] = 0x10
+	replacement := publicKey(0x20, 0x00)
+	replacement[1] = 0x30
+	collapsed := publicKey(0x30, 0x00)
+	collapsed[1] = 0x10
+	collapseSurvivor := publicKey(0x30, 0x00)
+	collapseSurvivor[1] = 0x20
+	tests := []struct {
+		name    string
+		entries []verkletree.Entry
+		updates []verkletree.Update
+	}{
+		{
+			name: "delete-retained-member",
+			entries: []verkletree.Entry{
+				{Key: retainedDelete, Value: publicValue(1)},
+				{Key: retainedMember, Value: publicValue(2)},
+			},
+			updates: []verkletree.Update{verkletree.Delete(retainedDelete)},
+		},
+		{
+			name: "replace-emptied-stem",
+			entries: []verkletree.Entry{
+				{Key: replaced, Value: publicValue(1)},
+			},
+			updates: []verkletree.Update{
+				verkletree.Delete(replaced),
+				verkletree.Set(replacement, publicValue(2)),
+			},
+		},
+		{
+			name: "collapse-unary-parent",
+			entries: []verkletree.Entry{
+				{Key: collapsed, Value: publicValue(1)},
+				{Key: collapseSurvivor, Value: publicValue(2)},
+			},
+			updates: []verkletree.Update{verkletree.Delete(collapsed)},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		b.Run(test.name, func(b *testing.B) {
+			snapshot, err := verkletree.NewSnapshot(
+				ctx, profile, test.entries, publicSnapshotLimits(),
+			)
+			if err != nil {
+				b.Fatalf("prepare topology snapshot: %v", err)
+			}
+			proof, err := proofEngine.ProveUpdates(
+				ctx, snapshot, test.updates, publicTopologyProofGenerationLimits(),
+			)
+			if err != nil {
+				b.Fatalf("prepare topology proof: %v", err)
+			}
+			next, _, err := snapshot.Apply(ctx, test.updates)
+			if err != nil {
+				b.Fatalf("prepare topology post-state: %v", err)
+			}
+			postRoot, err := next.Root()
+			if err != nil {
+				b.Fatalf("prepare topology post-root: %v", err)
+			}
+			witness, err := verkletree.NewWitness(
+				ctx, proof, test.updates, postRoot, publicWitnessLimits(),
+			)
+			if err != nil {
+				b.Fatalf("prepare topology witness: %v", err)
+			}
+			encoded, err := witness.Bytes(ctx, publicTopologyWitnessEncodingLimits())
+			if err != nil {
+				b.Fatalf("encode topology witness: %v", err)
+			}
+
+			b.Run("generate-proof", func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					if _, err := proofEngine.ProveUpdates(
+						ctx, snapshot, test.updates,
+						publicTopologyProofGenerationLimits(),
+					); err != nil {
+						b.Fatal(err)
+					}
+				}
+				b.ReportMetric(float64(len(encoded)), "witness-bytes/op")
+				benchmarkPublicReportThroughput(b)
+			})
+			b.Run("verify-and-apply", func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					if _, err := statelessEngine.Apply(
+						ctx, witness,
+						publicTopologyProofVerificationLimits(),
+						publicTopologyStatelessUpdateLimits(),
+					); err != nil {
+						b.Fatal(err)
+					}
+				}
+				b.ReportMetric(float64(len(encoded)), "witness-bytes/op")
+				benchmarkPublicReportThroughput(b)
+			})
+		})
+	}
+}
+
 func benchmarkPublicEntries() []verkletree.Entry {
 	entries := make([]verkletree.Entry, 32)
 	for index := range entries {

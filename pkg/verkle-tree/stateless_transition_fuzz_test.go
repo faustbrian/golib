@@ -35,7 +35,7 @@ func FuzzPublicStatelessTransitionMatchesStatefulSnapshot(f *testing.F) {
 	)
 	f.Add([]byte(nil), []byte{0x00, 0x40, 0x00, 0x00, 0x00, 0x44})
 
-	openingLimits := publicStatelessFuzzOpeningLimits()
+	openingLimits := publicTopologyOpeningLimits()
 	proofEngine, err := verkletree.NewProofEngine(
 		context.Background(),
 		verkletree.BandersnatchIPA256V0(),
@@ -94,19 +94,19 @@ func FuzzPublicStatelessTransitionMatchesStatefulSnapshot(f *testing.F) {
 			t.Fatalf("construct public fuzz witness: %v", err)
 		}
 		encoded, err := witness.Bytes(
-			context.Background(), publicStatelessFuzzWitnessEncodingLimits(),
+			context.Background(), publicTopologyWitnessEncodingLimits(),
 		)
 		if err != nil {
 			t.Fatalf("encode public fuzz witness: %v", err)
 		}
 		decoded, err := verkletree.DecodeWitness(
-			context.Background(), encoded, publicStatelessFuzzWitnessDecodingLimits(),
+			context.Background(), encoded, publicTopologyWitnessDecodingLimits(),
 		)
 		if err != nil {
 			t.Fatalf("decode public fuzz witness: %v", err)
 		}
 		reencoded, err := decoded.Bytes(
-			context.Background(), publicStatelessFuzzWitnessEncodingLimits(),
+			context.Background(), publicTopologyWitnessEncodingLimits(),
 		)
 		if err != nil {
 			t.Fatalf("re-encode public fuzz witness: %v", err)
@@ -183,7 +183,7 @@ func publicStatelessFuzzKey(first, second, third, suffix byte) verkletree.Key {
 	return key
 }
 
-func publicStatelessFuzzOpeningLimits() verkletree.OpeningLimits {
+func publicTopologyOpeningLimits() verkletree.OpeningLimits {
 	limits := publicOpeningLimits()
 	limits.MaxQueries = 4_096
 	limits.MaxScalarDecodes = 4_096 * 256
@@ -192,7 +192,7 @@ func publicStatelessFuzzOpeningLimits() verkletree.OpeningLimits {
 	return limits
 }
 
-func publicStatelessFuzzWitnessDecodingLimits() verkletree.WitnessDecodingLimits {
+func publicTopologyWitnessDecodingLimits() verkletree.WitnessDecodingLimits {
 	limits := publicWitnessDecodingLimits()
 	limits.MaxWitnessBytes = 8 << 20
 	limits.Proof.MaxProofBytes = 4 << 20
@@ -207,7 +207,7 @@ func publicStatelessFuzzWitnessDecodingLimits() verkletree.WitnessDecodingLimits
 	return limits
 }
 
-func publicStatelessFuzzWitnessEncodingLimits() verkletree.WitnessEncodingLimits {
+func publicTopologyWitnessEncodingLimits() verkletree.WitnessEncodingLimits {
 	limits := publicWitnessEncodingLimits()
 	limits.MaxWitnessBytes = 8 << 20
 	limits.MaxProofBytes = 4 << 20
