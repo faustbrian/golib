@@ -9,8 +9,16 @@ When the application owns a dedicated database schema, apply
 `postgres.NewWithSchema`; mismatched schema configuration fails at query time.
 
 The HTTP and CLI surfaces provide list, next, due, validation, testing, and
-fenced recovery. Protect them with application authentication and network
-policy. Recovery requires the exact current token; stale tokens fail closed.
+fenced recovery. The CLI also provides `clear-cache`, which calls
+`Registry.ClearCache` to inspect and recover every currently present task lease
+for configured overlap schedules. Protect these controls with application
+authentication and network policy. Recovery requires the exact current token;
+stale tokens fail closed.
+
+Before `clear-cache`, stop or isolate every affected executor. The observed
+fencing token prevents deletion of a replacement lease, but clearing the
+current lease cannot stop an old process from continuing unfenced side effects.
+The command reports the number cleared and fails if any backend operation fails.
 
 For a stuck lease:
 

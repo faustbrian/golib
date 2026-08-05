@@ -138,6 +138,18 @@ func TestAMutationSensitiveIterationAndHeartbeatContracts(t *testing.T) {
 	}
 }
 
+func TestLegacyLeaseTTLFallbacks(t *testing.T) {
+	t.Parallel()
+
+	schedule := Schedule{LeaseTTL: 2 * time.Minute}
+	if oneServerTTL(schedule) != 2*time.Minute {
+		t.Fatalf("oneServerTTL() = %v", oneServerTTL(schedule))
+	}
+	if overlapTTL(schedule) != 2*time.Minute {
+		t.Fatalf("overlapTTL() = %v", overlapTTL(schedule))
+	}
+}
+
 func TestAMutationSensitiveScheduleCloneContracts(t *testing.T) {
 	schedule := Schedule{}
 	if err := WithCondition(nil)(&schedule); err != nil {

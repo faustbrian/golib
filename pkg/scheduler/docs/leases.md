@@ -18,3 +18,9 @@ Occurrence leases implement one-owner dispatch. Task leases implement overlap
 decisions. Expiry permits takeover after process death. An expired owner may
 still be running, so ownership-sensitive writes must carry and validate the
 fencing token. Manual recovery requires the current token and should be audited.
+
+`OnOneServer()` uses a one-hour occurrence lease. `WithoutOverlapping()` uses a
+renewable 24-hour task lease by default or accepts one positive expiration in
+minutes. These TTLs remain independent when both options configure a schedule.
+`WithOneServer` and `WithoutOverlap` accept explicit Go durations for callers
+that need non-Laravel policies.

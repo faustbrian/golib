@@ -20,6 +20,7 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	schedule, _ := scheduler.NewSchedule(
 		"report", "reports.generate", scheduler.Daily(),
 		scheduler.WithFridays(), scheduler.WithBetween("0:00", "17:00"),
+		scheduler.WithoutOverlapping(10), scheduler.OnOneServer(), scheduler.RunInBackground(),
 	)
 	registry, _ := scheduler.Compile(schedule)
 	handler, err := schedulerhttp.New(registry, memory.New())
@@ -42,6 +43,12 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	}
 	if len(schedules[0].DaysOfWeek) != 1 || schedules[0].DaysOfWeek[0] != time.Friday || len(schedules[0].TimeWindows) != 1 {
 		t.Fatalf("schedule constraints = %+v/%+v", schedules[0].DaysOfWeek, schedules[0].TimeWindows)
+	}
+	if !schedules[0].RunInBackground {
+		t.Fatal("RunInBackground = false, want true")
+	}
+	if schedules[0].OneServerTTL != "1h0m0s" || schedules[0].OverlapTTL != "10m0s" {
+		t.Fatalf("mutex TTLs = %v / %v", schedules[0].OneServerTTL, schedules[0].OverlapTTL)
 	}
 	validation := httptest.NewRecorder()
 	handler.ServeHTTP(validation, httptest.NewRequest(http.MethodGet, "/v1/validate", nil))
@@ -71,6 +78,19 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	))
 	if testResponse.Code != http.StatusOK || !contains(testResponse.Body.String(), `"due":true`) {
 		t.Fatalf("test response = %d %s", testResponse.Code, testResponse.Body.String())
+	}
+}
+
+func TestHandlerOmitsMutexTTLsWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule("plain", "task", scheduler.Daily())
+	registry, _ := scheduler.Compile(schedule)
+	handler, _ := schedulerhttp.New(registry, memory.New())
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/v1/schedules", nil))
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "_ttl") {
+		t.Fatalf("list response = %d %s", response.Code, response.Body.String())
 	}
 }
 

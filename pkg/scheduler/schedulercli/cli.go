@@ -53,6 +53,12 @@ func Run(
 		return test(args[1:], stdout, stderr, registry)
 	case "unlock", "recover":
 		return recoverLease(ctx, args[1:], stdout, stderr, leases)
+	case "clear-cache":
+		cleared, err := registry.ClearCache(ctx, leases)
+		if err != nil {
+			return report(stderr, err, 1)
+		}
+		return encode(stdout, map[string]int{"cleared": cleared})
 	default:
 		_, _ = fmt.Fprintf(stderr, "unknown command %q\n", args[0])
 		return 2
@@ -69,9 +75,19 @@ func list(stdout io.Writer, registry *scheduler.Registry) int {
 			"days_of_week": schedule.DaysOfWeek, "time_windows": schedule.TimeWindows,
 			"enabled": schedule.Enabled, "on_one_server": schedule.OnOneServer,
 			"without_overlapping": schedule.WithoutOverlapping,
+			"run_in_background":   schedule.RunInBackground,
+			"one_server_ttl":      durationString(schedule.OneServerTTL),
+			"overlap_ttl":         durationString(schedule.OverlapTTL),
 		}
 	}
 	return encode(stdout, views)
+}
+
+func durationString(duration time.Duration) string {
+	if duration <= 0 {
+		return ""
+	}
+	return duration.String()
 }
 
 func next(args []string, stdout, stderr io.Writer, registry *scheduler.Registry) int {

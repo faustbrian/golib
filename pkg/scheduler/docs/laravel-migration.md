@@ -29,10 +29,10 @@ rolling cutover.
 | `skip` | `WithSkip` | inverts the supplied trusted condition |
 | `environments` | `WithEnvironments` | runner environment is explicit configuration |
 | `evenInMaintenanceMode` | `MaintenanceRun` | runner maintenance mode is supplied by the application |
-| `onOneServer` | `WithOneServer` | fenced occurrence lease, not a Laravel cache mutex |
-| `withoutOverlapping` | `WithoutOverlap(OverlapSkip, ttl)` | renewable task lease with fencing and server time |
-| `schedule:clear-cache` | CLI or HTTP fenced recovery | no bulk unlock; current token and owner isolation are required |
-| `runInBackground` | durable `queue.Dispatcher` | no child-process or shell execution in core |
+| `onOneServer` | `OnOneServer()` | fenced one-hour occurrence lease; `WithOneServer(ttl)` customizes the TTL |
+| `withoutOverlapping` | `WithoutOverlapping(minutes...)` | skip policy, renewable task lease, 1,440-minute default; `WithoutOverlap` exposes other policies |
+| `schedule:clear-cache` | CLI `clear-cache` or `Registry.ClearCache` | bulk-clears configured overlap leases with observed fencing tokens; isolate old owners first |
+| `runInBackground` | `RunInBackground()` | later due tasks start without waiting; execution remains managed and is joined by `Drain` |
 | queued job or command | queue envelope task and parameters | workers own business execution and retry policy |
 | `before`, success, failure | `WithHooks` | six fixed hooks, panic-contained and deadline-bounded |
 | `pingBefore`, `pingAfter` | application hook or telemetry | core does not make network callbacks |
@@ -40,7 +40,7 @@ rolling cutover.
 | `schedule:list` | CLI `list` | registry is immutable after startup |
 | `schedule:test` | CLI `test` | calculates boundaries; control surfaces execute no shell command |
 | schedule groups | Go construction helpers | group defaults are application code, not mutable runtime state |
-| custom cache store | PostgreSQL or Valkey adapter | every replica must share one backend and namespace |
+| `useCache` / custom cache store | `lease.Store` passed to `NewRunner` | explicit dependency injection; every replica must share one PostgreSQL or Valkey backend and namespace |
 
 ## Identity and rollout
 
@@ -63,6 +63,18 @@ Laravel commands often perform work in the scheduler process. Prefer a
 does not mean the job completed, and a lease does not remove the need for job
 idempotency. Copy the occurrence key and fencing token into every durable
 envelope and downstream protected write.
+
+`RunInBackground` changes scheduler ordering, not execution ownership. The
+runner continues processing later due tasks, tracks the background execution
+under its configured timeout and capacity, emits its eventual lifecycle
+result, and waits for it during `Drain`. Because `Tick` has already returned,
+an asynchronous failure is observable through hooks and observers rather than
+that `Tick` result. Prefer durable dispatch for long-running business work.
+
+`WithoutOverlapping()` and `OnOneServer()` retain independent expiration
+values when combined. Stable names are mandatory for every schedule, and task
+parameters participate in coordination identity, so parameterized one-server
+schedules cannot silently share an anonymous mutex.
 
 `OverlapReplace` requires a `lease.ReplacementStore`. Its `Replace` operation
 must cancel the prior owner, transfer ownership atomically, and fence

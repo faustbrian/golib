@@ -81,6 +81,103 @@ func TestScheduleOptionsProduceStableIdentity(t *testing.T) {
 	}
 }
 
+func TestLaravelMutexOptionsUseCompatibleDefaultsAndMinutes(t *testing.T) {
+	t.Parallel()
+
+	defaultOverlap, err := scheduler.NewSchedule(
+		"default-overlap", "task", scheduler.EveryMinute(),
+		scheduler.WithoutOverlapping(),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(default overlap) error = %v", err)
+	}
+	if !defaultOverlap.WithoutOverlapping || defaultOverlap.OverlapPolicy != scheduler.OverlapSkip ||
+		defaultOverlap.OverlapTTL != scheduler.DefaultOverlapTTL {
+		t.Fatalf("default overlap = enabled %t, policy %v, ttl %v", defaultOverlap.WithoutOverlapping, defaultOverlap.OverlapPolicy, defaultOverlap.OverlapTTL)
+	}
+
+	tenMinuteOverlap, err := scheduler.NewSchedule(
+		"ten-minute-overlap", "task", scheduler.EveryMinute(),
+		scheduler.WithoutOverlapping(10),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(ten-minute overlap) error = %v", err)
+	}
+	if tenMinuteOverlap.OverlapTTL != 10*time.Minute {
+		t.Fatalf("OverlapTTL = %v, want 10m", tenMinuteOverlap.OverlapTTL)
+	}
+
+	oneServer, err := scheduler.NewSchedule(
+		"single-server", "task", scheduler.EveryMinute(),
+		scheduler.OnOneServer(),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(one server) error = %v", err)
+	}
+	if !oneServer.OnOneServer || oneServer.OneServerTTL != scheduler.DefaultOneServerTTL {
+		t.Fatalf("one server = enabled %t, ttl %v", oneServer.OnOneServer, oneServer.OneServerTTL)
+	}
+
+	combined, err := scheduler.NewSchedule(
+		"combined", "task", scheduler.EveryMinute(),
+		scheduler.WithoutOverlapping(10), scheduler.OnOneServer(),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(combined) error = %v", err)
+	}
+	if combined.OverlapTTL != 10*time.Minute || combined.OneServerTTL != scheduler.DefaultOneServerTTL {
+		t.Fatalf("combined TTLs = overlap %v, one-server %v", combined.OverlapTTL, combined.OneServerTTL)
+	}
+}
+
+func TestWithoutOverlappingRejectsInvalidExpirationMinutes(t *testing.T) {
+	t.Parallel()
+
+	for name, option := range map[string]scheduler.Option{
+		"zero":     scheduler.WithoutOverlapping(0),
+		"negative": scheduler.WithoutOverlapping(-1),
+		"multiple": scheduler.WithoutOverlapping(1, 2),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := scheduler.NewSchedule("overlap-"+name, "task", scheduler.EveryMinute(), option)
+			if !errors.Is(err, scheduler.ErrInvalidDuration) {
+				t.Fatalf("NewSchedule() error = %v, want ErrInvalidDuration", err)
+			}
+		})
+	}
+}
+
+func TestWithoutOverlappingValidatesDurationBoundaries(t *testing.T) {
+	t.Parallel()
+
+	const maximumDurationMinutes = int64((1<<63 - 1) / time.Minute)
+	for name, minutes := range map[string]int{
+		"one":     1,
+		"maximum": int(maximumDurationMinutes),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			schedule, err := scheduler.NewSchedule(
+				"overlap-"+name, "task", scheduler.EveryMinute(),
+				scheduler.WithoutOverlapping(minutes),
+			)
+			if err != nil || schedule.OverlapTTL != time.Duration(minutes)*time.Minute {
+				t.Fatalf("NewSchedule() = %v, %v", schedule.OverlapTTL, err)
+			}
+		})
+	}
+	_, err := scheduler.NewSchedule(
+		"overlap-too-large", "task", scheduler.EveryMinute(),
+		scheduler.WithoutOverlapping(int(maximumDurationMinutes+1)),
+	)
+	if !errors.Is(err, scheduler.ErrInvalidDuration) {
+		t.Fatalf("NewSchedule(too large) error = %v, want ErrInvalidDuration", err)
+	}
+}
+
 func TestConvenienceIntervalsExposeCronExpression(t *testing.T) {
 	t.Parallel()
 

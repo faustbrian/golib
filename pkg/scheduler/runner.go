@@ -169,11 +169,12 @@ type Runner struct {
 	callbackSlots     chan struct{}
 	heartbeatInterval time.Duration
 
-	stateMu    sync.Mutex
-	draining   bool
-	inflight   sync.WaitGroup
-	executions sync.WaitGroup
-	callbacks  sync.WaitGroup
+	stateMu     sync.Mutex
+	draining    bool
+	inflight    sync.WaitGroup
+	executions  sync.WaitGroup
+	backgrounds sync.WaitGroup
+	callbacks   sync.WaitGroup
 }
 
 type heartbeatResult struct {
@@ -234,7 +235,7 @@ func NewRunner(registry *Registry, leases lease.Store, executor Executor, option
 		if schedule.WithoutOverlapping && !capabilities.Heartbeat {
 			return nil, fmt.Errorf("%w: schedule %q", ErrUnsupportedHeartbeat, name)
 		}
-		if schedule.WithoutOverlapping && runner.heartbeatInterval >= schedule.LeaseTTL {
+		if schedule.WithoutOverlapping && runner.heartbeatInterval >= overlapTTL(schedule) {
 			return nil, fmt.Errorf(
 				"%w: schedule %q heartbeat interval must be shorter than its lease TTL",
 				ErrInvalidRunner,
@@ -432,6 +433,7 @@ func (runner *Runner) Drain(ctx context.Context) error {
 	go func() {
 		runner.inflight.Wait()
 		runner.executions.Wait()
+		runner.backgrounds.Wait()
 		runner.callbacks.Wait()
 		close(done)
 	}()
@@ -483,7 +485,7 @@ func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence 
 	if schedule.OnOneServer {
 		key := "occurrence:" + occurrence.IdempotencyKey
 		leaseCtx, cancelLease := runner.leaseContext(ctx)
-		owned, err := runner.leases.Acquire(leaseCtx, key, runner.owner, schedule.LeaseTTL, now)
+		owned, err := runner.leases.Acquire(leaseCtx, key, runner.owner, oneServerTTL(schedule), now)
 		cancelLease()
 		if errors.Is(err, lease.ErrHeld) {
 			runner.skipped(ctx, occurrence, now, err)
@@ -514,17 +516,40 @@ func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence 
 
 	runner.emit(Event{Type: EventBefore, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: scheduled.Fencing, At: now})
 	runCtx, cancel := context.WithTimeout(ctx, schedule.RunTimeout)
-	managed, err := runner.startExecution(ctx, runCtx, cancel, scheduled, taskLease, schedule.LeaseTTL)
-	if err == nil {
-		err = awaitExecution(runCtx, managed)
-	}
-	cancel()
+	managed, err := runner.startExecution(ctx, runCtx, cancel, scheduled, taskLease, overlapTTL(schedule))
 	if err != nil {
+		cancel()
 		runner.failed(ctx, occurrence, now, err, scheduled.Fencing)
 		return err
 	}
-	runner.emit(Event{Type: EventSuccess, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: scheduled.Fencing, At: now})
-	runner.emit(Event{Type: EventCompleted, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: scheduled.Fencing, At: now})
+	if schedule.RunInBackground {
+		runner.backgrounds.Add(1)
+		go func() {
+			defer runner.backgrounds.Done()
+			_ = runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing)
+		}()
+		return nil
+	}
+	return runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing)
+}
+
+func (runner *Runner) finishExecution(
+	ctx context.Context,
+	runCtx context.Context,
+	cancel context.CancelFunc,
+	managed managedExecution,
+	occurrence Occurrence,
+	now time.Time,
+	fencing uint64,
+) error {
+	err := awaitExecution(runCtx, managed)
+	cancel()
+	if err != nil {
+		runner.failed(ctx, occurrence, now, err, fencing)
+		return err
+	}
+	runner.emit(Event{Type: EventSuccess, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now})
+	runner.emit(Event{Type: EventCompleted, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now})
 	return nil
 }
 
@@ -688,8 +713,9 @@ func defaultHeartbeatInterval(ttl time.Duration) time.Duration {
 func (runner *Runner) acquireTask(ctx context.Context, schedule Schedule, now time.Time) (lease.Lease, error) {
 	leaseCtx, cancel := runner.leaseContext(ctx)
 	defer cancel()
-	key := "task:" + schedule.CoordinationID
-	owned, err := runner.leases.Acquire(leaseCtx, key, runner.owner, schedule.LeaseTTL, now)
+	key := taskLeaseKey(schedule)
+	ttl := overlapTTL(schedule)
+	owned, err := runner.leases.Acquire(leaseCtx, key, runner.owner, ttl, now)
 	if !errors.Is(err, lease.ErrHeld) || schedule.OverlapPolicy != OverlapReplace {
 		return owned, err
 	}
@@ -698,7 +724,21 @@ func (runner *Runner) acquireTask(ctx context.Context, schedule Schedule, now ti
 		return lease.Lease{}, inspectErr
 	}
 	replacement := runner.leases.(lease.ReplacementStore)
-	return replacement.Replace(leaseCtx, current, runner.owner, schedule.LeaseTTL, now)
+	return replacement.Replace(leaseCtx, current, runner.owner, ttl, now)
+}
+
+func oneServerTTL(schedule Schedule) time.Duration {
+	if schedule.OneServerTTL > 0 {
+		return schedule.OneServerTTL
+	}
+	return schedule.LeaseTTL
+}
+
+func overlapTTL(schedule Schedule) time.Duration {
+	if schedule.OverlapTTL > 0 {
+		return schedule.OverlapTTL
+	}
+	return schedule.LeaseTTL
 }
 
 func (runner *Runner) leaseContext(parent context.Context) (context.Context, context.CancelFunc) {

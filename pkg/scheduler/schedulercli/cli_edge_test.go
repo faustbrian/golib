@@ -84,6 +84,18 @@ func TestCLIReportsRecoveryAndWriterFailures(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("Run(recovery failure) = %d", code)
 	}
+	overlap, _ := scheduler.NewSchedule(
+		"overlap", "task", scheduler.EveryMinute(), scheduler.WithoutOverlapping(),
+	)
+	overlapRegistry, _ := scheduler.Compile(overlap)
+	stderr.Reset()
+	code = schedulercli.Run(
+		context.Background(), []string{"clear-cache"},
+		&bytes.Buffer{}, &stderr, overlapRegistry, &failingStore{err: backend},
+	)
+	if code != 1 {
+		t.Fatalf("Run(clear-cache failure) = %d", code)
+	}
 	if code := schedulercli.Run(context.Background(), []string{"list"}, errorWriter{}, &bytes.Buffer{}, registry, memory.New()); code != 1 {
 		t.Fatalf("Run(writer failure) = %d", code)
 	}

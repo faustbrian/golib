@@ -3,11 +3,13 @@ package schedulercli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	scheduler "github.com/faustbrian/golib/pkg/scheduler"
+	"github.com/faustbrian/golib/pkg/scheduler/lease"
 	"github.com/faustbrian/golib/pkg/scheduler/memory"
 	"github.com/faustbrian/golib/pkg/scheduler/schedulercli"
 )
@@ -18,6 +20,7 @@ func TestCLIInspectionCommands(t *testing.T) {
 	schedule, _ := scheduler.NewSchedule(
 		"report", "reports.generate", scheduler.Daily(),
 		scheduler.WithFridays(), scheduler.WithBetween("0:00", "17:00"),
+		scheduler.WithoutOverlapping(10), scheduler.OnOneServer(), scheduler.RunInBackground(),
 	)
 	registry, _ := scheduler.Compile(schedule)
 	store := memory.New()
@@ -26,6 +29,9 @@ func TestCLIInspectionCommands(t *testing.T) {
 		want string
 	}{
 		{[]string{"list"}, `"days_of_week":[5]`},
+		{[]string{"list"}, `"run_in_background":true`},
+		{[]string{"list"}, `"one_server_ttl":"1h0m0s"`},
+		{[]string{"list"}, `"overlap_ttl":"10m0s"`},
 		{[]string{"validate"}, `"valid":true`},
 		{[]string{"next", "--name", "report", "--after", "2026-01-01T00:00:00Z"}, "2026-01-02T00:00:00Z"},
 		{[]string{"due", "--name", "report", "--after", "2026-01-01T00:00:00Z", "--through", "2026-01-02T00:00:00Z"}, "2026-01-02T00:00:00Z"},
@@ -37,6 +43,19 @@ func TestCLIInspectionCommands(t *testing.T) {
 		if code != 0 || !strings.Contains(stdout.String(), test.want) {
 			t.Fatalf("Run(%v) = %d, stdout %q, stderr %q", test.args, code, stdout.String(), stderr.String())
 		}
+	}
+}
+
+func TestCLIListShowsEmptyMutexTTLsWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule("plain", "task", scheduler.Daily())
+	registry, _ := scheduler.Compile(schedule)
+	var stdout, stderr bytes.Buffer
+	code := schedulercli.Run(context.Background(), []string{"list"}, &stdout, &stderr, registry, memory.New())
+	if code != 0 || !strings.Contains(stdout.String(), `"one_server_ttl":""`) ||
+		!strings.Contains(stdout.String(), `"overlap_ttl":""`) {
+		t.Fatalf("Run(list) = %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
 	}
 }
 
@@ -68,6 +87,37 @@ func TestCLIRecoversLeaseAndReportsInvalidInput(t *testing.T) {
 	code = schedulercli.Run(context.Background(), []string{"unknown"}, &stdout, &stderr, registry, store)
 	if code != 2 || !strings.Contains(stderr.String(), "unknown command") {
 		t.Fatalf("unknown code = %d, stderr = %q", code, stderr.String())
+	}
+}
+
+func TestCLIClearsConfiguredOverlapLocks(t *testing.T) {
+	t.Parallel()
+
+	schedule, err := scheduler.NewSchedule(
+		"report", "reports.generate", scheduler.EveryMinute(),
+		scheduler.WithoutOverlapping(),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule() error = %v", err)
+	}
+	registry, _ := scheduler.Compile(schedule)
+	store := memory.New()
+	now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	key := "task:" + schedule.CoordinationID
+	if _, err := store.Acquire(context.Background(), key, "stopped-owner", time.Hour, now); err != nil {
+		t.Fatalf("Acquire() error = %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := schedulercli.Run(
+		context.Background(), []string{"clear-cache"},
+		&stdout, &stderr, registry, store,
+	)
+	if code != 0 || !strings.Contains(stdout.String(), `"cleared":1`) {
+		t.Fatalf("Run(clear-cache) = %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
+	}
+	if _, err := store.Inspect(context.Background(), key); !errors.Is(err, lease.ErrNotFound) {
+		t.Fatalf("Inspect(cleared lock) error = %v, want ErrNotFound", err)
 	}
 }
 

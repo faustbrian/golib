@@ -16,11 +16,15 @@ centuries such as 2100.
 
 Schedule options cover version, timezone, parameters, environments, date
 bounds, enablement, maintenance, deterministic jitter, missed-run policy,
-overlap policy, one-server ownership, conditions, hooks, metadata, and runtime
-deadline. Version, expression, timezone, parameters, and jitter participate in
-revision identity. `CoordinationID` is stable across version and timing changes
-for the same name, task, and parameters so rolling replicas share occurrence,
-overlap, and idempotency keys.
+overlap policy, one-server ownership, background execution, conditions, hooks,
+metadata, and runtime deadline. `WithoutOverlapping()` uses the skip policy and
+a 24-hour TTL; its optional integer argument is an expiration in minutes.
+`OnOneServer()` uses an independent one-hour occurrence TTL. The lower-level
+`WithoutOverlap` and `WithOneServer` options remain available for explicit Go
+durations and overlap policies. Version, expression, timezone, parameters, and
+jitter participate in revision identity. `CoordinationID` is stable across
+version and timing changes for the same name, task, and parameters so rolling
+replicas share occurrence, overlap, and idempotency keys.
 
 ## Frequency and constraints
 
@@ -65,8 +69,11 @@ the definition, and the runner selects its current environment with
 after a caller-supplied non-zero cursor, then continues the same schedule loop
 without a startup gap.
 `Tick` exposes deterministic range processing. `Drain` rejects new ticks and
-waits for in-flight decisions, managed executions, and callbacks until its
-context ends.
+waits for in-flight decisions, foreground and background managed executions,
+and callbacks until its context ends. `RunInBackground()` lets `Tick` continue
+starting later due tasks before that execution completes. Its eventual failure
+is emitted through failure and completed lifecycle events rather than returned
+from the already-completed `Tick` call.
 
 `Executor` is the only work boundary. Use `queue.Dispatcher` for durable work.
 `RunTimeout` bounds how long a tick waits even when an in-process executor
@@ -129,5 +136,6 @@ logs, metrics, and spans.
 
 The HTTP handler supports schedule list, registry validation, next, due,
 boundary testing, and fenced recovery under `/v1`. The CLI supports `list`,
-`validate`, `next`, `due`, `test`, and `unlock`/`recover`. Neither surface
-executes arbitrary commands.
+`validate`, `next`, `due`, `test`, `unlock`/`recover`, and `clear-cache`.
+`Registry.ClearCache` provides the same configured-overlap cleanup to embedded
+control surfaces. Neither surface executes arbitrary commands.

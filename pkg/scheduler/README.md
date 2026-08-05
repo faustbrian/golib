@@ -68,6 +68,28 @@ schedule, err := scheduler.NewSchedule(
 )
 ```
 
+Laravel-compatible execution controls compose with those options:
+
+```go
+schedule, err := scheduler.NewSchedule(
+    "weekday-sync",
+    "accounts.sync",
+    scheduler.Hourly(),
+    scheduler.WithWeekdays(),
+    scheduler.WithBetween("8:00", "17:00"),
+    scheduler.WithTimezone("America/Chicago"),
+    scheduler.WithoutOverlapping(10),
+    scheduler.OnOneServer(),
+    scheduler.RunInBackground(),
+)
+```
+
+`WithoutOverlapping()` defaults to 1,440 minutes, while `OnOneServer()` uses an
+independent one-hour occurrence lease. The `lease.Store` supplied to
+`NewRunner` is the explicit equivalent of Laravel's `useCache`; all replicas
+must receive the same PostgreSQL or Valkey store. Use CLI `clear-cache` only
+after isolating any old executor that may still be performing side effects.
+
 Custom cron expressions accept five fields or an optional leading seconds
 field. See the [API reference](docs/api.md#frequency-and-constraints) for every
 frequency helper and its Laravel mapping.

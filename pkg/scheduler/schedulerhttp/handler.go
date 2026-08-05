@@ -31,6 +31,9 @@ type Schedule struct {
 	OverlapPolicy      scheduler.OverlapPolicy   `json:"overlap_policy"`
 	OnOneServer        bool                      `json:"on_one_server"`
 	WithoutOverlapping bool                      `json:"without_overlapping"`
+	RunInBackground    bool                      `json:"run_in_background"`
+	OneServerTTL       string                    `json:"one_server_ttl,omitempty"`
+	OverlapTTL         string                    `json:"overlap_ttl,omitempty"`
 	Metadata           map[string]string         `json:"metadata,omitempty"`
 }
 
@@ -155,8 +158,18 @@ func scheduleView(schedule scheduler.Schedule) Schedule {
 		MissedRunPolicy: schedule.MissedRunPolicy, MaxCatchUp: schedule.MaxCatchUp,
 		OverlapPolicy: schedule.OverlapPolicy, OnOneServer: schedule.OnOneServer,
 		WithoutOverlapping: schedule.WithoutOverlapping,
+		RunInBackground:    schedule.RunInBackground,
+		OneServerTTL:       durationString(schedule.OneServerTTL),
+		OverlapTTL:         durationString(schedule.OverlapTTL),
 		Metadata:           schedule.Metadata,
 	}
+}
+
+func durationString(duration time.Duration) string {
+	if duration <= 0 {
+		return ""
+	}
+	return duration.String()
 }
 
 func parseTime(request *http.Request, field string) (time.Time, error) {

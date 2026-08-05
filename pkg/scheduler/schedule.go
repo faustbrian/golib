@@ -32,6 +32,10 @@ var (
 )
 
 const (
+	// DefaultOverlapTTL matches Laravel's default 1,440-minute event mutex.
+	DefaultOverlapTTL = 24 * time.Hour
+	// DefaultOneServerTTL matches Laravel's one-hour scheduling mutex.
+	DefaultOneServerTTL = time.Hour
 	// MaxJitter is the largest allowed deterministic schedule offset.
 	MaxJitter = 24 * time.Hour
 	// MaxIdentityBytes bounds schedule identity component strings.
@@ -180,7 +184,10 @@ type Schedule struct {
 	OnOneServer        bool
 	WithoutOverlapping bool
 	LeaseTTL           time.Duration
+	OneServerTTL       time.Duration
+	OverlapTTL         time.Duration
 	RunTimeout         time.Duration
+	RunInBackground    bool
 	Hooks              Hooks
 }
 
@@ -447,6 +454,17 @@ func WithOneServer(ttl time.Duration) Option {
 		}
 		schedule.OnOneServer = true
 		schedule.LeaseTTL = ttl
+		schedule.OneServerTTL = ttl
+		return nil
+	}
+}
+
+// OnOneServer enables a distributed occurrence lease with the default mutex TTL.
+func OnOneServer() Option {
+	return func(schedule *Schedule) error {
+		schedule.OnOneServer = true
+		schedule.LeaseTTL = DefaultOneServerTTL
+		schedule.OneServerTTL = DefaultOneServerTTL
 		return nil
 	}
 }
@@ -460,7 +478,30 @@ func WithoutOverlap(policy OverlapPolicy, ttl time.Duration) Option {
 		schedule.WithoutOverlapping = true
 		schedule.OverlapPolicy = policy
 		schedule.LeaseTTL = ttl
+		schedule.OverlapTTL = ttl
 		return nil
+	}
+}
+
+// WithoutOverlapping skips an overlapping occurrence. The optional expiration
+// is expressed in minutes and defaults to Laravel's 1,440-minute mutex TTL.
+func WithoutOverlapping(minutes ...int) Option {
+	return func(schedule *Schedule) error {
+		if len(minutes) > 1 {
+			return fmt.Errorf("scheduler: overlap lease: %w", ErrInvalidDuration)
+		}
+		ttl := DefaultOverlapTTL
+		if len(minutes) == 1 {
+			const maximumDurationMinutes = int64((1<<63 - 1) / time.Minute)
+			if minutes[0] < 1 {
+				return fmt.Errorf("scheduler: overlap lease: %w", ErrInvalidDuration)
+			}
+			if int64(minutes[0]) > maximumDurationMinutes {
+				return fmt.Errorf("scheduler: overlap lease: %w", ErrInvalidDuration)
+			}
+			ttl = time.Duration(minutes[0]) * time.Minute
+		}
+		return WithoutOverlap(OverlapSkip, ttl)(schedule)
 	}
 }
 
@@ -471,6 +512,16 @@ func WithRunTimeout(timeout time.Duration) Option {
 			return ErrInvalidDuration
 		}
 		schedule.RunTimeout = timeout
+		return nil
+	}
+}
+
+// RunInBackground allows the runner to continue starting other due tasks while
+// this task executes. Drain still waits for the managed execution to finish;
+// asynchronous results are reported through lifecycle hooks and observers.
+func RunInBackground() Option {
+	return func(schedule *Schedule) error {
+		schedule.RunInBackground = true
 		return nil
 	}
 }

@@ -2,6 +2,7 @@
 package scheduler
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	schedulercron "github.com/faustbrian/golib/pkg/scheduler/cron"
+	"github.com/faustbrian/golib/pkg/scheduler/lease"
 )
 
 var (
@@ -169,6 +171,44 @@ func (registry *Registry) Schedules() []Schedule {
 	}
 	return result
 }
+
+// ClearCache removes every currently observed task lease for schedules using
+// overlap prevention. Each removal is fenced by the token returned by Inspect.
+// Callers must first isolate active owners because lease removal cannot stop
+// unfenced side effects already in progress.
+func (registry *Registry) ClearCache(ctx context.Context, store lease.Store) (int, error) {
+	if store == nil {
+		return 0, lease.ErrInvalid
+	}
+	cleared := 0
+	var errs []error
+	for _, name := range registry.names {
+		if err := ctx.Err(); err != nil {
+			return cleared, errors.Join(append(errs, err)...)
+		}
+		schedule := registry.entries[name].schedule
+		if !schedule.WithoutOverlapping {
+			continue
+		}
+		key := taskLeaseKey(schedule)
+		owned, err := store.Inspect(ctx, key)
+		if errors.Is(err, lease.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("scheduler: inspect overlap lease %q: %w", name, err))
+			continue
+		}
+		if err := store.Recover(ctx, key, owned.FencingToken); err != nil {
+			errs = append(errs, fmt.Errorf("scheduler: clear overlap lease %q: %w", name, err))
+			continue
+		}
+		cleared++
+	}
+	return cleared, errors.Join(errs...)
+}
+
+func taskLeaseKey(schedule Schedule) string { return "task:" + schedule.CoordinationID }
 
 // Next returns the first occurrence strictly after an instant.
 func (registry *Registry) Next(name string, after time.Time) (time.Time, error) {

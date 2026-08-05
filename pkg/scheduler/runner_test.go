@@ -286,6 +286,116 @@ func TestRunnerBoundsConditionThatNeverReturns(t *testing.T) {
 	}
 }
 
+func TestRunnerRunsBackgroundScheduleWithoutDelayingNextTaskAndDrainsIt(t *testing.T) {
+	t.Parallel()
+
+	slow, err := scheduler.NewSchedule(
+		"a-background", "slow", scheduler.EveryMinute(),
+		scheduler.RunInBackground(),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(background) error = %v", err)
+	}
+	fast, _ := scheduler.NewSchedule("b-foreground", "fast", scheduler.EveryMinute())
+	registry, _ := scheduler.Compile(slow, fast)
+
+	slowStarted := make(chan struct{})
+	fastStarted := make(chan struct{})
+	releaseSlow := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(releaseSlow) }) })
+	runner, err := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(_ context.Context, scheduled scheduler.Context) error {
+			switch scheduled.Schedule.Task {
+			case "slow":
+				close(slowStarted)
+				<-releaseSlow
+			case "fast":
+				close(fastStarted)
+			}
+			return nil
+		}),
+		scheduler.WithOwner("replica-a"),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+
+	now := time.Date(2026, time.January, 1, 0, 1, 0, 0, time.UTC)
+	tickDone := make(chan error, 1)
+	go func() { tickDone <- runner.Tick(context.Background(), now.Add(-time.Minute), now) }()
+	select {
+	case <-slowStarted:
+	case <-time.After(time.Second):
+		t.Fatal("background task did not start")
+	}
+	select {
+	case <-fastStarted:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("background task delayed the next due task")
+	}
+	if err := <-tickDone; err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+
+	blockedCtx, cancelBlocked := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancelBlocked()
+	if err := runner.Drain(blockedCtx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Drain(active background task) error = %v", err)
+	}
+	releaseOnce.Do(func() { close(releaseSlow) })
+	finishedCtx, cancelFinished := context.WithTimeout(context.Background(), time.Second)
+	defer cancelFinished()
+	if err := runner.Drain(finishedCtx); err != nil {
+		t.Fatalf("Drain(finished background task) error = %v", err)
+	}
+}
+
+func TestRunnerReportsBackgroundFailureThroughLifecycleEvents(t *testing.T) {
+	t.Parallel()
+
+	want := errors.New("background failed")
+	schedule, _ := scheduler.NewSchedule(
+		"background-failure", "task", scheduler.EveryMinute(),
+		scheduler.RunInBackground(),
+	)
+	registry, _ := scheduler.Compile(schedule)
+	var mu sync.Mutex
+	var events []scheduler.Event
+	runner, err := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(context.Context, scheduler.Context) error { return want }),
+		scheduler.WithOwner("replica-a"),
+		scheduler.WithObserver(scheduler.ObserverFunc(func(event scheduler.Event) {
+			mu.Lock()
+			defer mu.Unlock()
+			events = append(events, event)
+		})),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	now := time.Date(2026, time.January, 1, 0, 1, 0, 0, time.UTC)
+	if err := runner.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
+		t.Fatalf("Tick() error = %v, background failures are asynchronous", err)
+	}
+	drainCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := runner.Drain(drainCtx); err != nil {
+		t.Fatalf("Drain() error = %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(events) != 3 || events[0].Type != scheduler.EventBefore ||
+		events[1].Type != scheduler.EventFailure || events[2].Type != scheduler.EventCompleted ||
+		!errors.Is(events[1].Err, want) {
+		t.Fatalf("events = %+v", events)
+	}
+}
+
 func TestRunnerTimeoutCancelsExecution(t *testing.T) {
 	t.Parallel()
 

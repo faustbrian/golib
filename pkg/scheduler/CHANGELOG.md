@@ -32,6 +32,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Laravel-compatible `OnOneServer`, `WithoutOverlapping`, and
+  `RunInBackground` controls with independent mutex TTLs, managed asynchronous
+  lifecycle reporting, and CLI bulk overlap-lock cleanup.
 - Laravel-compatible frequency helpers from seconds through yearly schedules,
   plus weekday, recurring time-window, and skip constraints that compose with
   existing environment and timezone options.

@@ -6,6 +6,10 @@ Package scheduler defines code-based schedules and distributed execution.
 CONSTANTS
 
 const (
+	// DefaultOverlapTTL matches Laravel's default 1,440-minute event mutex.
+	DefaultOverlapTTL = 24 * time.Hour
+	// DefaultOneServerTTL matches Laravel's one-hour scheduling mutex.
+	DefaultOneServerTTL = time.Hour
 	// MaxJitter is the largest allowed deterministic schedule offset.
 	MaxJitter = 24 * time.Hour
 	// MaxIdentityBytes bounds schedule identity component strings.
@@ -364,6 +368,15 @@ type Occurrence struct {
 type Option func(*Schedule) error
     Option configures a schedule before final validation and identity hashing.
 
+func OnOneServer() Option
+    OnOneServer enables a distributed occurrence lease with the default mutex
+    TTL.
+
+func RunInBackground() Option
+    RunInBackground allows the runner to continue starting other due tasks while
+    this task executes. Drain still waits for the managed execution to finish;
+    asynchronous results are reported through lifecycle hooks and observers.
+
 func WithBetween(start, end string) Option
     WithBetween restricts occurrences to an inclusive recurring local-time
     window.
@@ -453,6 +466,10 @@ func WithWeekends() Option
 func WithoutOverlap(policy OverlapPolicy, ttl time.Duration) Option
     WithoutOverlap enables a renewable task lease and overlap policy.
 
+func WithoutOverlapping(minutes ...int) Option
+    WithoutOverlapping skips an overlapping occurrence. The optional expiration
+    is expressed in minutes and defaults to Laravel's 1,440-minute mutex TTL.
+
 type OverlapPolicy uint8
     OverlapPolicy controls a decision when the task lease is already held.
 
@@ -471,6 +488,12 @@ type Registry struct {
 
 func Compile(schedules ...Schedule) (*Registry, error)
     Compile validates and freezes a complete named schedule set.
+
+func (registry *Registry) ClearCache(ctx context.Context, store lease.Store) (int, error)
+    ClearCache removes every currently observed task lease for schedules using
+    overlap prevention. Each removal is fenced by the token returned by Inspect.
+    Callers must first isolate active owners because lease removal cannot stop
+    unfenced side effects already in progress.
 
 func (registry *Registry) Due(name string, after, through time.Time) ([]Occurrence, error)
     Due applies the schedule's bounded missed-run policy to an instant range.
@@ -575,7 +598,10 @@ type Schedule struct {
 	OnOneServer        bool
 	WithoutOverlapping bool
 	LeaseTTL           time.Duration
+	OneServerTTL       time.Duration
+	OverlapTTL         time.Duration
 	RunTimeout         time.Duration
+	RunInBackground    bool
 	Hooks              Hooks
 }
     Schedule is an immutable code-defined task timing and policy definition.
@@ -963,6 +989,9 @@ type Schedule struct {
 	OverlapPolicy      scheduler.OverlapPolicy   `json:"overlap_policy"`
 	OnOneServer        bool                      `json:"on_one_server"`
 	WithoutOverlapping bool                      `json:"without_overlapping"`
+	RunInBackground    bool                      `json:"run_in_background"`
+	OneServerTTL       string                    `json:"one_server_ttl,omitempty"`
+	OverlapTTL         string                    `json:"overlap_ttl,omitempty"`
 	Metadata           map[string]string         `json:"metadata,omitempty"`
 }
     Schedule is the bounded public inspection view of a schedule.

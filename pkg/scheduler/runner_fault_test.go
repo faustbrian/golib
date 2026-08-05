@@ -3,6 +3,7 @@ package scheduler_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,8 @@ type scriptedLeases struct {
 	acquireLeases []lease.Lease
 	acquireErrors []error
 	acquires      int
+	acquireKeys   []string
+	acquireTTLs   []time.Duration
 	inspectLease  lease.Lease
 	inspectErr    error
 	recoverErr    error
@@ -77,9 +80,11 @@ func (*sequenceClock) After(time.Duration) <-chan time.Time {
 	return ready
 }
 
-func (store *scriptedLeases) Acquire(context.Context, string, string, time.Duration, time.Time) (lease.Lease, error) {
+func (store *scriptedLeases) Acquire(_ context.Context, key string, _ string, ttl time.Duration, _ time.Time) (lease.Lease, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	store.acquireKeys = append(store.acquireKeys, key)
+	store.acquireTTLs = append(store.acquireTTLs, ttl)
 	index := store.acquires
 	store.acquires++
 	var owned lease.Lease
@@ -91,6 +96,12 @@ func (store *scriptedLeases) Acquire(context.Context, string, string, time.Durat
 		err = store.acquireErrors[index]
 	}
 	return owned, err
+}
+
+func (store *scriptedLeases) acquired() ([]string, []time.Duration) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	return append([]string(nil), store.acquireKeys...), append([]time.Duration(nil), store.acquireTTLs...)
 }
 func (store *scriptedLeases) Heartbeat(
 	_ context.Context,
@@ -200,6 +211,40 @@ func TestRunnerPropagatesLeaseAndExecutionFailures(t *testing.T) {
 				t.Fatalf("Tick() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestRunnerUsesIndependentLaravelMutexTTLs(t *testing.T) {
+	t.Parallel()
+
+	schedule := faultSchedule(t, scheduler.OnOneServer(), scheduler.WithoutOverlapping(10))
+	registry, _ := scheduler.Compile(schedule)
+	store := &scriptedLeases{acquireLeases: []lease.Lease{
+		{Key: "occurrence", Owner: "owner", FencingToken: 1},
+		{Key: "task:" + schedule.CoordinationID, Owner: "owner", FencingToken: 2},
+	}}
+	runner, err := scheduler.NewRunner(
+		registry,
+		store,
+		executorFunc(func(context.Context, scheduler.Context) error { return nil }),
+		scheduler.WithOwner("owner"),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	after, through := tickRange()
+	if err := runner.Tick(context.Background(), after, through); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	keys, ttls := store.acquired()
+	if len(keys) != 2 || len(ttls) != 2 {
+		t.Fatalf("acquisitions = %v / %v, want two", keys, ttls)
+	}
+	if !strings.HasPrefix(keys[0], "occurrence:") || ttls[0] != scheduler.DefaultOneServerTTL {
+		t.Fatalf("one-server acquisition = %q / %v", keys[0], ttls[0])
+	}
+	if keys[1] != "task:"+schedule.CoordinationID || ttls[1] != 10*time.Minute {
+		t.Fatalf("overlap acquisition = %q / %v", keys[1], ttls[1])
 	}
 }
 
