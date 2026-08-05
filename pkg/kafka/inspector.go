@@ -48,7 +48,8 @@ type InspectorConfig struct {
 	MaxMetadataPartitions int
 	MaxGroupMembers       int
 	// MaxConcurrentInspections bounds independently isolated per-target
-	// requests made by InspectTopics and InspectConsumerGroups.
+	// requests made by InspectTopics, InspectConsumerGroups, and
+	// InspectConsumerProtocolGroups.
 	MaxConcurrentInspections int
 	Readiness                ReadinessPolicy
 	// Observers receive payload-free inspection, health, readiness, shutdown,
@@ -343,10 +344,11 @@ type Inspector struct {
 
 type franzInspectorBackend struct {
 	*kadm.Client
-	offsetRequester       replayTimestampRequester
-	groupLags             kadmGroupLagClient
-	maxGroupMembers       int
-	maxMetadataPartitions int
+	offsetRequester        replayTimestampRequester
+	groupLags              kadmGroupLagClient
+	consumerProtocolGroups kadmConsumerProtocolClient
+	maxGroupMembers        int
+	maxMetadataPartitions  int
 }
 
 type kadmGroupLagClient interface {
@@ -376,11 +378,12 @@ func NewInspector(config InspectorConfig) (*Inspector, error) {
 		admin := kadm.NewClient(client)
 
 		return &franzInspectorBackend{
-			Client:                admin,
-			offsetRequester:       client,
-			groupLags:             admin,
-			maxGroupMembers:       config.MaxGroupMembers,
-			maxMetadataPartitions: config.MaxMetadataPartitions,
+			Client:                 admin,
+			offsetRequester:        client,
+			groupLags:              admin,
+			consumerProtocolGroups: admin,
+			maxGroupMembers:        config.MaxGroupMembers,
+			maxMetadataPartitions:  config.MaxMetadataPartitions,
 		}
 	})
 }

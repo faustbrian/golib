@@ -292,20 +292,27 @@ encodings, invalid parsed metadata, and excessive members or assignment entries
 fail closed. Committed-offset requests require stable offsets, so KIP-447
 brokers resolve pending transactional commits within the configured request
 deadline rather than returning the pre-transaction offset.
-The current implementation uses the classic `DescribeGroups` path and does not
-claim KIP-848 consumer-protocol group inspection.
+KIP-848 consumer-protocol inspection uses a separate public method and Kafka's
+`ConsumerGroupDescribe` API. It returns copied group, assignment, and member
+epochs; member type; subscriptions; optional instance and rack identity;
+current and target assignments; stable committed offsets; log bounds; and lag.
+It rejects invalid epoch relationships, duplicate current or target ownership,
+malformed subscription state, missing offsets, and excessive broker-controlled
+metadata. The separate API prevents classic and KIP-848 state from being
+silently conflated.
 
 All inspector broker operations derive `RequestTimeout` from the caller context.
 Missing, inconsistent, excessive, unauthorized, or unavailable required state
 returns an error instead of a partial success. A caller therefore cannot infer
 that omitted partitions, replicas, offsets, or durability configuration are
-healthy. `Topics` and `ConsumerGroupLag` keep this fail-closed contract.
-`InspectTopics` and `InspectConsumerGroups` instead issue independently bounded
-per-target requests, preserve input order and successful target state, and
-return `ErrInspectionTargetsFailed` if any typed result contains a classified
-target error. All workers finish before return, share the outer request
-deadline, and never exceed `MaxConcurrentInspections`. Kafka's successful
-`Dead` state for an unknown classic group remains a successful result.
+healthy. `Topics`, `ConsumerGroupLag`, and `ConsumerProtocolGroupLag` keep this
+fail-closed contract. `InspectTopics`, `InspectConsumerGroups`, and
+`InspectConsumerProtocolGroups` instead issue independently bounded per-target
+requests, preserve input order and successful target state, and return
+`ErrInspectionTargetsFailed` if any typed result contains a classified target
+error. All workers finish before return, share the outer request deadline, and
+never exceed `MaxConcurrentInspections`. Kafka's successful `Dead` state for an
+unknown classic group remains a successful result.
 Optional inspector observers receive only bounded aggregate counts and
 health/readiness state. They never receive cluster IDs, broker hosts, target
 names, group members, assignments, or lag coordinates. A conclusive readiness

@@ -389,15 +389,22 @@ assignments by topic and partition. It requests KIP-447 stable committed
 offsets so pending transactional commits resolve within the request deadline
 on supported brokers. Topic and group methods require explicit target lists,
 and every operation derives `InspectorConfig.RequestTimeout`.
-`Inspector.InspectTopics` and `Inspector.InspectConsumerGroups` execute one
-independent request per target under that shared deadline and preserve the
-caller's input order. `InspectorConfig.MaxConcurrentInspections`, defaulting to
-four, bounds those requests. Each result retains the target-specific error and
-its stable `ErrorCategory`; any failed target makes the aggregate error
-`ErrInspectionTargetsFailed` without discarding successful states. The existing
-`Topics` and `ConsumerGroupLag` methods remain fail closed across their complete
-target list. Kafka's successful `Dead` description for an unknown classic
-group is state, not an error.
+`Inspector.ConsumerProtocolGroupLag` is the separate KIP-848 path. It returns
+group and assignment epochs, server assignor, member epochs and types,
+subscriptions, optional static-instance and rack identity, current and target
+assignments, stable committed offsets, log bounds, and lag. It preserves
+current and target assignments as distinct reconciliation states and does not
+reinterpret a classic group.
+`Inspector.InspectTopics`, `Inspector.InspectConsumerGroups`, and
+`Inspector.InspectConsumerProtocolGroups` execute one independent request per
+target under that shared deadline and preserve the caller's input order.
+`InspectorConfig.MaxConcurrentInspections`, defaulting to four, bounds those
+requests. Each result retains the target-specific error and its stable
+`ErrorCategory`; any failed target makes the aggregate error
+`ErrInspectionTargetsFailed` without discarding successful states. `Topics`,
+`ConsumerGroupLag`, and `ConsumerProtocolGroupLag` remain fail closed across
+their complete target lists. Kafka's successful `Dead` description for an
+unknown classic group is state, not an error.
 `InspectorConfig.Observers` reports inspection, dependency, readiness,
 shutdown, and broker activity through the shared stable observation contract.
 

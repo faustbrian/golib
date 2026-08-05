@@ -51,6 +51,9 @@ const (
 	apacheKafkaSubnetPool     = 4_096
 	apacheKafkaCleanupTimeout = time.Minute
 	kafkaCleanupCheckTimeout  = 10 * time.Second
+	// franz-go v1.21.5 deliberately gates its implemented KIP-848 consumer
+	// behind this upstream-owned context key.
+	franzGoConsumerProtocolOptInKey = "opt_in_kafka_next_gen_balancer_beta"
 
 	apacheKafkaProcessorChildMode = "GOLIB_KAFKA_PROCESSOR_CHILD"
 	apacheKafkaProcessorBrokers   = "GOLIB_KAFKA_PROCESSOR_BROKERS"
@@ -1930,6 +1933,203 @@ func TestApacheKafkaCurrentMultiBrokerKRaftCompatibility(t *testing.T) {
 		brokers,
 		recoveredTransactionTopic,
 	)
+}
+
+func TestApacheKafkaConsumerProtocolInspection(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaCluster(t, ctx)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, "4.3.1")
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topicPrefix := fmt.Sprintf(
+		"golib-apache-consumer-protocol-%d",
+		time.Now().UnixNano(),
+	)
+	explicitTopic := topicPrefix + "-explicit"
+	regexTopic := topicPrefix + "-regex"
+	createApacheKafkaTopic(t, ctx, brokers, explicitTopic, 2)
+	createApacheKafkaTopic(t, ctx, brokers, regexTopic, 2)
+	inspector, err := kafka.NewInspector(kafka.InspectorConfig{
+		Brokers:  brokers,
+		ClientID: "golib-apache-consumer-protocol-inspector",
+		Security: kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct KIP-848 inspector: %v", err)
+	}
+	defer inspector.Close()
+
+	t.Run("explicit topics", func(t *testing.T) {
+		proveApacheKafkaConsumerProtocolInspection(
+			t, ctx, brokers, inspector, explicitTopic, false,
+		)
+	})
+	t.Run("topic regex", func(t *testing.T) {
+		proveApacheKafkaConsumerProtocolInspection(
+			t, ctx, brokers, inspector, regexTopic, true,
+		)
+	})
+}
+
+func proveApacheKafkaConsumerProtocolInspection(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	inspector *kafka.Inspector,
+	topic string,
+	regex bool,
+) {
+	t.Helper()
+
+	mode := "explicit"
+	if regex {
+		mode = "regex"
+	}
+	groupID := topic + "-" + mode + "-group"
+	clientID := "golib-apache-consumer-protocol-" + mode
+	instanceID := clientID + "-instance"
+	options := []kgo.Opt{
+		kgo.WithContext(context.WithValue(
+			ctx,
+			franzGoConsumerProtocolOptInKey,
+			true,
+		)),
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID(clientID),
+		kgo.ConsumerGroup(groupID),
+		kgo.ConsumeTopics(topic),
+		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		kgo.InstanceID(instanceID),
+		kgo.Rack("rack-a"),
+		kgo.DisableAutoCommit(),
+		kgo.DialTimeout(10 * time.Second),
+	}
+	if regex {
+		options = append(options, kgo.ConsumeRegex())
+	}
+	client, err := kgo.NewClient(options...)
+	if err != nil {
+		t.Fatalf("construct KIP-848 consumer: %v", err)
+	}
+	defer client.Close()
+
+	produced := &kgo.Record{
+		Topic: topic, Partition: 0, Key: []byte("ordered"), Value: []byte("value"),
+	}
+	if err := client.ProduceSync(ctx, produced).FirstErr(); err != nil {
+		t.Fatalf("produce KIP-848 inspection record: %v", err)
+	}
+	fetches := client.PollRecords(ctx, 1)
+	if err := fetches.Err(); err != nil {
+		t.Fatalf("poll KIP-848 inspection record: %v", err)
+	}
+	records := fetches.Records()
+	if len(records) != 1 || records[0].Topic != topic ||
+		records[0].Partition != produced.Partition {
+		t.Fatalf("KIP-848 inspection records = %#v", records)
+	}
+	if err := client.CommitRecords(ctx, records...); err != nil {
+		t.Fatalf("commit KIP-848 inspection record: %v", err)
+	}
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var last []kafka.ConsumerProtocolGroupState
+	var lastErr error
+	for {
+		groups, err := inspector.ConsumerProtocolGroupLag(ctx, groupID)
+		if err == nil && len(groups) == 1 &&
+			apacheKafkaConsumerProtocolStateMatches(
+				groups[0],
+				topic,
+				produced.Partition,
+				clientID,
+				instanceID,
+				regex,
+			) {
+			return
+		}
+		last = groups
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			t.Fatalf(
+				"wait for KIP-848 inspection: %v; state = %#v; last error = %v",
+				context.Cause(ctx),
+				last,
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func apacheKafkaConsumerProtocolStateMatches(
+	group kafka.ConsumerProtocolGroupState,
+	topic string,
+	producedPartition int32,
+	clientID string,
+	instanceID string,
+	regex bool,
+) bool {
+	if group.Group == "" ||
+		group.State != "Stable" ||
+		group.Epoch < 1 ||
+		group.AssignmentEpoch != group.Epoch ||
+		group.Assignor == "" ||
+		len(group.Members) != 1 ||
+		len(group.Partitions) != 2 {
+		return false
+	}
+	member := group.Members[0]
+	wantAssignments := []kafka.TopicPartition{
+		{Topic: topic, Partition: 0},
+		{Topic: topic, Partition: 1},
+	}
+	wantTopics := []string{topic}
+	wantRegex := ""
+	if regex {
+		wantTopics = nil
+		wantRegex = "(?:" + topic + ")"
+	}
+	if member.InstanceID != instanceID ||
+		!member.InstanceIDVisible ||
+		member.RackID != "rack-a" ||
+		!member.RackIDVisible ||
+		member.MemberEpoch != group.AssignmentEpoch ||
+		member.MemberType != kafka.ConsumerProtocolMemberTypeConsumer ||
+		member.ClientID != clientID ||
+		!slices.Equal(member.SubscribedTopics, wantTopics) ||
+		!member.SubscribedTopicRegexVisible ||
+		member.SubscribedTopicRegex != wantRegex ||
+		!slices.Equal(member.Assignments, wantAssignments) ||
+		!slices.Equal(member.TargetAssignments, wantAssignments) {
+		return false
+	}
+	for _, partition := range group.Partitions {
+		wantOffset := int64(0)
+		wantCommit := int64(-1)
+		if partition.Partition == producedPartition {
+			wantOffset = 1
+			wantCommit = 1
+		}
+		if partition != (kafka.ConsumerGroupPartitionLag{
+			Topic: topic, Partition: partition.Partition,
+			CommittedOffset: wantCommit,
+			StartOffset:     0, EndOffset: wantOffset, Lag: 0,
+		}) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func TestApacheKafkaTransactionTimeout(t *testing.T) {

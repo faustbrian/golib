@@ -338,18 +338,23 @@ single-use; resume with a new reader and the returned checkpoint.
 `Inspector` provides bounded read-only cluster identity, controller and broker
 visibility, topic replica/ISR/offline state, beginning and end offsets,
 effective `min.insync.replicas`, cleanup, retention, compaction, segment, and
-unclean-election policy, plus classic consumer-group lag, member identity, and
-assignments. Every operation derives `RequestTimeout`; response copying is
+unclean-election policy, plus separate classic and KIP-848 consumer-group lag,
+member identity, assignment, and reconciliation state. Every operation derives
+`RequestTimeout`; response copying is
 capped by explicit broker, group-member, partition, and configuration limits.
 Consumer-group inspection requests KIP-447 stable offsets so pending
 transactional commits resolve within that deadline on supported brokers.
-`InspectTopics` and `InspectConsumerGroups` are the bounded per-target variants:
-they preserve input order and independent successes, attach stable error
-categories to failed targets, and return `ErrInspectionTargetsFailed` when any
-target fails. Their independent requests share one deadline and are limited by
-`MaxConcurrentInspections`. `Topics` and `ConsumerGroupLag` remain the
-fail-closed batch methods. Kafka reports an unknown classic group as a
-successful `Dead` group state rather than a target error.
+`ConsumerProtocolGroupLag` preserves KIP-848 group, assignment, and member
+epochs plus distinct current and target assignments; it does not silently
+reinterpret classic state. `InspectTopics`, `InspectConsumerGroups`, and
+`InspectConsumerProtocolGroups` are the bounded per-target variants: they
+preserve input order and independent successes, attach stable error categories
+to failed targets, and return `ErrInspectionTargetsFailed` when any target
+fails. Their independent requests share one deadline and are limited by
+`MaxConcurrentInspections`. `Topics`, `ConsumerGroupLag`, and
+`ConsumerProtocolGroupLag` remain the fail-closed batch methods. Kafka reports
+an unknown classic group as a successful `Dead` group state rather than a
+target error.
 Inspection never mutates Kafka infrastructure. Retention and segment durations
 remain raw Kafka milliseconds because valid broker values can exceed Go's
 `time.Duration`.

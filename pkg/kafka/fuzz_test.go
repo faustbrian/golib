@@ -604,3 +604,84 @@ func FuzzInspectionConsumerGroupMetadata(f *testing.F) {
 		}
 	})
 }
+
+func FuzzInspectionConsumerProtocolGroupMetadata(f *testing.F) {
+	f.Add(
+		"group-v2",
+		"member-1",
+		"events",
+		int32(0),
+		int32(2),
+		int32(2),
+		int32(2),
+		int8(1),
+		"Stable",
+	)
+	f.Add("", "", "bad topic", int32(-1), int32(-1), int32(-1), int32(-1), int8(-2), "")
+
+	f.Fuzz(func(
+		t *testing.T,
+		groupID string,
+		memberID string,
+		topic string,
+		partition int32,
+		groupEpoch int32,
+		assignmentEpoch int32,
+		memberEpoch int32,
+		memberType int8,
+		state string,
+	) {
+		groups := inspectorConsumerProtocolGroups{
+			groupID: {
+				group: groupID, coordinatorID: 1, state: state,
+				epoch: groupEpoch, assignmentEpoch: assignmentEpoch,
+				assignor: "uniform",
+				members: []inspectorConsumerProtocolMember{{
+					memberID: memberID, memberEpoch: memberEpoch,
+					memberType:       memberType,
+					clientID:         "fuzz-client",
+					clientHost:       "/fuzz-host",
+					subscribedTopics: []string{topic},
+					assignments: map[string][]int32{
+						topic: {partition},
+					},
+					targetAssignments: map[string][]int32{
+						topic: {partition},
+					},
+				}},
+				partitions: []ConsumerGroupPartitionLag{{
+					Topic: topic, Partition: partition,
+					CommittedOffset: -1,
+				}},
+			},
+		}
+		backend := &consumerProtocolInspectorTestBackend{
+			metadataInspectorBackend: metadataInspectorBackend{},
+			groups:                   groups,
+		}
+		inspector := &Inspector{
+			admin: backend, client: backend,
+			requestTimeout:        time.Second,
+			maxMetadataPartitions: 10,
+			maxGroupMembers:       1,
+		}
+		states, err := inspector.ConsumerProtocolGroupLag(
+			context.Background(),
+			groupID,
+		)
+		if err != nil {
+			return
+		}
+		if len(states) != 1 || len(states[0].Members) != 1 ||
+			len(states[0].Members[0].Assignments) != 1 ||
+			states[0].Members[0].Assignments[0] != (TopicPartition{
+				Topic: topic, Partition: partition,
+			}) {
+			t.Fatalf("consumer protocol inspection states = %#v", states)
+		}
+		groups[groupID].members[0].assignments[topic][0]++
+		if states[0].Members[0].Assignments[0].Partition != partition {
+			t.Fatalf("consumer protocol inspection aliases broker metadata = %#v", states)
+		}
+	})
+}

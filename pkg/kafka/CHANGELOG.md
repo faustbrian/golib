@@ -6,6 +6,12 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add bounded KIP-848 consumer-protocol group inspection with group,
+  assignment, and member epochs; current and target assignments; subscription,
+  static-instance, rack, client, and member-type state; stable committed
+  offsets; log bounds; lag; fail-closed batches; and input-ordered partial
+  results, proven with explicit-topic and broker-side regex subscriptions
+  against pinned three-broker Apache Kafka 4.3.1 groups
 - expose bounded tiered-storage topic policy through local-retention values and
   remote-storage/copy-disable flags while preserving Kafka's inheritance and
   unlimited sentinels, reporting version-dependent visibility, and rejecting

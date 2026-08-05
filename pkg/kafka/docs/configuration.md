@@ -304,9 +304,9 @@ Inspection uses the shared connection policy plus these owned bounds:
 | --- | --- | --- |
 | `RequestTimeout` | 10 seconds | 100 milliseconds through 2 minutes; each cluster, topic, group-lag, and dependency-health call derives this deadline. |
 | `MaxMetadataBrokers` | 1,000 | 1 through 10,000; caps copied cluster brokers and every partition replica set. |
-| `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate topic partitions, or group lag partitions plus assignment topic and partition entries, copied by one request. |
+| `MaxMetadataPartitions` | 100,000 | 1 through 1,000,000; caps aggregate topic partitions, or group lag partitions plus subscription and current or target assignment entries, copied by one request. |
 | `MaxGroupMembers` | 10,000 | 1 through 100,000; caps members copied across one explicit group request. |
-| `MaxConcurrentInspections` | 4 | 1 through 64; caps independent target requests made by `InspectTopics` and `InspectConsumerGroups`. |
+| `MaxConcurrentInspections` | 4 | 1 through 64; caps independent target requests made by `InspectTopics`, `InspectConsumerGroups`, and `InspectConsumerProtocolGroups`. |
 | `Readiness.FailureThreshold` | 3 | 1 through 100 consecutive failed dependency probes before a ready inspector becomes unready. |
 | `Readiness.RecoveryThreshold` | 2 | 1 through 100 consecutive successful dependency probes before initial or recovered readiness. |
 | `Observers` | disabled | Shared `ObserverPolicy`: 1 through 16 copied ordered callbacks, explicit failure handler, and one 1 millisecond through 5 second cooperative event budget. |

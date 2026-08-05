@@ -123,12 +123,30 @@ partial responses fail closed. Member IDs, client IDs, instance IDs, and client
 hosts are diagnostic identifiers. Client hosts may disclose internal addresses
 and must not become untrusted telemetry.
 
-The current franz-go-backed path uses classic `DescribeGroups`. Apache Kafka
-4.3 also supports the KIP-848 `consumer` group protocol through a different
-description API. This package does not yet claim KIP-848 group inspection;
-such groups are unverified rather than silently reported as classic groups.
-Group description, committed offsets, and end offsets are separate requests,
-so membership or lag can change during one call.
+`ConsumerProtocolGroupLag` is the separate fail-closed path for KIP-848
+`consumer` groups. It uses `ConsumerGroupDescribe` and returns group and
+assignment epochs, the server-side assignor, each member epoch and type,
+optional static-instance and rack identity, explicit topic or regex
+subscription state, current assignments, target assignments, stable committed
+offsets, log bounds, and lag. Current and target assignments remain distinct
+because members reconcile independently and may temporarily own only a subset
+of their target assignment. Members, subscriptions, assignments, and lag are
+copied and sorted. The same member and metadata limits apply, and invalid
+epochs, duplicate ownership, malformed subscriptions, missing offsets, or
+partial responses fail closed. Group state retains Kafka's exact title-cased
+wire spelling (`Assigning`, `Reconciling`, `Stable`, `Empty`, or `Dead`);
+unknown or differently cased values fail closed instead of being normalized.
+
+`InspectConsumerProtocolGroups` is the bounded, input-ordered per-target
+variant for KIP-848 groups. It retains independent successes and classified
+target failures under the same shared deadline and concurrency limit as the
+classic per-target API. An application must select the method matching the
+group's Kafka protocol type; neither path silently reinterprets the other.
+
+Group description, committed offsets, and log-bound offsets are separate
+requests for both protocols, so membership, reconciliation state, or lag can
+change during one call. KIP-848 inspection support does not opt the package's
+consumer runner into franz-go's separately controlled KIP-848 client path.
 
 `InspectConsumerGroups` provides the same bounded, input-ordered per-target
 contract for classic groups. Kafka describes an unknown classic group

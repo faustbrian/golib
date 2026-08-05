@@ -49,9 +49,11 @@ in, or deleted from remote storage.
 
 ## Lag
 
-Use `Inspector.ConsumerGroupLag` with explicit group names. Alert on lag,
-oldest-unprocessed age, handler failure rate, commit failure rate, and rebalance
-frequency. Classic member assignments can identify stalled or unexpectedly
+Use `Inspector.ConsumerGroupLag` for classic groups and
+`Inspector.ConsumerProtocolGroupLag` for KIP-848 consumer-protocol groups, with
+explicit group names. Alert on lag, oldest-unprocessed age, handler failure
+rate, commit failure rate, and rebalance frequency. Classic assignments or
+KIP-848 current, target, and epoch state can identify stalled or unexpectedly
 unbalanced members, but membership and lag are a non-atomic snapshot. Do not
 export record keys or values.
 
