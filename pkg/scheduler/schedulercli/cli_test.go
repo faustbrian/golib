@@ -15,14 +15,17 @@ import (
 func TestCLIInspectionCommands(t *testing.T) {
 	t.Parallel()
 
-	schedule, _ := scheduler.NewSchedule("report", "reports.generate", scheduler.Daily())
+	schedule, _ := scheduler.NewSchedule(
+		"report", "reports.generate", scheduler.Daily(),
+		scheduler.WithFridays(), scheduler.WithBetween("0:00", "17:00"),
+	)
 	registry, _ := scheduler.Compile(schedule)
 	store := memory.New()
 	tests := []struct {
 		args []string
 		want string
 	}{
-		{[]string{"list"}, `"name":"report"`},
+		{[]string{"list"}, `"days_of_week":[5]`},
 		{[]string{"validate"}, `"valid":true`},
 		{[]string{"next", "--name", "report", "--after", "2026-01-01T00:00:00Z"}, "2026-01-02T00:00:00Z"},
 		{[]string{"due", "--name", "report", "--after", "2026-01-01T00:00:00Z", "--through", "2026-01-02T00:00:00Z"}, "2026-01-02T00:00:00Z"},

@@ -39,6 +39,34 @@ func TestCompileSupportsDescriptors(t *testing.T) {
 	}
 }
 
+func TestCompileSupportsWallClockSeconds(t *testing.T) {
+	t.Parallel()
+
+	compiled, err := schedulercron.Compile("*/5 * * * * *", "UTC")
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	after := time.Date(2026, time.January, 1, 12, 34, 56, 0, time.UTC)
+	want := time.Date(2026, time.January, 1, 12, 35, 0, 0, time.UTC)
+	if got := compiled.Next(after); !got.Equal(want) {
+		t.Fatalf("Next() = %v, want %v", got, want)
+	}
+}
+
+func TestCompileSupportsLastDayOfMonth(t *testing.T) {
+	t.Parallel()
+
+	compiled, err := schedulercron.Compile("0 15 L * *", "UTC")
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	after := time.Date(2028, time.January, 31, 15, 0, 0, 0, time.UTC)
+	want := time.Date(2028, time.February, 29, 15, 0, 0, 0, time.UTC)
+	if got := compiled.Next(after); !got.Equal(want) {
+		t.Fatalf("Next() = %v, want %v", got, want)
+	}
+}
+
 func TestCompileSearchesTheCompleteGregorianCycle(t *testing.T) {
 	t.Parallel()
 

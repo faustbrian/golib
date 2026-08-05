@@ -214,6 +214,30 @@ func TestRunnerAppliesConditionsEnvironmentAndMaintenance(t *testing.T) {
 	}
 }
 
+func TestRunnerAppliesSkipCondition(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule(
+		"skipped", "task", scheduler.EveryMinute(),
+		scheduler.WithSkip(func(scheduler.Context) (bool, error) { return true, nil }),
+	)
+	registry, _ := scheduler.Compile(schedule)
+	called := false
+	runner, _ := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(context.Context, scheduler.Context) error { called = true; return nil }),
+		scheduler.WithOwner("replica-a"),
+	)
+	now := time.Date(2026, time.January, 1, 0, 1, 0, 0, time.UTC)
+	if err := runner.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	if called {
+		t.Fatal("executor called when skip condition returned true")
+	}
+}
+
 func TestRunnerBoundsConditionThatNeverReturns(t *testing.T) {
 	t.Parallel()
 

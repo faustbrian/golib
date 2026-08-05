@@ -157,6 +157,24 @@ func TestDueSkipsAnOccurrenceWhenTickIsPastItsBoundary(t *testing.T) {
 	}
 }
 
+func TestDueRecognizesExactSubMinuteBoundary(t *testing.T) {
+	t.Parallel()
+
+	schedule, _ := scheduler.NewSchedule("seconds", "task", scheduler.EveryFiveSeconds())
+	registry, err := scheduler.Compile(schedule)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	through := time.Date(2026, time.January, 1, 0, 0, 10, 0, time.UTC)
+	occurrences, err := registry.Due("seconds", through.Add(-time.Second), through)
+	if err != nil {
+		t.Fatalf("Due() error = %v", err)
+	}
+	if len(occurrences) != 1 || !occurrences[0].ScheduledAt.Equal(through) {
+		t.Fatalf("Due() = %+v, want one occurrence at %v", occurrences, through)
+	}
+}
+
 func TestJitterIsDeterministicAndBounded(t *testing.T) {
 	t.Parallel()
 

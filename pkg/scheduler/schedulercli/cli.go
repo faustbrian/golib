@@ -66,6 +66,7 @@ func list(stdout io.Writer, registry *scheduler.Registry) int {
 		views[index] = map[string]any{
 			"name": schedule.Name, "task": schedule.Task,
 			"expression": schedule.Expression, "timezone": schedule.Timezone,
+			"days_of_week": schedule.DaysOfWeek, "time_windows": schedule.TimeWindows,
 			"enabled": schedule.Enabled, "on_one_server": schedule.OnOneServer,
 			"without_overlapping": schedule.WithoutOverlapping,
 		}

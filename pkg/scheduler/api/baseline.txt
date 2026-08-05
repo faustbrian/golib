@@ -22,6 +22,8 @@ const (
 	MaxEnvironments = 64
 	// MaxConditions bounds trusted application conditions per schedule.
 	MaxConditions = 32
+	// MaxTimeWindows bounds recurring time constraints per schedule.
+	MaxTimeWindows = 32
 	// MaxCatchUp bounds retained delayed occurrences per decision.
 	MaxCatchUp = 1_000
 	// MaxSchedules bounds registry size before compilation.
@@ -93,6 +95,8 @@ var (
 	ErrInvalidVersion = errors.New("scheduler: version is required")
 	// ErrResourceLimit reports a definition beyond an exported safety budget.
 	ErrResourceLimit = errors.New("scheduler: resource limit exceeded")
+	// ErrInvalidConstraint reports an invalid recurring schedule constraint.
+	ErrInvalidConstraint = errors.New("scheduler: invalid schedule constraint")
 )
 
 TYPES
@@ -172,23 +176,145 @@ type Interval struct {
 }
     Interval contains the explicit cron expression used by a schedule.
 
+func At(at string) Interval
+    At is an alias for DailyAt.
+
 func Cron(expression string) Interval
-    Cron constructs an interval from a five-field expression or descriptor.
+    Cron constructs an interval from a five-field expression, an optional
+    leading seconds field, an L day-of-month value, or a supported descriptor.
 
 func Daily() Interval
     Daily returns the explicit daily cron interval.
 
+func DailyAt(at string) Interval
+    DailyAt returns a daily interval at the local HH:MM time.
+
+func DaysOfMonth(days ...int) Interval
+    DaysOfMonth returns a midnight interval on each requested day of the month.
+
+func EveryFifteenMinutes() Interval
+    EveryFifteenMinutes returns an interval aligned to every minute divisible by
+    fifteen.
+
+func EveryFifteenSeconds() Interval
+    EveryFifteenSeconds returns an interval aligned to every second divisible by
+    fifteen.
+
+func EveryFiveMinutes() Interval
+    EveryFiveMinutes returns an interval aligned to every minute divisible by
+    five.
+
+func EveryFiveSeconds() Interval
+    EveryFiveSeconds returns an interval aligned to every second divisible by
+    five.
+
+func EveryFourHours(minutes ...int) Interval
+    EveryFourHours returns a four-hour interval at minute zero or the optional
+    minute.
+
+func EveryFourMinutes() Interval
+    EveryFourMinutes returns an interval aligned to every minute divisible by
+    four.
+
 func EveryMinute() Interval
     EveryMinute returns the explicit every-minute cron interval.
+
+func EveryOddHour(minutes ...int) Interval
+    EveryOddHour returns an odd-hour interval at minute zero or the optional
+    minute.
+
+func EverySecond() Interval
+    EverySecond returns an interval aligned to every wall-clock second.
+
+func EverySixHours(minutes ...int) Interval
+    EverySixHours returns a six-hour interval at minute zero or the optional
+    minute.
+
+func EveryTenMinutes() Interval
+    EveryTenMinutes returns an interval aligned to every minute divisible by
+    ten.
+
+func EveryTenSeconds() Interval
+    EveryTenSeconds returns an interval aligned to every second divisible by
+    ten.
+
+func EveryThirtyMinutes() Interval
+    EveryThirtyMinutes returns an interval aligned to every minute divisible by
+    thirty.
+
+func EveryThirtySeconds() Interval
+    EveryThirtySeconds returns an interval aligned to every second divisible by
+    thirty.
+
+func EveryThreeHours(minutes ...int) Interval
+    EveryThreeHours returns a three-hour interval at minute zero or the optional
+    minute.
+
+func EveryThreeMinutes() Interval
+    EveryThreeMinutes returns an interval aligned to every minute divisible by
+    three.
+
+func EveryTwentySeconds() Interval
+    EveryTwentySeconds returns an interval aligned to every second divisible by
+    twenty.
+
+func EveryTwoHours(minutes ...int) Interval
+    EveryTwoHours returns a two-hour interval at minute zero or the optional
+    minute.
+
+func EveryTwoMinutes() Interval
+    EveryTwoMinutes returns an interval aligned to every minute divisible by
+    two.
+
+func EveryTwoSeconds() Interval
+    EveryTwoSeconds returns an interval aligned to every second divisible by
+    two.
 
 func Hourly() Interval
     Hourly returns the explicit hourly cron interval.
 
+func HourlyAt(minute int) Interval
+    HourlyAt returns an hourly interval at minute past each hour.
+
+func LastDayOfMonth(at string) Interval
+    LastDayOfMonth returns a monthly interval on the last day at the local HH:MM
+    time.
+
 func Monthly() Interval
     Monthly returns the explicit first-day-at-midnight cron interval.
 
+func MonthlyOn(day int, at string) Interval
+    MonthlyOn returns a monthly interval on day at the local HH:MM time.
+
+func Quarterly() Interval
+    Quarterly returns a midnight interval on the first day of each quarter.
+
+func QuarterlyOn(day int, at string) Interval
+    QuarterlyOn returns an interval on day of each quarter at the local HH:MM
+    time.
+
+func TwiceDaily(firstHour, secondHour int) Interval
+    TwiceDaily returns a daily interval at both hours on minute zero.
+
+func TwiceDailyAt(firstHour, secondHour, minute int) Interval
+    TwiceDailyAt returns a daily interval at both hours on minute.
+
+func TwiceMonthly(firstDay, secondDay int, at string) Interval
+    TwiceMonthly returns a monthly interval on both days at the local HH:MM
+    time.
+
 func Weekly() Interval
     Weekly returns the explicit Sunday-at-midnight cron interval.
+
+func WeeklyOn(day time.Weekday, at string) Interval
+    WeeklyOn returns a weekly interval on day at the local HH:MM time.
+
+func Yearly() Interval
+    Yearly returns a midnight interval on the first day of each year.
+
+func YearlyOn(month time.Month, day int, at string) Interval
+    YearlyOn returns an annual interval on month and day at the local HH:MM
+    time.
 
 func (i Interval) Expression() string
     Expression returns the exact cron expression represented by the interval.
@@ -238,17 +364,27 @@ type Occurrence struct {
 type Option func(*Schedule) error
     Option configures a schedule before final validation and identity hashing.
 
+func WithBetween(start, end string) Option
+    WithBetween restricts occurrences to an inclusive recurring local-time
+    window.
+
 func WithCondition(condition Condition) Option
     WithCondition appends a non-nil trusted application condition.
 
 func WithDateBounds(start, end time.Time) Option
     WithDateBounds limits occurrences to inclusive start and end instants.
 
+func WithDays(days ...time.Weekday) Option
+    WithDays restricts occurrences to the requested local weekdays.
+
 func WithEnabled(enabled bool) Option
     WithEnabled controls whether the compiled schedule produces occurrences.
 
 func WithEnvironments(environments ...string) Option
     WithEnvironments restricts execution to named application environments.
+
+func WithFridays() Option
+    WithFridays restricts occurrences to Friday.
 
 func WithHooks(hooks Hooks) Option
     WithHooks sets lifecycle callbacks managed by the runner's callback bounds.
@@ -265,6 +401,9 @@ func WithMetadata(metadata map[string]string) Option
 func WithMissedRuns(policy MissedRunPolicy, maxCatchUp int) Option
     WithMissedRuns sets delayed-boundary behavior and its catch-up cap.
 
+func WithMondays() Option
+    WithMondays restricts occurrences to Monday.
+
 func WithOneServer(ttl time.Duration) Option
     WithOneServer enables a distributed occurrence lease with the given TTL.
 
@@ -277,11 +416,39 @@ func WithParameters(parameters map[string]any) Option
 func WithRunTimeout(timeout time.Duration) Option
     WithRunTimeout sets the execution deadline observed by the runner.
 
+func WithSaturdays() Option
+    WithSaturdays restricts occurrences to Saturday.
+
+func WithSkip(skip Condition) Option
+    WithSkip appends the inverse of a trusted application condition.
+
+func WithSundays() Option
+    WithSundays restricts occurrences to Sunday.
+
+func WithThursdays() Option
+    WithThursdays restricts occurrences to Thursday.
+
 func WithTimezone(timezone string) Option
     WithTimezone sets the schedule's explicit IANA time-zone name.
 
+func WithTuesdays() Option
+    WithTuesdays restricts occurrences to Tuesday.
+
+func WithUnlessBetween(start, end string) Option
+    WithUnlessBetween excludes occurrences in an inclusive recurring local-time
+    window.
+
 func WithVersion(version string) Option
     WithVersion sets the semantic version included in schedule identity.
+
+func WithWednesdays() Option
+    WithWednesdays restricts occurrences to Wednesday.
+
+func WithWeekdays() Option
+    WithWeekdays restricts occurrences to Monday through Friday.
+
+func WithWeekends() Option
+    WithWeekends restricts occurrences to Saturday and Sunday.
 
 func WithoutOverlap(policy OverlapPolicy, ttl time.Duration) Option
     WithoutOverlap enables a renewable task lease and overlap policy.
@@ -394,6 +561,8 @@ type Schedule struct {
 	Parameters         map[string]any
 	Enabled            bool
 	Environments       []string
+	DaysOfWeek         []time.Weekday
+	TimeWindows        []TimeWindow
 	MaintenancePolicy  MaintenancePolicy
 	Conditions         []Condition
 	StartAt            time.Time
@@ -414,11 +583,19 @@ type Schedule struct {
 func NewSchedule(name, task string, interval Interval, options ...Option) (Schedule, error)
     NewSchedule constructs, validates, bounds, and identifies a schedule.
 
+type TimeWindow struct {
+	Start    time.Duration `json:"start"`
+	End      time.Duration `json:"end"`
+	Excluded bool          `json:"excluded"`
+}
+    TimeWindow is an inclusive recurring local-time constraint. Start and End
+    are offsets since local midnight; Excluded inverts the allowed window.
+
 PACKAGE github.com/faustbrian/golib/pkg/scheduler/cron
 package cron // import "github.com/faustbrian/golib/pkg/scheduler/cron"
 
-Package cron compiles documented five-field cron expressions in an explicit IANA
-time zone without exposing the underlying parser implementation.
+Package cron compiles documented five- or six-field cron expressions in an
+explicit IANA time zone without exposing the underlying parser implementation.
 
 VARIABLES
 
@@ -438,9 +615,10 @@ type Schedule interface {
 
 func Compile(expression, timezone string) (Schedule, error)
     Compile validates an expression and time zone and returns an immutable
-    schedule. Expressions use the standard five-field format or descriptors
-    supported by robfig/cron/v3. Calendar searches cover a complete 400-year
-    Gregorian cycle before reporting no future occurrence.
+    schedule. Expressions use the standard five-field format, an optional
+    leading seconds field, an L day-of-month value, or descriptors supported by
+    robfig/cron/v3. Calendar searches cover a complete 400-year Gregorian cycle
+    before reporting no future occurrence.
 
 PACKAGE github.com/faustbrian/golib/pkg/scheduler/history
 package history // import "github.com/faustbrian/golib/pkg/scheduler/history"
@@ -778,6 +956,8 @@ type Schedule struct {
 	Timezone           string                    `json:"timezone"`
 	Enabled            bool                      `json:"enabled"`
 	Environments       []string                  `json:"environments,omitempty"`
+	DaysOfWeek         []time.Weekday            `json:"days_of_week,omitempty"`
+	TimeWindows        []scheduler.TimeWindow    `json:"time_windows,omitempty"`
 	MissedRunPolicy    scheduler.MissedRunPolicy `json:"missed_run_policy"`
 	MaxCatchUp         int                       `json:"max_catch_up"`
 	OverlapPolicy      scheduler.OverlapPolicy   `json:"overlap_policy"`

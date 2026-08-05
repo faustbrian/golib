@@ -54,6 +54,24 @@ Compile the immutable registry during startup so invalid expressions, duplicate
 names, and unavailable time zones fail before the pod becomes ready. On
 shutdown, cancel `Run` and call `Drain` with a deadline.
 
+Laravel-style frequency helpers are available as interval constructors and
+recurring constraints are schedule options:
+
+```go
+schedule, err := scheduler.NewSchedule(
+    "weekday-sync",
+    "accounts.sync",
+    scheduler.EveryTenMinutes(),
+    scheduler.WithWeekdays(),
+    scheduler.WithBetween("8:00", "17:00"),
+    scheduler.WithTimezone("America/Chicago"),
+)
+```
+
+Custom cron expressions accept five fields or an optional leading seconds
+field. See the [API reference](docs/api.md#frequency-and-constraints) for every
+frequency helper and its Laravel mapping.
+
 ## Packages
 
 - root: definitions, immutable registry, occurrences, runner, hooks, and events

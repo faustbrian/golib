@@ -56,7 +56,7 @@ func TestParserDifferentialForDocumentedUTCExpressions(t *testing.T) {
 		robfigcron.Minute | robfigcron.Hour | robfigcron.Dom | robfigcron.Month | robfigcron.Dow | robfigcron.Descriptor,
 	)
 	after := time.Date(2026, time.January, 1, 12, 34, 56, 0, time.UTC)
-	for _, expression := range []string{"* * * * *", "*/15 8-17 * * 1-5", "0 0 L * *", "@hourly"} {
+	for _, expression := range []string{"* * * * *", "*/15 8-17 * * 1-5", "@hourly"} {
 		direct, directErr := parser.Parse(expression)
 		schedule, _ := scheduler.NewSchedule(expression, "task", scheduler.Cron(expression))
 		registry, schedulerErr := scheduler.Compile(schedule)

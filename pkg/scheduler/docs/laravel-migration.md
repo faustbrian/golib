@@ -11,12 +11,22 @@ rolling cutover.
 | Laravel | scheduler | Intentional difference or action |
 |---|---|---|
 | named closure or command | `NewSchedule(name, task, interval)` | stable name and task are required; no anonymous production identity |
-| `cron`, `daily`, `hourly` | `Cron`, `Daily`, `Hourly` | five-field, minute-resolution expressions only |
-| sub-minute helpers | no equivalent | keep on Laravel or use a purpose-built worker loop |
+| `cron` | `Cron` | accepts five fields, an optional leading seconds field, descriptors, and `L` day-of-month |
+| `everySecond` through `everyThirtySeconds` | matching `Every*Seconds` helper | wall-clock aligned seconds |
+| `everyMinute` through `everyThirtyMinutes` | matching `Every*Minutes` helper | wall-clock aligned minutes |
+| `hourly`, `hourlyAt` | `Hourly`, `HourlyAt` | explicit interval constructors |
+| odd, two, three, four, or six hourly | matching `Every*Hour(s)` helper | optional minute argument defaults to zero |
+| `daily`, `dailyAt`, `at` | `Daily`, `DailyAt`, `At` | local time uses `H:MM` or `HH:MM` |
+| `twiceDaily`, `twiceDailyAt`, `daysOfMonth` | matching helper | integer hours, minutes, and month days |
+| `weekly`, `weeklyOn` | `Weekly`, `WeeklyOn` | use `time.Weekday` |
+| monthly helpers, including last day | matching `Monthly*`, `TwiceMonthly`, `LastDayOfMonth` helper | uses the calendar's actual last day |
+| quarterly and yearly helpers | matching `Quarterly*` and `Yearly*` helper | `YearlyOn` uses `time.Month` |
 | `timezone` | `WithTimezone` | IANA zone is compiled at startup; folds are physical instants |
-| `between`, `unlessBetween` | condition or absolute `WithDateBounds` | date bounds are absolute instants, not recurring daily windows |
+| `weekdays`, `weekends`, or named weekdays | matching `With*days` option | filters compiled boundaries before missed-run selection |
+| `days` | `WithDays` | accepts one or more `time.Weekday` values |
+| `between`, `unlessBetween` | `WithBetween`, `WithUnlessBetween` | inclusive local-time windows; overnight windows are supported |
 | `when` | `WithCondition` | bounded to 32 and a runner callback deadline |
-| `skip` | inverse condition | return false to omit the occurrence |
+| `skip` | `WithSkip` | inverts the supplied trusted condition |
 | `environments` | `WithEnvironments` | runner environment is explicit configuration |
 | `evenInMaintenanceMode` | `MaintenanceRun` | runner maintenance mode is supplied by the application |
 | `onOneServer` | `WithOneServer` | fenced occurrence lease, not a Laravel cache mutex |

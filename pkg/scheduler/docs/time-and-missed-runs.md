@@ -1,6 +1,7 @@
 # Missed runs, time zones, and DST
 
-Cron expressions have five fields and use explicit IANA time zones. Spring DST
+Cron expressions have five fields or an optional leading seconds field and use
+explicit IANA time zones. Spring DST
 gaps omit nonexistent local times. During a fold, both physical instants of an
 ambiguous local time run in chronological order. Store schedule
 times as instants and display local offsets in diagnostics.

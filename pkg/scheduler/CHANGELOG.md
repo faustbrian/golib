@@ -32,6 +32,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Laravel-compatible frequency helpers from seconds through yearly schedules,
+  plus weekday, recurring time-window, and skip constraints that compose with
+  existing environment and timezone options.
 - `Runner.RunFrom` for bounded startup catch-up that transitions into the
   continuous schedule loop without losing an occurrence between both phases.
 - Configurable overlap-lease heartbeat intervals with construction-time TTL

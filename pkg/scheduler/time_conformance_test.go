@@ -166,7 +166,7 @@ func TestParserDifferentialCorpus(t *testing.T) {
 	after := time.Date(2026, time.June, 30, 23, 58, 43, 0, time.UTC)
 	expressions := []string{
 		"* * * * *", "*/5 * * * *", "7,37 1-23/3 * * *",
-		"0 0 1,15 * *", "0 0 L * *", "0 9 * JAN,MAR MON-FRI",
+		"0 0 1,15 * *", "0 9 * JAN,MAR MON-FRI",
 		"@hourly", "@daily", "@weekly", "@monthly", "@yearly",
 		"invalid", "0 24 * * *", "0 0 31 2 *",
 	}

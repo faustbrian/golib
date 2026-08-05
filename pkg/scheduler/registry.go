@@ -68,6 +68,16 @@ func Compile(schedules ...Schedule) (*Registry, error) {
 				}
 				errs = append(errs, fmt.Errorf("%w: %s: %w", classification, schedule.Name, err))
 			} else {
+				if hasRecurringConstraints(schedule) {
+					// The cron compiler loaded this exact zone successfully above.
+					location, _ := time.LoadLocation(schedule.Timezone)
+					parsed = constrainedSchedule{
+						Schedule: parsed,
+						days:     slices.Clone(schedule.DaysOfWeek),
+						windows:  slices.Clone(schedule.TimeWindows),
+						location: location,
+					}
+				}
 				registry.entries[schedule.Name] = compiledSchedule{
 					schedule: cloneSchedule(schedule),
 					cron: jitteredSchedule{
@@ -84,6 +94,52 @@ func Compile(schedules ...Schedule) (*Registry, error) {
 	}
 	slices.Sort(registry.names)
 	return registry, nil
+}
+
+type constrainedSchedule struct {
+	schedulercron.Schedule
+	days     []time.Weekday
+	windows  []TimeWindow
+	location *time.Location
+}
+
+func (schedule constrainedSchedule) Next(after time.Time) time.Time {
+	cursor := after
+	for range 200_000 {
+		next := schedule.Schedule.Next(cursor)
+		if next.IsZero() {
+			return time.Time{}
+		}
+		local := next.In(schedule.location)
+		if len(schedule.days) > 0 && !slices.Contains(schedule.days, local.Weekday()) {
+			nextDay := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, schedule.location)
+			cursor = nextDay.Add(-time.Nanosecond)
+			continue
+		}
+		if schedule.withinTimeWindows(local) {
+			return next
+		}
+		cursor = local.Truncate(time.Minute).Add(time.Minute - time.Nanosecond)
+	}
+	return time.Time{}
+}
+
+func (schedule constrainedSchedule) withinTimeWindows(local time.Time) bool {
+	minute := time.Duration(local.Hour()*60+local.Minute()) * time.Minute
+	for _, window := range schedule.windows {
+		inside := withinTimeWindow(minute, window)
+		if (!window.Excluded && !inside) || (window.Excluded && inside) {
+			return false
+		}
+	}
+	return true
+}
+
+func withinTimeWindow(value time.Duration, window TimeWindow) bool {
+	if window.Start <= window.End {
+		return value >= window.Start && value <= window.End
+	}
+	return value >= window.Start || value <= window.End
 }
 
 type jitteredSchedule struct {
@@ -136,7 +192,7 @@ func (registry *Registry) Due(name string, after, through time.Time) ([]Occurren
 	limit := entry.schedule.MaxCatchUp
 	switch entry.schedule.MissedRunPolicy {
 	case MissedRunSkip:
-		candidate := entry.cron.Next(through.Add(-time.Minute))
+		candidate := entry.cron.Next(through.Add(-time.Nanosecond))
 		if !candidate.Equal(through) || !withinBounds(entry.schedule, candidate) {
 			return nil, nil
 		}

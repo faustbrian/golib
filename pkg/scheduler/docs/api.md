@@ -7,11 +7,12 @@ definition. `Compile` validates cron expressions and IANA time zones, rejects
 duplicate names, and returns an immutable `Registry`. Registry methods return
 copies and provide `Schedules`, `Next`, and bounded `Due` calculations.
 
-The `cron` package exposes the same five-field and descriptor compiler used by
-the registry. It returns a small `Schedule` interface and typed expression and
-time-zone errors without exposing the underlying parser type. Future-boundary
-search covers a complete 400-year Gregorian cycle, including the eight-year
-leap-day gap across non-leap centuries such as 2100.
+The `cron` package exposes the same five-field, optional-seconds, last-day, and
+descriptor compiler used by the registry. It returns a small `Schedule`
+interface and typed expression and time-zone errors without exposing the
+underlying parser type. Future-boundary search covers a complete 400-year
+Gregorian cycle, including the eight-year leap-day gap across non-leap
+centuries such as 2100.
 
 Schedule options cover version, timezone, parameters, environments, date
 bounds, enablement, maintenance, deterministic jitter, missed-run policy,
@@ -20,6 +21,41 @@ deadline. Version, expression, timezone, parameters, and jitter participate in
 revision identity. `CoordinationID` is stable across version and timing changes
 for the same name, task, and parameters so rolling replicas share occurrence,
 overlap, and idempotency keys.
+
+## Frequency and constraints
+
+`Cron` accepts standard five-field expressions, six-field expressions with a
+leading seconds field, `L` as the day of month, and supported descriptors.
+Convenience intervals cover the corresponding Laravel frequencies:
+
+- seconds: `EverySecond`, `EveryTwoSeconds`, `EveryFiveSeconds`,
+  `EveryTenSeconds`, `EveryFifteenSeconds`, `EveryTwentySeconds`, and
+  `EveryThirtySeconds`;
+- minutes: `EveryMinute`, `EveryTwoMinutes`, `EveryThreeMinutes`,
+  `EveryFourMinutes`, `EveryFiveMinutes`, `EveryTenMinutes`,
+  `EveryFifteenMinutes`, and `EveryThirtyMinutes`;
+- hours: `Hourly`, `HourlyAt`, `EveryOddHour`, `EveryTwoHours`,
+  `EveryThreeHours`, `EveryFourHours`, and `EverySixHours`;
+- calendar periods: `Daily`, `DailyAt`, `At`, `TwiceDaily`, `TwiceDailyAt`,
+  `DaysOfMonth`, `Weekly`, `WeeklyOn`, `Monthly`, `MonthlyOn`,
+  `TwiceMonthly`, `LastDayOfMonth`, `Quarterly`, `QuarterlyOn`, `Yearly`, and
+  `YearlyOn`.
+
+The hour-frequency helpers accept zero or one minute argument; omitting it uses
+minute zero. Local time strings use `H:MM` or `HH:MM`. `WeeklyOn` uses
+`time.Weekday`, and `YearlyOn` uses `time.Month`.
+
+Recurring constraints are applied to compiled boundaries before missed-run
+policy selection. Use `WithWeekdays`, `WithWeekends`, the seven named weekday
+options, or `WithDays` for weekday limits. Use `WithBetween` and
+`WithUnlessBetween` for inclusive recurring local-time windows, including
+windows that cross midnight. The schedule's `WithTimezone` value controls both
+calendar frequencies and recurring constraints.
+
+`WithCondition` implements Laravel's `when`; multiple conditions must all
+allow the occurrence. `WithSkip` is its inverse. `WithEnvironments` restricts
+the definition, and the runner selects its current environment with
+`WithEnvironment`.
 
 ## Runner
 

@@ -24,6 +24,8 @@ type Schedule struct {
 	Timezone           string                    `json:"timezone"`
 	Enabled            bool                      `json:"enabled"`
 	Environments       []string                  `json:"environments,omitempty"`
+	DaysOfWeek         []time.Weekday            `json:"days_of_week,omitempty"`
+	TimeWindows        []scheduler.TimeWindow    `json:"time_windows,omitempty"`
 	MissedRunPolicy    scheduler.MissedRunPolicy `json:"missed_run_policy"`
 	MaxCatchUp         int                       `json:"max_catch_up"`
 	OverlapPolicy      scheduler.OverlapPolicy   `json:"overlap_policy"`
@@ -148,6 +150,8 @@ func scheduleView(schedule scheduler.Schedule) Schedule {
 		Name: schedule.Name, Task: schedule.Task, Expression: schedule.Expression,
 		Timezone: schedule.Timezone, Enabled: schedule.Enabled,
 		Environments:    append([]string(nil), schedule.Environments...),
+		DaysOfWeek:      append([]time.Weekday(nil), schedule.DaysOfWeek...),
+		TimeWindows:     append([]scheduler.TimeWindow(nil), schedule.TimeWindows...),
 		MissedRunPolicy: schedule.MissedRunPolicy, MaxCatchUp: schedule.MaxCatchUp,
 		OverlapPolicy: schedule.OverlapPolicy, OnOneServer: schedule.OnOneServer,
 		WithoutOverlapping: schedule.WithoutOverlapping,

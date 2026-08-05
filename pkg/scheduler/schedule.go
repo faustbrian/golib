@@ -27,6 +27,8 @@ var (
 	ErrInvalidVersion = errors.New("scheduler: version is required")
 	// ErrResourceLimit reports a definition beyond an exported safety budget.
 	ErrResourceLimit = errors.New("scheduler: resource limit exceeded")
+	// ErrInvalidConstraint reports an invalid recurring schedule constraint.
+	ErrInvalidConstraint = errors.New("scheduler: invalid schedule constraint")
 )
 
 const (
@@ -46,6 +48,8 @@ const (
 	MaxEnvironments = 64
 	// MaxConditions bounds trusted application conditions per schedule.
 	MaxConditions = 32
+	// MaxTimeWindows bounds recurring time constraints per schedule.
+	MaxTimeWindows = 32
 	// MaxCatchUp bounds retained delayed occurrences per decision.
 	MaxCatchUp = 1_000
 	// MaxSchedules bounds registry size before compilation.
@@ -91,7 +95,8 @@ type Interval struct {
 	expression string
 }
 
-// Cron constructs an interval from a five-field expression or descriptor.
+// Cron constructs an interval from a five-field expression, an optional leading
+// seconds field, an L day-of-month value, or a supported descriptor.
 func Cron(expression string) Interval { return Interval{expression: expression} }
 
 // EveryMinute returns the explicit every-minute cron interval.
@@ -114,6 +119,14 @@ func (i Interval) Expression() string { return i.expression }
 
 // Condition allows trusted application code to permit an occurrence.
 type Condition func(Context) (bool, error)
+
+// TimeWindow is an inclusive recurring local-time constraint. Start and End
+// are offsets since local midnight; Excluded inverts the allowed window.
+type TimeWindow struct {
+	Start    time.Duration `json:"start"`
+	End      time.Duration `json:"end"`
+	Excluded bool          `json:"excluded"`
+}
 
 // Hook consumes a schedule lifecycle event.
 type Hook func(Event)
@@ -153,6 +166,8 @@ type Schedule struct {
 	Parameters         map[string]any
 	Enabled            bool
 	Environments       []string
+	DaysOfWeek         []time.Weekday
+	TimeWindows        []TimeWindow
 	MaintenancePolicy  MaintenancePolicy
 	Conditions         []Condition
 	StartAt            time.Time
@@ -219,14 +234,26 @@ func NewSchedule(name, task string, interval Interval, options ...Option) (Sched
 		schedule.Task,
 		schedule.ParameterIdentity,
 	)
-	schedule.Identity = hashStrings(
+	identityParts := []string{
 		schedule.CoordinationID,
 		schedule.Version,
 		schedule.Expression,
 		schedule.Timezone,
 		schedule.Jitter.String(),
-	)
+	}
+	if hasRecurringConstraints(schedule) {
+		identityParts = append(
+			identityParts,
+			stableHash(schedule.DaysOfWeek),
+			stableHash(schedule.TimeWindows),
+		)
+	}
+	schedule.Identity = hashStrings(identityParts...)
 	return cloneSchedule(schedule), nil
+}
+
+func hasRecurringConstraints(schedule Schedule) bool {
+	return len(schedule.DaysOfWeek) != 0 || len(schedule.TimeWindows) != 0
 }
 
 func validateResourceLimits(schedule Schedule) error {
@@ -273,6 +300,19 @@ func validateResourceLimits(schedule Schedule) error {
 	}
 	if len(schedule.Conditions) > MaxConditions {
 		return fmt.Errorf("%w: conditions exceed %d entries", ErrResourceLimit, MaxConditions)
+	}
+	if len(schedule.TimeWindows) > MaxTimeWindows {
+		return fmt.Errorf("%w: time windows exceed %d entries", ErrResourceLimit, MaxTimeWindows)
+	}
+	for _, day := range schedule.DaysOfWeek {
+		if day < time.Sunday || day > time.Saturday {
+			return fmt.Errorf("%w: weekday %d", ErrInvalidConstraint, day)
+		}
+	}
+	for _, window := range schedule.TimeWindows {
+		if window.Start < 0 || window.Start >= 24*time.Hour || window.End < 0 || window.End >= 24*time.Hour {
+			return fmt.Errorf("%w: time window outside one day", ErrInvalidConstraint)
+		}
 	}
 	if schedule.MaxCatchUp > MaxCatchUp {
 		return fmt.Errorf("%w: catch-up exceeds %d occurrences", ErrResourceLimit, MaxCatchUp)
@@ -460,6 +500,8 @@ func hashStrings(values ...string) string {
 
 func cloneSchedule(schedule Schedule) Schedule {
 	schedule.Environments = slices.Clone(schedule.Environments)
+	schedule.DaysOfWeek = slices.Clone(schedule.DaysOfWeek)
+	schedule.TimeWindows = slices.Clone(schedule.TimeWindows)
 	schedule.Conditions = slices.Clone(schedule.Conditions)
 	schedule.Metadata = maps.Clone(schedule.Metadata)
 	if encoded, err := json.Marshal(schedule.Parameters); err == nil {

@@ -17,7 +17,10 @@ import (
 func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	t.Parallel()
 
-	schedule, _ := scheduler.NewSchedule("report", "reports.generate", scheduler.Daily())
+	schedule, _ := scheduler.NewSchedule(
+		"report", "reports.generate", scheduler.Daily(),
+		scheduler.WithFridays(), scheduler.WithBetween("0:00", "17:00"),
+	)
 	registry, _ := scheduler.Compile(schedule)
 	handler, err := schedulerhttp.New(registry, memory.New())
 	if err != nil {
@@ -36,6 +39,9 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	}
 	if len(schedules) != 1 || schedules[0].Name != "report" || schedules[0].Expression != "0 0 * * *" {
 		t.Fatalf("schedules = %+v", schedules)
+	}
+	if len(schedules[0].DaysOfWeek) != 1 || schedules[0].DaysOfWeek[0] != time.Friday || len(schedules[0].TimeWindows) != 1 {
+		t.Fatalf("schedule constraints = %+v/%+v", schedules[0].DaysOfWeek, schedules[0].TimeWindows)
 	}
 	validation := httptest.NewRecorder()
 	handler.ServeHTTP(validation, httptest.NewRequest(http.MethodGet, "/v1/validate", nil))

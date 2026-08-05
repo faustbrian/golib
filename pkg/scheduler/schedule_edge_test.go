@@ -69,6 +69,9 @@ func TestNewScheduleRejectsDefinitionsBeyondResourceBudgets(t *testing.T) {
 		"conditions": func(schedule *scheduler.Schedule) {
 			schedule.Conditions = make([]scheduler.Condition, scheduler.MaxConditions+1)
 		},
+		"time windows": func(schedule *scheduler.Schedule) {
+			schedule.TimeWindows = make([]scheduler.TimeWindow, scheduler.MaxTimeWindows+1)
+		},
 		"catch-up": func(schedule *scheduler.Schedule) {
 			schedule.MissedRunPolicy = scheduler.MissedRunCatchUp
 			schedule.MaxCatchUp = scheduler.MaxCatchUp + 1
