@@ -25,11 +25,25 @@ type deliveryWire struct {
 // MarshalDeliveryRequest emits deterministic v1 bytes for queue and outbox
 // adapters and rejects output beyond maxBytes.
 func MarshalDeliveryRequest(delivery DeliveryRequest, maxBytes int) ([]byte, error) {
-	if maxBytes <= 0 || delivery.Endpoint == nil || !delivery.Endpoint.IsAbs() ||
-		delivery.Endpoint.User != nil || delivery.Endpoint.Fragment != "" || delivery.EventID == "" {
+	if maxBytes <= 0 {
+		return nil, fmt.Errorf("%w: positive output limit is required", ErrDeliveryEncoding)
+	}
+	if delivery.Endpoint == nil {
+		return nil, fmt.Errorf("%w: endpoint is required", ErrDeliveryEncoding)
+	}
+	if !delivery.Endpoint.IsAbs() {
+		return nil, fmt.Errorf("%w: absolute endpoint is required", ErrDeliveryEncoding)
+	}
+	if delivery.Endpoint.User != nil {
+		return nil, fmt.Errorf("%w: endpoint userinfo is forbidden", ErrDeliveryEncoding)
+	}
+	if delivery.Endpoint.Fragment != "" {
+		return nil, fmt.Errorf("%w: endpoint fragment is forbidden", ErrDeliveryEncoding)
+	}
+	if delivery.EventID == "" {
 		return nil, fmt.Errorf("%w: unsafe or incomplete request", ErrDeliveryEncoding)
 	}
-	encoded, err := json.Marshal(deliveryWire{
+	encoded, _ := json.Marshal(deliveryWire{
 		Version:        "v1",
 		Endpoint:       delivery.Endpoint.String(),
 		Body:           delivery.Body,
@@ -38,7 +52,7 @@ func MarshalDeliveryRequest(delivery DeliveryRequest, maxBytes int) ([]byte, err
 		Headers:        delivery.Headers,
 		Metadata:       delivery.Metadata,
 	})
-	if err != nil || len(encoded) > maxBytes {
+	if len(encoded) > maxBytes {
 		return nil, fmt.Errorf("%w: output exceeds limit or cannot be encoded", ErrDeliveryEncoding)
 	}
 
@@ -48,7 +62,10 @@ func MarshalDeliveryRequest(delivery DeliveryRequest, maxBytes int) ([]byte, err
 // UnmarshalDeliveryRequest bounds input before strict decoding and rejects
 // unknown fields, trailing data, unsafe URLs, and incomplete identities.
 func UnmarshalDeliveryRequest(encoded []byte, maxBytes int) (DeliveryRequest, error) {
-	if maxBytes <= 0 || len(encoded) > maxBytes {
+	if maxBytes <= 0 {
+		return DeliveryRequest{}, fmt.Errorf("%w: positive input limit is required", ErrDeliveryEncoding)
+	}
+	if len(encoded) > maxBytes {
 		return DeliveryRequest{}, fmt.Errorf("%w: input exceeds limit", ErrDeliveryEncoding)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(encoded))
@@ -61,8 +78,22 @@ func UnmarshalDeliveryRequest(encoded []byte, maxBytes int) (DeliveryRequest, er
 		return DeliveryRequest{}, err
 	}
 	endpoint, err := url.Parse(wire.Endpoint)
-	if err != nil || wire.Version != "v1" || wire.EventID == "" || !endpoint.IsAbs() ||
-		endpoint.User != nil || endpoint.Fragment != "" {
+	if err != nil {
+		return DeliveryRequest{}, fmt.Errorf("%w: invalid endpoint", ErrDeliveryEncoding)
+	}
+	if wire.Version != "v1" {
+		return DeliveryRequest{}, fmt.Errorf("%w: unsupported wire version", ErrDeliveryEncoding)
+	}
+	if wire.EventID == "" {
+		return DeliveryRequest{}, fmt.Errorf("%w: event ID is required", ErrDeliveryEncoding)
+	}
+	if !endpoint.IsAbs() {
+		return DeliveryRequest{}, fmt.Errorf("%w: absolute endpoint is required", ErrDeliveryEncoding)
+	}
+	if endpoint.User != nil {
+		return DeliveryRequest{}, fmt.Errorf("%w: endpoint userinfo is forbidden", ErrDeliveryEncoding)
+	}
+	if endpoint.Fragment != "" {
 		return DeliveryRequest{}, fmt.Errorf("%w: invalid wire fields", ErrDeliveryEncoding)
 	}
 

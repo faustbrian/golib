@@ -100,11 +100,21 @@ func TestHandleUsesSingleDeliveryAttempt(t *testing.T) {
 func TestNewRejectsUnsafeConfiguration(t *testing.T) {
 	t.Parallel()
 
-	if _, err := New(Config{}); !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("New() error = %v, want ErrInvalidConfig", err)
+	queue := &recordingQueue{}
+	for name, config := range map[string]Config{
+		"nil queue":  {MaxMessageBytes: 1},
+		"zero limit": {Queue: queue},
+	} {
+		if _, err := New(config); !errors.Is(err, ErrInvalidConfig) {
+			t.Fatalf("New(%s) error = %v, want ErrInvalidConfig", name, err)
+		}
 	}
 	if _, err := Handle(context.Background(), nil, nil, 1); !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("Handle() error = %v, want ErrInvalidConfig", err)
+		t.Fatalf("Handle(nil deliverer) error = %v, want ErrInvalidConfig", err)
+	}
+	deliverer := newDeliverer(t, &countingDoer{})
+	if _, err := Handle(context.Background(), deliverer, nil, 0); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("Handle(zero limit) error = %v, want ErrInvalidConfig", err)
 	}
 }
 

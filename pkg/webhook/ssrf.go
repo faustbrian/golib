@@ -49,9 +49,14 @@ var reservedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("2001:db8::/32"),
 }
 
+const secureDialerKeepAlive = 30 * time.Second
+
 // NewSSRFPolicy constructs a policy with explicit resolver and DNS bounds.
 func NewSSRFPolicy(config SSRFPolicyConfig) (*SSRFPolicy, error) {
-	if config.Resolver == nil || config.MaxAddresses <= 0 {
+	if config.Resolver == nil {
+		return nil, fmt.Errorf("%w: resolver is required", ErrInvalidConfiguration)
+	}
+	if config.MaxAddresses <= 0 {
 		return nil, fmt.Errorf("%w: resolver and positive address limit are required", ErrInvalidConfiguration)
 	}
 	allowed, err := copyPrefixes(config.AllowedPrefixes)
@@ -86,31 +91,87 @@ func copyPrefixes(prefixes []netip.Prefix) ([]netip.Prefix, error) {
 
 // Validate implements EndpointPolicy and resolves hostnames immediately.
 func (p *SSRFPolicy) Validate(ctx context.Context, endpoint *url.URL) error {
-	if endpoint == nil || !endpoint.IsAbs() || endpoint.Opaque != "" || endpoint.Host == "" {
+	if endpoint == nil {
+		return fmt.Errorf("%w: URL is required", ErrEndpointRejected)
+	}
+	if !endpoint.IsAbs() {
+		return fmt.Errorf("%w: absolute URL required", ErrEndpointRejected)
+	}
+	if endpoint.Opaque != "" {
+		return fmt.Errorf("%w: hierarchical URL required", ErrEndpointRejected)
+	}
+	if endpoint.Host == "" {
 		return fmt.Errorf("%w: absolute hierarchical URL required", ErrEndpointRejected)
 	}
-	schemeAllowed := endpoint.Scheme == "https" ||
-		(p.allowHTTP && endpoint.Scheme == "http")
+	schemeAllowed := endpoint.Scheme == "https"
+	if p.allowHTTP && endpoint.Scheme == "http" {
+		schemeAllowed = true
+	}
 	if !schemeAllowed {
 		return fmt.Errorf("%w: URL scheme denied", ErrEndpointRejected)
 	}
-	if endpoint.User != nil || endpoint.Fragment != "" {
+	if endpoint.User != nil {
+		return fmt.Errorf("%w: userinfo is denied", ErrEndpointRejected)
+	}
+	if endpoint.Fragment != "" {
 		return fmt.Errorf("%w: userinfo and fragments are denied", ErrEndpointRejected)
 	}
 	host := endpoint.Hostname()
-	if host == "" || strings.HasSuffix(host, ".") || !asciiHost(host) {
+	if host == "" {
+		return fmt.Errorf("%w: hostname is required", ErrEndpointRejected)
+	}
+	if strings.HasSuffix(host, ".") {
+		return fmt.Errorf("%w: trailing-dot hostname is not canonical", ErrEndpointRejected)
+	}
+	if !asciiHost(host) {
 		return fmt.Errorf("%w: hostname is not canonical", ErrEndpointRejected)
 	}
-	if port := endpoint.Port(); port != "" {
+	port, err := endpointPort(endpoint.Host)
+	if err != nil {
+		return fmt.Errorf("%w: invalid endpoint port", ErrEndpointRejected)
+	}
+	if port != "" {
 		value, err := strconv.Atoi(port)
-		if err != nil || value < 1 || value > 65535 {
+		if err != nil {
+			return fmt.Errorf("%w: invalid endpoint port", ErrEndpointRejected)
+		}
+		if value < 1 {
+			return fmt.Errorf("%w: invalid endpoint port", ErrEndpointRejected)
+		}
+		if value > 65535 {
 			return fmt.Errorf("%w: invalid endpoint port", ErrEndpointRejected)
 		}
 	}
 
-	_, err := p.resolveAndValidate(ctx, host)
+	_, err = p.resolveAndValidate(ctx, host)
 
 	return err
+}
+
+func endpointPort(hostPort string) (string, error) {
+	if strings.HasPrefix(hostPort, "[") {
+		_, suffix, found := strings.Cut(hostPort, "]")
+		if !found {
+			return "", ErrEndpointRejected
+		}
+		if suffix == "" {
+			return "", nil
+		}
+		if !strings.HasPrefix(suffix, ":") || len(suffix) == 1 {
+			return "", ErrEndpointRejected
+		}
+
+		return suffix[1:], nil
+	}
+	if !strings.Contains(hostPort, ":") {
+		return "", nil
+	}
+	_, port, err := net.SplitHostPort(hostPort)
+	if err != nil || port == "" {
+		return "", ErrEndpointRejected
+	}
+
+	return port, nil
 }
 
 func asciiHost(host string) bool {
@@ -133,7 +194,13 @@ func (p *SSRFPolicy) resolveAndValidate(ctx context.Context, host string) ([]net
 		return []netip.Addr{literal}, nil
 	}
 	addresses, err := p.resolver.LookupNetIP(ctx, "ip", host)
-	if err != nil || len(addresses) == 0 || len(addresses) > p.maxAddresses {
+	if err != nil {
+		return nil, fmt.Errorf("%w: DNS lookup failed", ErrEndpointRejected)
+	}
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("%w: DNS answer is empty", ErrEndpointRejected)
+	}
+	if len(addresses) > p.maxAddresses {
 		return nil, fmt.Errorf("%w: DNS answer unavailable or outside limits", ErrEndpointRejected)
 	}
 	validated := make([]netip.Addr, 0, len(addresses))
@@ -179,10 +246,13 @@ func (p *SSRFPolicy) validateAddress(address netip.Addr) error {
 // re-resolves and revalidates addresses at dial time. Redirects are returned to
 // the caller without being followed.
 func NewSecureHTTPClient(policy *SSRFPolicy, timeout time.Duration) (*http.Client, error) {
-	if policy == nil || timeout <= 0 {
+	if policy == nil {
+		return nil, fmt.Errorf("%w: policy is required", ErrInvalidConfiguration)
+	}
+	if timeout <= 0 {
 		return nil, fmt.Errorf("%w: policy and positive timeout are required", ErrInvalidConfiguration)
 	}
-	dialer := &net.Dialer{Timeout: timeout, KeepAlive: 30 * time.Second}
+	dialer := &net.Dialer{Timeout: timeout, KeepAlive: secureDialerKeepAlive}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	transport.ForceAttemptHTTP2 = false

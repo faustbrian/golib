@@ -58,7 +58,7 @@ func TestNewAndStatusClassValidation(t *testing.T) {
 	if _, err := newObserver(&errorMeter{Meter: metricnoop.NewMeterProvider().Meter("test"), err: instrumentErr, failHistogram: true}); !errors.Is(err, instrumentErr) {
 		t.Fatalf("newObserver(histogram) error = %v", err)
 	}
-	for status, want := range map[int]string{0: "none", 99: "none", 200: "2xx", 503: "5xx", 600: "none"} {
+	for status, want := range map[int]string{0: "none", 99: "none", 100: "1xx", 200: "2xx", 503: "5xx", 599: "5xx", 600: "none"} {
 		if got := statusClass(status); got != want {
 			t.Fatalf("statusClass(%d) = %q, want %q", status, got, want)
 		}

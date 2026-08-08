@@ -88,6 +88,22 @@ func TestNewValidatesAllScopeComponents(t *testing.T) {
 	}
 	backend := &fakeStore{}
 	service, _ := idempotency.NewService(backend)
+	valid := Config{Service: service, Namespace: "webhooks", Tenant: "tenant", Operation: "verify", Caller: "provider"}
+	for name, mutate := range map[string]func(*Config){
+		"service":   func(config *Config) { config.Service = nil },
+		"namespace": func(config *Config) { config.Namespace = "" },
+		"tenant":    func(config *Config) { config.Tenant = "" },
+		"operation": func(config *Config) { config.Operation = "" },
+		"caller":    func(config *Config) { config.Caller = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			config := valid
+			mutate(&config)
+			if _, err := New(config); !errors.Is(err, ErrInvalidConfig) {
+				t.Fatalf("New() error = %v, want ErrInvalidConfig", err)
+			}
+		})
+	}
 	if _, err := New(Config{Service: service, Namespace: strings.Repeat("n", idempotency.MaxKeyPartBytes+1), Tenant: "tenant", Operation: "verify", Caller: "provider"}); !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("New() scope error = %v", err)
 	}

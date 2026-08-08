@@ -102,9 +102,6 @@ func observationReason(err error) Reason {
 
 func elapsed(clock func() time.Time, started time.Time) time.Duration {
 	duration := clock().Sub(started)
-	if duration < 0 {
-		return 0
-	}
 
-	return duration
+	return max(duration, 0)
 }

@@ -50,7 +50,10 @@ type RequestOptions struct {
 
 // SetSignatureHeaders replaces all signature headers with strict v1 values.
 func SetSignatureHeaders(header http.Header, signatures []Signature) error {
-	if header == nil || len(signatures) == 0 {
+	if header == nil {
+		return fmt.Errorf("%w: header is required", ErrInvalidConfiguration)
+	}
+	if len(signatures) == 0 {
 		return fmt.Errorf("%w: header and signatures are required", ErrInvalidConfiguration)
 	}
 	values := make([]string, len(signatures))
@@ -73,7 +76,10 @@ func SetSignatureHeaders(header http.Header, signatures []Signature) error {
 // ParseSignatureHeaders parses all values strictly. Comma-combined values,
 // duplicate key IDs, noncanonical timestamps, and unknown fields are rejected.
 func ParseSignatureHeaders(header http.Header, limits HeaderLimits) ([]Signature, error) {
-	if limits.MaxSignatures <= 0 || limits.MaxBytes <= 0 {
+	if limits.MaxSignatures <= 0 {
+		return nil, fmt.Errorf("%w: positive signature count limit is required", ErrInvalidConfiguration)
+	}
+	if limits.MaxBytes <= 0 {
 		return nil, fmt.Errorf("%w: positive header limits are required", ErrInvalidConfiguration)
 	}
 	values := header.Values(SignatureHeader)
@@ -84,7 +90,10 @@ func ParseSignatureHeaders(header http.Header, limits HeaderLimits) ([]Signature
 	for _, value := range values {
 		bytes += len(value)
 	}
-	if len(values) > limits.MaxSignatures || bytes > limits.MaxBytes {
+	if len(values) > limits.MaxSignatures {
+		return nil, ErrSignatureHeadersTooLarge
+	}
+	if bytes > limits.MaxBytes {
 		return nil, ErrSignatureHeadersTooLarge
 	}
 
@@ -106,15 +115,31 @@ func ParseSignatureHeaders(header http.Header, limits HeaderLimits) ([]Signature
 }
 
 func formatSignatureHeader(signature Signature) (string, error) {
-	if signature.Version != "v1" || signature.KeyID == "" || signature.Timestamp.IsZero() || signature.Timestamp.Unix() < 0 || !validNonce(signature.Nonce) {
+	if signature.Version != "v1" {
+		return "", fmt.Errorf("%w: unsupported signature version", ErrInvalidConfiguration)
+	}
+	if signature.KeyID == "" {
+		return "", fmt.Errorf("%w: key ID is required", ErrInvalidConfiguration)
+	}
+	if signature.Timestamp.IsZero() {
+		return "", fmt.Errorf("%w: timestamp is required", ErrInvalidConfiguration)
+	}
+	if signature.Timestamp.Unix() < 0 {
+		return "", fmt.Errorf("%w: timestamp cannot be negative", ErrInvalidConfiguration)
+	}
+	if !validNonce(signature.Nonce) {
 		return "", fmt.Errorf("%w: incomplete signature", ErrInvalidConfiguration)
 	}
-	decoded, err := base64.RawURLEncoding.DecodeString(signature.Value)
-	if err != nil || len(decoded) != signatureBytes(signature.Algorithm) {
-		return "", fmt.Errorf("%w: invalid signature value", ErrInvalidConfiguration)
-	}
-	if signatureBytes(signature.Algorithm) == 0 {
+	expectedBytes := signatureBytes(signature.Algorithm)
+	if expectedBytes == 0 {
 		return "", fmt.Errorf("%w: unsupported signature algorithm", ErrInvalidConfiguration)
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(signature.Value)
+	if err != nil {
+		return "", fmt.Errorf("%w: invalid signature encoding", ErrInvalidConfiguration)
+	}
+	if len(decoded) != expectedBytes {
+		return "", fmt.Errorf("%w: invalid signature value", ErrInvalidConfiguration)
 	}
 
 	return strings.Join([]string{
@@ -132,7 +157,10 @@ func parseSignatureHeader(value string) (Signature, error) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	parts := strings.Split(value, ";")
-	if len(parts) != 6 || parts[0] != "v1" {
+	if len(parts) != 6 {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if parts[0] != "v1" {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	algorithmValue, ok := strictField(parts[1], "algorithm")
@@ -148,7 +176,10 @@ func parseSignatureHeader(value string) (Signature, error) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	keyBytes, err := base64.RawURLEncoding.DecodeString(keyValue)
-	if err != nil || len(keyBytes) == 0 || !utf8.Valid(keyBytes) {
+	if err != nil {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if !utf8.Valid(keyBytes) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	timestampValue, ok := strictField(parts[3], "timestamp")
@@ -156,7 +187,13 @@ func parseSignatureHeader(value string) (Signature, error) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	timestamp, err := strconv.ParseInt(timestampValue, 10, 64)
-	if err != nil || timestamp < 0 || strconv.FormatInt(timestamp, 10) != timestampValue {
+	if err != nil {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if timestamp < 0 {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if strconv.FormatInt(timestamp, 10) != timestampValue {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	nonceValue, ok := strictField(parts[4], "nonce")
@@ -164,7 +201,10 @@ func parseSignatureHeader(value string) (Signature, error) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	nonceBytes, err := base64.RawURLEncoding.DecodeString(nonceValue)
-	if err != nil || !validNonce(string(nonceBytes)) {
+	if err != nil {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if !validNonce(string(nonceBytes)) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	signatureValue, ok := strictField(parts[5], "signature")
@@ -172,7 +212,10 @@ func parseSignatureHeader(value string) (Signature, error) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 	signature, err := base64.RawURLEncoding.DecodeString(signatureValue)
-	if err != nil || len(signature) != signatureBytes(algorithm) {
+	if err != nil {
+		return Signature{}, ErrMalformedSignatureHeader
+	}
+	if len(signature) != signatureBytes(algorithm) {
 		return Signature{}, ErrMalformedSignatureHeader
 	}
 
@@ -188,7 +231,12 @@ func parseSignatureHeader(value string) (Signature, error) {
 
 func strictField(part, name string) (string, bool) {
 	prefix := name + "="
-	return strings.TrimPrefix(part, prefix), strings.HasPrefix(part, prefix) && len(part) > len(prefix)
+	if !strings.HasPrefix(part, prefix) {
+		return part, false
+	}
+	value := strings.TrimPrefix(part, prefix)
+
+	return value, value != ""
 }
 
 func signatureBytes(algorithm Algorithm) int {
@@ -205,7 +253,10 @@ func signatureBytes(algorithm Algorithm) int {
 // SignRequest captures and restores the exact body, signs the effective
 // request target, and replaces any preexisting signature headers.
 func (s *Signer) SignRequest(request *http.Request, options RequestOptions) ([]Signature, []byte, error) {
-	if request == nil || request.URL == nil {
+	if request == nil {
+		return nil, nil, fmt.Errorf("%w: request is required", ErrInvalidConfiguration)
+	}
+	if request.URL == nil {
 		return nil, nil, fmt.Errorf("%w: request and URL are required", ErrInvalidConfiguration)
 	}
 	contentType, idempotencyKey, err := fixedSignedHeaders(request.Header)
@@ -256,7 +307,10 @@ func (v *Verifier) VerifyRequest(
 			Algorithm: v.algorithm,
 		})
 	}()
-	if request == nil || request.URL == nil {
+	if request == nil {
+		return Verification{}, nil, fmt.Errorf("%w: request is required", ErrInvalidConfiguration)
+	}
+	if request.URL == nil {
 		return Verification{}, nil, fmt.Errorf("%w: request and URL are required", ErrInvalidConfiguration)
 	}
 	signatures, err := ParseSignatureHeaders(request.Header, options.HeaderLimits)
@@ -328,8 +382,16 @@ func fixedSignedHeader(header http.Header, name string) (string, error) {
 	if len(values) == 0 {
 		return "", nil
 	}
-	if len(values) != 1 || len(values[0]) > maxFixedSignedHeaderBytes ||
-		!utf8.ValidString(values[0]) || strings.ContainsAny(values[0], "\r\n") {
+	if len(values) != 1 {
+		return "", ErrMalformedSignedHeader
+	}
+	if len(values[0]) > maxFixedSignedHeaderBytes {
+		return "", ErrMalformedSignedHeader
+	}
+	if !utf8.ValidString(values[0]) {
+		return "", ErrMalformedSignedHeader
+	}
+	if strings.ContainsAny(values[0], "\r\n") {
 		return "", ErrMalformedSignedHeader
 	}
 
@@ -339,11 +401,23 @@ func fixedSignedHeader(header http.Header, name string) (string, error) {
 // HeaderEventID returns a strict single-header extractor with a byte limit.
 func HeaderEventID(name string, maxBytes int) EventIDExtractor {
 	return func(request *http.Request, _ []byte) (string, error) {
-		if request == nil || name == "" || maxBytes <= 0 {
-			return "", ErrMissingEventID
+		if request == nil {
+			return "", fmt.Errorf("%w: request is required", ErrMissingEventID)
+		}
+		if name == "" {
+			return "", fmt.Errorf("%w: header name is required", ErrMissingEventID)
+		}
+		if maxBytes <= 0 {
+			return "", fmt.Errorf("%w: positive header limit is required", ErrMissingEventID)
 		}
 		values := request.Header.Values(name)
-		if len(values) != 1 || values[0] == "" || len(values[0]) > maxBytes {
+		if len(values) != 1 {
+			return "", ErrMissingEventID
+		}
+		if values[0] == "" {
+			return "", ErrMissingEventID
+		}
+		if len(values[0]) > maxBytes {
 			return "", ErrMissingEventID
 		}
 

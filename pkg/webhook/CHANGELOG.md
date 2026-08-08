@@ -42,12 +42,19 @@ and Semantic Versioning.
 
 ### Fixed
 
+- Reject malformed and nonnumeric endpoint ports before DNS resolution or
+  dialing.
+- Isolate each verification candidate's timestamp and nonce so an invalid
+  rotation signature cannot alter a later valid candidate.
+- Reject duplicate signing key IDs and independently validate delivery,
+  wire, replay, queue, outbox, logging, and telemetry boundaries.
 - Check response-body and telemetry-runtime cleanup failures in adapter and
   SSRF tests instead of silently discarding them.
 - Express the accepted HTTPS or explicitly enabled HTTP schemes directly,
   preserving the default-deny SSRF policy without negation ambiguity.
-- Saturate oversized numeric `Retry-After` values and reject body limits whose
-  sentinel byte would overflow an `int64` bound.
+- Saturate numeric `Retry-After` values at the exact configured maximum,
+  including subsecond limits, and reject body limits whose sentinel byte would
+  overflow an `int64` bound.
 - Compare caller timestamps at the signature protocol's Unix-second precision.
 - Select rotation keys at the signed timestamp, reject negative timestamps,
   and reject inverted key validity windows.

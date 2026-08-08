@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/bits"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -64,28 +66,22 @@ type RetryPolicy struct {
 func (p RetryPolicy) Delay(attempt int, now time.Time, retryAfter string) time.Duration {
 	delay := time.Duration(0)
 	if seconds, err := strconv.ParseInt(retryAfter, 10, 64); err == nil && seconds >= 0 {
-		if seconds > int64(p.MaxDelay/time.Second) {
-			delay = p.MaxDelay
-		} else {
-			delay = time.Duration(seconds) * time.Second
+		high, nanoseconds := bits.Mul64(uint64(seconds), uint64(time.Second))
+		if high > 0 {
+			nanoseconds = math.MaxUint64
 		}
+		delay = time.Duration(min(nanoseconds, uint64(p.MaxDelay)))
 	} else if parsed, err := http.ParseTime(retryAfter); err == nil && parsed.After(now) {
 		delay = parsed.Sub(now)
 	} else {
 		delay = p.BaseDelay
-		for current := 1; current < attempt && delay < p.MaxDelay; current++ {
-			if delay > p.MaxDelay/2 {
-				delay = p.MaxDelay
-				break
-			}
-			delay *= 2
+		for range max(attempt-1, 0) {
+			doubled, _ := bits.Add64(uint64(delay), uint64(delay), 0)
+			delay = time.Duration(min(doubled, uint64(p.MaxDelay)))
 		}
 	}
-	if delay > p.MaxDelay {
-		return p.MaxDelay
-	}
 
-	return delay
+	return min(delay, p.MaxDelay)
 }
 
 // DeliveryAttempt records one actual HTTP attempt without payloads, secrets,
@@ -164,13 +160,8 @@ type Deliverer struct {
 
 // NewDeliverer validates every mandatory safety bound and injectable.
 func NewDeliverer(config DeliveryConfig) (*Deliverer, error) {
-	if config.Client == nil || config.Signer == nil || config.EndpointPolicy == nil ||
-		config.IDGenerator == nil || config.MaxRequestBytes <= 0 || config.MaxRequestBytes == math.MaxInt64 ||
-		config.MaxResponseBytes <= 0 || config.MaxResponseBytes == math.MaxInt64 ||
-		config.MaxFanOut <= 0 ||
-		config.HeaderLimits.MaxSignatures <= 0 || config.HeaderLimits.MaxBytes <= 0 ||
-		config.Retry.MaxAttempts <= 0 || config.Retry.BaseDelay < 0 || config.Retry.MaxDelay < config.Retry.BaseDelay {
-		return nil, fmt.Errorf("%w: incomplete or unsafe delivery configuration", ErrInvalidConfiguration)
+	if err := validateDeliveryConfig(config); err != nil {
+		return nil, err
 	}
 	clock := config.Clock
 	if clock == nil {
@@ -199,15 +190,55 @@ func NewDeliverer(config DeliveryConfig) (*Deliverer, error) {
 	}, nil
 }
 
+func validateDeliveryConfig(config DeliveryConfig) error {
+	switch {
+	case config.Client == nil:
+		return fmt.Errorf("%w: client is required", ErrInvalidConfiguration)
+	case config.Signer == nil:
+		return fmt.Errorf("%w: signer is required", ErrInvalidConfiguration)
+	case config.EndpointPolicy == nil:
+		return fmt.Errorf("%w: endpoint policy is required", ErrInvalidConfiguration)
+	case config.IDGenerator == nil:
+		return fmt.Errorf("%w: ID generator is required", ErrInvalidConfiguration)
+	case config.MaxRequestBytes <= 0 || config.MaxRequestBytes == math.MaxInt64:
+		return fmt.Errorf("%w: safe positive request limit is required", ErrInvalidConfiguration)
+	case config.MaxResponseBytes <= 0 || config.MaxResponseBytes == math.MaxInt64:
+		return fmt.Errorf("%w: safe positive response limit is required", ErrInvalidConfiguration)
+	case config.MaxFanOut <= 0:
+		return fmt.Errorf("%w: positive fan-out limit is required", ErrInvalidConfiguration)
+	case config.HeaderLimits.MaxSignatures <= 0:
+		return fmt.Errorf("%w: positive signature count limit is required", ErrInvalidConfiguration)
+	case config.HeaderLimits.MaxBytes <= 0:
+		return fmt.Errorf("%w: positive signature byte limit is required", ErrInvalidConfiguration)
+	case config.Retry.MaxAttempts <= 0:
+		return fmt.Errorf("%w: positive attempt limit is required", ErrInvalidConfiguration)
+	case config.Retry.BaseDelay < 0:
+		return fmt.Errorf("%w: retry base delay cannot be negative", ErrInvalidConfiguration)
+	case config.Retry.MaxDelay < config.Retry.BaseDelay:
+		return fmt.Errorf("%w: retry maximum delay cannot be below the base delay", ErrInvalidConfiguration)
+	default:
+		return nil
+	}
+}
+
 // Deliver performs bounded attempts. Retries are disabled for requests that
 // do not carry an explicit idempotency key.
 func (d *Deliverer) Deliver(ctx context.Context, delivery DeliveryRequest) (DeliveryResult, error) {
 	result := DeliveryResult{EventID: delivery.EventID}
-	if delivery.Endpoint == nil || delivery.EventID == "" || int64(len(delivery.Body)) > d.maxRequestBytes {
-		return result, fmt.Errorf("%w: endpoint, event ID, and bounded body are required", ErrInvalidConfiguration)
+	if delivery.Endpoint == nil {
+		return result, fmt.Errorf("%w: endpoint is required", ErrInvalidConfiguration)
+	}
+	if delivery.EventID == "" {
+		return result, fmt.Errorf("%w: event ID is required", ErrInvalidConfiguration)
+	}
+	if int64(len(delivery.Body)) > d.maxRequestBytes {
+		return result, fmt.Errorf("%w: request body exceeds limit", ErrInvalidConfiguration)
 	}
 	deliveryID, err := d.id()
-	if err != nil || deliveryID == "" {
+	if err != nil {
+		return result, fmt.Errorf("%w: delivery ID generation failed", ErrDeliveryFailed)
+	}
+	if deliveryID == "" {
 		return result, fmt.Errorf("%w: delivery ID generation failed", ErrDeliveryFailed)
 	}
 	result.ID = deliveryID
@@ -216,7 +247,8 @@ func (d *Deliverer) Deliver(ctx context.Context, delivery DeliveryRequest) (Deli
 		maxAttempts = 1
 	}
 
-	for number := 1; ; number++ {
+	for attemptIndex := range maxAttempts {
+		number := attemptIndex + 1
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
@@ -226,7 +258,11 @@ func (d *Deliverer) Deliver(ctx context.Context, delivery DeliveryRequest) (Deli
 			return result, d.terminalError(ctx, result, failure)
 		}
 		attemptID, err := d.id()
-		if err != nil || attemptID == "" {
+		if err != nil {
+			failure := fmt.Errorf("%w: attempt ID generation failed", ErrDeliveryFailed)
+			return result, d.terminalError(ctx, result, failure)
+		}
+		if attemptID == "" {
 			failure := fmt.Errorf("%w: attempt ID generation failed", ErrDeliveryFailed)
 			return result, d.terminalError(ctx, result, failure)
 		}
@@ -281,16 +317,16 @@ func (d *Deliverer) Deliver(ctx context.Context, delivery DeliveryRequest) (Deli
 			return result, nil
 		}
 
-		if retryableStatus(response.StatusCode) && number < maxAttempts {
-			attempt.Classification = FailureRetryable
-			attempt.RetryAfter = d.retry.Delay(number, d.clock().UTC(), response.Header.Get("Retry-After"))
-			d.recordAttempt(ctx, &result, attempt)
-			if err := d.sleep(ctx, attempt.RetryAfter); err != nil {
-				return result, err
-			}
-			continue
-		}
 		if retryableStatus(response.StatusCode) {
+			if number < maxAttempts {
+				attempt.Classification = FailureRetryable
+				attempt.RetryAfter = d.retry.Delay(number, d.clock().UTC(), response.Header.Get("Retry-After"))
+				d.recordAttempt(ctx, &result, attempt)
+				if err := d.sleep(ctx, attempt.RetryAfter); err != nil {
+					return result, err
+				}
+				continue
+			}
 			attempt.Classification = FailureExhausted
 		} else {
 			attempt.Classification = FailureTerminal
@@ -301,6 +337,8 @@ func (d *Deliverer) Deliver(ctx context.Context, delivery DeliveryRequest) (Deli
 
 		return result, d.terminalError(ctx, result, failure)
 	}
+
+	return result, fmt.Errorf("%w: attempt limit exhausted without a result", ErrDeliveryFailed)
 }
 
 // DeliverOnce performs exactly one HTTP attempt even when the Deliverer retry
@@ -344,7 +382,10 @@ func readResponse(response *http.Response, maxBytes int64) ([]byte, error) {
 	}
 	body, readErr := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
 	closeErr := response.Body.Close()
-	if readErr != nil || closeErr != nil {
+	if readErr != nil {
+		return nil, fmt.Errorf("%w: response read failed", ErrDeliveryFailed)
+	}
+	if closeErr != nil {
 		return nil, fmt.Errorf("%w: response read failed", ErrDeliveryFailed)
 	}
 	if int64(len(body)) > maxBytes {
@@ -413,7 +454,7 @@ type FanOutResult struct {
 
 // FanOut runs deliveries with a bounded worker pool and no durable queue.
 func (d *Deliverer) FanOut(ctx context.Context, deliveries []DeliveryRequest, workers int) ([]FanOutResult, error) {
-	if workers <= 0 {
+	if workers < 1 {
 		return nil, fmt.Errorf("%w: positive fan-out workers required", ErrInvalidConfiguration)
 	}
 	if len(deliveries) > d.maxFanOut {
@@ -423,24 +464,23 @@ func (d *Deliverer) FanOut(ctx context.Context, deliveries []DeliveryRequest, wo
 	if len(deliveries) == 0 {
 		return results, nil
 	}
-	workers = min(workers, len(deliveries))
-	jobs := make(chan int)
-	done := make(chan struct{})
+	workers = min(max(workers, 1), len(deliveries))
+	jobs := make(chan int, len(deliveries))
+	for index := range deliveries {
+		jobs <- index
+	}
+	close(jobs)
+	var group sync.WaitGroup
+	group.Add(workers)
 	for range workers {
 		go func() {
-			defer func() { done <- struct{}{} }()
+			defer group.Done()
 			for index := range jobs {
 				results[index].Result, results[index].Err = d.Deliver(ctx, deliveries[index])
 			}
 		}()
 	}
-	for index := range deliveries {
-		jobs <- index
-	}
-	close(jobs)
-	for range workers {
-		<-done
-	}
+	group.Wait()
 
 	return results, nil
 }

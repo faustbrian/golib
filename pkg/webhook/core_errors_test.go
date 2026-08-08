@@ -250,7 +250,7 @@ func TestHTTPHeaderAndRequestErrorPaths(t *testing.T) {
 		t.Fatalf("SignRequest(nil) error = %v", err)
 	}
 	if _, _, err := signer.SignRequest(&http.Request{}, RequestOptions{}); !errors.Is(err, ErrInvalidConfiguration) {
-		t.Fatalf("SignRequest(no URL) error = %v", err)
+		t.Fatalf("SignRequest(nil URL) error = %v", err)
 	}
 	request := &http.Request{Method: "POST", URL: &url.URL{Path: "/"}, Body: io.NopCloser(bytes.NewReader([]byte("body"))), ContentLength: 4}
 	if _, _, err := signer.SignRequest(request, RequestOptions{MaxBodyBytes: 1}); !errors.Is(err, ErrBodyTooLarge) {
@@ -341,6 +341,9 @@ func TestVerifyRequestAndReplayErrorPaths(t *testing.T) {
 
 	if _, _, err := verifier.VerifyRequest(context.Background(), nil, RequestOptions{}); !errors.Is(err, ErrInvalidConfiguration) {
 		t.Fatalf("VerifyRequest(nil) error = %v", err)
+	}
+	if _, _, err := verifier.VerifyRequest(context.Background(), &http.Request{}, RequestOptions{}); !errors.Is(err, ErrInvalidConfiguration) {
+		t.Fatalf("VerifyRequest(nil URL) error = %v", err)
 	}
 	unsigned := &http.Request{Method: "POST", URL: &url.URL{Path: "/"}, Header: make(http.Header), Body: http.NoBody}
 	if _, _, err := verifier.VerifyRequest(context.Background(), unsigned, RequestOptions{HeaderLimits: HeaderLimits{MaxSignatures: 1, MaxBytes: 256}}); !errors.Is(err, ErrMalformedSignatureHeader) {

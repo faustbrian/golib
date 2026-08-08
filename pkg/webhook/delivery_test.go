@@ -229,13 +229,25 @@ func TestFanOutBoundsConcurrencyAndPreservesResultOrder(t *testing.T) {
 	}
 
 	resultsChannel := make(chan []FanOutResult, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 	go func() {
-		results, _ := deliverer.FanOut(context.Background(), requests, 3)
+		results, _ := deliverer.FanOut(ctx, requests, 3)
 		resultsChannel <- results
 	}()
-	<-doer.full
-	close(doer.release)
-	results := <-resultsChannel
+	select {
+	case <-doer.full:
+		close(doer.release)
+	case <-ctx.Done():
+		close(doer.release)
+		t.Fatal("fan-out workers did not reach the concurrency barrier")
+	}
+	var results []FanOutResult
+	select {
+	case results = <-resultsChannel:
+	case <-ctx.Done():
+		t.Fatal("fan-out did not return after releasing workers")
+	}
 	if doer.maximum.Load() != 3 {
 		t.Fatalf("maximum concurrency = %d, want 3", doer.maximum.Load())
 	}

@@ -40,8 +40,19 @@ var _ webhook.ReplayStore = (*Store)(nil)
 
 // New validates the durable service and every key scope component.
 func New(config Config) (*Store, error) {
-	if config.Service == nil || config.Namespace == "" || config.Tenant == "" ||
-		config.Operation == "" || config.Caller == "" {
+	if config.Service == nil {
+		return nil, ErrInvalidConfig
+	}
+	if config.Namespace == "" {
+		return nil, ErrInvalidConfig
+	}
+	if config.Tenant == "" {
+		return nil, ErrInvalidConfig
+	}
+	if config.Operation == "" {
+		return nil, ErrInvalidConfig
+	}
+	if config.Caller == "" {
 		return nil, ErrInvalidConfig
 	}
 	if _, err := idempotency.NewKey(

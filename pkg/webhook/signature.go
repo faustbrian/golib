@@ -154,7 +154,10 @@ func Canonicalize(message Message, keyID string, algorithm Algorithm) ([]byte, e
 	if _, err := hashFactory(algorithm); err != nil {
 		return nil, err
 	}
-	if message.Timestamp.IsZero() || message.Timestamp.Unix() < 0 {
+	if message.Timestamp.IsZero() {
+		return nil, fmt.Errorf("%w: timestamp is required", ErrInvalidTimestamp)
+	}
+	if message.Timestamp.Unix() < 0 {
 		return nil, fmt.Errorf("%w: timestamp is required", ErrInvalidTimestamp)
 	}
 	if !validNonce(message.Nonce) {
@@ -252,11 +255,21 @@ func NewSigner(config SignerConfig) (*Signer, error) {
 		nonce = defaultNonce
 	}
 	keys := make([]SigningKey, len(config.Keys))
+	keyIDs := make(map[string]struct{}, len(config.Keys))
 	for index, key := range config.Keys {
-		if key.ID == "" || len(key.Secret) == 0 ||
-			(!key.NotBefore.IsZero() && !key.NotAfter.IsZero() && key.NotAfter.Before(key.NotBefore)) {
-			return nil, fmt.Errorf("%w: key ID, secret, and valid window are required", ErrInvalidConfiguration)
+		if key.ID == "" {
+			return nil, fmt.Errorf("%w: key ID is required", ErrInvalidConfiguration)
 		}
+		if len(key.Secret) == 0 {
+			return nil, fmt.Errorf("%w: key secret is required", ErrInvalidConfiguration)
+		}
+		if !key.NotBefore.IsZero() && !key.NotAfter.IsZero() && key.NotAfter.Before(key.NotBefore) {
+			return nil, fmt.Errorf("%w: key validity window is invalid", ErrInvalidConfiguration)
+		}
+		if _, duplicate := keyIDs[key.ID]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate key ID", ErrInvalidConfiguration)
+		}
+		keyIDs[key.ID] = struct{}{}
 		key.Secret = append([]byte(nil), key.Secret...)
 		keys[index] = key
 	}
@@ -294,7 +307,7 @@ func (s *Signer) Sign(message Message) ([]Signature, error) {
 	}
 	sort.Slice(keys, func(i, j int) bool {
 		if keys[i].NotBefore.Equal(keys[j].NotBefore) {
-			return keys[i].ID < keys[j].ID
+			return strings.Compare(keys[i].ID, keys[j].ID) == -1
 		}
 
 		return keys[i].NotBefore.After(keys[j].NotBefore)
@@ -351,14 +364,26 @@ func NewVerifier(config VerifierConfig) (*Verifier, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(config.Keys) == 0 || config.Tolerance < 0 {
+	if len(config.Keys) == 0 {
+		return nil, fmt.Errorf("%w: keys are required", ErrInvalidConfiguration)
+	}
+	if config.Tolerance < 0 {
 		return nil, fmt.Errorf("%w: keys are required and tolerance cannot be negative", ErrInvalidConfiguration)
 	}
-	if config.ReplayStore != nil && (config.ReplayTTL <= 0 || config.ReplayNamespace == "") {
-		return nil, fmt.Errorf("%w: replay TTL and namespace are required", ErrInvalidConfiguration)
-	}
-	if config.ReplayStore == nil && (config.ReplayTTL != 0 || config.ReplayNamespace != "") {
-		return nil, fmt.Errorf("%w: replay settings require a store", ErrInvalidConfiguration)
+	if config.ReplayStore != nil {
+		if config.ReplayTTL <= 0 {
+			return nil, fmt.Errorf("%w: positive replay TTL is required", ErrInvalidConfiguration)
+		}
+		if config.ReplayNamespace == "" {
+			return nil, fmt.Errorf("%w: replay namespace is required", ErrInvalidConfiguration)
+		}
+	} else {
+		if config.ReplayTTL != 0 {
+			return nil, fmt.Errorf("%w: replay TTL requires a store", ErrInvalidConfiguration)
+		}
+		if config.ReplayNamespace != "" {
+			return nil, fmt.Errorf("%w: replay namespace requires a store", ErrInvalidConfiguration)
+		}
 	}
 	clock := config.Clock
 	if clock == nil {
@@ -366,9 +391,14 @@ func NewVerifier(config VerifierConfig) (*Verifier, error) {
 	}
 	keys := make(map[string]VerificationKey, len(config.Keys))
 	for _, key := range config.Keys {
-		if key.ID == "" || len(key.Secret) == 0 ||
-			(!key.NotBefore.IsZero() && !key.NotAfter.IsZero() && key.NotAfter.Before(key.NotBefore)) {
-			return nil, fmt.Errorf("%w: key ID, secret, and valid window are required", ErrInvalidConfiguration)
+		if key.ID == "" {
+			return nil, fmt.Errorf("%w: key ID is required", ErrInvalidConfiguration)
+		}
+		if len(key.Secret) == 0 {
+			return nil, fmt.Errorf("%w: key secret is required", ErrInvalidConfiguration)
+		}
+		if !key.NotBefore.IsZero() && !key.NotAfter.IsZero() && key.NotAfter.Before(key.NotBefore) {
+			return nil, fmt.Errorf("%w: key validity window is invalid", ErrInvalidConfiguration)
 		}
 		if _, duplicate := keys[key.ID]; duplicate {
 			return nil, fmt.Errorf("%w: duplicate key ID", ErrInvalidConfiguration)
@@ -415,9 +445,10 @@ func (v *Verifier) Verify(message Message, signatures []Signature) (Verification
 		if err != nil {
 			continue
 		}
-		message.Timestamp = signature.Timestamp
-		message.Nonce = signature.Nonce
-		canonical, err := Canonicalize(message, signature.KeyID, v.algorithm)
+		candidateMessage := message
+		candidateMessage.Timestamp = signature.Timestamp
+		candidateMessage.Nonce = signature.Nonce
+		canonical, err := Canonicalize(candidateMessage, signature.KeyID, v.algorithm)
 		if err != nil {
 			return Verification{}, &VerificationError{Kind: ErrInvalidSignature, Diagnostic: "canonical request rejected"}
 		}
@@ -542,5 +573,12 @@ func generateNonce(reader io.Reader) (string, error) {
 }
 
 func validNonce(nonce string) bool {
-	return nonce != "" && len(nonce) <= maxNonceBytes && utf8.ValidString(nonce)
+	if nonce == "" {
+		return false
+	}
+	if len(nonce) > maxNonceBytes {
+		return false
+	}
+
+	return utf8.ValidString(nonce)
 }

@@ -68,18 +68,47 @@ func TestPublisherPerformsSingleAttemptForRelay(t *testing.T) {
 func TestAdapterValidatesConfigurationAndPayload(t *testing.T) {
 	t.Parallel()
 
-	if _, err := NewPublisher(nil, 0); !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("NewPublisher() error = %v, want ErrInvalidConfig", err)
-	}
-	if _, err := Build(nil, "", webhook.DeliveryRequest{}, 0); !errors.Is(err, ErrInvalidConfig) {
-		t.Fatalf("Build() error = %v, want ErrInvalidConfig", err)
+	builder, _ := outbox.NewEnvelopeBuilder()
+	endpoint, _ := url.Parse("https://example.com/hook")
+	delivery := webhook.DeliveryRequest{Endpoint: endpoint, Body: []byte("body"), EventID: "event"}
+	deliverer := newDeliverer(t, httpDoerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusNoContent, Header: make(http.Header), Body: http.NoBody}, nil
+	}))
+	for name, build := range map[string]func() error{
+		"nil builder": func() error {
+			_, err := Build(nil, "topic", delivery, 4096)
+
+			return err
+		},
+		"empty topic": func() error {
+			_, err := Build(builder, "", delivery, 4096)
+
+			return err
+		},
+		"zero limit": func() error {
+			_, err := Build(builder, "topic", delivery, 0)
+
+			return err
+		},
+		"nil deliverer": func() error {
+			_, err := NewPublisher(nil, 4096)
+
+			return err
+		},
+		"publisher zero limit": func() error {
+			_, err := NewPublisher(deliverer, 0)
+
+			return err
+		},
+	} {
+		if err := build(); !errors.Is(err, ErrInvalidConfig) {
+			t.Fatalf("%s error = %v, want ErrInvalidConfig", name, err)
+		}
 	}
 	publisher := &Publisher{maxBytes: 1}
 	if err := publisher.Publish(context.Background(), outbox.Envelope{Payload: []byte("too large")}); !errors.Is(err, webhook.ErrDeliveryEncoding) {
 		t.Fatalf("Publish() payload error = %v", err)
 	}
-	builder, _ := outbox.NewEnvelopeBuilder()
-	endpoint, _ := url.Parse("https://example.com/hook")
 	if _, err := Build(builder, "topic", webhook.DeliveryRequest{Endpoint: endpoint, Body: []byte("body"), EventID: "event"}, 1); !errors.Is(err, webhook.ErrDeliveryEncoding) {
 		t.Fatalf("Build() encoding error = %v", err)
 	}
@@ -88,10 +117,7 @@ func TestAdapterValidatesConfigurationAndPayload(t *testing.T) {
 	if _, err := Build(failingBuilder, "topic", webhook.DeliveryRequest{Endpoint: endpoint, Body: []byte("body"), EventID: "event"}, 4096); !errors.Is(err, buildErr) {
 		t.Fatalf("Build() builder error = %v", err)
 	}
-	successDeliverer := newDeliverer(t, httpDoerFunc(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: http.StatusNoContent, Header: make(http.Header), Body: http.NoBody}, nil
-	}))
-	successPublisher, _ := NewPublisher(successDeliverer, 4096)
+	successPublisher, _ := NewPublisher(deliverer, 4096)
 	payload, _ := webhook.MarshalDeliveryRequest(webhook.DeliveryRequest{Endpoint: endpoint, Body: []byte("body"), EventID: "event"}, 4096)
 	if err := successPublisher.Publish(context.Background(), outbox.Envelope{Payload: payload}); err != nil {
 		t.Fatalf("Publish() error = %v", err)
