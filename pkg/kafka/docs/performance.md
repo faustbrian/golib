@@ -236,18 +236,20 @@ shared local host, so they are descriptive evidence rather than client rankings
 or production budgets.
 
 The refreshed authenticated capture covers mTLS, SASL/PLAIN, SCRAM-SHA-256,
-and SCRAM-SHA-512. Persistent SCRAM-SHA-256 medians ranged from 847
-microseconds to 1.44 milliseconds for the policy path, 605 to 889 microseconds
-for raw franz-go, and 7.21 to 7.95 milliseconds for Sarama. SCRAM-SHA-512
-medians ranged from 398 to 647 microseconds for the policy path, 779 to 817
-microseconds for raw franz-go, and 7.20 to 7.28 milliseconds for Sarama.
-Complete connection, one-record delivery, and shutdown medians were 25.99,
-28.49, and 30.02 milliseconds for SCRAM-SHA-256 and 28.85, 32.83, and 26.02
-milliseconds for SCRAM-SHA-512, respectively. Distributions spread as far as
-261 percent
-across the complete
-four-mode capture, so these results are descriptive local evidence rather than
-a ranking or regression budget. OAUTHBEARER, external identity-provider, and
+SCRAM-SHA-512, and signed-JWT OAUTHBEARER. Persistent SCRAM-SHA-256 medians
+ranged from 1.38 to 2.57 milliseconds for the policy path, 1.81 to 2.93
+milliseconds for raw franz-go, and 9.06 to 9.72 milliseconds for Sarama.
+SCRAM-SHA-512 medians ranged from 842 microseconds to 1.39 milliseconds for the
+policy path, 780 microseconds to 2.50 milliseconds for raw franz-go, and 8.15
+to 10.16 milliseconds for Sarama. OAUTHBEARER medians ranged from 659 to 916
+microseconds for the policy path, 742 microseconds to 1.40 milliseconds for raw
+franz-go, and 8.34 to 8.81 milliseconds for Sarama. Complete connection,
+one-record delivery, and shutdown medians were 49.28, 40.11, and 32.92
+milliseconds for SCRAM-SHA-256; 46.60, 42.54, and 35.47 milliseconds for
+SCRAM-SHA-512; and 53.14, 63.49, and 40.66 milliseconds for OAUTHBEARER.
+Distributions spread as far as 644 percent across the complete five-mode
+capture, so these results are descriptive local evidence rather than a ranking
+or regression budget. External identity-provider, token-acquisition, and
 credential-rotation performance remain unverified.
 
 Producer transaction medians for one record ranged from 6.37 to 25.92
@@ -306,7 +308,8 @@ complete end-to-end policy-overhead decomposition remains outstanding.
 
 Release evidence still requires equivalent and reproducible captures for:
 
-- OAUTHBEARER and external identity-provider authentication costs; and
+- external identity-provider token acquisition and credential-rotation costs;
+  and
 - a previous released package version after one exists.
 
 Future runs must retain raw samples and environment fingerprints, report

@@ -4,11 +4,15 @@ package clients_test
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -29,6 +33,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
+	franzoauth "github.com/twmb/franz-go/pkg/sasl/oauth"
 	franzplain "github.com/twmb/franz-go/pkg/sasl/plain"
 	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
 	xdgscram "github.com/xdg-go/scram"
@@ -48,6 +53,9 @@ const (
 	benchmarkSASLUsername      = "benchmark-user"
 	benchmarkSCRAM256Username  = "benchmark-scram-256"
 	benchmarkSCRAM512Username  = "benchmark-scram-512"
+	benchmarkOAuthIssuer       = "https://issuer.benchmark.golib.test"
+	benchmarkOAuthAudience     = "golib-kafka-benchmark"
+	benchmarkOAuthKeyID        = "golib-benchmark-key"
 )
 
 type benchmarkTLSFixture struct {
@@ -61,6 +69,8 @@ type benchmarkTLSFixture struct {
 	saslPassword string
 	scram256Pass string
 	scram512Pass string
+	oauthToken   []byte
+	oauthExpiry  time.Time
 }
 
 type benchmarkTLSMaterial struct {
@@ -78,6 +88,7 @@ const (
 	benchmarkSASLPlain
 	benchmarkSCRAMSHA256
 	benchmarkSCRAMSHA512
+	benchmarkOAuthBearer
 )
 
 func (mode benchmarkAuthenticatedMode) String() string {
@@ -90,18 +101,22 @@ func (mode benchmarkAuthenticatedMode) String() string {
 		return "scram-sha-256"
 	case benchmarkSCRAMSHA512:
 		return "scram-sha-512"
+	case benchmarkOAuthBearer:
+		return "oauth-bearer"
 	default:
 		return "unknown"
 	}
 }
 
 type benchmarkAuthenticatedClientConnection struct {
-	mode       benchmarkAuthenticatedMode
-	brokers    []string
-	tlsConfig  *tls.Config
-	clientCert tls.Certificate
-	username   string
-	password   string
+	mode        benchmarkAuthenticatedMode
+	brokers     []string
+	tlsConfig   *tls.Config
+	clientCert  tls.Certificate
+	username    string
+	password    string
+	oauthToken  []byte
+	oauthExpiry time.Time
 }
 
 type benchmarkAuthenticatedProducerCandidate struct {
@@ -116,6 +131,14 @@ type benchmarkAuthenticatedProducerCandidate struct {
 type benchmarkXDGSCRAMClient struct {
 	hash         xdgscram.HashGeneratorFcn
 	conversation *xdgscram.ClientConversation
+}
+
+type benchmarkSaramaOAuthProvider struct {
+	token string
+}
+
+func (provider benchmarkSaramaOAuthProvider) Token() (*sarama.AccessToken, error) {
+	return &sarama.AccessToken{Token: provider.token}, nil
 }
 
 func (client *benchmarkXDGSCRAMClient) Begin(
@@ -276,6 +299,7 @@ func BenchmarkEquivalentAuthenticatedSynchronousProduce(benchmark *testing.B) {
 		benchmarkSASLPlain,
 		benchmarkSCRAMSHA256,
 		benchmarkSCRAMSHA512,
+		benchmarkOAuthBearer,
 	} {
 		benchmark.Run(mode.String(), func(benchmark *testing.B) {
 			connection := benchmarkAuthenticatedConnection(benchmark, mode)
@@ -345,6 +369,7 @@ func BenchmarkEquivalentAuthenticatedConnectProduceClose(benchmark *testing.B) {
 		benchmarkSASLPlain,
 		benchmarkSCRAMSHA256,
 		benchmarkSCRAMSHA512,
+		benchmarkOAuthBearer,
 	} {
 		benchmark.Run(mode.String(), func(benchmark *testing.B) {
 			connection := benchmarkAuthenticatedConnection(benchmark, mode)
@@ -428,6 +453,7 @@ func TestEquivalentAuthenticatedProducerOutcomes(t *testing.T) {
 		benchmarkSASLPlain,
 		benchmarkSCRAMSHA256,
 		benchmarkSCRAMSHA512,
+		benchmarkOAuthBearer,
 	} {
 		t.Run(mode.String(), func(t *testing.T) {
 			connection := benchmarkAuthenticatedConnection(t, mode)
@@ -584,6 +610,12 @@ func startBenchmarkTLSFixture() {
 
 		return
 	}
+	oauthJWKS, oauthToken, oauthExpiry, err := newBenchmarkOAuthMaterial()
+	if err != nil {
+		benchmarkTLSFixtureErr = err
+
+		return
+	}
 	files := []struct {
 		path string
 		data []byte
@@ -613,6 +645,7 @@ func startBenchmarkTLSFixture() {
 			data: []byte(scram512Password),
 			mode: 0o600,
 		},
+		{path: "/tmp/jwks.json", data: oauthJWKS, mode: 0o644},
 		{
 			path: "/tmp/server.properties",
 			data: []byte(benchmarkTLSServerProperties(
@@ -667,6 +700,8 @@ func startBenchmarkTLSFixture() {
 	benchmarkTLSFixtureValue.saslPassword = saslPassword
 	benchmarkTLSFixtureValue.scram256Pass = scram256Password
 	benchmarkTLSFixtureValue.scram512Pass = scram512Password
+	benchmarkTLSFixtureValue.oauthToken = append([]byte(nil), oauthToken...)
+	benchmarkTLSFixtureValue.oauthExpiry = oauthExpiry
 	benchmarkTLSFixtureValue.config = &tls.Config{
 		MinVersion: tls.VersionTLS13,
 		MaxVersion: tls.VersionTLS13,
@@ -728,7 +763,8 @@ func benchmarkTLSServerProperties(
 			"ssl.truststore.type=PEM\n"+
 			"ssl.client.auth=none\n"+
 			"listener.name.mtls.ssl.client.auth=required\n"+
-			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n"+
+			"sasl.enabled.mechanisms="+
+			"PLAIN,SCRAM-SHA-256,SCRAM-SHA-512,OAUTHBEARER\n"+
 			"listener.name.sasl_ssl.plain.sasl.jaas.config="+
 			"org.apache.kafka.common.security.plain.PlainLoginModule required "+
 			"user_"+benchmarkSASLUsername+"="+
@@ -736,7 +772,20 @@ func benchmarkTLSServerProperties(
 			"listener.name.sasl_ssl.scram-sha-256.sasl.jaas.config="+
 			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n"+
 			"listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config="+
-			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n",
+			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n"+
+			"listener.name.sasl_ssl.oauthbearer.sasl.jaas.config="+
+			"org.apache.kafka.common.security.oauthbearer."+
+			"OAuthBearerLoginModule required;\n"+
+			"listener.name.sasl_ssl.oauthbearer."+
+			"sasl.oauthbearer.expected.audience="+benchmarkOAuthAudience+"\n"+
+			"listener.name.sasl_ssl.oauthbearer."+
+			"sasl.oauthbearer.expected.issuer="+benchmarkOAuthIssuer+"\n"+
+			"listener.name.sasl_ssl.oauthbearer."+
+			"sasl.oauthbearer.jwks.endpoint.url=file:///tmp/jwks.json\n"+
+			"listener.name.sasl_ssl.oauthbearer."+
+			"sasl.server.callback.handler.class="+
+			"org.apache.kafka.common.security.oauthbearer."+
+			"OAuthBearerValidatorCallbackHandler\n",
 		benchmarkTLSControllerPort,
 		benchmarkTLSInternalPort,
 		benchmarkTLSControllerPort,
@@ -763,6 +812,8 @@ func benchmarkTLSStartScript() string {
 		"umask 077\n" +
 		"scram256_password=\"$(cat /tmp/scram256-password)\"\n" +
 		"scram512_password=\"$(cat /tmp/scram512-password)\"\n" +
+		"export KAFKA_OPTS=\"-Dorg.apache.kafka.sasl.oauthbearer." +
+		"allowed.urls=file:///tmp/jwks.json\"\n" +
 		"openssl pkcs12 -export -name broker " +
 		"-inkey /tmp/server-key.pem -in /tmp/server.pem " +
 		"-certfile /tmp/ca.pem -out /tmp/server.p12 " +
@@ -901,6 +952,68 @@ func benchmarkTLSRandomSecret() (string, error) {
 	return fmt.Sprintf("%x", value), nil
 }
 
+func newBenchmarkOAuthMaterial() ([]byte, []byte, time.Time, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	encoder := base64.RawURLEncoding
+	jwks, err := json.Marshal(map[string]any{
+		"keys": []map[string]string{{
+			"kty": "RSA",
+			"kid": benchmarkOAuthKeyID,
+			"use": "sig",
+			"alg": "RS256",
+			"n":   encoder.EncodeToString(key.N.Bytes()),
+			"e": encoder.EncodeToString(
+				big.NewInt(int64(key.E)).Bytes(),
+			),
+		}},
+	})
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	now := time.Now()
+	expiresAt := now.Add(time.Hour)
+	header, err := json.Marshal(map[string]string{
+		"alg": "RS256",
+		"typ": "JWT",
+		"kid": benchmarkOAuthKeyID,
+	})
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	jti, err := benchmarkTLSRandomSecret()
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	claims, err := json.Marshal(map[string]any{
+		"iss": benchmarkOAuthIssuer,
+		"aud": benchmarkOAuthAudience,
+		"sub": "golib-benchmark-client",
+		"iat": now.Add(-time.Second).Unix(),
+		"exp": expiresAt.Unix(),
+		"jti": jti,
+	})
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	signed := encoder.EncodeToString(header) + "." + encoder.EncodeToString(claims)
+	digest := sha256.Sum256([]byte(signed))
+	signature, err := rsa.SignPKCS1v15(
+		rand.Reader,
+		key,
+		crypto.SHA256,
+		digest[:],
+	)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	token := []byte(signed + "." + encoder.EncodeToString(signature))
+
+	return jwks, token, expiresAt, nil
+}
+
 func validateBenchmarkTLSRuntime(
 	ctx context.Context,
 	container testcontainers.Container,
@@ -1021,6 +1134,13 @@ func benchmarkAuthenticatedConnection(
 		connection.brokers = []string{benchmarkTLSFixtureValue.saslEndpoint}
 		connection.username = benchmarkSCRAM512Username
 		connection.password = benchmarkTLSFixtureValue.scram512Pass
+	case benchmarkOAuthBearer:
+		connection.brokers = []string{benchmarkTLSFixtureValue.saslEndpoint}
+		connection.oauthToken = append(
+			[]byte(nil),
+			benchmarkTLSFixtureValue.oauthToken...,
+		)
+		connection.oauthExpiry = benchmarkTLSFixtureValue.oauthExpiry
 	default:
 		tb.Fatalf("unsupported benchmark authentication mode %d", mode)
 	}
@@ -1090,6 +1210,18 @@ func newPolicyAuthenticatedProducer(
 				return connection.clientCert, nil
 			},
 		)
+	} else if connection.mode == benchmarkOAuthBearer {
+		security.Authentication = policy.NewOAuthBearerAuthentication(
+			policy.OAuthBearerProviderFunc(func(
+				context.Context,
+			) (policy.OAuthBearerToken, error) {
+				return policy.OAuthBearerToken{
+					Token:     append([]byte(nil), connection.oauthToken...),
+					ExpiresAt: connection.oauthExpiry,
+				}, nil
+			}),
+		)
+		security.CredentialTimeout = benchmarkRequestTimeout
 	} else {
 		provider := policy.UsernamePasswordProviderFunc(func(context.Context) (
 			policy.UsernamePassword,
@@ -1196,6 +1328,10 @@ func benchmarkAuthenticatedFranzSASL(
 			User: connection.username,
 			Pass: connection.password,
 		}.AsSha512Mechanism()
+	case benchmarkOAuthBearer:
+		mechanism = franzoauth.Auth{
+			Token: string(connection.oauthToken),
+		}.AsMechanism()
 	default:
 		panic(fmt.Sprintf("unsupported franz-go authentication mode %d", connection.mode))
 	}
@@ -1233,6 +1369,12 @@ func newSaramaAuthenticatedProducer(
 			sarama.SASLTypeSCRAMSHA512,
 			xdgscram.SHA512,
 		)
+	case benchmarkOAuthBearer:
+		config.Net.SASL.Enable = true
+		config.Net.SASL.Mechanism = sarama.SASLTypeOAuth
+		config.Net.SASL.TokenProvider = benchmarkSaramaOAuthProvider{
+			token: string(connection.oauthToken),
+		}
 	default:
 		t.Fatalf("unsupported Sarama authentication mode %d", connection.mode)
 	}
