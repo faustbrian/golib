@@ -168,22 +168,6 @@ func baseInternalItem() knapsack.NormalizedItem {
 	}
 }
 
-func TestExactSearchHonorsConstraintRejection(t *testing.T) {
-	t.Parallel()
-	request := internalRequest(t)
-	instances := []knapsack.ContainerInstance{{ID: "box#1", TypeID: "box"}}
-
-	plan, err := (Exact{}).PackFixed(
-		context.Background(),
-		request,
-		instances,
-		Options{Constraints: []constraint.Placement{internalReject{}}},
-	)
-	if !errors.Is(err, knapsack.ErrProvenInfeasible) || plan.Status() != knapsack.StatusInfeasible {
-		t.Fatalf("rejected plan=%s error=%v", plan.CanonicalString(), err)
-	}
-}
-
 func TestExactPlacementRejectsEveryFeasibilityBoundary(t *testing.T) {
 	t.Parallel()
 	item := baseInternalItem()

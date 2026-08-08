@@ -548,9 +548,9 @@ func generatedEvidenceForTree(t *testing.T) generatedEvidence {
 	}
 	fixtures := map[string]string{}
 	for _, path := range []string{
-		"docs/benchmarks/raw/2026-08-02-darwin-arm64.txt",
-		"docs/benchmarks/raw/2026-08-02-darwin-arm64-rss.tsv",
-		"docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json",
+		"docs/benchmarks/raw/2026-08-08-darwin-arm64.txt",
+		"docs/benchmarks/raw/2026-08-08-darwin-arm64-rss.tsv",
+		"docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json",
 		"docs/mutation/raw/gomoney.json",
 		"docs/mutation/raw/adapter.json",
 		"docs/mutation/raw/root.json",

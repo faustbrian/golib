@@ -20,6 +20,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Refresh native, peak-RSS, and BoxPacker benchmark evidence after the final
+  dependency and verification-input changes.
 - Delegate the root and nested-module mutation checks to the canonical
   exact-100 repository runner; historical classifications no longer waive
   uncovered mutants.
