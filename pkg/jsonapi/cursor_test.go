@@ -229,6 +229,47 @@ func TestCursorPaginationRejectsInvalidConfiguration(t *testing.T) {
 	}
 }
 
+func TestCursorPaginationAcceptsExactSizeBoundaries(t *testing.T) {
+	t.Parallel()
+
+	pagination, err := NewCursorPagination(CursorPaginationConfig{
+		DefaultSize: 10,
+		MaxSize:     10,
+	})
+	if err != nil {
+		t.Fatalf("equal default and maximum rejected: %v", err)
+	}
+	page, err := pagination.Parse(ParameterFamily{"page[size]": {"10"}})
+	if err != nil || page.Size != 10 {
+		t.Fatalf("exact maximum page size rejected: %#v err=%v", page, err)
+	}
+
+	unbounded, err := NewCursorPagination(CursorPaginationConfig{DefaultSize: 1})
+	if err != nil {
+		t.Fatalf("construct unbounded pagination: %v", err)
+	}
+	page, err = unbounded.Parse(ParameterFamily{"page[size]": {"999"}})
+	if err != nil || page.Size != 999 {
+		t.Fatalf("unbounded page size rejected: %#v err=%v", page, err)
+	}
+}
+
+func TestPositiveDecimalGrammarBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for value, want := range map[string]int{"1": 1, "9": 9, "10": 10, "19": 19} {
+		got, err := positiveDecimal(value)
+		if err != nil || got != want {
+			t.Fatalf("positive decimal %q: got %d err=%v, want %d", value, got, err, want)
+		}
+	}
+	for _, value := range []string{"/", ":", "+1", "-1"} {
+		if _, err := positiveDecimal(value); err == nil {
+			t.Fatalf("non-decimal value accepted: %q", value)
+		}
+	}
+}
+
 func TestCursorPaginationParseQueryReturnsPageErrorsBeforeSortValidation(t *testing.T) {
 	t.Parallel()
 

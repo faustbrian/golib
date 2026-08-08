@@ -198,15 +198,15 @@ func (parser *QueryParser) Parse(values url.Values) (Query, error) {
 					query.Extensions = make(map[string]ParameterFamily)
 				}
 				query.Extensions[namespace] = addFamilyValue(query.Extensions[namespace], name, parameterValues)
-				continue
+			} else {
+				if _, supported := parser.customFamilies[base]; !supported {
+					return Query{}, queryFailure(name, "unknown-parameter", "query parameter family is not registered")
+				}
+				if query.Custom == nil {
+					query.Custom = make(map[string]ParameterFamily)
+				}
+				query.Custom[base] = addFamilyValue(query.Custom[base], name, parameterValues)
 			}
-			if _, supported := parser.customFamilies[base]; !supported {
-				return Query{}, queryFailure(name, "unknown-parameter", "query parameter family is not registered")
-			}
-			if query.Custom == nil {
-				query.Custom = make(map[string]ParameterFamily)
-			}
-			query.Custom[base] = addFamilyValue(query.Custom[base], name, parameterValues)
 		}
 	}
 
@@ -260,7 +260,7 @@ func parseFamilyName(name string) (string, []string, bool) {
 			return "", nil, false
 		}
 		close := strings.IndexByte(remainder, ']')
-		if close < 0 {
+		if close == -1 {
 			return "", nil, false
 		}
 		selector := remainder[1:close]
@@ -345,12 +345,10 @@ func addFamilyValue(family ParameterFamily, name string, values []string) Parame
 }
 
 func extensionQueryBase(base string) (string, bool) {
-	colon := strings.IndexByte(base, ':')
-	if colon <= 0 || colon == len(base)-1 {
+	namespace, name, found := strings.Cut(base, ":")
+	if !found {
 		return "", false
 	}
-	namespace := base[:colon]
-	name := base[colon+1:]
 	if !validExtensionNamespace(namespace) || !onlyLowercaseASCII(name) {
 		return "", false
 	}

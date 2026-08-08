@@ -63,6 +63,94 @@ func TestQueryLimitsRejectExcessiveDecodedQueries(t *testing.T) {
 	}
 }
 
+func TestQueryLimitsAcceptExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		values url.Values
+		limits QueryLimits
+	}{
+		"parameter count": {
+			values: url.Values{"include": {"author"}},
+			limits: QueryLimits{MaxParameters: 1},
+		},
+		"parameter name bytes": {
+			values: url.Values{"include": {"author"}},
+			limits: QueryLimits{MaxNameBytes: len("include")},
+		},
+		"value count": {
+			values: url.Values{"page[offset]": {"1", "2"}},
+			limits: QueryLimits{MaxValues: 2},
+		},
+		"parameter value bytes": {
+			values: url.Values{"include": {"author"}},
+			limits: QueryLimits{MaxValueBytes: len("author")},
+		},
+		"decoded bytes": {
+			values: url.Values{"include": {"author"}},
+			limits: QueryLimits{MaxTotalBytes: len("include") + len("author")},
+		},
+		"selector depth": {
+			values: url.Values{"filter[a][b]": {"value"}},
+			limits: QueryLimits{MaxSelectors: 2},
+		},
+		"include items": {
+			values: url.Values{"include": {"author,comments"}},
+			limits: QueryLimits{MaxListItems: 2},
+		},
+		"fieldset items": {
+			values: url.Values{"fields[articles]": {"title,body"}},
+			limits: QueryLimits{MaxListItems: 2},
+		},
+		"sort items": {
+			values: url.Values{"sort": {"created,id"}},
+			limits: QueryLimits{MaxListItems: 2},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := ParseQueryWithLimits(test.values, test.limits); err != nil {
+				t.Fatalf("exact query limit rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestQueryLimitsAccumulateAcrossNamesAndValues(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		values url.Values
+		limits QueryLimits
+	}{
+		"values across parameters": {
+			values: url.Values{"page[a]": {"1"}, "page[b]": {"2"}},
+			limits: QueryLimits{MaxValues: 1},
+		},
+		"name and value bytes": {
+			values: url.Values{"page[x]": {"a"}},
+			limits: QueryLimits{MaxTotalBytes: len("page[x]")},
+		},
+		"bytes across parameters": {
+			values: url.Values{"page[a]": {""}, "page[b]": {""}},
+			limits: QueryLimits{MaxTotalBytes: len("page[a]")},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := ParseQueryWithLimits(test.values, test.limits)
+			var queryError *QueryError
+			if !errors.As(err, &queryError) || queryError.Code != "limit" {
+				t.Fatalf("cumulative query limit escaped: %T %#v", err, queryError)
+			}
+		})
+	}
+}
+
 func TestConfiguredQueryParserUsesLimits(t *testing.T) {
 	t.Parallel()
 

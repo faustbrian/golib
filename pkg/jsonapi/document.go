@@ -585,7 +585,7 @@ const (
 // WithID returns a copy whose id member is present.
 func (apiError ErrorObject) WithID(value string) ErrorObject {
 	apiError.ID = value
-	apiError.present |= errorIDPresent
+	apiError.present = apiError.present | errorIDPresent
 	return apiError
 }
 
@@ -670,7 +670,7 @@ const (
 // WithPointer returns a copy whose pointer member is present.
 func (source ErrorSource) WithPointer(value string) ErrorSource {
 	source.Pointer = value
-	source.present |= sourcePointerPresent
+	source.present = source.present | sourcePointerPresent
 	return source
 }
 

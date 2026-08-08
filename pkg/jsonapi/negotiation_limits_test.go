@@ -63,6 +63,81 @@ func TestNegotiationLimitsBoundURILists(t *testing.T) {
 	assertNegotiationError(t, err, 415, "limit")
 }
 
+func TestNegotiationLimitsAcceptExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	const (
+		first  = "https://example.com/a"
+		second = "https://example.com/b"
+	)
+	negotiator, err := NewNegotiatorWithLimits(
+		[]string{first},
+		[]string{second},
+		NegotiationLimits{
+			MaxSupportedURIs: 2,
+			MaxURIBytes:      len(first),
+			MaxHeaderBytes:   len(MediaTypeJSONAPI),
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct exact-limit negotiator: %v", err)
+	}
+	if _, err := negotiator.CheckContentType(MediaTypeJSONAPI); err != nil {
+		t.Fatalf("exact Content-Type byte limit rejected: %v", err)
+	}
+	if _, err := negotiator.NegotiateAccept(MediaTypeJSONAPI); err != nil {
+		t.Fatalf("exact Accept byte limit rejected: %v", err)
+	}
+
+	listHeader := `application/vnd.api+json;ext="` + first + ` ` + second + `"`
+	listNegotiator, err := NewNegotiatorWithLimits(
+		[]string{first, second},
+		nil,
+		NegotiationLimits{
+			MaxSupportedURIs: 2,
+			MaxParameterURIs: 2,
+			MaxURIBytes:      len(first),
+			MaxHeaderBytes:   len(listHeader),
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct exact URI-list negotiator: %v", err)
+	}
+	if _, err := listNegotiator.CheckContentType(listHeader); err != nil {
+		t.Fatalf("exact URI-list limits rejected: %v", err)
+	}
+
+	candidates := MediaTypeJSONAPI + "," + MediaTypeJSONAPI
+	candidateNegotiator, err := NewNegotiatorWithLimits(
+		nil,
+		nil,
+		NegotiationLimits{
+			MaxHeaderBytes:      len(candidates),
+			MaxAcceptCandidates: 2,
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct exact candidate negotiator: %v", err)
+	}
+	if _, err := candidateNegotiator.NegotiateAccept(candidates); err != nil {
+		t.Fatalf("exact candidate limits rejected: %v", err)
+	}
+}
+
+func TestNegotiationSupportedURILimitAccumulatesKinds(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewNegotiatorWithLimits(
+		[]string{"https://example.com/extension"},
+		[]string{"https://example.com/profile"},
+		NegotiationLimits{MaxSupportedURIs: 1},
+	)
+	var limitError *NegotiationError
+	if !errors.As(err, &limitError) || limitError.Code != "limit" {
+		t.Fatalf("mixed supported URI limit escaped: %T %#v", err, limitError)
+	}
+}
+
 func TestNegotiationLimitConfiguration(t *testing.T) {
 	t.Parallel()
 

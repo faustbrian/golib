@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // CursorPaginationProfileURI identifies the official Cursor Pagination
@@ -275,10 +276,8 @@ func positiveDecimal(value string) (int, error) {
 	if value == "" {
 		return 0, fmt.Errorf("empty decimal")
 	}
-	for _, character := range value {
-		if character < '0' || character > '9' {
-			return 0, fmt.Errorf("non-decimal character")
-		}
+	if strings.Trim(value, "0123456789") != "" {
+		return 0, fmt.Errorf("non-decimal character")
 	}
 	size, err := strconv.Atoi(value)
 	if err != nil || size < 1 {

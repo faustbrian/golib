@@ -1,6 +1,7 @@
 package jsonapi
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -146,6 +147,31 @@ func TestCodecRejectsMalformedDocumentsAtEverySanitizationBoundary(t *testing.T)
 				test.code,
 			)
 		}
+	}
+}
+
+func TestMemberSanitizersRejectMalformedDirectInput(t *testing.T) {
+	t.Parallel()
+
+	codec := mustCodec(t, CodecOptions{})
+	for name, sanitize := range map[string]func() error{
+		"errors": func() error {
+			_, _, err := codec.sanitizeErrors(json.RawMessage(`{`), "/errors")
+			return err
+		},
+		"resource array": func() error {
+			_, _, err := codec.sanitizeResourceArray(json.RawMessage(`{`), "/data")
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var decodeError *DecodeError
+			if err := sanitize(); !errors.As(err, &decodeError) || decodeError.Code != "type" {
+				t.Fatalf("malformed direct sanitizer input escaped: %T %#v", err, decodeError)
+			}
+		})
 	}
 }
 
@@ -376,5 +402,136 @@ func TestMemberAttachmentHelpersIgnoreMissingDecodedTargets(t *testing.T) {
 	})
 	if link.describedBy.additionalMembers["ext:value"] != true {
 		t.Fatalf("nested members were not attached: %#v", link.describedBy)
+	}
+}
+
+func TestMemberAttachmentHelpersIgnoreMissingSingularState(t *testing.T) {
+	t.Parallel()
+
+	attachPrimaryMembers(
+		&PrimaryData{kind: primaryDataOne},
+		[]resourceMemberState{{members: Members{"ext:value": true}}},
+	)
+	primary := ResourceData(ResourceObject{Type: "articles"})
+	attachPrimaryMembers(primary, nil)
+	if primary.one.AdditionalMembers != nil {
+		t.Fatalf("primary member state attached without decoded state: %#v", primary.one.AdditionalMembers)
+	}
+
+	attachIdentifierMembers(
+		&RelationshipData{kind: relationshipDataOne},
+		[]Members{{"ext:value": true}},
+	)
+	identifier := ToOne(Identifier{Type: "people", ID: "1"})
+	attachIdentifierMembers(identifier, nil)
+	if identifier.one.AdditionalMembers != nil {
+		t.Fatalf("identifier member state attached without decoded state: %#v", identifier.one.AdditionalMembers)
+	}
+}
+
+func TestMemberAttachmentHelpersBoundMismatchedCollections(t *testing.T) {
+	t.Parallel()
+
+	primary := ResourceCollection(
+		ResourceObject{Type: "articles", ID: "1"},
+		ResourceObject{Type: "articles", ID: "2"},
+	)
+	attachPrimaryMembers(primary, []resourceMemberState{{
+		members: Members{"ext:value": "first"},
+	}})
+	if primary.many[0].AdditionalMembers["ext:value"] != "first" ||
+		primary.many[1].AdditionalMembers != nil {
+		t.Fatalf("primary collection states were misaligned: %#v", primary.many)
+	}
+	attachPrimaryMembers(primary, []resourceMemberState{
+		{members: Members{"ext:value": "updated"}},
+		{},
+		{members: Members{"ext:value": "ignored"}},
+	})
+	if primary.many[0].AdditionalMembers["ext:value"] != "updated" {
+		t.Fatalf("primary collection did not retain bounded first state: %#v", primary.many)
+	}
+
+	identifiers := ToMany(
+		Identifier{Type: "people", ID: "1"},
+		Identifier{Type: "people", ID: "2"},
+	)
+	attachIdentifierMembers(identifiers, []Members{{"ext:value": "first"}})
+	if identifiers.many[0].AdditionalMembers["ext:value"] != "first" ||
+		identifiers.many[1].AdditionalMembers != nil {
+		t.Fatalf("identifier collection states were misaligned: %#v", identifiers.many)
+	}
+	attachIdentifierMembers(identifiers, []Members{
+		{"ext:value": "updated"},
+		{},
+		{"ext:value": "ignored"},
+	})
+	if identifiers.many[0].AdditionalMembers["ext:value"] != "updated" {
+		t.Fatalf("identifier collection did not retain bounded first state: %#v", identifiers.many)
+	}
+}
+
+func TestLinkMemberValidationDepthBoundaries(t *testing.T) {
+	t.Parallel()
+
+	leaf := LinkFromObject(LinkObject{Href: "/leaf"})
+	root := LinkFromObject(LinkObject{Href: "/", DescribedBy: &leaf})
+	validator := documentValidator{}
+	validateLinkStateMembersAt(
+		&validator,
+		root,
+		"/link",
+		nil,
+		DefaultMaxNestingDepth,
+		make(map[*Link]struct{}),
+	)
+	if !hasViolation(&ValidationError{Violations: validator.violations}, "/link/describedby", "limit") {
+		t.Fatalf("exact link nesting limit escaped: %#v", validator.violations)
+	}
+
+	grandchild := LinkFromObject(LinkObject{Href: "/grandchild"})
+	child := LinkFromObject(LinkObject{Href: "/child", DescribedBy: &grandchild})
+	root = LinkFromObject(LinkObject{Href: "/", DescribedBy: &child})
+	validator = documentValidator{}
+	validateLinkStateMembersAt(
+		&validator,
+		root,
+		"/link",
+		nil,
+		DefaultMaxNestingDepth-1,
+		make(map[*Link]struct{}),
+	)
+	if !hasViolation(
+		&ValidationError{Violations: validator.violations},
+		"/link/describedby/describedby",
+		"limit",
+	) {
+		t.Fatalf("recursive link depth was not incremented: %#v", validator.violations)
+	}
+}
+
+func TestIdentifierMemberValidationVisitsCollections(t *testing.T) {
+	t.Parallel()
+
+	validator := documentValidator{}
+	validateIdentifierDocumentMembers(
+		&validator,
+		&RelationshipData{
+			kind: relationshipDataMany,
+			many: []Identifier{{
+				Type:              "people",
+				ID:                "1",
+				AdditionalMembers: Members{"ext:value": true},
+			}},
+		},
+		"/data",
+		nil,
+	)
+	if !hasViolation(
+		&ValidationError{Violations: validator.violations},
+		"/data/0/ext:value",
+		"unregistered-member",
+	) {
+		t.Fatalf("collection identifier members were not validated: %#v", validator.violations)
 	}
 }

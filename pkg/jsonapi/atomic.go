@@ -182,17 +182,24 @@ func (document AtomicDocument) ValidateWith(options AtomicValidationOptions) err
 		if options.ExpectedOperations != nil {
 			expectedResults = len(options.ExpectedOperations)
 		}
-		if document.Results == nil && document.Errors == nil && expectedResults > 0 {
-			validator.add("/atomic:results", "required", "successful atomic response requires results")
-		}
-		if document.Results != nil &&
-			(options.ExpectedOperations != nil || options.ExpectedResultCount > 0) &&
-			len(document.Results) != expectedResults {
-			validator.add(
-				"/atomic:results",
-				"result-count",
-				"result count must match the request operation count",
-			)
+		if document.Results == nil {
+			if document.Errors == nil {
+				if expectedResults > 0 {
+					validator.add("/atomic:results", "required", "successful atomic response requires results")
+				}
+			}
+		} else {
+			enforceResultCount := options.ExpectedOperations != nil
+			if !enforceResultCount {
+				enforceResultCount = options.ExpectedResultCount > 0
+			}
+			if enforceResultCount && len(document.Results) != expectedResults {
+				validator.add(
+					"/atomic:results",
+					"result-count",
+					"result count must match the request operation count",
+				)
+			}
 		}
 	default:
 		validator.add("", "validation-context", "atomic validation context is invalid")
@@ -240,9 +247,7 @@ func (validator *documentValidator) validateAtomicResult(
 	path string,
 ) {
 	if result.Data == nil {
-		if operation.Op == AtomicAdd && !atomicRelationshipOperation(operation) &&
-			operation.Data != nil && operation.Data.kind == primaryDataOne &&
-			operation.Data.one != nil && !operation.Data.one.hasID() {
+		if atomicCreateRequiresResultData(operation) {
 			validator.add(path, "required", "server-generated resource create result requires data")
 		}
 		return
@@ -254,13 +259,40 @@ func (validator *documentValidator) validateAtomicResult(
 	validator.validateAtomicResourceData(result.Data, path, identityID)
 }
 
+func atomicCreateRequiresResultData(operation AtomicOperation) bool {
+	if operation.Op != AtomicAdd {
+		return false
+	}
+	if atomicRelationshipOperation(operation) {
+		return false
+	}
+	if operation.Data == nil {
+		return false
+	}
+	if operation.Data.kind != primaryDataOne {
+		return false
+	}
+	if operation.Data.one == nil {
+		return false
+	}
+	return !operation.Data.one.hasID()
+}
+
 func atomicRelationshipOperation(operation AtomicOperation) bool {
 	if operation.Ref != nil {
 		return operation.Ref.hasRelationship()
 	}
-	return operation.Data != nil &&
-		(operation.Op == AtomicAdd && operation.Data.kind == primaryDataMany ||
-			operation.Op == AtomicUpdate && operation.Data.kind != primaryDataOne)
+	if operation.Data == nil {
+		return false
+	}
+	switch operation.Op {
+	case AtomicAdd:
+		return operation.Data.kind == primaryDataMany
+	case AtomicUpdate:
+		return operation.Data.kind != primaryDataOne
+	default:
+		return false
+	}
 }
 
 func (validator *documentValidator) validateAtomicOperations(operations []AtomicOperation) {
@@ -281,8 +313,10 @@ func (validator *documentValidator) validateAtomicOperations(operations []Atomic
 		if operation.Op == AtomicAdd && operation.Data != nil &&
 			operation.Data.kind == primaryDataOne && operation.Data.one != nil {
 			resource := operation.Data.one
-			if resource.Type != "" && resource.hasLID() {
-				assigned[resourceKey(resource.Type, "", resource.LID, false)] = struct{}{}
+			if resource.Type != "" {
+				if resource.hasLID() {
+					assigned[resourceKey(resource.Type, "", resource.LID, false)] = struct{}{}
+				}
 			}
 		}
 		validator.validateAtomicDataLIDs(operation, path, assigned)
@@ -310,7 +344,10 @@ func (validator *documentValidator) validateAtomicDataLIDs(
 		}
 		return
 	}
-	if operation.Data.kind != primaryDataOne || operation.Data.one == nil {
+	if operation.Data.kind != primaryDataOne {
+		return
+	}
+	if operation.Data.one == nil {
 		return
 	}
 	resource := *operation.Data.one
@@ -347,7 +384,10 @@ func (validator *documentValidator) validateAtomicAssignedLID(
 	path string,
 	assigned map[string]struct{},
 ) {
-	if idPresent || !lidPresent {
+	if idPresent {
+		return
+	}
+	if !lidPresent {
 		return
 	}
 	if _, exists := assigned[resourceKey(resourceType, "", lid, false)]; !exists {
@@ -429,14 +469,36 @@ func (validator *documentValidator) validateAtomicResourceTarget(
 	resource ResourceObject,
 	path string,
 ) {
-	if reference.Type != "" && resource.Type != "" && reference.Type != resource.Type {
-		validator.add(path+"/type", "target-mismatch", "resource type does not match ref target")
+	validator.validateAtomicTargetMember(
+		path+"/type", reference.Type != "", reference.Type, resource.Type != "", resource.Type,
+		"resource type does not match ref target",
+	)
+	validator.validateAtomicTargetMember(
+		path+"/id", reference.hasID(), reference.ID, resource.hasID(), resource.ID,
+		"resource id does not match ref target",
+	)
+	validator.validateAtomicTargetMember(
+		path+"/lid", reference.hasLID(), reference.LID, resource.hasLID(), resource.LID,
+		"resource lid does not match ref target",
+	)
+}
+
+func (validator *documentValidator) validateAtomicTargetMember(
+	path string,
+	referencePresent bool,
+	referenceValue string,
+	resourcePresent bool,
+	resourceValue string,
+	message string,
+) {
+	if !referencePresent {
+		return
 	}
-	if reference.hasID() && resource.hasID() && reference.ID != resource.ID {
-		validator.add(path+"/id", "target-mismatch", "resource id does not match ref target")
+	if !resourcePresent {
+		return
 	}
-	if reference.hasLID() && resource.hasLID() && reference.LID != resource.LID {
-		validator.add(path+"/lid", "target-mismatch", "resource lid does not match ref target")
+	if referenceValue != resourceValue {
+		validator.add(path, "target-mismatch", message)
 	}
 }
 
@@ -478,7 +540,11 @@ func (validator *documentValidator) validateAtomicResourceData(
 	path string,
 	identity identityRequirement,
 ) {
-	if data.kind != primaryDataOne || data.one == nil {
+	if data.kind != primaryDataOne {
+		validator.add(path, "shape", "resource operation data must be one resource object")
+		return
+	}
+	if data.one == nil {
 		validator.add(path, "shape", "resource operation data must be one resource object")
 		return
 	}
@@ -497,9 +563,11 @@ func (validator *documentValidator) validateAtomicRelationshipData(
 	if data.kind == primaryDataNull {
 		return
 	}
-	if data.kind == primaryDataOne && data.one != nil {
-		validator.validateAtomicIdentifier(*data.one, path)
-		return
+	if data.kind == primaryDataOne {
+		if data.one != nil {
+			validator.validateAtomicIdentifier(*data.one, path)
+			return
+		}
 	}
 	if data.kind == primaryDataMany {
 		for index, resource := range data.many {

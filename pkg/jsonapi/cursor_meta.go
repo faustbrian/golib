@@ -255,9 +255,11 @@ func cursorInteger(value any) (int64, bool) {
 			return int64(number), true
 		}
 	case float64:
-		if number >= math.MinInt64 && number <= math.MaxInt64 && number == math.Trunc(number) {
-			return int64(number), true
+		const maxInt64Exclusive float64 = 1 << 63
+		if number < math.MinInt64 || number >= maxInt64Exclusive || number != math.Trunc(number) {
+			break
 		}
+		return int64(number), true
 	case json.Number:
 		raw := string(number)
 		if !json.Valid([]byte(raw)) {

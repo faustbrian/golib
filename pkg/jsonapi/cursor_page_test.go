@@ -172,7 +172,8 @@ func TestValidateCursorPageOnlyRequiresKnownDirectionLinkState(t *testing.T) {
 
 	tests := map[string]CursorPage{
 		"after request may use speculative prev": {
-			Request: CursorPageRequest{Size: 1, AfterPresent: true},
+			Request:     CursorPageRequest{Size: 1, AfterPresent: true},
+			HasPrevious: true,
 			Links: Links{
 				"prev": URI("/articles?page%5Bbefore%5D=one"),
 				"next": NullLink(),

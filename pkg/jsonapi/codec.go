@@ -400,10 +400,9 @@ func decodeAttributes(raw json.RawMessage, path string) (Attributes, error) {
 
 	attributes := make(Attributes, len(object))
 	for name, value := range object {
-		if strings.HasPrefix(name, "@") {
-			continue
+		if !strings.HasPrefix(name, "@") {
+			attributes[name] = stripAtMembers(decodeValidValue(value))
 		}
-		attributes[name] = stripAtMembers(decodeValidValue(value))
 	}
 
 	return attributes, nil
@@ -483,7 +482,7 @@ func decodeRelationshipData(raw json.RawMessage, path string) (*RelationshipData
 		return ToOne(identifier), nil
 	case '[':
 		var items []json.RawMessage
-		if err := json.Unmarshal(trimmed, &items); err != nil || items == nil {
+		if err := json.Unmarshal(trimmed, &items); err != nil {
 			return nil, decodeFailure(path, "type", "to-many linkage must be an array", err)
 		}
 		identifiers := make([]Identifier, len(items))
@@ -698,29 +697,24 @@ func decodeError(raw json.RawMessage, path string) (ErrorObject, error) {
 	}
 
 	var result ErrorObject
-	for name, target := range map[string]*string{
-		"id":     &result.ID,
-		"status": &result.Status,
-		"code":   &result.Code,
-		"title":  &result.Title,
-		"detail": &result.Detail,
-	} {
+	fields := []struct {
+		name    string
+		target  *string
+		present uint8
+	}{
+		{"id", &result.ID, errorIDPresent},
+		{"status", &result.Status, errorStatusPresent},
+		{"code", &result.Code, errorCodePresent},
+		{"title", &result.Title, errorTitlePresent},
+		{"detail", &result.Detail, errorDetailPresent},
+	}
+	for _, field := range fields {
+		name := field.name
 		if value, exists := object[name]; exists {
-			if err := decodeString(value, path+"/"+name, target); err != nil {
+			if err := decodeString(value, path+"/"+name, field.target); err != nil {
 				return ErrorObject{}, err
 			}
-			switch name {
-			case "id":
-				result.present |= errorIDPresent
-			case "status":
-				result.present |= errorStatusPresent
-			case "code":
-				result.present |= errorCodePresent
-			case "title":
-				result.present |= errorTitlePresent
-			case "detail":
-				result.present |= errorDetailPresent
-			}
+			result.present = result.present | field.present
 		}
 	}
 	if value, exists := object["links"]; exists {
@@ -759,12 +753,13 @@ func decodeErrorSource(raw json.RawMessage, path string) (ErrorSource, error) {
 
 	var result ErrorSource
 	fields := []struct {
-		name   string
-		target *string
+		name    string
+		target  *string
+		present uint8
 	}{
-		{"pointer", &result.Pointer},
-		{"parameter", &result.Parameter},
-		{"header", &result.Header},
+		{"pointer", &result.Pointer, sourcePointerPresent},
+		{"parameter", &result.Parameter, sourceParameterPresent},
+		{"header", &result.Header, sourceHeaderPresent},
 	}
 	for _, field := range fields {
 		name := field.name
@@ -772,14 +767,7 @@ func decodeErrorSource(raw json.RawMessage, path string) (ErrorSource, error) {
 			if err := decodeString(value, path+"/"+name, field.target); err != nil {
 				return ErrorSource{}, err
 			}
-			switch name {
-			case "pointer":
-				result.present |= sourcePointerPresent
-			case "parameter":
-				result.present |= sourceParameterPresent
-			case "header":
-				result.present |= sourceHeaderPresent
-			}
+			result.present = result.present | field.present
 		}
 	}
 
@@ -839,16 +827,15 @@ func rejectUnknown(object map[string]json.RawMessage, path string, allowed ...st
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if strings.HasPrefix(name, "@") {
-			continue
-		}
-		if _, exists := known[name]; !exists {
-			return decodeFailure(
-				path+"/"+escapePointerToken(name),
-				"unknown-member",
-				"member is not defined by JSON:API",
-				nil,
-			)
+		if !strings.HasPrefix(name, "@") {
+			if _, exists := known[name]; !exists {
+				return decodeFailure(
+					path+"/"+escapePointerToken(name),
+					"unknown-member",
+					"member is not defined by JSON:API",
+					nil,
+				)
+			}
 		}
 	}
 
@@ -877,9 +864,9 @@ func stripAtMembers(value any) any {
 		for name, child := range typed {
 			if strings.HasPrefix(name, "@") {
 				delete(typed, name)
-				continue
+			} else {
+				typed[name] = stripAtMembers(child)
 			}
-			typed[name] = stripAtMembers(child)
 		}
 	case []any:
 		for index, child := range typed {

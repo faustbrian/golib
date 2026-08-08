@@ -91,7 +91,9 @@ func TestExecuteAtomicRejectsMissingBeginner(t *testing.T) {
 	}}}
 	_, err := ExecuteAtomic(context.Background(), nil, document)
 	var executionError *AtomicExecutionError
-	if !errors.As(err, &executionError) || executionError.Phase != "begin" {
+	if !errors.As(err, &executionError) || executionError.Phase != "begin" ||
+		executionError.OperationIndex != -1 ||
+		err.Error() != "execute Atomic transaction during begin" {
 		t.Fatalf("unexpected missing beginner error: %T %#v", err, executionError)
 	}
 }
@@ -193,6 +195,8 @@ func TestExecuteAtomicConvertsApplyPanicAndRollsBack(t *testing.T) {
 	var executionError *AtomicExecutionError
 	var panicError *AtomicPanicError
 	if !errors.As(err, &executionError) || executionError.Phase != "apply" ||
+		executionError.OperationIndex != 0 ||
+		err.Error() != "execute Atomic operation 0 during apply" ||
 		!errors.As(err, &panicError) || panicError.Value != "boom" {
 		t.Fatalf("unexpected panic conversion: %T %#v %#v", err, executionError, panicError)
 	}
@@ -276,7 +280,9 @@ func TestExecuteAtomicRejectsNilContextWithoutPanicking(t *testing.T) {
 		document,
 	)
 	var executionError *AtomicExecutionError
-	if !errors.As(err, &executionError) || executionError.Phase != "begin" {
+	if !errors.As(err, &executionError) || executionError.Phase != "begin" ||
+		executionError.OperationIndex != -1 ||
+		err.Error() != "execute Atomic transaction during begin" {
 		t.Fatalf("unexpected nil context error: %T %#v", err, executionError)
 	}
 }
@@ -324,6 +330,8 @@ func TestExecuteAtomicDoesNotBeginWithCanceledContext(t *testing.T) {
 	_, err := ExecuteAtomic(ctx, beginner, document)
 	var executionError *AtomicExecutionError
 	if !errors.As(err, &executionError) || executionError.Phase != "begin" ||
+		executionError.OperationIndex != -1 ||
+		err.Error() != "execute Atomic transaction during begin" ||
 		!errors.Is(err, context.Canceled) {
 		t.Fatalf("unexpected pre-begin cancellation: %T %#v", err, executionError)
 	}
@@ -369,7 +377,9 @@ func TestExecuteAtomicRollsBackInvalidResultsBeforeCommit(t *testing.T) {
 
 	_, err := ExecuteAtomic(context.Background(), beginner, document)
 	var executionError *AtomicExecutionError
-	if !errors.As(err, &executionError) || executionError.Phase != "result-validation" {
+	if !errors.As(err, &executionError) || executionError.Phase != "result-validation" ||
+		executionError.OperationIndex != -1 ||
+		err.Error() != "execute Atomic transaction during result-validation" {
 		t.Fatalf("unexpected result validation error: %T %#v", err, executionError)
 	}
 	if transaction.committed || transaction.rollbackCalls != 1 {
@@ -391,7 +401,9 @@ func TestExecuteAtomicRollsBackMissingServerGeneratedCreateData(t *testing.T) {
 
 	_, err := ExecuteAtomic(context.Background(), beginner, document)
 	var executionError *AtomicExecutionError
-	if !errors.As(err, &executionError) || executionError.Phase != "result-validation" {
+	if !errors.As(err, &executionError) || executionError.Phase != "result-validation" ||
+		executionError.OperationIndex != -1 ||
+		err.Error() != "execute Atomic transaction during result-validation" {
 		t.Fatalf("unexpected create result validation error: %T %#v", err, executionError)
 	}
 	if transaction.committed || transaction.rollbackCalls != 1 {

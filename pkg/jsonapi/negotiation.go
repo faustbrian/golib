@@ -1,6 +1,7 @@
 package jsonapi
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"mime"
@@ -114,7 +115,7 @@ func (negotiator *Negotiator) CheckContentType(header string) (MediaType, error)
 	if err != nil || !strings.EqualFold(mediaName, MediaTypeJSONAPI) {
 		return MediaType{}, negotiationFailure(415, "unsupported-media-type", "Content-Type must be application/vnd.api+json")
 	}
-	if unknown := unknownParameter(parameters, false); unknown != "" {
+	if unknown := unknownParameter(parameters); unknown != "" {
 		return MediaType{}, negotiationFailure(415, "unsupported-parameter", "unsupported media type parameter: "+unknown)
 	}
 
@@ -166,15 +167,22 @@ func (negotiator *Negotiator) NegotiateAccept(header string) (NegotiatedMedia, e
 	var selected *acceptCandidate
 	for _, representation := range representations {
 		quality, matched := qualityForRepresentation(representation, ranges)
-		if !matched || quality == 0 {
-			continue
-		}
-		representation.quality = quality
-		if selected == nil || representation.quality > selected.quality ||
-			representation.quality == selected.quality &&
-				representation.contentType < selected.contentType {
-			copy := representation
-			selected = &copy
+		if matched && quality != 0 {
+			representation.quality = quality
+			if selected == nil {
+				copy := representation
+				selected = &copy
+			} else {
+				qualityOrder := cmp.Compare(representation.quality, selected.quality)
+				replace := qualityOrder == 1
+				if qualityOrder == 0 {
+					replace = strings.Compare(representation.contentType, selected.contentType) == -1
+				}
+				if replace {
+					copy := representation
+					selected = &copy
+				}
+			}
 		}
 	}
 	if selected == nil {
@@ -223,7 +231,7 @@ func (negotiator *Negotiator) acceptCandidate(raw string) (acceptCandidate, bool
 	if !strings.EqualFold(mediaName, MediaTypeJSONAPI) {
 		return acceptCandidate{}, false
 	}
-	if unknownParameter(parameters, false) != "" {
+	if unknownParameter(parameters) != "" {
 		return acceptCandidate{}, false
 	}
 
@@ -270,13 +278,13 @@ func qualityForRepresentation(
 		if !candidate.matchesAll && candidate.contentType != representation.contentType {
 			continue
 		}
-		if candidate.specificity > bestSpecificity {
+		if cmp.Compare(candidate.specificity, bestSpecificity) == 1 {
 			bestSpecificity = candidate.specificity
 			quality = candidate.quality
 			matched = true
 			continue
 		}
-		if candidate.specificity == bestSpecificity && candidate.quality > quality {
+		if candidate.specificity == bestSpecificity && cmp.Compare(candidate.quality, quality) == 1 {
 			quality = candidate.quality
 		}
 	}
@@ -341,14 +349,14 @@ func parseMediaTypeParameters(
 }
 
 func parseURIList(value, parameter string, limits NegotiationLimits) ([]string, error) {
+	if value == "" {
+		return nil, fmt.Errorf("%s parameter must contain at least one URI", parameter)
+	}
 	items := strings.Split(value, " ")
 	if len(items) > limits.MaxParameterURIs {
 		return nil, &negotiationParameterLimitError{
 			message: parameter + " parameter exceeds the URI count limit",
 		}
-	}
-	if len(items) == 0 || len(items) == 1 && items[0] == "" {
-		return nil, fmt.Errorf("%s parameter must contain at least one URI", parameter)
 	}
 	for _, item := range items {
 		if item == "" {
@@ -376,13 +384,12 @@ func (err *negotiationParameterLimitError) Error() string {
 	return err.message
 }
 
-func unknownParameter(parameters map[string]string, allowQuality bool) string {
+func unknownParameter(parameters map[string]string) string {
 	names := make([]string, 0, len(parameters))
 	for name := range parameters {
-		if name == "ext" || name == "profile" || allowQuality && name == "q" {
-			continue
+		if name != "ext" && name != "profile" {
+			names = append(names, name)
 		}
-		names = append(names, name)
 	}
 	sort.Strings(names)
 	if len(names) == 0 {
@@ -414,11 +421,10 @@ func uniqueSorted(values []string) []string {
 	seen := make(map[string]struct{}, len(values))
 	result := make([]string, 0, len(values))
 	for _, value := range values {
-		if _, exists := seen[value]; exists {
-			continue
+		if _, exists := seen[value]; !exists {
+			seen[value] = struct{}{}
+			result = append(result, value)
 		}
-		seen[value] = struct{}{}
-		result = append(result, value)
 	}
 	sort.Strings(result)
 

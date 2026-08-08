@@ -60,6 +60,28 @@ func TestDecodeLimitsRejectExcessiveDocumentsBeforeSemanticDecoding(t *testing.T
 	}
 }
 
+func TestDecodeLimitsAcceptExactBoundaries(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{"data":null}`)
+	if _, err := UnmarshalWithLimits(
+		payload,
+		ValidationOptions{},
+		DecodeLimits{MaxDocumentBytes: len(payload), MaxObjectMembers: 1},
+	); err != nil {
+		t.Fatalf("exact document limits rejected: %v", err)
+	}
+
+	twoMembers := []byte(`{"data":null,"meta":{}}`)
+	if _, err := UnmarshalWithLimits(
+		twoMembers,
+		ValidationOptions{},
+		DecodeLimits{MaxObjectMembers: 2},
+	); err != nil {
+		t.Fatalf("exact object member limit rejected: %v", err)
+	}
+}
+
 func TestDecodeLimitsApplyToAtomicAndConfiguredCodecs(t *testing.T) {
 	t.Parallel()
 

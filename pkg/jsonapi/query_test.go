@@ -258,6 +258,26 @@ func TestQueryNameGrammarBoundaries(t *testing.T) {
 	if onlyLowercaseASCII("") || onlyLowercaseASCII("lowerCase") {
 		t.Fatal("invalid lowercase ASCII value accepted")
 	}
+	for _, namespace := range []string{"a", "z", "A", "Z", "0", "9", "aZ09"} {
+		if !validExtensionNamespace(namespace) {
+			t.Fatalf("valid extension namespace rejected: %q", namespace)
+		}
+	}
+	for _, namespace := range []string{"@", "[", "`", "{"} {
+		if validExtensionNamespace(namespace) {
+			t.Fatalf("invalid extension namespace accepted: %q", namespace)
+		}
+	}
+	for _, value := range []string{"a", "z", "az"} {
+		if !onlyLowercaseASCII(value) {
+			t.Fatalf("valid lowercase ASCII value rejected: %q", value)
+		}
+	}
+	for _, value := range []string{"`", "{"} {
+		if onlyLowercaseASCII(value) {
+			t.Fatalf("invalid lowercase ASCII value accepted: %q", value)
+		}
+	}
 }
 
 func assertQueryError(t *testing.T, err error, parameter, code string) {

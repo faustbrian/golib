@@ -787,6 +787,212 @@ func TestAtomicContextValidation(t *testing.T) {
 	}
 }
 
+func TestAtomicResponseResultCountOptionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	assertAtomicViolationWith(
+		t,
+		AtomicDocument{Meta: Meta{}},
+		AtomicValidationOptions{Context: AtomicResponseContext, ExpectedResultCount: 1},
+		"/atomic:results",
+		"required",
+	)
+	assertAtomicViolationWith(
+		t,
+		AtomicDocument{Results: []AtomicResult{{}}},
+		AtomicValidationOptions{Context: AtomicResponseContext, ExpectedOperations: []AtomicOperation{}},
+		"/atomic:results",
+		"result-count",
+	)
+
+	if err := (AtomicDocument{Results: []AtomicResult{{}}}).ValidateWith(
+		AtomicValidationOptions{Context: AtomicResponseContext},
+	); err != nil {
+		t.Fatalf("unspecified result count rejected: %v", err)
+	}
+	if err := (AtomicDocument{Meta: Meta{}}).ValidateWith(
+		AtomicValidationOptions{Context: AtomicResponseContext},
+	); err != nil {
+		t.Fatalf("metadata-only response without an expected result rejected: %v", err)
+	}
+}
+
+func TestAtomicRelationshipOperationClassification(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		operation AtomicOperation
+		want      bool
+	}{
+		"empty operation": {},
+		"relationship reference": {
+			operation: AtomicOperation{Ref: &AtomicReference{Relationship: "comments"}},
+			want:      true,
+		},
+		"resource reference ignores collection data": {
+			operation: AtomicOperation{
+				Op:   AtomicAdd,
+				Ref:  &AtomicReference{Type: "articles", ID: "1"},
+				Data: ResourceCollection(),
+			},
+		},
+		"collection add": {
+			operation: AtomicOperation{Op: AtomicAdd, Data: ResourceCollection()},
+			want:      true,
+		},
+		"resource add": {
+			operation: AtomicOperation{Op: AtomicAdd, Data: ResourceData(ResourceObject{})},
+		},
+		"null update": {
+			operation: AtomicOperation{Op: AtomicUpdate, Data: NullData()},
+			want:      true,
+		},
+		"resource update": {
+			operation: AtomicOperation{Op: AtomicUpdate, Data: ResourceData(ResourceObject{})},
+		},
+		"collection remove": {
+			operation: AtomicOperation{Op: AtomicRemove, Data: ResourceCollection()},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := atomicRelationshipOperation(test.operation); got != test.want {
+				t.Fatalf("unexpected relationship classification: got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestAtomicCreateResultDataRequirementClassification(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		operation AtomicOperation
+		want      bool
+	}{
+		"server generated resource add": {
+			operation: AtomicOperation{Op: AtomicAdd, Data: ResourceData(ResourceObject{Type: "articles"})},
+			want:      true,
+		},
+		"explicit empty client id": {
+			operation: AtomicOperation{
+				Op:   AtomicAdd,
+				Data: ResourceData(ResourceObject{Type: "articles"}.WithID("")),
+			},
+		},
+		"relationship add": {
+			operation: AtomicOperation{Op: AtomicAdd, Data: ResourceCollection()},
+		},
+		"null add": {
+			operation: AtomicOperation{Op: AtomicAdd, Data: NullData()},
+		},
+		"missing singular resource": {
+			operation: AtomicOperation{
+				Op:   AtomicAdd,
+				Data: &PrimaryData{kind: primaryDataOne},
+			},
+		},
+		"resource update": {
+			operation: AtomicOperation{Op: AtomicUpdate, Data: ResourceData(ResourceObject{})},
+		},
+		"missing data": {
+			operation: AtomicOperation{Op: AtomicAdd},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := atomicCreateRequiresResultData(test.operation); got != test.want {
+				t.Fatalf("unexpected create-result requirement: got %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestAtomicValidationHelpersHandleIncompleteSyntheticData(t *testing.T) {
+	t.Parallel()
+
+	validator := documentValidator{}
+	validator.validateAtomicDataLIDs(
+		AtomicOperation{Op: AtomicUpdate, Data: &PrimaryData{kind: primaryDataOne}},
+		"/operation",
+		map[string]struct{}{},
+	)
+	validator.validateAtomicAssignedLID(
+		"articles",
+		false,
+		false,
+		"",
+		"/operation/data/lid",
+		map[string]struct{}{},
+	)
+	if len(validator.violations) != 0 {
+		t.Fatalf("incomplete optional identity state produced violations: %#v", validator.violations)
+	}
+
+	validator.validateAtomicResourceData(
+		&PrimaryData{kind: primaryDataOne},
+		"/operation/data",
+		identityID,
+	)
+	if !hasViolation(
+		&ValidationError{Violations: validator.violations},
+		"/operation/data",
+		"shape",
+	) {
+		t.Fatalf("missing singular resource escaped shape validation: %#v", validator.violations)
+	}
+}
+
+func TestAtomicTargetComparisonRequiresBothMembers(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		referencePresent bool
+		referenceValue   string
+		resourcePresent  bool
+		resourceValue    string
+		wantViolation    bool
+	}{
+		"reference absent": {resourcePresent: true, resourceValue: "resource"},
+		"resource absent":  {referencePresent: true, referenceValue: "reference"},
+		"equal": {
+			referencePresent: true,
+			referenceValue:   "same",
+			resourcePresent:  true,
+			resourceValue:    "same",
+		},
+		"different": {
+			referencePresent: true,
+			referenceValue:   "reference",
+			resourcePresent:  true,
+			resourceValue:    "resource",
+			wantViolation:    true,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			validator := documentValidator{}
+			validator.validateAtomicTargetMember(
+				"/target",
+				test.referencePresent,
+				test.referenceValue,
+				test.resourcePresent,
+				test.resourceValue,
+				"target differs",
+			)
+			if got := len(validator.violations) == 1; got != test.wantViolation {
+				t.Fatalf("unexpected target comparison outcome: %#v", validator.violations)
+			}
+		})
+	}
+}
+
 func TestAtomicResponseValidationUsesRequestOperationSemantics(t *testing.T) {
 	t.Parallel()
 

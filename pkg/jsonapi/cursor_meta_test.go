@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strconv"
 	"testing"
 )
 
@@ -153,6 +154,25 @@ func TestCursorPageMetaRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestCursorPageMetaAcceptsZeroCounts(t *testing.T) {
+	t.Parallel()
+
+	zero := int64(0)
+	meta, err := (CursorPageMeta{
+		Total:          &zero,
+		EstimatedTotal: &CursorEstimatedTotal{BestGuess: &zero},
+	}).Meta()
+	if err != nil {
+		t.Fatalf("zero cursor counts rejected: %v", err)
+	}
+	metadata, present, err := ParseCursorPageMeta(meta)
+	if err != nil || !present || metadata.Total == nil || *metadata.Total != 0 ||
+		metadata.EstimatedTotal == nil || metadata.EstimatedTotal.BestGuess == nil ||
+		*metadata.EstimatedTotal.BestGuess != 0 {
+		t.Fatalf("zero cursor counts did not round trip: %#v present=%v err=%v", metadata, present, err)
+	}
+}
+
 func TestParseCursorMetadataAcceptsPackageAndMetaObjectRepresentations(t *testing.T) {
 	t.Parallel()
 
@@ -205,9 +225,34 @@ func TestCursorIntegerSupportsPublicMetaNumberRepresentations(t *testing.T) {
 			t.Fatalf("integer representation %T was rejected: got %d ok=%v", value, got, ok)
 		}
 	}
+	boundaries := []struct {
+		value any
+		want  int64
+	}{
+		{value: uint64(math.MaxInt64), want: math.MaxInt64},
+		{value: float64(math.MinInt64), want: math.MinInt64},
+		{
+			value: math.Nextafter(float64(math.MaxInt64), 0),
+			want:  int64(math.Nextafter(float64(math.MaxInt64), 0)),
+		},
+	}
+	for _, boundary := range boundaries {
+		got, ok := cursorInteger(boundary.value)
+		if !ok || got != boundary.want {
+			t.Fatalf("integer boundary %T was rejected: got %d ok=%v, want %d", boundary.value, got, ok, boundary.want)
+		}
+	}
+	if strconv.IntSize == 64 {
+		value := uint(uint64(math.MaxInt64))
+		got, ok := cursorInteger(value)
+		if !ok || got != math.MaxInt64 {
+			t.Fatalf("maximum uint-backed int64 rejected: got %d ok=%v", got, ok)
+		}
+	}
 
 	invalid := []any{
 		uint64(math.MaxUint64),
+		float64(math.MaxInt64),
 		float64(1.5),
 		math.Inf(1),
 		json.Number("not-a-number"),

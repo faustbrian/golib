@@ -17,6 +17,11 @@ import (
 
 var registeredLinkRelation = regexp.MustCompile(`^[a-z][a-z0-9.-]*$`)
 
+const (
+	asciiLetters          = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	asciiLettersAndDigits = asciiLetters + "0123456789"
+)
+
 // Violation describes one JSON:API conformance failure.
 type Violation struct {
 	Path    string
@@ -202,8 +207,8 @@ func (validator *documentValidator) validateURIList(values []string, path string
 	seen := make(map[string]int, len(values))
 	for index, value := range values {
 		itemPath := path + "/" + strconv.Itoa(index)
-		absolute, valid := parseURIReference(value)
-		if value == "" || !valid || !absolute {
+		absolute, _ := parseURIReference(value)
+		if !absolute {
 			validator.add(itemPath, "uri", "value must be an absolute URI")
 		}
 		if previous, exists := seen[value]; exists {
@@ -311,12 +316,12 @@ func (validator *documentValidator) validateResource(
 			if !validMemberName(name) {
 				validator.add(fieldPath, "member-name", "@-Member name is invalid")
 			}
-			continue
-		}
-		if name == "id" || name == "type" {
-			validator.add(fieldPath, "reserved-field", "attribute name conflicts with resource identity")
-		} else if !validMemberName(name) {
-			validator.add(fieldPath, "member-name", "attribute name is invalid")
+		} else {
+			if name == "id" || name == "type" {
+				validator.add(fieldPath, "reserved-field", "attribute name conflicts with resource identity")
+			} else if !validMemberName(name) {
+				validator.add(fieldPath, "member-name", "attribute name is invalid")
+			}
 		}
 	}
 	for name, relationship := range resource.Relationships {
@@ -325,22 +330,22 @@ func (validator *documentValidator) validateResource(
 			if !validMemberName(name) {
 				validator.add(fieldPath, "member-name", "@-Member name is invalid")
 			}
-			continue
+		} else {
+			if name == "id" || name == "type" {
+				validator.add(fieldPath, "reserved-field", "relationship name conflicts with resource identity")
+			} else if !validMemberName(name) {
+				validator.add(fieldPath, "member-name", "relationship name is invalid")
+			}
+			if _, exists := resource.Attributes[name]; exists {
+				validator.add(fieldPath, "duplicate-field", "attribute and relationship names must be unique")
+			}
+			validator.validateRelationship(
+				relationship,
+				fieldPath,
+				requireRelationshipData,
+				identifierIdentity,
+			)
 		}
-		if name == "id" || name == "type" {
-			validator.add(fieldPath, "reserved-field", "relationship name conflicts with resource identity")
-		} else if !validMemberName(name) {
-			validator.add(fieldPath, "member-name", "relationship name is invalid")
-		}
-		if _, exists := resource.Attributes[name]; exists && !strings.HasPrefix(name, "@") {
-			validator.add(fieldPath, "duplicate-field", "attribute and relationship names must be unique")
-		}
-		validator.validateRelationship(
-			relationship,
-			fieldPath,
-			requireRelationshipData,
-			identifierIdentity,
-		)
 	}
 	validator.validateLinks(resource.Links, path+"/links")
 	validator.validateLinkScope(resource.Links, path+"/links", "self")
@@ -397,7 +402,14 @@ func hasRelationshipLink(links Links) bool {
 
 func validExtensionMemberName(name string) bool {
 	namespace, member, found := strings.Cut(name, ":")
-	return found && validExtensionNamespace(namespace) && validImplementationMemberName(member)
+	if !found {
+		return false
+	}
+	if !validExtensionNamespace(namespace) {
+		return false
+	}
+
+	return validImplementationMemberName(member)
 }
 
 func validImplementationMemberName(name string) bool {
@@ -454,7 +466,11 @@ func (validator *documentValidator) validateResourceMutation(
 	if data == nil {
 		return
 	}
-	if data.kind != primaryDataOne || data.one == nil {
+	if data.kind != primaryDataOne {
+		validator.add(path, "shape", "resource mutation data must be one resource object")
+		return
+	}
+	if data.one == nil {
 		validator.add(path, "shape", "resource mutation data must be one resource object")
 		return
 	}
@@ -464,14 +480,16 @@ func (validator *documentValidator) validateResourceMutation(
 }
 
 func (validator *documentValidator) validateExpectedIdentity(resource ResourceObject, path string) {
-	if validator.options.ExpectedType != "" && resource.Type != "" &&
-		resource.Type != validator.options.ExpectedType {
-		validator.add(path+"/type", "endpoint-mismatch", "resource type does not match endpoint")
+	if validator.options.ExpectedType != "" {
+		if resource.Type != "" && resource.Type != validator.options.ExpectedType {
+			validator.add(path+"/type", "endpoint-mismatch", "resource type does not match endpoint")
+		}
 	}
-	if (validator.options.ExpectedIDPresent || validator.options.ExpectedID != "") &&
-		resource.hasID() &&
-		resource.ID != validator.options.ExpectedID {
-		validator.add(path+"/id", "endpoint-mismatch", "resource id does not match endpoint")
+	expectID := validator.options.ExpectedIDPresent || validator.options.ExpectedID != ""
+	if expectID {
+		if resource.hasID() && resource.ID != validator.options.ExpectedID {
+			validator.add(path+"/id", "endpoint-mismatch", "resource id does not match endpoint")
+		}
 	}
 }
 
@@ -526,12 +544,16 @@ func (validator *documentValidator) validateLinks(links Links, path string) {
 			if !validMemberName(name) {
 				validator.add(linkPath, "member-name", "@-Member name is invalid")
 			}
-			continue
+		} else {
+			validName := validMemberName(name)
+			if link.extension {
+				validName = validExtensionMemberName(name)
+			}
+			if !validName {
+				validator.add(linkPath, "member-name", "link name is invalid")
+			}
+			validator.validateLink(link, linkPath)
 		}
-		if !validMemberName(name) && (!link.extension || !validExtensionMemberName(name)) {
-			validator.add(linkPath, "member-name", "link name is invalid")
-		}
-		validator.validateLink(link, linkPath)
 	}
 }
 
@@ -592,8 +614,10 @@ func (validator *documentValidator) validateLinkAt(
 	} else {
 		validator.validateURL(link.href, path)
 	}
-	if (link.rel != "" || link.relPresent) && !validLinkRelation(link.rel) {
-		validator.add(path+"/rel", "link-relation", "rel must be a registered relation or URI")
+	if link.rel != "" || link.relPresent {
+		if !validLinkRelation(link.rel) {
+			validator.add(path+"/rel", "link-relation", "rel must be a registered relation or URI")
+		}
 	}
 	if link.describedBy != nil {
 		describedByPath := path + "/describedby"
@@ -612,29 +636,22 @@ func (validator *documentValidator) validateLinkAt(
 		}
 	}
 	if link.targetType != "" || link.targetTypePresent {
-		if mediaType, _, err := mime.ParseMediaType(link.targetType); err != nil || mediaType == "" {
+		if _, _, err := mime.ParseMediaType(link.targetType); err != nil {
 			validator.add(path+"/type", "media-type", "type must be a valid media type")
 		}
 	}
 	if link.hreflang != nil {
-		for _, tag := range link.hreflang.values {
-			if !validLanguageTag(tag) {
-				validator.add(path+"/hreflang", "language-tag", "hreflang must contain valid language tags")
-				break
-			}
+		if slices.ContainsFunc(link.hreflang.values, func(tag string) bool {
+			return !validLanguageTag(tag)
+		}) {
+			validator.add(path+"/hreflang", "language-tag", "hreflang must contain valid language tags")
 		}
 	}
 }
 
 func validLanguageTag(tag string) bool {
-	if tag == "" || strings.HasPrefix(tag, "-") || strings.HasSuffix(tag, "-") || strings.Contains(tag, "--") {
-		return false
-	}
 	for _, character := range tag {
-		if character != '-' &&
-			(character < 'a' || character > 'z') &&
-			(character < 'A' || character > 'Z') &&
-			(character < '0' || character > '9') {
+		if character != '-' && !strings.ContainsRune(asciiLettersAndDigits, character) {
 			return false
 		}
 	}
@@ -647,9 +664,9 @@ func validLinkRelation(relation string) bool {
 	if registeredLinkRelation.MatchString(relation) {
 		return true
 	}
-	absolute, valid := parseURIReference(relation)
+	absolute, _ := parseURIReference(relation)
 
-	return valid && absolute
+	return absolute
 }
 
 func (validator *documentValidator) validateURL(value, path string) {
@@ -673,20 +690,19 @@ func parseURIReference(value string) (bool, bool) {
 		remainder = remainder[:index]
 	}
 	absolute := false
-	colon := strings.IndexByte(remainder, ':')
-	slash := strings.IndexByte(remainder, '/')
-	if colon >= 0 && (slash < 0 || colon < slash) {
-		if !validURIScheme(remainder[:colon]) {
+	scheme, afterScheme, hasScheme := strings.Cut(remainder, ":")
+	if hasScheme && !strings.Contains(scheme, "/") {
+		if !validURIScheme(scheme) {
 			return false, false
 		}
 		absolute = true
-		remainder = remainder[colon+1:]
+		remainder = afterScheme
 	}
 	if strings.HasPrefix(remainder, "//") {
 		remainder = remainder[2:]
 		index := strings.IndexByte(remainder, '/')
 		authority := remainder
-		if index >= 0 {
+		if index != -1 {
 			authority = remainder[:index]
 			remainder = remainder[index:]
 		} else {
@@ -704,13 +720,15 @@ func parseURIReference(value string) (bool, bool) {
 }
 
 func validURIScheme(scheme string) bool {
-	if scheme == "" || !isASCIIAlpha(scheme[0]) {
+	if scheme == "" {
+		return false
+	}
+	if !isASCIIAlpha(scheme[0]) {
 		return false
 	}
 	for index := 1; index < len(scheme); index++ {
 		character := scheme[index]
-		if !isASCIIAlpha(character) && (character < '0' || character > '9') &&
-			character != '+' && character != '-' && character != '.' {
+		if !isASCIIAlpha(character) && !strings.ContainsRune("0123456789+.-", rune(character)) {
 			return false
 		}
 	}
@@ -719,7 +737,7 @@ func validURIScheme(scheme string) bool {
 
 func validURIAuthority(authority string) bool {
 	hostPort := authority
-	if index := strings.LastIndexByte(authority, '@'); index >= 0 {
+	if index := strings.LastIndexByte(authority, '@'); index != -1 {
 		if !validURIComponent(authority[:index], ":") {
 			return false
 		}
@@ -727,15 +745,18 @@ func validURIAuthority(authority string) bool {
 	}
 	if strings.HasPrefix(hostPort, "[") {
 		closing := strings.IndexByte(hostPort, ']')
-		if closing < 0 || !validIPLiteral(hostPort[1:closing]) {
+		if closing == -1 {
+			return false
+		}
+		if !validIPLiteral(hostPort[1:closing]) {
 			return false
 		}
 		return validURIPort(hostPort[closing+1:])
 	}
-	if strings.Contains(hostPort, "[") || strings.Contains(hostPort, "]") {
+	if strings.ContainsAny(hostPort, "[]") {
 		return false
 	}
-	if index := strings.LastIndexByte(hostPort, ':'); index >= 0 {
+	if index := strings.LastIndexByte(hostPort, ':'); index != -1 {
 		if !validURIComponent(hostPort[:index], "") {
 			return false
 		}
@@ -748,19 +769,21 @@ func validIPLiteral(value string) bool {
 	if address, err := netip.ParseAddr(value); err == nil {
 		return address.Is6()
 	}
-	if len(value) < 4 || value[0] != 'v' && value[0] != 'V' {
+	if value == "" {
 		return false
 	}
-	dot := strings.IndexByte(value, '.')
-	if dot < 2 {
+	if value[0] != 'v' && value[0] != 'V' {
 		return false
 	}
-	for index := 1; index < dot; index++ {
-		if !isHex(value[index]) {
-			return false
-		}
+	version, content, found := strings.Cut(value[1:], ".")
+	if !found || version == "" || content == "" {
+		return false
 	}
-	return validURIComponent(value[dot+1:], ":") && dot+1 < len(value)
+	if strings.Trim(version, "0123456789abcdefABCDEF") != "" {
+		return false
+	}
+
+	return validURIComponent(content, ":")
 }
 
 func validURIPort(value string) bool {
@@ -770,45 +793,42 @@ func validURIPort(value string) bool {
 	if value[0] != ':' {
 		return false
 	}
-	for _, character := range value[1:] {
-		if character < '0' || character > '9' {
-			return false
-		}
-	}
-	return true
+	return strings.Trim(value[1:], "0123456789") == ""
 }
 
 func validURIComponent(value, extra string) bool {
-	for index := 0; index < len(value); index++ {
-		character := value[index]
-		if character == '%' {
-			if index+2 >= len(value) || !isHex(value[index+1]) || !isHex(value[index+2]) {
-				return false
-			}
-			index += 2
-			continue
+	for {
+		prefix, remainder, encoded := strings.Cut(value, "%")
+		if !validRawURIComponent(prefix, extra) {
+			return false
 		}
-		if isURIUnreserved(character) || strings.ContainsRune("!$&'()*+,;="+extra, rune(character)) {
-			continue
+		if !encoded {
+			return true
 		}
-		return false
+		if len(remainder) < 2 {
+			return false
+		}
+		if !isHex(remainder[0]) || !isHex(remainder[1]) {
+			return false
+		}
+		value = remainder[2:]
 	}
-	return true
 }
 
-func isURIUnreserved(character byte) bool {
-	return isASCIIAlpha(character) ||
-		character >= '0' && character <= '9' || strings.ContainsRune("-._~", rune(character))
+func validRawURIComponent(value, extra string) bool {
+	allowed := asciiLettersAndDigits + "-._~!$&'()*+,;=" + extra
+
+	return strings.IndexFunc(value, func(character rune) bool {
+		return !strings.ContainsRune(allowed, character)
+	}) == -1
 }
 
 func isASCIIAlpha(character byte) bool {
-	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z'
+	return strings.ContainsRune(asciiLetters, rune(character))
 }
 
 func isHex(character byte) bool {
-	return character >= '0' && character <= '9' ||
-		character >= 'a' && character <= 'f' ||
-		character >= 'A' && character <= 'F'
+	return strings.ContainsRune("0123456789abcdefABCDEF", rune(character))
 }
 
 func (validator *documentValidator) validateError(apiError ErrorObject, path string) {
@@ -846,7 +866,7 @@ func (validator *documentValidator) validateIncluded(
 		return
 	}
 
-	included := make(map[string][]int, len(document.Included)*2)
+	included := make(map[string][]int, len(document.Included))
 	for index, resource := range document.Included {
 		path := "/included/" + strconv.Itoa(index)
 		validator.validateResource(resource, path, identity, false, identity)
@@ -862,11 +882,10 @@ func (validator *documentValidator) validateIncluded(
 		queue = queue[1:]
 		key := identifierKey(identifier)
 		for _, index := range included[key] {
-			if reachable[index] {
-				continue
+			if !reachable[index] {
+				reachable[index] = true
+				queue = append(queue, relationshipIdentifiers(document.Included[index].Relationships)...)
 			}
-			reachable[index] = true
-			queue = append(queue, relationshipIdentifiers(document.Included[index].Relationships)...)
 		}
 	}
 
@@ -902,25 +921,24 @@ func (validator *documentValidator) validateDocumentIdentity(document Document) 
 	for _, observation := range resources {
 		resource := observation.resource
 		keys := resourceObjectKeys(resource)
-		if len(keys) > 0 {
-			previous := ""
-			for _, key := range keys {
+		previous := ""
+		for _, key := range keys {
+			if previous == "" {
 				if existing, exists := canonical[key]; exists {
 					previous = existing
-					break
 				}
 			}
-			if previous != "" {
-				validator.add(
-					observation.path,
-					"duplicate-resource",
-					"resource duplicates canonical object at "+previous,
-				)
-			}
-			for _, key := range keys {
-				if _, exists := canonical[key]; !exists {
-					canonical[key] = observation.path
-				}
+		}
+		if previous != "" {
+			validator.add(
+				observation.path,
+				"duplicate-resource",
+				"resource duplicates canonical object at "+previous,
+			)
+		}
+		for _, key := range keys {
+			if _, exists := canonical[key]; !exists {
+				canonical[key] = observation.path
 			}
 		}
 		identities = append(identities, identityObservation{
@@ -978,23 +996,23 @@ func relationshipIdentityObservations(
 	sort.Strings(names)
 	var observations []identityObservation
 	for _, name := range names {
-		if strings.HasPrefix(name, "@") {
-			continue
-		}
-		data := relationships[name].Data
-		if data == nil || data.kind == relationshipDataNull {
-			continue
-		}
-		dataPath := path + "/" + escapePointerToken(name) + "/data"
-		if data.kind == relationshipDataOne && data.one != nil {
-			observations = append(observations, identityFromIdentifier(*data.one, dataPath))
-		}
-		if data.kind == relationshipDataMany {
-			for index, identifier := range data.many {
-				observations = append(
-					observations,
-					identityFromIdentifier(identifier, dataPath+"/"+strconv.Itoa(index)),
-				)
+		if !strings.HasPrefix(name, "@") {
+			data := relationships[name].Data
+			if data != nil && data.kind != relationshipDataNull {
+				dataPath := path + "/" + escapePointerToken(name) + "/data"
+				switch data.kind {
+				case relationshipDataOne:
+					if data.one != nil {
+						observations = append(observations, identityFromIdentifier(*data.one, dataPath))
+					}
+				case relationshipDataMany:
+					for index, identifier := range data.many {
+						observations = append(
+							observations,
+							identityFromIdentifier(identifier, dataPath+"/"+strconv.Itoa(index)),
+						)
+					}
+				}
 			}
 		}
 	}
@@ -1017,10 +1035,7 @@ func (validator *documentValidator) validateLocalIdentities(observations []ident
 	byID := make(map[string]identityObservation)
 	byLID := make(map[string]identityObservation)
 	for _, observation := range observations {
-		if observation.resourceType == "" || !observation.lidPresent {
-			continue
-		}
-		if observation.idPresent {
+		if observation.resourceType != "" && observation.lidPresent && observation.idPresent {
 			idKey := observation.resourceType + "\x00" + observation.id
 			if previous, exists := byID[idKey]; exists && previous.lid != observation.lid {
 				validator.add(
@@ -1049,8 +1064,11 @@ func (validator *documentValidator) primaryLinkage(data *PrimaryData) []Identifi
 	if data == nil || data.kind == primaryDataNull {
 		return nil
 	}
-	if data.kind == primaryDataOne && data.one != nil {
-		return relationshipIdentifiers(data.one.Relationships)
+	if data.kind == primaryDataOne {
+		if data.one != nil {
+			return relationshipIdentifiers(data.one.Relationships)
+		}
+		return nil
 	}
 
 	var identifiers []Identifier
@@ -1064,18 +1082,20 @@ func (validator *documentValidator) primaryLinkage(data *PrimaryData) []Identifi
 func relationshipIdentifiers(relationships Relationships) []Identifier {
 	var identifiers []Identifier
 	for name, relationship := range relationships {
-		if strings.HasPrefix(name, "@") {
-			continue
-		}
-		data := relationship.Data
-		if data == nil || data.kind == relationshipDataNull {
-			continue
-		}
-		if data.kind == relationshipDataOne && data.one != nil {
-			identifiers = append(identifiers, *data.one)
-		}
-		if data.kind == relationshipDataMany {
-			identifiers = append(identifiers, data.many...)
+		if !strings.HasPrefix(name, "@") {
+			data := relationship.Data
+			if data != nil {
+				if data.kind != relationshipDataNull {
+					switch data.kind {
+					case relationshipDataOne:
+						if data.one != nil {
+							identifiers = append(identifiers, *data.one)
+						}
+					case relationshipDataMany:
+						identifiers = append(identifiers, data.many...)
+					}
+				}
+			}
 		}
 	}
 
@@ -1123,11 +1143,12 @@ func validMemberName(name string) bool {
 	if !globallyAllowed(runes[0]) || !globallyAllowed(runes[len(runes)-1]) {
 		return false
 	}
-	if len(runes) > 2 {
-		for _, character := range runes[1 : len(runes)-1] {
-			if !globallyAllowed(character) && character != '-' && character != '_' && character != ' ' {
-				return false
-			}
+	if len(runes) == 1 {
+		return true
+	}
+	for _, character := range runes[1 : len(runes)-1] {
+		if !globallyAllowed(character) && character != '-' && character != '_' && character != ' ' {
+			return false
 		}
 	}
 
@@ -1135,10 +1156,7 @@ func validMemberName(name string) bool {
 }
 
 func globallyAllowed(character rune) bool {
-	return character > unicode.MaxASCII ||
-		character >= 'a' && character <= 'z' ||
-		character >= 'A' && character <= 'Z' ||
-		character >= '0' && character <= '9'
+	return character > unicode.MaxASCII || strings.ContainsRune(asciiLettersAndDigits, character)
 }
 
 func validJSONPointer(pointer string) bool {
@@ -1148,17 +1166,19 @@ func validJSONPointer(pointer string) bool {
 	if !strings.HasPrefix(pointer, "/") {
 		return false
 	}
-	for index := 0; index < len(pointer); index++ {
-		if pointer[index] != '~' {
-			continue
+	escaped := false
+	for _, character := range pointer {
+		if escaped {
+			if character != '0' && character != '1' {
+				return false
+			}
+			escaped = false
+		} else if character == '~' {
+			escaped = true
 		}
-		if index+1 >= len(pointer) || pointer[index+1] != '0' && pointer[index+1] != '1' {
-			return false
-		}
-		index++
 	}
 
-	return true
+	return !escaped
 }
 
 func escapePointerToken(token string) string {
