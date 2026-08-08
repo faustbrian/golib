@@ -82,7 +82,13 @@ func TestPublisherDoesNotMisreportCancellationAfterQueueAcceptance(t *testing.T)
 	go func() {
 		done <- publisher.Publish(ctx, outbox.Envelope{ID: "evt-1"})
 	}()
-	<-queue.started
+	select {
+	case <-queue.started:
+	case err := <-done:
+		t.Fatalf("publish returned before entering the synchronous queue call: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("publish did not enter the synchronous queue call")
+	}
 	cancel()
 	select {
 	case err := <-done:
