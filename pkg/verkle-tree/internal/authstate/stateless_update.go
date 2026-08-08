@@ -117,6 +117,27 @@ func NewStatelessUpdater(
 	if err != nil {
 		return nil, err
 	}
+
+	return NewStatelessUpdaterFromProofEngine(
+		ctx,
+		proof,
+		commitmentLimits,
+	)
+}
+
+// NewStatelessUpdaterFromProofEngine reuses already initialized immutable
+// aggregate-opening settings and initializes only the commitment backend.
+func NewStatelessUpdaterFromProofEngine(
+	ctx context.Context,
+	proof *ProofEngine,
+	commitmentLimits backend.CommitmentLimits,
+) (*StatelessUpdater, error) {
+	if err := checkTreeProofContext(ctx); err != nil {
+		return nil, err
+	}
+	if err := proof.validate(); err != nil {
+		return nil, err
+	}
 	commitment, err := backend.NewCommitmentEngine(ctx, commitmentLimits)
 	if err != nil {
 		return nil, err

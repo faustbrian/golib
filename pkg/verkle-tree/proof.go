@@ -275,8 +275,9 @@ type Proof struct {
 // ProofEngine owns immutable fixed-profile aggregate-opening settings and is
 // safe for concurrent proof generation and verification.
 type ProofEngine struct {
-	value *authstate.ProofEngine
-	valid bool
+	value   *authstate.ProofEngine
+	profile Profile
+	valid   bool
 }
 
 // NewProofEngine explicitly initializes the fixed profile's proof backend.
@@ -308,7 +309,7 @@ func NewProofEngine(
 		return ProofEngine{}, translateProofEngineError(err)
 	}
 
-	return ProofEngine{value: value, valid: true}, nil
+	return ProofEngine{value: value, profile: profile, valid: true}, nil
 }
 
 func translateProofEngineError(err error) error {

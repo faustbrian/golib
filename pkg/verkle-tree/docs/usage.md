@@ -70,6 +70,13 @@ A queued call respects its context. Use separate engines only after accounting
 for the multiplied worker and setup-memory budget; cancellation still cannot
 stop an already admitted dependency call.
 
+When the same process also verifies stateless witnesses, pass that initialized
+proof engine to `NewStatelessEngineFromProofEngine`. This avoids a second
+aggregate-opening setup. Proof generation and stateless verification then
+share the proof engine's bounded dependency-operation gate; use a separate
+stateless engine only when the additional setup memory and workers are
+intentional.
+
 Proof bytes are untrusted input. `DecodeProof` establishes canonical syntax and
 ownership only. Obtain `Proof.Root()` and `Proof.Claims(ctx)`, compare the root
 with the exact trusted root and the claim keys with the exact requested key

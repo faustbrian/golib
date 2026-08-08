@@ -118,10 +118,9 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 		t.Fatal("witness updates are not canonical and inspectable")
 	}
 
-	engine, err := verkletree.NewStatelessEngine(
+	engine, err := verkletree.NewStatelessEngineFromProofEngine(
 		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
+		proofEngine,
 		publicSnapshotLimits().Commitment,
 	)
 	if err != nil {
@@ -660,6 +659,22 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		publicOpeningLimits(), verkletree.CommitmentLimits{},
 	); !errors.Is(err, verkletree.ErrInvalidLimits) {
 		t.Fatalf("invalid engine commitment limits error = %v", err)
+	}
+	if _, err := verkletree.NewStatelessEngineFromProofEngine(
+		nilContext, proofEngine, publicSnapshotLimits().Commitment,
+	); !errors.Is(err, verkletree.ErrInvalidContext) {
+		t.Fatalf("nil reused engine context error = %v", err)
+	}
+	if _, err := verkletree.NewStatelessEngineFromProofEngine(
+		context.Background(), verkletree.ProofEngine{},
+		publicSnapshotLimits().Commitment,
+	); !errors.Is(err, verkletree.ErrInvalidProofEngine) {
+		t.Fatalf("zero reused proof engine error = %v", err)
+	}
+	if _, err := verkletree.NewStatelessEngineFromProofEngine(
+		context.Background(), proofEngine, verkletree.CommitmentLimits{},
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("invalid reused commitment limits error = %v", err)
 	}
 	wrongSnapshot, err := verkletree.NewSnapshot(
 		context.Background(),

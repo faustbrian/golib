@@ -7,6 +7,8 @@ import (
 	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
 )
 
+var benchmarkPublicStatelessEngine verkletree.StatelessEngine
+
 func BenchmarkPublicSnapshotOperations(b *testing.B) {
 	ctx := context.Background()
 	profile := verkletree.BandersnatchIPA256V0()
@@ -293,6 +295,51 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 		}
 		b.ReportMetric(float64(len(encoded)), "witness-bytes/op")
 		benchmarkPublicReportThroughput(b)
+	})
+}
+
+func BenchmarkPublicStatelessEngineInitialization(b *testing.B) {
+	ctx := context.Background()
+	profile := verkletree.BandersnatchIPA256V0()
+	openingLimits := publicOpeningLimits()
+	commitmentLimits := publicSnapshotLimits().Commitment
+	proofEngine, err := verkletree.NewProofEngine(
+		ctx,
+		profile,
+		openingLimits,
+	)
+	if err != nil {
+		b.Fatalf("prepare proof engine: %v", err)
+	}
+
+	b.Run("fresh", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			engine, engineErr := verkletree.NewStatelessEngine(
+				ctx,
+				profile,
+				openingLimits,
+				commitmentLimits,
+			)
+			if engineErr != nil {
+				b.Fatal(engineErr)
+			}
+			benchmarkPublicStatelessEngine = engine
+		}
+	})
+	b.Run("reuse-proof-engine", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			engine, engineErr := verkletree.NewStatelessEngineFromProofEngine(
+				ctx,
+				proofEngine,
+				commitmentLimits,
+			)
+			if engineErr != nil {
+				b.Fatal(engineErr)
+			}
+			benchmarkPublicStatelessEngine = engine
+		}
 	})
 }
 

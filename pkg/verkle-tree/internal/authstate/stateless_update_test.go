@@ -834,6 +834,43 @@ func TestStatelessUpdaterRejectsInvalidAndIncompleteRequests(t *testing.T) {
 	}
 }
 
+func TestNewStatelessUpdaterFromProofEngineReusesOpeningSettings(t *testing.T) {
+	t.Parallel()
+
+	proof := newTestProofEngine(t)
+	updater, err := NewStatelessUpdaterFromProofEngine(
+		context.Background(), proof, testCommitmentLimits(),
+	)
+	if err != nil {
+		t.Fatalf("reuse proof engine: %v", err)
+	}
+	if updater.proof != proof {
+		t.Fatal("stateless updater replaced the supplied proof engine")
+	}
+
+	var nilContext context.Context
+	if _, err := NewStatelessUpdaterFromProofEngine(
+		nilContext, proof, testCommitmentLimits(),
+	); !errors.Is(err, errInvalidTreeProofContext) {
+		t.Fatalf("nil context error = %v", err)
+	}
+	if _, err := NewStatelessUpdaterFromProofEngine(
+		context.Background(), nil, testCommitmentLimits(),
+	); !errors.Is(err, errInvalidProofEngine) {
+		t.Fatalf("nil proof engine error = %v", err)
+	}
+	if _, err := NewStatelessUpdaterFromProofEngine(
+		context.Background(), &ProofEngine{}, testCommitmentLimits(),
+	); !errors.Is(err, errInvalidProofEngine) {
+		t.Fatalf("zero proof engine error = %v", err)
+	}
+	if _, err := NewStatelessUpdaterFromProofEngine(
+		context.Background(), proof, backend.CommitmentLimits{},
+	); err == nil {
+		t.Fatal("invalid commitment limits were accepted")
+	}
+}
+
 func TestStatelessUpdaterEnforcesEveryResource(t *testing.T) {
 	t.Parallel()
 

@@ -664,6 +664,33 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	); !errors.Is(err, ErrResourceExhausted) {
 		t.Fatalf("stateless engine resource error = %v", err)
 	}
+	proofEngine, err := NewProofEngine(
+		context.Background(), BandersnatchIPA256V0(),
+		testFacadeOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("proof engine for stateless reuse: %v", err)
+	}
+	if _, err := NewStatelessEngineFromProofEngine(
+		context.Background(), ProofEngine{valid: true},
+		testFacadeSnapshotLimits().Commitment,
+	); !errors.Is(err, ErrInvalidProofEngine) {
+		t.Fatalf("partial reused proof engine error = %v", err)
+	}
+	forgedProofEngine := proofEngine
+	forgedProofEngine.profile = Profile{}
+	if _, err := NewStatelessEngineFromProofEngine(
+		context.Background(), forgedProofEngine,
+		testFacadeSnapshotLimits().Commitment,
+	); !errors.Is(err, ErrUnsupportedProfile) {
+		t.Fatalf("forged reused profile error = %v", err)
+	}
+	if _, err := NewStatelessEngineFromProofEngine(
+		&cancellingContext{remaining: 1}, proofEngine,
+		testFacadeSnapshotLimits().Commitment,
+	); !errors.Is(err, ErrCancelled) {
+		t.Fatalf("cancelled reused proof engine error = %v", err)
+	}
 	for _, partial := range []StatelessEngine{
 		{valid: true},
 		{value: &authstate.StatelessUpdater{}},

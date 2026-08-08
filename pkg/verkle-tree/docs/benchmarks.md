@@ -12,6 +12,11 @@ and application. Shared immutable snapshot reads and aggregate-proof
 verification also have parallel measurements. The proof and witness rows
 report their exact canonical encoded sizes.
 
+A separate public initialization benchmark compares constructing a standalone
+stateless engine with constructing one from an already initialized proof
+engine. It isolates the explicit backend-ownership choice: the reuse path
+initializes commitment arithmetic but does not repeat aggregate-opening setup.
+
 The matrix uses the package-owned pre-v1 profile and an in-memory
 snapshot. It excludes durable cold and warm storage, an audited backend,
 cross-implementation equivalent workloads, latency distributions under stable
@@ -135,6 +140,10 @@ GOWORK=off go test . -run '^$' \
   -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublicStatelessEngineInitialization$' \
+  -benchmem -benchtime=1x -count=5
+
+GOWORK=off go test . -run '^$' \
   -bench '^BenchmarkPublicProofOperations$/^verify-aggregate-8-parallel$' \
   -benchmem -benchtime=32x -count=5
 
@@ -202,7 +211,8 @@ baseline.
 Environment:
 
 - Date: 2026-08-01; public API, bound proof-engine, stateless-witness,
-  canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03
+  canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03;
+  stateless-engine initialization rows added 2026-08-08
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -256,6 +266,8 @@ nanoseconds per operation.
 | Encode two-update witness | 17833, 10834, 15250, 14667, 18417 | 56076, 92302, 65574, 68180, 54298 | 1217 | 2432 | 2 |
 | Decode two-update witness | 211708, 201750, 201875, 203041, 202542 | 4723, 4957, 4954, 4925, 4937 | 1217 | 7816 | 37 |
 | Verify and apply two-update witness | 2239084, 2198208, 2141375, 2148125, 2148250 | 446.6, 454.9, 467.0, 465.5, 465.5 | 1217 | 312512-312528 | 1119 |
+| Initialize standalone stateless engine | 284504167, 334086750, 322192166, 671019375, 239801375 | 3.515, 2.993, 3.104, 1.490, 4.170 | - | 833184080-833217712 | 235761-235890 |
+| Initialize stateless engine from proof engine | 7763375, 7833708, 8752375, 7720792, 7823042 | 128.81, 127.65, 114.25, 129.52, 127.83 | - | 166544-166824 | 3517-3523 |
 
 The parallel rows use the Go benchmark harness at `GOMAXPROCS=16`; ns/op is
 aggregate wall time divided by completed operations, not per-goroutine latency.
@@ -266,6 +278,11 @@ their entry into the dependency proof boundary and bounds the waiting queue.
 The row therefore measures admission contention as well as verification and is
 not backend parallel-scaling evidence. Neither set is suitable for percentile
 or regression claims.
+
+The initialization rows exclude construction of the proof engine supplied to
+the reuse case. They measure the marginal cost faced by a caller that already
+owns that immutable engine. The standalone row includes a complete additional
+aggregate-opening setup; both rows include commitment-backend initialization.
 
 ### Process peak-memory samples
 

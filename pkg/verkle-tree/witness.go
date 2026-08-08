@@ -356,6 +356,42 @@ func NewStatelessEngine(
 	return StatelessEngine{value: value, valid: true}, nil
 }
 
+// NewStatelessEngineFromProofEngine initializes a stateless verifier while
+// reusing one already initialized immutable proof backend. Proof generation
+// and stateless verification share that engine's bounded dependency-operation
+// gate when used concurrently.
+func NewStatelessEngineFromProofEngine(
+	ctx context.Context,
+	proofEngine ProofEngine,
+	commitmentLimits CommitmentLimits,
+) (StatelessEngine, error) {
+	if err := checkPublicContext(ctx); err != nil {
+		return StatelessEngine{}, err
+	}
+	if !proofEngine.valid || proofEngine.value == nil {
+		return StatelessEngine{}, ErrInvalidProofEngine
+	}
+	if err := proofEngine.profile.Validate(); err != nil {
+		return StatelessEngine{}, ErrUnsupportedProfile
+	}
+	if err := validateCommitmentLimits(commitmentLimits); err != nil {
+		return StatelessEngine{}, err
+	}
+	value, err := authstate.NewStatelessUpdaterFromProofEngine(
+		ctx,
+		proofEngine.value,
+		toInternalCommitmentLimits(commitmentLimits),
+	)
+	if err != nil {
+		return StatelessEngine{}, translateWitnessError(
+			"initialize stateless engine from proof engine",
+			err,
+		)
+	}
+
+	return StatelessEngine{value: value, valid: true}, nil
+}
+
 // Apply cryptographically verifies the complete witness, applies its bounded
 // canonical update batch, and requires the independently derived post-state
 // root to equal the root bound by the witness.
