@@ -317,7 +317,8 @@ func TestLifecycleStringsAndUnknownValues(t *testing.T) {
 	}
 	for value, want := range map[EventType]string{
 		EventBefore: "before", EventSuccess: "success", EventFailure: "failure",
-		EventSkipped: "skipped", EventOverlap: "overlap", EventCompleted: "completed",
+		EventSkipped: "skipped", EventOverlap: "overlap", EventFinished: "finished",
+		EventCompleted: "completed",
 		EventType(255): "unknown",
 	} {
 		if value.String() != want {
@@ -361,8 +362,8 @@ func TestHookSelectionIncludesUnknown(t *testing.T) {
 	t.Parallel()
 
 	hook := func(Event) {}
-	hooks := Hooks{Before: hook, Success: hook, Failure: hook, Skipped: hook, Overlap: hook, Completed: hook}
-	for _, eventType := range []EventType{EventBefore, EventSuccess, EventFailure, EventSkipped, EventOverlap, EventCompleted} {
+	hooks := Hooks{Before: hook, Success: hook, Failure: hook, Skipped: hook, Overlap: hook, After: hook, Completed: hook}
+	for _, eventType := range []EventType{EventBefore, EventSuccess, EventFailure, EventSkipped, EventOverlap, EventFinished, EventCompleted} {
 		if hookFor(hooks, eventType) == nil {
 			t.Fatalf("hookFor(%v) = nil", eventType)
 		}

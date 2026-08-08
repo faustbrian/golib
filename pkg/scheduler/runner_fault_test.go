@@ -522,6 +522,9 @@ func TestRunnerOptionsEmptyLoopAndInvalidTick(t *testing.T) {
 	if _, err := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"), scheduler.WithMaxConcurrentCallbacks(0)); !errors.Is(err, scheduler.ErrInvalidRunner) {
 		t.Fatalf("NewRunner(callback limit) error = %v", err)
 	}
+	if _, err := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"), scheduler.WithPauseSource(nil)); !errors.Is(err, scheduler.ErrInvalidRunner) {
+		t.Fatalf("NewRunner(pause source) error = %v", err)
+	}
 	runner, _ := scheduler.NewRunner(registry, memory.New(), executorFunc(func(context.Context, scheduler.Context) error { return nil }), scheduler.WithOwner("owner"))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

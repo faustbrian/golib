@@ -42,6 +42,8 @@ func TestCLIUsageAndRuntimeFailures(t *testing.T) {
 	}{
 		{nil, 2},
 		{[]string{"next", "--after", "2026-01-01T00:00:00Z"}, 2},
+		{[]string{"list", "--unknown"}, 2},
+		{[]string{"list", "--after", "bad"}, 2},
 		{[]string{"next", "--name", "report", "--unknown"}, 2},
 		{[]string{"next", "--unknown"}, 2},
 		{[]string{"next", "--name", "report", "--after", "bad"}, 2},

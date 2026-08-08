@@ -50,6 +50,11 @@ Facilities are not closed by the adapter after a failed partial startup because
 the scheduler task never started; normal service rollback remains responsible
 for every facility that did start.
 
+This cancellation-and-drain sequence is also the scheduler interrupt primitive.
+An application may connect its own authenticated administrative endpoint,
+deployment signal, or other control to cancellation; the scheduler does not
+define or expose an interrupt command.
+
 The adapter provides no readiness check. A schedule role becomes ready after
 its declared facilities start. Applications may add readiness only for
 dependencies required to accept new work. Retry and recovery remain in the

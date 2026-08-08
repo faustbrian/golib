@@ -32,9 +32,11 @@ type Schedule struct {
 	OnOneServer        bool                      `json:"on_one_server"`
 	WithoutOverlapping bool                      `json:"without_overlapping"`
 	RunInBackground    bool                      `json:"run_in_background"`
+	EvenWhenPaused     bool                      `json:"even_when_paused"`
 	OneServerTTL       string                    `json:"one_server_ttl,omitempty"`
 	OverlapTTL         string                    `json:"overlap_ttl,omitempty"`
 	Metadata           map[string]string         `json:"metadata,omitempty"`
+	Next               *time.Time                `json:"next,omitempty"`
 }
 
 // Handler exposes bounded scheduler inspection and fenced recovery endpoints.
@@ -70,11 +72,24 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	handler.mux.ServeHTTP(response, request)
 }
 
-func (handler *Handler) list(response http.ResponseWriter, _ *http.Request) {
+func (handler *Handler) list(response http.ResponseWriter, request *http.Request) {
 	schedules := handler.registry.Schedules()
 	result := make([]Schedule, len(schedules))
 	for index, schedule := range schedules {
 		result[index] = scheduleView(schedule)
+	}
+	if request.URL.Query().Has("after") {
+		after, err := parseTime(request, "after")
+		if err != nil {
+			writeError(response, http.StatusBadRequest, err)
+			return
+		}
+		for index, overview := range handler.registry.Overview(after) {
+			if !overview.Next.IsZero() {
+				next := overview.Next
+				result[index].Next = &next
+			}
+		}
 	}
 	writeJSON(response, http.StatusOK, result)
 }
@@ -159,6 +174,7 @@ func scheduleView(schedule scheduler.Schedule) Schedule {
 		OverlapPolicy: schedule.OverlapPolicy, OnOneServer: schedule.OnOneServer,
 		WithoutOverlapping: schedule.WithoutOverlapping,
 		RunInBackground:    schedule.RunInBackground,
+		EvenWhenPaused:     schedule.EvenWhenPaused,
 		OneServerTTL:       durationString(schedule.OneServerTTL),
 		OverlapTTL:         durationString(schedule.OverlapTTL),
 		Metadata:           schedule.Metadata,

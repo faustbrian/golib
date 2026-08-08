@@ -83,6 +83,8 @@ var (
 	ErrCallbackTimeout = errors.New("scheduler: callback timed out")
 	// ErrCallbackCapacity reports that the bounded callback pool is full.
 	ErrCallbackCapacity = errors.New("scheduler: callback capacity exhausted")
+	// ErrPaused reports an occurrence skipped by application pause state.
+	ErrPaused = errors.New("scheduler: paused")
 )
 var (
 	// ErrScheduleNameRequired reports a blank schedule name.
@@ -135,6 +137,7 @@ type Event struct {
 	Fencing    uint64
 	At         time.Time
 	Err        error
+	Background bool
 }
     Event carries a bounded, structured scheduler lifecycle record.
 
@@ -154,6 +157,8 @@ const (
 	EventOverlap
 	// EventCompleted terminates every emitted lifecycle.
 	EventCompleted
+	// EventFinished is emitted after a started executor returns.
+	EventFinished
 )
 func (eventType EventType) String() string
 
@@ -172,6 +177,7 @@ type Hooks struct {
 	Skipped   Hook
 	Overlap   Hook
 	Completed Hook
+	After     Hook
 }
     Hooks configures optional callbacks for each lifecycle boundary.
 
@@ -368,6 +374,9 @@ type Occurrence struct {
 type Option func(*Schedule) error
     Option configures a schedule before final validation and identity hashing.
 
+func EvenWhenPaused() Option
+    EvenWhenPaused allows this schedule to run while its runner is paused.
+
 func OnOneServer() Option
     OnOneServer enables a distributed occurrence lease with the default mutex
     TTL.
@@ -481,6 +490,36 @@ const (
 	// OverlapReplace delegates safe cancellation and transfer to a replacement store.
 	OverlapReplace
 )
+type PauseController interface {
+	Pause(context.Context) error
+	Resume(context.Context) error
+}
+    PauseController idempotently changes an application's scheduler pause state.
+
+type PauseSource interface {
+	Paused(context.Context) (bool, error)
+}
+    PauseSource reports whether ordinary schedules should be paused.
+
+type PauseState struct {
+	// Has unexported fields.
+}
+    PauseState is a process-local, concurrency-safe pause source and controller.
+    Distributed runners should use an application-owned shared persistent
+    implementation of PauseSource and PauseController instead.
+
+func NewPauseState() *PauseState
+    NewPauseState constructs an initially resumed process-local pause state.
+
+func (state *PauseState) Pause(ctx context.Context) error
+    Pause idempotently pauses ordinary schedules.
+
+func (state *PauseState) Paused(ctx context.Context) (bool, error)
+    Paused reports the current process-local pause state.
+
+func (state *PauseState) Resume(ctx context.Context) error
+    Resume idempotently resumes ordinary schedules.
+
 type Registry struct {
 	// Has unexported fields.
 }
@@ -500,6 +539,11 @@ func (registry *Registry) Due(name string, after, through time.Time) ([]Occurren
 
 func (registry *Registry) Next(name string, after time.Time) (time.Time, error)
     Next returns the first occurrence strictly after an instant.
+
+func (registry *Registry) Overview(after time.Time) []ScheduleOverview
+    Overview returns immutable schedule definitions and their next boundaries,
+    sorted by schedule name. Callers supply the reference instant so inspection
+    remains deterministic and can be exposed through any application surface.
 
 func (registry *Registry) Schedules() []Schedule
     Schedules returns immutable copies sorted by schedule name.
@@ -572,6 +616,10 @@ func WithObserver(observer Observer) RunnerOption
 func WithOwner(owner string) RunnerOption
     WithOwner sets the unique identity used for lease ownership.
 
+func WithPauseSource(source PauseSource) RunnerOption
+    WithPauseSource supplies application-owned pause state. Lookup failures fail
+    closed for ordinary schedules; EvenWhenPaused schedules do not consult it.
+
 type Schedule struct {
 	Name               string
 	Version            string
@@ -603,11 +651,19 @@ type Schedule struct {
 	RunTimeout         time.Duration
 	RunInBackground    bool
 	Hooks              Hooks
+	EvenWhenPaused     bool
 }
     Schedule is an immutable code-defined task timing and policy definition.
 
 func NewSchedule(name, task string, interval Interval, options ...Option) (Schedule, error)
     NewSchedule constructs, validates, bounds, and identifies a schedule.
+
+type ScheduleOverview struct {
+	Schedule Schedule
+	Next     time.Time
+}
+    ScheduleOverview combines an immutable schedule definition with its next
+    enabled execution boundary. Next is zero for a disabled schedule.
 
 type TimeWindow struct {
 	Start    time.Duration `json:"start"`
@@ -990,9 +1046,11 @@ type Schedule struct {
 	OnOneServer        bool                      `json:"on_one_server"`
 	WithoutOverlapping bool                      `json:"without_overlapping"`
 	RunInBackground    bool                      `json:"run_in_background"`
+	EvenWhenPaused     bool                      `json:"even_when_paused"`
 	OneServerTTL       string                    `json:"one_server_ttl,omitempty"`
 	OverlapTTL         string                    `json:"overlap_ttl,omitempty"`
 	Metadata           map[string]string         `json:"metadata,omitempty"`
+	Next               *time.Time                `json:"next,omitempty"`
 }
     Schedule is the bounded public inspection view of a schedule.
 

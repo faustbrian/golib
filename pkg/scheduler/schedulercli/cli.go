@@ -42,7 +42,7 @@ func Run(
 	}
 	switch args[0] {
 	case "list":
-		return list(stdout, registry)
+		return list(args[1:], stdout, stderr, registry)
 	case "validate":
 		return encode(stdout, map[string]any{"valid": true, "schedules": len(registry.Schedules())})
 	case "next":
@@ -65,8 +65,22 @@ func Run(
 	}
 }
 
-func list(stdout io.Writer, registry *scheduler.Registry) int {
+func list(args []string, stdout, stderr io.Writer, registry *scheduler.Registry) int {
+	flags := flag.NewFlagSet("list", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	afterValue := flags.String("after", "", "optional RFC3339 instant for next runs")
+	if flags.Parse(args) != nil {
+		return 2
+	}
 	schedules := registry.Schedules()
+	var overview []scheduler.ScheduleOverview
+	if *afterValue != "" {
+		after, err := time.Parse(time.RFC3339Nano, *afterValue)
+		if err != nil {
+			return report(stderr, err, 2)
+		}
+		overview = registry.Overview(after)
+	}
 	views := make([]map[string]any, len(schedules))
 	for index, schedule := range schedules {
 		views[index] = map[string]any{
@@ -76,8 +90,12 @@ func list(stdout io.Writer, registry *scheduler.Registry) int {
 			"enabled": schedule.Enabled, "on_one_server": schedule.OnOneServer,
 			"without_overlapping": schedule.WithoutOverlapping,
 			"run_in_background":   schedule.RunInBackground,
+			"even_when_paused":    schedule.EvenWhenPaused,
 			"one_server_ttl":      durationString(schedule.OneServerTTL),
 			"overlap_ttl":         durationString(schedule.OverlapTTL),
+		}
+		if len(overview) > 0 && !overview[index].Next.IsZero() {
+			views[index]["next"] = overview[index].Next
 		}
 	}
 	return encode(stdout, views)

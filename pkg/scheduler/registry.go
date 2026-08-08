@@ -51,6 +51,13 @@ type Registry struct {
 	names   []string
 }
 
+// ScheduleOverview combines an immutable schedule definition with its next
+// enabled execution boundary. Next is zero for a disabled schedule.
+type ScheduleOverview struct {
+	Schedule Schedule
+	Next     time.Time
+}
+
 // Compile validates and freezes a complete named schedule set.
 func Compile(schedules ...Schedule) (*Registry, error) {
 	if len(schedules) > MaxSchedules {
@@ -168,6 +175,22 @@ func (registry *Registry) Schedules() []Schedule {
 	result := make([]Schedule, 0, len(registry.names))
 	for _, name := range registry.names {
 		result = append(result, cloneSchedule(registry.entries[name].schedule))
+	}
+	return result
+}
+
+// Overview returns immutable schedule definitions and their next boundaries,
+// sorted by schedule name. Callers supply the reference instant so inspection
+// remains deterministic and can be exposed through any application surface.
+func (registry *Registry) Overview(after time.Time) []ScheduleOverview {
+	result := make([]ScheduleOverview, 0, len(registry.names))
+	for _, name := range registry.names {
+		entry := registry.entries[name]
+		overview := ScheduleOverview{Schedule: cloneSchedule(entry.schedule)}
+		if entry.schedule.Enabled {
+			overview.Next = entry.cron.Next(after)
+		}
+		result = append(result, overview)
 	}
 	return result
 }

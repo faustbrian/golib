@@ -32,6 +32,12 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Composable application-owned pause controls with process-local state,
+  per-schedule exemptions, fail-closed lookups, and typed skipped events.
+- A deterministic registry overview API that combines immutable definitions
+  with each enabled schedule's next run for caller-owned control surfaces.
+- A distinct `After` / `EventFinished` execution boundary and background
+  metadata while retaining `Completed` for every scheduling decision.
 - Laravel-compatible `OnOneServer`, `WithoutOverlapping`, and
   `RunInBackground` controls with independent mutex TTLs, managed asynchronous
   lifecycle reporting, and CLI bulk overlap-lock cleanup.

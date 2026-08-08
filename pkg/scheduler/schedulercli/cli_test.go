@@ -32,6 +32,7 @@ func TestCLIInspectionCommands(t *testing.T) {
 		{[]string{"list"}, `"run_in_background":true`},
 		{[]string{"list"}, `"one_server_ttl":"1h0m0s"`},
 		{[]string{"list"}, `"overlap_ttl":"10m0s"`},
+		{[]string{"list", "--after", "2026-01-01T00:00:00Z"}, `"next":"2026-01-02T00:00:00Z"`},
 		{[]string{"validate"}, `"valid":true`},
 		{[]string{"next", "--name", "report", "--after", "2026-01-01T00:00:00Z"}, "2026-01-02T00:00:00Z"},
 		{[]string{"due", "--name", "report", "--after", "2026-01-01T00:00:00Z", "--through", "2026-01-02T00:00:00Z"}, "2026-01-02T00:00:00Z"},

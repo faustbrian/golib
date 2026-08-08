@@ -94,6 +94,35 @@ func TestRegistryCalculatesDSTGapAndFoldDeterministically(t *testing.T) {
 	}
 }
 
+func TestRegistryOverviewCombinesImmutableDefinitionsAndNextRuns(t *testing.T) {
+	t.Parallel()
+
+	enabled, _ := scheduler.NewSchedule("enabled", "task.enabled", scheduler.Hourly())
+	disabled, _ := scheduler.NewSchedule(
+		"disabled", "task.disabled", scheduler.Hourly(), scheduler.WithEnabled(false),
+	)
+	registry, err := scheduler.Compile(enabled, disabled)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	after := time.Date(2026, time.January, 1, 12, 30, 0, 0, time.UTC)
+	overview := registry.Overview(after)
+	if len(overview) != 2 || overview[0].Schedule.Name != "disabled" || overview[1].Schedule.Name != "enabled" {
+		t.Fatalf("Overview() = %+v, want sorted disabled and enabled schedules", overview)
+	}
+	if !overview[0].Next.IsZero() {
+		t.Fatalf("disabled next = %v, want zero", overview[0].Next)
+	}
+	want := time.Date(2026, time.January, 1, 13, 0, 0, 0, time.UTC)
+	if !overview[1].Next.Equal(want) {
+		t.Fatalf("enabled next = %v, want %v", overview[1].Next, want)
+	}
+	overview[1].Schedule.Name = "changed"
+	if registry.Schedules()[1].Name != "enabled" {
+		t.Fatal("Overview() exposed mutable registry state")
+	}
+}
+
 func TestDueAppliesMissedRunPoliciesAndBounds(t *testing.T) {
 	t.Parallel()
 

@@ -81,6 +81,7 @@ func (observer *Observer) Observe(event scheduler.Event) {
 		attribute.String("scheduler.result", event.Result.String()),
 		attribute.String("scheduler.schedule", event.Occurrence.ScheduleName),
 		attribute.String("scheduler.task", event.Occurrence.Task),
+		attribute.Bool("scheduler.background", event.Background),
 	}
 	observer.events.Add(ctx, 1, metric.WithAttributes(attributes...))
 	observer.logger.LogAttrs(
@@ -93,6 +94,7 @@ func (observer *Observer) Observe(event scheduler.Event) {
 		slog.String("task", event.Occurrence.Task),
 		slog.String("owner", event.Owner),
 		slog.Uint64("fencing_token", event.Fencing),
+		slog.Bool("background", event.Background),
 		slog.Any("error", event.Err),
 	)
 
@@ -129,7 +131,7 @@ func (observer *Observer) Observe(event scheduler.Event) {
 			span.span.End()
 			observer.duration.Record(ctx, time.Since(span.started).Seconds(), metric.WithAttributes(attributes...))
 		}
-	case scheduler.EventSuccess, scheduler.EventSkipped, scheduler.EventOverlap:
+	case scheduler.EventSuccess, scheduler.EventSkipped, scheduler.EventOverlap, scheduler.EventFinished:
 	}
 }
 

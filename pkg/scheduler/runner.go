@@ -29,6 +29,8 @@ var (
 	ErrCallbackTimeout = errors.New("scheduler: callback timed out")
 	// ErrCallbackCapacity reports that the bounded callback pool is full.
 	ErrCallbackCapacity = errors.New("scheduler: callback capacity exhausted")
+	// ErrPaused reports an occurrence skipped by application pause state.
+	ErrPaused = errors.New("scheduler: paused")
 )
 
 // DefaultMaxConcurrentExecutions bounds managed in-process executions.
@@ -74,6 +76,8 @@ const (
 	EventOverlap
 	// EventCompleted terminates every emitted lifecycle.
 	EventCompleted
+	// EventFinished is emitted after a started executor returns.
+	EventFinished
 )
 
 // Event carries a bounded, structured scheduler lifecycle record.
@@ -86,6 +90,7 @@ type Event struct {
 	Fencing    uint64
 	At         time.Time
 	Err        error
+	Background bool
 }
 
 func (result Result) String() string {
@@ -113,6 +118,8 @@ func (eventType EventType) String() string {
 		return "skipped"
 	case EventOverlap:
 		return "overlap"
+	case EventFinished:
+		return "finished"
 	case EventCompleted:
 		return "completed"
 	default:
@@ -159,6 +166,7 @@ type Runner struct {
 	owner             string
 	environment       string
 	maintenance       bool
+	pauseSource       PauseSource
 	observers         []Observer
 	clock             Clock
 	maxExecutions     int
@@ -194,6 +202,12 @@ type managedExecution struct {
 
 type conditionResult struct {
 	allowed bool
+	err     error
+}
+
+type pauseSnapshot struct {
+	checked bool
+	paused  bool
 	err     error
 }
 
@@ -328,6 +342,18 @@ func WithMaintenanceMode(enabled bool) RunnerOption {
 	}
 }
 
+// WithPauseSource supplies application-owned pause state. Lookup failures fail
+// closed for ordinary schedules; EvenWhenPaused schedules do not consult it.
+func WithPauseSource(source PauseSource) RunnerOption {
+	return func(runner *Runner) error {
+		if source == nil {
+			return fmt.Errorf("%w: pause source is required", ErrInvalidRunner)
+		}
+		runner.pauseSource = source
+		return nil
+	}
+}
+
 // WithObserver appends a lifecycle observer when non-nil.
 func WithObserver(observer Observer) RunnerOption {
 	return func(runner *Runner) error {
@@ -407,6 +433,7 @@ func (runner *Runner) Tick(ctx context.Context, after, through time.Time) error 
 	defer runner.inflight.Done()
 
 	var errs []error
+	pause := pauseSnapshot{}
 	for _, name := range runner.registry.names {
 		entry := runner.registry.entries[name]
 		occurrences, err := runner.registry.Due(name, after, through)
@@ -415,7 +442,7 @@ func (runner *Runner) Tick(ctx context.Context, after, through time.Time) error 
 			continue
 		}
 		for _, occurrence := range occurrences {
-			if err := runner.decide(ctx, entry.schedule, occurrence, through); err != nil {
+			if err := runner.decide(ctx, entry.schedule, occurrence, through, &pause); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -455,10 +482,32 @@ func (runner *Runner) begin() error {
 	return nil
 }
 
-func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence Occurrence, now time.Time) error {
+func (runner *Runner) decide(
+	ctx context.Context,
+	schedule Schedule,
+	occurrence Occurrence,
+	now time.Time,
+	pause *pauseSnapshot,
+) error {
 	if reason := runner.skipReason(schedule); reason != nil {
-		runner.skipped(ctx, occurrence, now, reason)
+		runner.skipped(ctx, occurrence, now, reason, schedule.RunInBackground)
 		return nil
+	}
+	if runner.pauseSource != nil && !schedule.EvenWhenPaused {
+		if !pause.checked {
+			pauseCtx, cancelPause := context.WithTimeout(ctx, runner.leaseTimeout)
+			pause.paused, pause.err = runner.pauseSource.Paused(pauseCtx)
+			cancelPause()
+			pause.checked = true
+		}
+		if pause.err != nil {
+			runner.failed(ctx, occurrence, now, pause.err, 0, schedule.RunInBackground, false)
+			return pause.err
+		}
+		if pause.paused {
+			runner.skipped(ctx, occurrence, now, ErrPaused, schedule.RunInBackground)
+			return nil
+		}
 	}
 
 	scheduled := Context{
@@ -473,11 +522,11 @@ func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence 
 	for _, condition := range schedule.Conditions {
 		allowed, err := runner.runCondition(ctx, condition, scheduled)
 		if err != nil {
-			runner.failed(ctx, occurrence, now, err, 0)
+			runner.failed(ctx, occurrence, now, err, 0, schedule.RunInBackground, false)
 			return err
 		}
 		if !allowed {
-			runner.skipped(ctx, occurrence, now, errors.New("scheduler: condition rejected occurrence"))
+			runner.skipped(ctx, occurrence, now, errors.New("scheduler: condition rejected occurrence"), schedule.RunInBackground)
 			return nil
 		}
 	}
@@ -488,11 +537,11 @@ func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence 
 		owned, err := runner.leases.Acquire(leaseCtx, key, runner.owner, oneServerTTL(schedule), now)
 		cancelLease()
 		if errors.Is(err, lease.ErrHeld) {
-			runner.skipped(ctx, occurrence, now, err)
+			runner.skipped(ctx, occurrence, now, err, schedule.RunInBackground)
 			return nil
 		}
 		if err != nil {
-			runner.failed(ctx, occurrence, now, err, 0)
+			runner.failed(ctx, occurrence, now, err, 0, schedule.RunInBackground, false)
 			return err
 		}
 		scheduled.Fencing = owned.FencingToken
@@ -503,34 +552,34 @@ func (runner *Runner) decide(ctx context.Context, schedule Schedule, occurrence 
 		var err error
 		taskLease, err = runner.acquireTask(ctx, schedule, now)
 		if errors.Is(err, lease.ErrHeld) {
-			runner.emit(Event{Type: EventOverlap, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err})
-			runner.emit(Event{Type: EventCompleted, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err})
+			runner.emit(Event{Type: EventOverlap, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err, Background: schedule.RunInBackground})
+			runner.emit(Event{Type: EventCompleted, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err, Background: schedule.RunInBackground})
 			return nil
 		}
 		if err != nil {
-			runner.failed(ctx, occurrence, now, err, 0)
+			runner.failed(ctx, occurrence, now, err, 0, schedule.RunInBackground, false)
 			return err
 		}
 		scheduled.Fencing = taskLease.FencingToken
 	}
 
-	runner.emit(Event{Type: EventBefore, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: scheduled.Fencing, At: now})
+	runner.emit(Event{Type: EventBefore, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: scheduled.Fencing, At: now, Background: schedule.RunInBackground})
 	runCtx, cancel := context.WithTimeout(ctx, schedule.RunTimeout)
 	managed, err := runner.startExecution(ctx, runCtx, cancel, scheduled, taskLease, overlapTTL(schedule))
 	if err != nil {
 		cancel()
-		runner.failed(ctx, occurrence, now, err, scheduled.Fencing)
+		runner.failed(ctx, occurrence, now, err, scheduled.Fencing, schedule.RunInBackground, false)
 		return err
 	}
 	if schedule.RunInBackground {
 		runner.backgrounds.Add(1)
 		go func() {
 			defer runner.backgrounds.Done()
-			_ = runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing)
+			_ = runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing, true)
 		}()
 		return nil
 	}
-	return runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing)
+	return runner.finishExecution(ctx, runCtx, cancel, managed, occurrence, now, scheduled.Fencing, false)
 }
 
 func (runner *Runner) finishExecution(
@@ -541,15 +590,17 @@ func (runner *Runner) finishExecution(
 	occurrence Occurrence,
 	now time.Time,
 	fencing uint64,
+	background bool,
 ) error {
 	err := awaitExecution(runCtx, managed)
 	cancel()
 	if err != nil {
-		runner.failed(ctx, occurrence, now, err, fencing)
+		runner.failed(ctx, occurrence, now, err, fencing, background, true)
 		return err
 	}
-	runner.emit(Event{Type: EventSuccess, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now})
-	runner.emit(Event{Type: EventCompleted, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now})
+	runner.emit(Event{Type: EventSuccess, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Background: background})
+	runner.emit(Event{Type: EventFinished, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Background: background})
+	runner.emit(Event{Type: EventCompleted, Result: ResultSucceeded, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Background: background})
 	return nil
 }
 
@@ -755,14 +806,21 @@ func (runner *Runner) skipReason(schedule Schedule) error {
 	return nil
 }
 
-func (runner *Runner) skipped(ctx context.Context, occurrence Occurrence, now time.Time, err error) {
-	runner.emit(Event{Type: EventSkipped, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err})
-	runner.emit(Event{Type: EventCompleted, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err})
+func (runner *Runner) skipped(ctx context.Context, occurrence Occurrence, now time.Time, err error, background bool) {
+	runner.emit(Event{Type: EventSkipped, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err, Background: background})
+	runner.emit(Event{Type: EventCompleted, Result: ResultSkipped, Occurrence: occurrence, Context: ctx, Owner: runner.owner, At: now, Err: err, Background: background})
 }
 
-func (runner *Runner) failed(ctx context.Context, occurrence Occurrence, now time.Time, err error, fencing uint64) {
-	runner.emit(Event{Type: EventFailure, Result: ResultFailed, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Err: err})
-	runner.emit(Event{Type: EventCompleted, Result: ResultFailed, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Err: err})
+func (runner *Runner) failed(ctx context.Context, occurrence Occurrence, now time.Time, err error, fencing uint64, background, finished bool) {
+	event := Event{Result: ResultFailed, Occurrence: occurrence, Context: ctx, Owner: runner.owner, Fencing: fencing, At: now, Err: err, Background: background}
+	event.Type = EventFailure
+	runner.emit(event)
+	if finished {
+		event.Type = EventFinished
+		runner.emit(event)
+	}
+	event.Type = EventCompleted
+	runner.emit(event)
 }
 
 func (runner *Runner) emit(event Event) {
@@ -824,6 +882,8 @@ func hookFor(hooks Hooks, eventType EventType) Hook {
 		return hooks.Skipped
 	case EventOverlap:
 		return hooks.Overlap
+	case EventFinished:
+		return hooks.After
 	case EventCompleted:
 		return hooks.Completed
 	default:

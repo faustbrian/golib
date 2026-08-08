@@ -37,6 +37,7 @@ func TestHandlerMapsScheduleAndTimeErrors(t *testing.T) {
 		path string
 		want int
 	}{
+		{"/v1/schedules?after=bad", http.StatusBadRequest},
 		{"/v1/schedules/report/next", http.StatusBadRequest},
 		{"/v1/schedules/missing/next?after=2026-01-01T00:00:00Z", http.StatusNotFound},
 		{"/v1/schedules/report/due?after=bad&through=2026-01-01T00:00:00Z", http.StatusBadRequest},

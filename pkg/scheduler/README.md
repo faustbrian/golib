@@ -94,6 +94,31 @@ Custom cron expressions accept five fields or an optional leading seconds
 field. See the [API reference](docs/api.md#frequency-and-constraints) for every
 frequency helper and its Laravel mapping.
 
+Applications own pause and resume triggers instead of invoking scheduler
+commands. `PauseState` is suitable for one process; multi-replica deployments
+should supply a shared persistent implementation of the narrow interfaces:
+
+```go
+pause := scheduler.NewPauseState()
+runner, err := scheduler.NewRunner(
+    registry,
+    leases,
+    executor,
+    scheduler.WithOwner(podName),
+    scheduler.WithPauseSource(pause),
+)
+
+// An authenticated endpoint, backpressure controller, or application command
+// may call these idempotently.
+_ = pause.Pause(ctx)
+_ = pause.Resume(ctx)
+```
+
+Use `EvenWhenPaused()` only for operational schedules that must keep running.
+Cancel the context passed to `Run`, then call `Drain`, to implement an external
+deployment interrupt. `Registry.Overview(after)` provides deterministic list
+data, including next runs, for any caller-owned CLI, HTTP, or admin surface.
+
 ## Packages
 
 - root: definitions, immutable registry, occurrences, runner, hooks, and events

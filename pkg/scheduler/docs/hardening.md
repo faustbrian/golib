@@ -17,7 +17,7 @@ time result, public API drift, coverage regression, or failed backend matrix.
 | metadata | 128 entries and 64 KiB | definition fails |
 | environments | 64 entries, 255 bytes each | definition fails |
 | conditions | 32 per schedule | definition fails |
-| lifecycle hooks | six fixed fields per schedule | no dynamic hook list |
+| lifecycle hooks | seven fixed fields per schedule | no dynamic hook list |
 | runner observers | 128 | construction returns `ErrInvalidRunner` |
 | catch-up dispatches | 1,000 per decision | definition fails |
 | occurrence scan | 10,000 candidates | `ErrOccurrenceLimit` |

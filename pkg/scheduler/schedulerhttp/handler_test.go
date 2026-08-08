@@ -28,7 +28,11 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 		t.Fatalf("New() error = %v", err)
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/v1/schedules", nil)
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/v1/schedules?after=2026-01-01T00:00:00Z",
+		nil,
+	)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -46,6 +50,9 @@ func TestHandlerListsSchedulesAndCalculatesRuns(t *testing.T) {
 	}
 	if !schedules[0].RunInBackground {
 		t.Fatal("RunInBackground = false, want true")
+	}
+	if schedules[0].Next == nil || !schedules[0].Next.Equal(time.Date(2026, time.January, 2, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("Next = %v, want 2026-01-02T00:00:00Z", schedules[0].Next)
 	}
 	if schedules[0].OneServerTTL != "1h0m0s" || schedules[0].OverlapTTL != "10m0s" {
 		t.Fatalf("mutex TTLs = %v / %v", schedules[0].OneServerTTL, schedules[0].OverlapTTL)

@@ -17,8 +17,9 @@ centuries such as 2100.
 Schedule options cover version, timezone, parameters, environments, date
 bounds, enablement, maintenance, deterministic jitter, missed-run policy,
 overlap policy, one-server ownership, background execution, conditions, hooks,
-metadata, and runtime deadline. `WithoutOverlapping()` uses the skip policy and
-a 24-hour TTL; its optional integer argument is an expiration in minutes.
+metadata, pause exemption, and runtime deadline. `WithoutOverlapping()` uses
+the skip policy and a 24-hour TTL; its optional integer argument is an
+expiration in minutes.
 `OnOneServer()` uses an independent one-hour occurrence TTL. The lower-level
 `WithoutOverlap` and `WithOneServer` options remain available for explicit Go
 durations and overlap policies. Version, expression, timezone, parameters, and
@@ -75,6 +76,16 @@ starting later due tasks before that execution completes. Its eventual failure
 is emitted through failure and completed lifecycle events rather than returned
 from the already-completed `Tick` call.
 
+`PauseSource` is the read-only runner dependency. `PauseController` is the
+write boundary for application-owned HTTP handlers, commands, or automatic
+backpressure controls. `WithPauseSource` enables pause checks, and
+`EvenWhenPaused` exempts an operational schedule. Each tick reads one lazy
+pause-state snapshot under the bounded lease operation deadline. Lookup failure
+fails affected occurrences instead of running them, and a paused occurrence
+emits `EventSkipped` with `ErrPaused`. Pause state has no expiry.
+`PauseState` is a concurrency-safe process-local implementation; replicas must
+instead share an application-owned persistent implementation.
+
 `Executor` is the only work boundary. Use `queue.Dispatcher` for durable work.
 `RunTimeout` bounds how long a tick waits even when an in-process executor
 ignores cancellation. Such an executor remains tracked, retains its overlap
@@ -126,16 +137,38 @@ reported as an execution failure.
 
 ## Events
 
-Runner events are `before`, `success`, `failure`, `skipped`, `overlap`, and
-`completed`. Per-schedule hooks and global observers are panic-contained and
-bounded by the runner callback deadline and capacity.
+Runner events are `before`, `success`, `failure`, `skipped`, `overlap`,
+`finished`, and `completed`. `finished` and the `After` hook occur only after a
+started executor returns. Their order is `before`, `success` or `failure`,
+`finished`, then `completed`. `completed` still terminates every scheduling
+decision, including skips and failures before execution. `Event.Background`
+identifies schedules configured with `RunInBackground`; the core intentionally
+does not capture task output or add a separate background-finished event.
+Per-schedule hooks and global observers are panic-contained and bounded by the
+runner callback deadline and capacity.
 `history.Buffer` is a bounded observer. `telemetry.Observer` emits structured
 logs, metrics, and spans.
 
 ## Control surfaces
+
+`Registry.Overview(after)` combines immutable definitions and enabled next-run
+instants for caller-owned inspection surfaces. The built-in HTTP list accepts
+an optional `after` query and the CLI list accepts optional `--after`; both add
+next-run data without owning the trigger time.
 
 The HTTP handler supports schedule list, registry validation, next, due,
 boundary testing, and fenced recovery under `/v1`. The CLI supports `list`,
 `validate`, `next`, `due`, `test`, `unlock`/`recover`, and `clear-cache`.
 `Registry.ClearCache` provides the same configured-overlap cleanup to embedded
 control surfaces. Neither surface executes arbitrary commands.
+
+Schedule grouping remains ordinary Go construction: applications should share
+functions that append fully constructed schedules or common option slices.
+There is no mutable first-class group object. Durable scheduled jobs use
+`queue.Dispatcher` and its explicit envelope; queue names and connections stay
+in the application adapter instead of the schedule definition. Runner
+interruption is context cancellation followed by `Drain`, so applications can
+trigger it from deployment or administrative control without a scheduler-owned
+command. Built-in lease stores remain memory, PostgreSQL, and Valkey; other
+cache systems can implement `lease.Store` when an application actually needs
+them.

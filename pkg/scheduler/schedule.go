@@ -143,6 +143,7 @@ type Hooks struct {
 	Skipped   Hook
 	Overlap   Hook
 	Completed Hook
+	After     Hook
 }
 
 // Context carries immutable schedule and ownership data to an Executor.
@@ -189,6 +190,7 @@ type Schedule struct {
 	RunTimeout         time.Duration
 	RunInBackground    bool
 	Hooks              Hooks
+	EvenWhenPaused     bool
 }
 
 // Option configures a schedule before final validation and identity hashing.
@@ -522,6 +524,14 @@ func WithRunTimeout(timeout time.Duration) Option {
 func RunInBackground() Option {
 	return func(schedule *Schedule) error {
 		schedule.RunInBackground = true
+		return nil
+	}
+}
+
+// EvenWhenPaused allows this schedule to run while its runner is paused.
+func EvenWhenPaused() Option {
+	return func(schedule *Schedule) error {
+		schedule.EvenWhenPaused = true
 		return nil
 	}
 }

@@ -162,11 +162,13 @@ func TestRunnerContainsPanicsAndClassifiesFailure(t *testing.T) {
 	if !errors.Is(err, scheduler.ErrTaskPanic) {
 		t.Fatalf("Tick() error = %v, want ErrTaskPanic", err)
 	}
-	if len(events) != 3 || events[0].Type != scheduler.EventBefore || events[1].Type != scheduler.EventFailure || events[2].Type != scheduler.EventCompleted {
+	if len(events) != 4 || events[0].Type != scheduler.EventBefore ||
+		events[1].Type != scheduler.EventFailure || events[2].Type != scheduler.EventFinished ||
+		events[3].Type != scheduler.EventCompleted {
 		t.Fatalf("events = %v", events)
 	}
-	if events[2].Result != scheduler.ResultFailed {
-		t.Fatalf("completion result = %v, want failed", events[2].Result)
+	if events[3].Result != scheduler.ResultFailed {
+		t.Fatalf("completion result = %v, want failed", events[3].Result)
 	}
 }
 
@@ -389,8 +391,9 @@ func TestRunnerReportsBackgroundFailureThroughLifecycleEvents(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(events) != 3 || events[0].Type != scheduler.EventBefore ||
-		events[1].Type != scheduler.EventFailure || events[2].Type != scheduler.EventCompleted ||
+	if len(events) != 4 || events[0].Type != scheduler.EventBefore ||
+		events[1].Type != scheduler.EventFailure || events[2].Type != scheduler.EventFinished ||
+		events[3].Type != scheduler.EventCompleted ||
 		!errors.Is(events[1].Err, want) {
 		t.Fatalf("events = %+v", events)
 	}
@@ -630,7 +633,7 @@ func TestScheduleHooksReceiveEveryLifecycleEvent(t *testing.T) {
 		scheduler.WithMissedRuns(scheduler.MissedRunOnce, 0),
 		scheduler.WithHooks(scheduler.Hooks{
 			Before: record, Success: record, Failure: record, Skipped: record,
-			Overlap: record, Completed: record,
+			Overlap: record, After: record, Completed: record,
 		}),
 	)
 	registry, _ := scheduler.Compile(schedule)
@@ -644,13 +647,73 @@ func TestScheduleHooksReceiveEveryLifecycleEvent(t *testing.T) {
 	if err := runner.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
 		t.Fatalf("Tick() error = %v", err)
 	}
-	want := []scheduler.EventType{scheduler.EventBefore, scheduler.EventSuccess, scheduler.EventCompleted}
+	want := []scheduler.EventType{
+		scheduler.EventBefore,
+		scheduler.EventSuccess,
+		scheduler.EventFinished,
+		scheduler.EventCompleted,
+	}
 	if len(events) != len(want) {
 		t.Fatalf("hook events = %v, want %v", events, want)
 	}
 	for index := range want {
 		if events[index] != want[index] {
 			t.Fatalf("hook events = %v, want %v", events, want)
+		}
+	}
+}
+
+func TestBackgroundExecutionReportsFinishedBeforeCompleted(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	schedule, _ := scheduler.NewSchedule(
+		"background", "task.background", scheduler.EveryMinute(),
+		scheduler.WithMissedRuns(scheduler.MissedRunOnce, 0),
+		scheduler.RunInBackground(),
+	)
+	registry, _ := scheduler.Compile(schedule)
+	var mu sync.Mutex
+	var events []scheduler.Event
+	runner, err := scheduler.NewRunner(
+		registry,
+		memory.New(),
+		executorFunc(func(context.Context, scheduler.Context) error { <-release; return nil }),
+		scheduler.WithOwner("replica-a"),
+		scheduler.WithObserver(scheduler.ObserverFunc(func(event scheduler.Event) {
+			mu.Lock()
+			defer mu.Unlock()
+			events = append(events, event)
+		})),
+	)
+	if err != nil {
+		t.Fatalf("NewRunner() error = %v", err)
+	}
+	now := time.Date(2026, time.January, 1, 0, 1, 0, 0, time.UTC)
+	if err := runner.Tick(context.Background(), now.Add(-time.Minute), now); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	close(release)
+	drainCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := runner.Drain(drainCtx); err != nil {
+		t.Fatalf("Drain() error = %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	want := []scheduler.EventType{
+		scheduler.EventBefore,
+		scheduler.EventSuccess,
+		scheduler.EventFinished,
+		scheduler.EventCompleted,
+	}
+	if len(events) != len(want) {
+		t.Fatalf("events = %v, want %v", events, want)
+	}
+	for index, event := range events {
+		if event.Type != want[index] || !event.Background {
+			t.Fatalf("events[%d] = %+v, want %v with background metadata", index, event, want[index])
 		}
 	}
 }
