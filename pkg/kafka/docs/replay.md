@@ -135,6 +135,14 @@ appended records are outside the requested end and are skipped. Truncation
 below the requested range still fails through bounds, no-reset, or gap
 detection.
 
+A separate pinned Apache Kafka 4.3.1 fixture uses Kafka's test-only
+`LocalTieredStorage` implementation. It checksum-verifies the matching official
+test JAR, copies closed segments, observes removal of the local offset-zero
+segment while the broker beginning offset remains zero, and proves exact
+`[0,1)` replay returns the original value from remote storage. This does not
+establish compatibility with an external remote-storage plugin or managed
+tiered-storage service.
+
 The pinned broker fixture issues Kafka `DeleteRecords` for a replayed partition,
 verifies the returned low watermark, and proves that replay rejects the deleted
 range before polling or invoking a handler. It also cancels a real

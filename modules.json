@@ -10056,7 +10056,9 @@
         "implemented Kafka Improvement Proposals"
       ],
       "conformance_corpora": [],
-      "provenance": [],
+      "provenance": [
+        "pkg/kafka/specification/manifest.json"
+      ],
       "goal_files": [
         "pkg/kafka/.ai/GOAL.md",
         "pkg/kafka/.ai/GOAL_HARDEN.md"

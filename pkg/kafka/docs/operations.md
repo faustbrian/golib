@@ -64,6 +64,14 @@ visibility field first because older brokers can omit version-dependent
 configuration. These fields do not prove that a segment was copied to, retained
 in, or deleted from remote storage.
 
+The compatibility fixture separately proves one narrower runtime case: pinned
+Apache Kafka 4.3.1 copies closed segments through its test-only
+`LocalTieredStorage`, evicts the local offset-zero segment, keeps the broker log
+start at zero, and serves the package's exact `[0,1)` replay from the remote
+copy. That is evidence for Kafka's local test plugin and this package's replay
+path only. It is not evidence for an operator's S3/HDFS plugin, Amazon MSK
+tiered storage, remote-store durability, or remote-store failure recovery.
+
 ## Lag
 
 Use `Inspector.ConsumerGroupLag` for classic groups and

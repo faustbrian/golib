@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-08-08",
+  "sources": [
+    {
+      "name": "Apache Kafka storage test artifact",
+      "repository": "https://repo.maven.apache.org/maven2/org/apache/kafka/kafka-storage/4.3.1/kafka-storage-4.3.1-test.jar",
+      "version": "4.3.1",
+      "sha256": "f3236936854c13815ffaa7f35a3f2d6861c125616cba5395b538b8680dded886",
+      "size_bytes": 638839,
+      "license": "Apache-2.0",
+      "use": "test-only LocalTieredStorage replay compatibility fixture"
+    }
+  ]
+}

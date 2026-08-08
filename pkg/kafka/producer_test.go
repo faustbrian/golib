@@ -2380,13 +2380,61 @@ func TestProducerDiagnosticReportsBoundedLocalState(t *testing.T) {
 		t.Fatalf("RunTransaction() error = %v", err)
 	}
 
-	transactional.terminate(kerr.ProducerFenced)
+	transactional.terminate(kerr.ProducerFenced, ErrorFenced)
 	diagnostic = transactional.Diagnostic()
 	if diagnostic.Accepting || !diagnostic.Closed ||
 		!diagnostic.ShutdownComplete || !diagnostic.Fatal ||
 		diagnostic.FatalCategory != ErrorFenced {
 		t.Fatalf("fatal Diagnostic() = %#v", diagnostic)
 	}
+}
+
+func TestProducerDiagnosticDoesNotInvokeFatalErrorCallbacks(t *testing.T) {
+	backend := &recordingProducerBackend{}
+	producer := &Producer{client: backend}
+	callbackStarted := make(chan struct{})
+	callbackRelease := make(chan struct{})
+	producer.terminate(&blockingDiagnosticError{
+		started: callbackStarted,
+		release: callbackRelease,
+	}, ErrorFatal)
+	diagnosticDone := make(chan ProducerDiagnostic, 1)
+	go func() {
+		diagnosticDone <- producer.Diagnostic()
+	}()
+
+	select {
+	case diagnostic := <-diagnosticDone:
+		if !diagnostic.Fatal || diagnostic.FatalCategory != ErrorFatal {
+			t.Fatalf("fatal Diagnostic() = %#v", diagnostic)
+		}
+	case <-callbackStarted:
+		close(callbackRelease)
+		<-diagnosticDone
+		t.Fatal("Diagnostic() invoked the retained error callback")
+	case <-time.After(time.Second):
+		close(callbackRelease)
+		t.Fatal("Diagnostic() did not return")
+	}
+}
+
+type blockingDiagnosticError struct {
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (err *blockingDiagnosticError) Error() string {
+	return "sensitive diagnostic error"
+}
+
+func (err *blockingDiagnosticError) Is(error) bool {
+	err.once.Do(func() {
+		close(err.started)
+	})
+	<-err.release
+
+	return false
 }
 
 func TestProducerDiagnosticTracksMaintenanceAndShutdown(t *testing.T) {

@@ -182,7 +182,8 @@ package admission gate; `TransactionActive` reflects local `RunTransaction`
 ownership; `FatalCategory` is redacted and is `ErrorUnknown` when `Fatal` is
 false. The lifecycle fields are one lock-consistent snapshot, while buffered
 counts are a separate concurrent sample and may change immediately. The method
-performs no Kafka I/O and does not expose the retained fatal error.
+performs no Kafka I/O and neither exposes nor invokes methods on the retained
+fatal error.
 `Producer.Health` is the separate broker-connectivity probe and always derives
 the configured `RequestTimeout`; a shorter caller deadline still wins.
 

@@ -134,6 +134,56 @@ func TestProducerCriticalGuardsTerminateDeterministically(t *testing.T) {
 		}
 	})
 
+	t.Run("open producer drain enters maintenance and flushes once", func(t *testing.T) {
+		backend := &recordingProducerBackend{}
+		producer := producerForCriticalGuard(backend, 1, 1<<20)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		if err := producer.Drain(ctx); err != nil {
+			t.Fatalf("Drain() error = %v", err)
+		}
+		if backend.flushes != 1 || producer.maintenanceActive {
+			t.Fatalf(
+				"Drain() flushes/maintenance = %d/%v, want 1/false",
+				backend.flushes,
+				producer.maintenanceActive,
+			)
+		}
+	})
+
+	t.Run("closed producer drain returns before backend access", func(t *testing.T) {
+		backend := &recordingProducerBackend{}
+		producer := producerForCriticalGuard(backend, 1, 1<<20)
+		producer.closed = true
+
+		err := producer.Drain(context.Background())
+		if !errors.Is(err, ErrProducerClosed) || backend.flushes != 0 {
+			t.Fatalf("Drain() error/flushes = %v/%d", err, backend.flushes)
+		}
+	})
+
+	t.Run("canceled drain does not flush before admission completes", func(t *testing.T) {
+		backend := &recordingProducerBackend{}
+		producer := producerForCriticalGuard(backend, 1, 1<<20)
+		producer.admitting = 1
+		producer.admissionsDone = make(chan struct{})
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := producer.Drain(ctx)
+		if !errors.Is(err, ErrDrainIncomplete) ||
+			!errors.Is(err, context.Canceled) || backend.flushes != 0 ||
+			producer.maintenanceActive {
+			t.Fatalf(
+				"Drain() error/flushes/maintenance = %v/%d/%v",
+				err,
+				backend.flushes,
+				producer.maintenanceActive,
+			)
+		}
+	})
+
 	t.Run("nil admission channel is already drained", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()

@@ -296,6 +296,7 @@ type TransactionProcessor struct {
 	closed            bool
 	shutdownActive    bool
 	fatalErr          error
+	fatalCategory     ErrorCategory
 	clientTerminated  bool
 	observerCallbacks int
 	observers         observerDispatcher
@@ -650,13 +651,13 @@ func (processor *TransactionProcessor) runOnce(
 			return TransactionPollResult{}, pollErr
 		}
 		if transactionErr := processor.beginTransaction(ctx); transactionErr != nil {
-			processor.fence(transactionErr)
+			processor.fence(transactionErr, transactionProcessorFatalCategory(transactionErr))
 
 			return result, errors.Join(pollErr, transactionErr)
 		}
 		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
-			processor.fence(abortErr)
+			processor.fence(abortErr, transactionProcessorFatalCategory(abortErr))
 		}
 
 		return result, errors.Join(pollErr, abortErr)
@@ -665,7 +666,7 @@ func (processor *TransactionProcessor) runOnce(
 		return TransactionPollResult{}, nil
 	}
 	if transactionErr := processor.beginTransaction(ctx); transactionErr != nil {
-		processor.fence(transactionErr)
+		processor.fence(transactionErr, transactionProcessorFatalCategory(transactionErr))
 
 		return result, transactionErr
 	}
@@ -710,14 +711,14 @@ func (processor *TransactionProcessor) runOnce(
 	cancelWork()
 	result.Published = publisher.publishedCount()
 	if processingErr != nil {
-		if publisher.terminalFailure() {
-			processor.terminate(processingErr)
+		if terminal, category := publisher.terminalFailure(); terminal {
+			processor.terminate(processingErr, category)
 
 			return result, errors.Join(processingErr, processor.fatalError())
 		}
 		abortErr := processor.abortTransaction(ctx)
 		if abortErr != nil {
-			processor.fence(abortErr)
+			processor.fence(abortErr, transactionProcessorFatalCategory(abortErr))
 		}
 
 		return result, errors.Join(processingErr, abortErr)
@@ -726,7 +727,7 @@ func (processor *TransactionProcessor) runOnce(
 	_, err := processor.commitTransaction(ctx)
 	if err != nil {
 		if !errors.Is(err, ErrTransactionNotCommitted) {
-			processor.fence(err)
+			processor.fence(err, transactionProcessorFatalCategory(err))
 		}
 
 		return result, err
@@ -752,21 +753,22 @@ func callTransactionHandler(
 }
 
 type processorTransactionPublisher struct {
-	client          transactionProcessorBackend
-	interruptClient func()
-	waitTimeout     time.Duration
-	limits          MessageLimits
-	keyRequired     bool
-	allowedTopics   map[string]struct{}
-	maxOutputCount  int
-	maxOutputBytes  int64
-	mu              sync.Mutex
-	published       int
-	reservedCount   int
-	reservedBytes   int64
-	err             error
-	terminalErr     error
-	terminal        bool
+	client           transactionProcessorBackend
+	interruptClient  func()
+	waitTimeout      time.Duration
+	limits           MessageLimits
+	keyRequired      bool
+	allowedTopics    map[string]struct{}
+	maxOutputCount   int
+	maxOutputBytes   int64
+	mu               sync.Mutex
+	published        int
+	reservedCount    int
+	reservedBytes    int64
+	err              error
+	terminalErr      error
+	terminalCategory ErrorCategory
+	terminal         bool
 }
 
 func (publisher *processorTransactionPublisher) publish(
@@ -806,7 +808,7 @@ func (publisher *processorTransactionPublisher) publish(
 	)
 	if cause != nil {
 		err := newDeliveryError(cause)
-		publisher.recordTerminalFailure(err)
+		publisher.recordTerminalFailure(err, err.Category())
 
 		return err
 	}
@@ -868,20 +870,27 @@ func (publisher *processorTransactionPublisher) recordFailure(err error) {
 	publisher.mu.Unlock()
 }
 
-func (publisher *processorTransactionPublisher) recordTerminalFailure(err error) {
+func (publisher *processorTransactionPublisher) recordTerminalFailure(
+	err error,
+	category ErrorCategory,
+) {
 	publisher.mu.Lock()
 	if publisher.terminalErr == nil {
 		publisher.terminalErr = err
+		publisher.terminalCategory = category
 	}
 	publisher.terminal = true
 	publisher.mu.Unlock()
 }
 
-func (publisher *processorTransactionPublisher) terminalFailure() bool {
+func (publisher *processorTransactionPublisher) terminalFailure() (
+	bool,
+	ErrorCategory,
+) {
 	publisher.mu.Lock()
 	defer publisher.mu.Unlock()
 
-	return publisher.terminal
+	return publisher.terminal, publisher.terminalCategory
 }
 
 func (publisher *processorTransactionPublisher) failure() error {
@@ -1095,18 +1104,14 @@ func (processor *TransactionProcessor) beginRun() error {
 }
 
 // Diagnostic returns a bounded, payload-free snapshot of local processor
-// state without performing Kafka I/O or exposing the retained fatal error.
+// state without performing Kafka I/O, exposing the retained fatal error, or
+// invoking methods on it.
 func (processor *TransactionProcessor) Diagnostic() TransactionProcessorDiagnostic {
 	bufferedRecords := processor.client.BufferedProduceRecords()
 	bufferedBytes := processor.client.BufferedProduceBytes()
 
 	processor.lifecycleMu.Lock()
 	defer processor.lifecycleMu.Unlock()
-
-	fatalCategory := ErrorUnknown
-	if processor.fatalErr != nil {
-		fatalCategory = diagnosticFatalCategory(processor.fatalErr)
-	}
 
 	return TransactionProcessorDiagnostic{
 		Accepting: processor.fatalErr == nil && !processor.running &&
@@ -1118,7 +1123,7 @@ func (processor *TransactionProcessor) Diagnostic() TransactionProcessorDiagnost
 		Closed:            processor.closed,
 		Fatal:             processor.fatalErr != nil,
 		ClientTerminated:  processor.clientTerminated,
-		FatalCategory:     fatalCategory,
+		FatalCategory:     processor.fatalCategory,
 		BufferedRecords:   bufferedRecords,
 		BufferedBytes:     bufferedBytes,
 	}
@@ -1130,10 +1135,20 @@ func (processor *TransactionProcessor) finishTransaction() {
 	processor.lifecycleMu.Unlock()
 }
 
-func (processor *TransactionProcessor) fence(err error) {
+func transactionProcessorFatalCategory(err error) ErrorCategory {
+	transactionErr, ok := err.(*TransactionError)
+	if !ok || !validErrorCategory(transactionErr.category) {
+		return ErrorFatal
+	}
+
+	return transactionErr.category
+}
+
+func (processor *TransactionProcessor) fence(err error, category ErrorCategory) {
 	processor.lifecycleMu.Lock()
 	if processor.fatalErr == nil {
 		processor.fatalErr = errors.Join(ErrTransactionProcessorFatal, err)
+		processor.fatalCategory = category
 	}
 	processor.lifecycleMu.Unlock()
 }
@@ -1145,10 +1160,11 @@ func (processor *TransactionProcessor) fatalError() error {
 	return processor.fatalErr
 }
 
-func (processor *TransactionProcessor) terminate(err error) {
+func (processor *TransactionProcessor) terminate(err error, category ErrorCategory) {
 	processor.lifecycleMu.Lock()
 	if processor.fatalErr == nil {
 		processor.fatalErr = errors.Join(ErrTransactionProcessorFatal, err)
+		processor.fatalCategory = category
 	}
 	processor.clientTerminated = true
 	processor.transactionActive = false

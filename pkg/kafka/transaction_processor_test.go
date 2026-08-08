@@ -985,6 +985,10 @@ func TestTransactionProcessorTerminatesAfterAmbiguousPublishDeadline(
 		len(backend.endTries) != 0 || !backend.closed {
 		t.Fatalf("RunOnce() result/error/backend = %#v/%v/%#v", result, err, backend)
 	}
+	diagnostic := processor.Diagnostic()
+	if !diagnostic.Fatal || diagnostic.FatalCategory != ErrorAmbiguous {
+		t.Fatalf("ambiguous publish Diagnostic() = %#v", diagnostic)
+	}
 	if _, err := processor.RunOnce(
 		context.Background(),
 		TransactionHandlerFunc(func(context.Context, ConsumedRecord, Transaction) error {
@@ -1059,12 +1063,14 @@ func TestTransactionProcessorPublisherBoundsRetainedTerminalFailures(t *testing.
 	secondTerminalErr := errors.New("second terminal failure")
 	publisher := &processorTransactionPublisher{}
 	publisher.recordFailure(ordinaryErr)
-	publisher.recordTerminalFailure(firstTerminalErr)
-	publisher.recordTerminalFailure(secondTerminalErr)
+	publisher.recordTerminalFailure(firstTerminalErr, ErrorAmbiguous)
+	publisher.recordTerminalFailure(secondTerminalErr, ErrorFatal)
 
 	err := publisher.failure()
+	terminal, category := publisher.terminalFailure()
 	if !errors.Is(err, ordinaryErr) || !errors.Is(err, firstTerminalErr) ||
-		errors.Is(err, secondTerminalErr) || !publisher.terminalFailure() {
+		errors.Is(err, secondTerminalErr) || !terminal ||
+		category != ErrorAmbiguous {
 		t.Fatalf("bounded retained failure = %v", err)
 	}
 }
@@ -1088,10 +1094,11 @@ func TestTransactionProcessorRejectsCanceledOutputBeforeAdmission(t *testing.T) 
 		Value: []byte("value"),
 	})
 	var deliveryErr *DeliveryError
+	terminal, _ := publisher.terminalFailure()
 	if !errors.Is(err, context.Canceled) ||
 		!errors.As(err, &deliveryErr) ||
 		deliveryErr.Category() != ErrorAmbiguous ||
-		publisher.terminalFailure() || len(backend.produced) != 0 {
+		terminal || len(backend.produced) != 0 {
 		t.Fatalf("canceled processor output = %v/%#v", err, backend)
 	}
 }
@@ -1254,7 +1261,7 @@ func TestTransactionProcessorDiagnosticReportsBoundedLocalState(t *testing.T) {
 		t.Fatalf("completed Diagnostic() = %#v", diagnostic)
 	}
 
-	processor.terminate(kerr.ProducerFenced)
+	processor.terminate(kerr.ProducerFenced, ErrorFenced)
 	diagnostic = processor.Diagnostic()
 	if diagnostic.Accepting || !diagnostic.Fatal ||
 		!diagnostic.ClientTerminated || diagnostic.TransactionActive ||
@@ -1268,11 +1275,47 @@ func TestTransactionProcessorDiagnosticContainsPanickingFatalClassification(t *t
 		t,
 		&recordingTransactionProcessorBackend{},
 	)
-	processor.terminate(panickingDiagnosticError{})
+	processor.terminate(panickingDiagnosticError{}, ErrorFatal)
 
 	diagnostic := processor.Diagnostic()
 	if !diagnostic.Fatal || diagnostic.FatalCategory != ErrorFatal {
 		t.Fatalf("panicking fatal Diagnostic() = %#v", diagnostic)
+	}
+}
+
+func TestTransactionProcessorDiagnosticDoesNotInvokeFatalErrorCallbacks(t *testing.T) {
+	processor := transactionProcessorForTest(
+		t,
+		&recordingTransactionProcessorBackend{},
+	)
+	callbackStarted := make(chan struct{})
+	callbackRelease := make(chan struct{})
+	retainedErr := &blockingDiagnosticError{
+		started: callbackStarted,
+		release: callbackRelease,
+	}
+	category := transactionProcessorFatalCategory(retainedErr)
+	if category != ErrorFatal {
+		t.Fatalf("transactionProcessorFatalCategory() = %s, want fatal", category)
+	}
+	processor.terminate(retainedErr, category)
+	diagnosticDone := make(chan TransactionProcessorDiagnostic, 1)
+	go func() {
+		diagnosticDone <- processor.Diagnostic()
+	}()
+
+	select {
+	case diagnostic := <-diagnosticDone:
+		if !diagnostic.Fatal || diagnostic.FatalCategory != ErrorFatal {
+			t.Fatalf("fatal Diagnostic() = %#v", diagnostic)
+		}
+	case <-callbackStarted:
+		close(callbackRelease)
+		<-diagnosticDone
+		t.Fatal("Diagnostic() invoked the retained error callback")
+	case <-time.After(time.Second):
+		close(callbackRelease)
+		t.Fatal("Diagnostic() did not return")
 	}
 }
 

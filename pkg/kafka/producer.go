@@ -370,6 +370,7 @@ type Producer struct {
 	observers             observerDispatcher
 	cancelClient          context.CancelFunc
 	fatalErr              error
+	fatalCategory         ErrorCategory
 }
 
 // NewProducer constructs a producer without dialing brokers. Connectivity is
@@ -842,7 +843,7 @@ func (producer *Producer) publish(ctx context.Context, message Message) error {
 	result, expired := producer.publishTransactionalRecord(ctx, message)
 	if expired {
 		fatalErr := errors.Join(ErrProducerFatal, result.Err)
-		producer.terminate(fatalErr)
+		producer.terminate(fatalErr, ErrorAmbiguous)
 
 		return fatalErr
 	}
@@ -1372,29 +1373,21 @@ func (producer *Producer) Health(ctx context.Context) error {
 	}
 	defer producer.finishOperation()
 	defer producer.finishAdmission()
-	healthCtx := ctx
-	cancel := func() {}
-	if producer.requestTimeout > 0 {
-		healthCtx, cancel = context.WithTimeout(ctx, producer.requestTimeout)
-	}
+	healthCtx, cancel := context.WithTimeout(ctx, producer.requestTimeout)
 	defer cancel()
 
 	return producer.client.Ping(healthCtx)
 }
 
 // Diagnostic returns a bounded, payload-free snapshot of local producer
-// state without performing Kafka I/O or exposing the retained fatal error.
+// state without performing Kafka I/O, exposing the retained fatal error, or
+// invoking methods on it.
 func (producer *Producer) Diagnostic() ProducerDiagnostic {
 	bufferedRecords := producer.client.BufferedProduceRecords()
 	bufferedBytes := producer.client.BufferedProduceBytes()
 
 	producer.stateMu.Lock()
 	defer producer.stateMu.Unlock()
-
-	fatalCategory := ErrorUnknown
-	if producer.fatalErr != nil {
-		fatalCategory = diagnosticFatalCategory(producer.fatalErr)
-	}
 
 	return ProducerDiagnostic{
 		Accepting: producer.fatalErr == nil && !producer.closed &&
@@ -1405,7 +1398,7 @@ func (producer *Producer) Diagnostic() ProducerDiagnostic {
 		Closed:               producer.closed,
 		ShutdownComplete:     producer.shutdownComplete,
 		Fatal:                producer.fatalErr != nil,
-		FatalCategory:        fatalCategory,
+		FatalCategory:        producer.fatalCategory,
 		InFlightOperations:   producer.inflight,
 		AdmissionsInProgress: producer.admitting,
 		BufferedRecords:      bufferedRecords,
@@ -1812,24 +1805,6 @@ func transactionObservationCategory(err error) ErrorCategory {
 	return classifyError(err)
 }
 
-func diagnosticFatalCategory(err error) (category ErrorCategory) {
-	if err == nil {
-		return ErrorUnknown
-	}
-	category = ErrorFatal
-	defer func() {
-		if recover() != nil {
-			category = ErrorFatal
-		}
-	}()
-	classified := transactionObservationCategory(err)
-	if validErrorCategory(classified) {
-		category = classified
-	}
-
-	return category
-}
-
 func transactionAbortOutcomeKnown(err error) bool {
 	category := classifyError(err)
 
@@ -2053,10 +2028,11 @@ func (producer *Producer) fatalError() error {
 	return producer.fatalErr
 }
 
-func (producer *Producer) terminate(err error) {
+func (producer *Producer) terminate(err error, category ErrorCategory) {
 	producer.stateMu.Lock()
 	if producer.fatalErr == nil {
 		producer.fatalErr = err
+		producer.fatalCategory = category
 	}
 	producer.closed = true
 	producer.stateMu.Unlock()
