@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- extend equivalent authenticated producer evidence to SCRAM-SHA-256 and
+  SCRAM-SHA-512 over verified TLS 1.3 for the package policy, raw franz-go, and
+  Sarama, retaining 2,400 warmed deliveries, 1,200 complete client lifecycles,
+  exact broker-visible outcomes, allocations, raw samples, and environment
+  fingerprints
 - prove five repeated cooperative transaction-processor membership cycles
   against minimum Apache Kafka 3.7.2 and current 4.3.1 with exact partition
   ownership, bounded retry of safe rebalance aborts, source-offset settlement,

@@ -28,7 +28,10 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl"
 	franzplain "github.com/twmb/franz-go/pkg/sasl/plain"
+	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
+	xdgscram "github.com/xdg-go/scram"
 )
 
 const (
@@ -43,6 +46,8 @@ const (
 	benchmarkTLSControllerPort = 29093
 	benchmarkTLSClusterID      = "4L6g3nShT-eMCtK--X86sw"
 	benchmarkSASLUsername      = "benchmark-user"
+	benchmarkSCRAM256Username  = "benchmark-scram-256"
+	benchmarkSCRAM512Username  = "benchmark-scram-512"
 )
 
 type benchmarkTLSFixture struct {
@@ -54,6 +59,8 @@ type benchmarkTLSFixture struct {
 	mtlsConfig   *tls.Config
 	clientCert   tls.Certificate
 	saslPassword string
+	scram256Pass string
+	scram512Pass string
 }
 
 type benchmarkTLSMaterial struct {
@@ -69,6 +76,8 @@ type benchmarkAuthenticatedMode uint8
 const (
 	benchmarkMutualTLS benchmarkAuthenticatedMode = iota + 1
 	benchmarkSASLPlain
+	benchmarkSCRAMSHA256
+	benchmarkSCRAMSHA512
 )
 
 func (mode benchmarkAuthenticatedMode) String() string {
@@ -77,6 +86,10 @@ func (mode benchmarkAuthenticatedMode) String() string {
 		return "mtls"
 	case benchmarkSASLPlain:
 		return "sasl-plain"
+	case benchmarkSCRAMSHA256:
+		return "scram-sha-256"
+	case benchmarkSCRAMSHA512:
+		return "scram-sha-512"
 	default:
 		return "unknown"
 	}
@@ -98,6 +111,33 @@ type benchmarkAuthenticatedProducerCandidate struct {
 		string,
 		benchmarkAuthenticatedClientConnection,
 	) synchronousProducer
+}
+
+type benchmarkXDGSCRAMClient struct {
+	hash         xdgscram.HashGeneratorFcn
+	conversation *xdgscram.ClientConversation
+}
+
+func (client *benchmarkXDGSCRAMClient) Begin(
+	username string,
+	password string,
+	authorizationID string,
+) error {
+	scramClient, err := client.hash.NewClient(username, password, authorizationID)
+	if err != nil {
+		return err
+	}
+	client.conversation = scramClient.NewConversation()
+
+	return nil
+}
+
+func (client *benchmarkXDGSCRAMClient) Step(challenge string) (string, error) {
+	return client.conversation.Step(challenge)
+}
+
+func (client *benchmarkXDGSCRAMClient) Done() bool {
+	return client.conversation != nil && client.conversation.Done()
 }
 
 type tlsProducerCandidate struct {
@@ -234,6 +274,8 @@ func BenchmarkEquivalentAuthenticatedSynchronousProduce(benchmark *testing.B) {
 	for _, mode := range []benchmarkAuthenticatedMode{
 		benchmarkMutualTLS,
 		benchmarkSASLPlain,
+		benchmarkSCRAMSHA256,
+		benchmarkSCRAMSHA512,
 	} {
 		benchmark.Run(mode.String(), func(benchmark *testing.B) {
 			connection := benchmarkAuthenticatedConnection(benchmark, mode)
@@ -301,6 +343,8 @@ func BenchmarkEquivalentAuthenticatedConnectProduceClose(benchmark *testing.B) {
 	for _, mode := range []benchmarkAuthenticatedMode{
 		benchmarkMutualTLS,
 		benchmarkSASLPlain,
+		benchmarkSCRAMSHA256,
+		benchmarkSCRAMSHA512,
 	} {
 		benchmark.Run(mode.String(), func(benchmark *testing.B) {
 			connection := benchmarkAuthenticatedConnection(benchmark, mode)
@@ -382,6 +426,8 @@ func TestEquivalentAuthenticatedProducerOutcomes(t *testing.T) {
 	for _, mode := range []benchmarkAuthenticatedMode{
 		benchmarkMutualTLS,
 		benchmarkSASLPlain,
+		benchmarkSCRAMSHA256,
+		benchmarkSCRAMSHA512,
 	} {
 		t.Run(mode.String(), func(t *testing.T) {
 			connection := benchmarkAuthenticatedConnection(t, mode)
@@ -526,6 +572,18 @@ func startBenchmarkTLSFixture() {
 
 		return
 	}
+	scram256Password, err := benchmarkTLSRandomSecret()
+	if err != nil {
+		benchmarkTLSFixtureErr = err
+
+		return
+	}
+	scram512Password, err := benchmarkTLSRandomSecret()
+	if err != nil {
+		benchmarkTLSFixtureErr = err
+
+		return
+	}
 	files := []struct {
 		path string
 		data []byte
@@ -543,6 +601,16 @@ func startBenchmarkTLSFixture() {
 		{
 			path: "/tmp/plain.properties",
 			data: []byte("password=" + saslPassword + "\n"),
+			mode: 0o600,
+		},
+		{
+			path: "/tmp/scram256-password",
+			data: []byte(scram256Password),
+			mode: 0o600,
+		},
+		{
+			path: "/tmp/scram512-password",
+			data: []byte(scram512Password),
 			mode: 0o600,
 		},
 		{
@@ -597,6 +665,8 @@ func startBenchmarkTLSFixture() {
 	benchmarkTLSFixtureValue.saslEndpoint = saslEndpoint
 	benchmarkTLSFixtureValue.clientCert = material.clientCert
 	benchmarkTLSFixtureValue.saslPassword = saslPassword
+	benchmarkTLSFixtureValue.scram256Pass = scram256Password
+	benchmarkTLSFixtureValue.scram512Pass = scram512Password
 	benchmarkTLSFixtureValue.config = &tls.Config{
 		MinVersion: tls.VersionTLS13,
 		MaxVersion: tls.VersionTLS13,
@@ -658,11 +728,15 @@ func benchmarkTLSServerProperties(
 			"ssl.truststore.type=PEM\n"+
 			"ssl.client.auth=none\n"+
 			"listener.name.mtls.ssl.client.auth=required\n"+
-			"sasl.enabled.mechanisms=PLAIN\n"+
+			"sasl.enabled.mechanisms=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512\n"+
 			"listener.name.sasl_ssl.plain.sasl.jaas.config="+
 			"org.apache.kafka.common.security.plain.PlainLoginModule required "+
 			"user_"+benchmarkSASLUsername+"="+
-			"\"${file:/tmp/plain.properties:password}\";\n",
+			"\"${file:/tmp/plain.properties:password}\";\n"+
+			"listener.name.sasl_ssl.scram-sha-256.sasl.jaas.config="+
+			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n"+
+			"listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config="+
+			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n",
 		benchmarkTLSControllerPort,
 		benchmarkTLSInternalPort,
 		benchmarkTLSControllerPort,
@@ -678,20 +752,29 @@ func benchmarkTLSStartScript() string {
 		"set -euo pipefail\n" +
 		"if [ \"$(id -u)\" -eq 0 ]; then\n" +
 		"  chown 1000:1000 /tmp/server-key.pem /tmp/store-password " +
-		"/tmp/store.properties /tmp/plain.properties\n" +
+		"/tmp/store.properties /tmp/plain.properties " +
+		"/tmp/scram256-password /tmp/scram512-password\n" +
 		"  chmod 0600 /tmp/server-key.pem /tmp/store-password " +
-		"/tmp/store.properties /tmp/plain.properties\n" +
+		"/tmp/store.properties /tmp/plain.properties " +
+		"/tmp/scram256-password /tmp/scram512-password\n" +
 		"  exec su appuser -s /bin/bash -c " +
 		"'exec /bin/bash /tmp/golib-kafka-tls-start.sh'\n" +
 		"fi\n" +
 		"umask 077\n" +
+		"scram256_password=\"$(cat /tmp/scram256-password)\"\n" +
+		"scram512_password=\"$(cat /tmp/scram512-password)\"\n" +
 		"openssl pkcs12 -export -name broker " +
 		"-inkey /tmp/server-key.pem -in /tmp/server.pem " +
 		"-certfile /tmp/ca.pem -out /tmp/server.p12 " +
 		"-passout file:/tmp/store-password >/dev/null 2>&1\n" +
 		"/opt/kafka/bin/kafka-storage.sh format --ignore-formatted " +
 		"--cluster-id " + benchmarkTLSClusterID + " " +
-		"--config /tmp/server.properties >/dev/null\n" +
+		"--config /tmp/server.properties " +
+		"--add-scram \"SCRAM-SHA-256=[name=" +
+		benchmarkSCRAM256Username + ",password=$scram256_password]\" " +
+		"--add-scram \"SCRAM-SHA-512=[name=" +
+		benchmarkSCRAM512Username + ",password=$scram512_password]\" " +
+		">/dev/null\n" +
 		"exec /opt/kafka/bin/kafka-server-start.sh " +
 		"/tmp/server.properties\n"
 }
@@ -930,6 +1013,14 @@ func benchmarkAuthenticatedConnection(
 		connection.brokers = []string{benchmarkTLSFixtureValue.saslEndpoint}
 		connection.username = benchmarkSASLUsername
 		connection.password = benchmarkTLSFixtureValue.saslPassword
+	case benchmarkSCRAMSHA256:
+		connection.brokers = []string{benchmarkTLSFixtureValue.saslEndpoint}
+		connection.username = benchmarkSCRAM256Username
+		connection.password = benchmarkTLSFixtureValue.scram256Pass
+	case benchmarkSCRAMSHA512:
+		connection.brokers = []string{benchmarkTLSFixtureValue.saslEndpoint}
+		connection.username = benchmarkSCRAM512Username
+		connection.password = benchmarkTLSFixtureValue.scram512Pass
 	default:
 		tb.Fatalf("unsupported benchmark authentication mode %d", mode)
 	}
@@ -1000,17 +1091,25 @@ func newPolicyAuthenticatedProducer(
 			},
 		)
 	} else {
-		security.Authentication = policy.NewPlainAuthentication(
-			policy.UsernamePasswordProviderFunc(func(context.Context) (
-				policy.UsernamePassword,
-				error,
-			) {
-				return policy.UsernamePassword{
-					Username: connection.username,
-					Password: []byte(connection.password),
-				}, nil
-			}),
-		)
+		provider := policy.UsernamePasswordProviderFunc(func(context.Context) (
+			policy.UsernamePassword,
+			error,
+		) {
+			return policy.UsernamePassword{
+				Username: connection.username,
+				Password: []byte(connection.password),
+			}, nil
+		})
+		switch connection.mode {
+		case benchmarkSASLPlain:
+			security.Authentication = policy.NewPlainAuthentication(provider)
+		case benchmarkSCRAMSHA256:
+			security.Authentication = policy.NewSCRAMSHA256Authentication(provider)
+		case benchmarkSCRAMSHA512:
+			security.Authentication = policy.NewSCRAMSHA512Authentication(provider)
+		default:
+			t.Fatalf("unsupported policy authentication mode %d", connection.mode)
+		}
 		security.CredentialTimeout = benchmarkRequestTimeout
 	}
 	producer, err := policy.NewProducer(policy.ProducerConfig{
@@ -1078,14 +1177,30 @@ func newFranzAuthenticatedProducer(
 func benchmarkAuthenticatedFranzSASL(
 	connection benchmarkAuthenticatedClientConnection,
 ) []kgo.Opt {
-	if connection.mode != benchmarkSASLPlain {
+	var mechanism sasl.Mechanism
+	switch connection.mode {
+	case benchmarkMutualTLS:
 		return nil
+	case benchmarkSASLPlain:
+		mechanism = franzplain.Auth{
+			User: connection.username,
+			Pass: connection.password,
+		}.AsMechanism()
+	case benchmarkSCRAMSHA256:
+		mechanism = franzscram.Auth{
+			User: connection.username,
+			Pass: connection.password,
+		}.AsSha256Mechanism()
+	case benchmarkSCRAMSHA512:
+		mechanism = franzscram.Auth{
+			User: connection.username,
+			Pass: connection.password,
+		}.AsSha512Mechanism()
+	default:
+		panic(fmt.Sprintf("unsupported franz-go authentication mode %d", connection.mode))
 	}
 
-	return []kgo.Opt{kgo.SASL(franzplain.Auth{
-		User: connection.username,
-		Pass: connection.password,
-	}.AsMechanism())}
+	return []kgo.Opt{kgo.SASL(mechanism)}
 }
 
 func newSaramaAuthenticatedProducer(
@@ -1097,11 +1212,29 @@ func newSaramaAuthenticatedProducer(
 	config := newSaramaProducerConfig(true, compressionNone)
 	config.Net.TLS.Enable = true
 	config.Net.TLS.Config = connection.tlsConfig.Clone()
-	if connection.mode == benchmarkSASLPlain {
+	switch connection.mode {
+	case benchmarkMutualTLS:
+	case benchmarkSASLPlain:
 		config.Net.SASL.Enable = true
 		config.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 		config.Net.SASL.User = connection.username
 		config.Net.SASL.Password = connection.password
+	case benchmarkSCRAMSHA256:
+		configureSaramaSCRAM(
+			config,
+			connection,
+			sarama.SASLTypeSCRAMSHA256,
+			xdgscram.SHA256,
+		)
+	case benchmarkSCRAMSHA512:
+		configureSaramaSCRAM(
+			config,
+			connection,
+			sarama.SASLTypeSCRAMSHA512,
+			xdgscram.SHA512,
+		)
+	default:
+		t.Fatalf("unsupported Sarama authentication mode %d", connection.mode)
 	}
 	producer, err := sarama.NewSyncProducer(connection.brokers, config)
 	if err != nil {
@@ -1109,6 +1242,21 @@ func newSaramaAuthenticatedProducer(
 	}
 
 	return &saramaProducer{producer: producer, topic: topic}
+}
+
+func configureSaramaSCRAM(
+	config *sarama.Config,
+	connection benchmarkAuthenticatedClientConnection,
+	mechanism sarama.SASLMechanism,
+	hash xdgscram.HashGeneratorFcn,
+) {
+	config.Net.SASL.Enable = true
+	config.Net.SASL.Mechanism = mechanism
+	config.Net.SASL.User = connection.username
+	config.Net.SASL.Password = connection.password
+	config.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient {
+		return &benchmarkXDGSCRAMClient{hash: hash}
+	}
 }
 
 func assertBenchmarkAuthenticatedRecords(

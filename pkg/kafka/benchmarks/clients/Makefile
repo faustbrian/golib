@@ -100,6 +100,7 @@ environment:
 		github.com/segmentio/kafka-go \
 		github.com/IBM/sarama \
 		github.com/testcontainers/testcontainers-go/modules/kafka \
+		github.com/xdg-go/scram \
 		golang.org/x/perf
 	@echo 'broker-image=confluentinc/confluent-local:7.5.0@sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd'
 	@echo 'tls-broker-image=apache/kafka:4.3.1@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837'
